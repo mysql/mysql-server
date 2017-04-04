@@ -32,13 +32,15 @@ ELSE ()
   FIND_LIBRARY(SASL_LIBRARY_PATH NAMES "sasl2")
 ENDIF ()
 
-IF(NOT SASL_LIBRARY_PATH)
+MESSAGE(${SASL_LIBRARY_PATH})
+IF(SASL_LIBRARY_PATH)
+  # LDAP authentication SASL client will not build on windows, as windows don't have cyrus sasl.
+  # IF someone like can build the cyrus sasl library on windows and build LDAP authentication sasl client as well.
+  SET(HEADERS_CLIENT auth_ldap_sasl_client.h log_client.h)
+  SET(PLUGIN_CLIENT_SOURCES auth_ldap_sasl_client.cc log_client.cc)
+  ADD_CONVENIENCE_LIBRARY(authentication_ldap_sasl_client ${PLUGIN_CLIENT_SOURCES} ${HEADERS_CLIENT})
+  TARGET_LINK_LIBRARIES(authentication_ldap_sasl_client ${SASL_LIBRARY_PATH})
+ELSE ()
   CROAK_AND_RETURN("Required SASL library is missing.")
 ENDIF()
 
-# LDAP authentication SASL client will not build on windows, as windows don't have cyrus sasl.
-# IF someone like can build the cyrus sasl library on windows and build LDAP authentication sasl client as well.
-SET(HEADERS_CLIENT auth_ldap_sasl_client.h log_client.h)
-SET(PLUGIN_CLIENT_SOURCES auth_ldap_sasl_client.cc log_client.cc)
-ADD_CONVENIENCE_LIBRARY(authentication_ldap_sasl_client ${PLUGIN_CLIENT_SOURCES} ${HEADERS_CLIENT})
-TARGET_LINK_LIBRARIES(authentication_ldap_sasl_client ${SASL_LIBRARY_PATH})
