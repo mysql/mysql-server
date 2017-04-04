@@ -260,7 +260,7 @@ static bool prepare_view_tables_list(THD *thd, const char *db,
         DBUG_RETURN(true);
 
       vw->init_one_table(db_name, schema_name.length(), vw_name,
-                         view_name.length(), nullptr, TL_WRITE, MDL_EXCLUSIVE);
+                         view_name.length(), vw_name, TL_WRITE, MDL_EXCLUSIVE);
 
       views->push_back(vw);
       prepared_view_ids.insert(view_ids.at(idx));
