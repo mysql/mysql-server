@@ -33,3 +33,7 @@ ndb_wl946_post: Need WL#10167 On the fly frm translation
 ndb_column_properties_compat: Need WL#10167 On the fly frm translation
 ndb_dd_restore_check_tablespace_mdl: Need WL#10167 On the fly frm translation
 ndb_restore_compat_compression: Need WL#10167 On the fly frm translation
+
+ndb_basic: Need WL#10665 Extend size of extra table metadata
+ndb_alter_table:  Need WL#10665 Extend size of extra table metadata
+
