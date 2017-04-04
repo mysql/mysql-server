@@ -159,7 +159,8 @@ Ndb_component::deinit()
 #include "ndb_log.h"
 
 
-void Ndb_component::log_verbose(unsigned verbose_level, const char *fmt, ...)
+void Ndb_component::log_verbose(unsigned verbose_level,
+                                const char *fmt, ...) const
 {
   // Print message only if verbose level is set high enough
   if (ndb_log_get_verbose_level() < verbose_level)
@@ -172,7 +173,7 @@ void Ndb_component::log_verbose(unsigned verbose_level, const char *fmt, ...)
 }
 
 
-void Ndb_component::log_error(const char *fmt, ...)
+void Ndb_component::log_error(const char *fmt, ...) const
 {
   va_list args;
   va_start(args, fmt);
@@ -181,7 +182,7 @@ void Ndb_component::log_error(const char *fmt, ...)
 }
 
 
-void Ndb_component::log_warning(const char *fmt, ...)
+void Ndb_component::log_warning(const char *fmt, ...) const
 {
   va_list args;
   va_start(args, fmt);
@@ -190,7 +191,7 @@ void Ndb_component::log_warning(const char *fmt, ...)
 }
 
 
-void Ndb_component::log_info(const char *fmt, ...)
+void Ndb_component::log_info(const char *fmt, ...) const
 {
   va_list args;
   va_start(args, fmt);

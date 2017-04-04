@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -31,6 +31,25 @@ private:
   virtual int do_deinit() { return 0;}
   // Wake up for stop
   virtual void do_wakeup();
+
+  /*
+     The Ndb_binlog_thread is supposed to make a continuous recording
+     of the activity in the cluster to the mysqlds binlog. When this
+     recording is interrupted an incident event(aka. GAP event) is
+     written to the binlog thus allowing consumers of the binlog to
+     notice that the recording is most likely not continuous.
+  */
+  enum Incident_type {
+    // Incident occured because the mysqld was stopped and
+    // is now starting up again
+    MYSQLD_STARTUP,
+    // Incident occured because the mysqld was disconnected
+    // from the cluster
+    CLUSTER_DISCONNECT
+  };
+  bool check_reconnect_incident(THD* thd, class injector* inj,
+                                Incident_type incident_id) const;
+
 };
 
 #endif

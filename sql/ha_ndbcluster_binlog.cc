@@ -6650,6 +6650,56 @@ void Ndb_binlog_thread::do_wakeup()
 }
 
 
+bool
+Ndb_binlog_thread::check_reconnect_incident(THD* thd, injector *inj,
+                                            Incident_type incident_id) const
+{
+  log_verbose(1, "Check for incidents");
+
+  if (incident_id == MYSQLD_STARTUP)
+  {
+    LOG_INFO log_info;
+    mysql_bin_log.get_current_log(&log_info);
+    log_verbose(60, " - current binlog file: %s",
+                log_info.log_file_name);
+
+    uint log_number = 0;
+    if ((sscanf(strend(log_info.log_file_name) - 6, "%u",
+                &log_number) == 1) &&
+        log_number == 1)
+    {
+      /*
+        This is the fist binlog file, skip writing incident since
+        there is really no log to have a gap in
+      */
+      log_verbose(60, " - skipping incident for first log, log_number: %u",
+                  log_number);
+      return false; // No incident written
+    }
+    log_verbose(60, " - current binlog file number: %u", log_number);
+  }
+
+  /*
+    Insert an incident event since it's not possible to know what has
+    happened in the cluster while not being connected.
+  */
+  LEX_STRING const msg[2] =
+  {
+    { C_STRING_WITH_LEN("mysqld startup") },
+    { C_STRING_WITH_LEN("cluster disconnect") }
+  };
+  DBUG_ASSERT(incident_id < NDB_ARRAY_SIZE(msg));
+
+  log_verbose(20, "Writing incident for %s", msg[incident_id].str);
+
+  (void)inj->record_incident(thd,
+                       binary_log::Incident_event::INCIDENT_LOST_EVENTS,
+                       msg[incident_id]);
+
+  return true; // Incident written
+}
+
+
 /*
   Events are handled one epoch at a time.
   Handle the lowest available epoch first.
@@ -6688,17 +6738,14 @@ Ndb_binlog_thread::do_run()
   Ndb *s_ndb= NULL;
   Thd_ndb *thd_ndb=NULL;
   injector *inj= injector::instance();
-  uint incident_id= 0;
   Global_THD_manager *thd_manager= Global_THD_manager::get_instance();
 
   enum { BCCC_starting, BCCC_running, BCCC_restart,  } binlog_thread_state;
 
-  /**
-   * If we get error after having reported incident
-   *   but before binlog started...we do "Restarting Cluster Binlog"
-   *   in that case, don't report incident again
-   */
-  bool do_incident = true;
+  /* Controls that only one incident is written per reconnect */
+  bool do_reconnect_incident = true;
+  /* Controls message of the reconnnect incident */
+  Incident_type reconnect_incident_id = MYSQLD_STARTUP;
 
   DBUG_ENTER("ndb_binlog_thread");
 
@@ -6830,45 +6877,16 @@ restart_cluster_failure:
   thd->init_query_mem_roots();
   lex_start(thd);
 
-  log_verbose(1, "Check for incidents");
-
-  while (do_incident && ndb_binlog_running)
+  if (do_reconnect_incident && ndb_binlog_running)
   {
-    /*
-      check if it is the first log, if so we do not insert a GAP event
-      as there is really no log to have a GAP in
-    */
-    if (incident_id == 0)
+    if (check_reconnect_incident(thd, inj, reconnect_incident_id))
     {
-      LOG_INFO log_info;
-      mysql_bin_log.get_current_log(&log_info);
-      int len=  (uint)strlen(log_info.log_file_name);
-      uint no= 0;
-      if ((sscanf(log_info.log_file_name + len - 6, "%u", &no) == 1) &&
-          no == 1)
-      {
-        /* this is the fist log, so skip GAP event */
-        break;
-      }
+      // Incident written, don't report incident again unless Ndb_binlog_thread
+      // is restarted
+      do_reconnect_incident = false;
     }
-
-    /*
-      Always insert a GAP event as we cannot know what has happened
-      in the cluster while not being connected.
-    */
-    LEX_STRING const msg[2]=
-      {
-        { C_STRING_WITH_LEN("mysqld startup")    },
-        { C_STRING_WITH_LEN("cluster disconnect")}
-      };
-    int ret = inj->record_incident(thd,
-                                   binary_log::Incident_event::INCIDENT_LOST_EVENTS,
-                                   msg[incident_id]);
-    assert(ret == 0); NDB_IGNORE_VALUE(ret);
-    do_incident = false; // Don't report incident again, unless we get started
-    break;
   }
-  incident_id= 1;
+  reconnect_incident_id= CLUSTER_DISCONNECT;
   {
     log_verbose(1, "Wait for cluster to start");
     thd->proc_info= "Waiting for ndbcluster to start";
@@ -7021,7 +7039,7 @@ restart_cluster_failure:
   /*
     Main NDB Injector loop
   */
-  do_incident = true; // If we get disconnected again...do incident report
+  do_reconnect_incident = true; // Report incident if disconnected
   binlog_thread_state= BCCC_running;
 
   /**
