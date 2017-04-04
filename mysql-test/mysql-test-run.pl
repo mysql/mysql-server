@@ -508,7 +508,6 @@ sub main {
     );
   mtr_error("Could not create testcase server port: $!") unless $server;
   my $server_port = $server->sockport();
-  mtr_report("=> Server socket is created.") if IS_WINDOWS;
 
   if ($opt_resfile) {
     resfile_init("$opt_vardir/mtr-results.txt");
@@ -999,6 +998,7 @@ sub run_worker ($) {
   # --------------------------------------------------------------------------
   # Set different ports per thread
   # --------------------------------------------------------------------------
+  mtr_report("=> Reserving ports for worker $thread_num") if IS_WINDOWS;
   set_build_thread_ports($thread_num);
 
   # --------------------------------------------------------------------------
@@ -1994,11 +1994,20 @@ sub set_build_thread_ports($) {
                              ? $max_parallel + int($max_parallel / 4)
                              : 49);
 
+    if (IS_WINDOWS)
+    {
+      mtr_report("=> Build thread initial value: $build_thread");
+      mtr_report("=> Build thread upper limit value: $build_thread_upper");
+      mtr_report("=> Build threads per worker process: ".
+                 "$build_threads_per_thread");
+    }
     while (!$found_free)
     {
       $build_thread= mtr_get_unique_id($build_thread, $build_thread_upper,
                                        $build_threads_per_thread);
 
+      mtr_report("=> Checking build thread $build_thread for worker $thread")
+        if IS_WINDOWS;
       if (!defined $build_thread)
       {
         mtr_error("Could not get a unique build thread id");
@@ -2031,6 +2040,8 @@ sub set_build_thread_ports($) {
     }
   }
 
+  mtr_report("=> Build thread reserved for worker $thread: $build_thread")
+    if IS_WINDOWS;
   $ENV{MTR_BUILD_THREAD}= $build_thread;
 
   # Calculate baseport
