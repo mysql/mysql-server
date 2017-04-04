@@ -23,7 +23,7 @@ INCLUDE_DIRECTORIES(
   ${CMAKE_SOURCE_DIR}/storage/ndb/include/util
   ${CMAKE_BINARY_DIR}/storage/ndb/tools)
 
-IF(NOT WINDOWS)
+IF(NOT WIN32)
 ADD_CONVENIENCE_LIBRARY(ndbtools
   NdbImport.cpp
   NdbImportImpl.cpp
@@ -96,7 +96,7 @@ MYSQL_ADD_EXECUTABLE(ndb_restore
   COMPONENT ClusterTools)
 TARGET_LINK_LIBRARIES(ndb_restore ndbclient_static ndbNDBT)
 
-IF(NOT WINDOWS)
+IF(NOT WIN32)
 MYSQL_ADD_EXECUTABLE(ndb_import
   ndb_import.cpp
   COMPONENT ClusterTools)
