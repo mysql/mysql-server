@@ -4209,14 +4209,15 @@
       also affects placement of temporary files, which are created in
       <b>var/tmp</b>.
 
-      The default list includes <b>/dev/shm</b>. You can also enable
-      this option by setting the environment variable
-      <b>MTR_MEM[=<em>dir_name</em>]</b>. If <b><em>dir_name</em></b>
-      is given, it is added to the beginning of the list of locations
-      to search, so it takes precedence over any built-in locations.
+      The default list includes <b>/dev/shm</b>, <b>/run/shm</b> and
+      <b>/tmp</b>. You can also enable this option by setting the
+      environment variable <b>MTR_MEM[=<em>dir_name</em>]</b>. If
+      <b><em>dir_name</em></b> is given, it is added to the beginning
+      of the list of locations to search, so it takes precedence over
+      any built-in locations.
 
       Once you have run tests with <b>`--mem`</b> within a
-      <b>mysql-test</b>directory, a soflink <b>var</b> will have been
+      <b>mysql-test</b> directory, a soflink <b>var</b> will have been
       set up to the temporary directory, and this will be re-used the
       next time, until the soflink is deleted. Thus, you do not have
       to repeat the <b>`--mem`</b> option next time.
