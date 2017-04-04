@@ -186,7 +186,9 @@ get_processinfo_port()
 static const char *
 get_processinfo_host()
 {
-  const char * host = report_host;
+  const char * host = 0;
+#ifndef EMBEDDED_LIBRARY
+  host = report_host;
   if(! host)
   {
     host = my_bind_addr_str;
@@ -197,6 +199,7 @@ get_processinfo_host()
       host = 0;
     }
   }
+#endif
   return host;
 }
 
