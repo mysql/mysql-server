@@ -1,0 +1,45 @@
+--source include/have_openssl_binary.inc
+
+--echo #
+--echo # Bug#25738491 - IBD2SDI TOOL CAN HAVE BETTER VALIDATION OF FILE FORMATS
+--echo #
+
+--let $MYSQLD_DATADIR=`SELECT @@datadir`
+--source include/shutdown_mysqld.inc
+
+--echo # Execute MYSQL_SSL_RSA_SETUP to create .pem files
+--exec $MYSQL_SSL_RSA_SETUP --datadir=$MYSQLD_DATADIR
+
+--echo # Test with ca-key.pm
+--error 1
+--exec $IBD2SDI $MYSQLD_DATADIR/ca-key.pem 2>&1
+
+--echo # Test with ca.pm
+--error 1
+--exec $IBD2SDI $MYSQLD_DATADIR/ca.pem 2>&1
+
+--echo # Test with client-cert.pem
+--error 1
+--exec $IBD2SDI $MYSQLD_DATADIR/client-cert.pem 2>&1
+
+--echo # Test with client-key.pm
+--error 1
+--exec $IBD2SDI $MYSQLD_DATADIR/client-key.pem 2>&1
+
+--echo # Test with private_key.pem
+--error 1
+--exec $IBD2SDI $MYSQLD_DATADIR/private_key.pem 2>&1
+
+--echo # Test with public_key.pem
+--error 1
+--exec $IBD2SDI $MYSQLD_DATADIR/public_key.pem 2>&1
+
+--echo # Test with server-cert.pem
+--error 1
+--exec $IBD2SDI $MYSQLD_DATADIR/server-cert.pem 2>&1
+
+--echo # Test with server-key.pem
+--error 1
+--exec $IBD2SDI $MYSQLD_DATADIR/server-key.pem 2>&1
+
+--source include/start_mysqld.inc

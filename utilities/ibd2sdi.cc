@@ -929,10 +929,12 @@ private:
 	/** Determine page_size by reading MAX_PAGES_TO_SCAN pages (or actual
 	number of pages if less) and verifying the checksums.
 	@param[in]	file_in		File pointer
-	@return page_size determined. */
-	page_size_t
+	@param[in,out]	page_size	determined page size
+	@return true if valid page_size is determined, else false */
+	bool
 	determine_page_size(
-		File		file_in);
+		File		file_in,
+		page_size_t&	page_size);
 
 	/** Determine the minimum corruption ratio and update page_size.
 	@param[in]	file_in		file pointer
@@ -970,13 +972,17 @@ private:
 		page_size_t&	page_size);
 
 	/** Get the page size of the tablespace from the tablespace header.
-	@param[in]	buf	buffer used to read the page.
-	@param[in]	file_in	File handle
-	@return page size */
-	const page_size_t
+	If tablespace header is corrupted, we will determine the page size by
+	reading some other pages and calculating checksums.
+	@param[in]	buf		buffer which contains first page of tablespace
+	@param[in]	file_in		File handle
+	@param[in,out]	page_size	page_size that is determined
+	@return true if page_size is determined, else false */
+	bool
 	get_page_size(
 		const byte*	buf,
-		File		file_in);
+		File		file_in,
+		page_size_t&	page_size);
 
 	/** The total number of files passed to the tool. */
 	uint32_t		m_num_files;
@@ -1044,10 +1050,17 @@ tablespace_creator::create()
 		if (i == 0) {
 			/* First data file of system tablespace
 			or single table tablespace */
+
+			page_size_t	page_size(univ_page_size);
+
+			bool	success = get_page_size(buf, file_in, page_size);
+
+			if (!success) {
+				DBUG_RETURN(true);
+			}
+
 			ut_ad(first_page_num == 0);
 
-			const page_size_t	page_size =
-				get_page_size(buf, file_in);
 			page_no_t	pages = static_cast<page_no_t>(
 				size / page_size.physical());
 
@@ -1167,26 +1180,31 @@ tablespace_creator::create()
 /** Get the page size of the tablespace from the tablespace header.
 If tablespace header is corrupted, we will determine the page size by
 reading some other pages and calculating checksums.
-@param[in]	buf	buffer which contains first page of tablespace
-@param[in]	file_in	File handle
-@return page size */
-const page_size_t
+@param[in]	buf		buffer which contains first page of tablespace
+@param[in]	file_in		File handle
+@param[in,out]	page_size	page_size that is determined
+@return true if page_size is determined, else false */
+bool
 tablespace_creator::get_page_size(
 	const byte*	buf,
-	File		file_in)
+	File		file_in,
+	page_size_t&	page_size)
 {
 	const ulint	flags = fsp_header_get_flags(buf);
-	const ulint	ssize = FSP_FLAGS_GET_PAGE_SSIZE(flags);
+	bool		is_valid_flags = fsp_flags_is_valid(flags);
 
-	if (ssize == 0) {
-		srv_page_size = UNIV_PAGE_SIZE_ORIG;
-	} else {
-		srv_page_size = ((UNIV_ZIP_SIZE_MIN >> 1) << ssize);
+	if (is_valid_flags) {
+		const ulint	ssize = FSP_FLAGS_GET_PAGE_SSIZE(flags);
+
+		if (ssize == 0) {
+			srv_page_size = UNIV_PAGE_SIZE_ORIG;
+		} else {
+			srv_page_size = ((UNIV_ZIP_SIZE_MIN >> 1) << ssize);
+		}
+		srv_page_size_shift = page_size_validate(srv_page_size);
 	}
 
-	srv_page_size_shift = page_size_validate(srv_page_size);
-
-	if (srv_page_size_shift == 0) {
+	if (!is_valid_flags || srv_page_size_shift == 0) {
 
 		page_size_t	min_valid_size(UNIV_ZIP_SIZE_MIN,
 		UNIV_PAGE_SIZE_MIN, true);
@@ -1203,7 +1221,11 @@ tablespace_creator::get_page_size(
 		ib::error() << "Reading multiple pages to determine the"
 			" page_size";
 
-		page_size_t	page_size = determine_page_size(file_in);
+		bool	success = determine_page_size(file_in, page_size);
+
+		if (!success) {
+			return(false);
+		}
 
 		srv_page_size = static_cast<ulong>(page_size.logical());
 		srv_page_size_shift = page_size_validate(srv_page_size);
@@ -1213,13 +1235,16 @@ tablespace_creator::get_page_size(
 		univ_page_size.copy_from(
 			page_size_t(srv_page_size, srv_page_size, false));
 
-		return(page_size);
+		return(true);
 	}
+
+	ut_ad(srv_page_size_shift != 0);
 
 	univ_page_size.copy_from(
 		page_size_t(srv_page_size, srv_page_size, false));
 
-	return(page_size_t(flags));
+	page_size.copy_from(page_size_t(flags));
+	return(true);
 }
 
 /** Determine the minimum corruption ratio and update page_size.
@@ -1254,10 +1279,12 @@ tablespace_creator::determine_min_corruption_ratio(
 /** Determine page_size by reading MAX_PAGES_TO_SCAN pages (or actual
 number of pages if less) and verifying the checksums.
 @param[in]	file_in		File pointer
-@return page_size determined. */
-page_size_t
+@param[in,out]	page_size	determined page size
+@return true if valid page_size is determined, else false */
+bool
 tablespace_creator::determine_page_size(
-	File		file_in)
+	File		file_in,
+	page_size_t&	page_size)
 {
 	uint64_t	size;
 	page_size_t	final_page_size(0, 0, false);
@@ -1313,9 +1340,14 @@ tablespace_creator::determine_page_size(
 		}
 	}
 
-	ut_ad(min_corruption_ratio < 1.0);
-	ib::info() << "Page size determined is : " << final_page_size;
-	return(final_page_size);
+	if (min_corruption_ratio == 1.0) {
+		ib::error() << "Page size couldn't be determined";
+		return(false);
+	} else {
+		ib::info() << "Page size determined is : " << final_page_size;
+		page_size.copy_from(final_page_size);
+		return(true);
+	}
 }
 
 /** Verify checksum of the page and return corruption ratio
