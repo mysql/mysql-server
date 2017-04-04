@@ -37,3 +37,9 @@ ndb_restore_compat_compression: Need WL#10167 On the fly frm translation
 ndb_basic: Need WL#10665 Extend size of extra table metadata
 ndb_alter_table:  Need WL#10665 Extend size of extra table metadata
 
+# Tests does not autotect tables created from NdbApi tools(like ndb_restore)
+ndb_restore_schema_subsets: Need WL#9185 MySQL Cluster support for new DD
+ndb_fk_bugs: Need WL#9185 MySQL Cluster support for new DD
+ndb_alter_table_online: Need WL#9185 MySQL Cluster support for new DD
+ndb_fk_restore: Need WL#9185 MySQL Cluster support for new DD
+
