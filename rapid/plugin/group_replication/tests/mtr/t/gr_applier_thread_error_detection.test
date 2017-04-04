@@ -10,6 +10,7 @@
 # 4) Clean the state.
 ################################################################################
 
+--source include/big_test.inc
 --source ../inc/have_group_replication_plugin.inc
 --source ../inc/group_replication.inc
 

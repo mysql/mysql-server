@@ -19,6 +19,7 @@
 #   7. Clean up.
 ################################################################################
 
+--source include/big_test.inc
 --let $group_replication_group_name= a5980950-41c7-11e5-b970-0800200c9a66
 --source ../inc/have_group_replication_plugin.inc
 --let $rpl_skip_group_replication_start= 1

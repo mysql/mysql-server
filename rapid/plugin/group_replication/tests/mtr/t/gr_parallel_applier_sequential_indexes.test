@@ -10,6 +10,7 @@
 #   2) Empty transactions
 #   3) Management commands, like CREATE USER
 #
+--source include/big_test.inc
 --source ../inc/have_group_replication_plugin.inc
 
 --echo

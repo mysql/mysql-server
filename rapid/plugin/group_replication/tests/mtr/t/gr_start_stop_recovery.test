@@ -16,6 +16,7 @@
 # 6. Clean up.
 ################################################################################
 
+--source include/big_test.inc
 --source include/have_debug.inc
 --source include/have_debug_sync.inc
 --let $group_replication_group_name= 572e4320-cd68-11e4-8830-0800200c9a66

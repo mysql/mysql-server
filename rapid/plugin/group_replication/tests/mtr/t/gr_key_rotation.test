@@ -17,6 +17,7 @@
 # 3. Clean Up.
 ###############################################################################
 
+--source include/big_test.inc
 # Ensure that plugin is installed.
 --source ../inc/have_group_replication_plugin_base.inc
 
