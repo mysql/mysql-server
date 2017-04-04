@@ -1646,6 +1646,7 @@ node_id	DataMemory
 1	20M
 2	20M
 
+
 desc ndb$processes;
 Field	Type	Null	Key	Default	Extra
 reporting_node_id	int(10) unsigned	YES		NULL	
