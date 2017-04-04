@@ -3263,7 +3263,9 @@ static auth_plugin_t sha256_password_client_plugin=
 #ifdef AUTHENTICATION_WIN
 extern "C" auth_plugin_t win_auth_client_plugin;
 #endif
-
+#ifdef AUTHENTICATION_LDAP_SASL_CLIENT
+extern auth_plugin_t ldap_auth_client_plugin;
+#endif
 /*
   Test trace plugin can be used only in debug builds. In non-debug ones
   it is ignored, even if it was enabled by build options (TEST_TRACE_PLUGIN macro).
@@ -3284,6 +3286,9 @@ struct st_mysql_client_plugin *mysql_client_builtins[]=
 #endif
 #ifdef AUTHENTICATION_WIN
   (struct st_mysql_client_plugin *)&win_auth_client_plugin,
+#endif
+#ifdef AUTHENTICATION_LDAP_SASL_CLIENT
+  (struct st_mysql_client_plugin *)&ldap_auth_client_plugin,
 #endif
 #if defined(CLIENT_PROTOCOL_TRACING) \
     && defined(TEST_TRACE_PLUGIN) \

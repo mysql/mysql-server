@@ -16024,14 +16024,10 @@ get_foreign_key_info(
 
 		if (ref_table == NULL) {
 
-			if (!thd_test_options(
-				thd, OPTION_NO_FOREIGN_KEY_CHECKS)) {
-				ib::info()
-					<< "Foreign Key referenced table "
-					<< foreign->referenced_table_name
-					<< " not found for foreign table "
-					<< foreign->foreign_table_name;
-			}
+			ib::info() << "Foreign Key referenced table "
+				   << foreign->referenced_table_name
+				   << " not found for foreign table "
+				   << foreign->foreign_table_name;
 		} else {
 
 			dict_table_close(ref_table, TRUE, FALSE);
