@@ -31,6 +31,7 @@
 #include "NdbImportCsv.hpp"
 // STL
 #include <map>
+#include <algorithm>
 
 class NdbImportImpl : public NdbImport {
 public:
