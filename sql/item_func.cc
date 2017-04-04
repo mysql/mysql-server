@@ -7638,7 +7638,7 @@ Audit_global_variable_get_event::Audit_global_variable_get_event(
                        m_item->var->check_scope(OPT_GLOBAL));
 
   // Event is already audited for the same query.
-  bool event_is_audited= m_item->cache_present != 0 ||
+  bool event_is_audited= m_item->cache_present != 0 &&
                          m_item->used_query_id == m_thd->query_id;
 
   m_audit_event= (is_global_var && !event_is_audited);
