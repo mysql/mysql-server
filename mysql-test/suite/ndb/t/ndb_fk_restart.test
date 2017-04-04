@@ -2,20 +2,18 @@
 -- source ndb_mgm.inc
 -- source ndb_waiter.inc
 
-# Generate some rows
+# Create rows table and fill with 1000 rows
 create table rows(a int primary key) engine=ndb;
 
-set @N=0; 
-insert into rows(a) 
-  select @N:=@N+1 
-   from mysql.user a, 
-        mysql.user b, 
-        mysql.user c, 
-        mysql.user d, 
-        mysql.user e, 
-        mysql.user f, 
-        mysql.user g 
-   limit 1000;
+--disable_query_log
+let $i = 0;
+while($i < 1000)
+{
+ eval insert into rows(a) values ($i);
+ inc $i;
+}
+--enable_query_log
+select count(a) from rows;
 
 create table p1 (name varchar(255),
                  id int(11) auto_increment,

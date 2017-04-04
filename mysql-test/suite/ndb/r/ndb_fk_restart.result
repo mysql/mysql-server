@@ -1,15 +1,7 @@
 create table rows(a int primary key) engine=ndb;
-set @N=0;
-insert into rows(a) 
-select @N:=@N+1 
-from mysql.user a, 
-mysql.user b, 
-mysql.user c, 
-mysql.user d, 
-mysql.user e, 
-mysql.user f, 
-mysql.user g 
-limit 1000;
+select count(a) from rows;
+count(a)
+1000
 create table p1 (name varchar(255),
 id int(11) auto_increment,
 parent_id int,
