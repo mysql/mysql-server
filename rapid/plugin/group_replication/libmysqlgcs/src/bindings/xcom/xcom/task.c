@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1311,13 +1311,21 @@ static int	init_sockaddr(char *server, struct sockaddr_in *sock_addr,
                           socklen_t *sock_size, xcom_port port)
 {
 	/* Get address of server */
-	struct addrinfo *addr = caching_getaddrinfo(server);
+	struct addrinfo *addr = 0;
+
+	checked_getaddrinfo(server, 0, 0, &addr);
+
 	if (!addr)
 		return 0;
+
 	/* Copy first address */
 	memcpy(sock_addr, addr->ai_addr, addr->ai_addrlen);
 	*sock_size = addr->ai_addrlen;
 	sock_addr->sin_port = htons(port);
+
+	/* Clean up allocated memory by getaddrinfo */
+	freeaddrinfo(addr);
+
 	return 1;
 }
 
