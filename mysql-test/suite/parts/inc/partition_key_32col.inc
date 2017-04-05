@@ -1,5 +1,6 @@
 --error ER_TOO_MANY_PARTITION_FUNC_FIELDS_ERROR
 eval create table t1 (a date not null, b varchar(50) not null, c varchar(50) not null, d enum('m', 'w') not null, e int not null, f decimal (18,2) not null, g bigint not null, h tinyint not null, a1 date not null, b1 varchar(50) not null, c1 varchar(50) not null, d1 enum('m', 'w') not null, e1 int not null, f1 decimal (18,2) not null, g1 bigint not null, h1 tinyint not null, a2 date not null, b2 varchar(50) not null, c2 varchar(50) not null, d2 enum('m', 'w') not null, e2 int not null, f2 decimal (18,2) not null, g2 bigint not null, h2 tinyint not null, a3 date not null, b3 varchar(50) not null, c3 varchar(50) not null, d3 enum('m', 'w') not null, e3 int not null, f3 decimal (18,2) not null, g3 bigint not null, h3 tinyint not null, i char(255), primary key(a,b,c,d,e,f,g,h,a1,b1,c1,d1,e1,f1,g1,h1,a2,b2,c2,d2,e2,f2,g2,h2,a3,b3,c3,d3,e3,f3,g3,h3)) engine=$engine 
+charset latin1
 partition by key(a,b,c,d,e,f,g,h,a1,b1,c1,d1,e1,f1,g1,h1,a2,b2,c2,d2,e2,f2,g2,h2,a3,b3,c3,d3,e3,f3,g3,h3) (
 partition pa1 max_rows=20 min_rows=2,
 partition pa2 max_rows=30 min_rows=3,
@@ -7,6 +8,7 @@ partition pa3 max_rows=30 min_rows=4,
 partition pa4 max_rows=40 min_rows=2);
 
 eval create table t1 (a date not null, b varchar(50) not null, c varchar(50) not null, d enum('m', 'w') not null, e int not null, f decimal (18,2) not null, g bigint not null, h tinyint not null, a1 date not null, b1 varchar(50) not null, c1 varchar(50) not null, d1 enum('m', 'w') not null, e1 int not null, f1 decimal (18,2) not null, g1 bigint not null, h1 tinyint not null, a2 date not null, b2 varchar(50) not null, c2 varchar(50) not null, d2 enum('m', 'w') not null, e2 int not null, f2 decimal (18,2) not null, g2 bigint not null, h2 tinyint not null, a3 date not null, b3 varchar(50) not null, c3 varchar(50) not null, d3 enum('m', 'w') not null, e3 int not null, f3 decimal (18,2) not null, g3 bigint not null, h3 tinyint not null, i char(255), primary key(a,b,c,d,e,f,g,h,a1,b1,c1,d1,e1,f1,g1,h1)) engine=$engine 
+charset latin1
 partition by key(a,b,c,d,e,f,g,h) (
 partition pa1 max_rows=20 min_rows=2,
 partition pa2 max_rows=30 min_rows=3,

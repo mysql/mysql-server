@@ -36,7 +36,7 @@ emp	CREATE TABLE `emp` (
   `store_name` varchar(30) DEFAULT NULL,
   `parts` varchar(30) DEFAULT NULL,
   `store_id` int(11) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 /*!50100 PARTITION BY RANGE (store_id)
 SUBPARTITION BY HASH (store_id)
 (PARTITION northeast VALUES LESS THAN (50)
@@ -104,7 +104,7 @@ emp	CREATE TABLE `emp` (
   `store_name` varchar(30) DEFAULT NULL,
   `parts` varchar(30) DEFAULT NULL,
   `store_id` int(11) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 /*!50100 PARTITION BY RANGE (store_id)
 SUBPARTITION BY HASH (store_id)
 (PARTITION east VALUES LESS THAN (25)

@@ -10,9 +10,6 @@
 # Original Date: 2008-06-27                                                    #
 ################################################################################
 
-# WL#7554: Added setting --bootstrap --character-set-server=latin1
-# in the opt file. This test should be migrated to utf8mb4.
-
 #
 # NOTE: PLEASE DO NOT ADD NOT INNODB SPECIFIC TESTCASES HERE !
 #       TESTCASES WHICH MUST BE APPLIED TO ALL STORAGE ENGINES MUST BE ADDED IN
