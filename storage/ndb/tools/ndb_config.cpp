@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -75,6 +75,7 @@ static int g_verbose = 0;
 
 static int g_nodes, g_connections, g_system, g_section;
 static const char * g_query = 0;
+static int g_query_all = 0;
 
 static int g_nodeid = 0;
 static const char * g_type = 0;
@@ -136,6 +137,9 @@ static struct my_option my_long_options[] =
   { "config_from_node", NDB_OPT_NOSHORT, "Use current config from node with given nodeid",
     (uchar**) &g_config_from_node, (uchar**) &g_config_from_node,
     0, GET_INT, REQUIRED_ARG, INT_MIN, INT_MIN, 0, 0, 0, 0},
+  { "query_all", 'a', "Query all the options",
+    (uchar**)&g_query_all, (uchar**)&g_query_all,
+    0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
@@ -173,21 +177,29 @@ struct HostMatch : public Match
 struct Apply
 {
   Apply() {}
-  Apply(int val) { m_key = val;}
+  Apply(const char *s):m_name(s) {}
+  BaseString m_name;
+  virtual int apply(const Iter&) = 0;
+  virtual ~Apply() {}
+};
+
+
+struct ParamApply : public Apply
+{
+  ParamApply(int val,const char *s) :Apply(s), m_key(val) {}
   int m_key;
   virtual int apply(const Iter&);
-  virtual ~Apply() {}
 };
 
 struct NodeTypeApply : public Apply
 {
-  NodeTypeApply() {}
+  NodeTypeApply(const char *s) :Apply(s) {}
   virtual int apply(const Iter&);
 };
 
 struct ConnectionTypeApply : public Apply
 {
-  ConnectionTypeApply() {}
+  ConnectionTypeApply(const char *s) :Apply(s) {}
   virtual int apply(const Iter&);
 };
 
@@ -205,6 +217,7 @@ main(int argc, char** argv){
   ndb_opt_set_usage_funcs(short_usage_sub, usage);
   ndb_load_defaults(NULL,load_default_groups,&argc,&argv);
   int ho_error;
+  bool print_headers = false;
   if ((ho_error=handle_options(&argc, &argv, my_long_options,
 			       ndb_std_get_one_option)))
     exit(255);
@@ -274,6 +287,17 @@ main(int argc, char** argv){
   if(strcmp(g_field_delimiter, "\\n") == 0)
     g_field_delimiter = "\n";
 
+  if (g_query_all)
+  {
+    if (g_query)
+    {
+      fprintf(stderr,
+          "Error: Only one of the options: --query_all, --query is allowed.\n");
+      exit(0);
+    }
+    print_headers = true;
+  }
+
   if(parse_query(select_list, argc, argv))
   {
     exit(0);
@@ -282,6 +306,17 @@ main(int argc, char** argv){
   if(parse_where(where_clause, argc, argv))
   {
     exit(0);
+  }
+
+  if (print_headers)
+  {
+    printf("%s", select_list[0]->m_name.c_str());
+    for (unsigned i = 1; i < select_list.size(); i++)
+    {
+      printf("%s", g_field_delimiter);
+      printf("%s", select_list[i]->m_name.c_str());
+    }
+    printf("%s", g_row_delimiter);
   }
 
   Iter iter(* conf, g_section);
@@ -303,6 +338,91 @@ main(int argc, char** argv){
 
 static
 int
+helper(Vector<Apply*>& select, const char * str)
+{
+  bool all = false;
+  bool retflag = false;
+
+  if (g_query_all)
+  {
+    all = true;
+  }
+
+  if (g_section == CFG_SECTION_NODE)
+  {
+    if (all)
+    {
+      select.push_back(new ParamApply(CFG_NODE_ID, "nodeid"));
+      select.push_back(new ParamApply(CFG_NODE_HOST, "host"));
+      select.push_back(new NodeTypeApply("type"));
+    }
+    else if (native_strcasecmp(str, "nodeid") == 0)
+    {
+      select.push_back(new ParamApply(CFG_NODE_ID, "nodeid"));
+      retflag = true;
+    }
+    else if (native_strncasecmp(str, "host", 4) == 0)
+    {
+      select.push_back(new ParamApply(CFG_NODE_HOST, "host"));
+      retflag = true;
+    }
+    else if (native_strcasecmp(str, "type") == 0)
+    {
+      select.push_back(new NodeTypeApply("type"));
+      retflag = true;
+    }
+  }
+  else if (g_section == CFG_SECTION_CONNECTION)
+  {
+    if (all || native_strcasecmp(str, "type") == 0)
+    {
+      select.push_back(new ConnectionTypeApply("type"));
+      retflag = true;
+    }
+  }
+  if (all || !retflag)
+  {
+    bool found = false;
+    for (int p = 0; p < ConfigInfo::m_NoOfParams; p++)
+    {
+      if (0)ndbout_c("%s %s",
+          ConfigInfo::m_ParamInfo[p]._section,
+          ConfigInfo::m_ParamInfo[p]._fname);
+      if ((g_section == CFG_SECTION_CONNECTION &&
+        (strcmp(ConfigInfo::m_ParamInfo[p]._section, "TCP") == 0 ||
+          strcmp(ConfigInfo::m_ParamInfo[p]._section, "SCI") == 0 ||
+          strcmp(ConfigInfo::m_ParamInfo[p]._section, "SHM") == 0))
+        ||
+        (g_section == CFG_SECTION_NODE &&
+        (strcmp(ConfigInfo::m_ParamInfo[p]._section, "DB") == 0 ||
+          strcmp(ConfigInfo::m_ParamInfo[p]._section, "API") == 0 ||
+          strcmp(ConfigInfo::m_ParamInfo[p]._section, "MGM") == 0))
+        ||
+        (g_section == CFG_SECTION_SYSTEM))
+      {
+        if (all || native_strcasecmp(ConfigInfo::m_ParamInfo[p]._fname, str) == 0)
+        {
+          select.push_back(new ParamApply(ConfigInfo::m_ParamInfo[p]._paramId,
+            ConfigInfo::m_ParamInfo[p]._fname));
+          if (!all)
+          {
+            found = true;
+            break;
+          }
+        }
+      }
+    }
+    if (!all && !found)
+    {
+      fprintf(stderr, "Unknown query option: %s\n", str);
+      return 1;
+    }
+  }
+  return 0;
+}
+
+static
+int
 parse_query(Vector<Apply*>& select, int &argc, char**& argv)
 {
   if(g_query)
@@ -313,66 +433,15 @@ parse_query(Vector<Apply*>& select, int &argc, char**& argv)
     for(unsigned i = 0; i<list.size(); i++)
     {
       const char * str= list[i].c_str();
-      if(g_section == CFG_SECTION_NODE)
+      if (helper(select, str))
       {
-	if(native_strcasecmp(str, "nodeid") == 0)
-	{
-	  select.push_back(new Apply(CFG_NODE_ID));
-	  continue;
-	}
-	else if(native_strncasecmp(str, "host", 4) == 0)
-	{
-	  select.push_back(new Apply(CFG_NODE_HOST));
-	  continue;
-	}
-	else if(native_strcasecmp(str, "type") == 0)
-	{
-	  select.push_back(new NodeTypeApply());
-	  continue;
-	}
-      }
-      else if (g_section == CFG_SECTION_CONNECTION)
-      {
-	if(native_strcasecmp(str, "type") == 0)
-	{
-	  select.push_back(new ConnectionTypeApply());
-	  continue;
-	}
-      }
-      {
-	bool found = false;
-	for(int p = 0; p<ConfigInfo::m_NoOfParams; p++)
-	{
-	  if(0)ndbout_c("%s %s",
-			ConfigInfo::m_ParamInfo[p]._section,
-			ConfigInfo::m_ParamInfo[p]._fname);
-	  if((g_section == CFG_SECTION_CONNECTION &&
-              (strcmp(ConfigInfo::m_ParamInfo[p]._section, "TCP") == 0 ||
-               strcmp(ConfigInfo::m_ParamInfo[p]._section, "SCI") == 0 ||
-               strcmp(ConfigInfo::m_ParamInfo[p]._section, "SHM") == 0))
-             ||
-	     (g_section == CFG_SECTION_NODE &&
-              (strcmp(ConfigInfo::m_ParamInfo[p]._section, "DB") == 0 ||
-               strcmp(ConfigInfo::m_ParamInfo[p]._section, "API") == 0 ||
-               strcmp(ConfigInfo::m_ParamInfo[p]._section, "MGM") == 0))
-             ||
-	     (g_section == CFG_SECTION_SYSTEM))
-	  {
-	    if(native_strcasecmp(ConfigInfo::m_ParamInfo[p]._fname, str) == 0)
-	    {
-	      select.push_back(new Apply(ConfigInfo::m_ParamInfo[p]._paramId));
-	      found = true;
-	      break;
-	    }
-	  }
-	}
-	if(!found)
-	{
-	  fprintf(stderr, "Unknown query option: %s\n", str);
-	  return 1;
-	}
+        return 1;
       }
     }
+  }
+  if (g_query_all)
+  {
+    return helper(select, NULL);
   }
   return 0;
 }
@@ -517,7 +586,7 @@ HostMatch::eval(const Iter& iter)
 }
 
 int
-Apply::apply(const Iter& iter)
+ParamApply::apply(const Iter& iter)
 {
   Uint32 val32;
   Uint64 val64;
