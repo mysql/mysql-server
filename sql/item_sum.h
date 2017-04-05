@@ -974,7 +974,15 @@ public:
   {
     return get_time_from_numeric(ltime); /* Decimal or real */
   }
-  bool is_null() override { update_null_value(); return null_value; }
+  bool is_null() override
+  {
+    /*
+      TODO : Implement error handling for this function as
+      update_null_value() can return error.
+    */
+    (void) update_null_value();
+    return null_value;
+  }
 };
 
 

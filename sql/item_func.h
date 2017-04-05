@@ -294,7 +294,11 @@ public:
     return (null_value= args[0]->get_time(ltime));
   }
   bool is_null() override {
-    update_null_value();
+    /*
+      TODO : Implement error handling for this function as
+      update_null_value() can return error.
+    */
+    (void )update_null_value();
     return null_value;
   }
   void signal_divide_by_null();
@@ -724,7 +728,15 @@ public:
   */
   virtual bool date_op(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)= 0;
   virtual bool time_op(MYSQL_TIME *ltime)= 0;
-  bool is_null() override { update_null_value(); return null_value; }
+  bool is_null() override
+  {
+    /*
+      TODO : Implement error handling for this function as
+      update_null_value() can return error.
+    */
+    (void) update_null_value();
+    return null_value;
+  }
 };
 
 /* function where type of result detected by first argument */

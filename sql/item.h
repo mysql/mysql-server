@@ -1896,7 +1896,7 @@ public:
   virtual bool is_null() { return 0; }
 
   /// Make sure the null_value member has a correct value.
-  void update_null_value();
+  bool update_null_value();
 
   /*
     Inform the item that there will be no distinction between its result

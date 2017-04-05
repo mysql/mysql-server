@@ -149,7 +149,11 @@ public:
   enum Type type() const override;
   bool is_null() override
   {
-    update_null_value();
+    /*
+      TODO : Implement error handling for this function as
+      update_null_value() can return error.
+    */
+    (void) update_null_value();
     return null_value;
   }
   bool fix_fields(THD *thd, Item **ref) override;

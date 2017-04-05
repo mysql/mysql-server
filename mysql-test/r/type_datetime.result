@@ -891,3 +891,23 @@ Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be r
 #
 # End of 5.6 tests
 #
+#
+#Bug#25586673: ASSERT IN DA FOR SQL_CMD_UPDATE::UPDATE_SINGLE_TABLE
+#Bug#25586959: SERVER CRASH IN SQL_CMD_DELETE::DELETE_FROM_SINGLE_TABLE
+#
+CREATE TABLE test.t(col_varchar_nokey VARCHAR(1) NOT NULL,
+col_time_nokey time NOT NULL,
+col_int_nokey INT NOT NULL,
+col_datetime_key datetime not null,
+key(col_datetime_key)) ENGINE= InnoDB;
+DELETE FROM test.t WHERE `col_int_nokey` > `col_int_nokey`
+                         AND TIMESTAMP( '18:16:35.025453' ) IS  NULL;
+ERROR 22007: Incorrect datetime value: '18:16:35.025453'
+UPDATE test.t SET `col_varchar_nokey` = TIMESTAMP(`col_time_nokey`,'00:00:00')
+WHERE `col_int_nokey` > `col_int_nokey`
+        AND TIMESTAMP('18:16:35.025453') IS  NULL;
+ERROR 22007: Incorrect datetime value: '18:16:35.025453'
+UPDATE test.t SET `col_datetime_key` = `col_datetime_key` WHERE
+`col_datetime_key` <=> FROM_UNIXTIME(1151860736,CONCAT_WS(':','%D','%v'));
+ERROR 22007: Incorrect datetime value: '2nd:26' for column 'col_datetime_key' at row 1
+DROP TABLE test.t;

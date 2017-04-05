@@ -71,21 +71,23 @@ using std::max;
   Check and adjust a time value with a warning.
 
   @param ltime    Time variable.
-  @param decimals Precision. 
+  @param decimals Precision.
   @retval         True on error, false of success.
 */
-static void
+static bool
 adjust_time_range_with_warn(MYSQL_TIME *ltime, uint8 decimals)
 {
   /* Fatally bad value should not come here */
   if (check_time_range_quick(ltime))
   {
     int warning= 0;
-    make_truncated_value_warning(current_thd, Sql_condition::SL_WARNING,
-                                 ErrConvString(ltime, decimals),
-                                 MYSQL_TIMESTAMP_TIME, NullS);
+    if (make_truncated_value_warning(current_thd, Sql_condition::SL_WARNING,
+                                     ErrConvString(ltime, decimals),
+                                     MYSQL_TIMESTAMP_TIME, NullS))
+      return true;
     adjust_time_range(ltime, &warning);
   }
+  return false;
 }
 
 
@@ -503,9 +505,10 @@ static bool extract_date_time(const Date_time_format *format,
       if (!my_isspace(&my_charset_latin1,*val))
       {
         // TS-TODO: extract_date_time is not UCS2 safe
-        make_truncated_value_warning(current_thd, Sql_condition::SL_WARNING,
-                                     ErrConvString(val_begin, length),
-                                     cached_timestamp_type, NullS);
+        if (make_truncated_value_warning(current_thd, Sql_condition::SL_WARNING,
+                                         ErrConvString(val_begin, length),
+                                         cached_timestamp_type, NullS))
+          goto err;
 	break;
       }
     } while (++val != val_end);
@@ -2065,15 +2068,14 @@ bool Item_func_sec_to_time::get_time(MYSQL_TIME *ltime)
   if (my_decimal2lldiv_t(0, val, &seconds))
   {
     set_max_time(ltime, val->sign());
-    make_truncated_value_warning(current_thd, Sql_condition::SL_WARNING,
-                                 ErrConvString(val), MYSQL_TIMESTAMP_TIME,
-                                 NullS);
-    return false;
+    return make_truncated_value_warning(current_thd, Sql_condition::SL_WARNING,
+                                        ErrConvString(val),
+                                        MYSQL_TIMESTAMP_TIME, NullS);
   }
   if (sec_to_time(seconds, ltime))
-    make_truncated_value_warning(current_thd, Sql_condition::SL_WARNING,
-                                 ErrConvString(val),
-                                 MYSQL_TIMESTAMP_TIME, NullS);
+    return make_truncated_value_warning(current_thd, Sql_condition::SL_WARNING,
+                                        ErrConvString(val),
+                                        MYSQL_TIMESTAMP_TIME, NullS);
   return false;
 }
 
@@ -2884,7 +2886,8 @@ bool Item_func_add_time::val_datetime(MYSQL_TIME *time,
   }
   time->time_type= MYSQL_TIMESTAMP_TIME;
   time->hour+= days*24;
-  adjust_time_range_with_warn(time, 0);
+  if (adjust_time_range_with_warn(time, 0))
+    goto null_date;
   return false;
 
 null_date:
@@ -2976,7 +2979,8 @@ bool Item_func_timediff::get_time(MYSQL_TIME *l_time3)
     l_time3->neg= 1 - l_time3->neg;         // Swap sign of result
 
   calc_time_from_sec(l_time3, seconds, microseconds);
-  adjust_time_range_with_warn(l_time3, decimals);
+  if (adjust_time_range_with_warn(l_time3, decimals))
+    goto null_date;
   return false;
 
 null_date:
@@ -3027,7 +3031,8 @@ bool Item_func_maketime::get_time(MYSQL_TIME *ltime)
     ltime->second= (uint) second.quot;
     int warnings= 0;
     ltime->second_part= static_cast<ulong>(second.rem / 1000);
-    adjust_time_range_with_warn(ltime, decimals);
+    if (adjust_time_range_with_warn(ltime, decimals))
+      return true;
     time_add_nanoseconds_adjust_frac(ltime, second.rem % 1000, &warnings,
                                      current_thd->is_fsp_truncate_mode());
 
@@ -3052,10 +3057,9 @@ bool Item_func_maketime::get_time(MYSQL_TIME *ltime)
                   second.rem / (ulong) log_10_int[9 - dec]);
   }
   DBUG_ASSERT(strlen(buf) < sizeof(buf));
-  make_truncated_value_warning(current_thd, Sql_condition::SL_WARNING,
-                               ErrConvString(buf, len), MYSQL_TIMESTAMP_TIME,
-                               NullS);
-  return false;
+  return make_truncated_value_warning(current_thd, Sql_condition::SL_WARNING,
+                                      ErrConvString(buf, len),
+                                      MYSQL_TIMESTAMP_TIME, NullS);
 }
 
 
@@ -3446,9 +3450,10 @@ bool Item_func_last_day::get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzy_date)
     */
     ltime->time_type= MYSQL_TIMESTAMP_DATE;
     ErrConvString str(ltime, 0);
-    make_truncated_value_warning(current_thd, Sql_condition::SL_WARNING,
-                                 str, MYSQL_TIMESTAMP_ERROR,
-                                 NullS);
+    if (make_truncated_value_warning(current_thd, Sql_condition::SL_WARNING,
+                                     str, MYSQL_TIMESTAMP_ERROR,
+                                     NullS))
+      return true;
     return (null_value= true);
   }
 

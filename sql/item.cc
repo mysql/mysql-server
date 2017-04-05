@@ -3855,9 +3855,13 @@ void Item_param::set_time(MYSQL_TIME *tm, timestamp_type time_type,
 
   if (check_datetime_range(&value.time))
   {
-    make_truncated_value_warning(current_thd, Sql_condition::SL_WARNING,
-                                 ErrConvString(&value.time, decimals),
-                                 time_type, NullS);
+    /*
+      TODO : Add error handling for Item_param::set_* functions.
+      make_truncated_value_warning() can return error in STRICT mode.
+    */
+    (void) make_truncated_value_warning(current_thd, Sql_condition::SL_WARNING,
+                                        ErrConvString(&value.time, decimals),
+                                        time_type, NullS);
     set_zero_time(&value.time, MYSQL_TIMESTAMP_ERROR);
   }
 
@@ -7557,11 +7561,11 @@ bool Item::send(Protocol *protocol, String *buffer)
 }
 
 
-void Item::update_null_value()
+bool Item::update_null_value()
 {
   char buff[STRING_BUFFER_USUAL_SIZE];
   String str(buff, sizeof(buff), collation.collation);
-  evaluate(current_thd, &str);
+  return evaluate(current_thd, &str);
 }
 
 /**
@@ -10273,6 +10277,10 @@ bool Item_cache_row::null_inside()
     }
     else
     {
+      /*
+        TODO : Implement error handling for this function as
+        update_null_value() can return error.
+      */
       values[i]->update_null_value();
       if (values[i]->null_value)
 	return 1;

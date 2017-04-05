@@ -518,8 +518,12 @@ str_to_datetime_with_warn(String *str, MYSQL_TIME *l_time,
     flags|= TIME_FRAC_TRUNCATE;
   bool ret_val= str_to_datetime(str, l_time, flags, &status);
   if (ret_val || status.warnings)
-    make_truncated_value_warning(current_thd, Sql_condition::SL_WARNING,
-                                 ErrConvString(str), l_time->time_type, NullS);
+  {
+    if (make_truncated_value_warning(current_thd, Sql_condition::SL_WARNING,
+                                     ErrConvString(str), l_time->time_type,
+                                     NullS))
+      return true;
+  }
   return ret_val;
 }
 
@@ -589,9 +593,12 @@ bool my_decimal_to_datetime_with_warn(const my_decimal *decimal,
     rc= lldiv_t_to_datetime(lld, ltime, flags, &warnings);
 
   if (warnings)
-    make_truncated_value_warning(current_thd, Sql_condition::SL_WARNING,
-                                 ErrConvString(decimal), ltime->time_type,
-                                 NullS);
+  {
+    if (make_truncated_value_warning(current_thd, Sql_condition::SL_WARNING,
+                                     ErrConvString(decimal), ltime->time_type,
+                                     NullS))
+      return true;
+  }
   return rc;
 }
 
@@ -619,8 +626,12 @@ bool my_double_to_datetime_with_warn(double nr, MYSQL_TIME *ltime,
     rc= lldiv_t_to_datetime(lld, ltime, flags, &warnings);
 
   if (warnings)
-    make_truncated_value_warning(current_thd, Sql_condition::SL_WARNING,
-                                 ErrConvString(nr), ltime->time_type, NullS);
+  {
+    if (make_truncated_value_warning(current_thd, Sql_condition::SL_WARNING,
+                                     ErrConvString(nr), ltime->time_type,
+                                     NullS))
+      return true;
+  }
   return rc;
 }
 
@@ -639,9 +650,12 @@ bool my_longlong_to_datetime_with_warn(longlong nr, MYSQL_TIME *ltime,
   int warnings= 0;
   bool rc= number_to_datetime(nr, ltime, flags, &warnings) == -1LL;
   if (warnings)
-    make_truncated_value_warning(current_thd, Sql_condition::SL_WARNING,
-                                 ErrConvString(nr),  MYSQL_TIMESTAMP_NONE,
-                                 NullS);
+  {
+    if (make_truncated_value_warning(current_thd, Sql_condition::SL_WARNING,
+                                     ErrConvString(nr),  MYSQL_TIMESTAMP_NONE,
+                                     NullS))
+      return true;
+  }
   return rc;
 }
 
@@ -690,9 +704,12 @@ bool my_decimal_to_time_with_warn(const my_decimal *decimal, MYSQL_TIME *ltime)
     rc= lldiv_t_to_time(lld, ltime, &warnings);
 
   if (warnings)
-    make_truncated_value_warning(current_thd, Sql_condition::SL_WARNING,
-                                 ErrConvString(decimal), MYSQL_TIMESTAMP_TIME,
-                                 NullS);
+  {
+    if (make_truncated_value_warning(current_thd, Sql_condition::SL_WARNING,
+                                     ErrConvString(decimal), MYSQL_TIMESTAMP_TIME,
+                                     NullS))
+      return true;
+  }
   return rc;
 }
 
@@ -719,9 +736,12 @@ bool my_double_to_time_with_warn(double nr, MYSQL_TIME *ltime)
     rc= lldiv_t_to_time(lld, ltime, &warnings);
 
   if (warnings)
-    make_truncated_value_warning(current_thd, Sql_condition::SL_WARNING,
-                                 ErrConvString(nr), MYSQL_TIMESTAMP_TIME,
-                                 NullS);
+  {
+    if (make_truncated_value_warning(current_thd, Sql_condition::SL_WARNING,
+                                     ErrConvString(nr), MYSQL_TIMESTAMP_TIME,
+                                     NullS))
+      return true;
+  }
   return rc;
 }
 
@@ -738,9 +758,12 @@ bool my_longlong_to_time_with_warn(longlong nr, MYSQL_TIME *ltime)
   int warnings= 0;
   bool rc= number_to_time(nr, ltime, &warnings);
   if (warnings)
-    make_truncated_value_warning(current_thd, Sql_condition::SL_WARNING,
-                                 ErrConvString(nr), MYSQL_TIMESTAMP_TIME,
-                                 NullS);
+  {
+    if (make_truncated_value_warning(current_thd, Sql_condition::SL_WARNING,
+                                     ErrConvString(nr), MYSQL_TIMESTAMP_TIME,
+                                     NullS))
+      return true;
+  }
   return rc;
 }
 
@@ -903,9 +926,12 @@ str_to_time_with_warn(String *str, MYSQL_TIME *l_time)
 
   bool ret_val= str_to_time(str, l_time, flags, &status);
   if (ret_val || status.warnings)
-    make_truncated_value_warning(current_thd, Sql_condition::SL_WARNING,
-                                 ErrConvString(str), MYSQL_TIMESTAMP_TIME,
-                                 NullS);
+  {
+    if (make_truncated_value_warning(current_thd, Sql_condition::SL_WARNING,
+                                     ErrConvString(str), MYSQL_TIMESTAMP_TIME,
+                                     NullS))
+      return true;
+  }
   return ret_val;
 }
 
@@ -1300,7 +1326,7 @@ bool my_TIME_to_str(const MYSQL_TIME *ltime, String *str, uint dec)
 }
 
 
-void make_truncated_value_warning(THD *thd,
+bool make_truncated_value_warning(THD *thd,
                                   Sql_condition::enum_severity_level level,
                                   ErrConvString val, timestamp_type time_type,
                                   const char *field_name)
@@ -1310,7 +1336,7 @@ void make_truncated_value_warning(THD *thd,
   CHARSET_INFO *cs= system_charset_info;
 
   switch (time_type) {
-    case MYSQL_TIMESTAMP_DATE: 
+    case MYSQL_TIMESTAMP_DATE:
       type_str= "date";
       break;
     case MYSQL_TIMESTAMP_TIME:
@@ -1337,6 +1363,9 @@ void make_truncated_value_warning(THD *thd,
                          ER_THD(thd, ER_WRONG_VALUE), type_str, val.ptr());
   }
   push_warning(thd, level, ER_TRUNCATED_WRONG_VALUE, warn_buff);
+
+  // strict mode can convert warning to error. Check for error while returning.
+  return thd->is_error();
 }
 
 

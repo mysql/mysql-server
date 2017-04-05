@@ -836,7 +836,7 @@ bool Arg_comparator::set_compare_func(Item_result_field *item, Item_result type)
   @retval True Indicates failure.
 */
 
-bool get_mysql_time_from_str(THD *thd, String *str, timestamp_type warn_type, 
+bool get_mysql_time_from_str(THD *thd, String *str, timestamp_type warn_type,
                              const char *warn_name, MYSQL_TIME *l_time)
 {
   bool value;
@@ -865,8 +865,11 @@ bool get_mysql_time_from_str(THD *thd, String *str, timestamp_type warn_type,
   }
 
   if (status.warnings > 0)
-    make_truncated_value_warning(thd, Sql_condition::SL_WARNING,
-                                 ErrConvString(str), warn_type, warn_name);
+  {
+    if (make_truncated_value_warning(thd, Sql_condition::SL_WARNING,
+                                     ErrConvString(str), warn_type, warn_name))
+      return true;
+  }
 
   return value;
 }

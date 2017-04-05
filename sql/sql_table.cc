@@ -9675,7 +9675,7 @@ bool mysql_compare_tables(TABLE *table,
    @param thd                Thread handle.
    @param datetime_field     DATE/DATETIME column definition.
 */
-static void push_zero_date_warning(THD *thd, Create_field *datetime_field)
+static bool push_zero_date_warning(THD *thd, Create_field *datetime_field)
 {
   uint f_length= 0;
   enum enum_mysql_timestamp_type t_type= MYSQL_TIMESTAMP_DATE;
@@ -9695,9 +9695,10 @@ static void push_zero_date_warning(THD *thd, Create_field *datetime_field)
   default:
     DBUG_ASSERT(false);  // Should not get here.
   }
-  make_truncated_value_warning(thd, Sql_condition::SL_WARNING,
-                               ErrConvString(my_zero_datetime6, f_length),
-                               t_type, datetime_field->field_name);
+  return make_truncated_value_warning(thd, Sql_condition::SL_WARNING,
+                                      ErrConvString(my_zero_datetime6,
+                                                    f_length),
+                                      t_type, datetime_field->field_name);
 }
 
 
@@ -9986,9 +9987,10 @@ static bool mysql_inplace_alter_table(THD *thd,
         /*
           Report a warning if the NO ZERO DATE MODE is enabled. The
           warning will be promoted to an error if strict mode is
-          also enabled.
+          also enabled. Do not check for errors here as we check
+          thd->is_error() just below.
         */
-        push_zero_date_warning(thd, alter_ctx->datetime_field);
+        (void) push_zero_date_warning(thd, alter_ctx->datetime_field);
       }
 
       if (thd->is_error())
@@ -13528,13 +13530,16 @@ err_new_table_cleanup:
     No default value was provided for a DATE/DATETIME field, the
     current sql_mode doesn't allow the '0000-00-00' value and
     the table to be altered isn't empty.
-    Report error here.
+    Report error here. Ignore error checkin for push_zero_date_warning()
+    as we return true right below.
   */
   if ((alter_ctx.error_if_not_empty &
        Alter_table_ctx::DATETIME_WITHOUT_DEFAULT) &&
       (thd->variables.sql_mode & MODE_NO_ZERO_DATE) &&
       thd->get_stmt_da()->current_row_for_condition())
-    push_zero_date_warning(thd, alter_ctx.datetime_field);
+  {
+    (void) push_zero_date_warning(thd, alter_ctx.datetime_field);
+  }
   DBUG_RETURN(true);
 
 err_with_mdl:

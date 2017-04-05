@@ -627,3 +627,24 @@ SET @@sql_mode= @org_mode;
 --echo #
 --echo # End of 5.6 tests
 --echo #
+
+--echo #
+--echo #Bug#25586673: ASSERT IN DA FOR SQL_CMD_UPDATE::UPDATE_SINGLE_TABLE
+--echo #Bug#25586959: SERVER CRASH IN SQL_CMD_DELETE::DELETE_FROM_SINGLE_TABLE
+--echo #
+CREATE TABLE test.t(col_varchar_nokey VARCHAR(1) NOT NULL,
+                    col_time_nokey time NOT NULL,
+                    col_int_nokey INT NOT NULL,
+                    col_datetime_key datetime not null,
+                    key(col_datetime_key)) ENGINE= InnoDB;
+--error ER_TRUNCATED_WRONG_VALUE
+DELETE FROM test.t WHERE `col_int_nokey` > `col_int_nokey`
+                         AND TIMESTAMP( '18:16:35.025453' ) IS  NULL;
+--error ER_TRUNCATED_WRONG_VALUE
+UPDATE test.t SET `col_varchar_nokey` = TIMESTAMP(`col_time_nokey`,'00:00:00')
+  WHERE `col_int_nokey` > `col_int_nokey`
+        AND TIMESTAMP('18:16:35.025453') IS  NULL;
+--error ER_TRUNCATED_WRONG_VALUE
+UPDATE test.t SET `col_datetime_key` = `col_datetime_key` WHERE
+  `col_datetime_key` <=> FROM_UNIXTIME(1151860736,CONCAT_WS(':','%D','%v'));
+DROP TABLE test.t;

@@ -4169,6 +4169,10 @@ bool build_equal_items(THD *thd, Item *cond, Item **retcond,
     if (build_equal_items_for_cond(thd, cond, &cond, inherited, do_inherit))
       return true;
     cond->update_used_tables();
+    // update_used_tables() returns void but can stil fail.
+    if (thd->is_error())
+      return true;
+
     const enum Item::Type cond_type= cond->type();
     if (cond_type == Item::COND_ITEM &&
         down_cast<Item_cond *>(cond)->functype() == Item_func::COND_AND_FUNC)

@@ -2708,8 +2708,12 @@ protected:
 
     @param str      Warning parameter
     @param warnings Warning bit flag
+
+    @retval false  Function reported warning
+    @retval true   Function reported error
   */
-  void set_warnings(ErrConvString str, int warnings);
+  bool set_warnings(ErrConvString str, int warnings)
+                    MY_ATTRIBUTE((warn_unused_result));
 
   /**
     Flags that are passed as "flag" argument to
@@ -2737,16 +2741,20 @@ protected:
 
   /**
     Set a single warning using make_truncated_value_warning().
-    
+
     @param[in] level           Warning level (error, warning, note)
     @param[in] code            Warning code
     @param[in] val             Warning parameter
     @param[in] ts_type         Timestamp type (time, date, datetime, none)
     @param[in] truncate_increment  Incrementing of truncated field counter
+
+    @retval false  Function reported warning
+    @retval true   Function reported error
   */
-  void set_datetime_warning(Sql_condition::enum_severity_level level, uint code,
+  bool set_datetime_warning(Sql_condition::enum_severity_level level, uint code,
                             ErrConvString val,
-                            timestamp_type ts_type, int truncate_increment);
+                            timestamp_type ts_type, int truncate_increment)
+                            MY_ATTRIBUTE((warn_unused_result));
 public:
   /**
     Constructor for Field_temporal

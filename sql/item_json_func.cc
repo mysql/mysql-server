@@ -266,7 +266,8 @@ static bool json_is_valid(Item **args,
   switch (get_normalized_field_type(arg_item))
   {
   case MYSQL_TYPE_NULL:
-    arg_item->update_null_value();
+    if (arg_item->update_null_value())
+      return true;
     DBUG_ASSERT(arg_item->null_value);
     *valid= true;
     return false;
@@ -976,7 +977,8 @@ bool json_value(Item **args, uint arg_idx, Json_wrapper *result)
 
   if (arg->data_type() == MYSQL_TYPE_NULL)
   {
-    arg->update_null_value();
+    if (arg->update_null_value())
+      return true;
     DBUG_ASSERT(arg->null_value);
     return false;
   }
@@ -1559,7 +1561,8 @@ static bool val_json_func_field_subselect(Item* arg,
       returns earlier if it sees that the type is MYSQL_TYPE_NULL.
     */
     /* purecov: begin inspected */
-    arg->update_null_value();
+    if (arg->update_null_value())
+      return true;
     DBUG_ASSERT(arg->null_value);
     return false;
     /* purecov: end */

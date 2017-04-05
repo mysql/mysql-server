@@ -7367,7 +7367,7 @@ bool TABLE::update_const_key_parts(Item *conds)
     KEY_PART_INFO *keyinfo= key_info[index].key_part;
     KEY_PART_INFO *keyinfo_end= keyinfo + key_info[index].user_defined_key_parts;
 
-    for (key_part_map part_map= (key_part_map)1; 
+    for (key_part_map part_map= (key_part_map)1;
         keyinfo < keyinfo_end;
         keyinfo++, part_map<<= 1)
     {
@@ -7375,7 +7375,12 @@ bool TABLE::update_const_key_parts(Item *conds)
         const_key_parts[index]|= part_map;
     }
   }
-  return FALSE;
+
+  /*
+    Handle error for the whole function here instead of along with the call for
+    const_expression_in_where() as the function does not return TRUE for errors.
+  */
+  return this->in_use && this->in_use->is_error();
 }
 
 

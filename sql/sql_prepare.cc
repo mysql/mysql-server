@@ -713,6 +713,8 @@ bool Prepared_statement::insert_params(String *query, PS_PARAM *parameters)
         param->set_null();
       else
       {
+
+        //TODO: Add error handling for set_param_func functions.
         param->set_param_func(param, const_cast<uchar**>(&parameters[i].value),
                               parameters[i].length);
         if (param->state == Item_param::NO_VALUE)

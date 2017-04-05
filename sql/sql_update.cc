@@ -507,7 +507,9 @@ bool Sql_cmd_update::update_single_table(THD *thd)
   if (select_lex->has_ft_funcs() && init_ftfuncs(thd, select_lex))
     DBUG_RETURN(true);                      /* purecov: inspected */
 
-  table->update_const_key_parts(conds);
+  if (table->update_const_key_parts(conds))
+    DBUG_RETURN(true);
+
   order= simple_remove_const(order, conds);
   bool need_sort;
   bool reverse= false;

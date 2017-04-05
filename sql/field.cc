@@ -5136,8 +5136,13 @@ my_decimal *Field_temporal::val_decimal(my_decimal *decimal_value)
 
   @param str       Value.
   @param warnings  Warning vector.
+
+  @retval false  Function reported warning
+  @retval true   Function reported error
+
+  @note STRICT mode can convert warnings to error.
 */
-void
+bool
 Field_temporal::set_warnings(ErrConvString str, int warnings)
 {
   bool truncate_incremented= false;
@@ -5145,31 +5150,36 @@ Field_temporal::set_warnings(ErrConvString str, int warnings)
 
   if (warnings & MYSQL_TIME_WARN_TRUNCATED)
   {
-    set_datetime_warning(Sql_condition::SL_WARNING, WARN_DATA_TRUNCATED,
-                         str, ts_type, !truncate_incremented);
+    if (set_datetime_warning(Sql_condition::SL_WARNING, WARN_DATA_TRUNCATED,
+                             str, ts_type, !truncate_incremented))
+      return true;
     truncate_incremented= true;
   }
   if (warnings & (MYSQL_TIME_WARN_OUT_OF_RANGE | MYSQL_TIME_WARN_ZERO_DATE |
                   MYSQL_TIME_WARN_ZERO_IN_DATE))
   {
-    set_datetime_warning(Sql_condition::SL_WARNING,
-                         ER_WARN_DATA_OUT_OF_RANGE,
-                         str, ts_type, !truncate_incremented);
+    if (set_datetime_warning(Sql_condition::SL_WARNING,
+                             ER_WARN_DATA_OUT_OF_RANGE,
+                             str, ts_type, !truncate_incremented))
+      return true;
     truncate_incremented= true;
   }
   if (warnings & MYSQL_TIME_WARN_INVALID_TIMESTAMP)
   {
-    set_datetime_warning(Sql_condition::SL_WARNING,
-                         ER_WARN_INVALID_TIMESTAMP,
-                         str, ts_type, !truncate_incremented);
+    if (set_datetime_warning(Sql_condition::SL_WARNING,
+                             ER_WARN_INVALID_TIMESTAMP,
+                             str, ts_type, !truncate_incremented))
+      return true;
     truncate_incremented= true;
   }
   if ((warnings & MYSQL_TIME_NOTE_TRUNCATED) &&
       !(warnings & MYSQL_TIME_WARN_TRUNCATED))
   {
-    set_datetime_warning(Sql_condition::SL_NOTE, WARN_DATA_TRUNCATED,
-                         str, ts_type, !truncate_incremented);
-  }   
+    if (set_datetime_warning(Sql_condition::SL_NOTE, WARN_DATA_TRUNCATED,
+                             str, ts_type, !truncate_incremented))
+      return true;
+  }
+  return false;
 }
 
 
@@ -5191,8 +5201,9 @@ type_conversion_status Field_temporal::store(longlong nr, bool unsigned_val)
         !current_thd->is_strict_mode())
       error= TYPE_NOTE_TIME_TRUNCATED;
   }
-  if (warnings)
-    set_warnings(ErrConvString(nr, unsigned_val), warnings);
+  if (warnings && set_warnings(ErrConvString(nr, unsigned_val), warnings))
+    return TYPE_ERR_BAD_VALUE;
+
   return error;
 }
 
@@ -5228,8 +5239,9 @@ type_conversion_status Field_temporal::store_decimal(const my_decimal *decimal)
   /* Pass 0 in the first argument, not to produce warnings automatically */
   my_decimal2lldiv_t(0, decimal, &lld);
   const type_conversion_status error= store_lldiv_t(&lld, &warnings);
-  if (warnings)
-    set_warnings(ErrConvString(decimal), warnings);
+  if (warnings && set_warnings(ErrConvString(decimal), warnings))
+    return TYPE_ERR_BAD_VALUE;
+
   return error;
 }
 
@@ -5241,8 +5253,9 @@ type_conversion_status Field_temporal::store(double nr)
   lldiv_t lld;
   double2lldiv_t(nr, &lld);
   const type_conversion_status error= store_lldiv_t(&lld, &warnings);
-  if (warnings)
-    set_warnings(ErrConvString(nr), warnings);
+  if (warnings && set_warnings(ErrConvString(nr), warnings))
+    return TYPE_ERR_BAD_VALUE;
+
    return error;
 }
 
@@ -5289,8 +5302,10 @@ Field_temporal::store(const char *str, size_t len, const CHARSET_INFO *cs)
     if (tmp_error > error)
       error= tmp_error;
   }
-  if (status.warnings)
-    set_warnings(ErrConvString(str, len, cs), status.warnings);
+  if (status.warnings && set_warnings(ErrConvString(str, len, cs),
+                                       status.warnings))
+    return TYPE_ERR_BAD_VALUE;
+
   return error;
 }
 
@@ -5505,8 +5520,9 @@ Field_temporal_with_date::store_time(MYSQL_TIME *ltime,
     error= TYPE_WARN_TRUNCATED;
   }
 
-  if (warnings)
-    set_warnings(ErrConvString(ltime, decimals()), warnings);
+  if (warnings && set_warnings(ErrConvString(ltime, decimals()), warnings))
+    return TYPE_ERR_BAD_VALUE;
+
   return error;
 }
 
@@ -5574,7 +5590,8 @@ type_conversion_status Field_temporal_with_date::validate_stored_val(THD*)
   if (warnings)
   {
     ltime.time_type = field_type_to_timestamp_type(type());
-    set_warnings(ErrConvString(&ltime, dec), warnings);
+    if (set_warnings(ErrConvString(&ltime, dec), warnings))
+      return TYPE_ERR_BAD_VALUE;
   }
 
   return error;
@@ -6065,8 +6082,9 @@ Field_time_common::store_time(MYSQL_TIME *ltime,
   /* Check if seconds or minutes are out of range */
   if (ltime->second >= 60 || ltime->minute >= 60)
   {
-    set_warnings(ErrConvString(ltime, decimals()),
-                 MYSQL_TIME_WARN_OUT_OF_RANGE);
+    if (set_warnings(ErrConvString(ltime, decimals()),
+                     MYSQL_TIME_WARN_OUT_OF_RANGE))
+      return TYPE_ERR_BAD_VALUE;
     reset();
     return TYPE_WARN_OUT_OF_RANGE;
   }
@@ -6767,8 +6785,8 @@ type_conversion_status Field_datetime::store(longlong nr, bool unsigned_val)
     error= time_warning_to_type_conversion_status(warnings);
     datetime_store_internal(table, tmp, ptr);
   }
-  if (warnings)
-    set_warnings(ErrConvString(nr, unsigned_val), warnings);
+  if (warnings && set_warnings(ErrConvString(nr, unsigned_val), warnings))
+      error= TYPE_ERR_BAD_VALUE;
   return error;
 }
 
@@ -11597,12 +11615,16 @@ bool Field::set_warning(Sql_condition::enum_severity_level level,
   @param val              error parameter (the value)
   @param ts_type          type of datetime value (datetime/date/time)
   @param truncate_increment  whether we should increase truncated fields count
+
+  @retval false  Function reported warning
+  @retval true   Function reported error
+
   @note
     This function will always produce some warning but won't increase truncated
     fields counter if check_for_truncated_fields == FIELD_CHECK_IGNORE
     for current thread.
 */
-void 
+bool
 Field_temporal::set_datetime_warning(Sql_condition::enum_severity_level level,
                                      uint code,
                                      ErrConvString val,
@@ -11615,7 +11637,9 @@ Field_temporal::set_datetime_warning(Sql_condition::enum_severity_level level,
         (thd->variables.sql_mode & MODE_STRICT_TRANS_TABLES &&
          !thd->get_transaction()->cannot_safely_rollback(Transaction_ctx::STMT)))) ||
       set_warning(level, code, truncate_increment))
-    make_truncated_value_warning(thd, level, val, ts_type, field_name);
+    return make_truncated_value_warning(thd, level, val, ts_type, field_name);
+
+  return false;
 }
 
 bool Field::is_part_of_actual_key(THD *thd, uint cur_index)

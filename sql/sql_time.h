@@ -100,7 +100,7 @@ inline void date_to_datetime(MYSQL_TIME *ltime)
 {
   ltime->time_type= MYSQL_TIMESTAMP_DATETIME;
 }
-void make_truncated_value_warning(THD *thd,
+bool make_truncated_value_warning(THD *thd,
                                   Sql_condition::enum_severity_level level,
                                   ErrConvString val,
                                   timestamp_type time_type,
