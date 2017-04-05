@@ -740,7 +740,8 @@ sub optimize_cases {
 	  defined $tinfo->{binlog_formats} )
       {
 	my $supported=
-	  grep { My::Options::option_equals($_,$test_binlog_format) } @{$tinfo->{'binlog_formats'}};
+	  grep { My::Options::option_equals($_, lc $test_binlog_format) }
+            @{$tinfo->{'binlog_formats'}};
 	if ( !$supported )
 	{
 	  $tinfo->{'skip'}= 1;
