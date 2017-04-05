@@ -25,12 +25,10 @@
 #include "dd/impl/raw/raw_table.h"            // Raw_table
 #include "dd/impl/sdi.h"                      // sdi::store() sdi::drop()
 #include "dd/impl/transaction_impl.h"         // Transaction_ro
-#include "dd/impl/types/weak_object_impl.h"   // Weak_object_impl
 #include "dd/types/abstract_table.h"          // Abstract_table
 #include "dd/types/charset.h"                 // Charset
 #include "dd/types/collation.h"               // Collation
-#include "dd/types/dictionary_object.h"       // Dictionary_object
-#include "dd/types/dictionary_object_table.h" // Dictionary_object_table
+#include "dd/types/entity_object_table.h"     // Entity_object_table
 #include "dd/types/event.h"                   // Event
 #include "dd/types/function.h"                // Routine, Function
 #include "dd/types/index_stat.h"              // Index_stat
@@ -144,7 +142,7 @@ bool Storage_adapter::get(THD *thd,
     return true;
   }
 
-  const Dictionary_object_table &table= T::OBJECT_TABLE();
+  const Entity_object_table &table= T::OBJECT_TABLE();
   // Get main object table.
   Raw_table *t= trx.otx.get_table(table.name());
 
@@ -157,7 +155,7 @@ bool Storage_adapter::get(THD *thd,
   }
 
   // Restore the object from the record.
-  Dictionary_object *new_object= NULL;
+  Entity_object *new_object= NULL;
   if (r.get() && table.restore_object_from_record(&trx.otx, *r.get(), &new_object))
   {
     DBUG_ASSERT(thd->is_system_thread() || thd->killed || thd->is_error());

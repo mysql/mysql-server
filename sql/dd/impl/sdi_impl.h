@@ -23,7 +23,6 @@
 #include <memory>
 
 #include "base64.h"           // base64_encode
-#include "dd/impl/types/weak_object_impl.h" // Weak_object_impl
 #include "dd/object_id.h"                   // Object_id typedef
 #include "m_string.h"         // STRING_WITH_LEN
 #include "my_dbug.h"

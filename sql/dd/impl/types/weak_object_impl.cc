@@ -22,6 +22,7 @@
 #include "dd/impl/raw/raw_record.h"       // Raw_record
 #include "dd/impl/raw/raw_table.h"        // Raw_table
 #include "dd/impl/transaction_impl.h"     // Open_dictionary_tables_ctx
+#include "dd/impl/types/entity_object_impl.h"
 #include "dd/types/entity_object.h"       // Entity_object
 #include "dd/types/object_table.h"        // Object_table
 #include "log.h"                          // sql_print_error
@@ -215,7 +216,7 @@ bool Weak_object_impl::drop(Open_dictionary_tables_ctx *otx) const
 
 ///////////////////////////////////////////////////////////////////////////
 
-bool Weak_object_impl::check_parent_consistency(Entity_object *parent,
+bool Weak_object_impl::check_parent_consistency(Entity_object_impl *parent,
                                                 Object_id parent_id) const
 {
   DBUG_ASSERT(parent);

@@ -19,19 +19,19 @@
 #include <string>
 
 #include "dd/impl/raw/raw_record.h"
-#include "dd/impl/types/dictionary_object_table_impl.h" // dd::Dictionary_obj...
+#include "dd/impl/types/entity_object_table_impl.h"
 #include "dd/object_id.h"
+#include "dd/types/event.h"
 
 namespace dd {
 class Object_key;
-class Dictionary_object;
 class Item_name_key;
 
 namespace tables {
 
 ///////////////////////////////////////////////////////////////////////////
 
-class Events : public Dictionary_object_table_impl
+class Events : public Entity_object_table_impl
 {
 public:
   static const Events &instance();
@@ -74,7 +74,7 @@ public:
   virtual const String_type &name() const
   { return Events::table_name(); }
 
-  virtual Dictionary_object *create_dictionary_object(const Raw_record &) const;
+  virtual Event *create_entity_object(const Raw_record &) const;
 
   static bool update_object_key(Item_name_key *key,
                                 Object_id schema_id,

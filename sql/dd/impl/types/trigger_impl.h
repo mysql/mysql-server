@@ -233,11 +233,11 @@ public:
   { m_schema_collation_id= schema_collation_id; }
 
   // Fix "inherits ... via dominance" warnings
-  virtual Weak_object_impl *impl() override
-  { return Weak_object_impl::impl(); }
+  virtual Entity_object_impl *impl() override
+  { return Entity_object_impl::impl(); }
 
-  virtual const Weak_object_impl *impl() const override
-  { return Weak_object_impl::impl(); }
+  virtual const Entity_object_impl *impl() const override
+  { return Entity_object_impl::impl(); }
 
   virtual Object_id id() const override
   { return Entity_object_impl::id(); }

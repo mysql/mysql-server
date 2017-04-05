@@ -33,10 +33,6 @@
 #include "system_variables.h"
 
 namespace dd {
-class Dictionary_object;
-}  // namespace dd
-
-namespace dd {
 namespace tables {
 
 const Tables &Tables::instance()
@@ -186,7 +182,7 @@ Tables::Tables()
 
 ///////////////////////////////////////////////////////////////////////////
 
-Dictionary_object *Tables::create_dictionary_object(
+Abstract_table *Tables::create_entity_object(
   const Raw_record &r) const
 {
   enum_table_type table_type=

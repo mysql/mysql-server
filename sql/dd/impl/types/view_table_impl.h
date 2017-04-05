@@ -108,12 +108,6 @@ public:
 
   virtual View &view();
 
-  // Fix "inherits ... via dominance" warnings
-  virtual Weak_object_impl *impl()
-  { return Weak_object_impl::impl(); }
-  virtual const Weak_object_impl *impl() const
-  { return Weak_object_impl::impl(); }
-
 public:
   static View_table_impl *restore_item(View_impl *view)
   {

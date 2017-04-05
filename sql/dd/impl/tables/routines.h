@@ -19,20 +19,19 @@
 #include <string>
 
 #include "dd/impl/raw/raw_record.h"
-#include "dd/impl/types/dictionary_object_table_impl.h" // dd::Dictionary_obj...
+#include "dd/impl/types/entity_object_table_impl.h" // dd::Dictionary_obj...
 #include "dd/object_id.h"
 #include "dd/types/routine.h"                           // dd::Routine
 
 namespace dd {
 class Object_key;
-class Dictionary_object;
 class Routine_name_key;
 
 namespace tables {
 
 ///////////////////////////////////////////////////////////////////////////
 
-class Routines : public Dictionary_object_table_impl
+class Routines : public Entity_object_table_impl
 {
 public:
   static const Routines &instance();
@@ -81,8 +80,7 @@ public:
   virtual const String_type &name() const
   { return Routines::table_name(); }
 
-  virtual Dictionary_object *create_dictionary_object(
-                               const Raw_record &) const;
+  virtual Routine *create_entity_object(const Raw_record &) const;
 
 public:
   static bool update_object_key(Routine_name_key *key,

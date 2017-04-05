@@ -43,7 +43,7 @@ namespace dd {
 // Routine implementation.
 ///////////////////////////////////////////////////////////////////////////
 
-const Dictionary_object_table &Routine::OBJECT_TABLE()
+const Entity_object_table &Routine::OBJECT_TABLE()
 {
   return Routines::instance();
 }

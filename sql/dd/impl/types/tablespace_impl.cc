@@ -53,7 +53,7 @@ class Sdi_wcontext;
 // Tablespace implementation.
 ///////////////////////////////////////////////////////////////////////////
 
-const Dictionary_object_table &Tablespace::OBJECT_TABLE()
+const Entity_object_table &Tablespace::OBJECT_TABLE()
 {
   return Tablespaces::instance();
 }

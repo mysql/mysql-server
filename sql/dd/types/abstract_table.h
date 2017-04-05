@@ -18,13 +18,14 @@
 
 #include "dd/collection.h"                // dd::Collection
 #include "dd/object_id.h"                 // dd::Object_id
-#include "dd/types/dictionary_object.h"   // dd::Dictionary_object
+#include "dd/types/entity_object.h"       // dd::Entity_object
 #include "my_inttypes.h"
 
 namespace dd {
 
 ///////////////////////////////////////////////////////////////////////////
 
+class Entity_object_table;
 class Column;
 class Item_name_key;
 class Object_type;
@@ -59,11 +60,11 @@ enum class enum_table_type
         must inherit this class virtually.
 */
 
-class Abstract_table : public Dictionary_object
+class Abstract_table : virtual public Entity_object
 {
 public:
   static const Object_type &TYPE();
-  static const Dictionary_object_table &OBJECT_TABLE();
+  static const Entity_object_table &OBJECT_TABLE();
 
   typedef Abstract_table cache_partition_type;
   typedef tables::Tables cache_partition_table_type;

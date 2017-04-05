@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,13 +13,12 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "dd/impl/types/dictionary_object_table_impl.h"
+#include "dd/impl/types/entity_object_table_impl.h"
 
 #include <stddef.h>
 #include <memory>
 
-#include "dd/impl/types/weak_object_impl.h" // Weak_object_impl
-#include "dd/types/dictionary_object.h"     // Dictionary_object
+#include "dd/impl/types/entity_object_impl.h"
 #include "my_dbug.h"
 
 namespace dd {
@@ -40,17 +39,17 @@ class Raw_record;
   @return true - on failure and error is reported.
   @return false - on success.
 */
-bool Dictionary_object_table_impl::restore_object_from_record(
+bool Entity_object_table_impl::restore_object_from_record(
   Open_dictionary_tables_ctx *otx,
   const Raw_record &record,
-  Dictionary_object **o) const
+  Entity_object **o) const
 {
-  DBUG_ENTER("Dictionary_object_table_impl::restore_object_from_record");
+  DBUG_ENTER("Entity_object_table_impl::restore_object_from_record");
 
   // Create object instance.
 
-  std::unique_ptr<Dictionary_object> obj(
-    this->create_dictionary_object(record));
+  std::unique_ptr<Entity_object> obj(
+    this->create_entity_object(record));
 
   /*
     Restore object attributes from the found record.

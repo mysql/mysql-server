@@ -16,7 +16,7 @@
 #ifndef DD__EVENT_INCLUDED
 #define DD__EVENT_INCLUDED
 
-#include "dd/types/dictionary_object.h"   // dd::Dictionary_object
+#include "dd/types/entity_object.h"   // dd::Entity_object
 #include "my_inttypes.h"
 
 typedef long my_time_t;
@@ -25,6 +25,7 @@ namespace dd {
 
 ///////////////////////////////////////////////////////////////////////////
 
+class Entity_object_table;
 class Object_type;
 class Primary_id_key;
 class Void_key;
@@ -36,11 +37,11 @@ namespace tables {
 
 ///////////////////////////////////////////////////////////////////////////
 
-class Event : public Dictionary_object
+class Event : virtual public Entity_object
 {
 public:
   static const Object_type &TYPE();
-  static const Dictionary_object_table &OBJECT_TABLE();
+  static const Entity_object_table &OBJECT_TABLE();
 
   typedef Event cache_partition_type;
   typedef tables::Events cache_partition_table_type;

@@ -24,7 +24,7 @@
 #include "dd/impl/types/entity_object_impl.h"  // dd::Entity_object_impl
 #include "dd/impl/types/weak_object_impl.h"
 #include "dd/object_id.h"
-#include "dd/types/dictionary_object_table.h"  // dd::Dictionary_object_table
+#include "dd/types/entity_object_table.h"      // dd::Entity_object_table
 #include "dd/types/event.h"                    // dd::Event
 #include "dd/types/object_type.h"              // dd::Object_type
 #include "my_inttypes.h"
@@ -47,7 +47,7 @@ public:
   { }
 
 public:
-  virtual const Dictionary_object_table &object_table() const
+  virtual const Object_table &object_table() const
   { return Event::OBJECT_TABLE(); }
 
   virtual bool validate() const;
@@ -310,10 +310,10 @@ public:
   { m_schema_collation_id= schema_collation_id; }
 
   // Fix "inherits ... via dominance" warnings
-  virtual Weak_object_impl *impl()
-  { return Weak_object_impl::impl(); }
-  virtual const Weak_object_impl *impl() const
-  { return Weak_object_impl::impl(); }
+  virtual Entity_object_impl *impl()
+  { return Entity_object_impl::impl(); }
+  virtual const Entity_object_impl *impl() const
+  { return Entity_object_impl::impl(); }
   virtual Object_id id() const
   { return Entity_object_impl::id(); }
   virtual bool is_persistent() const

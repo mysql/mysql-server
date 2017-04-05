@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -28,7 +28,7 @@
 #include "dd/impl/transaction_impl.h"       // Open_dictionary_tables_ctx
 #include "dd/impl/types/column_impl.h"      // Column_impl
 #include "dd/types/column.h"
-#include "dd/types/dictionary_object_table.h"
+#include "dd/types/entity_object_table.h"
 #include "dd/types/table.h"
 #include "dd/types/view.h"                  // View
 #include "dd/types/weak_object.h"
@@ -59,7 +59,7 @@ const Object_type &Abstract_table::TYPE()
   return s_instance;
 }
 
-const Dictionary_object_table &Abstract_table::OBJECT_TABLE()
+const Entity_object_table &Abstract_table::OBJECT_TABLE()
 {
   return Tables::instance();
 }

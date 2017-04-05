@@ -27,8 +27,6 @@
 #include "handler.h"
 #include "my_dbug.h"
 
-class THD;
-
 namespace dd {
 namespace tables {
 

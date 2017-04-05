@@ -110,12 +110,6 @@ public:
   virtual uint index() const
   { return m_index; }
 
-  // Fix "inherits ... via dominance" warnings
-  virtual Weak_object_impl *impl()
-  { return Weak_object_impl::impl(); }
-  virtual const Weak_object_impl *impl() const
-  { return Weak_object_impl::impl(); }
-
 public:
   virtual void debug_print(String_type &outb) const;
 

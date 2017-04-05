@@ -138,12 +138,6 @@ public:
   virtual void set_tablespace_id(Object_id tablespace_id)
   { m_tablespace_id= tablespace_id; }
 
-  // Fix "inherits ... via dominance" warnings
-  virtual Weak_object_impl *impl()
-  { return Weak_object_impl::impl(); }
-  virtual const Weak_object_impl *impl() const
-  { return Weak_object_impl::impl(); }
-
 public:
   static Partition_index_impl *restore_item(Partition_impl *partition)
   {

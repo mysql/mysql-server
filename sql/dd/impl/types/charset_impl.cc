@@ -31,7 +31,7 @@ namespace dd {
 // Charset implementation.
 ///////////////////////////////////////////////////////////////////////////
 
-const Dictionary_object_table &Charset::OBJECT_TABLE()
+const Entity_object_table &Charset::OBJECT_TABLE()
 {
   return Character_sets::instance();
 }

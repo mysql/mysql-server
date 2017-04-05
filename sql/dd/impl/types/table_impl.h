@@ -28,7 +28,7 @@
 #include "dd/object_id.h"
 #include "dd/sdi_fwd.h"
 #include "dd/types/abstract_table.h"
-#include "dd/types/dictionary_object_table.h"  // dd::Dictionary_object_table
+#include "dd/types/entity_object_table.h"      // dd::Entity_object_table
 #include "dd/types/foreign_key.h"              // dd::Foreign_key
 #include "dd/types/index.h"                    // dd::Index
 #include "dd/types/object_type.h"
@@ -53,7 +53,7 @@ class Trigger_impl;
 class Weak_object;
 
 class Table_impl : public Abstract_table_impl,
-                   public Table
+                   virtual public Table
 {
 public:
   Table_impl();
@@ -69,7 +69,7 @@ public:
   { return enum_table_type::BASE_TABLE; }
 
 public:
-  virtual const Dictionary_object_table &object_table() const
+  virtual const Object_table &object_table() const
   { return Table::OBJECT_TABLE(); }
 
   virtual bool validate() const;
@@ -297,10 +297,10 @@ public:
 
 
   // Fix "inherits ... via dominance" warnings
-  virtual Weak_object_impl *impl()
-  { return Weak_object_impl::impl(); }
-  virtual const Weak_object_impl *impl() const
-  { return Weak_object_impl::impl(); }
+  virtual Entity_object_impl *impl()
+  { return Entity_object_impl::impl(); }
+  virtual const Entity_object_impl *impl() const
+  { return Entity_object_impl::impl(); }
   virtual Object_id id() const
   { return Entity_object_impl::id(); }
   virtual bool is_persistent() const

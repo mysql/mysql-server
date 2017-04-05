@@ -502,7 +502,7 @@ TEST(SdiTest, Utf8Filename)
   dd::Table_impl x{};
   x.set_name("\xe0\xa0\x80");
   x.set_id(42);
-  dd::String_type path= dd::sdi_file::sdi_filename(&x, "foobar");
+  dd::String_type path= dd::sdi_file::sdi_filename<dd::Table>(&x, "foobar");
   std::replace(path.begin(), path.end(), '\\', '/');
   EXPECT_EQ("./foobar/@0800_42.SDI", path);
 }
@@ -519,7 +519,7 @@ TEST(SdiTest, Utf8FilenameTrunc)
   dd::Table_impl x{};
   x.set_name(name);
   x.set_id(42);
-  dd::String_type fn= dd::sdi_file::sdi_filename(&x, "foobar");
+  dd::String_type fn= dd::sdi_file::sdi_filename<dd::Table>(&x, "foobar");
   std::replace(fn.begin(), fn.end(), '\\', '/');
   EXPECT_EQ(96u, fn.length());
   EXPECT_EQ("./foobar/@0800@0800@0800@0800@0800@0800@0800@0800@0800@0800@0800@0800@0800@0800@0800@0800_42.SDI", fn);

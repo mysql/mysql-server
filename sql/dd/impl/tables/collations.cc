@@ -36,11 +36,6 @@
 #include "template_utils.h"
 
 namespace dd {
-class Dictionary_object;
-class Raw_record;
-}  // namespace dd
-
-namespace dd {
 namespace tables {
 
 const Collations &Collations::instance()
@@ -183,8 +178,8 @@ bool Collations::populate(THD *thd) const
 
 ///////////////////////////////////////////////////////////////////////////
 
-Dictionary_object*
-Collations::create_dictionary_object(const Raw_record &) const
+Collation*
+Collations::create_entity_object(const Raw_record &) const
 {
   return new (std::nothrow) Collation_impl();
 }

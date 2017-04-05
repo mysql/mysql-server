@@ -25,7 +25,7 @@
 #include "dd/impl/types/weak_object_impl.h"
 #include "dd/object_id.h"
 #include "dd/sdi_fwd.h"
-#include "dd/types/dictionary_object_table.h" // dd::Dictionary_object_table
+#include "dd/types/entity_object_table.h"     // dd::Entity_object_table
 #include "dd/types/object_type.h"             // dd::Object_type
 #include "dd/types/spatial_reference_system.h"// dd:Spatial_reference_system
 #include "dd/types/weak_object.h"
@@ -77,7 +77,7 @@ private:
   { }
 
 public:
-  virtual const Dictionary_object_table &object_table() const override
+  virtual const Object_table &object_table() const override
   { return Spatial_reference_system::OBJECT_TABLE(); }
 
   virtual bool validate() const override;
@@ -244,10 +244,10 @@ public:
   { m_description= description; }
 
   // Fix "inherits ... via dominance" warnings
-  virtual Weak_object_impl *impl() override
-  { return Weak_object_impl::impl(); }
-  virtual const Weak_object_impl *impl() const override
-  { return Weak_object_impl::impl(); }
+  virtual Entity_object_impl *impl() override
+  { return Entity_object_impl::impl(); }
+  virtual const Entity_object_impl *impl() const override
+  { return Entity_object_impl::impl(); }
   virtual Object_id id() const override
   { return Entity_object_impl::id(); }
   virtual bool is_persistent() const override

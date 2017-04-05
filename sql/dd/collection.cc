@@ -191,7 +191,7 @@ bool Collection<T>::store_items(Open_dictionary_tables_ctx *otx)
 
   // Drop items from m_removed_items.
 
-  for (Weak_object_impl *removed : m_removed_items)
+  for (auto *removed : m_removed_items)
   {
     if (removed->validate() || removed->drop(otx))
       DBUG_RETURN(true);

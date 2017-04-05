@@ -263,12 +263,13 @@ bool expand_sdi_pattern(const Dir_pat_tuple &dpt,
 namespace dd {
 namespace sdi_file {
 
-String_type sdi_filename(const dd::Entity_object *eo,
+template <typename T>
+String_type sdi_filename(const T *dd_object,
                          const String_type &schema)
 {
   typedef String_type::const_iterator CHARIT;
-  const CHARIT begin= eo->name().begin();
-  const CHARIT end= eo->name().end();
+  const CHARIT begin= dd_object->name().begin();
+  const CHARIT end= dd_object->name().end();
   CHARIT i= begin;
   size_t count= 0;
 
@@ -281,7 +282,7 @@ String_type sdi_filename(const dd::Entity_object *eo,
   }
 
   Stringstream_type fnamestr;
-  fnamestr << String_type(begin, i) << "_" << eo->id();
+  fnamestr << String_type(begin, i) << "_" << dd_object->id();
 
   char path[FN_REFLEN+1];
   bool was_truncated= false;
@@ -430,5 +431,9 @@ bool check_data_files_exist(const dd::String_type &schema_name,
   }
   return false;
 }
+template dd::String_type sdi_filename(const dd::Table *dd_object,
+                                      const dd::String_type &schema);
 }
 }
+
+

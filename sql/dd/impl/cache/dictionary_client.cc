@@ -49,7 +49,6 @@
 #include "dd/types/abstract_table.h"         // Abstract_table
 #include "dd/types/charset.h"                // Charset
 #include "dd/types/collation.h"              // Collation
-#include "dd/types/dictionary_object_table.h"
 #include "dd/types/event.h"                  // Event
 #include "dd/types/function.h"               // Function
 #include "dd/types/index_stat.h"             // Index_stat
@@ -81,14 +80,6 @@
 #include "sql_plugin_ref.h"
 #include "storage_adapter.h"                 // store(), drop(), ...
 #include "table.h"
-
-namespace dd {
-class Dictionary_object;
-namespace cache {
-class Object_registry;
-template <typename T> class Cache_element;
-}  // namespace cache
-}  // namespace dd
 
 namespace {
 
@@ -394,7 +385,7 @@ private:
 
 public:
   // Releasing arbitrary dictionary objects is not checked.
-  static bool is_release_locked(THD*, const dd::Dictionary_object*)
+  static bool is_release_locked(THD*, const dd::Entity_object*)
   { return true; }
 
   // Reading a table object should be governed by MDL_SHARED.
@@ -1411,7 +1402,7 @@ bool Dictionary_client::acquire_for_modification(const String_type &schema_name,
     if (cached_object != nullptr)
     {
       *object= cached_object->clone();
-      auto_delete<T>(*object);
+      auto_delete(*object);
     }
   }
   else
@@ -2537,7 +2528,7 @@ void Dictionary_client::dump() const
   fprintf(stderr, "Dictionary client (dropped)\n");
   m_registry_dropped.dump<T>();
   fprintf(stderr, "Dictionary client (uncached)\n");
-  for (std::vector<Dictionary_object*>::const_iterator it=
+  for (std::vector<Entity_object*>::const_iterator it=
          m_uncached_objects.begin();
        it != m_uncached_objects.end(); it++)
   {

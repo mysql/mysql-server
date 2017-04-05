@@ -22,13 +22,6 @@ namespace dd {
 
 ///////////////////////////////////////////////////////////////////////////
 
-namespace cache {
-  class Storage_adapter;
-  class Dictionary_client;
-}
-
-///////////////////////////////////////////////////////////////////////////
-
 /**
   Base class for all data dictionary objects.
 
@@ -50,26 +43,6 @@ public:
 
   virtual ~Weak_object()
   { }
-
-private:
-  virtual class Weak_object_impl *impl() = 0;
-  virtual const class Weak_object_impl *impl() const= 0;
-  friend class cache::Storage_adapter;
-  friend class Dictionary_object_table_impl;
-  friend class cache::Dictionary_client;
-};
-
-///////////////////////////////////////////////////////////////////////////
-
-/** Pretty-printer of data dictionary objects */
-struct debug_printer : public String_type
-{
-	/** Constructor
-	@param o	object to pretty-print */
-	explicit debug_printer(const dd::Weak_object& o) : String_type()
-	{
-		o.debug_print(*this);
-	}
 };
 
 ///////////////////////////////////////////////////////////////////////////

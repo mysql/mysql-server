@@ -31,7 +31,7 @@ namespace dd {
 // Collation implementation.
 ///////////////////////////////////////////////////////////////////////////
 
-const Dictionary_object_table &Collation::OBJECT_TABLE()
+const Entity_object_table &Collation::OBJECT_TABLE()
 {
   return Collations::instance();
 }

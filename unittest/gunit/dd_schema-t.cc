@@ -478,7 +478,7 @@ TEST_F(SchemaTest, GetSchema)
   EXPECT_FALSE(t->find_record(key, r));
 
   // Restore the object from the record.
-  Dictionary_object *new_object= NULL;
+  Entity_object *new_object= NULL;
   EXPECT_FALSE(Schema::OBJECT_TABLE().restore_object_from_record(&ctx->otx, *r.get(),
                                                                  &new_object));
   schema= dynamic_cast<const Schema_impl*>(new_object);

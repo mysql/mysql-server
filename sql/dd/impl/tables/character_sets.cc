@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -34,11 +34,6 @@
 #include "mysql/psi/mysql_statement.h"
 #include "sql_class.h"                            // THD
 #include "template_utils.h"
-
-namespace dd {
-class Dictionary_object;
-class Raw_record;
-}  // namespace dd
 
 namespace dd {
 namespace tables {
@@ -161,7 +156,7 @@ bool Character_sets::populate(THD *thd) const
 ///////////////////////////////////////////////////////////////////////////
 
 /* purecov: begin deadcode */
-Dictionary_object *Character_sets::create_dictionary_object(const Raw_record &) const
+Charset *Character_sets::create_entity_object(const Raw_record &) const
 {
   return new (std::nothrow) Charset_impl();
 }

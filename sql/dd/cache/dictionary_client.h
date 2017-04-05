@@ -208,7 +208,7 @@ public:
 
 
 private:
-  std::vector<Dictionary_object*> m_uncached_objects; // Objects to be deleted.
+  std::vector<Entity_object*> m_uncached_objects; // Objects to be deleted.
   Object_registry m_registry_committed;   // Registry of committed objects.
   Object_registry m_registry_uncommitted; // Registry of uncommitted objects.
   Object_registry m_registry_dropped;     // Registry of dropped objects.
@@ -328,7 +328,7 @@ private:
   */
 
   template <typename T>
-  void auto_delete(Dictionary_object *object)
+  void auto_delete(T *object)
   {
 #ifndef DBUG_OFF
     // Make sure we do not sign up a shared object for auto delete.
@@ -357,7 +357,7 @@ private:
   */
 
   template <typename T>
-  void no_auto_delete(Dictionary_object *object)
+  void no_auto_delete(T *object)
   {
 #ifndef DBUG_OFF
     // Make sure the object has been registered as uncommitted.

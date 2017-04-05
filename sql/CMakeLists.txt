@@ -133,7 +133,7 @@ SET(DD_SOURCES
   dd/impl/types/collation_impl.cc
   dd/impl/types/column_impl.cc
   dd/impl/types/column_type_element_impl.cc
-  dd/impl/types/dictionary_object_table_impl.cc
+  dd/impl/types/entity_object_table_impl.cc
   dd/impl/types/entity_object_impl.cc
   dd/impl/types/event_impl.cc
   dd/impl/types/foreign_key_element_impl.cc

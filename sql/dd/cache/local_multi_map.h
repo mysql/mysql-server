@@ -18,7 +18,7 @@
 
 #include <stdio.h>
 
-#include "dd/types/dictionary_object_table.h" // dd::Dictionary_object_table
+#include "dd/types/entity_object_table.h"     // dd::Entity_object_table
 #include "multi_map_base.h"                   // Multi_map_base
 #include "my_dbug.h"
 
