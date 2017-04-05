@@ -1576,7 +1576,7 @@ sub command_line_setup {
     }
   }
 
-  if (IS_WINDOWS and defined $opt_mem) {
+  if (IS_WINDOWS and $opt_mem) {
     mtr_report("--mem not supported on Windows, ignored");
     $opt_mem= undef;
   }
@@ -1605,7 +1605,7 @@ sub command_line_setup {
   # --------------------------------------------------------------------------
   # Check if we should speed up tests by trying to run on tmpfs
   # --------------------------------------------------------------------------
-  if ( defined $opt_mem)
+  if ($opt_mem)
   {
     mtr_error("Can't use --mem and --vardir at the same time ")
       if $opt_vardir;
