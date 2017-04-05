@@ -568,12 +568,14 @@ int runScanUpdateUntilStopped(NDBT_Context* ctx, NDBT_Step* step){
   int parallelism = ctx->getProperty("Parallelism", 1);
   int abort = ctx->getProperty("AbortProb", (Uint32)0);
   int check = ctx->getProperty("ScanUpdateNoRowCountCheck", (Uint32)0);
+  int retry_max = ctx->getProperty("RetryMax", Uint32(100));
   
   if (check)
     records = 0;
   
   int i = 0;
   HugoTransactions hugoTrans(*ctx->getTab());
+  hugoTrans.setRetryMax(retry_max);
   while (ctx->isTestStopped() == false) {
     g_info << i << ": ";
     if (hugoTrans.scanUpdateRecords(GETNDB(step), records, abort, 
@@ -8954,6 +8956,7 @@ TESTCASE("Bug44952",
 }
 TESTCASE("Bug48474", "")
 {
+  TC_PROPERTY("RetryMax", Uint32(10000));
   INITIALIZER(runLoadTable);
   INITIALIZER(initBug48474);
   STEP(runBug48474);
