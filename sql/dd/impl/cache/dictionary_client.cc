@@ -2250,8 +2250,12 @@ bool Dictionary_client::update(T* new_object)
   {
     // Remove and delete the old uncommitted object.
     m_registry_uncommitted.remove(element);
-    delete element->object();
-    element->set_object(new_object);
+    // If we update an already updated object, don't delete it.
+    if (element->object() != new_object)
+    {
+      delete element->object();
+      element->set_object(new_object);
+    }
     element->recreate_keys();
     m_registry_uncommitted.put(element);
   }

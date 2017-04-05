@@ -1006,6 +1006,31 @@ TEST_F(CacheStorageTest, CommitNewObject)
 }
 
 
+TEST_F(CacheStorageTest, DoubleUpdate)
+{
+  dd::cache::Dictionary_client *dc= thd()->dd_client();
+  dd::cache::Dictionary_client::Auto_releaser releaser(dc);
+
+  std::unique_ptr<dd::Table> created(new dd::Table_impl());
+  created->set_name("old_name");
+  created->set_engine("innodb");
+  lock_object(*created.get());
+  EXPECT_FALSE(dc->store(created.get()));
+  EXPECT_LT(9999u, created->id());
+
+  dd::Table *new_obj= nullptr;
+  EXPECT_FALSE(dc->acquire_for_modification(created->id(), &new_obj));
+
+  new_obj->set_name("new name");
+  EXPECT_FALSE(dc->update(new_obj));
+
+  new_obj->set_name("newer name");
+  EXPECT_FALSE(dc->update(new_obj));
+
+  dc->commit_modified_objects();
+}
+
+
 TEST_F(CacheStorageTest, GetTableBySePrivateId)
 {
   dd::cache::Dictionary_client *dc= thd()->dd_client();
