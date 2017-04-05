@@ -2111,6 +2111,15 @@ void
 Restore::execFSREADREF(Signal * signal)
 {
   jamEntry();
+  FilePtr file_ptr;
+  FsRef* ref= (FsRef*)signal->getDataPtr();
+  m_file_pool.getPtr(file_ptr, ref->userPointer);
+  if (file_ptr.p->m_status == File::READ_CTL_FILES)
+  {
+    jam();
+    read_ctl_file_done(signal, file_ptr, 0);
+    return;
+  }
   SimulatedBlock::execFSREADREF(signal);
   ndbrequire(false);
 }
