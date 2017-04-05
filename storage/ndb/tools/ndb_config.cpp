@@ -359,17 +359,17 @@ helper(Vector<Apply*>& select, const char * str)
       select.push_back(new ParamApply(CFG_NODE_HOST, "host"));
       select.push_back(new NodeTypeApply("type"));
     }
-    else if (native_strcasecmp(str, "nodeid") == 0)
+    else if (strcasecmp(str, "nodeid") == 0)
     {
       select.push_back(new ParamApply(CFG_NODE_ID, "nodeid"));
       retflag = true;
     }
-    else if (native_strncasecmp(str, "host", 4) == 0)
+    else if (strncasecmp(str, "host", 4) == 0)
     {
       select.push_back(new ParamApply(CFG_NODE_HOST, "host"));
       retflag = true;
     }
-    else if (native_strcasecmp(str, "type") == 0)
+    else if (strcasecmp(str, "type") == 0)
     {
       select.push_back(new NodeTypeApply("type"));
       retflag = true;
@@ -377,7 +377,7 @@ helper(Vector<Apply*>& select, const char * str)
   }
   else if (g_section == CFG_SECTION_CONNECTION)
   {
-    if (all || native_strcasecmp(str, "type") == 0)
+    if (all || strcasecmp(str, "type") == 0)
     {
       select.push_back(new ConnectionTypeApply("type"));
       retflag = true;
@@ -403,7 +403,7 @@ helper(Vector<Apply*>& select, const char * str)
         ||
         (g_section == CFG_SECTION_SYSTEM))
       {
-        if (all || native_strcasecmp(ConfigInfo::m_ParamInfo[p]._fname, str) == 0)
+        if (all || strcasecmp(ConfigInfo::m_ParamInfo[p]._fname, str) == 0)
         {
           select.push_back(new ParamApply(ConfigInfo::m_ParamInfo[p]._paramId,
             ConfigInfo::m_ParamInfo[p]._fname));
