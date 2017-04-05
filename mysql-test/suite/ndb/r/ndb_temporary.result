@@ -11,7 +11,7 @@ DROP TABLE bar;
 SET SESSION default_storage_engine=NDBCLUSTER;
 create table t1 (a int key);
 select engine from information_schema.tables where table_name = 't1';
-engine
+ENGINE
 ndbcluster
 drop table t1;
 create temporary table t1 (a int key);
