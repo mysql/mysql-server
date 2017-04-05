@@ -324,11 +324,14 @@ public:
 
   Thd_backup_and_restore(THD *backup_thd, THD *new_thd)
     : m_backup_thd(backup_thd), m_new_thd(new_thd),
-      m_new_thd_old_real_id(new_thd->real_id)
+      m_new_thd_old_real_id(new_thd->real_id),
+      m_new_thd_old_thread_stack(new_thd->thread_stack)
   {
     DBUG_ASSERT(m_backup_thd != NULL && m_new_thd != NULL);
     // Reset the state of the current thd.
     m_backup_thd->restore_globals();
+    m_new_thd->thread_stack= m_backup_thd->thread_stack;
+
     int i= 0;
     /*
       Attach the POSIX thread to a session in MAX_SESSION_ATTACH_TRIES
@@ -367,6 +370,8 @@ public:
                             "be guaranteed after server restarts.\n");
       _exit(MYSQLD_FAILURE_EXIT);
     }
+    DBUG_ASSERT(!check_stack_overrun(m_new_thd, STACK_MIN_SIZE,
+                                     reinterpret_cast<uchar *>(&i)));
   }
 
   /**
@@ -380,6 +385,7 @@ public:
     */
     m_new_thd->restore_globals();
     m_new_thd->real_id= m_new_thd_old_real_id;
+    m_new_thd->thread_stack= m_new_thd_old_thread_stack;
 
     // Reset the global variables to the original state.
     if (unlikely(m_backup_thd->store_globals()))
@@ -409,6 +415,7 @@ private:
   THD *m_backup_thd;
   THD *m_new_thd;
   my_thread_t m_new_thd_old_real_id;
+  const char *m_new_thd_old_thread_stack;
 };
 
 
