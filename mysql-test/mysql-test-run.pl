@@ -569,7 +569,6 @@ sub main {
       }
 
       init_timers();
-      mtr_report("=> Worker $child_num: Test run started.") if IS_WINDOWS;
       run_worker($server_port, $child_num);
       exit(1);
     }
@@ -585,7 +584,6 @@ sub main {
   mark_time_used('init');
 
   my $completed= run_test_server($server, $tests, $opt_parallel);
-  mtr_report("=> Test run completed.") if IS_WINDOWS;
 
   exit(0) if $opt_start_exit;
 
@@ -998,7 +996,6 @@ sub run_worker ($) {
   # --------------------------------------------------------------------------
   # Set different ports per thread
   # --------------------------------------------------------------------------
-  mtr_report("=> Reserving ports for worker $thread_num") if IS_WINDOWS;
   set_build_thread_ports($thread_num);
 
   # --------------------------------------------------------------------------
@@ -1993,23 +1990,14 @@ sub set_build_thread_ports($) {
 
     my $max_parallel= $opt_parallel * $build_threads_per_thread;
     my $build_thread_upper = $build_thread + ($max_parallel > 39
-                             ? $max_parallel + int($max_parallel / 4)
+                             ? $max_parallel + int($max_parallel / 2)
                              : 49);
 
-    if (IS_WINDOWS)
-    {
-      mtr_report("=> Build thread initial value: $build_thread");
-      mtr_report("=> Build thread upper limit value: $build_thread_upper");
-      mtr_report("=> Build threads per worker process: ".
-                 "$build_threads_per_thread");
-    }
     while (!$found_free)
     {
       $build_thread= mtr_get_unique_id($build_thread, $build_thread_upper,
                                        $build_threads_per_thread);
 
-      mtr_report("=> Checking build thread $build_thread for worker $thread")
-        if IS_WINDOWS;
       if (!defined $build_thread)
       {
         mtr_error("Could not get a unique build thread id");
@@ -2042,8 +2030,6 @@ sub set_build_thread_ports($) {
     }
   }
 
-  mtr_report("=> Build thread reserved for worker $thread: $build_thread")
-    if IS_WINDOWS;
   $ENV{MTR_BUILD_THREAD}= $build_thread;
 
   # Calculate baseport

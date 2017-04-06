@@ -101,7 +101,6 @@ sub mtr_get_unique_id($$$) {
       open( $fh, ">$dir/$id");
       chmod 0666, "$dir/$id";
 
-      print "=> Build thread file: $dir/$id\n" if IS_WINDOWS;
       # Try to lock the file exclusively. If lock succeeds, we're done.
       if (flock($fh, LOCK_EX|LOCK_NB))
       {
@@ -135,11 +134,9 @@ sub mtr_get_unique_id($$$) {
       }
     }
 
-    print "Min: $min  Max: $max\n" if IS_WINDOWS;
     return undef if ($min > $max);
   }
 
-  print "Min: $min  Max: $max\n" if IS_WINDOWS;
   return undef;
 }
 
