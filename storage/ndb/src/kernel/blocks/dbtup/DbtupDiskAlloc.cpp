@@ -1377,9 +1377,9 @@ Dbtup::disk_page_alloc(Signal* signal,
   if (tabPtrP->m_attributes[DD].m_no_of_varsize == 0)
   {
     jam();
-     DEB_PGMAN((
-       "(%u)disk_page_alloc: tab(%u,%u):%u,page(%u,%u).%u,gci: %u,"
-       "row_id(%u,%u)",
+    DEB_PGMAN((
+      "(%u)disk_page_alloc: tab(%u,%u):%u,page(%u,%u).%u.%u,gci: %u,"
+      "row_id(%u,%u)",
                 instance(),
                 pagePtr.p->m_table_id,
                 pagePtr.p->m_fragment_id,
@@ -1387,6 +1387,7 @@ Dbtup::disk_page_alloc(Signal* signal,
                 key->m_file_no,
                 key->m_page_no,
                 key->m_page_idx,
+                pagePtr.i,
                 gci,
                 row_id->m_page_no,
                 row_id->m_page_idx));
@@ -1394,6 +1395,10 @@ Dbtup::disk_page_alloc(Signal* signal,
     pagePtr.p->uncommitted_used_space--;
     key->m_page_idx= ((Fix_page*)pagePtr.p)->alloc_record();
     jamLine(Uint16(key->m_page_idx));
+    DEB_PGMAN(("page(%u,%u).%u",
+               key->m_file_no,
+               key->m_page_no,
+               key->m_page_idx));
     lsn= disk_page_undo_alloc(signal,
                               pagePtr.p,
                               key,
@@ -1444,12 +1449,12 @@ Dbtup::disk_page_free(Signal *signal,
   {
     sz = 1;
     const Uint32 *src= ((Fix_page*)pagePtr.p)->get_ptr(page_idx, 0);
-
     if (((*(src + 1)) & Tup_fixsize_page::FREE_RECORD) ==
                Tup_fixsize_page::FREE_RECORD)
     {
       g_eventLogger->info(
-        "(%u)disk_page_free crash:tab(%u,%u):%u,page(%u,%u).%u,gci:%u,rowid(%u,%u)",
+        "(%u)disk_page_free crash:tab(%u,%u):%u,page(%u,%u).%u.%u"
+        ",gci:%u,rowid(%u,%u)",
                  instance(),
                  fragPtrP->fragTableId,
                  fragPtrP->fragmentId,
@@ -1457,6 +1462,7 @@ Dbtup::disk_page_free(Signal *signal,
                  pagePtr.p->m_file_no,
                  pagePtr.p->m_page_no,
                  page_idx,
+                 pagePtr.i,
                  gci,
                  row_id->m_page_no,
                  row_id->m_page_idx);
@@ -1468,7 +1474,7 @@ Dbtup::disk_page_free(Signal *signal,
 			     gci, logfile_group_id);
     
     DEB_PGMAN((
-      "(%u)disk_page_free:tab(%u,%u):%u,page(%u,%u).%u,gci:%u,rowid(%u,%u)",
+      "(%u)disk_page_free:tab(%u,%u):%u,page(%u,%u).%u.%u,gci:%u,rowid(%u,%u)",
                instance(),
                fragPtrP->fragTableId,
                fragPtrP->fragmentId,
@@ -1476,6 +1482,7 @@ Dbtup::disk_page_free(Signal *signal,
                pagePtr.p->m_file_no,
                pagePtr.p->m_page_no,
                page_idx,
+               pagePtr.i,
                gci,
                row_id->m_page_no,
                row_id->m_page_idx));
