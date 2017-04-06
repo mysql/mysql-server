@@ -5796,7 +5796,10 @@ fil_io(
 	if (req_type.is_write()
 	    && !req_type.is_log()
 	    && !page_size.is_compressed()
-	    && page_id.page_no() > 0
+	    /* On pages 1 & 2, FIL_PAGE_FILE_FLUSH_LSN is used for storing
+	    SDI root page numbers, which conflicts with PAGE_IO compression.
+	    So never IO compress pages 0, 1 & 2. */
+	    && page_id.page_no() > 2
 	    && IORequest::is_punch_hole_supported()
 	    && node->punch_hole) {
 
