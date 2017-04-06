@@ -3220,7 +3220,11 @@ NdbImportImpl::DiagTeam::open_new_diags()
 {
   log1("open_new_diags");
   const Opt& opt = m_util.c_opt;
-  int openflags = !opt.m_resume ? File::Write_flags : File::Append_flags;
+  int openflags = 0;
+  if (!opt.m_resume)
+    openflags = File::Write_flags;
+  else
+    openflags = File::Append_flags;
   // use default MySQL spec for diags (set by OptCsv ctor)
   OptCsv optcsv;
   if (m_impl.m_csv.set_spec(m_csvspec, optcsv, OptCsv::ModeOutput) == -1)
