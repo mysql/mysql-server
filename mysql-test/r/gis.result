@@ -4302,3 +4302,23 @@ DO ST_EXTERIORRING(x'00000000010700000001000000010500000001000000');
 ERROR 22023: Invalid GIS data provided to function st_exteriorring.
 DO ST_EXTERIORRING(x'00000000010700000001000000010600000001000000');
 ERROR 22023: Invalid GIS data provided to function st_exteriorring.
+#
+# Bug #25582178 ASSERTION `LENGTH > 0' FAILED. IN SQL/FIELD.CC:8732
+#
+CREATE TABLE t1(g GEOMETRY NOT NULL) ENGINE=ARCHIVE;
+INSERT INTO t1 VALUES (NULL), (NULL);
+ERROR 23000: Column 'g' cannot be null
+ALTER TABLE t1 FORCE;
+DROP TABLE t1;
+SET @save_sql_mode=@@sql_mode;
+SET sql_mode='';
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+CREATE TABLE t1(g GEOMETRY NOT NULL) ENGINE=ARCHIVE;
+INSERT INTO t1 VALUES (NULL), (NULL);
+ERROR 23000: Column 'g' cannot be null
+ALTER TABLE t1 FORCE;
+DROP TABLE t1;
+SET sql_mode=@save_sql_mode;
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
