@@ -58,12 +58,12 @@ articles	CREATE TABLE `articles` (
   `j3` varchar(200) CHARACTER SET ujis DEFAULT NULL,
   `k1` char(200) CHARACTER SET euckr DEFAULT NULL,
   `k2` char(200) CHARACTER SET utf8 DEFAULT NULL,
-  `e1` char(200) DEFAULT NULL,
+  `e1` char(200) CHARACTER SET latin1 DEFAULT NULL,
   PRIMARY KEY (`seq`),
   FULLTEXT KEY `con1` (`c1`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con2` (`j1`,`j3`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con3` (`k2`) /*!50100 WITH PARSER `ngram` */ 
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 INSERT INTO articles_1 (seq,title_char,title_varchar,title_text) VALUES
 (1,'English is a West Germanic language','It was first spoken in early medieval England','most widely used language in the world'),
 (2,'spoken as a first language by the majority populations of several states','including the United Kingdom i*', ' and the United States, Canada, Australia, Ireland'),
@@ -331,13 +331,13 @@ articles	CREATE TABLE `articles` (
   `j3` varchar(200) CHARACTER SET ujis DEFAULT NULL,
   `k1` char(200) CHARACTER SET euckr DEFAULT NULL,
   `k2` char(200) CHARACTER SET utf8 DEFAULT NULL,
-  `e1` char(200) DEFAULT NULL,
+  `e1` char(200) CHARACTER SET latin1 DEFAULT NULL,
   PRIMARY KEY (`seq`),
   FULLTEXT KEY `con1` (`c1`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con2` (`j1`,`j3`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con3` (`k2`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con4` (`c3`) /*!50100 WITH PARSER `ngram` */ 
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=latin1
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4
 ALTER TABLE articles ADD FULLTEXT INDEX con5 (c2) WITH PARSER ngram;
 SHOW CREATE TABLE articles;
 Table	Create Table
@@ -351,14 +351,14 @@ articles	CREATE TABLE `articles` (
   `j3` varchar(200) CHARACTER SET ujis DEFAULT NULL,
   `k1` char(200) CHARACTER SET euckr DEFAULT NULL,
   `k2` char(200) CHARACTER SET utf8 DEFAULT NULL,
-  `e1` char(200) DEFAULT NULL,
+  `e1` char(200) CHARACTER SET latin1 DEFAULT NULL,
   PRIMARY KEY (`seq`),
   FULLTEXT KEY `con1` (`c1`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con2` (`j1`,`j3`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con3` (`k2`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con4` (`c3`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con5` (`c2`) /*!50100 WITH PARSER `ngram` */ 
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=latin1
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4
 ALTER TABLE articles ADD FULLTEXT INDEX con6 (j2) WITH PARSER ngram;
 SHOW CREATE TABLE articles;
 Table	Create Table
@@ -372,7 +372,7 @@ articles	CREATE TABLE `articles` (
   `j3` varchar(200) CHARACTER SET ujis DEFAULT NULL,
   `k1` char(200) CHARACTER SET euckr DEFAULT NULL,
   `k2` char(200) CHARACTER SET utf8 DEFAULT NULL,
-  `e1` char(200) DEFAULT NULL,
+  `e1` char(200) CHARACTER SET latin1 DEFAULT NULL,
   PRIMARY KEY (`seq`),
   FULLTEXT KEY `con1` (`c1`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con2` (`j1`,`j3`) /*!50100 WITH PARSER `ngram` */ ,
@@ -380,7 +380,7 @@ articles	CREATE TABLE `articles` (
   FULLTEXT KEY `con4` (`c3`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con5` (`c2`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con6` (`j2`) /*!50100 WITH PARSER `ngram` */ 
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=latin1
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4
 ALTER TABLE articles ADD FULLTEXT INDEX con7 (j3) WITH PARSER ngram;
 SHOW CREATE TABLE articles;
 Table	Create Table
@@ -394,7 +394,7 @@ articles	CREATE TABLE `articles` (
   `j3` varchar(200) CHARACTER SET ujis DEFAULT NULL,
   `k1` char(200) CHARACTER SET euckr DEFAULT NULL,
   `k2` char(200) CHARACTER SET utf8 DEFAULT NULL,
-  `e1` char(200) DEFAULT NULL,
+  `e1` char(200) CHARACTER SET latin1 DEFAULT NULL,
   PRIMARY KEY (`seq`),
   FULLTEXT KEY `con1` (`c1`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con2` (`j1`,`j3`) /*!50100 WITH PARSER `ngram` */ ,
@@ -403,7 +403,7 @@ articles	CREATE TABLE `articles` (
   FULLTEXT KEY `con5` (`c2`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con6` (`j2`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con7` (`j3`) /*!50100 WITH PARSER `ngram` */ 
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=latin1
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4
 ALTER TABLE articles ADD FULLTEXT INDEX con8 (k1) WITH PARSER ngram;
 SHOW CREATE TABLE articles;
 Table	Create Table
@@ -417,7 +417,7 @@ articles	CREATE TABLE `articles` (
   `j3` varchar(200) CHARACTER SET ujis DEFAULT NULL,
   `k1` char(200) CHARACTER SET euckr DEFAULT NULL,
   `k2` char(200) CHARACTER SET utf8 DEFAULT NULL,
-  `e1` char(200) DEFAULT NULL,
+  `e1` char(200) CHARACTER SET latin1 DEFAULT NULL,
   PRIMARY KEY (`seq`),
   FULLTEXT KEY `con1` (`c1`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con2` (`j1`,`j3`) /*!50100 WITH PARSER `ngram` */ ,
@@ -427,7 +427,7 @@ articles	CREATE TABLE `articles` (
   FULLTEXT KEY `con6` (`j2`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con7` (`j3`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con8` (`k1`) /*!50100 WITH PARSER `ngram` */ 
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=latin1
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4
 ALTER TABLE articles ADD FULLTEXT INDEX con9 (e1) WITH PARSER ngram;
 SHOW CREATE TABLE articles;
 Table	Create Table
@@ -441,7 +441,7 @@ articles	CREATE TABLE `articles` (
   `j3` varchar(200) CHARACTER SET ujis DEFAULT NULL,
   `k1` char(200) CHARACTER SET euckr DEFAULT NULL,
   `k2` char(200) CHARACTER SET utf8 DEFAULT NULL,
-  `e1` char(200) DEFAULT NULL,
+  `e1` char(200) CHARACTER SET latin1 DEFAULT NULL,
   PRIMARY KEY (`seq`),
   FULLTEXT KEY `con1` (`c1`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con2` (`j1`,`j3`) /*!50100 WITH PARSER `ngram` */ ,
@@ -452,7 +452,7 @@ articles	CREATE TABLE `articles` (
   FULLTEXT KEY `con7` (`j3`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con8` (`k1`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con9` (`e1`) /*!50100 WITH PARSER `ngram` */ 
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=latin1
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4
 SELECT * FROM articles WHERE
 MATCH(c1) AGAINST('啊! ');
 seq	c1	c2	c3	j1	j2	j3	k1	k2	e1
@@ -677,8 +677,8 @@ Table	Create Table
   `j3` varchar(200) CHARACTER SET ujis DEFAULT NULL,
   `행운을빈다` char(200) CHARACTER SET euckr DEFAULT NULL,
   `k2` char(200) CHARACTER SET utf8 DEFAULT NULL,
-  `e1` char(200) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+  `e1` char(200) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 # Test Case : CJK charset and collation with  FTS + transactional statements
 SELECT * FROM 名字;
 seq	c1	c2	c3	さようなら	j2	j3	행운을빈다	k2	e1
@@ -697,9 +697,9 @@ Table	Create Table
   `j3` varchar(200) CHARACTER SET ujis DEFAULT NULL,
   `행운을빈다` char(200) CHARACTER SET euckr DEFAULT NULL,
   `k2` char(200) CHARACTER SET utf8 DEFAULT NULL,
-  `e1` char(200) DEFAULT NULL,
+  `e1` char(200) CHARACTER SET latin1 DEFAULT NULL,
   FULLTEXT KEY `con1` (`c1`) /*!50100 WITH PARSER `ngram` */ 
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 ALTER TABLE 名字 ADD FULLTEXT INDEX con2 (さようなら,j3) WITH PARSER ngram;
 SHOW CREATE TABLE 名字;
 Table	Create Table
@@ -713,10 +713,10 @@ Table	Create Table
   `j3` varchar(200) CHARACTER SET ujis DEFAULT NULL,
   `행운을빈다` char(200) CHARACTER SET euckr DEFAULT NULL,
   `k2` char(200) CHARACTER SET utf8 DEFAULT NULL,
-  `e1` char(200) DEFAULT NULL,
+  `e1` char(200) CHARACTER SET latin1 DEFAULT NULL,
   FULLTEXT KEY `con1` (`c1`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con2` (`さようなら`,`j3`) /*!50100 WITH PARSER `ngram` */ 
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 ALTER TABLE 名字 ADD FULLTEXT INDEX con3 (k2) WITH PARSER ngram;
 SHOW CREATE TABLE 名字;
 Table	Create Table
@@ -730,11 +730,11 @@ Table	Create Table
   `j3` varchar(200) CHARACTER SET ujis DEFAULT NULL,
   `행운을빈다` char(200) CHARACTER SET euckr DEFAULT NULL,
   `k2` char(200) CHARACTER SET utf8 DEFAULT NULL,
-  `e1` char(200) DEFAULT NULL,
+  `e1` char(200) CHARACTER SET latin1 DEFAULT NULL,
   FULLTEXT KEY `con1` (`c1`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con2` (`さようなら`,`j3`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con3` (`k2`) /*!50100 WITH PARSER `ngram` */ 
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 ALTER TABLE 名字 ADD FULLTEXT INDEX con4 (c3) WITH PARSER ngram;
 SHOW CREATE TABLE 名字;
 Table	Create Table
@@ -748,12 +748,12 @@ Table	Create Table
   `j3` varchar(200) CHARACTER SET ujis DEFAULT NULL,
   `행운을빈다` char(200) CHARACTER SET euckr DEFAULT NULL,
   `k2` char(200) CHARACTER SET utf8 DEFAULT NULL,
-  `e1` char(200) DEFAULT NULL,
+  `e1` char(200) CHARACTER SET latin1 DEFAULT NULL,
   FULLTEXT KEY `con1` (`c1`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con2` (`さようなら`,`j3`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con3` (`k2`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con4` (`c3`) /*!50100 WITH PARSER `ngram` */ 
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 ALTER TABLE 名字 ADD FULLTEXT INDEX con5 (c2) WITH PARSER ngram;
 SHOW CREATE TABLE 名字;
 Table	Create Table
@@ -767,13 +767,13 @@ Table	Create Table
   `j3` varchar(200) CHARACTER SET ujis DEFAULT NULL,
   `행운을빈다` char(200) CHARACTER SET euckr DEFAULT NULL,
   `k2` char(200) CHARACTER SET utf8 DEFAULT NULL,
-  `e1` char(200) DEFAULT NULL,
+  `e1` char(200) CHARACTER SET latin1 DEFAULT NULL,
   FULLTEXT KEY `con1` (`c1`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con2` (`さようなら`,`j3`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con3` (`k2`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con4` (`c3`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con5` (`c2`) /*!50100 WITH PARSER `ngram` */ 
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 ALTER TABLE 名字 ADD FULLTEXT INDEX con6 (j2) WITH PARSER ngram;
 SHOW CREATE TABLE 名字;
 Table	Create Table
@@ -787,14 +787,14 @@ Table	Create Table
   `j3` varchar(200) CHARACTER SET ujis DEFAULT NULL,
   `행운을빈다` char(200) CHARACTER SET euckr DEFAULT NULL,
   `k2` char(200) CHARACTER SET utf8 DEFAULT NULL,
-  `e1` char(200) DEFAULT NULL,
+  `e1` char(200) CHARACTER SET latin1 DEFAULT NULL,
   FULLTEXT KEY `con1` (`c1`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con2` (`さようなら`,`j3`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con3` (`k2`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con4` (`c3`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con5` (`c2`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con6` (`j2`) /*!50100 WITH PARSER `ngram` */ 
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 ALTER TABLE 名字 ADD FULLTEXT INDEX con7 (j3) WITH PARSER ngram;
 SHOW CREATE TABLE 名字;
 Table	Create Table
@@ -808,7 +808,7 @@ Table	Create Table
   `j3` varchar(200) CHARACTER SET ujis DEFAULT NULL,
   `행운을빈다` char(200) CHARACTER SET euckr DEFAULT NULL,
   `k2` char(200) CHARACTER SET utf8 DEFAULT NULL,
-  `e1` char(200) DEFAULT NULL,
+  `e1` char(200) CHARACTER SET latin1 DEFAULT NULL,
   FULLTEXT KEY `con1` (`c1`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con2` (`さようなら`,`j3`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con3` (`k2`) /*!50100 WITH PARSER `ngram` */ ,
@@ -816,7 +816,7 @@ Table	Create Table
   FULLTEXT KEY `con5` (`c2`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con6` (`j2`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con7` (`j3`) /*!50100 WITH PARSER `ngram` */ 
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 ALTER TABLE 名字 ADD FULLTEXT INDEX con8 (행운을빈다) WITH PARSER ngram;
 SHOW CREATE TABLE 名字;
 Table	Create Table
@@ -830,7 +830,7 @@ Table	Create Table
   `j3` varchar(200) CHARACTER SET ujis DEFAULT NULL,
   `행운을빈다` char(200) CHARACTER SET euckr DEFAULT NULL,
   `k2` char(200) CHARACTER SET utf8 DEFAULT NULL,
-  `e1` char(200) DEFAULT NULL,
+  `e1` char(200) CHARACTER SET latin1 DEFAULT NULL,
   FULLTEXT KEY `con1` (`c1`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con2` (`さようなら`,`j3`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con3` (`k2`) /*!50100 WITH PARSER `ngram` */ ,
@@ -839,7 +839,7 @@ Table	Create Table
   FULLTEXT KEY `con6` (`j2`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con7` (`j3`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con8` (`행운을빈다`) /*!50100 WITH PARSER `ngram` */ 
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 START TRANSACTION;
 INSERT INTO 名字 (c1,c2,c3,さようなら,j2,j3,행운을빈다,k2,e1) VALUES
 ('歡迎','你好','喂 ','日の長','言も言わずに','つやってみよう','제가 미국인입니다.','한국말을 공부합니다%','testing row'),
@@ -1047,8 +1047,8 @@ Table	Create Table
   `j3` varchar(200) CHARACTER SET ujis DEFAULT NULL,
   `행운을빈다` char(200) CHARACTER SET euckr DEFAULT NULL,
   `k2` char(200) CHARACTER SET utf8 DEFAULT NULL,
-  `e1` char(200) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+  `e1` char(200) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 ALTER TABLE 名字 ADD FULLTEXT INDEX con1 (c1) WITH PARSER ngram;
 Warnings:
 Warning	124	InnoDB rebuilding table to add column FTS_DOC_ID
@@ -1064,9 +1064,9 @@ Table	Create Table
   `j3` varchar(200) CHARACTER SET ujis DEFAULT NULL,
   `행운을빈다` char(200) CHARACTER SET euckr DEFAULT NULL,
   `k2` char(200) CHARACTER SET utf8 DEFAULT NULL,
-  `e1` char(200) DEFAULT NULL,
+  `e1` char(200) CHARACTER SET latin1 DEFAULT NULL,
   FULLTEXT KEY `con1` (`c1`) /*!50100 WITH PARSER `ngram` */ 
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 ALTER TABLE 名字 ADD FULLTEXT INDEX con2 (さようなら,j3) WITH PARSER ngram;
 SHOW CREATE TABLE 名字;
 Table	Create Table
@@ -1080,10 +1080,10 @@ Table	Create Table
   `j3` varchar(200) CHARACTER SET ujis DEFAULT NULL,
   `행운을빈다` char(200) CHARACTER SET euckr DEFAULT NULL,
   `k2` char(200) CHARACTER SET utf8 DEFAULT NULL,
-  `e1` char(200) DEFAULT NULL,
+  `e1` char(200) CHARACTER SET latin1 DEFAULT NULL,
   FULLTEXT KEY `con1` (`c1`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con2` (`さようなら`,`j3`) /*!50100 WITH PARSER `ngram` */ 
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 ALTER TABLE 名字 ADD FULLTEXT INDEX con3 (k2) WITH PARSER ngram;
 SHOW CREATE TABLE 名字;
 Table	Create Table
@@ -1097,11 +1097,11 @@ Table	Create Table
   `j3` varchar(200) CHARACTER SET ujis DEFAULT NULL,
   `행운을빈다` char(200) CHARACTER SET euckr DEFAULT NULL,
   `k2` char(200) CHARACTER SET utf8 DEFAULT NULL,
-  `e1` char(200) DEFAULT NULL,
+  `e1` char(200) CHARACTER SET latin1 DEFAULT NULL,
   FULLTEXT KEY `con1` (`c1`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con2` (`さようなら`,`j3`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con3` (`k2`) /*!50100 WITH PARSER `ngram` */ 
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 SELECT * FROM 名字;
 seq	c1	c2	c3	さようなら	j2	j3	행운을빈다	k2	e1
 START TRANSACTION;
@@ -1172,8 +1172,8 @@ Table	Create Table
   `j3` varchar(200) CHARACTER SET ujis DEFAULT NULL,
   `행운을빈다` char(200) CHARACTER SET euckr DEFAULT NULL,
   `k2` char(200) CHARACTER SET utf8 DEFAULT NULL,
-  `e1` char(200) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+  `e1` char(200) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 # Test Case : CJK charset and collation , FTS query in condition of update/delete
 SELECT * FROM 名字;
 seq	c1	c2	c3	さようなら	j2	j3	행운을빈다	k2	e1
@@ -1279,12 +1279,12 @@ articles	CREATE TABLE `articles` (
   `j3` varchar(200) CHARACTER SET ujis DEFAULT NULL,
   `k1` char(200) CHARACTER SET euckr DEFAULT NULL,
   `k2` char(200) CHARACTER SET utf8 DEFAULT NULL,
-  `e1` char(200) DEFAULT NULL,
+  `e1` char(200) CHARACTER SET latin1 DEFAULT NULL,
   PRIMARY KEY (`seq`),
   FULLTEXT KEY `con1` (`c1`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con2` (`j1`,`j3`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con3` (`k2`) /*!50100 WITH PARSER `ngram` */ 
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=COMPACT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=COMPACT
 INSERT INTO articles_1 (seq,title_char,title_varchar,title_text) VALUES
 (1,'English is a West Germanic language','It was first spoken in early medieval England','most widely used language in the world'),
 (2,'spoken as a first language by the majority populations of several states','including the United Kingdom i*', ' and the United States, Canada, Australia, Ireland'),
@@ -1552,13 +1552,13 @@ articles	CREATE TABLE `articles` (
   `j3` varchar(200) CHARACTER SET ujis DEFAULT NULL,
   `k1` char(200) CHARACTER SET euckr DEFAULT NULL,
   `k2` char(200) CHARACTER SET utf8 DEFAULT NULL,
-  `e1` char(200) DEFAULT NULL,
+  `e1` char(200) CHARACTER SET latin1 DEFAULT NULL,
   PRIMARY KEY (`seq`),
   FULLTEXT KEY `con1` (`c1`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con2` (`j1`,`j3`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con3` (`k2`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con4` (`c3`) /*!50100 WITH PARSER `ngram` */ 
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=latin1 ROW_FORMAT=COMPACT
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 ROW_FORMAT=COMPACT
 ALTER TABLE articles ADD FULLTEXT INDEX con5 (c2) WITH PARSER ngram;
 SHOW CREATE TABLE articles;
 Table	Create Table
@@ -1572,14 +1572,14 @@ articles	CREATE TABLE `articles` (
   `j3` varchar(200) CHARACTER SET ujis DEFAULT NULL,
   `k1` char(200) CHARACTER SET euckr DEFAULT NULL,
   `k2` char(200) CHARACTER SET utf8 DEFAULT NULL,
-  `e1` char(200) DEFAULT NULL,
+  `e1` char(200) CHARACTER SET latin1 DEFAULT NULL,
   PRIMARY KEY (`seq`),
   FULLTEXT KEY `con1` (`c1`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con2` (`j1`,`j3`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con3` (`k2`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con4` (`c3`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con5` (`c2`) /*!50100 WITH PARSER `ngram` */ 
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=latin1 ROW_FORMAT=COMPACT
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 ROW_FORMAT=COMPACT
 ALTER TABLE articles ADD FULLTEXT INDEX con6 (j2) WITH PARSER ngram;
 SHOW CREATE TABLE articles;
 Table	Create Table
@@ -1593,7 +1593,7 @@ articles	CREATE TABLE `articles` (
   `j3` varchar(200) CHARACTER SET ujis DEFAULT NULL,
   `k1` char(200) CHARACTER SET euckr DEFAULT NULL,
   `k2` char(200) CHARACTER SET utf8 DEFAULT NULL,
-  `e1` char(200) DEFAULT NULL,
+  `e1` char(200) CHARACTER SET latin1 DEFAULT NULL,
   PRIMARY KEY (`seq`),
   FULLTEXT KEY `con1` (`c1`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con2` (`j1`,`j3`) /*!50100 WITH PARSER `ngram` */ ,
@@ -1601,7 +1601,7 @@ articles	CREATE TABLE `articles` (
   FULLTEXT KEY `con4` (`c3`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con5` (`c2`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con6` (`j2`) /*!50100 WITH PARSER `ngram` */ 
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=latin1 ROW_FORMAT=COMPACT
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 ROW_FORMAT=COMPACT
 ALTER TABLE articles ADD FULLTEXT INDEX con7 (j3) WITH PARSER ngram;
 SHOW CREATE TABLE articles;
 Table	Create Table
@@ -1615,7 +1615,7 @@ articles	CREATE TABLE `articles` (
   `j3` varchar(200) CHARACTER SET ujis DEFAULT NULL,
   `k1` char(200) CHARACTER SET euckr DEFAULT NULL,
   `k2` char(200) CHARACTER SET utf8 DEFAULT NULL,
-  `e1` char(200) DEFAULT NULL,
+  `e1` char(200) CHARACTER SET latin1 DEFAULT NULL,
   PRIMARY KEY (`seq`),
   FULLTEXT KEY `con1` (`c1`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con2` (`j1`,`j3`) /*!50100 WITH PARSER `ngram` */ ,
@@ -1624,7 +1624,7 @@ articles	CREATE TABLE `articles` (
   FULLTEXT KEY `con5` (`c2`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con6` (`j2`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con7` (`j3`) /*!50100 WITH PARSER `ngram` */ 
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=latin1 ROW_FORMAT=COMPACT
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 ROW_FORMAT=COMPACT
 ALTER TABLE articles ADD FULLTEXT INDEX con8 (k1) WITH PARSER ngram;
 SHOW CREATE TABLE articles;
 Table	Create Table
@@ -1638,7 +1638,7 @@ articles	CREATE TABLE `articles` (
   `j3` varchar(200) CHARACTER SET ujis DEFAULT NULL,
   `k1` char(200) CHARACTER SET euckr DEFAULT NULL,
   `k2` char(200) CHARACTER SET utf8 DEFAULT NULL,
-  `e1` char(200) DEFAULT NULL,
+  `e1` char(200) CHARACTER SET latin1 DEFAULT NULL,
   PRIMARY KEY (`seq`),
   FULLTEXT KEY `con1` (`c1`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con2` (`j1`,`j3`) /*!50100 WITH PARSER `ngram` */ ,
@@ -1648,7 +1648,7 @@ articles	CREATE TABLE `articles` (
   FULLTEXT KEY `con6` (`j2`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con7` (`j3`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con8` (`k1`) /*!50100 WITH PARSER `ngram` */ 
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=latin1 ROW_FORMAT=COMPACT
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 ROW_FORMAT=COMPACT
 ALTER TABLE articles ADD FULLTEXT INDEX con9 (e1) WITH PARSER ngram;
 SHOW CREATE TABLE articles;
 Table	Create Table
@@ -1662,7 +1662,7 @@ articles	CREATE TABLE `articles` (
   `j3` varchar(200) CHARACTER SET ujis DEFAULT NULL,
   `k1` char(200) CHARACTER SET euckr DEFAULT NULL,
   `k2` char(200) CHARACTER SET utf8 DEFAULT NULL,
-  `e1` char(200) DEFAULT NULL,
+  `e1` char(200) CHARACTER SET latin1 DEFAULT NULL,
   PRIMARY KEY (`seq`),
   FULLTEXT KEY `con1` (`c1`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con2` (`j1`,`j3`) /*!50100 WITH PARSER `ngram` */ ,
@@ -1673,7 +1673,7 @@ articles	CREATE TABLE `articles` (
   FULLTEXT KEY `con7` (`j3`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con8` (`k1`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con9` (`e1`) /*!50100 WITH PARSER `ngram` */ 
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=latin1 ROW_FORMAT=COMPACT
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 ROW_FORMAT=COMPACT
 SELECT * FROM articles WHERE
 MATCH(c1) AGAINST('啊! ');
 seq	c1	c2	c3	j1	j2	j3	k1	k2	e1
@@ -1898,8 +1898,8 @@ Table	Create Table
   `j3` varchar(200) CHARACTER SET ujis DEFAULT NULL,
   `행운을빈다` char(200) CHARACTER SET euckr DEFAULT NULL,
   `k2` char(200) CHARACTER SET utf8 DEFAULT NULL,
-  `e1` char(200) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=COMPACT
+  `e1` char(200) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=COMPACT
 # Test Case : CJK charset and collation with  FTS + transactional statements
 SELECT * FROM 名字;
 seq	c1	c2	c3	さようなら	j2	j3	행운을빈다	k2	e1
@@ -1918,9 +1918,9 @@ Table	Create Table
   `j3` varchar(200) CHARACTER SET ujis DEFAULT NULL,
   `행운을빈다` char(200) CHARACTER SET euckr DEFAULT NULL,
   `k2` char(200) CHARACTER SET utf8 DEFAULT NULL,
-  `e1` char(200) DEFAULT NULL,
+  `e1` char(200) CHARACTER SET latin1 DEFAULT NULL,
   FULLTEXT KEY `con1` (`c1`) /*!50100 WITH PARSER `ngram` */ 
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=COMPACT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=COMPACT
 ALTER TABLE 名字 ADD FULLTEXT INDEX con2 (さようなら,j3) WITH PARSER ngram;
 SHOW CREATE TABLE 名字;
 Table	Create Table
@@ -1934,10 +1934,10 @@ Table	Create Table
   `j3` varchar(200) CHARACTER SET ujis DEFAULT NULL,
   `행운을빈다` char(200) CHARACTER SET euckr DEFAULT NULL,
   `k2` char(200) CHARACTER SET utf8 DEFAULT NULL,
-  `e1` char(200) DEFAULT NULL,
+  `e1` char(200) CHARACTER SET latin1 DEFAULT NULL,
   FULLTEXT KEY `con1` (`c1`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con2` (`さようなら`,`j3`) /*!50100 WITH PARSER `ngram` */ 
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=COMPACT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=COMPACT
 ALTER TABLE 名字 ADD FULLTEXT INDEX con3 (k2) WITH PARSER ngram;
 SHOW CREATE TABLE 名字;
 Table	Create Table
@@ -1951,11 +1951,11 @@ Table	Create Table
   `j3` varchar(200) CHARACTER SET ujis DEFAULT NULL,
   `행운을빈다` char(200) CHARACTER SET euckr DEFAULT NULL,
   `k2` char(200) CHARACTER SET utf8 DEFAULT NULL,
-  `e1` char(200) DEFAULT NULL,
+  `e1` char(200) CHARACTER SET latin1 DEFAULT NULL,
   FULLTEXT KEY `con1` (`c1`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con2` (`さようなら`,`j3`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con3` (`k2`) /*!50100 WITH PARSER `ngram` */ 
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=COMPACT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=COMPACT
 ALTER TABLE 名字 ADD FULLTEXT INDEX con4 (c3) WITH PARSER ngram;
 SHOW CREATE TABLE 名字;
 Table	Create Table
@@ -1969,12 +1969,12 @@ Table	Create Table
   `j3` varchar(200) CHARACTER SET ujis DEFAULT NULL,
   `행운을빈다` char(200) CHARACTER SET euckr DEFAULT NULL,
   `k2` char(200) CHARACTER SET utf8 DEFAULT NULL,
-  `e1` char(200) DEFAULT NULL,
+  `e1` char(200) CHARACTER SET latin1 DEFAULT NULL,
   FULLTEXT KEY `con1` (`c1`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con2` (`さようなら`,`j3`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con3` (`k2`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con4` (`c3`) /*!50100 WITH PARSER `ngram` */ 
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=COMPACT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=COMPACT
 ALTER TABLE 名字 ADD FULLTEXT INDEX con5 (c2) WITH PARSER ngram;
 SHOW CREATE TABLE 名字;
 Table	Create Table
@@ -1988,13 +1988,13 @@ Table	Create Table
   `j3` varchar(200) CHARACTER SET ujis DEFAULT NULL,
   `행운을빈다` char(200) CHARACTER SET euckr DEFAULT NULL,
   `k2` char(200) CHARACTER SET utf8 DEFAULT NULL,
-  `e1` char(200) DEFAULT NULL,
+  `e1` char(200) CHARACTER SET latin1 DEFAULT NULL,
   FULLTEXT KEY `con1` (`c1`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con2` (`さようなら`,`j3`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con3` (`k2`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con4` (`c3`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con5` (`c2`) /*!50100 WITH PARSER `ngram` */ 
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=COMPACT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=COMPACT
 ALTER TABLE 名字 ADD FULLTEXT INDEX con6 (j2) WITH PARSER ngram;
 SHOW CREATE TABLE 名字;
 Table	Create Table
@@ -2008,14 +2008,14 @@ Table	Create Table
   `j3` varchar(200) CHARACTER SET ujis DEFAULT NULL,
   `행운을빈다` char(200) CHARACTER SET euckr DEFAULT NULL,
   `k2` char(200) CHARACTER SET utf8 DEFAULT NULL,
-  `e1` char(200) DEFAULT NULL,
+  `e1` char(200) CHARACTER SET latin1 DEFAULT NULL,
   FULLTEXT KEY `con1` (`c1`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con2` (`さようなら`,`j3`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con3` (`k2`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con4` (`c3`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con5` (`c2`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con6` (`j2`) /*!50100 WITH PARSER `ngram` */ 
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=COMPACT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=COMPACT
 ALTER TABLE 名字 ADD FULLTEXT INDEX con7 (j3) WITH PARSER ngram;
 SHOW CREATE TABLE 名字;
 Table	Create Table
@@ -2029,7 +2029,7 @@ Table	Create Table
   `j3` varchar(200) CHARACTER SET ujis DEFAULT NULL,
   `행운을빈다` char(200) CHARACTER SET euckr DEFAULT NULL,
   `k2` char(200) CHARACTER SET utf8 DEFAULT NULL,
-  `e1` char(200) DEFAULT NULL,
+  `e1` char(200) CHARACTER SET latin1 DEFAULT NULL,
   FULLTEXT KEY `con1` (`c1`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con2` (`さようなら`,`j3`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con3` (`k2`) /*!50100 WITH PARSER `ngram` */ ,
@@ -2037,7 +2037,7 @@ Table	Create Table
   FULLTEXT KEY `con5` (`c2`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con6` (`j2`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con7` (`j3`) /*!50100 WITH PARSER `ngram` */ 
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=COMPACT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=COMPACT
 ALTER TABLE 名字 ADD FULLTEXT INDEX con8 (행운을빈다) WITH PARSER ngram;
 SHOW CREATE TABLE 名字;
 Table	Create Table
@@ -2051,7 +2051,7 @@ Table	Create Table
   `j3` varchar(200) CHARACTER SET ujis DEFAULT NULL,
   `행운을빈다` char(200) CHARACTER SET euckr DEFAULT NULL,
   `k2` char(200) CHARACTER SET utf8 DEFAULT NULL,
-  `e1` char(200) DEFAULT NULL,
+  `e1` char(200) CHARACTER SET latin1 DEFAULT NULL,
   FULLTEXT KEY `con1` (`c1`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con2` (`さようなら`,`j3`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con3` (`k2`) /*!50100 WITH PARSER `ngram` */ ,
@@ -2060,7 +2060,7 @@ Table	Create Table
   FULLTEXT KEY `con6` (`j2`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con7` (`j3`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con8` (`행운을빈다`) /*!50100 WITH PARSER `ngram` */ 
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=COMPACT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=COMPACT
 START TRANSACTION;
 INSERT INTO 名字 (c1,c2,c3,さようなら,j2,j3,행운을빈다,k2,e1) VALUES
 ('歡迎','你好','喂 ','日の長','言も言わずに','つやってみよう','제가 미국인입니다.','한국말을 공부합니다%','testing row'),
@@ -2268,8 +2268,8 @@ Table	Create Table
   `j3` varchar(200) CHARACTER SET ujis DEFAULT NULL,
   `행운을빈다` char(200) CHARACTER SET euckr DEFAULT NULL,
   `k2` char(200) CHARACTER SET utf8 DEFAULT NULL,
-  `e1` char(200) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=COMPACT
+  `e1` char(200) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=COMPACT
 ALTER TABLE 名字 ADD FULLTEXT INDEX con1 (c1) WITH PARSER ngram;
 Warnings:
 Warning	124	InnoDB rebuilding table to add column FTS_DOC_ID
@@ -2285,9 +2285,9 @@ Table	Create Table
   `j3` varchar(200) CHARACTER SET ujis DEFAULT NULL,
   `행운을빈다` char(200) CHARACTER SET euckr DEFAULT NULL,
   `k2` char(200) CHARACTER SET utf8 DEFAULT NULL,
-  `e1` char(200) DEFAULT NULL,
+  `e1` char(200) CHARACTER SET latin1 DEFAULT NULL,
   FULLTEXT KEY `con1` (`c1`) /*!50100 WITH PARSER `ngram` */ 
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=COMPACT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=COMPACT
 ALTER TABLE 名字 ADD FULLTEXT INDEX con2 (さようなら,j3) WITH PARSER ngram;
 SHOW CREATE TABLE 名字;
 Table	Create Table
@@ -2301,10 +2301,10 @@ Table	Create Table
   `j3` varchar(200) CHARACTER SET ujis DEFAULT NULL,
   `행운을빈다` char(200) CHARACTER SET euckr DEFAULT NULL,
   `k2` char(200) CHARACTER SET utf8 DEFAULT NULL,
-  `e1` char(200) DEFAULT NULL,
+  `e1` char(200) CHARACTER SET latin1 DEFAULT NULL,
   FULLTEXT KEY `con1` (`c1`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con2` (`さようなら`,`j3`) /*!50100 WITH PARSER `ngram` */ 
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=COMPACT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=COMPACT
 ALTER TABLE 名字 ADD FULLTEXT INDEX con3 (k2) WITH PARSER ngram;
 SHOW CREATE TABLE 名字;
 Table	Create Table
@@ -2318,11 +2318,11 @@ Table	Create Table
   `j3` varchar(200) CHARACTER SET ujis DEFAULT NULL,
   `행운을빈다` char(200) CHARACTER SET euckr DEFAULT NULL,
   `k2` char(200) CHARACTER SET utf8 DEFAULT NULL,
-  `e1` char(200) DEFAULT NULL,
+  `e1` char(200) CHARACTER SET latin1 DEFAULT NULL,
   FULLTEXT KEY `con1` (`c1`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con2` (`さようなら`,`j3`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con3` (`k2`) /*!50100 WITH PARSER `ngram` */ 
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=COMPACT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=COMPACT
 SELECT * FROM 名字;
 seq	c1	c2	c3	さようなら	j2	j3	행운을빈다	k2	e1
 START TRANSACTION;
@@ -2393,8 +2393,8 @@ Table	Create Table
   `j3` varchar(200) CHARACTER SET ujis DEFAULT NULL,
   `행운을빈다` char(200) CHARACTER SET euckr DEFAULT NULL,
   `k2` char(200) CHARACTER SET utf8 DEFAULT NULL,
-  `e1` char(200) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=COMPACT
+  `e1` char(200) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=COMPACT
 # Test Case : CJK charset and collation , FTS query in condition of update/delete
 SELECT * FROM 名字;
 seq	c1	c2	c3	さようなら	j2	j3	행운을빈다	k2	e1
@@ -2500,12 +2500,12 @@ articles	CREATE TABLE `articles` (
   `j3` varchar(200) CHARACTER SET ujis DEFAULT NULL,
   `k1` char(200) CHARACTER SET euckr DEFAULT NULL,
   `k2` char(200) CHARACTER SET utf8 DEFAULT NULL,
-  `e1` char(200) DEFAULT NULL,
+  `e1` char(200) CHARACTER SET latin1 DEFAULT NULL,
   PRIMARY KEY (`seq`),
   FULLTEXT KEY `con1` (`c1`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con2` (`j1`,`j3`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con3` (`k2`) /*!50100 WITH PARSER `ngram` */ 
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=REDUNDANT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=REDUNDANT
 INSERT INTO articles_1 (seq,title_char,title_varchar,title_text) VALUES
 (1,'English is a West Germanic language','It was first spoken in early medieval England','most widely used language in the world'),
 (2,'spoken as a first language by the majority populations of several states','including the United Kingdom i*', ' and the United States, Canada, Australia, Ireland'),
@@ -2773,13 +2773,13 @@ articles	CREATE TABLE `articles` (
   `j3` varchar(200) CHARACTER SET ujis DEFAULT NULL,
   `k1` char(200) CHARACTER SET euckr DEFAULT NULL,
   `k2` char(200) CHARACTER SET utf8 DEFAULT NULL,
-  `e1` char(200) DEFAULT NULL,
+  `e1` char(200) CHARACTER SET latin1 DEFAULT NULL,
   PRIMARY KEY (`seq`),
   FULLTEXT KEY `con1` (`c1`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con2` (`j1`,`j3`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con3` (`k2`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con4` (`c3`) /*!50100 WITH PARSER `ngram` */ 
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=latin1 ROW_FORMAT=REDUNDANT
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 ROW_FORMAT=REDUNDANT
 ALTER TABLE articles ADD FULLTEXT INDEX con5 (c2) WITH PARSER ngram;
 SHOW CREATE TABLE articles;
 Table	Create Table
@@ -2793,14 +2793,14 @@ articles	CREATE TABLE `articles` (
   `j3` varchar(200) CHARACTER SET ujis DEFAULT NULL,
   `k1` char(200) CHARACTER SET euckr DEFAULT NULL,
   `k2` char(200) CHARACTER SET utf8 DEFAULT NULL,
-  `e1` char(200) DEFAULT NULL,
+  `e1` char(200) CHARACTER SET latin1 DEFAULT NULL,
   PRIMARY KEY (`seq`),
   FULLTEXT KEY `con1` (`c1`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con2` (`j1`,`j3`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con3` (`k2`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con4` (`c3`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con5` (`c2`) /*!50100 WITH PARSER `ngram` */ 
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=latin1 ROW_FORMAT=REDUNDANT
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 ROW_FORMAT=REDUNDANT
 ALTER TABLE articles ADD FULLTEXT INDEX con6 (j2) WITH PARSER ngram;
 SHOW CREATE TABLE articles;
 Table	Create Table
@@ -2814,7 +2814,7 @@ articles	CREATE TABLE `articles` (
   `j3` varchar(200) CHARACTER SET ujis DEFAULT NULL,
   `k1` char(200) CHARACTER SET euckr DEFAULT NULL,
   `k2` char(200) CHARACTER SET utf8 DEFAULT NULL,
-  `e1` char(200) DEFAULT NULL,
+  `e1` char(200) CHARACTER SET latin1 DEFAULT NULL,
   PRIMARY KEY (`seq`),
   FULLTEXT KEY `con1` (`c1`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con2` (`j1`,`j3`) /*!50100 WITH PARSER `ngram` */ ,
@@ -2822,7 +2822,7 @@ articles	CREATE TABLE `articles` (
   FULLTEXT KEY `con4` (`c3`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con5` (`c2`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con6` (`j2`) /*!50100 WITH PARSER `ngram` */ 
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=latin1 ROW_FORMAT=REDUNDANT
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 ROW_FORMAT=REDUNDANT
 ALTER TABLE articles ADD FULLTEXT INDEX con7 (j3) WITH PARSER ngram;
 SHOW CREATE TABLE articles;
 Table	Create Table
@@ -2836,7 +2836,7 @@ articles	CREATE TABLE `articles` (
   `j3` varchar(200) CHARACTER SET ujis DEFAULT NULL,
   `k1` char(200) CHARACTER SET euckr DEFAULT NULL,
   `k2` char(200) CHARACTER SET utf8 DEFAULT NULL,
-  `e1` char(200) DEFAULT NULL,
+  `e1` char(200) CHARACTER SET latin1 DEFAULT NULL,
   PRIMARY KEY (`seq`),
   FULLTEXT KEY `con1` (`c1`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con2` (`j1`,`j3`) /*!50100 WITH PARSER `ngram` */ ,
@@ -2845,7 +2845,7 @@ articles	CREATE TABLE `articles` (
   FULLTEXT KEY `con5` (`c2`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con6` (`j2`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con7` (`j3`) /*!50100 WITH PARSER `ngram` */ 
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=latin1 ROW_FORMAT=REDUNDANT
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 ROW_FORMAT=REDUNDANT
 ALTER TABLE articles ADD FULLTEXT INDEX con8 (k1) WITH PARSER ngram;
 SHOW CREATE TABLE articles;
 Table	Create Table
@@ -2859,7 +2859,7 @@ articles	CREATE TABLE `articles` (
   `j3` varchar(200) CHARACTER SET ujis DEFAULT NULL,
   `k1` char(200) CHARACTER SET euckr DEFAULT NULL,
   `k2` char(200) CHARACTER SET utf8 DEFAULT NULL,
-  `e1` char(200) DEFAULT NULL,
+  `e1` char(200) CHARACTER SET latin1 DEFAULT NULL,
   PRIMARY KEY (`seq`),
   FULLTEXT KEY `con1` (`c1`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con2` (`j1`,`j3`) /*!50100 WITH PARSER `ngram` */ ,
@@ -2869,7 +2869,7 @@ articles	CREATE TABLE `articles` (
   FULLTEXT KEY `con6` (`j2`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con7` (`j3`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con8` (`k1`) /*!50100 WITH PARSER `ngram` */ 
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=latin1 ROW_FORMAT=REDUNDANT
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 ROW_FORMAT=REDUNDANT
 ALTER TABLE articles ADD FULLTEXT INDEX con9 (e1) WITH PARSER ngram;
 SHOW CREATE TABLE articles;
 Table	Create Table
@@ -2883,7 +2883,7 @@ articles	CREATE TABLE `articles` (
   `j3` varchar(200) CHARACTER SET ujis DEFAULT NULL,
   `k1` char(200) CHARACTER SET euckr DEFAULT NULL,
   `k2` char(200) CHARACTER SET utf8 DEFAULT NULL,
-  `e1` char(200) DEFAULT NULL,
+  `e1` char(200) CHARACTER SET latin1 DEFAULT NULL,
   PRIMARY KEY (`seq`),
   FULLTEXT KEY `con1` (`c1`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con2` (`j1`,`j3`) /*!50100 WITH PARSER `ngram` */ ,
@@ -2894,7 +2894,7 @@ articles	CREATE TABLE `articles` (
   FULLTEXT KEY `con7` (`j3`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con8` (`k1`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con9` (`e1`) /*!50100 WITH PARSER `ngram` */ 
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=latin1 ROW_FORMAT=REDUNDANT
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 ROW_FORMAT=REDUNDANT
 SELECT * FROM articles WHERE
 MATCH(c1) AGAINST('啊! ');
 seq	c1	c2	c3	j1	j2	j3	k1	k2	e1
@@ -3119,8 +3119,8 @@ Table	Create Table
   `j3` varchar(200) CHARACTER SET ujis DEFAULT NULL,
   `행운을빈다` char(200) CHARACTER SET euckr DEFAULT NULL,
   `k2` char(200) CHARACTER SET utf8 DEFAULT NULL,
-  `e1` char(200) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=REDUNDANT
+  `e1` char(200) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=REDUNDANT
 # Test Case : CJK charset and collation with  FTS + transactional statements
 SELECT * FROM 名字;
 seq	c1	c2	c3	さようなら	j2	j3	행운을빈다	k2	e1
@@ -3139,9 +3139,9 @@ Table	Create Table
   `j3` varchar(200) CHARACTER SET ujis DEFAULT NULL,
   `행운을빈다` char(200) CHARACTER SET euckr DEFAULT NULL,
   `k2` char(200) CHARACTER SET utf8 DEFAULT NULL,
-  `e1` char(200) DEFAULT NULL,
+  `e1` char(200) CHARACTER SET latin1 DEFAULT NULL,
   FULLTEXT KEY `con1` (`c1`) /*!50100 WITH PARSER `ngram` */ 
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=REDUNDANT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=REDUNDANT
 ALTER TABLE 名字 ADD FULLTEXT INDEX con2 (さようなら,j3) WITH PARSER ngram;
 SHOW CREATE TABLE 名字;
 Table	Create Table
@@ -3155,10 +3155,10 @@ Table	Create Table
   `j3` varchar(200) CHARACTER SET ujis DEFAULT NULL,
   `행운을빈다` char(200) CHARACTER SET euckr DEFAULT NULL,
   `k2` char(200) CHARACTER SET utf8 DEFAULT NULL,
-  `e1` char(200) DEFAULT NULL,
+  `e1` char(200) CHARACTER SET latin1 DEFAULT NULL,
   FULLTEXT KEY `con1` (`c1`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con2` (`さようなら`,`j3`) /*!50100 WITH PARSER `ngram` */ 
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=REDUNDANT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=REDUNDANT
 ALTER TABLE 名字 ADD FULLTEXT INDEX con3 (k2) WITH PARSER ngram;
 SHOW CREATE TABLE 名字;
 Table	Create Table
@@ -3172,11 +3172,11 @@ Table	Create Table
   `j3` varchar(200) CHARACTER SET ujis DEFAULT NULL,
   `행운을빈다` char(200) CHARACTER SET euckr DEFAULT NULL,
   `k2` char(200) CHARACTER SET utf8 DEFAULT NULL,
-  `e1` char(200) DEFAULT NULL,
+  `e1` char(200) CHARACTER SET latin1 DEFAULT NULL,
   FULLTEXT KEY `con1` (`c1`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con2` (`さようなら`,`j3`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con3` (`k2`) /*!50100 WITH PARSER `ngram` */ 
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=REDUNDANT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=REDUNDANT
 ALTER TABLE 名字 ADD FULLTEXT INDEX con4 (c3) WITH PARSER ngram;
 SHOW CREATE TABLE 名字;
 Table	Create Table
@@ -3190,12 +3190,12 @@ Table	Create Table
   `j3` varchar(200) CHARACTER SET ujis DEFAULT NULL,
   `행운을빈다` char(200) CHARACTER SET euckr DEFAULT NULL,
   `k2` char(200) CHARACTER SET utf8 DEFAULT NULL,
-  `e1` char(200) DEFAULT NULL,
+  `e1` char(200) CHARACTER SET latin1 DEFAULT NULL,
   FULLTEXT KEY `con1` (`c1`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con2` (`さようなら`,`j3`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con3` (`k2`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con4` (`c3`) /*!50100 WITH PARSER `ngram` */ 
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=REDUNDANT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=REDUNDANT
 ALTER TABLE 名字 ADD FULLTEXT INDEX con5 (c2) WITH PARSER ngram;
 SHOW CREATE TABLE 名字;
 Table	Create Table
@@ -3209,13 +3209,13 @@ Table	Create Table
   `j3` varchar(200) CHARACTER SET ujis DEFAULT NULL,
   `행운을빈다` char(200) CHARACTER SET euckr DEFAULT NULL,
   `k2` char(200) CHARACTER SET utf8 DEFAULT NULL,
-  `e1` char(200) DEFAULT NULL,
+  `e1` char(200) CHARACTER SET latin1 DEFAULT NULL,
   FULLTEXT KEY `con1` (`c1`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con2` (`さようなら`,`j3`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con3` (`k2`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con4` (`c3`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con5` (`c2`) /*!50100 WITH PARSER `ngram` */ 
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=REDUNDANT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=REDUNDANT
 ALTER TABLE 名字 ADD FULLTEXT INDEX con6 (j2) WITH PARSER ngram;
 SHOW CREATE TABLE 名字;
 Table	Create Table
@@ -3229,14 +3229,14 @@ Table	Create Table
   `j3` varchar(200) CHARACTER SET ujis DEFAULT NULL,
   `행운을빈다` char(200) CHARACTER SET euckr DEFAULT NULL,
   `k2` char(200) CHARACTER SET utf8 DEFAULT NULL,
-  `e1` char(200) DEFAULT NULL,
+  `e1` char(200) CHARACTER SET latin1 DEFAULT NULL,
   FULLTEXT KEY `con1` (`c1`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con2` (`さようなら`,`j3`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con3` (`k2`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con4` (`c3`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con5` (`c2`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con6` (`j2`) /*!50100 WITH PARSER `ngram` */ 
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=REDUNDANT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=REDUNDANT
 ALTER TABLE 名字 ADD FULLTEXT INDEX con7 (j3) WITH PARSER ngram;
 SHOW CREATE TABLE 名字;
 Table	Create Table
@@ -3250,7 +3250,7 @@ Table	Create Table
   `j3` varchar(200) CHARACTER SET ujis DEFAULT NULL,
   `행운을빈다` char(200) CHARACTER SET euckr DEFAULT NULL,
   `k2` char(200) CHARACTER SET utf8 DEFAULT NULL,
-  `e1` char(200) DEFAULT NULL,
+  `e1` char(200) CHARACTER SET latin1 DEFAULT NULL,
   FULLTEXT KEY `con1` (`c1`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con2` (`さようなら`,`j3`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con3` (`k2`) /*!50100 WITH PARSER `ngram` */ ,
@@ -3258,7 +3258,7 @@ Table	Create Table
   FULLTEXT KEY `con5` (`c2`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con6` (`j2`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con7` (`j3`) /*!50100 WITH PARSER `ngram` */ 
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=REDUNDANT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=REDUNDANT
 ALTER TABLE 名字 ADD FULLTEXT INDEX con8 (행운을빈다) WITH PARSER ngram;
 SHOW CREATE TABLE 名字;
 Table	Create Table
@@ -3272,7 +3272,7 @@ Table	Create Table
   `j3` varchar(200) CHARACTER SET ujis DEFAULT NULL,
   `행운을빈다` char(200) CHARACTER SET euckr DEFAULT NULL,
   `k2` char(200) CHARACTER SET utf8 DEFAULT NULL,
-  `e1` char(200) DEFAULT NULL,
+  `e1` char(200) CHARACTER SET latin1 DEFAULT NULL,
   FULLTEXT KEY `con1` (`c1`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con2` (`さようなら`,`j3`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con3` (`k2`) /*!50100 WITH PARSER `ngram` */ ,
@@ -3281,7 +3281,7 @@ Table	Create Table
   FULLTEXT KEY `con6` (`j2`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con7` (`j3`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con8` (`행운을빈다`) /*!50100 WITH PARSER `ngram` */ 
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=REDUNDANT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=REDUNDANT
 START TRANSACTION;
 INSERT INTO 名字 (c1,c2,c3,さようなら,j2,j3,행운을빈다,k2,e1) VALUES
 ('歡迎','你好','喂 ','日の長','言も言わずに','つやってみよう','제가 미국인입니다.','한국말을 공부합니다%','testing row'),
@@ -3489,8 +3489,8 @@ Table	Create Table
   `j3` varchar(200) CHARACTER SET ujis DEFAULT NULL,
   `행운을빈다` char(200) CHARACTER SET euckr DEFAULT NULL,
   `k2` char(200) CHARACTER SET utf8 DEFAULT NULL,
-  `e1` char(200) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=REDUNDANT
+  `e1` char(200) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=REDUNDANT
 ALTER TABLE 名字 ADD FULLTEXT INDEX con1 (c1) WITH PARSER ngram;
 Warnings:
 Warning	124	InnoDB rebuilding table to add column FTS_DOC_ID
@@ -3506,9 +3506,9 @@ Table	Create Table
   `j3` varchar(200) CHARACTER SET ujis DEFAULT NULL,
   `행운을빈다` char(200) CHARACTER SET euckr DEFAULT NULL,
   `k2` char(200) CHARACTER SET utf8 DEFAULT NULL,
-  `e1` char(200) DEFAULT NULL,
+  `e1` char(200) CHARACTER SET latin1 DEFAULT NULL,
   FULLTEXT KEY `con1` (`c1`) /*!50100 WITH PARSER `ngram` */ 
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=REDUNDANT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=REDUNDANT
 ALTER TABLE 名字 ADD FULLTEXT INDEX con2 (さようなら,j3) WITH PARSER ngram;
 SHOW CREATE TABLE 名字;
 Table	Create Table
@@ -3522,10 +3522,10 @@ Table	Create Table
   `j3` varchar(200) CHARACTER SET ujis DEFAULT NULL,
   `행운을빈다` char(200) CHARACTER SET euckr DEFAULT NULL,
   `k2` char(200) CHARACTER SET utf8 DEFAULT NULL,
-  `e1` char(200) DEFAULT NULL,
+  `e1` char(200) CHARACTER SET latin1 DEFAULT NULL,
   FULLTEXT KEY `con1` (`c1`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con2` (`さようなら`,`j3`) /*!50100 WITH PARSER `ngram` */ 
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=REDUNDANT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=REDUNDANT
 ALTER TABLE 名字 ADD FULLTEXT INDEX con3 (k2) WITH PARSER ngram;
 SHOW CREATE TABLE 名字;
 Table	Create Table
@@ -3539,11 +3539,11 @@ Table	Create Table
   `j3` varchar(200) CHARACTER SET ujis DEFAULT NULL,
   `행운을빈다` char(200) CHARACTER SET euckr DEFAULT NULL,
   `k2` char(200) CHARACTER SET utf8 DEFAULT NULL,
-  `e1` char(200) DEFAULT NULL,
+  `e1` char(200) CHARACTER SET latin1 DEFAULT NULL,
   FULLTEXT KEY `con1` (`c1`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con2` (`さようなら`,`j3`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con3` (`k2`) /*!50100 WITH PARSER `ngram` */ 
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=REDUNDANT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=REDUNDANT
 SELECT * FROM 名字;
 seq	c1	c2	c3	さようなら	j2	j3	행운을빈다	k2	e1
 START TRANSACTION;
@@ -3614,8 +3614,8 @@ Table	Create Table
   `j3` varchar(200) CHARACTER SET ujis DEFAULT NULL,
   `행운을빈다` char(200) CHARACTER SET euckr DEFAULT NULL,
   `k2` char(200) CHARACTER SET utf8 DEFAULT NULL,
-  `e1` char(200) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=REDUNDANT
+  `e1` char(200) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=REDUNDANT
 # Test Case : CJK charset and collation , FTS query in condition of update/delete
 SELECT * FROM 名字;
 seq	c1	c2	c3	さようなら	j2	j3	행운을빈다	k2	e1
@@ -3721,12 +3721,12 @@ articles	CREATE TABLE `articles` (
   `j3` varchar(200) CHARACTER SET ujis DEFAULT NULL,
   `k1` char(200) CHARACTER SET euckr DEFAULT NULL,
   `k2` char(200) CHARACTER SET utf8 DEFAULT NULL,
-  `e1` char(200) DEFAULT NULL,
+  `e1` char(200) CHARACTER SET latin1 DEFAULT NULL,
   PRIMARY KEY (`seq`),
   FULLTEXT KEY `con1` (`c1`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con2` (`j1`,`j3`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con3` (`k2`) /*!50100 WITH PARSER `ngram` */ 
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC
 INSERT INTO articles_1 (seq,title_char,title_varchar,title_text) VALUES
 (1,'English is a West Germanic language','It was first spoken in early medieval England','most widely used language in the world'),
 (2,'spoken as a first language by the majority populations of several states','including the United Kingdom i*', ' and the United States, Canada, Australia, Ireland'),
@@ -3994,13 +3994,13 @@ articles	CREATE TABLE `articles` (
   `j3` varchar(200) CHARACTER SET ujis DEFAULT NULL,
   `k1` char(200) CHARACTER SET euckr DEFAULT NULL,
   `k2` char(200) CHARACTER SET utf8 DEFAULT NULL,
-  `e1` char(200) DEFAULT NULL,
+  `e1` char(200) CHARACTER SET latin1 DEFAULT NULL,
   PRIMARY KEY (`seq`),
   FULLTEXT KEY `con1` (`c1`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con2` (`j1`,`j3`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con3` (`k2`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con4` (`c3`) /*!50100 WITH PARSER `ngram` */ 
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC
 ALTER TABLE articles ADD FULLTEXT INDEX con5 (c2) WITH PARSER ngram;
 SHOW CREATE TABLE articles;
 Table	Create Table
@@ -4014,14 +4014,14 @@ articles	CREATE TABLE `articles` (
   `j3` varchar(200) CHARACTER SET ujis DEFAULT NULL,
   `k1` char(200) CHARACTER SET euckr DEFAULT NULL,
   `k2` char(200) CHARACTER SET utf8 DEFAULT NULL,
-  `e1` char(200) DEFAULT NULL,
+  `e1` char(200) CHARACTER SET latin1 DEFAULT NULL,
   PRIMARY KEY (`seq`),
   FULLTEXT KEY `con1` (`c1`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con2` (`j1`,`j3`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con3` (`k2`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con4` (`c3`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con5` (`c2`) /*!50100 WITH PARSER `ngram` */ 
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC
 ALTER TABLE articles ADD FULLTEXT INDEX con6 (j2) WITH PARSER ngram;
 SHOW CREATE TABLE articles;
 Table	Create Table
@@ -4035,7 +4035,7 @@ articles	CREATE TABLE `articles` (
   `j3` varchar(200) CHARACTER SET ujis DEFAULT NULL,
   `k1` char(200) CHARACTER SET euckr DEFAULT NULL,
   `k2` char(200) CHARACTER SET utf8 DEFAULT NULL,
-  `e1` char(200) DEFAULT NULL,
+  `e1` char(200) CHARACTER SET latin1 DEFAULT NULL,
   PRIMARY KEY (`seq`),
   FULLTEXT KEY `con1` (`c1`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con2` (`j1`,`j3`) /*!50100 WITH PARSER `ngram` */ ,
@@ -4043,7 +4043,7 @@ articles	CREATE TABLE `articles` (
   FULLTEXT KEY `con4` (`c3`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con5` (`c2`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con6` (`j2`) /*!50100 WITH PARSER `ngram` */ 
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC
 ALTER TABLE articles ADD FULLTEXT INDEX con7 (j3) WITH PARSER ngram;
 SHOW CREATE TABLE articles;
 Table	Create Table
@@ -4057,7 +4057,7 @@ articles	CREATE TABLE `articles` (
   `j3` varchar(200) CHARACTER SET ujis DEFAULT NULL,
   `k1` char(200) CHARACTER SET euckr DEFAULT NULL,
   `k2` char(200) CHARACTER SET utf8 DEFAULT NULL,
-  `e1` char(200) DEFAULT NULL,
+  `e1` char(200) CHARACTER SET latin1 DEFAULT NULL,
   PRIMARY KEY (`seq`),
   FULLTEXT KEY `con1` (`c1`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con2` (`j1`,`j3`) /*!50100 WITH PARSER `ngram` */ ,
@@ -4066,7 +4066,7 @@ articles	CREATE TABLE `articles` (
   FULLTEXT KEY `con5` (`c2`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con6` (`j2`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con7` (`j3`) /*!50100 WITH PARSER `ngram` */ 
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC
 ALTER TABLE articles ADD FULLTEXT INDEX con8 (k1) WITH PARSER ngram;
 SHOW CREATE TABLE articles;
 Table	Create Table
@@ -4080,7 +4080,7 @@ articles	CREATE TABLE `articles` (
   `j3` varchar(200) CHARACTER SET ujis DEFAULT NULL,
   `k1` char(200) CHARACTER SET euckr DEFAULT NULL,
   `k2` char(200) CHARACTER SET utf8 DEFAULT NULL,
-  `e1` char(200) DEFAULT NULL,
+  `e1` char(200) CHARACTER SET latin1 DEFAULT NULL,
   PRIMARY KEY (`seq`),
   FULLTEXT KEY `con1` (`c1`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con2` (`j1`,`j3`) /*!50100 WITH PARSER `ngram` */ ,
@@ -4090,7 +4090,7 @@ articles	CREATE TABLE `articles` (
   FULLTEXT KEY `con6` (`j2`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con7` (`j3`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con8` (`k1`) /*!50100 WITH PARSER `ngram` */ 
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC
 ALTER TABLE articles ADD FULLTEXT INDEX con9 (e1) WITH PARSER ngram;
 SHOW CREATE TABLE articles;
 Table	Create Table
@@ -4104,7 +4104,7 @@ articles	CREATE TABLE `articles` (
   `j3` varchar(200) CHARACTER SET ujis DEFAULT NULL,
   `k1` char(200) CHARACTER SET euckr DEFAULT NULL,
   `k2` char(200) CHARACTER SET utf8 DEFAULT NULL,
-  `e1` char(200) DEFAULT NULL,
+  `e1` char(200) CHARACTER SET latin1 DEFAULT NULL,
   PRIMARY KEY (`seq`),
   FULLTEXT KEY `con1` (`c1`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con2` (`j1`,`j3`) /*!50100 WITH PARSER `ngram` */ ,
@@ -4115,7 +4115,7 @@ articles	CREATE TABLE `articles` (
   FULLTEXT KEY `con7` (`j3`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con8` (`k1`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con9` (`e1`) /*!50100 WITH PARSER `ngram` */ 
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC
 SELECT * FROM articles WHERE
 MATCH(c1) AGAINST('啊! ');
 seq	c1	c2	c3	j1	j2	j3	k1	k2	e1
@@ -4340,8 +4340,8 @@ Table	Create Table
   `j3` varchar(200) CHARACTER SET ujis DEFAULT NULL,
   `행운을빈다` char(200) CHARACTER SET euckr DEFAULT NULL,
   `k2` char(200) CHARACTER SET utf8 DEFAULT NULL,
-  `e1` char(200) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
+  `e1` char(200) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC
 # Test Case : CJK charset and collation with  FTS + transactional statements
 SELECT * FROM 名字;
 seq	c1	c2	c3	さようなら	j2	j3	행운을빈다	k2	e1
@@ -4360,9 +4360,9 @@ Table	Create Table
   `j3` varchar(200) CHARACTER SET ujis DEFAULT NULL,
   `행운을빈다` char(200) CHARACTER SET euckr DEFAULT NULL,
   `k2` char(200) CHARACTER SET utf8 DEFAULT NULL,
-  `e1` char(200) DEFAULT NULL,
+  `e1` char(200) CHARACTER SET latin1 DEFAULT NULL,
   FULLTEXT KEY `con1` (`c1`) /*!50100 WITH PARSER `ngram` */ 
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC
 ALTER TABLE 名字 ADD FULLTEXT INDEX con2 (さようなら,j3) WITH PARSER ngram;
 SHOW CREATE TABLE 名字;
 Table	Create Table
@@ -4376,10 +4376,10 @@ Table	Create Table
   `j3` varchar(200) CHARACTER SET ujis DEFAULT NULL,
   `행운을빈다` char(200) CHARACTER SET euckr DEFAULT NULL,
   `k2` char(200) CHARACTER SET utf8 DEFAULT NULL,
-  `e1` char(200) DEFAULT NULL,
+  `e1` char(200) CHARACTER SET latin1 DEFAULT NULL,
   FULLTEXT KEY `con1` (`c1`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con2` (`さようなら`,`j3`) /*!50100 WITH PARSER `ngram` */ 
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC
 ALTER TABLE 名字 ADD FULLTEXT INDEX con3 (k2) WITH PARSER ngram;
 SHOW CREATE TABLE 名字;
 Table	Create Table
@@ -4393,11 +4393,11 @@ Table	Create Table
   `j3` varchar(200) CHARACTER SET ujis DEFAULT NULL,
   `행운을빈다` char(200) CHARACTER SET euckr DEFAULT NULL,
   `k2` char(200) CHARACTER SET utf8 DEFAULT NULL,
-  `e1` char(200) DEFAULT NULL,
+  `e1` char(200) CHARACTER SET latin1 DEFAULT NULL,
   FULLTEXT KEY `con1` (`c1`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con2` (`さようなら`,`j3`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con3` (`k2`) /*!50100 WITH PARSER `ngram` */ 
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC
 ALTER TABLE 名字 ADD FULLTEXT INDEX con4 (c3) WITH PARSER ngram;
 SHOW CREATE TABLE 名字;
 Table	Create Table
@@ -4411,12 +4411,12 @@ Table	Create Table
   `j3` varchar(200) CHARACTER SET ujis DEFAULT NULL,
   `행운을빈다` char(200) CHARACTER SET euckr DEFAULT NULL,
   `k2` char(200) CHARACTER SET utf8 DEFAULT NULL,
-  `e1` char(200) DEFAULT NULL,
+  `e1` char(200) CHARACTER SET latin1 DEFAULT NULL,
   FULLTEXT KEY `con1` (`c1`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con2` (`さようなら`,`j3`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con3` (`k2`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con4` (`c3`) /*!50100 WITH PARSER `ngram` */ 
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC
 ALTER TABLE 名字 ADD FULLTEXT INDEX con5 (c2) WITH PARSER ngram;
 SHOW CREATE TABLE 名字;
 Table	Create Table
@@ -4430,13 +4430,13 @@ Table	Create Table
   `j3` varchar(200) CHARACTER SET ujis DEFAULT NULL,
   `행운을빈다` char(200) CHARACTER SET euckr DEFAULT NULL,
   `k2` char(200) CHARACTER SET utf8 DEFAULT NULL,
-  `e1` char(200) DEFAULT NULL,
+  `e1` char(200) CHARACTER SET latin1 DEFAULT NULL,
   FULLTEXT KEY `con1` (`c1`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con2` (`さようなら`,`j3`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con3` (`k2`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con4` (`c3`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con5` (`c2`) /*!50100 WITH PARSER `ngram` */ 
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC
 ALTER TABLE 名字 ADD FULLTEXT INDEX con6 (j2) WITH PARSER ngram;
 SHOW CREATE TABLE 名字;
 Table	Create Table
@@ -4450,14 +4450,14 @@ Table	Create Table
   `j3` varchar(200) CHARACTER SET ujis DEFAULT NULL,
   `행운을빈다` char(200) CHARACTER SET euckr DEFAULT NULL,
   `k2` char(200) CHARACTER SET utf8 DEFAULT NULL,
-  `e1` char(200) DEFAULT NULL,
+  `e1` char(200) CHARACTER SET latin1 DEFAULT NULL,
   FULLTEXT KEY `con1` (`c1`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con2` (`さようなら`,`j3`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con3` (`k2`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con4` (`c3`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con5` (`c2`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con6` (`j2`) /*!50100 WITH PARSER `ngram` */ 
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC
 ALTER TABLE 名字 ADD FULLTEXT INDEX con7 (j3) WITH PARSER ngram;
 SHOW CREATE TABLE 名字;
 Table	Create Table
@@ -4471,7 +4471,7 @@ Table	Create Table
   `j3` varchar(200) CHARACTER SET ujis DEFAULT NULL,
   `행운을빈다` char(200) CHARACTER SET euckr DEFAULT NULL,
   `k2` char(200) CHARACTER SET utf8 DEFAULT NULL,
-  `e1` char(200) DEFAULT NULL,
+  `e1` char(200) CHARACTER SET latin1 DEFAULT NULL,
   FULLTEXT KEY `con1` (`c1`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con2` (`さようなら`,`j3`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con3` (`k2`) /*!50100 WITH PARSER `ngram` */ ,
@@ -4479,7 +4479,7 @@ Table	Create Table
   FULLTEXT KEY `con5` (`c2`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con6` (`j2`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con7` (`j3`) /*!50100 WITH PARSER `ngram` */ 
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC
 ALTER TABLE 名字 ADD FULLTEXT INDEX con8 (행운을빈다) WITH PARSER ngram;
 SHOW CREATE TABLE 名字;
 Table	Create Table
@@ -4493,7 +4493,7 @@ Table	Create Table
   `j3` varchar(200) CHARACTER SET ujis DEFAULT NULL,
   `행운을빈다` char(200) CHARACTER SET euckr DEFAULT NULL,
   `k2` char(200) CHARACTER SET utf8 DEFAULT NULL,
-  `e1` char(200) DEFAULT NULL,
+  `e1` char(200) CHARACTER SET latin1 DEFAULT NULL,
   FULLTEXT KEY `con1` (`c1`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con2` (`さようなら`,`j3`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con3` (`k2`) /*!50100 WITH PARSER `ngram` */ ,
@@ -4502,7 +4502,7 @@ Table	Create Table
   FULLTEXT KEY `con6` (`j2`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con7` (`j3`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con8` (`행운을빈다`) /*!50100 WITH PARSER `ngram` */ 
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC
 START TRANSACTION;
 INSERT INTO 名字 (c1,c2,c3,さようなら,j2,j3,행운을빈다,k2,e1) VALUES
 ('歡迎','你好','喂 ','日の長','言も言わずに','つやってみよう','제가 미국인입니다.','한국말을 공부합니다%','testing row'),
@@ -4710,8 +4710,8 @@ Table	Create Table
   `j3` varchar(200) CHARACTER SET ujis DEFAULT NULL,
   `행운을빈다` char(200) CHARACTER SET euckr DEFAULT NULL,
   `k2` char(200) CHARACTER SET utf8 DEFAULT NULL,
-  `e1` char(200) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
+  `e1` char(200) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC
 ALTER TABLE 名字 ADD FULLTEXT INDEX con1 (c1) WITH PARSER ngram;
 Warnings:
 Warning	124	InnoDB rebuilding table to add column FTS_DOC_ID
@@ -4727,9 +4727,9 @@ Table	Create Table
   `j3` varchar(200) CHARACTER SET ujis DEFAULT NULL,
   `행운을빈다` char(200) CHARACTER SET euckr DEFAULT NULL,
   `k2` char(200) CHARACTER SET utf8 DEFAULT NULL,
-  `e1` char(200) DEFAULT NULL,
+  `e1` char(200) CHARACTER SET latin1 DEFAULT NULL,
   FULLTEXT KEY `con1` (`c1`) /*!50100 WITH PARSER `ngram` */ 
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC
 ALTER TABLE 名字 ADD FULLTEXT INDEX con2 (さようなら,j3) WITH PARSER ngram;
 SHOW CREATE TABLE 名字;
 Table	Create Table
@@ -4743,10 +4743,10 @@ Table	Create Table
   `j3` varchar(200) CHARACTER SET ujis DEFAULT NULL,
   `행운을빈다` char(200) CHARACTER SET euckr DEFAULT NULL,
   `k2` char(200) CHARACTER SET utf8 DEFAULT NULL,
-  `e1` char(200) DEFAULT NULL,
+  `e1` char(200) CHARACTER SET latin1 DEFAULT NULL,
   FULLTEXT KEY `con1` (`c1`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con2` (`さようなら`,`j3`) /*!50100 WITH PARSER `ngram` */ 
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC
 ALTER TABLE 名字 ADD FULLTEXT INDEX con3 (k2) WITH PARSER ngram;
 SHOW CREATE TABLE 名字;
 Table	Create Table
@@ -4760,11 +4760,11 @@ Table	Create Table
   `j3` varchar(200) CHARACTER SET ujis DEFAULT NULL,
   `행운을빈다` char(200) CHARACTER SET euckr DEFAULT NULL,
   `k2` char(200) CHARACTER SET utf8 DEFAULT NULL,
-  `e1` char(200) DEFAULT NULL,
+  `e1` char(200) CHARACTER SET latin1 DEFAULT NULL,
   FULLTEXT KEY `con1` (`c1`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con2` (`さようなら`,`j3`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con3` (`k2`) /*!50100 WITH PARSER `ngram` */ 
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC
 SELECT * FROM 名字;
 seq	c1	c2	c3	さようなら	j2	j3	행운을빈다	k2	e1
 START TRANSACTION;
@@ -4835,8 +4835,8 @@ Table	Create Table
   `j3` varchar(200) CHARACTER SET ujis DEFAULT NULL,
   `행운을빈다` char(200) CHARACTER SET euckr DEFAULT NULL,
   `k2` char(200) CHARACTER SET utf8 DEFAULT NULL,
-  `e1` char(200) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
+  `e1` char(200) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC
 # Test Case : CJK charset and collation , FTS query in condition of update/delete
 SELECT * FROM 名字;
 seq	c1	c2	c3	さようなら	j2	j3	행운을빈다	k2	e1
@@ -4942,12 +4942,12 @@ articles	CREATE TABLE `articles` (
   `j3` varchar(200) CHARACTER SET ujis DEFAULT NULL,
   `k1` char(200) CHARACTER SET euckr DEFAULT NULL,
   `k2` char(200) CHARACTER SET utf8 DEFAULT NULL,
-  `e1` char(200) DEFAULT NULL,
+  `e1` char(200) CHARACTER SET latin1 DEFAULT NULL,
   PRIMARY KEY (`seq`),
   FULLTEXT KEY `con1` (`c1`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con2` (`j1`,`j3`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con3` (`k2`) /*!50100 WITH PARSER `ngram` */ 
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=COMPRESSED
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=COMPRESSED
 INSERT INTO articles_1 (seq,title_char,title_varchar,title_text) VALUES
 (1,'English is a West Germanic language','It was first spoken in early medieval England','most widely used language in the world'),
 (2,'spoken as a first language by the majority populations of several states','including the United Kingdom i*', ' and the United States, Canada, Australia, Ireland'),
@@ -5215,13 +5215,13 @@ articles	CREATE TABLE `articles` (
   `j3` varchar(200) CHARACTER SET ujis DEFAULT NULL,
   `k1` char(200) CHARACTER SET euckr DEFAULT NULL,
   `k2` char(200) CHARACTER SET utf8 DEFAULT NULL,
-  `e1` char(200) DEFAULT NULL,
+  `e1` char(200) CHARACTER SET latin1 DEFAULT NULL,
   PRIMARY KEY (`seq`),
   FULLTEXT KEY `con1` (`c1`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con2` (`j1`,`j3`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con3` (`k2`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con4` (`c3`) /*!50100 WITH PARSER `ngram` */ 
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=latin1 ROW_FORMAT=COMPRESSED
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 ROW_FORMAT=COMPRESSED
 ALTER TABLE articles ADD FULLTEXT INDEX con5 (c2) WITH PARSER ngram;
 SHOW CREATE TABLE articles;
 Table	Create Table
@@ -5235,14 +5235,14 @@ articles	CREATE TABLE `articles` (
   `j3` varchar(200) CHARACTER SET ujis DEFAULT NULL,
   `k1` char(200) CHARACTER SET euckr DEFAULT NULL,
   `k2` char(200) CHARACTER SET utf8 DEFAULT NULL,
-  `e1` char(200) DEFAULT NULL,
+  `e1` char(200) CHARACTER SET latin1 DEFAULT NULL,
   PRIMARY KEY (`seq`),
   FULLTEXT KEY `con1` (`c1`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con2` (`j1`,`j3`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con3` (`k2`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con4` (`c3`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con5` (`c2`) /*!50100 WITH PARSER `ngram` */ 
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=latin1 ROW_FORMAT=COMPRESSED
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 ROW_FORMAT=COMPRESSED
 ALTER TABLE articles ADD FULLTEXT INDEX con6 (j2) WITH PARSER ngram;
 SHOW CREATE TABLE articles;
 Table	Create Table
@@ -5256,7 +5256,7 @@ articles	CREATE TABLE `articles` (
   `j3` varchar(200) CHARACTER SET ujis DEFAULT NULL,
   `k1` char(200) CHARACTER SET euckr DEFAULT NULL,
   `k2` char(200) CHARACTER SET utf8 DEFAULT NULL,
-  `e1` char(200) DEFAULT NULL,
+  `e1` char(200) CHARACTER SET latin1 DEFAULT NULL,
   PRIMARY KEY (`seq`),
   FULLTEXT KEY `con1` (`c1`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con2` (`j1`,`j3`) /*!50100 WITH PARSER `ngram` */ ,
@@ -5264,7 +5264,7 @@ articles	CREATE TABLE `articles` (
   FULLTEXT KEY `con4` (`c3`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con5` (`c2`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con6` (`j2`) /*!50100 WITH PARSER `ngram` */ 
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=latin1 ROW_FORMAT=COMPRESSED
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 ROW_FORMAT=COMPRESSED
 ALTER TABLE articles ADD FULLTEXT INDEX con7 (j3) WITH PARSER ngram;
 SHOW CREATE TABLE articles;
 Table	Create Table
@@ -5278,7 +5278,7 @@ articles	CREATE TABLE `articles` (
   `j3` varchar(200) CHARACTER SET ujis DEFAULT NULL,
   `k1` char(200) CHARACTER SET euckr DEFAULT NULL,
   `k2` char(200) CHARACTER SET utf8 DEFAULT NULL,
-  `e1` char(200) DEFAULT NULL,
+  `e1` char(200) CHARACTER SET latin1 DEFAULT NULL,
   PRIMARY KEY (`seq`),
   FULLTEXT KEY `con1` (`c1`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con2` (`j1`,`j3`) /*!50100 WITH PARSER `ngram` */ ,
@@ -5287,7 +5287,7 @@ articles	CREATE TABLE `articles` (
   FULLTEXT KEY `con5` (`c2`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con6` (`j2`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con7` (`j3`) /*!50100 WITH PARSER `ngram` */ 
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=latin1 ROW_FORMAT=COMPRESSED
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 ROW_FORMAT=COMPRESSED
 ALTER TABLE articles ADD FULLTEXT INDEX con8 (k1) WITH PARSER ngram;
 SHOW CREATE TABLE articles;
 Table	Create Table
@@ -5301,7 +5301,7 @@ articles	CREATE TABLE `articles` (
   `j3` varchar(200) CHARACTER SET ujis DEFAULT NULL,
   `k1` char(200) CHARACTER SET euckr DEFAULT NULL,
   `k2` char(200) CHARACTER SET utf8 DEFAULT NULL,
-  `e1` char(200) DEFAULT NULL,
+  `e1` char(200) CHARACTER SET latin1 DEFAULT NULL,
   PRIMARY KEY (`seq`),
   FULLTEXT KEY `con1` (`c1`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con2` (`j1`,`j3`) /*!50100 WITH PARSER `ngram` */ ,
@@ -5311,7 +5311,7 @@ articles	CREATE TABLE `articles` (
   FULLTEXT KEY `con6` (`j2`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con7` (`j3`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con8` (`k1`) /*!50100 WITH PARSER `ngram` */ 
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=latin1 ROW_FORMAT=COMPRESSED
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 ROW_FORMAT=COMPRESSED
 ALTER TABLE articles ADD FULLTEXT INDEX con9 (e1) WITH PARSER ngram;
 SHOW CREATE TABLE articles;
 Table	Create Table
@@ -5325,7 +5325,7 @@ articles	CREATE TABLE `articles` (
   `j3` varchar(200) CHARACTER SET ujis DEFAULT NULL,
   `k1` char(200) CHARACTER SET euckr DEFAULT NULL,
   `k2` char(200) CHARACTER SET utf8 DEFAULT NULL,
-  `e1` char(200) DEFAULT NULL,
+  `e1` char(200) CHARACTER SET latin1 DEFAULT NULL,
   PRIMARY KEY (`seq`),
   FULLTEXT KEY `con1` (`c1`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con2` (`j1`,`j3`) /*!50100 WITH PARSER `ngram` */ ,
@@ -5336,7 +5336,7 @@ articles	CREATE TABLE `articles` (
   FULLTEXT KEY `con7` (`j3`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con8` (`k1`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con9` (`e1`) /*!50100 WITH PARSER `ngram` */ 
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=latin1 ROW_FORMAT=COMPRESSED
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 ROW_FORMAT=COMPRESSED
 SELECT * FROM articles WHERE
 MATCH(c1) AGAINST('啊! ');
 seq	c1	c2	c3	j1	j2	j3	k1	k2	e1
@@ -5561,8 +5561,8 @@ Table	Create Table
   `j3` varchar(200) CHARACTER SET ujis DEFAULT NULL,
   `행운을빈다` char(200) CHARACTER SET euckr DEFAULT NULL,
   `k2` char(200) CHARACTER SET utf8 DEFAULT NULL,
-  `e1` char(200) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=COMPRESSED
+  `e1` char(200) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=COMPRESSED
 # Test Case : CJK charset and collation with  FTS + transactional statements
 SELECT * FROM 名字;
 seq	c1	c2	c3	さようなら	j2	j3	행운을빈다	k2	e1
@@ -5581,9 +5581,9 @@ Table	Create Table
   `j3` varchar(200) CHARACTER SET ujis DEFAULT NULL,
   `행운을빈다` char(200) CHARACTER SET euckr DEFAULT NULL,
   `k2` char(200) CHARACTER SET utf8 DEFAULT NULL,
-  `e1` char(200) DEFAULT NULL,
+  `e1` char(200) CHARACTER SET latin1 DEFAULT NULL,
   FULLTEXT KEY `con1` (`c1`) /*!50100 WITH PARSER `ngram` */ 
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=COMPRESSED
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=COMPRESSED
 ALTER TABLE 名字 ADD FULLTEXT INDEX con2 (さようなら,j3) WITH PARSER ngram;
 SHOW CREATE TABLE 名字;
 Table	Create Table
@@ -5597,10 +5597,10 @@ Table	Create Table
   `j3` varchar(200) CHARACTER SET ujis DEFAULT NULL,
   `행운을빈다` char(200) CHARACTER SET euckr DEFAULT NULL,
   `k2` char(200) CHARACTER SET utf8 DEFAULT NULL,
-  `e1` char(200) DEFAULT NULL,
+  `e1` char(200) CHARACTER SET latin1 DEFAULT NULL,
   FULLTEXT KEY `con1` (`c1`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con2` (`さようなら`,`j3`) /*!50100 WITH PARSER `ngram` */ 
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=COMPRESSED
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=COMPRESSED
 ALTER TABLE 名字 ADD FULLTEXT INDEX con3 (k2) WITH PARSER ngram;
 SHOW CREATE TABLE 名字;
 Table	Create Table
@@ -5614,11 +5614,11 @@ Table	Create Table
   `j3` varchar(200) CHARACTER SET ujis DEFAULT NULL,
   `행운을빈다` char(200) CHARACTER SET euckr DEFAULT NULL,
   `k2` char(200) CHARACTER SET utf8 DEFAULT NULL,
-  `e1` char(200) DEFAULT NULL,
+  `e1` char(200) CHARACTER SET latin1 DEFAULT NULL,
   FULLTEXT KEY `con1` (`c1`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con2` (`さようなら`,`j3`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con3` (`k2`) /*!50100 WITH PARSER `ngram` */ 
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=COMPRESSED
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=COMPRESSED
 ALTER TABLE 名字 ADD FULLTEXT INDEX con4 (c3) WITH PARSER ngram;
 SHOW CREATE TABLE 名字;
 Table	Create Table
@@ -5632,12 +5632,12 @@ Table	Create Table
   `j3` varchar(200) CHARACTER SET ujis DEFAULT NULL,
   `행운을빈다` char(200) CHARACTER SET euckr DEFAULT NULL,
   `k2` char(200) CHARACTER SET utf8 DEFAULT NULL,
-  `e1` char(200) DEFAULT NULL,
+  `e1` char(200) CHARACTER SET latin1 DEFAULT NULL,
   FULLTEXT KEY `con1` (`c1`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con2` (`さようなら`,`j3`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con3` (`k2`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con4` (`c3`) /*!50100 WITH PARSER `ngram` */ 
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=COMPRESSED
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=COMPRESSED
 ALTER TABLE 名字 ADD FULLTEXT INDEX con5 (c2) WITH PARSER ngram;
 SHOW CREATE TABLE 名字;
 Table	Create Table
@@ -5651,13 +5651,13 @@ Table	Create Table
   `j3` varchar(200) CHARACTER SET ujis DEFAULT NULL,
   `행운을빈다` char(200) CHARACTER SET euckr DEFAULT NULL,
   `k2` char(200) CHARACTER SET utf8 DEFAULT NULL,
-  `e1` char(200) DEFAULT NULL,
+  `e1` char(200) CHARACTER SET latin1 DEFAULT NULL,
   FULLTEXT KEY `con1` (`c1`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con2` (`さようなら`,`j3`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con3` (`k2`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con4` (`c3`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con5` (`c2`) /*!50100 WITH PARSER `ngram` */ 
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=COMPRESSED
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=COMPRESSED
 ALTER TABLE 名字 ADD FULLTEXT INDEX con6 (j2) WITH PARSER ngram;
 SHOW CREATE TABLE 名字;
 Table	Create Table
@@ -5671,14 +5671,14 @@ Table	Create Table
   `j3` varchar(200) CHARACTER SET ujis DEFAULT NULL,
   `행운을빈다` char(200) CHARACTER SET euckr DEFAULT NULL,
   `k2` char(200) CHARACTER SET utf8 DEFAULT NULL,
-  `e1` char(200) DEFAULT NULL,
+  `e1` char(200) CHARACTER SET latin1 DEFAULT NULL,
   FULLTEXT KEY `con1` (`c1`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con2` (`さようなら`,`j3`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con3` (`k2`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con4` (`c3`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con5` (`c2`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con6` (`j2`) /*!50100 WITH PARSER `ngram` */ 
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=COMPRESSED
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=COMPRESSED
 ALTER TABLE 名字 ADD FULLTEXT INDEX con7 (j3) WITH PARSER ngram;
 SHOW CREATE TABLE 名字;
 Table	Create Table
@@ -5692,7 +5692,7 @@ Table	Create Table
   `j3` varchar(200) CHARACTER SET ujis DEFAULT NULL,
   `행운을빈다` char(200) CHARACTER SET euckr DEFAULT NULL,
   `k2` char(200) CHARACTER SET utf8 DEFAULT NULL,
-  `e1` char(200) DEFAULT NULL,
+  `e1` char(200) CHARACTER SET latin1 DEFAULT NULL,
   FULLTEXT KEY `con1` (`c1`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con2` (`さようなら`,`j3`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con3` (`k2`) /*!50100 WITH PARSER `ngram` */ ,
@@ -5700,7 +5700,7 @@ Table	Create Table
   FULLTEXT KEY `con5` (`c2`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con6` (`j2`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con7` (`j3`) /*!50100 WITH PARSER `ngram` */ 
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=COMPRESSED
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=COMPRESSED
 ALTER TABLE 名字 ADD FULLTEXT INDEX con8 (행운을빈다) WITH PARSER ngram;
 SHOW CREATE TABLE 名字;
 Table	Create Table
@@ -5714,7 +5714,7 @@ Table	Create Table
   `j3` varchar(200) CHARACTER SET ujis DEFAULT NULL,
   `행운을빈다` char(200) CHARACTER SET euckr DEFAULT NULL,
   `k2` char(200) CHARACTER SET utf8 DEFAULT NULL,
-  `e1` char(200) DEFAULT NULL,
+  `e1` char(200) CHARACTER SET latin1 DEFAULT NULL,
   FULLTEXT KEY `con1` (`c1`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con2` (`さようなら`,`j3`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con3` (`k2`) /*!50100 WITH PARSER `ngram` */ ,
@@ -5723,7 +5723,7 @@ Table	Create Table
   FULLTEXT KEY `con6` (`j2`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con7` (`j3`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con8` (`행운을빈다`) /*!50100 WITH PARSER `ngram` */ 
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=COMPRESSED
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=COMPRESSED
 START TRANSACTION;
 INSERT INTO 名字 (c1,c2,c3,さようなら,j2,j3,행운을빈다,k2,e1) VALUES
 ('歡迎','你好','喂 ','日の長','言も言わずに','つやってみよう','제가 미국인입니다.','한국말을 공부합니다%','testing row'),
@@ -5931,8 +5931,8 @@ Table	Create Table
   `j3` varchar(200) CHARACTER SET ujis DEFAULT NULL,
   `행운을빈다` char(200) CHARACTER SET euckr DEFAULT NULL,
   `k2` char(200) CHARACTER SET utf8 DEFAULT NULL,
-  `e1` char(200) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=COMPRESSED
+  `e1` char(200) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=COMPRESSED
 ALTER TABLE 名字 ADD FULLTEXT INDEX con1 (c1) WITH PARSER ngram;
 Warnings:
 Warning	124	InnoDB rebuilding table to add column FTS_DOC_ID
@@ -5948,9 +5948,9 @@ Table	Create Table
   `j3` varchar(200) CHARACTER SET ujis DEFAULT NULL,
   `행운을빈다` char(200) CHARACTER SET euckr DEFAULT NULL,
   `k2` char(200) CHARACTER SET utf8 DEFAULT NULL,
-  `e1` char(200) DEFAULT NULL,
+  `e1` char(200) CHARACTER SET latin1 DEFAULT NULL,
   FULLTEXT KEY `con1` (`c1`) /*!50100 WITH PARSER `ngram` */ 
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=COMPRESSED
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=COMPRESSED
 ALTER TABLE 名字 ADD FULLTEXT INDEX con2 (さようなら,j3) WITH PARSER ngram;
 SHOW CREATE TABLE 名字;
 Table	Create Table
@@ -5964,10 +5964,10 @@ Table	Create Table
   `j3` varchar(200) CHARACTER SET ujis DEFAULT NULL,
   `행운을빈다` char(200) CHARACTER SET euckr DEFAULT NULL,
   `k2` char(200) CHARACTER SET utf8 DEFAULT NULL,
-  `e1` char(200) DEFAULT NULL,
+  `e1` char(200) CHARACTER SET latin1 DEFAULT NULL,
   FULLTEXT KEY `con1` (`c1`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con2` (`さようなら`,`j3`) /*!50100 WITH PARSER `ngram` */ 
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=COMPRESSED
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=COMPRESSED
 ALTER TABLE 名字 ADD FULLTEXT INDEX con3 (k2) WITH PARSER ngram;
 SHOW CREATE TABLE 名字;
 Table	Create Table
@@ -5981,11 +5981,11 @@ Table	Create Table
   `j3` varchar(200) CHARACTER SET ujis DEFAULT NULL,
   `행운을빈다` char(200) CHARACTER SET euckr DEFAULT NULL,
   `k2` char(200) CHARACTER SET utf8 DEFAULT NULL,
-  `e1` char(200) DEFAULT NULL,
+  `e1` char(200) CHARACTER SET latin1 DEFAULT NULL,
   FULLTEXT KEY `con1` (`c1`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con2` (`さようなら`,`j3`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `con3` (`k2`) /*!50100 WITH PARSER `ngram` */ 
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=COMPRESSED
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=COMPRESSED
 SELECT * FROM 名字;
 seq	c1	c2	c3	さようなら	j2	j3	행운을빈다	k2	e1
 START TRANSACTION;
@@ -6056,8 +6056,8 @@ Table	Create Table
   `j3` varchar(200) CHARACTER SET ujis DEFAULT NULL,
   `행운을빈다` char(200) CHARACTER SET euckr DEFAULT NULL,
   `k2` char(200) CHARACTER SET utf8 DEFAULT NULL,
-  `e1` char(200) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=COMPRESSED
+  `e1` char(200) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=COMPRESSED
 # Test Case : CJK charset and collation , FTS query in condition of update/delete
 SELECT * FROM 名字;
 seq	c1	c2	c3	さようなら	j2	j3	행운을빈다	k2	e1

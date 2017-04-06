@@ -9,16 +9,6 @@
 --source include/have_innodb_min_8k.inc
 --enable_warnings
 
-########################################
-##### WL#7554 Force schema `test` to character set latin1
-##### This test should be migrated to utf8mb4
---disable_query_log
-let $testdbcs107=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
-alter schema default character set latin1;
-use test;
---enable_query_log
-########################################
-
 ####################################################################
 # TC to test temp-table undolog changes correctness                #
 # Sceanrio covered in single testcase :                            #
@@ -73,9 +63,9 @@ CREATE PROCEDURE populate_tables(IN id VARCHAR(10))
    PRIMARY KEY (c1),
    INDEX (c3,c4(50),c5(50)), 
    INDEX (c2))
-   ENGINE=InnoDB ROW_FORMAT=redundant;
+   charset latin1 ENGINE=InnoDB ROW_FORMAT=redundant;
 
-   set @s = concat("CREATE TABLE t1",id," ( c1 int NOT NULL,   c2 int NOT NULL,   c3 char(255) NOT NULL,   c4 text(600) NOT NULL,   c5 blob(600) NOT NULL,   c6 varchar(600) NOT NULL,   c7 varchar(600) NOT NULL,   c8 datetime,   c9 decimal(6,3),   PRIMARY KEY (c1),   INDEX (c3,c4(50),c5(50)),   INDEX (c2))   ENGINE=InnoDB ROW_FORMAT=redundant;");
+   set @s = concat("CREATE TABLE t1",id," ( c1 int NOT NULL,   c2 int NOT NULL,   c3 char(255) NOT NULL,   c4 text(600) NOT NULL,   c5 blob(600) NOT NULL,   c6 varchar(600) NOT NULL,   c7 varchar(600) NOT NULL,   c8 datetime,   c9 decimal(6,3),   PRIMARY KEY (c1),   INDEX (c3,c4(50),c5(50)),   INDEX (c2))   charset latin1 ENGINE=InnoDB ROW_FORMAT=redundant;");
    PREPARE createTable FROM @s;
    EXECUTE createTable;
    DEALLOCATE PREPARE createTable;
@@ -93,14 +83,14 @@ CREATE PROCEDURE populate_tables(IN id VARCHAR(10))
    PRIMARY KEY (c1),
    INDEX (c3,c4(50),c5(50)),
    INDEX (c2))
-   ENGINE=InnoDB ROW_FORMAT=compact;
+   charset latin1 ENGINE=InnoDB ROW_FORMAT=compact;
 
-   set @s = concat("CREATE TABLE t2",id," (c1 int NOT NULL,   c2 int NOT NULL,   c3 char(255) NOT NULL,   c4 text(600) NOT NULL,   c5 blob(600) NOT NULL,   c6 varchar(600) NOT NULL,   c7 varchar(600) NOT NULL,   c8 datetime,   c9 decimal(6,3),   PRIMARY KEY (c1),   INDEX (c3,c4(50),c5(50)),   INDEX (c2))   ENGINE=InnoDB ROW_FORMAT=compact;");
+   set @s = concat("CREATE TABLE t2",id," (c1 int NOT NULL,   c2 int NOT NULL,   c3 char(255) NOT NULL,   c4 text(600) NOT NULL,   c5 blob(600) NOT NULL,   c6 varchar(600) NOT NULL,   c7 varchar(600) NOT NULL,   c8 datetime,   c9 decimal(6,3),   PRIMARY KEY (c1),   INDEX (c3,c4(50),c5(50)),   INDEX (c2))   charset latin1 ENGINE=InnoDB ROW_FORMAT=compact;");
    PREPARE createTable FROM @s;
    EXECUTE createTable;
    DEALLOCATE PREPARE createTable;
 
-   set @s = concat("CREATE TABLE t3",id," (c1 int NOT NULL,   c2 int NOT NULL,   c3 char(255) NOT NULL,   c4 text(600) NOT NULL,   c5 blob(600) NOT NULL,   c6 varchar(600) NOT NULL,   c7 varchar(600) NOT NULL,   c8 datetime,   c9 decimal(6,3),   PRIMARY KEY (c1),   INDEX (c3,c4(50),c5(50)),   INDEX (c2))   ENGINE=InnoDB ROW_FORMAT=compressed key_block_size=4;");
+   set @s = concat("CREATE TABLE t3",id," (c1 int NOT NULL,   c2 int NOT NULL,   c3 char(255) NOT NULL,   c4 text(600) NOT NULL,   c5 blob(600) NOT NULL,   c6 varchar(600) NOT NULL,   c7 varchar(600) NOT NULL,   c8 datetime,   c9 decimal(6,3),   PRIMARY KEY (c1),   INDEX (c3,c4(50),c5(50)),   INDEX (c2))   charset latin1 ENGINE=InnoDB ROW_FORMAT=compressed key_block_size=4;");
    PREPARE createTable FROM @s;
    EXECUTE createTable;
    DEALLOCATE PREPARE createTable;
@@ -117,9 +107,9 @@ CREATE PROCEDURE populate_tables(IN id VARCHAR(10))
    PRIMARY KEY (c1),
    INDEX (c3,c4(50),c5(50)),
    INDEX (c2))
-   ENGINE=InnoDB ROW_FORMAT=dynamic;
+   charset latin1 ENGINE=InnoDB ROW_FORMAT=dynamic;
 
-   set @s = concat("CREATE TABLE t4",id," (c1 int NOT NULL,   c2 int NOT NULL,   c3 char(255) NOT NULL,   c4 text(600) NOT NULL,   c5 blob(600) NOT NULL,   c6 varchar(600) NOT NULL,   c7 varchar(600) NOT NULL,   c8 datetime,   c9 decimal(6,3),   PRIMARY KEY (c1),   INDEX (c3,c4(50),c5(50)),   INDEX (c2))   ENGINE=InnoDB ROW_FORMAT=dynamic;");
+   set @s = concat("CREATE TABLE t4",id," (c1 int NOT NULL,   c2 int NOT NULL,   c3 char(255) NOT NULL,   c4 text(600) NOT NULL,   c5 blob(600) NOT NULL,   c6 varchar(600) NOT NULL,   c7 varchar(600) NOT NULL,   c8 datetime,   c9 decimal(6,3),   PRIMARY KEY (c1),   INDEX (c3,c4(50),c5(50)),   INDEX (c2))   charset latin1 ENGINE=InnoDB ROW_FORMAT=dynamic;");
    PREPARE createTable FROM @s;
    EXECUTE createTable;
    DEALLOCATE PREPARE createTable;
@@ -589,10 +579,3 @@ SHOW TABLES;
 eval set global innodb_file_per_table=$innodb_file_per_table_orig;
 -- enable_query_log
 
-
-########################################
-##### WL#7554 set schema `test` back to what it was
---disable_query_log
---eval alter schema test default character set $testdbcs107;
---enable_query_log
-########################################

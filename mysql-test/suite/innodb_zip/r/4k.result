@@ -65,7 +65,7 @@ DROP TABLE t1;
 CREATE TABLE t1 (
 c01 char(200), c02 char(200), c03 char(200), c04 char(200), c05 char(200),
 c06 char(200), c07 char(200), c08 char(200), c09 char(200), c10 char(128)
-) ROW_FORMAT=redundant;
+) charset latin1 ROW_FORMAT=redundant;
 ERROR 42000: Row size too large (> max_row_size). Changing some columns to TEXT or BLOB or using ROW_FORMAT=DYNAMIC or ROW_FORMAT=COMPRESSED may help. In current row format, BLOB prefix of 768 bytes is stored inline.
 CREATE TABLE t1 (
 c01 char(200), c02 char(200), c03 char(200), c04 char(200), c05 char(200),
@@ -75,7 +75,7 @@ DROP TABLE t1;
 CREATE TABLE t1 (
 c01 char(200), c02 char(200), c03 char(200), c04 char(200), c05 char(200),
 c06 char(200), c07 char(200), c08 char(200), c09 char(200), c10 char(156)
-) ROW_FORMAT=compact;
+) charset latin1 ROW_FORMAT=compact;
 ERROR 42000: Row size too large (> max_row_size). Changing some columns to TEXT or BLOB or using ROW_FORMAT=DYNAMIC or ROW_FORMAT=COMPRESSED may help. In current row format, BLOB prefix of 768 bytes is stored inline.
 CREATE TABLE t1 (
 c01 char(200), c02 char(200), c03 char(200), c04 char(200), c05 char(200),
@@ -85,7 +85,7 @@ DROP TABLE t1;
 CREATE TABLE t1 (
 c01 char(200), c02 char(200), c03 char(200), c04 char(200), c05 char(200),
 c06 char(200), c07 char(200), c08 char(200), c09 char(200), c10 char(79)
-) ROW_FORMAT=compressed;
+) charset latin1 ROW_FORMAT=compressed;
 ERROR 42000: Row size too large (> max_row_size). Changing some columns to TEXT or BLOB may help. In current row format, BLOB prefix of 0 bytes is stored inline.
 CREATE TABLE t1 (
 c01 char(200), c02 char(200), c03 char(200), c04 char(200), c05 char(200),
@@ -95,13 +95,14 @@ DROP TABLE t1;
 CREATE TABLE t1 (
 c01 char(200), c02 char(200), c03 char(200), c04 char(200), c05 char(200),
 c06 char(200), c07 char(200), c08 char(200), c09 char(200), c10 char(156)
-) ROW_FORMAT=dynamic;
+) charset latin1 ROW_FORMAT=dynamic;
 ERROR 42000: Row size too large (> max_row_size). Changing some columns to TEXT or BLOB may help. In current row format, BLOB prefix of 0 bytes is stored inline.
 CREATE TABLE t1 (a varchar(64) character set utf8,
 b varchar(64) character set utf8,
 c varchar(64) character set utf8,
 d varchar(64) character set utf8,
 PRIMARY KEY (a,b,c,d))
+charset latin1
 ENGINE=innodb;
 DROP TABLE t1;
 CREATE TABLE t1 (a varchar(64) character set utf8,
@@ -109,6 +110,7 @@ b varchar(64) character set utf8,
 c varchar(64) character set utf8,
 d varchar(65) character set utf8,
 PRIMARY KEY (a,b,c,d))
+charset latin1
 ENGINE=innodb;
 ERROR 42000: Specified key was too long; max key length is 768 bytes
 CREATE TABLE t1 (a varchar(64) character set utf8,
@@ -117,6 +119,7 @@ c varchar(64) character set utf8,
 d varchar(64) character set utf8,
 e varchar(64) character set utf8,
 PRIMARY KEY (a), KEY (b,c,d,e))
+charset latin1
 ENGINE=innodb;
 DROP TABLE t1;
 CREATE TABLE t1 (a varchar(64) character set utf8,
@@ -125,6 +128,7 @@ c varchar(64) character set utf8,
 d varchar(64) character set utf8,
 e varchar(65) character set utf8,
 PRIMARY KEY (a), KEY (b,c,d,e))
+charset latin1
 ENGINE=innodb;
 ERROR 42000: Specified key was too long; max key length is 768 bytes
 # Test 5) Make sure that KEY_BLOCK_SIZE=4, 2 & 1 are all
@@ -319,7 +323,7 @@ t1	CREATE TABLE `t1` (
   KEY `t1c` (`c`(767)),
   KEY `t1d` (`d`(767)),
   KEY `t1e` (`e`(767))
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC
 DROP TABLE t1;
 SET SESSION innodb_strict_mode = OFF;
 CREATE TABLE t1(
@@ -335,6 +339,7 @@ PRIMARY KEY pk(pk01,pk02,pk03,pk04,pk05,pk06,pk07,pk08,
 pk09,pk10,pk11,pk12,pk13,pk14,pk15,pk16),
 KEY pk(sk01,sk02,sk03,sk04,sk05,sk06,sk07,sk08,
 sk09,sk10,sk11,sk12,sk13,sk14,sk15,sk16))
+charset latin1
 ROW_FORMAT=Redundant ENGINE=InnoDB;
 SET @r = repeat('a', 48);
 INSERT INTO t1 VALUES(@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,
@@ -366,6 +371,7 @@ PRIMARY KEY pk(pk01,pk02,pk03,pk04,pk05,pk06,pk07,pk08,
 pk09,pk10,pk11,pk12,pk13,pk14,pk15,pk16),
 KEY pk(sk01,sk02,sk03,sk04,sk05,sk06,sk07,sk08,
 sk09,sk10,sk11,sk12,sk13,sk14,sk15,sk16))
+charset latin1
 ROW_FORMAT=Compressed KEY_BLOCK_SIZE=4 ENGINE=InnoDB;
 SET @r = repeat('a', 48);
 INSERT INTO t1 VALUES(@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,

@@ -77,7 +77,7 @@ c21 char(200), c22 char(200), c23 char(200), c24 char(200), c25 char(200),
 c26 char(200), c27 char(200), c28 char(200), c29 char(200), c30 char(200),
 c31 char(200), c32 char(200), c33 char(200), c34 char(200), c35 char(200),
 c36 char(200), c37 char(200), c38 char(200), c39 char(200), c40 char(212)
-) ROW_FORMAT=redundant;
+) charset latin1 ROW_FORMAT=redundant;
 ERROR 42000: Row size too large (> 8123). Changing some columns to TEXT or BLOB or using ROW_FORMAT=DYNAMIC or ROW_FORMAT=COMPRESSED may help. In current row format, BLOB prefix of 768 bytes is stored inline.
 CREATE TABLE t1 (
 c01 char(200), c02 char(200), c03 char(200), c04 char(200), c05 char(200),
@@ -99,7 +99,7 @@ c21 char(200), c22 char(200), c23 char(200), c24 char(200), c25 char(200),
 c26 char(200), c27 char(200), c28 char(200), c29 char(200), c30 char(200),
 c31 char(200), c32 char(200), c33 char(200), c34 char(200), c35 char(200),
 c36 char(200), c37 char(200), c38 char(200), c39 char(250), c40 char(247)
-) ROW_FORMAT=compact;
+) charset latin1 ROW_FORMAT=compact;
 ERROR 42000: Row size too large (> 8126). Changing some columns to TEXT or BLOB or using ROW_FORMAT=DYNAMIC or ROW_FORMAT=COMPRESSED may help. In current row format, BLOB prefix of 768 bytes is stored inline.
 CREATE TABLE t1 (
 c01 char(200), c02 char(200), c03 char(200), c04 char(200), c05 char(200),
@@ -121,7 +121,7 @@ c21 char(200), c22 char(200), c23 char(200), c24 char(200), c25 char(200),
 c26 char(200), c27 char(200), c28 char(200), c29 char(200), c30 char(200),
 c31 char(200), c32 char(200), c33 char(200), c34 char(200), c35 char(200),
 c36 char(200), c37 char(200), c38 char(200), c39 char(200), c40 char(160)
-) ROW_FORMAT=compressed;
+) charset latin1 ROW_FORMAT=compressed;
 ERROR 42000: Row size too large (> 8126). Changing some columns to TEXT or BLOB may help. In current row format, BLOB prefix of 0 bytes is stored inline.
 CREATE TABLE t1 (
 c01 char(200), c02 char(200), c03 char(200), c04 char(200), c05 char(200),
@@ -143,7 +143,7 @@ c21 char(200), c22 char(200), c23 char(200), c24 char(200), c25 char(200),
 c26 char(200), c27 char(200), c28 char(200), c29 char(200), c30 char(200),
 c31 char(200), c32 char(200), c33 char(200), c34 char(200), c35 char(200),
 c36 char(200), c37 char(200), c38 char(200), c39 char(250), c40 char(247)
-) ROW_FORMAT=dynamic;
+) charset latin1 ROW_FORMAT=dynamic;
 ERROR 42000: Row size too large (> 8126). Changing some columns to TEXT or BLOB may help. In current row format, BLOB prefix of 0 bytes is stored inline.
 CREATE TABLE t1 (a varchar(255) character set utf8,
 b varchar(255) character set utf8,
@@ -501,7 +501,7 @@ t1	CREATE TABLE `t1` (
   KEY `t1u` (`u`(767)),
   KEY `t1ut` (`u`(767),`t`(767)),
   KEY `t1st` (`s`(767),`t`(767))
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC
 DROP TABLE t1;
 # Bug #12429576 - Test an assertion failure on purge.
 CREATE TABLE t1_purge (
@@ -530,7 +530,7 @@ B varchar(800), C varchar(800), D varchar(800), E varchar(800),
 F varchar(800), G varchar(800), H varchar(800),
 PRIMARY KEY (B(767), C(767), D(767), E(767), A),
 INDEX (A)
-) ENGINE=InnoDB ROW_FORMAT=DYNAMIC;
+) charset latin1 ENGINE=InnoDB ROW_FORMAT=DYNAMIC;
 INSERT INTO t3_purge SELECT * FROM t1_purge;
 CREATE TABLE t4_purge (
 A int PRIMARY KEY,
@@ -618,7 +618,7 @@ t12963823	CREATE TABLE `t12963823` (
   KEY `ndx_n` (`n`(500)),
   KEY `ndx_o` (`o`(500)),
   KEY `ndx_p` (`p`(500))
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC
 # Bug#12547647 UPDATE LOGGING COULD EXCEED LOG PAGE SIZE
 SET SESSION innodb_strict_mode = ON;
 CREATE TABLE bug12547647(
