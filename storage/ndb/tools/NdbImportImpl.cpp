@@ -65,6 +65,7 @@ NdbImportImpl::Mgm::do_connect()
   require(m_handle == 0);
   m_handle = ndb_mgm_create_handle();
   require(m_handle != 0);
+  ndb_mgm_set_connectstring(m_handle, opt_ndb_connectstring);
   int retries = opt_connect_retries;
   int delay = opt_connect_retry_delay;
   if (ndb_mgm_connect(m_handle, retries, delay, 0) == -1)
