@@ -52,6 +52,8 @@ IF (DEB_PRODUCT STREQUAL "commercial")
 "
 debian/extra/audit_log-plugin
 debian/extra/authentication_pam-plugin
+debian/extra/authentication_ldap_sasl-plugin
+debian/extra/authentication_ldap_simple-plugin
 debian/extra/firewall-plugin
 debian/extra/keyring_okv-plugin
 debian/extra/openssl_udf-plugin
@@ -61,18 +63,23 @@ debian/extra/thread_pool-plugin
 "
 usr/lib/mysql/plugin/audit_log.so
 usr/lib/mysql/plugin/authentication_pam.so
+usr/lib/mysql/plugin/authentication_ldap_sasl.so
+usr/lib/mysql/plugin/authentication_ldap_simple.so
 usr/lib/mysql/plugin/keyring_okv.so
 usr/lib/mysql/plugin/openssl_udf.so
 usr/lib/mysql/plugin/thread_pool.so
 usr/lib/mysql/plugin/firewall.so
 usr/lib/mysql/plugin/debug/audit_log.so
 usr/lib/mysql/plugin/debug/authentication_pam.so
+usr/lib/mysql/plugin/debug/authentication_ldap_sasl.so
+usr/lib/mysql/plugin/debug/authentication_ldap_simple.so
 usr/lib/mysql/plugin/debug/keyring_okv.so
 usr/lib/mysql/plugin/debug/openssl_udf.so
 usr/lib/mysql/plugin/debug/thread_pool.so
 usr/lib/mysql/plugin/debug/firewall.so
 ")
   SET (DEB_REMOVEPATTERN "gpl.in")
+  SET (DEB_CONTROL_BDEPS_EXTRA ",libldap2-dev, libsasl2-dev")
 ELSE()
   SET (DEB_PRODUCT "${DEB_BASE_PRODUCT}community")
   SET (DEB_COPYRIGHT_UPSTREAMNAME "MySQL Server ${MYSQL_BASE_VERSION}")
@@ -83,6 +90,7 @@ ELSE()
   SET (DEB_INSTALL_LICENSEFILE "COPYING")
   SET (DEB_SERVERVERSION "${DEB_BASE_VERSION}-1")
   SET (DEB_REMOVEPATTERN "com.in")
+  SET (DEB_CONTROL_BDEPS_EXTRA "")
 ENDIF()
 
 # Platform specifics. The differences are generally only distro version
