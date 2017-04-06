@@ -1109,6 +1109,7 @@ fi
 %attr(755, root, root) %{_bindir}/ndb_drop_table
 %attr(755, root, root) %{_bindir}/ndb_error_reporter
 %attr(755, root, root) %{_bindir}/ndb_index_stat
+%attr(755, root, root) %{_bindir}/ndb_import
 %attr(755, root, root) %{_bindir}/ndb_mgm
 %attr(755, root, root) %{_bindir}/ndb_move_data
 %attr(755, root, root) %{_bindir}/ndb_print_backup_file
