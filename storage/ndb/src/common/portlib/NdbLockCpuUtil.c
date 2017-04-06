@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2017 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -73,6 +73,10 @@ use_processor_set(const Uint32 *cpu_ids,
   Uint32 ret_proc_set_id = UNDEFINED_PROCESSOR_SET;
   struct processor_set_handler *handler;
 
+  /**
+   * Search to see if processor set already defined,
+   * assuming that the cpu ids are in the same order
+   */
   for (i = 0; i < MAX_PROCESSOR_SETS; i++)
   {
     handler = &proc_set_array[i];
@@ -106,6 +110,9 @@ use_processor_set(const Uint32 *cpu_ids,
         handler->cpu_ids = NULL;
         goto end;
       }
+      memcpy((void*)handler->cpu_ids,
+             cpu_ids,
+             num_cpu_ids * sizeof(Uint32));
       handler->ref_count = 1;
       handler->num_cpu_ids = num_cpu_ids;
       ret_proc_set_id = i;
@@ -125,8 +132,8 @@ Ndb_UnlockCPU(struct NdbThread* pThread)
   Uint32 proc_set_id;
 
   NdbMutex_Lock(g_ndb_lock_cpu_mutex);
-  error_no = NdbThread_UnlockCPU(pThread);
   proc_set_id = find_processor_set(pThread);
+  error_no = NdbThread_UnlockCPU(pThread);
   if (proc_set_id == UNDEFINED_PROCESSOR_SET)
     goto end;
   remove_use_processor_set(proc_set_id);
