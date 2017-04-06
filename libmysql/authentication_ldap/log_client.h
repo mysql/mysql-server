@@ -4,7 +4,6 @@
 
 #include <stdio.h>
 #include <iostream>
-#include <fstream>
 #include <sstream>
 #include <my_dbug.h>
 #include "my_systime.h"
@@ -71,7 +70,6 @@ void Logger::log(std::string msg) {
   };
 
   /** We can write debug messages also in error log file if logging level is set to debug.
-      For MySQL server this will be set using option.
       For MySQL client this will come from environment variable */
   if (m_log_writer){
     header << my_getsystime() << ": ";
@@ -80,7 +78,7 @@ void Logger::log(std::string msg) {
   }
 WRITE_DBG:
   /** Log all the messages as debug messages as well. */
-  DBUG_PRINT("ldap/sasl auth plugin: ", (": %s", msg.c_str()));
+  DBUG_PRINT("ldap/sasl auth client plug-in: ", (": %s", msg.c_str()));
 }
 
 extern Logger *g_logger;
