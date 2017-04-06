@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1259,22 +1259,17 @@ THRConfigApplier::do_bind(NdbThread* thread,
   else if (thr->m_bind_type == T_Thread::B_CPUSET_BOUND)
   {
     SparseBitmask & tmp = m_cpu_sets[thr->m_bind_no];
-    unsigned num_bits_set = tmp.count();
-    Uint32 *cpu_ids = (Uint32*)malloc(sizeof(Uint32) * num_bits_set);
-    Uint32 num_cpu_ids = 0;
+    Uint32 num_cpu_ids = tmp.count();
+    Uint32 *cpu_ids = (Uint32*)malloc(sizeof(Uint32) * num_cpu_ids);
     if (!cpu_ids)
     {
       return -errno;
     }
-    for (unsigned i = 0; i < tmp.max_size(); i++)
+    /* Build cpu_ids set from SparseBitmask */
+    for (unsigned i = 0; i < num_cpu_ids; i++)
     {
-      if (tmp.get(i))
-      {
-        cpu_ids[num_cpu_ids] = i;
-        num_cpu_ids++;
-      }
+      cpu_ids[i] = tmp.getBitNo(i);
     }
-    require(num_cpu_ids == num_bits_set);
     res = Ndb_LockCPUSet(thread, cpu_ids, num_cpu_ids);
     free((void*)cpu_ids);
   }
