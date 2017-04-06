@@ -114,10 +114,19 @@ ut_crc32_swap_byteorder(
 	       | i >> 56);
 }
 
+
 /* CRC32 hardware implementation. */
+#ifdef ENABLE_ARMV8_CRC32
+#define ARM_CRC32_INTRINSIC
+#include <arm_acle.h>
+#include <arm_neon.h>
+#else
+#undef ARM_CRC32_INTRINSIC
+#endif
 
 /* Flag that tells whether the CPU supports CRC32 or not */
 bool	ut_crc32_sse2_enabled = false;
+
 
 #if defined(__GNUC__) && defined(__x86_64__)
 /********************************************************************//**
@@ -420,6 +429,70 @@ ut_crc32_byte_by_byte_hw(
 	return(~crc);
 }
 #endif /* defined(__GNUC__) && defined(__x86_64__) */
+
+/*************
+ * For AArch64
+ */
+
+#ifdef ARM_CRC32_INTRINSIC
+uint32_t
+ut_crc32_byte_by_byte_aarch64(
+	const byte*	buf,
+	ulint		len)
+{
+	uint32_t	crc = 0xFFFFFFFFU;
+
+	ut_a(ut_crc32_sse2_enabled);
+
+	while (len > 0) {
+		crc = __crc32cb(crc, *buf++);
+		len--;
+	}
+
+	return(~crc);
+}
+
+
+uint32_t
+ut_crc32_aarch64(
+	const byte*	buf,
+	ulint		len)
+{
+	register uint32_t	crc = 0xFFFFFFFFU;
+	register const uint16_t *buf2;
+	register const uint32_t *buf4;
+	register const uint64_t *buf8;
+
+	ut_a(ut_crc32_sse2_enabled);
+
+	int64_t length = (int64_t)len;
+	buf8 = (const  uint64_t *)(const void *)buf;
+	while ((length -= sizeof(uint64_t)) >= 0) {
+		crc = __crc32cd(crc, *buf8++);
+	}
+
+	/* The following is more efficient than the straight loop */
+	buf4 = (const  uint32_t *)(const void *)buf8;
+	if (length & sizeof(uint32_t)) {
+		crc = __crc32cw(crc, *buf4++);
+		length -= 4;
+	}
+
+	buf2 = (const  uint16_t *)(const void *)buf4;
+	if (length & sizeof(uint16_t)) {
+		crc = __crc32ch(crc, *buf2++);
+		length -= 2;
+	}
+
+	buf = (const  uint8_t *)(const void *)buf2;
+	if (length & sizeof(uint8_t))
+		crc = __crc32cb(crc, *buf);
+
+	return(~crc);
+}
+
+#endif /*ARM_CRC32_INTRINSIC*/
+
 
 /* CRC32 software implementation. */
 
@@ -726,6 +799,15 @@ ut_crc32_init()
 	}
 
 #endif /* defined(__GNUC__) && defined(__x86_64__) */
+
+#ifdef ARM_CRC32_INTRINSIC
+	ut_crc32_sse2_enabled = 0x1;
+	if (ut_crc32_sse2_enabled) {
+		ut_crc32 = ut_crc32_aarch64;
+		ut_crc32_legacy_big_endian = NULL;
+		ut_crc32_byte_by_byte = ut_crc32_byte_by_byte_aarch64;
+	}
+#endif
 
 	if (!ut_crc32_sse2_enabled) {
 		ut_crc32_slice8_table_init();

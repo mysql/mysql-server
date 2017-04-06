@@ -448,4 +448,7 @@
 /* For default value of --early_plugin_load */
 #cmakedefine DEFAULT_EARLY_PLUGIN_LOAD @DEFAULT_EARLY_PLUGIN_LOAD@
 
+/* Support ARMv8 CRC instructions */
+#cmakedefine ENABLE_ARMV8_CRC32
+
 #endif
