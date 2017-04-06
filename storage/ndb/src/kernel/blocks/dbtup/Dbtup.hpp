@@ -2648,7 +2648,14 @@ private:
   bool  receive_defvalue(Signal* signal, const TablerecPtr& regTabPtr);
 //------------------------------------------------------------------
 //------------------------------------------------------------------
-  void bufferTRANSID_AI(Signal* signal, BlockReference aRef, Uint32 Tlen);
+  void bufferTRANSID_AI(Signal* signal, BlockReference aRef, 
+                        const Uint32 *dataBuf,
+                        Uint32 lenOfData);
+
+  void sendAPI_TRANSID_AI(Signal* signal,
+                          BlockReference recBlockRef,
+                          const Uint32 *dataBuf,
+                          Uint32 lenOfData);
 
 //------------------------------------------------------------------
 // Trigger handling routines
@@ -2964,7 +2971,7 @@ private:
 
   void removeActiveOpList(Operationrec*  const regOperPtr, Tuple_header*);
 
-  void updatePackedList(Signal* signal, Uint16 ahostIndex);
+  void updatePackedList(Uint16 ahostIndex);
 
   void setUpDescriptorReferences(Uint32 descriptorReference,
                                  Tablerec* regTabPtr,

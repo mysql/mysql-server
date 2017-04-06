@@ -2927,19 +2927,15 @@ error:
 
 void
 Dbtup::flush_read_buffer(KeyReqStruct *req_struct,
-			 const Uint32 * outBuf,
-			 Uint32 resultRef,
+                         const Uint32 *outBuf,
+                         Uint32 resultRef,
                          Uint32 resultData,
                          Uint32 routeRef)
 {
-  Uint32 sig1= req_struct->trans_id1;
-  Uint32 sig2= req_struct->trans_id2;
-  Uint32 len = (req_struct->out_buf_index >> 2) - 1;
+  const Uint32 sig1= req_struct->trans_id1;
+  const Uint32 sig2= req_struct->trans_id2;
+  const Uint32 len = (req_struct->out_buf_index >> 2) - 1;
   Signal * signal = req_struct->signal;
-
-  LinearSectionPtr ptr[3];
-  ptr[0].p= (Uint32*)outBuf; // Should really remove this
-  ptr[0].sz= len;
 
   TransIdAI * transIdAI=  (TransIdAI *)signal->getDataPtrSend();
   transIdAI->connectPtr= resultData;
@@ -2948,6 +2944,8 @@ Dbtup::flush_read_buffer(KeyReqStruct *req_struct,
 
   const Uint32 destNode= refToNode(resultRef);
   const bool connectedToNode= getNodeInfo(destNode).m_connected;
+  const Uint32 type = getNodeInfo(destNode).m_type;
+  const bool is_api = (type >= NodeInfo::API && type <= NodeInfo::MGM);
 
   /**
    * If we are not connected to the destination block, we may reach it 
@@ -2956,39 +2954,50 @@ Dbtup::flush_read_buffer(KeyReqStruct *req_struct,
    * check that there is no chance of sending TRANSID_AI_R to a block
    * that cannot handle it.
    */
-  ndbrequire(refToMain(routeRef) == DBTC || 
+  ndbassert (refToMain(routeRef) == DBTC || 
              /** 
               * A node should always be connected to itself. So we should
               * never need to send TRANSID_AI_R in this case.
               */
              (destNode == getOwnNodeId() && connectedToNode));
 
-  if (likely(connectedToNode))
-  {
-    sendSignal(resultRef, GSN_TRANSID_AI, signal, 3, JBB, ptr, 1);
-  }
-  else
+  if (unlikely(!connectedToNode))
   {
     jam();
-    if (outBuf == signal->theData + 3)
+    if (outBuf == signal->theData+TransIdAI::HeaderLength)
     {
       jam();
       /**
-       * TUP guesses that it can EXECUTE_DIRECT if own-node,
-       *  it then puts outBuf == signal->theData+3
-       */
-      memmove(signal->theData+25, signal->theData+3, 4*len);
-      ptr[0].p = signal->theData+25;
+       * TUP guessed incorrectly that it could EXECUTE_DIRECT
+       *  it then puts outBuf == signal->theData+AttrInfo::HeaderLength
+       * (Use  memmove as src & dest may overlap)       */
+      memmove(&signal->theData[25], outBuf, 4*len);
+      outBuf = &signal->theData[25];
     }
+
+    LinearSectionPtr ptr[3];
+    ptr[0].p= const_cast<Uint32*>(outBuf);
+    ptr[0].sz= len;
     transIdAI->attrData[0] = resultRef;
-    sendSignal(routeRef, GSN_TRANSID_AI_R, signal, 4, JBB, ptr, 1);
+    sendSignal(routeRef, GSN_TRANSID_AI_R, signal,
+               TransIdAI::HeaderLength+1, JBB, ptr, 1);
+  }
+  else if (is_api &&
+           ndbd_spj_api_support_short_TRANSID_AI(getNodeInfo(destNode).m_version))
+  {
+    sendAPI_TRANSID_AI(signal, resultRef, outBuf, len);
+  }
+  else
+  {
+    LinearSectionPtr ptr[3];
+    ptr[0].p= const_cast<Uint32*>(outBuf);
+    ptr[0].sz= len;
+    sendSignal(resultRef, GSN_TRANSID_AI, signal,
+               TransIdAI::HeaderLength, JBB, ptr, 1);
   }
 
   req_struct->out_buf_index = 0; // Reset buffer
   req_struct->out_buf_bits = 0;
-
-  const Uint32 type = getNodeInfo(destNode).m_type;
-  const bool is_api = (type >= NodeInfo::API && type <= NodeInfo::MGM);
 
   /**
    * flush_read_buffer() is used as part of a read_pseudo-FLUSH_AI.
