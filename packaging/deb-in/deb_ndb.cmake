@@ -91,6 +91,7 @@ Description: memcached
 /usr/bin/ndb_drop_table
 /usr/bin/ndb_error_reporter
 /usr/bin/ndb_index_stat
+/usr/bin/ndb_import
 /usr/bin/ndb_mgm
 /usr/bin/ndb_move_data
 /usr/bin/ndb_print_backup_file
