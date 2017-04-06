@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -269,9 +269,9 @@ mysql_component_t mysql_component_ ## source_name = { \
   #endif
 #else /*_MSC_VER */
 #ifdef __cplusplus
-  #define DLL_EXPORT extern "C"
+  #define DLL_EXPORT extern "C" __attribute__((visibility("default")))
 #else
-  #define DLL_EXPORT
+  #define DLL_EXPORT __attribute__((visibility("default")))
 #endif
 #endif
 

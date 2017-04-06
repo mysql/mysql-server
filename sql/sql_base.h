@@ -25,6 +25,7 @@
 #include "mdl.h"                    // MDL_savepoint
 #include "my_base.h"                // ha_extra_function
 #include "my_inttypes.h"
+#include "my_sharedlib.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "sql_array.h"              // Bounds_checked_array
 #include "thr_lock.h"               // thr_lock_type
@@ -218,7 +219,7 @@ void close_tables_for_reopen(THD *thd, TABLE_LIST **tables,
                              const MDL_savepoint &start_of_statement_svp);
 TABLE *find_temporary_table(THD *thd, const char *db, const char *table_name);
 TABLE *find_temporary_table(THD *thd, const TABLE_LIST *tl);
-void close_thread_tables(THD *thd);
+MYSQL_PLUGIN_LEGACY_API void close_thread_tables(THD *thd);
 bool fill_record_n_invoke_before_triggers(THD *thd, List<Item> &fields,
                                           List<Item> &values,
                                           TABLE *table,
@@ -284,8 +285,9 @@ bool lock_table_names(THD *thd, TABLE_LIST *table_list,
 bool open_tables(THD *thd, TABLE_LIST **tables, uint *counter, uint flags,
                  Prelocking_strategy *prelocking_strategy);
 /* open_and_lock_tables */
-bool open_and_lock_tables(THD *thd, TABLE_LIST *tables, uint flags,
-                          Prelocking_strategy *prelocking_strategy);
+MYSQL_PLUGIN_LEGACY_API bool open_and_lock_tables(
+  THD *thd, TABLE_LIST *tables, uint flags,
+  Prelocking_strategy *prelocking_strategy);
 /* simple open_and_lock_tables for single table */
 TABLE *open_n_lock_single_table(THD *thd, TABLE_LIST *table_l,
                                 thr_lock_type lock_type, uint flags,
@@ -372,7 +374,8 @@ public:
   cached.
 */
 
-class DML_prelocking_strategy : public Prelocking_strategy
+class MYSQL_PLUGIN_LEGACY_API DML_prelocking_strategy
+  : public Prelocking_strategy
 {
 public:
   virtual bool handle_routine(THD *thd, Query_tables_list *prelocking_ctx,

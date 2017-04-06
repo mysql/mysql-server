@@ -138,7 +138,7 @@
 
   @return 0 success, MY_REG_NOMATCH failure
  */
-int
+MYSQL_PLUGIN_LEGACY_API int
 my_regexec(preg, str, nmatch, pmatch, eflags)
 const my_regex_t *preg;
 const char *str;

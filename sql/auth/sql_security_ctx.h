@@ -33,14 +33,14 @@ class Acl_map;
 class THD;
 struct Grant_table_aggregate;
 
-extern "C" MYSQL_PLUGIN_IMPORT CHARSET_INFO *system_charset_info;
+extern "C" MYSQL_PLUGIN_API CHARSET_INFO *system_charset_info;
 
 /**
   @class Security_context
   @brief A set of THD members describing the current authenticated user.
 */
 
-class Security_context {
+class MYSQL_PLUGIN_LEGACY_API Security_context {
 
 public:
 

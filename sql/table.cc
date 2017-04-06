@@ -52,6 +52,7 @@
 #include "my_macros.h"
 #include "my_pointer_arithmetic.h"
 #include "my_psi_config.h"
+#include "my_sharedlib.h"
 #include "my_sqlcommand.h"
 #include "my_thread_local.h"
 #include "myisam.h"                      // MI_MAX_KEY_LENGTH
@@ -3676,7 +3677,7 @@ rename_file_ext(const char * from,const char * to,const char * ext)
   @retval  0	all ok
 */
 
-bool get_field(MEM_ROOT *mem, Field *field, String *res)
+MYSQL_PLUGIN_LEGACY_API bool get_field(MEM_ROOT *mem, Field *field, String *res)
 {
   char buff[MAX_FIELD_WIDTH], *to;
   String str(buff,sizeof(buff),&my_charset_bin);
@@ -3705,7 +3706,7 @@ bool get_field(MEM_ROOT *mem, Field *field, String *res)
   @retval  other  pointer to NULL-terminated string value of field
 */
 
-char *get_field(MEM_ROOT *mem, Field *field)
+MYSQL_PLUGIN_LEGACY_API char *get_field(MEM_ROOT *mem, Field *field)
 {
   char buff[MAX_FIELD_WIDTH], *to;
   String str(buff,sizeof(buff),&my_charset_bin);

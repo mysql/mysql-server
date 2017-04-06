@@ -26,8 +26,10 @@ class THD;
   THR_THD is a key which will be used to set/get THD* for a thread,
   using my_set_thread_local()/my_get_thread_local().
 */
-extern MYSQL_PLUGIN_IMPORT thread_local_key_t THR_THD;
-extern bool THR_THD_initialized;
+extern MYSQL_PLUGIN_API thread_local_key_t THR_THD;
+
+// Needs to be exported for plugins built in debug mode.
+extern MYSQL_PLUGIN_API bool THR_THD_initialized;
 
 static inline THD * my_thread_get_THR_THD()
 {
@@ -42,7 +44,7 @@ static inline int my_thread_set_THR_THD(THD *thd)
 }
 
 #if defined(MYSQL_DYNAMIC_PLUGIN) && defined(_WIN32)
-extern "C" THD *_current_thd_noinline();
+extern "C" MYSQL_PLUGIN_LEGACY_API THD *_current_thd_noinline();
 static inline THD *inline_current_thd(void)
 {
   return _current_thd_noinline();

@@ -26,6 +26,7 @@
 #include "hash.h"               // HASH
 #include "my_atomic.h"          // my_atomic_add32
 #include "my_dbug.h"
+#include "my_sharedlib.h"
 #include "mysql/psi/mysql_rwlock.h" // mysql_rwlock_t
 #include "prealloced_array.h"   // Prealloced_array
 #include "template_utils.h"
@@ -600,7 +601,7 @@ extern Checkable_rwlock *gtid_mode_lock;
   lock and then degrades it to a read lock again; there will be a
   short period when the lock is not held at all.
 */
-class Sid_map
+class MYSQL_PLUGIN_LEGACY_API Sid_map
 {
 public:
   /**
@@ -1028,7 +1029,8 @@ struct Gtid
     @param need_lock If true, the function will acquire sid_map->sid_lock; otherwise it will assert that the lock is held.
     @return Length of the string, not counting '\0'.
   */
-  int to_string(const Sid_map *sid_map, char *buf, bool need_lock= false) const;
+  MYSQL_PLUGIN_LEGACY_API int to_string(
+    const Sid_map *sid_map, char *buf, bool need_lock= false) const;
   /// Returns true if this Gtid has the same sid and gno as 'other'.
   bool equals(const Gtid &other) const
   { return sidno == other.sidno && gno == other.gno; }
@@ -1244,7 +1246,7 @@ struct trx_monitoring_info
   lock and then degrades it to a read lock again; there will be a
   short period when the lock is not held at all.
 */
-class Gtid_set
+class MYSQL_PLUGIN_LEGACY_API Gtid_set
 {
 public:
 #ifdef HAVE_PSI_INTERFACE
@@ -3859,13 +3861,13 @@ int gtid_acquire_ownership_multiple(THD *thd);
 /**
   Return sidno for a given sid, see Sid_map::add_sid() for details.
 */
-rpl_sidno get_sidno_from_global_sid_map(rpl_sid sid);
+MYSQL_PLUGIN_LEGACY_API rpl_sidno get_sidno_from_global_sid_map(rpl_sid sid);
 
 /**
   Return last gno for a given sidno, see
   Gtid_state::get_last_executed_gno() for details.
 */
-rpl_gno get_last_executed_gno(rpl_sidno sidno);
+MYSQL_PLUGIN_LEGACY_API rpl_gno get_last_executed_gno(rpl_sidno sidno);
 
 void gtid_set_performance_schema_values(const THD *thd);
 

@@ -96,6 +96,7 @@
 #include "my_inttypes.h"
 #include "my_io.h"
 #include "my_macros.h"
+#include "my_sharedlib.h"
 #include "my_sys.h"
 #include "my_thread_local.h"
 #include "mysql/service_my_snprintf.h"
@@ -402,7 +403,7 @@ static void unlock_stack(CODE_STATE *cs)
  *
  */
 
-void _db_process_(const char *name)
+void MYSQL_PLUGIN_API _db_process_(const char *name)
 {
   CODE_STATE *cs;
 
@@ -840,7 +841,7 @@ yuck:
  *
  */
 
-void _db_set_(const char *control)
+MYSQL_PLUGIN_API void _db_set_(const char *control)
 {
   CODE_STATE *cs;
   uint old_fflags;
@@ -879,7 +880,7 @@ void _db_set_(const char *control)
  *
  */
 
-void _db_push_(const char *control)
+MYSQL_PLUGIN_API void _db_push_(const char *control)
 {
   CODE_STATE *cs;
   uint old_fflags;
@@ -904,7 +905,7 @@ void _db_push_(const char *control)
   Returns TRUE if session-local settings have been set.
 */
 
-int _db_is_pushed_()
+MYSQL_PLUGIN_API int _db_is_pushed_()
 {
   CODE_STATE *cs= NULL;
   get_code_state_or_return FALSE;
@@ -926,7 +927,7 @@ int _db_is_pushed_()
  *
  */
 
-void _db_set_init_(const char *control)
+MYSQL_PLUGIN_API void _db_set_init_(const char *control)
 {
   CODE_STATE tmp_cs;
   memset(&tmp_cs, 0, sizeof(tmp_cs));
@@ -952,7 +953,7 @@ void _db_set_init_(const char *control)
  *
  */
 
-void _db_pop_()
+MYSQL_PLUGIN_API void _db_pop_()
 {
   struct settings *discard;
   uint old_fflags;
@@ -1068,7 +1069,7 @@ void _db_pop_()
         }                                       \
       } while (0)
 
-int _db_explain_ (CODE_STATE *cs, char *buf, size_t len)
+MYSQL_PLUGIN_API int _db_explain_ (CODE_STATE *cs, char *buf, size_t len)
 {
   char *start=buf, *end=buf+len-4;
 
@@ -1172,8 +1173,9 @@ int _db_explain_init_(char *buf, size_t len)
  *
  */
 
-void _db_enter_(const char *_func_, const char *_file_,
-                uint _line_, struct _db_stack_frame_ *_stack_frame_)
+MYSQL_PLUGIN_API void _db_enter_(
+  const char *_func_, const char *_file_,
+  uint _line_, struct _db_stack_frame_ *_stack_frame_)
 {
   int save_errno;
   CODE_STATE *cs;
@@ -1242,7 +1244,8 @@ void _db_enter_(const char *_func_, const char *_file_,
  *
  */
 
-void _db_return_(uint _line_, struct _db_stack_frame_ *_stack_frame_)
+MYSQL_PLUGIN_API void _db_return_(
+  uint _line_, struct _db_stack_frame_ *_stack_frame_)
 {
   int save_errno=errno;
   uint _slevel_= _stack_frame_->level & ~TRACE_ON;
@@ -1305,7 +1308,7 @@ void _db_return_(uint _line_, struct _db_stack_frame_ *_stack_frame_)
  *
  */
 
-void _db_pargs_(uint _line_, const char *keyword)
+MYSQL_PLUGIN_API void _db_pargs_(uint _line_, const char *keyword)
 {
   CODE_STATE *cs;
   get_code_state_or_return;
@@ -1331,7 +1334,7 @@ void _db_pargs_(uint _line_, const char *keyword)
  *    function evaluates to 1.
  */
 
-int _db_enabled_()
+MYSQL_PLUGIN_API int _db_enabled_()
 {
   CODE_STATE *cs;
 
@@ -1370,7 +1373,7 @@ int _db_enabled_()
 
 #include <stdarg.h>
 
-void _db_doprnt_(const char *format,...)
+MYSQL_PLUGIN_API void _db_doprnt_(const char *format,...)
 {
   va_list args;
   CODE_STATE *cs;
@@ -1433,7 +1436,7 @@ static void DbugVfprintf(FILE *stream, const char* format, va_list args)
  *  Is used to examine corrupted memory or arrays.
  */
 
-void _db_dump_(uint _line_, const char *keyword,
+MYSQL_PLUGIN_API void _db_dump_(uint _line_, const char *keyword,
                const unsigned char *memory, size_t length)
 {
   int pos;
@@ -1764,7 +1767,7 @@ static void FreeState(CODE_STATE *cs, struct settings *state, int free_state)
  *	To be called at the very end of the program.
  *
  */
-void _db_end_()
+MYSQL_PLUGIN_API void _db_end_()
 {
   struct settings *discard;
   static struct settings tmp;
@@ -1865,7 +1868,7 @@ FILE *_db_fp_(void)
  *
  */
 
-int _db_keyword_(CODE_STATE *cs, const char *keyword, int strict)
+MYSQL_PLUGIN_API int _db_keyword_(CODE_STATE *cs, const char *keyword, int strict)
 {
   bool result;
   get_code_state_if_not_set_or_return FALSE;
@@ -2283,7 +2286,7 @@ static void DbugFlush(CODE_STATE *cs)
 
 /* For debugging */
 
-void _db_flush_()
+MYSQL_PLUGIN_API void _db_flush_()
 {
   CODE_STATE *cs= NULL;
   get_code_state_or_return;
@@ -2297,7 +2300,7 @@ void _db_flush_()
 extern void __gcov_flush();
 #endif
 
-void _db_flush_gcov_()
+MYSQL_PLUGIN_API void _db_flush_gcov_()
 {
 #ifdef HAVE_GCOV
   // Gcov will assert() if we try to flush in parallel.
@@ -2307,7 +2310,7 @@ void _db_flush_gcov_()
 #endif
 }
 
-void _db_suicide_()
+MYSQL_PLUGIN_API void _db_suicide_()
 {
   int retval;
   sigset_t new_mask;
@@ -2332,7 +2335,7 @@ void _db_suicide_()
 #endif  /* ! _WIN32 */
 
 
-void _db_lock_file_()
+MYSQL_PLUGIN_API void _db_lock_file_()
 {
   CODE_STATE *cs;
   get_code_state_or_return;
@@ -2340,7 +2343,7 @@ void _db_lock_file_()
   cs->locked=1;
 }
 
-void _db_unlock_file_()
+MYSQL_PLUGIN_API void _db_unlock_file_()
 {
   CODE_STATE *cs;
   get_code_state_or_return;
@@ -2348,7 +2351,7 @@ void _db_unlock_file_()
   native_mutex_unlock(&THR_LOCK_dbug);
 }
 
-const char* _db_get_func_(void)
+MYSQL_PLUGIN_API const char* _db_get_func_(void)
 {
   CODE_STATE *cs;
   get_code_state_or_return NULL;

@@ -393,9 +393,10 @@ int decimal_actual_fraction(decimal_t *from)
     E_DEC_OK/E_DEC_TRUNCATED/E_DEC_OVERFLOW
 */
 
-int decimal2string(const decimal_t *from, char *to, int *to_len,
-                   int fixed_precision, int fixed_decimals,
-                   char filler)
+MYSQL_PLUGIN_LEGACY_API int decimal2string(
+  const decimal_t *from, char *to, int *to_len,
+  int fixed_precision, int fixed_decimals,
+  char filler)
 {
   /* {intg_len, frac_len} output widths; {intg, frac} places in input */
   int len, intg, frac= from->frac, i, intg_len, frac_len, fill;

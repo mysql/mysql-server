@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -55,12 +55,12 @@ private:
 /*
   Group Replication plugin handler function accessors.
 */
-int group_replication_init(const char* plugin_name);
-int group_replication_cleanup();
-bool is_group_replication_plugin_loaded();
+MYSQL_PLUGIN_LEGACY_API int group_replication_init(const char* plugin_name);
+MYSQL_PLUGIN_LEGACY_API int group_replication_cleanup();
+MYSQL_PLUGIN_LEGACY_API bool is_group_replication_plugin_loaded();
 
-int group_replication_start();
-int group_replication_stop();
+MYSQL_PLUGIN_LEGACY_API int group_replication_start();
+MYSQL_PLUGIN_LEGACY_API int group_replication_stop();
 bool is_group_replication_running();
 int set_group_replication_retrieved_certification_info(View_change_log_event *view_change_event);
 

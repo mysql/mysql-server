@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,7 +20,7 @@
 #ifdef _WIN32
 #define SERVICE_VERSION __declspec(dllexport) void *
 #else
-#define SERVICE_VERSION void *
+#define SERVICE_VERSION __attribute__((visibility("default"))) void *
 #endif
 
 #define VERSION_command         0x0100

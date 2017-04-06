@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, 2016 Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -24,6 +24,8 @@
 #ifndef _WIN32
 #include <strings.h>
 #endif
+
+#include "my_sharedlib.h"
 
 #define PARSE_END_ENTRIES 8192
 #define MAX_STRING_SIZE 32
@@ -50,7 +52,7 @@ struct ParamValue
   SparseBitmask mask_val;
 };
 
-class ParseThreadConfiguration
+class MYSQL_PLUGIN_LEGACY_API ParseThreadConfiguration
 {
 public:
   ParseThreadConfiguration(const char *str,

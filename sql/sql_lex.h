@@ -46,6 +46,7 @@
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_macros.h"
+#include "my_sharedlib.h"
 #include "my_sqlcommand.h"
 #include "my_sys.h"
 #include "my_table_map.h"
@@ -2850,7 +2851,7 @@ public:
      @retval FALSE OK
      @retval TRUE  Error
   */
-  bool init(THD *thd, const char *buff, size_t length);
+  MYSQL_PLUGIN_LEGACY_API bool init(THD *thd, const char *buff, size_t length);
 
   void reset(const char *buff, size_t length);
 
@@ -3315,7 +3316,7 @@ public:
 
 struct LEX: public Query_tables_list
 {
-  friend bool lex_start(THD *thd);
+  friend MYSQL_PLUGIN_LEGACY_API bool lex_start(THD *thd);
 
   SELECT_LEX_UNIT *unit;                 ///< Outer-most query expression
   /// @todo: select_lex can be replaced with unit->first-select()
@@ -3857,7 +3858,7 @@ public:
     m_ha_rkey_mode= HA_READ_KEY_EXACT;
   }
 
-  ~Yacc_state();
+  MYSQL_PLUGIN_LEGACY_API ~Yacc_state();
 
   /**
     Reset part of the state which needs resetting before parsing
@@ -4074,12 +4075,13 @@ struct st_lex_local: public LEX
 
 extern bool lex_init(void);
 extern void lex_free(void);
-extern bool lex_start(THD *thd);
+extern MYSQL_PLUGIN_LEGACY_API bool lex_start(THD *thd);
 extern void lex_end(LEX *lex);
 extern int MYSQLlex(union YYSTYPE *yylval, struct YYLTYPE *yylloc,
                     class THD *thd);
 
-extern void trim_whitespace(const CHARSET_INFO *cs, LEX_STRING *str);
+extern MYSQL_PLUGIN_LEGACY_API void trim_whitespace(
+  const CHARSET_INFO *cs, LEX_STRING *str);
 
 extern bool is_lex_native_function(const LEX_STRING *name);
 

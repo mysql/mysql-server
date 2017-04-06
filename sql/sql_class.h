@@ -54,6 +54,7 @@
 #include "my_io.h"
 #include "my_macros.h"
 #include "my_psi_config.h"
+#include "my_sharedlib.h"
 #include "my_sqlcommand.h"
 #include "my_sys.h"
 #include "my_table_map.h"
@@ -138,12 +139,12 @@ typedef struct st_mysql_lock MYSQL_LOCK;
 #define thd_proc_info(thd, msg) \
   set_thd_proc_info(thd, msg, __func__, __FILE__, __LINE__)
 
-extern "C"
+extern "C" MYSQL_PLUGIN_LEGACY_API
 void thd_enter_cond(void *opaque_thd, mysql_cond_t *cond, mysql_mutex_t *mutex,
                     const PSI_stage_info *stage, PSI_stage_info *old_stage,
                     const char *src_function, const char *src_file,
                     int src_line);
-extern "C"
+extern "C" MYSQL_PLUGIN_LEGACY_API
 void thd_exit_cond(void *opaque_thd, const PSI_stage_info *stage,
                    const char *src_function, const char *src_file,
                    int src_line);
@@ -172,8 +173,8 @@ public:
   ~thd_scheduler() { }
 };
 
-PSI_thread* thd_get_psi(THD *thd);
-void thd_set_psi(THD *thd, PSI_thread *psi);
+MYSQL_PLUGIN_LEGACY_API PSI_thread* thd_get_psi(THD *thd);
+MYSQL_PLUGIN_LEGACY_API void thd_set_psi(THD *thd, PSI_thread *psi);
 
 
 /**
@@ -205,7 +206,7 @@ typedef struct rpl_event_coordinates
 #define INIT_ARENA_DBUG_INFO
 #endif
 
-class Query_arena
+class MYSQL_PLUGIN_LEGACY_API Query_arena
 {
 public:
   /*
@@ -408,7 +409,7 @@ const char * get_locked_tables_mode_name(enum_locked_tables_mode locked_tables_m
   push_open_tables_state()/pop_open_tables_state().
 */
 
-class Open_tables_state
+class MYSQL_PLUGIN_LEGACY_API Open_tables_state
 {
 private:
   /**
@@ -813,9 +814,10 @@ my_micro_time_to_timeval(ulonglong micro_time, struct timeval *tm)
   a thread/connection descriptor
 */
 
-class THD :public MDL_context_owner,
-           public Query_arena,
-           public Open_tables_state
+class MYSQL_PLUGIN_LEGACY_API THD
+  : public MDL_context_owner,
+    public Query_arena,
+    public Open_tables_state
 {
 private:
   inline bool is_stmt_prepare() const
@@ -3609,8 +3611,9 @@ private:
   friend class Sql_cmd_common_signal;
   friend class Sql_cmd_signal;
   friend class Sql_cmd_resignal;
-  friend void push_warning(THD* thd, Sql_condition::enum_severity_level severity,
-                           uint code, const char* message_text);
+  friend MYSQL_PLUGIN_LEGACY_API void push_warning(
+    THD* thd, Sql_condition::enum_severity_level severity,
+    uint code, const char* message_text);
   friend void my_message_sql(uint, const char *, myf);
 
   /**

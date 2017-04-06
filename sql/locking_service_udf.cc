@@ -19,6 +19,7 @@
 #include "locking_service.h"       // acquire_locking_service_locks
 #include "my_inttypes.h"
 #include "my_macros.h"
+#include "mysql/client_plugin.h"
 #include "mysql/service_locking.h"
 #include "mysql_com.h"             // UDF_INIT
 
@@ -73,6 +74,7 @@ static inline bool init_acquire(UDF_INIT *initid, UDF_ARGS *args, char *message)
 
 C_MODE_START
 
+MYSQL_PLUGIN_EXPORT
 bool service_get_read_locks_init(UDF_INIT *initid, UDF_ARGS *args,
                                  char *message)
 {
@@ -80,6 +82,7 @@ bool service_get_read_locks_init(UDF_INIT *initid, UDF_ARGS *args,
 }
 
 
+MYSQL_PLUGIN_EXPORT
 long long service_get_read_locks(UDF_INIT*, UDF_ARGS *args,
                                  char*, char*)
 {
@@ -95,6 +98,7 @@ long long service_get_read_locks(UDF_INIT*, UDF_ARGS *args,
 }
 
 
+MYSQL_PLUGIN_EXPORT
 bool service_get_write_locks_init(UDF_INIT *initid, UDF_ARGS *args,
                                   char *message)
 {
@@ -102,6 +106,7 @@ bool service_get_write_locks_init(UDF_INIT *initid, UDF_ARGS *args,
 }
 
 
+MYSQL_PLUGIN_EXPORT
 long long service_get_write_locks(UDF_INIT*, UDF_ARGS *args,
                                   char*, char*)
 {
@@ -117,6 +122,7 @@ long long service_get_write_locks(UDF_INIT*, UDF_ARGS *args,
 }
 
 
+MYSQL_PLUGIN_EXPORT
 bool service_release_locks_init(UDF_INIT *initid, UDF_ARGS *args,
                                 char *message)
 {
@@ -143,6 +149,7 @@ bool service_release_locks_init(UDF_INIT *initid, UDF_ARGS *args,
 }
 
 
+MYSQL_PLUGIN_EXPORT
 long long service_release_locks(UDF_INIT*, UDF_ARGS *args,
                                 char*, char*)
 {

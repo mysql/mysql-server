@@ -26,6 +26,8 @@ INCLUDE_DIRECTORIES(
   ${ZLIB_INCLUDE_DIR})
 ADD_DEFINITIONS(${SSL_DEFINES})
 
+ADD_DEFINITIONS(-DMYSQL_NO_PLUGIN_EXPORT)
+
 SET(CLIENT_API_FUNCTIONS
 mysql_thread_end
 mysql_thread_init
@@ -197,6 +199,15 @@ IF (WITH_CLIENT_PROTOCOL_TRACING)
   ENDIF (WITH_TEST_TRACE_PLUGIN)
 
 ENDIF (WITH_CLIENT_PROTOCOL_TRACING)
+
+# Override the default -fvisibility=hidden for the client library;
+# the version script manages visibility for us.
+IF(NOT WIN32)
+  ADD_COMPILE_FLAGS(
+    ${CLIENT_SOURCES}
+    COMPILE_FLAGS "-fvisibility=default"
+  )
+ENDIF()
 
 ADD_CONVENIENCE_LIBRARY(clientlib ${CLIENT_SOURCES})
 ADD_DEPENDENCIES(clientlib GenError)

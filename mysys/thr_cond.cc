@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -27,8 +27,8 @@
 
 #include "my_thread_local.h"
 
-int safe_cond_wait(native_cond_t *cond, my_mutex_t *mp,
-                   const char *file, uint line)
+MYSQL_PLUGIN_LEGACY_API int safe_cond_wait(
+  native_cond_t *cond, my_mutex_t *mp, const char *file, uint line)
 {
   int error;
   native_mutex_lock(&mp->global);
@@ -79,10 +79,10 @@ int safe_cond_wait(native_cond_t *cond, my_mutex_t *mp,
   return error;
 }
 
-
-int safe_cond_timedwait(native_cond_t *cond, my_mutex_t *mp,
-                        const struct timespec *abstime,
-                        const char *file, uint line)
+MYSQL_PLUGIN_LEGACY_API int safe_cond_timedwait(
+  native_cond_t *cond, my_mutex_t *mp,
+  const struct timespec *abstime,
+  const char *file, uint line)
 {
   int error;
   native_mutex_lock(&mp->global);

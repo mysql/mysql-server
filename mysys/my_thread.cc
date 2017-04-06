@@ -49,8 +49,8 @@ static unsigned int __stdcall win_thread_start(void *p)
  does not exit within init_routine().
 */
 
-extern "C" int my_thread_once(my_thread_once_t *once_control,
-                              void (*init_routine)(void))
+extern "C" MYSQL_PLUGIN_LEGACY_API
+int my_thread_once(my_thread_once_t *once_control, void (*init_routine)(void))
 {
 #ifndef _WIN32
   return pthread_once(once_control, init_routine);
@@ -92,8 +92,9 @@ extern "C" int my_thread_once(my_thread_once_t *once_control,
 }
 
 
-int my_thread_create(my_thread_handle *thread, const my_thread_attr_t *attr,
-                     my_start_routine func, void *arg)
+MYSQL_PLUGIN_LEGACY_API int my_thread_create(
+  my_thread_handle *thread, const my_thread_attr_t *attr,
+  my_start_routine func, void *arg)
 {
 #ifndef _WIN32
   return pthread_create(&thread->thread, attr, func, arg);
@@ -139,7 +140,8 @@ error_return:
 }
 
 
-int my_thread_join(my_thread_handle *thread, void **value_ptr)
+MYSQL_PLUGIN_LEGACY_API int my_thread_join(
+  my_thread_handle *thread, void **value_ptr)
 {
 #ifndef _WIN32
   return pthread_join(thread->thread, value_ptr);
@@ -161,7 +163,7 @@ int my_thread_join(my_thread_handle *thread, void **value_ptr)
 }
 
 
-int my_thread_cancel(my_thread_handle *thread)
+MYSQL_PLUGIN_LEGACY_API int my_thread_cancel(my_thread_handle *thread)
 {
 #ifndef _WIN32
   return pthread_cancel(thread->thread);
@@ -182,7 +184,7 @@ int my_thread_cancel(my_thread_handle *thread)
 }
 
 
-void my_thread_exit(void *value_ptr)
+MYSQL_PLUGIN_LEGACY_API void my_thread_exit(void *value_ptr)
 {
 #ifndef _WIN32
   pthread_exit(value_ptr);

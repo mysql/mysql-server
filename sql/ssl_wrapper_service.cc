@@ -24,6 +24,7 @@
 
 #include "my_compiler.h"
 #include "my_io.h"  // IWYU pragma: keep (for Winsock definitions)
+#include "my_sharedlib.h"
 #include "openssl/ssl.h"
 
 #if defined(HAVE_YASSL)
@@ -87,7 +88,8 @@ end:
   @param buffer           Character buffer in which the version is going to be placed
   @param buffer_size      Size of the character buffer
 */
-void ssl_wrapper_version(Vio *vio, char *buffer, const size_t buffer_size)
+MYSQL_PLUGIN_API void ssl_wrapper_version(
+  Vio *vio, char *buffer, const size_t buffer_size)
 {
   const char *ssl_version= SSL_get_version((SSL*)vio->ssl_arg);
 
@@ -103,7 +105,8 @@ void ssl_wrapper_version(Vio *vio, char *buffer, const size_t buffer_size)
   @param buffer           Character buffer in which the cipher name is going to be placed
   @param buffer_size      Size of the character buffer
 */
-void ssl_wrapper_cipher(Vio *vio, char *buffer, const size_t buffer_size)
+MYSQL_PLUGIN_API void ssl_wrapper_cipher(
+  Vio *vio, char *buffer, const size_t buffer_size)
 {
   const char *ssl_version= SSL_get_cipher((SSL*)vio->ssl_arg);
 
@@ -118,7 +121,8 @@ void ssl_wrapper_cipher(Vio *vio, char *buffer, const size_t buffer_size)
   @param clipher_list              Pointer to an array of c-strings
   @param maximun_num_of_elements   Size of the pointer array
 */
-long ssl_wrapper_cipher_list(Vio *vio, const char **clipher_list, const size_t maximun_num_of_elements)
+MYSQL_PLUGIN_API long ssl_wrapper_cipher_list(
+  Vio *vio, const char **clipher_list, const size_t maximun_num_of_elements)
 {
   const char *cipher= NULL;
   int         index= 0;
@@ -146,12 +150,12 @@ long ssl_wrapper_cipher_list(Vio *vio, const char **clipher_list, const size_t m
     -1 default values should be used
     >0 verification depth
 */
-long ssl_wrapper_verify_depth(Vio *vio)
+MYSQL_PLUGIN_API long ssl_wrapper_verify_depth(Vio *vio)
 {
   return SSL_get_verify_depth((SSL*)vio->ssl_arg);
 }
 
-long ssl_wrapper_verify_mode(Vio *vio)
+MYSQL_PLUGIN_API long ssl_wrapper_verify_mode(Vio *vio)
 {
   return SSL_get_verify_mode((SSL*)vio->ssl_arg);
 }
@@ -163,7 +167,8 @@ long ssl_wrapper_verify_mode(Vio *vio)
   @param issuer           Character buffer in which the issuer name is going to be placed
   @param issuer_size      Size of character buffer for the issuer name
 */
-void ssl_wrapper_get_peer_certificate_issuer(Vio *vio, char *issuer, const size_t issuer_size)
+MYSQL_PLUGIN_API void ssl_wrapper_get_peer_certificate_issuer(
+  Vio *vio, char *issuer, const size_t issuer_size)
 {
   X509 *cert = NULL;
   if (!(cert = SSL_get_peer_certificate((SSL*)vio->ssl_arg)))
@@ -183,7 +188,8 @@ void ssl_wrapper_get_peer_certificate_issuer(Vio *vio, char *issuer, const size_
   @param subject          Character buffer in which the subject is going to be placed
   @param subject_size     Size of character buffer for the subject
 */
-void ssl_wrapper_get_peer_certificate_subject(Vio *vio, char *subject, const size_t subject_size)
+MYSQL_PLUGIN_API void ssl_wrapper_get_peer_certificate_subject(
+  Vio *vio, char *subject, const size_t subject_size)
 {
   X509 *cert = NULL;
   if (!(cert = SSL_get_peer_certificate((SSL*)vio->ssl_arg)))
@@ -205,7 +211,7 @@ void ssl_wrapper_get_peer_certificate_subject(Vio *vio, char *subject, const siz
     X509_V_OK verification of peer certificate succeeded
     -1        verification failed
 */
-long ssl_wrapper_get_verify_result_and_cert(Vio *vio)
+MYSQL_PLUGIN_API long ssl_wrapper_get_verify_result_and_cert(Vio *vio)
 {
   long result = 0;
 
@@ -230,7 +236,8 @@ long ssl_wrapper_get_verify_result_and_cert(Vio *vio)
     -1 default values should be used
     >0 verification depth
 */
-long ssl_wrapper_ctx_verify_depth(struct st_VioSSLFd *vio_ssl)
+MYSQL_PLUGIN_API long ssl_wrapper_ctx_verify_depth(
+  struct st_VioSSLFd *vio_ssl)
 {
   return SSL_CTX_get_verify_depth(vio_ssl->ssl_context);
 }
@@ -244,7 +251,8 @@ long ssl_wrapper_ctx_verify_depth(struct st_VioSSLFd *vio_ssl)
     -1 default values should be used
     >0 verification mode
 */
-long ssl_wrapper_ctx_verify_mode(struct st_VioSSLFd *vio_ssl)
+MYSQL_PLUGIN_API long ssl_wrapper_ctx_verify_mode(
+  struct st_VioSSLFd *vio_ssl)
 {
   return SSL_CTX_get_verify_mode(vio_ssl->ssl_context);
 }
@@ -256,7 +264,8 @@ long ssl_wrapper_ctx_verify_mode(struct st_VioSSLFd *vio_ssl)
   @param no_after             Character buffer for to be filed with the date in human readble format
   @param no_after_size        Size of the character buffer
 */
-void  ssl_wrapper_ctx_server_not_after(struct st_VioSSLFd *vio_ssl, char *no_after, const size_t no_after_size)
+MYSQL_PLUGIN_API void ssl_wrapper_ctx_server_not_after(
+  struct st_VioSSLFd *vio_ssl, char *no_after, const size_t no_after_size)
 {
   SSL *ssl= SSL_new(vio_ssl->ssl_context);
   if (NULL == ssl)
@@ -284,7 +293,8 @@ void  ssl_wrapper_ctx_server_not_after(struct st_VioSSLFd *vio_ssl, char *no_aft
   @param no_before            Character buffer for to be filed with the date in human readble format
   @param no_before_size       Size of the character buffer
 */
-void ssl_wrapper_ctx_server_not_before(struct st_VioSSLFd *vio_ssl, char *no_before, const size_t no_before_size)
+MYSQL_PLUGIN_API void ssl_wrapper_ctx_server_not_before(
+  struct st_VioSSLFd *vio_ssl, char *no_before, const size_t no_before_size)
 {
   SSL *ssl= SSL_new(vio_ssl->ssl_context);
   if (NULL == ssl)
@@ -305,12 +315,13 @@ void ssl_wrapper_ctx_server_not_before(struct st_VioSSLFd *vio_ssl, char *no_bef
   SSL_free(ssl);
 }
 
-long ssl_wrapper_sess_accept(struct st_VioSSLFd *vio_ssl)
+MYSQL_PLUGIN_API long ssl_wrapper_sess_accept(struct st_VioSSLFd *vio_ssl)
 {
   return SSL_CTX_sess_accept(vio_ssl->ssl_context);
 }
 
-long ssl_wrapper_sess_accept_good(struct st_VioSSLFd *vio_ssl)
+MYSQL_PLUGIN_API long ssl_wrapper_sess_accept_good(
+  struct st_VioSSLFd *vio_ssl)
 {
   return SSL_CTX_sess_accept_good(vio_ssl->ssl_context);
 }
@@ -319,7 +330,7 @@ long ssl_wrapper_sess_accept_good(struct st_VioSSLFd *vio_ssl)
   Cleanup data allocated by SSL on thread stack
 
 */
-void ssl_wrapper_thread_cleanup()
+MYSQL_PLUGIN_API void ssl_wrapper_thread_cleanup()
 {
 #if !defined(HAVE_YASSL)
   ERR_clear_error();

@@ -26,6 +26,7 @@
 #endif
 
 #include "my_command.h"
+#include "my_sharedlib.h"
 
 /*
   We need a definition for my_socket. On the client, <mysql.h> already provides
@@ -959,16 +960,17 @@ extern "C" {
 bool	my_net_init(NET *net, MYSQL_VIO vio);
 void my_net_local_init(NET *net);
 void net_end(NET *net);
-void net_clear(NET *net, bool check_buffer);
+MYSQL_PLUGIN_LEGACY_API void net_clear(NET *net, bool check_buffer);
 void net_claim_memory_ownership(NET *net);
 bool net_realloc(NET *net, size_t length);
-bool	net_flush(NET *net);
-bool	my_net_write(NET *net,const unsigned char *packet, size_t len);
+MYSQL_PLUGIN_LEGACY_API bool net_flush(NET *net);
+MYSQL_PLUGIN_LEGACY_API bool my_net_write(
+  NET *net,const unsigned char *packet, size_t len);
 bool	net_write_command(NET *net,unsigned char command,
 			  const unsigned char *header, size_t head_len,
 			  const unsigned char *packet, size_t len);
 bool net_write_packet(NET *net, const unsigned char *packet, size_t length);
-unsigned long my_net_read(NET *net);
+MYSQL_PLUGIN_LEGACY_API unsigned long my_net_read(NET *net);
 
 void my_net_set_write_timeout(NET *net, unsigned int timeout);
 void my_net_set_read_timeout(NET *net, unsigned int timeout);
@@ -1050,10 +1052,13 @@ bool check_scramble_323(const unsigned char *reply, const char *message,
 void get_salt_from_password_323(unsigned long *res, const char *password);
 void make_password_from_salt_323(char *to, const unsigned long *salt);
 
+MYSQL_PLUGIN_LEGACY_API
 void make_scrambled_password(char *to, const char *password);
 void scramble(char *to, const char *message, const char *password);
+MYSQL_PLUGIN_LEGACY_API
 bool check_scramble(const unsigned char *reply, const char *message,
                     const unsigned char *hash_stage2);
+MYSQL_PLUGIN_LEGACY_API
 void get_salt_from_password(unsigned char *res, const char *password);
 void make_password_from_salt(char *to, const unsigned char *hash_stage2);
 char *octet2hex(char *to, const char *str, unsigned int len);
@@ -1065,8 +1070,8 @@ const char *mysql_errno_to_sqlstate(unsigned int mysql_errno);
 
 /* Some other useful functions */
 
-bool my_thread_init(void);
-void my_thread_end(void);
+MYSQL_PLUGIN_LEGACY_API bool my_thread_init(void);
+MYSQL_PLUGIN_LEGACY_API void my_thread_end(void);
 
 #ifdef STDCALL
 unsigned long STDCALL net_field_length(unsigned char **packet);

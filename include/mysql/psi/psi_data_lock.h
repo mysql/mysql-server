@@ -456,7 +456,7 @@ typedef struct PSI_data_lock_service_v1 PSI_data_lock_service_t;
 typedef struct PSI_placeholder PSI_data_lock_service_t;
 #endif
 
-extern MYSQL_PLUGIN_IMPORT PSI_data_lock_service_t *psi_data_lock_service;
+extern MYSQL_PLUGIN_API PSI_data_lock_service_t *psi_data_lock_service;
 
 #endif /* HAVE_PSI_INTERFACE */
 

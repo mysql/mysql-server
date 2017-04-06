@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -66,7 +66,8 @@ size_t dirname_length(const char *name)
    #  Length of directory part in 'name'
 */
 
-size_t dirname_part(char *to, const char *name, size_t *to_res_length)
+MYSQL_PLUGIN_LEGACY_API size_t dirname_part(
+  char *to, const char *name, size_t *to_res_length)
 {
   size_t length;
   DBUG_ENTER("dirname_part");

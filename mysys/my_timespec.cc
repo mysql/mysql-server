@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -23,7 +23,8 @@
   @file mysys/my_timespec.cc
 */
 
-extern "C" void set_timespec_nsec(struct timespec *abstime, ulonglong nsec)
+extern "C" MYSQL_PLUGIN_LEGACY_API void set_timespec_nsec(
+  struct timespec *abstime, ulonglong nsec)
 {
   ulonglong now= my_getsystime() + (nsec / 100);
   ulonglong tv_sec= now / 10000000ULL;
@@ -36,7 +37,8 @@ extern "C" void set_timespec_nsec(struct timespec *abstime, ulonglong nsec)
 }
 
 
-extern "C" void set_timespec(struct timespec *abstime, ulonglong sec)
+extern "C" MYSQL_PLUGIN_LEGACY_API void set_timespec(
+  struct timespec *abstime, ulonglong sec)
 {
   set_timespec_nsec(abstime, sec * 1000000000ULL);
 }

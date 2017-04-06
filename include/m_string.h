@@ -32,6 +32,7 @@
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_macros.h"
+#include "my_sharedlib.h"
 #include "mysql_com.h"
 
 #define bfill please_use_memset_rather_than_bfill
@@ -69,7 +70,9 @@ extern char _dig_vec_lower[];
 extern	char *strmake(char *dst,const char *src,size_t length);
 extern	char *strcont(const char *src, const char *set);
 extern	char *strxmov(char *dst, const char *src, ...);
-extern	char *strxnmov(char *dst, size_t len, const char *src, ...);
+// Do not use in new plugins; use std::string.
+extern  MYSQL_PLUGIN_LEGACY_API char *strxnmov(
+  char *dst, size_t len, const char *src, ...);
 
 
 /*
@@ -271,8 +274,8 @@ typedef enum {
 double my_strtod(const char *str, char **end, int *error);
 double my_atof(const char *nptr);
 size_t my_fcvt(double x, int precision, char *to, bool *error);
-size_t my_gcvt(double x, my_gcvt_arg_type type, int width, char *to,
-               bool *error);
+MYSQL_PLUGIN_LEGACY_API size_t my_gcvt(
+  double x, my_gcvt_arg_type type, int width, char *to, bool *error);
 
 #define NOT_FIXED_DEC 31
 
@@ -300,10 +303,11 @@ size_t my_gcvt(double x, my_gcvt_arg_type type, int width, char *to,
 */
 #define MY_GCVT_MAX_FIELD_WIDTH (DBL_DIG + 4 + MY_MAX(5, MAX_DECPT_FOR_F_FORMAT)) \
 
-extern char *int2str(long val, char *dst, int radix, int upcase);
-extern char *int10_to_str(long val,char *dst,int radix);
-extern char *str2int(const char *src,int radix,long lower,long upper,
-			 long *val);
+extern MYSQL_PLUGIN_LEGACY_API char *int2str(
+  long val, char *dst, int radix, int upcase);
+extern MYSQL_PLUGIN_LEGACY_API char *int10_to_str(long val,char *dst,int radix);
+extern MYSQL_PLUGIN_LEGACY_API char *str2int(
+  const char *src,int radix,long lower,long upper, long *val);
 longlong my_strtoll10(const char *nptr, char **endptr, int *error);
 #if SIZEOF_LONG == SIZEOF_LONG_LONG
 #define ll2str(A,B,C,D) int2str((A),(B),(C),(D))
@@ -313,7 +317,8 @@ longlong my_strtoll10(const char *nptr, char **endptr, int *error);
 #define strtoull(A,B,C) strtoul((A),(B),(C))
 #else
 extern char *ll2str(longlong val,char *dst,int radix, int upcase);
-extern char *longlong10_to_str(longlong val,char *dst,int radix);
+extern MYSQL_PLUGIN_LEGACY_API char *longlong10_to_str(
+  longlong val,char *dst,int radix);
 #endif
 #define longlong2str(A,B,C) ll2str((A),(B),(C),1)
 

@@ -5949,7 +5949,7 @@ MY_CHARSET_HANDLER my_charset_utf8_handler=
 
 
 
-CHARSET_INFO my_charset_utf8_general_ci=
+MYSQL_PLUGIN_API CHARSET_INFO my_charset_utf8_general_ci=
 {
     33,0,0,             /* number       */
     MY_CS_COMPILED|MY_CS_PRIMARY|MY_CS_STRNXFRM|MY_CS_UNICODE,  /* state  */

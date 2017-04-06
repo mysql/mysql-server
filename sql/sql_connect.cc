@@ -766,7 +766,7 @@ static bool login_connection(THD *thd)
     This mainly updates status variables
 */
 
-void end_connection(THD *thd)
+MYSQL_PLUGIN_LEGACY_API void end_connection(THD *thd)
 {
   NET *net= thd->get_protocol_classic()->get_net();
 
@@ -872,7 +872,7 @@ static void prepare_new_connection_state(THD* thd)
 }
 
 
-bool thd_prepare_connection(THD *thd)
+MYSQL_PLUGIN_LEGACY_API bool thd_prepare_connection(THD *thd)
 {
   bool rc;
   lex_start(thd);
@@ -898,8 +898,8 @@ bool thd_prepare_connection(THD *thd)
     For the connection that is doing shutdown, this is called twice
 */
 
-void close_connection(THD *thd, uint sql_errno,
-                      bool server_shutdown, bool generate_event)
+MYSQL_PLUGIN_LEGACY_API void close_connection(
+  THD *thd, uint sql_errno, bool server_shutdown, bool generate_event)
 {
   DBUG_ENTER("close_connection");
 
@@ -917,7 +917,7 @@ void close_connection(THD *thd, uint sql_errno,
 }
 
 
-bool thd_connection_alive(THD *thd)
+MYSQL_PLUGIN_LEGACY_API bool thd_connection_alive(THD *thd)
 {
   NET *net= thd->get_protocol_classic()->get_net();
   if (!net->error &&

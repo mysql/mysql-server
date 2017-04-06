@@ -39,6 +39,7 @@
 
 #include "crypt_genhash_impl.h"
 #include "m_string.h"
+#include "my_sharedlib.h"
 #include "mysql/service_my_snprintf.h"
 
 #ifdef HAVE_ALLOCA_H
@@ -249,7 +250,7 @@ int extract_user_salt(char **salt_begin,
 
 /* ARGSUSED4 */
 extern "C"
-char *
+MYSQL_PLUGIN_LEGACY_API char *
 my_crypt_genhash(char *ctbuffer,
                    size_t ctbufflen,
                    const char *plaintext,
@@ -440,7 +441,7 @@ my_crypt_genhash(char *ctbuffer,
   Stdlib rand and srand are used to produce pseudo random numbers between 
   with about 7 bit worth of entropty between 1-127.
 */
-extern "C"
+extern "C" MYSQL_PLUGIN_LEGACY_API
 void generate_user_salt(char *buffer, int buffer_len)
 {
   char *end= buffer + buffer_len - 1;

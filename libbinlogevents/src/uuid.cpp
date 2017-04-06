@@ -51,7 +51,7 @@ const int Uuid::hex_to_byte[]=
 };
 
 
-int Uuid::parse(const char *string, size_t len)
+MYSQL_PLUGIN_LEGACY_API int Uuid::parse(const char *string, size_t len)
 {
   return parse(string, len, bytes);
 }
@@ -157,4 +157,12 @@ size_t Uuid::to_string(char *buf) const
 {
   return to_string(bytes, buf);
 }
+
+void Uuid::print() const
+{
+  char buf[TEXT_LENGTH + 1];
+  to_string(buf);
+  printf("%s\n", buf);
+}
+
 }//namespace binary_log

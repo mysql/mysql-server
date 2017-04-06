@@ -1,5 +1,5 @@
 #ifndef MYSQL_CLIENT_PLUGIN_INCLUDED
-/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -27,8 +27,8 @@
 #endif
 
 /*
-  On Windows, exports from DLL need to be declared.
-  Also, plugin needs to be declared as extern "C" because MSVC
+  Exports from plugins need to be declared.
+  Also, on Windows, plugins need to be declared as extern "C" because MSVC
   unlike other compilers, uses C++ mangling for variables not only
   for functions.
 */
@@ -50,7 +50,7 @@
   #endif
 #endif /*MYSQL_DYNAMIC_PLUGIN */
 #else /*_MSC_VER */
-#define MYSQL_PLUGIN_EXPORT
+#define MYSQL_PLUGIN_EXPORT __attribute__((visibility("default")))
 #endif
 
 

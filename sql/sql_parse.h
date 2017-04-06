@@ -59,9 +59,8 @@ bool stmt_causes_implicit_commit(const THD *thd, uint mask);
 extern void turn_parser_debug_on();
 #endif
 
-bool parse_sql(THD *thd,
-               Parser_state *parser_state,
-               Object_creation_ctx *creation_ctx);
+MYSQL_PLUGIN_LEGACY_API bool parse_sql(
+  THD *thd, Parser_state *parser_state, Object_creation_ctx *creation_ctx);
 
 void free_items(Item *item);
 void cleanup_items(Item *item);
@@ -98,7 +97,7 @@ void mysql_reset_thd_for_next_command(THD *thd);
 bool create_select_for_variable(Parse_context *pc, const char *var_name);
 void create_table_set_open_action_and_adjust_tables(LEX *lex);
 int mysql_execute_command(THD *thd, bool first_level= false);
-bool do_command(THD *thd);
+MYSQL_PLUGIN_LEGACY_API bool do_command(THD *thd);
 bool dispatch_command(THD *thd, const COM_DATA *com_data,
                       enum enum_server_command command);
 bool prepare_index_and_data_dir_path(THD *thd, const char **data_file_name,

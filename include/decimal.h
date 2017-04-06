@@ -22,6 +22,7 @@
 
 #include "my_inttypes.h"
 #include "my_macros.h"
+#include "my_sharedlib.h"
 
 C_MODE_START
 
@@ -47,9 +48,10 @@ typedef struct st_decimal_t {
 
 #ifndef MYSQL_ABI_CHECK
 int string2decimal(const char *from, decimal_t *to, char **end);
-int decimal2string(const decimal_t *from, char *to, int *to_len,
-                   int fixed_precision, int fixed_decimals,
-                   char filler);
+MYSQL_PLUGIN_LEGACY_API int decimal2string(
+  const decimal_t *from, char *to, int *to_len,
+  int fixed_precision, int fixed_decimals,
+  char filler);
 int decimal2ulonglong(decimal_t *from, ulonglong *to);
 int ulonglong2decimal(ulonglong from, decimal_t *to);
 int decimal2longlong(decimal_t *from, longlong *to);

@@ -33,10 +33,10 @@
 /**
   Server side initializations and cleanup.
 */
-int group_replication_init(const char* plugin_name);
-int group_replication_cleanup();
-int group_replication_start();
-int group_replication_stop();
+MYSQL_PLUGIN_API int group_replication_init(const char* plugin_name);
+MYSQL_PLUGIN_API int group_replication_cleanup();
+MYSQL_PLUGIN_API int group_replication_start();
+MYSQL_PLUGIN_API int group_replication_stop();
 
 
 /**
@@ -58,23 +58,24 @@ my_thread_attr_t *get_connection_attrib();
   @param[out] server_ssl_variables
 
 */
-void get_server_parameters(char **hostname, uint *port, char **uuid,
-                           unsigned int *server_version,
-                           st_server_ssl_variables* server_ssl_variables);
+MYSQL_PLUGIN_LEGACY_API void get_server_parameters(
+  char **hostname, uint *port, char **uuid,
+  unsigned int *server_version,
+  st_server_ssl_variables* server_ssl_variables);
 
 /**
   Returns the server_id.
 
   @return server_id
 */
-ulong get_server_id();
+MYSQL_PLUGIN_API ulong get_server_id();
 
 /**
   Returns the server auto_increment_increment
 
   @return auto_increment_increment
 */
-ulong get_auto_increment_increment();
+MYSQL_PLUGIN_API ulong get_auto_increment_increment();
 
 
 /**
@@ -82,7 +83,7 @@ ulong get_auto_increment_increment();
 
   @return auto_increment_offset
 */
-ulong get_auto_increment_offset();
+MYSQL_PLUGIN_API ulong get_auto_increment_offset();
 
 
 /**
@@ -90,7 +91,8 @@ ulong get_auto_increment_offset();
 
   @param[in] auto_increment_increment
 */
-void set_auto_increment_increment(ulong auto_increment_increment);
+MYSQL_PLUGIN_API void set_auto_increment_increment(
+  ulong auto_increment_increment);
 
 
 /**
@@ -98,7 +100,7 @@ void set_auto_increment_increment(ulong auto_increment_increment);
 
   @param[in] auto_increment_offset
 */
-void set_auto_increment_offset(ulong auto_increment_offset);
+MYSQL_PLUGIN_API void set_auto_increment_offset(ulong auto_increment_offset);
 
 
 /**
@@ -110,8 +112,8 @@ void set_auto_increment_offset(ulong auto_increment_offset);
   @param[in] has_lock Caller should set this to true if the calling
   thread holds gtid_mode_lock; otherwise set it to false.
 */
-void get_server_startup_prerequirements(Trans_context_info& requirements,
-                                        bool has_lock);
+MYSQL_PLUGIN_LEGACY_API void get_server_startup_prerequirements(
+  Trans_context_info& requirements, bool has_lock);
 
 
 /**
@@ -122,8 +124,8 @@ void get_server_startup_prerequirements(Trans_context_info& requirements,
   @param[out] encoded_gtid_executed binary string
   @param[out] length                binary string length
 */
-bool get_server_encoded_gtid_executed(uchar **encoded_gtid_executed,
-                                      size_t *length);
+MYSQL_PLUGIN_LEGACY_API bool get_server_encoded_gtid_executed(
+  uchar **encoded_gtid_executed, size_t *length);
 
 #if !defined(DBUG_OFF)
 /**
@@ -136,6 +138,7 @@ bool get_server_encoded_gtid_executed(uchar **encoded_gtid_executed,
 
   @return a pointer to text representation of the encoded set
 */
+MYSQL_PLUGIN_LEGACY_API
 char* encoded_gtid_set_to_string(uchar *encoded_gtid_set, size_t length);
 #endif
 
@@ -144,13 +147,13 @@ char* encoded_gtid_set_to_string(uchar *encoded_gtid_set, size_t length);
   Return last gno for a given sidno, see
   Gtid_state::get_last_executed_gno() for details.
 */
-rpl_gno get_last_executed_gno(rpl_sidno sidno);
+MYSQL_PLUGIN_LEGACY_API rpl_gno get_last_executed_gno(rpl_sidno sidno);
 
 
 /**
   Return sidno for a given sid, see Sid_map::add_sid() for details.
 */
-rpl_sidno get_sidno_from_global_sid_map(rpl_sid sid);
+MYSQL_PLUGIN_LEGACY_API rpl_sidno get_sidno_from_global_sid_map(rpl_sid sid);
 
 
 /**
@@ -158,7 +161,7 @@ rpl_sidno get_sidno_from_global_sid_map(rpl_sid sid);
 
   @param[in] thd  The thread
 */
-void set_slave_thread_options(THD* thd);
+MYSQL_PLUGIN_API void set_slave_thread_options(THD* thd);
 
 
 /**
@@ -166,7 +169,7 @@ void set_slave_thread_options(THD* thd);
 
   @param[in] thd  The thread
 */
-void global_thd_manager_add_thd(THD *thd);
+MYSQL_PLUGIN_API void global_thd_manager_add_thd(THD *thd);
 
 
 /**
@@ -174,7 +177,7 @@ void global_thd_manager_add_thd(THD *thd);
 
   @param[in] thd  The thread
 */
-void global_thd_manager_remove_thd(THD *thd);
+MYSQL_PLUGIN_API void global_thd_manager_remove_thd(THD *thd);
 
 /**
   Function that returns the write set extraction algorithm name.
@@ -183,7 +186,8 @@ void global_thd_manager_remove_thd(THD *thd);
 
   @return the algorithm name
 */
-const char* get_write_set_algorithm_string(unsigned int algorithm);
+MYSQL_PLUGIN_API const char* get_write_set_algorithm_string(
+  unsigned int algorithm);
 
 #endif	/* GROUP_REPLICATION_PRIV_INCLUDE */
 

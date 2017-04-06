@@ -206,7 +206,7 @@ void my_b_seek(IO_CACHE *info,my_off_t pos)
 */
 
 
-size_t my_b_fill(IO_CACHE *info)
+MYSQL_PLUGIN_LEGACY_API size_t my_b_fill(IO_CACHE *info)
 {
   my_off_t pos_in_file=(info->pos_in_file+
 			(size_t) (info->read_end - info->buffer));

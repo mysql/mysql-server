@@ -48,8 +48,8 @@
 		     X >= 'a' && X <= 'z' ? X-'a'+10 :\
 		     '\177')
 
-char *str2int(const char *src, int radix, long int lower,
-	      long int upper, long int *val)
+MYSQL_PLUGIN_LEGACY_API char *str2int(
+  const char *src, int radix, long int lower, long int upper, long int *val)
 {
   int sign;			/* is number negative (+1) or positive (-1) */
   int n;			/* number of digits yet to be converted */

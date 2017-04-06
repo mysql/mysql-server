@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -32,6 +32,7 @@
 #include "my_inttypes.h"
 #include "my_io.h"
 #include "my_pointer_arithmetic.h"
+#include "my_sharedlib.h"
 #include "my_sys.h"
 #include "my_thread_local.h"
 #include "mysql/service_mysql_alloc.h"
@@ -52,7 +53,7 @@ typedef Prealloced_array<FILEINFO, 100> Entries_array;
 
 	/* We need this because program don't know with malloc we used */
 
-void my_dirend(MY_DIR *buffer)
+MYSQL_PLUGIN_LEGACY_API void my_dirend(MY_DIR *buffer)
 {
   DBUG_ENTER("my_dirend");
   if (buffer)
@@ -82,7 +83,7 @@ static int comp_names(const void *a_arg, const void *b_arg)
 
 static char* directory_file_name(char *dst, const char *src);
 
-MY_DIR	*my_dir(const char *path, myf MyFlags)
+MYSQL_PLUGIN_LEGACY_API MY_DIR *my_dir(const char *path, myf MyFlags)
 {
   char          *buffer;
   MY_DIR        *result= 0;
@@ -328,7 +329,7 @@ error:
 ****************************************************************************/ 
 
 
-int my_fstat(File Filedes, MY_STAT *stat_area)
+MYSQL_PLUGIN_LEGACY_API int my_fstat(File Filedes, MY_STAT *stat_area)
 {
   DBUG_ENTER("my_fstat");
   DBUG_PRINT("my",("fd: %d", Filedes));
@@ -340,7 +341,7 @@ int my_fstat(File Filedes, MY_STAT *stat_area)
 }
 
 
-MY_STAT *my_stat(const char *path, MY_STAT *stat_area, myf my_flags)
+MYSQL_PLUGIN_LEGACY_API MY_STAT *my_stat(const char *path, MY_STAT *stat_area, myf my_flags)
 {
   DBUG_ENTER("my_stat");
   DBUG_ASSERT(stat_area != nullptr);

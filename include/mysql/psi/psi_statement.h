@@ -593,7 +593,7 @@ typedef struct PSI_placeholder PSI_statement_locker_state;
 typedef struct PSI_placeholder PSI_sp_locker_state;
 #endif
 
-extern MYSQL_PLUGIN_IMPORT PSI_statement_service_t *psi_statement_service;
+extern MYSQL_PLUGIN_API PSI_statement_service_t *psi_statement_service;
 
 /** @} (end of group psi_abi_statement) */
 

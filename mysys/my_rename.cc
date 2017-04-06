@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -23,6 +23,7 @@
 
 #include "my_dbug.h"
 #include "my_inttypes.h"
+#include "my_sharedlib.h"
 #include "my_sys.h"
 #include "my_thread_local.h"
 #include "mysys_err.h"
@@ -31,7 +32,8 @@
 
 	/* On unix rename deletes to file if it exists */
 
-int my_rename(const char *from, const char *to, myf MyFlags)
+MYSQL_PLUGIN_LEGACY_API int my_rename(
+  const char *from, const char *to, myf MyFlags)
 {
   int error = 0;
   DBUG_ENTER("my_rename");

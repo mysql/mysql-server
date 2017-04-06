@@ -308,7 +308,7 @@ typedef struct st_grant_internal_info GRANT_INTERNAL_INFO;
    A GRANT_INFO also serves as a cache of the privilege hash tables. Relevant
    members are grant_table and version.
  */
-struct GRANT_INFO
+struct MYSQL_PLUGIN_LEGACY_API GRANT_INFO
 {
   GRANT_INFO();
   /**
@@ -2173,6 +2173,7 @@ struct TABLE_LIST
     Prepare TABLE_LIST that consists of one table instance to use in
     simple_open_and_lock_tables
   */
+  MYSQL_PLUGIN_LEGACY_API
   inline void init_one_table(const char *db_name_arg,
                              size_t db_length_arg,
                              const char *table_name_arg,
@@ -3581,8 +3582,9 @@ Ident_name_check check_and_convert_db_name(LEX_STRING *db,
 bool check_column_name(const char *name);
 Ident_name_check check_table_name(const char *name, size_t length);
 int rename_file_ext(const char * from,const char * to,const char * ext);
-char *get_field(MEM_ROOT *mem, Field *field);
-bool get_field(MEM_ROOT *mem, Field *field, class String *res);
+MYSQL_PLUGIN_LEGACY_API char *get_field(MEM_ROOT *mem, Field *field);
+MYSQL_PLUGIN_LEGACY_API bool get_field(
+  MEM_ROOT *mem, Field *field, class String *res);
 
 int closefrm(TABLE *table, bool free_share);
 void free_blobs(TABLE *table);
@@ -3612,7 +3614,7 @@ extern LEX_STRING MYSQL_TABLESPACE_NAME;
 extern LEX_STRING RLI_INFO_NAME;
 extern LEX_STRING MI_INFO_NAME;
 extern LEX_STRING WORKER_INFO_NAME;
-extern "C" MYSQL_PLUGIN_IMPORT CHARSET_INFO *system_charset_info;
+extern "C" MYSQL_PLUGIN_API CHARSET_INFO *system_charset_info;
 
 inline bool is_infoschema_db(const char *name, size_t len)
 {

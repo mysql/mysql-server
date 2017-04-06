@@ -3470,7 +3470,7 @@ static Sys_var_charptr Sys_secure_file_priv(
 
 static bool fix_server_id(sys_var*, THD *thd, enum_var_type)
 {
-  // server_id is 'MYSQL_PLUGIN_IMPORT ulong'
+  // server_id is 'MYSQL_PLUGIN_API ulong'
   // So we cast here, rather than change its type.
   server_id_supplied = 1;
   thd->server_id= static_cast<uint32>(server_id);

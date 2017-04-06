@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -29,6 +29,7 @@
 #include "my_config.h"
 #include "my_inttypes.h"
 #include "my_macros.h"
+#include "my_sharedlib.h"
 
 #ifdef _WIN32
 
@@ -56,12 +57,15 @@ static inline struct tm *gmtime_r(const time_t *clock, struct tm *res)
 }
 #endif /* _WIN32 */
 
-C_MODE_START
+C_MODE_START MYSQL_PLUGIN_LEGACY_API
 ulonglong my_getsystime(void);
 
-void set_timespec_nsec(struct timespec *abstime, ulonglong nsec);
+// Don't use this in new code; use std::chrono.
+void MYSQL_PLUGIN_LEGACY_API set_timespec_nsec(
+  struct timespec *abstime, ulonglong nsec);
 
-void set_timespec(struct timespec *abstime, ulonglong sec);
+void MYSQL_PLUGIN_LEGACY_API set_timespec(
+  struct timespec *abstime, ulonglong sec);
 C_MODE_END
 
 /**

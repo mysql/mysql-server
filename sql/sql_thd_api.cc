@@ -30,6 +30,7 @@
 #include "my_dbug.h"
 #include "my_io.h"
 #include "my_macros.h"
+#include "my_sharedlib.h"
 #include "my_sqlcommand.h"
 #include "my_thread.h"
 #include "my_thread_local.h"
@@ -81,7 +82,7 @@ using std::min;
   @retval               Scheduler data object on THD
 */
 
-void *thd_get_scheduler_data(THD *thd)
+MYSQL_PLUGIN_LEGACY_API void *thd_get_scheduler_data(THD *thd)
 {
   return thd->scheduler.data;
 }
@@ -94,7 +95,7 @@ void *thd_get_scheduler_data(THD *thd)
   @param data           Scheduler data object to set on THD
 */
 
-void thd_set_scheduler_data(THD *thd, void *data)
+MYSQL_PLUGIN_LEGACY_API void thd_set_scheduler_data(THD *thd, void *data)
 {
   thd->scheduler.data= data;
 }
@@ -108,7 +109,7 @@ void thd_set_scheduler_data(THD *thd, void *data)
   @retval               Performance schema object for thread on THD
 */
 
-PSI_thread *thd_get_psi(THD *thd)
+MYSQL_PLUGIN_LEGACY_API PSI_thread *thd_get_psi(THD *thd)
 {
   return thd->get_psi();
 }
@@ -122,7 +123,7 @@ PSI_thread *thd_get_psi(THD *thd)
   @retval               net_wait_timeout value for thread on THD
 */
 
-ulong thd_get_net_wait_timeout(THD* thd)
+MYSQL_PLUGIN_LEGACY_API ulong thd_get_net_wait_timeout(THD* thd)
 {
   return thd->variables.net_wait_timeout;
 }
@@ -135,7 +136,7 @@ ulong thd_get_net_wait_timeout(THD* thd)
   @param psi            Performance schema object for thread
 */
 
-void thd_set_psi(THD *thd, PSI_thread *psi)
+MYSQL_PLUGIN_LEGACY_API void thd_set_psi(THD *thd, PSI_thread *psi)
 {
   thd->set_psi(psi);
 }
@@ -147,7 +148,7 @@ void thd_set_psi(THD *thd, PSI_thread *psi)
   @param thd               THD object
 */
 
-void thd_set_killed(THD *thd)
+MYSQL_PLUGIN_LEGACY_API void thd_set_killed(THD *thd)
 {
   /*
     TODO: This method just sets the state of the THD::killed member. Now used
@@ -168,7 +169,7 @@ void thd_set_killed(THD *thd)
   @param thd              THD object
 */
 
-void thd_clear_errors(THD *thd MY_ATTRIBUTE((unused)))
+MYSQL_PLUGIN_LEGACY_API void thd_clear_errors(THD *thd MY_ATTRIBUTE((unused)))
 {
   set_my_errno(0);
 }
@@ -180,7 +181,7 @@ void thd_clear_errors(THD *thd MY_ATTRIBUTE((unused)))
   @param thd                THD object
 */
 
-void thd_close_connection(THD *thd)
+MYSQL_PLUGIN_LEGACY_API void thd_close_connection(THD *thd)
 {
   thd->get_protocol_classic()->shutdown();
 }
@@ -192,7 +193,7 @@ void thd_close_connection(THD *thd)
   @retval     The THD object for the thread, NULL if not connection thread
 */
 
-THD *thd_get_current_thd()
+MYSQL_PLUGIN_LEGACY_API THD *thd_get_current_thd()
 {
   return current_thd;
 }
@@ -204,7 +205,7 @@ THD *thd_get_current_thd()
   @param thd     THD object
 */
 
-void reset_thread_globals(THD* thd)
+MYSQL_PLUGIN_LEGACY_API void reset_thread_globals(THD* thd)
 {
   thd->restore_globals();
   thd->set_is_killable(false);
@@ -217,7 +218,7 @@ void reset_thread_globals(THD* thd)
   @param thd                   THD object
 */
 
-void thd_lock_data(THD *thd)
+MYSQL_PLUGIN_LEGACY_API void thd_lock_data(THD *thd)
 {
   mysql_mutex_lock(&thd->LOCK_thd_data);
 }
@@ -229,7 +230,7 @@ void thd_lock_data(THD *thd)
   @param thd                   THD object
 */
 
-void thd_unlock_data(THD *thd)
+MYSQL_PLUGIN_LEGACY_API void thd_unlock_data(THD *thd)
 {
   mysql_mutex_unlock(&thd->LOCK_thd_data);
 }
@@ -243,7 +244,7 @@ void thd_unlock_data(THD *thd)
   @retval               TRUE if connection already started transaction
 */
 
-bool thd_is_transaction_active(THD *thd)
+MYSQL_PLUGIN_LEGACY_API bool thd_is_transaction_active(THD *thd)
 {
   return thd->get_transaction()->is_active(Transaction_ctx::SESSION);
 }
@@ -255,7 +256,7 @@ bool thd_is_transaction_active(THD *thd)
   @param thd                  THD object
 */
 
-int thd_connection_has_data(THD *thd)
+MYSQL_PLUGIN_LEGACY_API int thd_connection_has_data(THD *thd)
 {
   Vio *vio= thd->get_protocol_classic()->get_vio();
   return vio->has_data(vio);
@@ -269,7 +270,7 @@ int thd_connection_has_data(THD *thd)
   @retval               net.reading_or_writing value for thread on THD.
 */
 
-uint thd_get_net_read_write(THD *thd)
+MYSQL_PLUGIN_LEGACY_API uint thd_get_net_read_write(THD *thd)
 {
   return thd->get_protocol_classic()->get_rw_status();
 }
@@ -282,7 +283,7 @@ uint thd_get_net_read_write(THD *thd)
   @param val                       Value to set it to (0 or 1)
 */
 
-void thd_set_net_read_write(THD *thd, uint val)
+MYSQL_PLUGIN_LEGACY_API void thd_set_net_read_write(THD *thd, uint val)
 {
   thd->get_protocol_classic()->get_net()->reading_or_writing= val;
 }
@@ -294,7 +295,7 @@ void thd_set_net_read_write(THD *thd, uint val)
   @param thd             THD object
 */
 
-void thd_set_not_killable(THD *thd)
+MYSQL_PLUGIN_LEGACY_API void thd_set_not_killable(THD *thd)
 {
   thd->set_is_killable(false);
 }
@@ -308,7 +309,7 @@ void thd_set_not_killable(THD *thd)
   @retval               Socket of the connection
 */
 
-my_socket thd_get_fd(THD *thd)
+MYSQL_PLUGIN_LEGACY_API my_socket thd_get_fd(THD *thd)
 {
   return thd->get_protocol_classic()->get_socket();
 }
@@ -322,7 +323,7 @@ my_socket thd_get_fd(THD *thd)
   @retval               1 if thread-specific enviroment could be set else 0
 */
 
-int thd_store_globals(THD *thd)
+MYSQL_PLUGIN_LEGACY_API int thd_store_globals(THD *thd)
 {
   return thd->store_globals();
 }
@@ -334,7 +335,7 @@ int thd_store_globals(THD *thd)
   @retval      Reference to thread attribute for connection threads
 */
 
-my_thread_attr_t *get_connection_attrib()
+MYSQL_PLUGIN_LEGACY_API my_thread_attr_t *get_connection_attrib()
 {
   return &connection_attrib;
 }
@@ -346,7 +347,7 @@ my_thread_attr_t *get_connection_attrib()
   @retval         Max number of connections for MySQL Server
 */
 
-ulong get_max_connections()
+MYSQL_PLUGIN_LEGACY_API ulong get_max_connections()
 {
   return max_connections;
 }
@@ -359,7 +360,7 @@ ulong get_max_connections()
 //////////////////////////////////////////////////////////
 
 
-extern "C"
+extern "C" MYSQL_PLUGIN_API
 void thd_binlog_pos(const MYSQL_THD thd,
                     const char **file_var,
                     unsigned long long *pos_var)
@@ -368,21 +369,21 @@ void thd_binlog_pos(const MYSQL_THD thd,
 }
 
 
-extern "C"
+extern "C" MYSQL_PLUGIN_API
 int mysql_tmpfile(const char *prefix)
 {
   return mysql_tmpfile_path(mysql_tmpdir, prefix);
 }
 
 
-extern "C"
+extern "C" MYSQL_PLUGIN_API
 int thd_in_lock_tables(const MYSQL_THD thd)
 {
   return MY_TEST(thd->in_lock_tables);
 }
 
 
-extern "C"
+extern "C" MYSQL_PLUGIN_API
 int thd_tablespace_op(const MYSQL_THD thd)
 {
   /*
@@ -411,7 +412,7 @@ static void set_thd_stage_info(MYSQL_THD thd,
 }
 
 
-extern "C"
+extern "C" MYSQL_PLUGIN_API
 const char *set_thd_proc_info(MYSQL_THD thd_arg, const char *info,
                               const char *calling_function,
                               const char *calling_file,
@@ -430,14 +431,14 @@ const char *set_thd_proc_info(MYSQL_THD thd_arg, const char *info,
 }
 
 
-extern "C"
+extern "C" MYSQL_PLUGIN_API
 void **thd_ha_data(const MYSQL_THD thd, const struct handlerton *hton)
 {
   return &(const_cast<THD*>(thd))->get_ha_data(hton->slot)->ha_ptr;
 }
 
 
-extern "C"
+extern "C" MYSQL_PLUGIN_API
 void thd_storage_lock_wait(MYSQL_THD thd, long long value)
 {
   thd->utime_after_lock+= value;
@@ -447,7 +448,7 @@ void thd_storage_lock_wait(MYSQL_THD thd, long long value)
 /**
   Provide a handler data getter to simplify coding
 */
-extern "C"
+extern "C" MYSQL_PLUGIN_API
 void *thd_get_ha_data(const MYSQL_THD thd, const struct handlerton *hton)
 {
   return *thd_ha_data(thd, hton);
@@ -458,7 +459,7 @@ void *thd_get_ha_data(const MYSQL_THD thd, const struct handlerton *hton)
   Provide a handler data setter to simplify coding
   @see thd_set_ha_data() definition in plugin.h
 */
-extern "C"
+extern "C" MYSQL_PLUGIN_API
 void thd_set_ha_data(MYSQL_THD thd, const struct handlerton *hton,
                      const void *ha_data)
 {
@@ -474,35 +475,35 @@ void thd_set_ha_data(MYSQL_THD thd, const struct handlerton *hton,
 }
 
 
-extern "C"
+extern "C" MYSQL_PLUGIN_API
 long long thd_test_options(const MYSQL_THD thd, long long test_options)
 {
   return thd->variables.option_bits & test_options;
 }
 
 
-extern "C"
+extern "C" MYSQL_PLUGIN_API
 int thd_sql_command(const MYSQL_THD thd)
 {
   return (int) thd->lex->sql_command;
 }
 
 
-extern "C"
+extern "C" MYSQL_PLUGIN_API
 int thd_tx_isolation(const MYSQL_THD thd)
 {
   return (int) thd->tx_isolation;
 }
 
 
-extern "C"
+extern "C" MYSQL_PLUGIN_API
 int thd_tx_is_read_only(const MYSQL_THD thd)
 {
   return (int) thd->tx_read_only;
 }
 
 
-extern "C"
+extern "C" MYSQL_PLUGIN_API
 int thd_tx_priority(const MYSQL_THD thd)
 {
   return (thd->thd_tx_priority != 0
@@ -511,7 +512,7 @@ int thd_tx_priority(const MYSQL_THD thd)
 }
 
 
-extern "C"
+extern "C" MYSQL_PLUGIN_API
 MYSQL_THD thd_tx_arbitrate(MYSQL_THD requestor, MYSQL_THD holder)
 {
  /* Should be different sessions. */
@@ -524,14 +525,14 @@ MYSQL_THD thd_tx_arbitrate(MYSQL_THD requestor, MYSQL_THD holder)
 }
 
 
-extern "C"
+extern "C" MYSQL_PLUGIN_API
 int thd_tx_is_dd_trx(const MYSQL_THD thd)
 {
   return (int) thd->is_attachable_ro_transaction_active();
 }
 
 
-extern "C"
+extern "C" MYSQL_PLUGIN_API
 void thd_inc_row_count(MYSQL_THD thd)
 {
   thd->get_stmt_da()->inc_current_row_for_condition();
@@ -550,7 +551,7 @@ void thd_inc_row_count(MYSQL_THD thd)
   @return Pointer to string
 */
 
-extern "C"
+extern "C" MYSQL_PLUGIN_API
 char *thd_security_context(MYSQL_THD thd, char *buffer, size_t length,
                            size_t max_query_len)
 {
@@ -629,7 +630,7 @@ char *thd_security_context(MYSQL_THD thd, char *buffer, size_t length,
 }
 
 
-extern "C"
+extern "C" MYSQL_PLUGIN_API
 void thd_get_xid(const MYSQL_THD thd, MYSQL_XID *xid)
 {
   *xid = *(MYSQL_XID *) thd->get_transaction()->xid_state()->get_xid();
@@ -643,7 +644,7 @@ void thd_get_xid(const MYSQL_THD thd, MYSQL_XID *xid)
   @retval 1 the user thread has been killed
 */
 
-extern "C"
+extern "C" MYSQL_PLUGIN_API
 int thd_killed(const MYSQL_THD thd)
 {
   if (thd == NULL)
@@ -658,7 +659,7 @@ int thd_killed(const MYSQL_THD thd)
   @param thd  user thread connection handle
 */
 
-extern "C"
+extern "C" MYSQL_PLUGIN_API
 void thd_set_kill_status(const MYSQL_THD thd)
 {
   thd->send_kill_message();
@@ -671,7 +672,7 @@ void thd_set_kill_status(const MYSQL_THD thd)
   @return thread id
 */
 
-extern "C"
+extern "C" MYSQL_PLUGIN_API
 unsigned long thd_get_thread_id(const MYSQL_THD thd)
 {
   return((unsigned long)thd->thread_id());
@@ -685,7 +686,7 @@ unsigned long thd_get_thread_id(const MYSQL_THD thd)
   @retval 0 batching not allowed
 */
 
-extern "C"
+extern "C" MYSQL_PLUGIN_API
 int thd_allow_batch(MYSQL_THD thd)
 {
   if ((thd->variables.option_bits & OPTION_ALLOW_BATCH) ||
@@ -695,7 +696,7 @@ int thd_allow_batch(MYSQL_THD thd)
 }
 
 
-extern "C"
+extern "C" MYSQL_PLUGIN_API
 void thd_mark_transaction_to_rollback(MYSQL_THD thd, int all)
 {
   DBUG_ENTER("thd_mark_transaction_to_rollback");
@@ -715,7 +716,7 @@ void thd_mark_transaction_to_rollback(MYSQL_THD thd, int all)
 /**
   This is a convenience function used by the innodb plugin.
 */
-extern "C"
+extern "C" MYSQL_PLUGIN_API
 void mysql_query_cache_invalidate4(THD *thd,
                                    const char *key,
                                    unsigned key_length MY_ATTRIBUTE((unused)),

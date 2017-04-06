@@ -1,7 +1,7 @@
 #ifndef SQL_JSON_PATH_INCLUDED
 #define SQL_JSON_PATH_INCLUDED
 
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -27,6 +27,7 @@
 #include <stddef.h>
 #include <string>
 
+#include "my_sharedlib.h"
 #include "prealloced_array.h"                   // Prealloced_array
 
 class String;
@@ -83,7 +84,7 @@ public:
   A path expression which can be used to seek to
   a position inside a JSON value.
 */
-class Json_seekable_path
+class MYSQL_PLUGIN_LEGACY_API Json_seekable_path
 {
 public:
   virtual ~Json_seekable_path() {}
@@ -142,7 +143,7 @@ public:
 
   </pre></code>
 */
-class Json_path : public Json_seekable_path
+class MYSQL_PLUGIN_LEGACY_API Json_path : public Json_seekable_path
 {
 private:
   typedef Prealloced_array<Json_path_leg, 8> Path_leg_vector;

@@ -355,7 +355,7 @@ typedef struct PSI_placeholder PSI_thread_service_t;
 typedef struct PSI_placeholder PSI_thread_info;
 #endif
 
-extern MYSQL_PLUGIN_IMPORT PSI_thread_service_t *psi_thread_service;
+extern MYSQL_PLUGIN_API PSI_thread_service_t *psi_thread_service;
 
 /** @} (end of group psi_abi_thread) */
 

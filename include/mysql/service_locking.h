@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -23,6 +23,8 @@
 
   Implements ::mysql_locking_service_st
 */
+
+#include "my_sharedlib.h"
 
 #ifdef __cplusplus
 class THD;
@@ -112,15 +114,17 @@ extern struct mysql_locking_service_st {
 
 #else
 
-int mysql_acquire_locking_service_locks(MYSQL_THD opaque_thd,
-                                        const char* lock_namespace,
-                                        const char**lock_names,
-                                        size_t lock_num,
-                                        enum enum_locking_service_lock_type lock_type,
-                                        unsigned long lock_timeout);
+MYSQL_PLUGIN_LEGACY_API int mysql_acquire_locking_service_locks(
+  MYSQL_THD opaque_thd,
+  const char* lock_namespace,
+  const char**lock_names,
+  size_t lock_num,
+  enum enum_locking_service_lock_type lock_type,
+  unsigned long lock_timeout);
 
-int mysql_release_locking_service_locks(MYSQL_THD opaque_thd,
-                                        const char* lock_namespace);
+MYSQL_PLUGIN_LEGACY_API int mysql_release_locking_service_locks(
+  MYSQL_THD opaque_thd,
+  const char* lock_namespace);
 
 #endif /* MYSQL_DYNAMIC_PLUGIN */
 

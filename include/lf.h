@@ -29,6 +29,7 @@
 #include "my_atomic.h"
 #include "my_inttypes.h"
 #include "my_macros.h"
+#include "my_sharedlib.h"
 #include "mysql/psi/mysql_statement.h"
 #include "mysql/service_mysql_alloc.h"
 #include "sql_string.h"
@@ -120,8 +121,8 @@ static inline void lf_unpin(LF_PINS *pins, int pin)
 void lf_pinbox_init(LF_PINBOX *pinbox, uint free_ptr_offset,
                     lf_pinbox_free_func *free_func, void * free_func_arg);
 void lf_pinbox_destroy(LF_PINBOX *pinbox);
-LF_PINS *lf_pinbox_get_pins(LF_PINBOX *pinbox);
-void lf_pinbox_put_pins(LF_PINS *pins);
+MYSQL_PLUGIN_LEGACY_API LF_PINS *lf_pinbox_get_pins(LF_PINBOX *pinbox);
+void MYSQL_PLUGIN_LEGACY_API lf_pinbox_put_pins(LF_PINS *pins);
 void lf_pinbox_free(LF_PINS *pins, void *addr);
 
 
@@ -191,16 +192,20 @@ typedef struct st_lf_hash {
 
 #define lf_hash_init(A, B, C, D, E, F, G) \
           lf_hash_init2(A, B, C, D, E, F, G, NULL, NULL, NULL, NULL)
-void lf_hash_init2(LF_HASH *hash, uint element_size, uint flags,
-                   uint key_offset, uint key_length,
-                   hash_get_key_function get_key,
-                   CHARSET_INFO *charset, lf_hash_func *hash_function,
-                   lf_allocator_func *ctor, lf_allocator_func *dtor,
-                   lf_hash_init_func *init);
-void lf_hash_destroy(LF_HASH *hash);
-int lf_hash_insert(LF_HASH *hash, LF_PINS *pins, const void *data);
-void *lf_hash_search(LF_HASH *hash, LF_PINS *pins, const void *key, uint keylen);
-int lf_hash_delete(LF_HASH *hash, LF_PINS *pins, const void *key, uint keylen);
+void MYSQL_PLUGIN_LEGACY_API lf_hash_init2(
+  LF_HASH *hash, uint element_size, uint flags,
+  uint key_offset, uint key_length,
+  hash_get_key_function get_key,
+  CHARSET_INFO *charset, lf_hash_func *hash_function,
+  lf_allocator_func *ctor, lf_allocator_func *dtor,
+  lf_hash_init_func *init);
+void MYSQL_PLUGIN_LEGACY_API lf_hash_destroy(LF_HASH *hash);
+int MYSQL_PLUGIN_LEGACY_API lf_hash_insert(
+  LF_HASH *hash, LF_PINS *pins, const void *data);
+MYSQL_PLUGIN_LEGACY_API void *lf_hash_search(
+  LF_HASH *hash, LF_PINS *pins, const void *key, uint keylen);
+int MYSQL_PLUGIN_LEGACY_API lf_hash_delete(
+  LF_HASH *hash, LF_PINS *pins, const void *key, uint keylen);
 
 static inline LF_PINS *lf_hash_get_pins(LF_HASH *hash)
 {
@@ -218,8 +223,8 @@ static inline void lf_hash_search_unpin(LF_PINS *pins)
 }
 
 typedef int lf_hash_match_func(const uchar *el);
-void *lf_hash_random_match(LF_HASH *hash, LF_PINS *pins,
-                           lf_hash_match_func *match, uint rand_val);
+MYSQL_PLUGIN_LEGACY_API void *lf_hash_random_match(
+  LF_HASH *hash, LF_PINS *pins, lf_hash_match_func *match, uint rand_val);
 
 C_MODE_END
 

@@ -39,8 +39,9 @@
 #include <stddef.h>
 
 #include "m_string.h"  // IWYU pragma: keep
+#include "my_sharedlib.h"
 
-char *strxnmov(char *dst, size_t len, const char *src, ...)
+MYSQL_PLUGIN_API char *strxnmov(char *dst, size_t len, const char *src, ...)
 {
   va_list pvar;
   char *end_of_dst=dst+len;

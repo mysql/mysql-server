@@ -77,40 +77,52 @@ struct st_mysql_value
   int (*val_int)(struct st_mysql_value *, long long *intbuf);
   int (*is_unsigned)(struct st_mysql_value *);
 };
-int thd_in_lock_tables(const void* thd);
-int thd_tablespace_op(const void* thd);
-long long thd_test_options(const void* thd, long long test_options);
-int thd_sql_command(const void* thd);
-const char *set_thd_proc_info(void* thd, const char *info,
-                              const char *calling_func,
-                              const char *calling_file,
-                              const unsigned int calling_line);
-void **thd_ha_data(const void* thd, const struct handlerton *hton);
-void thd_storage_lock_wait(void* thd, long long value);
-int thd_tx_isolation(const void* thd);
-int thd_tx_is_read_only(const void* thd);
-void* thd_tx_arbitrate(void* requestor, void* holder);
-int thd_tx_priority(const void* thd);
-int thd_tx_is_dd_trx(const void* thd);
-char *thd_security_context(void* thd, char *buffer, size_t length,
-                           size_t max_query_len);
-void thd_inc_row_count(void* thd);
-int thd_allow_batch(void* thd);
-void thd_mark_transaction_to_rollback(void* thd, int all);
-int mysql_tmpfile(const char *prefix);
-int thd_killed(const void* thd);
-void thd_set_kill_status(const void* thd);
-void thd_binlog_pos(const void* thd,
-                    const char **file_var,
-                    unsigned long long *pos_var);
-unsigned long thd_get_thread_id(const void* thd);
-void thd_get_xid(const void* thd, MYSQL_XID *xid);
-void mysql_query_cache_invalidate4(void* thd,
-                                   const char *key, unsigned int key_length,
-                                   int using_trx);
-void *thd_get_ha_data(const void* thd, const struct handlerton *hton);
-void thd_set_ha_data(void* thd, const struct handlerton *hton,
-                     const void *ha_data);
+ int thd_in_lock_tables(
+  const void* thd);
+ int thd_tablespace_op(
+  const void* thd);
+ long long thd_test_options(
+  const void* thd, long long test_options);
+ int thd_sql_command(
+  const void* thd);
+ const char *set_thd_proc_info(
+  void* thd, const char *info,
+  const char *calling_func,
+  const char *calling_file,
+  const unsigned int calling_line);
+ void **thd_ha_data(
+  const void* thd, const struct handlerton *hton);
+ void thd_storage_lock_wait(
+  void* thd, long long value);
+ int thd_tx_isolation(const void* thd);
+ int thd_tx_is_read_only(const void* thd);
+ void* thd_tx_arbitrate(
+  void* requestor, void* holder);
+ int thd_tx_priority(const void* thd);
+ int thd_tx_is_dd_trx(const void* thd);
+ char *thd_security_context(
+  void* thd, char *buffer, size_t length, size_t max_query_len);
+ void thd_inc_row_count(void* thd);
+ int thd_allow_batch(void* thd);
+ void thd_mark_transaction_to_rollback(
+  void* thd, int all);
+ int mysql_tmpfile(const char *prefix);
+ int thd_killed(const void* thd);
+ void thd_set_kill_status(const void* thd);
+ void thd_binlog_pos(
+  const void* thd,
+  const char **file_var,
+  unsigned long long *pos_var);
+ unsigned long thd_get_thread_id(const void* thd);
+ void thd_get_xid(const void* thd, MYSQL_XID *xid);
+ void mysql_query_cache_invalidate4(
+  void* thd,
+  const char *key, unsigned int key_length,
+  int using_trx);
+ void *thd_get_ha_data(
+  const void* thd, const struct handlerton *hton);
+ void thd_set_ha_data(
+  void* thd, const struct handlerton *hton, const void *ha_data);
 #include "mysql/mysql_lex_string.h"
 struct st_mysql_lex_string
 {

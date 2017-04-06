@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,9 +16,11 @@
 #ifndef SQL_CHECK_STACK_H_INCLUDED
 #define SQL_CHECK_STACK_H_INCLUDED
 
+#include "my_sharedlib.h"
+
 class THD;
 
-extern "C" bool check_stack_overrun(const THD *thd,
-                                    long margin, unsigned char *dummy);
+extern "C" MYSQL_PLUGIN_LEGACY_API bool check_stack_overrun(
+  const THD *thd, long margin, unsigned char *dummy);
 
 #endif /* SQL_CHECK_STACK_H_INCLUDED */

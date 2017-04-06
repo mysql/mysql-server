@@ -120,8 +120,16 @@ MACRO(MYSQL_ADD_PLUGIN)
   # Build either static library or module
   IF (WITH_${plugin} AND NOT ARG_MODULE_ONLY)
     ADD_CONVENIENCE_LIBRARY(${target} STATIC ${SOURCES})
+
+    # Plugins are taken to be part of the server (so MYSQL_SERVER).
+    # However, also make sure that when building the plugin statically, we
+    # don't try to export any symbols pulled in from header files.
+    # This would be harmless in the server, but some of the statically linked
+    # plugins (like the performance schema plugin) are also linked into unit
+    # tests, which don't necessarily link in all the dependencies of such
+    # symbols.
     SET_TARGET_PROPERTIES(${target}
-      PROPERTIES COMPILE_DEFINITIONS "MYSQL_SERVER")
+      PROPERTIES COMPILE_DEFINITIONS "MYSQL_SERVER;MYSQL_NO_PLUGIN_EXPORT")
     SET_TARGET_PROPERTIES(${target}
       PROPERTIES COMPILE_FLAGS ${SSL_DEFINES})
 
@@ -132,9 +140,9 @@ MACRO(MYSQL_ADD_PLUGIN)
       OUTPUT_NAME ${ARG_STATIC_OUTPUT_NAME})
     ENDIF()
 
-    # Update mysqld dependencies
-    SET (MYSQLD_STATIC_PLUGIN_LIBS ${MYSQLD_STATIC_PLUGIN_LIBS} 
-      ${target} ${ARG_LINK_LIBRARIES} CACHE INTERNAL "" FORCE)
+    # Link the plugin into mysqld.
+    SET (MYSQLD_STATIC_PLUGIN_LIBS ${MYSQLD_STATIC_PLUGIN_LIBS}
+       ${target} CACHE INTERNAL "" FORCE)
 
     IF(ARG_MANDATORY)
       SET(${with_var} ON CACHE INTERNAL "Link ${plugin} statically to the server" 
@@ -178,19 +186,19 @@ MACRO(MYSQL_ADD_PLUGIN)
     # unresolved symbols. Others are less strict and allow unresolved symbols
     # in shared libraries. On Linux for example, CMake does not even add 
     # executable to the linker command line (it would result into link error). 
-    # Thus we skip TARGET_LINK_LIBRARIES on Linux, as it would only generate
-    # an additional dependency.
-    # Use MYSQL_PLUGIN_IMPORT for static data symbols to be exported.
+    # Use MYSQL_PLUGIN_API for symbols to be exported/imported.
     IF(WIN32 OR APPLE)
       TARGET_LINK_LIBRARIES (${target} mysqld ${ARG_LINK_LIBRARIES})
+    ELSE()
+      TARGET_LINK_LIBRARIES (${target} ${ARG_LINK_LIBRARIES})
     ENDIF()
     ADD_DEPENDENCIES(${target} GenError ${ARG_DEPENDENCIES})
 
-     IF(NOT ARG_MODULE_ONLY)
+    IF(NOT ARG_MODULE_ONLY)
       # set cached variable, e.g with checkbox in GUI
       SET(${with_var} OFF CACHE BOOL "Link ${plugin} statically to the server" 
        FORCE)
-     ENDIF()
+    ENDIF()
     SET_TARGET_PROPERTIES(${target} PROPERTIES 
       OUTPUT_NAME "${ARG_MODULE_OUTPUT_NAME}")  
 

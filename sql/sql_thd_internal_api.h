@@ -44,7 +44,8 @@ typedef struct charset_info_st CHARSET_INFO;
   @param              bound          True if bound to a physical thread.
   @param              psi_key        Instrumentation key for the thread.
 */
-int thd_init(THD *thd, char *stack_start, bool bound, PSI_thread_key psi_key);
+MYSQL_PLUGIN_LEGACY_API int thd_init(
+  THD *thd, char *stack_start, bool bound, PSI_thread_key psi_key);
 
 /**
   Create a THD and do proper initialization of it.
@@ -61,7 +62,9 @@ int thd_init(THD *thd, char *stack_start, bool bound, PSI_thread_key psi_key);
         SHOW PROCESSLIST and the server will not wait for them to
         terminate during shutdown.
 */
-THD *create_thd(bool enable_plugins, bool background_thread, bool bound, PSI_thread_key psi_key);
+MYSQL_PLUGIN_LEGACY_API THD *create_thd(
+  bool enable_plugins, bool background_thread,
+  bool bound, PSI_thread_key psi_key);
 
 /**
   Cleanup the THD object, remove it from the global list of THDs
@@ -69,7 +72,7 @@ THD *create_thd(bool enable_plugins, bool background_thread, bool bound, PSI_thr
 
   @param    thd   pointer to THD object.
 */
-void destroy_thd(THD *thd);
+MYSQL_PLUGIN_LEGACY_API void destroy_thd(THD *thd);
 
 /**
   Set thread stack in THD object
@@ -77,7 +80,8 @@ void destroy_thd(THD *thd);
   @param thd              Thread object
   @param stack_start      Start of stack to set in THD object
 */
-void thd_set_thread_stack(THD *thd, const char *stack_start);
+MYSQL_PLUGIN_LEGACY_API void thd_set_thread_stack(
+  THD *thd, const char *stack_start);
 
 /**
   Returns the partition_info working copy.

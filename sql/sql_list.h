@@ -125,7 +125,7 @@ struct list_node :public Sql_alloc
 };
 
 
-extern MYSQL_PLUGIN_IMPORT list_node end_of_list;
+extern MYSQL_PLUGIN_API list_node end_of_list;
 
 /**
   Comparison function for list sorting.

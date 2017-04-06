@@ -397,7 +397,7 @@ typedef struct PSI_placeholder PSI_file_info;
 typedef struct PSI_placeholder PSI_file_locker_state;
 #endif
 
-extern MYSQL_PLUGIN_IMPORT PSI_file_service_t *psi_file_service;
+extern MYSQL_PLUGIN_API PSI_file_service_t *psi_file_service;
 
 /** @} (end of group psi_abi_file) */
 

@@ -4273,7 +4273,7 @@ bool show_slave_status_cmd(THD *thd)
 }
 
 
-void set_slave_thread_options(THD* thd)
+MYSQL_PLUGIN_LEGACY_API void set_slave_thread_options(THD* thd)
 {
   DBUG_ENTER("set_slave_thread_options");
   /*

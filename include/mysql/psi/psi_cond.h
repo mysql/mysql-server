@@ -260,7 +260,7 @@ typedef struct PSI_placeholder PSI_cond_info;
 typedef struct PSI_placeholder PSI_cond_locker_state;
 #endif
 
-extern MYSQL_PLUGIN_IMPORT PSI_cond_service_t *psi_cond_service;
+extern MYSQL_PLUGIN_API PSI_cond_service_t *psi_cond_service;
 
 /** @} (end of group psi_abi_cond) */
 

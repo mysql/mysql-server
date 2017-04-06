@@ -22,6 +22,7 @@
 #include "my_compare.h"                         // portable_sizeof_char_ptr
 #include "my_dbug.h"
 #include "my_pointer_arithmetic.h"
+#include "my_sharedlib.h"
 #include "my_time.h"                            // MYSQL_TIME_NOTE_TRUNCATED
 #include "mysqld_error.h"                       // ER_*
 #include "sql_bitmap.h"
@@ -1238,9 +1239,9 @@ public:
     return is_tmp_nullable() ? m_is_tmp_null : false;
   }
 
-  void set_null(my_ptrdiff_t row_offset= 0);
+  MYSQL_PLUGIN_LEGACY_API void set_null(my_ptrdiff_t row_offset= 0);
 
-  void set_notnull(my_ptrdiff_t row_offset= 0);
+  MYSQL_PLUGIN_LEGACY_API void set_notnull(my_ptrdiff_t row_offset= 0);
 
   type_conversion_status check_constraints(int mysql_errno);
 

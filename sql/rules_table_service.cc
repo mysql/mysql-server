@@ -40,11 +40,18 @@ class THD;
 namespace rules_table_service
 {
 
-int MY_ATTRIBUTE((visibility("default"))) 
-dummy_function_to_ensure_we_are_linked_into_the_server() { return 1; }
+MYSQL_PLUGIN_API
+int dummy_function_to_ensure_we_are_linked_into_the_server() { return 1; }
 
 const char *db_name= "query_rewrite";
 const char *table_name= "rewrite_rules";
+
+Cursor &Cursor::operator++ ()
+{
+  if (!m_is_finished)
+    read();
+  return *this;
+}
 
 int Cursor::read()
 {
@@ -56,7 +63,7 @@ int Cursor::read()
 }
 
 
-void free_string(const char *str) { delete [] str; }
+MYSQL_PLUGIN_API void free_string(const char *str) { delete [] str; }
 
 
 static void add_column(MY_BITMAP *map, Cursor::column_id column)
@@ -211,6 +218,6 @@ Cursor::~Cursor()
 }
 
 
-Cursor end() { return Cursor(); }
+MYSQL_PLUGIN_API Cursor end() { return Cursor(); }
 
 }

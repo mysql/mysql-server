@@ -57,6 +57,7 @@
 #include "my_inttypes.h"
 #include "my_io.h"
 #include "my_macros.h"
+#include "my_sharedlib.h"
 #include "my_sys.h"
 #include "my_table_map.h"
 #include "my_thread_local.h"
@@ -1062,7 +1063,7 @@ void cleanup_items(Item *item)
     1  request of thread shutdown (see dispatch_command() description)
 */
 
-bool do_command(THD *thd)
+MYSQL_PLUGIN_LEGACY_API bool do_command(THD *thd)
 {
   bool return_value;
   int rc;
@@ -7200,9 +7201,8 @@ private:
     @retval TRUE on parsing error.
 */
 
-bool parse_sql(THD *thd,
-               Parser_state *parser_state,
-               Object_creation_ctx *creation_ctx)
+MYSQL_PLUGIN_LEGACY_API bool parse_sql(
+  THD *thd, Parser_state *parser_state, Object_creation_ctx *creation_ctx)
 {
   DBUG_ENTER("parse_sql");
   bool ret_value;

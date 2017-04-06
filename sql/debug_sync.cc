@@ -2099,7 +2099,8 @@ static void debug_sync_execute(THD *thd, st_debug_sync_action *action)
   @param[in]     name_len           length of sync point name
 */
 
-void debug_sync(THD *thd, const char *sync_point_name, size_t name_len)
+MYSQL_PLUGIN_LEGACY_API void debug_sync(
+  THD *thd, const char *sync_point_name, size_t name_len)
 {
   if(!thd)
   {
@@ -2161,7 +2162,8 @@ void debug_sync(THD *thd, const char *sync_point_name, size_t name_len)
     is not recommended to be deployed inside big loops.
 */
 
-bool debug_sync_set_action(THD *thd, const char *action_str, size_t len)
+MYSQL_PLUGIN_LEGACY_API bool debug_sync_set_action(
+  THD *thd, const char *action_str, size_t len)
 {
   bool                  rc;
   char *value;

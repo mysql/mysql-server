@@ -262,7 +262,7 @@ typedef struct PSI_placeholder PSI_mutex_info;
 typedef struct PSI_placeholder PSI_mutex_locker_state;
 #endif
 
-extern MYSQL_PLUGIN_IMPORT PSI_mutex_service_t *psi_mutex_service;
+extern MYSQL_PLUGIN_API PSI_mutex_service_t *psi_mutex_service;
 
 /** @} (end of group psi_abi_mutex) */
 

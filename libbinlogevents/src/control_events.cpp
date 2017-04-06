@@ -291,6 +291,8 @@ Start_event_v3::Start_event_v3(const char* buf, unsigned int event_len,
   dont_set_created= 1;
 }
 
+Start_event_v3::~Start_event_v3() {}
+
 /**
   The problem with this constructor is that the fixed header may have a
   length different from this version, but we don't know this length as we

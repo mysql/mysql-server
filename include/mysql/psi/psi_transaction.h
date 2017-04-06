@@ -269,7 +269,7 @@ typedef struct PSI_placeholder PSI_transaction_service_t;
 typedef struct PSI_placeholder PSI_transaction_locker_state;
 #endif
 
-extern MYSQL_PLUGIN_IMPORT PSI_transaction_service_t *psi_transaction_service;
+extern MYSQL_PLUGIN_API PSI_transaction_service_t *psi_transaction_service;
 
 /** @} (end of group psi_abi_transaction) */
 

@@ -18,6 +18,7 @@
 
 #include "m_string.h"  // IWYU pragma: keep
 #include "my_inttypes.h"
+#include "my_sharedlib.h"
 
 /*
   _dig_vec arrays are public because they are used in several outer places.
@@ -52,7 +53,7 @@ char _dig_vec_lower[] =
     Pointer to ending NUL character or NullS if radix is bad.
 */
   
-char *
+MYSQL_PLUGIN_LEGACY_API char *
 int2str(long int val, char *dst, int radix, 
         int upcase)
 {
@@ -124,7 +125,7 @@ int2str(long int val, char *dst, int radix,
     Pointer to ending NUL character.
 */
 
-char *int10_to_str(long int val,char *dst,int radix)
+MYSQL_PLUGIN_LEGACY_API char *int10_to_str(long int val,char *dst,int radix)
 {
   char buffer[65];
   char *p;

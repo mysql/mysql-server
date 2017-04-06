@@ -10,7 +10,7 @@
  - regfree - free everything
  = extern void regfree(regex_t *);
  */
-void
+MYSQL_PLUGIN_LEGACY_API void
 my_regfree(preg)
 my_regex_t *preg;
 {

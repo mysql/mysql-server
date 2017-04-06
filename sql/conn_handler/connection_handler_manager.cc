@@ -294,13 +294,13 @@ THD* create_thd(Channel_info* channel_info)
 }
 
 
-void destroy_channel_info(Channel_info* channel_info)
+MYSQL_PLUGIN_LEGACY_API void destroy_channel_info(Channel_info* channel_info)
 {
   delete channel_info;
 }
 
 
-void dec_connection_count()
+MYSQL_PLUGIN_LEGACY_API void dec_connection_count()
 {
   Connection_handler_manager::dec_connection_count();
 }

@@ -44,6 +44,7 @@
 #include "m_string.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
+#include "my_sharedlib.h"
 #include "my_sys.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/service_mysql_alloc.h"
@@ -421,6 +422,7 @@ static inline bool is_hostname_valid(const char *hostname)
   properly.
 */
 
+MYSQL_PLUGIN_LEGACY_API
 int ip_to_hostname(struct sockaddr_storage *ip_storage,
                    const char *ip_string,
                    char **hostname,

@@ -841,21 +841,21 @@ extern Slow_log_throttle log_throttle_qni;
    Prints a printf style error message to the error log.
    @see error_log_print
 */
-void sql_print_error(const char *format, ...)
+MYSQL_PLUGIN_LEGACY_API void sql_print_error(const char *format, ...)
   MY_ATTRIBUTE((format(printf, 1, 2)));
 
 /**
    Prints a printf style warning message to the error log.
    @see error_log_print
 */
-void sql_print_warning(const char *format, ...)
+MYSQL_PLUGIN_LEGACY_API void sql_print_warning(const char *format, ...)
   MY_ATTRIBUTE((format(printf, 1, 2)));
 
 /**
    Prints a printf style information message to the error log.
    @see error_log_print
 */
-void sql_print_information(const char *format, ...)
+MYSQL_PLUGIN_LEGACY_API void sql_print_information(const char *format, ...)
   MY_ATTRIBUTE((format(printf, 1, 2)));
 
 /**

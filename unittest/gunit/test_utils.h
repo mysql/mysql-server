@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -23,6 +23,7 @@
 #include "error_handler.h"
 #include "gtest/gtest.h"
 #include "my_compiler.h"
+#include "my_sharedlib.h"
 #include "my_sys.h"
 #include "my_thread_local.h"
 #include "mysql/psi/mysql_mutex.h"
@@ -34,11 +35,11 @@ class THD;
 class my_decimal;
 
 extern thread_local_key_t THR_MALLOC;
-extern thread_local_key_t THR_THD;
-extern bool THR_THD_initialized;
+extern MYSQL_PLUGIN_API thread_local_key_t THR_THD;
+extern MYSQL_PLUGIN_API bool THR_THD_initialized;
 extern bool THR_MALLOC_initialized;
 extern mysql_mutex_t LOCK_open;
-extern uint    opt_debug_sync_timeout;
+extern MYSQL_PLUGIN_API uint    opt_debug_sync_timeout;
 extern "C" void sql_alloc_error_handler(void);
 
 namespace my_testing {

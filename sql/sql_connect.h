@@ -20,6 +20,7 @@
 #include <sys/types.h>
 
 #include "my_inttypes.h"
+#include "my_sharedlib.h"
 
 class THD;
 
@@ -92,11 +93,11 @@ bool check_mqh(THD *thd, uint check_command);
 void decrease_user_connections(USER_CONN *uc);
 void release_user_connection(THD *thd);
 bool thd_init_client_charset(THD *thd, uint cs_number);
-bool thd_prepare_connection(THD *thd);
-void close_connection(THD *thd, uint sql_errno= 0,
-                      bool server_shutdown= false, bool generate_event= true);
-bool thd_connection_alive(THD *thd);
-void end_connection(THD *thd);
+MYSQL_PLUGIN_LEGACY_API bool thd_prepare_connection(THD *thd);
+MYSQL_PLUGIN_LEGACY_API void close_connection(
+  THD *thd, uint sql_errno= 0, bool server_shutdown= false, bool generate_event= true);
+MYSQL_PLUGIN_LEGACY_API bool thd_connection_alive(THD *thd);
+MYSQL_PLUGIN_LEGACY_API void end_connection(THD *thd);
 int get_or_create_user_conn(THD *thd, const char *user,
                             const char *host, const USER_RESOURCES *mqh);
 int check_for_max_user_connections(THD *thd, const USER_CONN *uc);

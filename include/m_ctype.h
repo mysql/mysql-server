@@ -514,19 +514,19 @@ typedef struct charset_info_st
   load them through a MY_CHARSET_LOADER, using my_collation_get_by_name().
 */
 
-extern MYSQL_PLUGIN_IMPORT CHARSET_INFO my_charset_bin;
-extern MYSQL_PLUGIN_IMPORT CHARSET_INFO my_charset_latin1;
-extern MYSQL_PLUGIN_IMPORT CHARSET_INFO my_charset_filename;
-extern MYSQL_PLUGIN_IMPORT CHARSET_INFO my_charset_utf8mb4_0900_ai_ci;
+extern MYSQL_PLUGIN_API CHARSET_INFO my_charset_bin;
+extern MYSQL_PLUGIN_API CHARSET_INFO my_charset_latin1;
+extern MYSQL_PLUGIN_API CHARSET_INFO my_charset_filename;
+extern MYSQL_PLUGIN_API CHARSET_INFO my_charset_utf8mb4_0900_ai_ci;
 
 extern CHARSET_INFO my_charset_latin1_bin;
 extern CHARSET_INFO my_charset_utf32_unicode_ci;
-extern MYSQL_PLUGIN_IMPORT CHARSET_INFO my_charset_utf8_general_ci;
+extern MYSQL_PLUGIN_API CHARSET_INFO my_charset_utf8_general_ci;
 extern CHARSET_INFO my_charset_utf8_tolower_ci;
 extern CHARSET_INFO my_charset_utf8_unicode_ci;
 extern CHARSET_INFO my_charset_utf8_bin;
 extern CHARSET_INFO my_charset_utf8mb4_bin;
-extern MYSQL_PLUGIN_IMPORT CHARSET_INFO my_charset_utf8mb4_general_ci;
+extern MYSQL_PLUGIN_API CHARSET_INFO my_charset_utf8mb4_general_ci;
 
 #define MY_UTF8MB3                 "utf8"
 #define MY_UTF8MB4                 "utf8mb4"
@@ -754,8 +754,8 @@ bool my_charset_is_ascii_compatible(const CHARSET_INFO *cs);
 
 const MY_CONTRACTIONS *my_charset_get_contractions(const CHARSET_INFO *cs);
 
-extern size_t my_vsnprintf_ex(const CHARSET_INFO *cs, char *to, size_t n,
-                              const char* fmt, va_list ap);
+extern MYSQL_PLUGIN_LEGACY_API size_t my_vsnprintf_ex(
+  const CHARSET_INFO *cs, char *to, size_t n, const char* fmt, va_list ap);
 
 size_t my_convert(char *to, size_t to_length, const CHARSET_INFO *to_cs,
                   const char *from, size_t from_length,

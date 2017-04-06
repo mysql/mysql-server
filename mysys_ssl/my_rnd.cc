@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -33,6 +33,7 @@
 #include <openssl/err.h>
 #endif /* HAVE_YASSL */
 
+#include "my_sharedlib.h"
 
 /*
   A wrapper to use OpenSSL/yaSSL PRNGs.
@@ -68,7 +69,7 @@ Fill a buffer with random bytes using the SSL library routines
 @retval      1  error occurred.
 @retval      0  OK
 */
-int
+MYSQL_PLUGIN_LEGACY_API int
 my_rand_buffer(unsigned char *buffer, size_t buffer_size)
 {
   int rc;

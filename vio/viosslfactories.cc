@@ -173,7 +173,7 @@ ssl_error_string[] =
   "TLS version is invalid"
 };
 
-const char*
+MYSQL_PLUGIN_LEGACY_API const char*
 sslGetErrString(enum enum_ssl_init_error e)
 {
   DBUG_ASSERT(SSL_INITERR_NOERROR < e && e < SSL_INITERR_LASTERR);
@@ -434,7 +434,7 @@ void ssl_start()
   }
 }
 
-long process_tls_version(const char *tls_version)
+MYSQL_PLUGIN_LEGACY_API long process_tls_version(const char *tls_version)
 {
   const char *separator= ",";
   char *token, *lasts= NULL;
@@ -693,7 +693,7 @@ new_VioSSLConnectorFd(const char *key_file, const char *cert_file,
 
 
 /************************ VioSSLAcceptorFd **********************************/
-struct st_VioSSLFd *
+MYSQL_PLUGIN_LEGACY_API struct st_VioSSLFd *
 new_VioSSLAcceptorFd(const char *key_file, const char *cert_file,
 		     const char *ca_file, const char *ca_path,
 		     const char *cipher, enum enum_ssl_init_error* error,
@@ -725,7 +725,7 @@ new_VioSSLAcceptorFd(const char *key_file, const char *cert_file,
   return ssl_fd;
 }
 
-void free_vio_ssl_acceptor_fd(struct st_VioSSLFd *fd)
+MYSQL_PLUGIN_LEGACY_API void free_vio_ssl_acceptor_fd(struct st_VioSSLFd *fd)
 {
   SSL_CTX_free(fd->ssl_context);
   my_free(fd);

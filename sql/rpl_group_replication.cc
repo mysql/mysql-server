@@ -157,7 +157,7 @@ Group_replication_handler* group_replication_handler= NULL;
 /*
   Group Replication plugin handler function accessors.
 */
-int group_replication_init(const char* plugin_name)
+MYSQL_PLUGIN_API int group_replication_init(const char* plugin_name)
 {
   if (initialize_channel_service_interface())
   {
@@ -181,7 +181,7 @@ int group_replication_init(const char* plugin_name)
   return 1;
 }
 
-int group_replication_cleanup()
+MYSQL_PLUGIN_API int group_replication_cleanup()
 {
   mysql_mutex_lock(&LOCK_group_replication_handler);
   if (group_replication_handler != NULL)
@@ -206,7 +206,7 @@ bool is_group_replication_plugin_loaded()
   return false;
 }
 
-int group_replication_start()
+MYSQL_PLUGIN_API int group_replication_start()
 {
   mysql_mutex_lock(&LOCK_group_replication_handler);
   if (is_group_replication_plugin_loaded())
@@ -235,7 +235,7 @@ int group_replication_start()
   return 1;
 }
 
-int group_replication_stop()
+MYSQL_PLUGIN_API int group_replication_stop()
 {
   mysql_mutex_lock(&LOCK_group_replication_handler);
   if (is_group_replication_plugin_loaded())
@@ -338,10 +338,11 @@ unsigned int get_group_replication_members_number_info()
   Server methods exported to plugin through
   include/mysql/group_replication_priv.h
 */
-void get_server_parameters(char **hostname, uint *port, char** uuid,
-                           unsigned int *out_server_version,
-                           st_server_ssl_variables* server_ssl_variables)
-  {
+MYSQL_PLUGIN_LEGACY_API void get_server_parameters(
+  char **hostname, uint *port, char** uuid,
+  unsigned int *out_server_version,
+  st_server_ssl_variables* server_ssl_variables)
+{
   /*
     use startup option report-host and report-port when provided,
     as value provided by glob_hostname, which used gethostname() function
@@ -400,32 +401,33 @@ void get_server_parameters(char **hostname, uint *port, char** uuid,
   return;
 }
 
-ulong get_server_id()
+MYSQL_PLUGIN_API ulong get_server_id()
 {
   return server_id;
 }
 
-ulong get_auto_increment_increment()
+MYSQL_PLUGIN_API ulong get_auto_increment_increment()
 {
   return global_system_variables.auto_increment_increment;
 }
 
-ulong get_auto_increment_offset()
+MYSQL_PLUGIN_API ulong get_auto_increment_offset()
 {
   return global_system_variables.auto_increment_offset;
 }
 
-void set_auto_increment_increment(ulong auto_increment_increment)
+MYSQL_PLUGIN_API void set_auto_increment_increment(
+  ulong auto_increment_increment)
 {
   global_system_variables.auto_increment_increment= auto_increment_increment;
 }
 
-void set_auto_increment_offset(ulong auto_increment_offset)
+MYSQL_PLUGIN_API void set_auto_increment_offset(ulong auto_increment_offset)
 {
   global_system_variables.auto_increment_offset= auto_increment_offset;
 }
 
-void
+MYSQL_PLUGIN_LEGACY_API void
 get_server_startup_prerequirements(Trans_context_info& requirements,
                                    bool has_lock)
 {
@@ -445,6 +447,7 @@ get_server_startup_prerequirements(Trans_context_info& requirements,
   requirements.parallel_applier_preserve_commit_order= opt_slave_preserve_commit_order;
 }
 
+MYSQL_PLUGIN_LEGACY_API
 bool get_server_encoded_gtid_executed(uchar **encoded_gtid_executed,
                                       size_t *length)
 {
@@ -468,8 +471,8 @@ bool get_server_encoded_gtid_executed(uchar **encoded_gtid_executed,
 }
 
 #if !defined(DBUG_OFF)
-char* encoded_gtid_set_to_string(uchar *encoded_gtid_set,
-                                 size_t length)
+MYSQL_PLUGIN_LEGACY_API char* encoded_gtid_set_to_string(
+  uchar *encoded_gtid_set, size_t length)
 {
   /* No sid_lock because this is a completely local object. */
   Sid_map sid_map(NULL);
@@ -486,13 +489,13 @@ char* encoded_gtid_set_to_string(uchar *encoded_gtid_set,
 #endif
 
 
-void global_thd_manager_add_thd(THD *thd)
+MYSQL_PLUGIN_API void global_thd_manager_add_thd(THD *thd)
 {
   Global_THD_manager::get_instance()->add_thd(thd);
 }
 
 
-void global_thd_manager_remove_thd(THD *thd)
+MYSQL_PLUGIN_API void global_thd_manager_remove_thd(THD *thd)
 {
   Global_THD_manager::get_instance()->remove_thd(thd);
 }

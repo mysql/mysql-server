@@ -683,7 +683,7 @@ my_charset_get_by_name(MY_CHARSET_LOADER *loader,
 {
   uint cs_number;
   CHARSET_INFO *cs;
-  DBUG_ENTER("get_charset_by_csname");
+  DBUG_ENTER("my_charset_get_by_name");
   DBUG_PRINT("enter",("name: '%s'", cs_name));
 
   my_thread_once(&charsets_initialized, init_available_charsets);
@@ -702,7 +702,7 @@ my_charset_get_by_name(MY_CHARSET_LOADER *loader,
 }
 
 
-CHARSET_INFO *
+MYSQL_PLUGIN_LEGACY_API CHARSET_INFO *
 get_charset_by_csname(const char *cs_name, uint cs_flags, myf flags)
 {
   MY_CHARSET_LOADER loader;
@@ -800,9 +800,10 @@ bool resolve_collation(const char *cl_name,
     #           The length of the escaped string
 */
 
-size_t escape_string_for_mysql(const CHARSET_INFO *charset_info,
-                               char *to, size_t to_length,
-                               const char *from, size_t length)
+MYSQL_PLUGIN_LEGACY_API size_t escape_string_for_mysql(
+  const CHARSET_INFO *charset_info,
+  char *to, size_t to_length,
+  const char *from, size_t length)
 {
   const char *to_start= to;
   const char *end, *to_end=to_start + (to_length ? to_length-1 : 2*length);

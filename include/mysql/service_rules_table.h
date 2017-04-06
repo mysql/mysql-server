@@ -44,21 +44,21 @@ namespace rules_table_service
   There must be one function of this kind in order for the symbols in the
   server's dynamic library to be visible to plugins.
 */
-int dummy_function_to_ensure_we_are_linked_into_the_server();
+MYSQL_PLUGIN_API int dummy_function_to_ensure_we_are_linked_into_the_server();
 
 
 /**
   Frees a const char pointer allocated in the server's dynamic library using
   new[].
 */
-void free_string(const char *str);
+MYSQL_PLUGIN_API void free_string(const char *str);
 
 
 /**
   Writable cursor that allows reading and updating of rows in a persistent
   table.
 */
-class Cursor
+class MYSQL_PLUGIN_API Cursor
 {
 public:
   typedef int column_id;
@@ -128,12 +128,7 @@ public:
     Advances this Cursor. Read errors are kept, and had_serious_read_error()
     will tell if there was an unexpected error (e.g. not EOF) while reading.
   */
-  Cursor &operator++ ()
-  {
-    if (!m_is_finished)
-      read();
-    return *this;
-  }
+  Cursor &operator++ ();
 
   /// Prepares the write buffer for updating the current row.
   void make_writeable();
@@ -182,7 +177,7 @@ private:
   A past-the-end Cursor. All past-the-end cursors are considered equal
   when compared with operator ==.
 */
-Cursor end();
+MYSQL_PLUGIN_API Cursor end();
 
 }
 

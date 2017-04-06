@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -25,6 +25,7 @@
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_io.h"
+#include "my_sharedlib.h"
 #include "my_static.h"
 #include "my_sys.h"
 #ifdef HAVE_PWD_H
@@ -132,7 +133,7 @@ void pack_dirname(char * to, const char *from)
     #  length of new name   
 */
 
-size_t cleanup_dirname(char *to, const char *from)
+MYSQL_PLUGIN_LEGACY_API size_t cleanup_dirname(char *to, const char *from)
 {
   size_t length;
   char *pos;

@@ -32,6 +32,7 @@
 #include "my_io.h"
 #include "my_macros.h"
 #include "my_psi_config.h"
+#include "my_sharedlib.h"
 #include "my_sys.h"
 #include "mysql/psi/mysql_cond.h"
 #include "mysql/psi/mysql_mutex.h"
@@ -55,7 +56,8 @@
 
 struct PSI_thread;
 
-int thd_init(THD *thd, char *stack_start, bool bound, PSI_thread_key psi_key)
+MYSQL_PLUGIN_LEGACY_API int thd_init(
+  THD *thd, char *stack_start, bool bound, PSI_thread_key psi_key)
 {
   DBUG_ENTER("thd_init");
   // TODO: Purge threads currently terminate too late for them to be added.
@@ -91,7 +93,9 @@ int thd_init(THD *thd, char *stack_start, bool bound, PSI_thread_key psi_key)
 }
 
 
-THD *create_thd(bool enable_plugins, bool background_thread, bool bound, PSI_thread_key psi_key)
+MYSQL_PLUGIN_LEGACY_API THD *create_thd(
+  bool enable_plugins, bool background_thread,
+  bool bound, PSI_thread_key psi_key)
 {
   THD *thd= new THD(enable_plugins);
   if (background_thread)
@@ -114,13 +118,15 @@ void destroy_thd(THD *thd)
 }
 
 
-void thd_set_thread_stack(THD *thd, const char *stack_start)
+MYSQL_PLUGIN_LEGACY_API void thd_set_thread_stack(
+  THD *thd, const char *stack_start)
 {
   thd->thread_stack= stack_start;
 }
 
 
 extern "C"
+MYSQL_PLUGIN_LEGACY_API
 void thd_enter_cond(void *opaque_thd, mysql_cond_t *cond, mysql_mutex_t *mutex,
                     const PSI_stage_info *stage, PSI_stage_info *old_stage,
                     const char *src_function, const char *src_file,
@@ -135,6 +141,7 @@ void thd_enter_cond(void *opaque_thd, mysql_cond_t *cond, mysql_mutex_t *mutex,
 }
 
 extern "C"
+MYSQL_PLUGIN_LEGACY_API
 void thd_exit_cond(void *opaque_thd, const PSI_stage_info *stage,
                    const char *src_function, const char *src_file,
                    int src_line)

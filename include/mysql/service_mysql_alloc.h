@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -114,7 +114,8 @@ extern void * my_realloc(PSI_memory_key key, void *ptr, size_t size, myf_t flags
 extern void my_claim(const void *ptr);
 extern void my_free(void *ptr);
 extern void * my_memdup(PSI_memory_key key, const void *from, size_t length, myf_t flags);
-extern char * my_strdup(PSI_memory_key key, const char *from, myf_t flags);
+extern MYSQL_PLUGIN_LEGACY_API char * my_strdup(
+  PSI_memory_key key, const char *from, myf_t flags);
 extern char * my_strndup(PSI_memory_key key, const char *from, size_t length, myf_t flags);
 
 #endif

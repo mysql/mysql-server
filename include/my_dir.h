@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -25,6 +25,7 @@
 #include <sys/types.h>
 
 #include "my_inttypes.h"
+#include "my_sharedlib.h"
 
 #ifdef	__cplusplus
 extern "C" {
@@ -86,10 +87,11 @@ typedef struct st_my_dir	/* Struct returned from my_dir */
   uint			number_off_files;
 } MY_DIR;
 
-extern MY_DIR *my_dir(const char *path,myf MyFlags);
-extern void my_dirend(MY_DIR *buffer);
-extern MY_STAT *my_stat(const char *path, MY_STAT *stat_area, myf my_flags);
-extern int my_fstat(int filenr, MY_STAT *stat_area);
+extern MYSQL_PLUGIN_LEGACY_API MY_DIR *my_dir(const char *path,myf MyFlags);
+extern MYSQL_PLUGIN_LEGACY_API void my_dirend(MY_DIR *buffer);
+extern MYSQL_PLUGIN_LEGACY_API MY_STAT *my_stat(
+  const char *path, MY_STAT *stat_area, myf my_flags);
+extern MYSQL_PLUGIN_LEGACY_API int my_fstat(int filenr, MY_STAT *stat_area);
 
 #ifdef	__cplusplus
 }

@@ -29,6 +29,7 @@
 
 extern "C" {
 
+MYSQL_PLUGIN_EXPORT
 bool load_rewrite_rules_init(UDF_INIT*, UDF_ARGS*, char *message)
 {
   if (get_rewriter_plugin_info() != NULL)
@@ -37,6 +38,7 @@ bool load_rewrite_rules_init(UDF_INIT*, UDF_ARGS*, char *message)
   return 1;
 }
 
+MYSQL_PLUGIN_EXPORT
 char *load_rewrite_rules(UDF_INIT*, UDF_ARGS*, char*,
                          unsigned long *length, char *is_null, char*)
 {
@@ -53,6 +55,7 @@ char *load_rewrite_rules(UDF_INIT*, UDF_ARGS*, char*,
   return const_cast<char*>(message);
 }
 
+MYSQL_PLUGIN_EXPORT
 void load_rewrite_rules_deinit(UDF_INIT*) {}
 
 }

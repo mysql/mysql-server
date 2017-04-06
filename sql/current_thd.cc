@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,10 +16,12 @@
 #include "current_thd.h"
 
 thread_local_key_t THR_THD;
-bool THR_THD_initialized= false;
+
+// Needs to be exported for plugins built in debug mode.
+MYSQL_PLUGIN_API bool THR_THD_initialized= false;
 
 #if defined(_WIN32)
-extern "C"   THD *_current_thd_noinline(void)
+extern "C"   THD MYSQL_PLUGIN_LEGACY_API *_current_thd_noinline(void)
 {
   return my_thread_get_THR_THD();
 }

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -38,6 +38,7 @@
 */
 
 #include "m_string.h"
+#include "my_sharedlib.h"
 
 #ifndef ll2str
 
@@ -96,7 +97,8 @@ char *ll2str(longlong val,char *dst,int radix, int upcase)
 #endif
 
 #ifndef longlong10_to_str
-char *longlong10_to_str(longlong val,char *dst,int radix)
+MYSQL_PLUGIN_LEGACY_API char *longlong10_to_str(
+  longlong val,char *dst,int radix)
 {
   char buffer[65];
   char *p;

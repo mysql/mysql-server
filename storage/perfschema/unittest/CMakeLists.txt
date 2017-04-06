@@ -21,7 +21,7 @@ INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include
                     ${CMAKE_SOURCE_DIR}/unittest/mytap
                     ${CMAKE_SOURCE_DIR}/storage/perfschema)
 
-ADD_DEFINITIONS(-DMYSQL_SERVER ${SSL_DEFINES})
+ADD_DEFINITIONS(-DMYSQL_SERVER -DMYSQL_NO_PLUGIN_EXPORT ${SSL_DEFINES})
 
 ADD_CONVENIENCE_LIBRARY(pfs_server_stubs pfs_server_stubs.cc)
 

@@ -1650,7 +1650,7 @@ type_conversion_status Field::check_constraints(int mysql_errno)
   @param row_offset    This is the offset between the row being updated
                        and table->record[0]
 */
-void Field::set_null(my_ptrdiff_t row_offset)
+MYSQL_PLUGIN_LEGACY_API void Field::set_null(my_ptrdiff_t row_offset)
 {
   if (real_maybe_null())
   {
@@ -1669,7 +1669,7 @@ void Field::set_null(my_ptrdiff_t row_offset)
   @param row_offset    This is the offset between the row being updated
                        and table->record[0]
 */
-void Field::set_notnull(my_ptrdiff_t row_offset)
+MYSQL_PLUGIN_LEGACY_API void Field::set_notnull(my_ptrdiff_t row_offset)
 {
   if (real_maybe_null())
   {

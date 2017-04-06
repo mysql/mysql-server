@@ -127,12 +127,14 @@ static int is_killed_dummy(const void *a MY_ATTRIBUTE((unused)))
   implementations will be set during server startup by
   init_server_components().
 */
-void (*enter_cond_hook)(void *, mysql_cond_t *, mysql_mutex_t *,
-                        const PSI_stage_info *, PSI_stage_info *,
-                        const char *, const char *, int)= enter_cond_dummy;
+void (*enter_cond_hook)(
+  void *, mysql_cond_t *, mysql_mutex_t *,
+  const PSI_stage_info *, PSI_stage_info *,
+  const char *, const char *, int)= enter_cond_dummy;
 
-void (*exit_cond_hook)(void *, const PSI_stage_info *,
-                       const char *, const char *, int)= exit_cond_dummy;
+void (*exit_cond_hook)(
+  void *, const PSI_stage_info *,
+  const char *, const char *, int)= exit_cond_dummy;
 
 int (*is_killed_hook)(const void *)= is_killed_dummy;
 

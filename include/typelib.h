@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -23,6 +23,7 @@
 
 #include "mem_root_fwd.h"
 #include "my_inttypes.h"
+#include "my_sharedlib.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -48,7 +49,8 @@ extern int find_type_or_exit(const char *x, TYPELIB *typelib,
 /** makes @c find_type() treat ',' as terminator */
 #define FIND_TYPE_COMMA_TERM     (1 << 3)
 
-extern int find_type(const char *x, const TYPELIB *typelib, unsigned int flags);
+extern MYSQL_PLUGIN_LEGACY_API int find_type(
+  const char *x, const TYPELIB *typelib, unsigned int flags);
 extern void make_type(char *to,unsigned int nr,TYPELIB *typelib);
 extern const char *get_type(TYPELIB *typelib,unsigned int nr);
 extern TYPELIB *copy_typelib(MEM_ROOT *root, TYPELIB *from);

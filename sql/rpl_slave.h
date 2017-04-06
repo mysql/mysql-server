@@ -412,7 +412,7 @@ void delete_slave_info_objects(); /* clean up slave threads data */
 void lock_slave_threads(Master_info* mi);
 void unlock_slave_threads(Master_info* mi);
 void init_thread_mask(int* mask,Master_info* mi,bool inverse);
-void set_slave_thread_options(THD* thd);
+MYSQL_PLUGIN_LEGACY_API void set_slave_thread_options(THD* thd);
 void set_slave_thread_default_charset(THD *thd, Relay_log_info const *rli);
 int rotate_relay_log(Master_info* mi);
 typedef enum

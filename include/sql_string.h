@@ -34,6 +34,7 @@
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
+#include "my_sharedlib.h"
 #include "my_sys.h"                          // alloc_root
 #include "mysql/mysql_lex_string.h"          // LEX_STRING
 #include "mysql/psi/psi_base.h"
@@ -376,11 +377,13 @@ public:
     return real_alloc(arg_length);
   }
   bool real_alloc(size_t arg_length);			// Empties old string
+
+  MYSQL_PLUGIN_LEGACY_API
   bool mem_realloc(size_t arg_length, bool force_on_heap= false);
 
 private:
   size_t next_realloc_exp_size(size_t sz);
-  bool mem_realloc_exp(size_t arg_length);
+  MYSQL_PLUGIN_LEGACY_API bool mem_realloc_exp(size_t arg_length);
 
 public:
   // Shrink the buffer, but only if it is allocated on the heap.
@@ -451,7 +454,8 @@ public:
   bool copy();					// Alloc string if not alloced
   bool copy(const String &s);			// Allocate new string
   // Allocate new string
-  bool copy(const char *s, size_t arg_length, const CHARSET_INFO *cs);
+  MYSQL_PLUGIN_LEGACY_API bool copy(
+    const char *s, size_t arg_length, const CHARSET_INFO *cs);
   static bool needs_conversion(size_t arg_length,
   			       const CHARSET_INFO *cs_from, const CHARSET_INFO *cs_to,
 			       size_t *offset);
@@ -465,7 +469,7 @@ public:
   bool copy(const char*s, size_t arg_length, const CHARSET_INFO *csfrom,
 	    const CHARSET_INFO *csto, uint *errors);
   bool append(const String &s);
-  bool append(const char *s);
+  MYSQL_PLUGIN_LEGACY_API bool append(const char *s);
   bool append(LEX_STRING *ls)
   {
     return append(ls->str, ls->length);
@@ -474,7 +478,7 @@ public:
   {
     return append(str.ptr(), str.length());
   }
-  bool append(const char *s, size_t arg_length);
+  MYSQL_PLUGIN_LEGACY_API bool append(const char *s, size_t arg_length);
   bool append(const char *s, size_t arg_length, const CHARSET_INFO *cs);
   bool append_ulonglong(ulonglong val);
   bool append_longlong(longlong val);

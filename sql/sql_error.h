@@ -25,6 +25,7 @@
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
+#include "my_sharedlib.h"
 #include "mysql/mysql_lex_string.h"
 #include "mysql/service_my_snprintf.h"
 #include "mysql_com.h" /* MYSQL_ERRMSG_SIZE */
@@ -273,7 +274,7 @@ public:
   can hold either OK, ERROR, or EOF status.
   Can not be assigned twice per statement.
 */
-class Diagnostics_area
+class MYSQL_PLUGIN_LEGACY_API Diagnostics_area
 {
   /** The type of the counted and doubly linked list of conditions. */
   typedef I_P_List<Sql_condition,
@@ -711,6 +712,7 @@ private:
 ///////////////////////////////////////////////////////////////////////////
 
 
+MYSQL_PLUGIN_LEGACY_API
 void push_warning(THD *thd, Sql_condition::enum_severity_level severity,
                   uint code, const char *message_text);
 

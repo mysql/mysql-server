@@ -36,6 +36,7 @@
 #include "my_dbug.h"
 #include "my_io.h"
 #include "my_macros.h"
+#include "my_sharedlib.h"
 #include "my_sys.h"
 #include "mysql.h"
 #include "mysql/service_mysql_alloc.h"
@@ -183,8 +184,8 @@ bool net_realloc(NET *net, size_t length)
   @param check_buffer  Whether to check the socket buffer.
 */
 
-void net_clear(NET *net,
-               bool check_buffer MY_ATTRIBUTE((unused)))
+MYSQL_PLUGIN_LEGACY_API void net_clear(
+  NET *net, bool check_buffer MY_ATTRIBUTE((unused)))
 {
   DBUG_ENTER("net_clear");
 
@@ -201,7 +202,7 @@ void net_clear(NET *net,
 
 /** Flush write_buffer if not empty. */
 
-bool net_flush(NET *net)
+MYSQL_PLUGIN_LEGACY_API bool net_flush(NET *net)
 {
   bool error= 0;
   DBUG_ENTER("net_flush");
@@ -359,7 +360,8 @@ net_should_retry(NET *net, uint *retry_count MY_ATTRIBUTE((unused)))
   @note If compression is used, the original packet is modified!
 */
 
-bool my_net_write(NET *net, const uchar *packet, size_t len)
+MYSQL_PLUGIN_LEGACY_API bool my_net_write(
+  NET *net, const uchar *packet, size_t len)
 {
   uchar buff[NET_HEADER_SIZE];
   int rc;
@@ -954,8 +956,7 @@ error:
   net->read_pos points to the read data.
 */
 
-ulong
-my_net_read(NET *net)
+MYSQL_PLUGIN_LEGACY_API ulong my_net_read(NET *net)
 {
   size_t len, complen;
 

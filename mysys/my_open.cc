@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -81,7 +81,7 @@ File my_open(const char *FileName, int Flags, myf MyFlags)
 
 */
 
-int my_close(File fd, myf MyFlags)
+MYSQL_PLUGIN_LEGACY_API int my_close(File fd, myf MyFlags)
 {
   int err;
   DBUG_ENTER("my_close");

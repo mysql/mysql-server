@@ -21,7 +21,9 @@
 */
 
 #include <errno.h>
-#include <my_sys.h>
+
+#include "my_sharedlib.h"
+#include "my_sys.h"
 #include "my_thread_local.h"
 
 
@@ -120,7 +122,7 @@ static int get_errno_from_oserr(unsigned long oserrno)
 }
 
 /* Set errno corresponsing to GetLastError() value */
-void my_osmaperr( unsigned long oserrno)
+MYSQL_PLUGIN_LEGACY_API void my_osmaperr( unsigned long oserrno)
 {
   /*
     set thr_winerr so that we could return the Windows Error Code

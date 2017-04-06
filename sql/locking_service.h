@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -39,6 +39,7 @@ class THD;
   @note both lock_namespace and lock_names are limited to 64 characters max.
   Names are compared using binary comparison.
 */
+MYSQL_PLUGIN_LEGACY_API
 int acquire_locking_service_locks(MYSQL_THD opaque_thd, const char* lock_namespace,
                                   const char**lock_names, size_t lock_num,
                                   enum enum_locking_service_lock_type lock_type,
@@ -54,6 +55,7 @@ int acquire_locking_service_locks(MYSQL_THD opaque_thd, const char* lock_namespa
   @retval 1              Release failed, error has been reported.
   @retval 0              Release successful, all locks acquired.
 */
+MYSQL_PLUGIN_LEGACY_API
 int release_locking_service_locks(MYSQL_THD opaque_thd, const char* lock_namespace);
 
 /**

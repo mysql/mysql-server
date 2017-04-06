@@ -1,4 +1,4 @@
-/* Copyright (c) 2001, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2001, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -30,6 +30,7 @@
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_io.h"
+#include "my_sharedlib.h"
 #include "my_sys.h"
 #include "my_thread_local.h"
 #include "mysys_err.h"
@@ -131,7 +132,8 @@ int my_is_symlink(const char *filename)
   'to' may be equal to 'filename'
 */
 
-int my_realpath(char *to, const char *filename, myf MyFlags)
+MYSQL_PLUGIN_LEGACY_API int my_realpath(
+  char *to, const char *filename, myf MyFlags)
 {
 #ifndef _WIN32
   int result=0;

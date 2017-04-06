@@ -38,8 +38,9 @@
 	** If dir is not given, use TMPDIR.
 	*/
 
-bool open_cached_file(IO_CACHE *cache, const char* dir, const char *prefix,
-                      size_t cache_size, myf cache_myflags)
+MYSQL_PLUGIN_LEGACY_API bool open_cached_file(
+  IO_CACHE *cache, const char* dir, const char *prefix,
+  size_t cache_size, myf cache_myflags)
 {
   DBUG_ENTER("open_cached_file");
   cache->dir=	 dir ? my_strdup(key_memory_IO_CACHE,
@@ -82,7 +83,7 @@ bool real_open_cached_file(IO_CACHE *cache)
 }
 
 
-void close_cached_file(IO_CACHE *cache)
+MYSQL_PLUGIN_LEGACY_API void close_cached_file(IO_CACHE *cache)
 {
   DBUG_ENTER("close_cached_file");
   if (my_b_inited(cache))

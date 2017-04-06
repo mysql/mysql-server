@@ -36,6 +36,7 @@
 #include <vector>
 
 #include "binlog_event.h"
+#include "my_sharedlib.h"
 
 namespace binary_log
 {
@@ -211,7 +212,7 @@ public:
   </table>
 */
 
-class Start_event_v3: public Binary_log_event
+class MYSQL_PLUGIN_LEGACY_API Start_event_v3: public Binary_log_event
 {
 public:
 /*
@@ -280,6 +281,7 @@ public:
 
   Start_event_v3(const char* buf, unsigned int event_len,
                  const Format_description_event* description_event);
+  ~Start_event_v3();
 #ifndef HAVE_MYSYS
   //TODO(WL#7684): Implement the method print_event_info and print_long_info for
   //            all the events supported  in  MySQL Binlog
@@ -339,7 +341,8 @@ public:
   </tr>
   </table>
 */
-class Format_description_event: public virtual Start_event_v3
+class MYSQL_PLUGIN_LEGACY_API Format_description_event
+  : public virtual Start_event_v3
 {
 public:
   /**
@@ -865,7 +868,7 @@ struct gtid_info
   </table>
 */
 
-struct Uuid
+struct MYSQL_PLUGIN_LEGACY_API Uuid
 {
 
    /// Set to all zeros.
@@ -954,12 +957,7 @@ struct Uuid
   size_t to_string(char *buf) const;
   /// Convert the given binary buffer to a UUID
   static size_t to_string(const unsigned char* bytes_arg, char *buf);
-  void print() const
-  {
-    char buf[TEXT_LENGTH + 1];
-    to_string(buf);
-    printf("%s\n", buf);
-  }
+  void print() const;
   /// The number of bytes in the textual representation of a Uuid.
   static const size_t TEXT_LENGTH= 36;
   /// The number of bits in the data of a Uuid.

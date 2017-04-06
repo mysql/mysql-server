@@ -208,7 +208,7 @@ const char *my_get_err_msg(int nr)
   @param ...       variable list matching that error format string
 */
 
-void my_error(int nr, myf MyFlags, ...)
+MYSQL_PLUGIN_LEGACY_API void my_error(int nr, myf MyFlags, ...)
 {
   const char *format;
   va_list args;
@@ -293,7 +293,8 @@ void my_printv_error(uint error, const char *format, myf MyFlags, va_list ap)
   @param MyFlags   Flags
 */
 
-void my_message(uint error, const char *str, myf MyFlags)
+MYSQL_PLUGIN_LEGACY_API void my_message(
+  uint error, const char *str, myf MyFlags)
 {
   (*error_handler_hook)(error, str, MyFlags);
 }
