@@ -30,6 +30,7 @@
 #include <signaldata/AttrInfo.hpp>
 #include <signaldata/TuxMaint.hpp>
 #include <signaldata/ScanFrag.hpp>
+#include <signaldata/TransIdAI.hpp>
 #include <NdbSqlUtil.hpp>
 #include <Checksum.hpp>
 #include <portlib/ndb_prefetch.h>
@@ -1277,7 +1278,7 @@ int Dbtup::handleReadReq(Signal* signal,
     /**
      * execute direct
      */
-    start_index= 3;
+    start_index= AttrInfo::HeaderLength;  //3;
   }
   dst= &signal->theData[start_index];
   dstLen= (MAX_READ / 4) - start_index;
@@ -2705,7 +2706,7 @@ int Dbtup::interpreterStartLab(Signal* signal,
     /**
      * execute direct
      */
-    start_index= 3;
+    start_index= TransIdAI::HeaderLength;  //3;
   }
   dst= &signal->theData[start_index];
   dstLen= (MAX_READ / 4) - start_index;
