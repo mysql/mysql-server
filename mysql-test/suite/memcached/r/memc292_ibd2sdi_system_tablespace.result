@@ -21,6 +21,7 @@ SET GLOBAL innodb_file_per_table=ON;
 CREATE TABLE t2(a INT) ENGINE = INNODB;
 SET GLOBAL innodb_file_per_table=OFF;
 INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
+# check if ibdata* exist
 # Section I: Test options
 # 1. Read from copy 0 with long option
 [
