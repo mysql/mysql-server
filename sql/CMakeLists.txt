@@ -169,9 +169,9 @@ SET(SQL_GIS_SOURCES
   gis/distance.cc
   gis/geometries.cc
   gis/ring_direction.cc
+  gis/rtree_support.cc
   gis/srs/srs.cc
   gis/srs/wkt_parser.cc
-  gis/srs/rtree_support.cc
   gis/wkb_parser.cc
   item_geofunc.cc
   item_geofunc_buffer.cc
@@ -606,7 +606,7 @@ IF (WIN32 AND OPENSSL_APPLINK_C)
   )
 ENDIF()
 
-ADD_CONVENIENCE_LIBRARY(sql_rtree gis/srs/rtree_support.cc)
+ADD_CONVENIENCE_LIBRARY(sql_rtree gis/rtree_support.cc)
 ADD_CONVENIENCE_LIBRARY(sql_main ${SQL_SOURCE})
 ADD_DEPENDENCIES(sql_main GenServerSource)
 ADD_DEPENDENCIES(sql_main GenDigestServerSource)
