@@ -17,6 +17,7 @@
 #define DD__DICTIONARY_INCLUDED
 
 
+#include "my_compiler.h"
 #include "dd/string_type.h"                    // dd::String_type
 
 class THD;
@@ -163,7 +164,8 @@ bool acquire_shared_table_mdl(THD *thd,
                               const char *schema_name,
                               const char *table_name,
                               bool no_wait,
-                              MDL_ticket **out_mdl_ticket);
+                              MDL_ticket **out_mdl_ticket)
+  MY_ATTRIBUTE((warn_unused_result));
 
 
 /**
@@ -216,7 +218,8 @@ bool has_exclusive_table_mdl(THD *thd,
 
 bool acquire_exclusive_tablespace_mdl(THD *thd,
                                       const char *tablespace_name,
-                                      bool no_wait);
+                                      bool no_wait)
+  MY_ATTRIBUTE((warn_unused_result));
 
 
 /**
@@ -234,7 +237,8 @@ bool acquire_exclusive_tablespace_mdl(THD *thd,
 */
 bool acquire_shared_tablespace_mdl(THD *thd,
                                    const char *tablespace_name,
-                                   bool no_wait);
+                                   bool no_wait)
+  MY_ATTRIBUTE((warn_unused_result));
 
 
 /**
@@ -285,7 +289,8 @@ bool acquire_exclusive_table_mdl(THD *thd,
                                  const char *schema_name,
                                  const char *table_name,
                                  bool no_wait,
-                                 MDL_ticket **out_mdl_ticket);
+                                 MDL_ticket **out_mdl_ticket)
+  MY_ATTRIBUTE((warn_unused_result));
 
 
 /**
@@ -304,7 +309,8 @@ bool acquire_exclusive_table_mdl(THD *thd,
 bool acquire_exclusive_schema_mdl(THD *thd,
                                  const char *schema_name,
                                  bool no_wait,
-                                 MDL_ticket **out_mdl_ticket);
+                                 MDL_ticket **out_mdl_ticket)
+  MY_ATTRIBUTE((warn_unused_result));
 
 /**
   @brief

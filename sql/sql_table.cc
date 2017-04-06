@@ -10373,20 +10373,23 @@ static bool mysql_inplace_alter_table(THD *thd,
 rollback:
   {
     dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
-    const dd::Table *old_table_def;
-    thd->dd_client()->acquire<dd::Table>(table->s->db.str,
-                                         table->s->table_name.str,
-                                         &old_table_def);
-    dd::Table *altered_table_def;
-    thd->dd_client()->acquire_for_modification<dd::Table>(alter_ctx->new_db,
-                                                          alter_ctx->tmp_name,
-                                                          &altered_table_def);
+    const dd::Table *old_table_def= nullptr;
+    dd::Table *altered_table_def= nullptr;
+    if (!thd->dd_client()->acquire(table->s->db.str,
+                                   table->s->table_name.str,
+                                   &old_table_def) &&
+        !thd->dd_client()->acquire_for_modification(alter_ctx->new_db,
+                                                    alter_ctx->tmp_name,
+                                                    &altered_table_def))
+    {
+      DBUG_ASSERT(old_table_def != nullptr && altered_table_def != nullptr);
 
-    table->file->ha_commit_inplace_alter_table(altered_table,
-                                               ha_alter_info,
-                                               false, old_table_def,
-                                               altered_table_def);
-    thd->check_for_truncated_fields= CHECK_FIELD_IGNORE;
+      table->file->ha_commit_inplace_alter_table(altered_table,
+                                                 ha_alter_info,
+                                                 false, old_table_def,
+                                                 altered_table_def);
+      thd->check_for_truncated_fields= CHECK_FIELD_IGNORE;
+    }
   }
 
 cleanup:

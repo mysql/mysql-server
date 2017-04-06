@@ -662,7 +662,7 @@ void test_acquire_and_rename(CacheStorageTest *tst, THD *thd)
                                                          &old_modified));
 
   dd_unittest::set_attributes(old_modified, "new_name");
-  dc->update(old_modified);
+  EXPECT_FALSE(dc->update(old_modified));
 
   // Should be possible to acquire with the new name.
   Intrfc_type *new_modified= NULL;
@@ -736,7 +736,7 @@ void test_acquire_and_rename_with_schema(CacheStorageTest *tst, THD *thd)
 
   dd_unittest::set_attributes(old_modified, "schema_new_name",
                               *tst->mysql);
-  dc->update(old_modified);
+  EXPECT_FALSE(dc->update(old_modified));
 
   // Should be possible to acquire with the new name.
   Intrfc_type *new_modified= NULL;
@@ -819,7 +819,7 @@ void test_acquire_and_move(CacheStorageTest *tst, THD *thd)
   // Move object to a new schema, but keep object name.
   dd_unittest::set_attributes(old_modified, created->name(),
                               *new_schema);
-  dc->update(old_modified);
+  EXPECT_FALSE(dc->update(old_modified));
 
   // Should be possible to acquire in the new schema.
   Intrfc_type *new_modified= NULL;
@@ -1122,7 +1122,7 @@ TEST_F(CacheStorageTest, TestRename)
 
       // Store the object.
       lock_object(*temp_table);
-      dc.update(temp_table);
+      EXPECT_FALSE(dc.update(temp_table));
 
       // Enable foreign key checks
       thd()->variables.option_bits&= ~OPTION_NO_FOREIGN_KEY_CHECKS;
@@ -1225,7 +1225,7 @@ TEST_F(CacheStorageTest, TestTransactionMaxSePrivateId)
   tab1->set_se_private_id(5);
   tab1->set_engine("innodb");
   lock_object(*tab1.get());
-  dc.store(tab1.get());
+  EXPECT_FALSE(dc.store(tab1.get()));
 
   dd_unittest::set_attributes(tab2.get(), "table2", *mysql);
   tab2->set_se_private_id(10);
@@ -1237,7 +1237,7 @@ TEST_F(CacheStorageTest, TestTransactionMaxSePrivateId)
   tab3->set_se_private_id(20);
   tab3->set_engine("unknown");
   lock_object(*tab3.get());
-  dc.store(tab3.get());
+  EXPECT_FALSE(dc.store(tab3.get()));
 
   // Needs working dd::get_dictionary()
   //dd::Object_id max_id;
