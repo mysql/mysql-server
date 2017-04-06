@@ -2752,6 +2752,7 @@ bool Prepared_statement::prepare(const char *query_str, size_t query_length)
   /* The order is important */
   lex->unit->cleanup(true);
 
+  lex->clear_values_map();
 
   close_thread_tables(thd);
   thd->mdl_context.rollback_to_savepoint(mdl_savepoint);

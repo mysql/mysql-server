@@ -632,6 +632,8 @@ bool Sql_cmd_dml::execute(THD *thd)
 
   // Do partial cleanup (preserve plans for EXPLAIN).
   res= unit->cleanup(false);
+  lex->clear_values_map();
+
 
   // Perform statement-specific cleanup for Query_result
   if (result != NULL)
@@ -667,6 +669,7 @@ err:
   prepare_only= true;
 
   (void) unit->cleanup(false);
+  lex->clear_values_map();
 
   // Abort and cleanup the result set (if it has been prepared).
   if (result != NULL)

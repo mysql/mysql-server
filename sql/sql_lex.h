@@ -3451,7 +3451,7 @@ private:
     With Visual Studio, an std::map will always allocate two small objects
     on the heap. Sometimes we put LEX objects in a MEM_ROOT, and never run
     the LEX DTOR. To avoid memory leaks, put this std::map on the heap,
-    and call clear_values_map() in lex_end()
+    and call clear_values_map() at the end of each statement.
    */
   std::map<Field *,Field *> *insert_update_values_map;
 public:
