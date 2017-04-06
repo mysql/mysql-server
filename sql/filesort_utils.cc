@@ -260,6 +260,7 @@ void Filesort_buffer::sort_buffer(Sort_param *param, uint count)
 
   if (param->using_varlen_keys())
   {
+    // TODO: Make more elaborate heuristics than just always picking std::sort.
     param->m_sort_algorithm= Sort_param::FILESORT_ALG_STD_SORT;
     std::sort(m_sort_keys, m_sort_keys + count,
               Mem_compare_varlen_key(param->local_sortorder));

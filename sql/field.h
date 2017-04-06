@@ -3679,11 +3679,7 @@ public:
   }
   uint32 pack_length() const { return (uint32) field_length+length_bytes; }
   uint32 key_length() const { return (uint32) field_length; }
-  uint32 sort_length() const
-  {
-    return (uint32) field_length +
-      (field_charset->pad_attribute == NO_PAD ? 2 : 0);
-  }
+  uint32 sort_length() const { return (uint32) field_length; }
   type_conversion_status store(const char *to, size_t length,
                                const CHARSET_INFO *charset);
   type_conversion_status store(longlong nr, bool unsigned_val);
@@ -3697,6 +3693,10 @@ public:
   int cmp(const uchar *a,const uchar *b)
   {
     return cmp_max(a, b, ~0L);
+  }
+  bool sort_key_is_varlen() const override
+  {
+    return (field_charset->pad_attribute == NO_PAD);
   }
   size_t make_sort_key(uchar *buff, size_t length);
   size_t get_key_image(uchar *buff, size_t length, imagetype type);

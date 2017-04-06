@@ -594,14 +594,6 @@ GROUP BY c1
 ORDER BY cc;
 c1	cc
 1	a,b
-2	a,b
-3	a,b
-4	a,b
-5	a,b
-6	a,b
-7	a,b
-8	a,b
-9	a,b
 10	a,b
 11	a,b
 12	a,b
@@ -612,6 +604,7 @@ c1	cc
 17	a,b
 18	a,b
 19	a,b
+2	a,b
 20	a,b
 21	a,b
 22	a,b
@@ -622,6 +615,7 @@ c1	cc
 27	a,b
 28	a,b
 29	a,b
+3	a,b
 30	a,b
 31	a,b
 32	a,b
@@ -632,6 +626,7 @@ c1	cc
 37	a,b
 38	a,b
 39	a,b
+4	a,b
 40	a,b
 41	a,b
 42	a,b
@@ -642,6 +637,7 @@ c1	cc
 47	a,b
 48	a,b
 49	a,b
+5	a,b
 50	a,b
 51	a,b
 52	a,b
@@ -652,6 +648,7 @@ c1	cc
 57	a,b
 58	a,b
 59	a,b
+6	a,b
 60	a,b
 61	a,b
 62	a,b
@@ -659,6 +656,9 @@ c1	cc
 64	a,b
 65	a,b
 66	a,b
+7	a,b
+8	a,b
+9	a,b
 SELECT * FROM information_schema.OPTIMIZER_TRACE;
 QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
 SELECT c1,GROUP_CONCAT(c2) cc FROM

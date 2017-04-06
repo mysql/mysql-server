@@ -254,12 +254,19 @@ private:
 <dt>@<hash@>
           <dd>  Optional 8 byte hash, used for GROUPing of JSON values.
 <dt>@<varkey@>
-          <dd>  Used for JSON values, the format is:
+          <dd>  Used for JSON and variable-length string values, the format is:
 </dl>
 @verbatim
-                |<null value>|<key length>|<JSON sort key>    |
-                / 1 byte     /   4 bytes  / key length bytes  /
+                |<null value>|<key length>|<sort key>        |
+                / 1 byte     /   4 bytes  / key length bytes /
 @endverbatim
+<dl>
+<dt>@<null value@>
+          <dd>  0x00 for NULL. 0xff for NULL under DESC sort. 0x01 for NOT NULL.
+<dt>@<key length@>
+          <dd>  The length of the sort key, *including* the four bytes for the
+                key length. Does not exist if the field is NULL.
+</dl>
  */
 class Sort_param {
   uint m_fixed_rec_length;    ///< Maximum length of a record, see above.
@@ -318,7 +325,7 @@ public:
     return m_using_packed_addons;
   }
 
-  /// Are we using varlen JSON key fields?
+  /// Are we using varlen key fields?
   bool using_varlen_keys() const
   {
     return m_num_varlen_keys > 0;

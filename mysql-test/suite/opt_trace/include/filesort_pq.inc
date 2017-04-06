@@ -246,7 +246,7 @@ INSERT INTO t1(f1,f2) SELECT * FROM tmp;
 
 # Test when only sortkeys fits to memory
 set sort_buffer_size= 32768; 
-SELECT * FROM t1 ORDER BY f2 LIMIT 100;
+SELECT * FROM t1 ORDER BY f2,f0 LIMIT 100;
 SELECT * FROM information_schema.OPTIMIZER_TRACE;
 
 DROP TABLE t1, tmp;

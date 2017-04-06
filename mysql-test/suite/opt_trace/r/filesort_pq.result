@@ -12052,7 +12052,7 @@ INSERT INTO t1(f1,f2) SELECT * FROM tmp;
 INSERT INTO tmp SELECT f1,f2 FROM t1;
 INSERT INTO t1(f1,f2) SELECT * FROM tmp;
 set sort_buffer_size= 32768;
-SELECT * FROM t1 ORDER BY f2 LIMIT 100;
+SELECT * FROM t1 ORDER BY f2,f0 LIMIT 100;
 f0	f1	f2
 1	0	0
 101	0	0
@@ -12156,14 +12156,14 @@ f0	f1	f2
 9901	0	0
 SELECT * FROM information_schema.OPTIMIZER_TRACE;
 QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
-SELECT * FROM t1 ORDER BY f2 LIMIT 100	{
+SELECT * FROM t1 ORDER BY f2,f0 LIMIT 100	{
   "steps": [
     {
       "join_preparation": {
         "select#": 1,
         "steps": [
           {
-            "expanded_query": "/* select#1 */ select `t1`.`f0` AS `f0`,`t1`.`f1` AS `f1`,`t1`.`f2` AS `f2` from `t1` order by `t1`.`f2` limit 100"
+            "expanded_query": "/* select#1 */ select `t1`.`f0` AS `f0`,`t1`.`f1` AS `f1`,`t1`.`f2` AS `f2` from `t1` order by `t1`.`f2`,`t1`.`f0` limit 100"
           }
         ]
       }
@@ -12238,14 +12238,17 @@ SELECT * FROM t1 ORDER BY f2 LIMIT 100	{
           {
             "clause_processing": {
               "clause": "ORDER BY",
-              "original_clause": "`t1`.`f2`",
+              "original_clause": "`t1`.`f2`,`t1`.`f0`",
               "items": [
                 {
                   "item": "`t1`.`f2`"
+                },
+                {
+                  "item": "`t1`.`f0`"
                 }
               ],
               "resulting_clause_is_simple": true,
-              "resulting_clause": "`t1`.`f2`"
+              "resulting_clause": "`t1`.`f2`,`t1`.`f0`"
             }
           },
           {
@@ -12268,13 +12271,18 @@ SELECT * FROM t1 ORDER BY f2 LIMIT 100	{
                 "direction": "asc",
                 "table": "`t1`",
                 "field": "f2"
+              },
+              {
+                "direction": "asc",
+                "table": "`t1`",
+                "field": "f0"
               }
             ],
             "filesort_priority_queue_optimization": {
               "limit": 100,
               "strip_additional_fields": {
-                "row_size": 215,
-                "sort_merge_cost": 546700,
+                "row_size": 219,
+                "sort_merge_cost": 550446,
                 "priority_queue_cost": 330379,
                 "chosen": true
               }
@@ -12283,14 +12291,14 @@ SELECT * FROM t1 ORDER BY f2 LIMIT 100	{
             ],
             "filesort_summary": {
               "memory_available": 32768,
-              "key_size": 207,
-              "row_size": 207,
+              "key_size": 211,
+              "row_size": 211,
               "max_rows_per_buffer": 101,
               "num_rows_estimate": 438510,
               "num_rows_found": 101,
               "num_examined_rows": 438500,
               "num_initial_chunks_spilled_to_disk": 0,
-              "sort_buffer_size": 21720,
+              "sort_buffer_size": 22120,
               "sort_algorithm": "std::stable_sort",
               "unpacked_addon_fields": "using_priority_queue",
               "sort_mode": "<fixed_sort_key, rowid>"
@@ -12467,14 +12475,14 @@ SELECT j, JSON_TYPE(j) AS tp FROM t ORDER BY j, id limit 2 offset 2	{
             ],
             "filesort_summary": {
               "memory_available": 32768,
-              "key_size": 1047,
-              "row_size": 1047,
+              "key_size": 1051,
+              "row_size": 1051,
               "max_rows_per_buffer": 5,
               "num_rows_estimate": 24,
               "num_rows_found": 5,
               "num_examined_rows": 14,
               "num_initial_chunks_spilled_to_disk": 0,
-              "sort_buffer_size": 5280,
+              "sort_buffer_size": 5296,
               "sort_algorithm": "std::sort",
               "unpacked_addon_fields": "using_priority_queue",
               "sort_mode": "<varlen_sort_key, rowid>"
@@ -12637,14 +12645,14 @@ SELECT j, JSON_TYPE(j) AS tp FROM t ORDER BY j DESC, id limit 2 offset 2	{
             ],
             "filesort_summary": {
               "memory_available": 32768,
-              "key_size": 1047,
-              "row_size": 1047,
+              "key_size": 1051,
+              "row_size": 1051,
               "max_rows_per_buffer": 5,
               "num_rows_estimate": 24,
               "num_rows_found": 5,
               "num_examined_rows": 14,
               "num_initial_chunks_spilled_to_disk": 0,
-              "sort_buffer_size": 5280,
+              "sort_buffer_size": 5296,
               "sort_algorithm": "std::sort",
               "unpacked_addon_fields": "using_priority_queue",
               "sort_mode": "<varlen_sort_key, rowid>"
@@ -12808,14 +12816,14 @@ limit 2 offset 2	{
             ],
             "filesort_summary": {
               "memory_available": 32768,
-              "key_size": 791,
-              "row_size": 791,
+              "key_size": 795,
+              "row_size": 795,
               "max_rows_per_buffer": 5,
               "num_rows_estimate": 24,
               "num_rows_found": 5,
               "num_examined_rows": 14,
               "num_initial_chunks_spilled_to_disk": 0,
-              "sort_buffer_size": 4000,
+              "sort_buffer_size": 4016,
               "sort_algorithm": "std::sort",
               "unpacked_addon_fields": "using_priority_queue",
               "sort_mode": "<varlen_sort_key, rowid>"

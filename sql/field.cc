@@ -7808,27 +7808,16 @@ int Field_varstring::key_cmp(const uchar *a,const uchar *b)
 
 size_t Field_varstring::make_sort_key(uchar *to, size_t length)
 {
-  size_t orig_length= length;
-  size_t tot_length=  length_bytes == 1 ? (uint) *ptr : uint2korr(ptr);
+  size_t input_bytes= length_bytes == 1 ? (uint) *ptr : uint2korr(ptr);
 
-  if (field_charset->pad_attribute == NO_PAD)
-  {
-    /*
-      Store length last in high-byte order to sort longer strings first.
-      Note that we always store two bytes, since otherwise, we would be
-      breaking the invariant that strnxfrm needs an even number of bytes.
-    */
-    mi_int2store(to + length - 2, tot_length);
-    length-= 2;
-  }
- 
-  tot_length= field_charset->coll->strnxfrm(field_charset,
-                                            to, length, length,
-                                            ptr + length_bytes,
-                                            tot_length,
-                                            MY_STRXFRM_PAD_TO_MAXLEN);
-  DBUG_ASSERT(tot_length == length);
-  return orig_length;
+  const int flags=
+    (field_charset->pad_attribute == NO_PAD) ? 0 : MY_STRXFRM_PAD_TO_MAXLEN;
+
+  return field_charset->coll->strnxfrm(field_charset,
+                                       to, length, char_length(),
+                                       ptr + length_bytes,
+                                       input_bytes,
+                                       flags);
 }
 
 

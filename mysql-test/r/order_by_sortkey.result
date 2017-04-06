@@ -48,7 +48,7 @@ Sort_merge_passes	0
 Sort_range	0
 Sort_rows	0
 Sort_scan	0
-SELECT * FROM t1 ORDER BY f2 LIMIT 100;
+SELECT * FROM t1 ORDER BY f2,f0 LIMIT 100;
 f0	f1	f2
 1	0	0
 101	0	0

@@ -81,6 +81,7 @@ SET @@group_concat_max_len= 500;
 # derived tbl result         fixed      packed
 # join materialization       fixed      packed
 # group_concat internal tbl  packed     packed (not shown in the opt trace)
+--sorted_result
 SELECT c1,GROUP_CONCAT(c2) cc FROM
   (SELECT * FROM t1 UNION SELECT c1, 'a' FROM t1) tt
   GROUP BY c1

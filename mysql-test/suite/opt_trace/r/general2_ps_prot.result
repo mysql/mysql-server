@@ -1178,7 +1178,7 @@ TRACE
               "sort_buffer_size": "NNN",
               "sort_algorithm": "std::sort",
               "unpacked_addon_fields": "using_heap_table",
-              "sort_mode": "<fixed_sort_key, rowid>"
+              "sort_mode": "<varlen_sort_key, rowid>"
             } /* filesort_summary */
           }
         ] /* steps */
