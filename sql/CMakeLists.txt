@@ -395,6 +395,18 @@ IF(WIN32)
   TARGET_LINK_LIBRARIES(sql auth_win_client)
 ENDIF()
 
+#
+# authentication LDAP SASL client
+#
+INCLUDE(CheckIncludeFiles)
+CHECK_INCLUDE_FILES(sasl/sasl.h HAVE_SASL_H)
+CHECK_INCLUDE_FILES(lber.h HAVE_LBER_H)
+IF (HAVE_SASL_H AND HAVE_LBER_H)
+  MESSAGE(STATUS "Adding LDAP authentication SASL client.")
+  ADD_DEFINITIONS(-DAUTHENTICATION_LDAP_SASL_CLIENT)
+  TARGET_LINK_LIBRARIES(sql authentication_ldap_sasl_client)
+ENDIF()
+
 SET (BINLOG_SOURCE rpl_gtid_misc.cc
                    rpl_gtid_sid_map.cc rpl_gtid_set.cc rpl_gtid_specification.cc
                    rpl_gtid_state.cc rpl_gtid_owned.cc rpl_gtid_execution.cc
