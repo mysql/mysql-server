@@ -320,7 +320,7 @@ void Dbtup::sendReadAttrinfo(Signal* signal,
       jamDebug();
     
       //Assume no prehistoric versions not supporting long TRANSID_AI signals anymore
-      ndbassert(getNodeInfo(nodeId).m_version >= MAKE_VERSION(6,4,0))
+      ndbassert(getNodeInfo(nodeId).m_version >= MAKE_VERSION(6,4,0));
 
       if (is_api)
       {
@@ -348,7 +348,7 @@ void Dbtup::sendReadAttrinfo(Signal* signal,
       else
       {
         jam();
-        ndbassert(ToutBufIndex <= TransIdAI::DataLength)
+        ndbassert(ToutBufIndex <= TransIdAI::DataLength);
         /**
          * Data is 'short', send short signal
          */
