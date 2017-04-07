@@ -3,38 +3,38 @@
 #include <my_global.h>
 #include "log_client.h"
 
-Logger::Logger() {
-  m_log_level = LOG_LEVEL_NONE;
+Ldap_logger::Ldap_logger() {
+  m_log_level = LDAP_LOG_LEVEL_NONE;
   m_log_writer = NULL;
-  m_log_writer = new Log_writer_error();
+  m_log_writer = new Ldap_log_writer_error();
   m_log_writer->open();
 }
 
-Logger::~Logger() {
+Ldap_logger::~Ldap_logger() {
   if (m_log_writer) {
     m_log_writer->close();
     delete m_log_writer;
   }
 }
-void Logger::set_log_level(log_level level) {
+void Ldap_logger::set_log_level(ldap_log_level level) {
   m_log_level = level;
 }
 
-int Log_writer_error::open() {
+int Ldap_log_writer_error::open() {
   return 0;
 }
 
-int Log_writer_error::close() {
+int Ldap_log_writer_error::close() {
   return 0;
 }
 
-void Log_writer_error::write(std::string data) {
+void Ldap_log_writer_error::write(std::string data) {
   std::cerr << data << "\n";
   std::cerr.flush();
 }
 
-Log_writer_error::Log_writer_error() {
+Ldap_log_writer_error::Ldap_log_writer_error() {
 }
 
-Log_writer_error::~Log_writer_error() {
+Ldap_log_writer_error::~Ldap_log_writer_error() {
 }
