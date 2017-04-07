@@ -442,13 +442,20 @@ DynArr256::truncate(Uint32 trunc_pos, ReleaseIterator& iter, Uint32* ptrVal)
   {
     if (iter.m_sz == 0 ||
         iter.m_pos < trunc_pos ||
-        m_head.m_sz == 0)
+        m_head.m_sz == 0 ||
+        m_head.m_no_of_nodes == 0)
     {
+      if (m_head.m_sz == 1 && m_head.m_ptr_i == RNIL)
+      {
+        assert(m_head.m_no_of_nodes == 0);
+        m_head.m_sz = 0;
+      }
       return 0;
     }
 
     Uint32* refPtr;
     Uint32 ptrI = iter.m_ptr_i[iter.m_sz];
+    assert(ptrI != RNIL);
     Uint32 page_no = ptrI >> DA256_BITS;
     Uint32 page_idx = (ptrI & DA256_MASK) ;
     DA256Page* page = memroot + page_no;
