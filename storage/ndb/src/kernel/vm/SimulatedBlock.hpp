@@ -420,6 +420,7 @@ class SimulatedBlock :
   friend class LockQueue;
   friend class SimplePropertiesSectionWriter;
   friend class SegmentedSectionGuard;
+  friend class DynArr256Pool; // for cerrorInsert
 public:
   friend class BlockComponent;
   virtual ~SimulatedBlock();
