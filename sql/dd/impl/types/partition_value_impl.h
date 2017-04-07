@@ -195,6 +195,24 @@ public:
 
 ///////////////////////////////////////////////////////////////////////////
 
+/**
+  Used to sort Partition_value objects for the same partition first
+  according to list number and then according to the column number.
+*/
+
+struct Partition_value_order_comparator
+{
+  bool operator() (const dd::Partition_value* pv1,
+                   const dd::Partition_value* pv2) const
+  {
+    return ((pv1->list_num() < pv2->list_num()) ||
+            (pv1->list_num() == pv2->list_num() &&
+             pv1->column_num() < pv2->column_num()));
+  }
+};
+
+///////////////////////////////////////////////////////////////////////////
+
 }
 
 #endif // DD__PARTITION_VALUE_IMPL_INCLUDED

@@ -180,6 +180,22 @@ public:
 
 ///////////////////////////////////////////////////////////////////////////
 
+/**
+  Used to sort Partition_index objects for the same partition in
+  the same order as Index objects for the table.
+*/
+
+struct Partition_index_order_comparator
+{
+  bool operator()(const dd::Partition_index* pi1,
+                  const dd::Partition_index* pi2) const
+  {
+    return pi1->index().ordinal_position() < pi2->index().ordinal_position();
+  }
+};
+
+///////////////////////////////////////////////////////////////////////////
+
 }
 
 #endif // DD__PARTITION_INDEX_IMPL_INCLUDED

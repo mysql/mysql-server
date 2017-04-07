@@ -165,7 +165,8 @@ bool Table_impl::restore_children(Open_dictionary_tables_ctx *otx)
       this,
       otx,
       otx->get_table<Foreign_key>(),
-      Foreign_keys::create_key_by_table_id(this->id()))
+      Foreign_keys::create_key_by_table_id(this->id()),
+      Foreign_key_order_comparator())
     ||
     m_partitions.restore_items(
       this,
@@ -179,34 +180,11 @@ bool Table_impl::restore_children(Open_dictionary_tables_ctx *otx)
       this,
       otx,
       otx->get_table<Trigger>(),
-      Triggers::create_key_by_table_id(this->id()));
+      Triggers::create_key_by_table_id(this->id()),
+      Trigger_order_comparator());
 
   if (!ret)
     fix_partitions();
-
-  /*
-    Keep the collection items ordered based on
-    action_timing, event_type and action_order.
-  */
-  if (!ret)
-  {
-    class Sort_triggers
-    {
-    public:
-      inline bool operator() (const Trigger *t1,
-                              const Trigger *t2) const
-      {
-        return (t1->action_timing() < t2->action_timing()) ||
-                (t1->action_timing() == t2->action_timing() &&
-                 t1->event_type() < t2->event_type()) ||
-                (t1->action_timing() == t2->action_timing() &&
-                 t1->event_type() == t2->event_type() &&
-                 t1->action_order() < t2->action_order());
-      }
-    };
-
-    m_triggers.sort_items(Sort_triggers());
-  }
 
   return ret;
 }

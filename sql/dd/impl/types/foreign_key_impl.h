@@ -28,6 +28,9 @@
 #include "dd/types/foreign_key.h"             // dd::Foreign_key
 #include "dd/types/foreign_key_element.h"     // dd::Foreign_key_element
 #include "dd/types/object_type.h"             // dd::Object_type
+#include "m_ctype.h"                          // my_strcasecmp
+
+extern "C" MYSQL_PLUGIN_IMPORT CHARSET_INFO *system_charset_info;
 
 namespace dd {
 
@@ -247,6 +250,17 @@ public:
 
 ///////////////////////////////////////////////////////////////////////////
 
+/** Class used to sort Foreign key's by name for the same table. */
+struct Foreign_key_order_comparator
+{
+  bool operator()(const dd::Foreign_key* fk1, const dd::Foreign_key* fk2) const
+  {
+    return (my_strcasecmp(system_charset_info, fk1->name().c_str(),
+                          fk2->name().c_str()) < 0);
+  }
+};
+
+///////////////////////////////////////////////////////////////////////////
 }
 
 #endif // DD__FOREIGN_KEY_IMPL_INCLUDED
