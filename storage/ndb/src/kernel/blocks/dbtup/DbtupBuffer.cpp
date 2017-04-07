@@ -219,8 +219,10 @@ void Dbtup::sendAPI_TRANSID_AI(Signal* signal,
     {
       jamDebug();
       ndbassert(buffer->packetLenTA == 0);
-      ndbassert(&signal->theData[TransIdAI::HeaderLength] != dataBuf);
-      MEMCOPY_NO_WORDS(&signal->theData[TransIdAI::HeaderLength], dataBuf, lenOfData);
+      if (dataBuf != &signal->theData[TransIdAI::HeaderLength])
+      {
+        MEMCOPY_NO_WORDS(&signal->theData[TransIdAI::HeaderLength], dataBuf, lenOfData);
+      }
       sendSignal(recBlockRef, GSN_TRANSID_AI, signal,
                  TransIdAI::HeaderLength+lenOfData, JBB);
     }
