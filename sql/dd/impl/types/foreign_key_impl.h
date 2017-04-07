@@ -29,8 +29,9 @@
 #include "dd/types/foreign_key_element.h"     // dd::Foreign_key_element
 #include "dd/types/object_type.h"             // dd::Object_type
 #include "m_ctype.h"                          // my_strcasecmp
+#include "my_sharedlib.h"
 
-extern "C" MYSQL_PLUGIN_IMPORT CHARSET_INFO *system_charset_info;
+extern "C" MYSQL_PLUGIN_API CHARSET_INFO *system_charset_info;
 
 namespace dd {
 
