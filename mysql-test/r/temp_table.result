@@ -323,3 +323,29 @@ CREATE TEMPORARY TABLE t1(c1 INT);
 ALTER TABLE t1 RENAME TO db1.t1;
 DROP DATABASE db1;
 DROP TABLE t1;
+#
+# Bug#25841895: ALTERING A TEMPORARY TABLE IN A NON-EXISTENT
+#               SCHEMA RAISES ASSERT
+#
+# Creating a temporary table in a non-existent schema is now disallowed
+CREATE TEMPORARY TABLE bogus.t1(a INT);
+ERROR 42000: Unknown database 'bogus'
+CREATE SCHEMA bogus;
+CREATE TEMPORARY TABLE bogus.t1(a INT);
+CREATE TEMPORARY TABLE bogus.t2(a INT);
+DROP SCHEMA bogus;
+# Dropping a schema does not delete temporary tables, so they can
+# still be selected from.
+SELECT * FROM bogus.t1;
+a
+# ... but not altered.
+ALTER TABLE bogus.t1 ADD COLUMN (b INT);
+ERROR 42000: Unknown database 'bogus'
+# ... but they can dropped using DROP TEMPORARY TABLE.
+DROP TEMPORARY TABLE bogus.t1;
+# ... or ordinary DROP TABLE.
+DROP TABLE bogus.t2;
+SELECT * FROM bogus.t1;
+ERROR 42000: Unknown database 'bogus'
+SELECT * FROM bogus.t2;
+ERROR 42000: Unknown database 'bogus'

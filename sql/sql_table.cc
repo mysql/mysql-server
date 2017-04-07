@@ -12462,7 +12462,14 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
   const dd::Schema *schema= nullptr;
   if (thd->dd_client()->acquire(alter_ctx.db, &schema))
     DBUG_RETURN(true);
-  DBUG_ASSERT(schema != nullptr); // Already tested table exists.
+  // If this is a temporary table, the schema might not exist even
+  // if we have successfully opened the table
+  if (schema == nullptr)
+  {
+    DBUG_ASSERT(table->s->tmp_table);
+    my_error(ER_BAD_DB_ERROR, MYF(0), alter_ctx.db);
+    DBUG_RETURN(true);
+  }
 
   if (set_table_default_charset(thd, create_info, *schema))
     DBUG_RETURN(true);
