@@ -116,10 +116,52 @@ ut_crc32_swap_byteorder(
 
 
 /* CRC32 hardware implementation. */
+
+/*For AArch64*/
 #ifdef ENABLE_ARMV8_CRC32
-#define ARM_CRC32_INTRINSIC
 #include <arm_acle.h>
 #include <arm_neon.h>
+
+#define ARM_CRC32_INTRINSIC
+
+#define CRC32C3X8(buffer,ITR) \
+	        crc1 = __crc32cd(crc1, *((const uint64_t *)buffer + 42*1 + (ITR)));\
+        crc2 = __crc32cd(crc2, *((const uint64_t *)buffer + 42*2 + (ITR)));\
+        crc0 = __crc32cd(crc0, *((const uint64_t *)buffer + 42*0 + (ITR)));
+
+#define CRC32C7X3X8(buffer,ITR) do {\
+	        CRC32C3X8(buffer,(ITR)*7+0) \
+	        CRC32C3X8(buffer,(ITR)*7+1) \
+	        CRC32C3X8(buffer,(ITR)*7+2) \
+	        CRC32C3X8(buffer,(ITR)*7+3) \
+	        CRC32C3X8(buffer,(ITR)*7+4) \
+	        CRC32C3X8(buffer,(ITR)*7+5) \
+	        CRC32C3X8(buffer,(ITR)*7+6) \
+	        } while(0)
+
+#define PREF4X64L1(buffer,PREF_OFFSET, ITR) \
+	        __asm__("PRFM PLDL1KEEP, [%x[v],%[c]]"::[v]"r"(buffer), [c]"I"((PREF_OFFSET) + ((ITR) + 0)*64));\
+        __asm__("PRFM PLDL1KEEP, [%x[v],%[c]]"::[v]"r"(buffer), [c]"I"((PREF_OFFSET) + ((ITR) + 1)*64));\
+        __asm__("PRFM PLDL1KEEP, [%x[v],%[c]]"::[v]"r"(buffer), [c]"I"((PREF_OFFSET) + ((ITR) + 2)*64));\
+        __asm__("PRFM PLDL1KEEP, [%x[v],%[c]]"::[v]"r"(buffer), [c]"I"((PREF_OFFSET) + ((ITR) + 3)*64));
+
+#define PREF1KL1(buffer,PREF_OFFSET) \
+	        PREF4X64L1(buffer,(PREF_OFFSET), 0) \
+        PREF4X64L1(buffer,(PREF_OFFSET), 4) \
+        PREF4X64L1(buffer,(PREF_OFFSET), 8) \
+        PREF4X64L1(buffer,(PREF_OFFSET), 12)
+
+#define PREF4X64L2(buffer,PREF_OFFSET, ITR) \
+	        __asm__("PRFM PLDL2KEEP, [%x[v],%[c]]"::[v]"r"(buffer), [c]"I"((PREF_OFFSET) + ((ITR) + 0)*64));\
+        __asm__("PRFM PLDL2KEEP, [%x[v],%[c]]"::[v]"r"(buffer), [c]"I"((PREF_OFFSET) + ((ITR) + 1)*64));\
+        __asm__("PRFM PLDL2KEEP, [%x[v],%[c]]"::[v]"r"(buffer), [c]"I"((PREF_OFFSET) + ((ITR) + 2)*64));\
+        __asm__("PRFM PLDL2KEEP, [%x[v],%[c]]"::[v]"r"(buffer), [c]"I"((PREF_OFFSET) + ((ITR) + 3)*64));
+
+#define PREF1KL2(buffer,PREF_OFFSET) \
+	        PREF4X64L2(buffer,(PREF_OFFSET), 0) \
+        PREF4X64L2(buffer,(PREF_OFFSET), 4) \
+        PREF4X64L2(buffer,(PREF_OFFSET), 8) \
+        PREF4X64L2(buffer,(PREF_OFFSET), 12)
 #else
 #undef ARM_CRC32_INTRINSIC
 #endif
@@ -430,15 +472,12 @@ ut_crc32_byte_by_byte_hw(
 }
 #endif /* defined(__GNUC__) && defined(__x86_64__) */
 
-/*************
- * For AArch64
- */
 
 #ifdef ARM_CRC32_INTRINSIC
 uint32_t
 ut_crc32_byte_by_byte_aarch64(
-	const byte*	buf,
-	ulint		len)
+	const uint8_t*	buf,
+	uint64_t		len)
 {
 	uint32_t	crc = 0xFFFFFFFFU;
 
@@ -452,11 +491,10 @@ ut_crc32_byte_by_byte_aarch64(
 	return(~crc);
 }
 
-
 uint32_t
 ut_crc32_aarch64(
-	const byte*	buf,
-	ulint		len)
+	const uint8_t*	buf,
+	uint64_t	len)
 {
 	register uint32_t	crc = 0xFFFFFFFFU;
 	register const uint16_t *buf2;
@@ -465,8 +503,52 @@ ut_crc32_aarch64(
 
 	ut_a(ut_crc32_sse2_enabled);
 
+	uint32_t crc0, crc1, crc2;
 	int64_t length = (int64_t)len;
 	buf8 = (const  uint64_t *)(const void *)buf;
+
+	/* Calculate reflected crc with PMULL Instruction */
+	const poly64_t k1 = 0xe417f38a, k2 = 0x8f158014;
+	uint64_t t0, t1;
+
+	/* crc done "by 3" for fixed input block size of 1024 bytes */
+	while ((length -= 1024) >= 0) {
+		/* Prefetch data for following block to avoid cache miss */
+		PREF1KL2(buf,1024*3);
+		/* Do first 8 bytes here for better pipelining */
+		crc0 = __crc32cd(crc, *buf8++);
+		crc1 = 0;
+		crc2 = 0;
+
+		/* Process block inline
+		Process crc0 last to avoid dependency with above */
+		CRC32C7X3X8(buf8,0);
+		CRC32C7X3X8(buf8,1);
+		CRC32C7X3X8(buf8,2);
+		CRC32C7X3X8(buf8,3);
+		CRC32C7X3X8(buf8,4);
+		CRC32C7X3X8(buf8,5);
+
+		buf8 += 42*3;
+		/* Prefetch data for following block to avoid cache miss */
+		PREF1KL1((uint8_t *)buf8,1024);
+
+		/* Merge crc0 and crc1 into crc2
+			  crc1 multiply by K2
+			  crc0 multiply by K1 */
+
+		t1 = (uint64_t)vmull_p64(crc1, k2);
+		t0 = (uint64_t)vmull_p64(crc0, k1);
+		crc = __crc32cd(crc2, *buf8++);
+		crc1 = __crc32cd(0, t1);
+		crc ^= crc1;
+		crc0 = __crc32cd(0, t0);
+		crc ^= crc0;
+	}
+
+	if(!(length += 1024))
+		return (~crc);
+
 	while ((length -= sizeof(uint64_t)) >= 0) {
 		crc = __crc32cd(crc, *buf8++);
 	}
@@ -475,13 +557,11 @@ ut_crc32_aarch64(
 	buf4 = (const  uint32_t *)(const void *)buf8;
 	if (length & sizeof(uint32_t)) {
 		crc = __crc32cw(crc, *buf4++);
-		length -= 4;
 	}
 
 	buf2 = (const  uint16_t *)(const void *)buf4;
 	if (length & sizeof(uint16_t)) {
 		crc = __crc32ch(crc, *buf2++);
-		length -= 2;
 	}
 
 	buf = (const  uint8_t *)(const void *)buf2;
@@ -490,8 +570,7 @@ ut_crc32_aarch64(
 
 	return(~crc);
 }
-
-#endif /*ARM_CRC32_INTRINSIC*/
+#endif
 
 
 /* CRC32 software implementation. */
@@ -504,7 +583,7 @@ static bool	ut_crc32_slice8_table_initialized = false;
 /********************************************************************//**
 Initializes the table that is used to generate the CRC32 if the CPU does
 not have support for it. */
-static
+//static
 void
 ut_crc32_slice8_table_init()
 /*========================*/
