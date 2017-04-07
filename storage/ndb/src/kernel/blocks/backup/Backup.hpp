@@ -216,8 +216,7 @@ public:
     return m_enable_partial_lcp != 0;
   }
 
-  void init_lcp_scan(Uint32 max_page_cnt,
-                     Uint32 & scanGCI,
+  void init_lcp_scan(Uint32 & scanGCI,
                      bool & skip_page,
                      bool & changed_row_page_flag);
 
