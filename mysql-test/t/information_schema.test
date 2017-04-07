@@ -2212,3 +2212,12 @@ SET SESSION optimizer_switch='derived_merge=off';
 SHOW FIELDS FROM t1;
 SET SESSION optimizer_switch=DEFAULT;
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#25824297 INFORMATION_SCHEMA.CHARACTER_SETS DESCRIPTION COLUMN IS
+--echo # CASE SENSITIVE IN 8.0
+--echo # The following SELECT does case sensitive comparision without the
+--echo # fix, returning no rows.
+--echo #
+
+SELECT * FROM INFORMATION_SCHEMA.CHARACTER_SETS WHERE DESCRIPTION LIKE '%japanese%';

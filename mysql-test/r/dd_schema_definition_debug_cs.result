@@ -252,7 +252,7 @@ id	table_id	name	ordinal_position	type	is_nullable	is_zerofill	is_unsigned	char_
 285	30	id	1	MYSQL_TYPE_LONGLONG	0	0	1	20	20	0	NULL	8	NULL	NULL	1		0	interval_count=0;	NULL
 286	30	name	2	MYSQL_TYPE_VARCHAR	0	0	0	192	0	NULL	NULL	33	NULL	NULL	0		0	interval_count=0;	NULL
 287	30	default_collation_id	3	MYSQL_TYPE_LONGLONG	0	0	1	20	20	0	NULL	8	NULL	NULL	0		0	interval_count=0;	NULL
-288	30	comment	4	MYSQL_TYPE_VARCHAR	0	0	0	6144	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
+288	30	comment	4	MYSQL_TYPE_VARCHAR	0	0	0	6144	0	NULL	NULL	33	NULL	NULL	0		0	interval_count=0;	NULL
 289	30	mb_max_length	5	MYSQL_TYPE_LONG	0	0	1	10	10	0	NULL	8	NULL	NULL	0		0	interval_count=0;	NULL
 #
 # Definitions from indexes

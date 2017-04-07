@@ -74,7 +74,7 @@ table_id	pos	mtype	prtype	len	name
 17	0	6	1800	8	id
 17	1	12	2162959	192	name
 17	2	6	1800	8	default_collation_id
-17	3	12	5443855	6144	comment
+17	3	12	2167055	6144	comment
 17	4	6	1795	4	mb_max_length
 18	0	6	1800	8	id
 18	1	12	2162959	192	name

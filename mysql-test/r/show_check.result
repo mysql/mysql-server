@@ -931,7 +931,7 @@ set names utf8;
 SHOW CHARACTER SET LIKE 'utf8';
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
 def	mysql	cs	CHARACTER_SETS	Charset	Charset	253	192	4	N	20485	0	33
-def	mysql	cs	CHARACTER_SETS	Description	Description	253	6144	13	N	4225	0	33
+def	mysql	cs	CHARACTER_SETS	Description	Description	253	6144	13	N	4097	0	33
 def	mysql	col	CHARACTER_SETS	Default collation	Default collation	253	192	15	N	20485	0	33
 def	mysql	cs	CHARACTER_SETS	Maxlen	Maxlen	3	10	1	N	36897	0	63
 Charset	Description	Default collation	Maxlen

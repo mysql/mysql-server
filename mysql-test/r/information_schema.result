@@ -564,7 +564,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `CHARACTER_SET_NAME` varchar(64) NOT NULL,
   `DEFAULT_COLLATE_NAME` varchar(64) NOT NULL,
-  `DESCRIPTION` varchar(2048) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL,
+  `DESCRIPTION` varchar(2048) NOT NULL,
   `MAXLEN` int(10) unsigned NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8
 drop table t1;
@@ -2365,3 +2365,15 @@ Field	Type	Null	Key	Default	Extra
 a	int(11)	YES		NULL	
 SET SESSION optimizer_switch=DEFAULT;
 DROP TABLE t1;
+#
+# Bug#25824297 INFORMATION_SCHEMA.CHARACTER_SETS DESCRIPTION COLUMN IS
+# CASE SENSITIVE IN 8.0
+# The following SELECT does case sensitive comparision without the
+# fix, returning no rows.
+#
+SELECT * FROM INFORMATION_SCHEMA.CHARACTER_SETS WHERE DESCRIPTION LIKE '%japanese%';
+CHARACTER_SET_NAME	DEFAULT_COLLATE_NAME	DESCRIPTION	MAXLEN
+ujis	ujis_japanese_ci	EUC-JP Japanese	3
+sjis	sjis_japanese_ci	Shift-JIS Japanese	2
+cp932	cp932_japanese_ci	SJIS for Windows Japanese	2
+eucjpms	eucjpms_japanese_ci	UJIS for Windows Japanese	3
