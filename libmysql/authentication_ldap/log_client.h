@@ -7,61 +7,61 @@
 #include <sstream>
 #include <my_dbug.h>
 
-struct log_type {
+struct ldap_log_type {
   typedef enum {
-    LOG_DBG, LOG_INFO, LOG_WARNING, LOG_ERROR
-  } type;
+    LDAP_LOG_DBG, LDAP_LOG_INFO, LDAP_LOG_WARNING, LDAP_LOG_ERROR
+  } ldap_type;
 };
 
-enum log_level {
-  LOG_LEVEL_NONE = 1, LOG_LEVEL_ERROR, LOG_LEVEL_ERROR_WARNING, LOG_LEVEL_ERROR_WARNING_INFO, LOG_LEVEL_ALL
+enum ldap_log_level {
+  LDAP_LOG_LEVEL_NONE = 1, LDAP_LOG_LEVEL_ERROR, LDAP_LOG_LEVEL_ERROR_WARNING, LDAP_LOG_LEVEL_ERROR_WARNING_INFO, LDAP_LOG_LEVEL_ALL
 };
 
-class Log_writer_error {
+class Ldap_log_writer_error {
 public:
-  Log_writer_error();
-  ~Log_writer_error();
+  Ldap_log_writer_error();
+  ~Ldap_log_writer_error();
   int open();
   int close();
   void write(std::string data);
 };
 
-class Logger {
+class Ldap_logger {
 public:
-  Logger();
-  ~Logger();
-  template<log_type::type type>
+  Ldap_logger();
+  ~Ldap_logger();
+  template<ldap_log_type::ldap_type type>
   void log(std::string msg);
-  void set_log_level(log_level level);
+  void set_log_level(ldap_log_level level);
 private:
-  Log_writer_error *m_log_writer;
-  log_level m_log_level;
+  Ldap_log_writer_error *m_log_writer;
+  ldap_log_level m_log_level;
 };
 
-template<log_type::type type>
-void Logger::log(std::string msg) {
+template<ldap_log_type::ldap_type type>
+void Ldap_logger::log(std::string msg) {
   std::stringstream header;
   switch (type) {
-  case log_type::LOG_DBG:
-    if (LOG_LEVEL_ALL > m_log_level) {
+  case ldap_log_type::LDAP_LOG_DBG:
+    if (LDAP_LOG_LEVEL_ALL > m_log_level) {
       goto WRITE_DBG;
     }
     header << "[DBG] ";
     break;
-  case log_type::LOG_INFO:
-    if (LOG_LEVEL_ERROR_WARNING_INFO > m_log_level) {
+  case ldap_log_type::LDAP_LOG_INFO:
+    if (LDAP_LOG_LEVEL_ERROR_WARNING_INFO > m_log_level) {
       goto WRITE_DBG;
     }
     header << "[Note] ";
     break;
-  case log_type::LOG_WARNING:
-    if (LOG_LEVEL_ERROR_WARNING > m_log_level) {
+  case ldap_log_type::LDAP_LOG_WARNING:
+    if (LDAP_LOG_LEVEL_ERROR_WARNING > m_log_level) {
       goto WRITE_DBG;
     }
     header << "[Warning] ";
     break;
-  case log_type::LOG_ERROR:
-    if (LOG_LEVEL_NONE >= m_log_level) {
+  case ldap_log_type::LDAP_LOG_ERROR:
+    if (LDAP_LOG_LEVEL_NONE >= m_log_level) {
       goto WRITE_DBG;
     }
     header << "[Error] ";
@@ -80,11 +80,11 @@ WRITE_DBG:
   DBUG_PRINT("ldap/sasl auth client plug-in: ", (": %s", msg.c_str()));
 }
 
-extern Logger *g_logger;
+extern Ldap_logger *g_logger_client;
 
-#define log_dbg g_logger->log< log_type::LOG_DBG >
-#define log_info g_logger->log< log_type::LOG_INFO >
-#define log_warning g_logger->log< log_type::LOG_WARNING >
-#define log_error g_logger->log< log_type::LOG_ERROR >
+#define log_dbg g_logger_client->log< ldap_log_type::LDAP_LOG_DBG >
+#define log_info g_logger_client->log< ldap_log_type::LDAP_LOG_INFO >
+#define log_warning g_logger->log< ldap_log_type::LDAP_LOG_WARNING >
+#define log_error g_logger_client->log< ldap_log_type::LDAP_LOG_ERROR >
 
 #endif
