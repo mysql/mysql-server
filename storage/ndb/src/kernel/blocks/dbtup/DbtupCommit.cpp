@@ -158,7 +158,7 @@ Dbtup::is_rowid_in_remaining_lcp_set(const Page* page,
   {
     jam();
     ndbrequire(key2.isNull());
-    return true; /* Not yet scanned */
+    return true; /* Already checked page id above, so will scan the page */
   }
   case Dbtup::ScanOp::Current:
   {

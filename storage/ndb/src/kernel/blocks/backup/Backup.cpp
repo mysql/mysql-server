@@ -5613,7 +5613,8 @@ Backup::start_lcp_scan(Signal *signal,
   {
     jam();
     c_tup->prepare_lcp_scan(tabPtr.p->tableId,
-                            fragPtr.p->fragmentId);
+                            fragPtr.p->fragmentId,
+                            ptr.p->m_lcp_max_page_cnt);
   }
   else
   {
@@ -6367,8 +6368,7 @@ all_rows:
 }
 
 void
-Backup::init_lcp_scan(Uint32 max_page_cnt,
-                      Uint32 & scanGCI,
+Backup::init_lcp_scan(Uint32 & scanGCI,
                       bool & skip_page,
                       bool & changed_row_page_flag)
 {
@@ -6390,7 +6390,6 @@ Backup::init_lcp_scan(Uint32 max_page_cnt,
   jamEntry();
   c_backupPool.getPtr(ptr, m_lcp_ptr_i);
   Uint32 curr_lcp_round = ptr.p->m_current_lcp_round;
-  ptr.p->m_lcp_max_page_cnt = max_page_cnt;
   ptr.p->m_lcp_current_page_scanned = 0;
   Uint32 part_id = hash_lcp_part(0);
   get_page_info(ptr,
@@ -6445,11 +6444,10 @@ Backup::is_page_lcp_scanned(Uint32 page_id, bool & all_part)
         if (!ptr.p->m_is_lcp_scan_active)
         {
           /**
-           * We haven't started current LCP scan round yet, thus page is
-           * not scanned yet.
+           * LCP scan is already completed.
            */
           jam();
-          return -1;
+          return +1;
         }
         if (page_id < ptr.p->m_lcp_current_page_scanned)
         {
@@ -9756,6 +9754,7 @@ Backup::execLCP_PREPARE_REQ(Signal* signal)
     ptr.p->backupId= req.backupId;
     ndbrequire(ptr.p->m_first_fragment == false);
     ptr.p->m_first_fragment = true;
+    ptr.p->m_is_lcp_scan_active = false;
     DEB_LCP(("(%u)TAGS Start new LCP, id: %u", instance(), req.backupId));
     LocalDeleteLcpFile_list queue(c_deleteLcpFilePool,
                                   m_delete_lcp_file_head);

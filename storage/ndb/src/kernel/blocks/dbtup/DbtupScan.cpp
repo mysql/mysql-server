@@ -141,7 +141,6 @@ Dbtup::execACC_SCANREQ(Signal* signal)
       jam();
       ndbrequire((bits & ScanOp::SCAN_DD) == 0);
       ndbrequire((bits & ScanOp::SCAN_LOCK) == 0);
-      scanPtr.p->m_endPage = frag.m_max_page_cnt;
     }
 
     if (bits & ScanOp::SCAN_VS)
@@ -687,8 +686,7 @@ Dbtup::scanFirst(Signal*, ScanOpPtr scanPtr)
       scan.m_state = ScanOp::Last;
       return;
     }
-    c_backup->init_lcp_scan(frag.m_max_page_cnt,
-                            scan.m_scanGCI,
+    c_backup->init_lcp_scan(scan.m_scanGCI,
                             skip_flag,
                             pos.m_lcp_scan_changed_rows_page);
     scan.m_last_seen = __LINE__;
@@ -2305,7 +2303,9 @@ Dbtup::releaseScanOp(ScanOpPtr& scanPtr)
 }
 
 void
-Dbtup::prepare_lcp_scan(Uint32 tableId, Uint32 fragId)
+Dbtup::prepare_lcp_scan(Uint32 tableId,
+                        Uint32 fragId,
+                        Uint32 & max_page_cnt)
 {
   jamEntry();
   TablerecPtr tablePtr;
@@ -2327,6 +2327,8 @@ Dbtup::prepare_lcp_scan(Uint32 tableId, Uint32 fragId)
   scanPtr.p->m_fragPtrI = fragPtr.i;
   scanPtr.p->m_state = ScanOp::First;
   scanPtr.p->m_last_seen = __LINE__;
+  scanPtr.p->m_endPage = frag.m_max_page_cnt;
+  max_page_cnt = frag.m_max_page_cnt;
 
   ndbassert(frag.m_lcp_keep_list_head.isNull());
   ndbassert(frag.m_lcp_keep_list_tail.isNull());
