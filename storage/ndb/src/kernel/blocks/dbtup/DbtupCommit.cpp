@@ -158,7 +158,7 @@ Dbtup::is_rowid_in_remaining_lcp_set(const Page* page,
   {
     jam();
     ndbrequire(key2.isNull());
-    return false; /* Not yet scanned */
+    return true; /* Not yet scanned */
   }
   case Dbtup::ScanOp::Current:
   {
@@ -200,13 +200,13 @@ Dbtup::is_rowid_in_remaining_lcp_set(const Page* page,
   case Dbtup::ScanOp::Last:
   { 
     jam();
-    return false;
+    return false; /* Everything scanned already */
   }
   default:
-    ndbrequire(false);
     break;
   }
   /* Will never arrive here */
+  ndbrequire(false);
   return true;
 }
 
