@@ -16,9 +16,19 @@
 */
 
 #include "DynArr256.hpp"
+#include "pc.hpp"
 #include <stdio.h>
 #include <assert.h>
 #include <NdbOut.hpp>
+
+/**
+ * Trick to be able to use ERROR_INSERTED macro inside DynArr256 and
+ * DynArr256Pool by directing to member function implemented inline in
+ * DynArr256.hpp where cerrorInsert is not hidden by below macro definition.
+ */
+#ifdef ERROR_INSERT
+#define cerrorInsert get_ERROR_INSERT_VALUE()
+#endif
 
 #define DA256_BITS  5
 #define DA256_MASK 31
@@ -284,6 +294,12 @@ DynArr256::set(Uint32 pos)
 #endif
     if (ptrI == RNIL)
     {
+      if(ERROR_INSERTED(3005))
+      {
+        // Demonstrate Bug#25851801 7.6.2(DMR2):: COMPLETE CLUSTER CRASHED DURING UNIQUE KEY CREATION ...
+        // Simulate m_pool.seize() failed.
+        return 0;
+      }
       if (unlikely((ptrI = m_pool.seize()) == RNIL))
       {
 	return 0;
