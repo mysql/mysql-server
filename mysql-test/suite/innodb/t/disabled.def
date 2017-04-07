@@ -16,7 +16,7 @@ innodb_wl6501_crash_2     : WL#6795 2015-11-06 jhauglid WL6795_WL7016_RECOVERY
 innodb_wl6501_crash_6     : WL#6795 2015-11-06 jhauglid WL6795_WL7016_RECOVERY
 innodb_wl6501_crash_7     : WL#6795 2015-11-06 jhauglid WL6795_WL7016_RECOVERY
 innodb_wl6501_crash_8     : WL#6795 2015-11-06 jhauglid WL6795_WL7016_RECOVERY
-alter_foreign_crash       : WL#6378 2015-11-06 jhauglid WL6378_TEMPORARY_FILES
+alter_foreign_crash       : WL#9536, 2017-04-07 Bin
 innodb.bootstrap        @windows  : Bug#22680868 2016-02-08 Erlend Failing too often on PB2
 innodb.log_corruption   @windows  : Bug#22680868 2016-02-08 Erlend Failing too often on PB2
 innodb.log_corruption_1 @windows  : Bug#22680868 2016-02-08 Erlend Failing too often on PB2
