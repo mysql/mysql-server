@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -122,7 +122,11 @@ TEST_F(GcsWhitelist, DefaultList)
   ASSERT_FALSE(wl.shall_block("192.168.1.2"));
   ASSERT_FALSE(wl.shall_block("192.168.2.2"));
   ASSERT_FALSE(wl.shall_block("10.0.0.1"));
+  ASSERT_TRUE(wl.shall_block("172.15.0.1"));
   ASSERT_FALSE(wl.shall_block("172.16.0.1"));
+  ASSERT_FALSE(wl.shall_block("172.24.0.1"));
+  ASSERT_FALSE(wl.shall_block("172.31.0.1"));
+  ASSERT_TRUE(wl.shall_block("172.38.0.1"));
 }
 
 TEST_F(GcsWhitelist, ListAsText)
