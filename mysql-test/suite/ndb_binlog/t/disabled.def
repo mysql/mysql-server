@@ -11,3 +11,4 @@
 ##############################################################################
 
 ndb_binlog_restore: Need WL#10167 On the fly frm translation
+ndb_binlog_ddl_multi: : Bug#25858461 FAILURE TO DROP DATAFILE FROM TABLESPACES WITH MULTIPLE DATAFILES

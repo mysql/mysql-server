@@ -45,6 +45,13 @@ ndb.ndb_restore_discover: Need WL#9185 MySQL Cluster support for new DD
 ndb_fk_bugs: Need WL#9185 MySQL Cluster support for new DD
 ndb_alter_table_online: Need WL#9185 MySQL Cluster support for new DD
 ndb_fk_restore: Need WL#9185 MySQL Cluster support for new DD
+ndb_restore_schema_tolerance: Bug#25860404 CREATE TABLE DOES NOT CHECK EXISTENCE OF TABLESPACE IN NDB
 
 # Test which timeout most likley due to mismatches in shares etc.
 ndb.ndb_spj_dict: Need WL#9185 MySQL Cluster support for new DD
+
+# Tablespace related problems
+ndb_dd_alter: Bug#25858337 TABLESPACE NAMES SHOULD NOT BE GLOBALLY UNIQUE ACROSS ENGINES
+ndb_dd_ddl: Bug#25858337 TABLESPACE NAMES SHOULD NOT BE GLOBALLY UNIQUE ACROSS ENGINES
+ndb_dd_basic: Bug#25858461 FAILURE TO DROP DATAFILE FROM TABLESPACES WITH MULTIPLE DATAFILES
+ndb_dd_dump: Bug#25858461 FAILURE TO DROP DATAFILE FROM TABLESPACES WITH MULTIPLE DATAFILES
