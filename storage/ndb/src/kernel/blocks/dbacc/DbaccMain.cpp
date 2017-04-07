@@ -500,6 +500,7 @@ void Dbacc::execACCFRAGREQ(Signal* signal)
   if (!setPagePtr(fragrecptr.p->directory, 0, spPageptr.i))
   {
     jam();
+    releasePage(spPageptr);
     addFragRefuse(signal, ZDIR_RANGE_FULL_ERROR);
     return;
   }
@@ -5572,7 +5573,7 @@ void Dbacc::execEXPANDCHECK2(Signal* signal)
     if (!setPagePtr(fragrecptr.p->directory, texpDirInd, expPageptr.i))
     {
       jam();
-      // TODO: should release seized page
+      releasePage(expPageptr);
       tresult = ZDIR_RANGE_FULL_ERROR;
       return;
     }
