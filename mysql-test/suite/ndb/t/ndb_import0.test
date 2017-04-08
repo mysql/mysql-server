@@ -29,8 +29,6 @@ create table t1 (
 exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp
      test '/foo/data/t1.csv' >> $NDB_TOOLS_OUTPUT 2>&1;
 
---echo # bad state dir
-
 perl;
 use strict;
 use Symbol;
@@ -40,14 +38,36 @@ my $file = "$vardir/tmp/t1.csv";
 my $fh = gensym();
 open($fh, ">$file")
   or die "$file: open for write failed: $!";
+for my $i (0..999) {
+  print $fh $i, "\t", $i*10, "\n";
+}
 close($fh)
   or die "$file: close after write failed: $!";
 exit(0)
 EOF
 
+--echo # bad state dir
 --error 1
 exec $NDB_IMPORT --state-dir=/foo/state
      test MYSQLTEST_VARDIR/tmp/t1.csv >> $NDB_TOOLS_OUTPUT 2>&1;
+
+--echo # normal import
+exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp
+     --input-type=csv --output-type=ndb
+     test $MYSQLTEST_VARDIR/tmp/t1.csv >> $NDB_TOOLS_OUTPUT 2>&1;
+select count(*) from t1;
+
+--echo # invalid --input-type
+--error 1
+exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp
+     --input-type=xxx --output-type=ndb
+     test $MYSQLTEST_VARDIR/tmp/t1.csv >> $NDB_TOOLS_OUTPUT 2>&1;
+
+--echo # invalid --output-type
+--error 1
+exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp
+     --input-type=csv --output-type=xxx
+     test $MYSQLTEST_VARDIR/tmp/t1.csv >> $NDB_TOOLS_OUTPUT 2>&1;
 
 --echo # simple utf8 test
 

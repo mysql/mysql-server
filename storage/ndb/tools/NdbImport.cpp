@@ -102,8 +102,19 @@ NdbImport::set_opt(const Opt& opt)
 {
   NdbImportUtil& util = m_impl.m_util;
   NdbImportCsv& csv = m_impl.m_csv;
+  // XXX clean this up (map strings to enums)
   if (opt.m_input_type != 0)
   {
+    const char* valid[] = { "csv", "random", 0 };
+    const char** p = valid;
+    while (*p != 0 && strcmp(*p, opt.m_input_type) != 0)
+      p++;
+    if (*p == 0)
+    {
+      util.set_error_usage(util.c_error, __LINE__,
+                           "invalid input-type %s", opt.m_input_type);
+      return -1;
+    }
     if (opt.m_input_workers < 1)
     {
       util.set_error_usage(util.c_error, __LINE__,
@@ -127,6 +138,16 @@ NdbImport::set_opt(const Opt& opt)
   }
   if (opt.m_output_type != 0)
   {
+    const char* valid[] = { "ndb", "null", 0 };
+    const char** p = valid;
+    while (*p != 0 && strcmp(*p, opt.m_output_type) != 0)
+      p++;
+    if (*p == 0)
+    {
+      util.set_error_usage(util.c_error, __LINE__,
+                           "invalid output-type %s", opt.m_output_type);
+      return -1;
+    }
     if (opt.m_output_workers < 1)
     {
       util.set_error_usage(util.c_error, __LINE__,
