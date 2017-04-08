@@ -549,8 +549,6 @@ public:
 
   // stats
 
-  struct Stats;
-
   static const uint StatNULL = Inval_uint;
 
   /*
