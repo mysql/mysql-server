@@ -1005,7 +1005,7 @@ static bool populate_array(const THD *thd, Json_array *ja,
 
 void Json_array::replace_dom_in_container(Json_dom *oldv, Json_dom *newv)
 {
-  Json_dom_vector::iterator it= std::find(m_v.begin(), m_v.end(), oldv);
+  auto it= std::find(m_v.begin(), m_v.end(), oldv);
   if (it != m_v.end())
   {
     delete oldv;
@@ -1232,12 +1232,12 @@ bool Json_key_comparator::operator() (const std::string &key1,
 
 
 Json_array::Json_array()
-  : Json_dom(), m_v(key_memory_JSON)
+  : Json_dom(), m_v(Malloc_allocator<Json_dom*>(key_memory_JSON))
 {}
 
 
 Json_array::Json_array(Json_dom *innards)
-  : Json_dom(), m_v(key_memory_JSON)
+  : Json_array()
 {
   append_alias(innards);
 }
@@ -1251,18 +1251,13 @@ Json_array::~Json_array()
 
 bool Json_array::append_clone(const Json_dom *value)
 {
-  if (!value)
-    return true;                                /* purecov: inspected */
-  return append_alias(value->clone());
+  return insert_clone(size(), value);
 }
 
 
 bool Json_array::append_alias(Json_dom *value)
 {
-  if (!value || m_v.push_back(value))
-    return true;                                /* purecov: inspected */
-  value->set_parent(this);
-  return false;
+  return insert_alias(size(), value);
 }
 
 
@@ -1271,14 +1266,12 @@ bool Json_array::consume(Json_array *other)
   // We've promised to delete other before returning.
   std::unique_ptr<Json_array> aptr(other);
 
-  Json_dom_vector &other_vector= other->m_v;
-
-  for (Json_dom_vector::iterator iter= other_vector.begin();
-       iter != other_vector.end(); ++iter)
+  m_v.reserve(size() + other->size());
+  for (auto iter= other->m_v.begin(); iter != other->m_v.end(); ++iter)
   {
     if (append_alias(*iter))
       return true;                              /* purecov: inspected */
-    *iter= NULL;
+    *iter= nullptr;
   }
 
   return false;
@@ -1298,19 +1291,12 @@ bool Json_array::insert_alias(size_t index, Json_dom *value)
   if (!value)
     return true;                                /* purecov: inspected */
 
-  Json_dom_vector::iterator iter= m_v.begin();
-
-  if (index < m_v.size())
-  {
-    m_v.insert(iter + index, value);
-  }
-  else
-  {
-    //append needed
-    if (m_v.push_back(value))
-      return true;                              /* purecov: inspected */
-  }
-
+  /*
+    Insert the value at the given index, or at the end of the array if the
+    index points past the end of the array.
+  */
+  auto pos= m_v.begin() + std::min(m_v.size(), index);
+  m_v.insert(pos, value);
   value->set_parent(this);
   return false;
 }
@@ -1320,7 +1306,7 @@ bool Json_array::remove(size_t index)
 {
   if (index < m_v.size())
   {
-    const Json_dom_vector::iterator iter= m_v.begin() + index;
+    auto iter= m_v.begin() + index;
     delete *iter;
     m_v.erase(iter);
     return true;
@@ -1332,15 +1318,7 @@ bool Json_array::remove(size_t index)
 
 bool Json_array::remove(const Json_dom *child)
 {
-  Json_dom_vector::iterator it= std::find(m_v.begin(), m_v.end(), child);
-  if (it != m_v.end())
-  {
-    delete child;
-    m_v.erase(it);
-    return true;
-  }
-
-  return false;
+  return remove(std::find(m_v.begin(), m_v.end(), child) - m_v.begin());
 }
 
 
@@ -1348,29 +1326,27 @@ uint32 Json_array::depth() const
 {
   uint deepest_child= 0;
 
-  for (Json_dom_vector::const_iterator it= m_v.begin(); it != m_v.end(); ++it)
+  for (auto child : m_v)
   {
-    deepest_child= std::max(deepest_child, (*it)->depth());
+    deepest_child= std::max(deepest_child, child->depth());
   }
   return 1 + deepest_child;
 }
 
 Json_dom *Json_array::clone() const
 {
-  Json_array * const vv= new (std::nothrow) Json_array();
-  if (!vv)
-    return NULL;                                /* purecov: inspected */
+  std::unique_ptr<Json_array> vv(new (std::nothrow) Json_array());
+  if (vv == nullptr)
+    return nullptr;                             /* purecov: inspected */
 
-  for (Json_dom_vector::const_iterator it= m_v.begin(); it != m_v.end(); ++it)
+  vv->m_v.reserve(size());
+  for (auto child : m_v)
   {
-    if (vv->append_clone(*it))
-    {
-      delete vv;                                /* purecov: inspected */
-      return NULL;                              /* purecov: inspected */
-    }
+    if (vv->append_clone(child))
+      return nullptr;                           /* purecov: inspected */
   }
 
-  return vv;
+  return vv.release();
 }
 
 

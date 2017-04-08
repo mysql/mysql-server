@@ -23,6 +23,7 @@
 #include <string>
 #include <type_traits>          // is_base_of
 #include <utility>
+#include <vector>
 
 #include "binary_log_types.h"   // enum_field_types
 #include "json_binary.h"        // json_binary::Value
@@ -460,7 +461,8 @@ public:
 class Json_array : public Json_dom
 {
 private:
-  Json_dom_vector m_v;                     //!< Holds the array values
+  /// Holds the array values.
+  std::vector<Json_dom*, Malloc_allocator<Json_dom*>> m_v;
 public:
   Json_array();
   ~Json_array();
@@ -528,8 +530,8 @@ public:
   /**
     Remove the value at this index. A no-op if index is larger than
     size. Deletes the value.
-    @param[in]  index
-    @return true of a value was removed, false otherwise.
+    @param[in]  index  the index of the value to remove
+    @return true if a value was removed, false otherwise.
   */
   bool remove(size_t index);
 
