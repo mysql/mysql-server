@@ -102,8 +102,8 @@ NdbImportCsv::translate_escapes(const char* src,
           break;
         default:
           m_util.set_error_usage(m_error, __LINE__,
-                                 "unknown escape '%X' in CSV option", (int)c);
-          require(false);
+                                 "unknown escape '\\%c' (0x%x) in CSV option",
+                                 c, (uint)(unsigned char)c);
           return -1;
         }
         p++;
