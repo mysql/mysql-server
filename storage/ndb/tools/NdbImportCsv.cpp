@@ -672,12 +672,12 @@ NdbImportCsv::Parse::do_init()
     require(p != 0);
     if (p[0] != 0)
     {
-      m_escapes['0'] = 000;     // NUL
-      m_escapes['b'] = 010;     // BS
-      m_escapes['n'] = 012;     // NL
-      m_escapes['r'] = 015;     // CR
-      m_escapes['t'] = 011;     // TAB
-      m_escapes['Z'] = 032;     // ^Z
+      m_escapes[(int)'0'] = 000;  // NUL
+      m_escapes[(int)'b'] = 010;  // BS
+      m_escapes[(int)'n'] = 012;  // NL
+      m_escapes[(int)'r'] = 015;  // CR
+      m_escapes[(int)'t'] = 011;  // TAB
+      m_escapes[(int)'Z'] = 032;  // ^Z
     }
   }
 }
