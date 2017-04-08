@@ -8,6 +8,12 @@ b int
 ) engine=ndb;
 # csv file does not exist
 # bad state dir
+# normal import
+select count(*) from t1;
+count(*)
+1000
+# invalid --input-type
+# invalid --output-type
 # simple utf8 test
 create table t2 (
 a int primary key,
