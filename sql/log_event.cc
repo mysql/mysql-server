@@ -812,9 +812,10 @@ Log_event::Log_event(THD* thd_arg, uint16 flags_arg,
                      enum_event_cache_type cache_type_arg,
                      enum_event_logging_type logging_type_arg,
                      Log_event_header *header, Log_event_footer *footer)
-  : is_valid_param(false), temp_buf(0), exec_time(0),
-    event_cache_type(cache_type_arg), event_logging_type(logging_type_arg),
-    crc(0), common_header(header), common_footer(footer), thd(thd_arg)
+  : is_valid_param(false), temp_buf(0), m_free_temp_buf_in_destructor(true),
+    exec_time(0), event_cache_type(cache_type_arg),
+    event_logging_type(logging_type_arg), crc(0), common_header(header),
+    common_footer(footer), thd(thd_arg)
 {
   server_id= thd->server_id;
   common_header->unmasked_server_id= server_id;
@@ -833,9 +834,10 @@ Log_event::Log_event(THD* thd_arg, uint16 flags_arg,
 Log_event::Log_event(Log_event_header* header, Log_event_footer *footer,
                      enum_event_cache_type cache_type_arg,
                      enum_event_logging_type logging_type_arg)
-  : is_valid_param(false), temp_buf(0), exec_time(0), event_cache_type(cache_type_arg),
-   event_logging_type(logging_type_arg), crc(0), common_header(header),
-   common_footer(footer), thd(0)
+  : is_valid_param(false), temp_buf(0), m_free_temp_buf_in_destructor(true),
+    exec_time(0), event_cache_type(cache_type_arg),
+    event_logging_type(logging_type_arg), crc(0), common_header(header),
+    common_footer(footer), thd(0)
 {
   server_id=	::server_id;
   common_header->unmasked_server_id= server_id;
@@ -849,10 +851,10 @@ Log_event::Log_event(Log_event_header* header, Log_event_footer *footer,
 
 Log_event::Log_event(Log_event_header *header,
                      Log_event_footer *footer)
-  : is_valid_param(false), temp_buf(0), exec_time(0),
-    event_cache_type(EVENT_INVALID_CACHE),
-    event_logging_type(EVENT_INVALID_LOGGING),
-    crc(0), common_header(header), common_footer(footer)
+  : is_valid_param(false), temp_buf(0), m_free_temp_buf_in_destructor(true),
+    exec_time(0), event_cache_type(EVENT_INVALID_CACHE),
+    event_logging_type(EVENT_INVALID_LOGGING), crc(0), common_header(header),
+    common_footer(footer)
 {
 #ifdef MYSQL_SERVER
   thd= 0;

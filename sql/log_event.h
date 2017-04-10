@@ -620,6 +620,14 @@ public:
      event's type, and its content is distributed in the event-specific fields.
   */
   char *temp_buf;
+
+  /*
+    This variable determines whether the event is responsible for deallocating
+    the memory pointed by temp_buf. When set to true temp_buf is deallocated
+    and when it is set to false just make temp_buf point to NULL.
+  */
+  bool m_free_temp_buf_in_destructor;
+
   /* The number of seconds the query took to run on the master. */
   ulong exec_time;
 
@@ -932,12 +940,17 @@ public:
             Log_event_footer *footer);
 
   virtual ~Log_event() { free_temp_buf(); }
-  void register_temp_buf(char* buf) { temp_buf = buf; }
+  void register_temp_buf(char* buf, bool free_in_destructor= true)
+  {
+    m_free_temp_buf_in_destructor= free_in_destructor;
+    temp_buf = buf;
+  }
   void free_temp_buf()
   {
     if (temp_buf)
     {
-      my_free(temp_buf);
+      if (m_free_temp_buf_in_destructor)
+        my_free(temp_buf);
       temp_buf = 0;
     }
   }
