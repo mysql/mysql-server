@@ -1,5 +1,4 @@
-
-/* Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -18,12 +17,14 @@
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 
-#include "ngs/capabilities/handler_tls.h"
-#include "ngs/capabilities/handler_auth_mech.h"
-#include "mock/session.h"
+#include "account_verification_handler.h"
 #include "mock/capabilities.h"
 #include "mock/ngs_general.h"
-
+#include "mock/session.h"
+#include "my_config.h"
+#include "ngs/capabilities/handler_auth_mech.h"
+#include "ngs/capabilities/handler_tls.h"
+#include "sql_user_require.h"
 
 namespace ngs
 {
@@ -176,13 +177,13 @@ public:
 }
 
 
-
 class SuccessSetCapabilityHanderTlsTestSuite : public CapabilityHanderTlsTestSuite , public WithParamInterface<Set_params>
 {
 public:
 };
 
 
+#if !defined(HAVE_UBSAN)
 TEST_P(SuccessSetCapabilityHanderTlsTestSuite, get_success_forValidParametersAndTlsSupportedOnTcpip)
 {
   Set_params s = GetParam();
@@ -197,6 +198,7 @@ TEST_P(SuccessSetCapabilityHanderTlsTestSuite, get_success_forValidParametersAnd
 
   sut.commit();
 }
+#endif  // HAVE_UBSAN
 
 TEST_P(SuccessSetCapabilityHanderTlsTestSuite, get_failure_forValidParametersAndTlsSupportedOnNamedPipe)
 {
@@ -311,6 +313,11 @@ TEST_F(CapabilityHanderAuthMechTestSuite, name)
 }
 
 
+/*
+  HAVE_UBSAN: undefined behaviour in gmock.
+  runtime error: member call on null pointer of type 'const struct ResultHolder'
+ */
+#if !defined(HAVE_UBSAN)
 TEST_F(CapabilityHanderAuthMechTestSuite, get_doesNothing_whenEmptySetReceive)
 {
   std::vector<std::string> names;
@@ -350,6 +357,7 @@ TEST_F(CapabilityHanderAuthMechTestSuite, get_returnAuthMethodsFromServer_always
     ASSERT_STREQ(names[i].c_str(), a.scalar().v_string().value().c_str());
   }
 }
+#endif  // HAVE_UBSAN
 
 
 } // namespace test

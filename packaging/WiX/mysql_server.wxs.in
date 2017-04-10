@@ -172,7 +172,7 @@
     <Directory Id='TARGETDIR' Name='SourceDir'>
       <Directory Id='@PlatformProgramFilesFolder@'>
         <Directory Id='directory.MySQL' Name='MySQL'>
-          <Directory Id='INSTALLDIR' Name='@PRODUCT_NAME@ @MAJOR_VERSION@.@MINOR_VERSION@'>		   
+          <Directory Id='INSTALLDIR' Name='@PRODUCT_NAME@ @MAJOR_VERSION@.@MINOR_VERSION@'>
           </Directory>
         </Directory>
       </Directory>

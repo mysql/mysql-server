@@ -10,8 +10,8 @@
 # Original Date: 2008-06-27                                                    #
 ################################################################################
 
-# The server must support partitioning.
---source include/have_partition.inc
+# WL#7554: Added setting --bootstrap --character-set-server=latin1
+# in the opt file. This test should be migrated to utf8mb4.
 
 #
 # NOTE: PLEASE DO NOT ADD NOT INNODB SPECIFIC TESTCASES HERE !
@@ -30,7 +30,6 @@
 # Engine specific settings and requirements
 
 ##### Storage engine to be tested
---source include/have_innodb.inc
 let $engine= 'InnoDB';
 
 #------------------------------------------------------------------------------#

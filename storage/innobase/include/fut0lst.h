@@ -26,8 +26,6 @@ Created 11/28/1995 Heikki Tuuri
 #ifndef fut0lst_h
 #define fut0lst_h
 
-#ifndef UNIV_INNOCHECKSUM
-
 #include "univ.i"
 
 #include "fil0fil.h"
@@ -43,20 +41,20 @@ typedef	byte	flst_node_t;
 
 /* The physical size of a list base node in bytes */
 #define	FLST_BASE_NODE_SIZE	(4 + 2 * FIL_ADDR_SIZE)
-#endif /* !UNIV_INNOCHECKSUM */
 
 /* The physical size of a list node in bytes */
 #define	FLST_NODE_SIZE		(2 * FIL_ADDR_SIZE)
 
-#if !defined UNIV_HOTBACKUP && !defined UNIV_INNOCHECKSUM
-/********************************************************************//**
-Initializes a list base node. */
+#if !defined UNIV_HOTBACKUP
+/** Initializes a list base node.
+@param[in]	base	pointer to base node
+@param[in]	mtr	mini-transaction handle */
 UNIV_INLINE
 void
 flst_init(
-/*======*/
-	flst_base_node_t*	base,	/*!< in: pointer to base node */
-	mtr_t*			mtr);	/*!< in: mini-transaction handle */
+	flst_base_node_t*	base,
+	mtr_t*			mtr);
+
 /********************************************************************//**
 Adds a node as the last node in a list. */
 void
@@ -74,24 +72,6 @@ flst_add_first(
 	flst_node_t*		node,	/*!< in: node to add */
 	mtr_t*			mtr);	/*!< in: mini-transaction handle */
 /********************************************************************//**
-Inserts a node after another in a list. */
-void
-flst_insert_after(
-/*==============*/
-	flst_base_node_t*	base,	/*!< in: pointer to base node of list */
-	flst_node_t*		node1,	/*!< in: node to insert after */
-	flst_node_t*		node2,	/*!< in: node to add */
-	mtr_t*			mtr);	/*!< in: mini-transaction handle */
-/********************************************************************//**
-Inserts a node before another in a list. */
-void
-flst_insert_before(
-/*===============*/
-	flst_base_node_t*	base,	/*!< in: pointer to base node of list */
-	flst_node_t*		node2,	/*!< in: node to insert */
-	flst_node_t*		node3,	/*!< in: node to insert before */
-	mtr_t*			mtr);	/*!< in: mini-transaction handle */
-/********************************************************************//**
 Removes a node. */
 void
 flst_remove(
@@ -99,7 +79,6 @@ flst_remove(
 	flst_base_node_t*	base,	/*!< in: pointer to base node of list */
 	flst_node_t*		node2,	/*!< in: node to remove */
 	mtr_t*			mtr);	/*!< in: mini-transaction handle */
-
 /** Get the length of a list.
 @param[in]	base	base node
 @return length */
@@ -107,60 +86,68 @@ UNIV_INLINE
 ulint
 flst_get_len(
 	const flst_base_node_t*	base);
-/********************************************************************//**
-Gets list first node address.
+
+/** Gets list first node address.
+@param[in]	base	pointer to base node
+@param[in]	mtr	mini-transaction handle
 @return file address */
 UNIV_INLINE
 fil_addr_t
 flst_get_first(
-/*===========*/
-	const flst_base_node_t*	base,	/*!< in: pointer to base node */
-	mtr_t*			mtr);	/*!< in: mini-transaction handle */
-/********************************************************************//**
-Gets list last node address.
+	const flst_base_node_t*	base,
+	mtr_t*			mtr);
+
+/** Gets list last node address.
+@param[in]	base	pointer to base node
+@param[in]	mtr	mini-transaction handle
 @return file address */
 UNIV_INLINE
 fil_addr_t
 flst_get_last(
-/*==========*/
-	const flst_base_node_t*	base,	/*!< in: pointer to base node */
-	mtr_t*			mtr);	/*!< in: mini-transaction handle */
-/********************************************************************//**
-Gets list next node address.
+	const flst_base_node_t*	base,
+	mtr_t*			mtr);
+
+/** Gets list next node address.
+@param[in]	node	pointer to node
+@param[in]	mtr	mini-transaction handle
 @return file address */
 UNIV_INLINE
 fil_addr_t
 flst_get_next_addr(
-/*===============*/
-	const flst_node_t*	node,	/*!< in: pointer to node */
-	mtr_t*			mtr);	/*!< in: mini-transaction handle */
-/********************************************************************//**
-Gets list prev node address.
+	const flst_node_t*	node,
+	mtr_t*			mtr);
+
+/** Gets list prev node address.
+@param[in]	node	pointer to node
+@param[in]	mtr	mini-transaction handle
 @return file address */
 UNIV_INLINE
 fil_addr_t
 flst_get_prev_addr(
-/*===============*/
-	const flst_node_t*	node,	/*!< in: pointer to node */
-	mtr_t*			mtr);	/*!< in: mini-transaction handle */
-/********************************************************************//**
-Writes a file address. */
+	const flst_node_t*	node,
+	mtr_t*			mtr);
+
+/** Writes a file address.
+@param[in]	faddr	pointer to file faddress
+@param[in]	addr	file address
+@param[in]	mtr	mini-transaction handle */
 UNIV_INLINE
 void
 flst_write_addr(
-/*============*/
-	fil_faddr_t*	faddr,	/*!< in: pointer to file faddress */
-	fil_addr_t	addr,	/*!< in: file address */
-	mtr_t*		mtr);	/*!< in: mini-transaction handle */
-/********************************************************************//**
-Reads a file address.
+	fil_faddr_t*	faddr,
+	fil_addr_t	addr,
+	mtr_t*		mtr);
+
+/** Reads a file address.
+@param[in]	faddr	pointer to file faddress
+@param[in]	mtr	mini-transaction handle
 @return file address */
 UNIV_INLINE
 fil_addr_t
 flst_read_addr(
-/*===========*/
-	const fil_faddr_t*	faddr,	/*!< in: pointer to file faddress */
-	mtr_t*			mtr);	/*!< in: mini-transaction handle */
+	const fil_faddr_t*	faddr,
+	mtr_t*			mtr);
+
 /********************************************************************//**
 Validates a file-based list.
 @return TRUE if ok */
@@ -169,19 +156,45 @@ flst_validate(
 /*==========*/
 	const flst_base_node_t*	base,	/*!< in: pointer to base node of list */
 	mtr_t*			mtr1);	/*!< in: mtr */
-/********************************************************************//**
-Prints info of a file-based list. */
-void
-flst_print(
-/*=======*/
-	const flst_base_node_t*	base,	/*!< in: pointer to base node of list */
-	mtr_t*			mtr);	/*!< in: mtr */
 
-
-#ifndef UNIV_NONINL
 #include "fut0lst.ic"
-#endif
 
-#endif /* !UNIV_HOTBACKUP && !UNIV_INNOCHECKSUM*/
+#endif /* !UNIV_HOTBACKUP */
 
+#ifdef UNIV_DEBUG
+/** In-memory representation of flst_base_node_t */
+struct flst_bnode_t
+{
+	ulint		len;
+	fil_addr_t	first;
+	fil_addr_t	last;
+
+	flst_bnode_t(const flst_base_node_t* base, mtr_t* mtr)
+		:
+		len(flst_get_len(base)),
+		first(flst_get_first(base, mtr)),
+		last(flst_get_last(base, mtr))
+	{}
+
+	void set(const flst_base_node_t* base, mtr_t* mtr)
+	{
+		len	= flst_get_len(base);
+		first	= flst_get_first(base, mtr);
+		last	= flst_get_last(base, mtr);
+	}
+
+	std::ostream& print(std::ostream& out) const
+	{
+		out << "[flst_base_node_t: len=" << len << ", first="
+			<< first << ", last=" << last << "]";
+		return(out);
+	}
+};
+
+inline
+std::ostream& operator<<(std::ostream& out, const flst_bnode_t& obj)
+{
+	return(obj.print(out));
+}
+#endif /* UNIV_DEBUG */
 #endif

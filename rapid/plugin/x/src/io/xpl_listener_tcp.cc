@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -18,11 +18,18 @@
  */
 
 #include "io/xpl_listener_tcp.h"
-#include "xpl_log.h"
+
+#include <errno.h>
+#ifndef _WIN32
+#include <netdb.h>
+#endif
+
+#include "my_io.h"
 #include "mysqlx_version.h"
+#include "ngs_common/operations_factory.h"
 #include "ngs_common/smart_ptr.h"
 #include "ngs_common/string_formatter.h"
-#include "ngs_common/operations_factory.h"
+#include "xpl_log.h"
 
 namespace xpl {
 
@@ -41,7 +48,6 @@ public:
   ngs::shared_ptr<addrinfo> resolve_bind_address(
       const std::string &bind_address,
       const unsigned short port,
-      int &error_code,
       std::string &error_message
       ) {
     struct addrinfo *result = NULL;
@@ -327,7 +333,6 @@ ngs::Socket_interface::Shared_ptr Listener_tcp::create_socket() {
   ngs::shared_ptr<addrinfo> ai = creator.resolve_bind_address(
       m_bind_address,
       m_port,
-      error_code,
       m_last_error);
 
   if (NULL == ai.get())

@@ -1,8 +1,6 @@
 #Want to skip this test from daily Valgrind execution
 --source include/no_valgrind_without_big.inc
 
---source include/have_innodb.inc
---source include/have_partition.inc
 --source include/have_binlog_format_mixed_or_row.inc
 --source include/master-slave.inc
 

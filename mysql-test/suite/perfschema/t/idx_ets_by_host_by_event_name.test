@@ -1,0 +1,24 @@
+# Tests for PERFORMANCE_SCHEMA
+
+#setup
+let $select_column = COUNT_STAR;
+let $table = performance_schema.events_transactions_summary_by_host_by_event_name;
+
+create user foo@localhost;
+grant ALL on *.* to foo@localhost;
+connect(con, localhost, foo,,);
+
+###########################################################################
+# Test index on HOST, EVENT_NAME
+###########################################################################
+
+let $column_count = 2;
+let $col1 = HOST;
+let $col2 = EVENT_NAME;
+let $col1_act = "localhost";
+let $col2_act = "transaction";
+
+--source ../include/idx_explain_test.inc
+
+# Cleanup
+drop user foo@localhost;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,20 +13,42 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#ifdef HAVE_REPLICATION
-#include "rpl_binlog_sender.h"
+#include "sql/rpl_binlog_sender.h"
+
+#include <assert.h>
+#include <stdio.h>
+#include <algorithm>
 
 #include "debug_sync.h"              // debug_sync_set_action
+#include "derror.h"                  // ER_THD
+#include "hash.h"
+#include "item_func.h"               // user_var_entry
+#include "lex_string.h"
 #include "log.h"                     // sql_print_information
 #include "log_event.h"               // MAX_MAX_ALLOWED_PACKET
+#include "m_string.h"
+#include "mdl.h"
+#include "my_byteorder.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_pointer_arithmetic.h"
+#include "my_sys.h"
+#include "my_systime.h"
+#include "my_thread.h"
+#include "mysql/psi/mysql_file.h"
+#include "mysql/psi/mysql_mutex.h"
+#include "mysql/psi/psi_stage.h"
+#include "mysql/service_my_snprintf.h"
+#include "mysqld.h"                  // global_system_variables ...
+#include "protocol_classic.h"
 #include "rpl_constants.h"           // BINLOG_DUMP_NON_BLOCK
+#include "rpl_gtid.h"
 #include "rpl_handler.h"             // RUN_HOOK
 #include "rpl_master.h"              // opt_sporadic_binlog_dump_fail
 #include "rpl_reporting.h"           // MAX_SLAVE_ERRMSG
 #include "sql_class.h"               // THD
-
-#include "pfs_file_provider.h"
-#include "mysql/psi/mysql_file.h"
+#include "system_variables.h"
+#include "typelib.h"
 
 #ifndef DBUG_OFF
   static uint binlog_dump_count= 0;
@@ -43,7 +65,7 @@ Binlog_sender::Binlog_sender(THD *thd, const char *start_file,
                              my_off_t start_pos,
                              Gtid_set *exclude_gtids, uint32 flag)
   : m_thd(thd),
-    m_packet(*thd->get_protocol_classic()->get_packet()),
+    m_packet(*thd->get_protocol_classic()->get_output_packet()),
     m_start_file(start_file),
     m_start_pos(start_pos), m_exclude_gtid(exclude_gtids),
     m_using_gtid_protocol(exclude_gtids != NULL),
@@ -88,7 +110,7 @@ void Binlog_sender::init()
 
   if (m_using_gtid_protocol)
   {
-    enum_gtid_mode gtid_mode= get_gtid_mode(GTID_MODE_LOCK_NONE);
+    enum_gtid_mode gtid_mode= get_gtid_mode_from_copy(GTID_MODE_LOCK_NONE);
     if (gtid_mode != GTID_MODE_ON)
     {
       char buf[MYSQL_ERRMSG_SIZE];
@@ -196,6 +218,7 @@ void Binlog_sender::run()
   IO_CACHE log_cache;
   my_off_t start_pos= m_start_pos;
   const char *log_file= m_linfo.log_file_name;
+  bool is_index_file_reopened_on_binlog_disable= false;
 
   init();
 
@@ -230,9 +253,40 @@ void Binlog_sender::run()
 
     THD_STAGE_INFO(m_thd,
                    stage_finished_reading_one_binlog_switching_to_next_binlog);
-    int error= mysql_bin_log.find_next_log(&m_linfo, 1);
+    DBUG_EXECUTE_IF("waiting_for_disable_binlog",
+		    {
+		    const char act[]= "now "
+		    "signal dump_thread_reached_wait_point "
+		    "wait_for continue_dump_thread no_clear_event";
+		    DBUG_ASSERT(!debug_sync_set_action(m_thd,
+						       STRING_WITH_LEN(act)));
+		    };);
+    mysql_bin_log.lock_index();
+    if (!mysql_bin_log.is_open())
+    {
+      if (mysql_bin_log.open_index_file(mysql_bin_log.get_index_fname(),
+					log_file, FALSE))
+      {
+        set_fatal_error("Binary log is not open and failed to open index file "
+                        "to retrieve next file.");
+        mysql_bin_log.unlock_index();
+        break;
+      }
+      is_index_file_reopened_on_binlog_disable= true;
+    }
+    int error= mysql_bin_log.find_next_log(&m_linfo, 0);
+    mysql_bin_log.unlock_index();
     if (unlikely(error))
     {
+      DBUG_EXECUTE_IF("waiting_for_disable_binlog",
+		      {
+		      const char act[]= "now signal consumed_binlog";
+		      DBUG_ASSERT(!debug_sync_set_action(m_thd,
+							 STRING_WITH_LEN(act)));
+		      };);
+      if (is_index_file_reopened_on_binlog_disable)
+        mysql_bin_log.close(LOG_CLOSE_INDEX, true/*need_lock_log=true*/,
+                            true/*need_lock_index=true*/);
       set_fatal_error("could not find next log");
       break;
     }
@@ -323,7 +377,7 @@ my_off_t Binlog_sender::send_binlog(IO_CACHE *log_cache, my_off_t start_pos)
     DBUG_EXECUTE_IF("wait_after_binlog_EOF",
                     {
                       const char act[]= "now wait_for signal.rotate_finished no_clear_event";
-                      DBUG_ASSERT(!debug_sync_set_action(current_thd,
+                      DBUG_ASSERT(!debug_sync_set_action(m_thd,
                                                          STRING_WITH_LEN(act)));
                     };);
   }
@@ -333,36 +387,40 @@ my_off_t Binlog_sender::send_binlog(IO_CACHE *log_cache, my_off_t start_pos)
 inline my_off_t Binlog_sender::get_binlog_end_pos(IO_CACHE *log_cache)
 {
   DBUG_ENTER("Binlog_sender::get_binlog_end_pos()");
-  my_off_t log_pos= my_b_tell(log_cache);
+  my_off_t read_pos= my_b_tell(log_cache);
   my_off_t end_pos= 0;
 
   do
   {
-    mysql_bin_log.lock_binlog_end_pos();
+    /*
+      MYSQL_BIN_LOG::binlog_end_pos is atomic. We should only acquire the
+      LOCK_binlog_end_pos if we reached the end of the hot log and are going
+      to wait for updates on the binary log (Binlog_sender::wait_new_event()).
+    */
     end_pos= mysql_bin_log.get_binlog_end_pos();
-    mysql_bin_log.unlock_binlog_end_pos();
 
+    /* If this is a cold binlog file, we are done getting the end pos */
     if (unlikely(!mysql_bin_log.is_active(m_linfo.log_file_name)))
     {
       end_pos= my_b_filelength(log_cache);
-      if (log_pos == end_pos)
+      if (read_pos == end_pos)
         DBUG_RETURN(0); // Arrived the end of inactive file
       else
         DBUG_RETURN(end_pos);
     }
 
     DBUG_PRINT("info", ("Reading file %s, seek pos %llu, end_pos is %llu",
-                        m_linfo.log_file_name, log_pos, end_pos));
+                        m_linfo.log_file_name, read_pos, end_pos));
     DBUG_PRINT("info", ("Active file is %s", mysql_bin_log.get_log_fname()));
 
-    if (log_pos < end_pos)
+    if (read_pos < end_pos)
       DBUG_RETURN(end_pos);
 
     /* Some data may be in net buffer, it should be flushed before waiting */
     if (!m_wait_new_events || flush_net())
       DBUG_RETURN(1);
 
-    if (unlikely(wait_new_events(log_pos)))
+    if (unlikely(wait_new_events(read_pos)))
       DBUG_RETURN(1);
   } while (unlikely(!m_thd->killed));
 
@@ -399,7 +457,7 @@ int Binlog_sender::send_events(IO_CACHE *log_cache, my_off_t end_pos)
                     {
                       if (event_type == binary_log::XID_EVENT)
                       {
-                        thd->get_protocol_classic()->flush_net();
+                        thd->get_protocol()->flush();
                         const char act[]=
                           "now "
                           "wait_for signal.continue";
@@ -512,7 +570,8 @@ bool Binlog_sender::check_event_type(Log_event_type type,
                         return false;
                       };);
       char buf[MYSQL_ERRMSG_SIZE];
-      sprintf(buf, ER(ER_CANT_REPLICATE_ANONYMOUS_WITH_AUTO_POSITION),
+      sprintf(buf,
+              ER_THD(m_thd, ER_CANT_REPLICATE_ANONYMOUS_WITH_AUTO_POSITION),
               log_file, log_pos);
       set_fatal_error(buf);
       return true;
@@ -524,10 +583,11 @@ bool Binlog_sender::check_event_type(Log_event_type type,
       GTID_MODE to ON when the slave has not yet replicated all
       anonymous transactions.
     */
-    else if (get_gtid_mode(GTID_MODE_LOCK_NONE) == GTID_MODE_ON)
+    else if (get_gtid_mode_from_copy(GTID_MODE_LOCK_NONE) == GTID_MODE_ON)
     {
       char buf[MYSQL_ERRMSG_SIZE];
-      sprintf(buf, ER(ER_CANT_REPLICATE_ANONYMOUS_WITH_GTID_MODE_ON),
+      sprintf(buf,
+              ER_THD(m_thd, ER_CANT_REPLICATE_ANONYMOUS_WITH_GTID_MODE_ON),
               log_file, log_pos);
       set_fatal_error(buf);
       return true;
@@ -542,10 +602,11 @@ bool Binlog_sender::check_event_type(Log_event_type type,
       GTID_MODE to OFF when the slave has not yet replicated all GTID
       transactions.
     */
-    if (get_gtid_mode(GTID_MODE_LOCK_NONE) == GTID_MODE_OFF)
+    if (get_gtid_mode_from_copy(GTID_MODE_LOCK_NONE) == GTID_MODE_OFF)
     {
       char buf[MYSQL_ERRMSG_SIZE];
-      sprintf(buf, ER(ER_CANT_REPLICATE_GTID_WITH_GTID_MODE_OFF),
+      sprintf(buf,
+              ER_THD(m_thd, ER_CANT_REPLICATE_GTID_WITH_GTID_MODE_OFF),
               log_file, log_pos);
       set_fatal_error(buf);
       return true;
@@ -587,19 +648,26 @@ int Binlog_sender::wait_new_events(my_off_t log_pos)
   PSI_stage_info old_stage;
 
   mysql_bin_log.lock_binlog_end_pos();
+  /*
+    If the binary log was updated before reaching this waiting point,
+    there is no need to wait.
+  */
+  if (mysql_bin_log.get_binlog_end_pos() > log_pos ||
+      !mysql_bin_log.is_active(m_linfo.log_file_name))
+  {
+    mysql_bin_log.unlock_binlog_end_pos();
+    return ret;
+  }
+
   m_thd->ENTER_COND(mysql_bin_log.get_log_cond(),
                     mysql_bin_log.get_binlog_end_pos_lock(),
                     &stage_master_has_sent_all_binlog_to_slave,
                     &old_stage);
 
-  if (mysql_bin_log.get_binlog_end_pos() <= log_pos &&
-      mysql_bin_log.is_active(m_linfo.log_file_name))
-  {
-    if (m_heartbeat_period)
-      ret= wait_with_heartbeat(log_pos);
-    else
-      ret= wait_without_heartbeat();
-  }
+  if (m_heartbeat_period)
+    ret= wait_with_heartbeat(log_pos);
+  else
+    ret= wait_without_heartbeat();
 
   mysql_bin_log.unlock_binlog_end_pos();
   m_thd->EXIT_COND(&old_stage);
@@ -617,8 +685,8 @@ inline int Binlog_sender::wait_with_heartbeat(my_off_t log_pos)
   do
   {
     set_timespec_nsec(&ts, m_heartbeat_period);
-    ret= mysql_bin_log.wait_for_update_bin_log(m_thd, &ts);
-    if (ret != ETIMEDOUT && ret != ETIME)
+    ret= mysql_bin_log.wait_for_update(&ts);
+    if (!is_timeout(ret))
       break;
 
 #ifndef DBUG_OFF
@@ -639,12 +707,12 @@ inline int Binlog_sender::wait_with_heartbeat(my_off_t log_pos)
 
 inline int Binlog_sender::wait_without_heartbeat()
 {
-  return mysql_bin_log.wait_for_update_bin_log(m_thd, NULL);
+  return mysql_bin_log.wait_for_update(NULL);
 }
 
 void Binlog_sender::init_heartbeat_period()
 {
-  my_bool null_value;
+  bool null_value;
   LEX_STRING name=  { C_STRING_WITH_LEN("master_heartbeat_period")};
 
   /* Protects m_thd->user_vars. */
@@ -708,7 +776,7 @@ int Binlog_sender::check_start_file()
                                            gtid_state->get_server_sidno(),
                                            subset_sidno))
     {
-      errmsg= ER(ER_SLAVE_HAS_MORE_GTIDS_THAN_MASTER);
+      errmsg= ER_THD(m_thd, ER_SLAVE_HAS_MORE_GTIDS_THAN_MASTER);
       global_sid_lock->unlock();
       set_fatal_error(errmsg);
       return 1;
@@ -741,7 +809,7 @@ int Binlog_sender::check_start_file()
     */
     if (!gtid_state->get_lost_gtids()->is_subset(m_exclude_gtid))
     {
-      errmsg= ER(ER_MASTER_HAS_PURGED_REQUIRED_GTIDS);
+      errmsg= ER_THD(m_thd, ER_MASTER_HAS_PURGED_REQUIRED_GTIDS);
       global_sid_lock->unlock();
       set_fatal_error(errmsg);
       return 1;
@@ -898,8 +966,8 @@ inline int Binlog_sender::reset_transmit_packet(ushort flags, size_t event_len)
                       event_len, m_packet.alloced_length()));
   DBUG_ASSERT(m_packet.alloced_length() >= PACKET_MIN_SIZE);
 
-  m_packet.length(0);  // size of the string
-  m_packet.qs_append('\0');
+  m_packet.length(0);  // size of the content
+  m_packet.qs_append('\0'); // Set this as an OK packet
 
   /* reserve and set default header */
   if (m_observe_transmission &&
@@ -1050,6 +1118,9 @@ inline int Binlog_sender::read_event(IO_CACHE *log_cache, enum_binlog_checksum_a
   size_t event_offset;
   char header[LOG_EVENT_MINIMAL_HEADER_LEN];
   int error= 0;
+#ifndef DBUG_OFF
+  const char *packet_buffer= NULL;
+#endif
 
   if ((error= Log_event::peek_event_length(event_len, log_cache, header)))
     goto read_error;
@@ -1058,11 +1129,14 @@ inline int Binlog_sender::read_event(IO_CACHE *log_cache, enum_binlog_checksum_a
     DBUG_RETURN(1);
 
   event_offset= m_packet.length();
+#ifndef DBUG_OFF
+  packet_buffer= m_packet.ptr();
+#endif
 
   DBUG_EXECUTE_IF("dump_thread_before_read_event",
                   {
                     const char act[]= "now wait_for signal.continue no_clear_event";
-                    DBUG_ASSERT(!debug_sync_set_action(current_thd,
+                    DBUG_ASSERT(!debug_sync_set_action(m_thd,
                                                        STRING_WITH_LEN(act)));
                   };);
 
@@ -1077,9 +1151,12 @@ inline int Binlog_sender::read_event(IO_CACHE *log_cache, enum_binlog_checksum_a
   set_last_pos(my_b_tell(log_cache));
 
   /*
-    Only set event_ptr after reading the event, as the packed might change
-    size (and also changing its pointer) inside read_log_event().
+    As we pre-allocate the buffer to store the event at reset_transmit_packet,
+    the buffer should not be changed while calling read_log_event, even knowing
+    that it might call functions to replace the buffer by one with the size to
+    fit the event.
   */
+  DBUG_ASSERT(packet_buffer == m_packet.ptr());
   *event_ptr= (uchar *)m_packet.ptr() + event_offset;
 
   DBUG_PRINT("info",
@@ -1137,7 +1214,7 @@ int Binlog_sender::send_heartbeat_event(my_off_t log_pos)
 inline int Binlog_sender::flush_net()
 {
   if (DBUG_EVALUATE_IF("simulate_flush_error", 1,
-      m_thd->get_protocol_classic()->flush_net()))
+      m_thd->get_protocol()->flush()))
   {
     set_unknow_error("failed on flush_net()");
     return 1;
@@ -1240,11 +1317,12 @@ inline bool Binlog_sender::grow_packet(size_t extra_size)
     DBUG_RETURN(true);
 
   /* Grow the buffer if needed. */
-  if (needed_buffer_size >= cur_buffer_size)
+  if (needed_buffer_size > cur_buffer_size)
   {
     size_t new_buffer_size;
-    if (calc_buffer_size(cur_buffer_size, needed_buffer_size,
-                         PACKET_GROW_FACTOR, &new_buffer_size))
+    new_buffer_size= calc_grow_buffer_size(cur_buffer_size, needed_buffer_size);
+
+    if (!new_buffer_size)
       DBUG_RETURN(true);
 
     if (m_packet.mem_realloc(new_buffer_size))
@@ -1254,9 +1332,7 @@ inline bool Binlog_sender::grow_packet(size_t extra_size)
      Calculates the new, smaller buffer, size to use the next time
      one wants to shrink the buffer.
     */
-    if (calc_buffer_size(m_new_shrink_size, PACKET_MIN_SIZE,
-                         PACKET_SHRINK_FACTOR, &m_new_shrink_size))
-      DBUG_RETURN(true);
+    calc_shrink_buffer_size(new_buffer_size);
   }
 
   DBUG_RETURN(false);
@@ -1296,8 +1372,7 @@ inline bool Binlog_sender::shrink_packet()
            Calculates the new, smaller buffer, size to use the next time
            one wants to shrink the buffer.
          */
-        res= calc_buffer_size(m_new_shrink_size, PACKET_MIN_SIZE,
-                              PACKET_SHRINK_FACTOR, &m_new_shrink_size);
+        calc_shrink_buffer_size(m_new_shrink_size);
 
         /* Reset the counter. */
         m_half_buffer_size_req_counter= 0;
@@ -1316,14 +1391,13 @@ inline bool Binlog_sender::shrink_packet()
   DBUG_RETURN(res);
 }
 
-inline bool Binlog_sender::calc_buffer_size(size_t current_size,
-                                            size_t min_size,
-                                            float factor,
-                                            size_t *new_val)
+inline size_t Binlog_sender::calc_grow_buffer_size(size_t current_size,
+                                                   size_t min_size)
 {
   /* Check that a sane minimum buffer size was requested.  */
-  if (min_size < PACKET_MIN_SIZE || min_size > PACKET_MAX_SIZE)
-    return true;
+  DBUG_ASSERT(min_size > PACKET_MIN_SIZE);
+  if (min_size > PACKET_MAX_SIZE)
+    return 0;
 
   /*
      Even if this overflows (PACKET_MAX_SIZE == UINT_MAX32) and
@@ -1335,11 +1409,18 @@ inline bool Binlog_sender::calc_buffer_size(size_t current_size,
    */
   size_t new_size= static_cast<size_t>(
     std::min(static_cast<double>(PACKET_MAX_SIZE),
-             static_cast<double>(current_size * factor)));
+             static_cast<double>(current_size * PACKET_GROW_FACTOR)));
 
-  *new_val= ALIGN_SIZE(std::max(new_size, min_size));
+  new_size= ALIGN_SIZE(std::max(new_size, min_size));
 
-  return false;
+  return new_size;
 }
 
-#endif // HAVE_REPLICATION
+void Binlog_sender::calc_shrink_buffer_size(size_t current_size)
+{
+  size_t new_size= static_cast<size_t>(
+      std::max(static_cast<double>(PACKET_MIN_SIZE),
+               static_cast<double>(current_size * PACKET_SHRINK_FACTOR)));
+
+  m_new_shrink_size= ALIGN_SIZE(new_size);
+}

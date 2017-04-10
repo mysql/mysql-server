@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,12 +13,35 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "my_thread.h"          /* my_thread_id */
-#include "my_timer.h"           /* my_timer_t */
-#include "sql_class.h"          /* THD */
-#include "sql_timer.h"          /* thd_timer_set, etc. */
-#include "sql_parse.h"          /* Global_THD_manager, Find_thd_with_id */
-#include "mysqld.h"
+#include "sql/sql_timer.h"
+
+#include <stddef.h>
+
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_macros.h"
+#include "my_sys.h"
+#include "my_thread_local.h"
+#include "my_timer.h"           // my_timer_t
+#include "mysql/psi/mysql_mutex.h"
+#include "mysql/service_mysql_alloc.h"
+#include "mysqld.h"             // key_thd_timer_mutex
+#include "mysqld_thd_manager.h" // Global_THD_manager
+#include "psi_memory_key.h"     // key_memory_thd_timer
+#include "sql_class.h"          // THD
+#include "thr_mutex.h"
+
+
+/**
+  Cast a member of a structure to the structure that contains it.
+
+  @param  ptr     Pointer to the member.
+  @param  type    Type of the structure that contains the member.
+  @param  member  Name of the member within the structure.
+*/
+#define my_container_of(ptr, type, member)              \
+  ((type *)((char *)ptr - offsetof(type, member)))
+
 
 struct st_thd_timer_info
 {
@@ -170,6 +193,7 @@ thd_timer_set(THD *thd, THD_timer_info *thd_timer, unsigned long time)
   Reap a (possibly) pending timer object.
 
   @param  thd_timer   Thread timer object.
+  @param  pending
 
   @return true if the timer object is unreachable.
 */

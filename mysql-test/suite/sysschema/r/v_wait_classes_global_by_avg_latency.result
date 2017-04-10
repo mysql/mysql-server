@@ -1,6 +1,6 @@
 DESC sys.wait_classes_global_by_avg_latency;
 Field	Type	Null	Key	Default	Extra
-event_class	varchar(128)	YES		NULL	
+event_class	varchar(128)	NO			
 total	decimal(42,0)	YES		NULL	
 total_latency	text	YES		NULL	
 min_latency	text	YES		NULL	
@@ -9,7 +9,7 @@ max_latency	text	YES		NULL
 SELECT * FROM sys.wait_classes_global_by_avg_latency;
 DESC sys.x$wait_classes_global_by_avg_latency;
 Field	Type	Null	Key	Default	Extra
-event_class	varchar(128)	YES		NULL	
+event_class	varchar(128)	NO			
 total	decimal(42,0)	YES		NULL	
 total_latency	decimal(42,0)	YES		NULL	
 min_latency	bigint(20) unsigned	YES		NULL	

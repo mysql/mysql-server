@@ -183,8 +183,10 @@ public:
   while (0); \
 
 #ifdef WITH_LOG_TRACE
+#define MYSQL_GCS_TRACE_EXECUTE(x) x
 #define MYSQL_GCS_LOG_TRACE(x) MYSQL_GCS_LOG(GCS_TRACE, x)
 #else
+#define MYSQL_GCS_TRACE_EXECUTE(x) do { } while (0);
 #define MYSQL_GCS_LOG_TRACE(x)
 #endif
 

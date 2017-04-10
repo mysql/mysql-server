@@ -25,10 +25,6 @@ Created 5/11/1994 Heikki Tuuri
 
 #include "ut0rnd.h"
 
-#ifdef UNIV_NONINL
-#include "ut0rnd.ic"
-#endif
-
 /** These random numbers are used in ut_find_prime */
 /*@{*/
 #define	UT_RANDOM_1	1.0412321
@@ -36,8 +32,9 @@ Created 5/11/1994 Heikki Tuuri
 #define UT_RANDOM_3	1.0132677
 /*@}*/
 
-/** Seed value of ut_rnd_gen_ulint(). */
-ulint	ut_rnd_ulint_counter = 65654363;
+#include <my_thread_local.h>
+/** Key for thread local variable ut_rnd_ulint_counter */
+thread_local_key_t   ut_rnd_ulint_counter_key;
 
 /***********************************************************//**
 Looks for a prime number slightly greater than the given argument.

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -29,9 +29,7 @@
 #include <mysql.h>
 #include <my_sys.h>
 #include <my_getopt.h>
-#ifdef HAVE_MY_DEFAULT_H
 #include <my_default.h>
-#endif
 #include <my_dir.h>
 
 enum ErrorCodes 
@@ -113,6 +111,7 @@ struct atrt_config
   bool m_generated;
   BaseString m_key;
   BaseString m_replication;
+  BaseString m_site;
   Vector<atrt_host*> m_hosts;
   Vector<atrt_cluster*> m_clusters;
   Vector<atrt_process*> m_processes;
@@ -156,7 +155,7 @@ bool update_status(atrt_config&, int);
 int is_running(atrt_config&, int);
 bool gather_result(atrt_config&, int * result);
 
-bool read_test_case(FILE *, atrt_testcase&, int& line);
+int read_test_case(FILE *, atrt_testcase&, int& line);
 bool setup_test_case(atrt_config&, const atrt_testcase&);
 
 bool setup_hosts(atrt_config&);
@@ -196,6 +195,7 @@ extern const char * g_my_cnf;
 extern const char * g_user;
 extern const char * g_basedir;
 extern const char * g_prefix;
+extern const char * g_prefix0;
 extern const char * g_prefix1;
 extern int          g_baseport;
 extern int          g_fqpn;
@@ -203,6 +203,7 @@ extern int          g_fix_nodeid;
 extern int          g_default_ports;
 extern int          g_restart;
 
+extern const char * g_site;
 extern const char * g_clusters;
 
 /**

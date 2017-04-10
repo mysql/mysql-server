@@ -92,98 +92,6 @@ dict_get_first_table_name_in_db(
 /*============================*/
 	const char*	name);	/*!< in: database name which ends to '/' */
 
-/********************************************************************//**
-Loads a table column definition from a SYS_COLUMNS record to
-dict_table_t.
-@return error message, or NULL on success */
-const char*
-dict_load_column_low(
-/*=================*/
-	dict_table_t*	table,		/*!< in/out: table, could be NULL
-					if we just populate a dict_column_t
-					struct with information from
-					a SYS_COLUMNS record */
-	mem_heap_t*	heap,		/*!< in/out: memory heap
-					for temporary storage */
-	dict_col_t*	column,		/*!< out: dict_column_t to fill,
-					or NULL if table != NULL */
-	table_id_t*	table_id,	/*!< out: table id */
-	const char**	col_name,	/*!< out: column name */
-	const rec_t*	rec,		/*!< in: SYS_COLUMNS record */
-	ulint*		nth_v_col);	/*!< out: if not NULL, this
-					records the "n" of "nth" virtual
-					column */
-
-/** Loads a virtual column "mapping" (to base columns) information
-from a SYS_VIRTUAL record
-@param[in,out]	table		table
-@param[in,out]	heap		memory heap
-@param[in,out]	column		mapped base column's dict_column_t
-@param[in,out]	table_id	table id
-@param[in,out]	pos		virtual column position
-@param[in,out]	base_pos	base column position
-@param[in]	rec		SYS_VIRTUAL record
-@return error message, or NULL on success */
-const char*
-dict_load_virtual_low(
-	dict_table_t*   table,
-	mem_heap_t*     heap,
-	dict_col_t**    column,
-	table_id_t*     table_id,
-	ulint*		pos,
-	ulint*		base_pos,
-	const rec_t*    rec);
-/********************************************************************//**
-Loads an index definition from a SYS_INDEXES record to dict_index_t.
-If allocate=TRUE, we will create a dict_index_t structure and fill it
-accordingly. If allocated=FALSE, the dict_index_t will be supplied by
-the caller and filled with information read from the record.  @return
-error message, or NULL on success */
-const char*
-dict_load_index_low(
-/*================*/
-	byte*		table_id,	/*!< in/out: table id (8 bytes),
-					an "in" value if allocate=TRUE
-					and "out" when allocate=FALSE */
-	const char*	table_name,	/*!< in: table name */
-	mem_heap_t*	heap,		/*!< in/out: temporary memory heap */
-	const rec_t*	rec,		/*!< in: SYS_INDEXES record */
-	ibool		allocate,	/*!< in: TRUE=allocate *index,
-					FALSE=fill in a pre-allocated
-					*index */
-	dict_index_t**	index);		/*!< out,own: index, or NULL */
-/********************************************************************//**
-Loads an index field definition from a SYS_FIELDS record to
-dict_index_t.
-@return error message, or NULL on success */
-const char*
-dict_load_field_low(
-/*================*/
-	byte*		index_id,	/*!< in/out: index id (8 bytes)
-					an "in" value if index != NULL
-					and "out" if index == NULL */
-	dict_index_t*	index,		/*!< in/out: index, could be NULL
-					if we just populate a dict_field_t
-					struct with information from
-					a SYS_FIELDS record */
-	dict_field_t*	sys_field,	/*!< out: dict_field_t to be
-					filled */
-	ulint*		pos,		/*!< out: Field position */
-	byte*		last_index_id,	/*!< in: last index id */
-	mem_heap_t*	heap,		/*!< in/out: memory heap
-					for temporary storage */
-	const rec_t*	rec);		/*!< in: SYS_FIELDS record */
-/********************************************************************//**
-Using the table->heap, copy the null-terminated filepath into
-table->data_dir_path and put a null byte before the extension.
-This allows SHOW CREATE TABLE to return the correct DATA DIRECTORY path.
-Make this data directory path only if it has not yet been saved. */
-void
-dict_save_data_dir_path(
-/*====================*/
-	dict_table_t*	table,		/*!< in/out: table */
-	char*		filepath);	/*!< in: filepath of tablespace */
-
 /** Get the first filepath from SYS_DATAFILES for a given space_id.
 @param[in]	space_id	Tablespace ID
 @return First filepath (caller must invoke ut_free() on it)
@@ -204,7 +112,7 @@ dict_get_and_save_data_dir_path(
 /** Make sure the tablespace name is saved in dict_table_t if needed.
 Try to read it from the file dictionary first, then from SYS_TABLESPACES.
 @param[in]	table		Table object
-@param[in]	dict_mutex_own)	true if dict_sys->mutex is owned already */
+@param[in]	dict_mutex_own	true if dict_sys->mutex is owned already */
 void
 dict_get_and_save_space_name(
 	dict_table_t*	table,
@@ -270,7 +178,7 @@ dict_load_foreigns(
 						which must be loaded
 						subsequently to load all the
 						foreign key constraints. */
-	MY_ATTRIBUTE((nonnull(1), warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 
 /********************************************************************//**
 This function opens a system table, and return the first record.
@@ -363,8 +271,8 @@ dict_process_sys_fields_rec(
 	dict_field_t*	sys_field,	/*!< out: dict_field_t to be
 					filled */
 	ulint*		pos,		/*!< out: Field position */
-	index_id_t*	index_id,	/*!< out: current index id */
-	index_id_t	last_id);	/*!< in: previous index id */
+	space_index_t*	index_id,	/*!< out: current index id */
+	space_index_t	last_id);	/*!< in: previous index id */
 /********************************************************************//**
 This function parses a SYS_FOREIGN record and populate a dict_foreign_t
 structure with the information from the record. For detail information
@@ -400,7 +308,7 @@ dict_process_sys_tablespaces(
 /*=========================*/
 	mem_heap_t*	heap,		/*!< in/out: heap memory */
 	const rec_t*	rec,		/*!< in: current SYS_TABLESPACES rec */
-	ulint*		space,		/*!< out: pace id */
+	space_id_t*	space,		/*!< out: space id */
 	const char**	name,		/*!< out: tablespace name */
 	ulint*		flags);		/*!< out: tablespace flags */
 /********************************************************************//**
@@ -415,15 +323,6 @@ dict_process_sys_datafiles(
 	ulint*		space,		/*!< out: pace id */
 	const char**	path);		/*!< out: datafile path */
 
-/** Update the record for space_id in SYS_TABLESPACES to this filepath.
-@param[in]	space_id	Tablespace ID
-@param[in]	filepath	Tablespace filepath
-@return DB_SUCCESS if OK, dberr_t if the insert failed */
-dberr_t
-dict_update_filepath(
-	ulint		space_id,
-	const char*	filepath);
-
 /** Replace records in SYS_TABLESPACES and SYS_DATAFILES associated with
 the given space_id using an independent transaction.
 @param[in]	space_id	Tablespace ID
@@ -433,13 +332,11 @@ the given space_id using an independent transaction.
 @return DB_SUCCESS if OK, dberr_t if the insert failed */
 dberr_t
 dict_replace_tablespace_and_filepath(
-	ulint		space_id,
+	space_id_t	space_id,
 	const char*	name,
 	const char*	filepath,
 	ulint		fsp_flags);
 
-#ifndef UNIV_NONINL
 #include "dict0load.ic"
-#endif
 
 #endif

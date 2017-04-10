@@ -2,7 +2,7 @@
 #define FAKE_COSTMODEL_CC_INCLUDED
 
 /*
-   Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,6 +18,15 @@
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #include "fake_costmodel.h"
+
+#include <sys/types.h>
+
+#include "lex_string.h"
+#include "m_string.h"
+#include "my_dbug.h"
+
+class THD;
+struct TABLE;
 
 Cost_model_server::~Cost_model_server()
 {

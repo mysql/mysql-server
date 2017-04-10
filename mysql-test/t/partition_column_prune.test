@@ -1,7 +1,16 @@
+########################################
+##### WL#7554 Force schema `test` to character set latin1
+##### This test should be migrated to utf8mb4
+--disable_query_log
+let $testdbcs234=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
+alter schema default character set latin1;
+use test;
+--enable_query_log
+########################################
+
 #
 # Partition pruning tests for new COLUMN LIST feature
 #
--- source include/have_partition.inc
 
 --disable_warnings
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
@@ -74,3 +83,10 @@ explain partitions select * from t1 where a=4;
 explain partitions select * from t1 where a=2 and b < 22;
 
 drop table t1;
+
+########################################
+##### WL#7554 set schema `test` back to what it was
+--disable_query_log
+--eval alter schema test default character set $testdbcs234;
+--enable_query_log
+########################################

@@ -42,10 +42,13 @@ typedef
 ib_err_t
 (*cb_read_row_t)(
 /*=============*/
-        ib_crsr_t	ib_crsr,
-        ib_tpl_t	ib_tpl,
+	ib_crsr_t	ib_crsr,
+	ib_tpl_t	ib_tpl,
+	ib_tpl_t	cmp_tpl,
+	int		mode,
 	void**		row_buf,
-	ib_ulint_t*	row_buf_len);
+	ib_ulint_t*	row_buf_len,
+	ib_ulint_t*	row_buf_used);
 
 typedef
 ib_err_t
@@ -74,7 +77,8 @@ ib_err_t
 /*==================*/
 	ib_crsr_t	ib_crsr,
 	ib_tpl_t	ib_tpl,
-	ib_srch_mode_t	ib_srch_mode);
+	ib_srch_mode_t	ib_srch_mode,
+	unsigned int	direction);
 
 typedef
 ib_tpl_t
@@ -281,13 +285,6 @@ char*
 
 typedef
 ib_err_t
-(*cb_table_truncate_t)(
-/*===================*/
-	const char*	table_name,
-	ib_id_u64_t*	table_id);
-
-typedef
-ib_err_t
 (*cb_cursor_first_t)(
 /*=================*/
         ib_crsr_t       ib_crsr);
@@ -308,13 +305,6 @@ typedef
 int
 (*cb_get_cfg_t)();
 /*=============*/
-
-typedef
-ib_err_t
-(*cb_cursor_set_memcached_sync)(
-/*============================*/
-	ib_crsr_t	ib_crsr,
-	ib_bool_t	flag);
 
 typedef
 ib_err_t
@@ -380,11 +370,54 @@ ib_u32_t
 /*==================*/
 	ib_trx_t	ib_trx);
 
+#ifdef UNIV_MEMCACHED_SDI
+typedef
+ib_err_t
+(*cb_sdi_get)(
+	ib_crsr_t	ib_crsr,
+	const char*	key,
+	void*		sdi,
+	uint64_t*	sdi_len,
+	ib_trx_t	trx);
+
+typedef
+ib_err_t
+(*cb_sdi_delete)(
+	ib_crsr_t	ib_crsr,
+	const char*	key,
+	ib_trx_t	trx);
+
+typedef
+ib_err_t
+(*cb_sdi_set)(
+	ib_crsr_t	ib_crsr,
+	const char*	key,
+	const void*	sdi,
+	uint64_t*	sdi_len,
+	ib_trx_t	trx);
+
+typedef
+ib_err_t
+(*cb_sdi_create_copies)(
+	ib_crsr_t	ib_crsr);
+
+typedef
+ib_err_t
+(*cb_sdi_drop_copies)(
+	ib_crsr_t	ib_crsr);
+
+typedef
+ib_err_t
+(*cb_sdi_get_keys)(
+	ib_crsr_t	ib_crsr,
+	const char*	key,
+	void*		sdi,
+	uint64_t	list_buf_len);
+#endif /* UNIV_MEMCACHED_SDI */
 
 typedef
 ib_u32_t
 (*cb_is_virtual_table)(
-/*==================*/
 	ib_crsr_t	ib_crsr);
 
 cb_open_table_t			ib_cb_open_table;
@@ -420,13 +453,11 @@ cb_cursor_new_trx_t		ib_cb_cursor_new_trx;
 cb_cursor_reset_t		ib_cb_cursor_reset;
 cb_col_get_name_t		ib_cb_col_get_name;
 cb_get_idx_field_name		ib_cb_get_idx_field_name;
-cb_table_truncate_t		ib_cb_table_truncate;
 cb_cursor_first_t		ib_cb_cursor_first;
 cb_cursor_next_t		ib_cb_cursor_next;
 cb_cursor_open_index_using_name_t	ib_cb_cursor_open_index_using_name;
 cb_close_thd_t			ib_cb_close_thd;
 cb_get_cfg_t			ib_cb_get_cfg;
-cb_cursor_set_memcached_sync	ib_cb_cursor_set_memcached_sync;
 cb_cursor_set_cluster_access_t	ib_cb_cursor_set_cluster_access;
 cb_cursor_commit_trx_t		ib_cb_cursor_commit_trx;
 cb_cfg_trx_level_t		ib_cb_cfg_trx_level;
@@ -436,6 +467,14 @@ cb_trx_get_start_time		ib_cb_trx_get_start_time;
 cb_bk_commit_interval		ib_cb_cfg_bk_commit_interval;
 cb_ut_strerr			ib_cb_ut_strerr;
 cb_cursor_stmt_begin		ib_cb_cursor_stmt_begin;
+#ifdef UNIV_MEMCACHED_SDI
+cb_sdi_get			ib_cb_sdi_get;
+cb_sdi_delete			ib_cb_sdi_delete;
+cb_sdi_set			ib_cb_sdi_set;
+cb_sdi_create_copies		ib_cb_sdi_create_copies;
+cb_sdi_drop_copies		ib_cb_sdi_drop_copies;
+cb_sdi_get_keys			ib_cb_sdi_get_keys;
+#endif /* UNIV_MEMCACHED_SDI */
 cb_trx_read_only_t		ib_cb_trx_read_only;
 cb_is_virtual_table		ib_cb_is_virtual_table;
 

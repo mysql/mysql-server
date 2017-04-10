@@ -1,0 +1,124 @@
+# ==== Purpose ====
+#
+# Test that the command-line enforce-gtid-consistency accepts the
+# values it is supposed to accept.  This is a special variable, hence
+# the elaborate testing.  The variable was boolean in 5.6, but changed
+# in 5.7 into an enumeration.  However, normal enumerations aren't
+# entirely compatible with booleans:
+#
+# - Boolean has two aliases per value: 0=off=false, 1=on=true, but
+#   enum only allows one alias per value.
+#
+# - Boolean is displayed as an int, enum displays the alias.
+#
+# - Boolean allows command-line options without arguments, like
+#   --enforce-gtid-consistency (without =ON), enum does not.
+#
+# To create a three-valued variable that has multiple aliases per
+# value, is displayed as an int, and can be used on the command line
+# without argument, we needed a bit of new code.  So that's what we
+# test here.
+#
+# ==== Implementation ====
+#
+# Restart the server several times, specifying
+# enforce-gtid-consistency in different ways.
+#
+# ==== References ====
+#
+# WL#7083: GTIDs: set gtid_mode=ON online
+# - The third value for enforce-gtid-consistency was added in this worklog.
+
+# No point in running combinations.
+--source include/have_binlog_format_statement.inc
+
+# Restarts many times, and very unlikely to ever fail again.
+--source include/big_test.inc
+
+--let $rpl_server_count= 1
+--let $rpl_topology= none
+--source include/rpl_init.inc
+
+CALL mtr.add_suppression("option 'enforce-gtid-consistency': value '.*' was");
+
+--echo ==== No option: defaults to 0 ====
+
+SELECT @@GLOBAL.ENFORCE_GTID_CONSISTENCY;
+
+--echo ==== Option given without value: defaults to 1 ====
+
+--let $rpl_server_parameters= --enforce-gtid-consistency
+--let $rpl_server_number= 1
+--source include/rpl_restart_server.inc
+
+SELECT @@GLOBAL.ENFORCE_GTID_CONSISTENCY;
+
+--echo ==== Option given with invalid values: defaults to 0 ====
+
+--let $rpl_server_parameters= --enforce-gtid-consistency=
+--source include/rpl_restart_server.inc
+
+SELECT @@GLOBAL.ENFORCE_GTID_CONSISTENCY;
+
+--let $rpl_server_parameters= --enforce-gtid-consistency=homersimpson
+--source include/rpl_restart_server.inc
+
+SELECT @@GLOBAL.ENFORCE_GTID_CONSISTENCY;
+
+--let $rpl_server_parameters= --enforce-gtid-consistency=-1
+--source include/rpl_restart_server.inc
+
+SELECT @@GLOBAL.ENFORCE_GTID_CONSISTENCY;
+
+--let $rpl_server_parameters= --enforce-gtid-consistency=3
+--source include/rpl_restart_server.inc
+
+SELECT @@GLOBAL.ENFORCE_GTID_CONSISTENCY;
+
+--echo ==== Option given with correct value, equal to 1 ====
+
+--let $rpl_server_parameters= --enforce-gtid-consistency=1
+--source include/rpl_restart_server.inc
+
+SELECT @@GLOBAL.ENFORCE_GTID_CONSISTENCY;
+
+--let $rpl_server_parameters= --enforce-gtid-consistency=on
+--source include/rpl_restart_server.inc
+
+SELECT @@GLOBAL.ENFORCE_GTID_CONSISTENCY;
+
+--let $rpl_server_parameters= --enforce-gtid-consistency=true
+--source include/rpl_restart_server.inc
+
+SELECT @@GLOBAL.ENFORCE_GTID_CONSISTENCY;
+
+--echo ==== Option given with correct value, equal to 2 ====
+
+--let $rpl_server_parameters= --enforce-gtid-consistency=2
+--source include/rpl_restart_server.inc
+
+SELECT @@GLOBAL.ENFORCE_GTID_CONSISTENCY;
+
+--let $rpl_server_parameters= --enforce-gtid-consistency=warn
+--source include/rpl_restart_server.inc
+
+SELECT @@GLOBAL.ENFORCE_GTID_CONSISTENCY;
+
+--echo ==== Option given with correct value, equal to 0 ====
+
+--let $rpl_server_parameters= --enforce-gtid-consistency=0
+--source include/rpl_restart_server.inc
+
+SELECT @@GLOBAL.ENFORCE_GTID_CONSISTENCY;
+
+--let $rpl_server_parameters= --enforce-gtid-consistency=off
+--source include/rpl_restart_server.inc
+
+SELECT @@GLOBAL.ENFORCE_GTID_CONSISTENCY;
+
+--let $rpl_server_parameters= --enforce-gtid-consistency=false
+--source include/rpl_restart_server.inc
+
+SELECT @@GLOBAL.ENFORCE_GTID_CONSISTENCY;
+
+--source include/rpl_end.inc

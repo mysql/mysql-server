@@ -1,17 +1,10 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
+--source include/no_valgrind_without_big.inc
 # Bug38499 flush tables and multitable table update with derived table cause crash
 # MySQL >= 5.0
 #
 
 # Save the initial number of concurrent sessions
 --source include/count_sessions.inc
-
-SET @odl_sync_frm = @@global.sync_frm;
-SET @@global.sync_frm = OFF;
 
 connect (locker,localhost,root,,);
 connect (writer,localhost,root,,);
@@ -223,8 +216,6 @@ DROP TABLE t1;
 # Close connections
 --disconnect locker
 --disconnect writer
-
-SET @@global.sync_frm = @odl_sync_frm;
 
 # End of 5.0 tests
 

@@ -1,4 +1,5 @@
--- require r/have_crypt.require
-disable_query_log;
-show variables like 'have_crypt';
-enable_query_log;
+let $have_crypt= query_get_value(SHOW VARIABLES LIKE 'have_crypt', Value, 1);
+if ($have_crypt != YES)
+{
+  --skip Test requires 'have_crypt'
+}

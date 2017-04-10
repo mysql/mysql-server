@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,13 +20,12 @@ Applier_channel_state_observer::
 Applier_channel_state_observer()
 {}
 
-int Applier_channel_state_observer::
-thread_start(Binlog_relay_IO_param *param)
+int Applier_channel_state_observer::thread_start(Binlog_relay_IO_param*)
 {
   return 0;
 }
 
-int Applier_channel_state_observer::thread_stop(Binlog_relay_IO_param *param)
+int Applier_channel_state_observer::thread_stop(Binlog_relay_IO_param*)
 {
   return 0;
 }
@@ -34,37 +33,37 @@ int Applier_channel_state_observer::thread_stop(Binlog_relay_IO_param *param)
 int Applier_channel_state_observer::
 applier_stop(Binlog_relay_IO_param *param, bool aborted)
 {
-  applier_module->inform_of_applier_stop(param->thread_id, aborted);
+  applier_module->inform_of_applier_stop(param->channel_name, aborted);
   return 0;
 }
 
 int Applier_channel_state_observer::
-before_request_transmit(Binlog_relay_IO_param *param,
-                        uint32 flags)
+before_request_transmit(Binlog_relay_IO_param*,
+                        uint32)
 {
   return 0;
 }
 
 int Applier_channel_state_observer::
-after_read_event(Binlog_relay_IO_param *param,
-                 const char *packet, unsigned long len,
-                 const char **event_buf,
-                 unsigned long *event_len)
+after_read_event(Binlog_relay_IO_param*,
+                 const char*, unsigned long,
+                 const char**,
+                 unsigned long*)
 {
   return 0;
 }
 
 int Applier_channel_state_observer::
-after_queue_event(Binlog_relay_IO_param *param,
-                  const char *event_buf,
-                  unsigned long event_len,
-                  uint32 flags)
+after_queue_event(Binlog_relay_IO_param*,
+                  const char*,
+                  unsigned long,
+                  uint32)
 {
   return 0;
 }
 
 int Applier_channel_state_observer::
-after_reset_slave(Binlog_relay_IO_param *param)
+after_reset_slave(Binlog_relay_IO_param*)
 {
   return 0;
 }

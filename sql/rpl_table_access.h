@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License as
@@ -18,14 +18,15 @@
 #ifndef RPL_TABLE_ACCESS_H_
 #define RPL_TABLE_ACCESS_H_
 
-#include "my_global.h"
+#include <sys/types.h>
+
+#include "lex_string.h"
+#include "mysql/mysql_lex_string.h"
 #include "thr_lock.h"                // thr_lock_type
-#include "mysql/mysql_lex_string.h"  // LEX_STRING
 
 class Open_tables_backup;
 class THD;
 struct TABLE;
-typedef struct st_mysql_lex_string LEX_STRING;
 
 
 /**

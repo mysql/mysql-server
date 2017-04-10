@@ -8,7 +8,6 @@
 # with innodb_buffer_pool_dump_now=ON
 # and innodb_buffer_pool_load_now=ON
 
---source include/have_innodb.inc
 # include/restart_mysqld.inc does not work in embedded mode
 --source include/not_embedded.inc
 
@@ -60,7 +59,7 @@ SET GLOBAL innodb_buffer_pool_dump_now = ON;
 --disable_warnings
 let $wait_condition =
   SELECT SUBSTR(variable_value, 1, 33) = 'Buffer pool(s) dump completed at '
-  FROM information_schema.global_status
+  FROM performance_schema.global_status
   WHERE LOWER(variable_name) = 'innodb_buffer_pool_dump_status';
 --enable_warnings
 --source include/wait_condition.inc
@@ -104,7 +103,7 @@ SET GLOBAL innodb_buffer_pool_load_now = ON;
 --disable_warnings
 let $wait_condition =
   SELECT SUBSTR(variable_value, 1, 33) = 'Buffer pool(s) load completed at '
-  FROM information_schema.global_status
+  FROM performance_schema.global_status
   WHERE LOWER(variable_name) = 'innodb_buffer_pool_load_status';
 --enable_warnings
 --source include/wait_condition.inc
@@ -113,7 +112,7 @@ let $wait_condition =
 --disable_warnings
 --replace_regex /[0-9]{6}[[:space:]]+[0-9]{1,2}:[0-9]{2}:[0-9]{2}/TIMESTAMP_NOW/
 SELECT variable_value
-FROM information_schema.global_status
+FROM performance_schema.global_status
 WHERE LOWER(variable_name) = 'innodb_buffer_pool_load_status';
 --enable_warnings
 
@@ -140,7 +139,7 @@ SET GLOBAL innodb_buffer_pool_load_now = ON;
 --disable_warnings
 let $wait_condition =
   SELECT SUBSTR(variable_value, 1, 13) = 'Error parsing'
-  FROM information_schema.global_status
+  FROM performance_schema.global_status
   WHERE LOWER(variable_name) = 'innodb_buffer_pool_load_status';
 --enable_warnings
 --source include/wait_condition.inc
@@ -168,7 +167,7 @@ SET GLOBAL innodb_buffer_pool_load_now = ON;
 --disable_warnings
 let $wait_condition =
   SELECT SUBSTR(variable_value, 1, 33) = 'Buffer pool(s) load completed at '
-  FROM information_schema.global_status
+  FROM performance_schema.global_status
   WHERE LOWER(variable_name) = 'innodb_buffer_pool_load_status';
 --enable_warnings
 --source include/wait_condition.inc
@@ -177,7 +176,7 @@ let $wait_condition =
 --disable_warnings
 --replace_regex /[0-9]{6}[[:space:]]+[0-9]{1,2}:[0-9]{2}:[0-9]{2}/TIMESTAMP_NOW/
 SELECT variable_value
-FROM information_schema.global_status
+FROM performance_schema.global_status
 WHERE LOWER(variable_name) = 'innodb_buffer_pool_load_status';
 --enable_warnings
 

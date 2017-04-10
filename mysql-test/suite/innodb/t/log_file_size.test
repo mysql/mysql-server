@@ -1,6 +1,5 @@
 # Test resizing the InnoDB redo log.
 
---source include/have_innodb.inc
 
 # Embedded server does not support crashing
 --source include/not_embedded.inc

@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,13 +16,17 @@
 #ifndef RPL_INFO_TABLE_H
 #define RPL_INFO_TABLE_H
 
-#include "my_global.h"
+#include <stddef.h>
+#include <sys/types.h>
+
+#include "lex_string.h"
+#include "my_inttypes.h"
 #include "mysql/mysql_lex_string.h"  // LEX_STRING
 #include "rpl_info_handler.h"        // Rpl_info_handler
-#include "table.h"                   // TABLE
 
 class Rpl_info_table_access;
-typedef struct st_mysql_lex_string LEX_STRING;
+class Server_ids;
+struct TABLE;
 
 
 /**
@@ -110,7 +114,7 @@ private:
                             const char* param_table,  uint* counter);
   static int do_reset_info(uint nparam, const char* param_schema,
                            const char *param_table,
-                           const char *channel_name, uint channel_idx);
+                           const char *channel_name);
   int do_prepare_info_for_read();
   int do_prepare_info_for_write();
 

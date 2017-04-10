@@ -10,7 +10,7 @@ COUNT(@@GLOBAL.innodb_adaptive_hash_index_parts)
 1
 1 Expected
 SELECT @@GLOBAL.innodb_adaptive_hash_index_parts = VARIABLE_VALUE
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='innodb_adaptive_hash_index_parts';
 @@GLOBAL.innodb_adaptive_hash_index_parts = VARIABLE_VALUE
 1
@@ -20,7 +20,7 @@ COUNT(@@GLOBAL.innodb_adaptive_hash_index_parts)
 1
 1 Expected
 SELECT COUNT(VARIABLE_VALUE)
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='innodb_adaptive_hash_index_parts';
 COUNT(VARIABLE_VALUE)
 1

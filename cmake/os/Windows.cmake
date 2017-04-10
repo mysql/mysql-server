@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -35,9 +35,9 @@ INCLUDE(${CMAKE_BINARY_DIR}/win/configure.data OPTIONAL)
 GET_FILENAME_COMPONENT(_SCRIPT_DIR ${CMAKE_CURRENT_LIST_FILE} PATH)
 INCLUDE(${_SCRIPT_DIR}/WindowsCache.cmake)
 
-# We require at least Visual Studio 2013 (aka 12.0) which has version nr 1800.
-IF(NOT FORCE_UNSUPPORTED_COMPILER AND MSVC_VERSION LESS 1800)
-  MESSAGE(FATAL_ERROR "Visual Studio 2013 or newer is required!")
+# We require at least Visual Studio 2015 (aka 14.0) which has version nr 1900.
+IF(NOT FORCE_UNSUPPORTED_COMPILER AND MSVC_VERSION LESS 1900)
+  MESSAGE(FATAL_ERROR "Visual Studio 2015 or newer is required!")
 ENDIF()
 
 # OS display name (version_compile_os etc).
@@ -46,7 +46,8 @@ IF(CMAKE_SIZEOF_VOID_P MATCHES 8)
   SET(SYSTEM_TYPE "Win64")
   SET(MYSQL_MACHINE_TYPE "x86_64")
 ELSE()
-  SET(SYSTEM_TYPE "Win32")
+  MESSAGE(FATAL_ERROR "32 bit Windows builds are not supported. "
+       "Clean the build dir and rebuild using -G \"${CMAKE_GENERATOR} Win64\"")
 ENDIF()
 
 # Target Windows 7 / Windows Server 2008 R2 or later, i.e _WIN32_WINNT_WIN7
@@ -67,6 +68,7 @@ ENDIF()
 OPTION(WIN_DEBUG_NO_INLINE "Disable inlining for debug builds on Windows" OFF)
 
 IF(MSVC)
+  OPTION(LINK_STATIC_RUNTIME_LIBRARIES "Link with /MT" OFF)
   # Enable debug info also in Release build,
   # and create PDB to be able to analyze crashes.
   FOREACH(type EXE SHARED MODULE)
@@ -75,7 +77,6 @@ IF(MSVC)
   ENDFOREACH()
   
   # For release types Debug Release RelWithDebInfo (but not MinSizeRel):
-  # - Force static runtime libraries
   # - Choose C++ exception handling:
   #     If /EH is not specified, the compiler will catch structured and
   #     C++ exceptions, but will not destroy C++ objects that will go out of
@@ -98,32 +99,28 @@ IF(MSVC)
   FOREACH(lang C CXX)
     SET(CMAKE_${lang}_FLAGS_RELEASE "${CMAKE_${lang}_FLAGS_RELEASE} /Z7")
   ENDFOREACH()
-  IF(NOT WINDOWS_RUNTIME_MD)
+
     FOREACH(flag 
      CMAKE_C_FLAGS_RELEASE    CMAKE_C_FLAGS_RELWITHDEBINFO 
      CMAKE_C_FLAGS_DEBUG      CMAKE_C_FLAGS_DEBUG_INIT 
      CMAKE_CXX_FLAGS_RELEASE  CMAKE_CXX_FLAGS_RELWITHDEBINFO
      CMAKE_CXX_FLAGS_DEBUG    CMAKE_CXX_FLAGS_DEBUG_INIT)
-     STRING(REPLACE "/MD"  "/MT" "${flag}" "${${flag}}")
+     IF(LINK_STATIC_RUNTIME_LIBRARIES)
+       STRING(REPLACE "/MD"  "/MT" "${flag}" "${${flag}}")
+     ENDIF()
      STRING(REPLACE "/Zi"  "/Z7" "${flag}" "${${flag}}")
      IF (NOT WIN_DEBUG_NO_INLINE)
        STRING(REPLACE "/Ob0"  "/Ob1" "${flag}" "${${flag}}")
      ENDIF()
      SET("${flag}" "${${flag}} /EHsc")
     ENDFOREACH()
-  ENDIF()
   
-  # Fix CMake's predefined huge stack size
   FOREACH(type EXE SHARED MODULE)
-   STRING(REGEX REPLACE "/STACK:([^ ]+)" "" CMAKE_${type}_LINKER_FLAGS "${CMAKE_${type}_LINKER_FLAGS}")
-   STRING(REGEX REPLACE "/INCREMENTAL:([^ ]+)" "" CMAKE_${type}_LINKER_FLAGS_RELWITHDEBINFO "${CMAKE_${type}_LINKER_FLAGS_RELWITHDEBINFO}")
+    SET(CMAKE_${type}_LINKER_FLAGS_DEBUG
+	    "${CMAKE_${type}_LINKER_FLAGS_DEBUG} /INCREMENTAL:NO")
+    SET(CMAKE_${type}_LINKER_FLAGS_RELWITHDEBINFO
+	    "${CMAKE_${type}_LINKER_FLAGS_RELWITHDEBINFO} /INCREMENTAL:NO")
   ENDFOREACH()
-  
-  # Mark 32 bit executables large address aware so they can 
-  # use > 2GB address space
-  IF(CMAKE_SIZEOF_VOID_P MATCHES 4)
-    SET(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /LARGEADDRESSAWARE")
-  ENDIF()
   
   # Speed up multiprocessor build
   SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /MP")
@@ -138,16 +135,5 @@ ENDIF()
 LINK_LIBRARIES(ws2_32)
 # ..also for tests
 SET(CMAKE_REQUIRED_LIBRARIES ws2_32)
-
-# IPv6 constants appeared in Vista SDK first. We need to define them in any case if they are 
-# not in headers, to handle dual mode sockets correctly.
-CHECK_SYMBOL_EXISTS(IPPROTO_IPV6 "winsock2.h" HAVE_IPPROTO_IPV6)
-IF(NOT HAVE_IPPROTO_IPV6)
-  SET(HAVE_IPPROTO_IPV6 41)
-ENDIF()
-CHECK_SYMBOL_EXISTS(IPV6_V6ONLY  "winsock2.h;ws2ipdef.h" HAVE_IPV6_V6ONLY)
-IF(NOT HAVE_IPV6_V6ONLY)
-  SET(IPV6_V6ONLY 27)
-ENDIF()
 
 SET(FN_NO_CASE_SENSE 1)

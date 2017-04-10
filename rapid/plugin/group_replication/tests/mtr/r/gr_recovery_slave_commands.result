@@ -41,8 +41,9 @@ ERROR HY000: Slave channel 'group_replication_recovery' does not exist.
 START SLAVE SQL_THREAD FOR CHANNEL 'group_replication_recovery';
 ERROR HY000: Slave channel 'group_replication_recovery' does not exist.
 
-# 'Empty set' when executing SHOW SLAVE STATUS on GR recovery channel
+# ERROR when executing SHOW SLAVE STATUS on GR recovery channel
 SHOW SLAVE STATUS FOR CHANNEL 'group_replication_recovery';
+ERROR HY000: Slave channel 'group_replication_recovery' does not exist.
 
 # ERROR when executing SHOW RELAYLOG EVENTS on GR recovery channel
 SHOW RELAYLOG EVENTS  FOR CHANNEL 'group_replication_recovery';
@@ -125,10 +126,9 @@ INSERT INTO t1 VALUES (3);
 LOCK TABLE t1 READ;
 [connection server2]
 CHANGE MASTER TO MASTER_USER="root" FOR CHANNEL "group_replication_recovery";
-START GROUP_REPLICATION;
 
 # Ensure that M2 is blocked in recovery stage so channel exists
-include/gr_wait_for_member_state.inc
+include/start_group_replication.inc
 
 # Now when M2 is in RECOVERING state, test commands for recovery channel
 # when MEMBER_STATE: RECOVERING and recovery channel is ACTIVE.

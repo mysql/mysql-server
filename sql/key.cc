@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,7 +17,25 @@
 /* Functions to handle keys and fields in forms */
 
 #include "key.h"                                // key_rec_cmp
+
+#include <string.h>
+#include <algorithm>
+
+#include "binary_log_types.h"
 #include "field.h"                              // Field
+#include "handler.h"
+#include "m_ctype.h"
+#include "m_string.h"
+#include "my_bitmap.h"
+#include "my_byteorder.h"
+#include "my_compare.h"
+#include "my_dbug.h"
+#include "my_macros.h"
+#include "sql_const.h"
+#include "sql_error.h"
+#include "sql_string.h"
+#include "system_variables.h"
+#include "table.h"
 
 using std::min;
 using std::max;
@@ -149,29 +167,6 @@ void key_copy(uchar *to_key, uchar *from_record, KEY *key_info,
 
 
 /**
-  Zero the null components of key tuple
-  SYNOPSIS
-    key_zero_nulls()
-      tuple
-      key_info
-
-  DESCRIPTION
-*/
-
-void key_zero_nulls(uchar *tuple, KEY *key_info)
-{
-  KEY_PART_INFO *key_part= key_info->key_part;
-  KEY_PART_INFO *key_part_end= key_part + key_info->user_defined_key_parts;
-  for (; key_part != key_part_end; key_part++)
-  {
-    if (key_part->null_bit && *tuple)
-      memset(tuple+1, 0, key_part->store_length-1);
-    tuple+= key_part->store_length;
-  }
-}
-
-
-/**
   Restore a key from some buffer to record.
 
     This function converts a key into record format. It can be used in cases
@@ -292,7 +287,6 @@ bool key_cmp_if_same(TABLE *table,const uchar *key,uint idx,uint key_length)
        key < key_end ; 
        key_part++, key+= store_length)
   {
-    uint length;
     store_length= key_part->store_length;
 
     if (key_part->null_bit)
@@ -305,33 +299,21 @@ bool key_cmp_if_same(TABLE *table,const uchar *key,uint idx,uint key_length)
       key++;
       store_length--;
     }
-    if (key_part->key_part_flag & (HA_BLOB_PART | HA_VAR_LENGTH_PART |
-                                   HA_BIT_PART))
+    if (key_part->bin_cmp &&
+        !(key_part->key_part_flag & (HA_BLOB_PART | HA_VAR_LENGTH_PART |
+                                     HA_BIT_PART)))
     {
+      // We can use memcpy.
+      uint length= min((uint) (key_end-key), store_length);
+      if (memcmp(key,table->record[0]+key_part->offset,length))
+        return 1;
+    }
+    else
+    {
+      // Use the regular comparison function.
       if (key_part->field->key_cmp(key, key_part->length))
 	return 1;
-      continue;
     }
-    length= min((uint) (key_end-key), store_length);
-    if (!(key_part->key_type & (FIELDFLAG_NUMBER+FIELDFLAG_BINARY+
-                                FIELDFLAG_PACK)))
-    {
-      const CHARSET_INFO *cs= key_part->field->charset();
-      size_t char_length= key_part->length / cs->mbmaxlen;
-      const uchar *pos= table->record[0] + key_part->offset;
-      if (length > char_length)
-      {
-        char_length= my_charpos(cs, pos, pos + length, char_length);
-        set_if_smaller(char_length, length);
-      }
-      if (cs->coll->strnncollsp(cs,
-                                key, length,
-                                pos, char_length, 0))
-        return 1;
-      continue;
-    }
-    if (memcmp(key,table->record[0]+key_part->offset,length))
-      return 1;
   }
   return 0;
 }
@@ -340,16 +322,14 @@ bool key_cmp_if_same(TABLE *table,const uchar *key,uint idx,uint key_length)
 /**
   Unpack a field and append it.
 
-  @param[inout] to           String to append the field contents to.
+  @param[in,out] to          String to append the field contents to.
   @param        field        Field to unpack.
-  @param        rec          Record which contains the field data.
   @param        max_length   Maximum length of field to unpack
                              or 0 for unlimited.
   @param        prefix_key   The field is used as a prefix key.
 */
 
-void field_unpack(String *to, Field *field, const uchar *rec, uint max_length,
-                  bool prefix_key)
+void field_unpack(String *to, Field *field, uint max_length, bool prefix_key)
 {
   String tmp;
   DBUG_ENTER("field_unpack");
@@ -435,7 +415,7 @@ void key_unpack(String *to, TABLE *table, KEY *key)
         continue;
       }
     }
-    field_unpack(to, key_part->field, table->record[0], key_part->length,
+    field_unpack(to, key_part->field, key_part->length,
                  MY_TEST(key_part->key_part_flag & HA_PART_KEY_SEG));
   }
   dbug_tmp_restore_column_map(table->read_set, old_map);
@@ -484,17 +464,26 @@ bool is_key_used(TABLE *table, uint idx, const MY_BITMAP *fields)
 
 
 /**
-  Compare key in row to a given key.
+  Compare key in record buffer to a given key.
 
   @param key_part		Key part handler
   @param key			Key to compare to value in table->record[0]
   @param key_length		length of 'key'
 
+  @details
+    The function compares given key and key in record buffer, part by part,
+    using info from key_part arg.
+    Since callers expect before/after rather than lesser/greater, result
+    depends on the HA_REVERSE_SORT flag of the key part. E.g. For ASC key
+    part and two keys, 'A' and 'Z', -1 will be returned. For same keys, but
+    DESC key part, 1 will be returned.
+
   @return
     The return value is SIGN(key_in_row - range_key):
-    -   0		Key is equal to range or 'range' == 0 (no range)
-    -  -1		Key is less than range
-    -   1		Key is larger than range
+    -   0   Key is equal to record's key
+    -  -1   Key is before record's key
+    -   1   Key is after record's key
+
   @note: keep this function and key_cmp2() in sync
 */
 
@@ -507,6 +496,7 @@ int key_cmp(KEY_PART_INFO *key_part, const uchar *key, uint key_length)
        key+= store_length, key_part++)
   {
     int cmp;
+    int res= (key_part->key_part_flag & HA_REVERSE_SORT) ? -1 : 1;
     store_length= key_part->store_length;
     if (key_part->null_bit)
     {
@@ -516,19 +506,19 @@ int key_cmp(KEY_PART_INFO *key_part, const uchar *key, uint key_length)
       {
 	/* the range is expecting a null value */
 	if (!field_is_null)
-	  return 1;                             // Found key is > range
+	  return res;                 // Found key is > range
         /* null -- exact match, go to next key part */
 	continue;
       }
       else if (field_is_null)
-	return -1;                              // NULL is less than any value
+	return -res;                   // NULL is less than any value
       key++;					// Skip null byte
       store_length--;
     }
     if ((cmp=key_part->field->key_cmp(key, key_part->length)) < 0)
-      return -1;
+      return -res;
     if (cmp > 0)
-      return 1;
+      return res;
   }
   return 0;                                     // Keys are equal
 }
@@ -544,20 +534,21 @@ int key_cmp(KEY_PART_INFO *key_part, const uchar *key, uint key_length)
   @param key2_length		length of 'key2'
 
   @return
-    The return value is an integral value indicating the
-    relationship between the two keys:
-    -   0                       key1 = key2
-    -  -1                       Key1 < Key2
-    -   1                       Key1 > Key2
+    The return value is an integral value that takes into account ASC/DESC
+    order of keyparts and indicates the relationship between the two keys:
+    -   0                       key1 equal to key2
+    -  -1                       Key1 before Key2
+    -   1                       Key1 after  Key2
   @note: keep this function and key_cmp() in sync
 
   Below comparison code is under the assumption
   that key1_length and key2_length are same and
   key1_length, key2_length are non zero value.
+  @see key_cmp()
 */
 int key_cmp2(KEY_PART_INFO *key_part,
-                 const uchar *key1, uint key1_length,
-                 const uchar *key2, uint key2_length)
+             const uchar *key1, uint key1_length,
+             const uchar *key2, uint key2_length)
 {
   DBUG_ASSERT(key_part && key1 && key2);
   DBUG_ASSERT((key1_length == key2_length) && key1_length != 0 );
@@ -567,6 +558,7 @@ int key_cmp2(KEY_PART_INFO *key_part,
   for (const uchar *end= key1 + key1_length; key1 < end;
        key1+= store_length, key2+= store_length, key_part++)
   {
+    int res= (key_part->key_part_flag & HA_REVERSE_SORT) ? -1 : 1;
     store_length= key_part->store_length;
     /* This key part allows null values; NULL is lower than everything */
     if (key_part->null_bit)
@@ -583,7 +575,7 @@ int key_cmp2(KEY_PART_INFO *key_part,
             > if key1's null flag is '0' (i.e., key1 is NOT NULL), then
               key2's null flag is '1' (since *key1 != *key2) then return 1;
         */
-        return (*key1) ? -1 : 1;
+        return (*key1) ? -res : res;
       }
       else
       {
@@ -608,9 +600,9 @@ int key_cmp2(KEY_PART_INFO *key_part,
     /* Compare two keys using field->key_cmp */
     int cmp;
     if ((cmp= key_part->field->key_cmp(key1, key2)) < 0)
-      return -1;
+      return -res;
     if (cmp > 0)
-      return 1;
+      return res;
   }
   return 0; /* Keys are equal */
 }
@@ -641,10 +633,11 @@ int key_cmp2(KEY_PART_INFO *key_part,
   @param first_rec              Pointer to record compare with
   @param second_rec             Pointer to record compare against first_rec
 
-  @return Return value is SIGN(first_rec - second_rec)
+  @return Return value is less, equal or greater than 0 if first rec is sorted
+          before, same or after second rec.
     @retval  0                  Keys are equal
-    @retval -1                  second_rec is greater than first_rec
-    @retval +1                  first_rec is greater than second_rec
+    @retval -1                  second_rec is after first_rec
+    @retval +1                  first_rec is after second_rec
 */
 
 int key_rec_cmp(KEY **key, uchar *first_rec, uchar *second_rec)
@@ -671,6 +664,9 @@ int key_rec_cmp(KEY **key, uchar *first_rec, uchar *second_rec)
     /* loop over every key part */
     do
     {
+      // 1 - ASCENDING order, -1 - DESCENDING
+      int sort_order= (key_part->key_part_flag & HA_REVERSE_SORT) ? -1 : 1;
+
       field= key_part->field;
 
       /* If not read, compare is done and equal! */
@@ -695,12 +691,12 @@ int key_rec_cmp(KEY **key, uchar *first_rec, uchar *second_rec)
             ; /* Fall through, no NULL fields */
           else
           {
-            DBUG_RETURN(+1);
+            DBUG_RETURN(sort_order);
           }
         }
         else if (!sec_is_null)
         {
-          DBUG_RETURN(-1);
+          DBUG_RETURN(-sort_order);
         }
         else
           goto next_loop; /* Both were NULL */
@@ -714,7 +710,7 @@ int key_rec_cmp(KEY **key, uchar *first_rec, uchar *second_rec)
       */
       if ((result= field->cmp_max(field->ptr+first_diff, field->ptr+sec_diff,
                              key_part->length)))
-        DBUG_RETURN(result);
+        DBUG_RETURN((sort_order < 0) ? -result : result);
 next_loop:
       key_part++;
       key_part_num++;

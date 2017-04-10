@@ -98,9 +98,9 @@ while ($n)
 
 --source include/sync_slave_sql_with_master.inc
 
-if (`select variable_value - $workers*$temp_tables as must_be_zero from information_schema.global_status where variable_name like 'Slave_open_temp_tables'`)
+if (`select variable_value - $workers*$temp_tables as must_be_zero from performance_schema.global_status where variable_name like 'Slave_open_temp_tables'`)
 {
-   --let $actual_temps= `select variable_value from information_schema.global_status where variable_name like 'Slave_open_temp_tables'`
+   --let $actual_temps= `select variable_value from performance_schema.global_status where variable_name like 'Slave_open_temp_tables'`
    --let $exected= `select  $workers*$temp_tables`
    --echo *** Wrong value of Slave_open_temp_tables: got $actual_temps, expected $expected ***
    --die

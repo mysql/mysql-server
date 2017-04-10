@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,6 +13,15 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include "my_config.h"
+
+#include <errno.h>
+#include <fcntl.h>
+#include <sys/types.h>
+
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_macros.h"
 #include "myisamdef.h"
 #ifdef HAVE_SYS_MMAN_H
 #include <sys/mman.h>
@@ -54,8 +63,8 @@ int mi_extra(MI_INFO *info, enum ha_extra_function function, void *extra_arg)
     if (info->opt_flag & READ_CACHE_USED)
     {
       reinit_io_cache(&info->rec_cache,READ_CACHE,0,
-		      (pbool) (info->lock_type != F_UNLCK),
-		      (pbool) MY_TEST(info->update & HA_STATE_ROW_CHANGED)
+		      (bool) (info->lock_type != F_UNLCK),
+		      (bool) MY_TEST(info->update & HA_STATE_ROW_CHANGED)
 		      );
     }
     info->update= ((info->update & HA_STATE_CHANGED) | HA_STATE_NEXT_FOUND |
@@ -101,7 +110,7 @@ int mi_extra(MI_INFO *info, enum ha_extra_function function, void *extra_arg)
       if (!(init_io_cache(&info->rec_cache,info->dfile,
 			 (uint) MY_MIN(info->state->data_file_length + 1,
                                        cache_size),
-			  READ_CACHE,0L,(pbool) (info->lock_type != F_UNLCK),
+			  READ_CACHE,0L,(bool) (info->lock_type != F_UNLCK),
 			  MYF(share->write_flag & MY_WAIT_IF_FULL))))
       {
 	info->opt_flag|=READ_CACHE_USED;
@@ -115,8 +124,8 @@ int mi_extra(MI_INFO *info, enum ha_extra_function function, void *extra_arg)
     if (info->opt_flag & READ_CACHE_USED)
     {
       reinit_io_cache(&info->rec_cache,READ_CACHE,info->nextpos,
-		      (pbool) (info->lock_type != F_UNLCK),
-		      (pbool) MY_TEST(info->update & HA_STATE_ROW_CHANGED));
+		      (bool) (info->lock_type != F_UNLCK),
+		      (bool) MY_TEST(info->update & HA_STATE_ROW_CHANGED));
       info->update&= ~HA_STATE_ROW_CHANGED;
       if (share->concurrent_insert)
 	info->rec_cache.end_of_file=info->state->data_file_length;
@@ -136,7 +145,7 @@ int mi_extra(MI_INFO *info, enum ha_extra_function function, void *extra_arg)
 	!share->state.header.uniques)
       if (!(init_io_cache(&info->rec_cache,info->dfile, cache_size,
 			 WRITE_CACHE,info->state->data_file_length,
-			  (pbool) (info->lock_type != F_UNLCK),
+			  (bool) (info->lock_type != F_UNLCK),
 			  MYF(share->write_flag & MY_WAIT_IF_FULL))))
       {
 	info->opt_flag|=WRITE_CACHE_USED;
@@ -149,6 +158,7 @@ int mi_extra(MI_INFO *info, enum ha_extra_function function, void *extra_arg)
     if (info->s->data_file_type != DYNAMIC_RECORD)
       break;
     /* Remove read/write cache if dynamic rows */
+    // Fall through.
   case HA_EXTRA_NO_CACHE:
     if (info->opt_flag & (READ_CACHE_USED | WRITE_CACHE_USED))
     {

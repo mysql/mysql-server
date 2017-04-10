@@ -23,7 +23,6 @@
 #                                                                             #
 ###############################################################################
 
---source include/have_innodb.inc
 --source include/load_sysvars.inc
 
 ######################################################################## 
@@ -134,12 +133,12 @@ SELECT @@global.innodb_max_purge_lag;
 
 --disable_warnings
 SELECT @@global.innodb_max_purge_lag =
- VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+ VARIABLE_VALUE FROM performance_schema.global_variables
   WHERE VARIABLE_NAME='innodb_max_purge_lag';
 --enable_warnings
 SELECT @@global.innodb_max_purge_lag;
 --disable_warnings
-SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+SELECT VARIABLE_VALUE FROM performance_schema.global_variables
  WHERE VARIABLE_NAME='innodb_max_purge_lag';
 --enable_warnings
 

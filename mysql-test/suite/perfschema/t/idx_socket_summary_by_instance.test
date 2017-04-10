@@ -1,0 +1,30 @@
+# Tests for PERFORMANCE_SCHEMA
+
+#setup
+let $select_column = COUNT_STAR;
+let $table = performance_schema.socket_summary_by_instance;
+
+select OBJECT_INSTANCE_BEGIN, EVENT_NAME
+  from performance_schema.socket_summary_by_instance
+  limit 1
+  into @oib, @e_name;
+
+###########################################################################
+# Test index on OBJECT_INSTANCE_BEGIN
+###########################################################################
+
+let $column_count = 1;
+let $col1 = OBJECT_INSTANCE_BEGIN;
+let $col1_act = @oib;
+
+--source ../include/idx_explain_test.inc
+
+###########################################################################
+# Test index on EVENT_NAME
+###########################################################################
+
+let $column_count = 1;
+let $col1 = EVENT_NAME;
+let $col1_act = @e_name;
+
+--source ../include/idx_explain_test.inc

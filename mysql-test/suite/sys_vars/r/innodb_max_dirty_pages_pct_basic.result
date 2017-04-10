@@ -130,7 +130,7 @@ SELECT @@global.innodb_max_dirty_pages_pct;
 99.999000
 '#----------------------FN_DYNVARS_046_06------------------------#'
 SELECT @@global.innodb_max_dirty_pages_pct =
-VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+VARIABLE_VALUE FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='innodb_max_dirty_pages_pct';
 @@global.innodb_max_dirty_pages_pct =
 VARIABLE_VALUE
@@ -138,7 +138,7 @@ VARIABLE_VALUE
 SELECT @@global.innodb_max_dirty_pages_pct;
 @@global.innodb_max_dirty_pages_pct
 99.999000
-SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+SELECT VARIABLE_VALUE FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='innodb_max_dirty_pages_pct';
 VARIABLE_VALUE
 99.999000

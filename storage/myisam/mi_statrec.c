@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,6 +15,13 @@
 
 	/* Functions to handle fixed-length-records */
 
+#include <fcntl.h>
+#include <sys/types.h>
+
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_io.h"
+#include "myisam_sys.h"
 #include "myisamdef.h"
 
 
@@ -198,7 +205,7 @@ int _mi_read_static_record(MI_INFO *info, my_off_t pos,
 
 int _mi_read_rnd_static_record(MI_INFO *info, uchar *buf,
 			       my_off_t filepos,
-			       my_bool skip_deleted_blocks)
+			       bool skip_deleted_blocks)
 {
   int locked,error,cache_read;
   uint cache_length;

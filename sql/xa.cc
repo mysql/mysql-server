@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,15 +15,45 @@
 
 #include "xa.h"
 
-#include "hash.h"               // HASH
-#include "sql_class.h"          // THD
-#include "transaction.h"        // trans_begin, trans_rollback
+#include <new>
+
 #include "debug_sync.h"         // DEBUG_SYNC
-#include "log.h"                // tc_log
+#include "derror.h"             // ER_DEFAULT
+#include "handler.h"            // handlerton
+#include "hash.h"               // HASH
+#include "item.h"
+#include "log.h"                // sql_print_information
+#include "m_ctype.h"
+#include "mdl.h"
+#include "my_dbug.h"
+#include "my_macros.h"
+#include "my_psi_config.h"
+#include "my_sys.h"
+#include "mysql/plugin.h"       // MYSQL_XIDDATASIZE
+#include "mysql/psi/mysql_mutex.h"
+#include "mysql/psi/mysql_transaction.h"
+#include "mysql/psi/psi_base.h"
+#include "mysql/psi/psi_mutex.h"
+#include "mysql/service_mysql_alloc.h"
+#include "mysql_com.h"
+#include "mysqld.h"             // server_id
+#include "mysqld_error.h"
+#include "protocol.h"
+#include "psi_memory_key.h"     // key_memory_XID
+#include "query_options.h"
+#include "rpl_context.h"
+#include "rpl_gtid.h"
+#include "sql_class.h"          // THD
+#include "sql_const.h"
+#include "sql_error.h"
+#include "sql_list.h"
 #include "sql_plugin.h"         // plugin_foreach
-#include <pfs_transaction_provider.h>
-#include <mysql/psi/mysql_transaction.h>
-#include "binlog.h"
+#include "sql_string.h"
+#include "system_variables.h"
+#include "tc_log.h"             // tc_log
+#include "thr_mutex.h"
+#include "transaction.h"        // trans_begin, trans_rollback
+#include "transaction_info.h"
 
 const char *XID_STATE::xa_state_names[]={
   "NON-EXISTING", "ACTIVE", "IDLE", "PREPARED", "ROLLBACK ONLY"
@@ -36,8 +66,45 @@ static const int MAX_XID_LIST_SIZE= 1024*128;
 static mysql_mutex_t LOCK_transaction_cache;
 static HASH transaction_cache;
 
-static my_bool xacommit_handlerton(THD *unused1, plugin_ref plugin,
-                                   void *arg)
+static const uint MYSQL_XID_PREFIX_LEN= 8; // must be a multiple of 8
+static const uint MYSQL_XID_OFFSET= MYSQL_XID_PREFIX_LEN + sizeof(server_id);
+static const uint MYSQL_XID_GTRID_LEN= MYSQL_XID_OFFSET + sizeof(my_xid);
+
+static void attach_native_trx(THD *thd);
+static Transaction_ctx *transaction_cache_search(XID *xid);
+static bool transaction_cache_insert(XID *xid, Transaction_ctx *transaction);
+static bool transaction_cache_insert_recovery(XID *xid);
+
+
+my_xid xid_t::get_my_xid() const
+{
+  static_assert(XIDDATASIZE == MYSQL_XIDDATASIZE,
+                "Our #define needs to match the one in plugin.h.");
+
+  if (gtrid_length == static_cast<long>(MYSQL_XID_GTRID_LEN) &&
+      bqual_length == 0 &&
+      !memcmp(data, MYSQL_XID_PREFIX, MYSQL_XID_PREFIX_LEN))
+  {
+    my_xid tmp;
+    memcpy(&tmp, data + MYSQL_XID_OFFSET, sizeof(tmp));
+    return tmp;
+  }
+  return 0;
+}
+
+
+void xid_t::set(my_xid xid)
+{
+  formatID= 1;
+  memcpy(data, MYSQL_XID_PREFIX, MYSQL_XID_PREFIX_LEN);
+  memcpy(data + MYSQL_XID_PREFIX_LEN, &server_id, sizeof(server_id));
+  memcpy(data + MYSQL_XID_OFFSET, &xid, sizeof(xid));
+  gtrid_length= MYSQL_XID_GTRID_LEN;
+  bqual_length= 0;
+}
+
+
+static bool xacommit_handlerton(THD*, plugin_ref plugin, void *arg)
 {
   handlerton *hton= plugin_data<handlerton*>(plugin);
   if (hton->state == SHOW_OPTION_YES && hton->recover)
@@ -47,8 +114,7 @@ static my_bool xacommit_handlerton(THD *unused1, plugin_ref plugin,
 }
 
 
-static my_bool xarollback_handlerton(THD *unused1, plugin_ref plugin,
-                                     void *arg)
+static bool xarollback_handlerton(THD*, plugin_ref plugin, void *arg)
 {
   handlerton *hton= plugin_data<handlerton*>(plugin);
   if (hton->state == SHOW_OPTION_YES && hton->recover)
@@ -58,7 +124,7 @@ static my_bool xarollback_handlerton(THD *unused1, plugin_ref plugin,
 }
 
 
-static void ha_commit_or_rollback_by_xid(THD *thd, XID *xid, bool commit)
+static void ha_commit_or_rollback_by_xid(THD*, XID *xid, bool commit)
 {
   plugin_foreach(NULL, commit ? xacommit_handlerton : xarollback_handlerton,
                  MYSQL_STORAGE_ENGINE_PLUGIN, xid);
@@ -74,8 +140,7 @@ struct xarecover_st
 };
 
 
-static my_bool xarecover_handlerton(THD *unused, plugin_ref plugin,
-                                    void *arg)
+static bool xarecover_handlerton(THD*, plugin_ref plugin, void *arg)
 {
   handlerton *hton= plugin_data<handlerton*>(plugin);
   struct xarecover_st *info= (struct xarecover_st *) arg;
@@ -187,7 +252,7 @@ int ha_recover(HASH *commit_list)
   }
   if (!info.list)
   {
-    sql_print_error(ER(ER_OUTOFMEMORY),
+    sql_print_error(ER_DEFAULT(ER_OUTOFMEMORY),
                     static_cast<int>(info.len * sizeof(XID)));
     DBUG_RETURN(1);
   }
@@ -386,6 +451,8 @@ bool Sql_cmd_xa_commit::trans_xa_commit(THD *thd)
       else
         res= MY_TEST(ha_commit_low(thd, /* all */ true));
 
+      DBUG_EXECUTE_IF("simulate_xa_commit_log_failure", { res= true; });
+
       if (res)
         my_error(ER_XAER_RMERR, MYF(0)); // todo/fixme: consider to rollback it
 #ifdef HAVE_PSI_TRANSACTION_INTERFACE
@@ -396,8 +463,9 @@ bool Sql_cmd_xa_commit::trans_xa_commit(THD *thd)
           we need to explicitly mark the transaction as committed.
         */
         MYSQL_COMMIT_TRANSACTION(thd->m_transaction_psi);
-        thd->m_transaction_psi= NULL;
       }
+
+      thd->m_transaction_psi= NULL;
 #endif
     }
   }
@@ -957,9 +1025,6 @@ char* XID::xid_to_str(char *buf) const
 #endif
 
 
-extern "C" uchar *transaction_get_hash_key(const uchar *, size_t *, my_bool);
-extern "C" void transaction_free_hash(void *);
-
 
 /**
   Callback that is called to get the key for a hash.
@@ -970,8 +1035,7 @@ extern "C" void transaction_free_hash(void *);
   @return  pointer to a record stored in cache
 */
 
-extern "C" uchar *transaction_get_hash_key(const uchar *ptr, size_t *length,
-                                           my_bool not_used MY_ATTRIBUTE((unused)))
+static const uchar *transaction_get_hash_key(const uchar *ptr, size_t *length)
 {
   *length= ((Transaction_ctx*)ptr)->xid_state()->get_xid()->key_length();
   return ((Transaction_ctx*)ptr)->xid_state()->get_xid()->key();
@@ -984,7 +1048,7 @@ extern "C" uchar *transaction_get_hash_key(const uchar *ptr, size_t *length,
   @param ptr  pointer to free
 */
 
-void transaction_free_hash(void *ptr)
+static void transaction_free_hash(void *ptr)
 {
   Transaction_ctx *transaction= (Transaction_ctx*)ptr;
   // Only time it's allocated is during recovery process.
@@ -998,7 +1062,7 @@ static PSI_mutex_key key_LOCK_transaction_cache;
 
 static PSI_mutex_info transaction_cache_mutexes[]=
 {
-  { &key_LOCK_transaction_cache, "LOCK_transaction_cache", PSI_FLAG_GLOBAL}
+  { &key_LOCK_transaction_cache, "LOCK_transaction_cache", PSI_FLAG_GLOBAL, 0}
 };
 
 static void init_transaction_cache_psi_keys(void)
@@ -1006,7 +1070,7 @@ static void init_transaction_cache_psi_keys(void)
   const char* category= "sql";
   int count;
 
-  count= array_elements(transaction_cache_mutexes);
+  count= static_cast<int>(array_elements(transaction_cache_mutexes));
   mysql_mutex_register(category, transaction_cache_mutexes, count);
 }
 #endif /* HAVE_PSI_INTERFACE */
@@ -1020,7 +1084,7 @@ bool transaction_cache_init()
 
   mysql_mutex_init(key_LOCK_transaction_cache, &LOCK_transaction_cache,
                    MY_MUTEX_INIT_FAST);
-  return my_hash_init(&transaction_cache, &my_charset_bin, 100, 0, 0,
+  return my_hash_init(&transaction_cache, &my_charset_bin, 100, 0,
                       transaction_get_hash_key, transaction_free_hash, 0,
                       key_memory_XID) != 0;
 }
@@ -1035,7 +1099,18 @@ void transaction_cache_free()
 }
 
 
-Transaction_ctx *transaction_cache_search(XID *xid)
+/**
+  Search information about XA transaction by a XID value.
+
+  @param xid    Pointer to a XID structure that identifies a XA transaction.
+
+  @return  pointer to a Transaction_ctx that describes the whole transaction
+           including XA-specific information (XID_STATE).
+    @retval  NULL     failure
+    @retval  != NULL  success
+*/
+
+static Transaction_ctx *transaction_cache_search(XID *xid)
 {
   mysql_mutex_lock(&LOCK_transaction_cache);
 
@@ -1047,6 +1122,19 @@ Transaction_ctx *transaction_cache_search(XID *xid)
   return res;
 }
 
+
+/**
+  Insert information about XA transaction into a cache indexed by XID.
+
+  @param xid     Pointer to a XID structure that identifies a XA transaction.
+  @param transaction
+                 Pointer to Transaction object that is inserted.
+
+  @return  operation result
+    @retval  false   success or a cache already contains XID_STATE
+                     for this XID value
+    @retval  true    failure
+*/
 
 bool transaction_cache_insert(XID *xid, Transaction_ctx *transaction)
 {
@@ -1104,6 +1192,18 @@ bool transaction_cache_detach(Transaction_ctx *transaction)
   return res;
 }
 
+
+/**
+  Insert information about XA transaction being recovered into a cache
+  indexed by XID.
+
+  @param xid     Pointer to a XID structure that identifies a XA transaction.
+
+  @return  operation result
+    @retval  false   success or a cache already contains Transaction_ctx
+                     for this XID value
+    @retval  true    failure
+*/
 
 bool transaction_cache_insert_recovery(XID *xid)
 {
@@ -1169,7 +1269,7 @@ static void attach_native_trx(THD *thd)
   THD of the slave applier is dissociated from a transaction object in engine
   that continues to exist there.
 
-  @param  THD current thread
+  @param  thd current thread
   @return the value of is_error()
 */
 
@@ -1220,17 +1320,17 @@ bool applier_reset_xa_trans(THD *thd)
   @return    FALSE   on success, TRUE otherwise.
 */
 
-my_bool detach_native_trx(THD *thd, plugin_ref plugin, void *unused)
+bool detach_native_trx(THD *thd, plugin_ref plugin, void*)
 {
   handlerton *hton= plugin_data<handlerton *>(plugin);
 
   if (hton->replace_native_transaction_in_thd)
   {
     /* Ensure any active backup engine ha_data won't be overwritten */
-    DBUG_ASSERT(!thd->ha_data[hton->slot].ha_ptr_backup);
+    DBUG_ASSERT(!thd->get_ha_data(hton->slot)->ha_ptr_backup);
 
     hton->replace_native_transaction_in_thd(thd, NULL,
-                                            thd_ha_data_backup(thd, hton));
+                                            &thd->get_ha_data(hton->slot)->ha_ptr_backup);
   }
 
   return FALSE;

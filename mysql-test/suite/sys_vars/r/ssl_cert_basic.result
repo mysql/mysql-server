@@ -13,7 +13,7 @@ COUNT(@@GLOBAL.ssl_cert)
 1 Expected
 '#---------------------BS_STVARS_047_03----------------------#'
 SELECT @@GLOBAL.ssl_cert = VARIABLE_VALUE
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='ssl_cert';
 @@GLOBAL.ssl_cert = VARIABLE_VALUE
 1
@@ -23,7 +23,7 @@ COUNT(@@GLOBAL.ssl_cert)
 1
 1 Expected
 SELECT COUNT(VARIABLE_VALUE)
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='ssl_cert';
 COUNT(VARIABLE_VALUE)
 1

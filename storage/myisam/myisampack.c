@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,21 +15,29 @@
 
 /* Pack MyISAM file */
 
-#ifndef USE_MY_FUNC
-#define USE_MY_FUNC			/* We need at least my_malloc */
-#endif
+#include "my_config.h"
 
-#include "myisamdef.h"
-#include "my_default.h"
-#include <queues.h>
-#include <my_tree.h>
-#include "mysys_err.h"
-#ifndef __GNU_LIBRARY__
-#define __GNU_LIBRARY__			/* Skip warnings in getopt.h */
-#endif
-#include <my_getopt.h>
 #include <assert.h>
+#include <fcntl.h>
+#include <my_getopt.h>
+#include <my_tree.h>
+#include <stdlib.h>
+#include <sys/types.h>
+#include <time.h>
 #include <welcome_copyright_notice.h> // ORACLE_WELCOME_COPYRIGHT_NOTICE
+
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_default.h"
+#include "my_inttypes.h"
+#include "my_io.h"
+#include "my_macros.h"
+#include "my_pointer_arithmetic.h"
+#include "myisam_sys.h"
+#include "myisamdef.h"
+#include "mysys_err.h"
+#include "print_version.h"
+#include "queues.h"
 
 #if SIZEOF_LONG_LONG > 4
 #define BITS_SAVED 64
@@ -116,14 +124,14 @@ typedef struct st_isam_mrg {
   uint	max_blob_length;
   my_off_t records;
   /* true if at least one source file has at least one disabled index */
-  my_bool src_file_has_indexes_disabled;
+  bool src_file_has_indexes_disabled;
 } PACK_MRG_INFO;
 
 
 extern int main(int argc,char * *argv);
 static void get_options(int *argc,char ***argv);
 static MI_INFO *open_isam_file(char *name,int mode);
-static my_bool open_isam_files(PACK_MRG_INFO *mrg,char **names,uint count);
+static bool open_isam_files(PACK_MRG_INFO *mrg,char **names,uint count);
 static int compress(PACK_MRG_INFO *file,char *join_name);
 static int create_dest_frm(char *source_table, char *dest_table);
 static HUFF_COUNTS *init_huff_count(MI_INFO *info,my_off_t records);
@@ -131,8 +139,8 @@ static void free_counts_and_tree_and_queue(HUFF_TREE *huff_trees,
 					   uint trees,
 					   HUFF_COUNTS *huff_counts,
 					   uint fields);
-static int compare_tree(void* cmp_arg MY_ATTRIBUTE((unused)),
-			const uchar *s,const uchar *t);
+static int compare_tree(const void* cmp_arg MY_ATTRIBUTE((unused)),
+			const void *a, const void *b);
 static int get_statistic(PACK_MRG_INFO *mrg,HUFF_COUNTS *huff_counts);
 static void check_counts(HUFF_COUNTS *huff_counts,uint trees,
 			 my_off_t records);
@@ -162,7 +170,7 @@ static uint max_bit(uint value);
 static int compress_isam_file(PACK_MRG_INFO *file,HUFF_COUNTS *huff_counts);
 static char *make_new_name(char *new_name,char *old_name);
 static char *make_old_name(char *new_name,char *old_name);
-static void init_file_buffer(File file,pbool read_buffer);
+static void init_file_buffer(File file,bool read_buffer);
 static int flush_buffer(ulong neaded_length);
 static void end_file_buffer(void);
 static void write_bits(ulonglong value, uint bits);
@@ -176,14 +184,14 @@ static int mrg_rrnd(PACK_MRG_INFO *info,uchar *buf);
 static void mrg_reset(PACK_MRG_INFO *mrg);
 #if !defined(DBUG_OFF)
 static void fakebigcodes(HUFF_COUNTS *huff_counts, HUFF_COUNTS *end_count);
-static int fakecmp(my_off_t **count1, my_off_t **count2);
+static int fakecmp(const void *a, const void *b);
 #endif
 
 
 static int error_on_write=0,test_only=0,verbose=0,silent=0,
 	   write_loop=0,force_pack=0, isamchk_neaded=0;
 static int tmpfile_createflag=O_RDWR | O_TRUNC | O_EXCL;
-static my_bool backup, opt_wait;
+static bool backup, opt_wait;
 /*
   tree_buff_length is somewhat arbitrary. The bigger it is the better
   the chance to win in terms of compression factor. On the other hand,
@@ -260,7 +268,6 @@ int main(int argc, char **argv)
   my_end(verbose ? MY_CHECK_ERROR | MY_GIVE_INFO : MY_CHECK_ERROR);
   mysql_cond_destroy(&main_thread_keycache_var.suspend);
   exit(error ? 2 : 0);
-  return 0;					/* No compiler warning */
 }
 
 enum options_mp {OPT_CHARSETS_DIR_MP=256};
@@ -304,13 +311,6 @@ static struct my_option my_long_options[] =
 };
 
 
-static void print_version(void)
-{
-  printf("%s Ver 1.23 for %s on %s\n",
-              my_progname, SYSTEM_TYPE, MACHINE_TYPE);
-}
-
-
 static void usage(void)
 {
   print_version();
@@ -328,7 +328,7 @@ static void usage(void)
 }
 
 
-static my_bool
+static bool
 get_one_option(int optid, const struct my_option *opt MY_ATTRIBUTE((unused)),
 	       char *argument)
 {
@@ -442,7 +442,7 @@ static MI_INFO *open_isam_file(char *name,int mode)
 }
 
 
-static my_bool open_isam_files(PACK_MRG_INFO *mrg, char **names, uint count)
+static bool open_isam_files(PACK_MRG_INFO *mrg, char **names, uint count)
 {
   uint i,j;
   mrg->count=0;
@@ -583,7 +583,7 @@ static int compress(PACK_MRG_INFO *mrg,char *result_table)
     Create a global priority queue in preparation for making 
     temporary Huffman trees.
   */
-  if (init_queue(&queue,256,0,0,compare_huff_elements,0))
+  if (init_queue(&queue,key_memory_QUEUE,256,0,0,compare_huff_elements,0))
     goto err;
 
   /*
@@ -832,7 +832,7 @@ static HUFF_COUNTS *init_huff_count(MI_INFO *info,my_off_t records)
         'tree_pos'. It's keys are implemented by pointers into 'tree_buff'.
         This is accomplished by '-1' as the element size.
       */
-      init_tree(&count[i].int_tree,0,0,-1,(qsort_cmp2) compare_tree,0, NULL,
+      init_tree(&count[i].int_tree,0,0,-1, compare_tree,0, NULL,
 		NULL);
       if (records && type != FIELD_BLOB && type != FIELD_VARCHAR)
 	count[i].tree_pos=count[i].tree_buff =
@@ -889,7 +889,7 @@ static int get_statistic(PACK_MRG_INFO *mrg,HUFF_COUNTS *huff_counts)
   ulong reclength,max_blob_length;
   uchar *record,*pos,*next_pos,*end_pos,*start_pos;
   ha_rows record_count;
-  my_bool static_row_size;
+  bool static_row_size;
   HUFF_COUNTS *count,*end_count;
   TREE_ELEMENT *element;
   DBUG_ENTER("get_statistic");
@@ -1558,7 +1558,7 @@ static int make_huff_tree(HUFF_TREE *huff_tree, HUFF_COUNTS *huff_counts)
   if (queue.max_elements < found)
   {
     delete_queue(&queue);
-    if (init_queue(&queue,found,0,0,compare_huff_elements,0))
+    if (init_queue(&queue,key_memory_QUEUE,found,0,0,compare_huff_elements,0))
       return -1;
   }
 
@@ -1711,10 +1711,12 @@ static int make_huff_tree(HUFF_TREE *huff_tree, HUFF_COUNTS *huff_counts)
   return 0;
 }
 
-static int compare_tree(void* cmp_arg MY_ATTRIBUTE((unused)),
-			const uchar *s, const uchar *t)
+static int compare_tree(const void* cmp_arg MY_ATTRIBUTE((unused)),
+			const void *a, const void *b)
 {
   uint length;
+  const uchar *s= (const uchar*)a;
+  const uchar *t= (const uchar*)b;
   for (length=global_count->field_length; length-- ;)
     if (*s++ != *t++)
       return (int) s[-1] - (int) t[-1];
@@ -2840,7 +2842,7 @@ static char *make_old_name(char *new_name, char *old_name)
 
 	/* rutines for bit writing buffer */
 
-static void init_file_buffer(File file, pbool read_buffer)
+static void init_file_buffer(File file, bool read_buffer)
 {
   file_buffer.file=file;
   file_buffer.buffer= (uchar*) my_malloc(PSI_NOT_INSTRUMENTED,
@@ -3197,7 +3199,7 @@ static void fakebigcodes(HUFF_COUNTS *huff_counts, HUFF_COUNTS *end_count)
     cur_sort_p= sort_counts;
     while (cur_count_p < end_count_p)
       *(cur_sort_p++)= cur_count_p++;
-    (void) my_qsort(sort_counts, 256, sizeof(my_off_t*), (qsort_cmp) fakecmp);
+    (void) my_qsort(sort_counts, 256, sizeof(my_off_t*), fakecmp);
 
     /*
       Assign faked counts.
@@ -3243,8 +3245,10 @@ static void fakebigcodes(HUFF_COUNTS *huff_counts, HUFF_COUNTS *end_count)
     -1                  count1 >  count2
 */
 
-static int fakecmp(my_off_t **count1, my_off_t **count2)
+static int fakecmp(const void *a, const void *b)
 {
+  my_off_t **count1= (my_off_t**)a;
+  my_off_t **count2= (my_off_t**)b;
   return ((**count1 < **count2) ? 1 :
           (**count1 > **count2) ? -1 : 0);
 }

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -35,7 +35,9 @@ void Dbdih::initData()
                  ZCREATE_REPLICA_FILE_SIZE);
 
   nodeGroupRecord = (NodeGroupRecord*)
-    allocRecord("NodeGroupRecord", sizeof(NodeGroupRecord), MAX_NDB_NODES);
+    allocRecord("NodeGroupRecord",
+                sizeof(NodeGroupRecord),
+                MAX_NDB_NODE_GROUPS);
 
   nodeRecord = (NodeRecord*)
     allocRecord("NodeRecord", sizeof(NodeRecord), MAX_NDB_NODES);
@@ -251,7 +253,6 @@ Dbdih::Dbdih(Block_context& ctx):
   addRecSignal(GSN_DIGETNODESREQ, &Dbdih::execDIGETNODESREQ);
   addRecSignal(GSN_STTOR, &Dbdih::execSTTOR);
   addRecSignal(GSN_DIH_SCAN_TAB_REQ, &Dbdih::execDIH_SCAN_TAB_REQ);
-  addRecSignal(GSN_DIH_SCAN_GET_NODES_REQ, &Dbdih::execDIH_SCAN_GET_NODES_REQ);
   addRecSignal(GSN_DIH_SCAN_TAB_COMPLETE_REP,
                &Dbdih::execDIH_SCAN_TAB_COMPLETE_REP);
   addRecSignal(GSN_GCP_TCFINISHED, &Dbdih::execGCP_TCFINISHED);
@@ -362,8 +363,9 @@ Dbdih::Dbdih(Block_context& ctx):
   nodeGroupRecord = 0;
   nodeRecord = 0;
   c_nextNodeGroup = 0;
+  memset(c_next_replica_node, 0, sizeof(c_next_replica_node));
   c_fragments_per_node_ = 0;
-  bzero(c_node_groups, sizeof(c_node_groups));
+  memset(c_node_groups, 0, sizeof(c_node_groups));
   if (globalData.ndbMtTcThreads == 0)
   {
     c_diverify_queue_cnt = 1;
@@ -410,7 +412,7 @@ Dbdih::~Dbdih()
                 ZCREATE_REPLICA_FILE_SIZE);
   
   deallocRecord((void **)&nodeGroupRecord, "NodeGroupRecord", 
-                sizeof(NodeGroupRecord), MAX_NDB_NODES);
+                sizeof(NodeGroupRecord), MAX_NDB_NODE_GROUPS);
   
   deallocRecord((void **)&nodeRecord, "NodeRecord", 
                 sizeof(NodeRecord), MAX_NDB_NODES);

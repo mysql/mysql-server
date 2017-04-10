@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2012, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2012, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -23,25 +23,23 @@ Quiesce a tablespace.
 Created 2012-02-08 by Sunny Bains.
 *******************************************************/
 
+#include <errno.h>
+#include <my_aes.h>
+
+#include "fsp0sysspace.h"
 #include "ha_prototypes.h"
-
-#include "row0quiesce.h"
-#ifdef UNIV_NONINL
-#include "row0quiesce.ic"
-#endif
-
-#include "row0mysql.h"
 #include "ibuf0ibuf.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "row0mysql.h"
+#include "row0quiesce.h"
 #include "srv0start.h"
 #include "trx0purge.h"
-#include "fsp0sysspace.h"
-
-#include <my_aes.h>
 
 /*********************************************************************//**
 Write the meta data (index user fields) config file.
 @return DB_SUCCESS or error code. */
-static	MY_ATTRIBUTE((nonnull, warn_unused_result))
+static	MY_ATTRIBUTE((warn_unused_result))
 dberr_t
 row_quiesce_write_index_fields(
 /*===========================*/
@@ -97,6 +95,89 @@ row_quiesce_write_index_fields(
 
 	return(DB_SUCCESS);
 }
+/** Write the meta data config file index information
+@param[in]	index	write metadata for this index
+@param[in,out]	file	file to write to
+@param[in,out]	thd	session
+@return DB_SUCCESS or error code. */
+static	MY_ATTRIBUTE((warn_unused_result))
+dberr_t
+row_quiesce_write_one_index(
+	const dict_index_t*	index,
+	FILE*			file,
+	THD*			thd)
+{
+	dberr_t		err;
+	byte*		ptr;
+	byte		row[sizeof(space_index_t)
+			    + sizeof(uint32_t) * 8];
+
+	ptr = row;
+
+	ut_ad(sizeof(space_index_t) == 8);
+	mach_write_to_8(ptr, index->id);
+	ptr += sizeof(space_index_t);
+
+	mach_write_to_4(ptr, index->space);
+	ptr += sizeof(uint32_t);
+
+	mach_write_to_4(ptr, index->page);
+	ptr += sizeof(uint32_t);
+
+	mach_write_to_4(ptr, index->type);
+	ptr += sizeof(uint32_t);
+
+	mach_write_to_4(ptr, index->trx_id_offset);
+	ptr += sizeof(uint32_t);
+
+	mach_write_to_4(ptr, index->n_user_defined_cols);
+	ptr += sizeof(uint32_t);
+
+	mach_write_to_4(ptr, index->n_uniq);
+	ptr += sizeof(uint32_t);
+
+	mach_write_to_4(ptr, index->n_nullable);
+	ptr += sizeof(uint32_t);
+
+	mach_write_to_4(ptr, index->n_fields);
+
+	DBUG_EXECUTE_IF("ib_export_io_write_failure_12",
+			close(fileno(file)););
+
+	if (fwrite(row, 1, sizeof(row), file) != sizeof(row)) {
+
+		ib_senderrf(
+			thd, IB_LOG_LEVEL_WARN, ER_IO_WRITE_ERROR,
+			errno, strerror(errno),
+			"while writing index meta-data.");
+
+		return(DB_IO_ERROR);
+	}
+
+	/* Write the length of the index name.
+	NUL byte is included in the length. */
+	uint32_t	len = static_cast<uint32_t>(strlen(index->name) + 1);
+	ut_a(len > 1);
+
+	mach_write_to_4(row, len);
+
+	DBUG_EXECUTE_IF("ib_export_io_write_failure_1",
+			close(fileno(file)););
+
+	if (fwrite(row, 1, sizeof(len), file) != sizeof(len)
+	    || fwrite(index->name, 1, len, file) != len) {
+
+		ib_senderrf(
+			thd, IB_LOG_LEVEL_WARN, ER_IO_WRITE_ERROR,
+			errno, strerror(errno),
+			"while writing index name.");
+
+		return(DB_IO_ERROR);
+	}
+
+	err = row_quiesce_write_index_fields(index, file, thd);
+	return(err);
+}
 
 /*********************************************************************//**
 Write the meta data config file index information.
@@ -110,100 +191,62 @@ row_quiesce_write_indexes(
 	FILE*			file,	/*!< in: file to write to */
 	THD*			thd)	/*!< in/out: session */
 {
-	{
-		byte		row[sizeof(ib_uint32_t)];
+	byte		row[sizeof(uint32_t)];
 
-		/* Write the number of indexes in the table. */
-		mach_write_to_4(row, UT_LIST_GET_LEN(table->indexes));
+	/* Write the number of indexes in the table. */
+	uint32_t	num_indexes = 0;
+	ulint		flags = fil_space_get_flags(table->space);
+	bool		has_sdi = FSP_FLAGS_HAS_SDI(flags);
 
-		DBUG_EXECUTE_IF("ib_export_io_write_failure_11",
-				close(fileno(file)););
+	if (has_sdi) {
+		num_indexes += MAX_SDI_COPIES;
+	}
 
-		if (fwrite(row, 1,  sizeof(row), file) != sizeof(row)) {
-			ib_senderrf(
-				thd, IB_LOG_LEVEL_WARN, ER_IO_WRITE_ERROR,
-				errno, strerror(errno),
-				"while writing index count.");
+	num_indexes += static_cast<uint32_t>(UT_LIST_GET_LEN(table->indexes));
+	ut_ad(num_indexes != 0);
 
-			return(DB_IO_ERROR);
+	mach_write_to_4(row, num_indexes);
+
+	DBUG_EXECUTE_IF("ib_export_io_write_failure_11",
+			close(fileno(file)););
+
+	if (fwrite(row, 1,  sizeof(row), file) != sizeof(row)) {
+		ib_senderrf(
+			thd, IB_LOG_LEVEL_WARN, ER_IO_WRITE_ERROR,
+			errno, strerror(errno),
+			"while writing index count.");
+
+		return(DB_IO_ERROR);
+	}
+
+	dberr_t	err = DB_SUCCESS;
+
+	/* Write SDI Indexes */
+	if (has_sdi) {
+		for (uint32_t copy_num = 0; copy_num < MAX_SDI_COPIES;
+			++copy_num) {
+
+			dict_mutex_enter_for_mysql();
+
+			dict_index_t*	index = dict_sdi_get_index(
+				table->space, copy_num);
+
+			dict_mutex_exit_for_mysql();
+
+			ut_ad(index != NULL);
+			err = row_quiesce_write_one_index(index, file, thd);
 		}
 	}
 
-	dberr_t			err = DB_SUCCESS;
-
-	/* Write the index meta data. */
+	/* Write the table indexes meta data. */
 	for (const dict_index_t* index = UT_LIST_GET_FIRST(table->indexes);
 	     index != 0 && err == DB_SUCCESS;
 	     index = UT_LIST_GET_NEXT(indexes, index)) {
+		err = row_quiesce_write_one_index(index, file, thd);
+	}
 
-		byte*		ptr;
-		byte		row[sizeof(index_id_t)
-				    + sizeof(ib_uint32_t) * 8];
-
-		ptr = row;
-
-		ut_ad(sizeof(index_id_t) == 8);
-		mach_write_to_8(ptr, index->id);
-		ptr += sizeof(index_id_t);
-
-		mach_write_to_4(ptr, index->space);
-		ptr += sizeof(ib_uint32_t);
-
-		mach_write_to_4(ptr, index->page);
-		ptr += sizeof(ib_uint32_t);
-
-		mach_write_to_4(ptr, index->type);
-		ptr += sizeof(ib_uint32_t);
-
-		mach_write_to_4(ptr, index->trx_id_offset);
-		ptr += sizeof(ib_uint32_t);
-
-		mach_write_to_4(ptr, index->n_user_defined_cols);
-		ptr += sizeof(ib_uint32_t);
-
-		mach_write_to_4(ptr, index->n_uniq);
-		ptr += sizeof(ib_uint32_t);
-
-		mach_write_to_4(ptr, index->n_nullable);
-		ptr += sizeof(ib_uint32_t);
-
-		mach_write_to_4(ptr, index->n_fields);
-
-		DBUG_EXECUTE_IF("ib_export_io_write_failure_12",
-				close(fileno(file)););
-
-		if (fwrite(row, 1, sizeof(row), file) != sizeof(row)) {
-
-			ib_senderrf(
-				thd, IB_LOG_LEVEL_WARN, ER_IO_WRITE_ERROR,
-				errno, strerror(errno),
-				"while writing index meta-data.");
-
-			return(DB_IO_ERROR);
-		}
-
-		/* Write the length of the index name.
-		NUL byte is included in the length. */
-		ib_uint32_t	len = static_cast<ib_uint32_t>(strlen(index->name) + 1);
-		ut_a(len > 1);
-
-		mach_write_to_4(row, len);
-
-		DBUG_EXECUTE_IF("ib_export_io_write_failure_1",
-				close(fileno(file)););
-
-		if (fwrite(row, 1, sizeof(len), file) != sizeof(len)
-		    || fwrite(index->name, 1, len, file) != len) {
-
-			ib_senderrf(
-				thd, IB_LOG_LEVEL_WARN, ER_IO_WRITE_ERROR,
-				errno, strerror(errno),
-				"while writing index name.");
-
-			return(DB_IO_ERROR);
-		}
-
-		err = row_quiesce_write_index_fields(index, file, thd);
+	if (err != DB_SUCCESS) {
+		return(err);
 	}
 
 	return(err);
@@ -214,7 +257,7 @@ Write the meta data (table columns) config file. Serialise the contents of
 dict_col_t structure, along with the column name. All fields are serialized
 as ib_uint32_t.
 @return DB_SUCCESS or error code. */
-static	MY_ATTRIBUTE((nonnull, warn_unused_result))
+static	MY_ATTRIBUTE((warn_unused_result))
 dberr_t
 row_quiesce_write_table(
 /*====================*/
@@ -268,7 +311,7 @@ row_quiesce_write_table(
 		ib_uint32_t	len;
 		const char*	col_name;
 
-		col_name = dict_table_get_col_name(table, dict_col_get_no(col));
+		col_name = table->get_col_name(dict_col_get_no(col));
 
 		/* Include the NUL byte in the length. */
 		len = static_cast<ib_uint32_t>(strlen(col_name) + 1);
@@ -297,7 +340,7 @@ row_quiesce_write_table(
 /*********************************************************************//**
 Write the meta data config file header.
 @return DB_SUCCESS or error code. */
-static	MY_ATTRIBUTE((nonnull, warn_unused_result))
+static	MY_ATTRIBUTE((warn_unused_result))
 dberr_t
 row_quiesce_write_header(
 /*=====================*/
@@ -309,7 +352,7 @@ row_quiesce_write_header(
 	byte			value[sizeof(ib_uint32_t)];
 
 	/* Write the meta-data version number. */
-	mach_write_to_4(value, IB_EXPORT_CFG_VERSION_V1);
+	mach_write_to_4(value, IB_EXPORT_CFG_VERSION_V2);
 
 	DBUG_EXECUTE_IF("ib_export_io_write_failure_4", close(fileno(file)););
 
@@ -412,13 +455,28 @@ row_quiesce_write_header(
 		return(DB_IO_ERROR);
 	}
 
+	/* Write the space flags */
+	ulint	space_flags = fil_space_get_flags(table->space);
+	ut_ad(space_flags != ULINT_UNDEFINED);
+	mach_write_to_4(value, space_flags);
+
+	if (fwrite(&value, 1,  sizeof(value), file) != sizeof(value)) {
+
+		ib_senderrf(
+			thd, IB_LOG_LEVEL_WARN, ER_IO_WRITE_ERROR,
+			errno, strerror(errno),
+			"while writing space_flags.");
+
+		return(DB_IO_ERROR);
+	}
+
 	return(DB_SUCCESS);
 }
 
 /*********************************************************************//**
 Write the table meta data after quiesce.
 @return DB_SUCCESS or error code */
-static	MY_ATTRIBUTE((nonnull, warn_unused_result))
+static	MY_ATTRIBUTE((warn_unused_result))
 dberr_t
 row_quiesce_write_cfg(
 /*==================*/
@@ -455,7 +513,7 @@ row_quiesce_write_cfg(
 
 			char	msg[BUFSIZ];
 
-			ut_snprintf(msg, sizeof(msg), "%s flush() failed",
+			snprintf(msg, sizeof(msg), "%s flush() failed",
 				    name);
 
 			ib_senderrf(
@@ -466,7 +524,7 @@ row_quiesce_write_cfg(
 		if (fclose(file) != 0) {
 			char	msg[BUFSIZ];
 
-			ut_snprintf(msg, sizeof(msg), "%s flose() failed",
+			snprintf(msg, sizeof(msg), "%s flose() failed",
 				    name);
 
 			ib_senderrf(
@@ -649,7 +707,7 @@ row_quiesce_write_cfp(
 
 			char	msg[BUFSIZ];
 
-			ut_snprintf(msg, sizeof(msg), "%s flush() failed",
+			snprintf(msg, sizeof(msg), "%s flush() failed",
 				    name);
 
 			ib_senderrf(
@@ -662,7 +720,7 @@ row_quiesce_write_cfp(
 		if (fclose(file) != 0) {
 			char	msg[BUFSIZ];
 
-			ut_snprintf(msg, sizeof(msg), "%s flose() failed",
+			snprintf(msg, sizeof(msg), "%s flose() failed",
 				    name);
 
 			ib_senderrf(
@@ -859,13 +917,13 @@ row_quiesce_set_state(
 
 		return(DB_UNSUPPORTED);
 
-	} else if (dict_table_is_temporary(table)) {
+	} else if (table->is_temporary()) {
 
 		ib_senderrf(trx->mysql_thd, IB_LOG_LEVEL_WARN,
 			    ER_CANNOT_DISCARD_TEMPORARY_TABLE);
 
 		return(DB_UNSUPPORTED);
-	} else if (table->space == srv_sys_space.space_id()) {
+	} else if (table->space == TRX_SYS_SPACE) {
 
 		char	table_name[MAX_FULL_NAME_LEN + 1];
 

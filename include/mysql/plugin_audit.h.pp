@@ -135,7 +135,7 @@ enum enum_server_command
   COM_CREATE_DB,
   COM_DROP_DB,
   COM_REFRESH,
-  COM_SHUTDOWN,
+  COM_DEPRECATED_1,
   COM_STATISTICS,
   COM_PROCESS_INFO,
   COM_CONNECT,
@@ -291,7 +291,6 @@ enum enum_sql_command {
   SQLCOM_SHOW_CREATE_EVENT,
   SQLCOM_SHOW_EVENTS,
   SQLCOM_SHOW_CREATE_TRIGGER,
-  SQLCOM_ALTER_DB_UPGRADE,
   SQLCOM_SHOW_PROFILE,
   SQLCOM_SHOW_PROFILES,
   SQLCOM_SIGNAL,
@@ -302,7 +301,17 @@ enum enum_sql_command {
   SQLCOM_EXPLAIN_OTHER,
   SQLCOM_SHOW_CREATE_USER,
   SQLCOM_SHUTDOWN,
+  SQLCOM_SET_PASSWORD,
   SQLCOM_ALTER_INSTANCE,
+  SQLCOM_INSTALL_COMPONENT,
+  SQLCOM_UNINSTALL_COMPONENT,
+  SQLCOM_CREATE_ROLE,
+  SQLCOM_DROP_ROLE,
+  SQLCOM_SET_ROLE,
+  SQLCOM_GRANT_ROLE,
+  SQLCOM_REVOKE_ROLE,
+  SQLCOM_ALTER_USER_DEFAULT_ROLE,
+  SQLCOM_IMPORT,
   SQLCOM_END
 };
 typedef enum
@@ -413,13 +422,14 @@ struct mysql_event_authorization
   unsigned long requested_privilege;
   unsigned long granted_privilege;
 };
-typedef enum
+enum mysql_event_table_access_subclass_t
 {
   MYSQL_AUDIT_TABLE_ACCESS_READ = 1 << 0,
   MYSQL_AUDIT_TABLE_ACCESS_INSERT = 1 << 1,
   MYSQL_AUDIT_TABLE_ACCESS_UPDATE = 1 << 2,
   MYSQL_AUDIT_TABLE_ACCESS_DELETE = 1 << 3
-} mysql_event_table_access_subclass_t;
+};
+typedef enum mysql_event_table_access_subclass_t mysql_event_table_access_subclass_t;
 struct mysql_event_table_access
 {
   mysql_event_table_access_subclass_t event_subclass;

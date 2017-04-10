@@ -81,16 +81,12 @@ SET SESSION sql_log_bin= 1;
 --let $debug_point=pause_after_sql_thread_stop_hook
 --source include/add_debug_point.inc
 
---replace_result $group_replication_group_name GROUP_REPLICATION_GROUP_NAME
---eval SET GLOBAL group_replication_group_name= "$group_replication_group_name"
-START GROUP_REPLICATION;
-
 --echo
 --echo #####################################################
 --echo # 2.2 Wait until server2 gave up on joining the group
 
---let $group_replication_member_state= ERROR
---source ../inc/gr_wait_for_member_state.inc
+--let $group_replication_start_member_state= ERROR
+--source include/start_group_replication.inc
 
 --source include/remove_debug_point.inc
 
@@ -155,16 +151,12 @@ SET @saved_retry_count= @@GLOBAL.group_replication_recovery_retry_count;
 --let $debug_point=pause_after_io_thread_stop_hook
 --source include/add_debug_point.inc
 
---replace_result $group_replication_group_name GROUP_REPLICATION_GROUP_NAME
---eval SET GLOBAL group_replication_group_name= "$group_replication_group_name"
-START GROUP_REPLICATION;
-
 --echo
 --echo #####################################################
 --echo # 3.3 Wait until server3 gave up on joining the group
 
---let $group_replication_member_state= ERROR
---source ../inc/gr_wait_for_member_state.inc
+--let $group_replication_start_member_state= ERROR
+--source include/start_group_replication.inc
 
 SET @@GLOBAL.group_replication_recovery_reconnect_interval= @saved_reconnect_interval;
 SET @@GLOBAL.group_replication_recovery_retry_count= @saved_retry_count;

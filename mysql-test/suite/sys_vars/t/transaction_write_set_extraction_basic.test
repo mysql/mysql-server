@@ -28,7 +28,8 @@
 #########################################################################################
 
 --source include/not_embedded.inc
-
+# Having binlog format row as the test checks the default binlog format.
+--source include/have_binlog_format_row.inc
 #############################################################
 #                 Save initial value                        #
 #############################################################

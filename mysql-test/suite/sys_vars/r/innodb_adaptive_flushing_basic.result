@@ -17,52 +17,52 @@ innodb_adaptive_flushing	ON
 show session variables like 'innodb_adaptive_flushing';
 Variable_name	Value
 innodb_adaptive_flushing	ON
-select * from information_schema.global_variables where variable_name='innodb_adaptive_flushing';
+select * from performance_schema.global_variables where variable_name='innodb_adaptive_flushing';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_ADAPTIVE_FLUSHING	ON
-select * from information_schema.session_variables where variable_name='innodb_adaptive_flushing';
+innodb_adaptive_flushing	ON
+select * from performance_schema.session_variables where variable_name='innodb_adaptive_flushing';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_ADAPTIVE_FLUSHING	ON
+innodb_adaptive_flushing	ON
 set global innodb_adaptive_flushing='OFF';
 select @@global.innodb_adaptive_flushing;
 @@global.innodb_adaptive_flushing
 0
-select * from information_schema.global_variables where variable_name='innodb_adaptive_flushing';
+select * from performance_schema.global_variables where variable_name='innodb_adaptive_flushing';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_ADAPTIVE_FLUSHING	OFF
-select * from information_schema.session_variables where variable_name='innodb_adaptive_flushing';
+innodb_adaptive_flushing	OFF
+select * from performance_schema.session_variables where variable_name='innodb_adaptive_flushing';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_ADAPTIVE_FLUSHING	OFF
+innodb_adaptive_flushing	OFF
 set @@global.innodb_adaptive_flushing=1;
 select @@global.innodb_adaptive_flushing;
 @@global.innodb_adaptive_flushing
 1
-select * from information_schema.global_variables where variable_name='innodb_adaptive_flushing';
+select * from performance_schema.global_variables where variable_name='innodb_adaptive_flushing';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_ADAPTIVE_FLUSHING	ON
-select * from information_schema.session_variables where variable_name='innodb_adaptive_flushing';
+innodb_adaptive_flushing	ON
+select * from performance_schema.session_variables where variable_name='innodb_adaptive_flushing';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_ADAPTIVE_FLUSHING	ON
+innodb_adaptive_flushing	ON
 set global innodb_adaptive_flushing=0;
 select @@global.innodb_adaptive_flushing;
 @@global.innodb_adaptive_flushing
 0
-select * from information_schema.global_variables where variable_name='innodb_adaptive_flushing';
+select * from performance_schema.global_variables where variable_name='innodb_adaptive_flushing';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_ADAPTIVE_FLUSHING	OFF
-select * from information_schema.session_variables where variable_name='innodb_adaptive_flushing';
+innodb_adaptive_flushing	OFF
+select * from performance_schema.session_variables where variable_name='innodb_adaptive_flushing';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_ADAPTIVE_FLUSHING	OFF
+innodb_adaptive_flushing	OFF
 set @@global.innodb_adaptive_flushing='ON';
 select @@global.innodb_adaptive_flushing;
 @@global.innodb_adaptive_flushing
 1
-select * from information_schema.global_variables where variable_name='innodb_adaptive_flushing';
+select * from performance_schema.global_variables where variable_name='innodb_adaptive_flushing';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_ADAPTIVE_FLUSHING	ON
-select * from information_schema.session_variables where variable_name='innodb_adaptive_flushing';
+innodb_adaptive_flushing	ON
+select * from performance_schema.session_variables where variable_name='innodb_adaptive_flushing';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_ADAPTIVE_FLUSHING	ON
+innodb_adaptive_flushing	ON
 set session innodb_adaptive_flushing='OFF';
 ERROR HY000: Variable 'innodb_adaptive_flushing' is a GLOBAL variable and should be set with SET GLOBAL
 set @@session.innodb_adaptive_flushing='ON';
@@ -78,12 +78,12 @@ set global innodb_adaptive_flushing=-3;
 select @@global.innodb_adaptive_flushing;
 @@global.innodb_adaptive_flushing
 1
-select * from information_schema.global_variables where variable_name='innodb_adaptive_flushing';
+select * from performance_schema.global_variables where variable_name='innodb_adaptive_flushing';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_ADAPTIVE_FLUSHING	ON
-select * from information_schema.session_variables where variable_name='innodb_adaptive_flushing';
+innodb_adaptive_flushing	ON
+select * from performance_schema.session_variables where variable_name='innodb_adaptive_flushing';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_ADAPTIVE_FLUSHING	ON
+innodb_adaptive_flushing	ON
 set global innodb_adaptive_flushing='AUTO';
 ERROR 42000: Variable 'innodb_adaptive_flushing' can't be set to the value of 'AUTO'
 SET @@global.innodb_adaptive_flushing = @start_global_value;

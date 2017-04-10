@@ -138,7 +138,7 @@ SELECT @@session.net_read_timeout;
 
 --disable_warnings
 SELECT @@global.net_read_timeout = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='net_read_timeout';
 --enable_warnings
 
@@ -149,7 +149,7 @@ WHERE VARIABLE_NAME='net_read_timeout';
 
 --disable_warnings
 SELECT @@session.net_read_timeout = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+FROM performance_schema.session_variables 
 WHERE VARIABLE_NAME='net_read_timeout';
 --enable_warnings
 

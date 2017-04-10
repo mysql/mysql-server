@@ -1,0 +1,23 @@
+call mtr.add_suppression("Plugin * after shutdown");
+call mtr.add_suppression(".* Native table .* has the wrong structure");
+call mtr.add_suppression("Resizing redo log from");
+call mtr.add_suppression("Starting to delete and rewrite log files");
+call mtr.add_suppression("New log files created");
+call mtr.add_suppression("Info table is not ready to be used.");
+call mtr.add_suppression("must use supported storage engine");
+call mtr.add_suppression("after shutdown");
+call mtr.add_suppression("will be forced to shutdown");
+call mtr.add_suppression("Table 'mysql.component' doesn't exist");
+call mtr.add_suppression("table is missing or has an incorrect definition");
+call mtr.add_suppression("is expected to be transactional");
+call mtr.add_suppression("Upgrading redo log");
+# Stop DB server which was created by MTR default
+# Copy the remote tablespace & DB zip files from suite location to working location.
+# Check that the file exists in the working folder.
+# Unzip the zip file.
+# Remove innodb log files due to an existing bug
+MYSQL_TMP_DIR/bootstrap.log
+# Starting the DB server will fail since the data dir contains
+# tables with non native partitioning.
+# Restart the server with default options.
+# restart

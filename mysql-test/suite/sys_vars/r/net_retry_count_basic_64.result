@@ -47,6 +47,10 @@ SET @@global.net_retry_count = 65536;
 SELECT @@global.net_retry_count;
 @@global.net_retry_count
 65536
+SET @@global.net_retry_count = 18446744073709551615;
+SELECT @@global.net_retry_count;
+@@global.net_retry_count
+18446744073709551615
 '#--------------------FN_DYNVARS_111_04-------------------------#'
 SET @@session.net_retry_count = 1;
 SELECT @@session.net_retry_count;
@@ -68,6 +72,10 @@ SET @@session.net_retry_count = 4294967294;
 SELECT @@session.net_retry_count;
 @@session.net_retry_count
 4294967294
+SET @@session.net_retry_count = 18446744073709551615;
+SELECT @@session.net_retry_count;
+@@session.net_retry_count
+18446744073709551615
 '#------------------FN_DYNVARS_111_05-----------------------#'
 SET @@global.net_retry_count = 0;
 Warnings:
@@ -81,24 +89,21 @@ Warning	1292	Truncated incorrect net_retry_count value: '-1024'
 SELECT @@global.net_retry_count;
 @@global.net_retry_count
 1
-SET @@global.net_retry_count = 4294967296;
-SELECT @@global.net_retry_count;
-@@global.net_retry_count
-4294967296
-SET @@global.net_retry_count = 429496729500;
-SELECT @@global.net_retry_count;
-@@global.net_retry_count
-429496729500
 SET @@global.net_retry_count = 65530.34;
 ERROR 42000: Incorrect argument type to variable 'net_retry_count'
 SELECT @@global.net_retry_count;
 @@global.net_retry_count
-429496729500
+1
 SET @@global.net_retry_count = test;
 ERROR 42000: Incorrect argument type to variable 'net_retry_count'
 SELECT @@global.net_retry_count;
 @@global.net_retry_count
-429496729500
+1
+SET @@global.net_retry_count = 18446744073709551616;
+ERROR 42000: Incorrect argument type to variable 'net_retry_count'
+SELECT @@global.net_retry_count;
+@@global.net_retry_count
+1
 SET @@session.net_retry_count = 0;
 Warnings:
 Warning	1292	Truncated incorrect net_retry_count value: '0'
@@ -113,28 +118,25 @@ SELECT @@session.net_retry_count;
 1
 SET @@session.net_retry_count = 65530.34;
 ERROR 42000: Incorrect argument type to variable 'net_retry_count'
-SET @@session.net_retry_count = 6555015425;
-SELECT @@session.net_retry_count;
-@@session.net_retry_count
-6555015425
-SET @@session.net_retry_count = 4294967296;
-SELECT @@session.net_retry_count;
-@@session.net_retry_count
-4294967296
 SET @@session.net_retry_count = test;
 ERROR 42000: Incorrect argument type to variable 'net_retry_count'
 SELECT @@session.net_retry_count;
 @@session.net_retry_count
-4294967296
+1
+SET @@session.net_retry_count = 18446744073709551616;
+ERROR 42000: Incorrect argument type to variable 'net_retry_count'
+SELECT @@session.net_retry_count;
+@@session.net_retry_count
+1
 '#------------------FN_DYNVARS_111_06-----------------------#'
 SELECT @@global.net_retry_count = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='net_retry_count';
 @@global.net_retry_count = VARIABLE_VALUE
 1
 '#------------------FN_DYNVARS_111_07-----------------------#'
 SELECT @@session.net_retry_count = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+FROM performance_schema.session_variables 
 WHERE VARIABLE_NAME='net_retry_count';
 @@session.net_retry_count = VARIABLE_VALUE
 1

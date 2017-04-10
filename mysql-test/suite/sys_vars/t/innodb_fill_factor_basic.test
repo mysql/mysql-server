@@ -3,7 +3,6 @@
 #  2014-03-26 - Added
 #
 
---source include/have_innodb.inc
 
 #
 # show the global and session values;
@@ -14,8 +13,8 @@ select @@session.innodb_fill_factor;
 show global variables like 'innodb_fill_factor';
 show session variables like 'innodb_fill_factor';
 --disable_warnings
-select * from information_schema.global_variables where variable_name='innodb_fill_factor';
-select * from information_schema.session_variables where variable_name='innodb_fill_factor';
+select * from performance_schema.global_variables where variable_name='innodb_fill_factor';
+select * from performance_schema.session_variables where variable_name='innodb_fill_factor';
 --enable_warnings
 
 #

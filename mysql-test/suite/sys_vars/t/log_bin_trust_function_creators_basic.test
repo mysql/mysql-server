@@ -94,7 +94,7 @@ SELECT @@session.log_bin_trust_function_creators;
 SET @@global.log_bin_trust_function_creators = 'ONN';
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@global.log_bin_trust_function_creators = "OFFF";
---Error ER_WRONG_VALUE_FOR_VAR
+--error ER_PARSE_ERROR
 SET @@global.log_bin_trust_function_creators = OF;
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@global.log_bin_trust_function_creators = TTRUE;
@@ -117,13 +117,13 @@ SET @@global.log_bin_trust_function_creators = test;
 
 --disable_warnings
 SELECT IF(@@global.log_bin_trust_function_creators, "ON", "OFF") = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='log_bin_trust_function_creators';
 --enable_warnings
 
 --Error ER_INCORRECT_GLOBAL_LOCAL_VAR
 SELECT IF(@@session.log_bin_trust_function_creators, "ON", "OFF") = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+FROM performance_schema.session_variables 
 WHERE VARIABLE_NAME='log_bin_trust_function_creators';
 
 --echo '#---------------------FN_DYNVARS_063_07----------------------#'

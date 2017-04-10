@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,15 +13,17 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
+#include <stddef.h>
 #include <algorithm>
 #include <string>
 #include <vector>
 
 #include "gcs_event_handlers.h"
-#include "plugin.h"
-#include "sql_service_gr_user.h"
+#include "my_dbug.h"
 #include "pipeline_stats.h"
+#include "plugin.h"
 #include "single_primary_message.h"
+#include "sql_service_gr_user.h"
 
 using std::vector;
 
@@ -84,7 +86,7 @@ Plugin_gcs_events_handler::on_message_received(const Gcs_message& message) const
     break;
 
   default:
-    DBUG_ASSERT(0); /* purecov: inspected */
+    break; /* purecov: inspected */
   }
 }
 
@@ -101,7 +103,7 @@ Plugin_gcs_events_handler::handle_transactional_message(const Gcs_message& messa
         message.get_message_data().get_payload(),
         &payload_data, &payload_size);
 
-    this->applier_module->handle(payload_data, payload_size);
+    this->applier_module->handle(payload_data, static_cast<ulong>(payload_size));
   }
   else
   {
@@ -131,7 +133,7 @@ Plugin_gcs_events_handler::handle_certifier_message(const Gcs_message& message) 
       &payload_data, &payload_size);
 
   if (certifier->handle_certifier_data(payload_data,
-                                       payload_size,
+                                       static_cast<ulong>(payload_size),
                                        message.get_origin()))
   {
     log_message(MY_ERROR_LEVEL, "Error processing message in Certifier"); /* purecov: inspected */
@@ -331,6 +333,15 @@ Plugin_gcs_events_handler::on_view_changed(const Gcs_view& new_view,
 
   //update the Group Manager with all the received states
   this->update_group_info_manager(new_view, exchanged_data, is_leaving);
+
+  //enable conflict detection if someone on group have it enabled
+  if (local_member_info->in_primary_mode() &&
+      group_member_mgr->is_conflict_detection_enabled())
+  {
+    Certifier_interface *certifier=
+        this->applier_module->get_certification_handler()->get_certifier();
+    certifier->enable_conflict_detection();
+  }
 
   //Inform any interested handler that the view changed
   View_change_pipeline_action *vc_action=
@@ -610,13 +621,13 @@ void Plugin_gcs_events_handler::handle_joining_members(const Gcs_view& new_view,
                                                        const
 {
   //nothing to do here
-  int number_of_members= new_view.get_members().size();
+  size_t number_of_members= new_view.get_members().size();
   if (number_of_members == 0 || is_leaving)
   {
     return;
   }
-  int number_of_joining_members= new_view.get_joined_members().size();
-  int number_of_leaving_members= new_view.get_leaving_members().size();
+  size_t number_of_joining_members= new_view.get_joined_members().size();
+  size_t number_of_leaving_members= new_view.get_leaving_members().size();
 
   /*
    If we are joining, 3 scenarios exist:
@@ -766,7 +777,7 @@ void Plugin_gcs_events_handler::handle_joining_members(const Gcs_view& new_view,
 
     std::string view_id= new_view.get_view_id().get_representation();
     View_change_packet * view_change_packet= new View_change_packet(view_id);
-    collect_members_executed_sets(new_view.get_joined_members(), view_change_packet);
+    collect_members_executed_sets(view_change_packet);
     applier_module->add_view_change_packet(view_change_packet);
   }
 }
@@ -989,7 +1000,7 @@ update_member_status(const vector<Gcs_member_identifier>& members,
   6) If the member has the same configuration flags that the group has
 */
 int
-Plugin_gcs_events_handler::check_group_compatibility(int number_of_members) const
+Plugin_gcs_events_handler::check_group_compatibility(size_t number_of_members) const
 {
   /*
     Check if group size did reach the maximum number of members.
@@ -1258,8 +1269,7 @@ cleaning:
 }
 
 void Plugin_gcs_events_handler::
-collect_members_executed_sets(const vector<Gcs_member_identifier> &joining_members,
-                              View_change_packet *view_packet) const
+collect_members_executed_sets(View_change_packet *view_packet) const
 {
   std::vector<Group_member_info*> *all_members= group_member_mgr->get_all_members();
   std::vector<Group_member_info*>::iterator all_members_it;

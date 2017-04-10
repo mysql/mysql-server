@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,16 +13,19 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
 
-// First include (the generated) my_config.h, to get correct platform defines.
-#include "my_config.h"
 #include <gtest/gtest.h>
-
+#include <sys/types.h>
 #include <algorithm>
 #include <functional>
 #include <vector>
 
-#include "sql_select.h"
+#include "current_thd.h"
 #include "mem_root_array.h"
+#include "my_inttypes.h"
+#include "my_macros.h"
+#include "my_table_map.h"
+#include "mysqld.h"                             // THR_MALLOC
+#include "sql_optimizer.h"                      // Key_use_array
 
 /**
    WL#5774 Decrease number of malloc's for normal DML queries.
@@ -93,11 +96,11 @@ namespace dynarray_unittest {
 // We still want to unit-test this, to compare performance.
 #undef my_init_dynamic_array
 extern "C" 
-my_bool my_init_dynamic_array(DYNAMIC_ARRAY *array,
-                              PSI_memory_key key,
-                              uint element_size,
-                              void *init_buffer, uint init_alloc,
-                              uint alloc_increment);
+bool my_init_dynamic_array(DYNAMIC_ARRAY *array,
+                           PSI_memory_key key,
+                           uint element_size,
+                           void *init_buffer, uint init_alloc,
+                           uint alloc_increment);
 /*
   Cut'n paste this function from sql_select.cc,
   to avoid linking in the entire server for this unit test.
@@ -168,7 +171,7 @@ public:
 
   virtual void SetUp()
   {
-    my_init_dynamic_array(&m_keyuse_dyn,
+    dynarray_unittest::my_init_dynamic_array(&m_keyuse_dyn,
                           PSI_NOT_INSTRUMENTED,
                           sizeof(Key_use), NULL,
                           num_elements, 64);
@@ -349,7 +352,7 @@ TEST_F(MemRootTest, KeyUseCompare)
 // Test that Mem_root_array re-expanding works.
 TEST_F(MemRootTest, Reserve)
 {
-  Mem_root_array<uint, true> intarr(m_mem_root_p);
+  Mem_root_array<uint> intarr(m_mem_root_p);
   intarr.reserve(2);
   const uint num_pushes= 20;
   for (uint ix=0; ix < num_pushes; ++ix)
@@ -373,12 +376,22 @@ TEST_F(MemRootTest, Reserve)
 // valgrind --leak-check=full <executable> --gtest_filter='-*DeathTest*' > foo
 TEST_F(MemRootTest, CopyMemRoot)
 {
-  Mem_root_array<uint, true> intarr(m_mem_root_p);
+  Mem_root_array<uint> intarr(m_mem_root_p);
   // Take a copy, we do *not* free_root(own_root)
-  MEM_ROOT own_root= *m_mem_root_p;
+  MEM_ROOT own_root;
+  memcpy(&own_root, m_mem_root_p, sizeof(MEM_ROOT));
   intarr.set_mem_root(&own_root);
   intarr.push_back(42);
-  *m_mem_root_p= own_root;
+  memcpy(m_mem_root_p, &own_root, sizeof(MEM_ROOT));
+}
+
+TEST_F(MemRootTest, MoveMemRoot)
+{
+  Mem_root_array<uint> intarr(m_mem_root_p);
+  MEM_ROOT own_root = std::move(*m_mem_root_p);
+  intarr.set_mem_root(&own_root);
+  intarr.push_back(42);
+  *m_mem_root_p = std::move(own_root);
 }
 
 
@@ -397,7 +410,7 @@ private:
 // Test chop() and clear() and that destructors are executed.
 TEST_F(MemRootTest, ChopAndClear)
 {
-  Mem_root_array<DestroyCounter, false> array(m_mem_root_p);
+  Mem_root_array<DestroyCounter> array(m_mem_root_p);
   const size_t nn= 4;
   array.reserve(nn);
   size_t counter= 0;
@@ -418,7 +431,7 @@ TEST_F(MemRootTest, ChopAndClear)
 // Test that elements are destroyed if push_back() needs to call reserve().
 TEST_F(MemRootTest, ReserveDestroy)
 {
-  Mem_root_array<DestroyCounter, false> array(m_mem_root_p);
+  Mem_root_array<DestroyCounter> array(m_mem_root_p);
   const size_t nn= 4;
   array.reserve(nn / 2);
   size_t counter= 0;
@@ -436,7 +449,7 @@ TEST_F(MemRootTest, ReserveDestroy)
 
 TEST_F(MemRootTest, ResizeSame)
 {
-  Mem_root_array<DestroyCounter, false> array(m_mem_root_p);
+  Mem_root_array<DestroyCounter> array(m_mem_root_p);
   array.reserve(100);
   size_t counter= 0;
   DestroyCounter foo(&counter);
@@ -451,7 +464,7 @@ TEST_F(MemRootTest, ResizeSame)
 
 TEST_F(MemRootTest, ResizeGrow)
 {
-  Mem_root_array<DestroyCounter, false> array(m_mem_root_p);
+  Mem_root_array<DestroyCounter> array(m_mem_root_p);
   array.reserve(100);
   size_t counter= 0;
   DestroyCounter foo(&counter);
@@ -464,7 +477,7 @@ TEST_F(MemRootTest, ResizeGrow)
 
 TEST_F(MemRootTest, ResizeShrink)
 {
-  Mem_root_array<DestroyCounter, false> array(m_mem_root_p);
+  Mem_root_array<DestroyCounter> array(m_mem_root_p);
   array.reserve(100);
   size_t counter= 0;
   DestroyCounter foo(&counter);

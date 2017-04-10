@@ -16,7 +16,10 @@
 #ifndef MYSQL_PLUGIN_GROUP_REPLICATION_INCLUDED
 #define MYSQL_PLUGIN_GROUP_REPLICATION_INCLUDED
 
-/* API for Group Peplication plugin. (MYSQL_GROUP_REPLICATION_PLUGIN) */
+/**
+  @file include/mysql/plugin_group_replication.h
+  API for Group Replication plugin. (MYSQL_GROUP_REPLICATION_PLUGIN)
+*/
 
 #include <mysql/plugin.h>
 #define MYSQL_GROUP_REPLICATION_INTERFACE_VERSION 0x0101

@@ -9,3 +9,6 @@ ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_
 CREATE UNIQUE INDEX test_index ON
 performance_schema.replication_applier_configuration(desired_delay);
 ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'
+DROP INDEX `PRIMARY`
+  ON performance_schema.replication_applier_configuration;
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'

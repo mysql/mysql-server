@@ -123,7 +123,7 @@ SELECT @@session.concurrent_insert = 1;
 
 --disable_warnings
 SELECT @@global.concurrent_insert = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='concurrent_insert';
 --enable_warnings
 

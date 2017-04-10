@@ -1,14 +1,14 @@
 # Test with file_per_table
 SET DEBUG = '+d,ib_fts_aux_table_error';
 CREATE TABLE t1(a TEXT, b TEXT, c TEXT, d TEXT, FULLTEXT idx(a,b), FULLTEXT idx2(c,d)) ;
-ERROR HY000: Got error 168 from storage engine
+ERROR HY000: Got error 168 - 'Unknown (generic) error from engine' from storage engine
 SET DEBUG = '-d,ib_fts_aux_table_error';
 === information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 # list files in datadir/test
 SET DEBUG = '+d,ib_fts_index_table_error';
 CREATE TABLE t1(a TEXT, b TEXT, c TEXT, d TEXT, FULLTEXT idx(a,b), FULLTEXT idx2(c,d)) ;
-ERROR HY000: Got error 168 from storage engine
+ERROR HY000: Got error 168 - 'Unknown (generic) error from engine' from storage engine
 SET DEBUG = '-d,ib_fts_index_table_error';
 === information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
@@ -18,27 +18,24 @@ CREATE TABLE t1 (id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY, title VARC
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/t1	test/t1	33	5	Dynamic	0	Single
 # list files in datadir/test
-t1.frm
 t1.ibd
 SET DEBUG = '+d,ib_fts_aux_table_error';
 ALTER TABLE t1 ADD FULLTEXT INDEX (title);
-ERROR HY000: Got error 11 from storage engine
+ERROR HY000: Got error 11 - 'InnoDB error' from storage engine
 SET DEBUG = '-d,ib_fts_aux_table_error';
 === information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/t1	test/t1	33	5	Dynamic	0	Single
 # list files in datadir/test
-t1.frm
 t1.ibd
 SET DEBUG = '+d,ib_fts_index_table_error';
 ALTER TABLE t1 ADD FULLTEXT INDEX (title);
-ERROR HY000: Got error 1000 from storage engine
+ERROR HY000: Got error 1000 - 'InnoDB error' from storage engine
 SET DEBUG = '-d,ib_fts_index_table_error';
 === information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/t1	test/t1	33	5	Dynamic	0	Single
 # list files in datadir/test
-t1.frm
 t1.ibd
 DROP TABLE t1;
 CREATE TABLE t1 (a VARCHAR(200), b TEXT, FULLTEXT fts_idx(a,b), c INT PRIMARY KEY) ;
@@ -81,11 +78,10 @@ FTS_AUX_BEING_DELETED_CACHE.ibd
 FTS_AUX_CONFIG.ibd
 FTS_AUX_DELETED.ibd
 FTS_AUX_DELETED_CACHE.ibd
-t1.frm
 t1.ibd
 SET DEBUG = '+d,ib_fts_aux_table_error';
 ALTER TABLE t1 ADD COLUMN pk INT NOT NULL AUTO_INCREMENT, DROP PRIMARY KEY, ADD PRIMARY KEY(pk), ALGORITHM=copy;
-ERROR HY000: Got error 168 from storage engine
+ERROR HY000: Got error 168 - 'Unknown (generic) error from engine' from storage engine
 SET DEBUG = '-d,ib_fts_aux_table_error';
 === information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
@@ -113,11 +109,10 @@ FTS_AUX_BEING_DELETED_CACHE.ibd
 FTS_AUX_CONFIG.ibd
 FTS_AUX_DELETED.ibd
 FTS_AUX_DELETED_CACHE.ibd
-t1.frm
 t1.ibd
 SET DEBUG = '+d,ib_fts_index_table_error';
 ALTER TABLE t1 ADD COLUMN pk INT NOT NULL AUTO_INCREMENT, DROP PRIMARY KEY, ADD PRIMARY KEY(pk), ALGORITHM=copy;
-ERROR HY000: Got error 168 from storage engine
+ERROR HY000: Got error 168 - 'Unknown (generic) error from engine' from storage engine
 SET DEBUG = '-d,ib_fts_index_table_error';
 === information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
@@ -145,7 +140,6 @@ FTS_AUX_BEING_DELETED_CACHE.ibd
 FTS_AUX_CONFIG.ibd
 FTS_AUX_DELETED.ibd
 FTS_AUX_DELETED_CACHE.ibd
-t1.frm
 t1.ibd
 SET DEBUG = '+d,ib_fts_aux_table_error';
 ALTER TABLE t1 DROP INDEX fts_idx, ADD FULLTEXT INDEX fts_idx(a,b);
@@ -176,11 +170,10 @@ FTS_AUX_BEING_DELETED_CACHE.ibd
 FTS_AUX_CONFIG.ibd
 FTS_AUX_DELETED.ibd
 FTS_AUX_DELETED_CACHE.ibd
-t1.frm
 t1.ibd
 SET DEBUG = '+d,ib_fts_index_table_error';
 ALTER TABLE t1 DROP INDEX fts_idx, ADD FULLTEXT INDEX fts_idx(a);
-ERROR HY000: Got error 1000 from storage engine
+ERROR HY000: Got error 1000 - 'InnoDB error' from storage engine
 SET DEBUG = '-d,ib_fts_index_table_error';
 === information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
@@ -208,7 +201,6 @@ FTS_AUX_BEING_DELETED_CACHE.ibd
 FTS_AUX_CONFIG.ibd
 FTS_AUX_DELETED.ibd
 FTS_AUX_DELETED_CACHE.ibd
-t1.frm
 t1.ibd
 DROP TABLE t1;
 CREATE TABLESPACE s_def ADD DATAFILE 's_def.ibd';
@@ -221,14 +213,14 @@ s_def	TABLESPACE	InnoDB	NORMAL	s_def	MYSQLD_DATADIR/s_def.ibd
 # Test with TABLESPACE
 SET DEBUG = '+d,ib_fts_aux_table_error';
 CREATE TABLE t1(a TEXT, b TEXT, c TEXT, d TEXT, FULLTEXT idx(a,b), FULLTEXT idx2(c,d)) TABLESPACE=s_def;
-ERROR HY000: Got error 168 from storage engine
+ERROR HY000: Got error 168 - 'Unknown (generic) error from engine' from storage engine
 SET DEBUG = '-d,ib_fts_aux_table_error';
 === information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 # list files in datadir/test
 SET DEBUG = '+d,ib_fts_index_table_error';
 CREATE TABLE t1(a TEXT, b TEXT, c TEXT, d TEXT, FULLTEXT idx(a,b), FULLTEXT idx2(c,d)) TABLESPACE=s_def;
-ERROR HY000: Got error 168 from storage engine
+ERROR HY000: Got error 168 - 'Unknown (generic) error from engine' from storage engine
 SET DEBUG = '-d,ib_fts_index_table_error';
 === information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
@@ -238,25 +230,22 @@ CREATE TABLE t1 (id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY, title VARC
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/t1	s_def	161	5	Dynamic	0	General
 # list files in datadir/test
-t1.frm
 SET DEBUG = '+d,ib_fts_aux_table_error';
 ALTER TABLE t1 ADD FULLTEXT INDEX (title);
-ERROR HY000: Got error 11 from storage engine
+ERROR HY000: Got error 11 - 'InnoDB error' from storage engine
 SET DEBUG = '-d,ib_fts_aux_table_error';
 === information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/t1	s_def	161	5	Dynamic	0	General
 # list files in datadir/test
-t1.frm
 SET DEBUG = '+d,ib_fts_index_table_error';
 ALTER TABLE t1 ADD FULLTEXT INDEX (title);
-ERROR HY000: Got error 1000 from storage engine
+ERROR HY000: Got error 1000 - 'InnoDB error' from storage engine
 SET DEBUG = '-d,ib_fts_index_table_error';
 === information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/t1	s_def	161	5	Dynamic	0	General
 # list files in datadir/test
-t1.frm
 DROP TABLE t1;
 CREATE TABLE t1 (a VARCHAR(200), b TEXT, FULLTEXT fts_idx(a,b), c INT PRIMARY KEY) TABLESPACE=s_def;
 INSERT INTO t1 VALUES
@@ -287,10 +276,9 @@ test/FTS_AUX_DELETED	s_def	161	4	Dynamic	0	General
 test/FTS_AUX_DELETED_CACHE	s_def	161	4	Dynamic	0	General
 test/t1	s_def	161	7	Dynamic	0	General
 # list files in datadir/test
-t1.frm
 SET DEBUG = '+d,ib_fts_aux_table_error';
 ALTER TABLE t1 ADD COLUMN pk INT NOT NULL AUTO_INCREMENT, DROP PRIMARY KEY, ADD PRIMARY KEY(pk), ALGORITHM=copy;
-ERROR HY000: Got error 168 from storage engine
+ERROR HY000: Got error 168 - 'Unknown (generic) error from engine' from storage engine
 SET DEBUG = '-d,ib_fts_aux_table_error';
 === information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
@@ -307,10 +295,9 @@ test/FTS_AUX_DELETED	s_def	161	4	Dynamic	0	General
 test/FTS_AUX_DELETED_CACHE	s_def	161	4	Dynamic	0	General
 test/t1	s_def	161	7	Dynamic	0	General
 # list files in datadir/test
-t1.frm
 SET DEBUG = '+d,ib_fts_index_table_error';
 ALTER TABLE t1 ADD COLUMN pk INT NOT NULL AUTO_INCREMENT, DROP PRIMARY KEY, ADD PRIMARY KEY(pk), ALGORITHM=copy;
-ERROR HY000: Got error 168 from storage engine
+ERROR HY000: Got error 168 - 'Unknown (generic) error from engine' from storage engine
 SET DEBUG = '-d,ib_fts_index_table_error';
 === information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
@@ -327,7 +314,6 @@ test/FTS_AUX_DELETED	s_def	161	4	Dynamic	0	General
 test/FTS_AUX_DELETED_CACHE	s_def	161	4	Dynamic	0	General
 test/t1	s_def	161	7	Dynamic	0	General
 # list files in datadir/test
-t1.frm
 SET DEBUG = '+d,ib_fts_aux_table_error';
 ALTER TABLE t1 DROP INDEX fts_idx, ADD FULLTEXT INDEX fts_idx(a,b);
 SET DEBUG = '-d,ib_fts_aux_table_error';
@@ -346,10 +332,9 @@ test/FTS_AUX_DELETED	s_def	161	4	Dynamic	0	General
 test/FTS_AUX_DELETED_CACHE	s_def	161	4	Dynamic	0	General
 test/t1	s_def	161	7	Dynamic	0	General
 # list files in datadir/test
-t1.frm
 SET DEBUG = '+d,ib_fts_index_table_error';
 ALTER TABLE t1 DROP INDEX fts_idx, ADD FULLTEXT INDEX fts_idx(a);
-ERROR HY000: Got error 1000 from storage engine
+ERROR HY000: Got error 1000 - 'InnoDB error' from storage engine
 SET DEBUG = '-d,ib_fts_index_table_error';
 === information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
@@ -366,6 +351,5 @@ test/FTS_AUX_DELETED	s_def	161	4	Dynamic	0	General
 test/FTS_AUX_DELETED_CACHE	s_def	161	4	Dynamic	0	General
 test/t1	s_def	161	7	Dynamic	0	General
 # list files in datadir/test
-t1.frm
 DROP TABLE t1;
 DROP TABLESPACE s_def;

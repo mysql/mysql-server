@@ -1,0 +1,24 @@
+# Tests for PERFORMANCE_SCHEMA
+
+#setup
+let $select_column = SUM_ERROR_RAISED;
+let $table = performance_schema.events_errors_summary_by_host_by_error;
+
+create user foo@localhost;
+grant ALL on *.* to foo@localhost;
+connect(con, localhost, foo,,);
+
+###########################################################################
+# Test index on HOST, ERROR_NUMBER
+###########################################################################
+
+let $column_count = 2;
+let $col1 = HOST;
+let $col2 = ERROR_NUMBER;
+let $col1_act = "localhost";
+let $col2_act = "1146";
+
+--source ../include/idx_explain_test.inc
+
+# Cleanup
+drop user foo@localhost;

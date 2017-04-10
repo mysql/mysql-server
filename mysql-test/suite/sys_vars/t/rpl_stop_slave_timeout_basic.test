@@ -100,7 +100,7 @@ SELECT @@session.rpl_stop_slave_timeout;
 
 --disable_warnings
 SELECT @@global.rpl_stop_slave_timeout = VARIABLE_VALUE
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='rpl_stop_slave_timeout';
 --enable_warnings
 

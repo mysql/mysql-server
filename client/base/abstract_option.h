@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2015 Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,11 +18,14 @@
 #ifndef ABSTRACT_OPTION_INCLUDED
 #define ABSTRACT_OPTION_INCLUDED
 
+#include <functional>
 #include <string>
 #include <vector>
-#include "my_getopt.h"
+
 #include "i_option_changed_listener.h"
-#include "i_callable.h"
+#include "my_dbug.h"
+#include "my_getopt.h"
+#include "mysql/service_mysql_alloc.h"
 
 
 namespace Mysql{
@@ -46,7 +49,7 @@ public:
     I_Callable can be replaced with std::Function<void(char*)> once we get
     one.
    */
-  T_type* add_callback(Mysql::I_callable<void, char*>* callback);
+  void add_callback(std::function<void(char*)>* callback);
 
   /**
     Sets optid to given character to make possible usage of short option
@@ -61,7 +64,7 @@ protected:
     @param var_type my_getopt internal option type.
     @param name Name of option. It is used in command line option name as
       --name.
-    @param desription Description of option to be printed in --help.
+    @param description Description of option to be printed in --help.
     @param default_value default value to be supplied to internal option
       data structure.
    */
@@ -86,7 +89,7 @@ protected:
 private:
   void call_callbacks(char* argument);
 
-  std::vector<Mysql::I_callable<void, char*>*> m_callbacks;
+  std::vector<std::function<void(char*)>*> m_callbacks;
   I_option_changed_listener* m_option_changed_listener;
 
   friend class Abstract_options_provider;
@@ -97,7 +100,7 @@ template<typename T_type> Abstract_option<T_type>::~Abstract_option()
   my_free((void*)this->m_option_structure.name);
   my_free((void*)this->m_option_structure.comment);
 
-  for (std::vector<Mysql::I_callable<void, char*>*>::iterator
+  for (std::vector<std::function<void(char*)>*>::iterator
     it= this->m_callbacks.begin();
     it != this->m_callbacks.end();
     it++)
@@ -106,11 +109,10 @@ template<typename T_type> Abstract_option<T_type>::~Abstract_option()
   }
 }
 
-template<typename T_type> T_type* Abstract_option<T_type>::add_callback(
-  Mysql::I_callable<void, char*>* callback)
+template<typename T_type> void Abstract_option<T_type>::add_callback(
+  std::function<void(char*)>* callback)
 {
   this->m_callbacks.push_back(callback);
-  return (T_type*)this;
 }
 
 template<typename T_type> T_type* Abstract_option<T_type>::set_short_character(
@@ -138,7 +140,6 @@ template<typename T_type> Abstract_option<T_type>::Abstract_option(void* value,
   this->m_option_structure.block_size= 0;
   this->m_option_structure.max_value= 0;
   this->m_option_structure.min_value= 0;
-  this->m_option_structure.sub_size= 0;
   this->m_option_structure.typelib= NULL;
   this->m_option_structure.u_max_value= NULL;
 
@@ -162,6 +163,7 @@ template<typename T_type> Abstract_option<T_type>::Abstract_option(void* value,
 
   this->m_option_structure.value= value;
   this->m_option_structure.var_type= var_type;
+  this->m_option_structure.arg_source= 0;
 }
 
 template<typename T_type> my_option Abstract_option<T_type>::get_my_option()
@@ -181,7 +183,7 @@ template<typename T_type> void
 template<typename T_type> void Abstract_option<T_type>::call_callbacks(
   char* argument)
 {
-  std::vector<Mysql::I_callable<void, char*>*>::iterator callback_it;
+  std::vector<std::function<void(char*)>*>::iterator callback_it;
   for (callback_it= this->m_callbacks.begin();
     callback_it != this->m_callbacks.end(); callback_it++)
   {

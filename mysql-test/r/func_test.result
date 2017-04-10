@@ -76,6 +76,9 @@ Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select ((1 << 64) - 1) AS `(1 << 64)-1`,(((1 << 64) - 1) DIV 1) AS `((1 << 64)-1) DIV 1`,(((1 << 64) - 1) DIV 2) AS `((1 << 64)-1) DIV 2`
 create table t1 (a int);
 insert t1 values (1);
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 select * from t1 where 1 xor 1;
 a
 explain extended select * from t1 where 1 xor 1;
@@ -89,10 +92,10 @@ select - a from t1;
 -1
 explain extended select - a from t1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select -('1') AS `- a` from dual
+Note	1003	/* select#1 */ select -(`test`.`t1`.`a`) AS `- a` from `test`.`t1`
 drop table t1;
 select 5 between 0 and 10 between 0 and 1,(5 between 0 and 10) between 0 and 1;
 5 between 0 and 10 between 0 and 1	(5 between 0 and 10) between 0 and 1
@@ -305,3 +308,47 @@ NULL
 SELECT GREATEST(1.5E+2,1.3E+2,NULL) FROM DUAL;
 GREATEST(1.5E+2,1.3E+2,NULL)
 NULL
+#
+# Bug#22523685 FUNCTION GREATEST AND LEAST WORKS INCORRECTLY
+#              WITH BIGINT UNSIGNED VALUE
+#
+SELECT greatest( 9223372036854775807 , 9223372036854775808 ) as g;
+g
+9223372036854775808
+SELECT least   ( 9223372036854775807 , 9223372036854775808 ) as l;
+l
+9223372036854775807
+SELECT greatest (9223372036854775808, -1, 18446744073709551615 ) as g;
+g
+18446744073709551615
+SELECT least    (9223372036854775808, -1, 18446744073709551615 ) as l;
+l
+-1
+SELECT greatest (9223372036854775808, 18446744073709551615) as g;
+g
+18446744073709551615
+SELECT least    (9223372036854775808, 18446744073709551615) as l;
+l
+9223372036854775808
+CREATE TABLE t1 AS SELECT greatest(-1, 9223372036854775808);
+CREATE TABLE t2 AS SELECT greatest(9223372036854775808, 9223372036854775808);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `greatest(-1, 9223372036854775808)` bigint(19) unsigned NOT NULL DEFAULT '0'
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `greatest(9223372036854775808, 9223372036854775808)` bigint(19) unsigned NOT NULL DEFAULT '0'
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+DROP TABLE t1, t2;
+#
+# Bug#22839888 UNINITIALIZED VALUE WHEN CONVERTING
+#              MULTIBYTE STRINGS TO NUMBERS
+#
+select greatest(1,_utf16'.',_utf8'');
+greatest(1,_utf16'.',_utf8'')
+1
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: '.'

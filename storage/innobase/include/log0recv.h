@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -29,6 +29,7 @@ Created 9/20/1997 Heikki Tuuri
 #include "univ.i"
 #include "ut0byte.h"
 #include "buf0types.h"
+#include "dict0types.h"
 #include "hash0hash.h"
 #include "log0log.h"
 #include "mtr0types.h"
@@ -36,6 +37,10 @@ Created 9/20/1997 Heikki Tuuri
 
 #include <list>
 #include <vector>
+#include <map>
+
+class MetadataRecover;
+class PersistentTableMetadata;
 
 #ifdef UNIV_HOTBACKUP
 extern bool	recv_replay_file_ops;
@@ -51,10 +56,9 @@ recv_read_checkpoint_info_for_backup(
 	lsn_t*		lsn,	/*!< out: checkpoint lsn */
 	lsn_t*		offset,	/*!< out: checkpoint offset in the log group */
 	lsn_t*		cp_no,	/*!< out: checkpoint number */
-	lsn_t*		first_header_lsn)
+	lsn_t*		first_header_lsn);
 				/*!< out: lsn of of the start of the
 				first log file */
-	MY_ATTRIBUTE((nonnull));
 /*******************************************************************//**
 Scans the log segment and n_bytes_scanned is set to the length of valid
 log scanned. */
@@ -122,14 +126,11 @@ of first system tablespace page
 dberr_t
 recv_recovery_from_checkpoint_start(
 	lsn_t	flush_lsn);
-/** Complete recovery from a checkpoint. */
-void
-recv_recovery_from_checkpoint_finish(void);
-/********************************************************//**
-Initiates the rollback of active transactions. */
-void
-recv_recovery_rollback_active(void);
-/*===============================*/
+
+/** Complete the recovery from the latest checkpoint.
+@return recovered persistent metadata */
+MetadataRecover*
+recv_recovery_from_checkpoint_finish();
 /******************************************************//**
 Resets the logs. The contents of log files will be lost! */
 void
@@ -198,6 +199,7 @@ recv_apply_hashed_log_recs(
 				disk and invalidated in buffer pool: this
 				alternative means that no new log records
 				can be generated during the application */
+
 #ifdef UNIV_HOTBACKUP
 /*******************************************************************//**
 Applies log records in the hash table to a backup. */
@@ -269,12 +271,60 @@ struct recv_dblwr_t {
 	@param[in]	page_no		page number
 	@return	page frame
 	@retval NULL if no page was found */
-	const byte* find_page(ulint space_id, ulint page_no);
+	const byte* find_page(space_id_t space_id, page_no_t page_no);
 
 	typedef std::list<const byte*, ut_allocator<const byte*> >	list;
 
 	/** Recovered doublewrite buffer page frames */
 	list	pages;
+};
+
+/** Class to parse persistent dynamic metadata redo log, store and
+merge them and apply them to in-memory table objects finally */
+class MetadataRecover {
+	typedef std::map<table_id_t, PersistentTableMetadata*,
+		std::less<table_id_t>,
+		ut_allocator<std::pair<
+			const table_id_t, PersistentTableMetadata*> > >
+	PersistentTables;
+
+public:
+	/** Default constructor */
+	MetadataRecover() UNIV_NOTHROW
+	{}
+
+	/** Destructor */
+	~MetadataRecover();
+
+	/** Parse a dynamic metadata redo log of a table and store
+	the metadata locally
+	@param[in]	id		table id
+	@param[in]	ptr		redo log start
+	@param[in]	end		end of redo log
+	@retval ptr to next redo log record, NULL if this log record
+	was truncated */
+	byte* parseMetadataLog(
+		table_id_t	id,
+		byte*		ptr,
+		byte*		end);
+
+	/** Apply the collected persistent dynamic metadata to in-memory
+	table objects */
+	void apply(void);
+
+private:
+
+	/** Get the dynamic metadata of a specified table,
+	create a new one if not exist
+	@param[in]	id	table id
+	@return the metadata of the specified table */
+	PersistentTableMetadata* getMetadata(
+		table_id_t	id);
+
+private:
+
+	/** Map used to store and merge persistent dynamic metadata */
+	PersistentTables	m_tables;
 };
 
 /* Recovery encryption information */
@@ -356,6 +406,10 @@ struct recv_sys_t{
 
 	recv_dblwr_t	dblwr;
 
+	MetadataRecover*	metadata_recover;
+				/*!< We store and merge all table persistent
+				data here during scanning redo logs */
+
 	encryption_list_t*	/*!< Encryption information list */
 			encryption_list;
 };
@@ -394,11 +448,6 @@ extern bool		recv_lsn_checks_on;
 extern bool		recv_is_making_a_backup;
 #endif /* UNIV_HOTBACKUP */
 
-#ifndef UNIV_HOTBACKUP
-/** Flag indicating if recv_writer thread is active. */
-extern volatile bool	recv_writer_thread_active;
-#endif /* !UNIV_HOTBACKUP */
-
 /** Size of the parsing buffer; it must accommodate RECV_SCAN_SIZE many
 times! */
 #define RECV_PARSING_BUF_SIZE	(2 * 1024 * 1024)
@@ -413,8 +462,6 @@ use these free frames to read in pages when we start applying the
 log records to the database. */
 extern ulint	recv_n_pool_free_frames;
 
-#ifndef UNIV_NONINL
 #include "log0recv.ic"
-#endif
 
 #endif

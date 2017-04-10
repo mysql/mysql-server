@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,14 +15,18 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "mysql_query_runner.h"
-#include "instance_callback.h"
-#include "sql_string.h"
+#include "client/base/mysql_query_runner.h"
+
+#include <stdlib.h>
+#include <sys/types.h>
+#include <functional>
+
 #include "m_ctype.h"
+#include "sql_string.h"
+#include "template_utils.h"
 
 using namespace Mysql::Tools::Base;
-using Mysql::I_callable;
-using Mysql::Instance_callback;
+using std::placeholders::_1;
 using std::vector;
 using std::string;
 
@@ -45,15 +49,12 @@ Mysql_query_runner::~Mysql_query_runner()
 {
   if (m_is_original_runner)
   {
-    for (std::vector<I_callable<int64, const Row&>*>::iterator
-      it= m_result_callbacks.begin(); it != m_result_callbacks.end(); ++it)
-    {
-      delete *it;
-    }
-    for (std::vector<I_callable<int64, const Message_data&>*>::iterator
-      it= m_message_callbacks.begin(); it != m_message_callbacks.end(); ++it)
-    {
-      delete *it;
+    delete_container_pointers(m_result_callbacks);
+    for (auto &callback_and_cleanup : m_message_callbacks) {
+      if (callback_and_cleanup.second) {
+        callback_and_cleanup.second();
+      }
+      delete callback_and_cleanup.first;
     }
 
     delete m_is_processing;
@@ -63,16 +64,17 @@ Mysql_query_runner::~Mysql_query_runner()
 }
 
 Mysql_query_runner& Mysql_query_runner::add_result_callback(
-  I_callable<int64, const Row& >* result_callback)
+  std::function<int64(const Row& )>* result_callback)
 {
   m_result_callbacks.push_back(result_callback);
   return *this;
 }
 
 Mysql_query_runner& Mysql_query_runner::add_message_callback(
-  I_callable<int64, const Message_data&>* message_callback)
+  std::function<int64(const Message_data&)>* message_callback,
+  std::function<void()> cleanup_callback)
 {
-  m_message_callbacks.push_back(message_callback);
+  m_message_callbacks.emplace_back(message_callback, cleanup_callback);
   return *this;
 }
 
@@ -90,7 +92,7 @@ int64 Mysql_query_runner::run_query_store(
 
 int64 Mysql_query_runner::run_query(
   std::string query,
-  I_callable<int64, const Row& >* result_callback)
+  std::function<int64(const Row& )>* result_callback)
 {
   Mysql_query_runner copy(*this);
   copy.add_result_callback(result_callback);
@@ -100,7 +102,7 @@ int64 Mysql_query_runner::run_query(
   return result;
 }
 
-int64 Mysql_query_runner::run_query(string query)
+int64 Mysql_query_runner::run_query(std::string query)
 {
   bool expected_value= false;
 
@@ -150,7 +152,7 @@ int64 Mysql_query_runner::run_query_unguarded(string query)
       unsigned int columns= mysql_field_count(m_connection);
       Row* processed_row= new Row(results, columns, row);
 
-      vector<I_callable<int64, const Row& >*>::reverse_iterator it;
+      vector<std::function<int64(const Row& )>*>::reverse_iterator it;
       for (it= m_result_callbacks.rbegin();
         it != m_result_callbacks.rend();
         it++)
@@ -216,12 +218,11 @@ int64 Mysql_query_runner::report_mysql_error()
 
 int64 Mysql_query_runner::report_message(Message_data &message)
 {
-  vector<I_callable<int64, const Message_data&>*>::reverse_iterator it;
-  for (it= m_message_callbacks.rbegin();
+  for (auto it= m_message_callbacks.rbegin();
     it != m_message_callbacks.rend();
     it++)
   {
-    int64 callback_result= (**it)(message);
+    int64 callback_result= (*it->first)(message);
     if (callback_result < 0)
     {
       return 0;
@@ -259,12 +260,11 @@ Mysql_query_runner::Store_result_helper::Store_result_helper(
   : m_result(result)
 {}
 
-I_callable<int64, const Mysql_query_runner::Row&>*
+std::function<int64(const Mysql_query_runner::Row&)>*
   Mysql_query_runner::Store_result_helper::get_result_callback()
 {
-  return new Instance_callback<
-    int64, const Row&, Store_result_helper>(
-      this, &Store_result_helper::result_callback);
+  return new std::function<int64(const Row&)>(
+      std::bind(&Store_result_helper::result_callback, this, _1));
 }
 
 int64 Mysql_query_runner::Store_result_helper::result_callback(const Row& row)

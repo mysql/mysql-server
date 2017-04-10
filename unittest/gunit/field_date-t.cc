@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2015 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -81,7 +81,7 @@ public:
     : Field_newdate(0,                          // ptr_arg
                     NULL,                       // null_ptr_arg
                     1,                          // null_bit_arg
-                    Field::NONE,                // unireg_check_arg
+                    Field::NONE,                // auto_flags_arg
                     "field_name")               // field_name_arg
   {
     initialize();
@@ -102,17 +102,17 @@ TEST_F(FieldDateTest, StoreLegalStringValues)
 
   {
     SCOPED_TRACE("");
-    test_store_string(&field_date, STRING_WITH_LEN("2001-01-01"),
+    test_store_string(&field_date, STRING_WITH_LEN("2001-01-01"), 0,
                       "2001-01-01", 0, TYPE_OK);
   }
   {
     SCOPED_TRACE("");
-    test_store_string(&field_date, STRING_WITH_LEN("0000-00-00"),
+    test_store_string(&field_date, STRING_WITH_LEN("0000-00-00"), 0,
                       "0000-00-00", 0, TYPE_OK);
   }
   {
     SCOPED_TRACE("");
-    test_store_string(&field_date, STRING_WITH_LEN("0001-00-00"),
+    test_store_string(&field_date, STRING_WITH_LEN("0001-00-00"), 0,
                       "0001-00-00", 0, TYPE_OK);
   }
 }
@@ -124,12 +124,12 @@ TEST_F(FieldDateTest, StoreIllegalStringValues)
   table.in_use= thd();
   field_date.make_writable();
   field_date.make_readable();
-  thd()->count_cuted_fields= CHECK_FIELD_WARN;
+  thd()->check_for_truncated_fields= CHECK_FIELD_WARN;
 
   // Truncates time
   {
     SCOPED_TRACE("");
-    test_store_string(&field_date, STRING_WITH_LEN("2001-01-01 00:00:01"),
+    test_store_string(&field_date, STRING_WITH_LEN("2001-01-01 00:00:01"), 0,
                       "2001-01-01",
                       WARN_DATA_TRUNCATED, TYPE_NOTE_TIME_TRUNCATED);
   }
@@ -137,7 +137,7 @@ TEST_F(FieldDateTest, StoreIllegalStringValues)
   // Bad year
   {
     SCOPED_TRACE("");
-    test_store_string(&field_date, STRING_WITH_LEN("99999-01-01"),
+    test_store_string(&field_date, STRING_WITH_LEN("99999-01-01"), 0,
                       "0000-00-00",
                       WARN_DATA_TRUNCATED, TYPE_ERR_BAD_VALUE);
   }
@@ -145,21 +145,24 @@ TEST_F(FieldDateTest, StoreIllegalStringValues)
   // Bad month
   {
     SCOPED_TRACE("");
-    test_store_string(&field_date, STRING_WITH_LEN("2001-13-01"), "0000-00-00",
+    test_store_string(&field_date, STRING_WITH_LEN("2001-13-01"), 0,
+                      "0000-00-00",
                       WARN_DATA_TRUNCATED, TYPE_ERR_BAD_VALUE);
   }
 
   // Bad day
   {
     SCOPED_TRACE("");
-    test_store_string(&field_date, STRING_WITH_LEN("2001-01-32"), "0000-00-00",
+    test_store_string(&field_date, STRING_WITH_LEN("2001-01-32"), 0,
+                      "0000-00-00",
                       WARN_DATA_TRUNCATED, TYPE_ERR_BAD_VALUE);
   }
 
   // Not a date
   {
     SCOPED_TRACE("");
-    test_store_string(&field_date, STRING_WITH_LEN("foo"), "0000-00-00",
+    test_store_string(&field_date, STRING_WITH_LEN("foo"), 0,
+                      "0000-00-00",
                       WARN_DATA_TRUNCATED, TYPE_ERR_BAD_VALUE);
   }
 }
@@ -180,7 +183,7 @@ TEST_F(FieldDateTest, StoreZeroDateSqlModeNoZeroRestrictions)
   table.in_use= thd();
   field_date.make_writable();
   field_date.make_readable();
-  thd()->count_cuted_fields= CHECK_FIELD_WARN;
+  thd()->check_for_truncated_fields= CHECK_FIELD_WARN;
 
   for (int i= 0; i < no_modes; i++)
   {
@@ -228,7 +231,7 @@ TEST_F(FieldDateTest, StoreZeroDateSqlModeNoZeroDate)
   table.in_use= thd();
   field_date.make_writable();
   field_date.make_readable();
-  thd()->count_cuted_fields= CHECK_FIELD_WARN;
+  thd()->check_for_truncated_fields= CHECK_FIELD_WARN;
 
   // With "MODE_NO_ZERO_DATE" set - Errors if date is all null
   for (int i= 0; i < no_modes; i++)
@@ -290,7 +293,7 @@ TEST_F(FieldDateTest, StoreZeroDateSqlModeNoZeroInDate)
   table.in_use= thd();
   field_date.make_writable();
   field_date.make_readable();
-  thd()->count_cuted_fields= CHECK_FIELD_WARN;
+  thd()->check_for_truncated_fields= CHECK_FIELD_WARN;
 
   // With "MODE_NO_ZERO_IN_DATE" set - Entire date zero is ok
   for (int i= 0; i < no_modes; i++)

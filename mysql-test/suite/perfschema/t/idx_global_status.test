@@ -1,0 +1,13 @@
+# Tests for PERFORMANCE_SCHEMA
+
+#setup
+let $select_column = VARIABLE_VALUE;
+let $table = performance_schema.global_status;
+
+# Test index on VARIABLE_NAME
+
+let $column_count = 1;
+let $col1 = VARIABLE_NAME;
+let $col1_act = "Performance_schema_users_lost";
+
+--source ../include/idx_explain_test.inc

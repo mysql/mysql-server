@@ -1,0 +1,20 @@
+--echo #
+--echo # Bug #22086705: ALTER NOT EXISTING DATABASE BREAKS REPLICATION
+--echo #
+--echo # Problem: Binlog is written before doing the change in the dd.
+--echo # Checking for existence is part of the dd update.
+--echo #
+--echo # Fix: Do the change in the dd before writing binlog. Non-existing
+--echo # databases will cause an early exit prior to writing binlog.
+--echo #
+--echo # Test written by Matthias Leich.
+
+--source include/master-slave.inc
+--disable_abort_on_error
+--connection master
+ALTER DATABASE does_not_exist CHARACTER SET  utf8;
+--source include/sync_slave_sql_with_master.inc
+--connection master
+--source include/sync_slave_sql_with_master.inc
+--connection master
+--source include/rpl_end.inc

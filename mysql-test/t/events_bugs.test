@@ -158,7 +158,7 @@ set @@global.concurrent_insert = 0;
 # option with no argument in events_bugs-master.opt turns the scheduler on.
 
 --disable_warnings
-select * from information_schema.global_variables where variable_name like 'event_scheduler';
+select * from performance_schema.global_variables where variable_name like 'event_scheduler';
 --enable_warnings
 # Check that the event_scheduler is really running
 --source include/running_event_scheduler.inc
@@ -188,6 +188,7 @@ CREATE EVENT долен_регистър_утф8 ON SCHEDULE EVERY 3 YEAR DO SEL
 CREATE EVENT ДОЛЕН_регистър_утф8 ON SCHEDULE EVERY 4 YEAR DO SELECT 400;
 DROP EVENT ДОЛЕН_регистър_утф8;
 SET NAMES latin1;
+
 #
 # END   - 16415: Events: event names are case sensitive
 #
@@ -240,7 +241,6 @@ create event e_55 on schedule every 10 hour starts 10000101000000 do drop table 
 #
 set global event_scheduler=off;
 --source include/check_events_off.inc
-delete from mysql.event;
 set global event_scheduler= on;
 --source include/running_event_scheduler.inc
 set @old_sql_mode:=@@sql_mode;
@@ -1047,12 +1047,12 @@ CREATE EVENT e1 ON SCHEDULE AT '2020-01-01 00:00:00' DO SET @a = 1;
 
 --echo
 
---error ER_OPTION_PREVENTS_STATEMENT
+--error ER_EVENT_DOES_NOT_EXIST
 ALTER EVENT e1 COMMENT 'comment';
 
 --echo
 
---error ER_OPTION_PREVENTS_STATEMENT
+--error ER_EVENT_DOES_NOT_EXIST
 DROP EVENT e1;
 
 --echo
@@ -1203,21 +1203,21 @@ DROP USER mysqltest_u1@localhost;
 # Bug#32633 Can not create any routine if SQL_MODE=no_engine_substitution
 #
 # Ensure that when new SQL modes are introduced, they are also added to
-# the mysql.event table.
+# the mysql.events table.
 #
 
 --disable_warnings
 drop procedure if exists p;
 --enable_warnings
 set @old_mode= @@sql_mode;
-set @@sql_mode= cast(pow(2,32)-1 as unsigned integer);
+set @@sql_mode= cast(pow(2,33)-1 as unsigned integer);
 create event e1 on schedule every 1 day do select 1;
 select @@sql_mode into @full_mode;
 set @@sql_mode= @old_mode;
 # Rename SQL modes that differ in name between the server and the table definition.
 select replace(@full_mode, ',,,', ',NOT_USED,') into @full_mode;
 select replace(@full_mode, 'ALLOW_INVALID_DATES', 'INVALID_DATES') into @full_mode;
-select name from mysql.event where name = 'e1' and sql_mode = @full_mode;
+select event_name from information_schema.events where event_name = 'e1' and sql_mode = @full_mode;
 drop event e1;
 
 #
@@ -1315,21 +1315,6 @@ DROP DATABASE event_test11764334;
 USE test; 
 
 --echo #
---echo # BUG#18311187 - SQL_MODE IS CHANGED TO WRONG VALUE AFTER DUMP/DATA
---echo #                UPGRADE FOR TRIGGERS
---echo #
---echo # Check that Inserting NO_ZERO_DATE, NO_ZERO_IN_DATE and ERROR_FOR_DIVISION_BY_ZERO modes
---echo # manually into mysql.event table do not show up in SHOW CREATE event OUTPUT.
---echo #
-INSERT IGNORE INTO mysql.event VALUES ('test','ev1','select 1','root@localhost','NULL','1','SECOND','1970-01-01 05:30:00','1970-01-01 05:30:00','NULL','1970-01-01 05:30:00','NULL','ENABLED','DROP','NO_ZERO_DATE,NO_ZERO_IN_DATE,ERROR_FOR_DIVISION_BY_ZERO,STRICT_ALL_TABLES','','0','SYSTEM', 'utf8', 'utf8_general_ci', 'latin1_swedish_ci', 'select 1');
-
---echo # NO_ZERO_* modes should not show up in the output.
-SHOW CREATE EVENT ev1;
-
---echo # Clean-up
-DROP EVENT ev1;
-
---echo #
 --echo # Bug#17435114 ASSERTION FAILED: THD->LEX->LOCK_TABLES_STATE == QUERY_TABLES_LIST::LTS_NOT_LOCK
 --echo #
 
@@ -1340,8 +1325,10 @@ EXISTS (SELECT 1 AS x ORDER BY x LIMIT 0) NOT IN (1) MINUTE_SECOND;
 ALTER EVENT e1 ON SCHEDULE EVERY
 EXISTS (SELECT 1 AS x ORDER BY x LIMIT 0) NOT IN (2) MINUTE_SECOND;
 CREATE EVENT e1 ON SCHEDULE EVERY 2 HOUR DO SELECT 1;
+--disable_warnings
 ALTER EVENT e1 ON SCHEDULE EVERY
 EXISTS (SELECT 1 AS x ORDER BY x LIMIT 0) NOT IN (2) MINUTE_SECOND;
+--enable_warnings
 DROP EVENT e1;
 
 ###########################################################################

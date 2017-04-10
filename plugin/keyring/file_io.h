@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,6 +17,8 @@
 #define MYSQL_FILE_IO_H
 
 #include "logger.h"
+#include "my_inttypes.h"
+#include "my_io.h"
 
 namespace keyring
 {
@@ -35,8 +37,8 @@ namespace keyring
     my_off_t tell(File file, myf flags);
     int fstat(File file, MY_STAT *stat_area, myf myFlags);
     int sync(File file, myf myFlags);
-    my_bool truncate(File file, myf myFlags);
-    my_bool remove(const char *filename, myf myFlags);
+    bool truncate(File file, myf myFlags);
+    bool remove(const char *filename, myf myFlags);
   protected:
     ILogger *logger;
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,14 +13,17 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
-// First include (the generated) my_config.h, to get correct platform defines.
-#include "my_config.h"
 #include <gtest/gtest.h>
-
-#include "test_utils.h"
+#include <stddef.h>
+#include <sys/types.h>
 
 #include "item.h"
+#include "item_func.h"
+#include "lex_string.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
 #include "sql_get_diagnostics.h"
+#include "test_utils.h"
 
 namespace get_diagnostics_unittest {
 
@@ -367,9 +370,9 @@ TEST_F(GetDiagnosticsTest, ConditionInformation)
 }
 
 
-Item *get_cond_info_item(THD *thd,
-                         uint number,
-                         Condition_information_item::Name name)
+static Item *get_cond_info_item(THD *thd,
+                                uint number,
+                                Condition_information_item::Name name)
 {
   Item *var;
   Sql_cmd *cmd;

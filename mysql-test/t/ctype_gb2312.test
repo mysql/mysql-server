@@ -1,7 +1,5 @@
 --source include/no_valgrind_without_big.inc
 
--- source include/have_gb2312.inc
-
 #
 # Tests with the gb2312 character set
 #
@@ -144,12 +142,10 @@ DROP TABLE t1;
 
 set names gb2312;
 --source include/weight_string.inc
---source include/weight_string_l1.inc
 --source include/weight_string_A1A1.inc
 
 set collation_connection=gb2312_bin;
 --source include/weight_string.inc
---source include/weight_string_l1.inc
 --source include/weight_string_A1A1.inc
 
 --echo #

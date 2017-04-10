@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,10 +13,17 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include <my_global.h>
+#include "my_config.h"
+
 #include <mysql/plugin_keyring.h>
-#include "keyring.h"
+#include <memory>
+
 #include "buffered_file_io.h"
+#include "keyring.h"
+#include "my_compiler.h"
+#include "my_inttypes.h"
+#include "my_io.h"
+#include "my_psi_config.h"
 
 #ifdef _WIN32
 #define MYSQL_DEFAULT_KEYRINGFILE MYSQL_KEYRINGDIR"\\keyring"
@@ -25,10 +32,12 @@
 #endif
 
 using keyring::Buffered_file_io;
+using keyring::Key;
 using keyring::Keys_container;
 using keyring::Logger;
 
-my_bool create_keyring_dir_if_does_not_exist(const char *keyring_file_path)
+static
+bool create_keyring_dir_if_does_not_exist(const char *keyring_file_path)
 {
   if (!keyring_file_path || strlen(keyring_file_path) == 0)
     return TRUE;
@@ -54,14 +63,14 @@ my_bool create_keyring_dir_if_does_not_exist(const char *keyring_file_path)
   return FALSE;
 }
 
-int check_keyring_file_data(MYSQL_THD thd  MY_ATTRIBUTE((unused)),
-                            struct st_mysql_sys_var *var  MY_ATTRIBUTE((unused)),
-                            void *save, st_mysql_value *value)
+static int check_keyring_file_data(MYSQL_THD thd  MY_ATTRIBUTE((unused)),
+                                   struct st_mysql_sys_var *var  MY_ATTRIBUTE((unused)),
+                                   void *save, st_mysql_value *value)
 {
   char            buff[FN_REFLEN+1];
   const char      *keyring_filename;
   int             len = sizeof(buff);
-  boost::movelib::unique_ptr<IKeys_container> new_keys(new Keys_container(logger.get()));
+  std::unique_ptr<IKeys_container> new_keys(new Keys_container(logger.get()));
 
   (*(const char **) save)= NULL;
   keyring_filename= value->val_str(value, buff, &len);
@@ -113,6 +122,13 @@ static int keyring_init(MYSQL_PLUGIN plugin_info)
 {
   try
   {
+    SSL_library_init(); //always returns 1
+#ifndef HAVE_YASSL
+    ERR_load_BIO_strings();
+#endif
+    SSL_load_error_strings();
+    OpenSSL_add_all_algorithms();
+
 #ifdef HAVE_PSI_INTERFACE
     keyring_init_psi_keys();
 #endif
@@ -129,7 +145,11 @@ static int keyring_init(MYSQL_PLUGIN plugin_info)
       return FALSE;
     }
     keys.reset(new Keys_container(logger.get()));
-    IKeyring_io *keyring_io= new Buffered_file_io(logger.get());
+    std::vector<std::string> allowedFileVersionsToInit;
+    //this keyring will work with keyring files in the following versions:
+    allowedFileVersionsToInit.push_back(keyring::keyring_file_version_2_0);
+    allowedFileVersionsToInit.push_back(keyring::keyring_file_version_1_0);
+    IKeyring_io *keyring_io= new Buffered_file_io(logger.get(), &allowedFileVersionsToInit);
     if (keys->init(keyring_io, keyring_file_data_value))
     {
       is_keys_container_initialized = FALSE;
@@ -152,10 +172,16 @@ static int keyring_init(MYSQL_PLUGIN plugin_info)
   }
 }
 
-int keyring_deinit(void *arg MY_ATTRIBUTE((unused)))
+static int keyring_deinit(void *arg MY_ATTRIBUTE((unused)))
 {
   //not taking a lock here as the calls to keyring_deinit are serialized by
   //the plugin framework
+  ERR_remove_state(0);
+  ERR_free_strings();
+  EVP_cleanup();
+#ifndef HAVE_YASSL
+  CRYPTO_cleanup_all_ex_data();
+#endif
   keys.reset();
   logger.reset();
   keyring_file_data.reset();
@@ -163,32 +189,32 @@ int keyring_deinit(void *arg MY_ATTRIBUTE((unused)))
   return 0;
 }
 
-my_bool mysql_key_fetch(const char *key_id, char **key_type, const char *user_id,
-                        void **key, size_t *key_len)
+static bool mysql_key_fetch(const char *key_id, char **key_type, const char *user_id,
+                            void **key, size_t *key_len)
 {
-  return mysql_key_fetch<keyring::Key>(key_id, key_type, user_id, key, key_len);
+  return mysql_key_fetch<Key>(key_id, key_type, user_id, key, key_len);
 }
 
-my_bool mysql_key_store(const char *key_id, const char *key_type,
-                        const char *user_id, const void *key, size_t key_len)
+static bool mysql_key_store(const char *key_id, const char *key_type,
+                            const char *user_id, const void *key, size_t key_len)
 {
-  return mysql_key_store<keyring::Key>(key_id, key_type, user_id, key, key_len);
+  return mysql_key_store<Key>(key_id, key_type, user_id, key, key_len);
 }
 
-my_bool mysql_key_remove(const char *key_id, const char *user_id)
+static bool mysql_key_remove(const char *key_id, const char *user_id)
 {
-  return mysql_key_remove<keyring::Key>(key_id, user_id);
+  return mysql_key_remove<Key>(key_id, user_id);
 }
 
 
-my_bool mysql_key_generate(const char *key_id, const char *key_type,
-                           const char *user_id, size_t key_len)
+static bool mysql_key_generate(const char *key_id, const char *key_type,
+                               const char *user_id, size_t key_len)
 {
   try
   {
-    boost::movelib::unique_ptr<IKey> key_candidate(new keyring::Key(key_id, key_type, user_id, NULL, 0));
+    std::unique_ptr<IKey> key_candidate(new Key(key_id, key_type, user_id, NULL, 0));
 
-    boost::movelib::unique_ptr<uchar[]> key(new uchar[key_len]);
+    std::unique_ptr<uchar[]> key(new uchar[key_len]);
     if (key.get() == NULL)
       return TRUE;
     memset(key.get(), 0, key_len);

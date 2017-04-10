@@ -1,0 +1,948 @@
+--source include/have_ndb.inc
+
+use ndbinfo;
+
+#
+# WL 7656 cluster_operations view
+#
+
+
+--echo Create a view which should be deterministic
+--echo and exclude runtime specifics
+
+create view ndbinfo.ordered_locks as
+  select mode, state, detail, op, 
+    if(ifnull(waiting_for, 0xffffff00) = 0xffffff00, 0, 1) as waiting 
+   from ndbinfo.cluster_locks
+   order by
+     node_id, block_instance, tableid, fragmentid, rowid, transid;
+
+create table test.t1 (a int primary key, b int, c int, key(c)) engine=ndb;
+
+insert into test.t1 values (1,1,1), (2,2,2), (3,3,3), (4,4,4), (5,5,5);
+
+--echo Show no locks held by an open transaction + committed reads
+--echo of various types
+
+--echo Show no locks to begin with
+select * from ndbinfo.ordered_locks;
+
+--echo -------------
+--echo CommittedRead
+--echo -------------
+
+--echo PK read, CR
+begin;
+select * from test.t1 where a=1;
+--echo Should be no locks held.
+select * from ndbinfo.ordered_locks;
+rollback;
+
+--echo ACC scan, CR
+begin;
+select * from test.t1 where b=4;
+--echo Should be no locks held.
+select * from ndbinfo.ordered_locks;
+rollback;
+
+--echo TUX scan, CR
+begin;
+select * from test.t1 where c > 4;
+--echo Should be no locks held.
+select * from ndbinfo.ordered_locks;
+rollback;
+
+--echo ----------
+--echo SharedRead
+--echo ----------
+
+--echo PK read, Shared
+begin;
+select * from test.t1 where a=1 lock in share mode;
+--echo One lock on primary
+select * from ndbinfo.ordered_locks;
+rollback;
+
+--echo ACC scan, Shared
+begin;
+select * from test.t1 where b=4 lock in share mode;
+--echo One taken-over lock on primary
+select * from ndbinfo.ordered_locks;
+rollback;
+
+--echo TUX scan, Shared
+begin;
+select * from test.t1 where c > 4 lock in share mode;
+--echo One taken-over lock on primary
+select * from ndbinfo.ordered_locks;
+rollback;
+
+--echo Multiple rows
+--echo PK read, Shared
+begin;
+select * from test.t1 where a=1 lock in share mode;
+select * from test.t1 where a=2 lock in share mode;
+select * from test.t1 where a=3 lock in share mode;
+select * from test.t1 where a=4 lock in share mode;
+select * from test.t1 where a=5 lock in share mode;
+--echo Expect 5 row locks on primaries
+select * from ndbinfo.ordered_locks;
+rollback;
+
+--echo ACC scan, Shared
+begin;
+--disable_result_log
+select * from test.t1 lock in share mode;
+--enable_result_log
+--echo Expect 5 row locks on primaries
+select * from ndbinfo.ordered_locks;
+rollback;
+
+--echo TUX scan, Shared
+begin;
+--disable_result_log
+select * from test.t1 lock in share mode;
+--enable_result_log
+--echo Expect 5 row locks on primaries
+select * from ndbinfo.ordered_locks;
+rollback;
+
+--echo --------------
+--echo Exclusive Read
+--echo --------------
+
+--echo PK read, Exclusive
+begin;
+select * from test.t1 where a=1 for update;
+--echo One lock on primary
+select * from ndbinfo.ordered_locks;
+rollback;
+
+--echo ACC scan, Exclusive
+begin;
+select * from test.t1 where b=4 for update;
+--echo One taken-over lock on primary
+select * from ndbinfo.ordered_locks;
+rollback;
+
+--echo TUX scan, Exclusive
+begin;
+select * from test.t1 where c > 4 for update;
+--echo One taken-over lock on primary
+select * from ndbinfo.ordered_locks;
+rollback;
+
+--echo Multiple rows
+--echo PK read, Exclusive
+begin;
+select * from test.t1 where a=1 for update;
+select * from test.t1 where a=2 for update;
+select * from test.t1 where a=3 for update;
+select * from test.t1 where a=4 for update;
+select * from test.t1 where a=5 for update;
+--echo Expect 5 row locks on primaries
+select * from ndbinfo.ordered_locks;
+rollback;
+
+--echo ACC scan, Exclusive
+begin;
+--disable_result_log
+select * from test.t1 for update;
+--enable_result_log
+--echo Expect 5 row locks on primaries
+select * from ndbinfo.ordered_locks;
+rollback;
+
+--echo TUX scan, Exclusive
+begin;
+--disable_result_log
+select * from test.t1 for update;
+--enable_result_log
+--echo Expect 5 row locks on primaries
+select * from ndbinfo.ordered_locks;
+rollback;
+
+--echo -----------
+--echo DML (I/U/D)
+--echo -----------
+
+--echo Insert
+begin;
+insert into test.t1 values (6,6,6);
+--echo Expect 1 lock per replica
+select * from ndbinfo.ordered_locks;
+rollback;
+
+--echo Update by PK
+begin;
+update test.t1 set b=50 where a=5;
+--echo Expect 1 lock per replica
+select * from ndbinfo.ordered_locks;
+rollback;
+
+--echo Update by ACC scan
+begin;
+update test.t1 set c=123 where b > 0;
+--echo Expect 5 locks per replica
+select * from ndbinfo.ordered_locks;
+rollback;
+
+--echo Update by TUX scan
+begin;
+update test.t1 set b=123 where c > 0;
+--echo Expect 5 locks per replica
+select * from ndbinfo.ordered_locks;
+rollback;
+
+--echo Delete by PK
+begin;
+delete from test.t1 where a=3;
+--echo Expect 1 lock per replica
+select * from ndbinfo.ordered_locks;
+rollback;
+
+--echo Delete by ACC scan
+begin;
+delete from test.t1 where b > 0;
+--echo Expect 5 locks per replica
+select * from ndbinfo.ordered_locks;
+rollback;
+
+--echo Update by TUX scan
+begin;
+delete from test.t1 where c > 0;
+--echo Expect 5 locks per replica
+select * from ndbinfo.ordered_locks;
+rollback;
+
+
+--echo ----------------
+--echo Multi op per row
+--echo ----------------
+
+--echo Shared PK read
+begin;
+select * from test.t1 where a=2 lock in share mode;
+select * from test.t1 where a=2 lock in share mode;
+select * from test.t1 where a=2 lock in share mode;
+--echo Expect 3 locks held on primary, only one is holder
+select * from ndbinfo.ordered_locks order by detail, op;
+rollback;
+
+--echo Shared and Exclusive PK read
+begin;
+select * from test.t1 where a=2 lock in share mode;
+select * from test.t1 where a=2 for update;
+select * from test.t1 where a=2 lock in share mode;
+--echo Expect 3 locks held on primary, only one is holder
+--echo Holder is Shared, others are Xclusive
+select * from ndbinfo.ordered_locks order by detail, op;
+rollback;
+
+--echo Multi Exclusive PK read
+begin;
+select * from test.t1 where a=2 for update;
+select * from test.t1 where a=2 for update;
+select * from test.t1 where a=2 for update;
+--echo Expect 3 locks held on primary, only one is holder
+select * from ndbinfo.ordered_locks order by detail, op;
+rollback;
+
+--echo Multi scan shared
+begin;
+--disable_result_log
+select * from test.t1 where a > 4 lock in share mode;
+select * from test.t1 where a > 4 lock in share mode;
+select * from test.t1 where a > 4 lock in share mode;
+--enable_result_log
+--echo Expect 3 locks held on 1 row, only one is holder
+select * from ndbinfo.ordered_locks order by detail, op;
+rollback;
+
+--echo Multi scan mixed
+begin;
+--disable_result_log
+select * from test.t1 where a > 4 lock in share mode;
+select * from test.t1 where a > 4 for update;
+select * from test.t1 where a > 4 lock in share mode;
+--enable_result_log
+--echo Expect 3 locks held on 1 row, only one is holder
+--echo Holder is shared
+select * from ndbinfo.ordered_locks order by detail, op;
+rollback;
+
+--echo Multi scan exclusive
+begin;
+--disable_result_log
+select * from test.t1 where a > 4 for update;
+select * from test.t1 where a > 4 for update;
+select * from test.t1 where a > 4 for update;
+--enable_result_log
+--echo Expect 3 locks held on 1 row, only one is holder
+select * from ndbinfo.ordered_locks order by detail, op;
+rollback;
+
+--echo ReadSh-Update PK
+begin;
+--disable_result_log
+select * from test.t1 where a=2 lock in share mode;
+update test.t1 set b=20 where a=2;
+--enable_result_log
+--echo Expect 1 Primary S Read + 1 per replica EX Update
+--echo S is holder on primary replica, EX on Backup
+select * from ndbinfo.ordered_locks order by detail, op;
+rollback;
+
+--echo ReadEx-Update PK
+begin;
+--disable_result_log
+select * from test.t1 where a=2 for update;
+update test.t1 set b=20 where a=2;
+--enable_result_log
+--echo Expect 1 Primary EX Read + 1 per replica EX Update
+select * from ndbinfo.ordered_locks order by detail, op;
+rollback;
+
+--echo ReadSh-Delete PK
+begin;
+--disable_result_log
+select * from test.t1 where a=2 lock in share mode;
+delete from test.t1 where a=2;
+--enable_result_log
+--echo Expect 1 Primary S Read + 1 per replica EX Delete
+--echo S is holder on primary replica, EX on Backup
+select * from ndbinfo.ordered_locks order by detail, op;
+rollback;
+
+--echo ReadEx-Update PK
+begin;
+--disable_result_log
+select * from test.t1 where a=2 for update;
+delete from test.t1 where a=2;
+--enable_result_log
+--echo Expect 1 Primary EX Read + 1 per replica EX Delete
+select * from ndbinfo.ordered_locks order by detail, op;
+rollback;
+
+--echo Insert-Update PK
+begin;
+--disable_result_log
+insert into test.t1 values (6,6,6);
+update test.t1 set b=60 where a=6;
+--enable_result_log
+--echo Expect 2 locks per replica, held by Insert
+select * from ndbinfo.ordered_locks order by detail, op;
+rollback;
+
+--echo Insert-Delete PK
+begin;
+--disable_result_log
+insert into test.t1 values (6,6,6);
+delete from test.t1 where a=6;
+--enable_result_log
+--echo Expect 2 locks per replica, held by Insert
+select * from ndbinfo.ordered_locks order by detail, op;
+rollback;
+
+--echo Update-Update PK
+begin;
+--disable_result_log
+update test.t1 set b=45 where a=3;
+update test.t1 set b=46 where a=3;
+--enable_result_log
+--echo Expect 2 locks per replica
+select * from ndbinfo.ordered_locks order by detail, op;
+rollback;
+
+--echo Update-Delete PK
+begin;
+--disable_result_log
+update test.t1 set b=45 where a=3;
+delete from test.t1 where a=3;
+--enable_result_log
+--echo Expect 2 locks per replica held by Update
+select * from ndbinfo.ordered_locks order by detail, op;
+rollback;
+
+--echo Delete-Insert PK
+begin;
+--disable_result_log
+delete from test.t1 where a=4;
+insert into test.t1 values (4,44,44);
+--enable_result_log
+--echo Expect 2 locks per replica held by Delete
+select * from ndbinfo.ordered_locks order by detail, op;
+rollback;
+
+--echo Delete-Insert-Delete PK
+begin;
+--disable_result_log
+delete from test.t1 where a=4;
+insert into test.t1 values (4,44,44);
+delete from test.t1 where a=4;
+--enable_result_log
+--echo Expect 3 locks per replica held by Delete
+select * from ndbinfo.ordered_locks order by detail, op;
+rollback;
+
+--echo Insert-Delete-Insert PK
+begin;
+--disable_result_log
+insert into test.t1 values (6,66,66);
+delete from test.t1 where a=6;
+insert into test.t1 values (6,7,8);
+--enable_result_log
+--echo Expect 3 locks per replica, held by Insert
+select * from ndbinfo.ordered_locks order by detail, op;
+rollback;
+
+--echo -----------------
+--echo Multi-transaction
+--echo -----------------
+
+connect (con1,localhost,root,,);
+connect (con2,localhost,root,,);
+
+--echo Shared reads PK
+--connection default
+begin;
+select * from test.t1 where a=1 lock in share mode;
+--connection con1
+begin;
+select * from test.t1 where a=1 lock in share mode;
+--connection con2
+begin;
+select * from test.t1 where a=1 lock in share mode;
+--echo Expect 3 row locks taken, one is owner
+select * from ndbinfo.ordered_locks order by detail, op;
+--echo Expect 3 transactions
+select count(distinct transid) from ndbinfo.cluster_locks;
+--connection default
+rollback;
+--connection con1
+rollback;
+--connection con2
+rollback;
+
+--connection default
+--echo **********
+--echo Contention
+--echo **********
+
+--source ndb_disable_trans_timeout.inc
+
+--echo PK SH vs PK EX
+--connection con1
+begin;
+select * from test.t1 where a=1 lock in share mode;
+--connection con2
+begin;
+--send select * from test.t1 where a=1 for update;
+--connection default
+# Wait for locking to become visible
+let $wait_condition=
+    select count(1) = 2 from ndbinfo.cluster_locks;
+--source include/wait_condition.inc
+--echo Expect : X waiting for SH lock
+--echo 2 transactions
+select * from ndbinfo.ordered_locks order by detail, op;
+select count(distinct transid) from ndbinfo.cluster_locks;
+--connection con1
+rollback;
+--connection con2
+--reap
+rollback;
+
+--echo PK EX vs PK SH
+--connection con1
+begin;
+select * from test.t1 where a=1 for update;
+--connection con2
+begin;
+--send select * from test.t1 where a=1 lock in share mode;
+--connection default
+# Wait for locking to become visible
+let $wait_condition=
+    select count(1) = 2 from ndbinfo.cluster_locks;
+--source include/wait_condition.inc
+--echo Expect : SH waiting for X lock
+--echo 2 transactions
+select * from ndbinfo.ordered_locks order by detail, op;
+select count(distinct transid) from ndbinfo.cluster_locks;
+--connection con1
+rollback;
+--connection con2
+--reap
+rollback;
+
+
+--echo PK EX vs PK EX
+--connection con1
+begin;
+select * from test.t1 where a=1 for update;
+--connection con2
+begin;
+--send select * from test.t1 where a=1 for update;
+--connection default
+# Wait for locking to become visible
+let $wait_condition=
+    select count(1) = 2 from ndbinfo.cluster_locks;
+--source include/wait_condition.inc
+--echo Expect : X waiting for X lock
+--echo 2 transactions
+select * from ndbinfo.ordered_locks order by detail, op;
+select count(distinct transid) from ndbinfo.cluster_locks;
+--connection con1
+rollback;
+--connection con2
+--reap
+rollback;
+
+--echo Insert vs PK SH read
+--connection con1
+begin;
+insert into test.t1 values (7,7,7);
+--connection con2
+begin;
+--send select * from test.t1 where a=7 lock in share mode;
+--connection default
+# Wait for locking to become visible
+let $wait_condition=
+    select count(1) = 3 from ndbinfo.cluster_locks;
+--source include/wait_condition.inc
+--echo Expect : S waiting for X lock
+--echo 2 transactions
+select * from ndbinfo.ordered_locks order by detail, op;
+select count(distinct transid) from ndbinfo.cluster_locks;
+--connection con1
+rollback;
+--connection con2
+--reap
+rollback;
+
+--echo Update vs PK SH read
+--connection con1
+begin;
+update test.t1 set b=55 where a=5;
+--connection con2
+begin;
+--send select * from test.t1 where a=5 lock in share mode;
+--connection default
+# Wait for locking to become visible
+let $wait_condition=
+    select count(1) = 3 from ndbinfo.cluster_locks;
+--source include/wait_condition.inc
+--echo Expect : S waiting for X lock
+--echo 2 transactions
+select * from ndbinfo.ordered_locks order by detail, op;
+select count(distinct transid) from ndbinfo.cluster_locks;
+--connection con1
+rollback;
+--connection con2
+--reap
+rollback;
+
+--echo PK SH read vs Update
+--connection con1
+begin;
+select * from test.t1 where a=5 lock in share mode;
+--connection con2
+begin;
+--send update test.t1 set b=55 where a=5;
+--connection default
+# Wait for locking to become visible
+let $wait_condition=
+    select count(1) = 2 from ndbinfo.cluster_locks;
+--source include/wait_condition.inc
+--echo Expect : X waiting for S lock
+--echo 2 transactions
+select * from ndbinfo.ordered_locks order by detail, op;
+select count(distinct transid) from ndbinfo.cluster_locks;
+--connection con1
+rollback;
+--connection con2
+--reap
+rollback;
+
+--echo Delete vs PK SH read
+--connection con1
+begin;
+delete from test.t1 where a=5;
+--connection con2
+begin;
+--send select * from test.t1 where a=5 lock in share mode;
+--connection default
+# Wait for locking to become visible
+let $wait_condition=
+    select count(1) = 3 from ndbinfo.cluster_locks;
+--source include/wait_condition.inc
+--echo Expect : S waiting for X lock
+--echo 2 transactions
+select * from ndbinfo.ordered_locks order by detail, op;
+select count(distinct transid) from ndbinfo.cluster_locks;
+--connection con1
+rollback;
+--connection con2
+--reap
+rollback;
+
+--echo PK SH read vs Delete
+--connection con1
+begin;
+select * from test.t1 where a=5 lock in share mode;
+--connection con2
+begin;
+--send delete from test.t1 where a=5;
+--connection default
+# Wait for locking to become visible
+let $wait_condition=
+    select count(1) = 2 from ndbinfo.cluster_locks;
+--source include/wait_condition.inc
+--echo Expect : X waiting for S lock
+--echo 2 transactions
+select * from ndbinfo.ordered_locks order by detail, op;
+select count(distinct transid) from ndbinfo.cluster_locks;
+--connection con1
+rollback;
+--connection con2
+--reap
+rollback;
+
+--echo PK SH read vs EX scan
+--connection con1
+begin;
+select * from test.t1 where a=5 lock in share mode;
+--connection con2
+begin;
+--send select * from test.t1 order by a for update;
+--connection default
+# Wait for locking to become visible
+let $wait_condition=
+    select count(1) = 6 from ndbinfo.cluster_locks;
+--source include/wait_condition.inc
+--echo Expect : 5-1 X locks from scan
+--echo          1   X lock waiting from scan
+--echo          1   S lock held by read
+--echo 2 transactions
+# Ignore op type, as SCAN vs READ depends on when takeover occurs
+# which depends on timing, batching + distribution
+select mode, state, detail, waiting from ndbinfo.ordered_locks order by detail, mode, op;
+select count(distinct transid) from ndbinfo.cluster_locks;
+--connection con1
+rollback;
+--connection con2
+--reap
+rollback;
+
+--echo PK EX read vs SH scan
+--connection con1
+begin;
+select * from test.t1 where a=5 for update;
+--connection con2
+begin;
+--send select * from test.t1 order by a lock in share mode;
+--connection default
+# Wait for locking to become visible
+let $wait_condition=
+    select count(1) = 6 from ndbinfo.cluster_locks;
+--source include/wait_condition.inc
+--echo Expect : 5-1 S locks from scan
+--echo          1   S lock waiting from scan
+--echo          1   X lock held by read
+--echo 2 transactions
+# Ignore op type, as SCAN vs READ depends on when takeover occurs
+# which depends on timing, batching + distribution
+select mode, state, detail, waiting from ndbinfo.ordered_locks order by detail, mode, op;
+select count(distinct transid) from ndbinfo.cluster_locks;
+--connection con1
+rollback;
+--connection con2
+--reap
+rollback;
+
+--echo SH read, SH read, SH upgrade (blocked)
+--connection con1
+begin;
+select * from test.t1 where a=5 lock in share mode;
+--connection con2
+begin;
+select * from test.t1 where a=5 lock in share mode;
+
+--connection con1
+--echo Upgrade attempt will block as other trans has
+--echo shared lock on row
+--send select * from test.t1 where a=5 for update;
+--connection default
+# Wait for locking to become visible
+let $wait_condition=
+    select count(1) = 3 from ndbinfo.cluster_locks;
+--source include/wait_condition.inc
+--echo 2 shared locks on row
+--echo 1 ex read waiting
+--echo 2 transactions
+select * from ndbinfo.ordered_locks order by detail, mode, op;
+select count(distinct transid) from ndbinfo.cluster_locks;
+--connection con2
+rollback;
+--connection con1
+--reap
+rollback;
+
+--source ndb_enable_trans_timeout.inc
+
+drop table test.t1;
+
+--connection default
+--echo ***********
+--echo Blob tables
+--echo ***********
+create table test.t1 (a int primary key, b int, c text) engine=ndb;
+
+insert into test.t1 values (1, 1, repeat('SSG',300));
+
+--echo Show PK CR leaves no locks 
+begin;
+select a,b,length(c) from test.t1 where a=1;
+select * from ndbinfo.ordered_locks order by detail, mode, op;
+rollback;
+
+--echo Show PK SH lock
+begin;
+select a,b,length(c) from test.t1 where a=1 lock in share mode;
+--echo Expect Shared lock on main table row only
+select * from ndbinfo.ordered_locks order by detail, mode, op;
+rollback;
+
+--echo Show PK EX lock
+begin;
+select a,b,length(c) from test.t1 where a=1 for update;
+--echo Expect Exclusive lock on main table row only
+select * from ndbinfo.ordered_locks order by detail, mode, op;
+rollback;
+
+--echo Show insert locks
+begin;
+insert into test.t1 values (2,2,repeat('TSG', 300));
+--echo Expect Exclusive locks on all replicas of main + part row
+select * from ndbinfo.ordered_locks order by detail, mode, op;
+rollback;
+
+--echo Show update locks
+begin;
+update test.t1 set c=repeat('FSG', 300) where a=1;
+--echo Expect Exclusive locks on all replicas of main + part row
+--echo Various : Reads, Updates on main, Updates on parts
+--echo Part(s) may have delete + insert rather than update
+select * from ndbinfo.ordered_locks order by detail,op;
+rollback;
+
+--echo Show delete locks
+begin;
+delete from test.t1 where a=1;
+--echo Expect Exclusive locks on all replicas of main + part row
+select * from ndbinfo.ordered_locks order by detail,op;
+rollback;
+
+--source ndb_disable_trans_timeout.inc
+
+--echo Show CR takes a lock transiently
+--connection con1
+--echo Take exclusive lock
+begin;
+select a,b,length(c) from test.t1 where a=1 for update;
+--connection con2
+--send select a,b,length(c) from test.t1 where a=1;
+--connection default
+# Wait for locking to become visible
+let $wait_condition=
+    select count(1) = 2 from ndbinfo.cluster_locks;
+--source include/wait_condition.inc
+--echo Expect Shared waiting for Exclusive on main table row.
+select * from ndbinfo.ordered_locks order by detail,op;
+select count(distinct transid) from ndbinfo.cluster_locks;
+--connection con1
+rollback;
+--connection con2
+--reap;
+rollback;
+
+--source ndb_enable_trans_timeout.inc
+
+--connection default
+drop table test.t1;
+
+
+--connection default
+--echo ***********
+--echo Unique keys
+--echo ***********
+
+create table test.t1 (a int primary key, b int, c int, unique(c)) engine=ndb;
+insert into test.t1 values (5,5,5);
+--echo Show UK CR takes shared locks
+
+begin;
+select * from test.t1 where c=5;
+select * from ndbinfo.ordered_locks order by detail,op;
+select count(distinct tableid) from ndbinfo.cluster_locks;
+rollback;
+
+--echo Show UK EX read
+begin;
+select * from test.t1 where c=5 for update;
+select * from ndbinfo.ordered_locks order by detail,op;
+select count(distinct tableid) from ndbinfo.cluster_locks;
+rollback;
+
+--echo Show UK update, not of UK column
+begin;
+update test.t1 set b=55 where c=5;
+select * from ndbinfo.ordered_locks order by detail,op;
+select count(distinct tableid) from ndbinfo.cluster_locks;
+rollback;
+
+--echo Show UK update, of UK column
+begin;
+update test.t1 set c=55 where c=5;
+--echo Read by UK @ primary
+--echo Read @ UK
+--echo Update of main @ both
+--echo Delete of old UK @ both
+--echo Insert of new UK @ both 
+select * from ndbinfo.ordered_locks order by detail,op;
+select count(distinct tableid) from ndbinfo.cluster_locks;
+rollback;
+
+--echo Show UK delete
+begin;
+delete from test.t1 where c=5;
+select * from ndbinfo.ordered_locks order by detail,op;
+select count(distinct tableid) from ndbinfo.cluster_locks;
+rollback;
+
+--source ndb_disable_trans_timeout.inc
+
+--echo Show PK update vs UK update
+--connection con1
+begin;
+update test.t1 set b=400 where a=5;
+--connection con2
+begin;
+--send update test.t1 set b=444 where c=5;
+--connection con1
+# Wait for locking to become visible
+let $wait_condition=
+    select count(1) = 4 from ndbinfo.cluster_locks;
+--source include/wait_condition.inc
+--echo Expect PK update holding lock@each replica
+--echo Expect UK read holding lock on UK table + waiting for
+--echo lock on UK table primary
+select * from ndbinfo.ordered_locks order by detail,op;
+select count(distinct transid) from ndbinfo.cluster_locks;
+select count(distinct tableid) from ndbinfo.cluster_locks;
+rollback;
+--connection con2
+--reap
+rollback;
+--connection default
+
+--source ndb_enable_trans_timeout.inc
+
+drop table test.t1;
+
+--echo ********
+--echo Deadlock
+--echo ********
+create table test.t1 (a int primary key, b int) engine=ndb;
+insert into test.t1 values (1,1), (2,2);
+
+--source ndb_disable_trans_timeout.inc
+
+--connection con1
+begin;
+select * from test.t1 where a=1 for update;
+
+--connection con2
+begin;
+select * from test.t1 where a=2 for update;
+
+--connection con1
+--send select * from test.t1 where a=2 for update;
+
+--connection con2
+--send select * from test.t1 where a=1 for update;
+
+--connection default
+# Wait for locking to become visible
+let $wait_condition=
+    select count(1) = 2 from ndbinfo.cluster_locks;
+--echo Show using cluster_locks to find the deadlock
+--echo
+
+--disable_result_log
+create view transaction_dependencies as
+  select a.transid as waiting_transid, b.transid as holding_transid 
+    from ndbinfo.cluster_locks a join 
+         ndbinfo.cluster_locks b
+      on a.node_id = b.node_id and
+         a.block_instance = b.block_instance and
+         a.waiting_for = b.lock_num;
+
+select * from transaction_dependencies;
+
+create view second_level_dependencies as
+  select a.waiting_transid as waiting_transid, 
+         b.holding_transid as holding_transid,
+         a.holding_transid as other
+    from transaction_dependencies a join transaction_dependencies b
+      on a.holding_transid = b.waiting_transid;
+
+select * from second_level_dependencies;
+
+create view 2_way_deadlocks_found as
+  select * 
+    from second_level_dependencies
+   where waiting_transid = holding_transid;
+
+select * from 2_way_deadlocks_found;
+
+create view unique_2_way_deadlocks as
+  select distinct
+    if (waiting_transid < other,
+        waiting_transid,
+        other),
+    if (waiting_transid < other,
+        other,
+        waiting_transid)
+    from 2_way_deadlocks_found;
+
+select * from unique_2_way_deadlocks;
+--enable_result_log
+
+select count(1)
+  from unique_2_way_deadlocks;
+
+drop view unique_2_way_deadlocks;  
+drop view 2_way_deadlocks_found;
+drop view second_level_dependencies;
+drop view transaction_dependencies;
+
+# Need transaction timeouts to get us out
+# of deadlock!
+--source ndb_enable_trans_timeout.inc
+
+--disable_result_log
+--connection con1
+--error 0,ER_LOCK_WAIT_TIMEOUT
+--reap
+rollback;
+--connection con2
+--error 0,ER_LOCK_WAIT_TIMEOUT
+--reap
+rollback;
+--enable_result_log
+
+--connection default
+drop table test.t1;
+
+drop view ndbinfo.ordered_locks;

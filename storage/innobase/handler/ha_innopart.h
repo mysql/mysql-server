@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2014, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2014, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -21,7 +21,14 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #ifndef ha_innopart_h
 #define ha_innopart_h
 
+#include <stddef.h>
+#include <sys/types.h>
+
+#include "ha_innodb.h"
+#include "my_compiler.h"
+#include "my_inttypes.h"
 #include "partitioning/partition_handler.h"
+#include "row0mysql.h"
 
 /* Forward declarations */
 class Altered_partitions;
@@ -151,7 +158,7 @@ public:
 	all m_table_parts[]->vc_templ to it.
 	@param[in]      table           MySQL TABLE object
 	@param[in]      ib_table        InnoDB dict_table_t
-	@param[in]      table_name      Table name (db/table_name) */
+	@param[in]      name		Table name (db/table_name) */
 	void
 	set_v_templ(
 		TABLE*		table,
@@ -213,7 +220,7 @@ public:
 	has changed.
 	@param[in,out]	engine_data	Data for call_back (not used).
 	@return TRUE if query caching of the table is permitted. */
-	my_bool
+	bool
 	register_query_cache_table(
 		THD*			thd,
 		char*			table_key,
@@ -254,12 +261,20 @@ public:
 	@param[in]	altered_table	TABLE object for new version of table.
 	@param[in,out]	ha_alter_info	Structure describing changes to be done
 	by ALTER TABLE and holding data used during in-place alter.
+	@param[in]	old_table_def	dd::Table object describing old
+	version of the table.
+	@param[in,out]	new_table_def	dd::Table object for the new version
+	of the table. Can be adjusted by this call. Changes to the table
+	definition will be persisted in the data-dictionary at statement
+	commit time.
 	@retval	true	Failure.
 	@retval	false	Success. */
 	bool
 	prepare_inplace_alter_table(
 		TABLE*			altered_table,
-		Alter_inplace_info*	ha_alter_info);
+		Alter_inplace_info*	ha_alter_info,
+		const dd::Table*	old_table_def,
+		dd::Table*		new_table_def);
 
 	/** Alter the table structure in-place.
 	Alter the table structure in-place with operations
@@ -269,12 +284,20 @@ public:
 	@param[in]	altered_table	TABLE object for new version of table.
 	@param[in,out]	ha_alter_info	Structure describing changes to be done
 	by ALTER TABLE and holding data used during in-place alter.
+	@param[in]	old_table_def	dd::Table object describing old
+	version of the table.
+	@param[in,out]	new_table_def	dd::Table object for the new version
+	of the table. Can be adjusted by this call. Changes to the table
+	definition will be persisted in the data-dictionary at statement
+	commit time.
 	@retval	true	Failure.
 	@retval	false	Success. */
 	bool
 	inplace_alter_table(
 		TABLE*			altered_table,
-		Alter_inplace_info*	ha_alter_info);
+		Alter_inplace_info*	ha_alter_info,
+		const dd::Table*	old_table_def,
+		dd::Table*		new_table_def);
 
 	/** Commit or rollback.
 	Commit or rollback the changes made during
@@ -285,26 +308,24 @@ public:
 	prepare_inplace_alter_table(). (E.g concurrent writes were
 	blocked during prepare, but might not be during commit).
 	@param[in]	altered_table	TABLE object for new version of table.
-	@param[in]	ha_alter_info	Structure describing changes to be done
+	@param[in,out]	ha_alter_info	Structure describing changes to be done
 	by ALTER TABLE and holding data used during in-place alter.
-	@param[in,out]	commit		true => Commit, false => Rollback.
+	@param[in]	commit		true => Commit, false => Rollback.
+	@param[in]	old_table_def	dd::Table object describing old
+	version of the table.
+	@param[in,out]	new_table_def	dd::Table object for the new version
+	of the table. Can be adjusted by this call. Changes to the table
+	definition will be persisted in the data-dictionary at statement
+	commit time.
 	@retval	true	Failure.
 	@retval	false	Success. */
 	bool
 	commit_inplace_alter_table(
 		TABLE*			altered_table,
 		Alter_inplace_info*	ha_alter_info,
-		bool			commit);
-
-	/** Notify the storage engine that the table structure (.frm) has
-	been updated.
-
-	ha_partition allows inplace operations that also upgrades the engine
-	if it supports partitioning natively. So if this is the case then
-	we will remove the .par file since it is not used with ha_innopart
-	(we use the internal data dictionary instead). */
-	void
-	notify_table_changed();
+		bool			commit,
+		const dd::Table*	old_table_def,
+		dd::Table*		new_table_def);
 	/** @} */
 
 	// TODO: should we implement init_table_handle_for_HANDLER() ?
@@ -316,7 +337,8 @@ public:
 
 	int
 	discard_or_import_tablespace(
-		my_bool	discard);
+		bool		discard,
+		dd::Table*	table_def);
 
 	/** Compare key and rowid.
 	Helper function for sorting records in the priority queue.
@@ -377,12 +399,13 @@ public:
 
 	int
 	create(
-		const char*	name,
-		TABLE*		form,
-		HA_CREATE_INFO*	create_info);
+		const char*		name,
+		TABLE*			form,
+		HA_CREATE_INFO*		create_info,
+		dd::Table*		table_def);
 
 	int
-	truncate();
+	truncate(dd::Table *table_def);
 
 	int
 	check(
@@ -417,7 +440,7 @@ public:
 	int
 	cmp_ref(
 		const uchar*	ref1,
-		const uchar*	ref2);
+		const uchar*	ref2) const;
 
 	int
 	read_range_first(
@@ -766,7 +789,7 @@ private:
 	/** Set the autoinc column max value.
 	This should only be called once from ha_innobase::open().
 	Therefore there's no need for a covering lock.
-	@param[in]	no_lock	If locking should be skipped. Not used!
+	@param[in]	-	If locking should be skipped. Not used!
 	@return 0 on success else error code. */
 	int
 	initialize_auto_increment(
@@ -831,12 +854,12 @@ private:
 	Stores a row in an InnoDB database, to the table specified in this
 	handle.
 	@param[in]	part_id	Partition to write to.
-	@param[in]	row	A row in MySQL format.
+	@param[in]	record	A row in MySQL format.
 	@return error code. */
 	int
 	write_row_in_part(
 		uint	part_id,
-		uchar*	row);
+		uchar*	record);
 
 	/** Update a row in partition.
 	Updates a row given as a parameter to a new value.
@@ -852,12 +875,12 @@ private:
 
 	/** Deletes a row in partition.
 	@param[in]	part_id	Partition to delete from.
-	@param[in]	row	Row to delete in MySQL format.
+	@param[in]	record	Row to delete in MySQL format.
 	@return error number or 0. */
 	int
 	delete_row_in_part(
 		uint		part_id,
-		const uchar*	row);
+		const uchar*	record);
 
 	/** Return first record in index from a partition.
 	@param[in]	part	Partition to read from.
@@ -990,38 +1013,38 @@ private:
 
 	/** Initialize random read/scan of a specific partition.
 	@param[in]	part_id		Partition to initialize.
-	@param[in]	table_scan	True for scan else random access.
+	@param[in]	scan		True for scan else random access.
 	@return error number or 0. */
 	int
 	rnd_init_in_part(
 		uint	part_id,
-		bool	table_scan);
+		bool	scan);
 
 	/** Get next row during scan of a specific partition.
 	@param[in]	part_id	Partition to read from.
-	@param[out]	record	Next row.
+	@param[out]	buf	Next row.
 	@return error number or 0. */
 	int
 	rnd_next_in_part(
 		uint	part_id,
-		uchar*	record);
+		uchar*	buf);
 
 	/** End random read/scan of a specific partition.
 	@param[in]	part_id		Partition to end random read/scan.
-	@param[in]	table_scan	True for scan else random access.
+	@param[in]	scan		True for scan else random access.
 	@return error number or 0. */
 	int
 	rnd_end_in_part(
 		uint	part_id,
-		bool	table_scan);
+		bool	scan);
 
 	/** Get a reference to the current cursor position in the last used
 	partition.
-	@param[out]	ref	Reference (PK if exists else row_id).
+	@param[out]	ref_arg	Reference (PK if exists else row_id).
 	@param[in]	record	Record to position. */
 	void
 	position_in_last_part(
-		uchar*		ref,
+		uchar*		ref_arg,
 		const uchar*	record);
 
 	/** Read record by given record (by its PK) from the last used partition.
@@ -1038,22 +1061,30 @@ private:
 	}
 
 	/** Copy a cached MySQL record.
-	@param[out]	to_record	Where to copy the MySQL record.
-	@param[in]	from_record	Which record to copy. */
+	@param[out]	buf		Where to copy the MySQL record.
+	@param[in]	cached_row	Which record to copy. */
 	void
 	copy_cached_row(
-		uchar*		to_record,
-		const uchar*	from_record);
+		uchar*		buf,
+		const uchar*	cached_row);
 	/** @} */
 
 	/* Private handler:: functions specific for native InnoDB partitioning.
 	@see handler.h @{ */
 
+	/** Open an InnoDB table.
+	@param[in]	name		table name
+	@param[in]	mode		access mode
+	@param[in]	test_if_locked	test if the file to be opened is locked
+	@param[in]	table_def	dd::Table describing table to be opened
+	@retval 1 if error
+	@retval 0 if success */
 	int
 	open(
 		const char*	name,
 		int		mode,
-		uint		test_if_locked);
+		uint		test_if_locked,
+		const dd::Table*	table_def);
 
 	int
 	close();
@@ -1150,7 +1181,7 @@ private:
 	/** Truncate partition.
 	Called from Partition_handler::trunctate_partition(). */
 	int
-	truncate_partition_low();
+	truncate_partition_low(dd::Table *table_def);
 
 	/** Change partitions according to ALTER TABLE ... PARTITION ...
 	Called from Partition_handler::change_partitions().
@@ -1166,10 +1197,14 @@ private:
 		ulonglong* const	copied,
 		ulonglong* const	deleted)
 	{
+		/* TODO: Refactor fast_alter_partition_table or verify that
+		this is correct design! */
+		if (!trx_is_registered_for_2pc(m_prebuilt->trx)) {
+			innobase_register_trx(ht, ha_thd(), m_prebuilt->trx);
+		}
 		return(Partition_helper::change_partitions(
 						create_info,
 						path,
-						copied,
 						deleted));
 	}
 
@@ -1210,12 +1245,15 @@ private:
 
 	/** Fill in data_dir_path and tablespace name from internal data
 	dictionary.
-	@param	part_elem	Partition element to fill.
-	@param	ib_table	InnoDB table to copy from. */
+	@param[in,out]	part_elem		Partition element to fill.
+	@param[in]	ib_table		InnoDB table to copy from.
+	@param[in]	display_tablespace	Display tablespace name if
+						set. */
 	void
 	update_part_elem(
 		partition_element*	part_elem,
-		dict_table_t*		ib_table);
+		dict_table_t*		ib_table,
+		bool			display_tablespace);
 protected:
 	/* Protected handler:: functions specific for native InnoDB partitioning.
 	@see handler.h @{ */
@@ -1246,10 +1284,10 @@ protected:
 	int
 	index_next_same(
 		uchar*		record,
-		const uchar*	key,
+		const uchar*	,
 		uint		keylen)
 	{
-		return(Partition_helper::ph_index_next_same(record, key, keylen));
+		return(Partition_helper::ph_index_next_same(record, keylen));
 	}
 
 	int
@@ -1320,7 +1358,7 @@ protected:
 	Returns statistics information of the table to the MySQL interpreter,
 	in various fields of the handle object.
 	@param[in]	flag		Flags for what to update and return.
-	@param[in]	is_analyze	True if called from ::analyze().
+	@param[in]	is_analyze	True if called from "::analyze()".
 	@return	HA_ERR_* error code or 0. */
 	int
 	info_low(

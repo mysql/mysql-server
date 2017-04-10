@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,49 +13,94 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
 
-/****************************************************************************
- Add all options from files named "group".cnf from the default_directories
- before the command line arguments.
- On Windows defaults will also search in the Windows directory for a file
- called 'group'.ini
- As long as the program uses the last argument for conflicting
- options one only have to add a call to "load_defaults" to enable
- use of default values.
- pre- and end 'blank space' are removed from options and values. The
- following escape sequences are recognized in values:  \b \t \n \r \\
+/**
+  @file mysys_ssl/my_default.cc
+  Add all options from files named "group".cnf from the default_directories
+  before the command line arguments.
+  On Windows defaults will also search in the Windows directory for a file
+  called 'group'.ini
+  As long as the program uses the last argument for conflicting
+  options one only have to add a call to "load_defaults" to enable
+  use of default values.
+  pre- and end 'blank space' are removed from options and values. The
+  following escape sequences are recognized in values:  @code \b \t \n \r \\ @endcode
 
- The following arguments are handled automatically;  If used, they must be
- first argument on the command line!
- --no-defaults	; no options are read, except for the ones provided in the
-                  login file.
- --defaults-file=full-path-to-default-file	; Only this file will be read.
- --defaults-extra-file=full-path-to-default-file ; Read this file before ~/
- --defaults-group-suffix  ; Also read groups with concat(group, suffix)
- --print-defaults	  ; Print the modified command line and exit
- --login-path=login-path-name ; Read options under login-path-name from
+  The following arguments are handled automatically;  If used, they must be
+  first argument on the command line!
+  --no-defaults	; no options are read, except for the ones provided in the
+                   login file.
+  --defaults-file=full-path-to-default-file	; Only this file will be read.
+  --defaults-extra-file=full-path-to-default-file ; Read this file before ~/
+  --defaults-group-suffix  ; Also read groups with concat(group, suffix)
+  --print-defaults	  ; Print the modified command line and exit
+  --login-path=login-path-name ; Read options under login-path-name from
                                 the login file.
-****************************************************************************/
+*/
+
+#include "my_config.h"
+
+#include <fcntl.h>
+#include <my_aes.h>
+#include <my_dir.h>
+#include <my_getopt.h>
+#include <stdlib.h>
+#include <sys/types.h>
 
 #include "../mysys/mysys_priv.h"
+#include "m_ctype.h"
+#include "m_string.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
 #include "my_default.h"
 #include "my_default_priv.h"
-#include "m_string.h"
-#include "m_ctype.h"
-#include <my_dir.h>
-#include <my_aes.h>
+#include "my_inttypes.h"
+#include "my_io.h"
+#include "my_loglevel.h"
+#include "my_macros.h"
+#include "my_psi_config.h"
 #include "mysql/psi/mysql_file.h"
+#include "mysql/service_my_snprintf.h"
+#include "typelib.h"
 #ifdef _WIN32
 #include <winbase.h>
 #endif
 
+#include <map>
+#include <string>
+
 #include "prealloced_array.h"
 
-C_MODE_START
+using std::string;
+
+struct my_variable_sources
+{
+  string m_config_file_name;
+  enum_variable_source m_source;
+};
+
+/**
+  Defines mapping between variable names (set as part of config files
+  or command line) and its config file/source value.
+  ex: If config file /etc/my.cnf has variables max_connections= 30 and
+  $datadir/mysqld-auto.cnf has variables max_heap_table_size=887808
+  then this variable will have following key/value pair.
+  max_connections -> (/etc/my.cnf , enum_variable_source::GLOBAL)
+  max_heap_table_size -> ($datadir/mysqld-auto.cnf ,
+                          enum_variable_source::PERSISTED)
+*/
+static std::map<string, my_variable_sources> variables_hash;
+/**
+  Defines mapping between config files names and its corresponding enum values.
+  ex: File /etc/my.cnf is mapped to enum_variable_source::GLOBAL
+  ~/.my.cnf is mapped to enum_variable_source::USER
+  command line options are mapped to enum_variable_source::COMMAND_LINE
+*/
+static std::map<string, enum_variable_source> default_paths;
+
 #ifdef HAVE_PSI_INTERFACE
 extern PSI_file_key key_file_cnf;
 #endif
 PSI_memory_key key_memory_defaults;
-C_MODE_END
 
 /**
    arguments separator
@@ -96,11 +141,12 @@ inline static void set_args_separator(char** arg)
   in order to separate arguments received from config file
   and command line.
 */
-my_bool my_getopt_use_args_separator= FALSE;
-my_bool my_getopt_is_args_separator(const char* arg)
+bool my_getopt_use_args_separator= FALSE;
+bool my_getopt_is_args_separator(const char* arg)
 {
   return (arg == args_separator);
 }
+
 const char *my_defaults_file=0;
 const char *my_defaults_group_suffix=0;
 const char *my_defaults_extra_file=0;
@@ -110,7 +156,10 @@ static const char *my_login_path= 0;
 static char my_defaults_file_buffer[FN_REFLEN];
 static char my_defaults_extra_file_buffer[FN_REFLEN];
 
-static my_bool defaults_already_read= FALSE;
+static bool defaults_already_read= FALSE;
+
+/* Set to TRUE, if --no-defaults is found. */
+bool no_defaults= FALSE;
 
 /* Which directories are searched for options (and in which order) */
 
@@ -120,15 +169,13 @@ static const char **default_directories = NULL;
 
 #ifdef _WIN32
 static const char *f_extensions[]= { ".ini", ".cnf", 0 };
-#define NEWLINE "\r\n"
 #else
 static const char *f_extensions[]= { ".cnf", 0 };
-#define NEWLINE "\n"
 #endif
 
 extern "C" {
 static int handle_default_option(void *in_ctx, const char *group_name,
-                                 const char *option);
+                                 const char *option, const char *cnf_file);
 }
 
 /*
@@ -148,22 +195,20 @@ struct handle_option_ctx
 
 static int search_default_file(Process_option_func func, void *func_ctx,
                                const char *dir, const char *config_file,
-                               my_bool is_login_file);
+                               bool is_login_file);
 static int search_default_file_with_ext(Process_option_func func,
                                         void *func_ctx,
 					const char *dir, const char *ext,
                                         const char *config_file,
                                         int recursion_level,
-                                        my_bool is_login_file);
-static my_bool mysql_file_getline(char *str, int size, MYSQL_FILE *file,
-                                  my_bool is_login_file);
+                                        bool is_login_file);
+static bool mysql_file_getline(char *str, int size, MYSQL_FILE *file,
+                               bool is_login_file);
 
 /**
   Create the list of default directories.
 
-  @param alloc  MEM_ROOT where the list of directories is stored
-
-  @details
+  @verbatim
   The directories searched, in order, are:
   - Windows:     GetSystemWindowsDirectory()
   - Windows:     GetWindowsDirectory()
@@ -175,10 +220,13 @@ static my_bool mysql_file_getline(char *str, int size, MYSQL_FILE *file,
   - ALL:         getenv("MYSQL_HOME")
   - ALL:         --defaults-extra-file=<path> (run-time option)
   - Unix:        ~/
+  @endverbatim
 
   On all systems, if a directory is already in the list, it will be moved
   to the end of the list.  This avoids reading defaults files multiple times,
   while ensuring the correct precedence.
+
+  @param alloc  MEM_ROOT where the list of directories is stored
 
   @retval NULL  Failure (out of memory, probably)
   @retval other Pointer to NULL-terminated array of default directories
@@ -206,8 +254,8 @@ fn_expand(const char *filename, char *result_buf)
   char dir[FN_REFLEN];
   const int flags= MY_UNPACK_FILENAME | MY_SAFE_PATH | MY_RELATIVE_PATH;
   DBUG_ENTER("fn_expand");
-  DBUG_PRINT("enter", ("filename: %s, result_buf: 0x%lx",
-                       filename, (unsigned long) result_buf));
+  DBUG_PRINT("enter", ("filename: %s, result_buf: %p",
+                       filename, result_buf));
   if (my_getwd(dir, sizeof(dir), MYF(0)))
     DBUG_RETURN(3);
   DBUG_PRINT("debug", ("dir: %s", dir));
@@ -257,7 +305,7 @@ fn_expand(const char *filename, char *result_buf)
 int my_search_option_files(const char *conf_file, int *argc, char ***argv,
                            uint *args_used, Process_option_func func,
                            void *func_ctx, const char **default_directories,
-                           my_bool is_login_file, my_bool found_no_defaults)
+                           bool is_login_file, bool found_no_defaults)
 {
   const char **dirs, *forced_default_file, *forced_extra_defaults;
   int error= 0;
@@ -295,6 +343,7 @@ int my_search_option_files(const char *conf_file, int *argc, char ***argv,
     }
 
     defaults_already_read= TRUE;
+    init_variable_default_paths();
 
     /*
       We can only handle 'defaults-group-suffix' if we are called from
@@ -411,16 +460,16 @@ int my_search_option_files(const char *conf_file, int *argc, char ***argv,
     {
       if (**dirs)
       {
-       if (search_default_file(func, func_ctx, *dirs, conf_file,
-                               is_login_file) < 0)
-        goto err;
+        if (search_default_file(func, func_ctx, *dirs, conf_file,
+                                is_login_file) < 0)
+	  goto err;
       }
       else if (my_defaults_extra_file)
       {
         if ((error= search_default_file_with_ext(func, func_ctx, "", "",
                                                  my_defaults_extra_file, 0,
                                                  is_login_file)) < 0)
-          goto err;				/* Fatal error */
+          goto err;                           /* Fatal error */
         if (error > 0)
         {
           my_message_local(ERROR_LEVEL,
@@ -452,6 +501,7 @@ err:
     option                  The very option to be processed. It is already
                             prepared to be used in argv (has -- prefix). If it
                             is NULL, we are handling a new group (section).
+    cnf_file                Config file name with absolute file path.
 
   DESCRIPTION
     This handler checks whether a group is one of the listed and adds an option
@@ -465,7 +515,7 @@ err:
 */
 
 static int handle_default_option(void *in_ctx, const char *group_name,
-                                 const char *option)
+                                 const char *option, const char *cnf_file)
 {
   char *tmp;
   struct handle_option_ctx *ctx= (struct handle_option_ctx *) in_ctx;
@@ -480,11 +530,10 @@ static int handle_default_option(void *in_ctx, const char *group_name,
     if (ctx->m_args->push_back(tmp))
       return 1;
     my_stpcpy(tmp, option);
+    update_variable_source(option, cnf_file);
   }
-
   return 0;
 }
-
 
 /*
   Gets options from the command line, however if --no-defaults
@@ -511,7 +560,7 @@ int get_defaults_options(int argc, char **argv,
                          char **extra_defaults,
                          char **group_suffix,
                          char **login_path,
-                         my_bool found_no_defaults)
+                         bool found_no_defaults)
 {
   int org_argc= argc, prev_argc= 0, default_option_count= 0;
   *defaults= *extra_defaults= *group_suffix= *login_path= 0;
@@ -589,7 +638,7 @@ int load_defaults(const char *conf_file, const char **groups,
 }
 
 /** A global to turn off or on reading the mylogin file. On by default */
-my_bool my_defaults_read_login_file= TRUE;
+bool my_defaults_read_login_file= TRUE;
 /*
   Read options from configurations files
 
@@ -627,13 +676,12 @@ my_bool my_defaults_read_login_file= TRUE;
      value pointed to by default_directories is undefined.
 */
 
-
 int my_load_defaults(const char *conf_file, const char **groups,
                   int *argc, char ***argv, const char ***default_directories)
 {
   My_args my_args(key_memory_defaults);
   TYPELIB group;
-  my_bool found_print_defaults= 0;
+  bool found_print_defaults= 0;
   uint args_used= 0;
   int error= 0;
   MEM_ROOT alloc;
@@ -641,7 +689,7 @@ int my_load_defaults(const char *conf_file, const char **groups,
   struct handle_option_ctx ctx;
   const char **dirs;
   char my_login_file[FN_REFLEN];
-  my_bool found_no_defaults= false;
+  bool found_no_defaults= false;
   uint args_sep= my_getopt_use_args_separator ? 1 : 0;
   DBUG_ENTER("load_defaults");
 
@@ -653,7 +701,7 @@ int my_load_defaults(const char *conf_file, const char **groups,
     --no-defaults is always the first option
   */
   if (*argc >= 2 && !strcmp(argv[0][1], "--no-defaults"))
-    found_no_defaults= TRUE;
+    no_defaults= found_no_defaults= TRUE;
 
   group.count=0;
   group.name= "defaults";
@@ -729,7 +777,7 @@ int my_load_defaults(const char *conf_file, const char **groups,
 
   (*argc)+= my_args.size() + args_sep;
   *argv= res;
-  *(MEM_ROOT*) ptr= alloc;			/* Save alloc root for free */
+  *(MEM_ROOT*) ptr= std::move(alloc);           /* Save alloc root for free */
 
   if (default_directories)
     *default_directories= dirs;
@@ -776,11 +824,11 @@ static int search_default_file(Process_option_func opt_handler,
                                void *handler_ctx,
 			       const char *dir,
                                const char *config_file,
-                               my_bool is_login_file)
+                               bool is_login_file)
 {
   char **ext;
   const char *empty_list[]= { "", 0 };
-  my_bool have_ext= fn_ext(config_file)[0] != 0;
+  bool have_ext= fn_ext(config_file)[0] != 0;
   const char **exts_to_use= have_ext ? empty_list : f_extensions;
 
   for (ext= (char**) exts_to_use; *ext; ext++)
@@ -874,7 +922,7 @@ static int search_default_file_with_ext(Process_option_func opt_handler,
                                         const char *ext,
                                         const char *config_file,
                                         int recursion_level,
-                                        my_bool is_login_file)
+                                        bool is_login_file)
 {
   char name[FN_REFLEN + 10], buff[4096], curr_gr[4096], *ptr, *end, **tmp_ext;
   char *value, option[4096+2], tmp[FN_REFLEN];
@@ -883,7 +931,7 @@ static int search_default_file_with_ext(Process_option_func opt_handler,
   const int max_recursion_level= 10;
   MYSQL_FILE *fp;
   uint line=0;
-  my_bool found_group=0;
+  bool found_group=0;
   uint i, rc;
   MY_DIR *search_dir;
   FILEINFO *search_file;
@@ -908,7 +956,7 @@ static int search_default_file_with_ext(Process_option_func opt_handler,
 
   if (is_login_file)
   {
-    if ( !(fp = mysql_file_fopen(key_file_cnf, name, (O_RDONLY | O_BINARY),
+    if ( !(fp = mysql_file_fopen(key_file_cnf, name, O_RDONLY | MY_FOPEN_BINARY,
                                  MYF(0))))
       return 1;                                 /* Ignore wrong files. */
   }
@@ -1019,7 +1067,7 @@ static int search_default_file_with_ext(Process_option_func opt_handler,
       strmake(curr_gr, ptr, MY_MIN((size_t) (end-ptr)+1, sizeof(curr_gr)-1));
 
       /* signal that a new group is found */
-      opt_handler(handler_ctx, curr_gr, NULL);
+      opt_handler(handler_ctx, curr_gr, NULL, NULL);
 
       continue;
     }
@@ -1041,7 +1089,7 @@ static int search_default_file_with_ext(Process_option_func opt_handler,
     if (!value)
     {
       strmake(my_stpcpy(option,"--"),ptr, (size_t) (end-ptr));
-      if (opt_handler(handler_ctx, curr_gr, option))
+      if (opt_handler(handler_ctx, curr_gr, option, name))
         goto err;
     }
     else
@@ -1112,7 +1160,7 @@ static int search_default_file_with_ext(Process_option_func opt_handler,
 	  *ptr++= *value;
       }
       *ptr=0;
-      if (opt_handler(handler_ctx, curr_gr, option))
+      if (opt_handler(handler_ctx, curr_gr, option, name))
         goto err;
     }
   }
@@ -1156,17 +1204,17 @@ static char *remove_end_comment(char *ptr)
   of scrambled login file, the line read is first
   decrypted and then returned.
 
-  @param str           [out]  Buffer to store the read text.
-  @param size          [in]   At max, size-1 bytes to be read.
-  @param file          [in]   Source file.
-  @param is_login_file [in]   TRUE, when login file is being processed.
+  @param [out] str           Buffer to store the read text.
+  @param [in] size           At max, size-1 bytes to be read.
+  @param [in] file           Source file.
+  @param [in] is_login_file  TRUE, when login file is being processed.
 
   @return 1               Success
           0               Error
 */
 
-static my_bool mysql_file_getline(char *str, int size, MYSQL_FILE *file,
-                                  my_bool is_login_file)
+static bool mysql_file_getline(char *str, int size, MYSQL_FILE *file,
+                               bool is_login_file)
 {
   uchar cipher[4096], len_buf[MAX_CIPHER_STORE_LEN];
   static unsigned char my_key[LOGIN_KEY_LEN];
@@ -1174,10 +1222,10 @@ static my_bool mysql_file_getline(char *str, int size, MYSQL_FILE *file,
 
   if (is_login_file)
   {
-    if (mysql_file_ftell(file, MYF(MY_WME)) == 0)
+    if (mysql_file_ftell(file) == 0)
     {
       /* Move past unused bytes. */
-      mysql_file_fseek(file, 4, SEEK_SET, MYF(MY_WME));
+      mysql_file_fseek(file, 4, SEEK_SET);
       if (mysql_file_fread(file, my_key, LOGIN_KEY_LEN,
                            MYF(MY_WME)) != LOGIN_KEY_LEN)
         return 0;
@@ -1216,7 +1264,7 @@ static my_bool mysql_file_getline(char *str, int size, MYSQL_FILE *file,
 void my_print_default_files(const char *conf_file)
 {
   const char *empty_list[]= { "", 0 };
-  my_bool have_ext= fn_ext(conf_file)[0] != 0;
+  bool have_ext= fn_ext(conf_file)[0] != 0;
   const char **exts_to_use= have_ext ? empty_list : f_extensions;
   char name[FN_REFLEN], **ext;
 
@@ -1299,13 +1347,219 @@ void print_defaults(const char *conf_file, const char **groups)
 --login-path=#          Read this path from the login file.");
 }
 
+/**
+  Initialize all the mappings between default config file paths/
+  command line options/persistent config file path/login file path
+  and corresponding enum_variable_source values.
+*/
+void init_variable_default_paths()
+{
+  char datadir[FN_REFLEN]= {0};
+  string extradir= (my_defaults_extra_file ?
+                    my_defaults_extra_file : string());
+  string explicitdir= (my_defaults_file ? my_defaults_file : string());
+
+  string defsyscondir;
+#if defined(DEFAULT_SYSCONFDIR)
+  defsyscondir= DEFAULT_SYSCONFDIR;
+#endif
+
+#ifdef _WIN32
+  char buffer[FN_REFLEN];
+
+  /* windows supports ini/cnf extension for some config files */
+  if (GetWindowsDirectory(buffer, sizeof(buffer)))
+  {
+    default_paths[string(buffer) + "\\my.ini"]= enum_variable_source::GLOBAL;
+    default_paths[string(buffer) + "\\my.cnf"]= enum_variable_source::GLOBAL;
+  }
+  default_paths["C:\\my.ini"]= enum_variable_source::GLOBAL;
+  default_paths["C:\\my.cnf"]= enum_variable_source::GLOBAL;
+  if (GetModuleFileName(NULL, buffer, (DWORD)sizeof(buffer)))
+  {
+    char* end = strend(buffer), *last= NULL;
+    for (; end > buffer; end--)
+    {
+      if (*end == FN_LIBCHAR)
+      {
+        if (last)
+        {
+          end[1] = 0;
+          break;
+        }
+        last = end;
+      }
+    }
+    default_paths[string(buffer) +
+          "\\.mylogin.cnf"]= enum_variable_source::LOGIN;
+  }
+#else
+  char* env= getenv("MYSQL_HOME");
+  uint length= (env ? strlen(env) : 0);
+  if (length && (env[length-1] != '/'))
+  {
+    env[length]= '/';
+    env[length+1]= '\0';
+  }
+  if (length)
+    default_paths[string(env) + "my.cnf"]= enum_variable_source::SERVER;
+
+  char buffer[FN_REFLEN]= "~/";
+  unpack_filename(buffer, buffer);
+  default_paths["/etc/my.cnf"]= enum_variable_source::GLOBAL;
+  default_paths["/etc/mysql/my.cnf"]= enum_variable_source::GLOBAL;
+  default_paths[string(buffer) + ".my.cnf"]= enum_variable_source::MYSQL_USER;
+  default_paths[string(buffer) + ".mylogin.cnf"]= enum_variable_source::LOGIN;
+
+#if defined(DEFAULT_SYSCONFDIR)
+    default_paths[defsyscondir + "/my.cnf"]= enum_variable_source::GLOBAL;
+#endif
+#endif
+
+  convert_dirname(datadir, MYSQL_DATADIR, NullS);
+  default_paths[string(datadir) + "mysqld-auto.cnf"]= enum_variable_source::PERSISTED;
+
+  if(extradir.length())
+    default_paths[extradir]= enum_variable_source::EXTRA;
+  if(explicitdir.length())
+    default_paths[explicitdir]= enum_variable_source::EXPLICIT;
+
+  default_paths[""]= enum_variable_source::COMMAND_LINE;
+}
+
+/**
+  Track all options loaded from config files and command line options
+  along with the path from where options are loaded. For command line
+  options path is empty string.
+
+  Ex:
+  /etc/my.cnf has max_connections
+  /$datadir/mysqld.auto.cnf has max_user_connections
+  ./mysqld --server-id=47
+  with this setup, variables_hash has 3 entires of the above options
+  along with path of config files and its enum value which is as below:
+  max_connections -> (/etc/my.cnf , enum_variable_source::GLOBAL)
+  max_user_connections -> ($datadir/mysqld.auto.cnf ,
+                           enum_variable_source::PERSISTED)
+  server-id -> ("" , enum_variable_source::COMMAND_LINE)
+
+   @param [in] opt_name       Pointer to option name. opt_name must be in
+                              the form off --XXXXXX
+   @param [in] value          Pointer to config file path
+*/
+void update_variable_source(const char* opt_name, const char* value)
+{
+  string var_name= string(opt_name);
+  string path= (value ? value : string(""));
+
+  /* opt_name must be of form --XXXXX which means min length must be 3 */
+  if (var_name.length() < 3)
+   return;
+
+  std::size_t pos= var_name.find("=");
+  /* strip the value part if present */
+  if (pos != string::npos)
+    var_name= var_name.substr(0, pos);
+
+  /* remove -- */
+  var_name= var_name.substr(2);
+
+  /* replace all '-' to '_' */
+  while ((pos= var_name.find("-")) != string::npos)
+    var_name.replace(pos, 1, "_");
+
+  /*
+    check if variable is appended with 'loose', 'skip', 'disable',
+    'enable', 'maximum'
+  */
+  if ((pos= var_name.find("loose_")) != string::npos)
+    var_name= var_name.substr(strlen("loose_")+pos);
+  else if ((pos= var_name.find("disable_")) != string::npos)
+    var_name= var_name.substr(strlen("disable_")+pos);
+  else if ((pos= var_name.find("enable_")) != string::npos)
+    var_name= var_name.substr(strlen("enable_")+pos);
+  else if ((pos= var_name.find("maximum_")) != string::npos)
+    var_name= var_name.substr(strlen("maximum_")+pos);
+  else if ((pos= var_name.find("skip_")) != string::npos)
+  {
+    bool skip_variable= false;
+    string skip_variables[]= { "skip_name_resolve", "skip_networking",
+      "skip_show_database", "skip_external_locking" };
+    for (uint skip_index= 0;
+         skip_index < (sizeof (skip_variables)/sizeof (skip_variables[0]));
+         ++skip_index)
+    {
+      if (var_name == skip_variables[skip_index])
+      {
+        /* do not trim the skip_ prefix for variables which start with skip */
+        skip_variable= true;
+        break;
+      }
+    }
+    if (skip_variable == false)
+     var_name= var_name.substr(strlen("skip_")+pos);
+  }
+
+  std::map<string, enum_variable_source>::iterator it= default_paths.find(path);
+  if (it != default_paths.end())
+  {
+    my_variable_sources source;
+    std::pair<std::map<string, my_variable_sources>::iterator,bool> ret;
+
+    source.m_config_file_name= path;
+    source.m_source= it->second;
+    ret= variables_hash.insert(std::pair<string,
+      my_variable_sources>(var_name, source));
+    /*
+     If value exists replace it with new path. ex: if there exists
+     same variables in my.cnf and mysqld-auto.cnf and specified in
+     command line options, then final entry into this hash will be
+     option name as key and mysqld-auto.cnf file path + PERSISTED
+     as value.
+    */
+    if (ret.second == false)
+      variables_hash[var_name]= source;
+  }
+}
+
+/**
+  This function will set value for my_option::arg_source by doing a
+  lookup into variables_hash based on opt_name as key. If key is present
+  corresponding value (config file, enum value) will be set in value.
+
+   @param [in] opt_name       Pointer to option name.
+   @param [out] value         Pointer to struct holding config file path
+                              and variable source
+
+   @return void
+*/
+void set_variable_source(const char *opt_name, void* value)
+{
+  string src_name= opt_name;
+  std::size_t pos;
+
+  /* replace all '-' to '_' */
+  while ((pos= src_name.find("-")) != string::npos)
+    src_name.replace(pos, 1, "_");
+
+  std::map<string, my_variable_sources>::iterator it= variables_hash.find(src_name);
+  if (it != variables_hash.end())
+  {
+    if ((get_opt_arg_source*)value)
+    {
+      ((get_opt_arg_source*)value)->m_path_name=
+        it->second.m_config_file_name.c_str();
+      ((get_opt_arg_source*)value)->m_source= it->second.m_source;
+    }
+  }
+}
 
 static int add_directory(MEM_ROOT *alloc, const char *dir, const char **dirs)
 {
   char buf[FN_REFLEN];
   size_t len;
   char *p;
-  my_bool err MY_ATTRIBUTE((unused));
+  bool err MY_ATTRIBUTE((unused));
 
   len= normalize_dirname(buf, dir);
   if (!(p= strmake_root(alloc, buf, len)))
@@ -1441,8 +1695,8 @@ static const char **init_default_directories(MEM_ROOT *alloc)
 /**
   Place the login file name in the specified buffer.
 
-  @param file_name     [out]  Buffer to hold login file name
-  @param file_name_size [in]  Length of the buffer
+  @param [out] file_name       Buffer to hold login file name
+  @param [in] file_name_size   Length of the buffer
 
   @return 1 - Success
           0 - Failure
@@ -1479,14 +1733,14 @@ int my_default_get_login_file(char *file_name, size_t file_name_size)
 /**
   Check file permissions of the option file.
 
-  @param file_name     [in]   Name of the option file.
-  @param is_login_file [in]   TRUE, when login file is being processed.
+  @param [in] file_name        Name of the option file.
+  @param [in] is_login_file    TRUE, when login file is being processed.
 
   @return  0 - Non-allowable file permissions.
            1 - Failed to stat.
            2 - Success.
 */
-int check_file_permissions(const char *file_name, my_bool is_login_file)
+int check_file_permissions(const char *file_name, bool is_login_file)
 {
 #if !defined(_WIN32)
   MY_STAT stat_info;

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -23,35 +23,36 @@ File space management
 Created 11/29/1995 Heikki Tuuri
 ***********************************************************************/
 
-#include "ha_prototypes.h"
-
+#include "buf0buf.h"
+#include "fil0fil.h"
 #include "fsp0fsp.h"
-
-#ifdef UNIV_NONINL
-#include "fsp0fsp.ic"
-#endif
-
+#include "ha_prototypes.h"
+#include "mtr0log.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "page0page.h"
+#include "page0zip.h"
+#include "ut0byte.h"
 #ifdef UNIV_HOTBACKUP
 # include "fut0lst.h"
 #else /* UNIV_HOTBACKUP */
-#include "buf0buf.h"
-#include "fil0fil.h"
-#include "mtr0log.h"
-#include "ut0byte.h"
-#include "page0page.h"
-#include "fut0fut.h"
-#include "srv0srv.h"
-#include "srv0start.h"
-#include "ibuf0ibuf.h"
-#include "btr0btr.h"
-#include "btr0sea.h"
-#include "dict0boot.h"
-#include "log0log.h"
-#include "fsp0sysspace.h"
-#include "dict0mem.h"
-#include "fsp0types.h"
+# include <my_aes.h>
 
-#include <my_aes.h>
+# include "btr0btr.h"
+# include "btr0sea.h"
+# include "dict0boot.h"
+# include "fut0fut.h"
+# include "ibuf0ibuf.h"
+# include "log0log.h"
+# include "srv0srv.h"
+# include "srv0start.h"
+#endif /* UNIV_HOTBACKUP */
+#include "dict0mem.h"
+#include "fsp0sysspace.h"
+#include "trx0purge.h"
+
+#ifndef UNIV_HOTBACKUP
 
 /** Returns an extent to the free list of a space.
 @param[in]	page_id		page id in the extent
@@ -64,6 +65,18 @@ fsp_free_extent(
 	const page_size_t&	page_size,
 	mtr_t*			mtr);
 
+/** Determine if extent belongs to a given segment.
+@param[in]	descr	extent descriptor
+@param[in]	seg_id	segment identifier
+@param[in]	mtr	mini-transaction
+@return	true if extent is part of the segment, false otherwise */
+static
+bool
+xdes_in_segment(
+	const xdes_t*	descr,
+	ib_id_t		seg_id,
+	mtr_t*		mtr);
+
 /********************************************************************//**
 Marks a page used. The page must reside within the extents of the given
 segment. */
@@ -72,7 +85,7 @@ void
 fseg_mark_page_used(
 /*================*/
 	fseg_inode_t*	seg_inode,/*!< in: segment inode */
-	ulint		page,	/*!< in: page offset */
+	page_no_t	page,	/*!< in: page offset */
 	xdes_t*		descr,  /*!< in: extent descriptor */
 	mtr_t*		mtr);	/*!< in/out: mini-transaction */
 
@@ -88,7 +101,7 @@ static
 xdes_t*
 fseg_get_first_extent(
 	fseg_inode_t*		inode,
-	ulint			space_id,
+	space_id_t		space_id,
 	const page_size_t&	page_size,
 	mtr_t*			mtr);
 
@@ -136,7 +149,7 @@ fseg_alloc_free_page_low(
 	fil_space_t*		space,
 	const page_size_t&	page_size,
 	fseg_inode_t*		seg_inode,
-	ulint			hint,
+	page_no_t		hint,
 	byte			direction,
 	rw_lock_type_t		rw_latch,
 	mtr_t*			mtr,
@@ -147,15 +160,44 @@ fseg_alloc_free_page_low(
 )
 	MY_ATTRIBUTE((warn_unused_result));
 
+/** Get the segment identifier to which the extent belongs to.
+@param[in]	descr	extent descriptor
+@return	the segment identifier */
+inline
+ib_id_t
+xdes_get_segment_id(
+	const xdes_t*	descr)
+{
+	return(mach_read_from_8(descr + XDES_ID));
+}
+
+/** Get the segment identifier to which the extent belongs to.
+@param[in]	descr	extent descriptor
+@param[in]	mtr	mini-transaction
+@return	the segment identifier */
+inline
+ib_id_t
+xdes_get_segment_id(
+	const xdes_t*		descr,
+	mtr_t*			mtr)
+{
+	ut_ad(mtr_memo_contains_page_flagged(
+			mtr, descr,
+			MTR_MEMO_PAGE_S_FIX
+			| MTR_MEMO_PAGE_X_FIX
+			| MTR_MEMO_PAGE_SX_FIX));
+
+	return(xdes_get_segment_id(descr));
+}
+
 /** Gets a pointer to the space header and x-locks its page.
 @param[in]	id		space id
 @param[in]	page_size	page size
 @param[in,out]	mtr		mini-transaction
 @return pointer to the space header, page x-locked */
-UNIV_INLINE
 fsp_header_t*
 fsp_get_space_header(
-	ulint			id,
+	space_id_t		id,
 	const page_size_t&	page_size,
 	mtr_t*			mtr)
 {
@@ -208,13 +250,12 @@ fsp_flags_to_dict_tf(
 
 	return(flags);
 }
-#endif /* !UNIV_HOTBACKUP */
 
 /** Validate the tablespace flags.
 These flags are stored in the tablespace header at offset FSP_SPACE_FLAGS.
 They should be 0 for ROW_FORMAT=COMPACT and ROW_FORMAT=REDUNDANT.
-The newer row formats, COMPRESSED and DYNAMIC, use a file format > Antelope
-so they should have a file format number plus the DICT_TF_COMPACT bit set.
+The newer row formats, COMPRESSED and DYNAMIC, will have at least
+the DICT_TF_COMPACT bit set.
 @param[in]	flags	Tablespace flags
 @return true if valid, false if not */
 bool
@@ -241,7 +282,7 @@ fsp_flags_is_valid(
 		return(true);
 	}
 
-	/* Barracuda row formats COMPRESSED and DYNAMIC use a feature called
+	/* Row_FORMAT=COMPRESSED and ROW_FORMAT=DYNAMIC use a feature called
 	ATOMIC_BLOBS which builds on the page structure introduced for the
 	COMPACT row format by allowing long fields to be broken into prefix
 	and externally stored parts. So if it is Post_antelope, it uses
@@ -281,22 +322,44 @@ fsp_flags_is_valid(
 		return(false);
 	}
 
-#if UNIV_FORMAT_MAX != UNIV_FORMAT_B
-# error UNIV_FORMAT_MAX != UNIV_FORMAT_B, Add more validations.
-#endif
-#if FSP_FLAGS_POS_UNUSED != 14
+#if FSP_FLAGS_POS_UNUSED != 15
 # error You have added a new FSP_FLAG without adding a validation check.
 #endif
 
 	return(true);
 }
 
+/** Check whether a space id is an undo tablespace ID
+@param[in]	space_id	space id to check
+@return true if it is undo tablespace else false. */
+bool
+fsp_is_undo_tablespace(space_id_t space_id)
+{
+	/* Quick elimination.  space_id==0 is most common. */
+	if (fsp_is_system_or_temp_tablespace(space_id)
+	    || space_id >= SRV_LOG_SPACE_FIRST_ID
+	    /* Before trx_sys_undo_spaces is set, we do not know
+	    what the undo tablespace ID range is. Assume this is
+	    not an undo space. */
+	    || trx_sys_undo_spaces == nullptr
+	    || trx_sys_undo_spaces->size() == 0) {
+		return(false);
+	}
+
+	/* There is a list of undo tablespaces.  Search them. */
+	Space_Ids::iterator it = std::find(
+		trx_sys_undo_spaces->begin(),
+		trx_sys_undo_spaces->end(),
+		space_id);
+
+	return(it != trx_sys_undo_spaces->end());
+}
+
 /** Check if tablespace is system temporary.
 @param[in]	space_id	tablespace ID
 @return true if tablespace is system temporary. */
 bool
-fsp_is_system_temporary(
-	ulint	space_id)
+fsp_is_system_temporary(space_id_t space_id)
 {
 	return(space_id == srv_tmp_space.space_id());
 }
@@ -305,25 +368,11 @@ fsp_is_system_temporary(
 @param[in]	space_id	tablespace ID
 @return true if checksum is disabled for given space. */
 bool
-fsp_is_checksum_disabled(
-	ulint	space_id)
+fsp_is_checksum_disabled(space_id_t space_id)
 {
 	return(fsp_is_system_temporary(space_id));
 }
 
-/** Check if tablespace is file-per-table.
-@param[in]	space_id	tablespace ID
-@param[in]	fsp_flags	tablespace flags
-@return true if tablespace is file-per-table. */
-bool
-fsp_is_file_per_table(
-	ulint	space_id,
-	ulint	fsp_flags)
-{
-	return(!is_system_tablespace(space_id)
-		&& !fsp_is_shared_tablespace(fsp_flags));
-}
-#ifndef UNIV_HOTBACKUP
 #ifdef UNIV_DEBUG
 
 /** Skip some of the sanity checks that are time consuming even in debug mode
@@ -331,8 +380,7 @@ and can affect frequent verification runs that are done to ensure stability of
 the product.
 @return true if check should be skipped for given space. */
 bool
-fsp_skip_sanity_check(
-	ulint	space_id)
+fsp_skip_sanity_check(space_id_t space_id)
 {
 	return(srv_skip_temp_table_checks_debug
 	       && fsp_is_system_temporary(space_id));
@@ -349,7 +397,7 @@ xdes_mtr_get_bit(
 /*=============*/
 	const xdes_t*	descr,	/*!< in: descriptor */
 	ulint		bit,	/*!< in: XDES_FREE_BIT or XDES_CLEAN_BIT */
-	ulint		offset,	/*!< in: page offset within extent:
+	page_no_t	offset,	/*!< in: page offset within extent:
 				0 ... FSP_EXTENT_SIZE - 1 */
 	mtr_t*		mtr)	/*!< in: mini-transaction */
 {
@@ -365,12 +413,12 @@ UNIV_INLINE
 void
 xdes_set_bit(
 /*=========*/
-	xdes_t*	descr,	/*!< in: descriptor */
-	ulint	bit,	/*!< in: XDES_FREE_BIT or XDES_CLEAN_BIT */
-	ulint	offset,	/*!< in: page offset within extent:
-			0 ... FSP_EXTENT_SIZE - 1 */
-	ibool	val,	/*!< in: bit value */
-	mtr_t*	mtr)	/*!< in/out: mini-transaction */
+	xdes_t*		descr,	/*!< in: descriptor */
+	ulint		bit,	/*!< in: XDES_FREE_BIT or XDES_CLEAN_BIT */
+	page_no_t	offset,	/*!< in: page offset within extent:
+				0 ... FSP_EXTENT_SIZE - 1 */
+	ibool		val,	/*!< in: bit value */
+	mtr_t*		mtr)	/*!< in/out: mini-transaction */
 {
 	ulint	index;
 	ulint	byte_index;
@@ -399,17 +447,17 @@ and scans upward; at the end of the extent the search is wrapped to
 the start of the extent.
 @return bit index of the bit, ULINT_UNDEFINED if not found */
 UNIV_INLINE
-ulint
+page_no_t
 xdes_find_bit(
 /*==========*/
-	xdes_t*	descr,	/*!< in: descriptor */
-	ulint	bit,	/*!< in: XDES_FREE_BIT or XDES_CLEAN_BIT */
-	ibool	val,	/*!< in: desired bit value */
-	ulint	hint,	/*!< in: hint of which bit position would
-			be desirable */
-	mtr_t*	mtr)	/*!< in/out: mini-transaction */
+	xdes_t*		descr,	/*!< in: descriptor */
+	ulint		bit,	/*!< in: XDES_FREE_BIT or XDES_CLEAN_BIT */
+	ibool		val,	/*!< in: desired bit value */
+	page_no_t	hint,	/*!< in: hint of which bit position would
+				be desirable */
+	mtr_t*		mtr)	/*!< in/out: mini-transaction */
 {
-	ulint	i;
+	page_no_t	i;
 
 	ut_ad(descr && mtr);
 	ut_ad(val <= TRUE);
@@ -429,24 +477,24 @@ xdes_find_bit(
 		}
 	}
 
-	return(ULINT_UNDEFINED);
+	return(FIL_NULL);
 }
 
 /**********************************************************************//**
 Returns the number of used pages in a descriptor.
 @return number of pages used */
 UNIV_INLINE
-ulint
+page_no_t
 xdes_get_n_used(
 /*============*/
 	const xdes_t*	descr,	/*!< in: descriptor */
 	mtr_t*		mtr)	/*!< in/out: mini-transaction */
 {
-	ulint	count	= 0;
+	page_no_t	count	= 0;
 
 	ut_ad(descr && mtr);
 	ut_ad(mtr_memo_contains_page(mtr, descr, MTR_MEMO_PAGE_SX_FIX));
-	for (ulint i = 0; i < FSP_EXTENT_SIZE; ++i) {
+	for (page_no_t i = 0; i < FSP_EXTENT_SIZE; ++i) {
 		if (FALSE == xdes_mtr_get_bit(descr, XDES_FREE_BIT, i, mtr)) {
 			count++;
 		}
@@ -454,6 +502,27 @@ xdes_get_n_used(
 
 	return(count);
 }
+
+#ifdef UNIV_DEBUG
+/** Check if the state of extent descriptor is valid.
+@param[in]	state	the extent descriptor state
+@return	true if state is valid, false otherwise */
+bool
+xdes_state_is_valid(
+	ulint	state)
+{
+	switch (state) {
+	case XDES_NOT_INITED:
+	case XDES_FREE:
+	case XDES_FREE_FRAG:
+	case XDES_FULL_FRAG:
+	case XDES_FSEG:
+	case XDES_FSEG_FRAG:
+		return(true);
+	}
+	return(false);
+}
+#endif /* UNIV_DEBUG */
 
 /**********************************************************************//**
 Returns true if extent contains no used pages.
@@ -466,6 +535,8 @@ xdes_is_free(
 	mtr_t*		mtr)	/*!< in/out: mini-transaction */
 {
 	if (0 == xdes_get_n_used(descr, mtr)) {
+
+		ut_ad(xdes_get_state(descr, mtr) != XDES_FSEG_FRAG);
 
 		return(TRUE);
 	}
@@ -497,36 +568,59 @@ UNIV_INLINE
 void
 xdes_set_state(
 /*===========*/
-	xdes_t*	descr,	/*!< in/out: descriptor */
-	ulint	state,	/*!< in: state to set */
-	mtr_t*	mtr)	/*!< in/out: mini-transaction */
+	xdes_t*		descr,	/*!< in/out: descriptor */
+	xdes_state_t	state,	/*!< in: state to set */
+	mtr_t*		mtr)	/*!< in/out: mini-transaction */
 {
 	ut_ad(descr && mtr);
-	ut_ad(state >= XDES_FREE);
-	ut_ad(state <= XDES_FSEG);
 	ut_ad(mtr_memo_contains_page(mtr, descr, MTR_MEMO_PAGE_SX_FIX));
+
+#ifdef UNIV_DEBUG
+	switch (xdes_get_state(descr, mtr)) {
+	case XDES_FREE:
+		ut_ad(state == XDES_FSEG || state == XDES_FREE_FRAG);
+		break;
+	case XDES_FREE_FRAG:
+		ut_ad(state == XDES_FULL_FRAG
+		      || state == XDES_FSEG_FRAG
+		      || state == XDES_FREE);
+		break;
+	case XDES_FULL_FRAG:
+		ut_ad(state == XDES_FREE_FRAG);
+		break;
+	case XDES_FSEG:
+		ut_ad(state == XDES_FREE);
+		break;
+	case XDES_FSEG_FRAG:
+		ut_ad(state == XDES_FREE_FRAG || state == XDES_FULL_FRAG
+		      || state == XDES_FREE);
+		break;
+	case XDES_NOT_INITED:
+		/* The state is not yet initialized. */
+		ut_ad(state == XDES_FREE);
+		break;
+	}
+#endif /* UNIV_DEBUG */
 
 	mlog_write_ulint(descr + XDES_STATE, state, MLOG_4BYTES, mtr);
 }
 
-/**********************************************************************//**
-Gets the state of an xdes.
-@return state */
-UNIV_INLINE
-ulint
-xdes_get_state(
-/*===========*/
-	const xdes_t*	descr,	/*!< in: descriptor */
-	mtr_t*		mtr)	/*!< in/out: mini-transaction */
+/** Update the segment identifier to which the extent belongs to.
+@param[in,out]	descr	extent descriptor
+@param[in,out]	seg_id	segment identifier
+@param[in]	state	state of the extent.
+@param[in,out]	mtr	mini-transaction. */
+inline
+void
+xdes_set_segment_id(
+	xdes_t*		descr,
+	const ib_id_t	seg_id,
+	xdes_state_t	state,
+	mtr_t*		mtr)
 {
-	ulint	state;
-
-	ut_ad(descr && mtr);
-	ut_ad(mtr_memo_contains_page(mtr, descr, MTR_MEMO_PAGE_SX_FIX));
-
-	state = mach_read_from_4(descr + XDES_STATE);
-	ut_ad(state - 1 < XDES_FSEG);
-	return(state);
+	ut_ad(mtr != NULL);
+	mlog_write_ull(descr + XDES_ID, seg_id, mtr);
+	xdes_set_state(descr, state, mtr);
 }
 
 /**********************************************************************//**
@@ -544,11 +638,15 @@ xdes_init(
 	ut_ad(mtr_memo_contains_page(mtr, descr, MTR_MEMO_PAGE_SX_FIX));
 	ut_ad((XDES_SIZE - XDES_BITMAP) % 4 == 0);
 
+	xdes_set_segment_id(descr, 0, XDES_FREE, mtr);
+	flst_write_addr(descr + XDES_FLST_NODE + FLST_PREV,
+			fil_addr_null, mtr);
+	flst_write_addr(descr + XDES_FLST_NODE + FLST_NEXT,
+			fil_addr_null, mtr);
+
 	for (i = XDES_BITMAP; i < XDES_SIZE; i += 4) {
 		mlog_write_ulint(descr + i, 0xFFFFFFFFUL, MLOG_4BYTES, mtr);
 	}
-
-	xdes_set_state(descr, XDES_FREE, mtr);
 }
 
 /** Get pointer to a the extent descriptor of a page.
@@ -565,17 +663,17 @@ UNIV_INLINE MY_ATTRIBUTE((warn_unused_result))
 xdes_t*
 xdes_get_descriptor_with_space_hdr(
 	fsp_header_t*	sp_header,
-	ulint		space,
-	ulint		offset,
+	space_id_t	space,
+	page_no_t	offset,
 	mtr_t*		mtr,
 	bool		init_space = false,
 	buf_block_t**	desc_block = NULL)
 {
-	ulint	limit;
-	ulint	size;
-	ulint	descr_page_no;
-	ulint	flags;
-	page_t*	descr_page;
+	ulint		limit;
+	ulint		size;
+	page_no_t	descr_page_no;
+	ulint		flags;
+	page_t*		descr_page;
 #ifdef UNIV_DEBUG
 	const fil_space_t*	fspace = fil_space_get(space);
 	ut_ad(fspace != NULL);
@@ -642,10 +740,11 @@ try to add new extents to the space free list
 @param[in,out]	mtr		mini-transaction
 @return pointer to the extent descriptor, NULL if the page does not
 exist in the space or if the offset exceeds the free limit */
+static MY_ATTRIBUTE((warn_unused_result))
 xdes_t*
 xdes_get_descriptor(
-	ulint			space_id,
-	ulint			offset,
+	space_id_t		space_id,
+	page_no_t		offset,
 	const page_size_t&	page_size,
 	mtr_t*			mtr)
 {
@@ -662,20 +761,22 @@ xdes_get_descriptor(
 						  mtr));
 }
 
-/********************************************************************//**
-Gets pointer to a the extent descriptor if the file address
-of the descriptor list node is known. The page where the
-extent descriptor resides is x-locked.
+/** Gets pointer to a the extent descriptor if the file address of the
+descriptor list node is known. The page where the extent descriptor resides
+is x-locked.
+@param[in]	space		space id
+@param[in]	page_size	page size
+@param[in]	lst_node	file address of the list node contained in the
+				descriptor
+@param[in,out]	mtr		mini-transaction
 @return pointer to the extent descriptor */
 UNIV_INLINE
 xdes_t*
 xdes_lst_get_descriptor(
-/*====================*/
-	ulint		space,	/*!< in: space id */
+	space_id_t		space,
 	const page_size_t&	page_size,
-	fil_addr_t	lst_node,/*!< in: file address of the list node
-				contained in the descriptor */
-	mtr_t*		mtr)	/*!< in/out: mini-transaction */
+	fil_addr_t		lst_node,
+	mtr_t*			mtr)
 {
 	xdes_t*	descr;
 
@@ -692,7 +793,7 @@ xdes_lst_get_descriptor(
 Returns page offset of the first page in extent described by a descriptor.
 @return offset of the first page in extent */
 UNIV_INLINE
-ulint
+page_no_t
 xdes_get_offset(
 /*============*/
 	const xdes_t*	descr)	/*!< in: extent descriptor */
@@ -700,8 +801,9 @@ xdes_get_offset(
 	ut_ad(descr);
 
 	return(page_get_page_no(page_align(descr))
-	       + ((page_offset(descr) - XDES_ARR_OFFSET) / XDES_SIZE)
-	       * FSP_EXTENT_SIZE);
+	       + static_cast<page_no_t>(
+		       ((page_offset(descr) - XDES_ARR_OFFSET) / XDES_SIZE)
+		       * FSP_EXTENT_SIZE));
 }
 #endif /* !UNIV_HOTBACKUP */
 
@@ -742,7 +844,7 @@ updating an allocation bitmap page.
 static
 void
 fsp_space_modify_check(
-	ulint		id,
+	space_id_t	id,
 	const mtr_t*	mtr)
 {
 	switch (mtr->get_log_mode()) {
@@ -755,20 +857,19 @@ fsp_space_modify_check(
 #ifdef UNIV_DEBUG
 		{
 			const fil_type_t	type = fil_space_get_type(id);
-			ut_a(id == srv_tmp_space.space_id()
-			     || srv_is_tablespace_truncated(id)
-			     || fil_space_is_being_truncated(id)
+			ut_a(fsp_is_system_temporary(id)
 			     || fil_space_get_flags(id) == ULINT_UNDEFINED
 			     || type == FIL_TYPE_TEMPORARY
 			     || type == FIL_TYPE_IMPORT
-			     || fil_space_is_redo_skipped(id));
+			     || fil_space_is_redo_skipped(id)
+			     || undo::is_under_construction(id));
 		}
 #endif /* UNIV_DEBUG */
 		return;
 	case MTR_LOG_ALL:
 		/* We must not write redo log for the shared temporary
 		tablespace. */
-		ut_ad(id != srv_tmp_space.space_id());
+		ut_ad(!fsp_is_system_temporary(id));
 		/* If we write redo log, the tablespace must exist. */
 		ut_ad(fil_space_get_type(id) == FIL_TYPE_TABLESPACE);
 		ut_ad(mtr->is_named_space(id));
@@ -843,9 +944,10 @@ size of the tablespace. */
 void
 fsp_header_init_fields(
 /*===================*/
-	page_t*	page,		/*!< in/out: first page in the space */
-	ulint	space_id,	/*!< in: space id */
-	ulint	flags)		/*!< in: tablespace flags (FSP_SPACE_FLAGS) */
+	page_t*		page,		/*!< in/out: first page in the space */
+	space_id_t	space_id,	/*!< in: space id */
+	ulint		flags)		/*!< in: tablespace flags
+					(FSP_SPACE_FLAGS) */
 {
 	ut_a(fsp_flags_is_valid(flags));
 
@@ -859,7 +961,6 @@ fsp_header_init_fields(
 /** Get the offset of encrytion information in page 0.
 @param[in]	page_size	page size.
 @return	offset on success, otherwise 0. */
-static
 ulint
 fsp_header_get_encryption_offset(
 	const page_size_t&	page_size)
@@ -880,119 +981,19 @@ fsp_header_get_encryption_offset(
 	return offset;
 }
 
-/** Fill the encryption info.
-@param[in]	space		tablespace
-@param[in,out]	encrypt_info	buffer for encrypt key.
+/** Write the encryption info into the space header.
+@param[in]      space_id		tablespace id
+@param[in]      space_flags		tablespace flags
+@param[in]      encrypt_info		buffer for re-encrypt key
+@param[in]      update_fsp_flags	if it need to update the space flags
+@param[in,out]	mtr			mini-transaction
 @return true if success. */
 bool
-fsp_header_fill_encryption_info(
-	fil_space_t*		space,
-	byte*			encrypt_info)
-{
-	byte*			ptr;
-	lint			elen;
-	ulint			master_key_id;
-	byte*			master_key;
-	byte			key_info[ENCRYPTION_KEY_LEN * 2];
-	ulint			crc;
-	Encryption::Version	version;
-#ifdef	UNIV_ENCRYPT_DEBUG
-	const byte*		data;
-	ulint			i;
-#endif
-
-	/* Get master key from key ring */
-	Encryption::get_master_key(&master_key_id, &master_key, &version);
-	if (master_key == NULL) {
-		return(false);
-	}
-
-	memset(encrypt_info, 0, ENCRYPTION_INFO_SIZE_V2);
-	memset(key_info, 0, ENCRYPTION_KEY_LEN * 2);
-
-	/* Use the new master key to encrypt the tablespace
-	key. */
-	ut_ad(encrypt_info != NULL);
-	ptr = encrypt_info;
-
-	/* Write magic header. */
-	if (version == Encryption::ENCRYPTION_VERSION_1) {
-		memcpy(ptr, ENCRYPTION_KEY_MAGIC_V1, ENCRYPTION_MAGIC_SIZE);
-	} else {
-		memcpy(ptr, ENCRYPTION_KEY_MAGIC_V2, ENCRYPTION_MAGIC_SIZE);
-	}
-	ptr += ENCRYPTION_MAGIC_SIZE;
-
-	/* Write master key id. */
-	mach_write_to_4(ptr, master_key_id);
-	ptr += sizeof(ulint);
-
-	/* Write server uuid. */
-	if (version == Encryption::ENCRYPTION_VERSION_2) {
-		memcpy(ptr, Encryption::uuid, ENCRYPTION_SERVER_UUID_LEN);
-		ptr += ENCRYPTION_SERVER_UUID_LEN;
-	}
-
-	/* Write tablespace key to temp space. */
-	memcpy(key_info,
-	       space->encryption_key,
-	       ENCRYPTION_KEY_LEN);
-
-	/* Write tablespace iv to temp space. */
-	memcpy(key_info + ENCRYPTION_KEY_LEN,
-	       space->encryption_iv,
-	       ENCRYPTION_KEY_LEN);
-
-#ifdef	UNIV_ENCRYPT_DEBUG
-	fprintf(stderr, "Set %lu:%lu ",space->id,
-		Encryption::master_key_id);
-	for (data = (const byte*) master_key, i = 0;
-	     i < ENCRYPTION_KEY_LEN; i++)
-		fprintf(stderr, "%02lx", (ulong)*data++);
-	fprintf(stderr, " ");
-	for (data = (const byte*) space->encryption_key,
-	     i = 0; i < ENCRYPTION_KEY_LEN; i++)
-		fprintf(stderr, "%02lx", (ulong)*data++);
-	fprintf(stderr, " ");
-	for (data = (const byte*) space->encryption_iv,
-	     i = 0; i < ENCRYPTION_KEY_LEN; i++)
-		fprintf(stderr, "%02lx", (ulong)*data++);
-	fprintf(stderr, "\n");
-#endif
-	/* Encrypt tablespace key and iv. */
-	elen = my_aes_encrypt(
-		key_info,
-		ENCRYPTION_KEY_LEN * 2,
-		ptr,
-		master_key,
-		ENCRYPTION_KEY_LEN,
-		my_aes_256_ecb,
-		NULL, false);
-
-	if (elen == MY_AES_BAD_DATA) {
-		my_free(master_key);
-		return(false);
-	}
-
-	ptr += ENCRYPTION_KEY_LEN * 2;
-
-	/* Write checksum bytes. */
-	crc = ut_crc32(key_info, ENCRYPTION_KEY_LEN * 2);
-	mach_write_to_4(ptr, crc);
-
-	my_free(master_key);
-	return(true);
-}
-
-/** Rotate the encryption info in the space header.
-@param[in]	space		tablespace
-@param[in]      encrypt_info	buffer for re-encrypt key.
-@param[in,out]	mtr		mini-transaction
-@return true if success. */
-bool
-fsp_header_rotate_encryption(
-	fil_space_t*		space,
+fsp_header_write_encryption(
+	ulint			space_id,
+	ulint			space_flags,
 	byte*			encrypt_info,
+	bool			update_fsp_flags,
 	mtr_t*			mtr)
 {
 	buf_block_t*	block;
@@ -1000,23 +1001,14 @@ fsp_header_rotate_encryption(
 	page_t*		page;
 	ulint		master_key_id;
 
-	ut_ad(mtr);
-	ut_ad(space->encryption_type != Encryption::NONE);
-
-	const page_size_t	page_size(space->flags);
-
-	/* Fill encryption info. */
-	if (!fsp_header_fill_encryption_info(space,
-					     encrypt_info)) {
-		return(false);
-	}
+	const page_size_t	page_size(space_flags);
 
 	/* Save the encryption info to the page 0. */
-	block = buf_page_get(page_id_t(space->id, 0),
+	block = buf_page_get(page_id_t(space_id, 0),
 			     page_size,
 			     RW_SX_LATCH, mtr);
 	buf_block_dbg_add_level(block, SYNC_FSP_PAGE);
-	ut_ad(space->id == page_get_space_id(buf_block_get_frame(block)));
+	ut_ad(space_id == page_get_space_id(buf_block_get_frame(block)));
 
 	offset = fsp_header_get_encryption_offset(page_size);
 	ut_ad(offset != 0 && offset < UNIV_PAGE_SIZE);
@@ -1027,8 +1019,7 @@ fsp_header_rotate_encryption(
 	tablespaces. */
 	master_key_id = mach_read_from_4(
 		page + offset + ENCRYPTION_MAGIC_SIZE);
-	if (recv_recovery_is_on()
-	    && master_key_id == Encryption::master_key_id) {
+	if (master_key_id == Encryption::master_key_id) {
 		ut_ad(memcmp(page + offset,
 			     ENCRYPTION_KEY_MAGIC_V1,
 			     ENCRYPTION_MAGIC_SIZE) == 0
@@ -1043,7 +1034,43 @@ fsp_header_rotate_encryption(
 			  ENCRYPTION_INFO_SIZE_V2,
 			  mtr);
 
+	/* Write the new fsp flags into be update to the header if needed */
+	if (update_fsp_flags) {
+		mlog_write_ulint(page + FSP_HEADER_OFFSET + FSP_SPACE_FLAGS,
+				 space_flags, MLOG_4BYTES, mtr);
+	}
+
 	return(true);
+}
+
+/** Rotate the encryption info in the space header.
+@param[in]	space		tablespace
+@param[in]      encrypt_info	buffer for re-encrypt key.
+@param[in,out]	mtr		mini-transaction
+@return true if success. */
+bool
+fsp_header_rotate_encryption(
+	fil_space_t*		space,
+	byte*			encrypt_info,
+	mtr_t*			mtr)
+{
+	ut_ad(mtr);
+	ut_ad(space->encryption_type != Encryption::NONE);
+
+	/* Fill encryption info. */
+	if (!Encryption::fill_encryption_info(space->encryption_key,
+					      space->encryption_iv,
+					      encrypt_info,
+					      false)) {
+		return(false);
+	}
+
+	/* Write encryption info into space header. */
+	return(fsp_header_write_encryption(space->id,
+					   space->flags,
+					   encrypt_info,
+					   false,
+					   mtr));
 }
 
 /** Initializes the space header of a new created space and creates also the
@@ -1051,12 +1078,14 @@ insert buffer tree root if space == 0.
 @param[in]	space_id	space id
 @param[in]	size		current size in blocks
 @param[in,out]	mtr		min-transaction
+@param[in]	is_boot		if it's for bootstrap
 @return	true on success, otherwise false. */
 bool
 fsp_header_init(
-	ulint	space_id,
-	ulint	size,
-	mtr_t*	mtr)
+	space_id_t	space_id,
+	page_no_t	size,
+	mtr_t*		mtr,
+	bool		is_boot)
 {
 	fsp_header_t*	header;
 	buf_block_t*	block;
@@ -1090,7 +1119,7 @@ fsp_header_init(
 	mlog_write_ulint(header + FSP_SPACE_ID, space_id, MLOG_4BYTES, mtr);
 	mlog_write_ulint(header + FSP_NOT_USED, 0, MLOG_4BYTES, mtr);
 
-	mlog_write_ulint(header + FSP_SIZE, size, MLOG_4BYTES, mtr);
+	fsp_header_size_update(header, size, mtr);
 	mlog_write_ulint(header + FSP_FREE_LIMIT, 0, MLOG_4BYTES, mtr);
 	mlog_write_ulint(header + FSP_SPACE_FLAGS, space->flags,
 			 MLOG_4BYTES, mtr);
@@ -1104,7 +1133,7 @@ fsp_header_init(
 
 	mlog_write_ull(header + FSP_SEG_ID, 1, mtr);
 
-	fsp_fill_free_list(!is_system_tablespace(space_id),
+	fsp_fill_free_list(!fsp_is_system_or_temp_tablespace(space_id),
 			   space, header, mtr);
 
 	/* For encryption tablespace, we need to save the encryption
@@ -1116,8 +1145,10 @@ fsp_header_init(
 		if (offset == 0)
 			return(false);
 
-		if (!fsp_header_fill_encryption_info(space,
-						     encryption_info)) {
+		if (!Encryption::fill_encryption_info(space->encryption_key,
+						      space->encryption_iv,
+						      encryption_info,
+						      is_boot)) {
 			space->encryption_type = Encryption::NONE;
 			memset(space->encryption_key, 0, ENCRYPTION_KEY_LEN);
 			memset(space->encryption_iv, 0, ENCRYPTION_KEY_LEN);
@@ -1130,10 +1161,10 @@ fsp_header_init(
 				  mtr);
 	}
 
-	if (space_id == srv_sys_space.space_id()) {
+	if (space_id == TRX_SYS_SPACE) {
 		if (btr_create(DICT_CLUSTERED | DICT_IBUF,
 			       0, univ_page_size, DICT_IBUF_ID_MIN + space_id,
-			       dict_ind_redundant, NULL, mtr) == FIL_NULL) {
+			       dict_ind_redundant, mtr) == FIL_NULL) {
 			return(false);
 		}
 	}
@@ -1145,25 +1176,24 @@ fsp_header_init(
 /**********************************************************************//**
 Reads the space id from the first page of a tablespace.
 @return space id, ULINT UNDEFINED if error */
-ulint
+space_id_t
 fsp_header_get_space_id(
 /*====================*/
 	const page_t*	page)	/*!< in: first page of a tablespace */
 {
-	ulint	fsp_id;
-	ulint	id;
+	space_id_t	fsp_id;
+	space_id_t	id;
 
 	fsp_id = mach_read_from_4(FSP_HEADER_OFFSET + page + FSP_SPACE_ID);
 
 	id = mach_read_from_4(page + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID);
 
-	DBUG_EXECUTE_IF("fsp_header_get_space_id_failure",
-			id = ULINT_UNDEFINED;);
+	DBUG_EXECUTE_IF("fsp_header_get_space_id_failure", id = SPACE_UNKNOWN;);
 
 	if (id != fsp_id) {
 		ib::error() << "Space ID in fsp header is " << fsp_id
 			<< ", but in the page header it is " << id << ".";
-		return(ULINT_UNDEFINED);
+		return(SPACE_UNKNOWN);
 	}
 
 	return(id);
@@ -1179,144 +1209,10 @@ fsp_header_get_page_size(
 	return(page_size_t(fsp_header_get_flags(page)));
 }
 
-/** Decoding the encryption info
-from the first page of a tablespace.
-@param[in/out]	key		key
-@param[in/out]	iv		iv
-@param[in]	encryption_info	encrytion info.
-@return true if success */
-bool
-fsp_header_decode_encryption_info(
-	byte*		key,
-	byte*		iv,
-	byte*		encryption_info)
-{
-	byte*			ptr;
-	ulint			master_key_id;
-	byte*			master_key = NULL;
-	lint			elen;
-	byte			key_info[ENCRYPTION_KEY_LEN * 2];
-	ulint			crc1;
-	ulint			crc2;
-	char			srv_uuid[ENCRYPTION_SERVER_UUID_LEN + 1];
-	Encryption::Version	version;
-#ifdef	UNIV_ENCRYPT_DEBUG
-	const byte*		data;
-	ulint			i;
-#endif
-
-	ptr = encryption_info;
-
-	/* For compatibility with 5.7.11, we need to handle the
-	encryption information which created in this old version. */
-	if (memcmp(ptr, ENCRYPTION_KEY_MAGIC_V1,
-		     ENCRYPTION_MAGIC_SIZE) == 0) {
-		version = Encryption::ENCRYPTION_VERSION_1;
-	} else {
-		version = Encryption::ENCRYPTION_VERSION_2;
-	}
-
-	/* Check magic. */
-	if (version == Encryption::ENCRYPTION_VERSION_2
-	    && memcmp(ptr, ENCRYPTION_KEY_MAGIC_V2, ENCRYPTION_MAGIC_SIZE) != 0) {
-		/* We ignore report error for recovery,
-		since the encryption info maybe hasn't writen
-		into datafile when the table is newly created. */
-		if (!recv_recovery_is_on()) {
-			return(false);
-		} else {
-			return(true);
-		}
-	}
-	ptr += ENCRYPTION_MAGIC_SIZE;
-
-	/* Get master key id. */
-	master_key_id = mach_read_from_4(ptr);
-	ptr += sizeof(ulint);
-
-	/* Get server uuid. */
-	if (version == Encryption::ENCRYPTION_VERSION_2) {
-		memset(srv_uuid, 0, ENCRYPTION_SERVER_UUID_LEN + 1);
-		memcpy(srv_uuid, ptr, ENCRYPTION_SERVER_UUID_LEN);
-		ptr += ENCRYPTION_SERVER_UUID_LEN;
-	}
-
-	/* Get master key by key id. */
-	memset(key_info, 0, ENCRYPTION_KEY_LEN * 2);
-	if (version == Encryption::ENCRYPTION_VERSION_1) {
-		Encryption::get_master_key(master_key_id, NULL, &master_key);
-	} else {
-		Encryption::get_master_key(master_key_id, srv_uuid, &master_key);
-	}
-        if (master_key == NULL) {
-                return(false);
-        }
-
-#ifdef	UNIV_ENCRYPT_DEBUG
-	fprintf(stderr, "%lu ", master_key_id);
-	for (data = (const byte*) master_key, i = 0;
-	     i < ENCRYPTION_KEY_LEN; i++)
-		fprintf(stderr, "%02lx", (ulong)*data++);
-#endif
-
-	/* Decrypt tablespace key and iv. */
-	elen = my_aes_decrypt(
-		ptr,
-		ENCRYPTION_KEY_LEN * 2,
-		key_info,
-		master_key,
-		ENCRYPTION_KEY_LEN,
-		my_aes_256_ecb, NULL, false);
-
-	if (elen == MY_AES_BAD_DATA) {
-		my_free(master_key);
-		return(NULL);
-	}
-
-	/* Check checksum bytes. */
-	ptr += ENCRYPTION_KEY_LEN * 2;
-
-	crc1 = mach_read_from_4(ptr);
-	crc2 = ut_crc32(key_info, ENCRYPTION_KEY_LEN * 2);
-	if (crc1 != crc2) {
-		ib::error() << "Failed to decrpt encryption information,"
-			<< " please check key file is not changed!";
-		return(false);
-	}
-
-	/* Get tablespace key */
-	memcpy(key, key_info, ENCRYPTION_KEY_LEN);
-
-	/* Get tablespace iv */
-	memcpy(iv, key_info + ENCRYPTION_KEY_LEN,
-	       ENCRYPTION_KEY_LEN);
-
-#ifdef	UNIV_ENCRYPT_DEBUG
-	fprintf(stderr, " ");
-	for (data = (const byte*) key,
-	     i = 0; i < ENCRYPTION_KEY_LEN; i++)
-		fprintf(stderr, "%02lx", (ulong)*data++);
-	fprintf(stderr, " ");
-	for (data = (const byte*) iv,
-	     i = 0; i < ENCRYPTION_KEY_LEN; i++)
-		fprintf(stderr, "%02lx", (ulong)*data++);
-	fprintf(stderr, "\n");
-#endif
-
-	my_free(master_key);
-
-	if (Encryption::master_key_id < master_key_id) {
-		Encryption::master_key_id = master_key_id;
-		memcpy(Encryption::uuid, srv_uuid, ENCRYPTION_SERVER_UUID_LEN);
-	}
-
-	return(true);
-}
-
 /** Reads the encryption key from the first page of a tablespace.
 @param[in]	fsp_flags	tablespace flags
-@param[in/out]	key		tablespace key
-@param[in/out]	iv		tablespace iv
+@param[in,out]	key		tablespace key
+@param[in,out]	iv		tablespace iv
 @param[in]	page	first page of a tablespace
 @return true if success */
 bool
@@ -1334,7 +1230,7 @@ fsp_header_get_encryption_key(
 		return(false);
 	}
 
-	return(fsp_header_decode_encryption_info(key, iv, page + offset));
+	return(Encryption::decode_encryption_info(key, iv, page + offset));
 }
 
 #ifndef UNIV_HOTBACKUP
@@ -1343,12 +1239,12 @@ Increases the space size field of a space. */
 void
 fsp_header_inc_size(
 /*================*/
-	ulint	space_id,	/*!< in: space id */
-	ulint	size_inc,	/*!< in: size increment in pages */
-	mtr_t*	mtr)		/*!< in/out: mini-transaction */
+	space_id_t	space_id,	/*!< in: space id */
+	page_no_t	size_inc,	/*!< in: size increment in pages */
+	mtr_t*		mtr)		/*!< in/out: mini-transaction */
 {
 	fsp_header_t*	header;
-	ulint		size;
+	page_no_t	size;
 
 	ut_ad(mtr);
 
@@ -1363,7 +1259,7 @@ fsp_header_inc_size(
 
 	size += size_inc;
 
-	mlog_write_ulint(header + FSP_SIZE, size, MLOG_4BYTES, mtr);
+	fsp_header_size_update(header, size, mtr);
 	space->size_in_header = size;
 }
 
@@ -1373,12 +1269,12 @@ we do not have an auto-extending data file, this should be equal to
 the size of the data files.  If there is an auto-extending data file,
 this can be smaller.
 @return size in pages */
-ulint
+page_no_t
 fsp_header_get_tablespace_size(void)
 /*================================*/
 {
 	fsp_header_t*	header;
-	ulint		size;
+	page_no_t	size;
 	mtr_t		mtr;
 
 	mtr_start(&mtr);
@@ -1409,14 +1305,15 @@ static UNIV_COLD MY_ATTRIBUTE((warn_unused_result))
 bool
 fsp_try_extend_data_file_with_pages(
 	fil_space_t*	space,
-	ulint		page_no,
+	page_no_t	page_no,
 	fsp_header_t*	header,
 	mtr_t*		mtr)
 {
-	bool	success;
+	bool		success;
 	ulint	size;
+	DBUG_ENTER("fsp_try_extend_data_file_with_pages");
 
-	ut_a(!is_system_tablespace(space->id));
+	ut_a(!fsp_is_system_or_temp_tablespace(space->id));
 	ut_d(fsp_space_modify_check(space->id, mtr));
 
 	size = mach_read_from_4(header + FSP_SIZE);
@@ -1426,10 +1323,10 @@ fsp_try_extend_data_file_with_pages(
 
 	success = fil_space_extend(space, page_no + 1);
 	/* The size may be less than we wanted if we ran out of disk space. */
-	mlog_write_ulint(header + FSP_SIZE, space->size, MLOG_4BYTES, mtr);
+	fsp_header_size_update(header, space->size, mtr);
 	space->size_in_header = space->size;
 
-	return(success);
+	DBUG_RETURN(success);
 }
 
 /** Try to extend the last data file of a tablespace if it is auto-extending.
@@ -1444,15 +1341,18 @@ fsp_try_extend_data_file(
 	fsp_header_t*	header,
 	mtr_t*		mtr)
 {
-	ulint	size;		/* current number of pages in the datafile */
-	ulint	size_increase;	/* number of pages to extend this file */
+	page_no_t	size;		/* current number of pages
+					in the datafile */
+	page_no_t	size_increase;	/* number of pages to extend
+					this file */
 	const char* OUT_OF_SPACE_MSG =
 		"ran out of space. Please add another file or use"
 		" 'autoextend' for the last file in setting";
+	DBUG_ENTER("fsp_try_extend_data_file");
 
 	ut_d(fsp_space_modify_check(space->id, mtr));
 
-	if (space->id == srv_sys_space.space_id()
+	if (space->id == TRX_SYS_SPACE
 	    && !srv_sys_space.can_auto_extend_last_file()) {
 
 		/* We print the error message only once to avoid
@@ -1465,7 +1365,7 @@ fsp_try_extend_data_file(
 				<< " innodb_data_file_path.";
 			srv_sys_space.set_tablespace_full_status(true);
 		}
-		return(false);
+		DBUG_RETURN(false);
 	} else if (fsp_is_system_temporary(space->id)
 		   && !srv_tmp_space.can_auto_extend_last_file()) {
 
@@ -1479,7 +1379,7 @@ fsp_try_extend_data_file(
 				<< " innodb_temp_data_file_path.";
 			srv_tmp_space.set_tablespace_full_status(true);
 		}
-		return(false);
+		DBUG_RETURN(false);
 	}
 
 	size = mach_read_from_4(header + FSP_SIZE);
@@ -1488,22 +1388,22 @@ fsp_try_extend_data_file(
 	const page_size_t	page_size(
 		mach_read_from_4(header + FSP_SPACE_FLAGS));
 
-	if (space->id == srv_sys_space.space_id()) {
+	if (space->id == TRX_SYS_SPACE) {
 
 		size_increase = srv_sys_space.get_increment();
 
-	} else if (space->id == srv_tmp_space.space_id()) {
+	} else if (space->purpose == FIL_TYPE_TEMPORARY) {
 
 		size_increase = srv_tmp_space.get_increment();
 
 	} else {
-		ulint	extent_pages
+		page_no_t	extent_pages
 			= fsp_get_extent_size_in_pages(page_size);
 		if (size < extent_pages) {
 			/* Let us first extend the file to extent_size */
 			if (!fsp_try_extend_data_file_with_pages(
 				    space, extent_pages - 1, header, mtr)) {
-				return(false);
+				DBUG_RETURN(false);
 			}
 
 			size = extent_pages;
@@ -1514,11 +1414,11 @@ fsp_try_extend_data_file(
 
 	if (size_increase == 0) {
 
-		return(false);
+		DBUG_RETURN(false);
 	}
 
 	if (!fil_space_extend(space, size + size_increase)) {
-		return(false);
+		DBUG_RETURN(false);
 	}
 
 	/* We ignore any fragments of a full megabyte when storing the size
@@ -1527,10 +1427,9 @@ fsp_try_extend_data_file(
 	space->size_in_header = ut_calc_align_down(
 		space->size, (1024 * 1024) / page_size.physical());
 
-	mlog_write_ulint(
-		header + FSP_SIZE, space->size_in_header, MLOG_4BYTES, mtr);
+	fsp_header_size_update(header, space->size_in_header, mtr);
 
-	return(true);
+	DBUG_RETURN(true);
 }
 
 /** Calculate the number of pages to extend a datafile.
@@ -1545,22 +1444,23 @@ on one extent descriptor page. See xdes_calc_descriptor_page().
 @param[in]	page_size	page_size of the datafile
 @param[in]	size		current number of pages in the datafile
 @return number of pages to extend the file. */
-ulint
+page_no_t
 fsp_get_pages_to_extend_ibd(
 	const page_size_t&	page_size,
-	ulint			size)
+	page_no_t		size)
 {
-	ulint	size_increase;	/* number of pages to extend this file */
-	ulint	extent_size;	/* one megabyte, in pages */
-	ulint	threshold;	/* The size of the tablespace (in number
-				of pages) where we start allocating more
-				than one extent at a time. */
+	page_no_t	size_increase;	/* number of pages to extend this file */
+	page_no_t	extent_size;	/* one megabyte, in pages */
+	page_no_t	threshold;	/* The size of the tablespace (in number
+					of pages) where we start allocating more
+					than one extent at a time. */
 
 	extent_size = fsp_get_extent_size_in_pages(page_size);
 
 	/* The threshold is set at 32MiB except when the physical page
 	size is small enough that it must be done sooner. */
-	threshold = ut_min(32 * extent_size, page_size.physical());
+	threshold = std::min(32 * extent_size,
+			     static_cast<page_no_t>(page_size.physical()));
 
 	if (size < threshold) {
 		size_increase = extent_size;
@@ -1572,6 +1472,33 @@ fsp_get_pages_to_extend_ibd(
 	}
 
 	return(size_increase);
+}
+
+/** Initialize a fragment extent and puts it into the free fragment list.
+@param[in,out]	header	tablespace header
+@param[in,out]	descr	extent descriptor
+@param[in,out]	mtr	mini-transaction */
+static
+void
+fsp_init_xdes_free_frag(
+	fsp_header_t*	header,
+	xdes_t*		descr,
+	mtr_t*		mtr)
+{
+	ulint           n_used;
+
+	/* The first page in the extent is a extent descriptor page
+	and the second is an ibuf bitmap page: mark them used */
+	xdes_set_bit(descr, XDES_FREE_BIT, FSP_XDES_OFFSET, FALSE, mtr);
+	xdes_set_bit(descr, XDES_FREE_BIT, FSP_IBUF_BITMAP_OFFSET,
+		     FALSE, mtr);
+
+	xdes_set_segment_id(descr, 0, XDES_FREE_FRAG, mtr);
+	flst_add_last(header + FSP_FREE_FRAG, descr + XDES_FLST_NODE, mtr);
+
+	n_used = mtr_read_ulint(header + FSP_FRAG_N_USED, MLOG_4BYTES, mtr);
+	mlog_write_ulint(header + FSP_FRAG_N_USED, n_used + XDES_FRAG_N_USED,
+			 MLOG_4BYTES, mtr);
 }
 
 /** Put new extents to the free list if there are free extents above the free
@@ -1591,13 +1518,12 @@ fsp_fill_free_list(
 	fsp_header_t*	header,
 	mtr_t*		mtr)
 {
-	ulint	limit;
-	ulint	size;
-	ulint	flags;
-	xdes_t*	descr;
-	ulint	count		= 0;
-	ulint	frag_n_used;
-	ulint	i;
+	page_no_t	limit;
+	page_no_t	size;
+	ulint		flags;
+	xdes_t*		descr;
+	ulint		count		= 0;
+	page_no_t	i;
 
 	ut_ad(page_offset(header) == FSP_HEADER_OFFSET);
 	ut_d(fsp_space_modify_check(space->id, mtr));
@@ -1614,10 +1540,10 @@ fsp_fill_free_list(
 	const page_size_t	page_size(flags);
 
 	if (size < limit + FSP_EXTENT_SIZE * FSP_FREE_ADD) {
-		if ((!init_space && !is_system_tablespace(space->id))
-		    || (space->id == srv_sys_space.space_id()
+		if ((!init_space && !fsp_is_system_or_temp_tablespace(space->id))
+		    || (space->id == TRX_SYS_SPACE
 			&& srv_sys_space.can_auto_extend_last_file())
-		    || (space->id == srv_tmp_space.space_id()
+		    || (fsp_is_system_temporary(space->id)
 			&& srv_tmp_space.can_auto_extend_last_file())) {
 			fsp_try_extend_data_file(space, header, mtr);
 			size = space->size_in_header;
@@ -1667,17 +1593,13 @@ fsp_fill_free_list(
 			order, and we must be able to release its latch.
 			Note: Insert-Buffering is disabled for tables that
 			reside in the temp-tablespace. */
-			if (space->id != srv_tmp_space.space_id()) {
+			if (!fsp_is_system_temporary(space->id)) {
 				mtr_t	ibuf_mtr;
 
 				mtr_start(&ibuf_mtr);
 				ibuf_mtr.set_named_space(space);
 
-				/* Avoid logging while truncate table
-				fix-up is active. */
-				if (space->purpose == FIL_TYPE_TEMPORARY
-				    || srv_is_tablespace_truncated(
-					    space->id)) {
+				if (space->purpose == FIL_TYPE_TEMPORARY) {
 					mtr_set_log_mode(
 						&ibuf_mtr, MTR_LOG_NO_REDO);
 				}
@@ -1712,23 +1634,8 @@ fsp_fill_free_list(
 		}
 		xdes_init(descr, mtr);
 
-		if (UNIV_UNLIKELY(init_xdes)) {
-
-			/* The first page in the extent is a descriptor page
-			and the second is an ibuf bitmap page: mark them
-			used */
-
-			xdes_set_bit(descr, XDES_FREE_BIT, 0, FALSE, mtr);
-			xdes_set_bit(descr, XDES_FREE_BIT,
-				     FSP_IBUF_BITMAP_OFFSET, FALSE, mtr);
-			xdes_set_state(descr, XDES_FREE_FRAG, mtr);
-
-			flst_add_last(header + FSP_FREE_FRAG,
-				      descr + XDES_FLST_NODE, mtr);
-			frag_n_used = mach_read_from_4(
-				header + FSP_FRAG_N_USED);
-			mlog_write_ulint(header + FSP_FRAG_N_USED,
-					 frag_n_used + 2, MLOG_4BYTES, mtr);
+		if (init_xdes) {
+			fsp_init_xdes_free_frag(header, descr, mtr);
 		} else {
 			flst_add_last(header + FSP_FREE,
 				      descr + XDES_FLST_NODE, mtr);
@@ -1751,9 +1658,9 @@ page offset in the extent goes; the hint must not be > FSP_FREE_LIMIT
 static
 xdes_t*
 fsp_alloc_free_extent(
-	ulint			space_id,
+	space_id_t		space_id,
 	const page_size_t&	page_size,
-	ulint			hint,
+	page_no_t		hint,
 	mtr_t*			mtr)
 {
 	fsp_header_t*	header;
@@ -1808,7 +1715,7 @@ fsp_alloc_from_free_frag(
 /*=====================*/
 	fsp_header_t*	header,	/*!< in/out: tablespace header */
 	xdes_t*		descr,	/*!< in/out: extent descriptor */
-	ulint		bit,	/*!< in: slot to allocate in the extent */
+	page_no_t	bit,	/*!< in: slot to allocate in the extent */
 	mtr_t*		mtr)	/*!< in/out: mini-transaction */
 {
 	ulint		frag_n_used;
@@ -1915,9 +1822,9 @@ initialized (may be the same as mtr)
 static MY_ATTRIBUTE((warn_unused_result))
 buf_block_t*
 fsp_alloc_free_page(
-	ulint			space,
+	space_id_t		space,
 	const page_size_t&	page_size,
-	ulint			hint,
+	page_no_t		hint,
 	rw_lock_type_t		rw_latch,
 	mtr_t*			mtr,
 	mtr_t*			init_mtr)
@@ -1925,9 +1832,9 @@ fsp_alloc_free_page(
 	fsp_header_t*	header;
 	fil_addr_t	first;
 	xdes_t*		descr;
-	ulint		free;
-	ulint		page_no;
-	ulint		space_size;
+	page_no_t	free;
+	page_no_t	page_no;
+	page_no_t	space_size;
 
 	ut_ad(mtr);
 	ut_ad(init_mtr);
@@ -1978,7 +1885,7 @@ fsp_alloc_free_page(
 
 	free = xdes_find_bit(descr, XDES_FREE_BIT, TRUE,
 			     hint % FSP_EXTENT_SIZE, mtr);
-	if (free == ULINT_UNDEFINED) {
+	if (free == FIL_NULL) {
 
 		ut_print_buf(stderr, ((byte*) descr) - 500, 1000);
 		putc('\n', stderr);
@@ -1997,7 +1904,7 @@ fsp_alloc_free_page(
 		/* It must be that we are extending a single-table tablespace
 		whose size is still < 64 pages */
 
-		ut_a(!is_system_tablespace(space));
+		ut_a(!fsp_is_system_or_temp_tablespace(space));
 		if (page_no >= FSP_EXTENT_SIZE) {
 			ib::error() << "Trying to extend a single-table"
 				" tablespace " << space << " , by single"
@@ -2087,7 +1994,7 @@ fsp_free_page(
 		return;
 	}
 
-	const ulint	bit = page_id.page_no() % FSP_EXTENT_SIZE;
+	const page_no_t	bit = page_id.page_no() % FSP_EXTENT_SIZE;
 
 	xdes_set_bit(descr, XDES_FREE_BIT, bit, TRUE, mtr);
 	xdes_set_bit(descr, XDES_CLEAN_BIT, bit, TRUE, mtr);
@@ -2139,12 +2046,23 @@ fsp_free_extent(
 	descr = xdes_get_descriptor_with_space_hdr(
 		header, page_id.space(), page_id.page_no(), mtr);
 
-	ut_a(xdes_get_state(descr, mtr) != XDES_FREE);
-
-	xdes_init(descr, mtr);
-
-	flst_add_last(header + FSP_FREE, descr + XDES_FLST_NODE, mtr);
-	fil_space_get(page_id.space())->free_len++;
+	switch (xdes_get_state(descr, mtr)) {
+	case XDES_FSEG_FRAG:
+		/* The extent is being returned to the FSP_FREE_FRAG list. */
+		xdes_init(descr, mtr);
+		fsp_init_xdes_free_frag(header, descr, mtr);
+		break;
+	case XDES_FSEG:
+	case XDES_FREE_FRAG:
+	case XDES_FULL_FRAG:
+		xdes_init(descr, mtr);
+		flst_add_last(header + FSP_FREE, descr + XDES_FLST_NODE, mtr);
+		mtr->fsp_free_list_length_incr(page_id.space());
+		break;
+	case XDES_FREE:
+	case XDES_NOT_INITED:
+                ut_error;
+	}
 }
 
 /** Returns the nth inode slot on an inode page.
@@ -2157,7 +2075,7 @@ UNIV_INLINE
 fseg_inode_t*
 fsp_seg_inode_page_get_nth_inode(
 	page_t*			page,
-	ulint			i,
+	page_no_t		i,
 	const page_size_t&	page_size,
 	mtr_t*			mtr)
 {
@@ -2171,15 +2089,15 @@ fsp_seg_inode_page_get_nth_inode(
 @param[in]	page		segment inode page
 @param[in]	page_size	page size
 @param[in,out]	mtr		mini-transaction
-@return segment inode index, or ULINT_UNDEFINED if not found */
+@return segment inode index, or FIL_NULL if not found */
 static
-ulint
+page_no_t
 fsp_seg_inode_page_find_used(
 	page_t*			page,
 	const page_size_t&	page_size,
 	mtr_t*			mtr)
 {
-	ulint		i;
+	page_no_t	i;
 	fseg_inode_t*	inode;
 
 	for (i = 0; i < FSP_SEG_INODES_PER_PAGE(page_size); i++) {
@@ -2196,7 +2114,7 @@ fsp_seg_inode_page_find_used(
 		}
 	}
 
-	return(ULINT_UNDEFINED);
+	return(FIL_NULL);
 }
 
 /** Looks for an unused segment inode on a segment inode page.
@@ -2204,12 +2122,12 @@ fsp_seg_inode_page_find_used(
 @param[in]	i		search forward starting from this index
 @param[in]	page_size	page size
 @param[in,out]	mtr		mini-transaction
-@return segment inode index, or ULINT_UNDEFINED if not found */
+@return segment inode index, or FIL_NULL if not found */
 static
-ulint
+page_no_t
 fsp_seg_inode_page_find_free(
 	page_t*			page,
-	ulint			i,
+	page_no_t		i,
 	const page_size_t&	page_size,
 	mtr_t*			mtr)
 {
@@ -2229,7 +2147,7 @@ fsp_seg_inode_page_find_free(
 		      == FSEG_MAGIC_N_VALUE);
 	}
 
-	return(ULINT_UNDEFINED);
+	return(FIL_NULL);
 }
 
 /**********************************************************************//**
@@ -2245,7 +2163,7 @@ fsp_alloc_seg_inode_page(
 	fseg_inode_t*	inode;
 	buf_block_t*	block;
 	page_t*		page;
-	ulint		space;
+	space_id_t	space;
 
 	ut_ad(page_offset(space_header) == FSP_HEADER_OFFSET);
 
@@ -2269,7 +2187,7 @@ fsp_alloc_seg_inode_page(
 	mlog_write_ulint(page + FIL_PAGE_TYPE, FIL_PAGE_INODE,
 			 MLOG_2BYTES, mtr);
 
-	for (ulint i = 0; i < FSP_SEG_INODES_PER_PAGE(page_size); i++) {
+	for (page_no_t i = 0; i < FSP_SEG_INODES_PER_PAGE(page_size); i++) {
 
 		inode = fsp_seg_inode_page_get_nth_inode(
 			page, i, page_size, mtr);
@@ -2297,7 +2215,7 @@ fsp_alloc_seg_inode(
 	buf_block_t*	block;
 	page_t*		page;
 	fseg_inode_t*	inode;
-	ulint		n;
+	page_no_t	n;
 
 	ut_ad(page_offset(space_header) == FSP_HEADER_OFFSET);
 
@@ -2322,12 +2240,11 @@ fsp_alloc_seg_inode(
 
 	n = fsp_seg_inode_page_find_free(page, 0, page_size, mtr);
 
-	ut_a(n != ULINT_UNDEFINED);
+	ut_a(n != FIL_NULL);
 
 	inode = fsp_seg_inode_page_get_nth_inode(page, n, page_size, mtr);
 
-	if (ULINT_UNDEFINED == fsp_seg_inode_page_find_free(page, n + 1,
-							    page_size, mtr)) {
+	if (FIL_NULL == fsp_seg_inode_page_find_free(page, n + 1, page_size, mtr)) {
 		/* There are no other unused headers left on the page: move it
 		to another list */
 
@@ -2351,7 +2268,7 @@ fsp_alloc_seg_inode(
 static
 void
 fsp_free_seg_inode(
-	ulint			space,
+	space_id_t		space,
 	const page_size_t&	page_size,
 	fseg_inode_t*		inode,
 	mtr_t*			mtr)
@@ -2367,8 +2284,7 @@ fsp_free_seg_inode(
 
 	ut_ad(mach_read_from_4(inode + FSEG_MAGIC_N) == FSEG_MAGIC_N_VALUE);
 
-	if (ULINT_UNDEFINED
-	    == fsp_seg_inode_page_find_free(page, 0, page_size, mtr)) {
+	if (FIL_NULL == fsp_seg_inode_page_find_free(page, 0, page_size, mtr)) {
 
 		/* Move the page to another list */
 
@@ -2382,8 +2298,7 @@ fsp_free_seg_inode(
 	mlog_write_ull(inode + FSEG_ID, 0, mtr);
 	mlog_write_ulint(inode + FSEG_MAGIC_N, 0xfa051ce3, MLOG_4BYTES, mtr);
 
-	if (ULINT_UNDEFINED
-	    == fsp_seg_inode_page_find_used(page, page_size, mtr)) {
+	if (FIL_NULL == fsp_seg_inode_page_find_used(page, page_size, mtr)) {
 
 		/* There are no other used headers left on the page: free it */
 
@@ -2406,7 +2321,7 @@ static
 fseg_inode_t*
 fseg_inode_try_get(
 	fseg_header_t*		header,
-	ulint			space,
+	space_id_t		space,
 	const page_size_t&	page_size,
 	mtr_t*			mtr,
 	buf_block_t**		block)
@@ -2443,7 +2358,7 @@ static
 fseg_inode_t*
 fseg_inode_get(
 	fseg_header_t*		header,
-	ulint			space,
+	space_id_t		space,
 	const page_size_t&	page_size,
 	mtr_t*			mtr,
 	buf_block_t**		block = NULL)
@@ -2458,7 +2373,7 @@ fseg_inode_get(
 Gets the page number from the nth fragment page slot.
 @return page number, FIL_NULL if not in use */
 UNIV_INLINE
-ulint
+page_no_t
 fseg_get_nth_frag_page_no(
 /*======================*/
 	fseg_inode_t*	inode,	/*!< in: segment inode */
@@ -2482,7 +2397,7 @@ fseg_set_nth_frag_page_no(
 /*======================*/
 	fseg_inode_t*	inode,	/*!< in: segment inode */
 	ulint		n,	/*!< in: slot index */
-	ulint		page_no,/*!< in: page number to set */
+	page_no_t	page_no,/*!< in: page number to set */
 	mtr_t*		mtr)	/*!< in/out: mini-transaction */
 {
 	ut_ad(inode && mtr);
@@ -2504,8 +2419,8 @@ fseg_find_free_frag_page_slot(
 	fseg_inode_t*	inode,	/*!< in: segment inode */
 	mtr_t*		mtr)	/*!< in/out: mini-transaction */
 {
-	ulint	i;
-	ulint	page_no;
+	ulint		i;
+	page_no_t	page_no;
 
 	ut_ad(inode && mtr);
 
@@ -2532,7 +2447,7 @@ fseg_find_last_used_frag_page_slot(
 	mtr_t*		mtr)	/*!< in/out: mini-transaction */
 {
 	ulint	i;
-	ulint	page_no;
+	page_no_t	page_no;
 
 	ut_ad(inode && mtr);
 
@@ -2580,11 +2495,12 @@ if could not create segment because of lack of space */
 buf_block_t*
 fseg_create_general(
 /*================*/
-	ulint	space_id,/*!< in: space id */
-	ulint	page,	/*!< in: page where the segment header is placed: if
-			this is != 0, the page must belong to another segment,
-			if this is 0, a new page will be allocated and it
-			will belong to the created segment */
+	space_id_t	space_id,/*!< in: space id */
+	page_no_t	page,	/*!< in: page where the segment header is
+				placed: if this is != 0, the page must belong
+				to another segment, if this is 0, a new page
+				will be allocated and it will belong to the
+				created segment */
 	ulint	byte_offset, /*!< in: byte offset of the created segment header
 			on the page */
 	ibool	has_done_reservation, /*!< in: TRUE if the caller has already
@@ -2600,7 +2516,7 @@ fseg_create_general(
 	ib_id_t		seg_id;
 	buf_block_t*	block	= 0; /* remove warning */
 	fseg_header_t*	header	= 0; /* remove warning */
-	ulint		n_reserved;
+	ulint		n_reserved = 0;
 	ulint		i;
 
 	DBUG_ENTER("fseg_create_general");
@@ -2723,14 +2639,15 @@ if could not create segment because of lack of space */
 buf_block_t*
 fseg_create(
 /*========*/
-	ulint	space,	/*!< in: space id */
-	ulint	page,	/*!< in: page where the segment header is placed: if
-			this is != 0, the page must belong to another segment,
-			if this is 0, a new page will be allocated and it
-			will belong to the created segment */
-	ulint	byte_offset, /*!< in: byte offset of the created segment header
-			on the page */
-	mtr_t*	mtr)	/*!< in/out: mini-transaction */
+	space_id_t	space,	/*!< in: space id */
+	page_no_t	page,	/*!< in: page where the segment header is
+				placed: if this is != 0, the page must belong
+				to another segment, if this is 0, a new page
+				will be allocated and it will belong to the
+				created segment */
+	ulint		byte_offset,	/*!< in: byte offset of the created
+					segment header on the page */
+	mtr_t*		mtr)	/*!< in/out: mini-transaction */
 {
 	return(fseg_create_general(space, page, byte_offset, FALSE, mtr));
 }
@@ -2778,7 +2695,7 @@ fseg_n_reserved_pages(
 {
 	ulint		ret;
 	fseg_inode_t*	inode;
-	ulint		space_id;
+	space_id_t	space_id;
 	fil_space_t*	space;
 
 	space_id = page_get_space_id(page_align(header));
@@ -2807,16 +2724,16 @@ static
 void
 fseg_fill_free_list(
 	fseg_inode_t*		inode,
-	ulint			space,
+	space_id_t		space,
 	const page_size_t&	page_size,
-	ulint			hint,
+	page_no_t		hint,
 	mtr_t*			mtr)
 {
-	xdes_t*	descr;
-	ulint	i;
-	ib_id_t	seg_id;
-	ulint	reserved;
-	ulint	used;
+	xdes_t*		descr;
+	page_no_t	i;
+	ib_id_t		seg_id;
+	ulint		reserved;
+	ulint		used;
 
 	ut_ad(inode && mtr);
 	ut_ad(!((page_offset(inode) - FSEG_ARR_OFFSET) % FSEG_INODE_SIZE));
@@ -2850,16 +2767,138 @@ fseg_fill_free_list(
 
 		descr = fsp_alloc_free_extent(space, page_size, hint, mtr);
 
-		xdes_set_state(descr, XDES_FSEG, mtr);
-
 		seg_id = mach_read_from_8(inode + FSEG_ID);
 		ut_ad(mach_read_from_4(inode + FSEG_MAGIC_N)
 		      == FSEG_MAGIC_N_VALUE);
-		mlog_write_ull(descr + XDES_ID, seg_id, mtr);
+		xdes_set_segment_id(descr, seg_id, XDES_FSEG, mtr);
 
 		flst_add_last(inode + FSEG_FREE, descr + XDES_FLST_NODE, mtr);
 		hint += FSP_EXTENT_SIZE;
 	}
+}
+
+/** A fragment extent can be leased if it is the special kind that has a
+descriptor page and no other pages are being used except the descriptor
+and ibuf bitmap pages.  The number of used pages will be equal to
+XDES_FRAG_N_USED.
+@param[in]	descr		extent descriptor
+@param[in]	page_size	the page size
+@param[in,out]	mtr		mini transaction
+@return	true if the extent is leasable, false otherwise. */
+UNIV_INLINE
+bool
+xdes_is_leasable(
+	const xdes_t*		descr,
+	const page_size_t&	page_size,
+	mtr_t*			mtr)
+{
+	ut_ad(descr && mtr);
+	ut_ad(mtr_memo_contains_page(mtr, descr, MTR_MEMO_PAGE_SX_FIX));
+
+	const page_no_t	page_no = xdes_get_offset(descr);
+	const bool	has_xdes_page = !ut_2pow_remainder(
+		page_no, page_size.physical());
+
+	if (!has_xdes_page) {
+		return(false);
+	}
+	/* Page 0 and 1 must not be free */
+	if (xdes_mtr_get_bit(descr, XDES_FREE_BIT, 0, mtr)
+	    || xdes_mtr_get_bit(descr, XDES_FREE_BIT, 1, mtr)) {
+		return(false);
+	}
+
+	/* All other pages must be free */
+	for (page_no_t i = 2; i < FSP_EXTENT_SIZE; ++i) {
+		if (!xdes_mtr_get_bit(descr, XDES_FREE_BIT, i, mtr)) {
+			return(false);
+		}
+	}
+
+	return(true);
+}
+
+/** Get the extent descriptor of the last fragmented extent from the
+free_frag list.
+@param[in]	header		tablespace header
+@param[in]	page_size	page size
+@param[in,out]	mtr		mini-transaction
+@return	the extent descriptor, or NULL if none */
+static
+xdes_t*
+fsp_get_last_free_frag_extent(
+	fsp_header_t*		header,
+	const page_size_t&	page_size,
+	mtr_t*			mtr)
+{
+	space_id_t	space;
+	fil_addr_t	node;
+	xdes_t*		descr;
+
+	node = flst_get_last(header + FSP_FREE_FRAG, mtr);
+
+	if (fil_addr_is_null(node)) {
+		return(NULL);
+	}
+
+	space = mach_read_from_4(header + FSEG_HDR_SPACE);
+	descr = xdes_lst_get_descriptor(space, page_size, node, mtr);
+	ut_ad(xdes_get_state(descr, mtr) == XDES_FREE_FRAG);
+
+	return(descr);
+}
+
+/** Allocate an extent from free fragment extent to a segment.
+@param[in]	space		space id
+@param[in,out]	inode		segment to which extent is leased
+@param[in]	page_size	page size
+@param[in,out]	mtr		mini-transaction
+@return	extent descriptor or NULL */
+static
+xdes_t*
+fsp_alloc_xdes_free_frag(
+	space_id_t		space,
+	fseg_inode_t*		inode,
+	const page_size_t&	page_size,
+	mtr_t*			mtr)
+{
+	xdes_t*		descr;
+	ib_id_t		seg_id;
+	ulint		n_used;
+
+	ut_ad(mtr);
+	ut_ad(mtr_memo_contains(mtr, fil_space_get_latch(space, NULL),
+				MTR_MEMO_X_LOCK));
+
+	fsp_header_t*   header = fsp_get_space_header(space, page_size, mtr);
+
+	/* If available, take an extent from the free_frag list. */
+	if (!(descr = fsp_get_last_free_frag_extent(header, page_size, mtr))) {
+		return(NULL);
+	}
+
+	if (!xdes_is_leasable(descr, page_size, mtr)) {
+		return(NULL);
+	}
+	ut_ad(xdes_get_n_used(descr, mtr) == XDES_FRAG_N_USED);
+
+	/* Remove from the FSP_FREE_FRAG list */
+	flst_remove(header + FSP_FREE_FRAG, descr + XDES_FLST_NODE, mtr);
+	n_used = mtr_read_ulint(header + FSP_FRAG_N_USED, MLOG_4BYTES, mtr);
+	mlog_write_ulint(header + FSP_FRAG_N_USED, n_used - XDES_FRAG_N_USED,
+			 MLOG_4BYTES, mtr);
+
+	/* Transition the extent (and its ownership) to the segment. */
+	seg_id = mach_read_from_8(inode + FSEG_ID);
+	xdes_set_segment_id(descr, seg_id, XDES_FSEG_FRAG, mtr);
+
+	/* Add to the end of FSEG_NOT_FULL list. */
+	flst_add_last(inode + FSEG_NOT_FULL, descr + XDES_FLST_NODE, mtr);
+	n_used = mtr_read_ulint(inode + FSEG_NOT_FULL_N_USED, MLOG_4BYTES, mtr);
+	mlog_write_ulint(inode + FSEG_NOT_FULL_N_USED,
+			 n_used + XDES_FRAG_N_USED, MLOG_4BYTES, mtr);
+
+	return(descr);
 }
 
 /** Allocates a free extent for the segment: looks first in the free list of
@@ -2878,7 +2917,7 @@ static
 xdes_t*
 fseg_alloc_free_extent(
 	fseg_inode_t*		inode,
-	ulint			space,
+	space_id_t		space,
 	const page_size_t&	page_size,
 	mtr_t*			mtr)
 {
@@ -2897,7 +2936,18 @@ fseg_alloc_free_extent(
 
 		descr = xdes_lst_get_descriptor(space, page_size, first, mtr);
 	} else {
-		/* Segment free list was empty, allocate from space */
+		/* Segment free list was empty. */
+
+		/* Check if we can allocate an extent from free frag
+		list of tablespace. */
+		descr = fsp_alloc_xdes_free_frag(space, inode,
+						 page_size, mtr);
+
+		if (descr != NULL) {
+			return(descr);
+		}
+
+		/* Allocate from space */
 		descr = fsp_alloc_free_extent(space, page_size, 0, mtr);
 
 		if (descr == NULL) {
@@ -2907,8 +2957,7 @@ fseg_alloc_free_extent(
 
 		seg_id = mach_read_from_8(inode + FSEG_ID);
 
-		xdes_set_state(descr, XDES_FSEG, mtr);
-		mlog_write_ull(descr + XDES_ID, seg_id, mtr);
+		xdes_set_segment_id(descr, seg_id, XDES_FSEG, mtr);
 		flst_add_last(inode + FSEG_FREE, descr + XDES_FLST_NODE, mtr);
 
 		/* Try to fill the segment free list */
@@ -2947,7 +2996,7 @@ fseg_alloc_free_page_low(
 	fil_space_t*		space,
 	const page_size_t&	page_size,
 	fseg_inode_t*		seg_inode,
-	ulint			hint,
+	page_no_t		hint,
 	byte			direction,
 	rw_lock_type_t		rw_latch,
 	mtr_t*			mtr,
@@ -2962,11 +3011,11 @@ fseg_alloc_free_page_low(
 	ulint		used;
 	ulint		reserved;
 	xdes_t*		descr;		/*!< extent of the hinted page */
-	ulint		ret_page;	/*!< the allocated page offset, FIL_NULL
+	page_no_t	ret_page;	/*!< the allocated page offset, FIL_NULL
 					if could not be allocated */
 	xdes_t*		ret_descr;	/*!< the extent of the allocated page */
 	ulint		n;
-	const ulint	space_id	= space->id;
+	const space_id_t	space_id	= space->id;
 
 	ut_ad(mtr);
 	ut_ad((direction >= FSP_UP) && (direction <= FSP_NO_DIR));
@@ -2997,8 +3046,7 @@ fseg_alloc_free_page_low(
 
 	/* In the big if-else below we look for ret_page and ret_descr */
 	/*-------------------------------------------------------------*/
-	if ((xdes_get_state(descr, mtr) == XDES_FSEG)
-	    && mach_read_from_8(descr + XDES_ID) == seg_id
+	if (xdes_in_segment(descr, seg_id, mtr)
 	    && (xdes_mtr_get_bit(descr, XDES_FREE_BIT,
 				 hint % FSP_EXTENT_SIZE, mtr) == TRUE)) {
 take_hinted_page:
@@ -3024,8 +3072,7 @@ take_hinted_page:
 
 		ut_a(ret_descr == descr);
 
-		xdes_set_state(ret_descr, XDES_FSEG, mtr);
-		mlog_write_ull(ret_descr + XDES_ID, seg_id, mtr);
+		xdes_set_segment_id(ret_descr, seg_id, XDES_FSEG, mtr);
 		flst_add_last(seg_inode + FSEG_FREE,
 			      ret_descr + XDES_FLST_NODE, mtr);
 
@@ -3051,11 +3098,14 @@ take_hinted_page:
 
 		if (direction == FSP_DOWN) {
 			ret_page += FSP_EXTENT_SIZE - 1;
-		}
+		} else if (xdes_get_state(ret_descr, mtr) == XDES_FSEG_FRAG) {
+			ret_page += xdes_find_bit(
+				ret_descr, XDES_FREE_BIT, TRUE, 0, mtr);
+                }
+
 		ut_ad(!has_done_reservation || ret_page != FIL_NULL);
 		/*-----------------------------------------------------------*/
-	} else if ((xdes_get_state(descr, mtr) == XDES_FSEG)
-		   && mach_read_from_8(descr + XDES_ID) == seg_id
+	} else if (xdes_in_segment(descr, seg_id, mtr)
 		   && (!xdes_is_full(descr, mtr))) {
 
 		/* 4. We can take the page from the same extent as the
@@ -3125,7 +3175,16 @@ take_hinted_page:
 			ret_page = FIL_NULL;
 			ut_ad(!has_done_reservation);
 		} else {
+			const xdes_state_t state = xdes_get_state(
+				ret_descr, mtr);
 			ret_page = xdes_get_offset(ret_descr);
+
+			if (state == XDES_FSEG_FRAG) {
+				ret_page += xdes_find_bit(
+					ret_descr, XDES_FREE_BIT,
+					TRUE, 0, mtr);
+			}
+
 			ut_ad(!has_done_reservation || ret_page != FIL_NULL);
 		}
 	}
@@ -3137,7 +3196,7 @@ take_hinted_page:
 		return(NULL);
 	}
 
-	if (space->size <= ret_page && !is_system_tablespace(space_id)) {
+	if (space->size <= ret_page && !fsp_is_system_or_temp_tablespace(space_id)) {
 		/* It must be that we are extending a single-table
 		tablespace whose size is still < 64 pages */
 
@@ -3195,7 +3254,7 @@ buf_block_t*
 fseg_alloc_free_page_general(
 /*=========================*/
 	fseg_header_t*	seg_header,/*!< in/out: segment header */
-	ulint		hint,	/*!< in: hint of which page would be
+	page_no_t	hint,	/*!< in: hint of which page would be
 				desirable */
 	byte		direction,/*!< in: if the new page is needed because
 				of an index page split, and records are
@@ -3214,11 +3273,11 @@ fseg_alloc_free_page_general(
 				latched in mtr, do not initialize the page. */
 {
 	fseg_inode_t*	inode;
-	ulint		space_id;
+	space_id_t	space_id;
 	fil_space_t*	space;
 	buf_block_t*	iblock;
 	buf_block_t*	block;
-	ulint		n_reserved;
+	ulint		n_reserved = 0;
 
 	space_id = page_get_space_id(page_align(seg_header));
 	space = mtr_x_lock_space(space_id, mtr);
@@ -3279,25 +3338,24 @@ bool
 fsp_reserve_free_pages(
 	fil_space_t*	space,
 	fsp_header_t*	space_header,
-	ulint		size,
+	page_no_t	size,
 	mtr_t*		mtr,
-	ulint		n_pages)
+	page_no_t	n_pages)
 {
 	xdes_t*	descr;
-	ulint	n_used;
 
-	ut_a(!is_system_tablespace(space->id));
+	ut_a(!fsp_is_system_or_temp_tablespace(space->id));
 	ut_a(size < FSP_EXTENT_SIZE);
 
 	descr = xdes_get_descriptor_with_space_hdr(
 		space_header, space->id, 0, mtr);
-	n_used = xdes_get_n_used(descr, mtr);
+	page_no_t n_used = xdes_get_n_used(descr, mtr);
 
 	ut_a(n_used <= size);
 
 	return(size >= n_used + n_pages
 	       || fsp_try_extend_data_file_with_pages(
-		       space, n_used + n_pages - 1, space_header, mtr));
+			space, n_used + n_pages - 1, space_header, mtr));
 }
 
 /** Reserves free pages from a tablespace. All mini-transactions which may
@@ -3341,19 +3399,20 @@ free pages available.
 bool
 fsp_reserve_free_extents(
 	ulint*		n_reserved,
-	ulint		space_id,
+	space_id_t	space_id,
 	ulint		n_ext,
 	fsp_reserve_t	alloc_type,
 	mtr_t*		mtr,
-	ulint		n_pages)
+	page_no_t	n_pages)
 {
 	fsp_header_t*	space_header;
 	ulint		n_free_list_ext;
-	ulint		free_limit;
-	ulint		size;
+	page_no_t	free_limit;
+	page_no_t	size;
 	ulint		n_free;
 	ulint		n_free_up;
 	ulint		reserve;
+	DBUG_ENTER("fsp_reserve_free_extents");
 
 	ut_ad(mtr);
 	*n_reserved = n_ext;
@@ -3369,8 +3428,8 @@ try_again:
 	if (size < FSP_EXTENT_SIZE && n_pages < FSP_EXTENT_SIZE / 2) {
 		/* Use different rules for small single-table tablespaces */
 		*n_reserved = 0;
-		return(fsp_reserve_free_pages(space, space_header, size,
-					      mtr, n_pages));
+		DBUG_RETURN(fsp_reserve_free_pages(
+				space, space_header, size, mtr, n_pages));
 	}
 
 	n_free_list_ext = flst_get_len(space_header + FSP_FREE);
@@ -3430,14 +3489,14 @@ try_again:
 	}
 
 	if (fil_space_reserve_free_extents(space_id, n_free, n_ext)) {
-		return(true);
+		DBUG_RETURN(true);
 	}
 try_to_extend:
 	if (fsp_try_extend_data_file(space, space_header, mtr)) {
 		goto try_again;
 	}
 
-	return(false);
+	DBUG_RETURN(false);
 }
 
 /** Calculate how many KiB of new data we will be able to insert to the
@@ -3446,8 +3505,7 @@ tablespace without running out of space.
 @return available space in KiB
 @retval UINTMAX_MAX if unknown */
 uintmax_t
-fsp_get_available_space_in_free_extents(
-	ulint	space_id)
+fsp_get_available_space_in_free_extents(space_id_t space_id)
 {
 	FilSpace	space(space_id);
 	if (space() == NULL) {
@@ -3511,7 +3569,7 @@ void
 fseg_mark_page_used(
 /*================*/
 	fseg_inode_t*	seg_inode,/*!< in: segment inode */
-	ulint		page,	/*!< in: page offset */
+	page_no_t	page,	/*!< in: page offset */
 	xdes_t*		descr,  /*!< in: extent descriptor */
 	mtr_t*		mtr)	/*!< in/out: mini-transaction */
 {
@@ -3522,8 +3580,8 @@ fseg_mark_page_used(
 	ut_ad(mach_read_from_4(seg_inode + FSEG_MAGIC_N)
 	      == FSEG_MAGIC_N_VALUE);
 
-	ut_ad(mtr_read_ulint(seg_inode + FSEG_ID, MLOG_4BYTES, mtr)
-	      == mtr_read_ulint(descr + XDES_ID, MLOG_4BYTES, mtr));
+	ut_ad(mach_read_from_8(seg_inode + FSEG_ID)
+	      == xdes_get_segment_id(descr, mtr));
 
 	if (xdes_is_free(descr, mtr)) {
 		/* We move the extent from the free list to the
@@ -3577,10 +3635,10 @@ fseg_free_page_low(
 {
 	xdes_t*	descr;
 	ulint	not_full_n_used;
-	ulint	state;
 	ib_id_t	descr_id;
 	ib_id_t	seg_id;
 	ulint	i;
+	DBUG_ENTER("fseg_free_page_low");
 
 	ut_ad(seg_inode != NULL);
 	ut_ad(mtr != NULL);
@@ -3604,6 +3662,7 @@ fseg_free_page_low(
 		fputs("InnoDB: Dump of the tablespace extent descriptor: ",
 		      stderr);
 		ut_print_buf(stderr, descr, 40);
+
 		ib::error() << "InnoDB is trying to free page " << page_id
 			<< " though it is already marked as free in the"
 			" tablespace! The tablespace free space info is"
@@ -3613,9 +3672,15 @@ crash:
 		ib::fatal() << FORCE_RECOVERY_MSG;
 	}
 
-	state = xdes_get_state(descr, mtr);
+	xdes_state_t	state = xdes_get_state(descr, mtr);
 
-	if (state != XDES_FSEG) {
+	switch (state) {
+	case XDES_FSEG:
+	case XDES_FSEG_FRAG:
+		/* The page belongs to a segment */
+		break;
+	case XDES_FREE_FRAG:
+	case XDES_FULL_FRAG:
 		/* The page is in the fragment pages of the segment */
 
 		for (i = 0;; i++) {
@@ -3630,12 +3695,15 @@ crash:
 
 		fsp_free_page(page_id, page_size, mtr);
 
-		return;
+		DBUG_VOID_RETURN;
+	case XDES_FREE:
+	case XDES_NOT_INITED:
+		ut_error;
 	}
 
 	/* If we get here, the page is in some extent of the segment */
 
-	descr_id = mach_read_from_8(descr + XDES_ID);
+	descr_id = xdes_get_segment_id(descr);
 	seg_id = mach_read_from_8(seg_inode + FSEG_ID);
 
 	if (UNIV_UNLIKELY(descr_id != seg_id)) {
@@ -3660,26 +3728,42 @@ crash:
 			    descr + XDES_FLST_NODE, mtr);
 		flst_add_last(seg_inode + FSEG_NOT_FULL,
 			      descr + XDES_FLST_NODE, mtr);
-		mlog_write_ulint(seg_inode + FSEG_NOT_FULL_N_USED,
-				 not_full_n_used + FSP_EXTENT_SIZE - 1,
-				 MLOG_4BYTES, mtr);
+		not_full_n_used += FSP_EXTENT_SIZE - 1;
 	} else {
 		ut_a(not_full_n_used > 0);
-		mlog_write_ulint(seg_inode + FSEG_NOT_FULL_N_USED,
-				 not_full_n_used - 1, MLOG_4BYTES, mtr);
+		not_full_n_used -= 1;
 	}
 
-	const ulint	bit = page_id.page_no() % FSP_EXTENT_SIZE;
+	const page_no_t bit = page_id.page_no() % FSP_EXTENT_SIZE;
 
 	xdes_set_bit(descr, XDES_FREE_BIT, bit, TRUE, mtr);
 	xdes_set_bit(descr, XDES_CLEAN_BIT, bit, TRUE, mtr);
 
-	if (xdes_is_free(descr, mtr)) {
+	page_no_t n_used = xdes_get_n_used(descr, mtr);
+
+	ut_ad(state != XDES_FSEG_FRAG || (bit != 0 && bit != 1));
+	ut_ad(state != XDES_FSEG_FRAG || n_used > 1);
+	ut_ad(xdes_is_leasable(descr, page_size, mtr)
+	      == (state == XDES_FSEG_FRAG && n_used == XDES_FRAG_N_USED));
+
+	/* A leased fragment extent might have no more pages belonging to
+	the segment.*/
+	if (state == XDES_FSEG_FRAG && n_used == XDES_FRAG_N_USED) {
+		n_used = 0;
+		not_full_n_used -= XDES_FRAG_N_USED;
+	}
+
+	mlog_write_ulint(seg_inode + FSEG_NOT_FULL_N_USED, not_full_n_used,
+			 MLOG_4BYTES, mtr);
+
+	if (n_used == 0) {
 		/* The extent has become free: free it to space */
 		flst_remove(seg_inode + FSEG_NOT_FULL,
 			    descr + XDES_FLST_NODE, mtr);
 		fsp_free_extent(page_id, page_size, mtr);
 	}
+
+	DBUG_VOID_RETURN;
 }
 
 /**********************************************************************//**
@@ -3688,16 +3772,20 @@ void
 fseg_free_page(
 /*===========*/
 	fseg_header_t*	seg_header, /*!< in: segment header */
-	ulint		space_id,/*!< in: space id */
-	ulint		page,	/*!< in: page offset */
+	space_id_t	space_id,/*!< in: space id */
+	page_no_t	page,	/*!< in: page offset */
 	bool		ahi,	/*!< in: whether we may need to drop
 				the adaptive hash index */
 	mtr_t*		mtr)	/*!< in/out: mini-transaction */
 {
+	DBUG_ENTER("fseg_free_page");
 	fseg_inode_t*		seg_inode;
 	buf_block_t*		iblock;
 	const fil_space_t*	space = mtr_x_lock_space(space_id, mtr);
 	const page_size_t	page_size(space->flags);
+
+	DBUG_LOG("fseg_free_page", "space_id: " << space_id
+		 << ", page_no: " << page);
 
 	seg_inode = fseg_inode_get(seg_header, space_id, page_size, mtr,
 				   &iblock);
@@ -3708,6 +3796,8 @@ fseg_free_page(
 	fseg_free_page_low(seg_inode, page_id, page_size, ahi, mtr);
 
 	ut_d(buf_page_set_file_page_was_freed(page_id));
+
+	DBUG_VOID_RETURN;
 }
 
 /**********************************************************************//**
@@ -3717,8 +3807,8 @@ bool
 fseg_page_is_free(
 /*==============*/
 	fseg_header_t*	seg_header,	/*!< in: segment header */
-	ulint		space_id,	/*!< in: space id */
-	ulint		page)		/*!< in: page offset */
+	space_id_t	space_id,	/*!< in: space id */
+	page_no_t	page)		/*!< in: page offset */
 {
 	mtr_t		mtr;
 	ibool		is_free;
@@ -3747,32 +3837,36 @@ fseg_page_is_free(
 	return(is_free);
 }
 
-/**********************************************************************//**
-Frees an extent of a segment to the space free list. */
+/** Frees an extent of a segment to the space free list.
+@param[in]	seg_inode	segment inode
+@param[in]	space		space id
+@param[in]	page		a page in the extent
+@param[in]	page_size	page size
+@param[in]	ahi		whether we may need to drop the adaptive hash
+				index
+@param[in,out]	mtr		mini-transaction */
 static
 void
 fseg_free_extent(
-/*=============*/
-	fseg_inode_t*	seg_inode, /*!< in: segment inode */
-	ulint		space,	/*!< in: space id */
+	fseg_inode_t*		seg_inode,
+	space_id_t		space,
 	const page_size_t&	page_size,
-	ulint		page,	/*!< in: a page in the extent */
-	bool		ahi,	/*!< in: whether we may need to drop
-				the adaptive hash index */
-	mtr_t*		mtr)	/*!< in/out: mini-transaction */
+	page_no_t		page,
+	bool			ahi,
+	mtr_t*			mtr)
 {
-	ulint	first_page_in_extent;
-	xdes_t*	descr;
-	ulint	not_full_n_used;
-	ulint	descr_n_used;
-	ulint	i;
+	page_no_t	first_page_in_extent;
+	xdes_t*		descr;
+	page_no_t	i;
 
 	ut_ad(seg_inode != NULL);
 	ut_ad(mtr != NULL);
 
 	descr = xdes_get_descriptor(space, page, page_size, mtr);
 
-	ut_a(xdes_get_state(descr, mtr) == XDES_FSEG);
+	const xdes_state_t state = xdes_get_state(descr, mtr);
+	ut_a(state == XDES_FSEG || state == XDES_FSEG_FRAG);
+
 	ut_a(!memcmp(descr + XDES_ID, seg_inode + FSEG_ID, 8));
 	ut_ad(mach_read_from_4(seg_inode + FSEG_MAGIC_N)
 	      == FSEG_MAGIC_N_VALUE);
@@ -3781,7 +3875,10 @@ fseg_free_extent(
 	first_page_in_extent = page - (page % FSP_EXTENT_SIZE);
 
 	if (ahi) {
-		for (i = 0; i < FSP_EXTENT_SIZE; i++) {
+
+		for (i = state == XDES_FSEG ? 0 : XDES_FRAG_N_USED;
+		     i < FSP_EXTENT_SIZE; i++) {
+
 			if (!xdes_mtr_get_bit(descr, XDES_FREE_BIT, i, mtr)) {
 
 				/* Drop search system page hash index
@@ -3806,10 +3903,10 @@ fseg_free_extent(
 		flst_remove(seg_inode + FSEG_NOT_FULL,
 			    descr + XDES_FLST_NODE, mtr);
 
-		not_full_n_used = mtr_read_ulint(
+		page_no_t not_full_n_used = mtr_read_ulint(
 			seg_inode + FSEG_NOT_FULL_N_USED, MLOG_4BYTES, mtr);
 
-		descr_n_used = xdes_get_n_used(descr, mtr);
+		page_no_t descr_n_used = xdes_get_n_used(descr, mtr);
 		ut_a(not_full_n_used >= descr_n_used);
 		mlog_write_ulint(seg_inode + FSEG_NOT_FULL_N_USED,
 				 not_full_n_used - descr_n_used,
@@ -3819,7 +3916,8 @@ fseg_free_extent(
 	fsp_free_extent(page_id_t(space, page), page_size, mtr);
 
 #ifdef UNIV_DEBUG
-	for (i = 0; i < FSP_EXTENT_SIZE; i++) {
+	for (i = state == XDES_FSEG ? 0 : XDES_FRAG_N_USED;
+	     i < FSP_EXTENT_SIZE; i++) {
 
 		buf_page_set_file_page_was_freed(
 			page_id_t(space, first_page_in_extent + i));
@@ -3845,11 +3943,11 @@ fseg_free_step(
 	mtr_t*		mtr)	/*!< in/out: mini-transaction */
 {
 	ulint		n;
-	ulint		page;
+	page_no_t	page;
 	xdes_t*		descr;
 	fseg_inode_t*	inode;
-	ulint		space_id;
-	ulint		header_page;
+	space_id_t	space_id;
+	page_no_t	header_page;
 
 	DBUG_ENTER("fseg_free_step");
 
@@ -3929,11 +4027,10 @@ fseg_free_step_not_header(
 	mtr_t*		mtr)	/*!< in/out: mini-transaction */
 {
 	ulint		n;
-	ulint		page;
 	xdes_t*		descr;
 	fseg_inode_t*	inode;
-	ulint		space_id;
-	ulint		page_no;
+	space_id_t	space_id;
+	page_no_t	page_no;
 
 	space_id = page_get_space_id(page_align(header));
 	ut_ad(mtr->is_named_space(space_id));
@@ -3949,9 +4046,9 @@ fseg_free_step_not_header(
 
 	if (descr != NULL) {
 		/* Free the extent held by the segment */
-		page = xdes_get_offset(descr);
+		page_no = xdes_get_offset(descr);
 
-		fseg_free_extent(inode, space_id, page_size, page, ahi, mtr);
+		fseg_free_extent(inode, space_id, page_size, page_no, ahi, mtr);
 
 		return(FALSE);
 	}
@@ -3989,7 +4086,7 @@ static
 xdes_t*
 fseg_get_first_extent(
 	fseg_inode_t*		inode,
-	ulint			space_id,
+	space_id_t		space_id,
 	const page_size_t&	page_size,
 	mtr_t*			mtr)
 {
@@ -4025,134 +4122,6 @@ fseg_get_first_extent(
 	return(descr);
 }
 
-#ifdef UNIV_DEBUG
-/*******************************************************************//**
-Validates a segment.
-@return TRUE if ok */
-static
-ibool
-fseg_validate_low(
-/*==============*/
-	fseg_inode_t*	inode, /*!< in: segment inode */
-	mtr_t*		mtr2)	/*!< in/out: mini-transaction */
-{
-	ulint		space_id;
-	ib_id_t		seg_id;
-	mtr_t		mtr;
-	xdes_t*		descr;
-	fil_addr_t	node_addr;
-	ulint		n_used		= 0;
-	ulint		n_used2		= 0;
-
-	ut_ad(mtr_memo_contains_page(mtr2, inode, MTR_MEMO_PAGE_SX_FIX));
-	ut_ad(mach_read_from_4(inode + FSEG_MAGIC_N) == FSEG_MAGIC_N_VALUE);
-
-	space_id = page_get_space_id(page_align(inode));
-
-	seg_id = mach_read_from_8(inode + FSEG_ID);
-	n_used = mtr_read_ulint(inode + FSEG_NOT_FULL_N_USED,
-				MLOG_4BYTES, mtr2);
-	flst_validate(inode + FSEG_FREE, mtr2);
-	flst_validate(inode + FSEG_NOT_FULL, mtr2);
-	flst_validate(inode + FSEG_FULL, mtr2);
-
-	/* Validate FSEG_FREE list */
-	node_addr = flst_get_first(inode + FSEG_FREE, mtr2);
-
-	while (!fil_addr_is_null(node_addr)) {
-		mtr_start(&mtr);
-		const fil_space_t*	space = mtr_x_lock_space(
-			space_id, &mtr);
-
-		const page_size_t	page_size(space->flags);
-
-		descr = xdes_lst_get_descriptor(space_id, page_size,
-						node_addr, &mtr);
-
-		ut_a(xdes_get_n_used(descr, &mtr) == 0);
-		ut_a(xdes_get_state(descr, &mtr) == XDES_FSEG);
-		ut_a(mach_read_from_8(descr + XDES_ID) == seg_id);
-
-		node_addr = flst_get_next_addr(descr + XDES_FLST_NODE, &mtr);
-		mtr_commit(&mtr);
-	}
-
-	/* Validate FSEG_NOT_FULL list */
-
-	node_addr = flst_get_first(inode + FSEG_NOT_FULL, mtr2);
-
-	while (!fil_addr_is_null(node_addr)) {
-		mtr_start(&mtr);
-		const fil_space_t*	space = mtr_x_lock_space(
-			space_id, &mtr);
-		const page_size_t	page_size(space->flags);
-
-		descr = xdes_lst_get_descriptor(space_id, page_size,
-						node_addr, &mtr);
-
-		ut_a(xdes_get_n_used(descr, &mtr) > 0);
-		ut_a(xdes_get_n_used(descr, &mtr) < FSP_EXTENT_SIZE);
-		ut_a(xdes_get_state(descr, &mtr) == XDES_FSEG);
-		ut_a(mach_read_from_8(descr + XDES_ID) == seg_id);
-
-		n_used2 += xdes_get_n_used(descr, &mtr);
-
-		node_addr = flst_get_next_addr(descr + XDES_FLST_NODE, &mtr);
-		mtr_commit(&mtr);
-	}
-
-	/* Validate FSEG_FULL list */
-
-	node_addr = flst_get_first(inode + FSEG_FULL, mtr2);
-
-	while (!fil_addr_is_null(node_addr)) {
-		mtr_start(&mtr);
-		const fil_space_t*	space = mtr_x_lock_space(
-			space_id, &mtr);
-		const page_size_t	page_size(space->flags);
-
-		descr = xdes_lst_get_descriptor(space_id, page_size,
-						node_addr, &mtr);
-
-		ut_a(xdes_get_n_used(descr, &mtr) == FSP_EXTENT_SIZE);
-		ut_a(xdes_get_state(descr, &mtr) == XDES_FSEG);
-		ut_a(mach_read_from_8(descr + XDES_ID) == seg_id);
-
-		node_addr = flst_get_next_addr(descr + XDES_FLST_NODE, &mtr);
-		mtr_commit(&mtr);
-	}
-
-	ut_a(n_used == n_used2);
-
-	return(TRUE);
-}
-
-/*******************************************************************//**
-Validates a segment.
-@return TRUE if ok */
-ibool
-fseg_validate(
-/*==========*/
-	fseg_header_t*	header, /*!< in: segment header */
-	mtr_t*		mtr)	/*!< in/out: mini-transaction */
-{
-	fseg_inode_t*	inode;
-	ibool		ret;
-	ulint		space_id;
-
-	space_id = page_get_space_id(page_align(header));
-
-	const fil_space_t*	space = mtr_x_lock_space(space_id, mtr);
-	const page_size_t	page_size(space->flags);
-
-	inode = fseg_inode_get(header, space_id, page_size, mtr);
-
-	ret = fseg_validate_low(inode, mtr);
-
-	return(ret);
-}
-#endif /* UNIV_DEBUG */
-
 #ifdef UNIV_BTR_PRINT
 /*******************************************************************//**
 Writes info of a segment. */
@@ -4163,16 +4132,16 @@ fseg_print_low(
 	fseg_inode_t*	inode, /*!< in: segment inode */
 	mtr_t*		mtr)	/*!< in/out: mini-transaction */
 {
-	ulint	space;
-	ulint	n_used;
-	ulint	n_frag;
-	ulint	n_free;
-	ulint	n_not_full;
-	ulint	n_full;
-	ulint	reserved;
-	ulint	used;
-	ulint	page_no;
-	ib_id_t	seg_id;
+	space_id_t	space;
+	ulint		n_used;
+	ulint		n_frag;
+	ulint		n_free;
+	ulint		n_not_full;
+	ulint		n_full;
+	ulint		reserved;
+	ulint		used;
+	page_no_t	page_no;
+	ib_id_t		seg_id;
 
 	ut_ad(mtr_memo_contains_page(mtr, inode, MTR_MEMO_PAGE_SX_FIX));
 	space = page_get_space_id(page_align(inode));
@@ -4210,7 +4179,7 @@ fseg_print(
 	mtr_t*		mtr)	/*!< in/out: mini-transaction */
 {
 	fseg_inode_t*	inode;
-	ulint		space_id;
+	space_id_t	space_id;
 
 	space_id = page_get_space_id(page_align(header));
 	const fil_space_t*	space = mtr_x_lock_space(space_id, mtr);
@@ -4221,6 +4190,88 @@ fseg_print(
 	fseg_print_low(inode, mtr);
 }
 #endif /* UNIV_BTR_PRINT */
+
+/** Retrieve tablespace dictionary index root page number stored in the
+page 1
+@param[in]	space		tablespace id
+@param[in]	copy_num	sdi index copy number
+@param[in]	page_size	page size
+@param[in,out]	mtr		mini-transaction
+@return root page num of the tablspace dictionary index copy */
+page_no_t
+fsp_sdi_get_root_page_num(
+	space_id_t		space,
+	uint32_t		copy_num,
+	const page_size_t&	page_size,
+	mtr_t*			mtr)
+{
+	ut_ad(mtr != NULL);
+	ut_ad(copy_num < MAX_SDI_COPIES);
+
+	buf_block_t*	block2 = buf_page_get(
+		page_id_t(space, 2), page_size, RW_S_LATCH, mtr);
+	buf_block_dbg_add_level(block2, SYNC_FSP_PAGE);
+
+	page_t*	page2 = buf_block_get_frame(block2);
+
+	page_no_t	root_from_page2 = mach_read_from_4(
+		page2 + FIL_SDI_ROOT_PAGE_NUM + 4 * copy_num);
+
+	buf_block_t*	block1 = buf_page_get(
+		page_id_t(space, 1), page_size, RW_S_LATCH, mtr);
+	buf_block_dbg_add_level(block1, SYNC_IBUF_BITMAP);
+
+	page_t*	page1 = buf_block_get_frame(block1);
+
+	page_no_t	root_from_page1 = mach_read_from_4(
+		page1 + FIL_SDI_ROOT_PAGE_NUM + 4 * copy_num);
+
+	if (root_from_page1 != root_from_page2) {
+		ib::error() << "SDI Root page number for copy number "
+			<< copy_num << " mismatches. From page 1: "
+			<< root_from_page1 << " From page 2: "
+			<< root_from_page2;
+		ut_ad(0);
+	}
+
+	return(root_from_page1);
+}
+
+/** Write SDI Index root page num to page 1 or 2 of tablespace.
+@param[in]	space		tablespace id
+@param[in]	page_num	page number in tablespace
+@param[in]	page_size	size of page
+@param[in]	root_page_num_0	root page number of SDI copy 0
+@param[in]	root_page_num_1	root page number of SDI copy 1
+@param[in,out]	mtr		mini-transaction */
+void
+fsp_sdi_write_root_to_page(
+	space_id_t		space,
+	page_no_t		page_num,
+	const page_size_t&	page_size,
+	page_no_t		root_page_num_0,
+	page_no_t		root_page_num_1,
+	mtr_t*			mtr)
+{
+	/* We store SDI Index root page numbers only in page 1 & 2 of a
+	tablespace */
+	ut_ad(page_num == FSP_IBUF_BITMAP_OFFSET
+	      || page_num == FSP_FIRST_INODE_PAGE_NO);
+
+	buf_block_t*	block = buf_page_get(page_id_t(space, page_num),
+					     page_size, RW_SX_LATCH, mtr);
+
+	buf_block_dbg_add_level(block, page_num == FSP_IBUF_BITMAP_OFFSET
+		? SYNC_IBUF_BITMAP : SYNC_FSP_PAGE);
+
+	page_t*	page = buf_block_get_frame(block);
+
+	mlog_write_ulint(FIL_SDI_ROOT_PAGE_NUM + page,
+			 root_page_num_0, MLOG_4BYTES, mtr);
+
+	mlog_write_ulint(FIL_SDI_ROOT_PAGE_NUM + page + 4,
+			 root_page_num_1, MLOG_4BYTES, mtr);
+}
 #endif /* !UNIV_HOTBACKUP */
 
 #ifdef UNIV_DEBUG
@@ -4230,18 +4281,155 @@ fseg_print(
 std::ostream&
 fseg_header::to_stream(std::ostream&	out) const
 {
-	const ulint	space = mtr_read_ulint(m_header + FSEG_HDR_SPACE,
-					       MLOG_4BYTES, m_mtr);
+	const space_id_t space = mtr_read_ulint(m_header + FSEG_HDR_SPACE,
+		MLOG_4BYTES, m_mtr);
 
-	const ulint	page_no = mtr_read_ulint(m_header + FSEG_HDR_PAGE_NO,
+	const page_no_t page_no = mtr_read_ulint(m_header + FSEG_HDR_PAGE_NO,
 						 MLOG_4BYTES, m_mtr);
 
-	const ulint	offset = mtr_read_ulint(m_header + FSEG_HDR_OFFSET,
+	const ulint offset = mtr_read_ulint(m_header + FSEG_HDR_OFFSET,
 						 MLOG_2BYTES, m_mtr);
 
 	out << "[fseg_header_t: space=" << space << ", page="
 		<< page_no << ", offset=" << offset << "]";
 
 	return(out);
+}
+#endif /* UNIV_DEBUG */
+
+/** Determine if extent belongs to a given segment.
+@param[in]	descr	extent descriptor
+@param[in]	seg_id	segment identifier
+@param[in]	mtr	mini-transaction
+@return	true if extent is part of the segment, false otherwise */
+static
+bool
+xdes_in_segment(
+	const xdes_t*	descr,
+	ib_id_t		seg_id,
+	mtr_t*		mtr)
+{
+	const xdes_state_t state = xdes_get_state(descr, mtr);
+	return((state == XDES_FSEG || state == XDES_FSEG_FRAG)
+	       && xdes_get_segment_id(descr, mtr) == seg_id);
+}
+
+#ifdef UNIV_DEBUG
+fsp_header_mem_t::fsp_header_mem_t(
+	const fsp_header_t*	header,
+	mtr_t*			mtr)
+	:
+	m_space_id(mach_read_from_4(header + FSP_SPACE_ID)),
+	m_notused(0),
+	m_fsp_size(mach_read_from_4(header + FSP_SIZE)),
+	m_free_limit(mach_read_from_4(header + FSP_FREE_LIMIT)),
+	m_flags(mach_read_from_4(header + FSP_SPACE_FLAGS)),
+	m_fsp_frag_n_used(mach_read_from_4(header
+					   + FSP_FRAG_N_USED)),
+	m_fsp_free(header + FSP_FREE, mtr),
+	m_free_frag(header + FSP_FREE_FRAG, mtr),
+	m_full_frag(header + FSP_FULL_FRAG, mtr),
+	m_segid(mach_read_from_8(header + FSP_SEG_ID)),
+	m_inodes_full(header + FSP_SEG_INODES_FULL, mtr),
+	m_inodes_free(header + FSP_SEG_INODES_FREE, mtr) {}
+
+std::ostream&
+fsp_header_mem_t::print(std::ostream& out) const
+{
+	out << "[fsp_header_t: "
+		<< "m_space_id=" << m_space_id
+		<< ", m_fsp_size=" << m_fsp_size
+		<< ", m_free_limit=" << m_free_limit
+		<< ", m_flags=" << m_flags
+		<< ", m_fsp_frag_n_used=" << m_fsp_frag_n_used
+		<< ", m_fsp_free=" << m_fsp_free
+		<< ", m_free_frag=" << m_free_frag
+		<< ", m_full_frag=" << m_full_frag
+		<< ", m_segid=" << m_segid
+		<< ", m_inodes_full=" << m_inodes_full
+		<< ", m_inodes_free=" << m_inodes_free
+		<< "]";
+	return(out);
+}
+
+/** Print the extent descriptor page in user-friendly format.
+@param[in]	out	the output file stream
+@param[in]	xdes	the extent descriptor page
+@param[in]	page_no	the page number of xdes page
+@param[in]	mtr	the mini transaction.
+@return None. */
+std::ostream&
+xdes_page_print(
+	std::ostream&	out,
+	const page_t*	xdes,
+	page_no_t	page_no,
+	mtr_t*		mtr)
+{
+	out << "[Extent Descriptor Page: page_no=" << page_no << "\n";
+
+	if (page_no == 0) {
+		const fsp_header_t* tmp = xdes + FSP_HEADER_OFFSET;
+		fsp_header_mem_t	header(tmp, mtr);
+		out << header << "\n";
+	}
+
+	ulint	N = UNIV_PAGE_SIZE / FSP_EXTENT_SIZE;
+
+	for (ulint i = 0; i < N; ++i) {
+		const byte*	desc = xdes + XDES_ARR_OFFSET + (i * XDES_SIZE);
+		xdes_mem_t	x(desc);
+
+		if (x.is_valid()) {
+			out << x << "\n";
+		}
+	}
+	out << "]\n";
+	return(out);
+}
+
+std::ostream&
+xdes_mem_t::print(std::ostream&	out) const
+{
+	ut_ad(m_xdes != NULL);
+
+	const page_no_t page_no = xdes_get_offset(m_xdes);
+	const ib_id_t seg_id = xdes_get_segment_id(m_xdes);
+
+	out << "[xdes_t: segid=" << seg_id << ",page=" << page_no << ",state="
+		<< state_name() << ",bitmap=[";
+	for (page_no_t i = 0; i < FSP_EXTENT_SIZE; ++i) {
+		const bool is_free = xdes_get_bit(m_xdes, XDES_FREE_BIT, i);
+		out << (is_free ? "." : "+");
+	}
+	out << "]]";
+	return(out);
+}
+
+/** Check if the tablespace size information is valid.
+@param[in]	space_id	the tablespace identifier
+@return true if valid, false if invalid. */
+bool
+fsp_check_tablespace_size(space_id_t space_id)
+{
+	mtr_t	mtr;
+
+	mtr_start(&mtr);
+
+	fil_space_t* space = mtr_x_lock_space(space_id, &mtr);
+        const page_size_t       page_size(space->flags);
+
+	fsp_header_t* space_header = fsp_get_space_header(
+		space_id, page_size, &mtr);
+
+	xdes_t* descr = xdes_get_descriptor_with_space_hdr(
+		space_header, space->id, 0, &mtr);
+
+        ulint	n_used = xdes_get_n_used(descr, &mtr);
+        ulint	size = mach_read_from_4(space_header + FSP_SIZE);
+        ut_a(n_used <= size);
+
+	mtr_commit(&mtr);
+
+	return(true);
 }
 #endif /* UNIV_DEBUG */

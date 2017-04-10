@@ -1,8 +1,8 @@
 
--- source include/have_query_cache.inc
 #
 # Test of query cache with --lower-case-table-names
 #
+SET @save_query_cache_size = @@query_cache_size;
 set GLOBAL query_cache_size=1355776;
 
 --disable_warnings
@@ -27,6 +27,6 @@ select * from MySQL.db;
 enable_result_log;
 show status like "Qcache_queries_in_cache";
 
-set GLOBAL query_cache_size=DEFAULT;
+set GLOBAL query_cache_size=@save_query_cache_size;
 
 # End of 4.1 tests

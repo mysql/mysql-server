@@ -58,15 +58,8 @@ class FlushObserver;
 /** Dummy session used currently in MySQL interface */
 extern sess_t*	trx_dummy_sess;
 
-/**
-Releases the search latch if trx has reserved it.
-@param[in,out] trx		Transaction that may own the AHI latch */
-UNIV_INLINE
-void
-trx_search_latch_release_if_reserved(trx_t* trx);
-
 /** Set flush observer for the transaction
-@param[in/out]	trx		transaction struct
+@param[in,out]	trx		transaction struct
 @param[in]	observer	flush observer */
 void
 trx_set_flush_observer(
@@ -109,13 +102,17 @@ trx_t*
 trx_allocate_for_background(void);
 /*=============================*/
 
-/** Frees and initialize a transaction object instantinated during recovery.
-@param trx trx object to free and initialize during recovery */
+/** Resurrect table locks for resurrected transactions. */
+void
+trx_resurrect_locks();
+
+/** Free and initialize a transaction object instantiated during recovery.
+@param[in,out]	trx	transaction object to free and initialize */
 void
 trx_free_resurrected(trx_t* trx);
 
 /** Free a transaction that was allocated by background or user threads.
-@param trx trx object to free */
+@param[in,out]	trx	transaction object to free */
 void
 trx_free_for_background(trx_t* trx);
 
@@ -410,15 +407,15 @@ trx_get_dict_operation(
 /*===================*/
 	const trx_t*	trx)	/*!< in: transaction */
 	MY_ATTRIBUTE((warn_unused_result));
-/**********************************************************************//**
-Flag a transaction a dictionary operation. */
+
+/** Flag a transaction a dictionary operation.
+@param[in,out]	trx	transaction
+@param[in]	op	operation, not TRX_DICT_OP_NONE */
 UNIV_INLINE
 void
 trx_set_dict_operation(
-/*===================*/
-	trx_t*			trx,	/*!< in/out: transaction */
-	enum trx_dict_op_t	op);	/*!< in: operation, not
-					TRX_DICT_OP_NONE */
+	trx_t*			trx,
+	enum trx_dict_op_t	op);
 
 #ifndef UNIV_HOTBACKUP
 /**********************************************************************//**
@@ -508,13 +505,11 @@ trx_id_t
 trx_get_id_for_print(
 	const trx_t*	trx);
 
-/****************************************************************//**
-Assign a transaction temp-tablespace bound rollback-segment. */
+/** Assign a temp-tablespace bound rollback-segment to a transaction.
+@param[in,out]	trx	transaction that involves write to temp-table. */
 void
-trx_assign_rseg(
-/*============*/
-	trx_t*		trx);		/*!< transaction that involves write
-					to temp-table. */
+trx_assign_rseg_temp(
+	trx_t*		trx);
 
 /** Create the trx_t pool */
 void
@@ -592,7 +587,7 @@ Transactions that aren't started by the MySQL server don't set
 the trx_t::mysql_thd field. For such transactions we set the lock
 wait timeout to 0 instead of the user configured value that comes
 from innodb_lock_wait_timeout via trx_t::mysql_thd.
-@param trx transaction
+@param	t transaction
 @return lock wait timeout in seconds */
 #define trx_lock_wait_timeout_get(t)					\
 	((t)->mysql_thd != NULL						\
@@ -888,6 +883,32 @@ struct TrxVersion {
 typedef std::list<TrxVersion, ut_allocator<TrxVersion> > hit_list_t;
 
 struct trx_t {
+
+	enum isolation_level_t {
+
+		/** dirty read: non-locking SELECTs are performed so that we
+		do not look at a possible earlier version of a record; thus
+		they are not 'consistent' reads under this isolation level;
+		otherwise like level 2 */
+		READ_UNCOMMITTED,
+
+		/** somewhat Oracle-like isolation, except that in range UPDATE
+		and DELETE we must block phantom rows with next-key locks;
+		SELECT ... FOR UPDATE and ...  LOCK IN SHARE MODE only lock
+		the index records, NOT the gaps before them, and thus allow
+		free inserting; each consistent read reads its own snapshot */
+		READ_COMMITTED,
+
+		/** this is the default; all consistent reads in the same trx
+		read the same snapshot; full next-key locking used in locking
+		reads to block insertions into gaps */
+		REPEATABLE_READ,
+
+		/** all plain SELECTs are converted to LOCK IN SHARE MODE
+		reads */
+		SERIALIZABLE
+	};
+
 	TrxMutex	mutex;		/*!< Mutex protecting the fields
 					state and lock (except some fields
 					of lock, which are protected by
@@ -1067,7 +1088,11 @@ struct trx_t {
 	ulint		duplicates;	/*!< TRX_DUP_IGNORE | TRX_DUP_REPLACE */
 	bool		has_search_latch;
 					/*!< TRUE if this trx has latched the
-					search system latch in S-mode */
+					search system latch in S-mode.
+					This now can only be true in
+					row_search_mvcc, the btr search latch
+					must has been released before exiting,
+					and this flag would be set to false */
 	trx_dict_op_t	dict_operation;	/**< @see enum trx_dict_op_t */
 
 	/* Fields protected by the srv_conc_mutex. */
@@ -1165,7 +1190,7 @@ struct trx_t {
 					with no gaps; thus it represents
 					the number of modified/inserted
 					rows in a transaction */
-	ulint		undo_rseg_space;
+	space_id_t	undo_rseg_space;
 					/*!< space id where last undo record
 					was written */
 	trx_savept_t	last_sql_stat_start;
@@ -1263,12 +1288,37 @@ struct trx_t {
 					Committed on DD tables */
 #endif /* UNIV_DEBUG */
 	ulint		magic_n;
+
+	bool skip_gap_locks() const
+	{
+		switch (isolation_level) {
+		case READ_UNCOMMITTED:
+		case READ_COMMITTED:
+			return(true);
+		case REPEATABLE_READ:
+		case SERIALIZABLE:
+			return(false);
+		}
+		ut_ad(0);
+		return(false);
+	}
+
+	bool allow_semi_consistent() const
+	{
+		return(skip_gap_locks());
+	}
 };
+
+/* Transaction isolation levels (trx->isolation_level) */
+#define TRX_ISO_READ_UNCOMMITTED	trx_t::READ_UNCOMMITTED
+#define TRX_ISO_READ_COMMITTED		trx_t::READ_COMMITTED
+#define TRX_ISO_REPEATABLE_READ		trx_t::REPEATABLE_READ
+#define TRX_ISO_SERIALIZABLE		trx_t::SERIALIZABLE
 
 /**
 Check if transaction is started.
 @param[in] trx		Transaction whose state we need to check
-@reutrn true if transaction is in state started */
+@return true if transaction is in state started */
 inline
 bool
 trx_is_started(
@@ -1277,41 +1327,6 @@ trx_is_started(
 	return(trx->state != TRX_STATE_NOT_STARTED
 	       && trx->state != TRX_STATE_FORCED_ROLLBACK);
 }
-
-/* Transaction isolation levels (trx->isolation_level) */
-#define TRX_ISO_READ_UNCOMMITTED	0	/* dirty read: non-locking
-						SELECTs are performed so that
-						we do not look at a possible
-						earlier version of a record;
-						thus they are not 'consistent'
-						reads under this isolation
-						level; otherwise like level
-						2 */
-
-#define TRX_ISO_READ_COMMITTED		1	/* somewhat Oracle-like
-						isolation, except that in
-						range UPDATE and DELETE we
-						must block phantom rows
-						with next-key locks;
-						SELECT ... FOR UPDATE and ...
-						LOCK IN SHARE MODE only lock
-						the index records, NOT the
-						gaps before them, and thus
-						allow free inserting;
-						each consistent read reads its
-						own snapshot */
-
-#define TRX_ISO_REPEATABLE_READ		2	/* this is the default;
-						all consistent reads in the
-						same trx read the same
-						snapshot;
-						full next-key locking used
-						in locking reads to block
-						insertions into gaps */
-
-#define TRX_ISO_SERIALIZABLE		3	/* all plain SELECTs are
-						converted to LOCK IN SHARE
-						MODE reads */
 
 /* Treatment of duplicate values (trx->duplicates; for example, in inserts).
 Multiple flags can be combined with bitwise OR. */
@@ -1425,9 +1440,9 @@ public:
 	}
 
 private:
-	/**
-	Note that we have crossed into InnoDB code.
-	@param[in] disable	true if called from COMMIT/ROLLBACK method */
+	/** Note that we have crossed into InnoDB code.
+	@param[in]	trx	transaction
+	@param[in]	disable	true if called from COMMIT/ROLLBACK method */
 	static void enter(trx_t* trx, bool disable)
 	{
 		if (srv_read_only_mode) {
@@ -1468,10 +1483,6 @@ private:
 			return;
 		}
 
-		/* Only the owning thread should release the latch. */
-
-		trx_search_latch_release_if_reserved(trx);
-
 		trx_mutex_enter(trx);
 
 		wait(trx);
@@ -1502,10 +1513,6 @@ private:
 
 			return;
 		}
-
-		/* Only the owning thread should release the latch. */
-
-		trx_search_latch_release_if_reserved(trx);
 
 		trx_mutex_enter(trx);
 
@@ -1574,9 +1581,7 @@ private:
 	trx_t*			m_trx;
 };
 
-#ifndef UNIV_NONINL
 #include "trx0trx.ic"
-#endif
 #endif /* !UNIV_HOTBACKUP */
 
 #endif

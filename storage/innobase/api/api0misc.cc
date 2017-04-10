@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2008, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2008, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -24,16 +24,16 @@ InnoDB Native API
 3/20/2011 Jimmy Yang extracted from Embedded InnoDB
 *******************************************************/
 
-#include "ha_prototypes.h"
-
 #include "api0misc.h"
-#include "trx0roll.h"
-#include "srv0srv.h"
-#include "dict0mem.h"
 #include "dict0dict.h"
+#include "dict0mem.h"
+#include "ha_prototypes.h"
+#include "lock0lock.h"
+#include "my_inttypes.h"
 #include "pars0pars.h"
 #include "row0sel.h"
-#include "lock0lock.h"
+#include "srv0srv.h"
+#include "trx0roll.h"
 
 /*********************************************************************//**
 Sets a lock on a table.

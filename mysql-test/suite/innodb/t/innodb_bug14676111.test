@@ -1,14 +1,6 @@
 # Test for bug #14676111: WRONG PAGE_LEVEL WRITTEN FOR UPPER THAN FATHER PAGE AT BTR_LIFT_PAGE_UP()
 
--- source include/have_innodb.inc
 -- source include/have_debug.inc
-
---disable_warnings
-if (`select count(*)=0 from information_schema.global_variables where variable_name = 'INNODB_LIMIT_OPTIMISTIC_INSERT_DEBUG'`)
-{
-  --skip Test requires InnoDB built with UNIV_DEBUG definition.
-}
---enable_warnings
 
 --disable_query_log
 set @old_innodb_limit_optimistic_insert_debug = @@innodb_limit_optimistic_insert_debug;

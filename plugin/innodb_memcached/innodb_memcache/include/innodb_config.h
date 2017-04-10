@@ -1,6 +1,6 @@
 /***********************************************************************
 
-Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify it
 under the terms of the GNU General Public License as published by the
@@ -24,6 +24,10 @@ Created 03/15/2011      Jimmy Yang
 
 #ifndef innodb_config_h
 #define innodb_config_h
+
+#if defined(WITH_INNODB_MEMCACHED) && defined(UNIV_DEBUG)
+#define UNIV_MEMCACHED_SDI
+#endif
 
 #include "api0api.h"
 #include "innodb_utility.h"

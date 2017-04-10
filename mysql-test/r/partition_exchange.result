@@ -367,13 +367,12 @@ DROP TABLE t1, t2;
 #
 # Bug#56484: !table || (!table->read_set ||
 #                       bitmap_is_set(table->read_set, field_index))
+# After WL#8971, the test case was rewritten to use InnoDB.
 #
-CREATE TABLE t1 (a INT NOT NULL,b TIME NOT NULL DEFAULT '00:00:00')
-ENGINE=MyISAM
+CREATE TABLE t1 (a INT NOT NULL, b TIME NOT NULL DEFAULT '00:00:00')
+ENGINE=InnoDB
 PARTITION BY HASH (a) PARTITIONS 2;
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
-CREATE TABLE t2 (a INT) ENGINE=MYISAM;
+CREATE TABLE t2 (a INT) ENGINE=InnoDB;
 ALTER TABLE t1 EXCHANGE PARTITION p1 WITH TABLE t2;
 ERROR HY000: Tables have different definitions
 DROP TABLE t1, t2;
@@ -394,21 +393,16 @@ DROP TABLE t2, t1, t3;
 # Tests for WL#4445
 CREATE TABLE t (a INT,
 b VARCHAR(55),
-PRIMARY KEY (a))
-ENGINE = MyISAM;
+PRIMARY KEY (a));
 CREATE TABLE tp (a INT,
 b VARCHAR(55),
 PRIMARY KEY (a))
-ENGINE = MyISAM
 PARTITION BY RANGE (a)
 (PARTITION p0 VALUES LESS THAN (100),
 PARTITION p1 VALUES LESS THAN MAXVALUE);
-Warnings:
-Warning	1287	The partition engine, used by table 'test.tp', is deprecated and will be removed in a future release. Please use native partitioning instead.
 CREATE TABLE tsp (a INT,
 b VARCHAR(55),
 PRIMARY KEY (a))
-ENGINE = MyISAM
 PARTITION BY RANGE (a)
 SUBPARTITION BY HASH(a)
 (PARTITION p0 VALUES LESS THAN (100)
@@ -417,34 +411,26 @@ SUBPARTITION sp1),
 PARTITION p1 VALUES LESS THAN MAXVALUE
 (SUBPARTITION sp2,
 SUBPARTITION sp3));
-Warnings:
-Warning	1287	The partition engine, used by table 'test.tsp', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t VALUES (1, "First value"), (3, "Three"), (5, "Five"), (99, "End of values");
 INSERT INTO tp VALUES (2, "First value"), (10, "Ten"), (50, "Fifty"), (200, "Two hundred, end of values"), (61, "Sixty one"), (62, "Sixty two"), (63, "Sixty three"), (64, "Sixty four"), (161, "161"), (162, "162"), (163, "163"), (164, "164");
-Warnings:
-Warning	1287	The partition engine, used by table 'test.tp', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO tsp VALUES (2, "First value"), (10, "Ten"), (50, "Fifty"), (200, "Two hundred, end of values"), (61, "Sixty one"), (62, "Sixty two"), (63, "Sixty three"), (64, "Sixty four"), (161, "161"), (162, "162"), (163, "163"), (164, "164");
-Warnings:
-Warning	1287	The partition engine, used by table 'test.tsp', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SHOW CREATE TABLE t;
 Table	Create Table
 t	CREATE TABLE `t` (
   `a` int(11) NOT NULL,
   `b` varchar(55) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 SHOW CREATE TABLE tp;
 Table	Create Table
 tp	CREATE TABLE `tp` (
   `a` int(11) NOT NULL,
   `b` varchar(55) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY RANGE (a)
-(PARTITION p0 VALUES LESS THAN (100) ENGINE = MyISAM,
- PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
-Warnings:
-Warning	1287	The partition engine, used by table 'test.tp', is deprecated and will be removed in a future release. Please use native partitioning instead.
+(PARTITION p0 VALUES LESS THAN (100) ENGINE = InnoDB,
+ PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
 SELECT * FROM t;
 a	b
 1	First value
@@ -472,19 +458,17 @@ t	CREATE TABLE `t` (
   `a` int(11) NOT NULL,
   `b` varchar(55) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 SHOW CREATE TABLE tp;
 Table	Create Table
 tp	CREATE TABLE `tp` (
   `a` int(11) NOT NULL,
   `b` varchar(55) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY RANGE (a)
-(PARTITION p0 VALUES LESS THAN (100) ENGINE = MyISAM,
- PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
-Warnings:
-Warning	1287	The partition engine, used by table 'test.tp', is deprecated and will be removed in a future release. Please use native partitioning instead.
+(PARTITION p0 VALUES LESS THAN (100) ENGINE = InnoDB,
+ PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
 SELECT * FROM t;
 a	b
 10	Ten
@@ -526,8 +510,6 @@ a	b
 62	Sixty two
 63	Sixty three
 64	Sixty four
-Warning	1287	The partition engine, used by table 'test.tp', is deprecated and will be removed in a future release. Please use native partitioning instead.
-Warnings:
 ALTER TABLE tp EXCHANGE PARTITION p1 WITH TABLE t;
 ERROR HY000: Found a row that does not match the partition
 SHOW CREATE TABLE t;
@@ -536,19 +518,17 @@ t	CREATE TABLE `t` (
   `a` int(11) NOT NULL,
   `b` varchar(55) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 SHOW CREATE TABLE tp;
 Table	Create Table
 tp	CREATE TABLE `tp` (
   `a` int(11) NOT NULL,
   `b` varchar(55) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY RANGE (a)
-(PARTITION p0 VALUES LESS THAN (100) ENGINE = MyISAM,
- PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
-Warnings:
-Warning	1287	The partition engine, used by table 'test.tp', is deprecated and will be removed in a future release. Please use native partitioning instead.
+(PARTITION p0 VALUES LESS THAN (100) ENGINE = InnoDB,
+ PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
 SELECT * FROM t;
 a	b
 1	First value
@@ -594,36 +574,32 @@ t	CREATE TABLE `t` (
   `a` int(11) NOT NULL,
   `b` varchar(55) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 SHOW CREATE TABLE tp;
 Table	Create Table
 tp	CREATE TABLE `tp` (
   `a` int(11) NOT NULL,
   `b` varchar(55) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY RANGE (a)
-(PARTITION p0 VALUES LESS THAN (100) ENGINE = MyISAM,
- PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
-Warnings:
-Warning	1287	The partition engine, used by table 'test.tp', is deprecated and will be removed in a future release. Please use native partitioning instead.
+(PARTITION p0 VALUES LESS THAN (100) ENGINE = InnoDB,
+ PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
 SHOW CREATE TABLE tsp;
 Table	Create Table
 tsp	CREATE TABLE `tsp` (
   `a` int(11) NOT NULL,
   `b` varchar(55) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY RANGE (a)
 SUBPARTITION BY HASH (a)
 (PARTITION p0 VALUES LESS THAN (100)
- (SUBPARTITION sp0 ENGINE = MyISAM,
-  SUBPARTITION sp1 ENGINE = MyISAM),
+ (SUBPARTITION sp0 ENGINE = InnoDB,
+  SUBPARTITION sp1 ENGINE = InnoDB),
  PARTITION p1 VALUES LESS THAN MAXVALUE
- (SUBPARTITION sp2 ENGINE = MyISAM,
-  SUBPARTITION sp3 ENGINE = MyISAM)) */
-Warnings:
-Warning	1287	The partition engine, used by table 'test.tsp', is deprecated and will be removed in a future release. Please use native partitioning instead.
+ (SUBPARTITION sp2 ENGINE = InnoDB,
+  SUBPARTITION sp3 ENGINE = InnoDB)) */
 SELECT * FROM t;
 a	b
 1	First value
@@ -652,19 +628,17 @@ t	CREATE TABLE `t` (
   `a` int(11) NOT NULL,
   `b` varchar(55) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 SHOW CREATE TABLE tp;
 Table	Create Table
 tp	CREATE TABLE `tp` (
   `a` int(11) NOT NULL,
   `b` varchar(55) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY RANGE (a)
-(PARTITION p0 VALUES LESS THAN (100) ENGINE = MyISAM,
- PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
-Warnings:
-Warning	1287	The partition engine, used by table 'test.tp', is deprecated and will be removed in a future release. Please use native partitioning instead.
+(PARTITION p0 VALUES LESS THAN (100) ENGINE = InnoDB,
+ PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
 SELECT * FROM t;
 a	b
 10	Ten
@@ -692,19 +666,17 @@ t	CREATE TABLE `t` (
   `a` int(11) NOT NULL,
   `b` varchar(55) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 SHOW CREATE TABLE tp;
 Table	Create Table
 tp	CREATE TABLE `tp` (
   `a` int(11) NOT NULL,
   `b` varchar(55) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY RANGE (a)
-(PARTITION p0 VALUES LESS THAN (100) ENGINE = MyISAM,
- PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
-Warnings:
-Warning	1287	The partition engine, used by table 'test.tp', is deprecated and will be removed in a future release. Please use native partitioning instead.
+(PARTITION p0 VALUES LESS THAN (100) ENGINE = InnoDB,
+ PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
 SELECT * FROM t;
 a	b
 1	First value
@@ -733,24 +705,22 @@ t	CREATE TABLE `t` (
   `a` int(11) NOT NULL,
   `b` varchar(55) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 SHOW CREATE TABLE tsp;
 Table	Create Table
 tsp	CREATE TABLE `tsp` (
   `a` int(11) NOT NULL,
   `b` varchar(55) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY RANGE (a)
 SUBPARTITION BY HASH (a)
 (PARTITION p0 VALUES LESS THAN (100)
- (SUBPARTITION sp0 ENGINE = MyISAM,
-  SUBPARTITION sp1 ENGINE = MyISAM),
+ (SUBPARTITION sp0 ENGINE = InnoDB,
+  SUBPARTITION sp1 ENGINE = InnoDB),
  PARTITION p1 VALUES LESS THAN MAXVALUE
- (SUBPARTITION sp2 ENGINE = MyISAM,
-  SUBPARTITION sp3 ENGINE = MyISAM)) */
-Warnings:
-Warning	1287	The partition engine, used by table 'test.tsp', is deprecated and will be removed in a future release. Please use native partitioning instead.
+ (SUBPARTITION sp2 ENGINE = InnoDB,
+  SUBPARTITION sp3 ENGINE = InnoDB)) */
 SELECT * FROM t;
 a	b
 61	Sixty one
@@ -889,14 +859,11 @@ tp	CREATE TABLE `tp` (
 /*!50100 PARTITION BY RANGE (a)
 (PARTITION p0 VALUES LESS THAN (100) ENGINE = InnoDB,
  PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
+ALTER TABLE t ENGINE = InnoDB;
 # Test different charsets
-ALTER TABLE t ENGINE = MyISAM;
 CREATE TABLE tmp LIKE t;
 INSERT INTO tmp SELECT * FROM t;
 RENAME TABLE t TO tmp2, tmp TO t;
-ALTER TABLE tp ENGINE = MyISAM;
-Warnings:
-Warning	1287	The partition engine, used by table 'test.tp', is deprecated and will be removed in a future release. Please use native partitioning instead.
 ALTER TABLE t CHARACTER SET = koi8r COLLATE koi8r_general_ci;
 ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t;
 ERROR HY000: Non matching attribute 'CHARACTER SET' between partition and table
@@ -905,7 +872,7 @@ DROP TABLE t;
 CREATE TABLE t (a INT,
 b VARCHAR(55),
 PRIMARY KEY (a))
-ENGINE = MyISAM MAX_ROWS = 100000 MIN_ROWS = 1000;
+MAX_ROWS = 100000 MIN_ROWS = 1000;
 INSERT INTO t SELECT * FROM tmp2;
 SHOW CREATE TABLE t;
 Table	Create Table
@@ -913,19 +880,17 @@ t	CREATE TABLE `t` (
   `a` int(11) NOT NULL,
   `b` varchar(55) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1 MIN_ROWS=1000 MAX_ROWS=100000
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 MIN_ROWS=1000 MAX_ROWS=100000
 SHOW CREATE TABLE tp;
 Table	Create Table
 tp	CREATE TABLE `tp` (
   `a` int(11) NOT NULL,
   `b` varchar(55) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY RANGE (a)
-(PARTITION p0 VALUES LESS THAN (100) ENGINE = MyISAM,
- PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
-Warnings:
-Warning	1287	The partition engine, used by table 'test.tp', is deprecated and will be removed in a future release. Please use native partitioning instead.
+(PARTITION p0 VALUES LESS THAN (100) ENGINE = InnoDB,
+ PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
 ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t;
 ERROR HY000: Non matching attribute 'MAX_ROWS' between partition and table
 SHOW WARNINGS;
@@ -936,14 +901,8 @@ DROP TABLE t;
 RENAME TABLE tmp2 TO t;
 ALTER TABLE t ADD KEY ba_key (b, a);
 ALTER TABLE tp ADD KEY ba_key (b, a);
-Warnings:
-Warning	1287	The partition engine, used by table 'test.tp', is deprecated and will be removed in a future release. Please use native partitioning instead.
 ALTER TABLE tsp ADD KEY ba_key (b, a);
-Warnings:
-Warning	1287	The partition engine, used by table 'test.tsp', is deprecated and will be removed in a future release. Please use native partitioning instead.
 ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t;
-Warnings:
-Warning	1287	The partition engine, used by table 'test.tp', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SHOW CREATE TABLE t;
 Table	Create Table
 t	CREATE TABLE `t` (
@@ -951,7 +910,7 @@ t	CREATE TABLE `t` (
   `b` varchar(55) DEFAULT NULL,
   PRIMARY KEY (`a`),
   KEY `ba_key` (`b`,`a`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 SHOW CREATE TABLE tp;
 Table	Create Table
 tp	CREATE TABLE `tp` (
@@ -959,12 +918,10 @@ tp	CREATE TABLE `tp` (
   `b` varchar(55) DEFAULT NULL,
   PRIMARY KEY (`a`),
   KEY `ba_key` (`b`,`a`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY RANGE (a)
-(PARTITION p0 VALUES LESS THAN (100) ENGINE = MyISAM,
- PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
-Warnings:
-Warning	1287	The partition engine, used by table 'test.tp', is deprecated and will be removed in a future release. Please use native partitioning instead.
+(PARTITION p0 VALUES LESS THAN (100) ENGINE = InnoDB,
+ PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
 SELECT * FROM t;
 a	b
 10	Ten
@@ -999,10 +956,6 @@ ALTER TABLE tsp EXCHANGE PARTITION sp1 WITH TABLE t;
 ERROR HY000: Tables have different definitions
 ALTER TABLE t CHANGE c a INT;
 # test temporary table
-ALTER TABLE t ENGINE = MyISAM;
-ALTER TABLE tp ENGINE = MyISAM;
-Warnings:
-Warning	1287	The partition engine, used by table 'test.tp', is deprecated and will be removed in a future release. Please use native partitioning instead.
 CREATE TEMPORARY TABLE tmp LIKE t;
 INSERT INTO tmp SELECT * FROM t;
 ALTER TABLE t RENAME TO tmp2;
@@ -1014,7 +967,7 @@ t	CREATE TEMPORARY TABLE `t` (
   `b` varchar(55) DEFAULT NULL,
   PRIMARY KEY (`a`),
   KEY `ba_key` (`b`,`a`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 SHOW CREATE TABLE tp;
 Table	Create Table
 tp	CREATE TABLE `tp` (
@@ -1022,12 +975,10 @@ tp	CREATE TABLE `tp` (
   `b` varchar(55) DEFAULT NULL,
   PRIMARY KEY (`a`),
   KEY `ba_key` (`b`,`a`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY RANGE (a)
-(PARTITION p0 VALUES LESS THAN (100) ENGINE = MyISAM,
- PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
-Warnings:
-Warning	1287	The partition engine, used by table 'test.tp', is deprecated and will be removed in a future release. Please use native partitioning instead.
+(PARTITION p0 VALUES LESS THAN (100) ENGINE = InnoDB,
+ PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
 ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t;
 ERROR HY000: Table to exchange with partition is temporary: 't'
 SHOW CREATE TABLE t;
@@ -1037,7 +988,7 @@ t	CREATE TEMPORARY TABLE `t` (
   `b` varchar(55) DEFAULT NULL,
   PRIMARY KEY (`a`),
   KEY `ba_key` (`b`,`a`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 SHOW CREATE TABLE tp;
 Table	Create Table
 tp	CREATE TABLE `tp` (
@@ -1045,12 +996,10 @@ tp	CREATE TABLE `tp` (
   `b` varchar(55) DEFAULT NULL,
   PRIMARY KEY (`a`),
   KEY `ba_key` (`b`,`a`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY RANGE (a)
-(PARTITION p0 VALUES LESS THAN (100) ENGINE = MyISAM,
- PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
-Warnings:
-Warning	1287	The partition engine, used by table 'test.tp', is deprecated and will be removed in a future release. Please use native partitioning instead.
+(PARTITION p0 VALUES LESS THAN (100) ENGINE = InnoDB,
+ PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
 DROP TEMPORARY TABLE t;
 ALTER TABLE tmp2 RENAME TO t;
 # Test non partitioned table
@@ -1064,11 +1013,9 @@ SET @old_general_log_state = @@global.general_log;
 SET GLOBAL general_log = 0;
 ALTER TABLE general_log ENGINE = MyISAM;
 CREATE TABLE t LIKE general_log;
-ALTER TABLE t PARTITION BY RANGE (thread_id)
+ALTER TABLE t ENGINE InnoDB PARTITION BY RANGE (thread_id)
 (PARTITION p0 VALUES LESS THAN (123456789),
 PARTITION pMAX VALUES LESS THAN MAXVALUE);
-Warnings:
-Warning	1287	The partition engine, used by table 'mysql.t', is deprecated and will be removed in a future release. Please use native partitioning instead.
 ALTER TABLE t EXCHANGE PARTITION p0 WITH TABLE general_log;
 ERROR HY000: Incorrect usage of PARTITION and log table
 ALTER TABLE general_log ENGINE = CSV;

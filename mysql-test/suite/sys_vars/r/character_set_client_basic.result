@@ -1,7 +1,7 @@
 SET @global_start_value = @@global.character_set_client;
 SELECT @global_start_value;
 @global_start_value
-latin1
+utf8mb4
 SET @session_start_value = @@character_set_client;
 SELECT @session_start_value;
 @session_start_value
@@ -39,7 +39,7 @@ SET @@global.character_set_client = latin5;
 SET @@global.character_set_client = DEFAULT;
 SELECT @@global.character_set_client;
 @@global.character_set_client
-latin1
+utf8mb4
 '#--------------------FN_DYNVARS_010_03-------------------------#'
 SET @@session.character_set_client = utf8;
 SELECT @@session.character_set_client;
@@ -317,10 +317,14 @@ SET @@global.character_set_client = utf8;
 SELECT @@global.character_set_client;
 @@global.character_set_client
 utf8
+SET @@global.character_set_client = utf8mb4;
+SELECT @@global.character_set_client;
+@@global.character_set_client
+utf8mb4
 SET @@global.character_set_client = ucs2;
 SELECT @@global.character_set_client;
 @@global.character_set_client
-utf8
+utf8mb4
 SET @@global.character_set_client = cp866;
 SELECT @@global.character_set_client;
 @@global.character_set_client
@@ -476,7 +480,7 @@ SET @@global.character_set_client = ON;
 ERROR 42000: Unknown character set: 'ON'
 '#--------------------FN_DYNVARS_010_12-------------------------#'
 SELECT @@global.character_set_client =
-(SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+(SELECT VARIABLE_VALUE FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='character_set_client') AS res;
 res
 1
@@ -485,30 +489,30 @@ SELECT @@global.character_set_client;
 @@global.character_set_client
 big5
 SELECT @@global.character_set_client =
-(SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+(SELECT VARIABLE_VALUE FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='character_set_client') AS res;
 res
 1
 '#--------------------FN_DYNVARS_010_13-------------------------#'
 SELECT @@character_set_client =
-(SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.SESSION_VARIABLES
+(SELECT VARIABLE_VALUE FROM performance_schema.session_variables
 WHERE VARIABLE_NAME='character_set_client') AS res;
 res
 1
 SELECT @@local.character_set_client =
-(SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.SESSION_VARIABLES
+(SELECT VARIABLE_VALUE FROM performance_schema.session_variables
 WHERE VARIABLE_NAME='character_set_client') AS res;
 res
 1
 SELECT @@session.character_set_client =
-(SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.SESSION_VARIABLES
+(SELECT VARIABLE_VALUE FROM performance_schema.session_variables
 WHERE VARIABLE_NAME='character_set_client') AS res;
 res
 1
 SET @@global.character_set_client = @global_start_value;
 SELECT @@global.character_set_client;
 @@global.character_set_client
-latin1
+utf8mb4
 SET @@session.character_set_client = @session_start_value;
 SELECT @@session.character_set_client;
 @@session.character_set_client

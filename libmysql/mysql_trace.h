@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -26,16 +26,17 @@
   declarations are in plugin_trace.h header.
 */
 
+#include <stddef.h>
+
+#include "my_macros.h"
 
 C_MODE_START
 
 /*
-  Disable trace hooks if the infrastructure is not enabled or if
-  libmysql code is used from within the (embedded) server.
+  Disable trace hooks if the infrastructure is not enabled
 */
 #if !defined(CLIENT_PROTOCOL_TRACING) \
-    || defined(MYSQL_SERVER) \
-    || defined(EMBEDDED_LIBRARY)
+    || defined(MYSQL_SERVER)
 
 #define MYSQL_TRACE(E, M, ARGS)
 #define MYSQL_TRACE_STAGE(M, S)

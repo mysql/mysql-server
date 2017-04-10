@@ -1,8 +1,3 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 #
 # Test of like
 #
@@ -11,8 +6,9 @@
 drop table if exists t1;
 --enable_warnings
 
-create table t1 (a varchar(10), key(a));
+create table t1 (a varchar(10), key(a)) charset utf8mb4;
 insert into t1 values ("a"),("abc"),("abcd"),("hello"),("test");
+analyze table t1;
 explain extended select * from t1 where a like 'abc%';
 explain extended select * from t1 where a like concat('abc','%');
 select * from t1 where a like "abc%";
@@ -209,4 +205,20 @@ DROP TABLE t1, t2;
 CREATE TABLE t1(a INTEGER) engine=innodb;
 --error ER_DATA_OUT_OF_RANGE
 SELECT 1 FROM t1 HAVING (SELECT 1 FROM t1) LIKE EXP(NOW());
+DROP TABLE t1;
+
+--echo #
+--echo # Bug #25140629: WRONG RESULT WHEN USING LIKE FUNCTION WITH UCA
+--echo #                COLLATIONS
+--echo #
+CREATE TABLE t1(wildstr VARCHAR(10), str VARCHAR(10), like_result INTEGER)
+COLLATE utf8mb4_0900_ai_ci;
+INSERT INTO t1 VALUES('abc', 'abc', 1), ('AbC', 'aBc', 1), ('_bc', 'abc', 1),
+('a_c', 'abc', 1), ('ab_', 'abc', 1), ('%c', 'abc', 1), ('a%c', 'abc', 1),
+('a%', 'abc', 1), ('a%d_f', 'abcdef', 1), ('a%d%g', 'abcdefg', 1),
+('a_c_e', 'abcde', 1), ('a%%de', 'abcde', 1), ('a__de', 'abcde', 1),
+(_utf16 0x65700025636E005F5E93, _utf16 0x65706C49636E5B575E93, 1),
+('a\\', 'a\\', 1);
+SELECT wildstr, str, like_result FROM t1 WHERE (str LIKE wildstr) <>
+like_result;
 DROP TABLE t1;

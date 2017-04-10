@@ -2,10 +2,18 @@
 # CREATE TABLESPACE related tests requiring a debug build.
 #
 
---source include/have_innodb.inc
 --source include/have_debug.inc
 # Restarting and killing mysqld is not supported in embedded
 --source include/not_embedded.inc
+
+########################################
+##### WL#7554 Force schema `test` to character set latin1
+##### This test should be migrated to utf8mb4
+--disable_query_log
+let $testdbcs33=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
+alter schema test default character set latin1;
+--enable_query_log
+########################################
 
 SET DEFAULT_STORAGE_ENGINE=InnoDB;
 
@@ -23,6 +31,7 @@ SET SESSION DEBUG='-d,innodb_fail_to_update_tablespace_dict';
 --source suite/innodb/include/show_i_s_tablespaces.inc
 --echo # MYSQLD_DATADIR/
 --list_files $MYSQLD_DATADIR/ *.ibd
+--error ER_TABLESPACE_MISSING_WITH_NAME
 DROP TABLESPACE s_def;
 
 --echo #
@@ -114,3 +123,10 @@ call mtr.add_suppression("\\[ERROR\\] InnoDB: File .*s_def.ibd: 'delete' returne
 call mtr.add_suppression("\\[ERROR\\] InnoDB: Attempted to open a previously opened tablespace. Previous tablespace innodb_general_[0-9]* at filepath: .*s1.ibd uses space ID: [0-9]*. Cannot open filepath: .*s1.ibd which uses the same space ID.");
 call mtr.add_suppression("\\[ERROR\\] InnoDB: If you are installing InnoDB, remember that you must create directories yourself, InnoDB does not create them.");
 --enable_query_log
+
+########################################
+##### WL#7554 set schema `test` back to what it was
+--disable_query_log
+--eval alter schema test default character set $testdbcs33;
+--enable_query_log
+########################################

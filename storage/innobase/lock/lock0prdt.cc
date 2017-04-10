@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2014, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2014, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -25,27 +25,21 @@ Created 9/7/2013 Jimmy Yang
 
 #define LOCK_MODULE_IMPLEMENTATION
 
-#include "lock0lock.h"
-#include "lock0priv.h"
-#include "lock0prdt.h"
+#include <set>
 
-#ifdef UNIV_NONINL
-#include "lock0lock.ic"
-#include "lock0priv.ic"
-#include "lock0prdt.ic"
-#endif
-
-#include "ha_prototypes.h"
-#include "usr0sess.h"
-#include "trx0purge.h"
-#include "dict0mem.h"
-#include "dict0boot.h"
-#include "trx0sys.h"
-#include "srv0mon.h"
-#include "ut0vec.h"
 #include "btr0btr.h"
 #include "dict0boot.h"
-#include <set>
+#include "dict0mem.h"
+#include "ha_prototypes.h"
+#include "lock0lock.h"
+#include "lock0prdt.h"
+#include "lock0priv.h"
+#include "my_inttypes.h"
+#include "srv0mon.h"
+#include "trx0purge.h"
+#include "trx0sys.h"
+#include "usr0sess.h"
+#include "ut0vec.h"
 
 /*********************************************************************//**
 Get a minimum bounding box from a Predicate
@@ -106,6 +100,58 @@ lock_prdt_set_prdt(
 	ut_ad(lock->type_mode & LOCK_PREDICATE);
 
 	memcpy(&(((byte*) &lock[1])[UNIV_WORD_SIZE]), prdt, sizeof *prdt);
+}
+
+
+/** Check whether two predicate locks are compatible with each other
+@param[in]	prdt1	first predicate lock
+@param[in]	prdt2	second predicate lock
+@param[in]	op	predicate comparison operator
+@return	true if consistent */
+static
+bool
+lock_prdt_consistent(
+	lock_prdt_t*	prdt1,
+	lock_prdt_t*	prdt2,
+	ulint		op)
+{
+	bool		ret = false;
+	rtr_mbr_t*	mbr1 = prdt_get_mbr_from_prdt(prdt1);
+	rtr_mbr_t*	mbr2 = prdt_get_mbr_from_prdt(prdt2);
+	ulint		action;
+
+	if (op) {
+		action = op;
+	} else {
+		if (prdt2->op != 0 && (prdt1->op != prdt2->op)) {
+			return(false);
+		}
+
+		action = prdt1->op;
+	}
+
+	switch (action) {
+	case PAGE_CUR_CONTAIN:
+		ret = mbr_contain_cmp(mbr1, mbr2, 0);
+		break;
+	case PAGE_CUR_DISJOINT:
+		ret = mbr_disjoint_cmp(mbr1, mbr2, 0);
+		break;
+	case PAGE_CUR_MBR_EQUAL:
+		ret = mbr_equal_cmp(mbr1, mbr2, 0);
+		break;
+	case PAGE_CUR_INTERSECT:
+		ret = mbr_intersect_cmp(mbr1, mbr2, 0);
+		break;
+	case PAGE_CUR_WITHIN:
+		ret = mbr_within_cmp(mbr1, mbr2, 0);
+		break;
+	default:
+		ib::error() << "invalid operator " << action;
+		ut_error;
+	}
+
+	return(ret);
 }
 
 /*********************************************************************//**
@@ -332,7 +378,7 @@ lock_prdt_is_same(
 	rtr_mbr_t*	mbr1 = prdt_get_mbr_from_prdt(prdt1);
 	rtr_mbr_t*	mbr2 = prdt_get_mbr_from_prdt(prdt2);
 
-	if (prdt1->op == prdt2->op && MBR_EQUAL_CMP(mbr1, mbr2)) {
+	if (prdt1->op == prdt2->op && mbr_equal_cmp(mbr1, mbr2, 0)) {
 		return(true);
 	}
 
@@ -401,7 +447,7 @@ lock_prdt_add_to_queue(
 {
 	ut_ad(lock_mutex_own());
 	ut_ad(caller_owns_trx_mutex == trx_mutex_own(trx));
-	ut_ad(!dict_index_is_clust(index) && !dict_index_is_online_ddl(index));
+	ut_ad(!index->is_clustered() && !dict_index_is_online_ddl(index));
 	ut_ad(type_mode & (LOCK_PREDICATE | LOCK_PRDT_PAGE));
 
 #ifdef UNIV_DEBUG
@@ -479,8 +525,8 @@ lock_prdt_insert_check_and_lock(
 		return(DB_SUCCESS);
 	}
 
-	ut_ad(!dict_table_is_temporary(index->table));
-	ut_ad(!dict_index_is_clust(index));
+	ut_ad(!index->table->is_temporary());
+	ut_ad(!index->is_clustered());
 
 	trx_t*	trx = thr_get_trx(thr);
 
@@ -573,8 +619,8 @@ lock_prdt_update_parent(
         lock_prdt_t*	left_prdt,	/*!< in: MBR on the old page */
         lock_prdt_t*	right_prdt,	/*!< in: MBR on the new page */
 	lock_prdt_t*	parent_prdt,	/*!< in: original parent MBR */
-	ulint		space,		/*!< in: parent space id */
-	ulint		page_no)	/*!< in: parent page number */
+	space_id_t	space,		/*!< in: parent space id */
+	page_no_t	page_no)	/*!< in: parent page number */
 {
 	lock_t*		lock;
 
@@ -630,8 +676,8 @@ lock_prdt_update_split_low(
 	buf_block_t*	new_block,	/*!< in/out: the new half page */
 	lock_prdt_t*	prdt,		/*!< in: MBR on the old page */
 	lock_prdt_t*	new_prdt,	/*!< in: MBR on the new page */
-	ulint		space,		/*!< in: space id */
-	ulint		page_no,	/*!< in: page number */
+	space_id_t	space,		/*!< in: space id */
+	page_no_t	page_no,	/*!< in: page number */
 	ulint		type_mode)	/*!< in: LOCK_PREDICATE or
 					LOCK_PRDT_PAGE */
 {
@@ -707,8 +753,8 @@ lock_prdt_update_split(
 	buf_block_t*	new_block,	/*!< in/out: the new half page */
 	lock_prdt_t*	prdt,		/*!< in: MBR on the old page */
 	lock_prdt_t*	new_prdt,	/*!< in: MBR on the new page */
-	ulint		space,		/*!< in: space id */
-	ulint		page_no)	/*!< in: page number */
+	space_id_t	space,		/*!< in: space id */
+	page_no_t	page_no)	/*!< in: page number */
 {
 	lock_prdt_update_split_low(block, new_block, prdt, new_prdt,
 				   space, page_no, LOCK_PREDICATE);
@@ -740,55 +786,6 @@ lock_init_prdt_from_mbr(
 }
 
 /*********************************************************************//**
-Checks two predicate locks are compatible with each other
-@return	true if consistent */
-bool
-lock_prdt_consistent(
-/*=================*/
-	lock_prdt_t*	prdt1,	/*!< in: Predicate for the lock */
-	lock_prdt_t*	prdt2,	/*!< in: Predicate for the lock */
-	ulint		op)	/*!< in: Predicate comparison operator */
-{
-	bool		ret = false;
-	rtr_mbr_t*	mbr1 = prdt_get_mbr_from_prdt(prdt1);
-	rtr_mbr_t*	mbr2 = prdt_get_mbr_from_prdt(prdt2);
-	ulint		action;
-
-	if (op) {
-		action = op;
-	} else {
-		if (prdt2->op != 0 && (prdt1->op != prdt2->op)) {
-			return(false);
-		}
-
-		action = prdt1->op;
-	}
-
-	switch (action) {
-	case PAGE_CUR_CONTAIN:
-		ret = MBR_CONTAIN_CMP(mbr1, mbr2);
-		break;
-	case PAGE_CUR_DISJOINT:
-		ret = MBR_DISJOINT_CMP(mbr1, mbr2);
-		break;
-	case PAGE_CUR_MBR_EQUAL:
-		ret = MBR_EQUAL_CMP(mbr1, mbr2);
-		break;
-	case PAGE_CUR_INTERSECT:
-		ret = MBR_INTERSECT_CMP(mbr1, mbr2);
-		break;
-	case PAGE_CUR_WITHIN:
-		ret = MBR_WITHIN_CMP(mbr1, mbr2);
-		break;
-	default:
-		ib::error() << "invalid operator " << action;
-		ut_error;
-	}
-
-	return(ret);
-}
-
-/*********************************************************************//**
 Acquire a predicate lock on a block
 @return	DB_SUCCESS, DB_LOCK_WAIT, DB_DEADLOCK, or DB_QUE_THR_SUSPENDED */
 dberr_t
@@ -812,11 +809,11 @@ lock_prdt_lock(
 	dberr_t		err = DB_SUCCESS;
 	lock_rec_req_status	status = LOCK_REC_SUCCESS;
 
-	if (trx->read_only || dict_table_is_temporary(index->table)) {
+	if (trx->read_only || index->table->is_temporary()) {
 		return(DB_SUCCESS);
 	}
 
-	ut_ad(!dict_index_is_clust(index));
+	ut_ad(!index->is_clustered());
 	ut_ad(!dict_index_is_online_ddl(index));
 	ut_ad(type_mode & (LOCK_PREDICATE | LOCK_PRDT_PAGE));
 
@@ -909,15 +906,15 @@ Acquire a "Page" lock on a block
 dberr_t
 lock_place_prdt_page_lock(
 /*======================*/
-	ulint		space,		/*!< in: space for the page to lock */
-	ulint		page_no,	/*!< in: page number */
+	space_id_t	space,		/*!< in: space for the page to lock */
+	page_no_t	page_no,	/*!< in: page number */
 	dict_index_t*	index,		/*!< in: secondary index */
 	que_thr_t*	thr)		/*!< in: query thread */
 {
 	ut_ad(thr != NULL);
 	ut_ad(!srv_read_only_mode);
 
-	ut_ad(!dict_index_is_clust(index));
+	ut_ad(!index->is_clustered());
 	ut_ad(!dict_index_is_online_ddl(index));
 
 	/* Another transaction cannot have an implicit lock on the record,
@@ -970,12 +967,13 @@ lock_place_prdt_page_lock(
 @param[in]	trx	trx to test the lock
 @param[in]	space	space id for the page
 @param[in]	page_no	page number
-@return	true if there is none */
+@retval	true	if there is no lock
+@retval	false	if some other trx holds a page lock */
 bool
 lock_test_prdt_page_lock(
-	const trx_t*    trx,
-	ulint           space,
-	ulint           page_no)
+	const trx_t*	trx,
+	space_id_t	space,
+	page_no_t	page_no)
 {
 	lock_t*		lock;
 
@@ -1034,10 +1032,10 @@ lock_prdt_page_free_from_discard(
 	const buf_block_t*      block,
 	hash_table_t*		lock_hash)
 {
-	lock_t*	lock;
-	lock_t*	next_lock;
-	ulint	space;
-	ulint	page_no;
+	lock_t*		lock;
+	lock_t*		next_lock;
+	space_id_t	space;
+	page_no_t	page_no;
 
 	ut_ad(lock_mutex_own());
 

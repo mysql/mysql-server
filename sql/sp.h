@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,43 +16,98 @@
 #ifndef _SP_H_
 #define _SP_H_
 
-#include "my_global.h"
-#include "sql_lex.h"       // enum_sp_type
+#include <stddef.h>
+#include <sys/types.h>
+
+#include "binary_log_types.h"
+#include "hash.h"
+#include "item.h"            // Item::Type
+#include "lex_string.h"
+#include "mdl.h"             // MDL_request
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "mysql/psi/mysql_statement.h"
+#include "mysql_com.h"
+#include "sp_head.h"         // Stored_program_creation_ctx
+#include "sql_admin.h"
+#include "sql_alloc.h"
+#include "sql_class.h"
+#include "sql_lex.h"
+#include "sql_plugin.h"
+#include "sql_servers.h"
+
+class Object_creation_ctx;
+
+namespace dd {
+  class Routine;
+  class Schema;
+}
 
 class Field;
-class Open_tables_backup;
-class Open_tables_state;
-class Query_arena;
-class Query_tables_list;
 class Sroutine_hash_entry;
-class THD;
+class String;
 class sp_cache;
-struct st_sp_chistics;
-struct LEX;
 struct TABLE;
 struct TABLE_LIST;
+
 typedef struct st_hash HASH;
+typedef ulonglong sql_mode_t;
 template <typename T> class SQL_I_List;
 
+enum class enum_sp_type;
 
 /* Tells what SP_DEFAULT_ACCESS should be mapped to */
 #define SP_DEFAULT_ACCESS_MAPPING SP_CONTAINS_SQL
 
-// Return codes from sp_create_*, sp_drop_*, and sp_show_*:
-#define SP_OK                 0
-#define SP_KEY_NOT_FOUND     -1
-#define SP_OPEN_TABLE_FAILED -2
-#define SP_WRITE_ROW_FAILED  -3
-#define SP_DELETE_ROW_FAILED -4
-#define SP_GET_FIELD_FAILED  -5
-#define SP_PARSE_ERROR       -6
-#define SP_INTERNAL_ERROR    -7
-#define SP_NO_DB_ERROR       -8
-#define SP_BAD_IDENTIFIER    -9
-#define SP_BODY_TOO_LONG    -10
-#define SP_FLD_STORE_FAILED -11
+/* Tells what SP_IS_DEFAULT_SUID should be mapped to */
+#define SP_DEFAULT_SUID_MAPPING SP_IS_SUID
 
-/* DB storage of Stored PROCEDUREs and FUNCTIONs */
+/* Max length(LONGBLOB field type length) of stored routine body */
+static const uint MYSQL_STORED_ROUTINE_BODY_LENGTH= 4294967295U;
+
+/* Max length(TEXT field type length) of stored routine comment */
+static const int MYSQL_STORED_ROUTINE_COMMENT_LENGTH= 65535;
+
+enum enum_sp_return_code
+{
+  SP_OK= 0,
+
+  // Schema does not exists
+  SP_NO_DB_ERROR,
+
+  // Routine does not exists
+  SP_DOES_NOT_EXISTS,
+
+  // Routine already exists
+  SP_ALREADY_EXISTS,
+
+  // Create routine failed
+  SP_STORE_FAILED,
+
+  // Drop routine failed
+  SP_DROP_FAILED,
+
+  // Alter routine failed
+  SP_ALTER_FAILED,
+
+  // Routine load failed
+  SP_LOAD_FAILED,
+
+  // Routine parse failed
+  SP_PARSE_ERROR,
+
+  // Internal errors
+  SP_INTERNAL_ERROR
+};
+
+
+/*
+  Fields in mysql.proc table in 5.7. This enum is used to read and
+  update mysql.routines dictionary table during upgrade scenario.
+
+  Note:  This enum should not be used for other purpose
+         as it will be removed eventually.
+*/
 enum
 {
   MYSQL_PROC_FIELD_DB = 0,
@@ -78,40 +133,98 @@ enum
   MYSQL_PROC_FIELD_COUNT
 };
 
+
+/*************************************************************************/
+
+/**
+  Stored_routine_creation_ctx -- creation context of stored routines
+  (stored procedures and functions).
+*/
+
+class Stored_routine_creation_ctx : public Stored_program_creation_ctx,
+                                    public Sql_alloc
+{
+public:
+  static Stored_routine_creation_ctx *
+  create_routine_creation_ctx(const dd::Routine *routine);
+
+  static Stored_routine_creation_ctx *
+  load_from_db(THD *thd, const sp_name *name, TABLE *proc_tbl);
+public:
+  virtual Stored_program_creation_ctx *clone(MEM_ROOT *mem_root)
+  {
+    return new (mem_root) Stored_routine_creation_ctx(m_client_cs,
+                                                      m_connection_cl,
+                                                      m_db_cl);
+  }
+
+protected:
+  virtual Object_creation_ctx *create_backup_ctx(THD *thd) const
+  {
+    DBUG_ENTER("Stored_routine_creation_ctx::create_backup_ctx");
+    DBUG_RETURN(new Stored_routine_creation_ctx(thd));
+  }
+
+private:
+  Stored_routine_creation_ctx(THD *thd)
+    : Stored_program_creation_ctx(thd)
+  { }
+
+  Stored_routine_creation_ctx(const CHARSET_INFO *client_cs,
+                              const CHARSET_INFO *connection_cl,
+                              const CHARSET_INFO *db_cl)
+    : Stored_program_creation_ctx(client_cs, connection_cl, db_cl)
+  { }
+};
+
+
+
 /* Drop all routines in database 'db' */
-int sp_drop_db_routines(THD *thd, const char *db);
+enum_sp_return_code sp_drop_db_routines(THD *thd, const dd::Schema &schema);
 
 /**
    Acquires exclusive metadata lock on all stored routines in the
    given database.
 
-   @param  thd  Thread handler
-   @param  db   Database name
+   @param  thd     Thread handler
+   @param  schema  Schema object
 
    @retval  false  Success
    @retval  true   Failure
  */
-bool lock_db_routines(THD *thd, const char *db);
+bool lock_db_routines(THD *thd, const dd::Schema &schema);
 
 sp_head *sp_find_routine(THD *thd, enum_sp_type type, sp_name *name,
                          sp_cache **cp, bool cache_only);
 
-int sp_cache_routine(THD *thd, Sroutine_hash_entry *rt,
-                     bool lookup_only, sp_head **sp);
+sp_head *sp_setup_routine(THD *thd, enum_sp_type type, sp_name *name,
+                         sp_cache **cp);
 
-int sp_cache_routine(THD *thd, enum_sp_type type, sp_name *name,
-                     bool lookup_only, sp_head **sp);
+enum_sp_return_code sp_cache_routine(THD *thd, Sroutine_hash_entry *rt,
+                                     bool lookup_only, sp_head **sp);
+
+enum_sp_return_code sp_cache_routine(THD *thd, enum_sp_type type, sp_name *name,
+                                     bool lookup_only, sp_head **sp);
 
 bool sp_exist_routines(THD *thd, TABLE_LIST *procs, bool is_proc);
 
 bool sp_show_create_routine(THD *thd, enum_sp_type type, sp_name *name);
 
-bool sp_create_routine(THD *thd, sp_head *sp);
+enum_sp_return_code
+db_load_routine(THD *thd, enum_sp_type type, const char *sp_db,
+                size_t sp_db_len, const char *sp_name, size_t sp_name_len,
+                sp_head **sphp, sql_mode_t sql_mode, const char *params,
+                const char *returns, const char *body, st_sp_chistics *chistics,
+                const char *definer_user, const char *definer_host,
+                longlong created, longlong modified,
+                Stored_program_creation_ctx *creation_ctx);
 
-int sp_update_routine(THD *thd, enum_sp_type type, sp_name *name,
-                      st_sp_chistics *chistics);
+bool sp_create_routine(THD *thd, sp_head *sp, const LEX_USER *definer);
 
-int sp_drop_routine(THD *thd, enum_sp_type type, sp_name *name);
+enum_sp_return_code sp_update_routine(THD *thd, enum_sp_type type,
+                                      sp_name *name, st_sp_chistics *chistics);
+
+enum_sp_return_code sp_drop_routine(THD *thd, enum_sp_type type, sp_name *name);
 
 
 /**
@@ -165,19 +278,10 @@ void sp_update_stmt_used_routines(THD *thd, Query_tables_list *prelocking_ctx,
                                   SQL_I_List<Sroutine_hash_entry> *src,
                                   TABLE_LIST *belong_to_view);
 
-extern "C" uchar* sp_sroutine_key(const uchar *ptr, size_t *plen,
-                                  my_bool first);
+const uchar* sp_sroutine_key(const uchar *ptr, size_t *plen);
 
-/*
-  Routines which allow open/lock and close mysql.proc table even when
-  we already have some tables open and locked.
-*/
-TABLE *open_proc_table_for_read(THD *thd, Open_tables_backup *backup);
-
-sp_head *sp_load_for_information_schema(THD *thd, TABLE *proc_table, String *db,
-                                        String *name, sql_mode_t sql_mode,
-                                        enum_sp_type type,
-                                        const char *returns, const char *params,
+sp_head *sp_load_for_information_schema(THD *thd, LEX_CSTRING db_name,
+                                        const dd::Routine *routine,
                                         bool *free_sp_head);
 
 bool load_charset(MEM_ROOT *mem_root,
@@ -208,8 +312,6 @@ bool sp_check_name(LEX_STRING *ident);
 
 TABLE_LIST *sp_add_to_query_tables(THD *thd, LEX *lex,
                                    const char *db, const char *name);
-
-bool sp_check_show_access(THD *thd, sp_head *sp, bool *full_access);
 
 Item *sp_prepare_func_item(THD* thd, Item **it_addr);
 

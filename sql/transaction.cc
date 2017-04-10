@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,16 +14,41 @@
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 
-#include "transaction.h"
-#include "rpl_handler.h"
-#include "debug_sync.h"         // DEBUG_SYNC
-#include "auth_common.h"            // SUPER_ACL
-#include <pfs_transaction_provider.h>
-#include <mysql/psi/mysql_transaction.h>
+#include "sql/transaction.h"
+
+#include <assert.h>
+#include <stddef.h>
+
+#include "auth_common.h"      // SUPER_ACL
+#include "dd/cache/dictionary_client.h"
+#include "debug_sync.h"       // DEBUG_SYNC
+#include "handler.h"
+#include "lex_string.h"
+#include "log.h"              // sql_print_warning
+#include "m_ctype.h"
+#include "mdl.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_macros.h"
+#include "my_psi_config.h"
+#include "my_sys.h"
+#include "mysql/psi/mysql_transaction.h"
+#include "mysql_com.h"
+#include "mysqld.h"           // opt_readonly
+#include "mysqld_error.h"
+#include "query_options.h"
 #include "rpl_context.h"
-#include "sql_class.h"
-#include "log.h"
-#include "binlog.h"
+#include "rpl_gtid.h"
+#include "rpl_rli.h"
+#include "session_tracker.h"
+#include "sql_class.h"        // THD
+#include "sql_lex.h"
+#include "system_variables.h"
+#include "tc_log.h"
+#include "transaction_info.h"
+#include "xa.h"
+
 
 /**
   Helper: Tell tracker (if any) that transaction ended.
@@ -219,13 +244,17 @@ bool trans_begin(THD *thd, uint flags)
 /**
   Commit the current transaction, making its changes permanent.
 
-  @param thd     Current thread
+  @param[in] thd                       Current thread
+  @param[in] ignore_global_read_lock   Allow commit to complete even if a
+                                       global read lock is active. This can be
+                                       used to allow changes to internal tables
+                                       (e.g. slave status tables, analyze table).
 
   @retval FALSE  Success
   @retval TRUE   Failure
 */
 
-bool trans_commit(THD *thd)
+bool trans_commit(THD *thd, bool ignore_global_read_lock)
 {
   int res;
   DBUG_ENTER("trans_commit");
@@ -236,7 +265,7 @@ bool trans_commit(THD *thd)
   thd->server_status&=
     ~(SERVER_STATUS_IN_TRANS | SERVER_STATUS_IN_TRANS_READONLY);
   DBUG_PRINT("info", ("clearing SERVER_STATUS_IN_TRANS"));
-  res= ha_commit_trans(thd, TRUE);
+  res= ha_commit_trans(thd, TRUE, ignore_global_read_lock);
   if (res == FALSE)
     if (thd->rpl_thd_ctx.session_gtids_ctx().
         notify_after_transaction_commit(thd))
@@ -266,6 +295,8 @@ bool trans_commit(THD *thd)
 
   trans_track_end_trx(thd);
 
+  thd->dd_client()->commit_modified_objects();
+
   DBUG_RETURN(MY_TEST(res));
 }
 
@@ -275,13 +306,18 @@ bool trans_commit(THD *thd)
 
   @note A implicit commit does not releases existing table locks.
 
-  @param thd     Current thread
+  @param[in] thd                       Current thread
+  @param[in] ignore_global_read_lock   Allow commit to complete even if a
+                                       global read lock is active. This can be
+                                       used to allow changes to internal tables
+                                       (e.g. slave status tables, analyze table).
+
 
   @retval FALSE  Success
   @retval TRUE   Failure
 */
 
-bool trans_commit_implicit(THD *thd)
+bool trans_commit_implicit(THD *thd, bool ignore_global_read_lock)
 {
   bool res= FALSE;
   DBUG_ENTER("trans_commit_implicit");
@@ -304,7 +340,7 @@ bool trans_commit_implicit(THD *thd)
     thd->server_status&=
       ~(SERVER_STATUS_IN_TRANS | SERVER_STATUS_IN_TRANS_READONLY);
     DBUG_PRINT("info", ("clearing SERVER_STATUS_IN_TRANS"));
-    res= MY_TEST(ha_commit_trans(thd, TRUE));
+    res= MY_TEST(ha_commit_trans(thd, TRUE, ignore_global_read_lock));
   }
   else if (tc_log)
     tc_log->commit(thd, true);
@@ -328,6 +364,8 @@ bool trans_commit_implicit(THD *thd)
   trans_reset_one_shot_chistics(thd);
 
   trans_track_end_trx(thd);
+
+  thd->dd_client()->commit_modified_objects();
 
   DBUG_RETURN(res);
 }
@@ -365,6 +403,8 @@ bool trans_rollback(THD *thd)
   thd->tx_priority= 0;
 
   trans_track_end_trx(thd);
+
+  thd->dd_client()->rollback_modified_objects();
 
   DBUG_RETURN(MY_TEST(res));
 }
@@ -414,6 +454,8 @@ bool trans_rollback_implicit(THD *thd)
 
   trans_track_end_trx(thd);
 
+  thd->dd_client()->rollback_modified_objects();
+
   DBUG_RETURN(MY_TEST(res));
 }
 
@@ -427,13 +469,18 @@ bool trans_rollback_implicit(THD *thd)
         is based on counting locks, but if the user has used LOCK
         TABLES then that mechanism does not know to do the commit.
 
-  @param thd     Current thread
+  @param[in] thd                       Current thread
+  @param[in] ignore_global_read_lock   Allow commit to complete even if a
+                                       global read lock is active. This can be
+                                       used to allow changes to internal tables
+                                       (e.g. slave status tables, analyze table).
+
 
   @retval FALSE  Success
   @retval TRUE   Failure
 */
 
-bool trans_commit_stmt(THD *thd)
+bool trans_commit_stmt(THD *thd, bool ignore_global_read_lock)
 {
   DBUG_ENTER("trans_commit_stmt");
   int res= FALSE;
@@ -455,7 +502,7 @@ bool trans_commit_stmt(THD *thd)
 
   if (thd->get_transaction()->is_active(Transaction_ctx::STMT))
   {
-    res= ha_commit_trans(thd, FALSE);
+    res= ha_commit_trans(thd, FALSE, ignore_global_read_lock);
     if (! thd->in_active_multi_stmt_transaction())
       trans_reset_one_shot_chistics(thd);
   }
@@ -531,6 +578,19 @@ bool trans_rollback_stmt(THD *thd)
     else
       gtid_state->update_on_rollback(thd);
   }
+  /*
+    Statement rollback for replicated atomic DDL should call
+    post-rollback hook. This ensures the slave info won't be updated
+    for failed atomic DDL statements during the eventual implicit
+    commit which is done even even in case of DDL failure.
+
+    Unlike the post_commit it has to be invoked even when there's
+    no active statement transaction.
+    TODO: consider to align the commit case to invoke pre- and post-
+    hooks on the same level with the rollback one.
+  */
+  if (is_atomic_ddl_commit_on_slave(thd))
+    thd->rli_slave->post_rollback();
 
   /* In autocommit=1 mode the transaction should be marked as complete in P_S */
   DBUG_ASSERT(thd->in_active_multi_stmt_transaction() ||
@@ -625,15 +685,6 @@ bool trans_savepoint(THD *thd, LEX_STRING name)
       !opt_using_transactions)
     DBUG_RETURN(FALSE);
 
-  if (thd->variables.transaction_write_set_extraction != HASH_ALGORITHM_OFF)
-  {
-    // is_fatal_errror is needed to avoid stored procedures to skip the error.
-    thd->is_fatal_error= 1;
-    my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0),
-             "--transaction-write-set-extraction!=OFF");
-    DBUG_RETURN(true);
-  }
-
   if (thd->get_transaction()->xid_state()->check_has_uncommitted_xa())
     DBUG_RETURN(true);
 
@@ -677,6 +728,12 @@ bool trans_savepoint(THD *thd, LEX_STRING name)
   */
   newsv->mdl_savepoint= thd->mdl_context.mdl_savepoint();
 
+  if (thd->is_current_stmt_binlog_row_enabled_with_write_set_extraction())
+  {
+    thd->get_transaction()->get_transaction_write_set_ctx()
+        ->add_savepoint(name.str);
+  }
+
   DBUG_RETURN(FALSE);
 }
 
@@ -713,13 +770,22 @@ bool trans_rollback_to_savepoint(THD *thd, LEX_STRING name)
   if (thd->get_transaction()->xid_state()->check_has_uncommitted_xa())
     DBUG_RETURN(true);
 
+  if (ha_rollback_to_savepoint(thd, sv))
+    res= TRUE;
+  else if (thd->get_transaction()->cannot_safely_rollback(
+           Transaction_ctx::SESSION) &&
+           !thd->slave_thread)
+    thd->get_transaction()->push_unsafe_rollback_warnings(thd);
+
+  thd->get_transaction()->m_savepoints= sv;
+
   /**
     Checking whether it is safe to release metadata locks acquired after
     savepoint, if rollback to savepoint is successful.
-  
+
     Whether it is safe to release MDL after rollback to savepoint depends
     on storage engines participating in transaction:
-  
+
     - InnoDB doesn't release any row-locks on rollback to savepoint so it
       is probably a bad idea to release MDL as well.
     - Binary log implementation in some cases (e.g when non-transactional
@@ -731,25 +797,16 @@ bool trans_rollback_to_savepoint(THD *thd, LEX_STRING name)
       rollback ot it) can break replication, as concurrent DROP TABLES
       statements will be able to drop these tables before events will get
       into binary log,
-  
-    For backward-compatibility reasons we always release MDL if binary
-    logging is off.
   */
-  bool mdl_can_safely_rollback_to_savepoint=
-                (!(mysql_bin_log.is_open() && thd->variables.sql_log_bin) ||
-                 ha_rollback_to_savepoint_can_release_mdl(thd));
 
-  if (ha_rollback_to_savepoint(thd, sv))
-    res= TRUE;
-  else if (thd->get_transaction()->cannot_safely_rollback(
-           Transaction_ctx::SESSION) &&
-           !thd->slave_thread)
-    thd->get_transaction()->push_unsafe_rollback_warnings(thd);
-
-  thd->get_transaction()->m_savepoints= sv;
-
-  if (!res && mdl_can_safely_rollback_to_savepoint)
+  if (!res && ha_rollback_to_savepoint_can_release_mdl(thd))
     thd->mdl_context.rollback_to_savepoint(sv->mdl_savepoint);
+
+  if (thd->is_current_stmt_binlog_row_enabled_with_write_set_extraction())
+  {
+    thd->get_transaction()->get_transaction_write_set_ctx()
+        ->rollback_to_savepoint(name.str);
+  }
 
   DBUG_RETURN(MY_TEST(res));
 }
@@ -788,6 +845,12 @@ bool trans_release_savepoint(THD *thd, LEX_STRING name)
     res= TRUE;
 
   thd->get_transaction()->m_savepoints= sv->prev;
+
+  if (thd->is_current_stmt_binlog_row_enabled_with_write_set_extraction())
+  {
+    thd->get_transaction()->get_transaction_write_set_ctx()
+        ->del_savepoint(name.str);
+  }
 
   DBUG_RETURN(MY_TEST(res));
 }

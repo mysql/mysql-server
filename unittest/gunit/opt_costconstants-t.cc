@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,12 +16,15 @@
 
 // First include (the generated) my_config.h, to get correct platform defines.
 #include "my_config.h"
-#include <gtest/gtest.h>
 
-#include "item.h"
-#include "opt_costmodel.h"
+#include <gtest/gtest.h>
+#include <stddef.h>
+#include <sys/types.h>
 
 #include "fake_table.h"
+#include "item.h"
+#include "lex_string.h"
+#include "opt_costmodel.h"
 #include "test_utils.h"
 
 namespace costconstants_unittest {
@@ -34,25 +37,25 @@ using my_testing::Server_initializer;
 */
 
 // Default value for Server_cost_constants::ROW_EVALUATE_COST
-const double default_row_evaluate_cost= 0.2;
+const double default_row_evaluate_cost= 0.1;
 
 // Default value for Server_cost_constants::KEY_COMPARE_COST
-const double default_key_compare_cost= 0.1;
+const double default_key_compare_cost= 0.05;
 
 // Default value for Server_cost_constants::HEAP_TEMPTABLE_CREATE_COST
-const double default_memory_temptable_create_cost= 2.0;
+const double default_memory_temptable_create_cost= 1.0;
 
 // Default value for Server_cost_constants::HEAP_TEMPTABLE_ROW_COST
-const double default_memory_temptable_row_cost= 0.2;
+const double default_memory_temptable_row_cost= 0.1;
 
 // Default value for Server_cost_constants::DISK_TEMPTABLE_CREATE_COST
-const double default_disk_temptable_create_cost= 40.0;
+const double default_disk_temptable_create_cost= 20.0;
 
 // Default value for Server_cost_constants::DISK_TEMPTABLE_ROW_COST
-const double default_disk_temptable_row_cost= 1.0;
+const double default_disk_temptable_row_cost= 0.5;
 
 //  Default value SE_cost_constants::MEMORY_BLOCK_READ_COST
-const double default_memory_block_read_cost= 1.0;
+const double default_memory_block_read_cost= 0.25;
 
 //  Default value SE_cost_constants::IO_BLOCK_READ_COST
 const double default_io_block_read_cost= 1.0;
@@ -65,17 +68,28 @@ protected:
   {
     initializer.SetUp();
 
-    // Initilize one storage engine
-    LEX_STRING engine_name= {C_STRING_WITH_LEN("InnoDB")};
-    hton2plugin[0]= new st_plugin_int();
-    hton2plugin[0]->name= engine_name;
+    // Initilize some storage engines
+    LEX_STRING engine_name0= { C_STRING_WITH_LEN("InnoDB0") };
+    LEX_STRING engine_name1= { C_STRING_WITH_LEN("InnoDB1") };
+    LEX_STRING engine_name2= { C_STRING_WITH_LEN("InnoDB2") };
+    LEX_STRING engine_name4= { C_STRING_WITH_LEN("InnoDB4") };
+    LEX_STRING engine_name7= { C_STRING_WITH_LEN("InnoDB7") };
+
+    insert_hton2plugin(0, new st_plugin_int())->name= engine_name0;
+    insert_hton2plugin(1, new st_plugin_int())->name= engine_name1;
+    insert_hton2plugin(2, new st_plugin_int())->name= engine_name2;
+    insert_hton2plugin(4, new st_plugin_int())->name= engine_name4;
+    insert_hton2plugin(7, new st_plugin_int())->name= engine_name7;
   }
 
   virtual void TearDown()
   {
     initializer.TearDown();
-    delete hton2plugin[0];
-    hton2plugin[0]= NULL;
+    delete remove_hton2plugin(0);
+    delete remove_hton2plugin(1);
+    delete remove_hton2plugin(2);
+    delete remove_hton2plugin(4);
+    delete remove_hton2plugin(7);
   }
 
   THD *thd() { return initializer.thd(); }
@@ -211,7 +225,7 @@ private:
   the expected default values.
 */
 
-void validate_default_server_cost_constants(const Server_cost_constants *cost)
+static void validate_default_server_cost_constants(const Server_cost_constants *cost)
 {
   EXPECT_EQ(cost->row_evaluate_cost(), default_row_evaluate_cost);
   EXPECT_EQ(cost->key_compare_cost(), default_key_compare_cost);

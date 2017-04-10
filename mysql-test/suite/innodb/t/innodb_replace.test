@@ -1,4 +1,3 @@
---source include/have_innodb.inc
 --source include/have_debug_sync.inc
 
 --echo #
@@ -199,3 +198,40 @@ SELECT * FROM t1;
 COMMIT;
 
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#22884631 FAILING ASSERTION: TRX->DUPLICATES == 0
+--echo #
+--connect (con1,localhost,root,,)
+--connect (con2,localhost,root,,)
+
+SELECT @@table_open_cache_instances;
+
+CREATE TABLE t1(a INT);
+CREATE TABLE t2(a INT);
+INSERT INTO t1 VALUES(1);
+INSERT INTO t2 VALUES(2);
+
+--echo # Connection con1
+connection con1;
+INSERT INTO t1 VALUES(3);
+SET DEBUG_SYNC = 'RESET';
+SET DEBUG_SYNC = 'ib_after_row_insert WAIT_FOR go_ahead';
+--send REPLACE INTO t2 VALUES(3)
+
+--echo # Connection con2
+connection con2;
+--error ER_WRONG_VALUE_COUNT_ON_ROW
+INSERT INTO t1 VALUES(70, 80);
+SET DEBUG_SYNC= 'now SIGNAL go_ahead';
+
+--echo # Connection con1
+connection con1;
+--reap
+DROP TABLE t1;
+DROP TABLE t2;
+
+SET DEBUG_SYNC= 'RESET';
+
+disconnect con1;
+disconnect con2;

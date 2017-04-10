@@ -25,3 +25,7 @@ SELECT COUNT(*) FROM t1;
 SELECT b FROM t1 WHERE b LIKE "MySQL%";
 DELETE FROM t1 ORDER BY b DESC;
 DROP TABLE t1;
+
+#
+# NOTE! Don't add any more tests here, this is the basic test
+#

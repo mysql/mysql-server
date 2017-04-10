@@ -7,9 +7,6 @@
 # Run the Cluster/J JPA JUnit tests from MTR
 #
 --source include/have_ndb.inc
---source include/have_big5.inc
---source include/have_utf8.inc
---source include/have_sjis.inc
 --source include/not_embedded.inc
 --source suite/ndb/include/have_clusterj.inc
 --source suite/ndb/include/have_clusterj_jpa.inc

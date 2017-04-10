@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
 
    This program is free software; you can redistribute it and/or modify
@@ -20,6 +20,10 @@
   Used when optimizing querries.
  */
 
+#include <sys/types.h>
+
+#include "my_dbug.h"
+#include "my_inttypes.h"
 #include "myisamdef.h"
 #include "rt_index.h"
 
@@ -194,7 +198,7 @@ static double _mi_search_pos(MI_INFO *info,
 {
   int flag;
   uint nod_flag, keynr, max_keynr= 0;
-  my_bool after_key;
+  bool after_key;
   uchar *keypos,*buff;
   double offset;
   DBUG_ENTER("_mi_search_pos");

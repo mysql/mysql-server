@@ -54,7 +54,6 @@ t1	CREATE TABLE `t1` (
 /*!50100 PARTITION BY RANGE (a)
 (PARTITION p0 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
 t1#P#p0.ibd
-t1.frm
 SET DEBUG_SYNC='before_open_in_get_all_tables SIGNAL parked WAIT_FOR open';
 SET DEBUG_SYNC='partition_open_error SIGNAL alter WAIT_FOR finish';
 SELECT TABLE_SCHEMA, TABLE_NAME, PARTITION_NAME, PARTITION_ORDINAL_POSITION,
@@ -77,7 +76,6 @@ test	t1	p0	1	10	1
 test	t1	p10	2	MAXVALUE	3
 t1#P#p0.ibd
 t1#P#p10.ibd
-t1.frm
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (

@@ -37,18 +37,14 @@ set global ndb_dbg_check_shares=1;
 set global ndb_dbg_check_shares=1;
 set global ndb_dbg_check_shares=1;
 create table t1 (a int) engine=ndbcluster;
-alter offline table t1 add column b int default 77;
-Warnings:
-Warning	1287	'OFFLINE' is deprecated and will be removed in a future release. Please use ALGORITHM=COPY instead
+alter table t1 algorithm=copy, add column b int default 77;
 drop table t1;
 set global ndb_dbg_check_shares=1;
 set global ndb_dbg_check_shares=1;
 set global ndb_dbg_check_shares=1;
 set global ndb_dbg_check_shares=1;
 create table t1 (a int) engine=ndbcluster;
-alter offline table t1 add column b int default 77;
-Warnings:
-Warning	1287	'OFFLINE' is deprecated and will be removed in a future release. Please use ALGORITHM=COPY instead
+alter table t1 algorithm=copy, add column b int default 77;
 drop table t1;
 set global ndb_dbg_check_shares=1;
 set global ndb_dbg_check_shares=1;
@@ -56,9 +52,7 @@ set global ndb_dbg_check_shares=1;
 set global ndb_dbg_check_shares=1;
 create table t1 (a int primary key) engine=ndbcluster
 partition by list(a) (partition p0 values in (0));
-alter offline table t1 add partition (partition p1 values in (1));
-Warnings:
-Warning	1287	'OFFLINE' is deprecated and will be removed in a future release. Please use ALGORITHM=COPY instead
+alter table t1 algorithm=copy, add partition (partition p1 values in (1));
 drop table t1;
 set global ndb_dbg_check_shares=1;
 set global ndb_dbg_check_shares=1;
@@ -66,27 +60,21 @@ set global ndb_dbg_check_shares=1;
 set global ndb_dbg_check_shares=1;
 create table t1 (a int primary key) engine=ndbcluster
 partition by list(a) (partition p0 values in (0));
-alter offline table t1 add partition (partition p1 values in (1));
-Warnings:
-Warning	1287	'OFFLINE' is deprecated and will be removed in a future release. Please use ALGORITHM=COPY instead
+alter table t1 algorithm=copy, add partition (partition p1 values in (1));
 drop table t1;
 set global ndb_dbg_check_shares=1;
 set global ndb_dbg_check_shares=1;
 set global ndb_dbg_check_shares=1;
 set global ndb_dbg_check_shares=1;
 create table t1 (a int primary key) engine=ndbcluster;
-alter online table t1 add column b int column_format dynamic;
-Warnings:
-Warning	1287	'ONLINE' is deprecated and will be removed in a future release. Please use ALGORITHM=INPLACE instead
+alter table t1 algorithm=inplace, add column b int column_format dynamic;
 drop table t1;
 set global ndb_dbg_check_shares=1;
 set global ndb_dbg_check_shares=1;
 set global ndb_dbg_check_shares=1;
 set global ndb_dbg_check_shares=1;
 create table t1 (a int primary key) engine=ndbcluster;
-alter offline table t1 add column b int column_format dynamic;
-Warnings:
-Warning	1287	'OFFLINE' is deprecated and will be removed in a future release. Please use ALGORITHM=COPY instead
+alter table t1 algorithm=copy, add column b int column_format dynamic;
 drop table t1;
 set global ndb_dbg_check_shares=1;
 set global ndb_dbg_check_shares=1;
@@ -139,9 +127,7 @@ set global ndb_dbg_check_shares=1;
 create table t1 (a int) engine=myisam;
 create table t1 (a int) engine=myisam;
 create table t1 (a int) engine = ndb;
-alter offline table t1 add column b int column_format dynamic;
-Warnings:
-Warning	1287	'OFFLINE' is deprecated and will be removed in a future release. Please use ALGORITHM=COPY instead
+alter table t1 algorithm=copy, add column b int column_format dynamic;
 drop table t1;
 desc t1;
 Field	Type	Null	Key	Default	Extra
@@ -160,9 +146,7 @@ set global ndb_dbg_check_shares=1;
 create table t1 (a int) engine=myisam;
 create table t1 (a int) engine=myisam;
 create table t1 (a int primary key) engine = ndb;
-alter online table t1 add column b int column_format dynamic;
-Warnings:
-Warning	1287	'ONLINE' is deprecated and will be removed in a future release. Please use ALGORITHM=INPLACE instead
+alter table t1 algorithm=inplace, add column b int column_format dynamic;
 drop table t1;
 desc t1;
 Field	Type	Null	Key	Default	Extra

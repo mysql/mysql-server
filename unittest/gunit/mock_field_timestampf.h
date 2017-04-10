@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,6 +21,7 @@
 
 class Mock_field_timestampf : public Field_timestampf
 {
+  static const int PACK_LENGTH= 8;
   uchar null_byte;
   void initialize()
   {
@@ -34,11 +35,11 @@ class Mock_field_timestampf : public Field_timestampf
 public:
   uchar buffer[PACK_LENGTH];
   bool store_timestamp_internal_called;
-  Mock_field_timestampf(Field::utype utype, int scale) :
+  Mock_field_timestampf(uchar auto_flags_arg, int scale) :
     Field_timestampf(static_cast<uchar*>(buffer), // ptr_arg
                      &null_byte, // null_ptr_arg
                      '\0', // null_bit_arg
-                     utype,// unireg_check_arg
+                     auto_flags_arg, // auto_flags_arg
                      "",   // field_name_arg
                      static_cast<uint8>(scale)), // dec_arg a.k.a. scale.
     null_byte(0),

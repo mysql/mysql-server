@@ -13,7 +13,7 @@ COUNT(@@GLOBAL.ssl_capath)
 0 Expected
 '#---------------------BS_STVARS_046_03----------------------#'
 SELECT @@GLOBAL.ssl_capath = VARIABLE_VALUE
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='ssl_capath';
 @@GLOBAL.ssl_capath = VARIABLE_VALUE
 NULL
@@ -23,7 +23,7 @@ COUNT(@@GLOBAL.ssl_capath)
 0
 0 Expected
 SELECT COUNT(VARIABLE_VALUE)
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='ssl_capath';
 COUNT(VARIABLE_VALUE)
 1

@@ -70,22 +70,25 @@ mediumblob_col	mediumblob	NULL	NO		NULL		#
 longblob_col	longblob	NULL	NO		NULL		#	
 options	enum('one','two','tree')	latin1_swedish_ci	NO	MUL	NULL		#	
 flags	set('one','two','tree')	latin1_swedish_ci	NO				#	
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 show keys from t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
-t1	0	PRIMARY	1	auto	A	0	NULL	NULL		BTREE		
-t1	1	utiny	1	utiny	A	NULL	NULL	NULL		BTREE		
-t1	1	tiny	1	tiny	A	NULL	NULL	NULL		BTREE		
-t1	1	short	1	short	A	NULL	NULL	NULL		BTREE		
-t1	1	any_name	1	medium	A	NULL	NULL	NULL		BTREE		
-t1	1	longlong	1	longlong	A	NULL	NULL	NULL		BTREE		
-t1	1	real_float	1	real_float	A	NULL	NULL	NULL		BTREE		
-t1	1	ushort	1	ushort	A	NULL	NULL	NULL		BTREE		
-t1	1	umedium	1	umedium	A	NULL	NULL	NULL		BTREE		
-t1	1	ulong	1	ulong	A	NULL	NULL	NULL		BTREE		
-t1	1	ulonglong	1	ulonglong	A	NULL	NULL	NULL		BTREE		
-t1	1	ulonglong	2	ulong	A	NULL	NULL	NULL		BTREE		
-t1	1	options	1	options	A	NULL	NULL	NULL		BTREE		
-t1	1	options	2	flags	A	NULL	NULL	NULL		BTREE		
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+t1	0	PRIMARY	1	auto	A	0	NULL	NULL		BTREE			YES
+t1	1	utiny	1	utiny	A	0	NULL	NULL		BTREE			YES
+t1	1	tiny	1	tiny	A	0	NULL	NULL		BTREE			YES
+t1	1	short	1	short	A	0	NULL	NULL		BTREE			YES
+t1	1	any_name	1	medium	A	0	NULL	NULL		BTREE			YES
+t1	1	longlong	1	longlong	A	0	NULL	NULL		BTREE			YES
+t1	1	real_float	1	real_float	A	0	NULL	NULL		BTREE			YES
+t1	1	ushort	1	ushort	A	0	NULL	NULL		BTREE			YES
+t1	1	umedium	1	umedium	A	0	NULL	NULL		BTREE			YES
+t1	1	ulong	1	ulong	A	0	NULL	NULL		BTREE			YES
+t1	1	ulonglong	1	ulonglong	A	0	NULL	NULL		BTREE			YES
+t1	1	ulonglong	2	ulong	A	0	NULL	NULL		BTREE			YES
+t1	1	options	1	options	A	0	NULL	NULL		BTREE			YES
+t1	1	options	2	flags	A	0	NULL	NULL		BTREE			YES
 CREATE UNIQUE INDEX test on t1 ( auto ) ;
 CREATE INDEX test2 on t1 ( ulonglong,ulong) ;
 Warnings:
@@ -150,7 +153,7 @@ alter short drop default,
 DROP INDEX utiny,
 DROP INDEX ushort,
 DROP PRIMARY KEY,
-DROP FOREIGN KEY any_name,
+DROP KEY any_name,
 ADD INDEX (auto);
 LOCK TABLES t1 WRITE;
 ALTER TABLE t1 
@@ -179,12 +182,12 @@ PRIMARY KEY (auto)
 );
 INSERT INTO t2 (string,mediumblob_col,new_field) SELECT string,mediumblob_col,new_field from t1 where auto > 10;
 Warnings:
+Warning	1265	Data truncated for column 'new_field' at row 1
 Warning	1265	Data truncated for column 'new_field' at row 2
 Warning	1265	Data truncated for column 'new_field' at row 3
 Warning	1265	Data truncated for column 'new_field' at row 4
 Warning	1265	Data truncated for column 'new_field' at row 5
 Warning	1265	Data truncated for column 'new_field' at row 6
-Warning	1265	Data truncated for column 'new_field' at row 7
 select * from t2;
 auto	string	mediumblob_col	new_field
 1	2	2	ne

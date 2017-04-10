@@ -13,55 +13,16 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 
-# If we are building client-only (-DWITHOUT_SERVER=ON) with Solaris Studio,
-# we skip building the mysqlpump tool. The server, and mysqlpump, will be built
-# using gcc.
-
 INCLUDE_DIRECTORIES(
   ${CMAKE_SOURCE_DIR}/dump
 )
 
-IF (CMAKE_CXX_COMPILER_ID STREQUAL "SunPro")
-  IF (WITHOUT_SERVER)
-    MESSAGE(STATUS "Not building mysqlpump")
-    RETURN()
-  ENDIF()
-ENDIF()
-
-# Prevent Boost from including external precompiled Boost libraries, use
-# threading (not implemented for older Solaris Studio compilers)
+# Prevent Boost from including external precompiled Boost libraries,
 # and turn off unused functionality.
 IF(USING_LOCAL_BOOST)
   ADD_DEFINITIONS(
     -DBOOST_ALL_NO_LIB
     -DBOOST_SYSTEM_NO_DEPRECATED)
-ENDIF()
-
-SET(BOOST_LIB_SOURCES
-  ${BOOST_SOURCES_DIR}/libs/chrono/src/chrono.cpp
-  ${BOOST_SOURCES_DIR}/libs/system/src/error_code.cpp
-)
-
-IF(USING_LOCAL_BOOST)
-  ADD_CONVENIENCE_LIBRARY(boost_lib ${BOOST_LIB_SOURCES})
-
-  # Do not build library unless it is needed by some other target.
-  SET_PROPERTY(TARGET boost_lib PROPERTY EXCLUDE_FROM_ALL TRUE)
-
-  ADD_COMPILE_FLAGS(
-    ${BOOST_LIB_SOURCES}
-    COMPILE_FLAGS -I${BOOST_PATCHES_DIR} -I${BOOST_INCLUDE_DIR}
-    )
-
-  IF(HAVE_clock_gettime_IN_rt)
-    TARGET_LINK_LIBRARIES(boost_lib ${LIBRT})
-  ENDIF()
-
-  # Need explicit pthread for gcc -fsanitize=address
-  IF(CMAKE_USE_PTHREADS_INIT AND CMAKE_C_FLAGS MATCHES "-fsanitize=")
-    TARGET_LINK_LIBRARIES(boost_lib pthread)
-  ENDIF()
-  SET(LOCAL_BOOST_LIB boost_lib)
 ENDIF()
 
 SET(MYSQLPUMP_LIB_SOURCES
@@ -138,7 +99,7 @@ SET(MYSQLPUMP_LIB_SOURCES
   thread_specific_connection_provider.cc
   trigger.cc
   view.cc
-  ../../sql-common/my_user.c)
+)
 ADD_CONVENIENCE_LIBRARY(mysqlpump_lib ${MYSQLPUMP_LIB_SOURCES})
 TARGET_LINK_LIBRARIES(mysqlpump_lib
    client_base ${LZ4_LIBRARY})
@@ -165,11 +126,40 @@ SET(MYSQLPUMP_BOOST_SOURCES
   table.cc
 )
 
-# Boost source has unused local typedefs.
-MY_CHECK_CXX_COMPILER_FLAG("-Wunused-local-typedefs" HAVE_UNUSED_TYPEDEFS)
-IF(HAVE_UNUSED_TYPEDEFS)
+#
+# Disabling of various compiler warnings for GCC/Clang
+#
+
+IF(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+  # Common for all versions of GCC/Clang
+
+  # Boost source use undefined symbols in #if checks
   ADD_COMPILE_FLAGS(${MYSQLPUMP_BOOST_SOURCES}
-    COMPILE_FLAGS "-Wno-unused-local-typedefs")
+                    COMPILE_FLAGS "-Wno-undef")
+  # Boost source use auto_ptr, deprecated in C++11
+  ADD_COMPILE_FLAGS(${MYSQLPUMP_BOOST_SOURCES}
+                    COMPILE_FLAGS "-Wno-deprecated-declarations")
+  # Boost atomics triggers bogus warning in GCC, see
+  # https://gcc.gnu.org/bugzilla/show_bug.cgi?id=61489
+  ADD_COMPILE_FLAGS(${MYSQLPUMP_BOOST_SOURCES}
+                    COMPILE_FLAGS "-Wno-missing-field-initializers")
+  
+  # Only for some versions of GCC/Clang
+
+  MY_CHECK_CXX_COMPILER_FLAG("-Wunused-local-typedefs" HAVE_UNUSED_TYPEDEFS)
+  IF(HAVE_UNUSED_TYPEDEFS)
+    # Boost source has unused local typedefs.
+    ADD_COMPILE_FLAGS(${MYSQLPUMP_BOOST_SOURCES}
+                      COMPILE_FLAGS "-Wno-unused-local-typedefs")
+  ENDIF()
+  
+  MY_CHECK_CXX_COMPILER_FLAG("-Wlogical-op" HAVE_LOGICAL_OP)
+  IF(HAVE_LOGICAL_OP)
+    # Boost source has logical && with non-zero constant
+    ADD_COMPILE_FLAGS(${MYSQLPUMP_BOOST_SOURCES}
+                      COMPILE_FLAGS "-Wno-logical-op")
+  ENDIF()
+
 ENDIF()
 
 ADD_COMPILE_FLAGS(
@@ -182,11 +172,7 @@ ADD_COMPILE_FLAGS(
   program.cc COMPILE_FLAGS -I${BOOST_PATCHES_DIR} -I${BOOST_INCLUDE_DIR}
 )
 
-TARGET_LINK_LIBRARIES(mysqlpump mysqlpump_lib ${LOCAL_BOOST_LIB})
-IF(USING_SYSTEM_BOOST)
-  TARGET_LINK_LIBRARIES(mysqlpump "-lboost_system")
-  TARGET_LINK_LIBRARIES(mysqlpump "-lboost_chrono")
-ENDIF()
+TARGET_LINK_LIBRARIES(mysqlpump mysqlpump_lib)
 
 SET_TARGET_PROPERTIES(mysqlpump PROPERTIES HAS_CXX TRUE)
 

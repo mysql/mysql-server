@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,11 +16,22 @@
 #ifndef PREALLOCED_ARRAY_INCLUDED
 #define PREALLOCED_ARRAY_INCLUDED
 
-#include "my_global.h"
-#include "my_sys.h"
-#include "my_dbug.h"
+/**
+  @file include/prealloced_array.h
+*/
 
+#include <stddef.h>
 #include <algorithm>
+#include <new>
+#include <type_traits>
+#include <utility>
+
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_sys.h"
+#include "mysql/psi/psi_memory.h"
+#include "mysql/service_mysql_alloc.h"
 
 /**
   A typesafe replacement for DYNAMIC_ARRAY. We do our own memory management,
@@ -41,20 +52,20 @@
   removed from the array (including when the array object itself is destroyed).
 
   @tparam Element_type The type of the elements of the container.
-          Elements must be copyable.
+          Elements must be copyable or movable.
   @tparam Prealloc Number of elements to pre-allocate.
-  @tparam Has_trivial_destructor If true, we don't destroy elements.
-          We could have used type traits to determine this.
-          __has_trivial_destructor is supported by some (but not all)
-          compilers we use.
-          We set the default to true, since we will most likely store pointers
-          (shuffling objects around may be expensive).
  */
-template<typename Element_type,
-         size_t Prealloc,
-         bool Has_trivial_destructor = true>
+template<typename Element_type, size_t Prealloc>
 class Prealloced_array
 {
+  /**
+    Is Element_type trivially destructible? If it is, we don't destroy
+    elements when they are removed from the array or when the array is
+    destroyed.
+  */
+  static constexpr bool Has_trivial_destructor=
+    std::is_trivially_destructible<Element_type>::value;
+
   /**
     Casts the raw buffer to the proper Element_type.
     We use a raw buffer rather than Element_type[] in order to avoid having
@@ -65,6 +76,9 @@ class Prealloced_array
     return static_cast<Element_type*>(static_cast<void*>(&m_buff.data[0]));
   }
 public:
+
+  /// Initial capacity of the array.
+  static const size_t initial_capacity= Prealloc;
 
   /// Standard typedefs.
   typedef Element_type value_type;
@@ -78,8 +92,34 @@ public:
     : m_size(0), m_capacity(Prealloc), m_array_ptr(cast_rawbuff()),
       m_psi_key(psi_key)
   {
-    // We do not want a zero-size array.
-    compile_time_assert(Prealloc != 0);
+    static_assert(Prealloc != 0, "We do not want a zero-size array.");
+  }
+
+  /**
+    Initializes (parts of) the array with default values.
+    Using 'Prealloc' for initial_size makes this similar to a raw C array.
+  */
+  Prealloced_array(PSI_memory_key psi_key, size_t initial_size)
+    : m_size(0), m_capacity(Prealloc), m_array_ptr(cast_rawbuff()),
+      m_psi_key(psi_key)
+  {
+    static_assert(Prealloc != 0, "We do not want a zero-size array.");
+
+    if (initial_size > Prealloc)
+    {
+      // We avoid using reserve() since it requires Element_type to be copyable.
+      void *mem=
+        my_malloc(m_psi_key, initial_size * element_size(), MYF(MY_WME));
+      if (!mem)
+        return;
+      m_array_ptr= static_cast<Element_type*>(mem);
+      m_capacity= initial_size;
+    }
+    for (size_t ix= 0; ix < initial_size; ++ix)
+    {
+      Element_type *p= &m_array_ptr[m_size++];
+      ::new (p) Element_type();
+    }
   }
 
   /**
@@ -175,10 +215,33 @@ public:
   iterator end()   { return m_array_ptr + size(); }
   const_iterator begin() const { return m_array_ptr; }
   const_iterator end()   const { return m_array_ptr + size(); }
+  /// Returns a constant pointer to the first element in the array.
+  const_iterator cbegin() const { return begin(); }
+  /// Returns a constant pointer to the past-the-end element in the array.
+  const_iterator cend() const { return end(); }
+
+  /**
+    Assigns a value to an arbitrary element, even where n >= size().
+    The array is extended with default values if necessary.
+    @retval true if out-of-memory, false otherwise.
+  */
+  bool assign_at(size_t n, const value_type &val)
+  {
+    if (n < size())
+    {
+      at(n)= val;
+      return false;
+    }
+    if (reserve(n + 1))
+      return true;
+    resize(n);
+    return push_back(val);
+  }
 
   /**
     Reserves space for array elements.
-    Copies over existing elements, in case we are re-expanding the array.
+    Copies (or moves, if possible) over existing elements, in case we
+    are re-expanding the array.
 
     @param  n number of elements.
     @retval true if out-of-memory, false otherwise.
@@ -193,12 +256,12 @@ public:
       return true;
     Element_type *new_array= static_cast<Element_type*>(mem);
 
-    // Copy all the existing elements into the new array.
+    // Move all the existing elements into the new array.
     for (size_t ix= 0; ix < m_size; ++ix)
     {
       Element_type *new_p= &new_array[ix];
-      const Element_type &old_p= m_array_ptr[ix];
-      ::new (new_p) Element_type(old_p);    // Copy into new location.
+      Element_type &old_p= m_array_ptr[ix];
+      ::new (new_p) Element_type(std::move(old_p)); // Move into new location.
       if (!Has_trivial_destructor)
         old_p.~Element_type();              // Destroy the old element.
     }
@@ -215,15 +278,36 @@ public:
   /**
     Copies an element into the back of the array.
     Complexity: Constant (amortized time, reallocation may happen).
-    @retval true if out-of-memory, false otherwise.
-   */
+    @return true if out-of-memory, false otherwise
+  */
   bool push_back(const Element_type &element)
+  {
+    return emplace_back(element);
+  }
+
+  /**
+    Copies (or moves, if possible) an element into the back of the array.
+    Complexity: Constant (amortized time, reallocation may happen).
+    @return true if out-of-memory, false otherwise
+  */
+  bool push_back(Element_type &&element)
+  {
+    return emplace_back(std::move(element));
+  }
+
+  /**
+    Constructs an element at the back of the array.
+    Complexity: Constant (amortized time, reallocation may happen).
+    @return true if out-of-memory, false otherwise
+  */
+  template <typename... Args>
+  bool emplace_back(Args&&... args)
   {
     const size_t expansion_factor= 2;
     if (m_size == m_capacity && reserve(m_capacity * expansion_factor))
       return true;
     Element_type *p= &m_array_ptr[m_size++];
-    ::new (p) Element_type(element);
+    ::new (p) Element_type(std::forward<Args>(args)...);
     return false;
   }
 
@@ -246,23 +330,51 @@ public:
     This is generally an inefficient operation, since we need to copy
     elements to make a new "hole" in the array.
 
-    We use std::copy_backward to move objects, hence Element_type must be
-    assignable.
+    We use std::rotate to move objects, hence Element_type must be
+    move-assignable and move-constructible.
 
-    @retval An iterator pointing to the inserted value.
-   */
-  iterator insert(iterator position, const value_type &val)
+    @return an iterator pointing to the inserted value
+  */
+  iterator insert(const_iterator position, const value_type &val)
+  {
+    return emplace(position, val);
+  }
+
+  /**
+    The array is extended by inserting a new element before the element at the
+    specified position. The element is moved into the array, if possible.
+
+    This is generally an inefficient operation, since we need to copy
+    elements to make a new "hole" in the array.
+
+    We use std::rotate to move objects, hence Element_type must be
+    move-assignable and move-constructible.
+
+    @return an iterator pointing to the inserted value
+  */
+  iterator insert(const_iterator position, value_type &&val)
+  {
+    return emplace(position, std::move(val));
+  }
+
+  /**
+    The array is extended by inserting a new element before the element at the
+    specified position. The element is constructed in-place.
+
+    This is generally an inefficient operation, since we need to copy
+    elements to make a new "hole" in the array.
+
+    We use std::rotate to move objects, hence Element_type must be
+    move-assignable and move-constructible.
+
+    @return an iterator pointing to the inserted value
+  */
+  template <typename... Args>
+  iterator emplace(const_iterator position, Args&&... args)
   {
     const difference_type n= position - begin();
-    if (position == end())
-      push_back(val);
-    else
-    {
-      resize(m_size + 1);
-      // resize() may invalidate position, so do not use it here.
-      std::copy_backward(begin() + n, end() - 1, end());
-      *(begin() + n) = val;
-    }
+    emplace_back(std::forward<Args>(args)...);
+    std::rotate(begin() + n, end() - 1, end());
     return begin() + n;
   }
 
@@ -328,18 +440,16 @@ public:
     The removed element is destroyed.
     This effectively reduces the container size by one.
 
-    This is generally an inefficient operation, since we need to copy
-    elements to fill the "hole" in the array.
+    This is generally an inefficient operation, since we need to move
+    or copy elements to fill the "hole" in the array.
 
-    We use std::copy to move objects, hence Element_type must be assignable.
+    We use std::move to move objects, hence Element_type must be
+    move-assignable.
   */
-  iterator erase(iterator position)
+  iterator erase(const_iterator position)
   {
     DBUG_ASSERT(position != end());
-    if (position + 1 != end())
-      std::copy(position + 1, end(), position);
-    this->pop_back();
-    return position;
+    return erase(position - begin());
   }
 
   /**
@@ -348,7 +458,11 @@ public:
   iterator erase(size_t ix)
   {
     DBUG_ASSERT(ix < size());
-    return erase(begin() + ix);
+    iterator pos= begin() + ix;
+    if (pos + 1 != end())
+      std::move(pos + 1, end(), pos);
+    pop_back();
+    return pos;
   }
 
   /**
@@ -356,9 +470,9 @@ public:
     The removed elements are destroyed.
     This effectively reduces the containers size by 'end() - first'.
    */
-  void erase_at_end(iterator first)
+  void erase_at_end(const_iterator first)
   {
-    iterator last= end();
+    const_iterator last= cend();
     const difference_type diff= last - first;
     if (!Has_trivial_destructor)
     {
@@ -373,16 +487,24 @@ public:
     The removed elements are destroyed.
     This effectively reduces the containers size by 'last - first'.
 
-    This is generally an inefficient operation, since we need to copy
-    elements to fill the "hole" in the array.
+    This is generally an inefficient operation, since we need to move
+    or copy elements to fill the "hole" in the array.
 
-    We use std::copy to move objects, hence Element_type must be assignable.
+    We use std::move to move objects, hence Element_type must be
+    move-assignable.
    */
-  iterator erase(iterator first, iterator last)
+  iterator erase(const_iterator first, const_iterator last)
   {
+    /*
+      std::move() wants non-const input iterators, otherwise it cannot move and
+      must always copy the elements. Convert first and last from const_iterator
+      to iterator.
+    */
+    iterator start= begin() + (first - cbegin());
+    iterator stop= begin() + (last - cbegin());
     if (first != last)
-      erase_at_end(std::copy(last, end(), first));
-    return first;
+      erase_at_end(std::move(stop, end(), start));
+    return start;
   }
 
   /**

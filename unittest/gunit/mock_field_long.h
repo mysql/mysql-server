@@ -1,6 +1,6 @@
 #ifndef MOCK_FIELD_LONG_INCLUDED
 #define MOCK_FIELD_LONG_INCLUDED
-/* Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -48,7 +48,7 @@ public:
                  8,                               // len_arg
                  is_nullable ? &null_byte : NULL, // null_ptr_arg
                  is_nullable ? 1 : 0,             // null_bit_arg
-                 Field::NONE,                     // unireg_check_arg
+                 Field::NONE,                     // auto_flags_arg
                  "field_name",                    // field_name_arg
                  false,                           // zero_arg
                  false),                          // unsigned_arg
@@ -65,7 +65,7 @@ public:
                  8,                           // len_arg
                  NULL,                        // null_ptr_arg
                  0,                           // null_bit_arg
-                 Field::NONE,                 // unireg_check_arg
+                 Field::NONE,                 // auto_flags_arg
                  "field_name",                // field_name_arg
                  false,                       // zero_arg
                  false)                       // unsigned_arg

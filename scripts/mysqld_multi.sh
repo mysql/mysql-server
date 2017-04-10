@@ -337,32 +337,8 @@ sub start_mysqlds()
           print "FATAL ERROR: Cannot create data directory $datadir: $!\n";
           exit(1);
         }
-        if (! -d $datadir."/mysql") {
-          if (-w $datadir) {
-            print "\n\nInstalling new database in $datadir\n\n";
-            $install_cmd="@bindir@/mysql_install_db ";
-            $install_cmd.="--user=mysql ";
-            $install_cmd.="--datadir=$datadir";
-            system($install_cmd);
-          } else {
-            print "\n";
-            print "FATAL ERROR: Tried to create mysqld under group [$groups[$i]],\n";
-            print "but the data directory is not writable.\n";
-            print "data directory used: $datadir\n";
-            exit(1);
-          }
-        }
-
-        if (! -d $datadir."/mysql") {
-          print "\n";
-          print "FATAL ERROR: Tried to start mysqld under group [$groups[$i]],\n";
-          print "but no data directory was found or could be created.\n";
-          print "data directory used: $datadir\n";
-          exit(1);
-        }
       }
-
-      if ("--mysqladmin=" eq substr($options[$j], 0, 13))
+      elsif ("--mysqladmin=" eq substr($options[$j], 0, 13))
       {
 	# catch this and ignore
       }
@@ -397,7 +373,6 @@ sub start_mysqlds()
     }
     $com.= $tmp;
     $com.= " >> $opt_log 2>&1" if (!$opt_no_log);
-    $com.= " &";
     if (!$mysqld_found)
     {
       print "\n";
@@ -412,7 +387,26 @@ sub start_mysqlds()
       $curdir=getcwd();
       chdir($basedir) or die "Can't change to datadir $basedir";
     }
-    system($com);
+    if (! -d $datadir."/mysql") {
+      if (-w $datadir) {
+        print "\n\nInstalling new database in $datadir\n\n";
+        system($com." --initialize");
+      } else {
+        print "\n";
+        print "FATAL ERROR: Tried to create mysqld under group [$groups[$i]],\n";
+        print "but the data directory is not writable.\n";
+        print "data directory used: $datadir\n";
+        exit(1);
+      }
+    }
+    if (! -d $datadir."/mysql") {
+      print "\n";
+      print "FATAL ERROR: Tried to start mysqld under group [$groups[$i]],\n";
+      print "but no data directory was found or could be created.\n";
+      print "data directory used: $datadir\n";
+      exit(1);
+    }
+    system($com." &");
     if ($basedir_found)
     {
       chdir($curdir) or die "Can't change back to original dir $curdir";

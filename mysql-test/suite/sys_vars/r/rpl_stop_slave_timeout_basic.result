@@ -56,7 +56,7 @@ SELECT @@session.rpl_stop_slave_timeout;
 ERROR HY000: Variable 'rpl_stop_slave_timeout' is a GLOBAL variable
 '#----------------------FN_DYNVARS_019_06------------------------#'
 SELECT @@global.rpl_stop_slave_timeout = VARIABLE_VALUE
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='rpl_stop_slave_timeout';
 @@global.rpl_stop_slave_timeout = VARIABLE_VALUE
 1

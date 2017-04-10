@@ -1,12 +1,12 @@
 # Testing master to slave heartbeat protocol
-# 
+#
 # Including:
-# - user interface, grammar, checking the range and warnings about 
-#   unreasonable values for the heartbeat period;
+# - user interface, grammar, checking the range and warnings about
+#   unreasonable values for the heartbeat period
 # - no rotation of relay log if heartbeat is less that slave_net_timeout
-# - SHOW STATUS like 'Slave_received_heartbeats' action
-# - SHOW STATUS like 'Slave_heartbeat_period' report
-# - SHOW STATUS like 'Slave_last_heartbeat' check
+# - SELECT  COUNT_RECEIVED_HEARTBEATS FROM p_S.replication_connection_status
+# - SELECT  HEARTBEAT_INTERVAL FROM p_s.replication_connection_configuration
+# - SELECT LAST_HEARTBEAT_TIMESTAMP FROM p_s.replication_connection_status
 
 --source include/not_group_replication_plugin.inc
 --let $rpl_skip_start_slave= 1
@@ -14,14 +14,16 @@
 --let $rpl_skip_change_master= 1
 --source include/master-slave.inc
 
-connection slave;
+--let $rpl_connection_name= slave
+--source include/rpl_connection.inc
+
 set @restore_slave_net_timeout= @@global.slave_net_timeout;
 set @@global.slave_net_timeout= 10;
 
 #
-# check for null value of the Slave_last_heartbeat variable when the slave is not enabled
+# check for null value of the last_heartbeat_timestamp variable when the slave is not enabled
 #
---query_vertical SHOW STATUS LIKE "Slave_last_heartbeat"
+--query_vertical SELECT LAST_HEARTBEAT_TIMESTAMP FROM performance_schema.replication_connection_status
 
 ###
 ### Checking the range
@@ -33,27 +35,29 @@ set @@global.slave_net_timeout= 10;
 --replace_result $MASTER_MYPORT MASTER_PORT
 --replace_column 2 ####
 eval change master to master_host='127.0.0.1',master_port=$MASTER_MYPORT, master_user='root';
---query_vertical show status like 'Slave_heartbeat_period';
+--query_vertical SELECT HEARTBEAT_INTERVAL FROM performance_schema.replication_connection_configuration
 
 #
-# the max for the period is ULONG_MAX/1000; an attempt to exceed it is  denied
+# the max for the heartbeat_interval is ULONG_MAX/1000; an attempt to exceed it is  denied
 #
 --replace_result $MASTER_MYPORT MASTER_PORT
 --replace_column 2 ####
 --error ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE
 eval change master to master_host='127.0.0.1',master_port=$MASTER_MYPORT, master_user='root', master_heartbeat_period= 4294968;
---query_vertical show status like 'Slave_heartbeat_period';
+--query_vertical SELECT HEARTBEAT_INTERVAL FROM performance_schema.replication_connection_configuration
 
 #
-# the min value for the period is 1 millisecond an attempt to assign a
+# the min value for the heartbeat_interval is 1 millisecond an attempt to assign a
 # lesser will be warned with treating the value as zero
 #
-connection slave;
+--let $rpl_connection_name= slave
+--source include/rpl_connection.inc
+
 --replace_result $MASTER_MYPORT MASTER_PORT
 --replace_column 2 ####
 ### 5.1 mtr does not have --warning ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE
 eval change master to master_host='127.0.0.1',master_port=$MASTER_MYPORT, master_user='root', master_heartbeat_period= 0.0009999;
---query_vertical show status like 'Slave_heartbeat_period';
+--query_vertical SELECT HEARTBEAT_INTERVAL FROM performance_schema.replication_connection_configuration
 
 #
 # the actual max and min must be accepted
@@ -61,23 +65,23 @@ eval change master to master_host='127.0.0.1',master_port=$MASTER_MYPORT, master
 --replace_result $MASTER_MYPORT MASTER_PORT
 --replace_column 2 ####
 eval change master to master_host='127.0.0.1',master_port=$MASTER_MYPORT, master_user='root', master_heartbeat_period= 4294967;
---query_vertical show status like 'Slave_heartbeat_period';
+--query_vertical SELECT HEARTBEAT_INTERVAL FROM performance_schema.replication_connection_configuration
 
 --replace_result $MASTER_MYPORT MASTER_PORT
 --replace_column 2 ####
 eval change master to master_host='127.0.0.1',master_port=$MASTER_MYPORT, master_user='root', master_heartbeat_period= 0.001;
---query_vertical show status like 'Slave_heartbeat_period';
+--query_vertical SELECT HEARTBEAT_INTERVAL FROM performance_schema.replication_connection_configuration
 
 reset slave;
 
 #
-# A warning if period greater than slave_net_timeout
+# A warning if heartbeat_interval greater than slave_net_timeout
 #
 set @@global.slave_net_timeout= 5;
 --replace_result $MASTER_MYPORT MASTER_PORT
 --replace_column 2 ####
 eval change master to master_host='127.0.0.1',master_port=$MASTER_MYPORT, master_user='root', master_heartbeat_period= 5.001;
---query_vertical show status like 'Slave_heartbeat_period';
+--query_vertical SELECT HEARTBEAT_INTERVAL FROM performance_schema.replication_connection_configuration
 
 reset slave;
 
@@ -88,17 +92,17 @@ set @@global.slave_net_timeout= 5;
 --replace_result $MASTER_MYPORT MASTER_PORT
 --replace_column 2 ####
 eval change master to master_host='127.0.0.1',master_port=$MASTER_MYPORT, master_user='root', master_heartbeat_period= 4;
---query_vertical show status like 'Slave_heartbeat_period';
+--query_vertical SELECT HEARTBEAT_INTERVAL FROM performance_schema.replication_connection_configuration
 set @@global.slave_net_timeout= 3 /* must be a warning */;
 
 reset slave;
-
 
 ###
 ### checking no rotation
 ###
 
-connection master;
+--let $rpl_connection_name= master
+--source include/rpl_connection.inc
 --disable_warnings
 drop table if exists t1;
 --enable_warnings
@@ -111,21 +115,23 @@ drop table if exists t1;
 # part is almost deterministic.
 #
 
-connection slave;
+--let $rpl_connection_name= slave
+--source include/rpl_connection.inc
 set @@global.slave_net_timeout= 10;
 --replace_result $MASTER_MYPORT MASTER_PORT
 # no error this time but rather a warning
 --replace_column 2 ####
 eval change master to master_host='127.0.0.1',master_port=$MASTER_MYPORT, master_user='root', master_heartbeat_period= 0.5;
---query_vertical show status like 'Slave_heartbeat_period';
+--query_vertical SELECT HEARTBEAT_INTERVAL FROM performance_schema.replication_connection_configuration
 
 start slave;
 
-connection master;
+--let $rpl_connection_name= master
+--source include/rpl_connection.inc
 create table t1 (f1 int);
 
-#connection slave;
 --source include/sync_slave_sql_with_master.inc
+
 let $slave_param= Relay_Log_File;
 let $slave_param_value= query_get_value(SHOW SLAVE STATUS, Relay_Log_File, 1);
 
@@ -140,10 +146,10 @@ real_sleep 15;
 source include/check_slave_param.inc;
 
 ###
-### SHOW STATUS like 'Slave_heartbeat_period' and 'Slave_received_heartbeats'
+### Check the values of HEARTBEAT_INTERVAL and COUNT_RECEIVED_HEARTBEATS
 ###
 
---query_vertical show status like 'Slave_heartbeat_period';
+--query_vertical SELECT HEARTBEAT_INTERVAL FROM performance_schema.replication_connection_configuration
 
 #
 # proof that there has been received at least one heartbeat;
@@ -151,56 +157,44 @@ source include/check_slave_param.inc;
 # and therefore it's not recorded into results.
 #
 
-let $slave_wait_param_counter= 300;
-let $slave_value= query_get_value("SHOW STATUS like 'Slave_received_heartbeats'", Value, 1);
 # Checking the fact that at least one heartbeat is received
-while (!$slave_value)
-{
-  dec $slave_wait_param_counter;
-  if (!$slave_wait_param_counter)
-  {
-    --echo ERROR: failed while waiting for slave parameter $slave_param: $slave_param_value
-    query_vertical show slave status;
-    SHOW STATUS like 'Slave_received_heartbeats';
-    exit;
-  }
-  sleep 0.1;
-  let $slave_value= query_get_value("SHOW STATUS like 'Slave_received_heartbeats'", Value, 1);
-}
+--let $wait_condition = SELECT COUNT_RECEIVED_HEARTBEATS > 0 FROM performance_schema.replication_connection_status
+--source include/wait_condition.inc
+
 --echo A heartbeat has been received by the slave
 
 #
-# check for non-null value of the Slave_last_heartbeat variable when the slave is enabled
+# check for non-null value of the last_heartbeat_timestamp variable when the slave is enabled
 #
---let $assert_text= Slave_last_heartbeat should not be empty
---let $assert_cond= \'[SHOW STATUS LIKE "Slave_last_heartbeat", Value, 1]\' != "" 
---source include/assert.inc  
+--let $assert_text= last_heartbeat_timestamp should not be empty
+--let $assert_cond= \'[SELECT LAST_HEARTBEAT_TIMESTAMP FROM performance_schema.replication_connection_status]\' != ""
+--source include/assert.inc
 
 # cleanup
 
-connection master;
+--let $rpl_connection_name= master
+--source include/rpl_connection.inc
 drop table t1;
 
-#connection slave;
 --source include/sync_slave_sql_with_master.inc
 set @@global.slave_net_timeout= @restore_slave_net_timeout;
 
 
 # ==== Bug#18185490: IF MASTER_HEARTBEAT_PERIOD OPTION IS NOT PROVIDED IT IS AUTO SETTING TO DEFAULT ====
 
-# Change master was always resetting the heartbeat period to default value
-# and received heartbeat to 0 on change master. After the bug fix,
-# change master should only change heartbeat_period if the corresponding option
-# is given and never change Slave_received_heartbeat.
+# Change master was always resetting the heartbeat_interval to default value
+# and count_received_heartbeats to 0 on change master. After the bug fix,
+# change master should only change heartbeat_interval if the corresponding option
+# is given and never change count_received_heartbeats
 
-
---connection slave
+--let $rpl_connection_name= slave
+--source include/rpl_connection.inc
 --source include/stop_slave.inc
 
 CHANGE MASTER TO MASTER_HEARTBEAT_PERIOD= 10;
 
---let $assert_text= Slave_heartbeat_period should be 10.000
---let $assert_cond= [SHOW STATUS LIKE "Slave_heartbeat_period", Value, 1] = 10.000
+--let $assert_text= HEARTBEAT_INTERVAL should be 10.000
+--let $assert_cond= [SELECT HEARTBEAT_INTERVAL FROM performance_schema.replication_connection_configuration] = 10.000
 --source include/assert.inc
 
 --echo
@@ -210,12 +204,12 @@ CHANGE MASTER TO MASTER_HEARTBEAT_PERIOD= 10;
 
 CHANGE MASTER TO MASTER_RETRY_COUNT= 3;
 
---let $assert_text= Slave_heartbeat_period should be 10.000
---let $assert_cond= [SHOW STATUS LIKE "Slave_heartbeat_period", Value, 1] = 10.000
+--let $assert_text= HEARTBEAT_INTERVAL should be 10.000
+--let $assert_cond= [SELECT HEARTBEAT_INTERVAL FROM performance_schema.replication_connection_configuration] = 10.000
 --source include/assert.inc
 
---let $assert_text= Slave_received_heartbeat should NOT be set to 0
---let $assert_cond= [SHOW STATUS LIKE "Slave_received_heartbeats", Value, 1] <> 0
+--let $assert_text= COUNT_RECEIVED_HEARTBEATS should NOT be set to 0
+--let $assert_cond= [SELECT COUNT_RECEIVED_HEARTBEATS FROM performance_schema.replication_connection_status] <> 0
 --source include/assert.inc
 
 
@@ -254,8 +248,8 @@ CHANGE MASTER TO MASTER_RETRY_COUNT= 3;
 RESET SLAVE;
 --source include/start_slave.inc
 
---let $assert_cond= [SHOW STATUS LIKE "Slave_heartbeat_period", Value, 1] = 10.000
---let $assert_text= heartbeat period should still be 10.000 after RESET SLAVE.
+--let $assert_cond= [SELECT  HEARTBEAT_INTERVAL FROM performance_schema.replication_connection_configuration] = 10.000
+--let $assert_text= HEARTBEAT_INTERVAL should still be 10.000 after RESET SLAVE.
 --source include/assert.inc
 
 --source include/stop_slave_io.inc
@@ -264,12 +258,12 @@ eval CHANGE MASTER TO MASTER_HOST= 'localhost', MASTER_PORT= $MASTER_MYPORT;
 --source include/start_slave.inc
 
 --let $default_heartbeat_period= @@global.slave_net_timeout/2;
---let $assert_cond= [SHOW STATUS LIKE "Slave_heartbeat_period", Value, 1] = $default_heartbeat_period
---let $assert_text= heartbeat period should reset to default.
+--let $assert_cond= [SELECT  HEARTBEAT_INTERVAL FROM performance_schema.replication_connection_configuration] = $default_heartbeat_period
+--let $assert_text= HEARTBEAT_INTERVAL should reset to default.
 --source include/assert.inc
 
 --echo #
---echo # Change from default to make sure changing HOST resets heartbeat_period
+--echo # Change from default to make sure changing HOST resets heartbeat_interval
 --echo # to default.
 --echo #
 --source include/stop_slave_io.inc
@@ -280,12 +274,12 @@ CHANGE MASTER TO MASTER_HEARTBEAT_PERIOD = 10;
 eval CHANGE MASTER TO MASTER_HOST= '127.0.0.1';
 --source include/start_slave.inc
 
---let $assert_cond= [SHOW STATUS LIKE "Slave_heartbeat_period", Value, 1] = $default_heartbeat_period
---let $assert_text= heartbeat period should reset to default on changing host.
+--let $assert_cond= [SELECT  HEARTBEAT_INTERVAL FROM performance_schema.replication_connection_configuration] = $default_heartbeat_period
+--let $assert_text= heartbeat_interval should reset to default on changing host.
 --source include/assert.inc
 
 --echo #
---echo # Change from default to make sure changing PORT resets heartbeat_period
+--echo # Change from default to make sure changing PORT resets heartbeat_interval
 --echo # to default.
 --echo #
 --source include/stop_slave.inc
@@ -298,8 +292,8 @@ CHANGE MASTER TO MASTER_HEARTBEAT_PERIOD = 10;
 eval CHANGE MASTER TO MASTER_PORT= $MASTER_MYPORT;
 --source include/start_slave.inc
 
---let $assert_cond= [SHOW STATUS LIKE "Slave_heartbeat_period", Value, 1] = $default_heartbeat_period
---let $assert_text= heartbeat period should reset to default on changing port.
+--let $assert_cond= [SELECT  HEARTBEAT_INTERVAL FROM performance_schema.replication_connection_configuration] = $default_heartbeat_period
+--let $assert_text= heartbeat_interval should reset to default on changing port.
 --source include/assert.inc
 
 --echo #
@@ -311,15 +305,15 @@ eval CHANGE MASTER TO MASTER_PORT= $MASTER_MYPORT;
 eval CHANGE MASTER TO MASTER_HOST= '127.0.0.1', MASTER_PORT= $MASTER_MYPORT;
 --source include/start_slave.inc
 
---let $assert_cond= [SHOW STATUS LIKE "Slave_heartbeat_period", Value, 1] = $default_heartbeat_period
---let $assert_text= heartbeat period should reset to default on changing host and port.
+--let $assert_cond= [SELECT  HEARTBEAT_INTERVAL FROM performance_schema.replication_connection_configuration] = $default_heartbeat_period
+--let $assert_text= heartbeat_interval should reset to default on changing host and port.
 --source include/assert.inc
 
 --source include/stop_slave.inc
 RESET SLAVE ALL;
 
---let $assert_cond= [SHOW STATUS LIKE "Slave_heartbeat_period", Value, 1] = 0.000
---let $assert_text= heartbeat period should reset to zero by RESET SLAVE ALL.
+--let $assert_cond= \'[SELECT HEARTBEAT_INTERVAL FROM performance_schema.replication_connection_configuration]\' = ""
+--let $assert_text= heartbeat_interval should reset to zero by RESET SLAVE ALL.
 --source include/assert.inc
 
 # Make this a slave again to successfully pass through cleanup routines.

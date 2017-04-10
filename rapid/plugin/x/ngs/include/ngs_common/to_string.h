@@ -21,50 +21,37 @@
 #define NGS_TO_STRING_H_
 
 #include <string>
-#include <cstdlib>
-#include "mysql/service_my_snprintf.h"
+#include "m_string.h"
 
-namespace ngs {
 
+namespace ngs
+{
 namespace detail {
 
 template <typename T>
-inline std::string to_string(const char* const str, T value) {
-  char buffer[32];
-  (void)my_snprintf(buffer, sizeof(buffer), str, value);
+inline std::string to_string(const my_gcvt_arg_type arg_type, T value) {
+  char buffer[100];
+  my_gcvt(value, arg_type, sizeof(buffer)-1, buffer, NULL);
   return buffer;
 }
 
 }  // namespace detail
 
-inline std::string to_string(int value) {
-  return detail::to_string("%d", value);
+template <typename T>
+inline std::string to_string(T value) { return std::to_string(value); }
+
+template <>
+inline std::string to_string<double>(double value) {
+  return detail::to_string(MY_GCVT_ARG_DOUBLE, value);
 }
 
-inline std::string to_string(unsigned value) {
-  return detail::to_string("%u", value);
+template <>
+inline std::string to_string<float>(float value) {
+  return detail::to_string(MY_GCVT_ARG_FLOAT, value);
 }
 
-inline std::string to_string(long value) {
-  return detail::to_string("%ld", value);
-}
-
-inline std::string to_string(long long value) {
-  return detail::to_string("%lld", value);
-}
-
-inline std::string to_string(unsigned long value) {
-  return detail::to_string("%lu", value);
-}
-
-inline std::string to_string(unsigned long long value) {
-  return detail::to_string("%llu", value);
-}
-
-inline int stoi(const std::string& str) { return std::atoi(str.c_str()); }
-
-inline double stod(const std::string& str) { return std::atof(str.c_str()); }
-
+using std::stoi;
+using std::stod;
 }  // namespace ngs
 
 #endif  // NGS_TO_STRING_H_

@@ -5,9 +5,9 @@ Warnings:
 Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 drop table if exists t1, t2, t3, t1i, t2i, t3i;
 drop view if exists v1, v2, v1m, v2m;
-create table t1 (a1 char(8), a2 char(8));
-create table t2 (b1 char(8), b2 char(8));
-create table t3 (c1 char(8), c2 char(8));
+create table t1 (a1 char(8), a2 char(8)) charset utf8mb4;
+create table t2 (b1 char(8), b2 char(8)) charset utf8mb4;
+create table t3 (c1 char(8), c2 char(8)) charset utf8mb4;
 insert into t1 values ('1 - 00', '2 - 00');
 insert into t1 values ('1 - 01', '2 - 01');
 insert into t1 values ('1 - 02', '2 - 02');
@@ -20,9 +20,9 @@ insert into t3 values ('1 - 01', '2 - 01');
 insert into t3 values ('1 - 02', '2 - 02');
 insert into t3 values ('1 - 03', '2 - 03');
 insert into t3 values ('1 - 04', '2 - 04');
-create table t1i (a1 char(8), a2 char(8));
-create table t2i (b1 char(8), b2 char(8));
-create table t3i (c1 char(8), c2 char(8));
+create table t1i (a1 char(8), a2 char(8)) charset utf8mb4;
+create table t2i (b1 char(8), b2 char(8)) charset utf8mb4;
+create table t3i (c1 char(8), c2 char(8)) charset utf8mb4;
 create index it1i1 on t1i (a1);
 create index it1i2 on t1i (a2);
 create index it1i3 on t1i (a1, a2);
@@ -79,7 +79,7 @@ explain extended
 select * from t1 where (a1, a2) in (select b1, min(b2) from t2 where b1 > '0' group by b1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	5	33.33	Using where; Using temporary; Using filesort
+2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	5	33.33	Using where; Using temporary
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2` from `test`.`t1` where <in_optimizer>((`test`.`t1`.`a1`,`test`.`t1`.`a2`),<exists>(/* select#2 */ select 1,1 from `test`.`t2` where (`test`.`t2`.`b1` > '0') group by `test`.`t2`.`b1` having (((<cache>(`test`.`t1`.`a1`) = `test`.`t2`.`b1`) or isnull(`test`.`t2`.`b1`)) and ((<cache>(`test`.`t1`.`a2`) = min(`test`.`t2`.`b2`)) or isnull(min(`test`.`t2`.`b2`))) and <is_not_null_test>(`test`.`t2`.`b1`) and <is_not_null_test>(min(`test`.`t2`.`b2`)))))
@@ -90,8 +90,8 @@ a1	a2
 explain extended
 select * from t1i where a1 in (select b1 from t2i where b1 > '0');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1i	NULL	index	NULL	it1i3	18	NULL	3	100.00	Using where; Using index
-2	DEPENDENT SUBQUERY	t2i	NULL	index_subquery	it2i1,it2i3	it2i1	9	func	2	100.00	Using where; Using index
+1	PRIMARY	t1i	NULL	index	NULL	it1i3	66	NULL	3	100.00	Using where; Using index
+2	DEPENDENT SUBQUERY	t2i	NULL	index_subquery	it2i1,it2i3	it2i1	33	func	2	100.00	Using where; Using index
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1i`.`a1` AS `a1`,`test`.`t1i`.`a2` AS `a2` from `test`.`t1i` where <in_optimizer>(`test`.`t1i`.`a1`,<exists>(<index_lookup>(<cache>(`test`.`t1i`.`a1`) in t2i on it2i1 where ((`test`.`t2i`.`b1` > '0') and (<cache>(`test`.`t1i`.`a1`) = `test`.`t2i`.`b1`)))))
@@ -102,8 +102,8 @@ a1	a2
 explain extended
 select * from t1i where a1 in (select b1 from t2i where b1 > '0' group by b1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1i	NULL	index	NULL	it1i3	18	NULL	3	100.00	Using where; Using index
-2	DEPENDENT SUBQUERY	t2i	NULL	index_subquery	it2i1,it2i3	it2i1	9	func	2	100.00	Using where; Using index
+1	PRIMARY	t1i	NULL	index	NULL	it1i3	66	NULL	3	100.00	Using where; Using index
+2	DEPENDENT SUBQUERY	t2i	NULL	index_subquery	it2i1,it2i3	it2i1	33	func	2	100.00	Using where; Using index
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1i`.`a1` AS `a1`,`test`.`t1i`.`a2` AS `a2` from `test`.`t1i` where <in_optimizer>(`test`.`t1i`.`a1`,<exists>(<index_lookup>(<cache>(`test`.`t1i`.`a1`) in t2i on it2i1 where ((`test`.`t2i`.`b1` > '0') and (<cache>(`test`.`t1i`.`a1`) = `test`.`t2i`.`b1`)))))
@@ -114,8 +114,8 @@ a1	a2
 explain extended
 select * from t1i where (a1, a2) in (select b1, b2 from t2i where b1 > '0');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1i	NULL	index	NULL	it1i3	18	NULL	3	100.00	Using where; Using index
-2	DEPENDENT SUBQUERY	t2i	NULL	index_subquery	it2i1,it2i2,it2i3	it2i3	18	func,func	2	100.00	Using where; Using index
+1	PRIMARY	t1i	NULL	index	NULL	it1i3	66	NULL	3	100.00	Using where; Using index
+2	DEPENDENT SUBQUERY	t2i	NULL	index_subquery	it2i1,it2i2,it2i3	it2i3	66	func,func	2	100.00	Using where; Using index
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1i`.`a1` AS `a1`,`test`.`t1i`.`a2` AS `a2` from `test`.`t1i` where <in_optimizer>((`test`.`t1i`.`a1`,`test`.`t1i`.`a2`),<exists>(<index_lookup>(<cache>(`test`.`t1i`.`a1`) in t2i on it2i3 where ((`test`.`t2i`.`b1` > '0') and (<cache>(`test`.`t1i`.`a1`) = `test`.`t2i`.`b1`) and (<cache>(`test`.`t1i`.`a2`) = `test`.`t2i`.`b2`)))))
@@ -126,8 +126,8 @@ a1	a2
 explain extended
 select * from t1i where (a1, a2) in (select b1, b2 from t2i where b1 > '0' group by b1, b2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1i	NULL	index	NULL	it1i3	18	NULL	3	100.00	Using where; Using index
-2	DEPENDENT SUBQUERY	t2i	NULL	index_subquery	it2i1,it2i2,it2i3	it2i3	18	func,func	2	100.00	Using where; Using index
+1	PRIMARY	t1i	NULL	index	NULL	it1i3	66	NULL	3	100.00	Using where; Using index
+2	DEPENDENT SUBQUERY	t2i	NULL	index_subquery	it2i1,it2i2,it2i3	it2i3	66	func,func	2	100.00	Using where; Using index
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1i`.`a1` AS `a1`,`test`.`t1i`.`a2` AS `a2` from `test`.`t1i` where <in_optimizer>((`test`.`t1i`.`a1`,`test`.`t1i`.`a2`),<exists>(<index_lookup>(<cache>(`test`.`t1i`.`a1`) in t2i on it2i3 where ((`test`.`t2i`.`b1` > '0') and (<cache>(`test`.`t1i`.`a1`) = `test`.`t2i`.`b1`) and (<cache>(`test`.`t1i`.`a2`) = `test`.`t2i`.`b2`)))))
@@ -138,8 +138,8 @@ a1	a2
 explain extended
 select * from t1i where (a1, a2) in (select b1, min(b2) from t2i where b1 > '0' group by b1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1i	NULL	index	NULL	it1i3	18	NULL	3	100.00	Using where; Using index
-2	DEPENDENT SUBQUERY	t2i	NULL	range	it2i1,it2i3	it2i3	18	NULL	3	100.00	Using where; Using index for group-by
+1	PRIMARY	t1i	NULL	index	NULL	it1i3	66	NULL	3	100.00	Using where; Using index
+2	DEPENDENT SUBQUERY	t2i	NULL	range	it2i1,it2i3	it2i3	66	NULL	3	100.00	Using where; Using index for group-by
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1i`.`a1` AS `a1`,`test`.`t1i`.`a2` AS `a2` from `test`.`t1i` where <in_optimizer>((`test`.`t1i`.`a1`,`test`.`t1i`.`a2`),<exists>(/* select#2 */ select 1,1 from `test`.`t2i` where (`test`.`t2i`.`b1` > '0') group by `test`.`t2i`.`b1` having (((<cache>(`test`.`t1i`.`a1`) = `test`.`t2i`.`b1`) or isnull(`test`.`t2i`.`b1`)) and ((<cache>(`test`.`t1i`.`a2`) = min(`test`.`t2i`.`b2`)) or isnull(min(`test`.`t2i`.`b2`))) and <is_not_null_test>(`test`.`t2i`.`b1`) and <is_not_null_test>(min(`test`.`t2i`.`b2`)))))
@@ -151,7 +151,7 @@ explain extended
 select * from t1 where (a1, a2) in (select b1, max(b2) from t2i group by b1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-2	DEPENDENT SUBQUERY	t2i	NULL	range	it2i1,it2i3	it2i3	9	NULL	3	100.00	Using index for group-by
+2	DEPENDENT SUBQUERY	t2i	NULL	range	it2i1,it2i3	it2i3	33	NULL	3	100.00	Using index for group-by
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2` from `test`.`t1` where <in_optimizer>((`test`.`t1`.`a1`,`test`.`t1`.`a2`),<exists>(/* select#2 */ select 1,1 from `test`.`t2i` group by `test`.`t2i`.`b1` having (((<cache>(`test`.`t1`.`a1`) = `test`.`t2i`.`b1`) or isnull(`test`.`t2i`.`b1`)) and ((<cache>(`test`.`t1`.`a2`) = max(`test`.`t2i`.`b2`)) or isnull(max(`test`.`t2i`.`b2`))) and <is_not_null_test>(`test`.`t2i`.`b1`) and <is_not_null_test>(max(`test`.`t2i`.`b2`)))))
@@ -163,13 +163,13 @@ prepare st1 from "explain select * from t1 where (a1, a2) in (select b1, max(b2)
 execute st1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-2	DEPENDENT SUBQUERY	t2i	NULL	range	it2i1,it2i3	it2i3	9	NULL	3	100.00	Using index for group-by
+2	DEPENDENT SUBQUERY	t2i	NULL	range	it2i1,it2i3	it2i3	33	NULL	3	100.00	Using index for group-by
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2` from `test`.`t1` where <in_optimizer>((`test`.`t1`.`a1`,`test`.`t1`.`a2`),<exists>(/* select#2 */ select `test`.`t2i`.`b1`,max(`test`.`t2i`.`b2`) from `test`.`t2i` group by `test`.`t2i`.`b1` having (((<cache>(`test`.`t1`.`a1`) = `test`.`t2i`.`b1`) or isnull(`test`.`t2i`.`b1`)) and ((<cache>(`test`.`t1`.`a2`) = max(`test`.`t2i`.`b2`)) or isnull(max(`test`.`t2i`.`b2`))) and <is_not_null_test>(`test`.`t2i`.`b1`) and <is_not_null_test>(max(`test`.`t2i`.`b2`)))))
 execute st1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-2	DEPENDENT SUBQUERY	t2i	NULL	range	it2i1,it2i3	it2i3	9	NULL	3	100.00	Using index for group-by
+2	DEPENDENT SUBQUERY	t2i	NULL	range	it2i1,it2i3	it2i3	33	NULL	3	100.00	Using index for group-by
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2` from `test`.`t1` where <in_optimizer>((`test`.`t1`.`a1`,`test`.`t1`.`a2`),<exists>(/* select#2 */ select `test`.`t2i`.`b1`,max(`test`.`t2i`.`b2`) from `test`.`t2i` group by `test`.`t2i`.`b1` having (((<cache>(`test`.`t1`.`a1`) = `test`.`t2i`.`b1`) or isnull(`test`.`t2i`.`b1`)) and ((<cache>(`test`.`t1`.`a2`) = max(`test`.`t2i`.`b2`)) or isnull(max(`test`.`t2i`.`b2`))) and <is_not_null_test>(`test`.`t2i`.`b1`) and <is_not_null_test>(max(`test`.`t2i`.`b2`)))))
 prepare st2 from "select * from t1 where (a1, a2) in (select b1, max(b2) from t2i group by b1)";
@@ -185,7 +185,7 @@ explain extended
 select * from t1 where (a1, a2) in (select b1, min(b2) from t2i where b1 > '0' group by b1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-2	DEPENDENT SUBQUERY	t2i	NULL	range	it2i1,it2i3	it2i3	18	NULL	3	100.00	Using where; Using index for group-by
+2	DEPENDENT SUBQUERY	t2i	NULL	range	it2i1,it2i3	it2i3	66	NULL	3	100.00	Using where; Using index for group-by
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2` from `test`.`t1` where <in_optimizer>((`test`.`t1`.`a1`,`test`.`t1`.`a2`),<exists>(/* select#2 */ select 1,1 from `test`.`t2i` where (`test`.`t2i`.`b1` > '0') group by `test`.`t2i`.`b1` having (((<cache>(`test`.`t1`.`a1`) = `test`.`t2i`.`b1`) or isnull(`test`.`t2i`.`b1`)) and ((<cache>(`test`.`t1`.`a2`) = min(`test`.`t2i`.`b2`)) or isnull(min(`test`.`t2i`.`b2`))) and <is_not_null_test>(`test`.`t2i`.`b1`) and <is_not_null_test>(min(`test`.`t2i`.`b2`)))))
@@ -210,8 +210,8 @@ a1	a2
 explain extended
 select * from t1i where (a1, a2) in (select b1, b2 from t2i order by b1, b2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1i	NULL	index	NULL	it1i3	18	NULL	3	100.00	Using where; Using index
-2	DEPENDENT SUBQUERY	t2i	NULL	index_subquery	it2i1,it2i2,it2i3	it2i3	18	func,func	2	100.00	Using where; Using index
+1	PRIMARY	t1i	NULL	index	NULL	it1i3	66	NULL	3	100.00	Using where; Using index
+2	DEPENDENT SUBQUERY	t2i	NULL	index_subquery	it2i1,it2i2,it2i3	it2i3	66	func,func	2	100.00	Using where; Using index
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1i`.`a1` AS `a1`,`test`.`t1i`.`a2` AS `a2` from `test`.`t1i` where <in_optimizer>((`test`.`t1i`.`a1`,`test`.`t1i`.`a2`),<exists>(<index_lookup>(<cache>(`test`.`t1i`.`a1`) in t2i on it2i3 where ((<cache>(`test`.`t1i`.`a1`) = `test`.`t2i`.`b1`) and (<cache>(`test`.`t1i`.`a2`) = `test`.`t2i`.`b2`)))))
@@ -266,7 +266,7 @@ where (c1, c2) in (select b1, b2 from t2i where b2 > '0'));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 3	DEPENDENT SUBQUERY	t3	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where
-4	DEPENDENT SUBQUERY	t2i	NULL	index_subquery	it2i1,it2i2,it2i3	it2i3	18	func,func	2	100.00	Using where; Using index
+4	DEPENDENT SUBQUERY	t2i	NULL	index_subquery	it2i1,it2i2,it2i3	it2i3	66	func,func	2	100.00	Using where; Using index
 2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	5	20.00	Using where
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
@@ -284,10 +284,10 @@ where (a1, a2) in (select b1, b2 from t2i where b1 >  '0') and
 (a1, a2) in (select c1, c2 from t3i
 where (c1, c2) in (select b1, b2 from t2i where b2 > '0'));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1i	NULL	index	NULL	it1i3	18	NULL	3	100.00	Using where; Using index
-3	DEPENDENT SUBQUERY	t3i	NULL	index_subquery	it3i1,it3i2,it3i3	it3i1	9	func	1	25.00	Using where
-4	DEPENDENT SUBQUERY	t2i	NULL	index_subquery	it2i1,it2i2,it2i3	it2i3	18	func,func	2	100.00	Using where; Using index
-2	DEPENDENT SUBQUERY	t2i	NULL	index_subquery	it2i1,it2i2,it2i3	it2i3	18	func,func	2	100.00	Using where; Using index
+1	PRIMARY	t1i	NULL	index	NULL	it1i3	66	NULL	3	100.00	Using where; Using index
+3	DEPENDENT SUBQUERY	t3i	NULL	index_subquery	it3i1,it3i2,it3i3	it3i1	33	func	1	25.00	Using where
+4	DEPENDENT SUBQUERY	t2i	NULL	index_subquery	it2i1,it2i2,it2i3	it2i3	66	func,func	2	100.00	Using where; Using index
+2	DEPENDENT SUBQUERY	t2i	NULL	index_subquery	it2i1,it2i2,it2i3	it2i3	66	func,func	2	100.00	Using where; Using index
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1i`.`a1` AS `a1`,`test`.`t1i`.`a2` AS `a2` from `test`.`t1i` where (<in_optimizer>((`test`.`t1i`.`a1`,`test`.`t1i`.`a2`),<exists>(<index_lookup>(<cache>(`test`.`t1i`.`a1`) in t2i on it2i3 where ((`test`.`t2i`.`b1` > '0') and (<cache>(`test`.`t1i`.`a1`) = `test`.`t2i`.`b1`) and (<cache>(`test`.`t1i`.`a2`) = `test`.`t2i`.`b2`))))) and <in_optimizer>((`test`.`t1i`.`a1`,`test`.`t1i`.`a2`),<exists>(<index_lookup>(<cache>(`test`.`t1i`.`a1`) in t3i on it3i1 where (<in_optimizer>((`test`.`t3i`.`c1`,`test`.`t3i`.`c2`),<exists>(<index_lookup>(<cache>(`test`.`t3i`.`c1`) in t2i on it2i3 where ((`test`.`t2i`.`b2` > '0') and (<cache>(`test`.`t3i`.`c1`) = `test`.`t2i`.`b1`) and (<cache>(`test`.`t3i`.`c2`) = `test`.`t2i`.`b2`))))) and (<cache>(`test`.`t1i`.`a1`) = `test`.`t3i`.`c1`) and (<cache>(`test`.`t1i`.`a2`) = `test`.`t3i`.`c2`))))))
@@ -308,7 +308,7 @@ where (c1, c2) in (select b1, b2 from t2i where b2 > '0'));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 5	DEPENDENT SUBQUERY	t3	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where
-6	DEPENDENT SUBQUERY	t2i	NULL	index_subquery	it2i1,it2i2,it2i3	it2i3	18	func,func	2	100.00	Using where; Using index
+6	DEPENDENT SUBQUERY	t2i	NULL	index_subquery	it2i1,it2i2,it2i3	it2i3	66	func,func	2	100.00	Using where; Using index
 2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	5	20.00	Using where
 4	DEPENDENT SUBQUERY	t3	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where
 3	DEPENDENT SUBQUERY	t3	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where
@@ -333,7 +333,7 @@ where (c1, c2) in (select b1, b2 from t2i where b2 > '0'));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 5	DEPENDENT SUBQUERY	t3c	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where
-6	DEPENDENT SUBQUERY	t2i	NULL	index_subquery	it2i1,it2i2,it2i3	it2i3	18	func,func	2	100.00	Using where; Using index
+6	DEPENDENT SUBQUERY	t2i	NULL	index_subquery	it2i1,it2i2,it2i3	it2i3	66	func,func	2	100.00	Using where; Using index
 2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	5	20.00	Using where
 4	DEPENDENT SUBQUERY	t3b	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where
 3	DEPENDENT SUBQUERY	t3a	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where
@@ -366,14 +366,14 @@ where (c1, c2) in (select b1, b2 from t2i where b2 > '0')));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 5	DEPENDENT SUBQUERY	t3	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where
-6	DEPENDENT SUBQUERY	t2i	NULL	index_subquery	it2i1,it2i2,it2i3	it2i3	18	func,func	2	100.00	Using where; Using index
+6	DEPENDENT SUBQUERY	t2i	NULL	index_subquery	it2i1,it2i2,it2i3	it2i3	66	func,func	2	100.00	Using where; Using index
 2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	5	20.00	Using where
 4	DEPENDENT SUBQUERY	t3	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where
 3	DEPENDENT SUBQUERY	t3	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where
-7	UNION	t1i	NULL	index	NULL	it1i3	18	NULL	3	100.00	Using where; Using index
-9	DEPENDENT SUBQUERY	t3i	NULL	index_subquery	it3i1,it3i2,it3i3	it3i1	9	func	1	25.00	Using where
-10	DEPENDENT SUBQUERY	t2i	NULL	index_subquery	it2i1,it2i2,it2i3	it2i3	18	func,func	2	100.00	Using where; Using index
-8	DEPENDENT SUBQUERY	t2i	NULL	index_subquery	it2i1,it2i2,it2i3	it2i3	18	func,func	2	100.00	Using where; Using index
+7	UNION	t1i	NULL	index	NULL	it1i3	66	NULL	3	100.00	Using where; Using index
+9	DEPENDENT SUBQUERY	t3i	NULL	index_subquery	it3i1,it3i2,it3i3	it3i1	33	func	1	25.00	Using where
+10	DEPENDENT SUBQUERY	t2i	NULL	index_subquery	it2i1,it2i2,it2i3	it2i3	66	func,func	2	100.00	Using where; Using index
+8	DEPENDENT SUBQUERY	t2i	NULL	index_subquery	it2i1,it2i2,it2i3	it2i3	66	func,func	2	100.00	Using where; Using index
 NULL	UNION RESULT	<union1,7>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
@@ -401,7 +401,7 @@ where (c1, c2) in (select b1, b2 from t2i where b2 > '0'));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 4	DEPENDENT SUBQUERY	t3	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where
-5	DEPENDENT SUBQUERY	t2i	NULL	index_subquery	it2i1,it2i2,it2i3	it2i3	18	func,func	2	100.00	Using where; Using index
+5	DEPENDENT SUBQUERY	t2i	NULL	index_subquery	it2i1,it2i2,it2i3	it2i3	66	func,func	2	100.00	Using where; Using index
 2	DEPENDENT SUBQUERY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 3	DEPENDENT UNION	t2	NULL	ALL	NULL	NULL	NULL	NULL	5	20.00	Using where
 NULL	UNION RESULT	<union2,3>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary
@@ -425,7 +425,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 1	PRIMARY	t3	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where; Using join buffer (Block Nested Loop)
 4	DEPENDENT SUBQUERY	t3	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where
-5	DEPENDENT SUBQUERY	t2i	NULL	index_subquery	it2i1,it2i2,it2i3	it2i3	18	func,func	2	100.00	Using where; Using index
+5	DEPENDENT SUBQUERY	t2i	NULL	index_subquery	it2i1,it2i2,it2i3	it2i3	66	func,func	2	100.00	Using where; Using index
 2	DEPENDENT SUBQUERY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 3	DEPENDENT UNION	t2	NULL	ALL	NULL	NULL	NULL	NULL	5	20.00	Using where
 NULL	UNION RESULT	<union2,3>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary
@@ -471,7 +471,7 @@ where (c1, c2) in (select b1, b2 from t2i where b2 > '0' or b2 = a2));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 5	DEPENDENT SUBQUERY	t3c	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where
-6	DEPENDENT SUBQUERY	t2i	NULL	index_subquery	it2i1,it2i2,it2i3	it2i3	18	func,func	2	100.00	Using where; Using index
+6	DEPENDENT SUBQUERY	t2i	NULL	index_subquery	it2i1,it2i2,it2i3	it2i3	66	func,func	2	100.00	Using where; Using index
 2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	5	20.00	Using where
 4	DEPENDENT SUBQUERY	t3b	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where
 3	DEPENDENT SUBQUERY	t3a	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where
@@ -487,7 +487,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2` from `test`.`t1` where <in_optimizer>((`test`.`t1`.`a1`,`test`.`t1`.`a2`),<exists>(/* select#2 */ select '1 - 01','2 - 01' having ((<cache>(`test`.`t1`.`a1`) = '1 - 01') and (<cache>(`test`.`t1`.`a2`) = '2 - 01'))))
+Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2` from `test`.`t1` where <in_optimizer>((`test`.`t1`.`a1`,`test`.`t1`.`a2`),<exists>(/* select#2 */ select '1 - 01','2 - 01' having ((<cache>(`test`.`t1`.`a1`) = convert('1 - 01' using utf8mb4)) and (<cache>(`test`.`t1`.`a2`) = convert('2 - 01' using utf8mb4)))))
 select * from t1 where (a1, a2) in (select '1 - 01', '2 - 01');
 a1	a2
 1 - 01	2 - 01
@@ -498,7 +498,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2` from `test`.`t1` where <in_optimizer>((`test`.`t1`.`a1`,`test`.`t1`.`a2`),<exists>(/* select#2 */ select '1 - 01','2 - 01' having ((<cache>(`test`.`t1`.`a1`) = '1 - 01') and (<cache>(`test`.`t1`.`a2`) = '2 - 01'))))
+Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2` from `test`.`t1` where <in_optimizer>((`test`.`t1`.`a1`,`test`.`t1`.`a2`),<exists>(/* select#2 */ select '1 - 01','2 - 01' having ((<cache>(`test`.`t1`.`a1`) = convert('1 - 01' using utf8mb4)) and (<cache>(`test`.`t1`.`a2`) = convert('2 - 01' using utf8mb4)))))
 select * from t1 where (a1, a2) in (select '1 - 01', '2 - 01' from dual);
 a1	a2
 1 - 01	2 - 01
@@ -528,7 +528,7 @@ a1	a2
 explain extended
 select * from t1 group by (a1 in (select col from columns));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using temporary; Using filesort
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using temporary
 2	DEPENDENT SUBQUERY	columns	NULL	unique_subquery	PRIMARY	PRIMARY	4	func	1	100.00	Using where; Using index; Full scan on NULL key
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
@@ -791,7 +791,7 @@ a	b
 execute st1;
 a	b
 drop table t1;
-CREATE TABLE t1 (a varchar(5), b varchar(10));
+CREATE TABLE t1 (a varchar(5), b varchar(10)) charset utf8mb4;
 INSERT INTO t1 VALUES
 ('AAA', 5), ('BBB', 4), ('BBB', 1), ('CCC', 2),
 ('CCC', 7), ('AAA', 2), ('AAA', 4), ('BBB', 3), ('AAA', 8);
@@ -804,7 +804,7 @@ EXPLAIN
 SELECT * FROM t1 WHERE (a,b) = ANY (SELECT a, max(b) FROM t1 GROUP BY a);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	9	100.00	Using where
-2	DEPENDENT SUBQUERY	t1	NULL	ALL	NULL	NULL	NULL	NULL	9	100.00	Using temporary; Using filesort
+2	DEPENDENT SUBQUERY	t1	NULL	ALL	NULL	NULL	NULL	NULL	9	100.00	Using temporary
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where <in_optimizer>((`test`.`t1`.`a`,`test`.`t1`.`b`),<exists>(/* select#2 */ select 1,1 from `test`.`t1` group by `test`.`t1`.`a` having (((<cache>(`test`.`t1`.`a`) = `test`.`t1`.`a`) or isnull(`test`.`t1`.`a`)) and ((<cache>(`test`.`t1`.`b`) = max(`test`.`t1`.`b`)) or isnull(max(`test`.`t1`.`b`))) and <is_not_null_test>(`test`.`t1`.`a`) and <is_not_null_test>(max(`test`.`t1`.`b`)))))
 ALTER TABLE t1 ADD INDEX(a);
@@ -816,11 +816,11 @@ CCC	7
 AAA	8
 SHOW SESSION STATUS LIKE 'Sort_scan%';
 Variable_name	Value
-Sort_scan	9
+Sort_scan	0
 EXPLAIN SELECT * FROM t1 WHERE (a,b) = ANY (SELECT a, max(b) FROM t1 GROUP BY a);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	9	100.00	Using where
-2	DEPENDENT SUBQUERY	t1	NULL	ALL	a	NULL	NULL	NULL	9	100.00	Using temporary; Using filesort
+2	DEPENDENT SUBQUERY	t1	NULL	index	a	a	23	NULL	9	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where <in_optimizer>((`test`.`t1`.`a`,`test`.`t1`.`b`),<exists>(/* select#2 */ select 1,1 from `test`.`t1` group by `test`.`t1`.`a` having (((<cache>(`test`.`t1`.`a`) = `test`.`t1`.`a`) or isnull(`test`.`t1`.`a`)) and ((<cache>(`test`.`t1`.`b`) = max(`test`.`t1`.`b`)) or isnull(max(`test`.`t1`.`b`))) and <is_not_null_test>(`test`.`t1`.`a`) and <is_not_null_test>(max(`test`.`t1`.`b`)))))
 DROP TABLE t1;
@@ -884,7 +884,7 @@ CREATE TABLE t1 (
 pk INT,
 v VARCHAR(1) DEFAULT NULL,
 PRIMARY KEY(pk)
-);
+) charset latin1;
 CREATE TABLE t2 LIKE t1;
 CREATE TABLE t3 LIKE t1;
 CREATE TABLE empty1 (a int);
@@ -1358,7 +1358,7 @@ HAVING COUNT(*) > 0
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	table1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
 1	PRIMARY	table2	NULL	system	PRIMARY	NULL	NULL	NULL	1	100.00	NULL
-2	DEPENDENT SUBQUERY	innr	NULL	ALL	col_int_key	NULL	NULL	NULL	2	50.00	Using where; Using temporary; Using filesort
+2	DEPENDENT SUBQUERY	innr	NULL	index	col_int_key	col_int_key	5	NULL	2	50.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select '1' AS `pk`,NULL AS `pk` from `test`.`t2` `table2` where 1
 FLUSH STATUS;
@@ -1376,7 +1376,7 @@ pk	pk
 1	NULL
 SHOW SESSION STATUS LIKE 'Sort_scan%';
 Variable_name	Value
-Sort_scan	1
+Sort_scan	0
 DROP TABLE t1, t2;
 # End of test for bug#13607423.
 
@@ -1554,7 +1554,7 @@ no NULLs.
 explain extended select t1.a as z, sum(t1.b) from t1 group by t1.a
 having (z in (select * from t2)) is null;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	6	100.00	Using temporary; Using filesort
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	6	100.00	Using temporary
 2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
@@ -1567,7 +1567,7 @@ insert into t1 values(null,null);
 explain extended select t1.a as z, sum(t1.b) from t1 group by t1.a
 having (z in (select * from t2)) is null;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	7	100.00	Using temporary; Using filesort
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	7	100.00	Using temporary
 2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
@@ -1581,7 +1581,7 @@ insert into t2 values(null);
 explain extended select t1.a as z, sum(t1.b) from t1 group by t1.a
 having (z in (select * from t2)) is null;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	7	100.00	Using temporary; Using filesort
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	7	100.00	Using temporary
 2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
@@ -1589,15 +1589,15 @@ Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `z`,sum(`test`.`t1`.`b`) AS `
 select t1.a as z, sum(t1.b) from t1 group by t1.a
 having (z in (select * from t2)) is null;
 z	sum(t1.b)
-NULL	NULL
 1	6
 2	6
+NULL	NULL
 one inner NULL
 delete from t1 where a is null;
 explain extended select t1.a as z, sum(t1.b) from t1 group by t1.a
 having (z in (select * from t2)) is null;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	6	100.00	Using temporary; Using filesort
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	6	100.00	Using temporary
 2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.

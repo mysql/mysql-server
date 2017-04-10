@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2013, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2013, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -53,12 +53,11 @@ public:
 		m_name(),
 		m_filepath(),
 		m_filename(),
-		m_handle(OS_FILE_CLOSED),
 		m_open_flags(OS_FILE_OPEN),
 		m_size(),
 		m_order(),
 		m_type(SRV_NOT_RAW),
-		m_space_id(ULINT_UNDEFINED),
+		m_space_id(SPACE_UNKNOWN),
 		m_flags(),
 		m_exists(),
 		m_is_valid(),
@@ -70,20 +69,19 @@ public:
 		m_encryption_key(NULL),
 		m_encryption_iv(NULL)
 	{
-		/* No op */
+		m_handle.m_file = OS_FILE_CLOSED;
 	}
 
-	Datafile(const char* name, ulint flags, ulint size, ulint order)
+	Datafile(const char* name, ulint flags, page_no_t size, ulint order)
 		:
 		m_name(mem_strdup(name)),
 		m_filepath(),
 		m_filename(),
-		m_handle(OS_FILE_CLOSED),
 		m_open_flags(OS_FILE_OPEN),
 		m_size(size),
 		m_order(order),
 		m_type(SRV_NOT_RAW),
-		m_space_id(ULINT_UNDEFINED),
+		m_space_id(SPACE_UNKNOWN),
 		m_flags(flags),
 		m_exists(),
 		m_is_valid(),
@@ -96,6 +94,7 @@ public:
 		m_encryption_iv(NULL)
 	{
 		ut_ad(m_name != NULL);
+		m_handle.m_file = OS_FILE_CLOSED;
 		/* No op */
 	}
 
@@ -131,7 +130,7 @@ public:
 		}
 	}
 
-	virtual ~Datafile()
+	~Datafile()
 	{
 		shutdown();
 	}
@@ -148,7 +147,7 @@ public:
 		m_order = file.m_order;
 		m_type = file.m_type;
 
-		ut_a(m_handle == OS_FILE_CLOSED);
+		ut_a(m_handle.m_file == OS_FILE_CLOSED);
 		m_handle = file.m_handle;
 
 		m_exists = file.m_exists;
@@ -188,20 +187,21 @@ public:
 	void init(const char* name, ulint flags);
 
 	/** Release the resources. */
-	virtual void shutdown();
+	void shutdown();
 
 	/** Open a data file in read-only mode to check if it exists
 	so that it can be validated.
 	@param[in]	strict	whether to issue error messages
 	@return DB_SUCCESS or error code */
-	virtual dberr_t open_read_only(bool strict);
+	dberr_t open_read_only(bool strict)
+		MY_ATTRIBUTE((warn_unused_result));
 
 	/** Open a data file in read-write mode during start-up so that
 	doublewrite pages can be restored and then it can be validated.
 	@param[in]	read_only_mode	if true, then readonly mode checks
 					are enforced.
 	@return DB_SUCCESS or error code */
-	virtual dberr_t open_read_write(bool read_only_mode)
+	dberr_t open_read_write(bool read_only_mode)
 		MY_ATTRIBUTE((warn_unused_result));
 
 	/** Initialize OS specific file info. */
@@ -243,7 +243,7 @@ public:
 	@retval DB_SUCCESS if tablespace is valid, DB_ERROR if not.
 	m_is_valid is also set true on success, else false. */
 	dberr_t validate_to_dd(
-		ulint		space_id,
+		space_id_t	space_id,
 		ulint		flags,
 		bool		for_import)
 		MY_ATTRIBUTE((warn_unused_result));
@@ -289,7 +289,7 @@ public:
 
 	/** Get Datafile::m_handle.
 	@return m_handle */
-	os_file_t	handle()	const
+	pfs_os_file_t	handle()	const
 	{
 		return(m_handle);
 	}
@@ -303,7 +303,7 @@ public:
 
 	/** Get Datafile::m_space_id.
 	@return m_space_id */
-	ulint	space_id()	const
+	space_id_t	space_id()	const
 	{
 		return(m_space_id);
 	}
@@ -319,7 +319,7 @@ public:
 	@return true if m_handle is open, false if not */
 	bool	is_open()	const
 	{
-		return(m_handle != OS_FILE_CLOSED);
+		return(m_handle.m_file != OS_FILE_CLOSED);
 	}
 
 	/** Get Datafile::m_is_valid.
@@ -378,7 +378,7 @@ private:
 	@param[in]	read_only_mode	if true, then readonly mode checks
 					are enforced.
 	@return DB_SUCCESS or DB_IO_ERROR if page cannot be read */
-	dberr_t read_first_page(bool read_first_page)
+	dberr_t read_first_page(bool read_only_mode)
 		MY_ATTRIBUTE((warn_unused_result));
 
 	/** Free the first page from memory when it is no longer needed. */
@@ -390,13 +390,6 @@ private:
 	{
 		m_open_flags = open_flags;
 	};
-
-	/** Determine if this datafile is on a Raw Device
-	@return true if it is a RAW device. */
-	bool is_raw_device()
-	{
-		return(m_type != SRV_NOT_RAW);
-	}
 
 	/* DATA MEMBERS */
 
@@ -419,22 +412,22 @@ private:
 
 	/** Finds a given page of the given space id from the double write
 	buffer and copies it to the corresponding .ibd file.
-	@param[in]	page_no		Page number to restore
+	@param[in]	restore_page_no		Page number to restore
 	@return DB_SUCCESS if page was restored, else DB_ERROR */
 	dberr_t restore_from_doublewrite(
-		ulint	restore_page_no);
+		page_no_t	restore_page_no);
 
 	/** Points into m_filepath to the file name with extension */
 	char*			m_filename;
 
 	/** Open file handle */
-	os_file_t		m_handle;
+	pfs_os_file_t		m_handle;
 
 	/** Flags to use for opening the data file */
 	os_file_create_t	m_open_flags;
 
-	/** size in database pages */
-	ulint			m_size;
+	/** size in pages */
+	page_no_t		m_size;
 
 	/** ordinal position of this datafile in the tablespace */
 	ulint			m_order;
@@ -445,7 +438,7 @@ private:
 	/** Tablespace ID. Contained in the datafile header.
 	If this is a system tablespace, FSP_SPACE_ID is only valid
 	in the first datafile. */
-	ulint			m_space_id;
+	space_id_t		m_space_id;
 
 	/** Tablespace flags. Contained in the datafile header.
 	If this is a system tablespace, FSP_SPACE_FLAGS are only valid
@@ -487,109 +480,5 @@ public:
 	/** Encryption iv read from first page */
 	byte*			m_encryption_iv;
 
-};
-
-
-/** Data file control information. */
-class RemoteDatafile : public Datafile
-{
-private:
-	/** Link filename (full path) */
-	char*	m_link_filepath;
-
-public:
-
-	RemoteDatafile()
-		:
-		m_link_filepath()
-	{
-		/* No op - base constructor is called. */
-	}
-
-	RemoteDatafile(const char* name, ulint size, ulint order)
-		:
-		m_link_filepath()
-	{
-		/* No op - base constructor is called. */
-	}
-
-	~RemoteDatafile()
-	{
-		shutdown();
-	}
-
-	/** Release the resources. */
-	void shutdown();
-
-	/** Get the link filepath.
-	@return m_link_filepath */
-	const char*	link_filepath()	const
-	{
-		return(m_link_filepath);
-	}
-
-	/** Set the link filepath. Use default datadir, the base name of
-	the path provided without its suffix, plus DOT_ISL.
-	@param[in]	path	filepath which contains a basename to use.
-				If NULL, use m_name as the basename. */
-	void set_link_filepath(const char* path);
-
-	/** Create a link filename based on the contents of m_name,
-	open that file, and read the contents into m_filepath.
-	@retval DB_SUCCESS if remote linked tablespace file is opened and read.
-	@retval DB_CANNOT_OPEN_FILE if the link file does not exist. */
-	dberr_t open_link_file();
-
-	/** Delete an InnoDB Symbolic Link (ISL) file. */
-	void delete_link_file(void);
-
-	/** Open a handle to the file linked to in an InnoDB Symbolic Link file
-	in read-only mode so that it can be validated.
-	@param[in]	strict	whether to issue error messages
-	@return DB_SUCCESS or error code */
-	dberr_t open_read_only(bool strict);
-
-	/** Opens a handle to the file linked to in an InnoDB Symbolic Link
-	file in read-write mode so that it can be restored from doublewrite
-	and validated.
-	@param[in]	read_only_mode	If true, then readonly mode checks
-					are enforced.
-	@return DB_SUCCESS or error code */
-	dberr_t open_read_write(bool read_only_mode)
-		MY_ATTRIBUTE((warn_unused_result));
-
-	/******************************************************************
-	Global Static Functions;  Cannot refer to data members.
-	******************************************************************/
-
-	/** Creates a new InnoDB Symbolic Link (ISL) file.  It is always
-	created under the 'datadir' of MySQL. The datadir is the directory
-	of a running mysqld program. We can refer to it by simply using
-	the path ".".
-	@param[in]	name		tablespace name
-	@param[in]	filepath	remote filepath of tablespace datafile
-	@param[in]	is_shared	true for general tablespace,
-					false for file-per-table
-	@return DB_SUCCESS or error code */
-	static dberr_t create_link_file(
-		const char*	name,
-		const char*	filepath,
-		bool		is_shared = false);
-
-	/** Delete an InnoDB Symbolic Link (ISL) file by name.
-	@param[in]	name	tablespace name */
-	static void delete_link_file(const char* name);
-
-	/** Read an InnoDB Symbolic Link (ISL) file by name.
-	It is always created under the datadir of MySQL.
-	For file-per-table tablespaces, the isl file is expected to be
-	in a 'database' directory and called 'tablename.isl'.
-	For general tablespaces, there will be no 'database' directory.
-	The 'basename.isl' will be in the datadir.
-	The caller must free the memory returned if it is not null.
-	@param[in]	link_filepath	filepath of the ISL file
-	@return Filepath of the IBD file read from the ISL file */
-	static char* read_link_file(
-		const char*	link_filepath);
 };
 #endif /* fsp0file_h */

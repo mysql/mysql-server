@@ -17,52 +17,52 @@ innodb_optimize_fulltext_only	OFF
 show session variables like 'innodb_optimize_fulltext_only';
 Variable_name	Value
 innodb_optimize_fulltext_only	OFF
-select * from information_schema.global_variables where variable_name='innodb_optimize_fulltext_only';
+select * from performance_schema.global_variables where variable_name='innodb_optimize_fulltext_only';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_OPTIMIZE_FULLTEXT_ONLY	OFF
-select * from information_schema.session_variables where variable_name='innodb_optimize_fulltext_only';
+innodb_optimize_fulltext_only	OFF
+select * from performance_schema.session_variables where variable_name='innodb_optimize_fulltext_only';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_OPTIMIZE_FULLTEXT_ONLY	OFF
+innodb_optimize_fulltext_only	OFF
 set global innodb_optimize_fulltext_only='ON';
 select @@global.innodb_optimize_fulltext_only;
 @@global.innodb_optimize_fulltext_only
 1
-select * from information_schema.global_variables where variable_name='innodb_optimize_fulltext_only';
+select * from performance_schema.global_variables where variable_name='innodb_optimize_fulltext_only';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_OPTIMIZE_FULLTEXT_ONLY	ON
-select * from information_schema.session_variables where variable_name='innodb_optimize_fulltext_only';
+innodb_optimize_fulltext_only	ON
+select * from performance_schema.session_variables where variable_name='innodb_optimize_fulltext_only';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_OPTIMIZE_FULLTEXT_ONLY	ON
+innodb_optimize_fulltext_only	ON
 set @@global.innodb_optimize_fulltext_only=0;
 select @@global.innodb_optimize_fulltext_only;
 @@global.innodb_optimize_fulltext_only
 0
-select * from information_schema.global_variables where variable_name='innodb_optimize_fulltext_only';
+select * from performance_schema.global_variables where variable_name='innodb_optimize_fulltext_only';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_OPTIMIZE_FULLTEXT_ONLY	OFF
-select * from information_schema.session_variables where variable_name='innodb_optimize_fulltext_only';
+innodb_optimize_fulltext_only	OFF
+select * from performance_schema.session_variables where variable_name='innodb_optimize_fulltext_only';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_OPTIMIZE_FULLTEXT_ONLY	OFF
+innodb_optimize_fulltext_only	OFF
 set global innodb_optimize_fulltext_only=1;
 select @@global.innodb_optimize_fulltext_only;
 @@global.innodb_optimize_fulltext_only
 1
-select * from information_schema.global_variables where variable_name='innodb_optimize_fulltext_only';
+select * from performance_schema.global_variables where variable_name='innodb_optimize_fulltext_only';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_OPTIMIZE_FULLTEXT_ONLY	ON
-select * from information_schema.session_variables where variable_name='innodb_optimize_fulltext_only';
+innodb_optimize_fulltext_only	ON
+select * from performance_schema.session_variables where variable_name='innodb_optimize_fulltext_only';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_OPTIMIZE_FULLTEXT_ONLY	ON
+innodb_optimize_fulltext_only	ON
 set @@global.innodb_optimize_fulltext_only='OFF';
 select @@global.innodb_optimize_fulltext_only;
 @@global.innodb_optimize_fulltext_only
 0
-select * from information_schema.global_variables where variable_name='innodb_optimize_fulltext_only';
+select * from performance_schema.global_variables where variable_name='innodb_optimize_fulltext_only';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_OPTIMIZE_FULLTEXT_ONLY	OFF
-select * from information_schema.session_variables where variable_name='innodb_optimize_fulltext_only';
+innodb_optimize_fulltext_only	OFF
+select * from performance_schema.session_variables where variable_name='innodb_optimize_fulltext_only';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_OPTIMIZE_FULLTEXT_ONLY	OFF
+innodb_optimize_fulltext_only	OFF
 set session innodb_optimize_fulltext_only='OFF';
 ERROR HY000: Variable 'innodb_optimize_fulltext_only' is a GLOBAL variable and should be set with SET GLOBAL
 set @@session.innodb_optimize_fulltext_only='ON';
@@ -78,12 +78,12 @@ set global innodb_optimize_fulltext_only=-3;
 select @@global.innodb_optimize_fulltext_only;
 @@global.innodb_optimize_fulltext_only
 1
-select * from information_schema.global_variables where variable_name='innodb_optimize_fulltext_only';
+select * from performance_schema.global_variables where variable_name='innodb_optimize_fulltext_only';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_OPTIMIZE_FULLTEXT_ONLY	ON
-select * from information_schema.session_variables where variable_name='innodb_optimize_fulltext_only';
+innodb_optimize_fulltext_only	ON
+select * from performance_schema.session_variables where variable_name='innodb_optimize_fulltext_only';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_OPTIMIZE_FULLTEXT_ONLY	ON
+innodb_optimize_fulltext_only	ON
 set global innodb_optimize_fulltext_only='AUTO';
 ERROR 42000: Variable 'innodb_optimize_fulltext_only' can't be set to the value of 'AUTO'
 SET @@global.innodb_optimize_fulltext_only = @start_global_value;

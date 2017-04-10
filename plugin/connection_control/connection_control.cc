@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,14 +13,17 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include <mysql/plugin_audit.h>         /* mysql_event_connection */
-#include "mysql_version.h"
-#include <my_global.h>
 #include <my_atomic.h>
+#include <mysql/plugin_audit.h>         /* mysql_event_connection */
+#include <stddef.h>
 
 #include "connection_control.h"
-#include "connection_delay_api.h"       /* connection_delay apis */
 #include "connection_control_coordinator.h" /* g_connection_event_coordinator */
+#include "connection_delay_api.h"       /* connection_delay apis */
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "mysql_version.h"
 
 namespace connection_control
 {
@@ -35,7 +38,7 @@ namespace connection_control
     {
       my_plugin_log_message(&m_plugin_info,
                             MY_ERROR_LEVEL,
-                            error_message);
+                            "%s", error_message);
     }
   private:
     MYSQL_PLUGIN m_plugin_info;
@@ -62,10 +65,10 @@ MYSQL_PLUGIN connection_control_plugin_info= 0;
   For connection event, notify Connection_event_coordinator
   which in turn will notify subscribers.
 
-  @param thd [in]            Handle to THD
-  @param event_class [in]    Event class.
+  @param [in] thd            Handle to THD
+  @param [in] event_class    Event class.
                              We are interested in MYSQL_AUDIT_CONNECTION_CLASS.
-  @param event [in]          mysql_event_connection handle
+  @param [in] event          mysql_event_connection handle
 */
 
 static int
@@ -98,7 +101,7 @@ connection_control_notify(MYSQL_THD thd,
 /**
   Plugin initialization function
 
-  @param plugin_info [in]  MYSQL_PLUGIN information
+  @param [in] plugin_info  MYSQL_PLUGIN information
 
   @returns initialization status
     @retval 0 Success
@@ -220,7 +223,8 @@ check_failed_connections_threshold(MYSQL_THD thd MY_ATTRIBUTE((unused)),
 static void
 update_failed_connections_threshold(MYSQL_THD thd MY_ATTRIBUTE((unused)),
                                     struct st_mysql_sys_var *var MY_ATTRIBUTE((unused)),
-                                    void *var_ptr, const void *save)
+                                    void *var_ptr MY_ATTRIBUTE((unused)),
+                                    const void *save)
 {
   /*
     This won't result in overflow because we have already checked that this is
@@ -303,7 +307,8 @@ check_min_connection_delay(MYSQL_THD thd MY_ATTRIBUTE((unused)),
 static void
 update_min_connection_delay(MYSQL_THD thd MY_ATTRIBUTE((unused)),
                             struct st_mysql_sys_var *var MY_ATTRIBUTE((unused)),
-                            void *var_ptr, const void *save)
+                            void *var_ptr MY_ATTRIBUTE((unused)),
+                            const void *save)
 {
   longlong new_value= *(reinterpret_cast<const longlong *>(save));
   g_variables.min_connection_delay= (int64)new_value;
@@ -382,7 +387,8 @@ check_max_connection_delay(MYSQL_THD thd MY_ATTRIBUTE((unused)),
 static void
 update_max_connection_delay(MYSQL_THD thd MY_ATTRIBUTE((unused)),
                             struct st_mysql_sys_var *var MY_ATTRIBUTE((unused)),
-                            void *var_ptr, const void *save)
+                            void *var_ptr MY_ATTRIBUTE((unused)),
+                            const void *save)
 {
   longlong new_value= *(reinterpret_cast<const longlong *>(save));
   my_atomic_store64(&g_variables.max_connection_delay, (int64)new_value);

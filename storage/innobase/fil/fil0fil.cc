@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -23,35 +23,47 @@ The tablespace memory cache
 Created 10/25/1995 Heikki Tuuri
 *******************************************************/
 
-#include "ha_prototypes.h"
+#include "my_config.h"
 
-#ifndef UNIV_HOTBACKUP
+#include <errno.h>
+#include <fcntl.h>
+#include <sys/types.h>
+
 #include "btr0btr.h"
 #include "buf0buf.h"
+#include "buf0flu.h"
 #include "dict0boot.h"
 #include "dict0dict.h"
 #include "fsp0file.h"
 #include "fsp0fsp.h"
 #include "fsp0space.h"
 #include "fsp0sysspace.h"
+#include "ha_prototypes.h"
 #include "hash0hash.h"
 #include "log0recv.h"
 #include "mach0data.h"
 #include "mem0mem.h"
 #include "mtr0log.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
 #include "os0file.h"
 #include "page0zip.h"
 #include "row0mysql.h"
-#include "row0trunc.h"
+#include "srv0start.h"
+#include "trx0purge.h"
+#ifndef UNIV_HOTBACKUP
 # include "buf0lru.h"
 # include "ibuf0ibuf.h"
 # include "os0event.h"
 # include "sync0sync.h"
+#else /* !UNIV_HOTBACKUP */
+# include "log0log.h"
+# include "srv0srv.h"
 #endif /* !UNIV_HOTBACKUP */
-#include "buf0flu.h"
-#include "srv0start.h"
-#include "trx0purge.h"
-#include "ut0new.h"
+
+#ifdef UNIV_DEBUG
+#include <fstream>
+#endif /* UNIV_DEBUG */
 
 /** Tries to close a file in the LRU list. The caller must hold the fil_sys
 mutex.
@@ -60,8 +72,8 @@ generally complete in < 100 ms, and as InnoDB writes at most 128 pages
 from the buffer pool in a batch, and then immediately flushes the
 files, there is a good chance that the next time we find a suitable
 node from the LRU list.
-@param[in] print_info	if true, prints information why it
-                        cannot close a file */
+@param[in] print_info   if true, prints information why it
+			cannot close a file */
 static
 bool
 fil_try_to_close_file_in_LRU(bool print_info);
@@ -133,7 +145,7 @@ const char*	fil_path_to_mysql_datadir;
 Folder		folder_mysql_datadir;
 
 /** Common InnoDB file extentions */
-const char* dot_ext[] = { "", ".ibd", ".isl", ".cfg", ".cfp" };
+const char* dot_ext[] = { "", ".ibd", ".cfg", ".cfp" };
 
 /** The number of fsyncs done to the log */
 ulint	fil_n_log_flushes			= 0;
@@ -183,7 +195,7 @@ struct fil_system_t {
 					this */
 	int64_t		modification_counter;/*!< when we write to a file we
 					increment this by one */
-	ulint		max_assigned_id;/*!< maximum space id in the existing
+	space_id_t	max_assigned_id;/*!< maximum space id in the existing
 					tables, or assigned during the time
 					mysqld has been up; at an InnoDB
 					startup we scan the data dictionary
@@ -221,18 +233,6 @@ static ulint	srv_data_written;
 #else /* _WIN32 */
 # define fil_buffering_disabled(s)	(0)
 #endif /* __WIN32 */
-
-/** Determine if the space id is a user tablespace id or not.
-@param[in]	space_id	Space ID to check
-@return true if it is a user tablespace ID */
-UNIV_INLINE
-bool
-fil_is_user_tablespace_id(
-	ulint	space_id)
-{
-	return(space_id > srv_undo_tablespaces_open
-	       && space_id != srv_tmp_space.space_id());
-}
 
 #ifdef UNIV_DEBUG
 /** Try fil_validate() every this many times */
@@ -273,12 +273,13 @@ fil_space_belongs_in_lru(
 	const fil_space_t*	space)	/*!< in: file space */
 {
 	switch (space->purpose) {
+	case FIL_TYPE_TEMPORARY:
 	case FIL_TYPE_LOG:
 		return(false);
 	case FIL_TYPE_TABLESPACE:
-	case FIL_TYPE_TEMPORARY:
+		return(fsp_is_ibd_tablespace(space->id));
 	case FIL_TYPE_IMPORT:
-		return(fil_is_user_tablespace_id(space->id));
+		return(true);
 	}
 
 	ut_ad(0);
@@ -374,7 +375,7 @@ UNIV_INLINE
 fil_space_t*
 fil_space_get_by_id(
 /*================*/
-	ulint	id)	/*!< in: space id */
+	space_id_t	id)	/*!< in: space id */
 {
 	fil_space_t*	space;
 
@@ -411,6 +412,7 @@ fil_space_get_by_name(
 	return(space);
 }
 
+#ifndef UNIV_HOTBACKUP
 /** Look up a tablespace.
 The caller should hold an InnoDB table lock or a MDL that prevents
 the tablespace from being dropped during the operation,
@@ -421,24 +423,21 @@ should be used instead.
 @param[in]	id	tablespace ID
 @return tablespace, or NULL if not found */
 fil_space_t*
-fil_space_get(
-	ulint	id)
+fil_space_get(space_id_t id)
 {
 	mutex_enter(&fil_system->mutex);
 	fil_space_t*	space = fil_space_get_by_id(id);
 	mutex_exit(&fil_system->mutex);
-	ut_ad(space == NULL || space->purpose != FIL_TYPE_LOG);
 	return(space);
 }
-#ifndef UNIV_HOTBACKUP
 /** Returns the latch of a file space.
 @param[in]	id	space id
 @param[out]	flags	tablespace flags
 @return latch protecting storage allocation */
 rw_lock_t*
 fil_space_get_latch(
-	ulint	id,
-	ulint*	flags)
+	space_id_t	id,
+	ulint*		flags)
 {
 	fil_space_t*	space;
 
@@ -464,8 +463,7 @@ fil_space_get_latch(
 @param[in]	id	tablespace identifier
 @return file type */
 fil_type_t
-fil_space_get_type(
-	ulint	id)
+fil_space_get_type(space_id_t id)
 {
 	fil_space_t*	space;
 
@@ -490,8 +488,7 @@ Now we change it to FIL_SPACE_TABLESPACE to start redo and undo logging.
 NOTE: temporary tablespaces are never imported.
 @param[in]	id	tablespace identifier */
 void
-fil_space_set_imported(
-	ulint	id)
+fil_space_set_imported(space_id_t id)
 {
 	ut_ad(fil_system != NULL);
 
@@ -535,6 +532,7 @@ fil_space_is_flushed(
 #if !defined(NO_FALLOCATE) && defined(UNIV_LINUX)
 
 #include <sys/ioctl.h>
+
 /** FusionIO atomic write control info */
 #define DFS_IOCTL_ATOMIC_WRITE_SET	_IOW(0x95, 2, uint)
 
@@ -543,15 +541,13 @@ Try and enable FusionIO atomic writes.
 @param[in] file		OS file handle
 @return true if successful */
 bool
-fil_fusionio_enable_atomic_write(os_file_t file)
+fil_fusionio_enable_atomic_write(pfs_os_file_t file)
 {
 	if (srv_unix_file_flush_method == SRV_UNIX_O_DIRECT) {
 
 		uint	atomic = 1;
-
-		ut_a(file != -1);
-
-		if (ioctl(file, DFS_IOCTL_ATOMIC_WRITE_SET, &atomic) != -1) {
+		ut_a(file.m_file != -1);
+		if (ioctl(file.m_file, DFS_IOCTL_ATOMIC_WRITE_SET, &atomic) != -1) {
 
 			return(true);
 		}
@@ -568,20 +564,19 @@ fil_fusionio_enable_atomic_write(os_file_t file)
 @param[in]	is_raw		whether this is a raw device or partition
 @param[in]	punch_hole	true if supported for this node
 @param[in]	atomic_write	true if the file has atomic write enabled
-@param[in]	max_pages	maximum number of pages in file,
-ULINT_MAX means the file size is unlimited.
+@param[in]	max_pages	maximum number of pages in file
 @return pointer to the file name
 @retval NULL if error */
 static
 fil_node_t*
 fil_node_create_low(
 	const char*	name,
-	ulint		size,
+	page_no_t	size,
 	fil_space_t*	space,
 	bool		is_raw,
 	bool		punch_hole,
 	bool		atomic_write,
-	ulint		max_pages = ULINT_MAX)
+	page_no_t	max_pages = PAGE_NO_MAX)
 {
 	fil_node_t*	node;
 
@@ -636,8 +631,9 @@ fil_node_create_low(
 	turn Page Compression off.  This execution mode allows compression
 	to be tested even when full punch hole support is not available. */
 	DBUG_EXECUTE_IF("ignore_punch_hole",
-		node->block_size = ut_min(stat_info.block_size,
-					  static_cast<size_t>(UNIV_PAGE_SIZE / 2));
+		node->block_size = ut_min(
+			static_cast<ulint>(stat_info.block_size),
+			UNIV_PAGE_SIZE / 2);
 	);
 
 	if (!IORequest::is_punch_hole_supported()
@@ -664,18 +660,17 @@ fil_node_create_low(
 @param[in,out]	space		space where to append
 @param[in]	is_raw		true if a raw device or a raw disk partition
 @param[in]	atomic_write	true if the file has atomic write enabled
-@param[in]	max_pages	maximum number of pages in file,
-ULINT_MAX means the file size is unlimited.
+@param[in]	max_pages	maximum number of pages in file
 @return pointer to the file name
 @retval NULL if error */
 char*
 fil_node_create(
 	const char*	name,
-	ulint		size,
+	page_no_t	size,
 	fil_space_t*	space,
 	bool		is_raw,
 	bool		atomic_write,
-	ulint		max_pages)
+	page_no_t	max_pages)
 {
 	fil_node_t*	node;
 
@@ -715,7 +710,7 @@ fil_node_open_file(
 	if (node->size == 0
 	    || (space->purpose == FIL_TYPE_TABLESPACE
 		&& node == UT_LIST_GET_FIRST(space->chain)
-		&& !undo::Truncate::was_tablespace_truncated(space->id)
+		&& !undo::is_under_construction(space->id)
 		&& srv_startup_is_before_trx_rollback_phase)) {
 		/* We do not know the size of the file yet. First we
 		open the file in the normal mode, no async I/O here,
@@ -735,8 +730,7 @@ retry:
 			if (err == EMFILE + 100) {
 				if (fil_try_to_close_file_in_LRU(true))
 					goto retry;
-                       }
-
+			}
 			ib::warn() << "Cannot open '" << node->name << "'."
 				" Have you deleted .ibd files under a"
 				" running mysqld server?";
@@ -808,6 +802,11 @@ retry:
 				<< ib::hex(space->flags) << ")!";
 		}
 
+		/* TODO: Remove this adjustment and enable the below assert
+		after dict_tf_to_fsp_flags() removal. */
+		space->flags |= flags & FSP_FLAGS_MASK_SDI;
+		/* ut_ad(space->flags == flags); */
+
 		if (space->flags != flags) {
 
 			ib::fatal()
@@ -819,11 +818,11 @@ retry:
 		}
 
 		{
-			ulint	size		= fsp_header_get_field(
+			page_no_t	size		= fsp_header_get_field(
 				page, FSP_SIZE);
-			ulint	free_limit	= fsp_header_get_field(
+			page_no_t	free_limit	= fsp_header_get_field(
 				page, FSP_FREE_LIMIT);
-			ulint	free_len	= flst_get_len(
+			ulint		free_len	= flst_get_len(
 				FSP_HEADER_OFFSET + FSP_FREE + page);
 			ut_ad(space->free_limit == 0
 			      || space->free_limit == free_limit);
@@ -853,18 +852,14 @@ retry:
 			ulint	extent_size;
 
 			extent_size = page_size.physical() * FSP_EXTENT_SIZE;
-
-			/* After apply-incremental, tablespaces are not extended
-			to a whole megabyte. Do not cut off valid data. */
-#ifndef UNIV_HOTBACKUP
 			/* Truncate the size to a multiple of extent size. */
 			if (size_bytes >= extent_size) {
 				size_bytes = ut_2pow_round(size_bytes,
 							   extent_size);
 			}
-#endif /* !UNIV_HOTBACKUP */
-			node->size = (ulint)
-				(size_bytes / page_size.physical());
+
+			node->size = static_cast<page_no_t>(
+				(size_bytes / page_size.physical()));
 
 #ifdef UNIV_HOTBACKUP
 add_size:
@@ -955,13 +950,14 @@ generally complete in < 100 ms, and as InnoDB writes at most 128 pages
 from the buffer pool in a batch, and then immediately flushes the
 files, there is a good chance that the next time we find a suitable
 node from the LRU list.
-@param[in] print_info	if true, prints information why it
-			cannot close a file*/
+@param[in] print_info   if true, prints information why it
+			cannot close a file */
 static
 bool
 fil_try_to_close_file_in_LRU(
 
-	bool	print_info)
+	bool print_info)
+
 {
 	fil_node_t*	node;
 
@@ -1020,7 +1016,7 @@ static
 void
 fil_mutex_enter_and_prepare_for_io(
 /*===============================*/
-	ulint	space_id)	/*!< in: space id */
+	space_id_t	space_id)	/*!< in: space id */
 {
 	fil_space_t*	space;
 	bool		success;
@@ -1130,7 +1126,7 @@ fil_mutex_enter_and_prepare_for_io(
 		os_aio_simulated_wake_handler_threads();
 
 		os_thread_sleep(20000);
-#endif /* !UNIV_HOTBACKUP */
+#endif
 		/* Flush tablespaces so that we can close modified files in
 		the LRU list. */
 
@@ -1256,7 +1252,7 @@ There must not be any pending i/o's or flushes on the files.
 @return true if success */
 bool
 fil_space_free(
-	ulint		id,
+	space_id_t	id,
 	bool		x_latched)
 {
 	ut_ad(id != TRX_SYS_SPACE);
@@ -1310,7 +1306,7 @@ Error messages are issued to the server log.
 fil_space_t*
 fil_space_create(
 	const char*	name,
-	ulint		id,
+	space_id_t	id,
 	ulint		flags,
 	fil_type_t	purpose)
 {
@@ -1354,8 +1350,6 @@ fil_space_create(
 
 	UT_LIST_INIT(space->chain, &fil_node_t::chain);
 
-	/* This warning is not applicable while MEB scanning the redo logs */
-#ifndef UNIV_HOTBACKUP
 	if (fil_type_is_data(purpose)
 	    && !recv_recovery_on
 	    && id > fil_system->max_assigned_id) {
@@ -1370,7 +1364,7 @@ fil_space_create(
 
 		fil_system->max_assigned_id = id;
 	}
-#endif /* !UNIV_HOTBACKUP */
+
 	space->purpose = purpose;
 	space->flags = flags;
 
@@ -1381,9 +1375,7 @@ fil_space_create(
 	rw_lock_create(fil_space_latch_key, &space->latch, SYNC_FSP);
 
 	if (space->purpose == FIL_TYPE_TEMPORARY) {
-#ifndef UNIV_HOTBACKUP
 		ut_d(space->latch.set_temp_fsp());
-#endif /* !UNIV_HOTBACKUP */
 	}
 
 	HASH_INSERT(fil_space_t, hash, fil_system->spaces, id, space);
@@ -1411,9 +1403,9 @@ to recycle id's.
 bool
 fil_assign_new_space_id(
 /*====================*/
-	ulint*	space_id)	/*!< in/out: space id */
+	space_id_t*	space_id)	/*!< in/out: space id */
 {
-	ulint	id;
+	space_id_t	id;
 	bool	success;
 
 	mutex_enter(&fil_system->mutex);
@@ -1445,7 +1437,7 @@ fil_assign_new_space_id(
 			<< ". To reset the counter to zero"
 			" you have to dump all your tables and"
 			" recreate the whole InnoDB installation.";
-		*space_id = ULINT_UNDEFINED;
+		*space_id = SPACE_UNKNOWN;
 	}
 
 	mutex_exit(&fil_system->mutex);
@@ -1461,7 +1453,7 @@ UNIV_INLINE
 fil_space_t*
 fil_space_get_space(
 /*================*/
-	ulint	id)	/*!< in: space id */
+	space_id_t	id)	/*!< in: space id */
 {
 	fil_space_t*	space;
 	fil_node_t*	node;
@@ -1525,8 +1517,7 @@ value returned.
 @return own: A copy of fil_node_t::path, NULL if space ID is zero
 or not found. */
 char*
-fil_space_get_first_path(
-	ulint		id)
+fil_space_get_first_path(space_id_t id)
 {
 	fil_space_t*	space;
 	fil_node_t*	node;
@@ -1560,13 +1551,13 @@ fil_space_get_first_path(
 Returns the size of the space in pages. The tablespace must be cached in the
 memory cache.
 @return space size, 0 if space not found */
-ulint
+page_no_t
 fil_space_get_size(
 /*===============*/
-	ulint	id)	/*!< in: space id */
+	space_id_t	id)	/*!< in: space id */
 {
 	fil_space_t*	space;
-	ulint		size;
+	page_no_t	size;
 
 	ut_ad(fil_system);
 	mutex_enter(&fil_system->mutex);
@@ -1587,7 +1578,7 @@ in the memory cache.
 ulint
 fil_space_get_flags(
 /*================*/
-	ulint	id)	/*!< in: space id */
+	space_id_t	id)	/*!< in: space id */
 {
 	fil_space_t*	space;
 	ulint		flags;
@@ -1611,32 +1602,18 @@ fil_space_get_flags(
 	return(flags);
 }
 
-/** Check if table is mark for truncate.
-@param[in]	id	space id
-@return true if tablespace is marked for truncate. */
+/** Open each file of a tablespace if not already open.
+@param[in]	space_id	tablespace identifier
+@retval	true	if all file nodes were opened
+@retval	false	on failure */
 bool
-fil_space_is_being_truncated(
-	ulint id)
-{
-	bool	mark_for_truncate;
-	mutex_enter(&fil_system->mutex);
-	mark_for_truncate = fil_space_get_by_id(id)->is_being_truncated;
-	mutex_exit(&fil_system->mutex);
-	return(mark_for_truncate);
-}
-
-/** Open each fil_node_t of a named fil_space_t if not already open.
-@param[in]	name	Tablespace name
-@return true if all nodes are open  */
-bool
-fil_space_open(
-	const char*	name)
+fil_space_open(space_id_t space_id)
 {
 	ut_ad(fil_system != NULL);
 
 	mutex_enter(&fil_system->mutex);
 
-	fil_space_t*	space = fil_space_get_by_name(name);
+	fil_space_t*	space = fil_space_get_by_id(space_id);
 	fil_node_t*	node;
 
 	for (node = UT_LIST_GET_FIRST(space->chain);
@@ -1655,11 +1632,10 @@ fil_space_open(
 	return(true);
 }
 
-/** Close each fil_node_t of a named fil_space_t if open.
-@param[in]	name	Tablespace name */
+/** Close each file of a tablespace if open.
+@param[in]	space_id	tablespace identifier */
 void
-fil_space_close(
-	const char*	name)
+fil_space_close(space_id_t space_id)
 {
 	if (fil_system == NULL) {
 		return;
@@ -1667,7 +1643,7 @@ fil_space_close(
 
 	mutex_enter(&fil_system->mutex);
 
-	fil_space_t*	space = fil_space_get_by_name(name);
+	fil_space_t*	space = fil_space_get_by_id(space_id);
 	if (space == NULL) {
 		mutex_exit(&fil_system->mutex);
 		return;
@@ -1692,8 +1668,8 @@ The tablespace must be cached in the memory cache.
 @return page size */
 const page_size_t
 fil_space_get_page_size(
-	ulint	id,
-	bool*	found)
+	space_id_t	id,
+	bool*		found)
 {
 	const ulint	flags = fil_space_get_flags(id);
 
@@ -1892,7 +1868,7 @@ previous value. */
 void
 fil_set_max_space_id_if_bigger(
 /*===========================*/
-	ulint	max_id)	/*!< in: maximum known id */
+	space_id_t	max_id)	/*!< in: maximum known id */
 {
 	if (max_id >= SRV_LOG_SPACE_FIRST_ID) {
 		ib::fatal() << "Max tablespace id is too high, " << max_id;
@@ -1941,6 +1917,7 @@ fil_write_flushed_lsn(
 
 	return(err);
 }
+
 #ifndef UNIV_HOTBACKUP
 /** Acquire a tablespace when it could be dropped concurrently.
 Used by background threads that do not necessarily hold proper locks
@@ -1951,8 +1928,8 @@ for concurrency control.
 inline
 fil_space_t*
 fil_space_acquire_low(
-	ulint	id,
-	bool	silent)
+	space_id_t	id,
+	bool		silent)
 {
 	fil_space_t*	space;
 
@@ -1965,7 +1942,7 @@ fil_space_acquire_low(
 			ib::warn() << "Trying to access missing"
 				" tablespace " << id;
 		}
-	} else if (space->stop_new_ops || space->is_being_truncated) {
+	} else if (space->stop_new_ops) {
 		space = NULL;
 	} else {
 		space->n_pending_ops++;
@@ -1982,8 +1959,7 @@ for concurrency control.
 @param[in]	id	tablespace ID
 @return the tablespace, or NULL if missing or being deleted */
 fil_space_t*
-fil_space_acquire(
-	ulint	id)
+fil_space_acquire(space_id_t id)
 {
 	return(fil_space_acquire_low(id, false));
 }
@@ -1994,8 +1970,7 @@ for concurrency control.
 @param[in]	id	tablespace ID
 @return the tablespace, or NULL if missing or being deleted */
 fil_space_t*
-fil_space_acquire_silent(
-	ulint	id)
+fil_space_acquire_silent(space_id_t id)
 {
 	return(fil_space_acquire_low(id, true));
 }
@@ -2014,36 +1989,7 @@ fil_space_release(
 }
 #endif /* !UNIV_HOTBACKUP */
 
-/********************************************************//**
-Creates the database directory for a table if it does not exist yet. */
-void
-fil_create_directory_for_tablename(
-/*===============================*/
-	const char*	name)	/*!< in: name in the standard
-				'databasename/tablename' format */
-{
-	const char*	namend;
-	char*		path;
-	ulint		len;
-
-	len = strlen(fil_path_to_mysql_datadir);
-	namend = strchr(name, '/');
-	ut_a(namend);
-	path = static_cast<char*>(ut_malloc_nokey(len + (namend - name) + 2));
-
-	memcpy(path, fil_path_to_mysql_datadir, len);
-	path[len] = '/';
-	memcpy(path + len + 1, name, namend - name);
-	path[len + (namend - name) + 1] = 0;
-
-	os_normalize_path(path);
-
-	bool	success = os_file_create_directory(path, false);
-	ut_a(success);
-
-	ut_free(path);
-}
-
+#ifndef UNIV_HOTBACKUP
 /** Write a log record about an operation on a tablespace file.
 @param[in]	type		MLOG_FILE_NAME or MLOG_FILE_DELETE
 or MLOG_FILE_CREATE2 or MLOG_FILE_RENAME2
@@ -2057,8 +2003,8 @@ static
 void
 fil_op_write_log(
 	mlog_id_t	type,
-	ulint		space_id,
-	ulint		first_page_no,
+	space_id_t	space_id,
+	page_no_t	first_page_no,
 	const char*	path,
 	const char*	new_path,
 	ulint		flags,
@@ -2067,12 +2013,10 @@ fil_op_write_log(
 	byte*		log_ptr;
 	ulint		len;
 
-	ut_ad(first_page_no == 0);
-
-	/* fil_name_parse() requires that there be at least one path
-	separator and that the file path end with ".ibd". */
+	/* TODO: support user-created multi-file tablespaces */
+	ut_ad(first_page_no == 0 || space_id == TRX_SYS_SPACE);
+	/* fil_name_parse() requires this */
 	ut_ad(strchr(path, OS_PATH_SEPARATOR) != NULL);
-	ut_ad(strcmp(&path[strlen(path) - strlen(DOT_IBD)], DOT_IBD) == 0);
 
 	log_ptr = mlog_open(mtr, 11 + 4 + 2 + 1);
 
@@ -2123,7 +2067,7 @@ fil_op_write_log(
 		ut_ad(0);
 	}
 }
-#ifndef UNIV_HOTBACKUP
+
 /** Write redo log for renaming a file.
 @param[in]	space_id	tablespace id
 @param[in]	first_page_no	first page number in the file
@@ -2133,19 +2077,20 @@ fil_op_write_log(
 static
 void
 fil_name_write_rename(
-	ulint		space_id,
-	ulint		first_page_no,
+	space_id_t	space_id,
+	page_no_t	first_page_no,
 	const char*	old_name,
 	const char*	new_name,
 	mtr_t*		mtr)
 {
-	ut_ad(!is_predefined_tablespace(space_id));
+	ut_ad(!fsp_is_system_or_temp_tablespace(space_id));
+	ut_ad(!fsp_is_undo_tablespace(space_id));
 
 	fil_op_write_log(
 		MLOG_FILE_RENAME2,
 		space_id, first_page_no, old_name, new_name, 0, mtr);
 }
-#endif /* !UNIV_HOTBACKUP */
+
 /** Write MLOG_FILE_NAME for a file.
 @param[in]	space_id	tablespace id
 @param[in]	first_page_no	first page number in the file
@@ -2154,8 +2099,8 @@ fil_name_write_rename(
 static
 void
 fil_name_write(
-	ulint		space_id,
-	ulint		first_page_no,
+	space_id_t	space_id,
+	page_no_t	first_page_no,
 	const char*	name,
 	mtr_t*		mtr)
 {
@@ -2172,255 +2117,14 @@ static
 void
 fil_name_write(
 	const fil_space_t*	space,
-	ulint			first_page_no,
+	page_no_t		first_page_no,
 	const fil_node_t*	file,
 	mtr_t*			mtr)
 {
 	fil_name_write(space->id, first_page_no, file->name, mtr);
 }
+#endif
 
-#ifndef UNIV_HOTBACKUP
-/********************************************************//**
-Recreates table indexes by applying
-TRUNCATE log record during recovery.
-@return DB_SUCCESS or error code */
-dberr_t
-fil_recreate_table(
-/*===============*/
-	ulint		space_id,	/*!< in: space id */
-	ulint		format_flags,	/*!< in: page format */
-	ulint		flags,		/*!< in: tablespace flags */
-	const char*	name,		/*!< in: table name */
-	truncate_t&	truncate)	/*!< in: The information of
-					TRUNCATE log record */
-{
-	dberr_t			err = DB_SUCCESS;
-	bool			found;
-	const page_size_t	page_size(fil_space_get_page_size(space_id,
-								  &found));
-
-	if (!found) {
-		ib::info() << "Missing .ibd file for table '" << name
-			<< "' with tablespace " << space_id;
-		return(DB_ERROR);
-	}
-
-	ut_ad(!truncate_t::s_fix_up_active);
-	truncate_t::s_fix_up_active = true;
-
-	/* Step-1: Scan for active indexes from REDO logs and drop
-	all the indexes using low level function that take root_page_no
-	and space-id. */
-	truncate.drop_indexes(space_id);
-
-	/* Step-2: Scan for active indexes and re-create them. */
-	err = truncate.create_indexes(
-		name, space_id, page_size, flags, format_flags);
-	if (err != DB_SUCCESS) {
-		ib::info() << "Failed to create indexes for the table '"
-			<< name << "' with tablespace " << space_id
-			<< " while fixing up truncate action";
-		return(err);
-	}
-
-	truncate_t::s_fix_up_active = false;
-
-	return(err);
-}
-
-/********************************************************//**
-Recreates the tablespace and table indexes by applying
-TRUNCATE log record during recovery.
-@return DB_SUCCESS or error code */
-dberr_t
-fil_recreate_tablespace(
-/*====================*/
-	ulint		space_id,	/*!< in: space id */
-	ulint		format_flags,	/*!< in: page format */
-	ulint		flags,		/*!< in: tablespace flags */
-	const char*	name,		/*!< in: table name */
-	truncate_t&	truncate,	/*!< in: The information of
-					TRUNCATE log record */
-	lsn_t		recv_lsn)	/*!< in: the end LSN of
-						the log record */
-{
-	dberr_t		err = DB_SUCCESS;
-	mtr_t		mtr;
-
-	ut_ad(!truncate_t::s_fix_up_active);
-	truncate_t::s_fix_up_active = true;
-
-	/* Step-1: Invalidate buffer pool pages belonging to the tablespace
-	to re-create. */
-	buf_LRU_flush_or_remove_pages(space_id, BUF_REMOVE_ALL_NO_WRITE, 0);
-
-	/* Remove all insert buffer entries for the tablespace */
-	ibuf_delete_for_discarded_space(space_id);
-
-	/* Step-2: truncate tablespace (reset the size back to original or
-	default size) of tablespace. */
-	err = truncate.truncate(
-		space_id, truncate.get_dir_path(), name, flags, true);
-
-	if (err != DB_SUCCESS) {
-
-		ib::info() << "Cannot access .ibd file for table '"
-			<< name << "' with tablespace " << space_id
-			<< " while truncating";
-		return(DB_ERROR);
-	}
-
-	bool			found;
-	const page_size_t&	page_size =
-		fil_space_get_page_size(space_id, &found);
-
-	if (!found) {
-		ib::info() << "Missing .ibd file for table '" << name
-			<< "' with tablespace " << space_id;
-		return(DB_ERROR);
-	}
-
-	/* Step-3: Initialize Header. */
-	if (page_size.is_compressed()) {
-		byte*	buf;
-		page_t*	page;
-
-		buf = static_cast<byte*>(ut_zalloc_nokey(3 * UNIV_PAGE_SIZE));
-
-		/* Align the memory for file i/o */
-		page = static_cast<byte*>(ut_align(buf, UNIV_PAGE_SIZE));
-
-		flags = fsp_flags_set_page_size(flags, univ_page_size);
-
-		fsp_header_init_fields(page, space_id, flags);
-
-		mach_write_to_4(
-			page + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID, space_id);
-
-		page_zip_des_t  page_zip;
-		page_zip_set_size(&page_zip, page_size.physical());
-		page_zip.data = page + UNIV_PAGE_SIZE;
-
-#ifdef UNIV_DEBUG
-		page_zip.m_start =
-#endif /* UNIV_DEBUG */
-		page_zip.m_end = page_zip.m_nonempty = page_zip.n_blobs = 0;
-		buf_flush_init_for_writing(
-			NULL, page, &page_zip, 0,
-			fsp_is_checksum_disabled(space_id));
-
-		err = fil_write(page_id_t(space_id, 0), page_size, 0,
-				page_size.physical(), page_zip.data);
-
-		ut_free(buf);
-
-		if (err != DB_SUCCESS) {
-			ib::info() << "Failed to clean header of the"
-				" table '" << name << "' with tablespace "
-				<< space_id;
-			return(err);
-		}
-	}
-
-	mtr_start(&mtr);
-	/* Don't log the operation while fixing up table truncate operation
-	as crash at this level can still be sustained with recovery restarting
-	from last checkpoint. */
-	mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
-
-	/* Initialize the first extent descriptor page and
-	the second bitmap page for the new tablespace. */
-	fsp_header_init(space_id, FIL_IBD_FILE_INITIAL_SIZE, &mtr);
-	mtr_commit(&mtr);
-
-	/* Step-4: Re-Create Indexes to newly re-created tablespace.
-	This operation will restore tablespace back to what it was
-	when it was created during CREATE TABLE. */
-	err = truncate.create_indexes(
-		name, space_id, page_size, flags, format_flags);
-	if (err != DB_SUCCESS) {
-		return(err);
-	}
-
-	/* Step-5: Write new created pages into ibd file handle and
-	flush it to disk for the tablespace, in case i/o-handler thread
-	deletes the bitmap page from buffer. */
-	mtr_start(&mtr);
-
-	mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
-
-	mutex_enter(&fil_system->mutex);
-
-	fil_space_t*	space = fil_space_get_by_id(space_id);
-
-	mutex_exit(&fil_system->mutex);
-
-	fil_node_t*	node = UT_LIST_GET_FIRST(space->chain);
-
-	for (ulint page_no = 0; page_no < node->size; ++page_no) {
-
-		const page_id_t	cur_page_id(space_id, page_no);
-
-		buf_block_t*	block = buf_page_get(cur_page_id, page_size,
-						     RW_X_LATCH, &mtr);
-
-		byte*	page = buf_block_get_frame(block);
-
-		if (!fsp_flags_is_compressed(flags)) {
-
-			ut_ad(!page_size.is_compressed());
-
-			buf_flush_init_for_writing(
-				block, page, NULL, recv_lsn,
-				fsp_is_checksum_disabled(space_id));
-
-			err = fil_write(cur_page_id, page_size, 0,
-					page_size.physical(), page);
-		} else {
-			ut_ad(page_size.is_compressed());
-
-			/* We don't want to rewrite empty pages. */
-
-			if (fil_page_get_type(page) != 0) {
-				page_zip_des_t*  page_zip =
-					buf_block_get_page_zip(block);
-
-				buf_flush_init_for_writing(
-					block, page, page_zip, recv_lsn,
-					fsp_is_checksum_disabled(space_id));
-
-				err = fil_write(cur_page_id, page_size, 0,
-						page_size.physical(),
-						page_zip->data);
-			} else {
-#ifdef UNIV_DEBUG
-				const byte*	data = block->page.zip.data;
-
-				/* Make sure that the page is really empty */
-				for (ulint i = 0;
-				     i < page_size.physical();
-				     ++i) {
-
-					ut_a(data[i] == 0);
-				}
-#endif /* UNIV_DEBUG */
-			}
-		}
-
-		if (err != DB_SUCCESS) {
-			ib::info() << "Cannot write page " << page_no
-				<< " into a .ibd file for table '"
-				<< name << "' with tablespace " << space_id;
-		}
-	}
-
-	mtr_commit(&mtr);
-
-	truncate_t::s_fix_up_active = false;
-
-	return(err);
-}
-#endif /* UNIV_HOTBACKUP */
 /** Replay a file rename operation if possible.
 @param[in]	space_id	tablespace identifier
 @param[in]	first_page_no	first page number in the file
@@ -2431,8 +2135,8 @@ fil_recreate_tablespace(
 name was successfully renamed to new_name)  */
 bool
 fil_op_replay_rename(
-	ulint		space_id,
-	ulint		first_page_no,
+	space_id_t	space_id,
+	page_no_t	first_page_no,
 	const char*	name,
 	const char*	new_name)
 {
@@ -2514,8 +2218,7 @@ fil_op_replay_rename(
 /** File operations for tablespace */
 enum fil_operation_t {
 	FIL_OPERATION_DELETE,	/*!< delete a single-table tablespace */
-	FIL_OPERATION_CLOSE,	/*!< close a single-table tablespace */
-	FIL_OPERATION_TRUNCATE	/*!< truncate a single-table tablespace */
+	FIL_OPERATION_CLOSE	/*!< close a single-table tablespace */
 };
 
 /** Check for pending operations.
@@ -2535,7 +2238,7 @@ fil_check_pending_ops(
 	if (n_pending_ops) {
 
 		if (count > 5000) {
-			ib::warn() << "Trying to close/delete/truncate"
+			ib::warn() << "Trying to close/delete"
 				" tablespace '" << space->name
 				<< "' but there are " << n_pending_ops
 				<< " pending operations on it.";
@@ -2566,9 +2269,6 @@ fil_check_pending_io(
 	case FIL_OPERATION_DELETE:
 	case FIL_OPERATION_CLOSE:
 		break;
-	case FIL_OPERATION_TRUNCATE:
-		space->is_being_truncated = true;
-		break;
 	}
 
 	/* The following code must change when InnoDB supports
@@ -2582,7 +2282,7 @@ fil_check_pending_io(
 		ut_a(!(*node)->being_extended);
 
 		if (count > 1000) {
-			ib::warn() << "Trying to delete/close/truncate"
+			ib::warn() << "Trying to delete/close"
 				" tablespace '" << space->name
 				<< "' but there are "
 				<< space->n_pending_flushes
@@ -2603,7 +2303,7 @@ static
 dberr_t
 fil_check_pending_operations(
 /*=========================*/
-	ulint		id,		/*!< in: space id */
+	space_id_t	id,		/*!< in: space id */
 	fil_operation_t	operation,	/*!< in: File operation */
 	fil_space_t**	space,		/*!< out: tablespace instance
 					in memory */
@@ -2611,7 +2311,7 @@ fil_check_pending_operations(
 {
 	ulint		count = 0;
 
-	ut_a(!is_system_tablespace(id));
+	ut_ad(!fsp_is_system_or_temp_tablespace(id));
 	ut_ad(space);
 
 	*space = 0;
@@ -2676,6 +2376,120 @@ fil_check_pending_operations(
 	return(DB_SUCCESS);
 }
 
+#ifndef UNIV_HOTBACKUP
+/** Check if a file name exists in the system tablespace.
+@param[in]	first_page_no	first page number (0=first file)
+@param[in]	file_name	tablespace file name
+@return whether the name matches the system tablespace
+@retval	FIL_SPACE_SYSTEM_OK		if file_name starts at first_page_no
+in the system tablespace
+@retval	FIL_SPACE_SYSTEM_ALL		if file_name starts at first_page_no
+in the system tablespace
+and this function has been invoked for every file in the system tablespace
+@retval	FIL_SPACE_SYSTEM_MISMATCH	in case of mismatch */
+
+enum fil_space_system_t
+fil_space_system_check(
+	page_no_t	first_page_no,
+	const char*	file_name)
+{
+	const fil_space_t*	space;
+	enum fil_space_system_t	status	= FIL_SPACE_SYSTEM_MISMATCH;
+	static ulint		fil_space_system_checked_max;
+	ulint			i	= 0;
+
+	mutex_enter(&fil_system->mutex);
+	space = fil_space_get_by_id(TRX_SYS_SPACE);
+	ut_ad(space->purpose == FIL_TYPE_TABLESPACE);
+
+	for (const fil_node_t* node = UT_LIST_GET_FIRST(space->chain);
+	     node != NULL;
+	     node = UT_LIST_GET_NEXT(chain, node)) {
+		i++;
+		ut_ad(i <= UT_LIST_GET_LEN(space->chain));
+		ut_ad(node->size > 0);
+
+		if (first_page_no != 0) {
+			first_page_no -= node->size;
+			continue;
+		}
+
+		if (strcmp(node->name, file_name)) {
+			/* Name mismatch */
+		} else if (i < fil_space_system_checked_max + 1) {
+			status = FIL_SPACE_SYSTEM_OK;
+		} else {
+			fil_space_system_checked_max = i;
+			status = (i == UT_LIST_GET_LEN(space->chain))
+				? FIL_SPACE_SYSTEM_ALL
+				: FIL_SPACE_SYSTEM_OK;
+		}
+
+		break;
+	}
+
+	mutex_exit(&fil_system->mutex);
+
+	return(status);
+}
+
+/** Check if an undo tablespace was opened during crash recovery.
+Change name to undo_name if already opened during recovery.
+@param[in]	file_name	undo tablespace file name
+@param[in]	undo_name	undo tablespace name
+@param[in]	space_id	undo tablespace id
+@retval DB_SUCCESS		if it was already opened
+@retval DB_TABLESPACE_NOT_FOUND	if not yet opened
+@retval DB_ERROR		if the data is inconsistent */
+
+dberr_t
+fil_space_undo_check_if_opened(
+	const char*	file_name,
+	const char*	undo_name,
+	space_id_t	space_id)
+{
+	mutex_enter(&fil_system->mutex);
+
+	fil_space_t*	space	= fil_space_get_by_id(space_id);
+
+	if (space == nullptr) {
+		mutex_exit(&fil_system->mutex);
+		return(DB_TABLESPACE_NOT_FOUND);
+	}
+
+	/* The file_name that we opened before must be the same as what we
+	need to open now.  If not, maybe the srv_undo_directory has changed. */
+	if (strcmp(space->name, file_name)) {
+		ib::error() << "Cannot load UNDO tablespace. '"
+			<< space->name
+			<< "' was discovered during REDO recovery, but '"
+			<< file_name
+			<< "' should be opened instead.";
+		mutex_exit(&fil_system->mutex);
+		return(DB_ERROR);
+	}
+
+	if (space->flags != fsp_flags_set_page_size(0, univ_page_size)
+	    && !FSP_FLAGS_GET_ENCRYPTION(space->flags)) {
+		ib::error() << "Cannot load UNDO tablespace '"
+			<< file_name << "' with flags=" << space->flags;
+		mutex_exit(&fil_system->mutex);
+		return(DB_ERROR);
+	}
+	ut_ad(space->purpose == FIL_TYPE_TABLESPACE);
+	ut_ad(UT_LIST_GET_LEN(space->chain) == 1);
+
+	mutex_exit(&fil_system->mutex);
+
+	/* Flush and close the REDO recovery handle. Also, free up the
+	memory object because it was not created as an undo tablespace. */
+	fil_flush(space_id);
+	fil_space_close(space_id);
+	fil_space_free(space_id, false);
+
+	return(DB_TABLESPACE_NOT_FOUND);
+}
+
 /*******************************************************************//**
 Closes a single-table tablespace. The tablespace must be cached in the
 memory cache. Free all pages used by the tablespace.
@@ -2684,13 +2498,14 @@ dberr_t
 fil_close_tablespace(
 /*=================*/
 	trx_t*		trx,	/*!< in/out: Transaction covering the close */
-	ulint		id)	/*!< in: space id */
+	space_id_t	id)	/*!< in: space id */
 {
 	char*		path = 0;
 	fil_space_t*	space = 0;
 	dberr_t		err;
 
-	ut_a(!is_system_tablespace(id));
+	ut_ad(!fsp_is_system_or_temp_tablespace(id));
+	ut_ad(!fsp_is_undo_tablespace(id));
 
 	err = fil_check_pending_operations(id, FIL_OPERATION_CLOSE,
 					   &space, &path);
@@ -2742,23 +2557,25 @@ fil_close_tablespace(
 
 	return(err);
 }
+#endif /* UNIV_HOTBACKUP */
 
 /** Deletes an IBD tablespace, either general or single-table.
 The tablespace must be cached in the memory cache. This will delete the
 datafile, fil_space_t & fil_node_t entries from the file_system_t cache.
-@param[in]	space_id	Tablespace id
+@param[in]	id		Tablespace id
 @param[in]	buf_remove	Specify the action to take on the pages
 for this table in the buffer pool.
 @return DB_SUCCESS or error */
 dberr_t
 fil_delete_tablespace(
-	ulint		id,
+	space_id_t	id,
 	buf_remove_t	buf_remove)
 {
 	char*		path = 0;
 	fil_space_t*	space = 0;
 
-	ut_a(!is_system_tablespace(id));
+	ut_ad(!fsp_is_system_or_temp_tablespace(id));
+	ut_ad(!fsp_is_undo_tablespace(id));
 
 	dberr_t err = fil_check_pending_operations(
 		id, FIL_OPERATION_DELETE, &space, &path);
@@ -2835,17 +2652,6 @@ fil_delete_tablespace(
 		}
 	}
 
-	/* Delete the link file pointing to the ibd file we are deleting. */
-	if (FSP_FLAGS_HAS_DATA_DIR(space->flags)) {
-
-		RemoteDatafile::delete_link_file(space->name);
-
-	} else if (FSP_FLAGS_GET_SHARED(space->flags)) {
-
-		RemoteDatafile::delete_link_file(base_name(path));
-
-	}
-
 	mutex_enter(&fil_system->mutex);
 
 	/* Double check the sanity of pending ops after reacquiring
@@ -2888,15 +2694,40 @@ fil_delete_tablespace(
 
 	return(err);
 }
-#ifndef UNIV_HOTBACKUP
+
+/*******************************************************************//**
+Prepare for truncating a single-table tablespace.
+1) Check pending operations on a tablespace;
+2) Remove all insert buffer entries for the tablespace;
+@return DB_SUCCESS or error */
+static
+dberr_t
+fil_prepare_for_truncate(
+/*=====================*/
+	space_id_t	id)		/*!< in: space id */
+{
+	char*		path = 0;
+	fil_space_t*	space = 0;
+
+	ut_ad(!fsp_is_system_or_temp_tablespace(id));
+	ut_ad(fsp_is_undo_tablespace(id));
+
+	dberr_t err = fil_check_pending_operations(
+		id, FIL_OPERATION_CLOSE, &space, &path);
+
+	ut_free(path);
+
+	return(err);
+}
+
 /** Truncate the tablespace to needed size.
 @param[in]	space_id	id of tablespace to truncate
 @param[in]	size_in_pages	truncate size.
 @return true if truncate was successful. */
 bool
 fil_truncate_tablespace(
-	ulint		space_id,
-	ulint		size_in_pages)
+	space_id_t	space_id,
+	page_no_t	size_in_pages)
 {
 	/* Step-1: Prepare tablespace for truncate. This involves
 	stopping all the new operations + IO on that tablespace
@@ -2934,7 +2765,6 @@ fil_truncate_tablespace(
 
 		if (success) {
 			space->stop_new_ops = false;
-			space->is_being_truncated = false;
 		}
 	}
 
@@ -2943,83 +2773,11 @@ fil_truncate_tablespace(
 	return(success);
 }
 
-/*******************************************************************//**
-Prepare for truncating a single-table tablespace.
-1) Check pending operations on a tablespace;
-2) Remove all insert buffer entries for the tablespace;
-@return DB_SUCCESS or error */
-dberr_t
-fil_prepare_for_truncate(
-/*=====================*/
-	ulint	id)		/*!< in: space id */
-{
-	char*		path = 0;
-	fil_space_t*	space = 0;
-
-	ut_a(!is_system_tablespace(id));
-
-	dberr_t	err = fil_check_pending_operations(
-		id, FIL_OPERATION_TRUNCATE, &space, &path);
-
-	ut_free(path);
-
-	if (err == DB_TABLESPACE_NOT_FOUND) {
-		ib::error() << "Cannot truncate tablespace " << id
-			<< " because it is not found in the tablespace"
-			" memory cache.";
-	}
-
-	return(err);
-}
-
-/**********************************************************************//**
-Reinitialize the original tablespace header with the same space id
-for single tablespace */
-void
-fil_reinit_space_header(
-/*====================*/
-	ulint		id,	/*!< in: space id */
-	ulint		size)	/*!< in: size in blocks */
-{
-	ut_a(!is_system_tablespace(id));
-
-	/* Invalidate in the buffer pool all pages belonging
-	to the tablespace */
-	buf_LRU_flush_or_remove_pages(id, BUF_REMOVE_ALL_NO_WRITE, 0);
-
-	/* Remove all insert buffer entries for the tablespace */
-	ibuf_delete_for_discarded_space(id);
-
-	mutex_enter(&fil_system->mutex);
-
-	fil_space_t*	space = fil_space_get_by_id(id);
-
-	/* The following code must change when InnoDB supports
-	multiple datafiles per tablespace. */
-	ut_a(UT_LIST_GET_LEN(space->chain) == 1);
-
-	fil_node_t*	node = UT_LIST_GET_FIRST(space->chain);
-
-	space->size = node->size = size;
-
-	mutex_exit(&fil_system->mutex);
-
-	mtr_t	mtr;
-
-	mtr_start(&mtr);
-	mtr.set_named_space(id);
-
-	fsp_header_init(id, size, &mtr);
-
-	mtr_commit(&mtr);
-}
-
 #ifdef UNIV_DEBUG
 /** Increase redo skipped count for a tablespace.
 @param[in]	id	space id */
 void
-fil_space_inc_redo_skipped_count(
-	ulint		id)
+fil_space_inc_redo_skipped_count(space_id_t id)
 {
 	fil_space_t*	space;
 
@@ -3037,8 +2795,7 @@ fil_space_inc_redo_skipped_count(
 /** Decrease redo skipped count for a tablespace.
 @param[in]	id	space id */
 void
-fil_space_dec_redo_skipped_count(
-	ulint		id)
+fil_space_dec_redo_skipped_count(space_id_t id)
 {
 	fil_space_t*	space;
 
@@ -3059,8 +2816,7 @@ Check whether a single-table tablespace is redo skipped.
 @param[in]	id	space id
 @return true if redo skipped */
 bool
-fil_space_is_redo_skipped(
-	ulint		id)
+fil_space_is_redo_skipped(space_id_t id)
 {
 	fil_space_t*	space;
 	bool		is_redo_skipped;
@@ -3079,6 +2835,7 @@ fil_space_is_redo_skipped(
 }
 #endif
 
+#ifndef UNIV_HOTBACKUP
 /*******************************************************************//**
 Discards a single-table tablespace. The tablespace must be cached in the
 memory cache. Discarding is like deleting a tablespace, but
@@ -3093,7 +2850,7 @@ memory cache. Discarding is like deleting a tablespace, but
 dberr_t
 fil_discard_tablespace(
 /*===================*/
-	ulint	id)	/*!< in: space id */
+	space_id_t	id)	/*!< in: space id */
 {
 	dberr_t	err;
 
@@ -3124,20 +2881,19 @@ fil_discard_tablespace(
 }
 #endif /* !UNIV_HOTBACKUP */
 
-/*******************************************************************//**
-Allocates and builds a file name from a path, a table or tablespace name
-and a suffix. The string must be freed by caller with ut_free().
-@param[in] path NULL or the direcory path or the full path and filename.
-@param[in] name NULL if path is full, or Table/Tablespace name
-@param[in] suffix NULL or the file extention to use.
-@param[in] trim_name true if the last name on the path should be trimmed.
-@return own: file name */
+/** Allocate and build a file name from a path, a table or tablespace name
+and a suffix.
+@param[in]	path	NULL or the direcory path or the full path and filename
+@param[in]	name	NULL if path is full, or Table/Tablespace name
+@param[in]	ext	the file extension to use
+@param[in]	trim	whether last name on the path should be trimmed
+@return own: file name; must be freed by ut_free() */
 char*
 fil_make_filepath(
 	const char*	path,
 	const char*	name,
 	ib_extention	ext,
-	bool		trim_name)
+	bool		trim)
 {
 	/* The path may contain the basename of the file, if so we do not
 	need the name.  If the path is NULL, we can use the default path,
@@ -3146,7 +2902,7 @@ fil_make_filepath(
 
 	/* If we are going to strip a name off the path, there better be a
 	path and a new name to put back on. */
-	ut_ad(!trim_name || (path != NULL && name != NULL));
+	ut_ad(!trim || (path != NULL && name != NULL));
 
 	if (path == NULL) {
 		path = fil_path_to_mysql_datadir;
@@ -3179,7 +2935,7 @@ fil_make_filepath(
 		os_normalize_path(full_name);
 	}
 
-	if (trim_name) {
+	if (trim) {
 		/* Find the offset of the last DIR separator and set it to
 		null in order to strip off the old basename from this path. */
 		char* last_dir_sep = strrchr(full_name, OS_PATH_SEPARATOR);
@@ -3237,7 +2993,7 @@ if that the old filepath exists and the new filepath does not exist.
 @return innodb error code */
 dberr_t
 fil_rename_tablespace_check(
-	ulint		space_id,
+	space_id_t	space_id,
 	const char*	old_path,
 	const char*	new_path,
 	bool		is_discarded)
@@ -3280,7 +3036,7 @@ or NULL if it is located in the normal data directory
 @return true if success */
 bool
 fil_rename_tablespace(
-	ulint		id,
+	space_id_t	id,
 	const char*	old_path,
 	const char*	new_name,
 	const char*	new_path_in)
@@ -3465,7 +3221,7 @@ func_exit:
 	return(success);
 }
 
-/** Create a new General or Single-Table tablespace
+/** Create a tablespace file.
 @param[in]	space_id	Tablespace ID
 @param[in]	name		Tablespace name in dbname/tablename format.
 For general tablespaces, the 'dbname/' part may be missing.
@@ -3476,23 +3232,21 @@ must be >= FIL_IBD_FILE_INITIAL_SIZE
 @return DB_SUCCESS or error code */
 dberr_t
 fil_ibd_create(
-	ulint		space_id,
+	space_id_t	space_id,
 	const char*	name,
 	const char*	path,
 	ulint		flags,
-	ulint		size)
+	page_no_t	size)
 {
-	os_file_t	file;
+	pfs_os_file_t	file;
 	dberr_t		err;
 	byte*		buf2;
 	byte*		page;
 	bool		success;
-	bool		is_temp = FSP_FLAGS_GET_TEMPORARY(flags);
-	bool		has_data_dir = FSP_FLAGS_HAS_DATA_DIR(flags);
 	bool		has_shared_space = FSP_FLAGS_GET_SHARED(flags);
 	fil_space_t*	space = NULL;
 
-	ut_ad(!is_system_tablespace(space_id));
+	ut_ad(!fsp_is_system_or_temp_tablespace(space_id));
 	ut_ad(!srv_read_only_mode);
 	ut_a(space_id < SRV_LOG_SPACE_FIRST_ID);
 	ut_a(size >= FIL_IBD_FILE_INITIAL_SIZE);
@@ -3550,8 +3304,7 @@ fil_ibd_create(
 #if !defined(NO_FALLOCATE) && defined(UNIV_LINUX)
 	if (fil_fusionio_enable_atomic_write(file)) {
 
-		/* This is required by FusionIO HW/Firmware */
-		int	ret = posix_fallocate(file, 0, size * UNIV_PAGE_SIZE);
+		int     ret = posix_fallocate(file.m_file, 0, size * UNIV_PAGE_SIZE);
 
 		if (ret != 0) {
 
@@ -3603,8 +3356,7 @@ fil_ibd_create(
 	if (punch_hole) {
 
 		dberr_t	punch_err;
-
-		punch_err = os_file_punch_hole(file, 0, size * UNIV_PAGE_SIZE);
+		punch_err = os_file_punch_hole(file.m_file, 0, size * UNIV_PAGE_SIZE);
 
 		if (punch_err != DB_SUCCESS) {
 			punch_hole = false;
@@ -3627,11 +3379,10 @@ fil_ibd_create(
 	page = static_cast<byte*>(ut_align(buf2, UNIV_PAGE_SIZE));
 
 	memset(page, '\0', UNIV_PAGE_SIZE);
-#ifndef UNIV_HOTBACKUP
+
 	/* Add the UNIV_PAGE_SIZE to the table flags and write them to the
 	tablespace header. */
 	flags = fsp_flags_set_page_size(flags, univ_page_size);
-#endif /* !UNIV_HOTBACKUP */
 	fsp_header_init_fields(page, space_id, flags);
 	mach_write_to_4(page + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID, space_id);
 
@@ -3645,7 +3396,7 @@ fil_ibd_create(
 			fsp_is_checksum_disabled(space_id));
 
 		err = os_file_write(
-			request, path, file, page, 0, page_size.physical());
+		request, path, file, page, 0, page_size.physical());
 
 		ut_ad(err != DB_IO_NO_PUNCH_HOLE);
 
@@ -3697,44 +3448,16 @@ fil_ibd_create(
 		return(DB_ERROR);
 	}
 
-	/* MEB creates isl files during copy-back, hence they
-	should not be created during apply log operation. */
-#ifndef UNIV_HOTBACKUP
-	if (has_data_dir || has_shared_space) {
-		/* Make the ISL file if the IBD file is not
-		in the default location. */
-		err = RemoteDatafile::create_link_file(name, path,
-						       has_shared_space);
-		if (err != DB_SUCCESS) {
-			os_file_close(file);
-			os_file_delete(innodb_data_file_key, path);
-			return(err);
-		}
-	}
-#endif /* !UNIV_HOTBACKUP */
-	space = fil_space_create(name, space_id, flags, is_temp
-				 ? FIL_TYPE_TEMPORARY : FIL_TYPE_TABLESPACE);
+	space = fil_space_create(name, space_id, flags, FIL_TYPE_TABLESPACE);
 
 	DEBUG_SYNC_C("fil_ibd_created_space");
 
-	if (!fil_node_create_low(
-			path, size, space, false, punch_hole, atomic_write)) {
-
-		err = DB_ERROR;
-		goto error_exit_1;
-	}
-
-	/* For encryption tablespace, initial encryption information. */
-	if (FSP_FLAGS_GET_ENCRYPTION(space->flags)) {
-		err = fil_set_encryption(space->id,
-					 Encryption::AES,
-					 NULL,
-					 NULL);
-		ut_ad(err == DB_SUCCESS);
-	}
-
+	err = fil_node_create_low(
+		path, size, space, false, punch_hole, atomic_write)
+		? DB_SUCCESS
+		: DB_ERROR;
 #ifndef UNIV_HOTBACKUP
-	if (!is_temp) {
+	if (err == DB_SUCCESS) {
 		mtr_t			mtr;
 		const fil_node_t*	file = UT_LIST_GET_FIRST(space->chain);
 
@@ -3745,15 +3468,14 @@ fil_ibd_create(
 		fil_name_write(space, 0, file, &mtr);
 		mtr_commit(&mtr);
 	}
-#endif /* !UNIV_HOTBACKUP */
-	err = DB_SUCCESS;
-
-	/* Error code is set.  Cleanup the various variables used.
-	These labels reflect the order in which variables are assigned or
-	actions are done. */
-error_exit_1:
-	if (err != DB_SUCCESS && (has_data_dir || has_shared_space)) {
-		RemoteDatafile::delete_link_file(name);
+#endif
+	/* For encryption tablespace, initial encryption information. */
+	if (FSP_FLAGS_GET_ENCRYPTION(space->flags)) {
+		err = fil_set_encryption(space->id,
+					 Encryption::AES,
+					 NULL,
+					 NULL);
+		ut_ad(err == DB_SUCCESS);
 	}
 
 	os_file_close(file);
@@ -3765,28 +3487,19 @@ error_exit_1:
 }
 
 #ifndef UNIV_HOTBACKUP
-/** Try to open a single-table tablespace and optionally check that the
-space id in it is correct. If this does not succeed, print an error message
-to the .err log. This function is used to open a tablespace when we start
-mysqld after the dictionary has been booted, and also in IMPORT TABLESPACE.
-
+/** Open a single-table tablespace and optionally check the space id is
+right in it. If not successful, print an error message to the error log. This
+function is used to open a tablespace when we start up mysqld, and also in
+IMPORT TABLESPACE.
 NOTE that we assume this operation is used either at the database startup
 or under the protection of the dictionary mutex, so that two users cannot
-race here. This operation does not leave the file associated with the
-tablespace open, but closes it after we have looked at the space id in it.
+race here.
 
-If the validate boolean is set, we read the first page of the file and
-check that the space id in the file is what we expect. We assume that
-this function runs much faster if no check is made, since accessing the
-file inode probably is much faster (the OS caches them) than accessing
-the first page of the file.  This boolean may be initially false, but if
-a remote tablespace is found it will be changed to true.
+The fil_node_t::handle will not be left open.
 
-If the fix_dict boolean is set, then it is safe to use an internal SQL
-statement to update the dictionary tables if they are incorrect.
-
-@param[in]	validate	true if we should validate the tablespace
-@param[in]	fix_dict	true if the dictionary is available to be fixed
+@param[in]	validate	whether we should validate the tablespace
+				(read the first page of the file and
+				check that the space id in it matches id)
 @param[in]	purpose		FIL_TYPE_TABLESPACE or FIL_TYPE_TEMPORARY
 @param[in]	id		tablespace ID
 @param[in]	flags		tablespace flags
@@ -3797,164 +3510,46 @@ If file-per-table, it is the table name in the databasename/tablename format
 dberr_t
 fil_ibd_open(
 	bool		validate,
-	bool		fix_dict,
 	fil_type_t	purpose,
-	ulint		id,
+	space_id_t	id,
 	ulint		flags,
 	const char*	space_name,
 	const char*	path_in)
 {
-	dberr_t		err = DB_SUCCESS;
-	bool		dict_filepath_same_as_default = false;
-	bool		link_file_found = false;
-	bool		link_file_is_bad = false;
-	bool		is_shared = FSP_FLAGS_GET_SHARED(flags);
+	Datafile	df;
 	bool		is_encrypted = FSP_FLAGS_GET_ENCRYPTION(flags);
-	Datafile	df_default;	/* default location */
-	Datafile	df_dict;	/* dictionary location */
-	RemoteDatafile	df_remote;	/* remote location */
-	ulint		tablespaces_found = 0;
-	ulint		valid_tablespaces_found = 0;
 	bool		for_import = (purpose == FIL_TYPE_IMPORT);
 
-	ut_ad(!fix_dict || rw_lock_own(dict_operation_lock, RW_LOCK_X));
-
-	ut_ad(!fix_dict || mutex_own(&dict_sys->mutex));
-	ut_ad(!fix_dict || !srv_read_only_mode);
-	ut_ad(!fix_dict || srv_log_file_size != 0);
 	ut_ad(fil_type_is_data(purpose));
 
 	if (!fsp_flags_is_valid(flags)) {
 		return(DB_CORRUPTION);
 	}
 
-	df_default.init(space_name, flags);
-	df_dict.init(space_name, flags);
-	df_remote.init(space_name, flags);
+	df.init(space_name, flags);
+	df.make_filepath(NULL, space_name, IBD);
 
-	/* Discover the correct file by looking in three possible locations
-	while avoiding unecessary effort. */
-
-	if (is_shared) {
-		/* Shared tablespaces will have a path_in since the filename
-		is not generated from the tablespace name. Use the basename
-		from this path_in with the default datadir as a filepath to
-		the default location */
-		ut_a(path_in);
-		const char*	sep = strrchr(path_in, OS_PATH_SEPARATOR);
-		const char*	basename = (sep == NULL) ? path_in : &sep[1];
-		df_default.make_filepath(NULL, basename, IBD);
-
-		/* Always validate shared tablespaces. */
-		validate = true;
-
-		/* Set the ISL filepath in the default location. */
-		df_remote.set_link_filepath(path_in);
-	} else {
-		/* We will always look for an ibd in the default location. */
-		df_default.make_filepath(NULL, space_name, IBD);
-	}
-
-	/* Look for a filepath embedded in an ISL where the default file
-	would be. */
-	if (df_remote.open_read_only(true) == DB_SUCCESS) {
-		ut_ad(df_remote.is_open());
-
-		/* Always validate a file opened from an ISL pointer */
-		validate = true;
-		++tablespaces_found;
-		link_file_found = true;
-	} else if (df_remote.filepath() != NULL) {
-		/* An ISL file was found but contained a bad filepath in it.
-		Better validate anything we do find. */
-		validate = true;
+	if (path_in) {
+		df.set_filepath(path_in);
 	}
 
 	/* Attempt to open the tablespace at the dictionary filepath. */
-	if (path_in) {
-		if (df_default.same_filepath_as(path_in)) {
-			dict_filepath_same_as_default = true;
-		} else {
-			/* Dict path is not the default path. Always validate
-			remote files. If default is opened, it was moved. */
-			validate = true;
-
-			df_dict.set_filepath(path_in);
-			if (df_dict.open_read_only(true) == DB_SUCCESS) {
-				ut_ad(df_dict.is_open());
-				++tablespaces_found;
-			}
-		}
+	if (df.open_read_only(true) == DB_SUCCESS) {
+		ut_ad(df.is_open());
+	} else {
+		ut_ad(!df.is_open());
+		return(DB_CORRUPTION);
 	}
-
-	/* Always look for a file at the default location. But don't log
-	an error if the tablespace is already open in remote or dict. */
-	ut_a(df_default.filepath());
-	const bool	strict = (tablespaces_found == 0);
-	if (df_default.open_read_only(strict) == DB_SUCCESS) {
-		ut_ad(df_default.is_open());
-		++tablespaces_found;
-	}
-
-	/* Check if multiple locations point to the same file. */
-	if (tablespaces_found > 1 && df_default.same_as(df_remote)) {
-		/* A link file was found with the default path in it.
-		Use the default path and delete the link file. */
-		--tablespaces_found;
-		df_remote.delete_link_file();
-		df_remote.close();
-	}
-	if (tablespaces_found > 1 && df_default.same_as(df_dict)) {
-		--tablespaces_found;
-		df_dict.close();
-	}
-	if (tablespaces_found > 1 && df_remote.same_as(df_dict)) {
-		--tablespaces_found;
-		df_dict.close();
-	}
-
-	bool	atomic_write;
 
 #if !defined(NO_FALLOCATE) && defined(UNIV_LINUX)
-	if (!srv_use_doublewrite_buf && df_default.is_open()) {
-
-		atomic_write = fil_fusionio_enable_atomic_write(
-			df_default.handle());
-
-	} else {
-		atomic_write = false;
-	}
+	const bool	atomic_write = !srv_use_doublewrite_buf
+		&& fil_fusionio_enable_atomic_write(df.handle());
 #else
-	atomic_write = false;
+	const bool	atomic_write = false;
 #endif /* !NO_FALLOCATE && UNIV_LINUX */
 
-	/*  We have now checked all possible tablespace locations and
-	have a count of how many unique files we found.  If things are
-	normal, we only found 1. */
-	/* For encrypted tablespace, we need to check the
-	encryption in header of first page. */
-	if (!validate && tablespaces_found == 1 && !is_encrypted) {
-
-		goto skip_validate;
-	}
-
-	/* Read and validate the first page of these three tablespace
-	locations, if found. */
-	valid_tablespaces_found +=
-		(df_remote.validate_to_dd(id, flags, for_import)
-			== DB_SUCCESS) ? 1 : 0;
-
-	valid_tablespaces_found +=
-		(df_default.validate_to_dd(id, flags, for_import)
-			== DB_SUCCESS) ? 1 : 0;
-
-	valid_tablespaces_found +=
-		(df_dict.validate_to_dd(id, flags, for_import)
-			== DB_SUCCESS) ? 1 : 0;
-
-	/* Make sense of these three possible locations.
-	First, bail out if no tablespace files were found. */
-	if (valid_tablespaces_found == 0) {
+	if ((validate || is_encrypted)
+	    && df.validate_to_dd(id, flags, for_import) != DB_SUCCESS) {
 		if (!is_encrypted) {
 			/* The following call prints an error message.
 			For encrypted tablespace we skip print, since it should
@@ -3967,192 +3562,39 @@ fil_ibd_open(
 		return(DB_CORRUPTION);
 	}
 
-	if (!validate && !is_encrypted) {
-		return(DB_SUCCESS);
-	}
-
+	/* If the encrypted tablespace is already opened,
+	return success. */
 	if (validate && is_encrypted && fil_space_get(id)) {
 		return(DB_SUCCESS);
 	}
 
-	/* Do not open any tablespaces if more than one tablespace with
-	the correct space ID and flags were found. */
-	if (tablespaces_found > 1) {
-		ib::error() << "A tablespace for `" << space_name
-			<< "` has been found in multiple places;";
+	fil_space_t*	space = fil_space_create(
+		space_name, id, flags, purpose);
 
-		if (df_default.is_open()) {
-			ib::error() << "Default location: "
-				<< df_default.filepath()
-				<< ", Space ID=" << df_default.space_id()
-				<< ", Flags=" << df_default.flags();
-		}
-		if (df_remote.is_open()) {
-			ib::error() << "Remote location: "
-				<< df_remote.filepath()
-				<< ", Space ID=" << df_remote.space_id()
-				<< ", Flags=" << df_remote.flags();
-		}
-		if (df_dict.is_open()) {
-			ib::error() << "Dictionary location: "
-				<< df_dict.filepath()
-				<< ", Space ID=" << df_dict.space_id()
-				<< ", Flags=" << df_dict.flags();
-		}
+	/* We do not measure the size of the file, that is why
+	we pass the 0 below */
 
-		/* Force-recovery will allow some tablespaces to be
-		skipped by REDO if there was more than one file found.
-		Unlike during the REDO phase of recovery, we now know
-		if the tablespace is valid according to the dictionary,
-		which was not available then. So if we did not force
-		recovery and there is only one good tablespace, ignore
-		any bad tablespaces. */
-		if (valid_tablespaces_found > 1 || srv_force_recovery > 0) {
-			ib::error() << "Will not open tablespace `"
-				<< space_name << "`";
+	if (NULL == fil_node_create_low(
+		    df.filepath(), 0, space, false, true, atomic_write)) {
 
-			/* If the file is not open it cannot be valid. */
-			ut_ad(df_default.is_open() || !df_default.is_valid());
-			ut_ad(df_dict.is_open()    || !df_dict.is_valid());
-			ut_ad(df_remote.is_open()  || !df_remote.is_valid());
+		return(DB_ERROR);
+	}
 
-			/* Having established that, this is an easy way to
-			look for corrupted data files. */
-			if (df_default.is_open() != df_default.is_valid()
-			    || df_dict.is_open() != df_dict.is_valid()
-			    || df_remote.is_open() != df_remote.is_valid()) {
-				return(DB_CORRUPTION);
-			}
+	/* For encryption tablespace, initialize encryption information.*/
+	if (is_encrypted && !for_import) {
+		dberr_t err;
+		byte*	key = df.m_encryption_key;
+		byte*	iv = df.m_encryption_iv;
+		ut_ad(key && iv);
+
+		err = fil_set_encryption(space->id, Encryption::AES,
+					 key, iv);
+		if (err != DB_SUCCESS) {
 			return(DB_ERROR);
 		}
-
-		/* There is only one valid tablespace found and we did
-		not use srv_force_recovery during REDO.  Use this one
-		tablespace and clean up invalid tablespace pointers */
-		if (df_default.is_open() && !df_default.is_valid()) {
-			df_default.close();
-			tablespaces_found--;
-		}
-		if (df_dict.is_open() && !df_dict.is_valid()) {
-			df_dict.close();
-			/* Leave dict.filepath so that SYS_DATAFILES
-			can be corrected below. */
-			tablespaces_found--;
-		}
-		if (df_remote.is_open() && !df_remote.is_valid()) {
-			df_remote.close();
-			tablespaces_found--;
-			link_file_is_bad = true;
-		}
 	}
 
-	/* At this point, there should be only one filepath. */
-	ut_a(tablespaces_found == 1);
-	ut_a(valid_tablespaces_found == 1);
-
-	/* Only fix the dictionary at startup when there is only one thread.
-	Calls to dict_load_table() can be done while holding other latches. */
-	if (!fix_dict) {
-		goto skip_validate;
-	}
-
-	/* We may need to update what is stored in SYS_DATAFILES or
-	SYS_TABLESPACES or adjust the link file.  Since a failure to
-	update SYS_TABLESPACES or SYS_DATAFILES does not prevent opening
-	and using the tablespace either this time or the next, we do not
-	check the return code or fail to open the tablespace. But if it
-	fails, dict_update_filepath() will issue a warning to the log. */
-	if (df_dict.filepath()) {
-		ut_ad(path_in != NULL);
-		ut_ad(df_dict.same_filepath_as(path_in));
-
-		if (df_remote.is_open()) {
-			if (!df_remote.same_filepath_as(path_in)) {
-				dict_update_filepath(id, df_remote.filepath());
-			}
-
-		} else if (df_default.is_open()) {
-			ut_ad(!dict_filepath_same_as_default);
-			dict_update_filepath(id, df_default.filepath());
-			if (link_file_is_bad) {
-				RemoteDatafile::delete_link_file(space_name);
-			}
-
-		} else if (!is_shared
-			   && (!link_file_found || link_file_is_bad)) {
-			ut_ad(df_dict.is_open());
-			/* Fix the link file if we got our filepath
-			from the dictionary but a link file did not
-			exist or it did not point to a valid file. */
-			RemoteDatafile::delete_link_file(space_name);
-			RemoteDatafile::create_link_file(
-				space_name, df_dict.filepath());
-		}
-
-	} else if (df_remote.is_open()) {
-		if (dict_filepath_same_as_default) {
-			dict_update_filepath(id, df_remote.filepath());
-
-		} else if (path_in == NULL) {
-			/* SYS_DATAFILES record for this space ID
-			was not found. */
-			dict_replace_tablespace_and_filepath(
-				id, space_name, df_remote.filepath(), flags);
-		}
-
-	} else if (df_default.is_open()) {
-		/* We opened the tablespace in the default location.
-		SYS_DATAFILES.PATH needs to be updated if it is different
-		from this default path or if the SYS_DATAFILES.PATH was not
-		supplied and it should have been. Also update the dictionary
-		if we found an ISL file (since !df_remote.is_open).  Since
-		path_in is not suppled for file-per-table, we must assume
-		that it matched the ISL. */
-		if ((path_in != NULL && !dict_filepath_same_as_default)
-		    || (path_in == NULL
-		        && (DICT_TF_HAS_DATA_DIR(flags)
-		            || DICT_TF_HAS_SHARED_SPACE(flags)))
-		    || df_remote.filepath() != NULL) {
-			dict_replace_tablespace_and_filepath(
-				id, space_name, df_default.filepath(), flags);
-		}
-	}
-
-skip_validate:
-	if (err == DB_SUCCESS) {
-		fil_space_t*	space = fil_space_create(
-			space_name, id, flags, purpose);
-
-		/* We do not measure the size of the file, that is why
-		we pass the 0 below */
-
-		if (fil_node_create_low(
-			    df_remote.is_open() ? df_remote.filepath() :
-			    df_dict.is_open() ? df_dict.filepath() :
-			    df_default.filepath(), 0, space, false,
-			    true, atomic_write) == NULL) {
-
-			err = DB_ERROR;
-		}
-
-		/* For encryption tablespace, initialize encryption
-		information.*/
-		if (err == DB_SUCCESS && is_encrypted && !for_import) {
-			Datafile& df_current = df_remote.is_open() ?
-				df_remote: df_dict.is_open() ?
-				df_dict : df_default;
-
-			byte*	key = df_current.m_encryption_key;
-			byte*	iv = df_current.m_encryption_iv;
-			ut_ad(key && iv);
-
-			err = fil_set_encryption(space->id, Encryption::AES,
-						 key, iv);
-			ut_ad(err == DB_SUCCESS);
-		}
-	}
-
-	return(err);
+	return(DB_SUCCESS);
 }
 #endif /* !UNIV_HOTBACKUP */
 
@@ -4191,9 +3633,9 @@ tablespace.
 @return true if tablespace is found, false if not. */
 bool
 fil_space_read_name_and_filepath(
-	ulint	space_id,
-	char**	name,
-	char**	filepath)
+	space_id_t	space_id,
+	char**		name,
+	char**		filepath)
 {
 	bool	success = false;
 	*name = NULL;
@@ -4251,160 +3693,23 @@ fil_path_to_space_name(
 	ut_ad(tablename > dbname);
 	ut_ad(tablename < end);
 	ut_ad(end - tablename > 4);
-	ut_ad(memcmp(end - 4, DOT_IBD, 4) == 0);
 
-	char*	name = mem_strdupl(dbname, end - dbname - 4);
+	char*	name;
 
-	ut_ad(name[tablename - dbname - 1] == OS_PATH_SEPARATOR);
+	if (!memcmp(end - 4, DOT_IBD, 4)) {
+		name = mem_strdupl(dbname, (end - 4) - dbname);
+
+		ut_ad(name[tablename - dbname - 1] == OS_PATH_SEPARATOR);
 #if OS_PATH_SEPARATOR != '/'
-	/* space->name uses '/', not OS_PATH_SEPARATOR. */
-	name[tablename - dbname - 1] = '/';
+		/* space->name uses '/', not OS_PATH_SEPARATOR. */
+		name[tablename - dbname - 1] = '/';
 #endif
+	} else {
+		ut_ad(!memcmp(tablename, "undo", 4));
+		name = mem_strdupl(filename, filename_len);
+	}
 
 	return(name);
-}
-
-/** Discover the correct IBD file to open given a remote or missing
-filepath from the REDO log.  MEB and administrators can move a crashed
-database to another location on the same machine and try to recover it.
-Remote IBD files might be moved as well to the new location.
-    The problem with this is that the REDO log contains the old location
-which may be still accessible.  During recovery, if files are found in
-both locations, we can chose on based on these priorities;
-1. Default location
-2. ISL location
-3. REDO location
-@param[in]	space_id	tablespace ID
-@param[in]	df		Datafile object with path from redo
-@return true if a valid datafile was found, false if not */
-bool
-fil_ibd_discover(
-	ulint		space_id,
-	Datafile&	df)
-{
-	Datafile	df_def_gen;	/* default general datafile */
-	Datafile	df_def_per;	/* default file-per-table datafile */
-	RemoteDatafile	df_rem_gen;	/* remote general datafile*/
-	RemoteDatafile	df_rem_per;	/* remote file-per-table datafile */
-
-	/* Look for the datafile in the default location. If it is
-	a general tablespace, it will be in the datadir. */
-	const char*	filename = df.filepath();
-	const char*	basename = base_name(filename);
-	df_def_gen.init(basename, 0);
-	df_def_gen.make_filepath(NULL, basename, IBD);
-	if (df_def_gen.open_read_only(false) == DB_SUCCESS
-	    && df_def_gen.validate_for_recovery() == DB_SUCCESS
-	    && df_def_gen.space_id() == space_id) {
-		df.set_filepath(df_def_gen.filepath());
-		df.open_read_only(false);
-		return(true);
-	}
-
-	/* If this datafile is file-per-table it will have a schema dir. */
-	ulint		sep_found = 0;
-	const char*	db = basename;
-	for (; db > filename && sep_found < 2; db--) {
-		if (db[0] == OS_PATH_SEPARATOR) {
-			sep_found++;
-		}
-	}
-	if (sep_found == 2) {
-		db += 2;
-		df_def_per.init(db, 0);
-		df_def_per.make_filepath(NULL, db, IBD);
-		if (df_def_per.open_read_only(false) == DB_SUCCESS
-		    && df_def_per.validate_for_recovery() == DB_SUCCESS
-		    && df_def_per.space_id() == space_id) {
-			df.set_filepath(df_def_per.filepath());
-			df.open_read_only(false);
-			return(true);
-		}
-	}
-
-	/* Did not find a general or file-per-table datafile in the
-	default location.  Look for a remote general tablespace. */
-	df_rem_gen.set_name(basename);
-	if (df_rem_gen.open_link_file() == DB_SUCCESS) {
-
-		/* An ISL file was found with contents. */
-		if (df_rem_gen.open_read_only(false) != DB_SUCCESS
-		    || df_rem_gen.validate_for_recovery() != DB_SUCCESS) {
-
-			/* Assume that this ISL file is intended to be used.
-			Do not continue looking for another if this file
-			cannot be opened or is not a valid IBD file. */
-			ib::error() << "ISL file '"
-				<< df_rem_gen.link_filepath()
-				<< "' was found but the linked file '"
-				<< df_rem_gen.filepath()
-				<< "' could not be opened or is not correct.";
-			return(false);
-		}
-
-		/* Use this file if it has the space_id from the MLOG
-		record. */
-		if (df_rem_gen.space_id() == space_id) {
-			df.set_filepath(df_rem_gen.filepath());
-			df.open_read_only(false);
-			return(true);
-		}
-
-		/* Since old MLOG records can use the same basename in
-		multiple CREATE/DROP sequences, this ISL file could be
-		pointing to a later version of this basename.ibd file
-		which has a different space_id. Keep looking. */
-	}
-
-	/* Look for a remote file-per-table tablespace. */
-	if (sep_found == 2) {
-		df_rem_per.set_name(db);
-		if (df_rem_per.open_link_file() == DB_SUCCESS) {
-
-			/* An ISL file was found with contents. */
-			if (df_rem_per.open_read_only(false) != DB_SUCCESS
-				|| df_rem_per.validate_for_recovery()
-				   != DB_SUCCESS) {
-
-				/* Assume that this ISL file is intended to
-				be used. Do not continue looking for another
-				if this file cannot be opened or is not
-				a valid IBD file. */
-				ib::error() << "ISL file '"
-					<< df_rem_per.link_filepath()
-					<< "' was found but the linked file '"
-					<< df_rem_per.filepath()
-					<< "' could not be opened or is"
-					" not correct.";
-				return(false);
-			}
-
-			/* Use this file if it has the space_id from the
-			MLOG record. */
-			if (df_rem_per.space_id() == space_id) {
-				df.set_filepath(df_rem_per.filepath());
-				df.open_read_only(false);
-				return(true);
-			}
-
-			/* Since old MLOG records can use the same basename
-			in multiple CREATE/DROP TABLE sequences, this ISL
-			file could be pointing to a later version of this
-			basename.ibd file which has a different space_id.
-			Keep looking. */
-		}
-	}
-
-	/* No ISL files were found in the default location. Use the location
-	given in the redo log. */
-	if (df.open_read_only(false) == DB_SUCCESS
-	    && df.validate_for_recovery() == DB_SUCCESS
-	    && df.space_id() == space_id) {
-		return(true);
-	}
-
-	/* A datafile was not discovered for the filename given. */
-	return(false);
 }
 
 /** Open an ibd tablespace and add it to the InnoDB data structures.
@@ -4422,7 +3727,7 @@ of the file in validate_for_recovery().
 @return status of the operation */
 enum fil_load_status
 fil_ibd_load(
-	ulint		space_id,
+	space_id_t	space_id,
 	const char*	filename,
 	fil_space_t*&	space)
 {
@@ -4438,14 +3743,8 @@ fil_ibd_load(
 		previously. Fail if it is different. */
 		fil_node_t* node = UT_LIST_GET_FIRST(space->chain);
 
-		if (0 != strcmp(innobase_basename(filename),
-				innobase_basename(node->name))) {
-#ifdef  UNIV_HOTBACKUP
-			ib::trace()
-#else
-			ib::info()
-#endif /* UNIV_HOTBACKUP */
-				<< "Ignoring data file '" << filename
+		if (0 != strcmp(filename, node->name)) {
+			ib::info() << "Ignoring data file '" << filename
 				<< "' with space ID " << space->id
 				<< ". Another data file called " << node->name
 				<< " exists with the same space ID.";
@@ -4456,23 +3755,13 @@ fil_ibd_load(
 		return(FIL_LOAD_OK);
 	}
 
-	/* If the filepath in the redo log is a default location in or
-	under the datadir, then just try to open it there. */
 	Datafile	file;
 	file.set_filepath(filename);
-
-	Folder		folder(filename, dirname_length(filename));
-	if (folder_mysql_datadir >= folder) {
-		file.open_read_only(false);
+	if (file.open_read_only(false) != DB_SUCCESS) {
+		return(FIL_LOAD_NOT_FOUND);
 	}
 
-	if (!file.is_open()) {
-		/* The file has been moved or it is a remote datafile. */
-		if (!fil_ibd_discover(space_id, file)
-		    || !file.is_open()) {
-			return(FIL_LOAD_NOT_FOUND);
-		}
-	}
+	ut_ad(file.is_open());
 
 	os_offset_t	size;
 
@@ -4482,12 +3771,7 @@ fil_ibd_load(
 		os_offset_t	minimum_size;
 	case DB_SUCCESS:
 		if (file.space_id() != space_id) {
-#ifdef UNIV_HOTBACKUP
-			ib::trace()
-#else /* !UNIV_HOTBACKUP */
-			ib::info()
-#endif /* UNIV_HOTBACKUP */
-				<< "Ignoring data file '"
+			ib::info() << "Ignoring data file '"
 				<< file.filepath()
 				<< "' with space ID " << file.space_id()
 				<< ", since the redo log references "
@@ -4519,7 +3803,7 @@ fil_ibd_load(
 				<< "!";
 #else
 			/* In MEB, we work around this error. */
-			file.set_space_id(ULINT_UNDEFINED);
+			file.set_space_id(SPACE_UNKNOWN);
 			file.set_flags(0);
 			break;
 #endif /* !UNIV_HOTBACKUP */
@@ -4531,12 +3815,6 @@ fil_ibd_load(
 		/* Fall through to error handling */
 
 	case DB_TABLESPACE_EXISTS:
-#ifdef UNIV_HOTBACKUP
-		if (file.flags() == ~(ulint)0) {
-			return FIL_LOAD_OK;
-		}
-#endif /* UNIV_HOTBACKUP */
-
 		return(FIL_LOAD_INVALID);
 
 	default:
@@ -4546,7 +3824,7 @@ fil_ibd_load(
 	ut_ad(space == NULL);
 
 #ifdef UNIV_HOTBACKUP
-	if (file.space_id() == ULINT_UNDEFINED || file.space_id() == 0) {
+	if (file.space_id() == SPACE_UNKNOWN || file.space_id() == 0) {
 		char*	new_path;
 
 		ib::info() << "Renaming tablespace file '" << file.filepath()
@@ -4603,10 +3881,8 @@ fil_ibd_load(
 	}
 #endif /* UNIV_HOTBACKUP */
 
-	bool is_temp = FSP_FLAGS_GET_TEMPORARY(file.flags());
 	space = fil_space_create(
-		file.name(), space_id, file.flags(),
-		is_temp ? FIL_TYPE_TEMPORARY : FIL_TYPE_TABLESPACE);
+		file.name(), space_id, file.flags(), FIL_TYPE_TABLESPACE);
 
 	if (space == NULL) {
 		return(FIL_LOAD_INVALID);
@@ -4641,41 +3917,6 @@ fil_ibd_load(
 	return(FIL_LOAD_OK);
 }
 
-/***********************************************************************//**
-A fault-tolerant function that tries to read the next file name in the
-directory. We retry 100 times if os_file_readdir_next_file() returns -1. The
-idea is to read as much good data as we can and jump over bad data.
-@return 0 if ok, -1 if error even after the retries, 1 if at the end
-of the directory */
-int
-fil_file_readdir_next_file(
-/*=======================*/
-	dberr_t*	err,	/*!< out: this is set to DB_ERROR if an error
-				was encountered, otherwise not changed */
-	const char*	dirname,/*!< in: directory name or path */
-	os_file_dir_t	dir,	/*!< in: directory stream */
-	os_file_stat_t*	info)	/*!< in/out: buffer where the
-				info is returned */
-{
-	for (ulint i = 0; i < 100; i++) {
-		int	ret = os_file_readdir_next_file(dirname, dir, info);
-
-		if (ret != -1) {
-
-			return(ret);
-		}
-
-		ib::error() << "os_file_readdir_next_file() returned -1 in"
-			" directory " << dirname
-			<< ", crash recovery may have failed"
-			" for some .ibd files!";
-
-		*err = DB_ERROR;
-	}
-
-	return(-1);
-}
-
 /*******************************************************************//**
 Report that a tablespace for a table was not found. */
 static
@@ -4683,36 +3924,33 @@ void
 fil_report_missing_tablespace(
 /*===========================*/
 	const char*	name,			/*!< in: table name */
-	ulint		space_id)		/*!< in: table's space id */
+	space_id_t	space_id)		/*!< in: table's space id */
 {
 	ib::error() << "Table " << name
 		<< " in the InnoDB data dictionary has tablespace id "
 		<< space_id << ","
 		" but tablespace with that id or name does not exist. Have"
-		" you deleted or moved .ibd files? This may also be a table"
-		" created with CREATE TEMPORARY TABLE whose .ibd and .frm"
-		" files MySQL automatically removed, but the table still"
-		" exists in the InnoDB internal data dictionary.";
+		" you deleted or moved .ibd files?";
 }
 
-#ifndef UNIV_HOTBACKUP
 /** Returns true if a matching tablespace exists in the InnoDB tablespace
 memory cache. Note that if we have not done a crash recovery at the database
 startup, there may be many tablespaces which are not yet in the memory cache.
-@param[in]	id		Tablespace ID
-@param[in]	name		Tablespace name used in fil_space_create().
-@param[in]	print_error_if_does_not_exist
-				Print detailed error information to the
-error log if a matching tablespace is not found from memory.
-@param[in]	adjust_space	Whether to adjust space id on mismatch
-@param[in]	heap		Heap memory
-@param[in]	table_id	table id
+@param[in]	id			Tablespace ID
+@param[in]	name			Tablespace name used in
+					fil_space_create().
+@param[in]	print_err_if_not_exist	Print detailed error information to the
+					error log if a matching tablespace is
+					not found from memory.
+@param[in]	adjust_space		Whether to adjust space id on mismatch
+@param[in]	heap			Heap memory
+@param[in]	table_id		table id
 @return true if a matching tablespace exists in the memory cache */
 bool
 fil_space_for_table_exists_in_mem(
-	ulint		id,
+	space_id_t	id,
 	const char*	name,
-	bool		print_error_if_does_not_exist,
+	bool		print_err_if_not_exist,
 	bool		adjust_space,
 	mem_heap_t*	heap,
 	table_id_t	table_id)
@@ -4815,7 +4053,7 @@ fil_space_for_table_exists_in_mem(
 		return(true);
 	}
 
-	if (!print_error_if_does_not_exist) {
+	if (!print_err_if_not_exist) {
 
 		mutex_exit(&fil_system->mutex);
 
@@ -4824,7 +4062,7 @@ fil_space_for_table_exists_in_mem(
 
 	if (space == NULL) {
 		if (fnamespace == NULL) {
-			if (print_error_if_does_not_exist) {
+			if (print_err_if_not_exist) {
 				fil_report_missing_tablespace(name, id);
 			}
 		} else {
@@ -4864,13 +4102,13 @@ error_exit:
 
 	return(false);
 }
-#endif /* !UNIV_HOTBACKUP */
+
 /** Return the space ID based on the tablespace name.
 The tablespace must be found in the tablespace memory cache.
 This call is made from external to this module, so the mutex is not owned.
 @param[in]	tablespace	Tablespace name
-@return space ID if tablespace found, ULINT_UNDEFINED if space not. */
-ulint
+@return space ID if tablespace found, SPACE_UNKNOWN if space not. */
+space_id_t
 fil_space_get_id_by_name(
 	const char*	tablespace)
 {
@@ -4878,7 +4116,7 @@ fil_space_get_id_by_name(
 
 	/* Search for a space with the same name. */
 	fil_space_t*	space = fil_space_get_by_name(tablespace);
-	ulint		id = (space == NULL) ? ULINT_UNDEFINED : space->id;
+	space_id_t	id = (space == NULL) ? SPACE_UNKNOWN : space->id;
 
 	mutex_exit(&fil_system->mutex);
 
@@ -4919,11 +4157,11 @@ fil_write_zeros(
 	while (offset < end) {
 
 #ifdef UNIV_HOTBACKUP
-		err = os_file_write(
+		err = = os_file_write(
 			request, node->name, node->handle, buf, offset,
 			n_bytes);
 #else
-		err = os_aio(
+		err = os_aio_func(
 			request, OS_AIO_SYNC, node->name,
 			node->handle, buf, offset, n_bytes, read_only_mode,
 			NULL, NULL);
@@ -4953,23 +4191,15 @@ fil_write_zeros(
 bool
 fil_space_extend(
 	fil_space_t*	space,
-	ulint		size)
+	page_no_t	size)
 {
 	/* In read-only mode we allow write to shared temporary tablespace
 	as intrinsic table created by Optimizer reside in this tablespace. */
 	ut_ad(!srv_read_only_mode || fsp_is_system_temporary(space->id));
 
+	DBUG_EXECUTE_IF("fil_space_print_xdes_pages",
+			space->print_xdes_pages("xdes_pages.log"););
 retry:
-
-#ifdef UNIV_HOTBACKUP
-	page_size_t	page_length(space->flags);
-	ulint   actual_size = space->size;
-	ib::trace() << "space id : " << space->id << ", space name : "
-		<< space->name << ", space size : " << actual_size << " pages,"
-		<< " desired space size : " << size << " pages,"
-		<< " page size : " << page_length.physical();
-#endif /* UNIV_HOTBACKUP */
-
 	bool		success = true;
 
 	fil_mutex_enter_and_prepare_for_io(space->id);
@@ -5013,7 +4243,7 @@ retry:
 	we have set the node->being_extended flag. */
 	mutex_exit(&fil_system->mutex);
 
-	ulint		pages_added;
+	page_no_t	pages_added;
 
 	/* Note: This code is going to be executed independent of FusionIO HW
 	if the OS supports posix_fallocate() */
@@ -5024,14 +4254,14 @@ retry:
 	ut_a(node_start != (os_offset_t) -1);
 
 	/* Node first page number */
-	ulint		node_first_page = space->size - node->size;
+	page_no_t	node_first_page = space->size - node->size;
 
 	/* Number of physical pages in the node/file */
-	ulint		n_node_physical_pages
-		= static_cast<ulint>(node_start) / page_size;
+	page_no_t	n_node_physical_pages
+		= static_cast<page_no_t>(node_start / page_size);
 
 	/* Number of pages to extend in the node/file */
-	lint		n_node_extend;
+	page_no_t	n_node_extend;
 
 	n_node_extend = size - (node_first_page + node->size);
 
@@ -5050,7 +4280,7 @@ retry:
 
 #if !defined(NO_FALLOCATE) && defined(UNIV_LINUX)
 		/* This is required by FusionIO HW/Firmware */
-		int	ret = posix_fallocate(node->handle, node_start, len);
+		int     ret = posix_fallocate(node->handle.m_file, node_start, len);
 
 		/* We already pass the valid offset and len in, if EINVAL
 		is returned, it could only mean that the file system doesn't
@@ -5101,7 +4331,8 @@ retry:
 
 		os_has_said_disk_full = !(success = (end == node_start + len));
 
-		pages_added = static_cast<ulint>(end - node_start) / page_size;
+		pages_added = static_cast<page_no_t>(
+			(end - node_start) / page_size);
 
 	} else {
 		success = true;
@@ -5122,18 +4353,16 @@ retry:
 #ifndef UNIV_HOTBACKUP
 	/* Keep the last data file size info up to date, rounded to
 	full megabytes */
-	ulint	pages_per_mb = (1024 * 1024) / page_size;
-	ulint	size_in_pages = ((node->size / pages_per_mb) * pages_per_mb);
+	page_no_t	pages_per_mb = static_cast<page_no_t>(
+		(1024 * 1024) / page_size);
+	page_no_t	size_in_pages = ((node->size / pages_per_mb)
+					 * pages_per_mb);
 
-	if (space->id == srv_sys_space.space_id()) {
+	if (space->id == TRX_SYS_SPACE) {
 		srv_sys_space.set_last_file_size(size_in_pages);
-	} else if (space->id == srv_tmp_space.space_id()) {
+	} else if (fsp_is_system_temporary(space->id)) {
 		srv_tmp_space.set_last_file_size(size_in_pages);
 	}
-#else
-	ib::trace() << "extended space : " << space->name << " from "
-		<< actual_size << " pages to " << space->size << " pages "
-		<< ", desired space size : " << size << " pages.";
 #endif /* !UNIV_HOTBACKUP */
 
 	mutex_exit(&fil_system->mutex);
@@ -5159,7 +4388,7 @@ fil_extend_tablespaces_to_stored_len(void)
 	dberr_t		error;
 	bool		success;
 
-	buf = (byte*)ut_malloc_nokey(UNIV_PAGE_SIZE);
+	buf = ut_malloc_nokey(UNIV_PAGE_SIZE);
 
 	mutex_enter(&fil_system->mutex);
 
@@ -5209,9 +4438,9 @@ Tries to reserve free extents in a file space.
 bool
 fil_space_reserve_free_extents(
 /*===========================*/
-	ulint	id,		/*!< in: space id */
-	ulint	n_free_now,	/*!< in: number of free extents now */
-	ulint	n_to_reserve)	/*!< in: how many one wants to reserve */
+	space_id_t	id,		/*!< in: space id */
+	ulint		n_free_now,	/*!< in: number of free extents now */
+	ulint		n_to_reserve)	/*!< in: how many one wants to reserve */
 {
 	fil_space_t*	space;
 	bool		success;
@@ -5241,8 +4470,8 @@ Releases free extents in a file space. */
 void
 fil_space_release_free_extents(
 /*===========================*/
-	ulint	id,		/*!< in: space id */
-	ulint	n_reserved)	/*!< in: how many one reserved */
+	space_id_t	id,		/*!< in: space id */
+	ulint		n_reserved)	/*!< in: how many one reserved */
 {
 	fil_space_t*	space;
 
@@ -5266,7 +4495,7 @@ should be zero. */
 ulint
 fil_space_get_n_reserved_extents(
 /*=============================*/
-	ulint	id)		/*!< in: space id */
+	space_id_t	id)		/*!< in: space id */
 {
 	fil_space_t*	space;
 	ulint		n;
@@ -5390,8 +4619,8 @@ fil_node_complete_io(
 static
 void
 fil_report_invalid_page_access(
-	ulint		block_offset,	/*!< in: block offset */
-	ulint		space_id,	/*!< in: space id */
+	page_no_t	block_offset,	/*!< in: block offset */
+	space_id_t	space_id,	/*!< in: space id */
 	const char*	space_name,	/*!< in: space name */
 	ulint		byte_offset,	/*!< in: byte offset */
 	ulint		len,		/*!< in: I/O length */
@@ -5427,39 +4656,51 @@ fil_io_set_encryption(
 	const page_id_t&	page_id,
 	fil_space_t*		space)
 {
-	/* Don't encrypt the log, page 0 of all tablespaces, all pages
-	from the system tablespace. */
-	if (!req_type.is_log() && page_id.page_no() > 0
-	    && space->encryption_type != Encryption::NONE)
-	{
-		req_type.encryption_key(space->encryption_key,
-					space->encryption_klen,
-					space->encryption_iv);
-		req_type.encryption_algorithm(Encryption::AES);
-	} else {
+	/* Don't encrypt page 0 of all tablespaces except redo log
+	tablespace, all pages from the system tablespace. */
+	if (space->encryption_type == Encryption::NONE
+	    || (page_id.page_no() == 0 && !req_type.is_log())) {
 		req_type.clear_encrypted();
+		return;
 	}
+
+	/* For writting redo log, if encryption for redo log is disabled,
+	skip set encryption. */
+	if (req_type.is_log() && req_type.is_write()
+	    && !srv_redo_log_encrypt) {
+		req_type.clear_encrypted();
+		return;
+	}
+
+	/* For writting undo log, if encryption for undo log is disabled,
+	skip set encryption. */
+	if (fsp_is_undo_tablespace(space->id)
+	    && !srv_undo_log_encrypt && req_type.is_write()) {
+		req_type.clear_encrypted();
+		return;
+	}
+
+	req_type.encryption_key(space->encryption_key,
+				space->encryption_klen,
+				space->encryption_iv);
+	req_type.encryption_algorithm(Encryption::AES);
 }
 
-/** Reads or writes data. This operation could be asynchronous (aio).
-
-@param[in,out] type	IO context
-@param[in] sync		true if synchronous aio is desired
-@param[in] page_id	page id
-@param[in] page_size	page size
-@param[in] byte_offset	remainder of offset in bytes; in aio this
-			must be divisible by the OS block size
-@param[in] len		how many bytes to read or write; this must
-			not cross a file boundary; in aio this must
-			be a block size multiple
-@param[in,out] buf	buffer where to store read data or from where
-			to write; in aio this must be appropriately
-			aligned
-@param[in] message	message for aio handler if non-sync aio
-			used, else ignored
-
-@return DB_SUCCESS, DB_TABLESPACE_DELETED or DB_TABLESPACE_TRUNCATED
-	if we are trying to do i/o on a tablespace which does not exist */
+/** Read or write data. This operation could be asynchronous (aio).
+@param[in,out]	type		IO context
+@param[in]	sync		whether synchronous aio is desired
+@param[in]	page_id		page id
+@param[in]	page_size	page size
+@param[in]	byte_offset	remainder of offset in bytes; in aio this
+must be divisible by the OS block size
+@param[in]	len		how many bytes to read or write; this must
+not cross a file boundary; in aio this must be a block size multiple
+@param[in,out]	buf		buffer where to store read data or from where
+to write; in aio this must be appropriately aligned
+@param[in]	message		message for aio handler if !sync, else ignored
+@return error code
+@retval DB_SUCCESS on success
+@retval DB_TABLESPACE_DELETED if the tablespace does not exist */
 dberr_t
 fil_io(
 	const IORequest&	type,
@@ -5522,10 +4763,9 @@ fil_io(
 	}
 #else /* !UNIV_HOTBACKUP */
 	ut_a(sync);
-	ulint mode = OS_AIO_SYNC;
+	mode = OS_AIO_SYNC;
 #endif /* !UNIV_HOTBACKUP */
 
-#ifndef UNIV_HOTBACKUP
 	if (req_type.is_read()) {
 
 		srv_stats.data_read.add(len);
@@ -5537,7 +4777,6 @@ fil_io(
 
 		srv_stats.data_written.add(len);
 	}
-#endif /* !UNIV_HOTBACKUP */
 
 	/* Reserve the fil_system mutex and make sure that we can open at
 	least one file while holding it, if the file is not already open */
@@ -5551,18 +4790,27 @@ fil_io(
 	if (space == NULL
 	    || (req_type.is_read()
 		&& !sync
-		&& space->stop_new_ops
-		&& !space->is_being_truncated)) {
+		&& space->stop_new_ops)) {
 
 		mutex_exit(&fil_system->mutex);
 
 		if (!req_type.ignore_missing()) {
-			ib::error()
-				<< "Trying to do I/O to a tablespace which"
-				" does not exist. I/O type: "
-				<< (req_type.is_read() ? "read" : "write")
-				<< ", page: " << page_id
-				<< ", I/O length: " << len << " bytes";
+			if (space == NULL) {
+				ib::error()
+					<< "Trying to do I/O on a tablespace"
+					<< " which does not exist. I/O type: "
+					<< (req_type.is_read()
+					    ? "read" : "write")
+					<< ", page: " << page_id
+					<< ", I/O length: " << len << " bytes";
+			} else {
+				ib::error()
+					<< "Trying to do async read on a"
+					<< " tablespace which is being deleted."
+					<< " Tablespace name: \"" << space->name
+					<< "\", page: " << page_id
+					<< ", read length: " << len << " bytes";
+			}
 		}
 
 		return(DB_TABLESPACE_DELETED);
@@ -5570,7 +4818,7 @@ fil_io(
 
 	ut_ad(mode != OS_AIO_IBUF || fil_type_is_data(space->purpose));
 
-	ulint		cur_page_no = page_id.page_no();
+	page_no_t	cur_page_no = page_id.page_no();
 	fil_node_t*	node = UT_LIST_GET_FIRST(space->chain);
 
 	for (;;) {
@@ -5587,7 +4835,7 @@ fil_io(
 				space->name, byte_offset, len,
 				req_type.is_read());
 
-		} else if (fil_is_user_tablespace_id(space->id)
+		} else if (fsp_is_ibd_tablespace(space->id)
 			   && node->size == 0) {
 
 			/* We do not know the size of a single-table tablespace
@@ -5599,22 +4847,19 @@ fil_io(
 			break;
 
 		} else {
-			if (space->id != srv_sys_space.space_id()
+			if (space->id != TRX_SYS_SPACE
 			    && UT_LIST_GET_LEN(space->chain) == 1
-			    && (srv_is_tablespace_truncated(space->id)
-				|| space->is_being_truncated
-				|| srv_was_tablespace_truncated(space))
-			    && req_type.is_read()) {
+			    && req_type.is_read()
+			    && undo::is_under_construction(space->id)) {
 
 				/* Handle page which is outside the truncated
 				tablespace bounds when recovering from a crash
-				happened during a truncation */
+				that happened during a truncation */
 				mutex_exit(&fil_system->mutex);
-				return(DB_TABLESPACE_TRUNCATED);
+				return(DB_TABLESPACE_DELETED);
 			}
 
 			cur_page_no -= node->size;
-
 			node = UT_LIST_GET_NEXT(chain, node);
 		}
 	}
@@ -5622,7 +4867,7 @@ fil_io(
 	/* Open file if closed */
 	if (!fil_node_prepare_for_io(node, fil_system, space)) {
 		if (fil_type_is_data(space->purpose)
-		    && fil_is_user_tablespace_id(space->id)) {
+		    && fsp_is_ibd_tablespace(space->id)) {
 			mutex_exit(&fil_system->mutex);
 
 			if (!req_type.ignore_missing()) {
@@ -5651,7 +4896,7 @@ fil_io(
 	/* Check that at least the start offset is within the bounds of a
 	single-table tablespace, including rollback tablespaces. */
 	if (node->size <= cur_page_no
-	    && space->id != srv_sys_space.space_id()
+	    && space->id != TRX_SYS_SPACE
 	    && fil_type_is_data(space->purpose)) {
 
 		if (req_type.ignore_missing()) {
@@ -5750,7 +4995,7 @@ fil_io(
 		err = os_file_write(
 			req_type, node->name, node->handle, buf, offset, len);
 	}
-#else /* UNIV_HOTBACKUP */
+#else
 	/* Queue the aio request */
 	err = os_aio(
 		req_type,
@@ -5859,7 +5104,7 @@ fil_aio_wait(
 
 	ut_ad(0);
 }
-#endif /* !UNIV_HOTBACKUP */
+#endif /* UNIV_HOTBACKUP */
 
 /**********************************************************************//**
 Flushes to disk possible writes cached by the OS. If the space does not exist
@@ -5867,11 +5112,12 @@ or is being dropped, does not do anything. */
 void
 fil_flush(
 /*======*/
-	ulint	space_id)	/*!< in: file space id (this can be a group of
-				log files or a tablespace of the database) */
+	space_id_t	space_id)	/*!< in: file space id (this can be a
+					group of log files or a tablespace of
+					the database) */
 {
 	fil_node_t*	node;
-	os_file_t	file;
+	pfs_os_file_t	file;
 
 	mutex_enter(&fil_system->mutex);
 
@@ -5879,8 +5125,7 @@ fil_flush(
 
 	if (space == NULL
 	    || space->purpose == FIL_TYPE_TEMPORARY
-	    || space->stop_new_ops
-	    || space->is_being_truncated) {
+	    || space->stop_new_ops) {
 		mutex_exit(&fil_system->mutex);
 
 		return;
@@ -5947,9 +5192,7 @@ retry:
 			not know what bugs OS's may contain in file
 			i/o */
 
-#ifndef UNIV_HOTBACKUP
 			int64_t	sig_count = os_event_reset(node->sync_event);
-#endif /* !UNIV_HOTBACKUP */
 
 			mutex_exit(&fil_system->mutex);
 
@@ -6021,7 +5264,7 @@ fil_flush_file_spaces(
 	fil_type_t	purpose)
 {
 	fil_space_t*	space;
-	ulint*		space_ids;
+	space_id_t*	space_ids;
 	ulint		n_space_ids;
 
 	ut_ad(purpose == FIL_TYPE_TABLESPACE || purpose == FIL_TYPE_LOG);
@@ -6039,7 +5282,7 @@ fil_flush_file_spaces(
 	traversed fil_system->unflushed_spaces and called UT_LIST_GET_NEXT()
 	on a space that was just removed from the list by fil_flush().
 	Thus, the space could be dropped and the memory overwritten. */
-	space_ids = static_cast<ulint*>(
+	space_ids = static_cast<space_id_t*>(
 		ut_malloc_nokey(n_space_ids * sizeof(*space_ids)));
 
 	n_space_ids = 0;
@@ -6048,9 +5291,7 @@ fil_flush_file_spaces(
 	     space;
 	     space = UT_LIST_GET_NEXT(unflushed_spaces, space)) {
 
-		if (space->purpose == purpose
-		    && !space->stop_new_ops
-		    && !space->is_being_truncated) {
+		if (space->purpose == purpose && !space->stop_new_ops) {
 
 			space_ids[n_space_ids++] = space->id;
 		}
@@ -6160,7 +5401,7 @@ fil_addr_is_null(
 /********************************************************************//**
 Get the predecessor of a file page.
 @return FIL_PAGE_PREV */
-ulint
+page_no_t
 fil_page_get_prev(
 /*==============*/
 	const byte*	page)	/*!< in: file page */
@@ -6171,7 +5412,7 @@ fil_page_get_prev(
 /********************************************************************//**
 Get the successor of a file page.
 @return FIL_PAGE_NEXT */
-ulint
+page_no_t
 fil_page_get_next(
 /*==============*/
 	const byte*	page)	/*!< in: file page */
@@ -6192,7 +5433,6 @@ fil_page_set_type(
 	mach_write_to_2(page + FIL_PAGE_TYPE, type);
 }
 
-#ifndef UNIV_HOTBACKUP
 /** Reset the page type.
 Data files created before MySQL 5.1 may contain garbage in FIL_PAGE_TYPE.
 In MySQL 3.23.53, only undo log pages and index pages were tagged.
@@ -6213,7 +5453,6 @@ fil_page_reset_type(
 		<< fil_page_get_type(page) << " to " << type << ".";
 	mlog_write_ulint(page + FIL_PAGE_TYPE, type, MLOG_2BYTES, mtr);
 }
-#endif /* !UNIV_HOTBACKUP */
 
 /****************************************************************//**
 Closes the tablespace memory cache. */
@@ -6221,6 +5460,10 @@ void
 fil_close(void)
 /*===========*/
 {
+	if (fil_system == NULL) {
+		return;
+	}
+
 	hash_table_free(fil_system->spaces);
 
 	hash_table_free(fil_system->name_hash);
@@ -6235,7 +5478,6 @@ fil_close(void)
 	fil_system = NULL;
 }
 
-#ifndef UNIV_HOTBACKUP
 /********************************************************************//**
 Initializes a buffer control block when the buf_pool is created. */
 static
@@ -6258,7 +5500,7 @@ fil_buf_block_init(
 }
 
 struct fil_iterator_t {
-	os_file_t	file;			/*!< File handle */
+	pfs_os_file_t	file;			/*!< File handle */
 	const char*	filepath;		/*!< File path name */
 	os_offset_t	start;			/*!< From where to start */
 	os_offset_t	end;			/*!< Where to stop */
@@ -6292,8 +5534,8 @@ fil_iterate(
 	PageCallback&		callback)
 {
 	os_offset_t		offset;
-	ulint			page_no = 0;
-	ulint			space_id = callback.get_space_id();
+	page_no_t		page_no = 0;
+	space_id_t		space_id = callback.get_space_id();
 	ulint			n_bytes = iter.n_io_buffers * iter.page_size;
 
 	ut_ad(!srv_read_only_mode);
@@ -6439,7 +5681,7 @@ fil_tablespace_iterate(
 	PageCallback&	callback)
 {
 	dberr_t		err;
-	os_file_t	file;
+	pfs_os_file_t	file;
 	char*		filepath;
 	bool		success;
 
@@ -6605,7 +5847,6 @@ fil_tablespace_iterate(
 
 	return(err);
 }
-#endif /* !UNIV_HOTBACKUP */
 
 /** Set the tablespace table size.
 @param[in]	page	a page belonging to the tablespace */
@@ -6693,7 +5934,6 @@ fil_get_space_names(
 	return(err);
 }
 
-#ifndef UNIV_HOTBACKUP
 /** Return the next fil_node_t in the current or next fil_space_t.
 Once started, the caller must keep calling this until it returns NULL.
 fil_space_acquire() and fil_space_release() are invoked here which
@@ -6732,11 +5972,10 @@ fil_node_next(
 
 			/* Skip spaces that are being
 			created by fil_ibd_create(),
-			or dropped or truncated. */
+			or dropped. */
 			while (space != NULL
 			       && (UT_LIST_GET_LEN(space->chain) == 0
-				   || space->stop_new_ops
-				   || space->is_being_truncated)) {
+				   || space->stop_new_ops)) {
 				space = UT_LIST_GET_NEXT(space_list, space);
 			}
 
@@ -6769,12 +6008,10 @@ fil_mtr_rename_log(
 	dberr_t	err;
 
 	bool	old_is_file_per_table =
-		!is_system_tablespace(old_table->space)
-		&& !DICT_TF_HAS_SHARED_SPACE(old_table->flags);
+		dict_table_is_file_per_table(old_table);
 
 	bool	new_is_file_per_table =
-		!is_system_tablespace(new_table->space)
-		&& !DICT_TF_HAS_SHARED_SPACE(new_table->flags);
+		dict_table_is_file_per_table(new_table);
 
 	/* If neither table is file-per-table,
 	there will be no renaming of files. */
@@ -6851,7 +6088,7 @@ fil_mtr_rename_log(
 
 	return(DB_SUCCESS);
 }
-#endif /* !UNIV_HOTBACKUP */
+
 #ifdef UNIV_DEBUG
 /** Check that a tablespace is valid for mtr_commit().
 @param[in]	space	persistent tablespace that has been changed */
@@ -6863,7 +6100,6 @@ fil_space_validate_for_mtr_commit(
 	ut_ad(!mutex_own(&fil_system->mutex));
 	ut_ad(space != NULL);
 	ut_ad(space->purpose == FIL_TYPE_TABLESPACE);
-	ut_ad(!is_predefined_tablespace(space->id));
 
 	/* We are serving mtr_commit(). While there is an active
 	mini-transaction, we should have !space->stop_new_ops. This is
@@ -6877,9 +6113,7 @@ fil_space_validate_for_mtr_commit(
 	fil_space_acquire() before mtr_start() and
 	fil_space_release() after mtr_commit(). This is why
 	n_pending_ops should not be zero if stop_new_ops is set. */
-	ut_ad(!space->stop_new_ops
-	      || space->is_being_truncated /* TRUNCATE sets stop_new_ops */
-	      || space->n_pending_ops > 0);
+	ut_ad(!space->stop_new_ops || space->n_pending_ops > 0);
 }
 #endif /* UNIV_DEBUG */
 
@@ -6892,12 +6126,17 @@ fil_names_write(
 	const fil_space_t*	space,
 	mtr_t*			mtr)
 {
-	ut_ad(UT_LIST_GET_LEN(space->chain) == 1);
-	fil_name_write(space, 0, UT_LIST_GET_FIRST(space->chain), mtr);
+	page_no_t	first_page_no = 0;
+
+	for (const fil_node_t* file = UT_LIST_GET_FIRST(space->chain);
+	     file != NULL;
+	     file = UT_LIST_GET_NEXT(chain, file)) {
+		fil_name_write(space, first_page_no, file, mtr);
+		first_page_no += file->size;
+	}
 }
 
-/** Note that a non-predefined persistent tablespace has been modified
-by redo log.
+/** Note that a persistent tablespace has been modified by redo log.
 @param[in,out]	space	tablespace */
 void
 fil_names_dirty(
@@ -6913,9 +6152,8 @@ fil_names_dirty(
 	space->max_lsn = log_sys->lsn;
 }
 
-/** Write MLOG_FILE_NAME records when a non-predefined persistent
-tablespace was modified for the first time since the latest
-fil_names_clear().
+/** Write MLOG_FILE_NAME records when a persistent tablespace was modified
+for the first time since the latest fil_names_clear().
 @param[in,out]	space	tablespace
 @param[in,out]	mtr	mini-transaction */
 void
@@ -6939,7 +6177,7 @@ fil_names_dirty_and_write(
 					bogus_name, mtr);
 			});
 }
-#ifndef UNIV_HOTBACKUP
+
 /** On a log checkpoint, reset fil_names_dirty_and_write() flags
 and write out MLOG_FILE_NAME and MLOG_CHECKPOINT if needed.
 @param[in]	lsn		checkpoint LSN
@@ -6953,6 +6191,7 @@ fil_names_clear(
 	bool	do_write)
 {
 	mtr_t	mtr;
+	ulint	mtr_checkpoint_size = LOG_CHECKPOINT_FREE_PER_THREAD;
 
 	ut_ad(log_mutex_own());
 
@@ -6986,132 +6225,30 @@ fil_names_clear(
 		fil_names_write(space, &mtr);
 		do_write = true;
 
+		const mtr_buf_t* mtr_log = mtr_get_log(&mtr);
+
+		/** If the mtr buffer size exceeds the size of
+		LOG_CHECKPOINT_FREE_PER_THREAD then commit the multi record
+		mini-transaction, start the new mini-transaction to
+		avoid the parsing buffer overflow error during recovery. */
+
+		if (mtr_log->size() > mtr_checkpoint_size) {
+			ut_ad(mtr_log->size() < (RECV_PARSING_BUF_SIZE / 2));
+			mtr.commit_checkpoint(lsn, false);
+			mtr.start();
+		}
+
 		space = next;
 	}
 
 	if (do_write) {
-		mtr.commit_checkpoint(lsn);
+		mtr.commit_checkpoint(lsn, true);
 	} else {
 		ut_ad(!mtr.has_modifications());
 	}
 
 	return(do_write);
 }
-
-/** Truncate a single-table tablespace. The tablespace must be cached
-in the memory cache.
-@param space_id			space id
-@param dir_path			directory path
-@param tablename		the table name in the usual
-				databasename/tablename format of InnoDB
-@param flags			tablespace flags
-@param trunc_to_default		truncate to default size if tablespace
-				is being newly re-initialized.
-@return DB_SUCCESS or error */
-dberr_t
-truncate_t::truncate(
-/*=================*/
-	ulint		space_id,
-	const char*	dir_path,
-	const char*	tablename,
-	ulint		flags,
-	bool		trunc_to_default)
-{
-	dberr_t		err = DB_SUCCESS;
-	char*		path;
-	bool		has_data_dir = FSP_FLAGS_HAS_DATA_DIR(flags);
-
-	ut_a(!is_system_tablespace(space_id));
-
-	if (has_data_dir) {
-		ut_ad(dir_path != NULL);
-
-		path = fil_make_filepath(dir_path, tablename, IBD, true);
-
-	} else {
-		path = fil_make_filepath(NULL, tablename, IBD, false);
-	}
-
-	if (path == NULL) {
-		return(DB_OUT_OF_MEMORY);
-	}
-
-	mutex_enter(&fil_system->mutex);
-
-	fil_space_t*	space = fil_space_get_by_id(space_id);
-
-	/* The following code must change when InnoDB supports
-	multiple datafiles per tablespace. */
-	ut_a(UT_LIST_GET_LEN(space->chain) == 1);
-
-	fil_node_t*	node = UT_LIST_GET_FIRST(space->chain);
-
-	if (trunc_to_default) {
-		space->size = node->size = FIL_IBD_FILE_INITIAL_SIZE;
-	}
-
-	const bool already_open = node->is_open;
-
-	if (!already_open) {
-
-		bool	ret;
-
-		node->handle = os_file_create_simple_no_error_handling(
-			innodb_data_file_key, path, OS_FILE_OPEN,
-			OS_FILE_READ_WRITE,
-			fsp_is_system_temporary(space_id)
-			? false : srv_read_only_mode, &ret);
-
-		if (!ret) {
-			ib::error() << "Failed to open tablespace file "
-				<< path << ".";
-
-			ut_free(path);
-
-			return(DB_ERROR);
-		}
-
-		node->is_open = true;
-	}
-
-	os_offset_t	trunc_size = trunc_to_default
-		? FIL_IBD_FILE_INITIAL_SIZE
-		: space->size;
-
-	const bool success = os_file_truncate(
-		path, node->handle, trunc_size * UNIV_PAGE_SIZE);
-
-	if (!success) {
-		ib::error() << "Cannot truncate file " << path
-			<< " in TRUNCATE TABLESPACE.";
-		err = DB_ERROR;
-	}
-
-	space->stop_new_ops = false;
-	space->is_being_truncated = false;
-
-	/* If we opened the file in this function, close it. */
-	if (!already_open) {
-		bool	closed = os_file_close(node->handle);
-
-		if (!closed) {
-
-			ib::error() << "Failed to close tablespace file "
-				<< path << ".";
-
-			err = DB_ERROR;
-		} else {
-			node->is_open = false;
-		}
-	}
-
-	mutex_exit(&fil_system->mutex);
-
-	ut_free(path);
-
-	return(err);
-}
-#endif /* !UNIV_HOTBACKUP */
 
 /**
 Note that the file system where the file resides doesn't support PUNCH HOLE.
@@ -7207,8 +6344,7 @@ fil_set_compression(
 @param[in]	space_id	Space ID to check
 @return the compression algorithm */
 Compression::Type
-fil_get_compression(
-	ulint	space_id)
+fil_get_compression(space_id_t space_id)
 {
 	fil_space_t*	space = fil_space_get(space_id);
 
@@ -7223,14 +6359,14 @@ fil_get_compression(
 @return DB_SUCCESS or error code */
 dberr_t
 fil_set_encryption(
-	ulint			space_id,
+	space_id_t		space_id,
 	Encryption::Type	algorithm,
 	byte*			key,
 	byte*			iv)
 {
-	ut_ad(!is_system_or_undo_tablespace(space_id));
+	ut_ad(space_id != TRX_SYS_SPACE);
 
-	if (is_system_tablespace(space_id)) {
+	if (fsp_is_system_or_temp_tablespace(space_id)) {
 		return(DB_IO_NO_ENCRYPT_TABLESPACE);
 	}
 
@@ -7243,8 +6379,6 @@ fil_set_encryption(
 		return(DB_NOT_FOUND);
 	}
 
-	ut_ad(algorithm != Encryption::NONE);
-	space->encryption_type = algorithm;
 	if (key == NULL) {
 		Encryption::random_value(space->encryption_key);
 	} else {
@@ -7259,6 +6393,9 @@ fil_set_encryption(
 		memcpy(space->encryption_iv,
 		       iv, ENCRYPTION_KEY_LEN);
 	}
+
+	ut_ad(algorithm != Encryption::NONE);
+	space->encryption_type = algorithm;
 
 	mutex_exit(&fil_system->mutex);
 
@@ -7277,13 +6414,26 @@ fil_encryption_rotate()
 	for (space = UT_LIST_GET_FIRST(fil_system->space_list);
 	     space != NULL; ) {
 		/* Skip unencypted tablespaces. */
-		if (is_system_or_undo_tablespace(space->id)
-		    || fsp_is_system_temporary(space->id)
+		/* Encrypted redo log tablespaces is handled in function
+		log_rotate_encryption. */
+		if (fsp_is_system_or_temp_tablespace(space->id)
 		    || space->purpose == FIL_TYPE_LOG) {
 			space = UT_LIST_GET_NEXT(space_list, space);
 			continue;
 		}
 
+		/* Skip the undo tablespace when it's in default
+		key status, since it's the first server startup
+		after bootstrap, and the server uuid is not ready
+		yet. */
+		if (fsp_is_undo_tablespace(space->id)
+		    && Encryption::master_key_id ==
+			ENCRYPTION_DEFAULT_MASTER_KEY_ID) {
+			space = UT_LIST_GET_NEXT(space_list, space);
+			continue;
+		}
+
+		/* Rotate the encrypted tablespaces. */
 		if (space->encryption_type != Encryption::NONE) {
 			mtr_start(&mtr);
 			mtr.set_named_space(space->id);
@@ -7372,7 +6522,7 @@ Folder::Folder(const char* path, size_t len)
 }
 
 /** Assignment operator
-@param[in]	folder	folder string provided */
+@param[in]	path	folder string provided */
 class Folder&
 Folder::operator=(const char* path)
 {
@@ -7381,35 +6531,6 @@ Folder::operator=(const char* path)
 	make_abs_path();
 
 	return(*this);
-}
-
-/** Determine if two folders are equal
-@param[in]	other	folder to compare to
-@return whether the folders are equal */
-bool Folder::operator==(const Folder& other) const
-{
-	return(m_abs_len == other.m_abs_len
-	       && !memcmp(m_abs_path, other.m_abs_path, m_abs_len));
-}
-
-/** Determine if the left folder is the same or an ancestor of
-(contains) the right folder.
-@param[in]	other	folder to compare to
-@return whether this is the same or an ancestor of the other folder. */
-bool Folder::operator>=(const Folder& other) const
-{
-	return(m_abs_len <= other.m_abs_len
-		&& (!memcmp(other.m_abs_path, m_abs_path, m_abs_len)));
-}
-
-/** Determine if the left folder is an ancestor of (contains)
-the right folder.
-@param[in]	other	folder to compare to
-@return whether this is an ancestor of the other folder */
-bool Folder::operator>(const Folder& other) const
-{
-	return(m_abs_len < other.m_abs_len
-	       && (!memcmp(other.m_abs_path, m_abs_path, m_abs_len)));
 }
 
 /** Determine if the directory referenced by m_folder exists.
@@ -7441,6 +6562,22 @@ Folder::exists()
 #endif /* WIN32 */
 
 	return(ret && exists && type == OS_FILE_TYPE_DIR);
+}
+
+/** Sets the flags of the tablespace. The tablespace must be locked
+in MDL_EXCLUSIVE MODE.
+@param[in]	space	tablespace in-memory struct
+@param[in]	flags	tablespace flags */
+void
+fil_space_set_flags(
+	fil_space_t*	space,
+	ulint		flags)
+{
+	ut_ad(fsp_flags_is_valid(flags));
+
+	rw_lock_x_lock(&space->latch);
+	space->flags = flags;
+	rw_lock_x_unlock(&space->latch);
 }
 
 /* Unit Tests */
@@ -7502,3 +6639,58 @@ fil_space_t::release_free_extents(ulint	n_reserved)
 	ut_a(n_reserved_extents >= n_reserved);
 	n_reserved_extents -= n_reserved;
 }
+
+#ifdef UNIV_DEBUG
+/** Print the extent descriptor pages of this tablespace into
+the given file.
+@param[in]	filename	the output file name. */
+void fil_space_t::print_xdes_pages(const char* filename) const
+{
+	std::ofstream	out(filename);
+	print_xdes_pages(out);
+}
+
+/** Print the extent descriptor pages of this tablespace into
+the given file.
+@param[in]	out	the output file name.
+@return	the output stream. */
+std::ostream& fil_space_t::print_xdes_pages(std::ostream& out) const
+{
+	mtr_t			mtr;
+	const page_size_t	page_size(flags);
+
+	mtr_start(&mtr);
+
+	for (page_no_t i = 0; i < 100; ++i) {
+		page_no_t xdes_page_no = i * UNIV_PAGE_SIZE;
+
+		if (xdes_page_no >= size) {
+			break;
+		}
+
+		buf_block_t*	xdes_block = buf_page_get(
+			page_id_t(id, xdes_page_no), page_size,
+			RW_S_LATCH, &mtr);
+
+		page_t*	page = buf_block_get_frame(xdes_block);
+
+		ulint page_type = fil_page_get_type(page);
+
+		switch (page_type) {
+		case FIL_PAGE_TYPE_ALLOCATED:
+			ut_ad(xdes_page_no >= free_limit);
+			goto finish;
+		case FIL_PAGE_TYPE_FSP_HDR:
+		case FIL_PAGE_TYPE_XDES:
+			break;
+		default:
+			ut_error;
+		}
+
+		xdes_page_print(out, page, xdes_page_no, &mtr);
+	}
+finish:
+	mtr_commit(&mtr);
+	return(out);
+}
+#endif /* UNIV_DEBUG */

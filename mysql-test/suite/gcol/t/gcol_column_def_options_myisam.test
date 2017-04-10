@@ -1,3 +1,13 @@
+########################################
+##### WL#7554 Force schema `test` to character set latin1
+##### This test should be migrated to utf8mb4
+--disable_query_log
+let $testdbcs10=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
+alter schema default character set latin1;
+use test;
+--enable_query_log
+########################################
+
 ################################################################################
 # t/gcol_column_def_options_myisam.test                                        #
 #                                                                              #
@@ -37,6 +47,7 @@ eval SET @@session.default_storage_engine = 'MyISAM';
 #------------------------------------------------------------------------------#
 # Execute the tests to be applied to all storage engines
 let $support_virtual_index= 0;
+let $support_native_partitioning= 0;
 --source suite/gcol/inc/gcol_column_def_options.inc
 
 #------------------------------------------------------------------------------#
@@ -45,3 +56,10 @@ let $support_virtual_index= 0;
 #------------------------------------------------------------------------------#
 # Cleanup
 --source suite/gcol/inc/gcol_cleanup.inc
+
+########################################
+##### WL#7554 set schema `test` back to what it was
+--disable_query_log
+--eval alter schema test default character set $testdbcs10;
+--enable_query_log
+########################################

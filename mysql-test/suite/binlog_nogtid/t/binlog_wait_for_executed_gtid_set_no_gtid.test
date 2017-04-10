@@ -1,0 +1,18 @@
+# WL#7796 - WAIT_FOR_EXECUTED_GTID_SET
+#
+# This test checks that we can use the wait_for_executed_gtid_set
+# functionality only if GTID_MODE = ON, otherwise we will get error message
+# ER_GTID_MODE_OFF.
+#
+
+--source include/have_log_bin.inc
+--source include/have_binlog_format_mixed.inc
+--let $master_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
+
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1);
+
+--replace_result $master_uuid MASTER_UUID
+--error ER_GTID_MODE_OFF
+SELECT WAIT_FOR_EXECUTED_GTID_SET('$master_uuid:1-2', 9999);
+DROP TABLE t1;

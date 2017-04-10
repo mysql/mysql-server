@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,12 +15,17 @@
 
 #ifndef RPL_SLAVE_COMMIT_ORDER_MANAGER
 #define RPL_SLAVE_COMMIT_ORDER_MANAGER
-#ifdef HAVE_REPLICATION
+#include <stddef.h>
+#include <memory>
+#include <vector>
 
-#include "my_global.h"
-#include "sql_class.h"        // THD
-#include "rpl_rli_pdb.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "mysql/psi/mysql_cond.h"
+#include "mysql/psi/mysql_mutex.h"
+#include "rpl_rli_pdb.h"    // get_thd_worker
 
+class THD;
 
 class Commit_order_manager
 {
@@ -126,12 +131,6 @@ private:
   uint32 queue_front() { return queue_head; }
 };
 
-inline bool has_commit_order_manager(THD *thd)
-{
-  return is_mts_worker(thd) &&
-    thd->rli_slave->get_commit_order_manager() != NULL;
-}
-
 /**
    Check if order commit deadlock happens.
 
@@ -209,5 +208,4 @@ inline void commit_order_manager_check_deadlock(THD* thd_self,
   DBUG_VOID_RETURN;
 }
 
-#endif //HAVE_REPLICATION
 #endif /*RPL_SLAVE_COMMIT_ORDER_MANAGER*/

@@ -16,7 +16,7 @@
 
 ## Preamble
 --source include/not_valgrind.inc
---source ../include/xplugin_preamble.inc
+--source include/xplugin_preamble.inc
 
 call mtr.add_suppression("Error parsing message of type 12: args");
 call mtr.add_suppression("Error handling message: args");
@@ -162,6 +162,7 @@ Mysqlx.Sql.StmtExecute {
 -->callmacro Create_collection_index	ix	TINYINT
 
 -->sql
+ANALYZE TABLE xplugintest.table1;
 SHOW INDEX FROM xplugintest.table1;
 SHOW CREATE TABLE xplugintest.table1;
 -->endsql
@@ -172,6 +173,7 @@ SHOW INDEX FROM xplugintest.table1;
 
 -->callmacro Create_collection_index	ix	TINYINT UNSIGNED
 -->sql
+ANALYZE TABLE xplugintest.table1;
 SHOW INDEX FROM xplugintest.table1;
 SHOW CREATE TABLE xplugintest.table1;
 -->endsql
@@ -182,6 +184,7 @@ SHOW INDEX FROM xplugintest.table1;
 
 -->callmacro Create_collection_index	ix	TINYINT(2) UNSIGNED
 -->sql
+ANALYZE TABLE xplugintest.table1;
 SHOW INDEX FROM xplugintest.table1;
 SHOW CREATE TABLE xplugintest.table1;
 -->endsql
@@ -192,6 +195,7 @@ SHOW INDEX FROM xplugintest.table1;
 
 -->callmacro Create_collection_index	ix	SMALLINT
 -->sql
+ANALYZE TABLE xplugintest.table1;
 SHOW INDEX FROM xplugintest.table1;
 SHOW CREATE TABLE xplugintest.table1;
 -->endsql
@@ -202,6 +206,7 @@ SHOW INDEX FROM xplugintest.table1;
 
 -->callmacro Create_collection_index	ix	SMALLINT UNSIGNED
 -->sql
+ANALYZE TABLE xplugintest.table1;
 SHOW INDEX FROM xplugintest.table1;
 SHOW CREATE TABLE xplugintest.table1;
 -->endsql
@@ -212,6 +217,7 @@ SHOW INDEX FROM xplugintest.table1;
 
 -->callmacro Create_collection_index	ix	SMALLINT(4) UNSIGNED
 -->sql
+ANALYZE TABLE xplugintest.table1;
 SHOW INDEX FROM xplugintest.table1;
 SHOW CREATE TABLE xplugintest.table1;
 INSERT INTO xplugintest.table1(doc) VALUES('{"col":"12345","_id":1}');
@@ -225,6 +231,7 @@ SHOW INDEX FROM xplugintest.table1;
 
 -->callmacro Create_collection_index	ix	MEDIUMINT
 -->sql
+ANALYZE TABLE xplugintest.table1;
 SHOW INDEX FROM xplugintest.table1;
 SHOW CREATE TABLE xplugintest.table1;
 -->endsql
@@ -235,6 +242,7 @@ SHOW INDEX FROM xplugintest.table1;
 
 -->callmacro Create_collection_index	ix	MEDIUMINT UNSIGNED
 -->sql
+ANALYZE TABLE xplugintest.table1;
 SHOW INDEX FROM xplugintest.table1;
 SHOW CREATE TABLE xplugintest.table1;
 -->endsql
@@ -245,6 +253,7 @@ SHOW INDEX FROM xplugintest.table1;
 
 -->callmacro Create_collection_index	ix	MEDIUMINT(7) UNSIGNED
 -->sql
+ANALYZE TABLE xplugintest.table1;
 SHOW INDEX FROM xplugintest.table1;
 SHOW CREATE TABLE xplugintest.table1;
 INSERT INTO xplugintest.table1(doc) VALUES('{"col":"12345678","_id":1}');
@@ -258,6 +267,7 @@ SHOW INDEX FROM xplugintest.table1;
 
 -->callmacro Create_collection_index	ix	INTEGER
 -->sql
+ANALYZE TABLE xplugintest.table1;
 SHOW INDEX FROM xplugintest.table1;
 SHOW CREATE TABLE xplugintest.table1;
 -->endsql
@@ -268,6 +278,7 @@ SHOW INDEX FROM xplugintest.table1;
 
 -->callmacro Create_collection_index	ix	INTEGER UNSIGNED
 -->sql
+ANALYZE TABLE xplugintest.table1;
 SHOW INDEX FROM xplugintest.table1;
 SHOW CREATE TABLE xplugintest.table1;
 -->endsql
@@ -278,6 +289,7 @@ SHOW INDEX FROM xplugintest.table1;
 
 -->callmacro Create_collection_index	ix	INTEGER(6) UNSIGNED
 -->sql
+ANALYZE TABLE xplugintest.table1;
 SHOW INDEX FROM xplugintest.table1;
 SHOW CREATE TABLE xplugintest.table1;
 INSERT INTO xplugintest.table1(doc) VALUES('{"col":"1234567","_id":1}');
@@ -291,6 +303,7 @@ SHOW INDEX FROM xplugintest.table1;
 
 -->callmacro Create_collection_index	ix	BIGINT
 -->sql
+ANALYZE TABLE xplugintest.table1;
 SHOW INDEX FROM xplugintest.table1;
 SHOW CREATE TABLE xplugintest.table1;
 -->endsql
@@ -301,6 +314,7 @@ SHOW INDEX FROM xplugintest.table1;
 
 -->callmacro Create_collection_index	ix	BIGINT UNSIGNED
 -->sql
+ANALYZE TABLE xplugintest.table1;
 SHOW INDEX FROM xplugintest.table1;
 SHOW CREATE TABLE xplugintest.table1;
 -->endsql
@@ -311,6 +325,7 @@ SHOW INDEX FROM xplugintest.table1;
 
 -->callmacro Create_collection_index	ix	BIGINT(13)
 -->sql
+ANALYZE TABLE xplugintest.table1;
 SHOW INDEX FROM xplugintest.table1;
 SHOW CREATE TABLE xplugintest.table1;
 INSERT INTO xplugintest.table1(doc) VALUES('{"col":"123456789012345","_id":1}');
@@ -324,6 +339,7 @@ SHOW INDEX FROM xplugintest.table1;
 
 -->callmacro Create_collection_index	ix	BIGINT(22) UNSIGNED
 -->sql
+ANALYZE TABLE xplugintest.table1;
 SHOW INDEX FROM xplugintest.table1;
 SHOW CREATE TABLE xplugintest.table1;
 -->endsql
@@ -334,6 +350,7 @@ SHOW INDEX FROM xplugintest.table1;
 
 -->callmacro Create_collection_index	ix	REAL
 -->sql
+ANALYZE TABLE xplugintest.table1;
 SHOW INDEX FROM xplugintest.table1;
 SHOW CREATE TABLE xplugintest.table1;
 -->endsql
@@ -344,6 +361,7 @@ SHOW INDEX FROM xplugintest.table1;
 
 -->callmacro Create_collection_index	ix	REAL UNSIGNED
 -->sql
+ANALYZE TABLE xplugintest.table1;
 SHOW INDEX FROM xplugintest.table1;
 SHOW CREATE TABLE xplugintest.table1;
 -->endsql
@@ -354,6 +372,7 @@ SHOW INDEX FROM xplugintest.table1;
 
 -->callmacro Create_collection_index	ix	FLOAT
 -->sql
+ANALYZE TABLE xplugintest.table1;
 SHOW INDEX FROM xplugintest.table1;
 SHOW CREATE TABLE xplugintest.table1;
 -->endsql
@@ -364,6 +383,7 @@ SHOW INDEX FROM xplugintest.table1;
 
 -->callmacro Create_collection_index	ix	FLOAT UNSIGNED
 -->sql
+ANALYZE TABLE xplugintest.table1;
 SHOW INDEX FROM xplugintest.table1;
 SHOW CREATE TABLE xplugintest.table1;
 -->endsql
@@ -374,6 +394,7 @@ SHOW INDEX FROM xplugintest.table1;
 
 -->callmacro Create_collection_index	ix	DOUBLE
 -->sql
+ANALYZE TABLE xplugintest.table1;
 SHOW INDEX FROM xplugintest.table1;
 SHOW CREATE TABLE xplugintest.table1;
 -->endsql
@@ -384,6 +405,7 @@ SHOW INDEX FROM xplugintest.table1;
 
 -->callmacro Create_collection_index	ix	DOUBLE UNSIGNED
 -->sql
+ANALYZE TABLE xplugintest.table1;
 SHOW INDEX FROM xplugintest.table1;
 SHOW CREATE TABLE xplugintest.table1;
 -->endsql
@@ -394,6 +416,7 @@ SHOW INDEX FROM xplugintest.table1;
 
 -->callmacro Create_collection_index	ix	DOUBLE(7,4) UNSIGNED
 -->sql
+ANALYZE TABLE xplugintest.table1;
 SHOW INDEX FROM xplugintest.table1;
 SHOW CREATE TABLE xplugintest.table1;
 INSERT INTO xplugintest.table1(doc) VALUES('{"col":"123.1234","_id":1}');
@@ -407,6 +430,7 @@ SHOW INDEX FROM xplugintest.table1;
 
 -->callmacro Create_collection_index	ix	DECIMAL
 -->sql
+ANALYZE TABLE xplugintest.table1;
 SHOW INDEX FROM xplugintest.table1;
 SHOW CREATE TABLE xplugintest.table1;
 -->endsql
@@ -417,6 +441,7 @@ SHOW INDEX FROM xplugintest.table1;
 
 -->callmacro Create_collection_index	ix	DECIMAL(10) UNSIGNED
 -->sql
+ANALYZE TABLE xplugintest.table1;
 SHOW INDEX FROM xplugintest.table1;
 SHOW CREATE TABLE xplugintest.table1;
 INSERT INTO xplugintest.table1(doc) VALUES('{"col":"123456.123","_id":1}');
@@ -430,6 +455,7 @@ SHOW INDEX FROM xplugintest.table1;
 
 -->callmacro Create_collection_index	ix	DECIMAL(8,2) UNSIGNED
 -->sql
+ANALYZE TABLE xplugintest.table1;
 SHOW INDEX FROM xplugintest.table1;
 SHOW CREATE TABLE xplugintest.table1;
 INSERT INTO xplugintest.table1(doc) VALUES('{"col":"123456.123","_id":1}');
@@ -443,6 +469,7 @@ SHOW INDEX FROM xplugintest.table1;
 
 -->callmacro Create_collection_index	ix	NUMERIC
 -->sql
+ANALYZE TABLE xplugintest.table1;
 SHOW INDEX FROM xplugintest.table1;
 SHOW CREATE TABLE xplugintest.table1;
 -->endsql
@@ -453,6 +480,7 @@ SHOW INDEX FROM xplugintest.table1;
 
 -->callmacro Create_collection_index	ix	NUMERIC(10,2)
 -->sql
+ANALYZE TABLE xplugintest.table1;
 SHOW INDEX FROM xplugintest.table1;
 SHOW CREATE TABLE xplugintest.table1;
 INSERT INTO xplugintest.table1(doc) VALUES('{"col":"12345.123456","_id":1}');
@@ -466,6 +494,7 @@ SHOW INDEX FROM xplugintest.table1;
 
 -->callmacro Create_collection_index	ix	NUMERIC(5)
 -->sql
+ANALYZE TABLE xplugintest.table1;
 SHOW INDEX FROM xplugintest.table1;
 SHOW CREATE TABLE xplugintest.table1;
 INSERT INTO xplugintest.table1(doc) VALUES('{"col":"12345.123456","_id":1}');
@@ -479,6 +508,7 @@ SHOW INDEX FROM xplugintest.table1;
 
 -->callmacro Create_collection_index	ix	DATE
 -->sql
+ANALYZE TABLE xplugintest.table1;
 SHOW INDEX FROM xplugintest.table1;
 SHOW CREATE TABLE xplugintest.table1;
 -->endsql
@@ -489,6 +519,7 @@ SHOW INDEX FROM xplugintest.table1;
 
 -->callmacro Create_collection_index	ix	TIME
 -->sql
+ANALYZE TABLE xplugintest.table1;
 SHOW INDEX FROM xplugintest.table1;
 SHOW CREATE TABLE xplugintest.table1;
 -->endsql
@@ -499,6 +530,7 @@ SHOW INDEX FROM xplugintest.table1;
 
 -->callmacro Create_collection_index	ix	TIME(2)
 -->sql
+ANALYZE TABLE xplugintest.table1;
 SHOW INDEX FROM xplugintest.table1;
 SHOW CREATE TABLE xplugintest.table1;
 INSERT INTO xplugintest.table1(doc) VALUES('{"col":"12:13:44","_id":1}');
@@ -512,6 +544,7 @@ SHOW INDEX FROM xplugintest.table1;
 
 -->callmacro Create_collection_index	ix	TIMESTAMP
 -->sql
+ANALYZE TABLE xplugintest.table1;
 SHOW INDEX FROM xplugintest.table1;
 SHOW CREATE TABLE xplugintest.table1;
 -->endsql
@@ -522,6 +555,7 @@ SHOW INDEX FROM xplugintest.table1;
 
 -->callmacro Create_collection_index	ix	TIMESTAMP(6)
 -->sql
+ANALYZE TABLE xplugintest.table1;
 SHOW INDEX FROM xplugintest.table1;
 SHOW CREATE TABLE xplugintest.table1;
 INSERT INTO xplugintest.table1(doc) VALUES('{"col":"2038-01-19 03:14:07.123456","_id":1}');
@@ -535,6 +569,7 @@ SHOW INDEX FROM xplugintest.table1;
 
 -->callmacro Create_collection_index	ix	DATETIME
 -->sql
+ANALYZE TABLE xplugintest.table1;
 SHOW INDEX FROM xplugintest.table1;
 SHOW CREATE TABLE xplugintest.table1;
 -->endsql
@@ -545,6 +580,7 @@ SHOW INDEX FROM xplugintest.table1;
 
 -->callmacro Create_collection_index	ix	DATETIME(6)
 -->sql
+ANALYZE TABLE xplugintest.table1;
 SHOW INDEX FROM xplugintest.table1;
 SHOW CREATE TABLE xplugintest.table1;
 -->endsql
@@ -555,6 +591,7 @@ SHOW INDEX FROM xplugintest.table1;
 
 -->callmacro Create_collection_index	ix	YEAR
 -->sql
+ANALYZE TABLE xplugintest.table1;
 SHOW INDEX FROM xplugintest.table1;
 SHOW CREATE TABLE xplugintest.table1;
 -->endsql
@@ -565,6 +602,7 @@ SHOW INDEX FROM xplugintest.table1;
 
 -->callmacro Create_collection_index	ix	VARCHAR(15)
 -->sql
+ANALYZE TABLE xplugintest.table1;
 SHOW INDEX FROM xplugintest.table1;
 SHOW CREATE TABLE xplugintest.table1;
 INSERT INTO xplugintest.table1(doc) VALUES('{"col":"QUITE LOOOONG STRING","_id":1}');
@@ -578,6 +616,7 @@ SHOW INDEX FROM xplugintest.table1;
 
 -->callmacro Create_collection_index	ix	CHAR(25)
 -->sql
+ANALYZE TABLE xplugintest.table1;
 SHOW INDEX FROM xplugintest.table1;
 SHOW CREATE TABLE xplugintest.table1;
 INSERT INTO xplugintest.table1(doc) VALUES('{"col":"LONG LONG STRING, LONGER THAN INDEX SIZE","_id":1}');
@@ -591,6 +630,7 @@ SHOW INDEX FROM xplugintest.table1;
 
 -->callmacro Create_collection_index	ix	BIT
 -->sql
+ANALYZE TABLE xplugintest.table1;
 SHOW INDEX FROM xplugintest.table1;
 SHOW CREATE TABLE xplugintest.table1;
 -->endsql
@@ -601,6 +641,7 @@ SHOW INDEX FROM xplugintest.table1;
 
 -->callmacro Create_collection_index	ix	BLOB(50)
 -->sql
+ANALYZE TABLE xplugintest.table1;
 SHOW INDEX FROM xplugintest.table1;
 SHOW CREATE TABLE xplugintest.table1;
 INSERT INTO xplugintest.table1(doc) VALUES('{"col":"BLOB BLOB BLOB BLOB BLOB VALUE LONG VALUE 0123456789 BLOB01234567890123456789","_id":1}');
@@ -614,6 +655,7 @@ SHOW INDEX FROM xplugintest.table1;
 
 -->callmacro Create_collection_index	ix	TEXT(30)
 -->sql
+ANALYZE TABLE xplugintest.table1;
 SHOW INDEX FROM xplugintest.table1;
 SHOW CREATE TABLE xplugintest.table1;
 INSERT INTO xplugintest.table1(doc) VALUES('{"col":"TEXT LONGER THAN INDEX SIZE WHICH EQUALS 30 1234567890","_id":1}');
@@ -720,6 +762,7 @@ Mysqlx.Sql.StmtExecute {
 -->recv
 
 -->sql
+ANALYZE TABLE xplugintest.table1;
 SHOW INDEX FROM xplugintest.table1;
 -->endsql
 
@@ -925,6 +968,7 @@ Mysqlx.Sql.StmtExecute {
 -->recv
 
 -->sql
+ANALYZE TABLE xplugintest.table1;
 SHOW INDEX FROM xplugintest.table1;
 -->endsql
 
@@ -1192,6 +1236,7 @@ ALTER TABLE xplugintest.table1 ADD INDEX `fulltext_idx_1` (subject(100));
 ALTER TABLE xplugintest.table1 ADD INDEX `fulltext_idx_2` (subject(100));
 ALTER TABLE xplugintest.table1 ADD INDEX `fulltext_idx_3` (book(100));
 
+ANALYZE TABLE xplugintest.table1;
 SHOW CREATE TABLE xplugintest.table1;
 SHOW INDEX FROM xplugintest.table1;
 -->endsql
@@ -1340,6 +1385,7 @@ Mysqlx.Sql.StmtExecute {
 -- drop column drop index as well
 SHOW CREATE TABLE xplugintest.table1;
 ALTER TABLE xplugintest.table1 DROP COLUMN subject;
+ANALYZE TABLE xplugintest.table1;
 SHOW INDEX FROM xplugintest.table1;
 CREATE TABLE xplugintest.table2 (
 ID          TINYINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
@@ -1431,6 +1477,7 @@ Mysqlx.Sql.StmtExecute {
 -->recvresult
 
 -->sql
+ANALYZE TABLE xplugintest.table2;
 SHOW INDEX FROM xplugintest.table2;
 -->endsql
 

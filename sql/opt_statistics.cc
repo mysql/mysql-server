@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,10 +14,15 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-// First include (the generated) my_config.h, to get correct platform defines.
-#include "my_config.h"
-#include "opt_statistics.h"
+#include "sql/opt_statistics.h"
+
+#include <algorithm>
+
+#include "handler.h"
 #include "key.h"                                // rec_per_key_t, KEY
+#include "my_base.h"
+#include "my_dbug.h"
+#include "my_macros.h"
 #include "table.h"                              // TABLE
 
 using std::max;
@@ -48,7 +53,7 @@ rec_per_key_t guess_rec_per_key(const TABLE *const table, const KEY *const key,
                                 uint used_keyparts)
 {
   DBUG_ASSERT(used_keyparts >= 1);
-  DBUG_ASSERT(used_keyparts <= key->user_defined_key_parts);
+  DBUG_ASSERT(used_keyparts <= key->actual_key_parts);
   DBUG_ASSERT(!key->has_records_per_key(used_keyparts - 1));
 
   const ha_rows table_rows= table->file->stats.records;

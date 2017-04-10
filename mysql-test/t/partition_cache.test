@@ -2,10 +2,6 @@
 # Note that partitioned tables does no longer support query caching
 # due to bug#11761296.
 
---source include/have_query_cache.inc
-
---source include/have_innodb.inc
---source include/have_partition.inc
 let $engine_type= InnoDB;
 # Using SELECT to get a space as first character.
 let $partitions_a= `SELECT ' PARTITION BY KEY (a) PARTITIONS 3'`;

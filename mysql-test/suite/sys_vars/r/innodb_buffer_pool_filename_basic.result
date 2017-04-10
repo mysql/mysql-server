@@ -3,7 +3,7 @@ SELECT @orig;
 @orig
 ib_buffer_pool
 SELECT variable_value
-FROM information_schema.global_status
+FROM performance_schema.global_status
 WHERE LOWER(variable_name) = 'innodb_buffer_pool_dump_status';
 variable_value
 Dumping of buffer pool not started

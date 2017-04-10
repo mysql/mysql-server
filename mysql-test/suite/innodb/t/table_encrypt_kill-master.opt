@@ -1,0 +1,2 @@
+--innodb_buffer_pool_size=256M
+--bootstrap --character-set-server=latin1

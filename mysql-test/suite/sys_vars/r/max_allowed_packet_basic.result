@@ -157,13 +157,13 @@ SELECT @@session.max_allowed_packet;
 4194304
 '#------------------FN_DYNVARS_070_06-----------------------#'
 SELECT @@global.max_allowed_packet = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='max_allowed_packet';
 @@global.max_allowed_packet = VARIABLE_VALUE
 1
 '#------------------FN_DYNVARS_070_07-----------------------#'
 SELECT @@session.max_allowed_packet = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+FROM performance_schema.session_variables 
 WHERE VARIABLE_NAME='max_allowed_packet';
 @@session.max_allowed_packet = VARIABLE_VALUE
 1

@@ -7,7 +7,6 @@
 # works with innodb_file_per_table.
 #
 
--- source include/have_innodb.inc
 
 SET default_storage_engine=InnoDB;
 

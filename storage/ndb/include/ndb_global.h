@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -25,7 +25,15 @@
 #endif
 #endif
 
-#include <my_global.h>
+#include <errno.h>
+#include <math.h>
+#include <stddef.h>
+#include <stdio.h>
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_systime.h"
+#include <mysql/service_my_snprintf.h>
+#include <mysql/service_mysql_alloc.h>
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif
@@ -36,8 +44,23 @@
 #include <process.h>
 #endif
 
+/*
+  Custom version of standard offsetof() macro which can be used to get
+  offsets of members in class for non-POD types (according to the current
+  version of C++ standard offsetof() macro can't be used in such cases and
+  attempt to do so causes warnings to be emitted, OTOH in many cases it is
+  still OK to assume that all instances of the class has the same offsets
+  for the same members).
+
+  This is temporary solution which should be removed once File_parser class
+  and related routines are refactored.
+*/
+
+#define my_offsetof(TYPE, MEMBER) \
+        ((size_t)((char *)&(((TYPE *)0x10)->MEMBER) - (char*)0x10))
+
 #if defined __GNUC__
-# define ATTRIBUTE_FORMAT(style, m, n) __attribute__((format(style, m, n)))
+# define ATTRIBUTE_FORMAT(style, m, n) MY_ATTRIBUTE((format(style, m, n)))
 #else
 # define ATTRIBUTE_FORMAT(style, m, n)
 #endif
@@ -162,6 +185,10 @@ extern "C" {
 }
 #endif
 
+#ifdef  __cplusplus
+#include <new>
+#endif
+
 #include "ndb_init.h"
 
 #ifndef PATH_MAX
@@ -214,27 +241,9 @@ extern "C" {
      if the expression is false.
 */
 
-#if (_MSC_VER > 1500) || (defined __GXX_EXPERIMENTAL_CXX0X__)
-
-/*
-  Prefer to use the 'static_assert' function from C++0x
-  to get best error message
-*/
 #define NDB_STATIC_ASSERT(expr) static_assert(expr, #expr)
 
-#else
-
-/*
-  Fallback to use home grown solution
-  (i.e use mysys version)
-*/
-
-#define NDB_STATIC_ASSERT(expr) compile_time_assert(expr)
-
-#endif
-
-
-#if (_MSC_VER > 1500)
+#if defined(_WIN32) && (_MSC_VER > 1500)
 #define HAVE___HAS_TRIVIAL_CONSTRUCTOR
 #define HAVE___IS_POD
 #endif
@@ -260,19 +269,19 @@ extern "C" {
 #endif
 
 /**
- *  __attribute__((noreturn)) was introduce in gcc 2.5
+ *  MY_ATTRIBUTE((noreturn)) was introduce in gcc 2.5
  */
-#if (GCC_VERSION >= 2005)
-#define ATTRIBUTE_NORETURN __attribute__((noreturn))
+#ifdef __GNUC__
+#define ATTRIBUTE_NORETURN MY_ATTRIBUTE((noreturn))
 #else
 #define ATTRIBUTE_NORETURN
 #endif
 
 /**
- *  __attribute__((noinline)) was introduce in gcc 3.1
+ *  MY_ATTRIBUTE((noinline)) was introduce in gcc 3.1
  */
-#if (GCC_VERSION >= 3001)
-#define ATTRIBUTE_NOINLINE __attribute__((noinline))
+#ifdef __GNUC__
+#define ATTRIBUTE_NOINLINE MY_ATTRIBUTE((noinline))
 #else
 #define ATTRIBUTE_NOINLINE
 #endif
@@ -293,12 +302,13 @@ extern "C" {
  * require is like a normal assert, only it's always on (eg. in release)
  */
 C_MODE_START
-/** see below */
-typedef int(*RequirePrinter)(const char *fmt, ...);
+typedef int(*RequirePrinter)(const char *fmt, ...)
+  ATTRIBUTE_FORMAT(printf, 1, 2);
 void require_failed(int exitcode, RequirePrinter p,
                     const char* expr, const char* file, int line)
                     ATTRIBUTE_NORETURN;
-int ndbout_printer(const char * fmt, ...);
+int ndbout_printer(const char * fmt, ...)
+  ATTRIBUTE_FORMAT(printf, 1, 2);
 C_MODE_END
 /*
  *  this allows for an exit() call if exitcode is not zero

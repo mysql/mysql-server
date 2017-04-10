@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -17,17 +17,17 @@
 
 INCLUDE(CheckCSourceRuns)
 
-# We require at least Clang 3.3 (XCode 5).
+# We require at least Clang 3.6 (XCode 7).
 IF(NOT FORCE_UNSUPPORTED_COMPILER)
   IF(CMAKE_C_COMPILER_ID MATCHES "Clang")
     CHECK_C_SOURCE_RUNS("
       int main()
       {
         return (__clang_major__ < 3) ||
-               (__clang_major__ == 3 && __clang_minor__ < 3);
+               (__clang_major__ == 3 && __clang_minor__ < 6);
       }" HAVE_SUPPORTED_CLANG_VERSION)
     IF(NOT HAVE_SUPPORTED_CLANG_VERSION)
-      MESSAGE(FATAL_ERROR "Clang 3.3 or newer is required!")
+      MESSAGE(FATAL_ERROR "Clang 3.6 or newer is required!")
     ENDIF()
   ELSE()
     MESSAGE(FATAL_ERROR "Unsupported compiler!")

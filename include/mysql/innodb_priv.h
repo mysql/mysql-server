@@ -16,7 +16,10 @@
 #ifndef INNODB_PRIV_INCLUDED
 #define INNODB_PRIV_INCLUDED
 
-/** @file Declaring server-internal functions that are used by InnoDB. */
+/**
+  @file include/mysql/innodb_priv.h
+  Declaring server-internal functions that are used by InnoDB.
+*/
 
 class THD;
 

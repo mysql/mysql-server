@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -450,7 +450,7 @@ btr_pcur_open_low(
 
 	ut_ad(!dict_index_is_spatial(index));
 
-	if (dict_table_is_intrinsic(index->table)) {
+	if (index->table->is_intrinsic()) {
 		ut_ad((latch_mode & BTR_MODIFY_LEAF)
 		      || (latch_mode & BTR_SEARCH_LEAF)
 		      || (latch_mode & BTR_MODIFY_TREE));
@@ -508,7 +508,7 @@ btr_pcur_open_with_no_init_func(
 
 	btr_cursor = btr_pcur_get_btr_cur(cursor);
 
-	if (dict_table_is_intrinsic(index->table)) {
+	if (index->table->is_intrinsic()) {
 		ut_ad((latch_mode & BTR_MODIFY_LEAF)
 		      || (latch_mode & BTR_SEARCH_LEAF));
 		btr_cur_search_to_nth_level_with_no_latch(
@@ -552,7 +552,7 @@ btr_pcur_open_at_index_side(
 		btr_pcur_init(pcur);
 	}
 
-	if (dict_table_is_intrinsic(index->table)) {
+	if (index->table->is_intrinsic()) {
 		btr_cur_open_at_index_side_with_no_latch(
 			from_left, index,
 			btr_pcur_get_btr_cur(pcur), level, mtr);

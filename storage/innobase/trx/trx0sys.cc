@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -23,80 +23,33 @@ Transaction system
 Created 3/26/1996 Heikki Tuuri
 *******************************************************/
 
+#include <sys/types.h>
+#include <new>
+
+#include "current_thd.h"
 #include "ha_prototypes.h"
-
-#include "mysqld.h"
-#include "trx0sys.h"
 #include "sql_error.h"
-#ifdef UNIV_NONINL
-#include "trx0sys.ic"
-#endif
+#include "trx0sys.h"
 
-#ifdef UNIV_HOTBACKUP
-#include "fsp0types.h"
-
-#else	/* !UNIV_HOTBACKUP */
+#ifndef UNIV_HOTBACKUP
 #include "fsp0fsp.h"
+#include "fsp0sysspace.h"
+#include "log0log.h"
+#include "log0recv.h"
 #include "mtr0log.h"
 #include "mtr0log.h"
-#include "trx0trx.h"
-#include "trx0rseg.h"
-#include "trx0undo.h"
+#include "os0file.h"
+#include "read0read.h"
 #include "srv0srv.h"
 #include "srv0start.h"
 #include "trx0purge.h"
-#include "log0log.h"
-#include "log0recv.h"
-#include "os0file.h"
-#include "read0read.h"
-#include "fsp0sysspace.h"
-
-/** The file format tag structure with id and name. */
-struct file_format_t {
-	ulint		id;		/*!< id of the file format */
-	const char*	name;		/*!< text representation of the
-					file format */
-	ib_mutex_t		mutex;		/*!< covers changes to the above
-					fields */
-};
+#include "trx0rseg.h"
+#include "trx0trx.h"
+#include "trx0undo.h"
 
 /** The transaction system */
 trx_sys_t*		trx_sys		= NULL;
 #endif /* !UNIV_HOTBACKUP */
-
-/** List of animal names representing file format. */
-static const char*	file_format_name_map[] = {
-	"Antelope",
-	"Barracuda",
-	"Cheetah",
-	"Dragon",
-	"Elk",
-	"Fox",
-	"Gazelle",
-	"Hornet",
-	"Impala",
-	"Jaguar",
-	"Kangaroo",
-	"Leopard",
-	"Moose",
-	"Nautilus",
-	"Ocelot",
-	"Porpoise",
-	"Quail",
-	"Rabbit",
-	"Shark",
-	"Tiger",
-	"Urchin",
-	"Viper",
-	"Whale",
-	"Xenops",
-	"Yak",
-	"Zebra"
-};
-
-/** The number of elements in the file format name array. */
-static const ulint	FILE_FORMAT_NAME_N
-	= sizeof(file_format_name_map) / sizeof(file_format_name_map[0]);
 
 /** Check whether transaction id is valid.
 @param[in]	id              transaction id to check
@@ -133,46 +86,10 @@ ReadView::check_trx_id_sanity(
 }
 
 #ifndef UNIV_HOTBACKUP
-#ifdef UNIV_DEBUG
+# ifdef UNIV_DEBUG
 /* Flag to control TRX_RSEG_N_SLOTS behavior debugging. */
 uint	trx_rseg_n_slots_debug = 0;
-#endif
-
-/** This is used to track the maximum file format id known to InnoDB. It's
-updated via SET GLOBAL innodb_file_format_max = 'x' or when we open
-or create a table. */
-static	file_format_t	file_format_max;
-
-#ifdef UNIV_DEBUG
-/****************************************************************//**
-Checks whether a trx is in one of rw_trx_list
-@return true if is in */
-bool
-trx_in_rw_trx_list(
-/*============*/
-	const trx_t*	in_trx)	/*!< in: transaction */
-{
-	const trx_t*	trx;
-
-	/* Non-locking autocommits should not hold any locks. */
-	check_trx_state(in_trx);
-
-	ut_ad(trx_sys_mutex_own());
-
-	ut_ad(trx_assert_started(in_trx));
-
-	for (trx = UT_LIST_GET_FIRST(trx_sys->rw_trx_list);
-	     trx != NULL && trx != in_trx;
-	     trx = UT_LIST_GET_NEXT(trx_list, trx)) {
-
-		check_trx_state(trx);
-
-		ut_ad(trx->rsegs.m_redo.rseg != NULL && !trx->read_only);
-	}
-
-	return(trx != 0);
-}
-#endif /* UNIV_DEBUG */
+# endif /* UNIV_DEBUG */
 
 /*****************************************************************//**
 Writes the value of max_trx_id to the file based trx system header. */
@@ -187,6 +104,7 @@ trx_sys_flush_max_trx_id(void)
 
 	if (!srv_read_only_mode) {
 		mtr_start(&mtr);
+		mtr.set_sys_modified();
 
 		sys_header = trx_sysf_get(&mtr);
 
@@ -299,54 +217,34 @@ trx_sys_print_mysql_binlog_offset(void)
 	mtr_commit(&mtr);
 }
 
-/****************************************************************//**
-Looks for a free slot for a rollback segment in the trx system file copy.
+/** Look for a free slot for a rollback segment in the trx system file copy.
+@param[in,out]	mtr		mtr
 @return slot index or ULINT_UNDEFINED if not found */
 ulint
-trx_sysf_rseg_find_free(
-/*====================*/
-	mtr_t*	mtr,			/*!< in/out: mtr */
-	bool	include_tmp_slots,	/*!< in: if true, report slots reserved
-					for temp-tablespace as free slots. */
-	ulint	nth_free_slots)		/*!< in: allocate nth free slot.
-					0 means next free slot. */
+trx_sysf_rseg_find_free(mtr_t*	mtr)
 {
-	ulint		i;
-	trx_sysf_t*	sys_header;
+	trx_sysf_t*	sys_header = trx_sysf_get(mtr);
 
-	sys_header = trx_sysf_get(mtr);
+	for (ulint slot_no = 0; slot_no < TRX_SYS_N_RSEGS; slot_no++) {
+		page_no_t	page_no
+			= trx_sysf_rseg_get_page_no(sys_header, slot_no, mtr);
 
-	ulint	found_free_slots = 0;
-	for (i = 0; i < TRX_SYS_N_RSEGS; i++) {
-		ulint	page_no;
-
-		if (!include_tmp_slots && trx_sys_is_noredo_rseg_slot(i)) {
-			continue;
-		}
-
-		page_no = trx_sysf_rseg_get_page_no(sys_header, i, mtr);
-
-		if (page_no == FIL_NULL
-		    || (include_tmp_slots
-			&& trx_sys_is_noredo_rseg_slot(i))) {
-
-			if (found_free_slots++ >= nth_free_slots) {
-				return(i);
-			}
+		if (page_no == FIL_NULL) {
+			return(slot_no);
 		}
 	}
 
 	return(ULINT_UNDEFINED);
 }
 
-/****************************************************************//**
-Looks for used slots for redo rollback segment.
+/** Look for used slots for redo rollback segment.
+We assume there may be gaps in the array.
+@param[in,out]	mtr		mtr
 @return number of used slots */
 static
 ulint
 trx_sysf_used_slots_for_redo_rseg(
-/*==============================*/
-	mtr_t*	mtr)			/*!< in: mtr */
+	mtr_t*	mtr)
 {
 	trx_sysf_t*	sys_header;
 	ulint		n_used = 0;
@@ -354,10 +252,6 @@ trx_sysf_used_slots_for_redo_rseg(
 	sys_header = trx_sysf_get(mtr);
 
 	for (ulint i = 0; i < TRX_SYS_N_RSEGS; i++) {
-
-		if (trx_sys_is_noredo_rseg_slot(i)) {
-			continue;
-		}
 
 		ulint	page_no;
 
@@ -437,9 +331,9 @@ trx_sysf_create(
 			+ page - sys_header, mtr);
 
 	/* Create the first rollback segment in the SYSTEM tablespace */
-	slot_no = trx_sysf_rseg_find_free(mtr, false, 0);
+	slot_no = trx_sysf_rseg_find_free(mtr);
 	page_no = trx_rseg_header_create(TRX_SYS_SPACE, univ_page_size,
-					 ULINT_MAX, slot_no, mtr);
+					 PAGE_NO_MAX, slot_no, mtr);
 
 	ut_a(slot_no == TRX_SYS_SYSTEM_RSEG_ID);
 	ut_a(page_no == FSP_FIRST_RSEG_PAGE_NO);
@@ -465,7 +359,9 @@ trx_sys_init_at_db_start(void)
 	ut_a(purge_queue != NULL);
 
 	if (srv_force_recovery < SRV_FORCE_NO_UNDO_LOG_SCAN) {
-		trx_rseg_array_init(purge_queue);
+		/* Create the memory objects for all the rollback segments
+		referred to in the TRX_SYS page. */
+		trx_sys_rsegs_init(purge_queue);
 	}
 
 	/* VERY important: after the database is started, max_trx_id value is
@@ -553,6 +449,13 @@ trx_sys_create(void)
 			mem_key_trx_sys_t_rw_trx_ids));
 
 	new(&trx_sys->rw_trx_set) TrxIdSet();
+
+	new(&trx_sys->rsegs) Rsegs(ut_allocator<trx_rseg_t*>(
+			mem_key_trx_sys_t_rsegs));
+
+	new(&trx_sys->tmp_rsegs) Rsegs(ut_allocator<trx_rseg_t*>(
+			mem_key_trx_sys_t_rsegs));
+
 }
 
 /*****************************************************************//**
@@ -564,390 +467,147 @@ trx_sys_create_sys_pages(void)
 	mtr_t	mtr;
 
 	mtr_start(&mtr);
+	mtr.set_sys_modified();
 
 	trx_sysf_create(&mtr);
 
 	mtr_commit(&mtr);
 }
 
-/*****************************************************************//**
-Update the file format tag.
-@return always TRUE */
-static
-ibool
-trx_sys_file_format_max_write(
-/*==========================*/
-	ulint		format_id,	/*!< in: file format id */
-	const char**	name)		/*!< out: max file format name, can
-					be NULL */
-{
-	mtr_t		mtr;
-	byte*		ptr;
-	buf_block_t*	block;
-	ib_uint64_t	tag_value;
-
-	mtr_start(&mtr);
-
-	block = buf_page_get(
-		page_id_t(TRX_SYS_SPACE, TRX_SYS_PAGE_NO), univ_page_size,
-		RW_X_LATCH, &mtr);
-
-	file_format_max.id = format_id;
-	file_format_max.name = trx_sys_file_format_id_to_name(format_id);
-
-	ptr = buf_block_get_frame(block) + TRX_SYS_FILE_FORMAT_TAG;
-	tag_value = format_id + TRX_SYS_FILE_FORMAT_TAG_MAGIC_N;
-
-	if (name) {
-		*name = file_format_max.name;
-	}
-
-	mlog_write_ull(ptr, tag_value, &mtr);
-
-	mtr_commit(&mtr);
-
-	return(TRUE);
-}
-
-/*****************************************************************//**
-Read the file format tag.
-@return the file format or ULINT_UNDEFINED if not set. */
-static
-ulint
-trx_sys_file_format_max_read(void)
-/*==============================*/
-{
-	mtr_t			mtr;
-	const byte*		ptr;
-	const buf_block_t*	block;
-	ib_id_t			file_format_id;
-
-	/* Since this is called during the startup phase it's safe to
-	read the value without a covering mutex. */
-	mtr_start(&mtr);
-
-	block = buf_page_get(
-		page_id_t(TRX_SYS_SPACE, TRX_SYS_PAGE_NO), univ_page_size,
-		RW_X_LATCH, &mtr);
-
-	ptr = buf_block_get_frame(block) + TRX_SYS_FILE_FORMAT_TAG;
-	file_format_id = mach_read_from_8(ptr);
-
-	mtr_commit(&mtr);
-
-	file_format_id -= TRX_SYS_FILE_FORMAT_TAG_MAGIC_N;
-
-	if (file_format_id >= FILE_FORMAT_NAME_N) {
-
-		/* Either it has never been tagged, or garbage in it. */
-		return(ULINT_UNDEFINED);
-	}
-
-	return((ulint) file_format_id);
-}
-
-/*****************************************************************//**
-Get the name representation of the file format from its id.
-@return pointer to the name */
-const char*
-trx_sys_file_format_id_to_name(
-/*===========================*/
-	const ulint	id)	/*!< in: id of the file format */
-{
-	ut_a(id < FILE_FORMAT_NAME_N);
-
-	return(file_format_name_map[id]);
-}
-
-/*****************************************************************//**
-Check for the max file format tag stored on disk. Note: If max_format_id
-is == UNIV_FORMAT_MAX + 1 then we only print a warning.
-@return DB_SUCCESS or error code */
-dberr_t
-trx_sys_file_format_max_check(
-/*==========================*/
-	ulint	max_format_id)	/*!< in: max format id to check */
-{
-	ulint	format_id;
-
-	/* Check the file format in the tablespace. Do not try to
-	recover if the file format is not supported by the engine
-	unless forced by the user. */
-	format_id = trx_sys_file_format_max_read();
-	if (format_id == ULINT_UNDEFINED) {
-		/* Format ID was not set. Set it to minimum possible
-		value. */
-		format_id = UNIV_FORMAT_MIN;
-	}
-
-	ib::info() << "Highest supported file format is "
-		<< trx_sys_file_format_id_to_name(UNIV_FORMAT_MAX) << ".";
-
-	if (format_id > UNIV_FORMAT_MAX) {
-
-		ut_a(format_id < FILE_FORMAT_NAME_N);
-
-		const std::string	msg = std::string("The system"
-			" tablespace is in a file format that this version"
-			" doesn't support - ")
-			+ trx_sys_file_format_id_to_name(format_id)
-			+ ".";
-
-		if (max_format_id <= UNIV_FORMAT_MAX) {
-			ib::error() << msg;
-		} else {
-			ib::warn() << msg;
-		}
-
-		if (max_format_id <= UNIV_FORMAT_MAX) {
-			return(DB_ERROR);
-		}
-	}
-
-	format_id = (format_id > max_format_id) ? format_id : max_format_id;
-
-	/* We don't need a mutex here, as this function should only
-	be called once at start up. */
-	file_format_max.id = format_id;
-	file_format_max.name = trx_sys_file_format_id_to_name(format_id);
-
-	return(DB_SUCCESS);
-}
-
-/*****************************************************************//**
-Set the file format id unconditionally except if it's already the
-same value.
-@return TRUE if value updated */
-ibool
-trx_sys_file_format_max_set(
-/*========================*/
-	ulint		format_id,	/*!< in: file format id */
-	const char**	name)		/*!< out: max file format name or
-					NULL if not needed. */
-{
-	ibool		ret = FALSE;
-
-	ut_a(format_id <= UNIV_FORMAT_MAX);
-
-	mutex_enter(&file_format_max.mutex);
-
-	/* Only update if not already same value. */
-	if (format_id != file_format_max.id) {
-
-		ret = trx_sys_file_format_max_write(format_id, name);
-	}
-
-	mutex_exit(&file_format_max.mutex);
-
-	return(ret);
-}
-
-/********************************************************************//**
-Tags the system table space with minimum format id if it has not been
-tagged yet.
-WARNING: This function is only called during the startup and AFTER the
-redo log application during recovery has finished. */
-void
-trx_sys_file_format_tag_init(void)
-/*==============================*/
-{
-	ulint	format_id;
-
-	format_id = trx_sys_file_format_max_read();
-
-	/* If format_id is not set then set it to the minimum. */
-	if (format_id == ULINT_UNDEFINED) {
-		trx_sys_file_format_max_set(UNIV_FORMAT_MIN, NULL);
-	}
-}
-
-/********************************************************************//**
-Update the file format tag in the system tablespace only if the given
-format id is greater than the known max id.
-@return TRUE if format_id was bigger than the known max id */
-ibool
-trx_sys_file_format_max_upgrade(
-/*============================*/
-	const char**	name,		/*!< out: max file format name */
-	ulint		format_id)	/*!< in: file format identifier */
-{
-	ibool		ret = FALSE;
-
-	ut_a(name);
-	ut_a(file_format_max.name != NULL);
-	ut_a(format_id <= UNIV_FORMAT_MAX);
-
-	mutex_enter(&file_format_max.mutex);
-
-	if (format_id > file_format_max.id) {
-
-		ret = trx_sys_file_format_max_write(format_id, name);
-	}
-
-	mutex_exit(&file_format_max.mutex);
-
-	return(ret);
-}
-
-/*****************************************************************//**
-Get the name representation of the file format from its id.
-@return pointer to the max format name */
-const char*
-trx_sys_file_format_max_get(void)
-/*=============================*/
-{
-	return(file_format_max.name);
-}
-
-/*****************************************************************//**
-Initializes the tablespace tag system. */
-void
-trx_sys_file_format_init(void)
-/*==========================*/
-{
-	mutex_create(LATCH_ID_FILE_FORMAT_MAX, &file_format_max.mutex);
-
-	/* We don't need a mutex here, as this function should only
-	be called once at start up. */
-	file_format_max.id = UNIV_FORMAT_MIN;
-
-	file_format_max.name = trx_sys_file_format_id_to_name(
-		file_format_max.id);
-}
-
-/*****************************************************************//**
-Closes the tablespace tag system. */
-void
-trx_sys_file_format_close(void)
-/*===========================*/
-{
-	mutex_free(&file_format_max.mutex);
-}
-
-/*********************************************************************
-Creates non-redo rollback segments.
+/** Create non-redo rollback segments residing in the temp-tablespace.
+Non-redo rollback segments don't perform redo logging and so they are
+used for undo logging of objects/tables that don't need to be recovered
+after a crash. Non-Redo rollback segments are created on every server
+startup.
 @return number of non-redo rollback segments created. */
-static
 ulint
-trx_sys_create_noredo_rsegs(
-/*========================*/
-	ulint	n_nonredo_rseg)	/*!< number of non-redo rollback segment
-				to create. */
+trx_rsegs_create_in_temp_space()
 {
 	ulint n_created = 0;
 
-	/* Create non-redo rollback segments residing in temp-tablespace.
-	non-redo rollback segments don't perform redo logging and so
-	are used for undo logging of objects/table that don't need to be
-	recover on crash.
-	(Non-Redo rollback segments are created on every server startup).
-	Slot-0: reserved for system-tablespace.
-	Slot-1....Slot-N: reserved for temp-tablespace.
-	Slot-N+1....Slot-127: reserved for system/undo-tablespace. */
-	for (ulint i = 0; i < n_nonredo_rseg; i++) {
-		ulint space = srv_tmp_space.space_id();
-		if (trx_rseg_create(space, i) == NULL) {
+	for (ulint rseg_id = 0; rseg_id < srv_tmp_rollback_segments; rseg_id++) {
+		if (trx_rseg_create_in_temp_space(rseg_id) == NULL) {
 			break;
 		}
 		++n_created;
 	}
 
+	ib::info() << n_created
+		<< " rollback segment(s) are active in the temporary tablespace.";
+
 	return(n_created);
 }
 
-/*********************************************************************
-Creates the rollback segments.
-@return number of rollback segments that are active. */
-ulint
-trx_sys_create_rsegs(
-/*=================*/
-	ulint	n_spaces,	/*!< number of tablespaces for UNDO logs */
-	ulint	n_rsegs,	/*!< number of rollback segments to create */
-	ulint	n_tmp_rsegs)	/*!< number of rollback segments reserved for
-				temp-tables. */
+/** Create any more rollback segments above what was previously built
+in the system tablespace. During create_new_db, only one rollback segment
+was created initially so that the system tablespace would be backward
+compatible in its file segment ordering.
+When opening an existing db, the setting for srv_rollback_segments
+may have changed. If the TRX_SYS page does not track enough rollback
+segments, we will create the rest here.
+@return true if successful or not done, false for failure */
+bool
+trx_sys_create_additional_rsegs(bool needed_recovery)
 {
-	mtr_t	mtr;
-	ulint	n_used;
-	ulint	n_noredo_created;
+	mtr_t		mtr;
+	ulint		initial_rsegs;
+	ulint		new_rsegs = 0;
+	ulint		rseg_id;
+	trx_rseg_t*	rseg;
 
-	ut_a(n_spaces < TRX_SYS_N_RSEGS);
-	ut_a(n_rsegs <= TRX_SYS_N_RSEGS);
-	ut_a(n_tmp_rsegs > 0 && n_tmp_rsegs < TRX_SYS_N_RSEGS);
+	ut_ad(srv_rollback_segments <= TRX_SYS_N_RSEGS);
 
-	if (srv_read_only_mode) {
-		return(ULINT_UNDEFINED);
+	if (trx_sys->rsegs.size() >= srv_rollback_segments) {
+		srv_available_rollback_segments = trx_sys->rsegs.size();
+		return(true);
 	}
-
-	/* Create non-redo rollback segments. */
-	n_noredo_created = trx_sys_create_noredo_rsegs(n_tmp_rsegs);
 
 	/* This is executed in single-threaded mode therefore it is not
-	necessary to use the same mtr in trx_rseg_create(). n_used cannot
-	change while the function is executing. */
-	mtr_start(&mtr);
-	n_used = trx_sysf_used_slots_for_redo_rseg(&mtr) + n_noredo_created;
-	mtr_commit(&mtr);
+	necessary to use the same mtr in trx_rseg_create(). */
+	mtr.start();
+	initial_rsegs = trx_sysf_used_slots_for_redo_rseg(&mtr);
+	mtr.commit();
 
-	ut_ad(n_used <= TRX_SYS_N_RSEGS);
+	ib::info() << initial_rsegs << " durable rollback segment(s)"
+		<< " found in the system tablespace.";
 
-	/* By default 1 redo rseg is always active that is hosted in
-	system tablespace. */
-	ulint	n_redo_active;
-	if (n_rsegs <= n_tmp_rsegs) {
-		n_redo_active = 1;
-	} else if (n_rsegs > n_used) {
-		n_redo_active = n_used - n_tmp_rsegs;
-	} else {
-		n_redo_active = n_rsegs - n_tmp_rsegs;
+	if (srv_read_only_mode || srv_force_recovery || needed_recovery) {
+		/* Set this global variable so it can be monitored. */
+		srv_available_rollback_segments = trx_sys->rsegs.size();
+
+		if (srv_available_rollback_segments < srv_rollback_segments) {
+			bool and2 = srv_read_only_mode && srv_force_recovery;
+			bool and3 = (srv_read_only_mode || srv_force_recovery)
+				    && needed_recovery;
+
+			ib::info() << "Did not create all "
+				<< srv_rollback_segments
+				<< " rollback segments because"
+				<< (srv_read_only_mode ?
+					" read-only mode is set" : "")
+				<< (and2 ? " and" : "")
+				<< (srv_force_recovery > 0 ?
+					" innodb_force_recovery is set": "")
+				<< (and3 ? " and" : "")
+				<< (needed_recovery ?
+					" the server needed recovery" : "")
+				<< ". Only "
+				<< srv_available_rollback_segments
+				<< " are available.";
+		}
+
+		/* We do not proceed to add any more rsegs under these
+		three conditions.  Just use what we have. */
+		return(true);
 	}
 
-	/* Do not create additional rollback segments if innodb_force_recovery
-	has been set and the database was not shutdown cleanly. */
-	if (!srv_force_recovery && !recv_needed_recovery && n_used < n_rsegs) {
-		ulint	i;
-		ulint	new_rsegs = n_rsegs - n_used;
+	/* These initial rsegs are in the system space and should
+	have already been loaded. */
+	ut_ad(initial_rsegs == trx_sys->rsegs.size());
+	ut_ad(initial_rsegs < srv_rollback_segments);
 
-		for (i = 0; i < new_rsegs; ++i) {
-			ulint	space;
+	new_rsegs = srv_rollback_segments - initial_rsegs;
 
-			/* Tablespace 0 is the system tablespace. All UNDO
-			log tablespaces start from 1. */
+	ib::info() << " Adding " << new_rsegs
+		<< " more rollback segments.";
 
-			if (n_spaces > 0) {
-				space = (i % n_spaces) + 1;
-			} else {
-				space = 0; /* System tablespace */
-			}
+	for (ulint i = 0; i < new_rsegs; i++) {
 
-			if (trx_rseg_create(space, 0) != NULL) {
-				++n_used;
-				++n_redo_active;
+		mtr.start();
+		rseg_id = trx_sysf_rseg_find_free(&mtr);
+		mtr.commit();
 
-				/* Increase the number of active undo
-				tablespace in case new rollback segment
-				assigned to new undo tablespace. */
-				if (space > srv_undo_tablespaces_active) {
-					srv_undo_tablespaces_active++;
+		/* Besides the initial rollback segment created in the
+		system tablespace, the rest will be created in the
+		external undo tablespaces in a round-robin fashion,
+		if they exist.  If not, they will be created in the
+		system tablespace. */
+		space_id_t	space_id = 0;
+		if (srv_undo_tablespaces > 0) {
+			space_id = trx_sys_undo_spaces->at(
+				i % srv_undo_tablespaces);
+		}
 
-					ut_ad(srv_undo_tablespaces_active
-					      == space);
-
-				}
-			} else {
-				break;
-			}
+		rseg = trx_rseg_create(space_id, rseg_id);
+		if (rseg != nullptr) {
+			trx_sys->rsegs.push_back(rseg);
 		}
 	}
 
-	ib::info() << n_used - srv_tmp_undo_logs
-		<< " redo rollback segment(s) found. "
-		<< n_redo_active
-		<< " redo rollback segment(s) are active.";
+	/* Set this global variable so it can be monitored. */
+	srv_available_rollback_segments = trx_sys->rsegs.size();
 
-	ib::info() << n_noredo_created << " non-redo rollback segment(s) are"
-		" active.";
+	if (srv_available_rollback_segments < srv_rollback_segments) {
+		ib::error() << "Could not create all "
+			<< srv_rollback_segments
+			<< " rollback segments. Only "
+			<< srv_available_rollback_segments
+			<< " are available."
+			" The disk may be running out of space";
+		return(false);
+	}
 
-	return(n_used);
+	return(true);
 }
 
 #else /* !UNIV_HOTBACKUP */
@@ -980,175 +640,6 @@ trx_sys_print_mysql_binlog_offset_from_page(
 			+ TRX_SYS_MYSQL_LOG_INFO + TRX_SYS_MYSQL_LOG_NAME;
 	}
 }
-
-/*****************************************************************//**
-Reads the file format id from the first system table space file.
-Even if the call succeeds and returns TRUE, the returned format id
-may be ULINT_UNDEFINED signalling that the format id was not present
-in the data file.
-@return TRUE if call succeeds */
-ibool
-trx_sys_read_file_format_id(
-/*========================*/
-	const char *pathname,  /*!< in: pathname of the first system
-				        table space file */
-	ulint *format_id)      /*!< out: file format of the system table
-				         space */
-{
-	os_file_t	file;
-	bool		success;
-	byte		buf[UNIV_PAGE_SIZE * 2];
-	page_t*		page = ut_align(buf, UNIV_PAGE_SIZE);
-	const byte*	ptr;
-	ib_id_t		file_format_id;
-
-	*format_id = ULINT_UNDEFINED;
-
-	file = os_file_create_simple_no_error_handling(
-		innodb_data_file_key,
-		pathname,
-		OS_FILE_OPEN,
-		OS_FILE_READ_ONLY,
-		srv_read_only_mode,
-		&success
-	);
-	if (!success) {
-		/* The following call prints an error message */
-		os_file_get_last_error(true);
-
-		ib::error() << "mysqlbackup: Error: trying to read system"
-			" tablespace file format, but could not open the"
-			" tablespace file " << pathname << "!";
-		return(FALSE);
-	}
-
-	/* Read the page on which file format is stored */
-
-	IORequest	read_req(IORequest::READ)
-
-	dberr_t	err = os_file_read_no_error_handling(
-		read_req, file, page, TRX_SYS_PAGE_NO * UNIV_PAGE_SIZE,
-		UNIV_PAGE_SIZE, NULL);
-
-	if (err != DB_SUCCESS) {
-		/* The following call prints an error message */
-		os_file_get_last_error(true);
-
-		ib::error() << "mysqlbackup: Error: trying to read system"
-			" tablespace file format, but failed to read the"
-			" tablespace file " << pathname << "!";
-
-		os_file_close(file);
-		return(FALSE);
-	}
-	os_file_close(file);
-
-	/* get the file format from the page */
-	ptr = page + TRX_SYS_FILE_FORMAT_TAG;
-	file_format_id = mach_read_from_8(ptr);
-	file_format_id -= TRX_SYS_FILE_FORMAT_TAG_MAGIC_N;
-
-	if (file_format_id >= FILE_FORMAT_NAME_N) {
-
-		/* Either it has never been tagged, or garbage in it. */
-		return(TRUE);
-	}
-
-	*format_id = (ulint) file_format_id;
-
-	return(TRUE);
-}
-
-/*****************************************************************//**
-Reads the file format id from the given per-table data file.
-@return TRUE if call succeeds */
-ibool
-trx_sys_read_pertable_file_format_id(
-/*=================================*/
-	const char *pathname,  /*!< in: pathname of a per-table
-				        datafile */
-	ulint *format_id)      /*!< out: file format of the per-table
-				         data file */
-{
-	os_file_t	file;
-	bool		success;
-	byte		buf[UNIV_PAGE_SIZE * 2];
-	page_t*		page = ut_align(buf, UNIV_PAGE_SIZE);
-	const byte*	ptr;
-	ib_uint32_t	flags;
-
-	*format_id = ULINT_UNDEFINED;
-
-	file = os_file_create_simple_no_error_handling(
-		innodb_data_file_key,
-		pathname,
-		OS_FILE_OPEN,
-		OS_FILE_READ_ONLY,
-		srv_read_only_mode,
-		&success
-	);
-	if (!success) {
-		/* The following call prints an error message */
-		os_file_get_last_error(true);
-
-		ib::error() << "mysqlbackup: Error: trying to read per-table"
-			" tablespace format, but could not open the tablespace"
-			" file " << pathname << "!";
-
-		return(FALSE);
-	}
-
-	IORequest	read_req(IORequest::READ);
-
-	/* Read the first page of the per-table datafile */
-
-	dberr_t	err = os_file_read_no_error_handling(
-		read_req, file, page, 0, UNIV_PAGE_SIZE, NULL);
-
-	if (err != DB_SUCCESS) {
-		/* The following call prints an error message */
-		os_file_get_last_error(true);
-
-		ib::error() << "mysqlbackup: Error: trying to per-table data"
-			" file format, but failed to read the tablespace file "
-			<< pathname << "!";
-
-		os_file_close(file);
-		return(FALSE);
-	}
-	os_file_close(file);
-
-	/* get the file format from the page */
-	ptr = page + 54;
-	flags = mach_read_from_4(ptr);
-
-	if (!fsp_flags_is_valid(flags) {
-		/* bad tablespace flags */
-		return(FALSE);
-	}
-
-	*format_id = FSP_FLAGS_GET_POST_ANTELOPE(flags);
-
-	return(TRUE);
-}
-
-
-/*****************************************************************//**
-Get the name representation of the file format from its id.
-@return pointer to the name */
-const char*
-trx_sys_file_format_id_to_name(
-/*===========================*/
-	const ulint	id)	/*!< in: id of the file format */
-{
-	if (!(id < FILE_FORMAT_NAME_N)) {
-		/* unknown id */
-		return("Unknown");
-	}
-
-	return(file_format_name_map[id]);
-}
-
 #endif /* !UNIV_HOTBACKUP */
 
 #ifndef UNIV_HOTBACKUP
@@ -1158,8 +649,11 @@ void
 trx_sys_close(void)
 /*===============*/
 {
-	ut_ad(trx_sys != NULL);
 	ut_ad(srv_shutdown_state == SRV_SHUTDOWN_EXIT_THREADS);
+
+	if (trx_sys == NULL) {
+		return;
+	}
 
 	ulint	size = trx_sys->mvcc->size();
 
@@ -1189,30 +683,22 @@ trx_sys_close(void)
 	}
 
 	/* There can't be any active transactions. */
-	trx_rseg_t** rseg_array = static_cast<trx_rseg_t**>(
-		trx_sys->rseg_array);
-
-	for (ulint i = 0; i < TRX_SYS_N_RSEGS; ++i) {
-		trx_rseg_t*	rseg;
-
-		rseg = trx_sys->rseg_array[i];
-
-		if (rseg != NULL) {
-			trx_rseg_mem_free(rseg, rseg_array);
-		}
+	Rseg_Iterator it;
+	for (it = trx_sys->rsegs.begin();
+	     it != trx_sys->rsegs.end(); ++it) {
+		ut_ad(*it != NULL);
+		trx_rseg_mem_free(*it);
 	}
+	trx_sys->rsegs.clear();
+	trx_sys->rsegs.~Rsegs();
 
-	rseg_array = ((trx_rseg_t**) trx_sys->pending_purge_rseg_array);
-
-	for (ulint i = 0; i < TRX_SYS_N_RSEGS; ++i) {
-		trx_rseg_t*	rseg;
-
-		rseg = trx_sys->pending_purge_rseg_array[i];
-
-		if (rseg != NULL) {
-			trx_rseg_mem_free(rseg, rseg_array);
-		}
+	for (it = trx_sys->tmp_rsegs.begin();
+	     it != trx_sys->tmp_rsegs.end(); ++it) {
+		ut_ad(*it != NULL);
+		trx_rseg_mem_free(*it);
 	}
+	trx_sys->tmp_rsegs.clear();
+	trx_sys->tmp_rsegs.~Rsegs();
 
 	UT_DELETE(trx_sys->mvcc);
 
@@ -1299,7 +785,6 @@ trx_sys_any_active_transactions(void)
 					trx, trx->rsegs.m_noredo.update_undo);
 				trx->state = TRX_STATE_PREPARED;
 				trx_sys->n_prepared_trx++;
-				trx_sys->n_prepared_recovered_trx++;
 			}
 		}
 
@@ -1354,4 +839,30 @@ trx_sys_validate_trx_list()
 	return(true);
 }
 #endif /* UNIV_DEBUG */
+
+/** A list of undo tablespace IDs found in the TRX_SYS page.
+This cannot be part of the trx_sys_t object because it is initialized
+before that object is created. */
+Space_Ids*	trx_sys_undo_spaces;
+
+/** Initialize trx_sys_undo_spaces, called once during srv_start(). */
+void
+trx_sys_undo_spaces_init()
+{
+	trx_sys_undo_spaces = UT_NEW(Space_Ids(), mem_key_trx_sys_t_rsegs);
+
+	trx_sys_undo_spaces->reserve(TRX_SYS_N_RSEGS);
+}
+
+/** Free the resources occupied by trx_sys_undo_spaces,
+called once during thread de-initialization. */
+void
+trx_sys_undo_spaces_deinit()
+{
+	trx_sys_undo_spaces->clear();
+
+	UT_DELETE(trx_sys_undo_spaces);
+
+	trx_sys_undo_spaces = NULL;
+}
 #endif /* !UNIV_HOTBACKUP */

@@ -2,6 +2,9 @@
 --echo # Tests that it works to have the rules table in different engines.
 --echo #
 
+# Skipping the test when log-bin in enabled due to Bug#22654105
+--source include/not_log_bin.inc
+
 --source suite/query_rewrite_plugins/include/have_plugin_rewriter.inc
 --source suite/query_rewrite_plugins/include/install_rewriter_with_optional_columns.inc
 

@@ -23,7 +23,6 @@
 #                                                                                #
 ##################################################################################
 
---source include/have_innodb.inc
 --source include/load_sysvars.inc
 
 ########################################################################
@@ -104,13 +103,13 @@ SELECT @@global.innodb_autoextend_increment;
 
 --disable_warnings
 SELECT @@global.innodb_autoextend_increment  = VARIABLE_VALUE
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='innodb_autoextend_increment ';
 --enable_warnings
 SELECT @@global.innodb_autoextend_increment ;
 --disable_warnings
 SELECT VARIABLE_VALUE
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='innodb_autoextend_increment ';
 --enable_warnings
 

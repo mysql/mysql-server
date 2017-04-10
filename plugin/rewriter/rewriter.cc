@@ -1,4 +1,4 @@
-/*  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/*  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
     This program is free software; you can redistribute it and/or modify it
     under the terms of the GNU General Public License as published by the
@@ -15,20 +15,23 @@
     02110-1301  USA */
 
 #include "my_config.h"
+
+#include <hash.h>
+#include <m_string.h> // Needed because debug_sync.h is not self-sufficient.
+#include <mysql/service_parser.h>
+#include <mysql/service_rules_table.h>
+#include <stddef.h>
+#include <memory>
+#include <string>
+
+#include "debug_sync.h"
 #include "messages.h"
+#include "my_dbug.h"
+#include "nullable.h"
 #include "persisted_rule.h"
 #include "rewriter.h"
 #include "rule.h"
-#include "nullable.h"
-#include <mysql/service_parser.h>
-#include <mysql/service_rules_table.h>
-#include <hash.h>
-
 #include "template_utils.h"
-#include <m_string.h> // Needed because debug_sync.h is not self-sufficient.
-#include "debug_sync.h"
-#include <memory>
-#include <string>
 
 using std::string;
 using rules_table_service::Cursor;
@@ -42,26 +45,21 @@ namespace messages = rewriter_messages;
 
 
 /** Functions used in the hash */
-uchar *get_rule_hash_code(const uchar *entry, size_t *length,
-                          my_bool MY_ATTRIBUTE((unused)))
+static const uchar *get_rule_hash_code(const uchar *entry, size_t *length)
 {
   const Rule *rule= pointer_cast<const Rule*>(entry);
   *length= PARSER_SERVICE_DIGEST_LENGTH;
   const uchar *digest= pointer_cast<const uchar*>(rule->digest_buffer());
-  /*
-    What on earth is the hash table going to do with a non-const hash key?
-    Maybe I don't want to know...
-  */
-  return const_cast<uchar*>(digest);
+  return digest;
 }
 
 
-void free_rule(void *entry) { delete pointer_cast<Rule*>(entry); }
+static void free_rule(void *entry) { delete pointer_cast<Rule*>(entry); }
 
 
 Rewriter::Rewriter()
 {
-  my_hash_init(&m_digests, &my_charset_bin, 10, 0,
+  my_hash_init(&m_digests, &my_charset_bin, 10,
                PARSER_SERVICE_DIGEST_LENGTH,
                get_rule_hash_code,
                free_rule, 0,
@@ -74,7 +72,7 @@ Rewriter::~Rewriter() { my_hash_free(&m_digests); }
 
 bool Rewriter::load_rule(MYSQL_THD thd, Persisted_rule *diskrule)
 {
-  std::auto_ptr<Rule> memrule_ptr(new Rule);
+  std::unique_ptr<Rule> memrule_ptr(new Rule);
   Rule *memrule= memrule_ptr.get();
   Rule::Load_status load_status= memrule->load(thd, diskrule);
 

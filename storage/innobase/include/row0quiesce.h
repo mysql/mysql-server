@@ -34,6 +34,8 @@ struct trx_t;
 
 /** The version number of the export meta-data text file. */
 #define IB_EXPORT_CFG_VERSION_V1	0x1UL
+/** The v2 .cfg has space flags written */
+#define IB_EXPORT_CFG_VERSION_V2	0x2UL
 
 /*********************************************************************//**
 Quiesce the tablespace that the table resides in. */
@@ -41,8 +43,7 @@ void
 row_quiesce_table_start(
 /*====================*/
 	dict_table_t*	table,		/*!< in: quiesce this table */
-	trx_t*		trx)		/*!< in/out: transaction/session */
-        MY_ATTRIBUTE((nonnull));
+	trx_t*		trx);		/*!< in/out: transaction/session */
 
 /*********************************************************************//**
 Set a table's quiesce state.
@@ -53,7 +54,7 @@ row_quiesce_set_state(
 	dict_table_t*	table,		/*!< in: quiesce this table */
 	ib_quiesce_t	state,		/*!< in: quiesce state to set */
 	trx_t*		trx)		/*!< in/out: transaction */
-        MY_ATTRIBUTE((nonnull, warn_unused_result));
+        MY_ATTRIBUTE((warn_unused_result));
 
 /*********************************************************************//**
 Cleanup after table quiesce. */
@@ -61,11 +62,8 @@ void
 row_quiesce_table_complete(
 /*=======================*/
 	dict_table_t*	table,		/*!< in: quiesce this table */
-	trx_t*		trx)		/*!< in/out: transaction/session */
-        MY_ATTRIBUTE((nonnull));
+	trx_t*		trx);		/*!< in/out: transaction/session */
 
-#ifndef UNIV_NONINL
 #include "row0quiesce.ic"
-#endif
 
 #endif /* row0quiesce_h */

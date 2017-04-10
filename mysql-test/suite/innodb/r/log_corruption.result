@@ -1,14 +1,23 @@
 # redo log from before MySQL 5.7.9
-# redo log from before MySQL 5.7.9, with corrupted log checkpoint
-# redo log from before MySQL 5.7.9, with corrupted log block
+# redo log from MySQL 5.7.9, with corrupted log block
 # redo log from "after" MySQL 5.7.9, but with invalid header checksum
 # distant future redo log format, with valid header checksum
-# valid header, but old-format checkpoint blocks
-# valid header, valid checkpoint 1, all-zero (invalid) checkpoint 2, invalid block checksum
+# redo log from MySQL 5.7.9, with corrupted log checkpoint
+# valid 5.7.9 header, valid checkpoint 1, all-zero (invalid) checkpoint 2,
+# invalid block checksum (MLOG_CHECKPOINT cannot be read),
+# thus we cannot determine if the redo log is logically clean.
 # --innodb-force-recovery=6 (skip the entire redo log)
 # valid header, valid checkpoint 1, all-zero (invalid) checkpoint 2, invalid block number
 # --innodb-force-recovery=6 (skip the entire redo log)
+# valid 8.0.0 header, valid checkpoint 1, all-zero (invalid) checkpoint 2, invalid block checksum
+# --innodb-force-recovery=6 (skip the entire redo log)
+# valid 5.7.9 header, valid checkpoint 1, no matching MLOG_CHECKSUM
+# --innodb-force-recovery=6 (skip the entire redo log)
+# upgrade: valid 5.7.9 header, valid checkpoint 1, logically non empty
+# redo log
 # Test a corrupted MLOG_FILE_NAME record.
-# valid header, valid checkpoint 1, all-zero (invalid) checkpoint 2
+# current header, valid checkpoint 1, all-zero (invalid) checkpoint 2
 # Test a corrupted MLOG_FILE_NAME record.
 # valid header, invalid checkpoint 1, valid checkpoint 2
+# Upgrade: valid 5.7.9 header, valid checkpoint 1, logically empty
+# redo log

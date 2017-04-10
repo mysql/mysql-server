@@ -30,7 +30,7 @@ EOF
 select if(count(*)=0, 'OK', 'FAIL') from mysql.user where user='mysqlxsys' and host='localhost';
 
 --echo Install plugin, ensure that account got created
---source ../include/xplugin_install_and_wait.inc
+--source include/xplugin_install_and_wait.inc
 
 select if(count(*)=1, 'OK', 'FAIL') from mysql.user where user='mysqlxsys' and host='localhost';
 show grants for mysqlxsys@localhost;
@@ -40,10 +40,11 @@ uninstall plugin mysqlx;
 select if(count(*)=0, 'OK', 'FAIL') from mysql.user where user='mysqlxsys' and host='localhost';
 
 --echo Delete our account by hand and try to login (should fail but not crash)
---source ../include/xplugin_install_and_wait.inc
+--source include/xplugin_install_and_wait.inc
 
 drop user mysqlxsys@localhost;
---error 1
+--let $expected_error_msg= Unable to switch context to user mysqlxsys \(code 1045\)
+--source ../include/mysqlxtest_expected_error.inc
 --exec $MYSQLXTEST -uroot --password='' --file=$MYSQL_TMP_DIR/connection_mysqlxsys.tmp 2>&1
 
 --echo Uninstall plugin with our account gone (see if cleanup works ok)
@@ -54,7 +55,7 @@ create user mysqlxsys@localhost;
 grant insert on mysql.user to mysqlxsys@localhost;
 --let $wait_for_tcpsocket_status = no_wait
 --let $wait_for_unixsocket_status = no_wait
---source ../include/xplugin_install_and_wait.inc
+--source include/xplugin_install_and_wait.inc
 # wait a little for the account to get created
 select sleep(1);
 
@@ -75,9 +76,10 @@ drop user mysqlxsys@localhost;
 create user mysqlxsys@localhost;
 grant ALL on *.* to mysqlxsys@localhost;
 grant SUPER on *.* to mysqlxsys@localhost;
+SHOW GRANTS FOR mysqlxsys@localhost;
 --let $wait_for_tcpsocket_status = no_wait
 --let $wait_for_unixsocket_status = no_wait
---source ../include/xplugin_install_and_wait.inc
+--source include/xplugin_install_and_wait.inc
 # wait a little for the account to get created
 select sleep(1);
 
@@ -90,11 +92,12 @@ select if(count(*)=1, 'OK', 'FAIL') from mysql.user where user='mysqlxsys' and h
 
 
 --echo Expire our account and see what happens (login should fail)
---source ../include/xplugin_install_and_wait.inc
+--source include/xplugin_install_and_wait.inc
 
 alter user mysqlxsys@localhost password expire;
 
---error 1
+--let $expected_error_msg= Password for mysqlxsys@localhost account has been expired \(code 1045\)
+--source ../include/mysqlxtest_expected_error.inc
 --exec $MYSQLXTEST -uroot --password='' --file=$MYSQL_TMP_DIR/connection_mysqlxsys.tmp 2>&1
 
 uninstall plugin mysqlx;
@@ -104,16 +107,18 @@ CREATE USER mysqlxsys@localhost;
 GRANT SELECT ON mysql.user TO mysqlxsys@localhost;
 GRANT SUPER ON *.* TO mysqlxsys@localhost;
 ALTER USER mysqlxsys@localhost PASSWORD EXPIRE;
---source ../include/xplugin_install_and_wait.inc
---error 1
+--source include/xplugin_install_and_wait.inc
+--let $expected_error_msg= Password for mysqlxsys@localhost account has been expired \(code 1045\)
+--source ../include/mysqlxtest_expected_error.inc
 --exec $MYSQLXTEST -uroot --password='' --file=$MYSQL_TMP_DIR/connection_mysqlxsys.tmp 2>&1
 UNINSTALL PLUGIN mysqlx;
 
 --echo Start mysqlxplugin with existing mysqlxsys account with expired password and no priv
 CREATE USER mysqlxsys@localhost;
 ALTER USER mysqlxsys@localhost PASSWORD EXPIRE;
---source ../include/xplugin_install_and_wait.inc
---error 1
+--source include/xplugin_install_and_wait.inc
+--let $expected_error_msg= Password for mysqlxsys@localhost account has been expired \(code 1045\)
+--source ../include/mysqlxtest_expected_error.inc
 --exec $MYSQLXTEST -uroot --password='' --file=$MYSQL_TMP_DIR/connection_mysqlxsys.tmp 2>&1
 UNINSTALL PLUGIN mysqlx;
 
@@ -122,7 +127,7 @@ UNINSTALL PLUGIN mysqlx;
 --echo it is required because in prevous ran the creation of mysqlxsys could be stopped
 --echo in middle leaving the account without permissions
 CREATE USER mysqlxsys@localhost;
---source ../include/xplugin_install_and_wait.inc
+--source include/xplugin_install_and_wait.inc
 
 --exec $MYSQLXTEST -uroot --password='' --file=$MYSQL_TMP_DIR/connection_mysqlxsys.tmp 2>&1
 UNINSTALL PLUGIN mysqlx;
@@ -139,7 +144,7 @@ ALTER USER mysqlxsys@localhost PASSWORD EXPIRE;
 ALTER USER root@localhost PASSWORD EXPIRE;
 --let $wait_for_tcpsocket_status = undefined_value
 --let $wait_for_unixsocket_status = undefined_value
---source ../include/xplugin_install_and_wait.inc
+--source include/xplugin_install_and_wait.inc
 --replace_regex /ERROR.*(No connection could be made because the target machine actively refused it connecting to*| *Connection refused connecting to*) .*:[0-9]*/ERROR: Connection refused connecting to HOST:PORT/
 --error 1
 --exec $MYSQLXTEST -uroot --password='' --file=$MYSQL_TMP_DIR/connection_mysqlxsys.tmp 2>&1

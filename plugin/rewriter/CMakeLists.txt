@@ -1,4 +1,4 @@
-# Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -20,26 +20,20 @@ SET(REWRITER_SOURCES
   rewriter.cc
   services.cc)
 
-IF (DISABLE_SHARED)
-  RETURN()
-ENDIF()
-
 MYSQL_ADD_PLUGIN(rewriter ${REWRITER_SOURCES}
                  MODULE_ONLY MODULE_OUTPUT_NAME "rewriter")
 
-IF(WIN32 OR HAVE_DLOPEN)
-  IF(WIN32)
-    SET(DYNLIB_EXTENSION "dll")
-    IF(MSVC)
-      SET_TARGET_PROPERTIES(rewriter
-        PROPERTIES LINK_FLAGS
-        "/DEF:${CMAKE_CURRENT_SOURCE_DIR}/rewriter_udf.def")
-    ENDIF()
-  ELSE()
-    SET(DYNLIB_EXTENSION "so")
-    SET_TARGET_PROPERTIES(rewriter
-      PROPERTIES LINK_FLAGS "${CMAKE_SHARED_LIBRARY_C_FLAGS}")
+ADD_DEFINITIONS(-DMYSQL_SERVER)
+
+IF(WIN32)
+  SET(DYNLIB_EXTENSION "dll")
+  IF(MSVC)
+   SET_TARGET_PROPERTIES(rewriter
+      PROPERTIES LINK_FLAGS
+      "/DEF:${CMAKE_CURRENT_SOURCE_DIR}/rewriter_udf.def")
   ENDIF()
+ELSE()
+  SET(DYNLIB_EXTENSION "so")
 ENDIF()
 
 

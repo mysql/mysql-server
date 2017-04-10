@@ -38,7 +38,7 @@ public:
     @param value Pointer to double object to receive option value.
     @param name Name of option. It is used in command line option name as
       --name.
-    @param desription Description of option to be printed in --help.
+    @param description Description of option to be printed in --help.
    */
   Bool_option(bool* value, std::string name, std::string description);
 

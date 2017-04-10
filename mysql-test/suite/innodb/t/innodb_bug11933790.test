@@ -3,7 +3,6 @@
 # PERSISTENT STATS
 #
 
--- source include/have_innodb.inc
 
 # we are only interested that the below commands do not crash the server
 -- disable_query_log

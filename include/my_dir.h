@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,9 +16,15 @@
 #ifndef MY_DIR_H
 #define MY_DIR_H
 
-#include "my_global.h"
+/**
+  @file include/my_dir.h
+*/
 
+#include <fcntl.h>
 #include <sys/stat.h>
+#include <sys/types.h>
+
+#include "my_inttypes.h"
 
 #ifdef	__cplusplus
 extern "C" {
@@ -55,7 +61,7 @@ extern "C" {
 
 	/* typedefs for my_dir & my_stat */
 
-#if(_MSC_VER)
+#ifdef _WIN32
 #define MY_STAT struct _stati64 /* 64 bit file size */
 #else
 #define MY_STAT struct stat	/* Orginal struct have what we need */
@@ -71,7 +77,7 @@ typedef struct fileinfo
 typedef struct st_my_dir	/* Struct returned from my_dir */
 {
   /*
-    These members are just copies of parts of DYNAMIC_ARRAY structure, 
+    These members are just copies of parts of Prealloced_array structure, 
     which is allocated right after the end of MY_DIR structure (MEM_ROOT
     for storing names is also resides there). We've left them here because
     we don't want to change code that uses my_dir.
@@ -83,7 +89,7 @@ typedef struct st_my_dir	/* Struct returned from my_dir */
 extern MY_DIR *my_dir(const char *path,myf MyFlags);
 extern void my_dirend(MY_DIR *buffer);
 extern MY_STAT *my_stat(const char *path, MY_STAT *stat_area, myf my_flags);
-extern int my_fstat(int filenr, MY_STAT *stat_area, myf MyFlags);
+extern int my_fstat(int filenr, MY_STAT *stat_area);
 
 #ifdef	__cplusplus
 }

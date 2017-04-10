@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,22 +16,32 @@
 #ifndef _sql_plugin_h
 #define _sql_plugin_h
 
-#include <my_global.h>
+#include <stddef.h>
+#include <sys/types.h>
 #include <vector>
-#include <mysql/plugin.h>
 
-#include "mysql/mysql_lex_string.h"         // LEX_STRING
-#include "my_alloc.h"                       /* MEM_ROOT */
-#include "my_getopt.h"                      /* my_option */
-#include "sql_const.h"                      /* SHOW_COMP_OPTION */
+#include "lex_string.h"
+#include "my_inttypes.h"
+#include "my_io.h"
+#include "my_sqlcommand.h"          // enum_sql_command
+#include "mysql/mysql_lex_string.h" // LEX_CSTRING
+#include "mysql/psi/mysql_mutex.h"
+#include "sql_cmd.h"                // Sql_cmd
+#include "sql_plugin_ref.h"         // plugin_ref
+#include "thr_malloc.h"
+
+class THD;
+class i_string;
+struct my_option;
+struct st_mysql_sys_var;
+template <class T> class I_List;
+
+typedef struct st_mysql_show_var SHOW_VAR;
+
 
 extern const char *global_plugin_typelib_names[];
+extern mysql_mutex_t LOCK_plugin;
 extern mysql_mutex_t LOCK_plugin_delete;
-
-#include <my_sys.h>
-#include "sql_list.h"
-#include "sql_cmd.h"
-#include "sql_plugin_ref.h"
 
 #ifdef DBUG_OFF
 #define plugin_ref_to_int(A) A
@@ -47,9 +57,6 @@ extern mysql_mutex_t LOCK_plugin_delete;
 #define PLUGIN_INIT_SKIP_DYNAMIC_LOADING 1
 #define PLUGIN_INIT_SKIP_PLUGIN_TABLE    2
 #define PLUGIN_INIT_SKIP_INITIALIZATION  4
-
-typedef struct st_mysql_show_var SHOW_VAR;
-typedef struct st_mysql_lex_string LEX_STRING;
 
 #define MYSQL_ANY_PLUGIN         -1
 
@@ -149,7 +156,10 @@ extern char *opt_plugin_dir_ptr;
 extern char opt_plugin_dir[FN_REFLEN];
 extern const LEX_STRING plugin_type_names[];
 
-extern int plugin_init(int *argc, char **argv, int init_flags);
+extern bool plugin_register_early_plugins(int *argc, char **argv, int flags);
+extern bool plugin_register_builtin_and_init_core_se(int *argc, char **argv);
+extern bool plugin_register_dynamic_and_init_all(int *argc,
+                                                 char **argv, int init_flags);
 extern void plugin_shutdown(void);
 extern void memcached_shutdown(void);
 void add_plugin_options(std::vector<my_option> *options, MEM_ROOT *mem_root);
@@ -163,18 +173,20 @@ extern plugin_ref plugin_lock_by_name(THD *thd, const LEX_CSTRING &name,
                                       int type);
 extern void plugin_unlock(THD *thd, plugin_ref plugin);
 extern void plugin_unlock_list(THD *thd, plugin_ref *list, size_t count);
-extern bool plugin_register_builtin(struct st_mysql_plugin *plugin);
 extern void plugin_thdvar_init(THD *thd, bool enable_plugins);
 extern void plugin_thdvar_cleanup(THD *thd, bool enable_plugins);
-extern SHOW_COMP_OPTION plugin_status(const char *name, size_t len, int type);
+extern void plugin_thdvar_safe_update(THD *thd, st_mysql_sys_var *var,
+                                      char **dest, const char *value);
 extern bool check_valid_path(const char *path, size_t length);
 extern void alloc_and_copy_thd_dynamic_variables(THD *thd, bool global_lock);
 
-typedef my_bool (plugin_foreach_func)(THD *thd,
-                                      plugin_ref plugin,
-                                      void *arg);
+typedef bool (plugin_foreach_func)(THD *thd,
+                                   plugin_ref plugin,
+                                   void *arg);
 #define plugin_foreach(A,B,C,D) plugin_foreach_with_mask(A,B,C,PLUGIN_IS_READY,D)
 extern bool plugin_foreach_with_mask(THD *thd, plugin_foreach_func *func,
+                                     int type, uint state_mask, void *arg);
+extern bool plugin_foreach_with_mask(THD *thd, plugin_foreach_func **funcs,
                                      int type, uint state_mask, void *arg);
 int lock_plugin_data();
 int unlock_plugin_data();

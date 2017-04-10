@@ -6,14 +6,14 @@ create table t1 (f1 int primary key) engine=InnoDB;
 create table t2 (f1 int primary key,
 constraint c1 foreign key (f1) references t1(f1),
 constraint c1 foreign key (f1) references t1(f1)) engine=InnoDB;
-ERROR HY000: Cannot add foreign key constraint
+ERROR HY000: Duplicate foreign key constraint name 'c1'
 create table t2 (f1 int primary key,
 constraint c1 foreign key (f1) references t1(f1)) engine=innodb;
 alter table t2 add constraint c1 foreign key (f1) references t1(f1);
-ERROR 23000: Can't write; duplicate key in table '#sql-temporary'
+ERROR HY000: Duplicate foreign key constraint name 'c1'
 set foreign_key_checks = 0;
 alter table t2 add constraint c1 foreign key (f1) references t1(f1);
-ERROR HY000: Duplicate foreign key constraint name 'test/c1'
+ERROR HY000: Duplicate foreign key constraint name 'c1'
 drop table t2, t1;
 #
 # Bug #20031243 CREATE TABLE FAILS TO CHECK IF FOREIGN KEY COLUMN
@@ -125,6 +125,38 @@ a	b
 55	50
 DROP TABLE t2, t1;
 #
+# Bug#20752436: INNODB: FAILING ASSERTION: 0 IN FILE HANDLER0ALTER.CC
+# LINE 6647
+#
+# Verify that index types that cannot be used as foreign keys are
+# ignored when creating foreign keys.
+set @@foreign_key_checks=0;
+CREATE TABLE t1(a CHAR(100), b GEOMETRY NOT NULL) ENGINE InnoDB;
+# Creating a foreign key on a GEOMETRY column is not supported
+ALTER TABLE t1 ADD CONSTRAINT fi_b FOREIGN KEY(b) REFERENCES ti2(b);
+ERROR 42000: BLOB/TEXT column 'b' used in key specification without a key length
+# Adds FULLTEXT and SPATAL indices which cannot be used as foreign keys
+ALTER TABLE t1 ADD FULLTEXT INDEX(a), ADD SPATIAL INDEX(b);
+Warnings:
+Warning	124	InnoDB rebuilding table to add column FTS_DOC_ID
+# Adds a foreign key on column with FULLTEXT index.
+# The FULLTEXT index cannot be used and the generated key must be kept
+ALTER TABLE t1 ADD CONSTRAINT fi_a FOREIGN KEY(a) REFERENCES ti2(a);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+SHOW INDEXES FROM t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+t1	1	b	1	b	A	0	32	NULL		SPATIAL			YES
+t1	1	fi_a	1	a	A	0	NULL	NULL	YES	BTREE			YES
+t1	1	a	1	a	NULL	0	NULL	NULL	YES	FULLTEXT			YES
+# Attempt to add a foreign key on column with SPATIAL index.
+# The SPATIAL index cannot be used so this becomes an attempt at
+# creating a foreign key on a GEOMETRY column which is not supported
+ALTER TABLE t1 ADD CONSTRAINT fi_b FOREIGN KEY(b) REFERENCES ti2(b);
+ERROR 42000: BLOB/TEXT column 'b' used in key specification without a key length
+DROP TABLE t1;
+set @@foreign_key_checks= 1;
 # bug#25126722 FOREIGN KEY CONSTRAINT NAME IS NULL AFTER RESTART
 # base bug#24818604 [GR]
 #

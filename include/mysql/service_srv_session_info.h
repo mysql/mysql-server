@@ -17,7 +17,7 @@
     Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA */
 
 /**
-  @file
+  @file include/mysql/service_srv_session_info.h
   Service providing setters and getters for some properties of a session
 */
 

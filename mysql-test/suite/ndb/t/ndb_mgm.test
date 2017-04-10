@@ -33,7 +33,7 @@ let $mysql_version = mysql-$mysql_version;
 # load ndb-X.X.X from the "ndb_version_string" vaioable
 let $ndb_version=
   `select VARIABLE_VALUE
-     from INFORMATION_SCHEMA.GLOBAL_VARIABLES
+     from performance_schema.global_variables
        where VARIABLE_NAME='ndb_version_string'`;
 # echo ndb_version: $ndb_version;
 
@@ -264,3 +264,8 @@ echo # Test 2/2 for Bug#16585497: abort backup with backup ID out of range;
 --error 255
 exec $mgm_cmd -e "ABORT BACKUP 1000000000000000000";
 
+--echo
+--echo # Bug #22328426: NEW TEST NDB_MGM_PROMPT FAILS WITH VALGRIND
+--echo # Test for Bug #18421338: SUPPORT SETTING THE PROMPT IN NDB_MGM
+--exec $mgm_cmd -e "prompt test-prompt>";
+--exec $mgm_cmd -e "prompt"

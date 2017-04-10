@@ -1,5 +1,4 @@
-/* Copyright (c) 2000-2002, 2004, 2006-2008 MySQL AB, 2009 Sun Microsystems, Inc.
-   Use is subject to license terms.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,22 +13,26 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-/* This file should be included when using merge_isam_funktions */
+/**
+  @file include/myisammrg.h
+  This file should be included when using merge isam functions.
+*/
 
 #ifndef _myisammrg_h
 #define _myisammrg_h
-#ifdef	__cplusplus
-extern "C" {
-#endif
 
-#ifndef _my_base_h
-#include <my_base.h>
-#endif
-#ifndef _myisam_h
-#include <myisam.h>
-#endif
+#include <sys/types.h>
 
-#include <queues.h>
+#include "my_base.h"
+#include "my_inttypes.h"
+#include "my_list.h"
+#include "my_macros.h"
+#include "myisam.h"
+#include "../storage/myisam/queues.h"
+#include "mysql/psi/mysql_mutex.h"
+#include "typelib.h"
+
+C_MODE_START
 
 #define MYRG_NAME_EXT	".MRG"
 
@@ -70,9 +73,9 @@ typedef struct st_myrg_info
   ulong  cache_size;
   uint	 merge_insert_method;
   uint	 tables,options,reclength,keys;
-  my_bool cache_in_use;
+  bool cache_in_use;
   /* If MERGE children attached to parent. See top comment in ha_myisammrg.cc */
-  my_bool children_attached;
+  bool children_attached;
   LIST	 open_list;
   QUEUE  by_key;
   ulong *rec_per_key_part;			/* for sql optimizing */
@@ -91,7 +94,7 @@ extern MYRG_INFO *myrg_parent_open(const char *parent_name,
 extern int myrg_attach_children(MYRG_INFO *m_info, int handle_locking,
                                 MI_INFO *(*callback)(void*),
                                 void *callback_param,
-                                my_bool *need_compat_check);
+                                bool *need_compat_check);
 extern int myrg_detach_children(MYRG_INFO *m_info);
 extern int myrg_panic(enum ha_panic_function function);
 extern int myrg_rfirst(MYRG_INFO *file,uchar *buf,int inx);
@@ -108,7 +111,7 @@ extern int myrg_write(MYRG_INFO *info,uchar *rec);
 extern int myrg_status(MYRG_INFO *file,MYMERGE_INFO *x,int flag);
 extern int myrg_lock_database(MYRG_INFO *file,int lock_type);
 extern int myrg_create(const char *name, const char **table_names,
-                       uint insert_method, my_bool fix_names);
+                       uint insert_method, bool fix_names);
 extern int myrg_extra(MYRG_INFO *file,enum ha_extra_function function,
 		      void *extra_arg);
 extern int myrg_reset(MYRG_INFO *info);
@@ -118,7 +121,7 @@ extern ha_rows myrg_records_in_range(MYRG_INFO *info, int inx,
 extern ha_rows myrg_records(MYRG_INFO *info);
 
 extern ulonglong myrg_position(MYRG_INFO *info);
-#ifdef	__cplusplus
-}
-#endif
-#endif
+
+C_MODE_END
+
+#endif /* _myisammrg_h */

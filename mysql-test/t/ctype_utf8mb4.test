@@ -1,10 +1,7 @@
---source include/have_utf8mb4.inc
-
 #
 # Tests with the utf8mb4 character set
 #
 
---source include/have_innodb.inc
 
 --disable_warnings
 drop table if exists t1,t2;
@@ -1215,7 +1212,6 @@ drop table t1;
 #
 
 SET CHARACTER SET utf8mb4;
-SHOW VARIABLES LIKE 'character\_set\_%';
 CREATE DATABASE crashtest DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
 USE crashtest;
 CREATE TABLE crashtest (crash char(10)) DEFAULT CHARSET=utf8mb4;
@@ -1539,6 +1535,7 @@ delete from t1;
 --echo Testing [F2..F3][80..BF][80..BF][80..BF]
 insert into t1 values (0xF2808080);
 insert into t1 values (0xF2BFBFBF);
+--sorted_result
 select hex(utf8mb4) from t1;
 delete from t1;
 
@@ -1546,6 +1543,7 @@ delete from t1;
 insert into t1 values (0xF4808080);
 insert into t1 values (0xF48F8080);
 insert ignore into t1 values (0xF4908080);
+--sorted_result
 select hex(utf8mb4) from t1;
 drop table t1;
 

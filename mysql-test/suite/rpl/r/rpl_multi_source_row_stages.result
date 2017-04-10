@@ -1,0 +1,89 @@
+#
+# set up masters server_1 and server_3 with server_2 being a slave.
+#.
+include/rpl_init.inc [topology=1->2,3->2]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+create table t1 on server_1
+[connection server_1]
+SET @@SESSION.BINLOG_ROWS_QUERY_LOG_EVENTS=1;
+use test;
+CREATE TABLE t1(a int, PRIMARY KEY (a));
+include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_1']
+create table t1 on server_3
+[connection server_3]
+SET @@SESSION.BINLOG_ROWS_QUERY_LOG_EVENTS=1;
+use test;
+CREATE TABLE if not exists t1 (a int);
+include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_3']
+[connection server_2]
+stop slave sql_thread for channel_1
+include/stop_slave_sql.inc [FOR CHANNEL 'channel_1']
+stop slave sql_thread for channel_3
+include/stop_slave_sql.inc [FOR CHANNEL 'channel_3']
+[connection server_2]
+set debug point on slave
+# Adding debug point 'dbug.rpl_apply_sync_barrier' to @@GLOBAL.debug
+[connection server_1]
+Begin;
+INSERT INTO t1 VALUES (1);
+UPDATE t1 SET a= 2;
+DELETE FROM t1 WHERE a=2;
+Commit;
+[connection server_3]
+Begin;
+INSERT INTO t1 VALUES (1);
+UPDATE t1 SET a= 2;
+DELETE FROM t1 WHERE a=2;
+Commit;
+[connection server_2]
+check on channel_1
+include/start_slave_sql.inc [FOR CHANNEL 'channel_1']
+SET debug_sync= 'now WAIT_FOR signal.rpl_row_apply_progress_updated';
+include/assert.inc [PERFORMANCE_SCHEMA.threads reports: state=Applying batch of row changes (write), db=test, info LIKE "INSERT INTO t1 VALUES (1)", Query]
+include/assert.inc [INFORMATION_SCHEMA.processlist reports: db=test, info LIKE "INSERT INTO t1 VALUES (1)", command=Query]
+[SHOW PROCESSLIST reports: db=test, info LIKE "INSERT INTO t1 VALUES (1)", command=Query]
+SET debug_sync= 'now SIGNAL signal.rpl_row_apply_process_next_row';
+SET debug_sync= 'now WAIT_FOR signal.rpl_row_apply_progress_updated';
+include/assert.inc [PERFORMANCE_SCHEMA.threads reports: state=Applying batch of row changes (update), db=test, info LIKE "UPDATE t1 SET a= 2", Query]
+include/assert.inc [INFORMATION_SCHEMA.processlist reports: db=test, info LIKE "UPDATE t1 SET a= 2", command=Query]
+[SHOW PROCESSLIST reports: db=test, info LIKE "UPDATE t1 SET a= 2", command=Query]
+SET debug_sync= 'now SIGNAL signal.rpl_row_apply_process_next_row';
+SET debug_sync= 'now WAIT_FOR signal.rpl_row_apply_progress_updated';
+include/assert.inc [PERFORMANCE_SCHEMA.threads reports: state=Applying batch of row changes (delete), db=test, info LIKE "DELETE FROM t1 WHERE a=2", Query]
+include/assert.inc [INFORMATION_SCHEMA.processlist reports: db=test, info LIKE "DELETE FROM t1 WHERE a=2", command=Query]
+[SHOW PROCESSLIST reports: db=test, info LIKE "DELETE FROM t1 WHERE a=2", command=Query]
+SET debug_sync= 'now SIGNAL signal.rpl_row_apply_process_next_row';
+check on channel_3
+include/start_slave_sql.inc [FOR CHANNEL 'channel_3']
+SET debug_sync= 'now WAIT_FOR signal.rpl_row_apply_progress_updated';
+include/assert.inc [PERFORMANCE_SCHEMA.threads reports: state=Applying batch of row changes (write), db=test, info LIKE "INSERT INTO t1 VALUES (1)", Query]
+include/assert.inc [INFORMATION_SCHEMA.processlist reports: db=test, info LIKE "INSERT INTO t1 VALUES (1)", command=Query]
+[SHOW PROCESSLIST reports: db=test, info LIKE "INSERT INTO t1 VALUES (1)", command=Query]
+SET debug_sync= 'now SIGNAL signal.rpl_row_apply_process_next_row';
+SET debug_sync= 'now WAIT_FOR signal.rpl_row_apply_progress_updated';
+include/assert.inc [PERFORMANCE_SCHEMA.threads reports: state=Applying batch of row changes (update), db=test, info LIKE "UPDATE t1 SET a= 2", Query]
+include/assert.inc [INFORMATION_SCHEMA.processlist reports: db=test, info LIKE "UPDATE t1 SET a= 2", command=Query]
+[SHOW PROCESSLIST reports: db=test, info LIKE "UPDATE t1 SET a= 2", command=Query]
+SET debug_sync= 'now SIGNAL signal.rpl_row_apply_process_next_row';
+SET debug_sync= 'now WAIT_FOR signal.rpl_row_apply_progress_updated';
+include/assert.inc [PERFORMANCE_SCHEMA.threads reports: state=Applying batch of row changes (delete), db=test, info LIKE "DELETE FROM t1 WHERE a=2", Query]
+include/assert.inc [INFORMATION_SCHEMA.processlist reports: db=test, info LIKE "DELETE FROM t1 WHERE a=2", command=Query]
+[SHOW PROCESSLIST reports: db=test, info LIKE "DELETE FROM t1 WHERE a=2", command=Query]
+SET debug_sync= 'now SIGNAL signal.rpl_row_apply_process_next_row';
+# Removing debug point 'dbug.rpl_apply_sync_barrier' from @@GLOBAL.debug
+[connection server_1]
+Drop table t1;
+SET @@SESSION.BINLOG_ROWS_QUERY_LOG_EVENTS=0;
+include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_1']
+[connection server_3]
+Drop table if exists t1;
+SET @@SESSION.BINLOG_ROWS_QUERY_LOG_EVENTS=0;
+include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_3']
+include/rpl_end.inc
+RESET SLAVE ALL FOR CHANNEL 'channel_1';
+RESET SLAVE ALL FOR CHANNEL 'channel_3';

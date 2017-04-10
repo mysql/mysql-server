@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -18,7 +18,8 @@
 #ifndef THREAD_POOL_PRIV_INCLUDED
 #define THREAD_POOL_PRIV_INCLUDED
 
-/*
+/**
+  @file include/mysql/thread_pool_priv.h
   The thread pool requires access to some MySQL server error codes, this is
   accessed from mysqld_error.h.
   We need access to the struct that defines the thread pool plugin interface
@@ -30,7 +31,6 @@
   to include sql_profile.h and table.h.
 */
 #include <mysqld_error.h> /* To get ER_ERROR_ON_READ */
-#define MYSQL_SERVER 1
 #include <conn_handler/channel_info.h>
 #include <conn_handler/connection_handler_manager.h>
 #include <debug_sync.h>
@@ -45,13 +45,29 @@ extern "C" {
 #endif
 
 /**
+  Called by the server when a new client connects.
+
+  @param channel_info  Pointer to object containing information
+                       about the new connection.
+
+  @retval true  failure
+  @retval false success
+*/
+typedef bool (*add_connection_t)(Channel_info *channel_info);
+
+/**
+  Called by the server when the connection handler is destroyed.
+*/
+typedef void (*end_t)(void);
+
+/**
    This structure must be populated by plugins which implement connection
    handlers and passed as an argument to my_connection_handler_set() in
    order to activate the connection handler.
 
    The structure contains pointers to plugin functions which the server
    will call when a new client connects or when the connection handler is
-   unloaded. It also containts the maximum number of threads the connection
+   unloaded. It also contains the maximum number of threads the connection
    handler will create.
 */
 struct Connection_handler_functions
@@ -61,21 +77,8 @@ struct Connection_handler_functions
   */
   uint max_threads;
 
-  /**
-     Called by the server when a new client connects.
-
-     @param channel_info  Pointer to object containing information
-                          about the new connection.
-
-     @retval true  failure
-     @retval false success
-  */
-  bool (*add_connection)(Channel_info *channel_info);
-
-  /**
-     Called by the server when the connection handler is destroyed.
-  */
-  void (*end)(void);
+  add_connection_t add_connection;
+  end_t end;
 };
 
 /* create thd from channel_info object */
@@ -92,8 +95,8 @@ void dec_connection_count();
 */
 void inc_thread_created();
 
-void thd_lock_thread_count(THD *thd);
-void thd_unlock_thread_count(THD *thd);
+void thd_lock_thread_count();
+void thd_unlock_thread_count();
 
 #ifdef __cplusplus
 }

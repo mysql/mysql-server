@@ -19,7 +19,7 @@ SELECT @@GLOBAL.binlog_error_action;
 ABORT_SERVER
 ABORT_SERVER Expected
 SELECT @@GLOBAL.binlog_error_action = VARIABLE_VALUE
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='binlog_error_action';
 @@GLOBAL.binlog_error_action = VARIABLE_VALUE
 1
@@ -29,7 +29,7 @@ COUNT(@@GLOBAL.binlog_error_action)
 1
 1 Expected
 SELECT COUNT(VARIABLE_VALUE)
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='binlog_error_action';
 COUNT(VARIABLE_VALUE)
 1

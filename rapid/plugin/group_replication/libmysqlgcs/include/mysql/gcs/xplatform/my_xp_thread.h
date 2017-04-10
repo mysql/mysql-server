@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,7 +16,8 @@
 #ifndef MY_XP_THREAD_INCLUDED
 #define MY_XP_THREAD_INCLUDED
 
-#include <xplatform/my_xp_cond.h>
+#include <errno.h>
+#include "mysql/gcs/xplatform/my_xp_cond.h"
 
 #ifndef ETIME
 #define ETIME ETIMEDOUT                         /* For FreeBSD */
@@ -25,6 +26,7 @@
 #ifndef ETIMEDOUT
 #define ETIMEDOUT 145                           /* Win32 doesn't have this */
 #endif
+
 
 typedef unsigned int uint32;
 typedef uint32 native_thread_id;
@@ -229,9 +231,9 @@ public:
   /**
     Creates thread.
 
-    @param thread attributes
-    @param routine function
-    @param function parameters
+    @param attr thread attributes
+    @param func routine function
+    @param arg function parameters
     @return success status
   */
 
@@ -242,7 +244,7 @@ public:
   /**
     One time initialization.
 
-    @param init routine to invoke
+    @param init_routine init routine to invoke
     @return success status
   */
 
@@ -252,7 +254,7 @@ public:
   /**
     Suspend invoking thread until this thread terminates.
 
-    @param pointer for a placeholder for the terminating thread status
+    @param value_ptr pointer for a placeholder for the terminating thread status
     @return success status
   */
 
@@ -346,7 +348,7 @@ public:
   /**
     Terminate invoking thread.
 
-    @param thread exit value pointer
+    @param value_ptr thread exit value pointer
   */
 
   static void exit(void *value_ptr);
@@ -355,7 +357,7 @@ public:
   /**
     Initialize thread attributes object.
 
-    @param thread attributes
+    @param attr thread attributes
     @return success status
   */
 
@@ -365,7 +367,7 @@ public:
   /**
     Destroy thread attributes object.
 
-    @param thread attributes
+    @param attr thread attributes
     @return success status
   */
 

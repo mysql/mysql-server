@@ -1,0 +1,71 @@
+#
+# Test if dynamic replication database filter rules are properly evaluated.
+#
+
+--source include/not_group_replication_plugin.inc
+source include/have_binlog_format_statement.inc;
+source include/master-slave.inc;
+
+connection slave;
+--error ER_SLAVE_CHANNEL_SQL_THREAD_MUST_STOP
+CHANGE REPLICATION FILTER replicate_do_db=(db1);
+--error ER_SLAVE_CHANNEL_SQL_THREAD_MUST_STOP
+CHANGE REPLICATION FILTER replicate_ignore_db=(db2);
+
+connection slave;
+source include/stop_slave.inc;
+#Bug19711674: Set the values to empty initially
+CHANGE REPLICATION FILTER replicate_do_db=();
+CHANGE REPLICATION FILTER replicate_ignore_db=();
+# End of Bug#19711674 test
+
+CHANGE REPLICATION FILTER replicate_do_db=(db1);
+CHANGE REPLICATION FILTER replicate_ignore_db=(db2);
+source include/start_slave.inc;
+connection master;
+
+CREATE DATABASE db1;
+CREATE DATABASE db2;
+CREATE DATABASE db3;
+
+# db is mentioned in do-db rules
+USE db1;
+CREATE TABLE t1 (a INT);
+
+# db is mentioned in ignore-db rules
+USE db2;
+CREATE TABLE t2 (a INT);
+
+# db is not mentioned in do-db or ignore-db rules
+USE db3;
+CREATE TABLE t3 (a INT);
+
+USE db1;
+INSERT INTO t1 VALUES (1);
+
+USE db2;
+INSERT INTO t2 VALUES (2);
+
+USE db3;
+INSERT INTO t3 VALUES (3);
+
+# Only db1 should be replicated to slave
+sync_slave_with_master;
+echo [on slave];
+SHOW DATABASES LIKE 'db%';
+SHOW TABLES IN db1 LIKE 't%';
+
+connection master;
+echo [on master];
+
+# Clean up
+connection master;
+echo [on master];
+DROP DATABASE IF EXISTS db1;
+DROP DATABASE IF EXISTS db2;
+DROP DATABASE IF EXISTS db3;
+--source include/rpl_end.inc
+
+connection slave;
+CHANGE REPLICATION FILTER replicate_do_db=();
+CHANGE REPLICATION FILTER replicate_ignore_db=();

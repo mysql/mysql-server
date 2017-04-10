@@ -1,10 +1,15 @@
 --source include/no_valgrind_without_big.inc
 --source include/have_max_indexes_64.inc
 
-# The include statement below is a temp one for tests that are yet to be
-# ported to run with InnoDB, but needs to be kept for tests that would need
-# MyISAM in future.
---source include/force_myisam_default.inc
+########################################
+##### WL#7554 Force schema `test` to character set latin1
+##### This test should be migrated to utf8mb4
+--disable_query_log
+let $testdbcs127=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
+alter schema default character set latin1;
+use test;
+--enable_query_log
+########################################
 
 #
 # Bug #26642: create index corrupts table definition in .frm
@@ -338,3 +343,10 @@ show create table t1;
 drop table t1;
 
 --echo "End of tests"
+
+########################################
+##### WL#7554 set schema `test` back to what it was
+--disable_query_log
+--eval alter schema test default character set $testdbcs127;
+--enable_query_log
+########################################

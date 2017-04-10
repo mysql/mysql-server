@@ -1,20 +1,20 @@
 drop table if exists t1;
 SELECT variable_name, variable_value
-FROM information_schema.global_variables
+FROM performance_schema.global_variables
 WHERE variable_name IN ('date_format', 'datetime_format', 'time_format')
 ORDER BY variable_name;
 variable_name	variable_value
-DATETIME_FORMAT	%Y-%m-%d %H:%i:%s
-DATE_FORMAT	%d.%m.%Y
-TIME_FORMAT	%H.%i.%s
+datetime_format	%Y-%m-%d %H:%i:%s
+date_format	%d.%m.%Y
+time_format	%H.%i.%s
 SELECT variable_name, variable_value
-FROM information_schema.session_variables
+FROM performance_schema.session_variables
 WHERE variable_name IN ('date_format', 'datetime_format', 'time_format')
 ORDER BY variable_name;
 variable_name	variable_value
-DATETIME_FORMAT	%Y-%m-%d %H:%i:%s
-DATE_FORMAT	%d.%m.%Y
-TIME_FORMAT	%H.%i.%s
+datetime_format	%Y-%m-%d %H:%i:%s
+date_format	%d.%m.%Y
+time_format	%H.%i.%s
 select str_to_date(concat('15-01-2001',' 2:59:58.999'),
 concat('%d-%m-%Y',' ','%H:%i:%s.%f'));
 str_to_date(concat('15-01-2001',' 2:59:58.999'),

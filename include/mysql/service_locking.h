@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -18,16 +18,10 @@
 #ifndef SERVICE_LOCKING_INCLUDED
 #define SERVICE_LOCKING_INCLUDED
 
-/*
-  This service provides support for taking read/write locks.
-  It is intended for use with fabric, but it is still a general
-  service. The locks are in a separate namespace from other
-  locks in the server, and there is also no interactions with
-  transactions (i.e. locks are not released on commit/abort).
+/**
+  @file include/mysql/service_locking.h
 
-  These locks are implemented using the metadata lock (MDL) subsystem
-  and thus deadlocks involving locking service locks and other types
-  of metadata will be detected using the MDL deadlock detector.
+  Implements ::mysql_locking_service_st
 */
 
 #ifdef __cplusplus
@@ -49,6 +43,29 @@ extern "C" {
 enum enum_locking_service_lock_type
 { LOCKING_SERVICE_READ, LOCKING_SERVICE_WRITE };
 
+typedef int (*mysql_acquire_locks_t)(MYSQL_THD opaque_thd,
+                                     const char* lock_namespace,
+                                     const char**lock_names,
+                                     size_t lock_num,
+                                     enum enum_locking_service_lock_type lock_type,
+                                     unsigned long lock_timeout);
+
+typedef int (*mysql_release_locks_t)(MYSQL_THD opaque_thd,
+                                     const char* lock_namespace);
+
+/**
+  @ingroup group_ext_plugin_services
+
+  This service provides support for taking read/write locks.
+  It is intended for use with fabric, but it is still a general
+  service. The locks are in a separate namespace from other
+  locks in the server, and there is also no interactions with
+  transactions (i.e. locks are not released on commit/abort).
+
+  These locks are implemented using the metadata lock (MDL) subsystem
+  and thus deadlocks involving locking service locks and other types
+  of metadata will be detected using the MDL deadlock detector.
+*/
 extern struct mysql_locking_service_st {
   /**
     Acquire locking service locks.
@@ -65,12 +82,10 @@ extern struct mysql_locking_service_st {
 
     @note both lock_namespace and lock_names are limited to 64 characters max.
     Names are compared using binary comparison.
-  */
-  int (*mysql_acquire_locks)(MYSQL_THD opaque_thd, const char* lock_namespace,
-                             const char**lock_names, size_t lock_num,
-                             enum enum_locking_service_lock_type lock_type,
-                             unsigned long lock_timeout);
 
+    @sa acquire_locking_service_locks, MDL_context::acquire_locks
+  */
+  mysql_acquire_locks_t mysql_acquire_locks;
   /**
     Release all lock service locks taken by the given connection
     in the given namespace.
@@ -80,8 +95,10 @@ extern struct mysql_locking_service_st {
 
     @retval 1              Release failed, error has been reported.
     @retval 0              Release successful, all locks acquired.
+
+    @sa release_locking_service_locks, MDL_context::release_locks
   */
-  int (*mysql_release_locks)(MYSQL_THD opaque_thd, const char* lock_namespace);
+  mysql_release_locks_t mysql_release_locks;
 } *mysql_locking_service;
 
 #ifdef MYSQL_DYNAMIC_PLUGIN

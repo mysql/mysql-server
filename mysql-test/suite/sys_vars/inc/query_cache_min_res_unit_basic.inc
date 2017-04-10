@@ -1,29 +1,32 @@
-############## mysql-test\t\query_cache_min_res_unit_basic.test ###############
-#                                                                             #
-# Variable Name: query_cache_min_res_unit                                     #
-# Scope: GLOBAL                                                               #
-# Access Type: Dynamic                                                        #
-# Data Type: numeric                                                          #
-# Default Value:1024                                                          #
-# Min Value:0                                                                 #
-#                                                                             #
-#                                                                             #
-# Creation Date: 2008-02-07                                                   #
-# Author:  Salman Rawala                                                      #
-#                                                                             #
-# Description: Test Cases of Dynamic System Variable query_cache_min_res_unit #
-#              that checks the behavior of this variable in the following ways#
-#              * Default Value                                                #
-#              * Valid & Invalid values                                       #
-#              * Scope & Access method                                        #
-#              * Data Integrity                                               #
-#                                                                             #
-# Reference: http://dev.mysql.com/doc/refman/5.1/en/                          #
-#  server-system-variables.html                                               #
-#                                                                             #
-###############################################################################
+############### mysql-test\t\query_cache_min_res_unit_basic.test ################
+#                                                                               #
+# Variable Name: query_cache_min_res_unit                                       #
+# Scope: GLOBAL                                                                 #
+# Access Type: Dynamic                                                          #
+# Data Type: numeric                                                            #
+# Default Value: 4096                                                           #
+# Range: 512 - 4294967295/18446744073709551615                                  #
+#                                                                               #
+#                                                                               #
+# Creation Date: 2008-02-07                                                     #
+# Author:  Salman Rawala                                                        #
+#                                                                               #
+# Description: Test Cases of Dynamic System Variable query_cache_min_res_unit   #
+#              that checks the behavior of this variable in the following ways  #
+#              * Default Value                                                  #
+#              * Valid & Invalid values                                         #
+#              * Scope & Access method                                          #
+#              * Data Integrity                                                 #
+#                                                                               #
+# Modified:    Pavan Naik, 2015-11-24                                           #
+#              Added boundary value test cases according to the type of the     #
+#              server binary.                                                   #
+#                                                                               #
+# Reference: http://dev.mysql.com/doc/refman/5.1/en/                            #
+#            server-system-variables.html                                       #
+#                                                                               #
+#################################################################################
 
---source include/have_query_cache.inc
 --source include/load_sysvars.inc
 
 ########################################################################
@@ -66,10 +69,6 @@ SELECT @@global.query_cache_min_res_unit = 4096;
 #        Change the value of query_cache_min_res_unit to a valid value         #
 ################################################################################ 
 
-SET @@global.query_cache_min_res_unit = 0;
-SELECT @@global.query_cache_min_res_unit;
-SET @@global.query_cache_min_res_unit = 1;
-SELECT @@global.query_cache_min_res_unit;
 SET @@global.query_cache_min_res_unit = 512;
 SELECT @@global.query_cache_min_res_unit;
 SET @@global.query_cache_min_res_unit = 513;
@@ -79,6 +78,30 @@ SELECT @@global.query_cache_min_res_unit;
 SET @@global.query_cache_min_res_unit = 1048575;
 SELECT @@global.query_cache_min_res_unit;
 
+SET @@global.query_cache_min_res_unit = 4294967295;
+
+if($mach64)
+{
+ --replace_result 4294967288 4294967296
+}
+SELECT @@global.query_cache_min_res_unit;
+
+# Test cases for 64-bit machines
+if($mach64)
+{
+  --disable_warnings
+  SET @@global.query_cache_min_res_unit = 18446744073709551615;
+  --enable_warnings
+
+  # Bug#11752618 - 64-BIT WINDOWS VARIABLES LIMITED TO DIFFERENT VALUES THAN 64-BIT LINUX/SO
+  let $machine_name = `SELECT CONVERT(@@version_compile_os using latin1) IN ("Win64", "Windows")`;
+
+  if($machine_name)
+  {
+    --replace_result 4294967288 18446744073709551608
+  }
+  SELECT @@global.query_cache_min_res_unit;
+}
 
 --echo '#--------------------FN_DYNVARS_132_04-------------------------#'
 ################################################################################### 
@@ -87,16 +110,12 @@ SELECT @@global.query_cache_min_res_unit;
 
 SET @@global.query_cache_min_res_unit = -1;
 SELECT @@global.query_cache_min_res_unit;
-SET @@global.query_cache_min_res_unit = 4294967296;
-SELECT @@global.query_cache_min_res_unit;
 SET @@global.query_cache_min_res_unit = 511;
 SELECT @@global.query_cache_min_res_unit;
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@global.query_cache_min_res_unit = 10000.01;
 SELECT @@global.query_cache_min_res_unit;
 SET @@global.query_cache_min_res_unit = -1024;
-SELECT @@global.query_cache_min_res_unit;
-SET @@global.query_cache_min_res_unit = 42949672950;
 SELECT @@global.query_cache_min_res_unit;
 
 --Error ER_WRONG_TYPE_FOR_VAR
@@ -106,6 +125,21 @@ SELECT @@global.query_cache_min_res_unit;
 SET @@global.query_cache_min_res_unit = 'test';
 SELECT @@global.query_cache_min_res_unit;
 
+if($mach32)
+{
+  SET @@global.query_cache_min_res_unit = 4294967296;
+  SELECT @@global.query_cache_min_res_unit;
+
+  SET @@global.query_cache_min_res_unit = 42949672950;
+  SELECT @@global.query_cache_min_res_unit;
+}
+
+if($mach64)
+{
+  --error ER_WRONG_TYPE_FOR_VAR
+  SET @@global.query_cache_min_res_unit = 18446744073709551616;
+  SELECT @@global.query_cache_min_res_unit;
+}
 
 --echo '#-------------------FN_DYNVARS_132_05----------------------------#'
 ################################################################################### 
@@ -124,11 +158,11 @@ SELECT @@query_cache_min_res_unit;
 
 --disable_warnings
 SELECT @@global.query_cache_min_res_unit = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='query_cache_min_res_unit';
 
 SELECT @@query_cache_min_res_unit = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+FROM performance_schema.session_variables 
 WHERE VARIABLE_NAME='query_cache_min_res_unit';
 --enable_warnings
 

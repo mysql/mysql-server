@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -50,7 +50,7 @@ target are overlapping.
 @return dest */
 UNIV_INLINE
 void*
-ut_memmove(void* dest, const void* sour, ulint n);
+ut_memmove(void* dest, const void* src, ulint n);
 
 /** Wrapper for memcmp(3).  Compare memory areas.
 @param[in]	str1	first memory block to compare
@@ -98,38 +98,6 @@ ut_strlcpy(
 	const char*	src,	/*!< in: source buffer */
 	ulint		size);	/*!< in: size of destination buffer */
 
-/**********************************************************************//**
-Like ut_strlcpy, but if src doesn't fit in dst completely, copies the last
-(size - 1) bytes of src, not the first.
-@return strlen(src) */
-ulint
-ut_strlcpy_rev(
-/*===========*/
-	char*		dst,	/*!< in: destination buffer */
-	const char*	src,	/*!< in: source buffer */
-	ulint		size);	/*!< in: size of destination buffer */
-
-/**********************************************************************//**
-Return the number of times s2 occurs in s1. Overlapping instances of s2
-are only counted once.
-@return the number of times s2 occurs in s1 */
-ulint
-ut_strcount(
-/*========*/
-	const char*	s1,	/*!< in: string to search in */
-	const char*	s2);	/*!< in: string to search for */
-
-/**********************************************************************//**
-Replace every occurrence of s1 in str with s2. Overlapping instances of s1
-are only replaced once.
-@return own: modified string, must be freed with ut_free() */
-char*
-ut_strreplace(
-/*==========*/
-	const char*	str,	/*!< in: string to operate on */
-	const char*	s1,	/*!< in: string to replace */
-	const char*	s2);	/*!< in: string to replace s1 with */
-
 /********************************************************************
 Concatenate 3 strings.*/
 char*
@@ -141,39 +109,40 @@ ut_str3cat(
 	const char*	s2,	/* in: string 2 */
 	const char*	s3);	/* in: string 3 */
 
-/**********************************************************************//**
-Converts a raw binary data to a NUL-terminated hex string. The output is
+/** Converts a raw binary data to a NUL-terminated hex string. The output is
 truncated if there is not enough space in "hex", make sure "hex_size" is at
-least (2 * raw_size + 1) if you do not want this to happen. Returns the
-actual number of characters written to "hex" (including the NUL).
+least (2 * raw_size + 1) if you do not want this to happen. Returns the actual
+number of characters written to "hex" (including the NUL).
+@param[in]	raw		raw data
+@param[in]	raw_size	"raw" length in bytes
+@param[out]	hex		hex string
+@param[in]	hex_size	"hex" size in bytes
 @return number of chars written */
 UNIV_INLINE
 ulint
 ut_raw_to_hex(
-/*==========*/
-	const void*	raw,		/*!< in: raw data */
-	ulint		raw_size,	/*!< in: "raw" length in bytes */
-	char*		hex,		/*!< out: hex string */
-	ulint		hex_size);	/*!< in: "hex" size in bytes */
+	const void*	raw,
+	ulint		raw_size,
+	char*		hex,
+	ulint		hex_size);
 
-/*******************************************************************//**
-Adds single quotes to the start and end of string and escapes any quotes
-by doubling them. Returns the number of bytes that were written to "buf"
-(including the terminating NUL). If buf_size is too small then the
-trailing bytes from "str" are discarded.
+/** Adds single quotes to the start and end of string and escapes any quotes by
+doubling them. Returns the number of bytes that were written to "buf"
+(including the terminating NUL). If buf_size is too small then the trailing
+bytes from "str" are discarded.
+@param[in]	str		string
+@param[in]	str_len		string length in bytes
+@param[out]	buf		output buffer
+@param[in]	buf_size	output buffer size in bytes
 @return number of bytes that were written */
 UNIV_INLINE
 ulint
 ut_str_sql_format(
-/*==============*/
-	const char*	str,		/*!< in: string */
-	ulint		str_len,	/*!< in: string length in bytes */
-	char*		buf,		/*!< out: output buffer */
-	ulint		buf_size);	/*!< in: output buffer size
-					in bytes */
+	const char*	str,
+	ulint		str_len,
+	char*		buf,
+	ulint		buf_size);
 
-#ifndef UNIV_NONINL
 #include "ut0mem.ic"
-#endif
 
 #endif

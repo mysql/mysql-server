@@ -185,6 +185,8 @@ t1	CREATE TABLE `t1` (
   `c1` char(30) NOT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=latin1
 ALTER TABLE t1 ADD KEY   USING HASH (c1);
+Warnings:
+Note	3502	This storage engine does not support the HASH index algorithm, storage engine default was used instead.
 SHOW TABLES;
 Tables_in_test
 t1
@@ -192,7 +194,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` char(30) NOT NULL,
-  KEY `c1` (`c1`) USING HASH
+  KEY `c1` (`c1`)
 ) ENGINE=ENGINE DEFAULT CHARSET=latin1
 DROP TABLE t1;
 SHOW TABLES;
@@ -207,6 +209,8 @@ t1	CREATE TABLE `t1` (
   `c1` varchar(30) NOT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=latin1
 ALTER TABLE t1 ADD KEY   USING HASH (c1);
+Warnings:
+Note	3502	This storage engine does not support the HASH index algorithm, storage engine default was used instead.
 SHOW TABLES;
 Tables_in_test
 t1
@@ -214,7 +218,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` varchar(30) NOT NULL,
-  KEY `c1` (`c1`) USING HASH
+  KEY `c1` (`c1`)
 ) ENGINE=ENGINE DEFAULT CHARSET=latin1
 DROP TABLE t1;
 SHOW TABLES;
@@ -229,6 +233,8 @@ t1	CREATE TABLE `t1` (
   `c1` binary(30) NOT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=latin1
 ALTER TABLE t1 ADD KEY   USING HASH (c1);
+Warnings:
+Note	3502	This storage engine does not support the HASH index algorithm, storage engine default was used instead.
 SHOW TABLES;
 Tables_in_test
 t1
@@ -236,7 +242,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` binary(30) NOT NULL,
-  KEY `c1` (`c1`) USING HASH
+  KEY `c1` (`c1`)
 ) ENGINE=ENGINE DEFAULT CHARSET=latin1
 DROP TABLE t1;
 SHOW TABLES;
@@ -251,6 +257,8 @@ t1	CREATE TABLE `t1` (
   `c1` varbinary(30) NOT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=latin1
 ALTER TABLE t1 ADD KEY   USING HASH (c1);
+Warnings:
+Note	3502	This storage engine does not support the HASH index algorithm, storage engine default was used instead.
 SHOW TABLES;
 Tables_in_test
 t1
@@ -258,7 +266,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` varbinary(30) NOT NULL,
-  KEY `c1` (`c1`) USING HASH
+  KEY `c1` (`c1`)
 ) ENGINE=ENGINE DEFAULT CHARSET=latin1
 DROP TABLE t1;
 SHOW TABLES;
@@ -449,6 +457,8 @@ t1	CREATE TABLE `t1` (
   `c1` char(30) NOT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=latin1
 ALTER TABLE t1 ADD INDEX   USING HASH (c1);
+Warnings:
+Note	3502	This storage engine does not support the HASH index algorithm, storage engine default was used instead.
 SHOW TABLES;
 Tables_in_test
 t1
@@ -456,7 +466,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` char(30) NOT NULL,
-  KEY `c1` (`c1`) USING HASH
+  KEY `c1` (`c1`)
 ) ENGINE=ENGINE DEFAULT CHARSET=latin1
 DROP TABLE t1;
 SHOW TABLES;
@@ -471,6 +481,8 @@ t1	CREATE TABLE `t1` (
   `c1` varchar(30) NOT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=latin1
 ALTER TABLE t1 ADD INDEX   USING HASH (c1);
+Warnings:
+Note	3502	This storage engine does not support the HASH index algorithm, storage engine default was used instead.
 SHOW TABLES;
 Tables_in_test
 t1
@@ -478,7 +490,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` varchar(30) NOT NULL,
-  KEY `c1` (`c1`) USING HASH
+  KEY `c1` (`c1`)
 ) ENGINE=ENGINE DEFAULT CHARSET=latin1
 DROP TABLE t1;
 SHOW TABLES;
@@ -493,6 +505,8 @@ t1	CREATE TABLE `t1` (
   `c1` binary(30) NOT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=latin1
 ALTER TABLE t1 ADD INDEX   USING HASH (c1);
+Warnings:
+Note	3502	This storage engine does not support the HASH index algorithm, storage engine default was used instead.
 SHOW TABLES;
 Tables_in_test
 t1
@@ -500,7 +514,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` binary(30) NOT NULL,
-  KEY `c1` (`c1`) USING HASH
+  KEY `c1` (`c1`)
 ) ENGINE=ENGINE DEFAULT CHARSET=latin1
 DROP TABLE t1;
 SHOW TABLES;
@@ -515,6 +529,8 @@ t1	CREATE TABLE `t1` (
   `c1` varbinary(30) NOT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=latin1
 ALTER TABLE t1 ADD INDEX   USING HASH (c1);
+Warnings:
+Note	3502	This storage engine does not support the HASH index algorithm, storage engine default was used instead.
 SHOW TABLES;
 Tables_in_test
 t1
@@ -522,7 +538,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` varbinary(30) NOT NULL,
-  KEY `c1` (`c1`) USING HASH
+  KEY `c1` (`c1`)
 ) ENGINE=ENGINE DEFAULT CHARSET=latin1
 DROP TABLE t1;
 SHOW TABLES;
@@ -713,6 +729,8 @@ t1	CREATE TABLE `t1` (
   `c1` char(30) NOT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=latin1
 ALTER TABLE t1 ADD KEY i1 USING HASH (c1);
+Warnings:
+Note	3502	This storage engine does not support the HASH index algorithm, storage engine default was used instead.
 SHOW TABLES;
 Tables_in_test
 t1
@@ -720,7 +738,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` char(30) NOT NULL,
-  KEY `i1` (`c1`) USING HASH
+  KEY `i1` (`c1`)
 ) ENGINE=ENGINE DEFAULT CHARSET=latin1
 DROP TABLE t1;
 SHOW TABLES;
@@ -735,6 +753,8 @@ t1	CREATE TABLE `t1` (
   `c1` varchar(30) NOT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=latin1
 ALTER TABLE t1 ADD KEY i1 USING HASH (c1);
+Warnings:
+Note	3502	This storage engine does not support the HASH index algorithm, storage engine default was used instead.
 SHOW TABLES;
 Tables_in_test
 t1
@@ -742,7 +762,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` varchar(30) NOT NULL,
-  KEY `i1` (`c1`) USING HASH
+  KEY `i1` (`c1`)
 ) ENGINE=ENGINE DEFAULT CHARSET=latin1
 DROP TABLE t1;
 SHOW TABLES;
@@ -757,6 +777,8 @@ t1	CREATE TABLE `t1` (
   `c1` binary(30) NOT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=latin1
 ALTER TABLE t1 ADD KEY i1 USING HASH (c1);
+Warnings:
+Note	3502	This storage engine does not support the HASH index algorithm, storage engine default was used instead.
 SHOW TABLES;
 Tables_in_test
 t1
@@ -764,7 +786,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` binary(30) NOT NULL,
-  KEY `i1` (`c1`) USING HASH
+  KEY `i1` (`c1`)
 ) ENGINE=ENGINE DEFAULT CHARSET=latin1
 DROP TABLE t1;
 SHOW TABLES;
@@ -779,6 +801,8 @@ t1	CREATE TABLE `t1` (
   `c1` varbinary(30) NOT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=latin1
 ALTER TABLE t1 ADD KEY i1 USING HASH (c1);
+Warnings:
+Note	3502	This storage engine does not support the HASH index algorithm, storage engine default was used instead.
 SHOW TABLES;
 Tables_in_test
 t1
@@ -786,7 +810,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` varbinary(30) NOT NULL,
-  KEY `i1` (`c1`) USING HASH
+  KEY `i1` (`c1`)
 ) ENGINE=ENGINE DEFAULT CHARSET=latin1
 DROP TABLE t1;
 SHOW TABLES;
@@ -977,6 +1001,8 @@ t1	CREATE TABLE `t1` (
   `c1` char(30) NOT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=latin1
 ALTER TABLE t1 ADD INDEX i1 USING HASH (c1);
+Warnings:
+Note	3502	This storage engine does not support the HASH index algorithm, storage engine default was used instead.
 SHOW TABLES;
 Tables_in_test
 t1
@@ -984,7 +1010,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` char(30) NOT NULL,
-  KEY `i1` (`c1`) USING HASH
+  KEY `i1` (`c1`)
 ) ENGINE=ENGINE DEFAULT CHARSET=latin1
 DROP TABLE t1;
 SHOW TABLES;
@@ -999,6 +1025,8 @@ t1	CREATE TABLE `t1` (
   `c1` varchar(30) NOT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=latin1
 ALTER TABLE t1 ADD INDEX i1 USING HASH (c1);
+Warnings:
+Note	3502	This storage engine does not support the HASH index algorithm, storage engine default was used instead.
 SHOW TABLES;
 Tables_in_test
 t1
@@ -1006,7 +1034,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` varchar(30) NOT NULL,
-  KEY `i1` (`c1`) USING HASH
+  KEY `i1` (`c1`)
 ) ENGINE=ENGINE DEFAULT CHARSET=latin1
 DROP TABLE t1;
 SHOW TABLES;
@@ -1021,6 +1049,8 @@ t1	CREATE TABLE `t1` (
   `c1` binary(30) NOT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=latin1
 ALTER TABLE t1 ADD INDEX i1 USING HASH (c1);
+Warnings:
+Note	3502	This storage engine does not support the HASH index algorithm, storage engine default was used instead.
 SHOW TABLES;
 Tables_in_test
 t1
@@ -1028,7 +1058,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` binary(30) NOT NULL,
-  KEY `i1` (`c1`) USING HASH
+  KEY `i1` (`c1`)
 ) ENGINE=ENGINE DEFAULT CHARSET=latin1
 DROP TABLE t1;
 SHOW TABLES;
@@ -1043,6 +1073,8 @@ t1	CREATE TABLE `t1` (
   `c1` varbinary(30) NOT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=latin1
 ALTER TABLE t1 ADD INDEX i1 USING HASH (c1);
+Warnings:
+Note	3502	This storage engine does not support the HASH index algorithm, storage engine default was used instead.
 SHOW TABLES;
 Tables_in_test
 t1
@@ -1050,7 +1082,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` varbinary(30) NOT NULL,
-  KEY `i1` (`c1`) USING HASH
+  KEY `i1` (`c1`)
 ) ENGINE=ENGINE DEFAULT CHARSET=latin1
 DROP TABLE t1;
 SHOW TABLES;

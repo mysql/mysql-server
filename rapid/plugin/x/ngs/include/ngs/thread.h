@@ -23,9 +23,6 @@
 #ifdef NGS_STANDALONE
 # include <pthread.h>
 #else
-# if  !defined(MYSQL_DYNAMIC_PLUGIN) && defined(_WIN32) && !defined(XPLUGIN_UNIT_TESTS)
-#   define MYSQL_DYNAMIC_PLUGIN 1
-# endif
 # include <my_thread.h>
 # include <thr_mutex.h>
 # include <thr_cond.h>

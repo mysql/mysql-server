@@ -243,6 +243,7 @@ let $MYSQLD_DATADIR= `SELECT @@datadir`;
 while ($n)
 {
   echo "database d$n:";
+  --replace_regex /_[0-9]+\.SDI/_XXX.SDI/
   --list_files $MYSQLD_DATADIR/d$n
   dec $n;
 }

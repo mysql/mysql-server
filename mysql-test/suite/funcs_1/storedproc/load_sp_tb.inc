@@ -16,8 +16,8 @@ SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 # use the same .inc to cleanup before and after the test
 --source suite/funcs_1/storedproc/cleanup_sp_tb.inc
 
-CREATE DATABASE db_storedproc;
-CREATE DATABASE db_storedproc_1;
+CREATE DATABASE db_storedproc charset utf8mb4;
+CREATE DATABASE db_storedproc_1 charset utf8mb4;
 
 USE db_storedproc;
 

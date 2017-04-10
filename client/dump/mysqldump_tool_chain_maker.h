@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -18,17 +18,20 @@
 #ifndef MYSQLDUMP_TOOL_CHAIN_MAKER_INCLUDED
 #define MYSQLDUMP_TOOL_CHAIN_MAKER_INCLUDED
 
-#include "mysql_object_reader.h"
-#include "object_queue.h"
-#include "i_chain_maker.h"
-#include "i_object_reader.h"
-#include "i_dump_task.h"
-#include "chain_data.h"
-#include "abstract_chain_element.h"
-#include "abstract_mysql_chain_element_extension.h"
-#include "mysqldump_tool_chain_maker_options.h"
+#include <functional>
 #include <map>
 #include <vector>
+
+#include "abstract_chain_element.h"
+#include "abstract_mysql_chain_element_extension.h"
+#include "chain_data.h"
+#include "i_chain_maker.h"
+#include "i_dump_task.h"
+#include "i_object_reader.h"
+#include "my_inttypes.h"
+#include "mysql_object_reader.h"
+#include "mysqldump_tool_chain_maker_options.h"
+#include "object_queue.h"
 
 namespace Mysql{
 namespace Tools{
@@ -45,7 +48,7 @@ class Mysqldump_tool_chain_maker : public I_chain_maker,
 public:
   Mysqldump_tool_chain_maker(
     I_connection_provider* connection_provider,
-    Mysql::I_callable<bool, const Mysql::Tools::Base::Message_data&>*
+    std::function<bool(const Mysql::Tools::Base::Message_data&)>*
     message_handler, Simple_id_generator* object_id_generator,
     Mysqldump_tool_chain_maker_options* options,
     Mysql::Tools::Base::Abstract_program* program);
@@ -56,6 +59,19 @@ public:
     Chain_data* chain_data, I_dump_task* dump_task);
 
   void delete_chain(uint64 chain_id, I_object_reader* chain);
+
+  // Fix "inherits ... via dominance" warnings
+  void register_progress_watcher( I_progress_watcher* new_progress_watcher)
+  { Abstract_chain_element::register_progress_watcher(new_progress_watcher); }
+
+  // Fix "inherits ... via dominance" warnings
+  uint64 get_id() const
+  { return Abstract_chain_element::get_id(); }
+
+protected:
+  // Fix "inherits ... via dominance" warnings
+  void item_completion_in_child_callback(Item_processing_data* item_processed)
+  { Abstract_chain_element::item_completion_in_child_callback(item_processed); }
 
 private:
   void mysql_thread_callback(bool is_starting);

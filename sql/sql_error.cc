@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -42,8 +42,34 @@ This file contains the implementation of error and warnings related
 ***********************************************************************/
 
 #include "sql_error.h"
-#include "sp_rcontext.h"
+
+#include <float.h>
+#include <stdarg.h>
+#include <algorithm>
+
+#include "binary_log_types.h"
+#include "decimal.h"
+#include "derror.h"       // ER_THD
+#include "item.h"
 #include "log.h"          // sql_print_warning
+#include "my_dbug.h"
+#include "my_decimal.h"
+#include "my_inttypes.h"
+#include "my_macros.h"
+#include "my_sys.h"
+#include "my_time.h"
+#include "mysql/psi/mysql_statement.h"
+#include "mysql/psi/psi_base.h"
+#include "mysqld_error.h"
+#include "protocol.h"
+#include "sql_class.h"    // THD
+#include "sql_const.h"
+#include "sql_lex.h"
+#include "sql_plugin.h"
+#include "sql_servers.h"
+#include "system_variables.h"
+#include "table.h"
+#include "thr_malloc.h"
 
 using std::min;
 using std::max;
@@ -423,10 +449,10 @@ void Diagnostics_area::set_eof_status(THD *thd)
 }
 
 
-void Diagnostics_area::set_error_status(uint mysql_errno)
+void Diagnostics_area::set_error_status(THD *thd, uint mysql_errno)
 {
   set_error_status(mysql_errno,
-                   ER(mysql_errno),
+                   ER_THD(thd, mysql_errno),
                    mysql_errno_to_sqlstate(mysql_errno));
 }
 
@@ -746,7 +772,7 @@ void push_warning(THD *thd, Sql_condition::enum_severity_level severity,
   @param thd      Thread handle
   @param severity Severity of warning (note, warning)
   @param code     Error number
-  @param msg      Clear error message
+  @param format   Error message printf format
 */
 
 void push_warning_printf(THD *thd, Sql_condition::enum_severity_level severity,
@@ -850,7 +876,7 @@ bool mysqld_show_warnings(THD *thd, ulong levels_to_show)
   ulonglong idx= 0;
   Protocol *protocol=thd->get_protocol();
 
-  unit->set_limit(sel);
+  unit->set_limit(thd, sel);
 
   Diagnostics_area::Sql_condition_iterator it= first_da->sql_conditions();
   while (!rc && (err= it++))
@@ -929,12 +955,12 @@ ErrConvString::ErrConvString(const struct st_mysql_time *ltime, uint dec)
 /**
    Convert value for dispatch to error message(see WL#751).
 
-   @param to          buffer for converted string, 0-terminated
+   @param buff        buffer for converted string, 0-terminated
    @param to_length   size of the buffer
    @param from        string which should be converted
    @param from_length string length
    @param from_cs     charset from convert
- 
+
    @retval
    number of bytes written to "to"
 */

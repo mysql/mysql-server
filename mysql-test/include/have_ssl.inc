@@ -1,4 +1,5 @@
--- require r/have_ssl.require
-disable_query_log;
-show variables like 'have_ssl';
-enable_query_log;
+let $have_ssl= `SELECT @@have_ssl LIKE 'YES'`;
+if (!$have_ssl)
+{
+  --skip Test requires 'have_ssl'
+}

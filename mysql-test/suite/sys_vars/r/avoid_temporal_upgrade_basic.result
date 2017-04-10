@@ -6,18 +6,18 @@ Warning	1287	'@@avoid_temporal_upgrade' is deprecated and will be removed in a f
 SHOW GLOBAL VARIABLES LIKE 'avoid_temporal_upgrade';
 Variable_name	Value
 avoid_temporal_upgrade	OFF
-SELECT * FROM information_schema.global_variables WHERE variable_name='avoid_temporal_upgrade';
+SELECT * FROM performance_schema.global_variables WHERE variable_name='avoid_temporal_upgrade';
 VARIABLE_NAME	VARIABLE_VALUE
-AVOID_TEMPORAL_UPGRADE	OFF
+avoid_temporal_upgrade	OFF
 #It is not a session variable.
 SELECT @@session.avoid_temporal_upgrade;
 ERROR HY000: Variable 'avoid_temporal_upgrade' is a GLOBAL variable
 SHOW SESSION VARIABLES LIKE 'avoid_temporal_upgrade';
 Variable_name	Value
 avoid_temporal_upgrade	OFF
-SELECT * FROM information_schema.session_variables WHERE variable_name='avoid_temporal_upgrade';
+SELECT * FROM performance_schema.session_variables WHERE variable_name='avoid_temporal_upgrade';
 VARIABLE_NAME	VARIABLE_VALUE
-AVOID_TEMPORAL_UPGRADE	OFF
+avoid_temporal_upgrade	OFF
 SET SESSION avoid_temporal_upgrade= ON;
 ERROR HY000: Variable 'avoid_temporal_upgrade' is a GLOBAL variable and should be set with SET GLOBAL
 #Test setting the variable to various values.

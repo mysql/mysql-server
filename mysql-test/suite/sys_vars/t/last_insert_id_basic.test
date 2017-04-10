@@ -10,8 +10,8 @@ select @@session.last_insert_id;
 show global variables like 'last_insert_id';
 show session variables like 'last_insert_id';
 --disable_warnings
-select * from information_schema.global_variables where variable_name='last_insert_id';
-select * from information_schema.session_variables where variable_name='last_insert_id';
+select * from performance_schema.global_variables where variable_name='last_insert_id';
+select * from performance_schema.session_variables where variable_name='last_insert_id';
 --enable_warnings
 
 #
@@ -26,8 +26,8 @@ select @@session.last_insert_id;
 show global variables like 'last_insert_id';
 show session variables like 'last_insert_id';
 --disable_warnings
-select * from information_schema.global_variables where variable_name='last_insert_id';
-select * from information_schema.session_variables where variable_name='last_insert_id';
+select * from performance_schema.global_variables where variable_name='last_insert_id';
+select * from performance_schema.session_variables where variable_name='last_insert_id';
 --enable_warnings
 
 #

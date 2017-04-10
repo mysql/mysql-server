@@ -5,3 +5,6 @@ ALTER TABLE performance_schema.events_waits_summary_by_instance ADD INDEX test_i
 ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'
 CREATE UNIQUE INDEX test_index ON performance_schema.events_waits_summary_by_instance(EVENT_NAME);
 ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'
+DROP INDEX `PRIMARY`
+  ON performance_schema.events_waits_summary_by_instance;
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'

@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -21,7 +21,10 @@
   Performance schema timers (declarations).
 */
 #include <my_rdtsc.h>
+
+#include "my_inttypes.h"
 #include "pfs_column_types.h"
+#include "pfs_histogram.h"
 
 /** Conversion factor, from micro seconds to pico seconds. */
 #define MICROSEC_TO_PICOSEC 1000000
@@ -39,19 +42,22 @@ struct time_normalizer
     @param timer_name the timer name
     @return the normalizer for the timer
   */
-  static time_normalizer* get(enum_timer_name timer_name);
+  static time_normalizer *get(enum_timer_name timer_name);
 
-  /** Timer value at server statup. */
+  /** Timer value at server startup. */
   ulonglong m_v0;
   /** Conversion factor from timer values to pico seconds. */
   ulonglong m_factor;
+  /** Histogram bucket timers, expressed in timer unit. */
+  ulonglong m_bucket_timer[NUMBER_OF_BUCKETS + 1];
 
   /**
     Convert a wait from timer units to pico seconds.
     @param wait a wait, expressed in timer units
     @return the wait, expressed in pico seconds
   */
-  inline ulonglong wait_to_pico(ulonglong wait)
+  inline ulonglong
+  wait_to_pico(ulonglong wait)
   {
     return wait * m_factor;
   }
@@ -61,7 +67,8 @@ struct time_normalizer
     @param t a time, expressed in timer units
     @return the time, expressed in pico seconds
   */
-  inline ulonglong time_to_pico(ulonglong t)
+  inline ulonglong
+  time_to_pico(ulonglong t)
   {
     return (t == 0 ? 0 : (t - m_v0) * m_factor);
   }
@@ -74,8 +81,13 @@ struct time_normalizer
     @param[out] pico_end end time, expressed in pico seconds
     @param[out] pico_wait wait time, expressed in pico seconds
   */
-  void to_pico(ulonglong start, ulonglong end,
-               ulonglong *pico_start, ulonglong *pico_end, ulonglong *pico_wait);
+  void to_pico(ulonglong start,
+               ulonglong end,
+               ulonglong *pico_start,
+               ulonglong *pico_end,
+               ulonglong *pico_wait);
+
+  ulong bucket_index(ulonglong t);
 };
 
 /**
@@ -112,10 +124,9 @@ extern MY_TIMER_INFO pfs_timer_info;
 /** Initialize the timer component. */
 void init_timers();
 
-extern "C"
-{
-  /** A timer function. */
-  typedef ulonglong (*timer_fct_t)(void);
+extern "C" {
+/** A timer function. */
+typedef ulonglong (*timer_fct_t)(void);
 }
 
 /**
@@ -139,7 +150,7 @@ ulonglong get_timer_raw_value(enum_timer_name timer_name);
   @param[out] fct the timer function
   @return timer value, in timer units
 */
-ulonglong get_timer_raw_value_and_function(enum_timer_name timer_name, timer_fct_t *fct);
+ulonglong get_timer_raw_value_and_function(enum_timer_name timer_name,
+                                           timer_fct_t *fct);
 
 #endif
-

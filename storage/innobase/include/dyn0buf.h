@@ -270,8 +270,8 @@ public:
 
 	/**
 	Pushes n bytes.
-	@param str	string to write
-	@param len	string length */
+	@param	ptr	string to write
+	@param	len	string length */
 	void push(const byte* ptr, ib_uint32_t len)
 	{
 		while (len > 0) {

@@ -6,7 +6,7 @@
 ALTER TABLE query_rewrite.rewrite_rules DROP COLUMN pattern_digest;
 ALTER TABLE query_rewrite.rewrite_rules ENGINE = myisam;
 SELECT engine FROM information_schema.tables WHERE table_name = 'rewrite_rules';
-engine
+ENGINE
 MyISAM
 CREATE TABLE t1 ( a VARCHAR(10), b VARCHAR(10) );
 INSERT INTO t1 VALUES ( 'abc', 'def' ), ( 'ghi', 'klm' ), ( 'nop', 'qrs' );
@@ -218,7 +218,7 @@ Note	1105	Query 'SELECT 'The_original_query'' rewritten to 'SELECT "The_rewritte
 DELETE FROM query_rewrite.rewrite_rules;
 ALTER TABLE query_rewrite.rewrite_rules ENGINE = memory;
 SELECT engine FROM information_schema.tables WHERE table_name = 'rewrite_rules';
-engine
+ENGINE
 MEMORY
 CREATE TABLE t1 ( a VARCHAR(10), b VARCHAR(10) );
 INSERT INTO t1 VALUES ( 'abc', 'def' ), ( 'ghi', 'klm' ), ( 'nop', 'qrs' );

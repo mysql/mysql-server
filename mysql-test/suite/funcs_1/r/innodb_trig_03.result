@@ -61,7 +61,7 @@ f172 numeric zerofill,
 f173 numeric unsigned zerofill,
 f174 numeric (0),
 f175 numeric (64)
-) engine = <engine_to_be_used>;
+) charset latin1 engine = <engine_to_be_used>;
 Warnings:
 Note	1265	Data truncated for column 'f150' at row 1
 Note	1265	Data truncated for column 'f151' at row 1
@@ -85,14 +85,15 @@ grant ALL  on *.* to test_noprivs@localhost;
 revoke TRIGGER on *.* from test_noprivs@localhost;
 show grants for test_noprivs@localhost;
 Grants for test_noprivs@localhost
-GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, RELOAD, SHUTDOWN, PROCESS, FILE, REFERENCES, INDEX, ALTER, SHOW DATABASES, SUPER, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, REPLICATION SLAVE, REPLICATION CLIENT, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, CREATE USER, EVENT, CREATE TABLESPACE ON *.* TO 'test_noprivs'@'localhost'
+GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, RELOAD, SHUTDOWN, PROCESS, FILE, REFERENCES, INDEX, ALTER, SHOW DATABASES, SUPER, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, REPLICATION SLAVE, REPLICATION CLIENT, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, CREATE USER, EVENT, CREATE TABLESPACE, CREATE ROLE, DROP ROLE ON *.* TO `test_noprivs`@`localhost`
+GRANT BINLOG_ADMIN,CONNECTION_ADMIN,ENCRYPTION_KEY_ADMIN,GROUP_REPLICATION_ADMIN,REPLICATION_SLAVE_ADMIN,ROLE_ADMIN,SET_USER_ID,SYSTEM_VARIABLES_ADMIN ON *.* TO `test_noprivs`@`localhost`
 revoke ALL PRIVILEGES, GRANT OPTION FROM test_yesprivs@localhost;
 grant TRIGGER on *.* to test_yesprivs@localhost;
 grant SELECT on priv_db.t1 to test_yesprivs@localhost;
 show grants for test_yesprivs@localhost;
 Grants for test_yesprivs@localhost
-GRANT TRIGGER ON *.* TO 'test_yesprivs'@'localhost'
-GRANT SELECT ON `priv_db`.`t1` TO 'test_yesprivs'@'localhost'
+GRANT TRIGGER ON *.* TO `test_yesprivs`@`localhost`
+GRANT SELECT ON `priv_db`.`t1` TO `test_yesprivs`@`localhost`
 
 Testcase 3.5.3.2:
 -----------------
@@ -161,19 +162,21 @@ grant ALL  on *.* to test_noprivs@localhost;
 revoke UPDATE  on *.* from test_noprivs@localhost;
 show grants for test_noprivs@localhost;
 Grants for test_noprivs@localhost
-GRANT SELECT, INSERT, DELETE, CREATE, DROP, RELOAD, SHUTDOWN, PROCESS, FILE, REFERENCES, INDEX, ALTER, SHOW DATABASES, SUPER, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, REPLICATION SLAVE, REPLICATION CLIENT, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, CREATE USER, EVENT, TRIGGER, CREATE TABLESPACE ON *.* TO 'test_noprivs'@'localhost'
+GRANT SELECT, INSERT, DELETE, CREATE, DROP, RELOAD, SHUTDOWN, PROCESS, FILE, REFERENCES, INDEX, ALTER, SHOW DATABASES, SUPER, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, REPLICATION SLAVE, REPLICATION CLIENT, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, CREATE USER, EVENT, TRIGGER, CREATE TABLESPACE, CREATE ROLE, DROP ROLE ON *.* TO `test_noprivs`@`localhost`
+GRANT BINLOG_ADMIN,CONNECTION_ADMIN,ENCRYPTION_KEY_ADMIN,GROUP_REPLICATION_ADMIN,REPLICATION_SLAVE_ADMIN,ROLE_ADMIN,SET_USER_ID,SYSTEM_VARIABLES_ADMIN ON *.* TO `test_noprivs`@`localhost`
 revoke ALL PRIVILEGES, GRANT OPTION FROM test_yesprivs@localhost;
 grant TRIGGER, UPDATE on *.* to test_yesprivs@localhost;
 show grants for test_yesprivs@localhost;
 Grants for test_yesprivs@localhost
-GRANT UPDATE, TRIGGER ON *.* TO 'test_yesprivs'@'localhost'
+GRANT UPDATE, TRIGGER ON *.* TO `test_yesprivs`@`localhost`
 select current_user;
 current_user
 test_noprivs@localhost
 use priv_db;
 show grants;
 Grants for test_noprivs@localhost
-GRANT SELECT, INSERT, DELETE, CREATE, DROP, RELOAD, SHUTDOWN, PROCESS, FILE, REFERENCES, INDEX, ALTER, SHOW DATABASES, SUPER, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, REPLICATION SLAVE, REPLICATION CLIENT, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, CREATE USER, EVENT, TRIGGER, CREATE TABLESPACE ON *.* TO 'test_noprivs'@'localhost'
+GRANT SELECT, INSERT, DELETE, CREATE, DROP, RELOAD, SHUTDOWN, PROCESS, FILE, REFERENCES, INDEX, ALTER, SHOW DATABASES, SUPER, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, REPLICATION SLAVE, REPLICATION CLIENT, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, CREATE USER, EVENT, TRIGGER, CREATE TABLESPACE, CREATE ROLE, DROP ROLE ON *.* TO `test_noprivs`@`localhost`
+GRANT BINLOG_ADMIN,CONNECTION_ADMIN,ENCRYPTION_KEY_ADMIN,GROUP_REPLICATION_ADMIN,REPLICATION_SLAVE_ADMIN,ROLE_ADMIN,SET_USER_ID,SYSTEM_VARIABLES_ADMIN ON *.* TO `test_noprivs`@`localhost`
 select f1 from t1 order by f1;
 f1
 insert 3.5.3.2-no
@@ -197,7 +200,7 @@ current_user
 test_yesprivs@localhost
 show grants;
 Grants for test_yesprivs@localhost
-GRANT UPDATE, TRIGGER ON *.* TO 'test_yesprivs'@'localhost'
+GRANT UPDATE, TRIGGER ON *.* TO `test_yesprivs`@`localhost`
 create trigger trg4a_2 before INSERT  on t1 for each row
 set new.f1 = 'trig 3.5.3.7-2a';
 insert into t1 (f1) values ('insert 3.5.3.7-2b');
@@ -220,18 +223,18 @@ grant ALL  on priv_db.* to test_noprivs@localhost;
 revoke UPDATE  on priv_db.* from test_noprivs@localhost;
 show grants for test_noprivs;
 Grants for test_noprivs@%
-GRANT TRIGGER ON *.* TO 'test_noprivs'@'%'
+GRANT TRIGGER ON *.* TO `test_noprivs`@`%`
 revoke ALL PRIVILEGES, GRANT OPTION FROM test_yesprivs@localhost;
 grant TRIGGER on *.* to test_yesprivs@localhost;
 grant UPDATE on priv_db.* to test_yesprivs@localhost;
 show grants for test_yesprivs@localhost;
 Grants for test_yesprivs@localhost
-GRANT TRIGGER ON *.* TO 'test_yesprivs'@'localhost'
-GRANT UPDATE ON `priv_db`.* TO 'test_yesprivs'@'localhost'
+GRANT TRIGGER ON *.* TO `test_yesprivs`@`localhost`
+GRANT UPDATE ON `priv_db`.* TO `test_yesprivs`@`localhost`
 show grants;
 Grants for test_noprivs@localhost
-GRANT USAGE ON *.* TO 'test_noprivs'@'localhost'
-GRANT SELECT, INSERT, DELETE, CREATE, DROP, REFERENCES, INDEX, ALTER, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, EVENT, TRIGGER ON `priv_db`.* TO 'test_noprivs'@'localhost'
+GRANT USAGE ON *.* TO `test_noprivs`@`localhost`
+GRANT SELECT, INSERT, DELETE, CREATE, DROP, REFERENCES, INDEX, ALTER, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, EVENT, TRIGGER ON `priv_db`.* TO `test_noprivs`@`localhost`
 use priv_db;
 create trigger trg4b_1 before UPDATE on t1 for each row
 set new.f1 = 'trig 3.5.3.7-1b';
@@ -257,8 +260,8 @@ trig 3.5.3.7-2a
 drop trigger trg4b_1;
 show grants;
 Grants for test_yesprivs@localhost
-GRANT TRIGGER ON *.* TO 'test_yesprivs'@'localhost'
-GRANT UPDATE ON `priv_db`.* TO 'test_yesprivs'@'localhost'
+GRANT TRIGGER ON *.* TO `test_yesprivs`@`localhost`
+GRANT UPDATE ON `priv_db`.* TO `test_yesprivs`@`localhost`
 use priv_db;
 create trigger trg4b_2 before UPDATE  on t1 for each row
 set new.f1 = 'trig 3.5.3.7-2b';
@@ -292,18 +295,18 @@ grant ALL  on priv_db.t1 to test_noprivs@localhost;
 revoke UPDATE  on priv_db.t1 from test_noprivs@localhost;
 show grants for test_noprivs;
 Grants for test_noprivs@%
-GRANT TRIGGER ON *.* TO 'test_noprivs'@'%'
+GRANT TRIGGER ON *.* TO `test_noprivs`@`%`
 revoke ALL PRIVILEGES, GRANT OPTION FROM test_yesprivs@localhost;
 grant TRIGGER on *.* to test_yesprivs@localhost;
 grant UPDATE on priv_db.t1 to test_yesprivs@localhost;
 show grants for test_yesprivs@localhost;
 Grants for test_yesprivs@localhost
-GRANT TRIGGER ON *.* TO 'test_yesprivs'@'localhost'
-GRANT UPDATE ON `priv_db`.`t1` TO 'test_yesprivs'@'localhost'
+GRANT TRIGGER ON *.* TO `test_yesprivs`@`localhost`
+GRANT UPDATE ON `priv_db`.`t1` TO `test_yesprivs`@`localhost`
 show grants;
 Grants for test_noprivs@localhost
-GRANT TRIGGER ON *.* TO 'test_noprivs'@'localhost'
-GRANT SELECT, INSERT, DELETE, CREATE, DROP, REFERENCES, INDEX, ALTER, CREATE VIEW, SHOW VIEW, TRIGGER ON `priv_db`.`t1` TO 'test_noprivs'@'localhost'
+GRANT TRIGGER ON *.* TO `test_noprivs`@`localhost`
+GRANT SELECT, INSERT, DELETE, CREATE, DROP, REFERENCES, INDEX, ALTER, CREATE VIEW, SHOW VIEW, TRIGGER ON `priv_db`.`t1` TO `test_noprivs`@`localhost`
 use priv_db;
 create trigger trg4c_1 before INSERT on t1 for each row
 set new.f1 = 'trig 3.5.3.7-1c';
@@ -321,8 +324,8 @@ trig 3.5.3.7-2b
 drop trigger trg4c_1;
 show grants;
 Grants for test_yesprivs@localhost
-GRANT TRIGGER ON *.* TO 'test_yesprivs'@'localhost'
-GRANT UPDATE ON `priv_db`.`t1` TO 'test_yesprivs'@'localhost'
+GRANT TRIGGER ON *.* TO `test_yesprivs`@`localhost`
+GRANT UPDATE ON `priv_db`.`t1` TO `test_yesprivs`@`localhost`
 use priv_db;
 create trigger trg4c_2 before INSERT  on t1 for each row
 set new.f1 = 'trig 3.5.3.7-2c';
@@ -346,17 +349,17 @@ grant TRIGGER on *.* to test_noprivs@localhost;
 grant SELECT (f1), INSERT (f1) on priv_db.t1 to test_noprivs@localhost;
 show grants for test_noprivs;
 Grants for test_noprivs@%
-GRANT TRIGGER ON *.* TO 'test_noprivs'@'%'
+GRANT TRIGGER ON *.* TO `test_noprivs`@`%`
 revoke ALL PRIVILEGES, GRANT OPTION FROM test_yesprivs@localhost;
 grant TRIGGER on *.* to test_yesprivs@localhost;
 grant UPDATE (f1) on priv_db.t1 to test_yesprivs@localhost;
 show grants for test_noprivs;
 Grants for test_noprivs@%
-GRANT TRIGGER ON *.* TO 'test_noprivs'@'%'
+GRANT TRIGGER ON *.* TO `test_noprivs`@`%`
 show grants;
 Grants for test_noprivs@localhost
-GRANT TRIGGER ON *.* TO 'test_noprivs'@'localhost'
-GRANT SELECT (f1), INSERT (f1) ON `priv_db`.`t1` TO 'test_noprivs'@'localhost'
+GRANT TRIGGER ON *.* TO `test_noprivs`@`localhost`
+GRANT SELECT (`f1`), INSERT (`f1`) ON `priv_db`.`t1` TO `test_noprivs`@`localhost`
 use priv_db;
 create trigger trg4d_1 before INSERT on t1 for each row
 set new.f1 = 'trig 3.5.3.7-1d';
@@ -375,8 +378,8 @@ trig 3.5.3.7-2c
 drop trigger trg4d_1;
 show grants;
 Grants for test_yesprivs@localhost
-GRANT TRIGGER ON *.* TO 'test_yesprivs'@'localhost'
-GRANT UPDATE (f1) ON `priv_db`.`t1` TO 'test_yesprivs'@'localhost'
+GRANT TRIGGER ON *.* TO `test_yesprivs`@`localhost`
+GRANT UPDATE (`f1`) ON `priv_db`.`t1` TO `test_yesprivs`@`localhost`
 use priv_db;
 create trigger trg4d_2 before INSERT  on t1 for each row
 set new.f1 = 'trig 3.5.3.7-2d';
@@ -401,19 +404,21 @@ grant ALL  on *.* to test_noprivs@localhost;
 revoke SELECT  on *.* from test_noprivs@localhost;
 show grants for test_noprivs@localhost;
 Grants for test_noprivs@localhost
-GRANT INSERT, UPDATE, DELETE, CREATE, DROP, RELOAD, SHUTDOWN, PROCESS, FILE, REFERENCES, INDEX, ALTER, SHOW DATABASES, SUPER, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, REPLICATION SLAVE, REPLICATION CLIENT, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, CREATE USER, EVENT, TRIGGER, CREATE TABLESPACE ON *.* TO 'test_noprivs'@'localhost'
+GRANT INSERT, UPDATE, DELETE, CREATE, DROP, RELOAD, SHUTDOWN, PROCESS, FILE, REFERENCES, INDEX, ALTER, SHOW DATABASES, SUPER, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, REPLICATION SLAVE, REPLICATION CLIENT, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, CREATE USER, EVENT, TRIGGER, CREATE TABLESPACE, CREATE ROLE, DROP ROLE ON *.* TO `test_noprivs`@`localhost`
+GRANT BINLOG_ADMIN,CONNECTION_ADMIN,ENCRYPTION_KEY_ADMIN,GROUP_REPLICATION_ADMIN,REPLICATION_SLAVE_ADMIN,ROLE_ADMIN,SET_USER_ID,SYSTEM_VARIABLES_ADMIN ON *.* TO `test_noprivs`@`localhost`
 revoke ALL PRIVILEGES, GRANT OPTION FROM test_yesprivs@localhost;
 grant TRIGGER, SELECT on *.* to test_yesprivs@localhost;
 show grants for test_yesprivs@localhost;
 Grants for test_yesprivs@localhost
-GRANT SELECT, TRIGGER ON *.* TO 'test_yesprivs'@'localhost'
+GRANT SELECT, TRIGGER ON *.* TO `test_yesprivs`@`localhost`
 select current_user;
 current_user
 test_noprivs@localhost
 use priv_db;
 show grants;
 Grants for test_noprivs@localhost
-GRANT INSERT, UPDATE, DELETE, CREATE, DROP, RELOAD, SHUTDOWN, PROCESS, FILE, REFERENCES, INDEX, ALTER, SHOW DATABASES, SUPER, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, REPLICATION SLAVE, REPLICATION CLIENT, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, CREATE USER, EVENT, TRIGGER, CREATE TABLESPACE ON *.* TO 'test_noprivs'@'localhost'
+GRANT INSERT, UPDATE, DELETE, CREATE, DROP, RELOAD, SHUTDOWN, PROCESS, FILE, REFERENCES, INDEX, ALTER, SHOW DATABASES, SUPER, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, REPLICATION SLAVE, REPLICATION CLIENT, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, CREATE USER, EVENT, TRIGGER, CREATE TABLESPACE, CREATE ROLE, DROP ROLE ON *.* TO `test_noprivs`@`localhost`
+GRANT BINLOG_ADMIN,CONNECTION_ADMIN,ENCRYPTION_KEY_ADMIN,GROUP_REPLICATION_ADMIN,REPLICATION_SLAVE_ADMIN,ROLE_ADMIN,SET_USER_ID,SYSTEM_VARIABLES_ADMIN ON *.* TO `test_noprivs`@`localhost`
 create trigger trg5a_1 before INSERT on t1 for each row
 set @test_var = new.f1;
 set @test_var = 'before trig 3.5.3.8-1a';
@@ -432,7 +437,7 @@ current_user
 test_yesprivs@localhost
 show grants;
 Grants for test_yesprivs@localhost
-GRANT SELECT, TRIGGER ON *.* TO 'test_yesprivs'@'localhost'
+GRANT SELECT, TRIGGER ON *.* TO `test_yesprivs`@`localhost`
 create trigger trg5a_2 before INSERT  on t1 for each row
 set @test_var= new.f1;
 set @test_var= 'before trig 3.5.3.8-2a';
@@ -453,19 +458,19 @@ grant ALL  on priv_db.* to test_noprivs@localhost;
 revoke SELECT  on priv_db.* from test_noprivs@localhost;
 show grants for test_noprivs@localhost;
 Grants for test_noprivs@localhost
-GRANT TRIGGER ON *.* TO 'test_noprivs'@'localhost'
-GRANT INSERT, UPDATE, DELETE, CREATE, DROP, REFERENCES, INDEX, ALTER, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, EVENT, TRIGGER ON `priv_db`.* TO 'test_noprivs'@'localhost'
+GRANT TRIGGER ON *.* TO `test_noprivs`@`localhost`
+GRANT INSERT, UPDATE, DELETE, CREATE, DROP, REFERENCES, INDEX, ALTER, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, EVENT, TRIGGER ON `priv_db`.* TO `test_noprivs`@`localhost`
 revoke ALL PRIVILEGES, GRANT OPTION FROM test_yesprivs@localhost;
 grant TRIGGER on *.* to test_yesprivs@localhost;
 grant SELECT on priv_db.* to test_yesprivs@localhost;
 show grants for test_yesprivs@localhost;
 Grants for test_yesprivs@localhost
-GRANT TRIGGER ON *.* TO 'test_yesprivs'@'localhost'
-GRANT SELECT ON `priv_db`.* TO 'test_yesprivs'@'localhost'
+GRANT TRIGGER ON *.* TO `test_yesprivs`@`localhost`
+GRANT SELECT ON `priv_db`.* TO `test_yesprivs`@`localhost`
 show grants;
 Grants for test_noprivs@localhost
-GRANT TRIGGER ON *.* TO 'test_noprivs'@'localhost'
-GRANT INSERT, UPDATE, DELETE, CREATE, DROP, REFERENCES, INDEX, ALTER, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, EVENT, TRIGGER ON `priv_db`.* TO 'test_noprivs'@'localhost'
+GRANT TRIGGER ON *.* TO `test_noprivs`@`localhost`
+GRANT INSERT, UPDATE, DELETE, CREATE, DROP, REFERENCES, INDEX, ALTER, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, EVENT, TRIGGER ON `priv_db`.* TO `test_noprivs`@`localhost`
 use priv_db;
 create trigger trg5b_1 before UPDATE on t1 for each row
 set @test_var= new.f1;
@@ -482,8 +487,8 @@ before trig 3.5.3.8-1b
 drop trigger trg5b_1;
 show grants;
 Grants for test_yesprivs@localhost
-GRANT TRIGGER ON *.* TO 'test_yesprivs'@'localhost'
-GRANT SELECT ON `priv_db`.* TO 'test_yesprivs'@'localhost'
+GRANT TRIGGER ON *.* TO `test_yesprivs`@`localhost`
+GRANT SELECT ON `priv_db`.* TO `test_yesprivs`@`localhost`
 use priv_db;
 create trigger trg5b_2 before UPDATE  on t1 for each row
 set @test_var= new.f1;
@@ -506,19 +511,19 @@ grant ALL  on priv_db.t1 to test_noprivs@localhost;
 revoke SELECT  on priv_db.t1 from test_noprivs@localhost;
 show grants for test_noprivs@localhost;
 Grants for test_noprivs@localhost
-GRANT TRIGGER ON *.* TO 'test_noprivs'@'localhost'
-GRANT INSERT, UPDATE, DELETE, CREATE, DROP, REFERENCES, INDEX, ALTER, CREATE VIEW, SHOW VIEW, TRIGGER ON `priv_db`.`t1` TO 'test_noprivs'@'localhost'
+GRANT TRIGGER ON *.* TO `test_noprivs`@`localhost`
+GRANT INSERT, UPDATE, DELETE, CREATE, DROP, REFERENCES, INDEX, ALTER, CREATE VIEW, SHOW VIEW, TRIGGER ON `priv_db`.`t1` TO `test_noprivs`@`localhost`
 revoke ALL PRIVILEGES, GRANT OPTION FROM test_yesprivs@localhost;
 grant TRIGGER on *.* to test_yesprivs@localhost;
 grant SELECT on priv_db.t1 to test_yesprivs@localhost;
 show grants for test_yesprivs@localhost;
 Grants for test_yesprivs@localhost
-GRANT TRIGGER ON *.* TO 'test_yesprivs'@'localhost'
-GRANT SELECT ON `priv_db`.`t1` TO 'test_yesprivs'@'localhost'
+GRANT TRIGGER ON *.* TO `test_yesprivs`@`localhost`
+GRANT SELECT ON `priv_db`.`t1` TO `test_yesprivs`@`localhost`
 show grants;
 Grants for test_noprivs@localhost
-GRANT TRIGGER ON *.* TO 'test_noprivs'@'localhost'
-GRANT INSERT, UPDATE, DELETE, CREATE, DROP, REFERENCES, INDEX, ALTER, CREATE VIEW, SHOW VIEW, TRIGGER ON `priv_db`.`t1` TO 'test_noprivs'@'localhost'
+GRANT TRIGGER ON *.* TO `test_noprivs`@`localhost`
+GRANT INSERT, UPDATE, DELETE, CREATE, DROP, REFERENCES, INDEX, ALTER, CREATE VIEW, SHOW VIEW, TRIGGER ON `priv_db`.`t1` TO `test_noprivs`@`localhost`
 use priv_db;
 create trigger trg5c_1 before INSERT on t1 for each row
 set @test_var= new.f1;
@@ -531,8 +536,8 @@ before trig 3.5.3.8-1c
 drop trigger trg5c_1;
 show grants;
 Grants for test_yesprivs@localhost
-GRANT TRIGGER ON *.* TO 'test_yesprivs'@'localhost'
-GRANT SELECT ON `priv_db`.`t1` TO 'test_yesprivs'@'localhost'
+GRANT TRIGGER ON *.* TO `test_yesprivs`@`localhost`
+GRANT SELECT ON `priv_db`.`t1` TO `test_yesprivs`@`localhost`
 use priv_db;
 create trigger trg5c_2 before INSERT  on t1 for each row
 set @test_var= new.f1;
@@ -550,19 +555,19 @@ grant TRIGGER on *.* to test_noprivs@localhost;
 grant UPDATE (f1), INSERT (f1) on priv_db.t1 to test_noprivs@localhost;
 show grants for test_noprivs@localhost;
 Grants for test_noprivs@localhost
-GRANT TRIGGER ON *.* TO 'test_noprivs'@'localhost'
-GRANT INSERT (f1), UPDATE (f1) ON `priv_db`.`t1` TO 'test_noprivs'@'localhost'
+GRANT TRIGGER ON *.* TO `test_noprivs`@`localhost`
+GRANT INSERT (`f1`), UPDATE (`f1`) ON `priv_db`.`t1` TO `test_noprivs`@`localhost`
 revoke ALL PRIVILEGES, GRANT OPTION FROM test_yesprivs@localhost;
 grant TRIGGER on *.* to test_yesprivs@localhost;
 grant SELECT (f1) on priv_db.t1 to test_yesprivs@localhost;
 show grants for test_noprivs@localhost;
 Grants for test_noprivs@localhost
-GRANT TRIGGER ON *.* TO 'test_noprivs'@'localhost'
-GRANT INSERT (f1), UPDATE (f1) ON `priv_db`.`t1` TO 'test_noprivs'@'localhost'
+GRANT TRIGGER ON *.* TO `test_noprivs`@`localhost`
+GRANT INSERT (`f1`), UPDATE (`f1`) ON `priv_db`.`t1` TO `test_noprivs`@`localhost`
 show grants;
 Grants for test_noprivs@localhost
-GRANT TRIGGER ON *.* TO 'test_noprivs'@'localhost'
-GRANT INSERT (f1), UPDATE (f1) ON `priv_db`.`t1` TO 'test_noprivs'@'localhost'
+GRANT TRIGGER ON *.* TO `test_noprivs`@`localhost`
+GRANT INSERT (`f1`), UPDATE (`f1`) ON `priv_db`.`t1` TO `test_noprivs`@`localhost`
 use priv_db;
 create trigger trg5d_1 before INSERT on t1 for each row
 set @test_var= new.f1;
@@ -575,8 +580,8 @@ before trig 3.5.3.8-1d
 drop trigger trg5d_1;
 show grants;
 Grants for test_yesprivs@localhost
-GRANT TRIGGER ON *.* TO 'test_yesprivs'@'localhost'
-GRANT SELECT (f1) ON `priv_db`.`t1` TO 'test_yesprivs'@'localhost'
+GRANT TRIGGER ON *.* TO `test_yesprivs`@`localhost`
+GRANT SELECT (`f1`) ON `priv_db`.`t1` TO `test_yesprivs`@`localhost`
 use priv_db;
 create trigger trg5d_2 before INSERT  on t1 for each row
 set @test_var= new.f1;
@@ -600,9 +605,9 @@ grant SELECT, UPDATE on priv_db.t1 to test_yesprivs@localhost;
 grant SELECT on priv_db.t2 to test_yesprivs@localhost;
 show grants for test_yesprivs@localhost;
 Grants for test_yesprivs@localhost
-GRANT TRIGGER ON *.* TO 'test_yesprivs'@'localhost'
-GRANT SELECT ON `priv_db`.`t2` TO 'test_yesprivs'@'localhost'
-GRANT SELECT, UPDATE ON `priv_db`.`t1` TO 'test_yesprivs'@'localhost'
+GRANT TRIGGER ON *.* TO `test_yesprivs`@`localhost`
+GRANT SELECT, UPDATE ON `priv_db`.`t1` TO `test_yesprivs`@`localhost`
+GRANT SELECT ON `priv_db`.`t2` TO `test_yesprivs`@`localhost`
 select current_user;
 current_user
 test_yesprivs@localhost

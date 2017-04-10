@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2008, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,7 +17,14 @@
 #ifndef _EVENT_PARSE_DATA_H_
 #define _EVENT_PARSE_DATA_H_
 
-#include "sql_alloc.h"
+#include <stddef.h>
+
+#include "lex_string.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_time.h"                 // interval_type
+#include "mysql/mysql_lex_string.h"  // LEX_STRING
+#include "sql_alloc.h"               // Sql_alloc
 
 class Item;
 class THD;
@@ -40,7 +47,7 @@ public:
   {
     ENABLED = 1,
     DISABLED,
-    SLAVESIDE_DISABLED  
+    SLAVESIDE_DISABLED
   };
 
   enum enum_on_completion
@@ -78,23 +85,42 @@ public:
   my_time_t starts;
   my_time_t ends;
   my_time_t execute_at;
-  my_bool starts_null;
-  my_bool ends_null;
-  my_bool execute_at_null;
+  bool starts_null;
+  bool ends_null;
+  bool execute_at_null;
 
   sp_name *identifier;
   Item* item_expression;
   longlong expression;
   interval_type interval;
 
-  static Event_parse_data *
-  new_instance(THD *thd);
-
   bool
   check_parse_data(THD *thd);
 
   bool
   check_dates(THD *thd, int previous_on_completion);
+
+  Event_parse_data()
+    :on_completion(Event_parse_data::ON_COMPLETION_DEFAULT),
+    status(Event_parse_data::ENABLED), status_changed(false),
+    do_not_create(false), body_changed(false),
+    item_starts(NULL), item_ends(NULL), item_execute_at(NULL),
+    starts_null(true), ends_null(true), execute_at_null(true),
+    item_expression(NULL), expression(0)
+  {
+    DBUG_ENTER("Event_parse_data::Event_parse_data");
+
+    /* Actually in the parser STARTS is always set */
+    starts= ends= execute_at= 0;
+
+    comment.str= NULL;
+    comment.length= 0;
+
+    DBUG_VOID_RETURN;
+  }
+
+  ~Event_parse_data()
+  {};
 
 private:
 
@@ -115,9 +141,6 @@ private:
 
   int
   init_ends(THD *thd);
-
-  Event_parse_data();
-  ~Event_parse_data();
 
   void
   report_bad_value(const char *item_name, Item *bad_item);

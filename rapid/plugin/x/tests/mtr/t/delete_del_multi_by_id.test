@@ -1,7 +1,7 @@
 ## generated
 ## Doc: Delete multiple documents by id
 
---source ../include/xplugin_preamble.inc
+--source include/xplugin_preamble.inc
 ## Test starts here
 --write_file $MYSQL_TMP_DIR/delete_del_multi_by_id.tmp
 ## Test data

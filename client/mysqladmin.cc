@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,18 +17,30 @@
 
 /* maintaince of mysql databases */
 
-#include "client_priv.h"
-#include "my_default.h"
-#include <signal.h>
+#include <fcntl.h>
 #include <my_thread.h>				/* because of signal()	*/
-#include <sys/stat.h>
 #include <mysql.h>
-#include <sql_common.h>
-#include <welcome_copyright_notice.h>           /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
 #include <mysqld_error.h>                       /* to check server error codes */
-#include <string>  /* std::string */
+#include <signal.h>
+#include <sql_common.h>
+#include <stdlib.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <time.h>
+#include <welcome_copyright_notice.h>           /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
+#include <string>
 
-#define ADMIN_VERSION "8.42"
+#include "client_priv.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_default.h"
+#include "my_inttypes.h"
+#include "my_io.h"
+#include "my_macros.h"
+#include "mysql/service_mysql_alloc.h"
+#include "print_version.h"
+#include "typelib.h"
+
 #define MAX_MYSQL_VAR 512
 #define SHUTDOWN_DEF_TIMEOUT 3600		/* Wait for shutdown */
 #define MAX_TRUNC_LENGTH 3
@@ -39,10 +51,10 @@ char truncated_var_names[MAX_MYSQL_VAR][MAX_TRUNC_LENGTH];
 char ex_var_names[MAX_MYSQL_VAR][FN_REFLEN];
 ulonglong last_values[MAX_MYSQL_VAR];
 static int interval=0;
-static my_bool option_force=0,interrupted=0,new_line=0,
-               opt_compress=0, opt_relative=0, opt_verbose=0, opt_vertical=0,
-               tty_password= 0, opt_nobeep, opt_secure_auth= TRUE;
-static my_bool debug_info_flag= 0, debug_check_flag= 0;
+static bool option_force=0,interrupted=0,new_line=0,
+            opt_compress=0, opt_relative=0, opt_verbose=0, opt_vertical=0,
+            tty_password= 0, opt_nobeep, opt_secure_auth= TRUE;
+static bool debug_info_flag= 0, debug_check_flag= 0;
 static uint tcp_port = 0, option_wait = 0, option_silent=0, nr_iterations;
 static uint opt_count_iterations= 0, my_end_arg;
 static char *opt_bind_addr = NULL;
@@ -50,10 +62,10 @@ static ulong opt_connect_timeout, opt_shutdown_timeout;
 static char * unix_port=0;
 static char *opt_plugin_dir= 0, *opt_default_auth= 0;
 static uint opt_enable_cleartext_plugin= 0;
-static my_bool using_opt_enable_cleartext_plugin= 0;
-static my_bool opt_show_warnings= 0;
+static bool using_opt_enable_cleartext_plugin= 0;
+static bool opt_show_warnings= 0;
 
-#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
+#if defined (_WIN32)
 static char *shared_memory_base_name=0;
 #endif
 static uint opt_protocol=0;
@@ -66,16 +78,15 @@ static myf error_flags; /* flags to pass to my_printf_error, like ME_BELL */
 */
 
 static uint ex_val_max_len[MAX_MYSQL_VAR];
-static my_bool ex_status_printed = 0; /* First output is not relative. */
+static bool ex_status_printed = 0; /* First output is not relative. */
 static uint ex_var_count, max_var_length, max_val_length;
 
 #include <sslopt-vars.h>
 
-static void print_version(void);
 static void usage(void);
-extern "C" my_bool get_one_option(int optid, const struct my_option *opt,
-                                  char *argument);
-static my_bool sql_connect(MYSQL *mysql, uint wait);
+extern "C" bool get_one_option(int optid, const struct my_option *opt,
+                               char *argument);
+static bool sql_connect(MYSQL *mysql, uint wait);
 static int execute_commands(MYSQL *mysql,int argc, char **argv);
 static char **mask_password(int argc, char ***argv);
 static int drop_db(MYSQL *mysql,const char *db);
@@ -89,9 +100,9 @@ static void print_relative_row_vert(MYSQL_RES *result, MYSQL_ROW cur, uint row);
 static void print_relative_header();
 static void print_relative_line();
 static void truncate_names();
-static my_bool get_pidfile(MYSQL *mysql, char *pidfile);
-static my_bool wait_pidfile(char *pidfile, time_t last_modified,
-			    struct stat *pidfile_status);
+static bool get_pidfile(MYSQL *mysql, char *pidfile);
+static bool wait_pidfile(char *pidfile, time_t last_modified,
+                         struct stat *pidfile_status);
 static void store_values(MYSQL_RES *result);
 static void print_warnings(MYSQL *mysql);
 
@@ -196,7 +207,7 @@ static struct my_option my_long_options[] =
   {"secure-auth", OPT_SECURE_AUTH, "Refuse client connecting to server if it"
     " uses old (pre-4.1.1) protocol. Deprecated. Always TRUE",
     &opt_secure_auth, &opt_secure_auth, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
-#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
+#if defined (_WIN32)
   {"shared-memory-base-name", OPT_SHARED_MEMORY_BASE_NAME,
    "Base name of shared memory.", &shared_memory_base_name, &shared_memory_base_name,
    0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -210,6 +221,7 @@ static struct my_option my_long_options[] =
    &interval, &interval, 0, GET_INT, REQUIRED_ARG, 0, 0, 0, 0,
    0, 0},
 #include <sslopt-longopts.h>
+
   {"user", 'u', "User for login if not current user.", &user,
    &user, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"verbose", 'v', "Write more information.", &opt_verbose,
@@ -249,7 +261,7 @@ static struct my_option my_long_options[] =
 
 static const char *load_default_groups[]= { "mysqladmin","client",0 };
 
-my_bool
+bool
 get_one_option(int optid, const struct my_option *opt MY_ATTRIBUTE((unused)),
 	       char *argument)
 {
@@ -288,6 +300,7 @@ get_one_option(int optid, const struct my_option *opt MY_ATTRIBUTE((unused)),
     DBUG_PUSH(argument ? argument : "d:t:o,/tmp/mysqladmin.trace");
     break;
 #include <sslopt-case.h>
+
   case 'V':
     print_version();
     exit(0);
@@ -339,7 +352,7 @@ int main(int argc,char *argv[])
 {
   int error= 0, ho_error, temp_argc;
   int first_command;
-  my_bool can_handle_passwords;
+  bool can_handle_passwords;
   MYSQL mysql;
   char **commands, **save_argv, **temp_argv;
 
@@ -390,7 +403,7 @@ int main(int argc,char *argv[])
   SSL_SET_OPTIONS(&mysql);
   if (opt_protocol)
     mysql_options(&mysql,MYSQL_OPT_PROTOCOL,(char*)&opt_protocol);
-#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
+#if defined (_WIN32)
   if (shared_memory_base_name)
     mysql_options(&mysql,MYSQL_SHARED_MEMORY_BASE_NAME,shared_memory_base_name);
 #endif
@@ -520,7 +533,7 @@ int main(int argc,char *argv[])
   mysql_close(&mysql);
   my_free(opt_password);
   my_free(user);
-#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
+#if defined (_WIN32)
   my_free(shared_memory_base_name);
 #endif
   free_defaults(save_argv);
@@ -554,9 +567,9 @@ void endprog(int signal_number MY_ATTRIBUTE((unused)))
    @retval 1         failure
 */
 
-static my_bool sql_connect(MYSQL *mysql, uint wait)
+static bool sql_connect(MYSQL *mysql, uint wait)
 {
-  my_bool info=0;
+  bool info=0;
 
   for (;;)
   {
@@ -698,7 +711,7 @@ static int execute_commands(MYSQL *mysql,int argc, char **argv)
     case ADMIN_SHUTDOWN:
     {
       char pidfile[FN_REFLEN];
-      my_bool got_pidfile= 0;
+      bool got_pidfile= 0;
       time_t last_modified= 0;
       struct stat pidfile_status;
 
@@ -710,14 +723,7 @@ static int execute_commands(MYSQL *mysql,int argc, char **argv)
 	  !stat(pidfile, &pidfile_status))
 	last_modified= pidfile_status.st_mtime;
 
-      /* Issue COM_SHUTDOWN if server version is older then 5.7*/
-      int resShutdown= 1;
-      if(mysql_get_server_version(mysql) < 50709)
-        resShutdown= mysql_shutdown(mysql, SHUTDOWN_DEFAULT);
-      else
-        resShutdown= mysql_query(mysql, "shutdown");
-
-      if(resShutdown)
+      if(mysql_query(mysql, "shutdown"))
       {
         my_printf_error(0, "shutdown failed; error: '%s'", error_flags,
         mysql_error(mysql));
@@ -1091,13 +1097,15 @@ static int execute_commands(MYSQL *mysql,int argc, char **argv)
       }
 
       /* Warn about password being set in non ssl connection */
-#if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
-      uint ssl_mode;
-      if (!mysql_get_option(mysql, MYSQL_OPT_SSL_MODE, &ssl_mode) &&
-          ssl_mode <= SSL_MODE_PREFERRED)
+#if defined(HAVE_OPENSSL)
       {
-        fprintf(stderr, "Warning: Since password will be sent to server in "
-                "plain text, use ssl connection to ensure password safety.\n");
+        uint ssl_mode= 0;
+        if (!mysql_get_option(mysql, MYSQL_OPT_SSL_MODE, &ssl_mode) &&
+            ssl_mode <= SSL_MODE_PREFERRED)
+        {
+          fprintf(stderr, "Warning: Since password will be sent to server in "
+                  "plain text, use ssl connection to ensure password safety.\n");
+        }
       }
 #endif
       memset(buff, 0, sizeof(buff));
@@ -1250,13 +1258,6 @@ static char **mask_password(int argc, char ***argv)
   temp_argv[argc]= my_strdup(PSI_NOT_INSTRUMENTED, (*argv)[argc], MYF(MY_FAE));
   return(temp_argv);
 }
-
-static void print_version(void)
-{
-  printf("%s  Ver %s Distrib %s, for %s on %s\n",my_progname,ADMIN_VERSION,
-	 MYSQL_SERVER_VERSION,SYSTEM_TYPE,MACHINE_TYPE);
-}
-
 
 static void usage(void)
 {
@@ -1443,7 +1444,7 @@ static void print_relative_row(MYSQL_RES *result, MYSQL_ROW cur, uint row)
 
 static void print_relative_row_vert(MYSQL_RES *result MY_ATTRIBUTE((unused)),
 				    MYSQL_ROW cur,
-				    uint row MY_ATTRIBUTE((unused)))
+				    uint row)
 {
   uint length;
   ulonglong tmp;
@@ -1548,7 +1549,7 @@ static void truncate_names()
 }
 
 
-static my_bool get_pidfile(MYSQL *mysql, char *pidfile)
+static bool get_pidfile(MYSQL *mysql, char *pidfile)
 {
   MYSQL_RES* result;
 
@@ -1575,8 +1576,8 @@ static my_bool get_pidfile(MYSQL *mysql, char *pidfile)
   Return 1 if pid file didn't disappear or change
 */
 
-static my_bool wait_pidfile(char *pidfile, time_t last_modified,
-			    struct stat *pidfile_status)
+static bool wait_pidfile(char *pidfile, time_t last_modified,
+                         struct stat *pidfile_status)
 {
   char buff[FN_REFLEN];
   int error= 1;

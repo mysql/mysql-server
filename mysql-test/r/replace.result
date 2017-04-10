@@ -23,8 +23,8 @@ replace into t1 values (126,"first updated");
 replace into t1 values (63,default);
 select * from t1;
 a	b
-126	first updated
 63	default_value
+126	first updated
 127	last
 drop table t1;
 SET sql_mode = default;

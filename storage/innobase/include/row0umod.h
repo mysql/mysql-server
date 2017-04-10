@@ -44,8 +44,6 @@ row_undo_mod(
 	que_thr_t*	thr)	/*!< in: query thread */
 	MY_ATTRIBUTE((warn_unused_result));
 
-#ifndef UNIV_NONINL
 #include "row0umod.ic"
-#endif
 
 #endif

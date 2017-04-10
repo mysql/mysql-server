@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -26,11 +26,12 @@ Created July 18, 2007 Vasil Dimov
 #ifndef i_s_h
 #define i_s_h
 
+class THD;
+struct TABLE_LIST;
+
 const char plugin_author[] = "Oracle Corporation";
 
 extern struct st_mysql_plugin	i_s_innodb_trx;
-extern struct st_mysql_plugin	i_s_innodb_locks;
-extern struct st_mysql_plugin	i_s_innodb_lock_waits;
 extern struct st_mysql_plugin	i_s_innodb_cmp;
 extern struct st_mysql_plugin	i_s_innodb_cmp_reset;
 extern struct st_mysql_plugin	i_s_innodb_cmp_per_index;
@@ -58,6 +59,7 @@ extern struct st_mysql_plugin	i_s_innodb_sys_foreign_cols;
 extern struct st_mysql_plugin	i_s_innodb_sys_tablespaces;
 extern struct st_mysql_plugin	i_s_innodb_sys_datafiles;
 extern struct st_mysql_plugin	i_s_innodb_sys_virtual;
+extern struct st_mysql_plugin	i_s_innodb_cached_indexes;
 
 /** Fill handlerton based INFORMATION_SCHEMA.FILES table.
 @param[in,out]	thd	thread/connection descriptor

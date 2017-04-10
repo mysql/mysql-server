@@ -1,6 +1,4 @@
--- source include/have_innodb.inc
 # CREATE TABLE ... KEY_BLOCK_SIZE=8; does not work with page size = 4k
--- source include/have_innodb_16k.inc
 
 # Check the default value
 SELECT @@global.innodb_cmp_per_index_enabled;

@@ -4,7 +4,7 @@
 SELECT @@global.avoid_temporal_upgrade;
 SHOW GLOBAL VARIABLES LIKE 'avoid_temporal_upgrade';
 --disable_warnings
-SELECT * FROM information_schema.global_variables WHERE variable_name='avoid_temporal_upgrade';
+SELECT * FROM performance_schema.global_variables WHERE variable_name='avoid_temporal_upgrade';
 --enable_warnings
 
 --echo #It is not a session variable.
@@ -12,7 +12,7 @@ SELECT * FROM information_schema.global_variables WHERE variable_name='avoid_tem
 SELECT @@session.avoid_temporal_upgrade;
 SHOW SESSION VARIABLES LIKE 'avoid_temporal_upgrade';
 --disable_warnings
-SELECT * FROM information_schema.session_variables WHERE variable_name='avoid_temporal_upgrade';
+SELECT * FROM performance_schema.session_variables WHERE variable_name='avoid_temporal_upgrade';
 --enable_warnings
 --error ER_GLOBAL_VARIABLE
 SET SESSION avoid_temporal_upgrade= ON;

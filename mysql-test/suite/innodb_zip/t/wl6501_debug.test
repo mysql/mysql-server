@@ -8,8 +8,7 @@
 # times and so added with --big-test option
 # (Check for innodb_wl6501_crash_x.test)
 
---source include/have_innodb.inc
---source include/have_innodb_zip.inc
+--source include/have_innodb_max_16k.inc
 --source include/have_debug.inc
 
 # Valgrind would complain about memory leaks when we crash on purpose.
@@ -22,18 +21,14 @@
 let $wl6501_file_per_table = 1;
 let $wl6501_row_fmt = compact;
 let $wl6501_kbs = 16;
-let $wl6501_file_format = 'Antelope';
 --source suite/innodb_zip/include/innodb_wl6501_crash_stripped.inc
 
 let $wl6501_file_per_table = 0;
 let $wl6501_row_fmt = compact;
 let $wl6501_kbs = 16;
-let $wl6501_file_format = 'Antelope';
 --source suite/innodb_zip/include/innodb_wl6501_crash_stripped.inc
 
 let $wl6501_file_per_table = 1;
 let $wl6501_row_fmt = compressed;
 let $wl6501_kbs = 16;
-let $wl6501_file_format = 'Barracuda';
 --source suite/innodb_zip/include/innodb_wl6501_crash_stripped.inc
-

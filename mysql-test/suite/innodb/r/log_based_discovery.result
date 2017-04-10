@@ -1,0 +1,46 @@
+# create bootstrap file
+# Stop the MTR default DB server
+# Run the bootstrap command of datadir1
+# Start the DB server with datadir1
+# restart: --innodb_page_size=PAGE_SIZE --innodb_log_file_size=LOG_FILE_SIZE --innodb_undo_tablespaces=5 --innodb_data_home_dir=MYSQLD_HOME_DATA_DIR1 --innodb_undo_directory=MYSQLD_UNDO_DATADIR1 --datadir=MYSQLD_DATADIR1
+SET GLOBAL innodb_master_thread_disabled_debug=1;
+CREATE TABLE tab1(c1 INT, c2 VARCHAR(30));
+INSERT INTO tab1 VALUES(1, 'Test consistency undo*');
+SELECT * FROM tab1;
+c1	c2
+1	Test consistency undo*
+# Kill the server
+# Run the bootstrap command of datadir2
+# Start the DB server with datadir2
+# restart: --innodb_page_size=PAGE_SIZE --innodb_log_file_size=LOG_FILE_SIZE --innodb_undo_tablespaces=5 --innodb_data_home_dir=MYSQLD_HOME_DATA_DIR2 --innodb_undo_directory=MYSQLD_UNDO_DATADIR2 --datadir=MYSQLD_DATADIR2
+CREATE TABLE tab2(c1 INT, c2 VARCHAR(30));
+INSERT INTO tab2 VALUES(1, 'Test consistency undo*');
+SELECT * FROM tab2;
+c1	c2
+1	Test consistency undo*
+# Stop the DB server with datadir2
+# Start the DB1 server with wrong path of undo tablespaces, expect an recovery errors
+# Start the DB1 server with wrong path of ibdata* tablespaces, expect an recovery errors
+# Start the DB server with right path, expect no recovery errors
+# restart: --innodb_page_size=PAGE_SIZE --innodb_log_file_size=LOG_FILE_SIZE --innodb_undo_tablespaces=5 --innodb_data_home_dir=MYSQLD_HOME_DATA_DIR1 --innodb_undo_directory=MYSQLD_UNDO_DATADIR1 --datadir=MYSQLD_DATADIR1
+SELECT @@innodb_undo_tablespaces;
+@@innodb_undo_tablespaces
+5
+SELECT @@innodb_data_home_dir;
+@@innodb_data_home_dir
+MYSQL_TMP_DIR/innodb_data_home_dir1
+SELECT @@innodb_undo_directory;
+@@innodb_undo_directory
+MYSQL_TMP_DIR/innodb_undo_data_dir1
+SELECT * FROM tab1;
+c1	c2
+1	Test consistency undo*
+DROP TABLE tab1;
+# Stop the DB server with datadir1
+# Start the DB server with datadir2 for cleanup
+# restart: --innodb_page_size=PAGE_SIZE --innodb_log_file_size=LOG_FILE_SIZE --innodb_undo_tablespaces=5 --innodb_data_home_dir=MYSQLD_HOME_DATA_DIR2 --innodb_undo_directory=MYSQLD_UNDO_DATADIR2 --datadir=MYSQLD_DATADIR2i
+SELECT * FROM tab2;
+c1	c2
+1	Test consistency undo*
+DROP TABLE tab2;
+# restart

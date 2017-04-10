@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,6 +16,7 @@
 #ifndef READ_MODE_HANDLER_INCLUDE
 #define READ_MODE_HANDLER_INCLUDE
 
+#include "my_inttypes.h"
 #include "sql_service_command.h"
 
 class Read_mode_handler
@@ -75,9 +76,9 @@ private:
   /** If the mode was set or not */
   bool read_mode_active;
   /** If the server is in (simple) read mode */
-  long server_read_only;
+  longlong server_read_only;
   /** If the server is in super read mode*/
-  long server_super_read_only;
+  longlong server_super_read_only;
 
 #ifndef DBUG_OFF
   /** Make the read mode activation fail (when debug flags don't work) */

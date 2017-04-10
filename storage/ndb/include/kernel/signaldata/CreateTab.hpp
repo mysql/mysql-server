@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -96,7 +96,9 @@ struct TcSchVerReq
   Uint32 noOfPrimaryKeys;
   Uint32 singleUserMode;
   Uint32 userDefinedPartition;
-  STATIC_CONST( SignalLength = 9 );
+  Uint32 readBackup;
+  Uint32 fullyReplicated;
+  STATIC_CONST( SignalLength = 11 );
 };
 
 struct TcSchVerConf

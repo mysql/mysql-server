@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,26 +13,33 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "my_global.h"
-#include "sql_bootstrap.h"
-#include "sql_initialize.h"
-#include "my_rnd.h"
-#include "m_ctype.h"
-#include "mysqld.h"
-#include <my_sys.h>
-#include "sql_authentication.h"
-#include "log.h"
-#include "sql_class.h"
-#include "sql_show.h"
+#include "sql/sql_initialize.h"
 
-#include "../scripts/sql_commands_system_tables.h"
-#include "../scripts/sql_commands_system_data.h"
+#include <fcntl.h>
+#include <stdio.h>
+#include <string.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+
 #include "../scripts/sql_commands_help_data.h"
 #include "../scripts/sql_commands_sys_schema.h"
+#include "../scripts/sql_commands_system_data.h"
+#include "../scripts/sql_commands_system_tables.h"
+#include "current_thd.h"
+#include "log.h"
+#include "m_ctype.h"
+#include "my_dir.h"
+#include "my_io.h"
+#include "my_rnd.h"
+#include "my_sys.h"
+#include "mysql_com.h"
+#include "mysqld.h"
+#include "sql_bootstrap.h"
+#include "sql_class.h"
+#include "sql_error.h"
 
 static const char *initialization_cmds[] =
 {
-  "CREATE DATABASE mysql;\n",
   "USE mysql;\n",
   NULL
 };
@@ -43,7 +50,7 @@ static const char *initialization_cmds[] =
 
 char insert_user_buffer[sizeof(INSERT_USER_CMD) + GENERATED_PASSWORD_LENGTH * 2];
 
-my_bool opt_initialize_insecure= FALSE;
+bool opt_initialize_insecure= FALSE;
 
 static const char *initialization_data[] =
 {
@@ -147,7 +154,7 @@ static void generate_password(char *password, int size)
 
 /* these globals don't need protection since it's single-threaded execution */
 static int cmds_ofs=0, cmd_ofs= 0;
-static File_command_iterator *init_file_iter= NULL;
+static bootstrap::File_command_iterator *init_file_iter= NULL;
 
 void Compiled_in_command_iterator::begin(void)
 {
@@ -210,7 +217,7 @@ int Compiled_in_command_iterator::next(std::string &query, int *read_error,
       /* need to allow error reporting */
       THD *thd= current_thd;
       thd->get_stmt_da()->set_overwrite_status(true);
-      init_file_iter= new File_command_iterator(opt_init_file);
+      init_file_iter= new bootstrap::File_command_iterator(opt_init_file);
       if (!init_file_iter->has_file())
       {
         sql_print_error("Failed to open the bootstrap file %s", opt_init_file);
@@ -254,8 +261,6 @@ void Compiled_in_command_iterator::end(void)
   If it exists, is empty and the process can write into it
   no action is taken and the directory is accepted.
   Otherwise an error is thrown.
-  "Empty" means no files other than the ones starting with "."
-  or in the --ignore-db list.
 
   @param  data_home  the normalized path to the data directory
   @return status
@@ -286,8 +291,7 @@ bool initialize_create_data_directory(const char *data_home)
     for (uint i=0; i < dir->number_off_files; i++)
     {
       FILEINFO *file= dir->dir_entry + i;
-      if (file->name[0] != '.' &&
-          !is_in_ignore_db_dirs_list(file->name))
+      if (file->name[0] != '.')
       {
         no_files= false;
         break;

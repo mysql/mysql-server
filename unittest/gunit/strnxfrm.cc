@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,6 +14,9 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "strnxfrm.h"
+
+#include "my_inttypes.h"
+#include "my_macros.h"
 
 namespace strnxfrm_unittest {
 
@@ -40,8 +43,8 @@ strnxfrm_orig(const CHARSET_INFO *cs,
     for (end= dst + frmlen; dst < end; dst++)
       *dst= map[(uchar) *dst];
   }
-  return my_strxfrm_pad_desc_and_reverse(cs, d0, dst, d0 + dstlen,
-                                         (uint)(nweights - frmlen), flags, 0);
+  return my_strxfrm_pad(cs, d0, dst, d0 + dstlen,
+                        (uint)(nweights - frmlen), flags);
 }
 
 
@@ -93,8 +96,8 @@ strnxfrm_orig_unrolled(const CHARSET_INFO *cs,
       *dst= map[*dst]; ++dst;
     }
   }
-  return my_strxfrm_pad_desc_and_reverse(cs, d0, dst, d0 + dstlen,
-                                         (uint)(nweights - frmlen), flags, 0);
+  return my_strxfrm_pad(cs, d0, dst, d0 + dstlen,
+                        (uint)(nweights - frmlen), flags);
 }
 
 
@@ -112,8 +115,8 @@ strnxfrm_new(const CHARSET_INFO *cs,
     frmlen= srclen;
   for (end= src + frmlen; src < end;)
     *dst++= map[*src++];
-  return my_strxfrm_pad_desc_and_reverse(cs, d0, dst, d0 + dstlen,
-                                         (uint)(nweights - frmlen), flags, 0);
+  return my_strxfrm_pad(cs, d0, dst, d0 + dstlen,
+                        (uint)(nweights - frmlen), flags);
 }
 
 
@@ -144,8 +147,8 @@ strnxfrm_new_unrolled(const CHARSET_INFO *cs,
     *dst++= map[*src++];
     *dst++= map[*src++];
   }
-  return my_strxfrm_pad_desc_and_reverse(cs, d0, dst, d0 + dstlen,
-                                         (uint)(nweights - frmlen), flags, 0);
+  return my_strxfrm_pad(cs, d0, dst, d0 + dstlen,
+                        (uint)(nweights - frmlen), flags);
 }
 
 

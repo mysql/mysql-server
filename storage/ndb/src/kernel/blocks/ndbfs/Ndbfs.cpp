@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -360,6 +360,46 @@ Ndbfs::execSTTOR(Signal* signal)
   if(signal->theData[1] == 0){ // StartPhase 0
     jam();
     
+    if (ERROR_INSERTED(2000) || ERROR_INSERTED(2001))
+    {
+      // Save(2000) or restore(2001) FileSystemPath/ndb_XX_fs/
+      BaseString& fs_path = m_base_path[FsOpenReq::BP_FS];
+      unsigned i = fs_path.length() - strlen(DIR_SEPARATOR);
+      BaseString saved_path(fs_path.c_str(), i);
+      const char * ending_separator = fs_path.c_str() + i;
+      ndbrequire(strcmp(ending_separator, DIR_SEPARATOR)==0);
+      saved_path.append(".saved");
+      saved_path.append(ending_separator);
+      BaseString& from_dir = (ERROR_INSERTED(2000) ? fs_path : saved_path);
+      BaseString& to_dir = (ERROR_INSERTED(2000) ? saved_path : fs_path);
+
+      const bool only_contents = true;
+      if (NdbDir::remove_recursive(to_dir.c_str(), !only_contents))
+      {
+        g_eventLogger->info("Cleaned destination file system at %s", to_dir.c_str());
+      }
+      else
+      {
+        g_eventLogger->warning("Failed cleaning file system at %s", to_dir.c_str());
+      }
+      if (access(to_dir.c_str(), F_OK) == 0 || errno != ENOENT)
+      {
+        g_eventLogger->error("Destination file system at %s should not be there (errno %d)!",
+                             to_dir.c_str(),
+                             errno);
+        ndbrequire(!"Destination file system already there during file system saving or restoring");
+      }
+      if (rename(from_dir.c_str(), to_dir.c_str()) == -1)
+      {
+        g_eventLogger->error("Failed renaming %s file system to %s while %s (errno %d)",
+          from_dir.c_str(),
+          to_dir.c_str(),
+          (ERROR_INSERTED(2000) ? "saving" : "restoring"),
+          errno);
+        ndbrequire(!"Failed renaming file system while saving ot restoring");
+      }
+      SET_ERROR_INSERT_VALUE2(ERROR_INSERT_EXTRA, 0);
+    }
     do_mkdir(m_base_path[FsOpenReq::BP_FS].c_str());
     
     // close all open files
@@ -1293,7 +1333,9 @@ Ndbfs::report(Request * request, Signal* signal)
 
       fsConf->filePointer = request->theFilePointer;
       fsConf->fileInfo = request->m_fileinfo;
-      sendSignal(ref, GSN_FSOPENCONF, signal, 3, JBA);
+      fsConf->file_size_hi = request->m_file_size_hi;
+      fsConf->file_size_lo = request->m_file_size_lo;
+      sendSignal(ref, GSN_FSOPENCONF, signal, 5, JBA);
       break;
     }
     case Request:: closeRemove:

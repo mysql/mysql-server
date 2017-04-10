@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -13,12 +13,17 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include <my_global.h>
+/**
+  @file mysys_ssl/my_aes_yassl.cc
+*/
+
 #include <m_string.h>
 #include <my_aes.h>
-#include "my_aes_impl.h"
+#include <sys/types.h>
 
 #include "aes.hpp"
+#include "my_aes_impl.h"
+#include "my_inttypes.h"
 #include "openssl/ssl.h"
 
 /* keep in sync with enum my_aes_opmode in my_aes.h */
@@ -156,6 +161,7 @@ int my_aes_encrypt(const unsigned char *source, uint32 source_length,
   return (int) (MY_AES_BLOCK_SIZE * num_blocks);
 }
 
+
 int my_aes_decrypt(const unsigned char *source, uint32 source_length,
                    unsigned char *dest,
                    const unsigned char *key, uint32 key_length,
@@ -207,35 +213,15 @@ int my_aes_decrypt(const unsigned char *source, uint32 source_length,
   return MY_AES_BLOCK_SIZE * num_blocks - pad_len;
 }
 
-/**
- Get size of buffer which will be large enough for encrypted data
 
- SYNOPSIS
-  my_aes_get_size()
- @param source_length  [in] Length of data to be encrypted
- @param mode           encryption mode
-
- @return Size of buffer required to store encrypted data
-*/
-
-int my_aes_get_size(uint32 source_length, my_aes_opmode opmode)
+int my_aes_get_size(uint32 source_length, my_aes_opmode)
 {
   return MY_AES_BLOCK_SIZE * (source_length / MY_AES_BLOCK_SIZE)
     + MY_AES_BLOCK_SIZE;
 }
 
-/**
-  Return true if the AES cipher and block mode requires an IV
 
-  SYNOPSIS
-  my_aes_needs_iv()
-  @param mode           encryption mode
-
-  @retval TRUE   IV needed
-  @retval FALSE  IV not needed
-*/
-
-my_bool my_aes_needs_iv(my_aes_opmode opmode)
+bool my_aes_needs_iv(my_aes_opmode opmode)
 {
   MyCipherCtx<TaoCrypt::ENCRYPTION> enc(opmode);
 

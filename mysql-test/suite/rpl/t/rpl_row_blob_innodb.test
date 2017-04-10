@@ -6,7 +6,6 @@
 # Added to skip if ndb is default                      #
 ########################################################
 -- source include/not_ndb_default.inc
--- source include/have_innodb.inc
 -- source include/have_binlog_format_row.inc
 -- source include/master-slave.inc
 let $engine_type=InnoDB;

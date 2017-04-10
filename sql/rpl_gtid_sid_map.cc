@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License as
@@ -15,20 +15,35 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
    02110-1301 USA */
 
+#include <string.h>
+
+#include "control_events.h"
+#include "hash.h"
+#include "m_ctype.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_sys.h"
+#include "mysql/psi/psi_memory.h"
+#include "mysql/service_mysql_alloc.h"
+#include "mysqld_error.h"    // ER_*
+#include "prealloced_array.h"
 #include "rpl_gtid.h"
 
-#include "mysqld_error.h"    // ER_*
+#ifndef MYSQL_SERVER
+#include "mysqlbinlog.h"
+#endif
 
-
+extern "C" {
 PSI_memory_key key_memory_Sid_map_Node;
+}
 
 Sid_map::Sid_map(Checkable_rwlock *_sid_lock)
   : sid_lock(_sid_lock),
     _sidno_to_sid(key_memory_Sid_map_Node), _sorted(key_memory_Sid_map_Node)
 {
   DBUG_ENTER("Sid_map::Sid_map");
-  my_hash_init(&_sid_to_sidno, &my_charset_bin, 20,
-               offsetof(Node, sid.bytes), binary_log::Uuid::BYTE_LENGTH, NULL,
+  my_hash_init(&_sid_to_sidno, &my_charset_bin, 20, 0,
+               sid_map_get_key,
                my_free, 0,
                key_memory_Sid_map_Node);
   DBUG_VOID_RETURN;
@@ -43,25 +58,17 @@ Sid_map::~Sid_map()
 }
 
 
-/*
-  This code is not being used but we will keep it as it may be
-  useful to optimize gtids by avoiding sharing mappings from
-  sid to sidno. For instance, the IO Thread and the SQL Thread
-  may have different mappings in the future.
-*/
-#ifdef NON_DISABLED_GTID
 enum_return_status Sid_map::clear()
 {
   DBUG_ENTER("Sid_map::clear");
   my_hash_free(&_sid_to_sidno);
-  my_hash_init(&_sid_to_sidno, &my_charset_bin, 20,
-               offsetof(Node, sid.bytes), binary_log::Uuid::BYTE_LENGTH, NULL,
-               my_free, 0);
+  my_hash_init(&_sid_to_sidno, &my_charset_bin, 20, 0,
+               sid_map_get_key,
+               my_free, 0, PSI_INSTRUMENT_ME);
   _sidno_to_sid.clear();
   _sorted.clear();
   RETURN_OK;
 }
-#endif
 
 rpl_sidno Sid_map::add_sid(const rpl_sid &sid)
 {

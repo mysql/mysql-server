@@ -11,11 +11,11 @@ show session variables like 'eq_range_index_dive_limit';
 
 --disable_warnings
 select * 
-from information_schema.global_variables 
+from performance_schema.global_variables 
 where variable_name='eq_range_index_dive_limit';
 
 select * 
-from information_schema.session_variables 
+from performance_schema.session_variables 
 where variable_name='eq_range_index_dive_limit';
 --enable_warnings
 

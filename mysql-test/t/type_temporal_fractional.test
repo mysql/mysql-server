@@ -1,8 +1,14 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
+--source include/no_valgrind_without_big.inc
 
+########################################
+##### WL#7554 Force schema `test` to character set latin1
+##### This test should be migrated to utf8mb4
+--disable_query_log
+let $testdbcs304=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
+alter schema default character set latin1;
+use test;
+--enable_query_log
+########################################
 
 #SET @@default_storage_engine=InnoDB;
 
@@ -509,6 +515,7 @@ ALTER TABLE t1 ADD KEY(a);
 SELECT * FROM t1 ORDER BY a;
 SELECT * FROM t1 ORDER BY a DESC;
 
+analyze table t1;
 EXPLAIN SELECT * FROM t1 WHERE a='01:02:03.456700';
 SELECT * FROM t1 WHERE a='01:02:03.456700';
 SELECT * FROM t1 WHERE a BETWEEN '01:02:00' AND '01:03:00';
@@ -649,6 +656,7 @@ SELECT * FROM t1 WHERE a IN (0.000001, -990000.000001, 990000.000001);
 --echo #
 --echo # Testing Item_temporal_with_ref::print
 --echo #
+analyze table t1;
 EXPLAIN EXTENDED SELECT * FROM t1 WHERE a IN (990000,0);
 
 --echo #
@@ -2332,6 +2340,7 @@ ALTER TABLE t1 ADD KEY(a);
 SELECT * FROM t1 ORDER BY a;
 SELECT * FROM t1 ORDER BY a DESC;
 
+analyze table t1;
 EXPLAIN SELECT * FROM t1 WHERE a='2000-01-01 01:02:03.456700';
 SELECT * FROM t1 WHERE a='2000-01-01 01:02:03.456700';
 SELECT * FROM t1 WHERE a BETWEEN '2000-01-01 01:02:00' AND '2000-01-01 01:03:00';
@@ -2621,6 +2630,7 @@ SELECT * FROM t1 WHERE a IN (0e0, 0.000001e0);
 --echo #
 --echo # Testing Item_temporal_with_ref::print
 --echo #
+analyze table t1;
 EXPLAIN EXTENDED SELECT * FROM t1 WHERE a IN (0.000001,0);
 --echo #
 --echo # Testing IN with index: involves field->store_packed()
@@ -4388,6 +4398,7 @@ ALTER TABLE t1 ADD KEY(a);
 SELECT * FROM t1 ORDER BY a;
 SELECT * FROM t1 ORDER BY a DESC;
 
+analyze table t1;
 EXPLAIN SELECT * FROM t1 WHERE a='2000-01-01 01:02:03.456700';
 SELECT * FROM t1 WHERE a='2000-01-01 01:02:03.456700';
 SELECT * FROM t1 WHERE a BETWEEN '2000-01-01 01:02:00' AND '2000-01-01 01:03:00';
@@ -6606,13 +6617,6 @@ CREATE TABLE t1
   KEY col_timestamp_4_not_null_key (col_timestamp_4_not_null_key),
   KEY col_timestamp_5_not_null_key (col_timestamp_5_not_null_key)
 ) /*!50100 PARTITION BY KEY (pk)PARTITIONS 2 */;
-# Run an unlogged dummy query to pre-populated the TDC to avoid deprecation warnings for
-# non-PS executions of the test.
---disable_result_log
---disable_query_log
-SELECT * FROM t1;
---enable_query_log
---enable_result_log
 SELECT
   LEAST('2008-05-18', LOCALTIMESTAMP(), col_timestamp_5_not_null_key ) AS c1
 FROM t1
@@ -6761,7 +6765,7 @@ CREATE TABLE t1 (
   KEY col_timestamp_4_not_null_key (col_timestamp_4_not_null_key),
   KEY col_date_key (col_date_key),
   KEY col_time_3_not_null_key (col_time_3_not_null_key)
-) ENGINE=MEMORY /*!50100 PARTITION BY KEY (pk)PARTITIONS 2 */;
+) ENGINE=InnoDB /*!50100 PARTITION BY KEY (pk)PARTITIONS 2 */;
 INSERT INTO t1 VALUES (
   CURRENT_TIME(5),
   CURRENT_TIMESTAMP(4),
@@ -7078,7 +7082,7 @@ CREATE TABLE t1 (
   KEY col_time_1_not_null_key (col_time_1_not_null_key),
   KEY col_datetime_3_not_null_key (col_datetime_3_not_null_key),
   KEY col_time_2_key (col_time_2_key)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY KEY (pk)PARTITIONS 2 */;
 INSERT INTO t1 VALUES ('00:20:05.0','1999-12-31 21:00:01','0000-00-00 00:00:00.000','04:25:59.01');
 INSERT INTO t1 VALUES ('00:15:56.0','1999-12-31 21:00:03','0000-00-00 00:00:00.000','00:20:06.00');
@@ -7498,7 +7502,7 @@ CREATE TABLE t1 (
   PRIMARY KEY (pk),
   KEY col_datetime_1_key (col_datetime_1_key),
   KEY col_datetime_6_not_null_key (col_datetime_6_not_null_key))
-ENGINE=MyISAM DEFAULT CHARSET=latin1;
+  DEFAULT CHARSET=latin1;
 INSERT INTO t1 VALUES ('19:14:35.36','0000-00-00 00:00:00.000','0000-00-00 00:00:00.0','2000-08-28 07:34:20.051690','2009-09-20 07:32:39.06');
 INSERT INTO t1 VALUES ('19:14:37.36','2005-07-04 08:03:50.051','0000-00-00 00:00:00.0','0000-00-00 00:00:00.000000','0000-00-00 00:00:00.00');
 INSERT INTO t1 VALUES ('19:14:39.36','0000-00-00 00:00:00.000',NULL,'2005-10-11 07:24:45.059064','2009-11-19 00:00:00.00');
@@ -7851,6 +7855,27 @@ SET sql_mode = default;
 --echo # End of 5.6 tests
 
 --echo #
+--echo # Bug#20565160 ASSERTION `SORT_FIELD->LENGTH >= LENGTH' FAILED
+--echo #
+
+SET NAMES utf8;
+
+CREATE TABLE t1 (
+  c datetime(1) NOT NULL,
+  KEY(c)
+)
+;
+
+INSERT INTO t1 VALUES
+('2002-08-12 22:00:00.0'),('2002-08-12 22:00:00.1'),('2002-08-12 22:00:00.2');
+
+SELECT LEAST(c , '2005-05-14' ) AS c1
+FROM t1
+ORDER BY 1;
+
+DROP TABLE t1;
+SET NAMES default;
+
 --echo # Bug#19900900 ASSERTION `!CHECK_DATETIME_RANGE(LTIME)' FAILED
 --echo #              TIME_TO_LONGLONG_DATETIME_PACKED
 --echo #
@@ -7862,3 +7887,10 @@ SELECT ADDTIME(a, 100000) FROM t1;
 SET @@session.sql_buffer_result=default;
 
 DROP TABLE t1;
+
+########################################
+##### WL#7554 set schema `test` back to what it was
+--disable_query_log
+--eval alter schema test default character set $testdbcs304;
+--enable_query_log
+########################################

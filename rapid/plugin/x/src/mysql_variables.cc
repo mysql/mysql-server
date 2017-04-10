@@ -17,10 +17,6 @@
  * 02110-1301  USA
  */
 
-#if !defined(MYSQL_DYNAMIC_PLUGIN) && defined(WIN32) && !defined(XPLUGIN_UNIT_TESTS)
-#define MYSQL_DYNAMIC_PLUGIN 1
-#endif
-
 #include "mysql_variables.h"
 #include <mysql/plugin.h>
 #include "mysqld.h"
@@ -30,7 +26,7 @@ namespace mysqld
 
 bool is_terminating()
 {
-  return abort_loop;
+  return connection_events_loop_aborted();
 }
 
 const char *get_my_localhost()

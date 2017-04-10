@@ -1,20 +1,19 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 #
 # Test of update statement that uses many tables.
 #
 
 #
 # If we are running with
-# - Valgrind           -> $VALGRIND_TEST <> 0
 # - debug tracing      -> @@session.debug LIKE '%trace%'
 # the resource consumption (storage space needed, runtime) will be extreme.
 # Therefore we require that the option "--big-test" is also set.
 #
 --source include/big_test.inc
+--source include/not_valgrind.inc
+# timeout in debug mode on sparc
+--source include/not_sparc_debug.inc
+# timeout with UBSAN
+--source include/not_ubsan.inc
 
 let $need_big= 0;
 --disable_query_log
@@ -30,16 +29,6 @@ if (!$mysql_errno)
   }
 }
 --enable_query_log
-if ($VALGRIND_TEST)
-{
-  # We are running with Valgrind
-  inc $need_big;
-}
-if (`SELECT '$BIG_TEST' = '' AND $need_big = 1`)
-{
-  --skip Need "--big-test" when running with the option "--debug" or "--valgrind"
-}
-
 #
 # Bug#1820 Rows not deleted from second table on multi-table delete
 #

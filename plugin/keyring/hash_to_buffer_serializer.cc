@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,12 +13,15 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "hash_to_buffer_serializer.h"
+#include "plugin/keyring/hash_to_buffer_serializer.h"
+
+#include <stddef.h>
+#include <sys/types.h>
 
 namespace keyring
 {
-  my_bool Hash_to_buffer_serializer::store_key_in_buffer(const IKey* key,
-                                                         Buffer *buffer)
+  bool Hash_to_buffer_serializer::store_key_in_buffer(const IKey* key,
+                                                      Buffer *buffer)
   {
     if (buffer->size < buffer->position + key->get_key_pod_size())
       return TRUE;
@@ -26,8 +29,8 @@ namespace keyring
     return FALSE;
   }
 
-  my_bool Hash_to_buffer_serializer::store_keys_in_buffer(HASH *keys_hash,
-                                                          Buffer *buffer)
+  bool Hash_to_buffer_serializer::store_keys_in_buffer(HASH *keys_hash,
+                                                       Buffer *buffer)
   {
     for (uint i= 0 ; i < keys_hash->records ; ++i)
     {

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -15,12 +15,15 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include <boost/date_time.hpp>
+#include <stddef.h>
+#include <functional>
+
 #include "object_queue.h"
 #include "this_thread.h"
-#include <boost/bind.hpp>
-#include <boost/date_time.hpp>
 
 using namespace Mysql::Tools::Dump;
+using std::placeholders::_1;
 
 void Object_queue::add_ready_items_to_queue(
   std::map<const I_dump_task*,
@@ -165,13 +168,13 @@ Object_queue::~Object_queue()
 }
 
 Object_queue::Object_queue(
-  Mysql::I_callable<bool, const Mysql::Tools::Base::Message_data&>*
+  std::function<bool(const Mysql::Tools::Base::Message_data&)>*
     message_handler, Simple_id_generator* object_id_generator,
-  uint threads_count, Mysql::I_callable<void, bool>* thread_callback,
+  uint threads_count, std::function<void(bool)>* thread_callback,
   Mysql::Tools::Base::Abstract_program* program)
   : Abstract_object_reader_wrapper(message_handler, object_id_generator),
   m_task_availability_callback(
-  this, &Object_queue::task_availability_callback),
+    std::bind(&Object_queue::task_availability_callback, this, _1)),
   m_is_queue_running(true),
   m_thread_callback(thread_callback),
   m_program(program)
@@ -179,6 +182,6 @@ Object_queue::Object_queue(
   for (int thread= threads_count; thread-- > 0;)
   {
     m_thread_group.create_thread(
-      boost::bind(&Object_queue::queue_thread, this));
+      std::bind(&Object_queue::queue_thread, this));
   }
 }

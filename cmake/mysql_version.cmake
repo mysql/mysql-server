@@ -17,10 +17,9 @@
 # Global constants, only to be changed between major releases.
 #
 
-SET(SHARED_LIB_MAJOR_VERSION "20")
-SET(SHARED_LIB_MINOR_VERSION "3")
+SET(SHARED_LIB_MAJOR_VERSION "21")
+SET(SHARED_LIB_MINOR_VERSION "0")
 SET(PROTOCOL_VERSION "10")
-SET(DOT_FRM_VERSION "6")
 
 # Generate "something" to trigger cmake rerun when VERSION changes
 CONFIGURE_FILE(
@@ -80,10 +79,6 @@ ENDMACRO()
 GET_MYSQL_VERSION()
 
 SET(SHARED_LIB_PATCH_VERSION ${PATCH_VERSION})
-
-# Beware : This is a hack to reset SHARED_LIB_PATCH_VERSION in accordance
-# with the change in value of SHARED_LIB_MINOR_VERSION.
-MATH(EXPR SHARED_LIB_PATCH_VERSION "${SHARED_LIB_PATCH_VERSION}-13")
 
 SET(MYSQL_TCP_PORT_DEFAULT "3306")
 

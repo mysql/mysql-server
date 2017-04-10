@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -231,10 +231,6 @@ struct DeprecationTransform {
 
 static
 const DeprecationTransform f_deprecation[] = {
-  { DB_TOKEN, "Discless", "Diskless", 0, 1 },
-  { DB_TOKEN, "Id", "NodeId", 0, 1 },
-  { API_TOKEN, "Id", "NodeId", 0, 1 },
-  { MGM_TOKEN, "Id", "NodeId", 0, 1 },
   { 0, 0, 0, 0, 0}
 };
 
@@ -314,18 +310,6 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_STRING,
     MANDATORY,
     0, 0 },
-
-  {
-    KEY_INTERNAL,
-    "ByteOrder",
-    "COMPUTER",
-    0, // No new parameter to use instead of deprecated
-    ConfigInfo::CI_DEPRECATED,
-    false,
-    ConfigInfo::CI_STRING,
-    0,
-    0,
-    0 },
   
   /****************************************************************************
    * SYSTEM
@@ -356,7 +340,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     CFG_SYS_PRIMARY_MGM_NODE,
     "PrimaryMGMNode",
     "SYSTEM",
-    "Node id of Primary "MGM_TOKEN_PRINT" node",
+    "Node id of Primary " MGM_TOKEN_PRINT " node",
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_INT,
@@ -466,22 +450,10 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     0, 0 },
 
   {
-    KEY_INTERNAL,
-    "Id",
-    DB_TOKEN,
-    "NodeId", // Name of new parameter to use instead of deprecated
-    ConfigInfo::CI_DEPRECATED,
-    false,
-    ConfigInfo::CI_INT,
-    MANDATORY,
-    "1",
-    STR_VALUE(MAX_DATA_NODE_ID) },
-
-  {
     CFG_NODE_ID,
     "NodeId",
     DB_TOKEN,
-    "Number identifying the database node ("DB_TOKEN_PRINT")",
+    "Number identifying the database node (" DB_TOKEN_PRINT ")",
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_INT,
@@ -562,23 +534,10 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     STR_VALUE(MAX_INT_RNIL) },
 
   {
-    CFG_DB_NO_INDEXES,
-    "MaxNoOfIndexes",
-    DB_TOKEN,
-    // The name of new parameter to use instead of deprecated
-    "MaxNoOfOrderedIndexes or MaxNoOfUniqueHashIndexes",
-    ConfigInfo::CI_DEPRECATED,
-    false,
-    ConfigInfo::CI_INT,
-    "128",
-    "0",
-    STR_VALUE(MAX_INT_RNIL) },
-
-  {
     CFG_DB_NO_INDEX_OPS,
     "MaxNoOfConcurrentIndexOperations",
     DB_TOKEN,
-    "Total number of index operations that can execute simultaneously on one "DB_TOKEN_PRINT" node",
+    "Total number of index operations that can execute simultaneously on one " DB_TOKEN_PRINT " node",
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_INT,
@@ -603,7 +562,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     CFG_DB_NO_TRIGGER_OPS,
     "MaxNoOfFiredTriggers",
     DB_TOKEN,
-    "Total number of triggers that can fire simultaneously in one "DB_TOKEN_PRINT" node",
+    "Total number of triggers that can fire simultaneously in one " DB_TOKEN_PRINT " node",
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_INT,
@@ -732,6 +691,42 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "500" },
 
   {
+    CFG_DB_SCHED_RESPONSIVENESS,
+    "SchedulerResponsiveness",
+    DB_TOKEN,
+    "Value between 0 and 10, high means very responsive, low means throughput-optimised",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_INT,
+    "5",
+    "0",
+    "10" },
+
+  {
+    CFG_DB_SCHED_SCAN_PRIORITY,
+    "__sched_scan_priority",
+    DB_TOKEN,
+    "Number of rows scanned per real-time break, higher value gives higher prio to scans",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_INT,
+    "6",
+    "1",
+    "6" },
+
+  {
+    CFG_DB_DISK_DATA_FORMAT,
+    "__disk_data_format",
+    DB_TOKEN,
+    "0: Use old v1 format, 1: Use new v2 format",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_INT,
+    "1",
+    "0",
+    "1" },
+
+  {
     CFG_DB_WATCHDOG_INTERVAL_INITIAL,
     "TimeBetweenWatchDogCheckInitial",
     DB_TOKEN,
@@ -747,7 +742,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     CFG_DB_STOP_ON_ERROR,
     "StopOnError",
     DB_TOKEN,
-    "If set to N, "DB_TOKEN_PRINT" automatically restarts/recovers in case of node failure",
+    "If set to N, " DB_TOKEN_PRINT " automatically restarts/recovers in case of node failure",
     ConfigInfo::CI_USED,
     0,
     ConfigInfo::CI_BOOL,
@@ -832,7 +827,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     CFG_DB_NO_TRANSACTIONS,
     "MaxNoOfConcurrentTransactions",
     DB_TOKEN,
-    "Max number of transaction executing concurrently on the "DB_TOKEN_PRINT" node",
+    "Max number of transaction executing concurrently on the " DB_TOKEN_PRINT " node",
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_INT,
@@ -844,7 +839,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     CFG_DB_NO_SCANS,
     "MaxNoOfConcurrentScans",
     DB_TOKEN,
-    "Max number of scans executing concurrently on the "DB_TOKEN_PRINT" node",
+    "Max number of scans executing concurrently on the " DB_TOKEN_PRINT " node",
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_INT,
@@ -856,7 +851,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     CFG_DB_TRANS_BUFFER_MEM,
     "TransactionBufferMemory",
     DB_TOKEN,
-    "Dynamic buffer space (in bytes) for key and attribute data allocated for each "DB_TOKEN_PRINT" node",
+    "Dynamic buffer space (in bytes) for key and attribute data allocated for each " DB_TOKEN_PRINT " node",
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_INT,
@@ -868,7 +863,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     CFG_DB_INDEX_MEM,
     "IndexMemory",
     DB_TOKEN,
-    "Number bytes on each "DB_TOKEN_PRINT" node allocated for storing indexes",
+    "Number bytes on each " DB_TOKEN_PRINT " node allocated for storing indexes",
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_INT64,
@@ -880,7 +875,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     CFG_DB_DATA_MEM,
     "DataMemory",
     DB_TOKEN,
-    "Number bytes on each "DB_TOKEN_PRINT" node allocated for storing data",
+    "Number bytes on each " DB_TOKEN_PRINT " node allocated for storing data",
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_INT64,
@@ -892,7 +887,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     CFG_DB_UNDO_INDEX_BUFFER,
     "UndoIndexBuffer",
     DB_TOKEN,
-    "Number bytes on each "DB_TOKEN_PRINT" node allocated for writing UNDO logs for index part",
+    "Number bytes on each " DB_TOKEN_PRINT " node allocated for writing UNDO logs for index part",
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_INT,
@@ -904,7 +899,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     CFG_DB_UNDO_DATA_BUFFER,
     "UndoDataBuffer",
     DB_TOKEN,
-    "Number bytes on each "DB_TOKEN_PRINT" node allocated for writing UNDO logs for data part",
+    "Number bytes on each " DB_TOKEN_PRINT " node allocated for writing UNDO logs for data part",
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_INT,
@@ -916,7 +911,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     CFG_DB_REDO_BUFFER,
     "RedoBuffer",
     DB_TOKEN,
-    "Number bytes on each "DB_TOKEN_PRINT" node allocated for writing REDO logs",
+    "Number bytes on each " DB_TOKEN_PRINT " node allocated for writing REDO logs",
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_INT,
@@ -928,7 +923,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     CFG_DB_LONG_SIGNAL_BUFFER,
     "LongMessageBuffer",
     DB_TOKEN,
-    "Number bytes on each "DB_TOKEN_PRINT" node allocated for internal long messages",
+    "Number bytes on each " DB_TOKEN_PRINT " node allocated for internal long messages",
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_INT,
@@ -940,7 +935,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     CFG_DB_DISK_PAGE_BUFFER_MEMORY,
     "DiskPageBufferMemory",
     DB_TOKEN,
-    "Number bytes on each "DB_TOKEN_PRINT" node allocated for disk page buffer cache",
+    "Number bytes on each " DB_TOKEN_PRINT " node allocated for disk page buffer cache",
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_INT64,
@@ -952,7 +947,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     CFG_DB_SGA,
     "SharedGlobalMemory",
     DB_TOKEN,
-    "Total number bytes on each "DB_TOKEN_PRINT" node allocated for any use",
+    "Total number bytes on each " DB_TOKEN_PRINT " node allocated for any use",
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_INT64,
@@ -1016,7 +1011,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     CFG_DB_HEARTBEAT_INTERVAL,
     "HeartbeatIntervalDbDb",
     DB_TOKEN,
-    "Time between "DB_TOKEN_PRINT"-"DB_TOKEN_PRINT" heartbeats. "DB_TOKEN_PRINT" considered dead after 3 missed HBs",
+    "Time between " DB_TOKEN_PRINT "-" DB_TOKEN_PRINT " heartbeats. " DB_TOKEN_PRINT " considered dead after 3 missed HBs",
     ConfigInfo::CI_USED,
     0,
     ConfigInfo::CI_INT,
@@ -1032,7 +1027,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     CFG_DB_CONNECT_CHECK_DELAY,
     "ConnectCheckIntervalDelay",
     DB_TOKEN,
-    "Time between "DB_TOKEN_PRINT" connectivity check stages.  "DB_TOKEN_PRINT" considered suspect after 1 and dead after 2 intervals.",
+    "Time between " DB_TOKEN_PRINT " connectivity check stages.  " DB_TOKEN_PRINT " considered suspect after 1 and dead after 2 intervals.",
     ConfigInfo::CI_USED,
     0,
     ConfigInfo::CI_INT,
@@ -1044,7 +1039,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     CFG_DB_API_HEARTBEAT_INTERVAL,
     "HeartbeatIntervalDbApi",
     DB_TOKEN,
-    "Time between "API_TOKEN_PRINT"-"DB_TOKEN_PRINT" heartbeats. "API_TOKEN_PRINT" connection closed after 3 missed HBs",
+    "Time between " API_TOKEN_PRINT "-" DB_TOKEN_PRINT " heartbeats. " API_TOKEN_PRINT " connection closed after 3 missed HBs",
     ConfigInfo::CI_USED,
     0,
     ConfigInfo::CI_INT,
@@ -1148,7 +1143,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     CFG_DB_NO_REDOLOG_PARTS,
     "NoOfFragmentLogParts",
     DB_TOKEN,
-    "Number of file groups of redo log files belonging to "DB_TOKEN_PRINT" node",
+    "Number of file groups of redo log files belonging to " DB_TOKEN_PRINT " node",
     ConfigInfo::CI_USED,
     CI_RESTART_INITIAL,
     ConfigInfo::CI_INT,
@@ -1161,7 +1156,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     CFG_DB_NO_REDOLOG_FILES,
     "NoOfFragmentLogFiles",
     DB_TOKEN,
-    "No of Redo log files in each of the file group belonging to "DB_TOKEN_PRINT" node",
+    "No of Redo log files in each of the file group belonging to " DB_TOKEN_PRINT " node",
     ConfigInfo::CI_USED,
     CI_RESTART_INITIAL,
     ConfigInfo::CI_INT,
@@ -1208,7 +1203,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     CFG_DB_MAX_OPEN_FILES,
     "MaxNoOfOpenFiles",
     DB_TOKEN,
-    "Max number of files open per "DB_TOKEN_PRINT" node.(One thread is created per file)",
+    "Max number of files open per " DB_TOKEN_PRINT " node.(One thread is created per file)",
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_INT,
@@ -1220,7 +1215,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     CFG_DB_INITIAL_OPEN_FILES,
     "InitialNoOfOpenFiles",
     DB_TOKEN,
-    "Initial number of files open per "DB_TOKEN_PRINT" node.(One thread is created per file)",
+    "Initial number of files open per " DB_TOKEN_PRINT " node.(One thread is created per file)",
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_INT,
@@ -1272,55 +1267,6 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     STR_VALUE(MAX_INT_RNIL) },
 
   {
-    CFG_DB_LCP_DISC_PAGES_TUP_SR,
-    "NoOfDiskPagesToDiskDuringRestartTUP",
-    DB_TOKEN,
-    "DiskCheckpointSpeedSr", // The new parameter name to use
-    ConfigInfo::CI_DEPRECATED,
-    0,
-    ConfigInfo::CI_INT,
-    "40",
-    "1",
-    STR_VALUE(MAX_INT_RNIL) },
-
-  {
-    CFG_DB_LCP_DISC_PAGES_TUP,
-    "NoOfDiskPagesToDiskAfterRestartTUP",
-    DB_TOKEN,
-    "DiskCheckpointSpeed", // The new parameter name to use
-    ConfigInfo::CI_DEPRECATED,
-    0,
-    ConfigInfo::CI_INT,
-    "40",
-    "1",
-    STR_VALUE(MAX_INT_RNIL) },
-
-  {
-    CFG_DB_LCP_DISC_PAGES_ACC_SR,
-    "NoOfDiskPagesToDiskDuringRestartACC",
-    DB_TOKEN,
-    "DiskCheckpointSpeedSr", // The new parameter name to use
-    ConfigInfo::CI_DEPRECATED,
-    0,
-    ConfigInfo::CI_INT,
-    "20",
-    "1",
-    STR_VALUE(MAX_INT_RNIL) },
-
-  {
-    CFG_DB_LCP_DISC_PAGES_ACC,
-    "NoOfDiskPagesToDiskAfterRestartACC",
-    DB_TOKEN,
-    "DiskCheckpointSpeed",
-    ConfigInfo::CI_DEPRECATED, // The new parameter name to use
-    0,
-    ConfigInfo::CI_INT,
-    "20",
-    "1",
-    STR_VALUE(MAX_INT_RNIL) },
-  
-
-  {
     CFG_DB_DISCLESS,
     "Diskless",
     DB_TOKEN,
@@ -1332,20 +1278,6 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "false",
     "true"},
 
-  {
-    KEY_INTERNAL,
-    "Discless",
-    DB_TOKEN,
-    "Diskless", // The new parameter name to use
-    ConfigInfo::CI_DEPRECATED,
-    CI_RESTART_INITIAL | CI_RESTART_SYSTEM,
-    ConfigInfo::CI_BOOL,
-    "false",
-    "false",
-    "true"},
-  
-
-  
   {
     CFG_DB_ARBIT_TIMEOUT,
     "ArbitrationTimeout",
@@ -1390,7 +1322,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     CFG_DB_FILESYSTEM_PATH,
     "FileSystemPath",
     DB_TOKEN,
-    "Path to directory where the "DB_TOKEN_PRINT" node stores its data (directory must exist)",
+    "Path to directory where the " DB_TOKEN_PRINT " node stores its data (directory must exist)",
     ConfigInfo::CI_USED,
     CI_CHECK_WRITABLE | CI_RESTART_INITIAL,
     ConfigInfo::CI_STRING,
@@ -1593,31 +1525,19 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "200M",
     "1M",
     "1024G" },
-  
-  { 
-    CFG_DB_CHECKPOINT_SPEED,
-    "DiskCheckpointSpeed",
+
+  {
+    CFG_DB_BACKUP_DISK_WRITE_PCT,
+    "BackupDiskWriteSpeedPct",
     DB_TOKEN,
-    "Minimum bytes per second allowed to be written by checkpoint",
-    ConfigInfo::CI_DEPRECATED,
+    "Percentage of MaxDiskWriteSpeed to reserve for Backup, including "
+    "the Backup log",
+    ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_INT,
-    "10M",
-    "1M",
-    STR_VALUE(MAX_INT_RNIL) },
-  
-  { 
-    CFG_DB_CHECKPOINT_SPEED_RESTART,
-    "DiskCheckpointSpeedInRestart",
-    DB_TOKEN,
-    "Maximum bytes per second allowed to be written by checkpoints"
-    "during restarts",
-    ConfigInfo::CI_DEPRECATED,
-    false,
-    ConfigInfo::CI_INT,
-    "100M",
-    "1M",
-    STR_VALUE(MAX_INT_RNIL) },
+    "50",
+    "0",
+    "90" },
   
   { 
     CFG_DB_BACKUP_MEM,
@@ -1639,8 +1559,8 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_INT,
-    "16M", // remember to change BackupMemory
-    "2M",
+    "16M",
+    "512K",
     STR_VALUE(MAX_INT_RNIL) },
 
   { 
@@ -1651,7 +1571,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_INT,
-    "16M", // remember to change BackupMemory
+    "16M",
     "2M",
     STR_VALUE(MAX_INT_RNIL) },
 
@@ -1800,21 +1720,6 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
   },
 
   {
-    CFG_RESERVED_SEND_BUFFER_MEMORY,
-    "ReservedSendBufferMemory",
-    DB_TOKEN,
-    "Amount of bytes (out of TotalSendBufferMemory) to reserve for connection\n"
-    "between data nodes. This memory will not be available for connections to\n"
-    "management server or API nodes.",
-    ConfigInfo::CI_DEPRECATED,
-    false,
-    ConfigInfo::CI_INT,
-    "0",
-    "256K",
-    STR_VALUE(MAX_INT_RNIL)
-  },
-
-  {
     CFG_DB_NODEGROUP,
     "Nodegroup",
     DB_TOKEN,
@@ -1905,7 +1810,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     CFG_DB_DD_FILESYSTEM_PATH,
     "FileSystemPathDD",
     DB_TOKEN,
-    "Path to directory where the "DB_TOKEN_PRINT" node stores its disk-data/undo-files",
+    "Path to directory where the " DB_TOKEN_PRINT " node stores its disk-data/undo-files",
     ConfigInfo::CI_USED,
     CI_CHECK_WRITABLE | CI_RESTART_INITIAL,
     ConfigInfo::CI_STRING,
@@ -1916,7 +1821,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     CFG_DB_DD_DATAFILE_PATH,
     "FileSystemPathDataFiles",
     DB_TOKEN,
-    "Path to directory where the "DB_TOKEN_PRINT" node stores its disk-data-files",
+    "Path to directory where the " DB_TOKEN_PRINT " node stores its disk-data-files",
     ConfigInfo::CI_USED,
     CI_CHECK_WRITABLE | CI_RESTART_INITIAL,
     ConfigInfo::CI_STRING,
@@ -1927,7 +1832,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     CFG_DB_DD_UNDOFILE_PATH,
     "FileSystemPathUndoFiles",
     DB_TOKEN,
-    "Path to directory where the "DB_TOKEN_PRINT" node stores its disk-undo-files",
+    "Path to directory where the " DB_TOKEN_PRINT " node stores its disk-undo-files",
     ConfigInfo::CI_USED,
     CI_CHECK_WRITABLE | CI_RESTART_INITIAL,
     ConfigInfo::CI_STRING,
@@ -2431,22 +2336,10 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     0, 0 },
 
   {
-    KEY_INTERNAL,
-    "Id",
-    API_TOKEN,
-    "NodeId", // Name of new parameter to use instead of deprecated
-    ConfigInfo::CI_DEPRECATED,
-    false,
-    ConfigInfo::CI_INT,
-    MANDATORY,
-    "1",
-    STR_VALUE(MAX_NODES_ID) },
-
-  {
     CFG_NODE_ID,
     "NodeId",
     API_TOKEN,
-    "Number identifying application node ("API_TOKEN_PRINT")",
+    "Number identifying application node (" API_TOKEN_PRINT ")",
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_INT,
@@ -2469,7 +2362,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     CFG_NODE_ARBIT_RANK,
     "ArbitrationRank",
     API_TOKEN,
-    "If 0, then "API_TOKEN_PRINT" is not arbitrator. Kernel selects arbitrators in order 1, 2",
+    "If 0, then " API_TOKEN_PRINT " is not arbitrator. Kernel selects arbitrators in order 1, 2",
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_INT,
@@ -2667,6 +2560,19 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     STR_VALUE(MAX_INT_RNIL)
   },
 
+  {
+    CFG_API_VERBOSE,
+    "ApiVerbose",
+    "API",
+    "Tracelevel for API nodes.",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_INT,
+    0,
+    "0",
+    "100"
+  },
+
   /****************************************************************************
    * MGM
    ***************************************************************************/
@@ -2729,22 +2635,10 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     0, 0 },
 
   {
-    KEY_INTERNAL,
-    "Id",
-    MGM_TOKEN,
-    "NodeId", // Name of new parameter to use instead of deprecated
-    ConfigInfo::CI_DEPRECATED,
-    false,
-    ConfigInfo::CI_INT,
-    MANDATORY,
-    "1",
-    STR_VALUE(MAX_NODES_ID) },
-  
-  {
     CFG_NODE_ID,
     "NodeId",
     MGM_TOKEN,
-    "Number identifying the management server node ("MGM_TOKEN_PRINT")",
+    "Number identifying the management server node (" MGM_TOKEN_PRINT ")",
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_INT,
@@ -2775,18 +2669,6 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     0, 0 },
 
   {
-    KEY_INTERNAL,
-    "MaxNoOfSavedEvents",
-    MGM_TOKEN,
-    0, // No new parameter to use instead of deprecated
-    ConfigInfo::CI_DEPRECATED,
-    false,
-    ConfigInfo::CI_INT,
-    "100",
-    "0",
-    STR_VALUE(MAX_INT_RNIL) },
-
-  {
     CFG_MGM_PORT,
     "PortNumber",
     MGM_TOKEN,
@@ -2814,7 +2696,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     CFG_NODE_ARBIT_RANK,
     "ArbitrationRank",
     MGM_TOKEN,
-    "If 0, then "MGM_TOKEN_PRINT" is not arbitrator. Kernel selects arbitrators in order 1, 2",
+    "If 0, then " MGM_TOKEN_PRINT " is not arbitrator. Kernel selects arbitrators in order 1, 2",
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_INT,
@@ -2956,7 +2838,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     CFG_CONNECTION_NODE_1,
     "NodeId1",
     "TCP",
-    "Id of node ("DB_TOKEN_PRINT", "API_TOKEN_PRINT" or "MGM_TOKEN_PRINT") on one side of the connection",
+    "Id of node (" DB_TOKEN_PRINT ", " API_TOKEN_PRINT " or " MGM_TOKEN_PRINT ") on one side of the connection",
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_STRING,
@@ -2967,7 +2849,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     CFG_CONNECTION_NODE_2,
     "NodeId2",
     "TCP",
-    "Id of node ("DB_TOKEN_PRINT", "API_TOKEN_PRINT" or "MGM_TOKEN_PRINT") on one side of the connection",
+    "Id of node (" DB_TOKEN_PRINT ", " API_TOKEN_PRINT " or " MGM_TOKEN_PRINT ") on one side of the connection",
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_STRING,
@@ -3025,11 +2907,11 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     CFG_CONNECTION_SERVER_PORT,
     "PortNumber",
     "TCP",
-    0, // No new parameter to use instead of deprecated
-    ConfigInfo::CI_DEPRECATED,
+    "PortNumber to be used by data nodes while connecting the transporters",
+    ConfigInfo::CI_INTERNAL,
     false,
     ConfigInfo::CI_INT,
-    MANDATORY,
+    "0",
     "0",
     STR_VALUE(MAX_PORT_NO) },
 
@@ -3194,11 +3076,11 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     CFG_CONNECTION_SERVER_PORT,
     "PortNumber",
     "SHM",
-    0, // No new parameter to use instead of deprecated
-    ConfigInfo::CI_DEPRECATED,
+    "PortNumber to be used by data nodes while connecting the transporters",
+    ConfigInfo::CI_INTERNAL,
     false,
     ConfigInfo::CI_INT,
-    MANDATORY,
+    "0",
     "0", 
     STR_VALUE(MAX_PORT_NO) },
 
@@ -3218,7 +3100,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     CFG_CONNECTION_NODE_1,
     "NodeId1",
     "SHM",
-    "Id of node ("DB_TOKEN_PRINT", "API_TOKEN_PRINT" or "MGM_TOKEN_PRINT") on one side of the connection",
+    "Id of node (" DB_TOKEN_PRINT ", " API_TOKEN_PRINT " or " MGM_TOKEN_PRINT ") on one side of the connection",
     ConfigInfo::CI_EXPERIMENTAL,
     false,
     ConfigInfo::CI_STRING,
@@ -3229,7 +3111,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     CFG_CONNECTION_NODE_2,
     "NodeId2",
     "SHM",
-    "Id of node ("DB_TOKEN_PRINT", "API_TOKEN_PRINT" or "MGM_TOKEN_PRINT") on one side of the connection",
+    "Id of node (" DB_TOKEN_PRINT ", " API_TOKEN_PRINT " or " MGM_TOKEN_PRINT ") on one side of the connection",
     ConfigInfo::CI_EXPERIMENTAL,
     false,
     ConfigInfo::CI_STRING,
@@ -3362,7 +3244,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     CFG_CONNECTION_NODE_1,
     "NodeId1",
     "SCI",
-    "Id of node ("DB_TOKEN_PRINT", "API_TOKEN_PRINT" or "MGM_TOKEN_PRINT") on one side of the connection",
+    "Id of node (" DB_TOKEN_PRINT ", " API_TOKEN_PRINT " or " MGM_TOKEN_PRINT ") on one side of the connection",
     ConfigInfo::CI_EXPERIMENTAL,
     false,
     ConfigInfo::CI_STRING,
@@ -3373,7 +3255,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     CFG_CONNECTION_NODE_2,
     "NodeId2",
     "SCI",
-    "Id of node ("DB_TOKEN_PRINT", "API_TOKEN_PRINT" or "MGM_TOKEN_PRINT") on one side of the connection",
+    "Id of node (" DB_TOKEN_PRINT ", " API_TOKEN_PRINT " or " MGM_TOKEN_PRINT ") on one side of the connection",
     ConfigInfo::CI_EXPERIMENTAL,
     false,
     ConfigInfo::CI_STRING,
@@ -3428,11 +3310,11 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     CFG_CONNECTION_SERVER_PORT,
     "PortNumber",
     "SCI",
-    0, // No new parameter to use instead of deprecated
-    ConfigInfo::CI_DEPRECATED,
+    "PortNumber to be used by data nodes while connecting the transporters",
+    ConfigInfo::CI_INTERNAL,
     false,
     ConfigInfo::CI_INT,
-    MANDATORY,
+    "0",
     "0", 
     STR_VALUE(MAX_PORT_NO) },
 
@@ -5081,16 +4963,8 @@ fixPortNumber(InitConfigFileParser::Context & ctx, const char * data){
     }
   }
 
-  if(ctx.m_currentSection->contains("PortNumber")) {
-    ndbout << "PortNumber should no longer be specificied "
-	   << "per connection, please remove from config. "
-	   << "Will be changed to " << port << endl;
-    ctx.m_currentSection->put("PortNumber", port, true);
-  } 
-  else
-  {
-    ctx.m_currentSection->put("PortNumber", port);
-  }
+  require(ctx.m_currentSection->contains("PortNumber") == false);
+  ctx.m_currentSection->put("PortNumber", port);
 
   DBUG_PRINT("info", ("connection %d-%d port %d host %s",
 		      id1, id2, port, hostname.c_str()));

@@ -4,8 +4,7 @@
 # Restarting is not supported in embedded
 --source include/not_embedded.inc
 
---source include/have_innodb.inc
---source include/have_innodb_zip.inc
+--source include/have_innodb_max_16k.inc
 --source include/big_test.inc
 # Valgrind takes too much time on PB2 even in the --big-test runs.
 --source include/not_valgrind.inc

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2007, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2007, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,9 +17,16 @@
 #ifndef MY_BIT_INCLUDED
 #define MY_BIT_INCLUDED
 
-/*
-  Some useful bit functions
+/**
+  @file include/my_bit.h
+  Some useful bit functions.
 */
+
+#include <sys/types.h>
+
+#include "my_config.h"
+#include "my_inttypes.h"
+#include "my_macros.h"
 
 C_MODE_START
 
@@ -120,5 +127,38 @@ static inline uint32 my_reverse_bits(uint32 key)
 }
 
 C_MODE_END
+
+#ifdef __cplusplus
+/**
+  Determine if a single bit is set among some bits.
+  @tparam IntType   an integer type
+  @param  bits      the bits to examine
+  @retval true      if bits equals to a power of 2
+  @retval false     otherwise
+*/
+
+template<typename IntType>
+constexpr bool is_single_bit(IntType bits)
+{
+  /*
+    Proof of correctness:
+    (1) is_single_bit(0)==false is left as an exercise to the reader.
+    (2) is_single_bit(1)==true is left as an exercise to the reader.
+    (3) is_single_bit(1<<(N+1))==true because the most significant set bit
+    in (bits - 1) would be 1<<N, and obviously (bits & (bits - 1)) == 0.
+    (4) In all other cases, is_single_bit(bits)==false.
+    In these cases, we must have multiple bits set, that is,
+    bits==m|1<<N such that N>=0 and m!=0 and the least significant
+    bit that is set in m is greater than 1<<N. In this case,
+    (bits-1)==m|((1<<N)-1), and (bits&(bits-1))==m, which we defined to be
+    nonzero. So, m==0 will not hold.
+
+    Note: The above proof (3),(4) is applicable also to the case where
+    IntType is signed using two's complement arithmetics, and the most
+    significant bit is set, or in other words, bits<0.
+  */
+  return bits != 0 && (bits & (bits - 1)) == 0;
+}
+#endif /* __cplusplus */
 
 #endif /* MY_BIT_INCLUDED */

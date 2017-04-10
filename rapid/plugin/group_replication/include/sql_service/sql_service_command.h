@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,6 +16,9 @@
 #ifndef SQL_SERVICE_COMMAND_INCLUDE
 #define SQL_SERVICE_COMMAND_INCLUDE
 
+#include <stddef.h>
+
+#include "my_inttypes.h"
 #include "sql_service_interface.h"
 
 class Sql_service_command
@@ -132,7 +135,7 @@ public:
        0  Not in super read mode
        1  In read super mode
   */
-  long get_server_super_read_only();
+  longlong get_server_super_read_only();
 
   /*
     Method to get the value of the read_only variable on the server.
@@ -142,7 +145,7 @@ public:
        0  Not in super read mode
        1  In read super mode
   */
-  long get_server_read_only();
+  longlong get_server_read_only();
 private:
   //The internal SQL session service interface to the server
   Sql_service_interface *server_interface;

@@ -1,11 +1,3 @@
-#
-# ICP/InnoDB tests (Index Condition Pushdown)
-# (Turns off all other 6.0 optimizer switches)
-#
-
---source include/have_innodb.inc
---source include/have_index_condition_pushdown.inc
-
 set optimizer_switch='index_condition_pushdown=on';
 
 --disable_query_log

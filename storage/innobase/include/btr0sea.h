@@ -64,8 +64,7 @@ UNIV_INLINE
 btr_search_t*
 btr_search_get_info(
 /*================*/
-	dict_index_t*	index)	/*!< in: index */
-	MY_ATTRIBUTE((nonnull));
+	dict_index_t*	index);	/*!< in: index */
 
 /** Creates and initializes a search info struct.
 @param[in]	heap		heap where created.
@@ -79,17 +78,17 @@ btr_search_info_create(mem_heap_t* heap);
 @return ref_count value. */
 ulint
 btr_search_info_get_ref_count(
-	btr_search_t*	info,
-	dict_index_t*	index);
+	const btr_search_t*	info,
+	const dict_index_t*	index);
 
-/*********************************************************************//**
-Updates the search info. */
+/** Updates the search info.
+@param[in]	index	index of the cursor
+@param[in]	cursor	cursor which was just positioned */
 UNIV_INLINE
 void
 btr_search_info_update(
-/*===================*/
-	dict_index_t*	index,	/*!< in: index of the cursor */
-	btr_cur_t*	cursor);/*!< in: cursor which was just positioned */
+	dict_index_t*	index,
+	btr_cur_t*	cursor);
 
 /** Tries to guess the right search position based on the hash search info
 of the index. Note that if mode is PAGE_CUR_LE, which is used in inserts,
@@ -348,13 +347,6 @@ pattern */
 the hash index */
 #define BTR_SEARCH_ON_HASH_LIMIT	3
 
-/** We do this many searches before trying to keep the search latch
-over calls from MySQL. If we notice someone waiting for the latch, we
-again set this much timeout. This is to reduce contention. */
-#define BTR_SEA_TIMEOUT			10000
-
-#ifndef UNIV_NONINL
 #include "btr0sea.ic"
-#endif
 
 #endif

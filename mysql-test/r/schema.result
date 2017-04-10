@@ -2,7 +2,7 @@ drop database if exists mysqltest1;
 create schema foo;
 show create schema foo;
 Database	Create Database
-foo	CREATE DATABASE `foo` /*!40100 DEFAULT CHARACTER SET latin1 */
+foo	CREATE DATABASE `foo` /*!40100 DEFAULT CHARACTER SET utf8mb4 */
 show schemas like 'foo';
 Database (foo)
 foo
@@ -20,7 +20,7 @@ INSERT INTO schema1.t1 VALUES (1);
 DROP SCHEMA schema1;
 # Connection default
 ALTER SCHEMA schema1 DEFAULT CHARACTER SET utf8;
-Got one of the listed errors
+ERROR 42Y07: Database 'schema1' doesn't exist
 SET autocommit= TRUE;
 # Connection 2
 # Connection default
@@ -88,3 +88,76 @@ COMMIT;
 # Connection 2
 # Reaping: DROP DATABASE db1
 # Connection default;
+#
+# Bug#21305766: DML ON A NON EXISTING TABLE DOES NOT ACQUIRE MDL ON THE SCHEMA NAME
+#
+# Set lock_wait_timeout, create a schema and a connection con1.
+SET @start_session_value= @@session.lock_wait_timeout;
+SET @@session.lock_wait_timeout= 1;
+CREATE SCHEMA testdb;
+connect con1, localhost, root;
+# Access a non-existing table in the created schema, and park it after
+# acquiring the schema while acquiring the dd::Table object.
+SET DEBUG_SYNC= 'acquired_schema_while_acquiring_table SIGNAL acquired WAIT_FOR cont';
+SELECT * from testdb.no_such_table;
+connection default;
+# From the default connection, drop the schema, then resume
+# con1. Without the patch in the server code, DROP SCHEMA
+# will fail with an assert due to the schema object being
+# acquired by more than one thread. With the patch, we get
+# a lock wait timeout for DROP since the other thread has an
+# IX-lock on the schema name.
+SET DEBUG_SYNC= 'now WAIT_FOR acquired';
+DROP SCHEMA testdb;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET DEBUG_SYNC= 'now SIGNAL cont';
+connection con1;
+# Reaping SELECT * from testdb.no_such_table
+ERROR 42S02: Table 'testdb.no_such_table' doesn't exist
+disconnect con1;
+connection default;
+# Drop testdb and reset
+DROP SCHEMA testdb;
+SET @@session.lock_wait_timeout= @start_session_value;
+SET DEBUG_SYNC= 'RESET';
+#
+# Bug #21837759: SYNCHRONIZE USAGE OF SCHEMA DD OBJECTS BY MDL ACQUISITION
+#
+# Do a 'USE <schema>' and park it after retrieving the schema for
+# finding the default db collation. Then, from a different
+# connection, drop the same schema. Without the bugfix, this
+# will fail due to improper concurrent usage of the DD cache
+# elements. With the bugfix, the DROP will fail with a lock
+# wait timeout due to the operations now being properly synchronized
+# by meta data locking.
+#
+# Create the schema to be used in the test.
+SET @start_session_value= @@session.lock_wait_timeout;
+SET @@session.lock_wait_timeout= 1;
+CREATE SCHEMA testdb;
+#
+# Create a new connection, change schema, and stop after
+# retrieving the schema object for finding the default
+# collation.
+connect  con1, localhost, root;
+SET DEBUG_SYNC= 'acquired_schema_while_getting_collation SIGNAL acquired WAIT_FOR cont';
+USE testdb;
+#
+# On the default connection, do a DROP schema while the
+# other connection is holding the same schema object.
+# This will fail with a lock wait timeout when the operations
+# are properly synched by MDL. Without the synchronization,
+# this will trigger an assert in the shared DD cache.
+connection default;
+SET DEBUG_SYNC= 'now WAIT_FOR acquired';
+DROP SCHEMA testdb;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET DEBUG_SYNC= 'now SIGNAL cont';
+#
+# Reap, reset, and delete connection.
+connection con1;
+disconnect con1;
+connection default;
+SET DEBUG_SYNC= 'RESET';
+DROP SCHEMA testdb;
+SET @@session.lock_wait_timeout= @start_session_value;

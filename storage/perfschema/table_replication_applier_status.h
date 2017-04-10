@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,7 +14,6 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-
 #ifndef TABLE_REPLICATION_APPLIER_STATUS_H
 #define TABLE_REPLICATION_APPLIER_STATUS_H
 
@@ -23,31 +22,36 @@
   Table replication_applier_status (declarations).
 */
 
+#include <sys/types.h>
+
+#include "mysql_com.h"
 #include "pfs_column_types.h"
 #include "pfs_engine_table.h"
-#include "rpl_mi.h"
-#include "mysql_com.h"
-#include "rpl_msr.h"
 #include "rpl_info.h" /*CHANNEL_NAME_LENGTH*/
+#include "rpl_mi.h"
+#include "rpl_msr.h"
+#include "table_helper.h"
 
 class Master_info;
 
 /**
-  @addtogroup Performance_schema_tables
+  @addtogroup performance_schema_tables
   @{
 */
 
 #ifndef ENUM_RPL_YES_NO
 #define ENUM_RPL_YES_NO
 /** enum values for Service_State field*/
-enum enum_rpl_yes_no {
-  PS_RPL_YES= 1,
+enum enum_rpl_yes_no
+{
+  PS_RPL_YES = 1,
   PS_RPL_NO
 };
 #endif
 
 /** A row in the table. */
-struct st_row_applier_status {
+struct st_row_applier_status
+{
   char channel_name[CHANNEL_NAME_LENGTH];
   uint channel_name_length;
   enum_rpl_yes_no service_state;
@@ -56,11 +60,29 @@ struct st_row_applier_status {
   ulong count_transactions_retries;
 };
 
+class PFS_index_rpl_applier_status : public PFS_engine_index
+{
+public:
+  PFS_index_rpl_applier_status()
+    : PFS_engine_index(&m_key), m_key("CHANNEL_NAME")
+  {
+  }
+
+  ~PFS_index_rpl_applier_status()
+  {
+  }
+
+  virtual bool match(Master_info *mi);
+
+private:
+  PFS_key_name m_key;
+};
+
 /** Table PERFORMANCE_SCHEMA.replication_applier_status */
-class table_replication_applier_status: public PFS_engine_table
+class table_replication_applier_status : public PFS_engine_table
 {
 private:
-  void make_row(Master_info *mi);
+  int make_row(Master_info *mi);
 
   /** Table share lock. */
   static THR_LOCK m_table_lock;
@@ -68,8 +90,6 @@ private:
   static TABLE_FIELD_DEF m_field_def;
   /** Current row */
   st_row_applier_status m_row;
-  /** True is the current row exists. */
-  bool m_row_exists;
   /** Current position. */
   PFS_simple_index m_pos;
   /** Next position. */
@@ -96,12 +116,19 @@ public:
 
   /** Table share. */
   static PFS_engine_table_share m_share;
-  static PFS_engine_table* create();
+  static PFS_engine_table *create();
   static ha_rows get_row_count();
-  virtual int rnd_next();
-  virtual int rnd_pos(const void *pos);
+
   virtual void reset_position(void);
 
+  virtual int rnd_next();
+  virtual int rnd_pos(const void *pos);
+
+  virtual int index_init(uint idx, bool sorted);
+  virtual int index_next();
+
+private:
+  PFS_index_rpl_applier_status *m_opened_index;
 };
 
 /** @} */

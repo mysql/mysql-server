@@ -1,0 +1,57 @@
+# This test takes long time, so only run it with the --big-test mtr-flag.
+--source include/big_test.inc
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+SET NAMES utf8mb4;
+SET collation_connection=utf8mb4_0900_ai_ci;
+
+#
+# Populate table t1 with all ucs2 codes [00..FF][00..FF]
+#
+CREATE TABLE t1 (b VARCHAR(2)) ENGINE=INNODB;
+INSERT INTO t1 VALUES ('0'), ('1'), ('2'), ('3'), ('4'), ('5'), ('6'), ('7');
+INSERT INTO t1 VALUES ('8'), ('9'), ('A'), ('B'), ('C'), ('D'), ('E'), ('F');
+
+CREATE TEMPORARY TABLE head AS SELECT concat(b1.b, b2.b) AS head
+FROM t1 b1, t1 b2;
+CREATE TEMPORARY TABLE tail AS SELECT concat(b1.b, b2.b) AS tail
+FROM t1 b1, t1 b2;
+DROP TABLE t1;
+
+CREATE TABLE t1 (code char(4)) ENGINE=INNODB;
+INSERT INTO t1 SELECT CONCAT(head, tail) FROM head, tail ORDER BY
+head, tail;
+
+CREATE TABLE t2 (code VARCHAR(2)) ENGINE=INNODB;
+INSERT INTO t2 VALUES ('00'), ('01'), ('02'), ('03'), ('04'), ('05'),
+('06'), ('07');
+INSERT INTO t2 VALUES ('08'), ('09'), ('0A'), ('0B'), ('0C'), ('0D'),
+('0E'), ('0F'), ('10');
+
+CREATE TABLE fulltable (code char(1)) CHARACTER SET UTF32 ENGINE=INNODB;
+INSERT INTO fulltable SELECT UNHEX(CONCAT(t2.code, t1.code)) FROM t1, t2
+ORDER BY t2.code, t1.code;
+
+DROP TABLE t1, t2;
+DROP TEMPORARY TABLE head, tail;
+
+#####################################################################
+
+--echo # Print all the upper/lower in utf8mb4
+
+SELECT HEX(CONVERT(code USING utf8mb4)),
+HEX(UPPER(CONVERT(code USING utf8mb4))),
+HEX(LOWER(CONVERT(code USING utf8mb4))),
+code,
+UPPER(CONVERT(code USING utf8mb4)),
+LOWER(CONVERT(code USING utf8mb4))
+FROM fulltable
+WHERE (code < 0xD800 OR code >= 0xE000) AND
+(HEX(CONVERT(code USING utf8mb4)) <> HEX(UPPER(CONVERT(code USING utf8mb4)))
+OR HEX(CONVERT(code USING utf8mb4)) <> HEX(LOWER(CONVERT(code USING utf8mb4))))
+ORDER BY HEX(CONVERT(code USING utf8mb4));
+
+#####################################################################
+DROP TABLE fulltable;

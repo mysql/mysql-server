@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -23,14 +23,12 @@ Data types
 Created 1/16/1996 Heikki Tuuri
 *******************************************************/
 
-#include "ha_prototypes.h"
-
 #include "data0type.h"
 
-#ifdef UNIV_NONINL
-#include "data0type.ic"
-#endif
+#include <sys/types.h>
 
+#include "ha_prototypes.h"
+#include "my_inttypes.h"
 #ifndef UNIV_HOTBACKUP
 /* At the database startup we store the default-charset collation number of
 this MySQL installation to this global variable. If we have < 4.1.2 format
@@ -181,13 +179,12 @@ dtype_validate(
 	return(TRUE);
 }
 
-#ifndef UNIV_HOTBACKUP
-/*********************************************************************//**
-Prints a data type structure. */
+#if defined UNIV_DEBUG && !defined UNIV_HOTBACKUP
+/** Print a data type structure.
+@param[in]	type	data type */
 void
 dtype_print(
-/*========*/
-	const dtype_t*	type)	/*!< in: type */
+	const dtype_t*	type)
 {
 	ulint	mtype;
 	ulint	prtype;
@@ -299,4 +296,4 @@ dtype_print(
 
 	fprintf(stderr, " len %lu", (ulong) len);
 }
-#endif /* !UNIV_HOTBACKUP */
+#endif /* UNIV_DEBUG && !UNIV_HOTBACKUP */

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -237,15 +237,6 @@ Dbtup::allocFragPage(EmulatedJamBuffer* jamBuf,
   {
     thrjam(jamBuf);
     pageId = max;
-    if (!Local_key::isShort(pageId))
-    {
-      /**
-       * TODO: remove when ACC supports 48 bit references
-       */
-      thrjam(jamBuf);
-      * err = 889;
-      return RNIL;
-    }
     Uint32 * ptr = map.set(2 * pageId);
     if (unlikely(ptr == 0))
     {
@@ -313,7 +304,7 @@ Dbtup::allocFragPage(Uint32 * err,
     return pagePtr.i;
   }
   
-  LocalDLFifoList<Page> free_pages(c_page_pool, fragPtrP->thFreeFirst);
+  Local_Page_fifo free_pages(c_page_pool, fragPtrP->thFreeFirst);
   Uint32 cnt = fragPtrP->noOfPages;
   Uint32 max = fragPtrP->m_max_page_cnt;
   Uint32 list = fragPtrP->m_free_page_id_list;

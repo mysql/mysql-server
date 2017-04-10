@@ -1,8 +1,16 @@
---source include/have_innodb.inc
 --source include/have_debug_sync.inc
 --source include/have_debug.inc
 --source include/count_sessions.inc
 --source include/have_innodb_max_16k.inc
+
+########################################
+##### WL#7554 Force schema `test` to character set latin1
+##### This test should be migrated to utf8mb4
+--disable_query_log
+let $testdbcs51=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
+alter schema test default character set latin1;
+--enable_query_log
+########################################
 
 CREATE TABLE `t` (
   `a` VARCHAR(100),
@@ -286,3 +294,43 @@ disconnect con1;
 SET DEBUG_SYNC = 'RESET';
 
 --source include/wait_until_count_sessions.inc
+
+--echo #
+--echo # Bug#24658707 ASSERT: BUF0BUF.CC:2469:BUF_BLOCK_GET_STATE(BLOCK)
+--echo # == BUF_BLOCK_FILE_PAGE#
+--echo #
+
+--connect(con1,localhost,root)
+--connect(con2,localhost,root)
+
+CREATE TABLE t1 (
+     col1 int(11) NOT NULL,
+     col2 int(11) DEFAULT NULL
+   ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+
+--connection con1
+SET DEBUG_SYNC='purge_wait_for_btr_search_latch WAIT_FOR go';
+--send ALTER TABLE t1 ADD COLUMN col3 INT GENERATED ALWAYS AS (col1 % col2) VIRTUAL, algorithm=inplace;
+
+--connection con2
+# Allow purge to wait for btr_search_latch
+--sleep 10
+SET DEBUG_SYNC = 'now signal go';
+
+--connection con1
+--reap
+
+SET DEBUG_SYNC = 'RESET';
+
+DROP TABLE t1;
+
+--connection default
+--disconnect con1
+--disconnect con2
+
+########################################
+##### WL#7554 set schema `test` back to what it was
+--disable_query_log
+--eval alter schema test default character set $testdbcs51;
+--enable_query_log
+########################################

@@ -14,7 +14,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**
-  @file byteorder.h
+  @file libbinlogevents/include/byteorder.h
 
   @brief The file contains functions to convert the byte encoding of integer
   values to and from little-endian and big-endian byte order.
@@ -52,7 +52,7 @@
 */
 uint16_t inline le16toh(uint16_t x)
 {
-  #if !(IS_BIG_ENDIAN)
+  #ifndef IS_BIG_ENDIAN
     return x;
   #else
     return ((x >> 8) | (x << 8));
@@ -69,7 +69,7 @@ uint16_t inline le16toh(uint16_t x)
 */
 uint32_t inline le32toh(uint32_t x)
 {
-  #if !(IS_BIG_ENDIAN)
+  #ifndef IS_BIG_ENDIAN
     return x;
   #else
     return (((x >> 24) & 0xff) |
@@ -89,7 +89,7 @@ uint32_t inline le32toh(uint32_t x)
 */
 uint32_t inline be32toh(uint32_t x)
 {
-  #if !(IS_BIG_ENDIAN)
+  #ifndef IS_BIG_ENDIAN
      return (((x >> 24) & 0xff) |
              ((x <<  8) & 0xff0000) |
              ((x >>  8) & 0xff00) |
@@ -109,7 +109,7 @@ uint32_t inline be32toh(uint32_t x)
 */
 uint64_t inline le64toh(uint64_t x)
 {
-  #if !(IS_BIG_ENDIAN)
+  #ifndef IS_BIG_ENDIAN
     return x;
   #else
     x = ((x << 8) & 0xff00ff00ff00ff00ULL) |
@@ -121,9 +121,4 @@ uint64_t inline le64toh(uint64_t x)
 }
 #endif
 
-#define do_compile_time_assert(X)                                              \
-  do                                                                        \
-  {                                                                         \
-    typedef char do_compile_time_assert[(X) ? 1 : -1] MY_ATTRIBUTE((unused)); \
-  } while(0)
 #endif // BYTEORDER_INCLUDED

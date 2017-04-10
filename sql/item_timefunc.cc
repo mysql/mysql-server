@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -27,12 +27,38 @@
 
 #include "item_timefunc.h"
 
+#include "my_config.h"
+
+#include <limits.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#ifdef HAVE_SYS_TIME_H
+#include <sys/time.h>
+#endif
+#include <time.h>
+
+#include "current_thd.h"
+#include "dd/info_schema/stats.h"
+#include "dd/object_id.h"    // dd::Object_id
+#include "decimal.h"
+#include "derror.h"          // ER_THD
+#include "lex_string.h"
+#include "m_string.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_sys.h"
+#include "mysqld_error.h"
 #include "sql_class.h"       // THD
+#include "sql_error.h"
+#include "sql_lex.h"
+#include "sql_locale.h"      // my_locale_en_US
+#include "sql_security_ctx.h"
 #include "sql_time.h"        // make_truncated_value_warning
 #include "strfunc.h"         // check_word
+#include "table.h"
+#include "template_utils.h"
 #include "tztime.h"          // Time_zone
-
-#include <time.h>
 
 using std::min;
 using std::max;
@@ -55,8 +81,9 @@ adjust_time_range_with_warn(MYSQL_TIME *ltime, uint8 decimals)
   if (check_time_range_quick(ltime))
   {
     int warning= 0;
-    make_truncated_value_warning(ErrConvString(ltime, decimals),
-                                 MYSQL_TIMESTAMP_TIME);
+    make_truncated_value_warning(current_thd, Sql_condition::SL_WARNING,
+                                 ErrConvString(ltime, decimals),
+                                 MYSQL_TIMESTAMP_TIME, NullS);
     adjust_time_range(ltime, &warning);
   }
 }
@@ -107,24 +134,21 @@ static bool sec_to_time(lldiv_t seconds, MYSQL_TIME *ltime)
   uint sec= (uint) (seconds.quot % 3600);
   ltime->minute= sec / 60;
   ltime->second= sec % 60;
-  time_add_nanoseconds_with_round(ltime, static_cast<uint>(seconds.rem), &warning);
-  
-  adjust_time_range(ltime, &warning);
+  time_add_nanoseconds_adjust_frac(ltime, static_cast<uint>(seconds.rem),
+                                   &warning, current_thd->is_fsp_truncate_mode());
 
+  adjust_time_range(ltime, &warning);
   return warning ? true : false;
 }
 
 
 /*
   Date formats corresponding to compound %r and %T conversion specifiers
-
-  Note: We should init at least first element of "positions" array
-        (first member) or hpux11 compiler will die horribly.
 */
-static Date_time_format time_ampm_format= {{0}, '\0', 0,
-                                           {(char *)"%I:%i:%S %p", 11}};
-static Date_time_format time_24hrs_format= {{0}, '\0', 0,
-                                            {(char *)"%H:%i:%S", 8}};
+static const Date_time_format time_ampm_format= {{0},
+                                                 {(char *)"%I:%i:%S %p", 11}};
+static const Date_time_format time_24hrs_format= {{0},
+                                                  {(char *)"%H:%i:%S", 8}};
 
 /**
   Extract datetime value to MYSQL_TIME struct from string value
@@ -141,6 +165,7 @@ static Date_time_format time_24hrs_format= {{0}, '\0', 0,
                             %r) and this parameter is pointer to place where
                             pointer to end of string matching this specifier
                             should be stored.
+  @param date_time_type
 
   @note
     Possibility to parse strings matching to patterns equivalent to compound
@@ -159,7 +184,7 @@ static Date_time_format time_24hrs_format= {{0}, '\0', 0,
     1	error
 */
 
-static bool extract_date_time(Date_time_format *format,
+static bool extract_date_time(const Date_time_format *format,
                               const char *val, size_t length, MYSQL_TIME *l_time,
                               timestamp_type cached_timestamp_type,
                               const char **sub_pattern_end,
@@ -478,8 +503,9 @@ static bool extract_date_time(Date_time_format *format,
       if (!my_isspace(&my_charset_latin1,*val))
       {
         // TS-TODO: extract_date_time is not UCS2 safe
-        make_truncated_value_warning(ErrConvString(val_begin, length),
-                                     cached_timestamp_type);
+        make_truncated_value_warning(current_thd, Sql_condition::SL_WARNING,
+                                     ErrConvString(val_begin, length),
+                                     cached_timestamp_type, NullS);
 	break;
       }
     } while (++val != val_end);
@@ -491,7 +517,8 @@ err:
     char buff[128];
     strmake(buff, val_begin, min<size_t>(length, sizeof(buff)-1));
     push_warning_printf(current_thd, Sql_condition::SL_WARNING,
-                        ER_WRONG_VALUE_FOR_TYPE, ER(ER_WRONG_VALUE_FOR_TYPE),
+                        ER_WRONG_VALUE_FOR_TYPE,
+                        ER_THD(current_thd, ER_WRONG_VALUE_FOR_TYPE),
                         date_time_type, buff, "str_to_date");
   }
   DBUG_RETURN(1);
@@ -503,7 +530,7 @@ err:
 */
 
 bool make_date_time(Date_time_format *format, MYSQL_TIME *l_time,
-		    timestamp_type type, String *str)
+                    timestamp_type type, String *str)
 {
   char intbuff[15];
   uint hours_i;
@@ -746,9 +773,9 @@ bool make_date_time(Date_time_format *format, MYSQL_TIME *l_time,
   @param args            item expression which we convert to an ASCII string
   @param str_value       string buffer
   @param is_negative     set to true if interval is prefixed by '-'
-  @param count:          count of elements in result array
-  @param values:         array of results
-  @param transform_msec: if value is true we suppose
+  @param count           count of elements in result array
+  @param values          array of results
+  @param transform_msec  if value is true we suppose
                          that the last part of string value is microseconds
                          and we should transform value to six digit value.
                          For example, '1.1' -> '1.100000'
@@ -825,7 +852,7 @@ bool Item_temporal_func::check_precision()
   Appends function name with argument list or fractional seconds part
   to the String str.
 
-  @param[in/out]  str         String to which the func_name and decimals/
+  @param[in,out]  str         String to which the func_name and decimals/
                               argument list should be appended.
   @param[in]      query_type  Query type
 
@@ -857,9 +884,9 @@ type_conversion_status
 Item_temporal_hybrid_func::save_in_field_inner(Field *field,
                                                bool no_conversions)
 {
-  if (cached_field_type == MYSQL_TYPE_TIME)
+  if (data_type() == MYSQL_TYPE_TIME)
     return save_time_in_field(field);
-  if (is_temporal_type_with_date(cached_field_type))
+  if (is_temporal_type_with_date(data_type()))
     return save_date_in_field(field);
   return Item_str_func::save_in_field_inner(field, no_conversions);
 }
@@ -868,9 +895,9 @@ Item_temporal_hybrid_func::save_in_field_inner(Field *field,
 my_decimal *Item_temporal_hybrid_func::val_decimal(my_decimal *decimal_value)
 {
   DBUG_ASSERT(fixed == 1);
-  if (cached_field_type == MYSQL_TYPE_TIME)
+  if (data_type() == MYSQL_TYPE_TIME)
     return val_decimal_from_time(decimal_value);
-  else if (cached_field_type == MYSQL_TYPE_DATETIME)
+  else if (data_type() == MYSQL_TYPE_DATETIME)
     return val_decimal_from_date(decimal_value);
   else
   {
@@ -901,7 +928,7 @@ bool Item_temporal_hybrid_func::get_date(MYSQL_TIME *ltime,
     DBUG_ASSERT(null_value == true);
     return true;
   }
-  if (cached_field_type == MYSQL_TYPE_TIME ||
+  if (data_type() == MYSQL_TYPE_TIME ||
       tm.time_type == MYSQL_TIMESTAMP_TIME)
     time_to_datetime(current_thd, &tm, ltime);
   else
@@ -917,7 +944,7 @@ bool Item_temporal_hybrid_func::get_time(MYSQL_TIME *ltime)
     DBUG_ASSERT(null_value == true);
     return true;
   }
-  if (cached_field_type == MYSQL_TYPE_TIME &&
+  if (data_type() == MYSQL_TYPE_TIME &&
       ltime->time_type != MYSQL_TIMESTAMP_TIME)
     datetime_to_time(ltime);
   return false;
@@ -931,20 +958,20 @@ String *Item_temporal_hybrid_func::val_str_ascii(String *str)
 
   if (val_datetime(&ltime, TIME_FUZZY_DATE) ||
       (null_value= my_TIME_to_str(&ltime, str,
-                                  cached_field_type == MYSQL_TYPE_STRING ?
-                                  (ltime.second_part ?
-                                   DATETIME_MAX_DECIMALS : 0) :
-                                  decimals)))
-    return (String *) 0;
+                                  data_type() == MYSQL_TYPE_STRING ?
+                                    ltime.second_part ?
+                                      DATETIME_MAX_DECIMALS : 0 :
+                                    decimals)))
+    return NULL;
 
   /* Check that the returned timestamp type matches to the function type */
-  DBUG_ASSERT((cached_field_type == MYSQL_TYPE_TIME &&
+  DBUG_ASSERT((data_type() == MYSQL_TYPE_TIME &&
                ltime.time_type == MYSQL_TIMESTAMP_TIME) ||
-              (cached_field_type == MYSQL_TYPE_DATE &&
+              (data_type() == MYSQL_TYPE_DATE &&
                ltime.time_type == MYSQL_TIMESTAMP_DATE) ||
-              (cached_field_type == MYSQL_TYPE_DATETIME &&
+              (data_type() == MYSQL_TYPE_DATETIME &&
                ltime.time_type == MYSQL_TIMESTAMP_DATETIME) ||
-               cached_field_type == MYSQL_TYPE_STRING ||
+               data_type() == MYSQL_TYPE_STRING ||
                ltime.time_type == MYSQL_TIMESTAMP_NONE);
   return str;
 }
@@ -976,7 +1003,7 @@ longlong Item_datetime_func::val_date_temporal()
 }
 
 
-bool Item_date_literal::eq(const Item *item, bool binary_cmp) const
+bool Item_date_literal::eq(const Item *item, bool) const
 {
   return
     item->basic_const_item() && type() == item->type() &&
@@ -985,7 +1012,7 @@ bool Item_date_literal::eq(const Item *item, bool binary_cmp) const
 }
 
 
-void Item_date_literal::print(String *str, enum_query_type query_type)
+void Item_date_literal::print(String *str, enum_query_type)
 {
   str->append("DATE'");
   str->append(cached_time.cptr());
@@ -993,7 +1020,7 @@ void Item_date_literal::print(String *str, enum_query_type query_type)
 }
 
 
-bool Item_datetime_literal::eq(const Item *item, bool binary_cmp) const
+bool Item_datetime_literal::eq(const Item *item, bool) const
 {
   return
     item->basic_const_item() && type() == item->type() &&
@@ -1002,7 +1029,7 @@ bool Item_datetime_literal::eq(const Item *item, bool binary_cmp) const
 }
 
 
-void Item_datetime_literal::print(String *str, enum_query_type query_type)
+void Item_datetime_literal::print(String *str, enum_query_type)
 {
   str->append("TIMESTAMP'");
   str->append(cached_time.cptr());
@@ -1010,7 +1037,7 @@ void Item_datetime_literal::print(String *str, enum_query_type query_type)
 }
 
 
-bool Item_time_literal::eq(const Item *item, bool binary_cmp) const
+bool Item_time_literal::eq(const Item *item, bool) const
 {
   return
     item->basic_const_item() && type() == item->type() &&
@@ -1019,7 +1046,7 @@ bool Item_time_literal::eq(const Item *item, bool binary_cmp) const
 }
 
 
-void Item_time_literal::print(String *str, enum_query_type query_type)
+void Item_time_literal::print(String *str, enum_query_type)
 {
   str->append("TIME'");
   str->append(cached_time.cptr());
@@ -1066,8 +1093,7 @@ longlong Item_func_to_days::val_int()
 }
 
 
-longlong Item_func_to_seconds::val_int_endpoint(bool left_endp,
-                                                bool *incl_endp)
+longlong Item_func_to_seconds::val_int_endpoint(bool, bool*)
 {
   DBUG_ASSERT(fixed == 1);
   MYSQL_TIME ltime;
@@ -1125,9 +1151,9 @@ enum_monotonicity_info Item_func_to_days::get_monotonicity_info() const
 {
   if (args[0]->type() == Item::FIELD_ITEM)
   {
-    if (args[0]->field_type() == MYSQL_TYPE_DATE)
+    if (args[0]->data_type() == MYSQL_TYPE_DATE)
       return MONOTONIC_STRICT_INCREASING_NOT_NULL;
-    if (args[0]->field_type() == MYSQL_TYPE_DATETIME)
+    if (args[0]->data_type() == MYSQL_TYPE_DATETIME)
       return MONOTONIC_INCREASING_NOT_NULL;
   }
   return NON_MONOTONIC;
@@ -1137,8 +1163,8 @@ enum_monotonicity_info Item_func_to_seconds::get_monotonicity_info() const
 {
   if (args[0]->type() == Item::FIELD_ITEM)
   {
-    if (args[0]->field_type() == MYSQL_TYPE_DATE ||
-        args[0]->field_type() == MYSQL_TYPE_DATETIME)
+    if (args[0]->data_type() == MYSQL_TYPE_DATE ||
+        args[0]->data_type() == MYSQL_TYPE_DATETIME)
       return MONOTONIC_STRICT_INCREASING_NOT_NULL;
   }
   return NON_MONOTONIC;
@@ -1166,12 +1192,12 @@ longlong Item_func_to_days::val_int_endpoint(bool left_endp, bool *incl_endp)
     /*
       Even if the evaluation return NULL, the calc_daynr is useful for pruning
     */
-    if (args[0]->field_type() != MYSQL_TYPE_DATE)
+    if (args[0]->data_type() != MYSQL_TYPE_DATE)
       *incl_endp= TRUE;
     return res;
   }
   
-  if (args[0]->field_type() == MYSQL_TYPE_DATE)
+  if (args[0]->data_type() == MYSQL_TYPE_DATE)
   {
     // TO_DAYS() is strictly monotonic for dates, leave incl_endp intact
     return res;
@@ -1226,16 +1252,15 @@ longlong Item_func_month::val_int()
 }
 
 
-void Item_func_monthname::fix_length_and_dec()
+bool Item_func_monthname::resolve_type(THD *thd)
 {
-  THD* thd= current_thd;
   const CHARSET_INFO *cs= thd->variables.collation_connection;
   uint32 repertoire= my_charset_repertoire(cs);
   locale= thd->variables.lc_time_names;  
   collation.set(cs, DERIVATION_COERCIBLE, repertoire);
-  decimals=0;
-  max_length= locale->max_month_name_length * collation.collation->mbmaxlen;
-  maybe_null=1; 
+  set_data_type_string(locale->max_month_name_length);
+  maybe_null= true;
+  return false; 
 }
 
 
@@ -1294,7 +1319,7 @@ longlong Item_func_second::val_int()
 }
 
 
-uint week_mode(uint mode)
+static uint week_mode(uint mode)
 {
   uint week_format= (mode & 7);
   if (!(week_format & WEEK_MONDAY_FIRST))
@@ -1390,16 +1415,15 @@ longlong Item_func_weekday::val_int()
                                  odbc_type) + MY_TEST(odbc_type);
 }
 
-void Item_func_dayname::fix_length_and_dec()
+bool Item_func_dayname::resolve_type(THD *thd)
 {
-  THD* thd= current_thd;
   const CHARSET_INFO *cs= thd->variables.collation_connection;
   uint32 repertoire= my_charset_repertoire(cs);
   locale= thd->variables.lc_time_names;  
   collation.set(cs, DERIVATION_COERCIBLE, repertoire);
-  decimals=0;
-  max_length= locale->max_day_name_length * collation.collation->mbmaxlen;
-  maybe_null=1; 
+  set_data_type_string(locale->max_day_name_length);
+  maybe_null= true;
+  return false; 
 }
 
 
@@ -1445,8 +1469,8 @@ longlong Item_func_year::val_int()
 enum_monotonicity_info Item_func_year::get_monotonicity_info() const
 {
   if (args[0]->type() == Item::FIELD_ITEM &&
-      (args[0]->field_type() == MYSQL_TYPE_DATE ||
-       args[0]->field_type() == MYSQL_TYPE_DATETIME))
+      (args[0]->data_type() == MYSQL_TYPE_DATE ||
+       args[0]->data_type() == MYSQL_TYPE_DATETIME))
     return MONOTONIC_INCREASING;
   return NON_MONOTONIC;
 }
@@ -1555,7 +1579,7 @@ bool Item_func_unix_timestamp::val_timeval(struct timeval *tm)
   DBUG_ASSERT(fixed == 1);
   if (arg_count == 0)
   {
-    tm->tv_sec= current_thd->query_start();
+    tm->tv_sec= current_thd->query_start_in_secs();
     tm->tv_usec= 0;
     return false; // no args: null_value is set in constructor and is always 0.
   }
@@ -1567,18 +1591,18 @@ bool Item_func_unix_timestamp::val_timeval(struct timeval *tm)
 enum_monotonicity_info Item_func_unix_timestamp::get_monotonicity_info() const
 {
   if (args[0]->type() == Item::FIELD_ITEM &&
-      (args[0]->field_type() == MYSQL_TYPE_TIMESTAMP))
+      (args[0]->data_type() == MYSQL_TYPE_TIMESTAMP))
     return MONOTONIC_INCREASING;
   return NON_MONOTONIC;
 }
 
 
-longlong Item_func_unix_timestamp::val_int_endpoint(bool left_endp, bool *incl_endp)
+longlong Item_func_unix_timestamp::val_int_endpoint(bool, bool*)
 {
   DBUG_ASSERT(fixed == 1);
   DBUG_ASSERT(arg_count == 1 &&
               args[0]->type() == Item::FIELD_ITEM &&
-              args[0]->field_type() == MYSQL_TYPE_TIMESTAMP);
+              args[0]->data_type() == MYSQL_TYPE_TIMESTAMP);
   /* Leave the incl_endp intact */
   struct timeval tm;
   return val_timeval(&tm) ?  0 : tm.tv_sec;
@@ -1882,11 +1906,12 @@ bool Item_func_curdate::itemize(Parse_context *pc, Item **res)
 }
 
 
-void Item_func_curdate::fix_length_and_dec()
+bool Item_func_curdate::resolve_type(THD *thd)
 {
-  THD *thd= current_thd;
-  Item_date_func::fix_length_and_dec();
+  if (Item_date_func::resolve_type(thd))
+    return true;
   cached_time.set_date(thd->query_start_timeval_trunc(decimals), time_zone());
+  return false;
 }
 
 
@@ -1915,19 +1940,23 @@ bool Item_func_curtime::itemize(Parse_context *pc, Item **res)
 }
 
 
-void Item_func_curtime::fix_length_and_dec()
+bool Item_func_curtime::resolve_type(THD *thd)
 {
   if (check_precision())
-    return;
-  THD *thd= current_thd;
+    return true;
+
   cached_time.set_time(thd->query_start_timeval_trunc(decimals), decimals,
                        time_zone());
+  set_data_type_time(decimals);
+
   /*
-    We use 8 instead of MAX_TIME_WIDTH (which is 10) because:
+    Subtract 2 from MAX_TIME_WIDTH (which is 10) because:
     - there is no sign 
     - hour is in the 2-digit range
   */
-  fix_length_and_dec_and_charset_datetime(8, decimals);
+  max_length-= 2 * collation.collation->mbmaxlen;
+
+  return false;
 }
 
 
@@ -1945,14 +1974,15 @@ Time_zone *Item_func_curtime_utc::time_zone()
 
 /* NOW() and UTC_TIMESTAMP () */
 
-void Item_func_now::fix_length_and_dec()
+bool Item_func_now::resolve_type(THD *thd)
 {
   if (check_precision())
-    return;
-  THD *thd= current_thd;
+    return true;
+
   cached_time.set_datetime(thd->query_start_timeval_trunc(decimals), decimals,
                            time_zone());
-  fix_length_and_dec_and_charset_datetime(MAX_DATETIME_WIDTH, decimals);
+  set_data_type_datetime(decimals);
+  return false;
 }
 
 
@@ -1989,7 +2019,7 @@ Time_zone *Item_func_now_utc::time_zone()
 
 
 type_conversion_status
-Item_func_now::save_in_field_inner(Field *to, bool no_conversions)
+Item_func_now::save_in_field_inner(Field *to, bool)
 {
   to->set_notnull();
   return to->store_time(cached_time.get_TIME_ptr(), decimals);
@@ -2017,11 +2047,12 @@ bool Item_func_sysdate_local::get_date(MYSQL_TIME *now_time,
 }
 
 
-void Item_func_sysdate_local::fix_length_and_dec()
+bool Item_func_sysdate_local::resolve_type(THD *)
 {
   if (check_precision())
-    return;
-  fix_length_and_dec_and_charset_datetime(MAX_DATETIME_WIDTH, decimals);
+    return true;
+  set_data_type_datetime(decimals);
+  return false;
 }
 
 
@@ -2034,26 +2065,27 @@ bool Item_func_sec_to_time::get_time(MYSQL_TIME *ltime)
   if (my_decimal2lldiv_t(0, val, &seconds))
   {
     set_max_time(ltime, val->sign());
-    make_truncated_value_warning(ErrConvString(val), MYSQL_TIMESTAMP_TIME);
+    make_truncated_value_warning(current_thd, Sql_condition::SL_WARNING,
+                                 ErrConvString(val), MYSQL_TIMESTAMP_TIME,
+                                 NullS);
     return false;
   }
   if (sec_to_time(seconds, ltime))
-    make_truncated_value_warning(ErrConvString(val),
-                                 MYSQL_TIMESTAMP_TIME);
+    make_truncated_value_warning(current_thd, Sql_condition::SL_WARNING,
+                                 ErrConvString(val),
+                                 MYSQL_TIMESTAMP_TIME, NullS);
   return false;
 }
 
 
-void Item_func_date_format::fix_length_and_dec()
+bool Item_func_date_format::resolve_type(THD *thd)
 {
-  THD* thd= current_thd;
   /*
     Must use this_item() in case it's a local SP variable
     (for ->max_length and ->str_value)
   */
   Item *arg1= args[1]->this_item();
-
-  decimals=0;
+  uint32 char_length;
   const CHARSET_INFO *cs= thd->variables.collation_connection;
   uint32 repertoire= arg1->collation.repertoire;
   if (!thd->variables.lc_time_names->is_ascii)
@@ -2061,18 +2093,18 @@ void Item_func_date_format::fix_length_and_dec()
   collation.set(cs, arg1->collation.derivation, repertoire);
   if (arg1->type() == STRING_ITEM)
   {						// Optimize the normal case
-    fixed_length=1;
-    max_length= format_length(&arg1->str_value) *
-                collation.collation->mbmaxlen;
+    fixed_length= true;
+    char_length= format_length(&arg1->str_value);
   }
   else
   {
-    fixed_length=0;
-    max_length= min<uint32>(arg1->max_length, MAX_BLOB_WIDTH) * 10 *
-      collation.collation->mbmaxlen;
-    set_if_smaller(max_length,MAX_BLOB_WIDTH);
+    fixed_length= false;
+    char_length= min<uint32>(arg1->max_char_length(), MAX_BLOB_WIDTH) * 10;
+    set_if_smaller(char_length, MAX_BLOB_WIDTH);
   }
-  maybe_null=1;					// If wrong date
+  set_data_type_string(char_length);
+  maybe_null= true;                            // If wrong date
+  return false;
 }
 
 
@@ -2228,20 +2260,20 @@ null_date:
 }
 
 
-void Item_func_from_unixtime::fix_length_and_dec()
-{ 
-  thd= current_thd;
-  uint8 dec= MY_MIN(args[0]->decimals, DATETIME_MAX_DECIMALS);
-  fix_length_and_dec_and_charset_datetime(MAX_DATETIME_WIDTH, dec);
-  maybe_null= 1;
-  thd->time_zone_used= 1;
+bool Item_func_from_unixtime::resolve_type(THD *thd)
+{
+  set_data_type_datetime(MY_MIN(args[0]->decimals, DATETIME_MAX_DECIMALS));
+  maybe_null= true;
+  thd->time_zone_used= true;
+  return false;
 }
 
 
 bool Item_func_from_unixtime::get_date(MYSQL_TIME *ltime,
-				       my_time_flags_t fuzzy_date
+                                       my_time_flags_t fuzzy_date
                                        MY_ATTRIBUTE((unused)))
 {
+  THD *thd= current_thd;
   lldiv_t lld;
   if (decimals)
   {
@@ -2266,15 +2298,16 @@ bool Item_func_from_unixtime::get_date(MYSQL_TIME *ltime,
   thd->variables.time_zone->gmt_sec_to_TIME(ltime, (my_time_t) lld.quot);
   int warnings= 0;
   ltime->second_part= decimals ? static_cast<ulong>(lld.rem / 1000) : 0;
-  return datetime_add_nanoseconds_with_round(ltime, lld.rem % 1000, &warnings);
+  return datetime_add_nanoseconds_adjust_frac(ltime, lld.rem % 1000, &warnings,
+                                              current_thd->is_fsp_truncate_mode());
 }
 
 
-void Item_func_convert_tz::fix_length_and_dec()
+bool Item_func_convert_tz::resolve_type(THD *)
 {
-  fix_length_and_dec_and_charset_datetime(MAX_DATETIME_WIDTH, 
-                                          args[0]->datetime_precision());
-  maybe_null= 1;
+  set_data_type_datetime(args[0]->datetime_precision());
+  maybe_null= true;
+  return false;
 }
 
 
@@ -2305,7 +2338,7 @@ bool Item_func_convert_tz::get_date(MYSQL_TIME *ltime,
   }
 
   {
-    my_bool not_used;
+    bool not_used;
     uint second_part= ltime->second_part;
     my_time_tmp= from_tz->TIME_to_gmt_sec(ltime, &not_used);
     /* my_time_tmp is guranteed to be in the allowed range */
@@ -2328,11 +2361,9 @@ void Item_func_convert_tz::cleanup()
 }
 
 
-void Item_date_add_interval::fix_length_and_dec()
+bool Item_date_add_interval::resolve_type(THD *)
 {
-  enum_field_types arg0_field_type;
-
-  maybe_null=1;
+  maybe_null= true;
 
   /*
     The field type for the result of an Item_date function is defined as
@@ -2345,7 +2376,7 @@ void Item_date_add_interval::fix_length_and_dec()
       (This is because you can't know if the string contains a DATE, MYSQL_TIME or
       DATETIME argument)
   */
-  arg0_field_type= args[0]->field_type();
+  enum_field_types arg0_data_type= args[0]->data_type();
   uint8 interval_dec= 0;
   if (int_type == INTERVAL_MICROSECOND ||
       (int_type >= INTERVAL_DAY_MICROSECOND &&
@@ -2354,45 +2385,39 @@ void Item_date_add_interval::fix_length_and_dec()
   else if (int_type == INTERVAL_SECOND && args[1]->decimals > 0)
     interval_dec= MY_MIN(args[1]->decimals, DATETIME_MAX_DECIMALS);
 
-  if (arg0_field_type == MYSQL_TYPE_DATETIME ||
-      arg0_field_type == MYSQL_TYPE_TIMESTAMP)
+  if (arg0_data_type == MYSQL_TYPE_DATETIME ||
+      arg0_data_type == MYSQL_TYPE_TIMESTAMP)
   {
     uint8 dec= MY_MAX(args[0]->datetime_precision(), interval_dec);
-    fix_length_and_dec_and_charset_datetime(MAX_DATETIME_WIDTH, dec);
-    cached_field_type= MYSQL_TYPE_DATETIME;
+    set_data_type_datetime(dec);
   }
-  else if (arg0_field_type == MYSQL_TYPE_DATE)
+  else if (arg0_data_type == MYSQL_TYPE_DATE)
   {
     if (int_type <= INTERVAL_DAY || int_type == INTERVAL_YEAR_MONTH)
-    {
-      cached_field_type= MYSQL_TYPE_DATE;
-      fix_length_and_dec_and_charset_datetime(MAX_DATE_WIDTH, 0);
-    }
+      set_data_type_date();
     else
-    {
-      cached_field_type= MYSQL_TYPE_DATETIME;
-      fix_length_and_dec_and_charset_datetime(MAX_DATE_WIDTH, interval_dec);
-    }
+      set_data_type_datetime(interval_dec);
   }
-  else if (arg0_field_type == MYSQL_TYPE_TIME)
+  else if (arg0_data_type == MYSQL_TYPE_TIME)
   {
     uint8 dec= MY_MAX(args[0]->time_precision(), interval_dec);
-    cached_field_type= MYSQL_TYPE_TIME;
-    fix_length_and_dec_and_charset_datetime(MAX_TIME_WIDTH, dec);
+    set_data_type_time(dec);
   }
   else
   {
-    cached_field_type= MYSQL_TYPE_STRING;
     /* Behave as a usual string function when return type is VARCHAR. */
-    fix_length_and_charset(MAX_DATETIME_FULL_WIDTH, default_charset());
+    set_data_type_char(MAX_DATETIME_FULL_WIDTH, default_charset());
   }
-  value.alloc(max_length);
+  if (value.alloc(max_length))
+    return true;
+
+  return false;
 }
 
 
 /* Here arg[1] is a Item_interval object */
 bool Item_date_add_interval::get_date_internal(MYSQL_TIME *ltime,
-                                               my_time_flags_t fuzzy_date)
+                                               my_time_flags_t)
 {
   Interval interval;
 
@@ -2407,10 +2432,10 @@ bool Item_date_add_interval::get_date_internal(MYSQL_TIME *ltime,
     Make sure we return proper time_type.
     It's important for val_str().
   */
-  if (cached_field_type == MYSQL_TYPE_DATE &&
+  if (data_type() == MYSQL_TYPE_DATE &&
       ltime->time_type == MYSQL_TIMESTAMP_DATETIME)
     datetime_to_date(ltime);
-  else if (cached_field_type == MYSQL_TYPE_DATETIME &&
+  else if (data_type() == MYSQL_TYPE_DATETIME &&
            ltime->time_type == MYSQL_TIMESTAMP_DATE)
     date_to_datetime(ltime);
 
@@ -2450,7 +2475,7 @@ bool Item_date_add_interval::get_time_internal(MYSQL_TIME *ltime)
   {
     push_warning_printf(current_thd, Sql_condition::SL_WARNING,
                         ER_DATETIME_FUNCTION_OVERFLOW,
-                        ER(ER_DATETIME_FUNCTION_OVERFLOW),
+                        ER_THD(current_thd, ER_DATETIME_FUNCTION_OVERFLOW),
                         "time");
     return true;
   }  
@@ -2461,7 +2486,7 @@ bool Item_date_add_interval::get_time_internal(MYSQL_TIME *ltime)
 bool Item_date_add_interval::val_datetime(MYSQL_TIME *ltime,
                                           my_time_flags_t fuzzy_date)
 {
-  if (cached_field_type != MYSQL_TYPE_TIME)
+  if (data_type() != MYSQL_TYPE_TIME)
     return get_date_internal(ltime, fuzzy_date | TIME_NO_ZERO_DATE);
   return get_time_internal(ltime);
 }
@@ -2469,9 +2494,10 @@ bool Item_date_add_interval::val_datetime(MYSQL_TIME *ltime,
 
 bool Item_date_add_interval::eq(const Item *item, bool binary_cmp) const
 {
-  Item_date_add_interval *other= (Item_date_add_interval*) item;
   if (!Item_func::eq(item, binary_cmp))
     return 0;
+  const Item_date_add_interval *other=
+    down_cast<const Item_date_add_interval*>(item);
   return ((int_type == other->int_type) &&
           (date_sub_interval == other->date_sub_interval));
 }
@@ -2512,9 +2538,9 @@ void Item_extract::print(String *str, enum_query_type query_type)
   str->append(')');
 }
 
-void Item_extract::fix_length_and_dec()
+bool Item_extract::resolve_type(THD *)
 {
-  maybe_null=1;					// If wrong date
+  maybe_null= true;             // If wrong date
   switch (int_type) {
   case INTERVAL_YEAR:		max_length=4; date_value=1; break;
   case INTERVAL_YEAR_MONTH:	max_length=6; date_value=1; break;
@@ -2538,6 +2564,7 @@ void Item_extract::fix_length_and_dec()
   case INTERVAL_SECOND_MICROSECOND: max_length=9; date_value=0; break;
   case INTERVAL_LAST: DBUG_ASSERT(0); break; /* purecov: deadcode */
   }
+  return false;
 }
 
 
@@ -2639,12 +2666,18 @@ void Item_datetime_typecast::print(String *str, enum_query_type query_type)
 bool Item_datetime_typecast::get_date(MYSQL_TIME *ltime,
                                       my_time_flags_t fuzzy_date)
 {
-  if ((null_value= args[0]->get_date(ltime, fuzzy_date | TIME_NO_DATE_FRAC_WARN)))
+  my_time_flags_t flags= fuzzy_date | TIME_NO_DATE_FRAC_WARN;
+  if (current_thd->is_fsp_truncate_mode())
+    flags|= TIME_FRAC_TRUNCATE;
+
+  if ((null_value= args[0]->get_date(ltime, flags)))
     return true;
   DBUG_ASSERT(ltime->time_type != MYSQL_TIMESTAMP_TIME);
   ltime->time_type= MYSQL_TIMESTAMP_DATETIME; // In case it was DATE
   int warnings= 0;
-  return (null_value= my_datetime_round(ltime, decimals, &warnings));
+  return (null_value=
+          my_datetime_adjust_frac(ltime, decimals, &warnings,
+                                  current_thd->is_fsp_truncate_mode()));
 }
 
 
@@ -2664,7 +2697,8 @@ bool Item_time_typecast::get_time(MYSQL_TIME *ltime)
 {
   if (get_arg0_time(ltime))
     return true;
-  my_time_round(ltime, decimals);
+  my_time_adjust_frac(ltime, decimals, current_thd->is_fsp_truncate_mode());
+
   /*
     For MYSQL_TIMESTAMP_TIME value we can have non-zero day part,
     which we should not lose.
@@ -2704,7 +2738,7 @@ bool Item_date_typecast::get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzy_date)
     for dates between 0000-01-01 and 0099-12-31
 */
 
-bool Item_func_makedate::get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzy_date)
+bool Item_func_makedate::get_date(MYSQL_TIME *ltime, my_time_flags_t)
 {
   DBUG_ASSERT(fixed == 1);
   long daynr=  (long) args[1]->val_int();
@@ -2736,7 +2770,7 @@ err:
 }
 
 
-void Item_func_add_time::fix_length_and_dec()
+bool Item_func_add_time::resolve_type(THD *)
 {
   /*
     The field type for the result of an Item_func_add_time function is defined
@@ -2750,24 +2784,22 @@ void Item_func_add_time::fix_length_and_dec()
     TODO: perhaps it should also return MYSQL_TYPE_DATETIME
     when the first argument is MYSQL_TYPE_DATE.
   */
-  if (args[0]->field_type() == MYSQL_TYPE_TIME && !is_date)
+  if (args[0]->data_type() == MYSQL_TYPE_TIME && !is_date)
   {
-    cached_field_type= MYSQL_TYPE_TIME;
     uint8 dec= MY_MAX(args[0]->time_precision(), args[1]->time_precision());
-    fix_length_and_dec_and_charset_datetime(MAX_TIME_WIDTH, dec);
+    set_data_type_time(dec);
   }
   else if (args[0]->is_temporal_with_date_and_time() || is_date)
   {
-    cached_field_type= MYSQL_TYPE_DATETIME;
     uint8 dec= MY_MAX(args[0]->datetime_precision(), args[1]->time_precision());
-    fix_length_and_dec_and_charset_datetime(MAX_DATETIME_WIDTH, dec);
+    set_data_type_datetime(dec);
   }
   else
   {
-    cached_field_type= MYSQL_TYPE_STRING;
-    fix_length_and_charset(MAX_DATETIME_FULL_WIDTH, default_charset());
+    set_data_type_char(MAX_DATETIME_FULL_WIDTH, default_charset());
   }
-  maybe_null= 1;
+  maybe_null= true;
+  return false;
 }
 
 
@@ -2787,13 +2819,13 @@ bool Item_func_add_time::val_datetime(MYSQL_TIME *time,
 {
   DBUG_ASSERT(fixed == 1);
   MYSQL_TIME l_time1, l_time2;
-  bool is_time= 0;
+  bool is_time= false;
   long days, microseconds;
   longlong seconds;
   int l_sign= sign;
 
-  null_value=0;
-  if (cached_field_type == MYSQL_TYPE_DATETIME)  // TIMESTAMP function
+  null_value= FALSE;
+  if (data_type() == MYSQL_TYPE_DATETIME)  // TIMESTAMP function
   {
     if (get_arg0_date(&l_time1, fuzzy_date) || 
         args[1]->get_time(&l_time2) ||
@@ -2888,7 +2920,6 @@ void Item_func_add_time::print(String *str, enum_query_type query_type)
 
   t and s: time_or_datetime_expression
   @param[out]  l_time3   Result is stored here.
-  @param[in]   flags     Not used in this class.
 
   @returns
   @retval   false  On succes
@@ -2906,9 +2937,9 @@ bool Item_func_timediff::get_time(MYSQL_TIME *l_time3)
   null_value= 0;
 
   if ((args[0]->is_temporal_with_date() &&
-       args[1]->field_type() == MYSQL_TYPE_TIME) ||
+       args[1]->data_type() == MYSQL_TYPE_TIME) ||
       (args[1]->is_temporal_with_date() &&
-       args[0]->field_type() == MYSQL_TYPE_TIME))
+       args[0]->data_type() == MYSQL_TYPE_TIME))
     goto null_date; // Incompatible types
 
   if (args[0]->is_temporal_with_date() ||
@@ -2997,7 +3028,9 @@ bool Item_func_maketime::get_time(MYSQL_TIME *ltime)
     int warnings= 0;
     ltime->second_part= static_cast<ulong>(second.rem / 1000);
     adjust_time_range_with_warn(ltime, decimals);
-    time_add_nanoseconds_with_round(ltime, second.rem % 1000, &warnings);
+    time_add_nanoseconds_adjust_frac(ltime, second.rem % 1000, &warnings,
+                                     current_thd->is_fsp_truncate_mode());
+
     if (!warnings)
       return false;
   }
@@ -3019,7 +3052,9 @@ bool Item_func_maketime::get_time(MYSQL_TIME *ltime)
                   second.rem / (ulong) log_10_int[9 - dec]);
   }
   DBUG_ASSERT(strlen(buf) < sizeof(buf));
-  make_truncated_value_warning(ErrConvString(buf, len), MYSQL_TIMESTAMP_TIME);
+  make_truncated_value_warning(current_thd, Sql_condition::SL_WARNING,
+                               ErrConvString(buf, len), MYSQL_TIMESTAMP_TIME,
+                               NullS);
   return false;
 }
 
@@ -3289,9 +3324,7 @@ void Item_func_str_to_date::fix_from_format(const char *format, size_t length)
           have all types of date-time components and can end our search.
         */
         cached_timestamp_type= MYSQL_TIMESTAMP_DATETIME;
-        cached_field_type= MYSQL_TYPE_DATETIME; 
-        fix_length_and_dec_and_charset_datetime(MAX_DATETIME_WIDTH,
-                                                DATETIME_MAX_DECIMALS);
+        set_data_type_datetime(DATETIME_MAX_DECIMALS);
         return;
       }
     }
@@ -3301,44 +3334,37 @@ void Item_func_str_to_date::fix_from_format(const char *format, size_t length)
   if (frac_second_used) /* TIME with microseconds */
   {
     cached_timestamp_type= MYSQL_TIMESTAMP_TIME;
-    cached_field_type= MYSQL_TYPE_TIME;
-    fix_length_and_dec_and_charset_datetime(MAX_TIME_FULL_WIDTH,
-                                            DATETIME_MAX_DECIMALS);
+    set_data_type_time(DATETIME_MAX_DECIMALS);
   }
   else if (time_part_used)
   {
     if (date_part_used) /* DATETIME, no microseconds */
     {
       cached_timestamp_type= MYSQL_TIMESTAMP_DATETIME;
-      cached_field_type= MYSQL_TYPE_DATETIME; 
-      fix_length_and_dec_and_charset_datetime(MAX_DATETIME_WIDTH, 0);
+      set_data_type_datetime(0);
     }
     else /* TIME, no microseconds */
     {
       cached_timestamp_type= MYSQL_TIMESTAMP_TIME;
-      cached_field_type= MYSQL_TYPE_TIME;
-      fix_length_and_dec_and_charset_datetime(MAX_TIME_WIDTH, 0);
+      set_data_type_time(0);
     }
   }
   else /* DATE */
   {
     cached_timestamp_type= MYSQL_TIMESTAMP_DATE;
-    cached_field_type= MYSQL_TYPE_DATE; 
-    fix_length_and_dec_and_charset_datetime(MAX_DATE_WIDTH, 0);
+    set_data_type_date();
   }
 }
 
 
-void Item_func_str_to_date::fix_length_and_dec()
+bool Item_func_str_to_date::resolve_type(THD *thd)
 {
-  maybe_null= 1;
-  cached_field_type= MYSQL_TYPE_DATETIME;
+  maybe_null= true;
   cached_timestamp_type= MYSQL_TIMESTAMP_DATETIME;
-  fix_length_and_dec_and_charset_datetime(MAX_DATETIME_WIDTH,
-                                          DATETIME_MAX_DECIMALS);
-  sql_mode= current_thd->variables.sql_mode & (MODE_NO_ZERO_DATE |
-                                               MODE_NO_ZERO_IN_DATE |
-                                               MODE_INVALID_DATES);
+  set_data_type_datetime(DATETIME_MAX_DECIMALS);
+  sql_mode= thd->variables.sql_mode & (MODE_NO_ZERO_DATE |
+                                       MODE_NO_ZERO_IN_DATE |
+                                       MODE_INVALID_DATES);
   if ((const_item= args[1]->const_item()))
   {
     char format_buff[64];
@@ -3347,6 +3373,7 @@ void Item_func_str_to_date::fix_length_and_dec()
     if (!args[1]->null_value)
       fix_from_format(format->ptr(), format->length());
   }
+  return false;
 }
 
 
@@ -3398,7 +3425,8 @@ null_date:
     char buff[128];
     strmake(buff, val->ptr(), min<size_t>(val->length(), sizeof(buff)-1));
     push_warning_printf(current_thd, Sql_condition::SL_WARNING,
-                        ER_WRONG_VALUE_FOR_TYPE, ER(ER_WRONG_VALUE_FOR_TYPE),
+                        ER_WRONG_VALUE_FOR_TYPE,
+                        ER_THD(current_thd, ER_WRONG_VALUE_FOR_TYPE),
                         "datetime", buff, "str_to_date");
   }
   return (null_value= 1);
@@ -3418,7 +3446,9 @@ bool Item_func_last_day::get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzy_date)
     */
     ltime->time_type= MYSQL_TIMESTAMP_DATE;
     ErrConvString str(ltime, 0);
-    make_truncated_value_warning(str, MYSQL_TIMESTAMP_ERROR);
+    make_truncated_value_warning(current_thd, Sql_condition::SL_WARNING,
+                                 str, MYSQL_TIMESTAMP_ERROR,
+                                 NullS);
     return (null_value= true);
   }
 
@@ -3429,3 +3459,111 @@ bool Item_func_last_day::get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzy_date)
   datetime_to_date(ltime);
   return false;
 }
+
+bool Item_func_internal_update_time::resolve_type(THD *thd)
+{
+  set_data_type_datetime(0);
+  maybe_null= true;
+  thd->time_zone_used= true;
+  return false;
+}
+
+bool Item_func_internal_update_time::get_date(MYSQL_TIME *ltime,
+                                              my_time_flags_t fuzzy_date
+                                              MY_ATTRIBUTE((unused)))
+{
+  DBUG_ENTER("Item_func_internal_update_time::get_date");
+
+  String schema_name;
+  String *schema_name_ptr;
+  String table_name;
+  String *table_name_ptr;
+  String engine_name;
+  String *engine_name_ptr;
+  ulonglong unixtime= 0;
+
+  if ((schema_name_ptr=args[0]->val_str(&schema_name)) != nullptr &&
+      (table_name_ptr=args[1]->val_str(&table_name)) != nullptr &&
+      (engine_name_ptr=args[2]->val_str(&engine_name)) != nullptr &&
+      ! is_infoschema_db(schema_name_ptr->c_ptr_safe()))
+  {
+    dd::Object_id se_private_id= (dd::Object_id) args[3]->val_uint();
+    THD *thd= current_thd;
+
+    // Make sure we have safe string to access.
+    schema_name_ptr->c_ptr_safe();
+    table_name_ptr->c_ptr_safe();
+    engine_name_ptr->c_ptr_safe();
+
+    unixtime= thd->lex->m_IS_dyn_stat_cache.read_stat(thd,
+                *schema_name_ptr,
+                *table_name_ptr,
+                *engine_name_ptr,
+                se_private_id,
+                dd::info_schema::enum_statistics_type::TABLE_UPDATE_TIME);
+    if (unixtime)
+    {
+      null_value= 0;
+      thd->variables.time_zone->gmt_sec_to_TIME(ltime, (my_time_t) unixtime);
+      DBUG_RETURN(false);
+    }
+  }
+
+  null_value= 1;
+  DBUG_RETURN(true);
+}
+
+
+bool Item_func_internal_check_time::resolve_type(THD *thd)
+{
+  set_data_type_datetime(0);
+  maybe_null= true;
+  thd->time_zone_used= true;
+  return false;
+}
+
+bool Item_func_internal_check_time::get_date(MYSQL_TIME *ltime,
+                                             my_time_flags_t fuzzy_date
+                                             MY_ATTRIBUTE((unused)))
+{
+  DBUG_ENTER("Item_func_internal_check_time::get_date");
+
+  String schema_name;
+  String *schema_name_ptr;
+  String table_name;
+  String *table_name_ptr;
+  String engine_name;
+  String *engine_name_ptr;
+  ulonglong unixtime= 0;
+
+  if ((schema_name_ptr=args[0]->val_str(&schema_name)) != nullptr &&
+      (table_name_ptr=args[1]->val_str(&table_name)) != nullptr &&
+      (engine_name_ptr=args[2]->val_str(&engine_name)) != nullptr &&
+      ! is_infoschema_db(schema_name_ptr->c_ptr_safe()))
+  {
+    dd::Object_id se_private_id= (dd::Object_id) args[3]->val_uint();
+    THD *thd= current_thd;
+
+    // Make sure we have safe string to access.
+    schema_name_ptr->c_ptr_safe();
+    table_name_ptr->c_ptr_safe();
+    engine_name_ptr->c_ptr_safe();
+
+    unixtime= thd->lex->m_IS_dyn_stat_cache.read_stat(thd,
+                *schema_name_ptr,
+                *table_name_ptr,
+                *engine_name_ptr,
+                se_private_id,
+                dd::info_schema::enum_statistics_type::CHECK_TIME);
+    if (unixtime)
+    {
+      null_value= 0;
+      thd->variables.time_zone->gmt_sec_to_TIME(ltime, (my_time_t) unixtime);
+      DBUG_RETURN(false);
+    }
+  }
+
+  null_value= 1;
+  DBUG_RETURN(true);
+}
+

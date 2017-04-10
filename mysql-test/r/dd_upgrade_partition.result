@@ -1,0 +1,46 @@
+#
+# Bug#25153261 : SEG FAULT IN UPGRADING PARTITIONED TABLE
+#
+call mtr.add_suppression("Resizing redo log from");
+call mtr.add_suppression("Upgrading redo log");
+call mtr.add_suppression("Starting to delete and rewrite log files");
+call mtr.add_suppression("New log files created");
+call mtr.add_suppression("Unknown system variable 'show_compatibility_56'");
+call mtr.add_suppression("You need to use --log-bin to make --binlog-format work");
+call mtr.add_suppression("Creating routine without parsing routine body");
+call mtr.add_suppression("Resolving dependency for the view");
+call mtr.add_suppression("references invalid");
+call mtr.add_suppression("doesn't exist");
+call mtr.add_suppression("information_schema");
+call mtr.add_suppression("must use supported storage engine");
+call mtr.add_suppression("Table 'mysql.component' doesn't exist");
+call mtr.add_suppression("is expected to be transactional");
+call mtr.add_suppression("table is missing or has an incorrect definition");
+call mtr.add_suppression("ACL DDLs will not work unless mysql_upgrade is executed");
+call mtr.add_suppression(".* Native table .* has the wrong structure");
+call mtr.add_suppression("Column count of mysql.* is wrong");
+call mtr.add_suppression("Column count of performance_schema.events_statements_summary_by_digest is wrong.*");
+call mtr.add_suppression("The privilege system failed to initialize correctly.*");
+call mtr.add_suppression(".*Missing system table mysql.global_grants.*");
+call mtr.add_suppression("InnoDB: Unable to delete statistics for table mysql.");
+call mtr.add_suppression("Column count of performance_schema.replication_connection_status is wrong. Expected 20, found 11*");
+call mtr.add_suppression("Column count of performance_schema.replication_applier_status_by_coordinator is wrong. Expected 15, found 6.*");
+call mtr.add_suppression("Column count of performance_schema.replication_applier_status_by_worker is wrong. Expected 16, found 8.*");
+# Copy the remote tablespace & DB zip files from suite location to working location.
+# Check that the file exists in the working folder.
+# Unzip the zip file.
+# Stop DB server which was created by MTR default
+MYSQL_TMP_DIR/bootstrap.log
+# Start the server. Without fix, there is a segmentation fault in this step.
+SHOW CREATE TABLE partitions.t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` varchar(50) CHARACTER SET koi8r COLLATE koi8r_bin DEFAULT NULL,
+  `b` varchar(50) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+/*!50500 PARTITION BY RANGE  COLUMNS(a)
+(PARTITION p0 VALUES LESS THAN (_koi8r 0xC386C387) ENGINE = InnoDB,
+ PARTITION p1 VALUES LESS THAN (MAXVALUE) ENGINE = InnoDB) */
+# Stop the server
+# Restart the server with default options.
+# restart

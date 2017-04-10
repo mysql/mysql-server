@@ -11,7 +11,6 @@ DESC sys.host_summary_by_file_io;
 SELECT * FROM sys.host_summary_by_file_io;
 --enable_result_log
 
-
 # Ensure structure changes don't slip in
 DESC sys.x$host_summary_by_file_io;
 

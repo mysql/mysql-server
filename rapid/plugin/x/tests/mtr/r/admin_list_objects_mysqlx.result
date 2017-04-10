@@ -78,9 +78,6 @@ command ok
 name	type
 processlist	VIEW
 command ok
-name	type
-PROCESSLIST	VIEW
-command ok
 
 Collection with index
 ---------------------

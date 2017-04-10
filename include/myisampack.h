@@ -1,7 +1,7 @@
 #ifndef MYISAMPACK_INCLUDED
 #define MYISAMPACK_INCLUDED
 
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,31 +16,60 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-/*
+/**
+  @file include/myisampack.h
   Storing of values in high byte first order.
 
-  integer keys and file pointers are stored with high byte first to get
-  better compression
+  Integer keys and file pointers are stored with high byte first to get
+  better compression.
 */
 
-/* these two are for uniformity */
-#define mi_sint1korr(A) ((int8)(*A))
-#define mi_uint1korr(A) ((uint8)(*A))
+#include "my_config.h"
 
-#define mi_sint2korr(A) ((int16) (((int16) (((uchar*) (A))[1])) +\
-                                  ((int16) ((int16) ((char*) (A))[0]) << 8)))
-#define mi_sint3korr(A) ((int32) (((((uchar*) (A))[0]) & 128) ? \
-                                  (((uint32) 255L << 24) | \
-                                   (((uint32) ((uchar*) (A))[0]) << 16) |\
-                                   (((uint32) ((uchar*) (A))[1]) << 8) | \
-                                   ((uint32) ((uchar*) (A))[2])) : \
-                                  (((uint32) ((uchar*) (A))[0]) << 16) |\
-                                  (((uint32) ((uchar*) (A))[1]) << 8) | \
-                                  ((uint32) ((uchar*) (A))[2])))
-#define mi_sint4korr(A) ((int32) (((int32) (((uchar*) (A))[3])) +\
-                                  ((int32) (((uchar*) (A))[2]) << 8) +\
-                                  ((int32) (((uchar*) (A))[1]) << 16) +\
-                                  ((int32) ((int16) ((char*) (A))[0]) << 24)))
+#ifdef HAVE_ENDIAN_H
+#include <endian.h>
+#endif
+#include <sys/types.h>
+
+#include "my_inttypes.h"
+
+/* these two are for uniformity */
+
+static inline int8 mi_sint1korr(const uchar *A)
+{
+  return *A;
+}
+
+static inline uint8 mi_uint1korr(const uchar *A)
+{
+  return *A;
+}
+
+static inline int16 mi_sint2korr(const uchar *A)
+{
+  return (int16)((uint32)(A[1]) + ((uint32)(A[0]) << 8));
+}
+
+static inline int32 mi_sint3korr(const uchar *A)
+{
+  return (int32) ((A[0] & 128) ?
+                  ((255U << 24) |
+                   ((uint32)(A[0]) << 16) |
+                   ((uint32)(A[1]) << 8) |
+                   ((uint32)A[2])) :
+                  (((uint32)(A[0]) << 16) |
+                   ((uint32)(A[1]) << 8) |
+                   ((uint32)(A[2]))));
+}
+
+static inline int32 mi_sint4korr(const uchar *A)
+{
+  return (int32) ((uint32)(A[3]) +
+                  ((uint32)(A[2]) << 8) +
+                  ((uint32)(A[1]) << 16) +
+                  ((uint32)(A[0]) << 24) );
+}
+
 #define mi_sint8korr(A) ((longlong) mi_uint8korr(A))
 #define mi_uint2korr(A) ((uint16) (((uint16) (((uchar*) (A))[1])) +\
                                    ((uint16) (((uchar*) (A))[0]) << 8)))

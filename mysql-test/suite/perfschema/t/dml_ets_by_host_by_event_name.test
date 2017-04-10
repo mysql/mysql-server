@@ -1,8 +1,5 @@
 # Tests for PERFORMANCE_SCHEMA
 
---source include/not_embedded.inc
---source include/have_perfschema.inc
-
 --disable_result_log 
 select * from performance_schema.events_transactions_summary_by_host_by_event_name
   where event_name in ('transaction') limit 1;

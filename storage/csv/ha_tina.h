@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,9 +13,14 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include <sys/types.h>
-#include <sys/stat.h>
 #include <my_dir.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+
+#include "handler.h"
+#include "my_inttypes.h"
+#include "my_io.h"
+#include "sql_string.h"
 #include "transparent_file.h"
 
 #define DEFAULT_CHAIN_LENGTH 512
@@ -34,7 +39,7 @@ typedef struct st_tina_share {
     Below flag is needed to make log tables work with concurrent insert.
     For more details see comment to ha_tina::update_status.
   */
-  my_bool is_log_table;
+  bool is_log_table;
   /*
     Here we save the length of the file for readers. This is updated by
     inserts, updates and deletes. The var is initialized along with the
@@ -101,15 +106,13 @@ public:
     free_root(&blobroot, MYF(0));
   }
   const char *table_type() const { return "CSV"; }
-  const char *index_type(uint inx) { return "NONE"; }
-  const char **bas_ext() const;
   ulonglong table_flags() const
   {
     return (HA_NO_TRANSACTIONS | HA_REC_NOT_IN_SEQ | HA_NO_AUTO_INCREMENT |
             HA_BINLOG_ROW_CAPABLE | HA_BINLOG_STMT_CAPABLE |
             HA_CAN_REPAIR);
   }
-  ulong index_flags(uint idx, uint part, bool all_parts) const
+  ulong index_flags(uint, uint, bool) const
   {
     /*
       We will never have indexes so this will never be called(AKA we return
@@ -134,7 +137,8 @@ public:
   */
   ha_rows estimate_rows_upper_bound() { return HA_POS_ERROR; }
 
-  int open(const char *name, int mode, uint open_options);
+  int open(const char *name, int mode, uint open_options,
+           const dd::Table *table_def);
   int close(void);
   int write_row(uchar * buf);
   int update_row(const uchar * old_data, uchar * new_data);
@@ -153,7 +157,8 @@ public:
   int info(uint);
   int extra(enum ha_extra_function operation);
   int delete_all_rows(void);
-  int create(const char *name, TABLE *form, HA_CREATE_INFO *create_info);
+  int create(const char *name, TABLE *form, HA_CREATE_INFO *create_info,
+             dd::Table *table_def);
   bool check_if_incompatible_data(HA_CREATE_INFO *info,
                                   uint table_changes);
 

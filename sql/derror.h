@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,12 +16,19 @@
 #ifndef DERROR_INCLUDED
 #define DERROR_INCLUDED
 
-#include "my_global.h"                          /* uint */
+#include <stddef.h>
 #ifdef EXTRA_CODE_FOR_UNIT_TESTING
 #include "mysqld_error.h"
 #endif
 
 class THD;
+
+typedef struct charset_info_st CHARSET_INFO;
+
+/**
+  Character set of the buildin error messages loaded from errmsg.sys.
+*/
+extern CHARSET_INFO *error_message_charset_info;
 
 class MY_LOCALE_ERRMSGS
 {

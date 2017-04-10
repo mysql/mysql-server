@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,19 +18,19 @@
 #ifndef SOCKET_CONNECTION_INCLUDED
 #define SOCKET_CONNECTION_INCLUDED
 
-#include "my_global.h"               // uint
-#include "my_thread.h"
-#include "pfs_socket_provider.h"
-#include "mysql/psi/mysql_socket.h"  // MYSQL_SOCKET
-
+#include <sys/types.h>
 #include <map>
 #include <string>
+
+#include "my_config.h"
+#include "my_psi_config.h"
+#include "mysql/psi/mysql_socket.h"  // MYSQL_SOCKET
+#include "mysql/psi/psi_statement.h"
 #ifdef HAVE_POLL_H
 #include <poll.h>
 #endif
 
 class Channel_info;
-class THD;
 
 
 extern const char *MY_BIND_ALL_ADDRESSES;

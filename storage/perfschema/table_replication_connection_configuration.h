@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,7 +14,6 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-
 #ifndef TABLE_REPLICATION_CONFIGURATION_H
 #define TABLE_REPLICATION_CONFIGURATION_H
 
@@ -23,40 +22,47 @@
   Table replication_connection_configuration (declarations).
 */
 
+#include <sys/types.h>
+
+#include "my_io.h"
+#include "mysql_com.h"
 #include "pfs_column_types.h"
 #include "pfs_engine_table.h"
+#include "rpl_info.h" /* CHANNEL_NAME_LENGTH*/
 #include "rpl_mi.h"
-#include "mysql_com.h"
 #include "rpl_msr.h"
-#include "rpl_info.h"  /* CHANNEL_NAME_LENGTH*/
+#include "table_helper.h"
 
 class Master_info;
 
 /**
-  @addtogroup Performance_schema_tables
+  @addtogroup performance_schema_tables
   @{
 */
 
 #ifndef ENUM_RPL_YES_NO
 #define ENUM_RPL_YES_NO
-enum enum_rpl_yes_no {
-  PS_RPL_YES= 1,
+enum enum_rpl_yes_no
+{
+  PS_RPL_YES = 1,
   PS_RPL_NO
 };
 #endif
 
 /** enum values for SSL_Allowed*/
-enum enum_ssl_allowed {
-    PS_SSL_ALLOWED_YES= 1,
-    PS_SSL_ALLOWED_NO,
-    PS_SSL_ALLOWED_IGNORED
+enum enum_ssl_allowed
+{
+  PS_SSL_ALLOWED_YES = 1,
+  PS_SSL_ALLOWED_NO,
+  PS_SSL_ALLOWED_IGNORED
 };
 
 /**
   A row in the table. The fields with string values have an additional
-  length field denoted by <field_name>_length.
+  length field denoted by \<field_name\>_length.
 */
-struct st_row_connect_config {
+struct st_row_connect_config
+{
   char channel_name[CHANNEL_NAME_LENGTH];
   uint channel_name_length;
   char host[HOSTNAME_LENGTH];
@@ -90,18 +96,34 @@ struct st_row_connect_config {
   uint tls_version_length;
 };
 
+class PFS_index_rpl_connection_config : public PFS_engine_index
+{
+public:
+  PFS_index_rpl_connection_config()
+    : PFS_engine_index(&m_key), m_key("CHANNEL_NAME")
+  {
+  }
+
+  ~PFS_index_rpl_connection_config()
+  {
+  }
+
+  virtual bool match(Master_info *mi);
+
+private:
+  PFS_key_name m_key;
+};
+
 /** Table PERFORMANCE_SCHEMA.TABLE_REPLICATION_CONNECTION_CONFIGURATION. */
-class table_replication_connection_configuration: public PFS_engine_table
+class table_replication_connection_configuration : public PFS_engine_table
 {
 private:
-  void make_row(Master_info *);
+  int make_row(Master_info *);
 
   /** Table share lock. */
   static THR_LOCK m_table_lock;
   /** Fields definition. */
   static TABLE_FIELD_DEF m_field_def;
-  /** True if the current row exists. */
-  bool m_row_exists;
   /** Current row */
   st_row_connect_config m_row;
   /** Current position. */
@@ -130,12 +152,18 @@ public:
 
   /** Table share. */
   static PFS_engine_table_share m_share;
-  static PFS_engine_table* create();
+  static PFS_engine_table *create();
   static ha_rows get_row_count();
-  virtual int rnd_next();
-  virtual int rnd_pos(const void *pos);
   virtual void reset_position(void);
 
+  virtual int rnd_next();
+  virtual int rnd_pos(const void *pos);
+
+  virtual int index_init(uint idx, bool sorted);
+  virtual int index_next();
+
+private:
+  PFS_index_rpl_connection_config *m_opened_index;
 };
 
 /** @} */

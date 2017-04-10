@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -18,16 +18,20 @@ INCLUDE(CheckCSourceRuns)
 INCLUDE(CheckCSourceCompiles) 
 INCLUDE(CheckCXXSourceCompiles)
 
-# We require at least GCC 4.4 or SunStudio 12u2 (CC 5.11)
+# We require at least GCC 4.8 or SunStudio 12.4 (CC 5.13)
 IF(NOT FORCE_UNSUPPORTED_COMPILER)
   IF(CMAKE_COMPILER_IS_GNUCC)
     EXECUTE_PROCESS(COMMAND ${CMAKE_C_COMPILER} -dumpversion
                     OUTPUT_VARIABLE GCC_VERSION)
-    IF(GCC_VERSION VERSION_LESS 4.4)
-      MESSAGE(FATAL_ERROR "GCC 4.4 or newer is required!")
+    IF(GCC_VERSION VERSION_LESS 4.8)
+      MESSAGE(FATAL_ERROR "GCC 4.8 or newer is required!")
     ENDIF()
   ELSEIF(CMAKE_C_COMPILER_ID MATCHES "SunPro")
+    IF(SIZEOF_VOIDP MATCHES 4)
+      MESSAGE(FATAL_ERROR "32 bit Solaris builds are not supported. ")
+    ENDIF()
     # CC -V yields
+    # CC: Studio 12.6 Sun C++ 5.15 SunOS_sparc Beta 2016/12/19
     # CC: Studio 12.5 Sun C++ 5.14 SunOS_sparc Dodona 2016/04/04
     # CC: Sun C++ 5.13 SunOS_sparc Beta 2014/03/11
     # CC: Sun C++ 5.11 SunOS_sparc 2010/08/13
@@ -39,12 +43,12 @@ IF(NOT FORCE_UNSUPPORTED_COMPILER)
     )
     STRING(REGEX MATCH "CC: Sun C\\+\\+ 5\\.([0-9]+)" VERSION_STRING ${stderr})
     IF (NOT CMAKE_MATCH_1 OR CMAKE_MATCH_1 STREQUAL "")
-      STRING(REGEX MATCH "CC: Studio 12\\.5 Sun C\\+\\+ 5\\.([0-9]+)"
+      STRING(REGEX MATCH "CC: Studio 12\\.[56] Sun C\\+\\+ 5\\.([0-9]+)"
         VERSION_STRING ${stderr})
     ENDIF()
     SET(CC_MINOR_VERSION ${CMAKE_MATCH_1})
-    IF(${CC_MINOR_VERSION} LESS 11)
-      MESSAGE(FATAL_ERROR "SunStudio 12u2 or newer is required!")
+    IF(${CC_MINOR_VERSION} LESS 13)
+      MESSAGE(FATAL_ERROR "SunStudio 12.4 or newer is required!")
     ENDIF()
   ELSE()
     MESSAGE(FATAL_ERROR "Unsupported compiler!")
@@ -61,6 +65,16 @@ ADD_DEFINITIONS(-D__EXTENSIONS__)
 # http://docs.oracle.com/cd/E19455-01/806-5257/6je9h033k/index.html
 ADD_DEFINITIONS(-D_POSIX_PTHREAD_SEMANTICS -D_REENTRANT -D_PTHREADS)
 
+# Workaround for Bug 22973151
+# Cannot include <math.h> then <cmath> w/ Studio 12.4 in -std=c++11 mode
+IF(CMAKE_SYSTEM_VERSION VERSION_EQUAL "5.11" AND CC_MINOR_VERSION EQUAL 13)
+  EXEC_PROGRAM(uname ARGS -v OUTPUT_VARIABLE MY_OS_MINOR_VERSION)
+  IF(MY_OS_MINOR_VERSION MATCHES "11.3")
+    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -W0,-stdhdrs_not_idempotent")
+    MESSAGE("Adding -W0,-stdhdrs_not_idempotent")
+  ENDIF()
+ENDIF()
+
 IF (NOT "${CMAKE_C_FLAGS}${CMAKE_CXX_FLAGS}" MATCHES "-m32|-m64")
   EXECUTE_PROCESS(COMMAND isainfo -b
     OUTPUT_VARIABLE ISAINFO_B
@@ -73,6 +87,16 @@ IF (NOT "${CMAKE_C_FLAGS}${CMAKE_CXX_FLAGS}" MATCHES "-m32|-m64")
     MESSAGE("Adding -m${ISAINFO_B}")
     SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -m${ISAINFO_B}")
     SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -m${ISAINFO_B}")
+    SET(CMAKE_C_LINK_FLAGS "${CMAKE_C_LINK_FLAGS} -m${ISAINFO_B}")
+    SET(CMAKE_CXX_LINK_FLAGS "${CMAKE_CXX_LINK_FLAGS} -m${ISAINFO_B}")
+  ENDIF()
+ELSE()
+  IF("${CMAKE_C_FLAGS}" MATCHES "-m32")
+    SET(CMAKE_C_LINK_FLAGS "${CMAKE_C_LINK_FLAGS} -m32")
+    SET(CMAKE_CXX_LINK_FLAGS "${CMAKE_CXX_LINK_FLAGS} -m32")
+  ELSE()
+    SET(CMAKE_C_LINK_FLAGS "${CMAKE_C_LINK_FLAGS} -m64")
+    SET(CMAKE_CXX_LINK_FLAGS "${CMAKE_CXX_LINK_FLAGS} -m64")
   ENDIF()
 ENDIF()
 

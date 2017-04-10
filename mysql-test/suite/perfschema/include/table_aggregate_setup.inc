@@ -66,7 +66,7 @@
 # ========================================
 
 --source include/not_embedded.inc
---source include/have_perfschema.inc
+# Test requires: sp-protocol/ps-protocol/view-protocol/cursor-protocol disabled
 --source include/no_protocol.inc
 --source ../include/wait_for_pfs_thread_count.inc
 
@@ -102,13 +102,13 @@ create table test.setup_objects as
 # Only instrument the user connections (by default)
 truncate table performance_schema.setup_actors;
 insert into performance_schema.setup_actors
-  set host= 'localhost', user= 'user1', role= '%';
+  set host= 'localhost', user= 'user1', `role`= '%';
 insert into performance_schema.setup_actors
-  set host= 'localhost', user= 'user2', role= '%';
+  set host= 'localhost', user= 'user2', `role`= '%';
 insert into performance_schema.setup_actors
-  set host= 'localhost', user= 'user3', role= '%';
+  set host= 'localhost', user= 'user3', `role`= '%';
 insert into performance_schema.setup_actors
-  set host= 'localhost', user= 'user4', role= '%';
+  set host= 'localhost', user= 'user4', `role`= '%';
 
 # Only instrument test.t% tables (by default)
 truncate table performance_schema.setup_objects;

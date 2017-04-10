@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,13 +13,14 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-// First include (the generated) my_config.h, to get correct platform defines.
-#include "my_config.h"
 #include <gtest/gtest.h>
-
-#include <my_global.h>
-#include <my_sys.h>
 #include <my_atomic.h>
+#include <my_sys.h>
+#include <atomic>
+
+#include "my_compiler.h"
+#include "my_config.h"
+#include "my_inttypes.h"
 
 
 namespace mysys_my_atomic_unittest {
@@ -28,6 +29,9 @@ namespace mysys_my_atomic_unittest {
 
 volatile int32 b32;
 volatile int32  c32;
+
+// SUPPRESS_UBSAN: integer overflow when generating random data.
+extern "C" void *test_atomic_add(void *arg) SUPPRESS_UBSAN;
 
 /* add and sub a random number in a loop. Must get 0 at the end */
 extern "C" void *test_atomic_add(void *arg)
@@ -48,6 +52,9 @@ extern "C" void *test_atomic_add(void *arg)
 }
 
 volatile int64 a64;
+// SUPPRESS_UBSAN: integer overflow when generating random data.
+extern "C" void *test_atomic_add64(void *arg) SUPPRESS_UBSAN;
+
 /* add and sub a random number in a loop. Must get 0 at the end */
 extern "C" void *test_atomic_add64(void *arg)
 {
@@ -105,6 +112,9 @@ extern "C" void *test_atomic_fas(void *arg)
   mysql_mutex_unlock(&mutex);
   return 0;
 }
+
+// SUPPRESS_UBSAN: integer overflow when generating random data.
+extern "C" void *test_atomic_cas(void *arg) SUPPRESS_UBSAN;
 
 /*
   same as test_atomic_add, but my_atomic_add32 is emulated with
@@ -172,6 +182,38 @@ TEST(Mysys, Atomic)
   mysql_mutex_destroy(&mutex);
   mysql_cond_destroy(&cond);
   my_thread_attr_destroy(&thr_attr);
+}
+
+
+// A very simple perf test of load/store.
+
+#ifndef DBUG_OFF
+static const int num_iterations= 1; // No point in debug mode
+#else
+static const int num_iterations= 10000; // Should be increased for testing.
+#endif
+
+TEST(Mysys, AtomicPerfMy)
+{
+  volatile int64 a= 0;
+  for (int64 i = 0; i < num_iterations; i++)
+  {
+    int64 v= my_atomic_load64(&a);
+    EXPECT_EQ(v, i);
+    my_atomic_add64(&a, 1);
+  }
+}
+
+
+TEST(Mysys, AtomicPerfStd)
+{
+  std::atomic<int64> a { 0 };
+  for (int64 i = 0; i < num_iterations; i++)
+  {
+    int64 v= a;
+    EXPECT_EQ(v, i);
+    a++;
+  }
 }
 
 }

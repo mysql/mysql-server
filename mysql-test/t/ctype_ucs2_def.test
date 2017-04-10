@@ -1,6 +1,5 @@
 # Test needs myisam for subtest for Bug#32705
 -- source include/have_myisam.inc
--- source include/have_ucs2.inc
 
 #
 # MySQL Bug#15276: MySQL ignores collation-server

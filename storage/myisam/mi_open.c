@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -26,10 +26,24 @@
   environment. MEMORY internal temporary tables are optimized similarly.
 */
 
-#include "fulltext.h"
-#include "sp_defs.h"
-#include "rt_index.h"
+#include "my_config.h"
+
+#include <errno.h>
+#include <fcntl.h>
 #include <m_ctype.h>
+#include <sys/types.h>
+#include <time.h>
+
+#include "fulltext.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_io.h"
+#include "my_macros.h"
+#include "my_pointer_arithmetic.h"
+#include "myisam_sys.h"
+#include "rt_index.h"
+#include "sp_defs.h"
 
 #ifdef _WIN32
 #include <fcntl.h>
@@ -37,9 +51,6 @@
 #endif
 
 static void setup_key_functions(MI_KEYDEF *keyinfo);
-#define get_next_element(to,pos,size) { memcpy((char*) to,pos,(size_t) size); \
-					pos+=size;}
-
 
 #define disk_pos_assert(pos, end_pos) \
 if (pos > end_pos)             \
@@ -139,13 +150,13 @@ MI_INFO *mi_open_share(const char *name, MYISAM_SHARE *old_share, int mode,
                     });
     if ((kfile= mysql_file_open(mi_key_file_kfile,
                                 name_buff,
-                                (open_mode= O_RDWR) | O_SHARE, MYF(0))) < 0)
+                                (open_mode= O_RDWR), MYF(0))) < 0)
     {
       if ((errno != EROFS && errno != EACCES) ||
 	  mode != O_RDONLY ||
           (kfile= mysql_file_open(mi_key_file_kfile,
                                   name_buff,
-                                  (open_mode= O_RDONLY) | O_SHARE, MYF(0))) < 0)
+                                  (open_mode= O_RDONLY), MYF(0))) < 0)
 	goto err;
     }
     share->mode=open_mode;
@@ -512,7 +523,7 @@ MI_INFO *mi_open_share(const char *name, MYISAM_SHARE *old_share, int mode,
       share->options|= HA_OPTION_READ_ONLY_DATA;
       info.s=share;
       if (_mi_read_pack_info(&info,
-			     (pbool)
+			     (bool)
 			     MY_TEST(!(share->options &
                                        (HA_OPTION_PACK_RECORD |
                                         HA_OPTION_TEMP_COMPRESS_RECORD)))))
@@ -987,7 +998,7 @@ uchar *mi_state_info_read(uchar *ptr, MI_STATE_INFO *state)
 }
 
 
-uint mi_state_info_read_dsk(File file, MI_STATE_INFO *state, my_bool pRead)
+uint mi_state_info_read_dsk(File file, MI_STATE_INFO *state, bool pRead)
 {
   uchar	buff[MI_STATE_INFO_SIZE + MI_STATE_EXTRA_SIZE];
 
@@ -1241,7 +1252,7 @@ int mi_open_datafile(MI_INFO *info, MYISAM_SHARE *share, const char *org_name,
     }
   }
   info->dfile= mysql_file_open(mi_key_file_dfile,
-                               data_name, share->mode | O_SHARE, MYF(MY_WME));
+                               data_name, share->mode, MYF(MY_WME));
   return info->dfile >= 0 ? 0 : 1;
 }
 
@@ -1250,7 +1261,7 @@ int mi_open_keyfile(MYISAM_SHARE *share)
 {
   if ((share->kfile= mysql_file_open(mi_key_file_kfile,
                                      share->unique_file_name,
-                                     share->mode | O_SHARE,
+                                     share->mode,
                                      MYF(MY_WME))) < 0)
     return 1;
   return 0;

@@ -1,0 +1,53 @@
+# Test that changes to column properties
+# are backward compatible
+
+-- source include/have_ndb.inc
+-- source include/have_case_sensitive_file_system.inc
+
+# Directory containing the saved backup files
+let $backup_data_dir=$MYSQL_TEST_DIR/suite/ndb/backups;
+--disable_warnings
+DROP DATABASE IF EXISTS BANK;
+--enable_warnings
+CREATE DATABASE BANK default charset=latin1 default collate=latin1_bin;
+--exec $NDB_RESTORE --no-defaults -b 1 -n 1 -p 1 -m -r $backup_data_dir/51 >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults -e -b 1 -n 2 -p 1 -r $backup_data_dir/51 >> $NDB_TOOLS_OUTPUT
+USE BANK;
+
+# Check for warnings of implicit conversion of COLUMN_FORMAT
+# after default has changed to DYNAMIC
+
+ALTER TABLE ACCOUNT MODIFY`OWNER` int(11) unsigned NOT NULL COLUMN_FORMAT FIXED;
+--echo Now there should be two warnings of implicit COLUMN_FORMAT conversion
+SHOW WARNINGS;
+ALTER TABLE BANK.ACCOUNT RENAME test.t1;
+source show_attributes.inc;
+DROP TABLE test.t1;
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+ALTER TABLE ACCOUNT_TYPE algorithm=inplace, MODIFY `DESCRIPTION` char(65);
+ALTER TABLE ACCOUNT_TYPE DROP `DESCRIPTION`;
+--echo Now there should be no warning
+SHOW WARNINGS;
+ALTER TABLE SYSTEM_VALUES MODIFY `VALUE` bigint(21);
+--echo Now there should be one warning of implicit COLUMN_FORMAT conversion
+SHOW WARNINGS;
+ALTER TABLE SYSTEM_VALUES MODIFY `VALUE` bigint(22);
+--echo Now there should be no warning
+SHOW WARNINGS;
+ALTER TABLE SYSTEM_VALUES MODIFY `VALUE` bigint(23);
+set @old_acat = @@session.ndb_allow_copying_alter_table;
+set @@session.ndb_allow_copying_alter_table = off;
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+ALTER TABLE SYSTEM_VALUES MODIFY `VALUE` bigint(24);
+set @@session.ndb_allow_copying_alter_table = @old_acat;
+set @old_ndcf = @@global.ndb_default_column_format;
+
+set @@global.ndb_default_column_format = FIXED;
+ALTER TABLE TRANSACTION MODIFY `ACCOUNT_TYPE` int(11) unsigned NOT NULL;
+--echo Now there should be no warning
+SHOW WARNINGS;
+ALTER TABLE BANK.TRANSACTION RENAME test.t1;
+source show_attributes.inc;
+DROP TABLE test.t1;
+set @@global.ndb_default_column_format = @old_ndcf;
+DROP DATABASE BANK;

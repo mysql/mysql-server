@@ -1,3 +1,4 @@
+call mtr.add_suppression("Plugin \'MEMORY\'");
 # Server start with invalid startup option value 'performance-schema-enabled=maybe' : pass
 # Server start with ambigous startup option 'performance-schema-max_=12' : pass
 # Server start with invalid startup option '--performance-schema-unknown_99' : pass

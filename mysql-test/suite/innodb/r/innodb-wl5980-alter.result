@@ -64,17 +64,9 @@ t1	CREATE TABLE `t1` (
   KEY `c2` (`c2`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
 ### files in MYSQL_DATA_DIR/test
-sys_foreign.frm
 sys_foreign.ibd
-sys_indexes.frm
 sys_indexes.ibd
-sys_tables.frm
 sys_tables.ibd
-t1.frm
-t1.isl
-t1c.frm
-t1c.isl
-t1p.frm
 t1p.ibd
 ### files in MYSQL_TMP_DIR/alt_dir/test
 t1.ibd
@@ -99,17 +91,9 @@ test/t1c3	c3	c2	0
 ALTER TABLE t1 CHANGE c2 c2 INT AFTER c1;
 ALTER TABLE t1 CHANGE c1 c1 INT FIRST;
 ### files in MYSQL_DATA_DIR/test
-sys_foreign.frm
 sys_foreign.ibd
-sys_indexes.frm
 sys_indexes.ibd
-sys_tables.frm
 sys_tables.ibd
-t1.frm
-t1.isl
-t1c.frm
-t1c.isl
-t1p.frm
 t1p.ibd
 ### files in MYSQL_TMP_DIR/alt_dir/test
 t1.ibd
@@ -133,17 +117,9 @@ test/t1c2	c2	c2	0
 test/t1c3	c3	c2	0
 ALTER TABLE t1 CHANGE C2 c3 INT;
 ### files in MYSQL_DATA_DIR/test
-sys_foreign.frm
 sys_foreign.ibd
-sys_indexes.frm
 sys_indexes.ibd
-sys_tables.frm
 sys_tables.ibd
-t1.frm
-t1.isl
-t1c.frm
-t1c.isl
-t1p.frm
 t1p.ibd
 ### files in MYSQL_TMP_DIR/alt_dir/test
 t1.ibd
@@ -167,17 +143,9 @@ test/t1c2	c2	c3	0
 test/t1c3	c3	c2	0
 ALTER TABLE t1 CHANGE c3 C INT;
 ### files in MYSQL_DATA_DIR/test
-sys_foreign.frm
 sys_foreign.ibd
-sys_indexes.frm
 sys_indexes.ibd
-sys_tables.frm
 sys_tables.ibd
-t1.frm
-t1.isl
-t1c.frm
-t1c.isl
-t1p.frm
 t1p.ibd
 ### files in MYSQL_TMP_DIR/alt_dir/test
 t1.ibd
@@ -201,17 +169,9 @@ test/t1c2	c2	C	0
 test/t1c3	c3	c2	0
 ALTER TABLE t1 CHANGE C Cöŀumň_TWO INT;
 ### files in MYSQL_DATA_DIR/test
-sys_foreign.frm
 sys_foreign.ibd
-sys_indexes.frm
 sys_indexes.ibd
-sys_tables.frm
 sys_tables.ibd
-t1.frm
-t1.isl
-t1c.frm
-t1c.isl
-t1p.frm
 t1p.ibd
 ### files in MYSQL_TMP_DIR/alt_dir/test
 t1.ibd
@@ -242,18 +202,10 @@ ALTER TABLE t1 CHANGE cöĿǖmň_two c3 INT;
 ERROR 42S22: Unknown column 'cöĿǖmň_two' in 't1'
 ALTER TABLE t1 CHANGE cÖĿUMŇ_two c3 INT, RENAME TO t3;
 ### files in MYSQL_DATA_DIR/test
-sys_foreign.frm
 sys_foreign.ibd
-sys_indexes.frm
 sys_indexes.ibd
-sys_tables.frm
 sys_tables.ibd
-t1c.frm
-t1c.isl
-t1p.frm
 t1p.ibd
-t3.frm
-t3.isl
 ### files in MYSQL_TMP_DIR/alt_dir/test
 t1c.ibd
 t3.ibd
@@ -289,18 +241,10 @@ ERROR 42000: Identifier name '12345678901234567890123456789012345678901234567890
 ALTER TABLE t3 CHANGE c3
 `1234567890123456789012345678901234567890123456789012345678901234` INT;
 ### files in MYSQL_DATA_DIR/test
-sys_foreign.frm
 sys_foreign.ibd
-sys_indexes.frm
 sys_indexes.ibd
-sys_tables.frm
 sys_tables.ibd
-t1c.frm
-t1c.isl
-t1p.frm
 t1p.ibd
-t3.frm
-t3.isl
 ### files in MYSQL_TMP_DIR/alt_dir/test
 t1c.ibd
 t3.ibd
@@ -325,18 +269,10 @@ ALTER TABLE t3 CHANGE
 `1234567890123456789012345678901234567890123456789012345678901234`
 `倀倁倂倃倄倅倆倇倈倉倊個倌倍倎倏倐們倒倓倔倕倖倗倘候倚倛倜倝倞借倠倡倢倣値倥倦倧倨倩倪倫倬倭倮倯倰倱倲倳倴倵倶倷倸倹债倻值倽倾ä` INT;
 ### files in MYSQL_DATA_DIR/test
-sys_foreign.frm
 sys_foreign.ibd
-sys_indexes.frm
 sys_indexes.ibd
-sys_tables.frm
 sys_tables.ibd
-t1c.frm
-t1c.isl
-t1p.frm
 t1p.ibd
-t3.frm
-t3.isl
 ### files in MYSQL_TMP_DIR/alt_dir/test
 t1c.ibd
 t3.ibd
@@ -344,18 +280,10 @@ ALTER TABLE t3 CHANGE
 `倀倁倂倃倄倅倆倇倈倉倊個倌倍倎倏倐們倒倓倔倕倖倗倘候倚倛倜倝倞借倠倡倢倣値倥倦倧倨倩倪倫倬倭倮倯倰倱倲倳倴倵倶倷倸倹债倻值倽倾Ä`
 c3 INT;
 ### files in MYSQL_DATA_DIR/test
-sys_foreign.frm
 sys_foreign.ibd
-sys_indexes.frm
 sys_indexes.ibd
-sys_tables.frm
 sys_tables.ibd
-t1c.frm
-t1c.isl
-t1p.frm
 t1p.ibd
-t3.frm
-t3.isl
 ### files in MYSQL_TMP_DIR/alt_dir/test
 t1c.ibd
 t3.ibd
@@ -365,18 +293,10 @@ ALTER TABLE t3 CHANGE c3 😲 INT;
 ERROR HY000: Invalid utf8 character string: '\xF0\x9F\x98\xB2'
 ALTER TABLE t3 RENAME TO t2;
 ### files in MYSQL_DATA_DIR/test
-sys_foreign.frm
 sys_foreign.ibd
-sys_indexes.frm
 sys_indexes.ibd
-sys_tables.frm
 sys_tables.ibd
-t1c.frm
-t1c.isl
-t1p.frm
 t1p.ibd
-t2.frm
-t2.isl
 ### files in MYSQL_TMP_DIR/alt_dir/test
 t1c.ibd
 t2.ibd
@@ -401,17 +321,9 @@ ON i.TABLE_ID=st.TABLE_ID;
 NAME	NAME
 test/t1	test/t1
 ### files in MYSQL_DATA_DIR/test
-sys_foreign.frm
 sys_foreign.ibd
-sys_indexes.frm
 sys_indexes.ibd
-sys_tables.frm
 sys_tables.ibd
-t1.frm
-t1.isl
-t1c.frm
-t1c.isl
-t1p.frm
 t1p.ibd
 ### files in MYSQL_TMP_DIR/alt_dir/test
 t1.ibd
@@ -475,16 +387,9 @@ t1c	CREATE TABLE `t1c` (
   CONSTRAINT `t1c3` FOREIGN KEY (`c3`) REFERENCES `t1p` (`c2`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
 ### files in MYSQL_DATA_DIR/test
-sys_foreign.frm
 sys_foreign.ibd
-sys_indexes.frm
 sys_indexes.ibd
-sys_tables.frm
 sys_tables.ibd
-t1.frm
-t1.isl
-t1c.frm
-t1c.isl
 ### files in MYSQL_TMP_DIR/alt_dir/test
 t1.ibd
 t1c.ibd
@@ -515,18 +420,9 @@ SET foreign_key_checks=0;
 ALTER TABLE t1c DROP INDEX C3;
 ERROR HY000: Cannot drop index 'c3': needed in a foreign key constraint
 ### files in MYSQL_DATA_DIR/test
-sys_foreign.frm
 sys_foreign.ibd
-sys_indexes.frm
 sys_indexes.ibd
-sys_tables.frm
 sys_tables.ibd
-t1.frm
-t1.isl
-t1c.frm
-t1c.isl
-t1p.frm
-t1p.isl
 ### files in MYSQL_TMP_DIR/alt_dir/test
 t1.ibd
 t1c.ibd
@@ -563,18 +459,9 @@ test/t1c2	c2	c3	0
 test/t1c3	c3	c2	0
 ALTER TABLE t1c DROP FOREIGN KEY t1C3;
 ### files in MYSQL_DATA_DIR/test
-sys_foreign.frm
 sys_foreign.ibd
-sys_indexes.frm
 sys_indexes.ibd
-sys_tables.frm
 sys_tables.ibd
-t1.frm
-t1.isl
-t1c.frm
-t1c.isl
-t1p.frm
-t1p.isl
 ### files in MYSQL_TMP_DIR/alt_dir/test
 t1.ibd
 t1c.ibd
@@ -608,18 +495,9 @@ ID	FOR_COL_NAME	REF_COL_NAME	POS
 test/t1c2	c2	c3	0
 ALTER TABLE t1c DROP INDEX c2, DROP FOREIGN KEY t1C2;
 ### files in MYSQL_DATA_DIR/test
-sys_foreign.frm
 sys_foreign.ibd
-sys_indexes.frm
 sys_indexes.ibd
-sys_tables.frm
 sys_tables.ibd
-t1.frm
-t1.isl
-t1c.frm
-t1c.isl
-t1p.frm
-t1p.isl
 ### files in MYSQL_TMP_DIR/alt_dir/test
 t1.ibd
 t1c.ibd
@@ -650,18 +528,9 @@ INNER JOIN sys_foreign sf ON i.ID = sf.ID;
 ID	FOR_COL_NAME	REF_COL_NAME	POS
 ALTER TABLE t1 DROP INDEX c2, CHANGE c3 c2 INT;
 ### files in MYSQL_DATA_DIR/test
-sys_foreign.frm
 sys_foreign.ibd
-sys_indexes.frm
 sys_indexes.ibd
-sys_tables.frm
 sys_tables.ibd
-t1.frm
-t1.isl
-t1c.frm
-t1c.isl
-t1p.frm
-t1p.isl
 ### files in MYSQL_TMP_DIR/alt_dir/test
 t1.ibd
 t1c.ibd
@@ -691,31 +560,10 @@ ALGORITHM=INPLACE, LOCK=SHARED;
 Warnings:
 Warning	124	InnoDB rebuilding table to add column FTS_DOC_ID
 ### files in MYSQL_DATA_DIR/test
-FTS_AUX_INDEX_1.isl
-FTS_AUX_INDEX_2.isl
-FTS_AUX_INDEX_3.isl
-FTS_AUX_INDEX_4.isl
-FTS_AUX_INDEX_5.isl
-FTS_AUX_INDEX_6.isl
-FTS_AUX_BEING_DELETED.isl
-FTS_AUX_BEING_DELETED_CACHE.isl
-FTS_AUX_CONFIG.isl
-FTS_AUX_DELETED.isl
-FTS_AUX_DELETED_CACHE.isl
-sys_foreign.frm
 sys_foreign.ibd
-sys_indexes.frm
 sys_indexes.ibd
-sys_tables.frm
 sys_tables.ibd
-t1c.frm
-t1c.isl
-t1o.frm
 t1o.ibd
-t1p.frm
-t1p.isl
-tt.frm
-tt.isl
 ### files in MYSQL_TMP_DIR/alt_dir/test
 FTS_AUX_INDEX_1.ibd
 FTS_AUX_INDEX_2.ibd
@@ -776,17 +624,6 @@ ALTER TABLE t1n ADD FULLTEXT INDEX(ct);
 Warnings:
 Warning	124	InnoDB rebuilding table to add column FTS_DOC_ID
 ### files in MYSQL_DATA_DIR/test
-FTS_AUX_INDEX_1.isl
-FTS_AUX_INDEX_2.isl
-FTS_AUX_INDEX_3.isl
-FTS_AUX_INDEX_4.isl
-FTS_AUX_INDEX_5.isl
-FTS_AUX_INDEX_6.isl
-FTS_AUX_BEING_DELETED.isl
-FTS_AUX_BEING_DELETED_CACHE.isl
-FTS_AUX_CONFIG.isl
-FTS_AUX_DELETED.isl
-FTS_AUX_DELETED_CACHE.isl
 FTS_AUX_INDEX_1.ibd
 FTS_AUX_INDEX_2.ibd
 FTS_AUX_INDEX_3.ibd
@@ -798,22 +635,11 @@ FTS_AUX_BEING_DELETED_CACHE.ibd
 FTS_AUX_CONFIG.ibd
 FTS_AUX_DELETED.ibd
 FTS_AUX_DELETED_CACHE.ibd
-sys_foreign.frm
 sys_foreign.ibd
-sys_indexes.frm
 sys_indexes.ibd
-sys_tables.frm
 sys_tables.ibd
-t1c.frm
-t1c.isl
-t1n.frm
 t1n.ibd
-t1o.frm
 t1o.ibd
-t1p.frm
-t1p.isl
-tt.frm
-tt.isl
 ### files in MYSQL_TMP_DIR/alt_dir/test
 FTS_AUX_INDEX_1.ibd
 FTS_AUX_INDEX_2.ibd
@@ -837,17 +663,6 @@ ALTER TABLE t1n CHANGE FTS_DOC_ID c11 INT, ALGORITHM=INPLACE;
 ERROR 42S22: Unknown column 'FTS_DOC_ID' in 't1n'
 ALTER TABLE t1n CHANGE c1 FTS_DOC_ïD INT, ALGORITHM=INPLACE;
 ### files in MYSQL_DATA_DIR/test
-FTS_AUX_INDEX_1.isl
-FTS_AUX_INDEX_2.isl
-FTS_AUX_INDEX_3.isl
-FTS_AUX_INDEX_4.isl
-FTS_AUX_INDEX_5.isl
-FTS_AUX_INDEX_6.isl
-FTS_AUX_BEING_DELETED.isl
-FTS_AUX_BEING_DELETED_CACHE.isl
-FTS_AUX_CONFIG.isl
-FTS_AUX_DELETED.isl
-FTS_AUX_DELETED_CACHE.isl
 FTS_AUX_INDEX_1.ibd
 FTS_AUX_INDEX_2.ibd
 FTS_AUX_INDEX_3.ibd
@@ -859,22 +674,11 @@ FTS_AUX_BEING_DELETED_CACHE.ibd
 FTS_AUX_CONFIG.ibd
 FTS_AUX_DELETED.ibd
 FTS_AUX_DELETED_CACHE.ibd
-sys_foreign.frm
 sys_foreign.ibd
-sys_indexes.frm
 sys_indexes.ibd
-sys_tables.frm
 sys_tables.ibd
-t1c.frm
-t1c.isl
-t1n.frm
 t1n.ibd
-t1o.frm
 t1o.ibd
-t1p.frm
-t1p.isl
-tt.frm
-tt.isl
 ### files in MYSQL_TMP_DIR/alt_dir/test
 FTS_AUX_INDEX_1.ibd
 FTS_AUX_INDEX_2.ibd
@@ -892,17 +696,6 @@ t1p.ibd
 tt.ibd
 ALTER TABLE t1n CHANGE FTS_DOC_ÏD c1 INT, ALGORITHM=INPLACE;
 ### files in MYSQL_DATA_DIR/test
-FTS_AUX_INDEX_1.isl
-FTS_AUX_INDEX_2.isl
-FTS_AUX_INDEX_3.isl
-FTS_AUX_INDEX_4.isl
-FTS_AUX_INDEX_5.isl
-FTS_AUX_INDEX_6.isl
-FTS_AUX_BEING_DELETED.isl
-FTS_AUX_BEING_DELETED_CACHE.isl
-FTS_AUX_CONFIG.isl
-FTS_AUX_DELETED.isl
-FTS_AUX_DELETED_CACHE.isl
 FTS_AUX_INDEX_1.ibd
 FTS_AUX_INDEX_2.ibd
 FTS_AUX_INDEX_3.ibd
@@ -914,22 +707,11 @@ FTS_AUX_BEING_DELETED_CACHE.ibd
 FTS_AUX_CONFIG.ibd
 FTS_AUX_DELETED.ibd
 FTS_AUX_DELETED_CACHE.ibd
-sys_foreign.frm
 sys_foreign.ibd
-sys_indexes.frm
 sys_indexes.ibd
-sys_tables.frm
 sys_tables.ibd
-t1c.frm
-t1c.isl
-t1n.frm
 t1n.ibd
-t1o.frm
 t1o.ibd
-t1p.frm
-t1p.isl
-tt.frm
-tt.isl
 ### files in MYSQL_TMP_DIR/alt_dir/test
 FTS_AUX_INDEX_1.ibd
 FTS_AUX_INDEX_2.ibd
@@ -948,17 +730,6 @@ tt.ibd
 ALTER TABLE t1n CHANGE c1 c2 INT, CHANGE c2 ct INT, CHANGE ct c1 TEXT,
 ALGORITHM=INPLACE;
 ### files in MYSQL_DATA_DIR/test
-FTS_AUX_INDEX_1.isl
-FTS_AUX_INDEX_2.isl
-FTS_AUX_INDEX_3.isl
-FTS_AUX_INDEX_4.isl
-FTS_AUX_INDEX_5.isl
-FTS_AUX_INDEX_6.isl
-FTS_AUX_BEING_DELETED.isl
-FTS_AUX_BEING_DELETED_CACHE.isl
-FTS_AUX_CONFIG.isl
-FTS_AUX_DELETED.isl
-FTS_AUX_DELETED_CACHE.isl
 FTS_AUX_INDEX_1.ibd
 FTS_AUX_INDEX_2.ibd
 FTS_AUX_INDEX_3.ibd
@@ -970,22 +741,11 @@ FTS_AUX_BEING_DELETED_CACHE.ibd
 FTS_AUX_CONFIG.ibd
 FTS_AUX_DELETED.ibd
 FTS_AUX_DELETED_CACHE.ibd
-sys_foreign.frm
 sys_foreign.ibd
-sys_indexes.frm
 sys_indexes.ibd
-sys_tables.frm
 sys_tables.ibd
-t1c.frm
-t1c.isl
-t1n.frm
 t1n.ibd
-t1o.frm
 t1o.ibd
-t1p.frm
-t1p.isl
-tt.frm
-tt.isl
 ### files in MYSQL_TMP_DIR/alt_dir/test
 FTS_AUX_INDEX_1.ibd
 FTS_AUX_INDEX_2.ibd
@@ -1013,17 +773,6 @@ t1n	CREATE TABLE `t1n` (
 ALTER TABLE t1n CHANGE c2 c1 INT, CHANGE ct c2 INT, CHANGE c1 ct TEXT,
 ALGORITHM=COPY;
 ### files in MYSQL_DATA_DIR/test
-FTS_AUX_INDEX_1.isl
-FTS_AUX_INDEX_2.isl
-FTS_AUX_INDEX_3.isl
-FTS_AUX_INDEX_4.isl
-FTS_AUX_INDEX_5.isl
-FTS_AUX_INDEX_6.isl
-FTS_AUX_BEING_DELETED.isl
-FTS_AUX_BEING_DELETED_CACHE.isl
-FTS_AUX_CONFIG.isl
-FTS_AUX_DELETED.isl
-FTS_AUX_DELETED_CACHE.isl
 FTS_AUX_INDEX_1.ibd
 FTS_AUX_INDEX_2.ibd
 FTS_AUX_INDEX_3.ibd
@@ -1035,22 +784,11 @@ FTS_AUX_BEING_DELETED_CACHE.ibd
 FTS_AUX_CONFIG.ibd
 FTS_AUX_DELETED.ibd
 FTS_AUX_DELETED_CACHE.ibd
-sys_foreign.frm
 sys_foreign.ibd
-sys_indexes.frm
 sys_indexes.ibd
-sys_tables.frm
 sys_tables.ibd
-t1c.frm
-t1c.isl
-t1n.frm
 t1n.ibd
-t1o.frm
 t1o.ibd
-t1p.frm
-t1p.isl
-tt.frm
-tt.isl
 ### files in MYSQL_TMP_DIR/alt_dir/test
 FTS_AUX_INDEX_1.ibd
 FTS_AUX_INDEX_2.ibd
@@ -1081,17 +819,6 @@ ALTER TABLE t1n ADD INDEX(c2), CHANGE c2 c4 INT, ALGORITHM=COPY;
 ERROR 42000: Key column 'c2' doesn't exist in table
 ALTER TABLE t1n ADD INDEX(c4), CHANGE c2 c4 INT, ALGORITHM=INPLACE;
 ### files in MYSQL_DATA_DIR/test
-FTS_AUX_INDEX_1.isl
-FTS_AUX_INDEX_2.isl
-FTS_AUX_INDEX_3.isl
-FTS_AUX_INDEX_4.isl
-FTS_AUX_INDEX_5.isl
-FTS_AUX_INDEX_6.isl
-FTS_AUX_BEING_DELETED.isl
-FTS_AUX_BEING_DELETED_CACHE.isl
-FTS_AUX_CONFIG.isl
-FTS_AUX_DELETED.isl
-FTS_AUX_DELETED_CACHE.isl
 FTS_AUX_INDEX_1.ibd
 FTS_AUX_INDEX_2.ibd
 FTS_AUX_INDEX_3.ibd
@@ -1103,22 +830,11 @@ FTS_AUX_BEING_DELETED_CACHE.ibd
 FTS_AUX_CONFIG.ibd
 FTS_AUX_DELETED.ibd
 FTS_AUX_DELETED_CACHE.ibd
-sys_foreign.frm
 sys_foreign.ibd
-sys_indexes.frm
 sys_indexes.ibd
-sys_tables.frm
 sys_tables.ibd
-t1c.frm
-t1c.isl
-t1n.frm
 t1n.ibd
-t1o.frm
 t1o.ibd
-t1p.frm
-t1p.isl
-tt.frm
-tt.isl
 ### files in MYSQL_TMP_DIR/alt_dir/test
 FTS_AUX_INDEX_1.ibd
 FTS_AUX_INDEX_2.ibd
@@ -1146,17 +862,6 @@ t1n	CREATE TABLE `t1n` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 ALTER TABLE t1n DROP INDEX c4;
 ### files in MYSQL_DATA_DIR/test
-FTS_AUX_INDEX_1.isl
-FTS_AUX_INDEX_2.isl
-FTS_AUX_INDEX_3.isl
-FTS_AUX_INDEX_4.isl
-FTS_AUX_INDEX_5.isl
-FTS_AUX_INDEX_6.isl
-FTS_AUX_BEING_DELETED.isl
-FTS_AUX_BEING_DELETED_CACHE.isl
-FTS_AUX_CONFIG.isl
-FTS_AUX_DELETED.isl
-FTS_AUX_DELETED_CACHE.isl
 FTS_AUX_INDEX_1.ibd
 FTS_AUX_INDEX_2.ibd
 FTS_AUX_INDEX_3.ibd
@@ -1168,22 +873,11 @@ FTS_AUX_BEING_DELETED_CACHE.ibd
 FTS_AUX_CONFIG.ibd
 FTS_AUX_DELETED.ibd
 FTS_AUX_DELETED_CACHE.ibd
-sys_foreign.frm
 sys_foreign.ibd
-sys_indexes.frm
 sys_indexes.ibd
-sys_tables.frm
 sys_tables.ibd
-t1c.frm
-t1c.isl
-t1n.frm
 t1n.ibd
-t1o.frm
 t1o.ibd
-t1p.frm
-t1p.isl
-tt.frm
-tt.isl
 ### files in MYSQL_TMP_DIR/alt_dir/test
 FTS_AUX_INDEX_1.ibd
 FTS_AUX_INDEX_2.ibd
@@ -1203,17 +897,6 @@ ALTER TABLE t1n CHANGE c4 c1 INT, ADD INDEX(c1), ALGORITHM=INPLACE;
 ERROR 42S21: Duplicate column name 'c1'
 ALTER TABLE t1n CHANGE c4 c11 INT, ADD INDEX(c11), ALGORITHM=INPLACE;
 ### files in MYSQL_DATA_DIR/test
-FTS_AUX_INDEX_1.isl
-FTS_AUX_INDEX_2.isl
-FTS_AUX_INDEX_3.isl
-FTS_AUX_INDEX_4.isl
-FTS_AUX_INDEX_5.isl
-FTS_AUX_INDEX_6.isl
-FTS_AUX_BEING_DELETED.isl
-FTS_AUX_BEING_DELETED_CACHE.isl
-FTS_AUX_CONFIG.isl
-FTS_AUX_DELETED.isl
-FTS_AUX_DELETED_CACHE.isl
 FTS_AUX_INDEX_1.ibd
 FTS_AUX_INDEX_2.ibd
 FTS_AUX_INDEX_3.ibd
@@ -1225,22 +908,11 @@ FTS_AUX_BEING_DELETED_CACHE.ibd
 FTS_AUX_CONFIG.ibd
 FTS_AUX_DELETED.ibd
 FTS_AUX_DELETED_CACHE.ibd
-sys_foreign.frm
 sys_foreign.ibd
-sys_indexes.frm
 sys_indexes.ibd
-sys_tables.frm
 sys_tables.ibd
-t1c.frm
-t1c.isl
-t1n.frm
 t1n.ibd
-t1o.frm
 t1o.ibd
-t1p.frm
-t1p.isl
-tt.frm
-tt.isl
 ### files in MYSQL_TMP_DIR/alt_dir/test
 FTS_AUX_INDEX_1.ibd
 FTS_AUX_INDEX_2.ibd
@@ -1269,31 +941,10 @@ t1n	CREATE TABLE `t1n` (
 DROP TABLE t1n;
 ALTER TABLE t1o MODIFY c1 BIGINT UNSIGNED NOT NULL;
 ### files in MYSQL_DATA_DIR/test
-FTS_AUX_INDEX_1.isl
-FTS_AUX_INDEX_2.isl
-FTS_AUX_INDEX_3.isl
-FTS_AUX_INDEX_4.isl
-FTS_AUX_INDEX_5.isl
-FTS_AUX_INDEX_6.isl
-FTS_AUX_BEING_DELETED.isl
-FTS_AUX_BEING_DELETED_CACHE.isl
-FTS_AUX_CONFIG.isl
-FTS_AUX_DELETED.isl
-FTS_AUX_DELETED_CACHE.isl
-sys_foreign.frm
 sys_foreign.ibd
-sys_indexes.frm
 sys_indexes.ibd
-sys_tables.frm
 sys_tables.ibd
-t1c.frm
-t1c.isl
-t1o.frm
 t1o.ibd
-t1p.frm
-t1p.isl
-tt.frm
-tt.isl
 ### files in MYSQL_TMP_DIR/alt_dir/test
 FTS_AUX_INDEX_1.ibd
 FTS_AUX_INDEX_2.ibd
@@ -1313,17 +964,6 @@ ALTER TABLE t1o ADD FULLTEXT INDEX(ct),
 CHANGE c1 FTS_DOC_ID BIGINT UNSIGNED NOT NULL,
 ALGORITHM=INPLACE;
 ### files in MYSQL_DATA_DIR/test
-FTS_AUX_INDEX_1.isl
-FTS_AUX_INDEX_2.isl
-FTS_AUX_INDEX_3.isl
-FTS_AUX_INDEX_4.isl
-FTS_AUX_INDEX_5.isl
-FTS_AUX_INDEX_6.isl
-FTS_AUX_BEING_DELETED.isl
-FTS_AUX_BEING_DELETED_CACHE.isl
-FTS_AUX_CONFIG.isl
-FTS_AUX_DELETED.isl
-FTS_AUX_DELETED_CACHE.isl
 FTS_AUX_INDEX_1.ibd
 FTS_AUX_INDEX_2.ibd
 FTS_AUX_INDEX_3.ibd
@@ -1335,20 +975,10 @@ FTS_AUX_BEING_DELETED_CACHE.ibd
 FTS_AUX_CONFIG.ibd
 FTS_AUX_DELETED.ibd
 FTS_AUX_DELETED_CACHE.ibd
-sys_foreign.frm
 sys_foreign.ibd
-sys_indexes.frm
 sys_indexes.ibd
-sys_tables.frm
 sys_tables.ibd
-t1c.frm
-t1c.isl
-t1o.frm
 t1o.ibd
-t1p.frm
-t1p.isl
-tt.frm
-tt.isl
 ### files in MYSQL_TMP_DIR/alt_dir/test
 FTS_AUX_INDEX_1.ibd
 FTS_AUX_INDEX_2.ibd
@@ -1385,31 +1015,10 @@ t1o	CREATE TABLE `t1o` (
 ALTER TABLE t1o CHANGE FTS_DOC_ID foo_id BIGINT UNSIGNED NOT NULL,
 DROP INDEX ct, LOCK=NONE;
 ### files in MYSQL_DATA_DIR/test
-FTS_AUX_INDEX_1.isl
-FTS_AUX_INDEX_2.isl
-FTS_AUX_INDEX_3.isl
-FTS_AUX_INDEX_4.isl
-FTS_AUX_INDEX_5.isl
-FTS_AUX_INDEX_6.isl
-FTS_AUX_BEING_DELETED.isl
-FTS_AUX_BEING_DELETED_CACHE.isl
-FTS_AUX_CONFIG.isl
-FTS_AUX_DELETED.isl
-FTS_AUX_DELETED_CACHE.isl
-sys_foreign.frm
 sys_foreign.ibd
-sys_indexes.frm
 sys_indexes.ibd
-sys_tables.frm
 sys_tables.ibd
-t1c.frm
-t1c.isl
-t1o.frm
 t1o.ibd
-t1p.frm
-t1p.isl
-tt.frm
-tt.isl
 ### files in MYSQL_TMP_DIR/alt_dir/test
 FTS_AUX_INDEX_1.ibd
 FTS_AUX_INDEX_2.ibd
@@ -1456,27 +1065,10 @@ INNER JOIN sys_foreign sf ON i.ID = sf.ID;
 ID	FOR_COL_NAME	REF_COL_NAME	POS
 ALTER TABLE t1o ADD UNIQUE INDEX FTS_DOC_ID_INDEX(foo_id);
 ### files in MYSQL_DATA_DIR/test
-FTS_AUX_INDEX_1.isl
-FTS_AUX_INDEX_2.isl
-FTS_AUX_INDEX_3.isl
-FTS_AUX_INDEX_4.isl
-FTS_AUX_INDEX_5.isl
-FTS_AUX_INDEX_6.isl
-FTS_AUX_BEING_DELETED.isl
-FTS_AUX_BEING_DELETED_CACHE.isl
-FTS_AUX_CONFIG.isl
-FTS_AUX_DELETED.isl
-FTS_AUX_DELETED_CACHE.isl
-sys_foreign.frm
 sys_foreign.ibd
-sys_indexes.frm
 sys_indexes.ibd
-sys_tables.frm
 sys_tables.ibd
-t1o.frm
 t1o.ibd
-tt.frm
-tt.isl
 ### files in MYSQL_TMP_DIR/alt_dir/test
 FTS_AUX_INDEX_1.ibd
 FTS_AUX_INDEX_2.ibd
@@ -1493,17 +1085,6 @@ tt.ibd
 ALTER TABLE t1o CHANGE foo_id FTS_DOC_ID BIGINT UNSIGNED NOT NULL,
 ADD FULLTEXT INDEX(ct);
 ### files in MYSQL_DATA_DIR/test
-FTS_AUX_INDEX_1.isl
-FTS_AUX_INDEX_2.isl
-FTS_AUX_INDEX_3.isl
-FTS_AUX_INDEX_4.isl
-FTS_AUX_INDEX_5.isl
-FTS_AUX_INDEX_6.isl
-FTS_AUX_BEING_DELETED.isl
-FTS_AUX_BEING_DELETED_CACHE.isl
-FTS_AUX_CONFIG.isl
-FTS_AUX_DELETED.isl
-FTS_AUX_DELETED_CACHE.isl
 FTS_AUX_INDEX_1.ibd
 FTS_AUX_INDEX_2.ibd
 FTS_AUX_INDEX_3.ibd
@@ -1515,16 +1096,10 @@ FTS_AUX_BEING_DELETED_CACHE.ibd
 FTS_AUX_CONFIG.ibd
 FTS_AUX_DELETED.ibd
 FTS_AUX_DELETED_CACHE.ibd
-sys_foreign.frm
 sys_foreign.ibd
-sys_indexes.frm
 sys_indexes.ibd
-sys_tables.frm
 sys_tables.ibd
-t1o.frm
 t1o.ibd
-tt.frm
-tt.isl
 ### files in MYSQL_TMP_DIR/alt_dir/test
 FTS_AUX_INDEX_1.ibd
 FTS_AUX_INDEX_2.ibd

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -23,29 +23,26 @@ Row undo
 Created 1/8/1997 Heikki Tuuri
 *******************************************************/
 
-#include "ha_prototypes.h"
-
-#include "row0undo.h"
-
-#ifdef UNIV_NONINL
-#include "row0undo.ic"
-#endif
+#include <stddef.h>
 
 #include "fsp0fsp.h"
+#include "ha_prototypes.h"
 #include "mach0data.h"
-#include "trx0rseg.h"
-#include "trx0trx.h"
-#include "trx0roll.h"
-#include "trx0undo.h"
-#include "trx0purge.h"
-#include "trx0rec.h"
+#include "my_compiler.h"
 #include "que0que.h"
+#include "row0mysql.h"
 #include "row0row.h"
 #include "row0uins.h"
 #include "row0umod.h"
+#include "row0undo.h"
 #include "row0upd.h"
-#include "row0mysql.h"
 #include "srv0srv.h"
+#include "trx0purge.h"
+#include "trx0rec.h"
+#include "trx0roll.h"
+#include "trx0rseg.h"
+#include "trx0trx.h"
+#include "trx0undo.h"
 
 /* How to undo row operations?
 (1) For an insert, we have stored a prefix of the clustered index record
@@ -176,10 +173,12 @@ row_undo_search_clust_to_pcur(
 	ulint*		offsets		= offsets_;
 	rec_offs_init(offsets_);
 
+	ut_ad(!node->table->skip_alter_undo);
+
 	mtr_start(&mtr);
 	dict_disable_redo_if_temporary(node->table, &mtr);
 
-	clust_index = dict_table_get_first_index(node->table);
+	clust_index = node->table->first_index();
 
 	found = row_search_on_row_ref(&node->pcur, BTR_MODIFY_LEAF,
 				      node->table, node->ref, &mtr);
@@ -200,11 +199,10 @@ row_undo_search_clust_to_pcur(
 		ut_ad(row_get_rec_trx_id(rec, clust_index, offsets)
 		      == node->trx->id);
 
-		if (dict_table_get_format(node->table) >= UNIV_FORMAT_B) {
-			/* In DYNAMIC or COMPRESSED format, there is
-			no prefix of externally stored columns in the
-			clustered index record. Build a cache of
-			column prefixes. */
+		if (dict_table_has_atomic_blobs(node->table)) {
+			/* There is no prefix of externally stored
+			columns in the clustered index record. Build a
+			cache of column prefixes. */
 			ext = &node->ext;
 		} else {
 			/* REDUNDANT and COMPACT formats store a local

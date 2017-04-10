@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -33,16 +33,17 @@ Created 8/18/1994 Heikki Tuuri
 #include "buf0types.h"
 #include "rem0types.h"
 
-/*************************************************************//**
-Looks for an element in a hash table.
+/** Looks for an element in a hash table.
+@param[in]	table	hash table
+@param[in]	fold	folded value of the searched data
 @return pointer to the data of the first hash table node in chain
 having the fold number, NULL if not found */
 UNIV_INLINE
 const rec_t*
 ha_search_and_get_data(
-/*===================*/
-	hash_table_t*	table,	/*!< in: hash table */
-	ulint		fold);	/*!< in: folded value of the searched data */
+	hash_table_t*	table,
+	ulint		fold);
+
 /*********************************************************//**
 Looks for an element when we know the pointer to the data and updates
 the pointer to data if found.
@@ -163,17 +164,19 @@ is inserted.
 } while (0)
 #endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
 
-/*********************************************************//**
-Looks for an element when we know the pointer to the data and deletes
-it from the hash table if found.
+/** Looks for an element when we know the pointer to the data and deletes it
+from the hash table if found.
+@param[in]	table	hash table
+@param[in]	fold	folded value of the searched data
+@param[in]	data	pointer to the data
 @return TRUE if found */
 UNIV_INLINE
 ibool
 ha_search_and_delete_if_found(
-/*==========================*/
-	hash_table_t*	table,	/*!< in: hash table */
-	ulint		fold,	/*!< in: folded value of the searched data */
-	const rec_t*	data);	/*!< in: pointer to the data */
+	hash_table_t*	table,
+	ulint		fold,
+	const rec_t*	data);
+
 #ifndef UNIV_HOTBACKUP
 /*****************************************************************//**
 Removes from the chain determined by fold all nodes whose data pointer
@@ -215,35 +218,33 @@ struct ha_node_t {
 };
 
 #ifdef UNIV_DEBUG
-/********************************************************************//**
-Assert that the synchronization object in a hash operation involving
+/** Assert that the synchronization object in a hash operation involving
 possible change in the hash table is held.
-Note that in case of mutexes we assert that mutex is owned while in case
-of rw-locks we assert that it is held in exclusive mode. */
+Note that in case of mutexes we assert that mutex is owned while in case of
+rw-locks we assert that it is held in exclusive mode.
+@param[in]	table	hash table
+@param[in]	fold	fold value */
 UNIV_INLINE
 void
 hash_assert_can_modify(
-/*===================*/
-	hash_table_t*	table,	/*!< in: hash table */
-	ulint		fold);	/*!< in: fold value */
-/********************************************************************//**
-Assert that the synchronization object in a hash search operation is held.
-Note that in case of mutexes we assert that mutex is owned while in case
-of rw-locks we assert that it is held either in x-mode or s-mode. */
+	hash_table_t*	table,
+	ulint		fold);
+
+/** Assert that the synchronization object in a hash search operation is held.
+Note that in case of mutexes we assert that mutex is owned while in case of
+rw-locks we assert that it is held either in x-mode or s-mode.
+@param[in]	table	hash table
+@param[in]	fold	fold value */
 UNIV_INLINE
 void
 hash_assert_can_search(
-/*===================*/
-	hash_table_t*	table,	/*!< in: hash table */
-	ulint		fold);	/*!< in: fold value */
+	hash_table_t*	table,
+	ulint		fold);
 #else /* UNIV_DEBUG */
 #define hash_assert_can_modify(t, f)
 #define hash_assert_can_search(t, f)
 #endif /* UNIV_DEBUG */
 
-
-#ifndef UNIV_NONINL
 #include "ha0ha.ic"
-#endif
 
 #endif

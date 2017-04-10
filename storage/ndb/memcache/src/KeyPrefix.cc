@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights
+ Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights
  reserved.
  
  This program is free software; you can redistribute it and/or
@@ -44,7 +44,7 @@ KeyPrefix::~KeyPrefix() {
 
 void KeyPrefix::dump(FILE *f) const {
   fprintf(f,"   Prefix %d: \"%s\" [len:%lu], cluster %d, usable: %s \n", 
-          info.prefix_id, prefix, prefix_len, info.cluster_id, 
+          info.prefix_id, prefix, (unsigned long)prefix_len, info.cluster_id,
           info.usable ? "Yes" : "No");
   if(table) {
     fprintf(f,"   Table: %s.%s (%d key%s;%d value%s)\n", 

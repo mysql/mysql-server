@@ -3,7 +3,6 @@
 # Simple test for the partition storage engine
 # Focuses on tests of ordered index read
 # 
--- source include/have_partition.inc
 
 --disable_warnings
 drop table if exists t1;

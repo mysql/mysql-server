@@ -1,8 +1,5 @@
 # Tests for PERFORMANCE_SCHEMA
 
---source include/not_embedded.inc
---source include/have_perfschema.inc
-
 # Verify that the configuration options were applied correctly to the
 # performance_schema.setup_instruments table. These instruments that are known to persist across
 # platforms and the various compile options.

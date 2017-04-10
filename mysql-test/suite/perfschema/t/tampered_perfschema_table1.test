@@ -9,8 +9,6 @@
 # Verify that other tables are not affected.
 
 --source include/have_debug.inc
---source include/not_embedded.inc
---source include/have_perfschema.inc
 
 call mtr.add_suppression(
 "Column count of performance_schema.setup_instruments is wrong. "

@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2003-2006 MySQL AB, 2010 Sun Microsystems, Inc.
-    All rights reserved. Use is subject to license terms.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -22,6 +21,7 @@
 #include "DebuggerNames.hpp"
 
 #include <BlockNumbers.h>
+#include <BlockNames.hpp>
 #include <GlobalSignalNumbers.h>
 #include <signaldata/SignalDataPrint.hpp>
 
@@ -89,7 +89,10 @@ initBlockNames(const char * dst[],
 
   for(i = 0; i<len; i++){
     const int index = src[i].number - MIN_BLOCK_NO;
-    if((index < 0 && index >= NO_OF_BLOCKS) || dst[index] != 0){
+    if(index < 0 ||             // Too small
+       index >= NO_OF_BLOCKS || // Too large
+       dst[index] != 0)         // Already occupied
+    {
       fprintf(stderr, 
 	      "Invalid block name definition: %d %s\n",
 	      src[i].number, src[i].name);

@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,9 +20,12 @@
 */
 
 #include "my_config.h"
+
+#include <mysql/service_my_snprintf.h>
+#include <stddef.h>
+
 #include "services.h"
 #include "template_utils.h"
-#include <mysql/service_my_snprintf.h>
 
 using std::string;
 
@@ -56,8 +59,8 @@ Condition_handler::~Condition_handler() {}
   the parser service. This layer always uses a Condition_handler object that
   is passed to mysql_parser_parse().
 */
-int handle(int sql_errno, const char* sqlstate, const char* message,
-           void *state)
+static int handle(int sql_errno, const char* sqlstate, const char* message,
+                  void *state)
 {
   Condition_handler *handler= static_cast<Condition_handler*>(state);
   return handler->handle(sql_errno, sqlstate, message);
@@ -104,7 +107,7 @@ int get_number_params(MYSQL_THD thd)
 }
 
 
-int process_item(MYSQL_ITEM item, uchar *arg)
+static int process_item(MYSQL_ITEM item, uchar *arg)
 {
   Literal_visitor *visitor= pointer_cast<Literal_visitor*>(arg);
   if (visitor->visit(item))

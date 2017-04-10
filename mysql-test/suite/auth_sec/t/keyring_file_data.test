@@ -7,6 +7,7 @@ call mtr.add_suppression("Error while loading keyring content. The keyring might
 call mtr.add_suppression("\\[ERROR\\] Plugin keyring_file reported: 'File .*/keyring' not found .*");
 call mtr.add_suppression("\\[ERROR\\] Plugin keyring_file reported: 'File .*/bad_keyring_file_data/' not found .*");
 
+
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SELECT @@global.keyring_file_data;
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR

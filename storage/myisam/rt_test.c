@@ -416,10 +416,4 @@ static void create_record(uchar *record,uint rownr)
    }
 }
 
-#else
-int main(int argc MY_ATTRIBUTE((unused)),char *argv[] MY_ATTRIBUTE((unused)))
-{
-  exit(0);
-}
-
 #include "mi_extrafunc.h"

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -16,6 +16,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
+#include "my_compiler.h"
+
 /**************************************************//**
 @file include/row0uins.h
 Fresh insert undo
@@ -26,13 +28,13 @@ Created 2/25/1997 Heikki Tuuri
 #ifndef row0uins_h
 #define row0uins_h
 
-#include "univ.i"
 #include "data0data.h"
 #include "dict0types.h"
-#include "trx0types.h"
+#include "mtr0mtr.h"
 #include "que0types.h"
 #include "row0types.h"
-#include "mtr0mtr.h"
+#include "trx0types.h"
+#include "univ.i"
 
 /***********************************************************//**
 Undoes a fresh insert of a row to a table. A fresh insert means that
@@ -46,9 +48,8 @@ row_undo_ins(
 /*=========*/
 	undo_node_t*	node,	/*!< in: row undo node */
 	que_thr_t*	thr)	/*!< in: query thread */
-	MY_ATTRIBUTE((nonnull, warn_unused_result));
-#ifndef UNIV_NONINL
+	MY_ATTRIBUTE((warn_unused_result));
+
 #include "row0uins.ic"
-#endif
 
 #endif

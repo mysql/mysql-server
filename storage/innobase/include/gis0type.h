@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2014, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -17,7 +17,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 *****************************************************************************/
 
 /******************************************************************//**
-@file include gis0type.h
+@file include/gis0type.h
 R-tree header file
 
 Created 2013/03/27 Jimmy Yang
@@ -51,10 +51,10 @@ typedef ib_uint32_t     node_seq_t;
 
 /* RTree internal non-leaf Nodes to be searched, from root to leaf */
 typedef	struct node_visit {
-	ulint		page_no;	/*!< the page number */
+	page_no_t	page_no;	/*!< the page number */
 	node_seq_t	seq_no;		/*!< the SSN (split sequence number */
 	ulint		level;		/*!< the page's index level */
-	ulint		child_no;	/*!< child page num if for parent
+	page_no_t	child_no;	/*!< child page num if for parent
 					recording */
 	btr_pcur_t*	cursor;		/*!< cursor structure if we positioned
 					FIXME: there is no need to use whole
@@ -88,14 +88,6 @@ typedef	struct matched_rec {
 					dropped) */
 	bool		locked;		/*!< whether these recs locked */
 } matched_rec_t;
-
-/* In memory representation of a minimum bounding rectangle */
-typedef struct rtr_mbr {
-	double	xmin;			/*!< minimum on x */
-	double	xmax;			/*!< maximum on x */
-	double	ymin;			/*!< minimum on y */
-	double	ymax;			/*!< maximum on y */
-} rtr_mbr_t;
 
 /* Maximum index level for R-Tree, this is consistent with BTR_MAX_LEVELS */
 #define RTR_MAX_LEVELS		100

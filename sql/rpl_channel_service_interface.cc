@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,17 +13,40 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "my_global.h"
+#include "sql/rpl_channel_service_interface.h"
+
+#include <string.h>
+#include <sys/types.h>
+
+#include "binlog_event.h"
+#include "current_thd.h"
 #include "log.h"
-#include "rpl_channel_service_interface.h"
-#include "rpl_slave.h"
+#include "log_event.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_sys.h"
+#include "mysql/psi/mysql_cond.h"
+#include "mysql/psi/mysql_mutex.h"
+#include "mysql/psi/psi_base.h"
+#include "mysql/psi/psi_stage.h"
+#include "mysql/service_mysql_alloc.h"
+#include "mysql_com.h"
+#include "mysqld.h"          // opt_mts_slave_parallel_workers
+#include "mysqld_error.h"
+#include "mysqld_thd_manager.h" // Global_THD_manager
+#include "rpl_gtid.h"
 #include "rpl_info_factory.h"
+#include "rpl_info_handler.h"
 #include "rpl_mi.h"
 #include "rpl_msr.h"         /* Multisource replication */
+#include "rpl_mts_submode.h"
 #include "rpl_rli.h"
 #include "rpl_rli_pdb.h"
-#include "mysqld_thd_manager.h" // Global_THD_manager
-#include "sql_parse.h"          // Find_thd_with_id
+#include "rpl_slave.h"
+#include "sql_class.h"
+#include "sql_lex.h"
+#include "sql_security_ctx.h"
 
 int initialize_channel_service_interface()
 {
@@ -49,9 +72,8 @@ int initialize_channel_service_interface()
   DBUG_RETURN(0);
 }
 
-#ifdef HAVE_REPLICATION
 
-void set_mi_settings(Master_info *mi, Channel_creation_info* channel_info)
+static void set_mi_settings(Master_info *mi, Channel_creation_info* channel_info)
 {
   mysql_mutex_lock(&mi->data_lock);
 
@@ -89,17 +111,17 @@ void set_mi_settings(Master_info *mi, Channel_creation_info* channel_info)
   mysql_mutex_unlock(&mi->data_lock);
 }
 
-bool init_thread_context()
+static bool init_thread_context()
 {
   return my_thread_init();
 }
 
-void clean_thread_context()
+static void clean_thread_context()
 {
   my_thread_end();
 }
 
-THD *create_surrogate_thread()
+static THD *create_surrogate_thread()
 {
   THD *thd= NULL;
   thd= new THD;
@@ -110,7 +132,7 @@ THD *create_surrogate_thread()
   return(thd);
 }
 
-void delete_surrogate_thread(THD *thd)
+static void delete_surrogate_thread(THD *thd)
 {
   thd->release_resources();
   delete thd;
@@ -160,7 +182,7 @@ initialize_channel_connection_info(Channel_connection_info* channel_info)
   channel_info->view_id= 0;
 }
 
-void set_mi_ssl_options(LEX_MASTER_INFO* lex_mi, Channel_ssl_info* channel_ssl_info)
+static void set_mi_ssl_options(LEX_MASTER_INFO* lex_mi, Channel_ssl_info* channel_ssl_info)
 {
 
   if (channel_ssl_info->use_ssl)
@@ -246,8 +268,7 @@ int channel_create(const char* channel,
   /* create a new channel if doesn't exist */
   if (!mi)
   {
-    if ((error= add_new_channel(&mi, channel,
-                                channel_info->type)))
+    if ((error= add_new_channel(&mi, channel)))
         goto err;
   }
 
@@ -688,16 +709,17 @@ long long channel_get_last_delivered_gno(const char* channel, int sidno)
   mi->channel_rdlock();
   rpl_gno last_gno= 0;
 
-  global_sid_lock->rdlock();
+  Checkable_rwlock *sid_lock= mi->rli->get_sid_lock();
+  sid_lock->rdlock();
   last_gno= mi->rli->get_gtid_set()->get_last_gno(sidno);
-  global_sid_lock->unlock();
+  sid_lock->unlock();
 
 #if !defined(DBUG_OFF)
   const Gtid_set *retrieved_gtid_set= mi->rli->get_gtid_set();
   char *retrieved_gtid_set_string= NULL;
-  global_sid_lock->wrlock();
+  sid_lock->wrlock();
   retrieved_gtid_set->to_string(&retrieved_gtid_set_string);
-  global_sid_lock->unlock();
+  sid_lock->unlock();
   DBUG_PRINT("info", ("get_last_delivered_gno retrieved_set_string: %s",
                       retrieved_gtid_set_string));
   my_free(retrieved_gtid_set_string);
@@ -751,7 +773,7 @@ int channel_queue_packet(const char* channel,
     DBUG_RETURN(RPL_CHANNEL_SERVICE_CHANNEL_DOES_NOT_EXISTS_ERROR);
   }
 
-  result= queue_event(mi, buf, event_len);
+  result= queue_event(mi, buf, event_len, false/*flush_master_info*/);
 
   channel_map.unlock();
 
@@ -759,7 +781,7 @@ int channel_queue_packet(const char* channel,
 }
 
 int channel_wait_until_apply_queue_applied(const char* channel,
-                                           long long timeout)
+                                           double timeout)
 {
   DBUG_ENTER("channel_wait_until_apply_queue_applied(channel, timeout)");
 
@@ -776,8 +798,22 @@ int channel_wait_until_apply_queue_applied(const char* channel,
   mi->inc_reference();
   channel_map.unlock();
 
-  int error = mi->rli->wait_for_gtid_set(current_thd, mi->rli->get_gtid_set(),
+  /*
+    The retrieved_gtid_set (rli->get_gtid_set) has its own sid_map/sid_lock
+    and do not use global_sid_map/global_sid_lock. Instead of blocking both
+    sid locks on each wait iteration at rli->wait_for_gtid_set(Gtid_set), it
+    would be better to use rli->wait_for_gtid_set(char *) that will create a
+    new Gtid_set based on global_sid_map.
+  */
+  char *retrieved_gtid_set_buf;
+  mi->rli->get_sid_lock()->wrlock();
+  mi->rli->get_gtid_set()->to_string(&retrieved_gtid_set_buf);
+  mi->rli->get_sid_lock()->unlock();
+
+  int error = mi->rli->wait_for_gtid_set(current_thd,
+                                         retrieved_gtid_set_buf,
                                          timeout);
+  my_free(retrieved_gtid_set_buf);
   mi->dec_reference();
 
   if (error == -1)
@@ -940,10 +976,10 @@ bool channel_is_stopping(const char* channel,
     case CHANNEL_NO_THD:
       break;
     case CHANNEL_RECEIVER_THREAD:
-      is_stopping= likely(mi->is_stopping.atomic_get());
+      is_stopping= likely(mi->atomic_is_stopping);
       break;
     case CHANNEL_APPLIER_THREAD:
-      is_stopping= likely(mi->rli->is_stopping.atomic_get());
+      is_stopping= likely(mi->rli->atomic_is_stopping);
       break;
     default:
       DBUG_ASSERT(0);
@@ -971,4 +1007,3 @@ bool is_partial_transaction_on_channel_relay_log(const char *channel)
   channel_map.unlock();
   DBUG_RETURN(ret);
 }
-#endif /* HAVE_REPLICATION */

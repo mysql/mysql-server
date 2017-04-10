@@ -47,6 +47,8 @@ ALTER USER test_user3@localhost IDENTIFIED BY 'meow'
 GRANT USAGE ON test.* TO test_user3@localhost WITH GRANT OPTION;
 ALTER USER test_user3@localhost REQUIRE NONE;
 
+GRANT ROLE_ADMIN, SYSTEM_VARIABLES_ADMIN, SELECT ON *.* TO test_user3@localhost IDENTIFIED BY 'meow';
+
 DROP PROCEDURE proc_rewrite_1;
 DROP FUNCTION  func_rewrite_1;
 DROP TABLE     t1;
@@ -87,19 +89,21 @@ SELECT argument FROM mysql.general_log WHERE argument LIKE CONCAT('%azun','dris%
 
 --echo Show that we logged stuff at all:
 --echo ------ from file ------
-SELECT TRIM(LEADING '\t' FROM MID(argument,LOCATE('Query',argument)+5)) FROM test_log WHERE argument LIKE '%AS %';
+--replace_regex /.*Execute	*//i
+SELECT TRIM(LEADING '\t' FROM MID(argument,LOCATE('Query',argument)+5)) FROM test_log WHERE argument LIKE '%AS %' AND
+                                                                                            argument NOT LIKE '%Prepare%';
 --echo ------ from table ------
-SELECT argument FROM mysql.general_log WHERE argument LIKE '%AS %';
+SELECT argument FROM mysql.general_log WHERE argument LIKE '%AS %' AND command_type NOT LIKE 'Prepare';
 --echo ------ done ------
 
 --echo ------ rewrite ------
 SELECT argument FROM mysql.general_log WHERE argument LIKE CONCAT('set ','character set %');
 SELECT argument FROM mysql.general_log WHERE argument LIKE CONCAT('set ','names %');
-SELECT argument FROM mysql.general_log WHERE argument LIKE 'GRANT %';
+SELECT argument FROM mysql.general_log WHERE argument LIKE 'GRANT %' AND command_type NOT LIKE 'Prepare';
 --echo ------ done ------ see log_tables.test for more proof! :)
 
 # Sanity check -- prove we log the correct hash.  Must return one row.
-SELECT argument FROM mysql.general_log WHERE argument LIKE 'GRANT SELECT%' AND argument LIKE CONCAT('%AS %');
+SELECT COUNT(*)>=1 FROM mysql.general_log WHERE argument LIKE 'GRANT SELECT%' AND argument LIKE CONCAT('%AS %');
 
 --echo Bug#13958454 -- show we print SET @a:=5, but SELECT (@a:=5)
 # We need the () in EXPLAIN extended, for (@e:=80)+5.

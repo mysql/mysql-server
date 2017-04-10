@@ -1,8 +1,6 @@
 --source include/have_myisam.inc
-# There are MyISAM specific sub tests in this scirpt and also there are tests for bugs which have not been migrated. 
 
--- source include/have_ucs2.inc
--- source include/have_utf32.inc
+# There are MyISAM specific sub tests in this scirpt and also there are tests for bugs which have not been migrated. 
 
 --disable_warnings
 DROP TABLE IF EXISTS t1;
@@ -194,7 +192,6 @@ set collation_connection=utf32_unicode_ci;
 --source include/weight_string_euro.inc
 select hex(weight_string(_utf32 0x10000 collate utf32_unicode_ci));
 select hex(weight_string(_utf32 0x10001 collate utf32_unicode_ci));
---source include/weight_string_l1.inc
 
 set @@collation_connection=utf32_czech_ci;
 --source include/weight_string_chde.inc

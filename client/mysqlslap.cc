@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -66,8 +66,6 @@ TODO:
 
 */
 
-#define SLAP_VERSION "1.0"
-
 #define HUGE_STRING_LENGTH 8196
 #define RAND_STRING_SIZE 126
 
@@ -80,13 +78,16 @@ TODO:
 #define SELECT_TYPE_REQUIRES_PREFIX 5
 #define DELETE_TYPE_REQUIRES_PREFIX 6
 
-#include "client_priv.h"
-#include "my_default.h"
-#include <mysqld_error.h>
+#include "my_config.h"
+
+#include <ctype.h>
+#include <fcntl.h>
 #include <my_dir.h>
+#include <mysqld_error.h>
 #include <signal.h>
-#include <stdarg.h>
 #include <sslopt-vars.h>
+#include <stdarg.h>
+#include <stdlib.h>
 #include <sys/types.h>
 #ifdef HAVE_SYS_WAIT_H
 #include <sys/wait.h>
@@ -94,8 +95,19 @@ TODO:
 #ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
 #endif
-#include <ctype.h>
+#include <time.h>
 #include <welcome_copyright_notice.h>   /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
+
+#include "client_priv.h"
+#include "my_dbug.h"
+#include "my_default.h"
+#include "my_inttypes.h"
+#include "my_io.h"
+#include "my_systime.h"
+#include "mysql/service_my_snprintf.h"
+#include "mysql/service_mysql_alloc.h"
+#include "print_version.h"
+#include "typelib.h"
 
 #ifdef _WIN32
 #define srandom  srand
@@ -103,7 +115,7 @@ TODO:
 #define snprintf _snprintf
 #endif
 
-#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
+#if defined (_WIN32)
 static char *shared_memory_base_name=0;
 #endif
 
@@ -129,18 +141,18 @@ static char *host= NULL, *opt_password= NULL, *user= NULL,
             *post_system= NULL,
             *opt_mysql_unix_port= NULL;
 static char *opt_plugin_dir= 0, *opt_default_auth= 0;
-static my_bool opt_secure_auth= TRUE;
+static bool opt_secure_auth= TRUE;
 static uint opt_enable_cleartext_plugin= 0;
-static my_bool using_opt_enable_cleartext_plugin= 0;
+static bool using_opt_enable_cleartext_plugin= 0;
 
 const char *delimiter= "\n";
 
 const char *create_schema_string= "mysqlslap";
 
-static my_bool opt_preserve= TRUE, opt_no_drop= FALSE;
-static my_bool debug_info_flag= 0, debug_check_flag= 0;
-static my_bool opt_only_print= FALSE;
-static my_bool opt_compress= FALSE, tty_password= FALSE,
+static bool opt_preserve= TRUE, opt_no_drop= FALSE;
+static bool debug_info_flag= 0, debug_check_flag= 0;
+static bool opt_only_print= FALSE;
+static bool opt_compress= FALSE, tty_password= FALSE,
                opt_silent= FALSE,
                auto_generate_sql_autoincrement= FALSE,
                auto_generate_sql_guid_primary= FALSE,
@@ -257,7 +269,7 @@ size_t get_random_string(char *buf);
 static statement *build_table_string(void);
 static statement *build_insert_string(void);
 static statement *build_update_string(void);
-static statement * build_select_string(my_bool key);
+static statement * build_select_string(bool key);
 static int generate_primary_key_list(MYSQL *mysql, option_string *engine_stmt);
 static int drop_primary_key_list(void);
 static int create_schema(MYSQL *mysql, const char *db, statement *stmt, 
@@ -304,7 +316,7 @@ static int gettimeofday(struct timeval *tp, void *tzp)
 
 int main(int argc, char **argv)
 {
-  MYSQL mysql= MYSQL();
+  MYSQL mysql{};
   option_string *eptr;
 
   MY_INIT(argv[0]);
@@ -341,7 +353,7 @@ int main(int argc, char **argv)
   SSL_SET_OPTIONS(&mysql);
   if (opt_protocol)
     mysql_options(&mysql,MYSQL_OPT_PROTOCOL,(char*)&opt_protocol);
-#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
+#if defined (_WIN32)
   if (shared_memory_base_name)
     mysql_options(&mysql,MYSQL_SHARED_MEMORY_BASE_NAME,shared_memory_base_name);
 #endif
@@ -426,7 +438,7 @@ int main(int argc, char **argv)
   statement_cleanup(post_statements);
   option_cleanup(engine_options);
 
-#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
+#if defined (_WIN32)
   my_free(shared_memory_base_name);
 #endif
   mysql_server_end();
@@ -690,7 +702,7 @@ static struct my_option my_long_options[] =
   {"secure-auth", OPT_SECURE_AUTH, "Refuse client connecting to server if it"
     " uses old (pre-4.1.1) protocol. Deprecated. Always TRUE",
     &opt_secure_auth, &opt_secure_auth, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
-#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
+#if defined (_WIN32)
   {"shared-memory-base-name", OPT_SHARED_MEMORY_BASE_NAME,
     "Base name of shared memory.", &shared_memory_base_name,
     &shared_memory_base_name, 0, GET_STR_ALLOC, REQUIRED_ARG,
@@ -705,6 +717,7 @@ static struct my_option my_long_options[] =
   {"sql_mode", 0, "Specify sql-mode to run mysqlslap tool.", &sql_mode,
     &sql_mode, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #include <sslopt-longopts.h>
+
   {"user", 'u', "User for login if not current user.", &user,
     &user, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"verbose", 'v',
@@ -715,14 +728,6 @@ static struct my_option my_long_options[] =
    GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
-
-
-static void print_version(void)
-{
-  printf("%s  Ver %s Distrib %s, for %s (%s)\n",my_progname, SLAP_VERSION,
-         MYSQL_SERVER_VERSION,SYSTEM_TYPE,MACHINE_TYPE);
-}
-
 
 static void usage(void)
 {
@@ -749,8 +754,9 @@ static void usage(void)
 }
 
 
-static my_bool
-get_one_option(int optid, const struct my_option *opt MY_ATTRIBUTE((unused)),
+extern "C" {
+static bool
+get_one_option(int optid, const struct my_option *opt,
                char *argument)
 {
   DBUG_ENTER("get_one_option");
@@ -794,6 +800,7 @@ get_one_option(int optid, const struct my_option *opt MY_ATTRIBUTE((unused)),
     opt_csv_str= argument;
     break;
 #include <sslopt-case.h>
+
   case 'V':
     print_version();
     exit(0);
@@ -817,6 +824,7 @@ get_one_option(int optid, const struct my_option *opt MY_ATTRIBUTE((unused)),
     break;
   }
   DBUG_RETURN(0);
+}
 }
 
 
@@ -1136,7 +1144,7 @@ build_insert_string(void)
   statement or file containing a query statement
 */
 static statement *
-build_select_string(my_bool key)
+build_select_string(bool key)
 {
   char       buf[HUGE_STRING_LENGTH];
   unsigned int        col_count;

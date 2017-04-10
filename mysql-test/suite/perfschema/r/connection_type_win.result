@@ -5,7 +5,7 @@ where PROCESSLIST_ID = connection_id();
 NAME	thread/sql/one_connection
 PROCESSLIST_USER	root
 PROCESSLIST_HOST	localhost
-CONNECTION_TYPE	TCP/IP
+CONNECTION_TYPE	Named Pipe
 create user 'root'@'santa.claus.ipv4.example.com';
 grant select on *.* to 'root'@'santa.claus.ipv4.example.com';
 create user 'rootssl'@'santa.claus.ipv4.example.com'

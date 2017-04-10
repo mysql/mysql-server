@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,13 +13,18 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "plugin_server_include.h"
-#include "recovery_state_transfer.h"
-#include "plugin_log.h"
-#include "recovery_channel_state_observer.h"
-#include "plugin_psi.h"
-#include "plugin.h"
+#include <assert.h>
 #include <mysql/group_replication_priv.h>
+#include <time.h>
+
+#include "my_dbug.h"
+#include "my_systime.h"
+#include "plugin.h"
+#include "plugin_log.h"
+#include "plugin_psi.h"
+#include "plugin_server_include.h"
+#include "recovery_channel_state_observer.h"
+#include "recovery_state_transfer.h"
 
 using std::string;
 
@@ -97,7 +102,7 @@ void Recovery_state_transfer::initialize(const string& rec_view_id)
 }
 
 void Recovery_state_transfer::inform_of_applier_stop(my_thread_id thread_id,
-                                                     bool aborted)
+                                                     bool)
 {
   DBUG_ENTER("Recovery_state_transfer::inform_of_applier_stop");
 
@@ -230,7 +235,7 @@ int Recovery_state_transfer::update_recovery_process(bool did_members_left)
   bool donor_left= false;
   string current_donor_uuid;
   string current_donor_hostname;
-  uint current_donor_port;
+  uint current_donor_port= 0;
   /*
     The selected donor can be NULL if:
     * The donor was not yet chosen
@@ -592,22 +597,6 @@ int Recovery_state_transfer::start_recovery_donor_threads()
     error= 1;
     channel_observation_manager
       ->unregister_channel_observer(recovery_channel_observer);
-    /*
-      At this point, at least one of the threads are about to stop (if it
-      didn't stopped yet).
-
-      During retry attempts, we will:
-        a) reconfigure the receiver thread to point to a new donor;
-        b) start all thread channels;
-
-      In order to not fail while doing (a) we must forcefully stop the
-      receiver thread if it didn't stopped yet, or else the reconfiguration
-      process will fail.
-    */
-    if ((is_applier_stopping || is_applier_stopped) &&
-        !(is_receiver_stopping || is_receiver_stopped))
-      donor_connection_interface.stop_threads(true /* receiver */,
-                                              false /* applier */);
   }
 
   DBUG_EXECUTE_IF("pause_after_io_thread_stop_hook",
@@ -625,6 +614,9 @@ int Recovery_state_transfer::start_recovery_donor_threads()
 
   if (error)
   {
+    donor_connection_interface.stop_threads(true /* receiver */,
+                                            true /* applier */);
+
     if (error == RPL_CHANNEL_SERVICE_RECEIVER_CONNECTION_ERROR)
     {
       log_message(MY_ERROR_LEVEL,

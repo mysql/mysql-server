@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License as
@@ -15,19 +15,33 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
    02110-1301 USA */
 
+#include <stdio.h>
+#include <sys/types.h>
+
+#include "control_events.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
 #include "rpl_gtid.h"
+#include "typelib.h"
 
+#ifdef MYSQL_SERVER
+#include "binlog.h"
+#include "current_thd.h"
+#include "mysql/thread_type.h"
 #include "mysqld_error.h"     // ER_*
-
-#ifndef MYSQL_CLIENT
 #include "rpl_msr.h"
 #include "sql_class.h"        // THD
-#include "binlog.h"
-#endif // ifndef MYSQL_CLIENT
+#include "sql_error.h"
+#endif // ifdef MYSQL_SERVER
+
+#ifndef MYSQL_SERVER
+#include "mysqlbinlog.h"
+#endif
 
 
 // Todo: move other global gtid variable declarations here.
 Checkable_rwlock *gtid_mode_lock= NULL;
+std::atomic<ulong> gtid_mode_counter;
 
 ulong _gtid_mode;
 const char *gtid_mode_names[]=
@@ -36,7 +50,7 @@ TYPELIB gtid_mode_typelib=
 { array_elements(gtid_mode_names) - 1, "", gtid_mode_names, NULL };
 
 
-#ifndef MYSQL_CLIENT
+#ifdef MYSQL_SERVER
 enum_gtid_mode get_gtid_mode(enum_gtid_mode_lock have_lock)
 {
   switch (have_lock)
@@ -48,9 +62,7 @@ enum_gtid_mode get_gtid_mode(enum_gtid_mode_lock have_lock)
     global_sid_lock->assert_some_lock();
     break;
   case GTID_MODE_LOCK_CHANNEL_MAP:
-#ifdef HAVE_REPLICATION
     channel_map.assert_some_lock();
-#endif
     break;
   case GTID_MODE_LOCK_GTID_MODE:
     gtid_mode_lock->assert_some_lock();
@@ -81,7 +93,7 @@ TYPELIB gtid_consistency_mode_typelib=
 { array_elements(gtid_consistency_mode_names) - 1, "", gtid_consistency_mode_names, NULL };
 
 
-#ifndef MYSQL_CLIENT
+#ifdef MYSQL_SERVER
 enum_gtid_consistency_mode get_gtid_consistency_mode()
 {
   global_sid_lock->assert_some_lock();
@@ -99,7 +111,7 @@ enum_return_status Gtid::parse(Sid_map *sid_map, const char *text)
   SKIP_WHITESPACE();
 
   // parse sid
-  if (sid.parse(s) == 0)
+  if (sid.parse(s, binary_log::Uuid::TEXT_LENGTH) == 0)
   {
     rpl_sidno sidno_var= sid_map->add_sid(sid);
     if (sidno_var <= 0)
@@ -201,7 +213,7 @@ bool Gtid::is_valid(const char *text)
   DBUG_ENTER("Gtid::is_valid");
   const char *s= text;
   SKIP_WHITESPACE();
-  if (!rpl_sid::is_valid(s))
+  if (!rpl_sid::is_valid(s, binary_log::Uuid::TEXT_LENGTH))
   {
     DBUG_PRINT("info", ("not a uuid at char %d in '%s'",
                         (int)(s - text), text));
@@ -244,7 +256,7 @@ void check_return_status(enum_return_status status, const char *action,
     DBUG_ASSERT(allow_unreported || status == RETURN_STATUS_REPORTED_ERROR);
     if (status == RETURN_STATUS_REPORTED_ERROR)
     {
-#if !defined(MYSQL_CLIENT) && !defined(DBUG_OFF)
+#if defined(MYSQL_SERVER) && !defined(DBUG_OFF)
       THD *thd= current_thd;
       /*
         We create a new system THD with 'SYSTEM_THREAD_COMPRESS_GTID_TABLE'
@@ -265,7 +277,7 @@ void check_return_status(enum_return_status status, const char *action,
 #endif // ! DBUG_OFF
 
 
-#ifndef MYSQL_CLIENT
+#ifdef MYSQL_SERVER
 rpl_sidno get_sidno_from_global_sid_map(rpl_sid sid)
 {
   DBUG_ENTER("get_sidno_from_global_sid_map(rpl_sid)");
@@ -287,4 +299,4 @@ rpl_gno get_last_executed_gno(rpl_sidno sidno)
 
   DBUG_RETURN(gno);
 }
-#endif // ifndef MYSQL_CLIENT
+#endif // ifdef MYSQL_SERVER

@@ -23,8 +23,6 @@ File space management
 Created 12/18/1995 Heikki Tuuri
 *******************************************************/
 
-#ifndef UNIV_INNOCHECKSUM
-
 /** Checks if a page address is an extent descriptor page address.
 @param[in]	page_id		page id
 @param[in]	page_size	page size
@@ -254,7 +252,7 @@ xdes_get_bit(
 /*=========*/
 	const xdes_t*	descr,	/*!< in: descriptor */
 	ulint		bit,	/*!< in: XDES_FREE_BIT or XDES_CLEAN_BIT */
-	ulint		offset)	/*!< in: page offset within extent:
+	page_no_t	offset)	/*!< in: page offset within extent:
 				0 ... FSP_EXTENT_SIZE - 1 */
 {
 	ut_ad(offset < FSP_EXTENT_SIZE);
@@ -276,10 +274,10 @@ xdes_get_bit(
 @param[in]	offset		page offset
 @return descriptor page offset */
 UNIV_INLINE
-ulint
+page_no_t
 xdes_calc_descriptor_page(
 	const page_size_t&	page_size,
-	ulint			offset)
+	page_no_t		offset)
 {
 #ifndef DOXYGEN /* Doxygen gets confused by these */
 # if UNIV_PAGE_SIZE_MAX <= XDES_ARR_OFFSET				\
@@ -321,4 +319,3 @@ xdes_arr_size(
 {
 	return(page_size.physical()/FSP_EXTENT_SIZE);
 }
-#endif /* !UNIV_INNOCHECKSUM */

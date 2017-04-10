@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,14 +13,30 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include <my_global.h>
-#include <time.h>
+#include "my_decimal.h"
 
-#ifndef MYSQL_CLIENT
-#include "sql_class.h"                          // THD
+#include <stdio.h>
+
+#include "my_config.h"
+#ifdef HAVE_SYS_TIME_H
+#include <sys/time.h>
 #endif
 
-#ifndef MYSQL_CLIENT
+#include "current_thd.h"                        // current_thd
+#include "decimal.h"
+#include "derror.h"                             // ER_THD
+#include "field.h"                              // my_charset_numeric
+#include "m_ctype.h"
+#include "my_dbug.h"
+#include "my_sys.h"
+#include "my_time.h"                            // TIME_to_ulonglong_date
+#include "mysql_time.h"                         // MYSQL_TIME
+#include "mysqld_error.h"                       // ER_*
+#include "sql_const.h"
+#include "sql_error.h"                          // Sql_condition
+#include "system_variables.h"
+
+
 /**
    report result of decimal operation.
 
@@ -41,7 +57,8 @@ int my_decimal::check_result(uint mask, int result) const
     case E_DEC_TRUNCATED:
       // "Data truncated for column \'%s\' at row %ld"
       push_warning_printf(current_thd, Sql_condition::SL_WARNING,
-                          WARN_DATA_TRUNCATED, ER(WARN_DATA_TRUNCATED),
+                          WARN_DATA_TRUNCATED,
+                          ER_THD(current_thd, WARN_DATA_TRUNCATED),
                           "", -1L);
       break;
     case E_DEC_OVERFLOW:
@@ -49,20 +66,21 @@ int my_decimal::check_result(uint mask, int result) const
       decimal2string(this, strbuff, &length, 0, 0, 0);
       push_warning_printf(current_thd, Sql_condition::SL_WARNING,
                           ER_TRUNCATED_WRONG_VALUE,
-                          ER(ER_TRUNCATED_WRONG_VALUE),
+                          ER_THD(current_thd, ER_TRUNCATED_WRONG_VALUE),
                           "DECIMAL", strbuff);
       break;
     case E_DEC_DIV_ZERO:
       // "Division by 0"
       push_warning(current_thd, Sql_condition::SL_WARNING,
-                   ER_DIVISION_BY_ZERO, ER(ER_DIVISION_BY_ZERO));
+                   ER_DIVISION_BY_ZERO,
+                   ER_THD(current_thd, ER_DIVISION_BY_ZERO));
       break;
     case E_DEC_BAD_NUM:
       // "Incorrect %-.32s value: \'%-.128s\' for column \'%.192s\' at row %ld"
       decimal2string(this, strbuff, &length, 0, 0, 0);
       push_warning_printf(current_thd, Sql_condition::SL_WARNING,
                           ER_TRUNCATED_WRONG_VALUE_FOR_FIELD,
-                          ER(ER_TRUNCATED_WRONG_VALUE_FOR_FIELD),
+                          ER_THD(current_thd, ER_TRUNCATED_WRONG_VALUE_FOR_FIELD),
                           "DECIMAL", strbuff, "", -1L);
       break;
     case E_DEC_OOM:
@@ -85,7 +103,7 @@ int my_decimal::check_result(uint mask, int result) const
   @param[in]   fixed_prec  overall number of digits if ZEROFILL, 0 otherwise
   @param[in]   fixed_dec   number of decimal places (if fixed_prec != 0)
   @param[in]   filler      what char to pad with (ZEROFILL et al.)
-  @param[out]  *str        where to store the resulting string
+  @param[out]  str         where to store the resulting string
 
   @return error coce
     @retval E_DEC_OK
@@ -135,10 +153,10 @@ int my_decimal2string(uint mask, const my_decimal *d,
   @param[in]   fixed_prec  overall number of digits if ZEROFILL, 0 otherwise
   @param[in]   fixed_dec   number of decimal places (if fixed_prec != 0)
   @param[in]   filler      what char to pad with (ZEROFILL et al.)
-  @param[out]  *str        where to store the resulting string
+  @param[out]  str         where to store the resulting string
   @param[in]   cs          character set
 
-  @return error coce
+  @return error code
     @retval E_DEC_OK
     @retval E_DEC_TRUNCATED
     @retval E_DEC_OVERFLOW
@@ -278,7 +296,7 @@ int str2my_decimal(uint mask, const char *from, size_t length,
 
   @param       lld  The lldiv_t variable to convert from.
   @param       neg  Sign flag (negative, 0 positive).
-  @param  OUT  dec  Decimal numbert to convert to.
+  @param [out] dec  Decimal numbert to convert to.
 */
 static my_decimal *lldiv_t2my_decimal(const lldiv_t *lld, bool neg,
                                       my_decimal *dec)
@@ -396,6 +414,3 @@ const char *dbug_decimal_as_string(char *buff, const my_decimal *val)
 }
 
 #endif /*DBUG_OFF*/
-
-
-#endif /*MYSQL_CLIENT*/

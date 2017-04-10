@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,10 +16,9 @@
 #ifndef REPLICATION_H
 #define REPLICATION_H
 
-#include "my_global.h"
+#include "handler.h"                  // enum_tx_isolation
 #include "my_thread_local.h"          // my_thread_id
 #include "mysql/psi/mysql_thread.h"   // mysql_mutex_t
-#include "handler.h"                  // enum_tx_isolation
 
 typedef struct st_mysql MYSQL;
 typedef struct st_io_cache IO_CACHE;
@@ -125,6 +124,11 @@ typedef struct Trans_param {
   IO_CACHE *trx_cache_log;
   IO_CACHE *stmt_cache_log;
   ulonglong cache_log_max_size;
+  /*
+    The flag designates the transaction is a DDL contained is
+    the transactional cache.
+  */
+  bool      is_atomic_ddl;
 
   /*
    This is the list of tables that are involved in this transaction and its
@@ -138,6 +142,9 @@ typedef struct Trans_param {
    */
   Trans_context_info trans_ctx_info;
 
+  /// pointer to the status var original_commit_timestamp
+  uint64 *original_commit_timestamp;
+
 } Trans_param;
 
 /**
@@ -145,76 +152,83 @@ typedef struct Trans_param {
 */
 #define TRANS_PARAM_ZERO(trans_param_obj) memset(&trans_param_obj, 0, sizeof(Trans_param));
 
+typedef int (*before_dml_t)(Trans_param *param, int& out_val);
+
+/**
+  This callback is called before transaction commit
+
+  This callback is called right before write binlog cache to
+  binary log.
+
+  @param param The parameter for transaction observers
+
+  @retval 0 Success
+  @retval 1 Failure
+*/
+typedef int (*before_commit_t)(Trans_param *param);
+
+/**
+  This callback is called before transaction rollback
+
+  This callback is called before rollback to storage engines.
+
+  @param param The parameter for transaction observers
+
+  @retval 0 Success
+  @retval 1 Failure
+*/
+typedef int (*before_rollback_t)(Trans_param *param);
+
+/**
+  This callback is called after transaction commit
+
+  This callback is called right after commit to storage engines for
+  transactional tables.
+
+  For non-transactional tables, this is called at the end of the
+  statement, before sending statement status, if the statement
+  succeeded.
+
+  @note The return value is currently ignored by the server.
+
+  @param param The parameter for transaction observers
+
+  @retval 0 Success
+  @retval 1 Failure
+*/
+typedef int (*after_commit_t)(Trans_param *param);
+
+/**
+  This callback is called after transaction rollback
+
+  This callback is called right after rollback to storage engines
+  for transactional tables.
+
+  For non-transactional tables, this is called at the end of the
+  statement, before sending statement status, if the statement
+  failed.
+
+  @note The return value is currently ignored by the server.
+
+  @param param The parameter for transaction observers
+
+  @retval 0 Success
+  @retval 1 Failure
+*/
+typedef int (*after_rollback_t)(Trans_param *param);
+
+
 /**
    Observes and extends transaction execution
 */
 typedef struct Trans_observer {
   uint32 len;
 
-  int (*before_dml)(Trans_param *param, int& out_val);
-
-  /**
-     This callback is called before transaction commit
-
-     This callback is called right before write binlog cache to
-     binary log.
-
-     @param param The parameter for transaction observers
-
-     @retval 0 Sucess
-     @retval 1 Failure
-  */
-  int (*before_commit)(Trans_param *param);
-
-  /**
-     This callback is called before transaction rollback
-
-     This callback is called before rollback to storage engines.
-
-     @param param The parameter for transaction observers
-
-     @retval 0 Sucess
-     @retval 1 Failure
-  */
-  int (*before_rollback)(Trans_param *param);
-
-  /**
-     This callback is called after transaction commit
-
-     This callback is called right after commit to storage engines for
-     transactional tables.
-
-     For non-transactional tables, this is called at the end of the
-     statement, before sending statement status, if the statement
-     succeeded.
-
-     @note The return value is currently ignored by the server.
-
-     @param param The parameter for transaction observers
-
-     @retval 0 Sucess
-     @retval 1 Failure
-  */
-  int (*after_commit)(Trans_param *param);
-
-  /**
-     This callback is called after transaction rollback
-
-     This callback is called right after rollback to storage engines
-     for transactional tables.
-
-     For non-transactional tables, this is called at the end of the
-     statement, before sending statement status, if the statement
-     failed.
-
-     @note The return value is currently ignored by the server.
-
-     @param param The parameter for transaction observers
-
-     @retval 0 Sucess
-     @retval 1 Failure
-  */
-  int (*after_rollback)(Trans_param *param);
+  before_dml_t before_dml;
+  before_commit_t before_commit;
+  before_rollback_t before_rollback;
+  after_commit_t after_commit;
+  after_rollback_t after_rollback;
 } Trans_observer;
 
 /**
@@ -230,77 +244,84 @@ typedef struct Server_state_param {
 } Server_state_param;
 
 /**
+  This is called just before the server is ready to accept the client
+  connections to the Server/Node. It marks the possible point where the
+  server can be said to be ready to serve client queries.
+
+  @param[in]  param Observer common parameter
+
+  @retval 0 Success
+  @retval >0 Failure
+*/
+typedef int (*before_handle_connection_t)(Server_state_param *param);
+
+/**
+  This callback is called before the start of the recovery
+
+  @param[in]  param Observer common parameter
+
+  @retval 0 Success
+  @retval >0 Failure
+*/
+typedef int (*before_recovery_t)(Server_state_param *param);
+
+/**
+  This callback is called after the end of the engine recovery.
+
+  This is called before the start of the recovery procedure ie.
+  the engine recovery.
+
+  @param[in]  param Observer common parameter
+
+  @retval 0 Success
+  @retval >0 Failure
+*/
+typedef int (*after_engine_recovery_t)(Server_state_param *param);
+
+/**
+  This callback is called after the end of the recovery procedure.
+
+  @param[in]  param Observer common parameter
+
+  @retval 0 Success
+  @retval >0 Failure
+*/
+typedef int (*after_recovery_t)(Server_state_param *param);
+
+/**
+  This callback is called before the start of the shutdown procedure.
+  Can be useful to initiate some cleanup operations in some cases.
+
+  @param[in]  param Observer common parameter
+
+  @retval 0 Success
+  @retval >0 Failure
+*/
+typedef int (*before_server_shutdown_t)(Server_state_param *param);
+
+/**
+  This callback is called after the end of the shutdown procedure.
+  Can be used as a checkpoint of the proper cleanup operations in some cases.
+
+  @param[in]  param Observer common parameter
+
+  @retval 0 Success
+  @retval >0 Failure
+*/
+typedef int (*after_server_shutdown_t)(Server_state_param *param);
+
+/**
   Observer server state
  */
 typedef struct Server_state_observer {
   uint32 len;
 
-  /**
-    This is called just before the server is ready to accept the client
-    connections to the Server/Node. It marks the possible point where the
-    server can be said to be ready to serve client queries.
-
-    @param[in]  param Observer common parameter
-
-    @retval 0 Success
-    @retval >0 Failure
-  */
-  int (*before_handle_connection)(Server_state_param *param);
-
-  /**
-    This callback is called before the start of the recovery
-
-    @param[in]  param Observer common parameter
-
-    @retval 0 Success
-    @retval >0 Failure
-  */
-  int (*before_recovery)(Server_state_param *param);
-
-  /**
-    This callback is called after the end of the engine recovery.
-
-    This is called before the start of the recovery procedure ie.
-    the engine recovery.
-
-    @param[in]  param Observer common parameter
-
-    @retval 0 Success
-    @retval >0 Failure
-  */
-  int (*after_engine_recovery)(Server_state_param *param);
-
-  /**
-    This callback is called after the end of the recovery procedure.
-
-    @param[in]  param Observer common parameter
-
-    @retval 0 Success
-    @retval >0 Failure
-  */
-  int (*after_recovery)(Server_state_param *param);
-
-  /**
-    This callback is called before the start of the shutdown procedure.
-    Can be useful to initiate some cleanup operations in some cases.
-
-    @param[in]  param Observer common parameter
-
-    @retval 0 Success
-    @retval >0 Failure
-  */
-  int (*before_server_shutdown)(Server_state_param *param);
-
-  /**
-    This callback is called after the end of the shutdown procedure.
-    Can be used as a checkpoint of the proper cleanup operations in some cases.
-
-    @param[in]  param Observer common parameter
-
-    @retval 0 Success
-    @retval >0 Failure
-  */
-  int (*after_server_shutdown)(Server_state_param *param);
+  before_handle_connection_t before_handle_connection;
+  before_recovery_t before_recovery;
+  after_engine_recovery_t after_engine_recovery;
+  after_recovery_t after_recovery;
+  before_server_shutdown_t before_server_shutdown;
+  after_server_shutdown_t after_server_shutdown;
 } Server_state_observer;
 
 /**
@@ -311,28 +332,31 @@ typedef struct Binlog_storage_param {
 } Binlog_storage_param;
 
 /**
+  This callback is called after binlog has been flushed
+
+  This callback is called after cached events have been flushed to
+  binary log file but not yet synced.
+
+  @param param Observer common parameter
+  @param log_file Binlog file name been updated
+  @param log_pos Binlog position after update
+
+  @retval 0 Success
+  @retval 1 Failure
+*/
+typedef int (*after_flush_t)(Binlog_storage_param *param,
+                             const char *log_file, my_off_t log_pos);
+typedef int (*after_sync_t)(Binlog_storage_param *param,
+                            const char *log_file, my_off_t log_pos);
+
+/**
    Observe binlog logging storage
 */
 typedef struct Binlog_storage_observer {
   uint32 len;
 
-  /**
-     This callback is called after binlog has been flushed
-
-     This callback is called after cached events have been flushed to
-     binary log file but not yet synced.
-
-     @param param Observer common parameter
-     @param log_file Binlog file name been updated
-     @param log_pos Binlog position after update
-
-     @retval 0 Sucess
-     @retval 1 Failure
-  */
-  int (*after_flush)(Binlog_storage_param *param,
-                     const char *log_file, my_off_t log_pos);
-  int (*after_sync)(Binlog_storage_param *param,
-                     const char *log_file, my_off_t log_pos);
+  after_flush_t after_flush;
+  after_sync_t after_sync;
 } Binlog_storage_observer;
 
 /**
@@ -361,106 +385,114 @@ typedef struct Binlog_transmit_param {
 } Binlog_transmit_param;
 
 /**
+  This callback is called when binlog dumping starts
+
+  @param param Observer common parameter
+  @param log_file Binlog file name to transmit from
+  @param log_pos Binlog position to transmit from
+
+  @retval 0 Success
+  @retval 1 Failure
+*/
+typedef int (*transmit_start_t)(Binlog_transmit_param *param,
+                                const char *log_file, my_off_t log_pos);
+
+/**
+  This callback is called when binlog dumping stops
+
+  @param param Observer common parameter
+
+  @retval 0 Success
+  @retval 1 Failure
+*/
+typedef int (*transmit_stop_t)(Binlog_transmit_param *param);
+
+/**
+  This callback is called to reserve bytes in packet header for event transmission
+
+  This callback is called when resetting transmit packet header to
+  reserve bytes for this observer in packet header.
+
+  The @a header buffer is allocated by the server code, and @a size
+  is the size of the header buffer. Each observer can only reserve
+  a maximum size of @a size in the header.
+
+  @param param Observer common parameter
+  @param header Pointer of the header buffer
+  @param size Size of the header buffer
+  @param len Header length reserved by this observer
+
+  @retval 0 Success
+  @retval 1 Failure
+*/
+typedef int (*reserve_header_t)(Binlog_transmit_param *param,
+                                unsigned char *header,
+                                unsigned long size,
+                                unsigned long *len);
+
+/**
+  This callback is called before sending an event packet to slave
+
+  @param param Observer common parameter
+  @param packet Binlog event packet to send
+  @param len Length of the event packet
+  @param log_file Binlog file name of the event packet to send
+  @param log_pos Binlog position of the event packet to send
+
+  @retval 0 Success
+  @retval 1 Failure
+*/
+typedef int (*before_send_event_t)(Binlog_transmit_param *param,
+                                   unsigned char *packet, unsigned long len,
+                                   const char *log_file, my_off_t log_pos );
+
+/**
+  This callback is called after an event packet is sent to the
+  slave or is skipped.
+
+  @param param             Observer common parameter
+  @param event_buf         Binlog event packet buffer sent
+  @param len               length of the event packet buffer
+  @param skipped_log_file  Binlog file name of the event that
+                           was skipped in the master. This is
+                           null if the position was not skipped
+  @param skipped_log_pos   Binlog position of the event that
+                           was skipped in the master. 0 if not
+                           skipped
+  @retval 0 Success
+  @retval 1 Failure
+*/
+typedef int (*after_send_event_t)(Binlog_transmit_param *param,
+                                  const char *event_buf, unsigned long len,
+                                  const char *skipped_log_file,
+                                  my_off_t skipped_log_pos);
+
+/**
+  This callback is called after resetting master status
+
+  This is called when executing the command RESET MASTER, and is
+  used to reset status variables added by observers.
+
+  @param param Observer common parameter
+
+  @retval 0 Success
+  @retval 1 Failure
+*/
+typedef int (*after_reset_master_t)(Binlog_transmit_param *param);
+
+
+/**
    Observe and extends the binlog dumping thread.
 */
 typedef struct Binlog_transmit_observer {
   uint32 len;
 
-  /**
-     This callback is called when binlog dumping starts
-
-
-     @param param Observer common parameter
-     @param log_file Binlog file name to transmit from
-     @param log_pos Binlog position to transmit from
-
-     @retval 0 Sucess
-     @retval 1 Failure
-  */
-  int (*transmit_start)(Binlog_transmit_param *param,
-                        const char *log_file, my_off_t log_pos);
-
-  /**
-     This callback is called when binlog dumping stops
-
-     @param param Observer common parameter
-
-     @retval 0 Sucess
-     @retval 1 Failure
-  */
-  int (*transmit_stop)(Binlog_transmit_param *param);
-
-  /**
-     This callback is called to reserve bytes in packet header for event transmission
-
-     This callback is called when resetting transmit packet header to
-     reserve bytes for this observer in packet header.
-
-     The @a header buffer is allocated by the server code, and @a size
-     is the size of the header buffer. Each observer can only reserve
-     a maximum size of @a size in the header.
-
-     @param param Observer common parameter
-     @param header Pointer of the header buffer
-     @param size Size of the header buffer
-     @param len Header length reserved by this observer
-
-     @retval 0 Sucess
-     @retval 1 Failure
-  */
-  int (*reserve_header)(Binlog_transmit_param *param,
-                        unsigned char *header,
-                        unsigned long size,
-                        unsigned long *len);
-
-  /**
-     This callback is called before sending an event packet to slave
-
-     @param param Observer common parameter
-     @param packet Binlog event packet to send
-     @param len Length of the event packet
-     @param log_file Binlog file name of the event packet to send
-     @param log_pos Binlog position of the event packet to send
-
-     @retval 0 Sucess
-     @retval 1 Failure
-  */
-  int (*before_send_event)(Binlog_transmit_param *param,
-                           unsigned char *packet, unsigned long len,
-                           const char *log_file, my_off_t log_pos );
-
-  /**
-     This callback is called after an event packet is sent to the
-     slave or is skipped.
-
-     @param param             Observer common parameter
-     @param event_buf         Binlog event packet buffer sent
-     @param len               length of the event packet buffer
-     @param skipped_log_file  Binlog file name of the event that
-                              was skipped in the master. This is
-                              null if the position was not skipped
-     @param skipped_log_pos   Binlog position of the event that
-                              was skipped in the master. 0 if not
-                              skipped
-     @retval 0 Sucess
-     @retval 1 Failure
-   */
-  int (*after_send_event)(Binlog_transmit_param *param,
-                          const char *event_buf, unsigned long len,
-                          const char *skipped_log_file, my_off_t skipped_log_pos);
-
-  /**
-     This callback is called after resetting master status
-
-     This is called when executing the command RESET MASTER, and is
-     used to reset status variables added by observers.
-
-     @param param Observer common parameter
-
-     @retval 0 Sucess
-     @retval 1 Failure
-  */
-  int (*after_reset_master)(Binlog_transmit_param *param);
+  transmit_start_t transmit_start;
+  transmit_stop_t transmit_stop;
+  reserve_header_t reserve_header;
+  before_send_event_t before_send_event;
+  after_send_event_t after_send_event;
+  after_reset_master_t after_reset_master;
 } Binlog_transmit_observer;
 
 /**
@@ -479,6 +511,9 @@ typedef struct Binlog_relay_IO_param {
   uint32 server_id;
   my_thread_id thread_id;
 
+  /* Channel name */
+  char* channel_name;
+
   /* Master host, user and port */
   char *host;
   char *user;
@@ -491,97 +526,104 @@ typedef struct Binlog_relay_IO_param {
 } Binlog_relay_IO_param;
 
 /**
+  This callback is called when slave IO thread starts
+
+  @param param Observer common parameter
+
+  @retval 0 Success
+  @retval 1 Failure
+*/
+typedef int (*thread_start_t)(Binlog_relay_IO_param *param);
+
+/**
+  This callback is called when slave IO thread stops
+
+  @param param Observer common parameter
+
+  @retval 0 Success
+  @retval 1 Failure
+*/
+typedef int (*thread_stop_t)(Binlog_relay_IO_param *param);
+
+/**
+  This callback is called when a relay log consumer thread stops
+
+  @param param   Observer common parameter
+  @param aborted thread aborted or exited on error
+
+  @retval 0 Success
+  @retval 1 Failure
+*/
+typedef int (*applier_stop_t)(Binlog_relay_IO_param *param, bool aborted);
+
+/**
+  This callback is called before slave requesting binlog transmission from master
+
+  This is called before slave issuing BINLOG_DUMP command to master
+  to request binlog.
+
+  @param param Observer common parameter
+  @param flags binlog dump flags
+
+  @retval 0 Success
+  @retval 1 Failure
+*/
+typedef int (*before_request_transmit_t)(Binlog_relay_IO_param *param, uint32 flags);
+
+/**
+  This callback is called after read an event packet from master
+
+  @param param Observer common parameter
+  @param packet The event packet read from master
+  @param len Length of the event packet read from master
+  @param event_buf The event packet return after process
+  @param event_len The length of event packet return after process
+
+  @retval 0 Success
+  @retval 1 Failure
+*/
+typedef int (*after_read_event_t)(Binlog_relay_IO_param *param,
+                                  const char *packet, unsigned long len,
+                                  const char **event_buf, unsigned long *event_len);
+
+/**
+  This callback is called after written an event packet to relay log
+
+  @param param Observer common parameter
+  @param event_buf Event packet written to relay log
+  @param event_len Length of the event packet written to relay log
+  @param flags flags for relay log
+
+  @retval 0 Success
+  @retval 1 Failure
+*/
+typedef int (*after_queue_event_t)(Binlog_relay_IO_param *param,
+                                   const char *event_buf, unsigned long event_len,
+                                   uint32 flags);
+
+/**
+  This callback is called after reset slave relay log IO status
+
+  @param param Observer common parameter
+
+  @retval 0 Success
+  @retval 1 Failure
+*/
+typedef int (*after_reset_slave_t)(Binlog_relay_IO_param *param);
+
+/**
    Observes and extends the service of slave IO thread.
 */
 typedef struct Binlog_relay_IO_observer {
   uint32 len;
 
-  /**
-     This callback is called when slave IO thread starts
-
-     @param param Observer common parameter
-
-     @retval 0 Sucess
-     @retval 1 Failure
-  */
-  int (*thread_start)(Binlog_relay_IO_param *param);
-
-  /**
-     This callback is called when slave IO thread stops
-
-     @param param Observer common parameter
-
-     @retval 0 Sucess
-     @retval 1 Failure
-  */
-  int (*thread_stop)(Binlog_relay_IO_param *param);
-
-  /**
-     This callback is called when a relay log consumer thread stops
-
-     @param param   Observer common parameter
-     @param aborted thread aborted or exited on error
-
-
-     @retval 0 Sucess
-     @retval 1 Failure
-  */
-  int (*applier_stop)(Binlog_relay_IO_param *param, bool aborted);
-
-  /**
-     This callback is called before slave requesting binlog transmission from master
-
-     This is called before slave issuing BINLOG_DUMP command to master
-     to request binlog.
-
-     @param param Observer common parameter
-     @param flags binlog dump flags
-
-     @retval 0 Sucess
-     @retval 1 Failure
-  */
-  int (*before_request_transmit)(Binlog_relay_IO_param *param, uint32 flags);
-
-  /**
-     This callback is called after read an event packet from master
-
-     @param param Observer common parameter
-     @param packet The event packet read from master
-     @param len Length of the event packet read from master
-     @param event_buf The event packet return after process
-     @param event_len The length of event packet return after process
-
-     @retval 0 Sucess
-     @retval 1 Failure
-  */
-  int (*after_read_event)(Binlog_relay_IO_param *param,
-                          const char *packet, unsigned long len,
-                          const char **event_buf, unsigned long *event_len);
-
-  /**
-     This callback is called after written an event packet to relay log
-
-     @param param Observer common parameter
-     @param event_buf Event packet written to relay log
-     @param event_len Length of the event packet written to relay log
-     @param flags flags for relay log
-
-     @retval 0 Sucess
-     @retval 1 Failure
-  */
-  int (*after_queue_event)(Binlog_relay_IO_param *param,
-                           const char *event_buf, unsigned long event_len,
-                           uint32 flags);
-
-  /**
-     This callback is called after reset slave relay log IO status
-
-     @param param Observer common parameter
-
-     @retval 0 Sucess
-     @retval 1 Failure
-  */
-  int (*after_reset_slave)(Binlog_relay_IO_param *param);
+  thread_start_t thread_start;
+  thread_stop_t thread_stop;
+  applier_stop_t applier_stop;
+  before_request_transmit_t before_request_transmit;
+  after_read_event_t after_read_event;
+  after_queue_event_t after_queue_event;
+  after_reset_slave_t after_reset_slave;
 } Binlog_relay_IO_observer;
 
 
@@ -699,10 +741,10 @@ int unregister_binlog_relay_io_observer(Binlog_relay_IO_observer *observer, void
    Set thread entering a condition
 
    This function should be called before putting a thread to wait for
-   a condition. @a mutex should be held before calling this
-   function. After being waken up, @f thd_exit_cond should be called.
+   a condition. @p mutex should be held before calling this
+   function. After being waken up, @c thd_exit_cond should be called.
 
-   @param thd      The thread entering the condition, NULL means current thread
+   @param opaque_thd      The thread entering the condition, NULL means current thread
    @param cond     The condition the thread is going to wait for
    @param mutex    The mutex associated with the condition, this must be
                    held before call this function
@@ -726,9 +768,9 @@ void thd_enter_cond(void *opaque_thd, mysql_cond_t *cond, mysql_mutex_t *mutex,
    This function should be called after a thread being waken up for a
    condition.
 
-   @param thd      The thread entering the condition, NULL means current thread
-   @param stage    The process message, ususally this should be the old process
-                   message before calling @f thd_enter_cond
+   @param opaque_thd      The thread entering the condition, NULL means current thread
+   @param stage    The process message, usually this should be the old process
+                   message before calling @c thd_enter_cond
    @param src_function The caller source function name
    @param src_file The caller source file name
    @param src_line The caller source line number
@@ -794,7 +836,7 @@ int get_user_var_real(const char *name,
    @retval 1 Variable not found
 */
 int get_user_var_str(const char *name,
-                     char *value, unsigned long len,
+                     char *value, size_t len,
                      unsigned int precision, int *null_value);
 
 

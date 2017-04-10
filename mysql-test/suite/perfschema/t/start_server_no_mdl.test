@@ -1,15 +1,12 @@
 # Tests for PERFORMANCE_SCHEMA
 
---source include/not_embedded.inc
---source include/have_perfschema.inc
-
 --source ../include/start_server_common.inc
 
 select count(*) from performance_schema.metadata_locks;
 
 # Expect metadata locks lost
 --disable_warnings
-select variable_value > 0 from information_schema.global_status
+select variable_value > 0 from performance_schema.global_status
   where variable_name like 'PERFORMANCE_SCHEMA_METADATA_LOCK_LOST';
 --enable_warnings
 
@@ -17,7 +14,8 @@ select variable_value > 0 from information_schema.global_status
 FLUSH STATUS;
 
 --disable_warnings
-select variable_value from information_schema.global_status
+--disable_ps_protocol
+select variable_value from performance_schema.global_status
   where variable_name like 'PERFORMANCE_SCHEMA_METADATA_LOCK_LOST';
+--enable_ps_protocol
 --enable_warnings
-

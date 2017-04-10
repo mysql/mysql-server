@@ -17,11 +17,14 @@
 #define GCS_XCOM_NOTIFICATION_INCLUDED
 
 #include <queue>
-#include "xplatform/my_xp_thread.h"
-#include "xplatform/my_xp_mutex.h"
-#include "xplatform/my_xp_cond.h"
-#include "gcs_control_interface.h"
+
+#include "mysql/gcs/xplatform/my_xp_thread.h"
+#include "mysql/gcs/xplatform/my_xp_mutex.h"
+#include "mysql/gcs/xplatform/my_xp_cond.h"
+#include "mysql/gcs/gcs_control_interface.h"
+
 #include "gcs_xcom_utils.h"
+
 #include "xcom_vp.h"
 
 /**
@@ -117,7 +120,7 @@ public:
     and the optional callback will be the last one called if there is
     any.
 
-    @param functor: Last callback function to be executed.
+    @param functor Last callback function to be executed.
   */
 
   void finalize(xcom_finalize_functor *functor);
@@ -143,7 +146,7 @@ public:
     Push a notification to the queue.
 
 
-    @param notification: Pointer to notification to be queued.
+    @param notification Pointer to notification to be queued.
 
     @return If the request was successfully enqueued true is
             returned, otherwise, false is returned.
@@ -256,8 +259,8 @@ public:
   /**
     Constructor for Finalize_notification.
 
-    @param gcs_engine: Reference to the engine.
-    @param functor: Pointer to a function that contains that actual
+    @param gcs_engine Reference to the engine.
+    @param functor Pointer to a function that contains that actual
                     core of the execution.
   */
 
@@ -304,8 +307,7 @@ public:
   /**
     Constructor for Initialize_notification.
 
-    @param gcs_engine: Reference to the engine.
-    @param functor: Pointer to a function that contains that actual
+    @param functor Pointer to a function that contains that actual
                     core of the execution.
   */
 
@@ -352,13 +354,13 @@ public:
   /**
     Constructor for Data_notification.
 
-    @param functor: Pointer to a function that contains that actual
+    @param functor Pointer to a function that contains that actual
                     core of the execution.
-    @param message_id: Messaged Id.
-    @param nodes: Set of nodes that participated in the consensus
+    @param message_id Messaged Id.
+    @param xcom_nodes Set of nodes that participated in the consensus
                   to deliver the message.
-    @param size: Size of the message's content.
-    @param data: This is the message's content.
+    @param size Size of the message's content.
+    @param data This is the message's content.
   */
 
   explicit Data_notification(xcom_receive_data_functor *functor,
@@ -427,9 +429,9 @@ public:
   /**
     Constructor for Status_notification.
 
-    @param functor: Pointer to a function that contains that actual
+    @param functor Pointer to a function that contains that actual
                     core of the execution.
-    @param status: XCOM's status.
+    @param status XCOM's status.
   */
 
   explicit Status_notification(xcom_status_functor *functor, int status);
@@ -478,12 +480,12 @@ public:
   /**
     Constructor for Global_view_notification.
 
-    @param functor: Pointer to a function that contains that actual
+    @param functor Pointer to a function that contains that actual
                     core of the execution.
-    @param config_id: Message Id when the configuration, i.e. nodes,
+    @param config_id Message Id when the configuration, i.e. nodes,
                       was installed.
-    @param message_id: Messaged Id.
-    @param xcom_nodes: Set of nodes that participated in the consensus
+    @param message_id Messaged Id.
+    @param xcom_nodes Set of nodes that participated in the consensus
                        to deliver the message.
   */
 
@@ -547,10 +549,10 @@ public:
   /**
     Constructor for Local_view_notification.
 
-    @param functor: Pointer to a function that contains that actual
+    @param functor Pointer to a function that contains that actual
                     core of the execution.
-    @param message_id: Messaged Id.
-    @param xcom_nodes: Set of nodes that were defined when the notification
+    @param message_id Messaged Id.
+    @param xcom_nodes Set of nodes that were defined when the notification
                        happened.
   */
 
@@ -606,9 +608,9 @@ public:
   /**
     Constructor for Control_notification.
 
-    @param functor: Pointer to a function that contains that actual
+    @param functor Pointer to a function that contains that actual
                     core of the execution.
-    @param control_if: Reference to Control Interface.
+    @param control_if Reference to Control Interface.
   */
 
   explicit Control_notification(xcom_control_functor *functor,

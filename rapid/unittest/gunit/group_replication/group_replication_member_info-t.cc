@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,14 +14,13 @@
    Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
 */
 
-// First include (the generated) my_config.h, to get correct platform defines.
-#include "my_config.h"
 #include <gtest/gtest.h>
-
-#include "member_info.h"
-
+#include <stddef.h>
 #include <string>
 #include <vector>
+
+#include "member_info.h"
+#include "my_inttypes.h"
 
 using std::string;
 using std::vector;
@@ -367,7 +366,7 @@ TEST_F(ClusterMemberInfoManagerTest, EncodeDecodeLargeSets)
 
   delete decoded_members;
 
-  ASSERT_EQ(2,
+  ASSERT_EQ(2U,
             cluster_member_mgr->get_number_of_members());
 
   delete retrieved_local_info;

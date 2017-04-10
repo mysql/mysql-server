@@ -104,7 +104,7 @@
 --source include/rpl_reconnect.inc
 
 # Wait for the slave channel start
---let $rpl_channel_name= channel_1
+--let $rpl_channel_name= 'channel_1'
 --source include/wait_for_slave_to_start.inc
 --let $rpl_channel_name=
 

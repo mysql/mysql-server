@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,9 +14,12 @@
    Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
 
 #include "my_config.h"
-#include <gtest/gtest.h>
 
-#include "my_global.h"
+#include <gtest/gtest.h>
+#include <time.h>
+
+#include "my_inttypes.h"
+#include "my_systime.h"
 #include "sql_const.h"
 
 namespace timespec_unittest {
@@ -30,14 +33,8 @@ protected:
  */
   void verify_timespec()
   {
-
-#ifdef HAVE_STRUCT_TIMESPEC
     EXPECT_GT(ts.tv_sec, 0);
     EXPECT_GE(ts.tv_nsec, 0);
-#else
-    EXPECT_GT(ts.tv.i64, 0);
-    EXPECT_GE(ts.max_timeout_msec, 0);
-#endif
   }
 
   struct timespec ts;

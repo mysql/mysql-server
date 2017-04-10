@@ -3,6 +3,16 @@
 # Adding big test option for this test.
 --source include/big_test.inc
 
+########################################
+##### WL#7554 Force schema `test` to character set latin1
+##### This test should be migrated to utf8mb4
+--disable_query_log
+let $testdbcs193=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
+alter schema default character set latin1;
+use test;
+--enable_query_log
+########################################
+
 # t/index_merge_innodb.test
 #
 # Index merge tests
@@ -15,7 +25,6 @@
 #               include/index_merge*.inc files
 #
 
---source include/have_innodb.inc
 let $engine_type= InnoDB;
 # According to Oracle: "InnoDB's estimate for the index cardinality
 # depends on a pseudo random number generator (it picks up random
@@ -90,3 +99,10 @@ WHERE c1 IN
 AND t1.d1 IS NULL;
 
 DROP TABLE t1, t2;
+
+########################################
+##### WL#7554 set schema `test` back to what it was
+--disable_query_log
+--eval alter schema test default character set $testdbcs193;
+--enable_query_log
+########################################

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,6 +14,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
+
+#include <new>
 
 #include <ndb_global.h>
 #include <AttributeHeader.hpp>
@@ -706,6 +708,15 @@ NdbIndexStat::create_listener(Ndb* ndb)
   DBUG_RETURN(0);
 }
 
+bool
+NdbIndexStat::has_listener() const
+{
+  DBUG_ENTER("NdbIndexStat::has_listener");
+  if (m_impl.m_eventOp != 0)
+    DBUG_RETURN(true);
+  DBUG_RETURN(false);
+}
+
 int
 NdbIndexStat::execute_listener(Ndb* ndb)
 {
@@ -739,8 +750,7 @@ int
 NdbIndexStat::drop_listener(Ndb* ndb)
 {
   DBUG_ENTER("NdbIndexStat::drop_listener");
-  if (m_impl.drop_listener(ndb) == -1)
-    DBUG_RETURN(-1);
+  (void)m_impl.drop_listener(ndb);
   DBUG_RETURN(0);
 }
 

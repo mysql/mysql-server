@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2017, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -14,14 +14,15 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA 
 
 MACRO (MYSQL_USE_BUNDLED_ZLIB)
+  SET(BUILD_BUNDLED_ZLIB 1)
   SET(ZLIB_LIBRARY zlib CACHE INTERNAL "Bundled zlib library")
-  SET(ZLIB_INCLUDE_DIR  ${CMAKE_SOURCE_DIR}/zlib)
+  SET(ZLIB_INCLUDE_DIR  ${CMAKE_SOURCE_DIR}/extra/zlib)
   SET(ZLIB_FOUND  TRUE)
   SET(WITH_ZLIB "bundled" CACHE STRING "Use bundled zlib")
-  ADD_SUBDIRECTORY(zlib)
+  ADD_SUBDIRECTORY(extra/zlib)
   GET_TARGET_PROPERTY(src zlib SOURCES)
   FOREACH(file ${src})
-    SET(ZLIB_SOURCES ${ZLIB_SOURCES} ${CMAKE_SOURCE_DIR}/zlib/${file})
+    SET(ZLIB_SOURCES ${ZLIB_SOURCES} ${CMAKE_SOURCE_DIR}/extra/zlib/${file})
   ENDFOREACH()
 ENDMACRO()
 
@@ -71,5 +72,4 @@ MACRO (MYSQL_CHECK_ZLIB_WITH_COMPRESS)
       MYSQL_USE_BUNDLED_ZLIB()
     ENDIF()
   ENDIF()
-  SET(HAVE_COMPRESS 1)
 ENDMACRO()

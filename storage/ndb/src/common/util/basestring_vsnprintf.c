@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -38,22 +38,26 @@ basestring_snprintf(char *str, size_t size, const char *format, ...)
 int
 basestring_vsnprintf(char *str, size_t size, const char *format, va_list ap)
 {
-  int ret;
-
   if (size == 0)
   {
     char buf[1];
     return basestring_vsnprintf(buf, 1, format, ap);
   }
-  ret = IF_WIN(_vsnprintf,vsnprintf)(str, size, format, ap);
-  if (ret >= 0 && ret < (int)size)
-    return ret;
-#ifdef _WIN32
-  if (ret < 0 && errno == EINVAL)
-    return ret;
-  // otherwise, more than size chars are needed
-  return _vscprintf(format, ap);
+
+#if defined _WIN32 && _MSC_VER < 1900
+  {
+    // Visual Studio 2013 and earlier does not implement
+    // standard vsnprintf, use _vsnprintf and _vscprintf
+    // to emulate something similar
+    const int ret = _vsnprintf(str, size, format, ap);
+    if (ret >= 0 && ret < (int)size)
+      return ret;
+    if (ret < 0 && errno == EINVAL)
+      return ret;
+    // otherwise, more than size chars are needed
+    return _vscprintf(format, ap);
+  }
 #else
-  return ret;
+  return vsnprintf(str, size, format, ap);
 #endif
 }

@@ -1,6 +1,6 @@
-#!/bin/sh
+#!/bin/bash
 
-# Copyright (c) 2007, 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2007, 2016, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -26,7 +26,7 @@
 ##############
 
 save_args=$*
-VERSION="autotest-run.sh version 1.00"
+VERSION="autotest-run.sh version 1.05"
 
 DATE=`date '+%Y-%m-%d'`
 if [ `uname -s` != "SunOS" ]
@@ -68,12 +68,13 @@ LOCK=$HOME/.autotest-lock
 while [ "$1" ]
 do
         case "$1" in
+                --verbose=*) verbose=`echo $1 | sed s/--verbose=//`;;
                 --verbose) verbose=`expr $verbose + 1`;;
                 --conf=*) conf=`echo $1 | sed s/--conf=//`;;
                 --version) echo $VERSION; exit;;
 	        --suite=*) RUN=`echo $1 | sed s/--suite=//`;;
 	        --run-dir=*) run_dir=`echo $1 | sed s/--run-dir=//`;;
-	        --install-dir=*) install_dir0=`echo $1 | sed s/--install-dir=//`;;
+	        --install-dir=*) install_dir=`echo $1 | sed s/--install-dir=//`;;
 	        --install-dir0=*) install_dir0=`echo $1 | sed s/--install-dir0=//`;;
 	        --install-dir1=*) install_dir1=`echo $1 | sed s/--install-dir1=//`;;
 	        --clone=*) clone0=`echo $1 | sed s/--clone=//`;;
@@ -81,6 +82,10 @@ do
 	        --clone1=*) clone1=`echo $1 | sed s/--clone1=//`;;
 	        --nolock) nolock=true;;
 	        --clonename=*) clonename=`echo $1 | sed s/--clonename=//`;;
+                --baseport=*) baseport_arg="$1";;
+                --base-dir=*) base_dir=`echo $1 | sed s/--base-dir=//`;;
+                --clusters=*) clusters_arg="$1";;
+                --site=*) site_arg="$1";;
         esac
         shift
 done
@@ -90,6 +95,9 @@ done
 #if it does not exit. if it does#
 # (.) load it			# 
 #################################
+
+install_dir=${install_dir:-$install_dir0}
+install_dir0=${install_dir0:-$install_dir}
 
 install_dir_save=$install_dir0
 if [ -f $conf ]
@@ -155,14 +163,12 @@ then
     echo "$DATE $RUN" > $LOCK
 fi
 
-#############################
-#If any errors here down, we#
-# trap them, and remove the #
-# Lock file before exit     #
-#############################
-if [ `uname -s` != "SunOS" ]
+####################################
+# Remove the lock file before exit #
+####################################
+if [ -z "${nolock}" ]
 then
-	trap "rm -f $LOCK" ERR
+    trap "rm -f $LOCK" EXIT
 fi
 
 
@@ -170,8 +176,21 @@ fi
 # Check that all interesting files are present#
 ###############################################
 
-test_dir=$install_dir0/mysql-test/ndb
-atrt=$test_dir/atrt
+test_dir=$install_dir/mysql-test/ndb
+
+# Check if executables in $install_dir0 is executable at current
+# platform, they could be built for another kind of platform
+unset NDB_CPCC_HOSTS
+if ${install_dir}/bin/ndb_cpcc 2>/dev/null ; then
+  # Use atrt and ndb_cpcc from test build
+  atrt="${test_dir}/atrt"
+  ndb_cpcc="${install_dir}/bin/ndb_cpcc"
+else
+  echo "Note: Cross platform testing, atrt and ndb_cpcc is not used from test build" >&2
+  atrt=`which atrt`
+  ndb_cpcc=`which ndb_cpcc`
+fi
+
 test_file=$test_dir/$RUN-tests.txt
 
 if [ ! -f "$test_file" ]
@@ -189,7 +208,7 @@ fi
 ############################
 # check ndb_cpcc fail hosts#
 ############################
-failed=`ndb_cpcc $hosts | awk '{ if($1=="Failed"){ print;}}'`
+failed=`$ndb_cpcc $hosts | awk '{ if($1=="Failed"){ print;}}'`
 if [ "$failed" ]
 then
   echo "Cant contact cpcd on $failed, exiting"
@@ -292,22 +311,31 @@ fi
 choose $conf $hosts > d.tmp.$$
 sed -e s,CHOOSE_dir,"$run_dir/run",g < d.tmp.$$ > my.cnf
 
-prefix="--prefix=$install_dir0"
-if [ "$install_dir1" ]
+prefix="--prefix=$install_dir --prefix0=$install_dir0"
+if [ -n "$install_dir1" ]
 then
     prefix="$prefix --prefix1=$install_dir1"
 fi
 
+# If verbose level 0, use default verbose mode (1) for atrt anyway
+# otherwise it will not write test progress to log file
+if [ ${verbose} -gt 0 ] ; then
+  verbose_arg=--verbose=${verbose}
+fi
+
 # Setup configuration
-$atrt Cdq $prefix my.cnf
+$atrt Cdq ${site_arg} ${clusters_arg} ${verbose_arg} $prefix my.cnf
 
 # Start...
 args=""
 args="--report-file=report.txt"
 args="$args --log-file=log.txt"
 args="$args --testcase-file=$test_dir/$RUN-tests.txt"
+args="$args ${baseport_arg}"
+args="$args ${site_arg} ${clusters_arg}"
 args="$args $prefix"
-$atrt $args my.cnf
+args="$args ${verbose_arg}"
+$atrt $args my.cnf || echo "ERROR: $?: $atrt $args my.cnf"
 
 # Make tar-ball
 [ -f log.txt ] && mv log.txt $res_dir
@@ -320,6 +348,9 @@ echo "suite=$RUN" >> info.txt
 echo "clone=$clone0" >> info.txt
 echo "arch=$target" >> info.txt
 echo "host=$HOST" >> info.txt
+[ -z "${clusters_arg}" ] || echo "clusters=${clusters_arg/--clusters=/}" >> info.txt
+echo "test_hosts='$hosts'" >> info.txt
+echo "test_atrt_command='$atrt $args my.cnf'" >> info.txt
 if [ "$clone1" ]
 then
     echo "clone1=$clone1" >> info.txt
@@ -332,6 +363,10 @@ then
 else
     echo "clonename=$clone0" >> info.txt
 fi
+for f in INFO_BIN INFO_SRC ; do
+  [ ! -f "${install_dir0}/docs/${f}" ] || cp "${install_dir0}/docs/${f}" "${f}.0"
+  [ ! -f "${install_dir1}/docs/${f}" ] || cp "${install_dir1}/docs/${f}" "${f}.1"
+done
 find . | xargs chmod ugo+r
 
 # Try to pack and transfer as much as possible
@@ -359,8 +394,3 @@ fi
 
 cd $p
 rm -rf $res_dir $run_dir
-
-if [ -z "$nolock" ]
-then
-    rm -f $LOCK
-fi

@@ -1,7 +1,6 @@
 # Partitioning test that require debug features
 
 --source include/have_debug.inc
---source include/have_partition.inc
 
 --echo #
 --echo # Bug#13737949: CRASH IN HA_PARTITION::INDEX_INIT

@@ -1,4 +1,3 @@
---source include/have_innodb.inc
 --source include/have_debug.inc
 
 SET @start_global_value = @@global.innodb_change_buffering_debug;
@@ -14,8 +13,8 @@ select @@session.innodb_change_buffering_debug;
 show global variables like 'innodb_change_buffering_debug';
 show session variables like 'innodb_change_buffering_debug';
 --disable_warnings
-select * from information_schema.global_variables where variable_name='innodb_change_buffering_debug';
-select * from information_schema.session_variables where variable_name='innodb_change_buffering_debug';
+select * from performance_schema.global_variables where variable_name='innodb_change_buffering_debug';
+select * from performance_schema.session_variables where variable_name='innodb_change_buffering_debug';
 --enable_warnings
 
 #
@@ -24,14 +23,14 @@ select * from information_schema.session_variables where variable_name='innodb_c
 set global innodb_change_buffering_debug=1;
 select @@global.innodb_change_buffering_debug;
 --disable_warnings
-select * from information_schema.global_variables where variable_name='innodb_change_buffering_debug';
-select * from information_schema.session_variables where variable_name='innodb_change_buffering_debug';
+select * from performance_schema.global_variables where variable_name='innodb_change_buffering_debug';
+select * from performance_schema.session_variables where variable_name='innodb_change_buffering_debug';
 --enable_warnings
 set @@global.innodb_change_buffering_debug=0;
 select @@global.innodb_change_buffering_debug;
 --disable_warnings
-select * from information_schema.global_variables where variable_name='innodb_change_buffering_debug';
-select * from information_schema.session_variables where variable_name='innodb_change_buffering_debug';
+select * from performance_schema.global_variables where variable_name='innodb_change_buffering_debug';
+select * from performance_schema.session_variables where variable_name='innodb_change_buffering_debug';
 --enable_warnings
 --error ER_GLOBAL_VARIABLE
 set session innodb_change_buffering_debug='some';

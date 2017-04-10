@@ -252,32 +252,39 @@ SHOW CREATE USER u1@localhost;
 CREATE USER for u1@localhost
 CREATE USER 'u1'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*B415DD9C4FB5EF59FE80C4FEBC1F9C715E6E97C4' REQUIRE NONE PASSWORD EXPIRE ACCOUNT LOCK
 # MySQL user table layout from the before ACCOUNT LOCK option
-CREATE TABLE temp_user LIKE mysql.user;
-INSERT INTO temp_user SELECT * FROM mysql.user;
+call mtr.add_suppression("Column count of mysql.* is wrong. "
+                         "Expected .*, found .*. "
+                         "The table is probably corrupted");
+CREATE TABLE mysql.temp_user LIKE mysql.user;
+INSERT INTO mysql.temp_user SELECT * FROM mysql.user;
 ALTER TABLE mysql.user DROP COLUMN account_locked;
+ALTER TABLE mysql.user DROP COLUMN create_role_priv;
+ALTER TABLE mysql.user DROP COLUMN drop_role_priv;
 CREATE USER backuser@localhost IDENTIFIED BY 'pass' ACCOUNT LOCK;
-ERROR 42S22: Unknown column 'account_locked' in 'mysql.user'
+ERROR HY000: Column count of mysql.user is wrong. Expected 47, found 44. The table is probably corrupted
 SELECT COUNT(*) FROM mysql.user WHERE (user = 'backuser' and host = 'localhost');
 COUNT(*)
 0
 CREATE USER backuser@localhost IDENTIFIED BY 'pass' ACCOUNT UNLOCK;
-ERROR 42S22: Unknown column 'account_locked' in 'mysql.user'
+ERROR HY000: Column count of mysql.user is wrong. Expected 47, found 44. The table is probably corrupted
 SELECT COUNT(*) FROM mysql.user WHERE (user = 'backuser' and host = 'localhost');
 COUNT(*)
 0
 CREATE USER backuser@localhost IDENTIFIED BY 'pass';
+ERROR HY000: Column count of mysql.user is wrong. Expected 47, found 44. The table is probably corrupted
 SELECT COUNT(*) FROM mysql.user WHERE (user = 'backuser' and host = 'localhost');
 COUNT(*)
-1
+0
 SELECT user, account_locked FROM mysql.user WHERE (user = 'backuser' and host = 'localhost');
 ERROR 42S22: Unknown column 'account_locked' in 'field list'
 ALTER USER backuser@localhost ACCOUNT LOCK;
-ERROR 42S22: Unknown column 'account_locked' in 'mysql.user'
+ERROR HY000: Column count of mysql.user is wrong. Expected 47, found 44. The table is probably corrupted
 ALTER USER backuser@localhost ACCOUNT UNLOCK;
-ERROR 42S22: Unknown column 'account_locked' in 'mysql.user'
+ERROR HY000: Column count of mysql.user is wrong. Expected 47, found 44. The table is probably corrupted
 DROP USER backuser@localhost;
+ERROR HY000: Column count of mysql.user is wrong. Expected 47, found 44. The table is probably corrupted
 DROP TABLE mysql.user;
-ALTER TABLE temp_user RENAME mysql.user;
+ALTER TABLE mysql.temp_user RENAME mysql.user;
 FLUSH PRIVILEGES;
 # Check whether 'account' can be used as the identifier.
 CREATE DATABASE account;
@@ -349,12 +356,14 @@ LOAD DATA LOCAL INFILE '.../log/rewrite_general.log'
      INTO TABLE test_log FIELDS TERMINATED BY '\n' LINES TERMINATED BY '\n';
 Show what is logged:
 ------ rewrite ------
-SELECT argument FROM mysql.general_log WHERE argument LIKE 'CREATE USER %';
+SELECT argument FROM mysql.general_log WHERE argument LIKE 'CREATE USER %' AND
+command_type NOT LIKE 'Prepare';
 argument
 CREATE USER 'u1'@'%' IDENTIFIED BY PASSWORD '*196BDEDE2AE4F84CA44C47D54D78478C7E2BD7B7'
 CREATE USER 'u2'@'%' IDENTIFIED BY PASSWORD '*196BDEDE2AE4F84CA44C47D54D78478C7E2BD7B7' ACCOUNT LOCK
 CREATE USER 'u3'@'%' IDENTIFIED BY PASSWORD '*196BDEDE2AE4F84CA44C47D54D78478C7E2BD7B7' ACCOUNT UNLOCK
-SELECT argument FROM mysql.general_log WHERE argument LIKE 'ALTER USER %';
+SELECT argument FROM mysql.general_log WHERE argument LIKE 'ALTER USER %'AND
+command_type NOT LIKE 'Prepare';
 argument
 ALTER USER 'u1'@'%' IDENTIFIED WITH 'mysql_native_password' AS '<secret>'
 ALTER USER 'u1'@'%' IDENTIFIED WITH 'mysql_native_password' AS '<secret>' ACCOUNT LOCK

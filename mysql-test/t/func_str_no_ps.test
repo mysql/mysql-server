@@ -1,8 +1,6 @@
 # Some of the queries give different set of warnings with --ps-protocol
-if (`SELECT $PS_PROTOCOL + $CURSOR_PROTOCOL > 0`)
-{
-   --skip Need normal protocol
-}
+--source include/no_ps_protocol.inc
+--source include/no_cursor_protocol.inc
 
 --echo #
 --echo # Bug#20315088 LCASE/LTRIM, SOURCE AND DESTINATION OVERLAP IN MEMCPY

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,10 +15,22 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "client_priv.h"
-#include "my_default.h"
-#include "mysqld_error.h"
+#include <stdlib.h>
+#include <sys/types.h>
 #include <welcome_copyright_notice.h> // ORACLE_WELCOME_COPYRIGHT_NOTICE
+
+#include "client_priv.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_default.h"
+#include "my_inttypes.h"
+#include "my_macros.h"
+#include "my_shm_defaults.h"
+#include "mysql/service_my_snprintf.h"
+#include "mysql/service_mysql_alloc.h"
+#include "mysqld_error.h"
+#include "print_version.h"
+#include "typelib.h"
 
 using namespace std;
 
@@ -30,11 +42,11 @@ static uint opt_protocol= 0;
 static char *opt_socket= 0;
 static MYSQL mysql;
 static char *password= 0;
-static my_bool password_provided= FALSE;
-static my_bool g_expire_password_on_exit= FALSE;
-static my_bool opt_use_default= FALSE;
+static bool password_provided= FALSE;
+static bool g_expire_password_on_exit= FALSE;
+static bool opt_use_default= FALSE;
 
-#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
+#if defined (_WIN32)
 static char *shared_memory_base_name= default_shared_memory_base_name;
 #endif
 
@@ -52,7 +64,7 @@ static struct my_option my_connection_options[]=
   {"password", 'p', "Password to connect to the server. If password is not "
    "given it's asked from the tty.", 0, 0, 0, GET_PASSWORD, OPT_ARG , 0, 0, 0,
    0, 0, 0},
-#ifdef __WIN__
+#ifdef _WIN32
   {"pipe", 'W', "Use named pipes to connect to server.", 0, 0, 0, GET_NO_ARG,
    NO_ARG, 0, 0, 0, 0, 0, 0},
 #endif
@@ -66,7 +78,7 @@ static struct my_option my_connection_options[]=
   {"protocol", OPT_MYSQL_PROTOCOL,
    "The protocol to use for connection (tcp, socket, pipe, memory).",
    0, 0, 0, GET_STR,  REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
+#if defined (_WIN32)
   {"shared-memory-base-name", OPT_SHARED_MEMORY_BASE_NAME,
    "Base name of shared memory.", &shared_memory_base_name,
    &shared_memory_base_name, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -75,6 +87,7 @@ static struct my_option my_connection_options[]=
    &opt_socket, &opt_socket, 0, GET_STR_ALLOC, REQUIRED_ARG,
    0, 0, 0, 0, 0, 0},
 #include "sslopt-longopts.h"
+
   {"user", 'u', "User for login if not root.", &opt_user,
    &opt_user, 0, GET_STR_ALLOC, REQUIRED_ARG, (longlong) "root", 0, 0, 0, 0, 0},
   {"use-default", 'D', "Execute with no user interactivity",
@@ -84,13 +97,7 @@ static struct my_option my_connection_options[]=
   {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
-my_bool find_temporary_password(char **p);
-
-static void print_version(void)
-{
-  fprintf(stdout, "%s Ver %s, for %s on %s\n", my_progname,
-	  MYSQL_SERVER_VERSION, SYSTEM_TYPE, MACHINE_TYPE);
-}
+bool find_temporary_password(char **p);
 
 static void usage()
 {
@@ -117,7 +124,9 @@ static void free_resources()
   if (defaults_argv && *defaults_argv)
     free_defaults(defaults_argv);
 }
-my_bool
+
+extern "C" {
+static bool
 my_arguments_get_one_option(int optid,
                             const struct my_option *opt MY_ATTRIBUTE((unused)),
                             char *argument)
@@ -147,19 +156,19 @@ my_arguments_get_one_option(int optid,
     break;
 
 #include <sslopt-case.h>
+
   case OPT_MYSQL_PROTOCOL:
-#ifndef EMBEDDED_LIBRARY
     opt_protocol= find_type_or_exit(argument, &sql_protocol_typelib,
 				    opt->name);
-#endif
     break;
   case 'W':
-#ifdef __WIN__
+#ifdef _WIN32
     opt_protocol = MYSQL_PROTOCOL_PIPE;
 #endif
     break;
   }
   return 0;
+}
 }
 
 
@@ -172,7 +181,7 @@ init_connection_options(MYSQL *mysql)
   if (opt_protocol)
     mysql_options(mysql, MYSQL_OPT_PROTOCOL, (char*) &opt_protocol);
 
-#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
+#if defined (_WIN32)
   if (shared_memory_base_name)
     mysql_options(mysql, MYSQL_SHARED_MEMORY_BASE_NAME, shared_memory_base_name);
 #endif
@@ -183,12 +192,12 @@ init_connection_options(MYSQL *mysql)
   Reads the response from stdin and returns the first character.
   If global variable opt_use_default is TRUE then the default_answer is
   returned instead.
-  @param    Optional message do be displayed.
+  @param    opt_message Optional message do be displayed.
   @param    default_answer Answer to be given if no interactivity is allowed.
   @return   First character of input string
 */
 
-int get_response(const char *opt_message, int default_answer= -1)
+static int get_response(const char *opt_message, int default_answer= -1)
 {
   int a= 0;
   int b= 0;
@@ -219,10 +228,10 @@ int get_response(const char *opt_message, int default_answer= -1)
   Else, the failure message along with the actual failure is displayed.
   If the server is not found running, the program is exited.
 
-  @param1  query        The mysql query which is to be executed.
-  @param2  opt_message  The optional message to be displayed.
+  @param query        The mysql query which is to be executed.
+  @param opt_message  The optional message to be displayed.
 */
-void execute_query_with_message(const char *query, const char *opt_message)
+static void execute_query_with_message(const char *query, const char *opt_message)
 {
   if (opt_message)
     fprintf(stdout, "%s", opt_message);
@@ -253,13 +262,13 @@ void execute_query_with_message(const char *query, const char *opt_message)
   as the input. If the query fails on running, a message
   along with the failure details is displayed.
 
-  @param1   query        The mysql query which is to be executed.
-  @param2   length       Length of the query in bytes.
+  @param   query        The mysql query which is to be executed.
+  @param   length       Length of the query in bytes.
 
-  return    FALSE in case of success
+  @return    FALSE in case of success
             TRUE  in case of failure
 */
-bool execute_query(const char **query, size_t length)
+static bool execute_query(const char **query, size_t length)
 {
   if (!mysql_real_query(&mysql, (const char *) *query, (ulong)length))
     return FALSE;
@@ -284,7 +293,7 @@ bool execute_query(const char **query, size_t length)
 /**
   Checks if the validate_password plugin is installed and returns TRUE if it is.
 */
-bool validate_password_exists()
+static bool validate_password_exists()
 {
   MYSQL_ROW row;
   bool res= TRUE;
@@ -307,11 +316,11 @@ bool validate_password_exists()
   @return   Returns 1 on successfully setting the plugin and 0 in case of
             of any error.
 */
-int install_password_validation_plugin()
+static int install_password_validation_plugin()
 {
   int reply;
   int plugin_set= 0;
-  char *strength;
+  char *strength= NULL;
   bool option_read= FALSE;
   reply= get_response((const char *) "\nVALIDATE PASSWORD PLUGIN can be used "
                                      "to test passwords\nand improve security. "
@@ -394,7 +403,7 @@ int install_password_validation_plugin()
   @param password_string    Password string whose strength
 			    is to be estimated
 */
-void estimate_password_strength(char *password_string)
+static void estimate_password_strength(char *password_string)
 {
   char *query, *end;
   size_t tmp= sizeof("SELECT validate_password_strength(") + 3;
@@ -439,7 +448,7 @@ void estimate_password_strength(char *password_string)
     @retval FALSE failure
 */
 
-my_bool mysql_set_password(MYSQL *mysql, char *password)
+static bool mysql_set_password(MYSQL *mysql, char *password)
 {
   size_t password_len= strlen(password);
   char *query, *end;
@@ -466,8 +475,6 @@ my_bool mysql_set_password(MYSQL *mysql, char *password)
   deployments.
 
   @param mysql The MYSQL handle
-  @param user The user name of the expired account
-  @param host The host name of the expired account
 
   Function might fail with an error message which can be retrieved using
   mysql_error(mysql)
@@ -477,7 +484,7 @@ my_bool mysql_set_password(MYSQL *mysql, char *password)
     @retval FALSE failure
 */
 
-my_bool mysql_expire_password(MYSQL *mysql)
+static bool mysql_expire_password(MYSQL *mysql)
 {
   char sql[]= "UPDATE mysql.user SET password_expired= 'Y'";
   size_t sql_len= strlen(sql);
@@ -580,9 +587,9 @@ static void set_opt_user_password(int plugin_set)
 
   @return    Returns 1 if a password already exists and 0 if it doesn't.
 */
-int get_opt_user_password()
+static int get_opt_user_password()
 {
-  my_bool using_temporary_password= FALSE;
+  bool using_temporary_password= FALSE;
   int res;
 
   if (!password_provided)
@@ -691,7 +698,7 @@ int get_opt_user_password()
 
   @param result    The result set from which rows are to be fetched.
 */
-void drop_users(MYSQL_RES *result)
+static void drop_users(MYSQL_RES *result)
 {
   MYSQL_ROW row;
   char *user_tmp, *host_tmp;
@@ -730,7 +737,7 @@ void drop_users(MYSQL_RES *result)
 /**
   Removes all the anonymous users for better security.
 */
-void remove_anonymous_users()
+static void remove_anonymous_users()
 {
   int reply;
   reply= get_response((const char *) "By default, a MySQL installation has an "
@@ -763,7 +770,7 @@ void remove_anonymous_users()
 /**
   Drops all the root users with a remote host.
 */
-void remove_remote_root()
+static void remove_remote_root()
 {
   int reply;
   reply= get_response((const char *) "\nNormally, root should only be "
@@ -793,7 +800,7 @@ void remove_remote_root()
   Removes test database and deletes the rows corresponding to them
   from mysql.db table.
 */
-void remove_test_database()
+static void remove_test_database()
 {
   int reply;
   reply= get_response((const char *) "By default, MySQL comes with a database "
@@ -821,7 +828,7 @@ void remove_test_database()
   Refreshes the in-memory details through
   FLUSH PRIVILEGES.
 */
-void reload_privilege_tables()
+static void reload_privilege_tables()
 {
   int reply;
   reply= get_response((const char *) "Reloading the privilege tables will "
@@ -841,11 +848,11 @@ void reload_privilege_tables()
 /**
   Attempt to retrieve a password from the temporary password file
   '.mysql_secret'.
- @param p[out] A pointer to a password in a newly allocated buffer or null
+ @param [out] p A pointer to a password in a newly allocated buffer or null
  @returns true if the password was successfully retrieved.
 */
 
-my_bool find_temporary_password(char **p)
+bool find_temporary_password(char **p)
 {
   const char *root_path= "/root";
   const char *password_file_name= "/.mysql_secret";
@@ -918,7 +925,7 @@ int main(int argc,char *argv[])
     exit(1);
   }
 
-#ifdef __WIN__
+#ifdef _WIN32
   /* Convert command line parameters from UTF16LE to UTF8MB4. */
   my_win_translate_command_line_args(&my_charset_utf8mb4_bin, &argc, &argv);
 #endif
@@ -992,9 +999,9 @@ int main(int argc,char *argv[])
 
   /*
     During an unattended rpm deployment a temporary password is created and
-    stored in a file by mysql_install_db. This program use this password to
-    perform security configurations after the bootstrap phase but it needs to
-    be marked for expiration upon exit so the DBA will remember to set a new
+    stored in a file by 'mysqld --initialize'. This program uses this password
+    to perform security configurations after the bootstrap phase, but it needs
+    to be marked for expiration upon exit so the DBA will remember to set a new
     one.
   */
   if (g_expire_password_on_exit == TRUE)

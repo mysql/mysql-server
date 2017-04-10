@@ -183,8 +183,19 @@ SELECT COUNT(*) FROM t1;
 
 INSERT INTO t1 VALUES (2,2,2,2,2,2,2,2),(5,5,5,5,5,5,5,5);
 --let $query = FROM t2 WHERE EXISTS (SELECT * FROM t1 WHERE key1<5 OR key3<7)
+# Disabling binary logging temporarily as optimized delete is not used when log-bin is enabled in row mode
+--disable_query_log
+SET @save_log_bin= @@sql_log_bin;
+SET SQL_LOG_BIN=0;
+--enable_query_log
 --replace_column 10 #
 --eval EXPLAIN DELETE $query
+
+--disable_query_log
+SET @save_log_bin= @@sql_log_bin;
+SET SQL_LOG_BIN=0;
+--enable_query_log
+
 --eval SELECT COUNT(*) $query
 --eval DELETE $query
 --eval SELECT COUNT(*) $query

@@ -1,0 +1,81 @@
+################################################################################
+# Verify below UNTIL options work well on MTS.
+# MASTER_LOG_NAME, MASTER_LOG_POS
+# RELAY_LOG_NAME, RELAY_LOG_POS
+# SQL_BEFORE_GTIDS
+# Currently SQL_AFTER_GTIDS is not supportted.
+################################################################################
+--source include/have_debug.inc
+--source include/have_binlog_format_row.inc
+--source include/master-slave.inc
+
+CREATE DATABASE db1;
+CREATE DATABASE db2;
+CREATE DATABASE db3;
+
+CREATE TABLE db1.t1(c1 INT PRIMARY KEY, c2 CHAR(20));
+CREATE TABLE db2.t1(c1 INT PRIMARY KEY, c2 CHAR(20));
+CREATE TABLE db3.t1(c1 INT PRIMARY KEY, c2 CHAR(20));
+# The view is used to help diff_tables.inc
+CREATE VIEW db1.v1 AS SELECT * FROM db1.t1 WHERE c1 <= 4;
+
+--let $gtids_before_insert= `SELECT @@GLOBAL.gtid_executed`
+
+--source include/sync_slave_sql_with_master.inc
+--source include/stop_slave_sql.inc
+SET @saved_slave_parallel_type = @@GLOBAL.slave_parallel_type;
+SET @saved_slave_parallel_workers = @@GLOBAL.slave_parallel_workers;
+SET @saved_innodb_lock_wait_timeout = @@GLOBAL.innodb_lock_wait_timeout;
+SET @saved_relay_log_purge = @@GLOBAL.relay_log_purge;
+
+# Set it a long time to guarantee it doens't report an timeout error
+SET GLOBAL innodb_lock_wait_timeout = 1000;
+SET GLOBAL relay_log_purge = FALSE;
+
+SET GLOBAL slave_parallel_type = "LOGICAL_CLOCK";
+SET GLOBAL slave_parallel_workers = 4;
+
+--let $until_type= MASTER_POS
+--source extra/rpl_tests/rpl_mts_until.inc
+
+--let $until_type= RELAY_POS
+--source extra/rpl_tests/rpl_mts_until.inc
+
+--let $until_type= BEFORE_GTIDS
+--source extra/rpl_tests/rpl_mts_until.inc
+
+#--let $until_type= AFTER_GTIDS
+#--source extra/rpl_tests/rpl_mts_until.inc
+
+--source include/stop_slave_sql.inc
+SET GLOBAL slave_parallel_type = "DATABASE";
+SET GLOBAL slave_parallel_workers = 4;
+# Set it a long time to guarantee it doens't report an timeout error
+SET GLOBAL innodb_lock_wait_timeout = 1000;
+SET GLOBAL relay_log_purge = FALSE;
+
+--let $until_type= MASTER_POS
+--source extra/rpl_tests/rpl_mts_until.inc
+
+--let $until_type= RELAY_POS
+--source extra/rpl_tests/rpl_mts_until.inc
+
+--let $until_type= BEFORE_GTIDS
+--source extra/rpl_tests/rpl_mts_until.inc
+
+#--let $until_type= AFTER_GTIDS
+#--source extra/rpl_tests/rpl_mts_until.inc
+
+--source include/rpl_connection_master.inc
+DROP DATABASE db1;
+DROP DATABASE db2;
+DROP DATABASE db3;
+--source include/sync_slave_sql_with_master.inc
+--source include/stop_slave_sql.inc
+SET GLOBAL slave_parallel_type = @saved_slave_parallel_type;
+SET GLOBAL slave_parallel_workers = @saved_slave_parallel_workers;
+# Set it a long time to guarantee it doens't report an timeout error
+SET GLOBAL innodb_lock_wait_timeout = @saved_innodb_lock_wait_timeout;
+SET GLOBAL relay_log_purge = @saved_relay_log_purge;
+--let $rpl_only_running_threads= 1
+--source include/rpl_end.inc

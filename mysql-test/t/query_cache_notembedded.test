@@ -1,5 +1,4 @@
 
--- source include/have_query_cache.inc
 -- source include/not_embedded.inc
 -- source include/no_valgrind_without_big.inc
 
@@ -11,6 +10,7 @@
 #
 # Tests with query cache
 #
+SET @save_query_cache_size = @@query_cache_size;
 set GLOBAL query_cache_size=1355776;
 
 # Reset query cache variables.
@@ -280,7 +280,7 @@ DROP USER 'bug30269'@'localhost';
 
 set GLOBAL query_cache_limit=default;
 set GLOBAL query_cache_min_res_unit=default;
-set GLOBAL query_cache_size=default;
+set GLOBAL query_cache_size=@save_query_cache_size;
 
 # Wait till we reached the initial number of concurrent sessions
 --source include/wait_until_count_sessions.inc

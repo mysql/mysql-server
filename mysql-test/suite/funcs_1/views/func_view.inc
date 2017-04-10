@@ -176,7 +176,7 @@ eval CREATE TABLE t1_selects
    disable_result ENUM('Yes','No') NOT NULL default 'No',
    PRIMARY KEY(id),
    UNIQUE (my_select)
-) ENGINE=$type;
+) charset latin1 ENGINE=$type;
 # ) ENGINE=MyISAM;
 
 # MODES to be checked
@@ -198,7 +198,7 @@ eval CREATE TABLE t1_values
    id BIGINT AUTO_INCREMENT,
    select_id BIGINT,
    PRIMARY KEY(id)
-) ENGINE = $type;
+) charset latin1 ENGINE = $type;
 
 ##### BEGIN      Basic preparations      #######################################
 #
@@ -295,10 +295,10 @@ INSERT INTO t1_values SET
 #                                 characters and preceding and trailing spaces
 #     FIXME enum, set ??
 INSERT INTO t1_values SET
-       my_char_30 = ' ---äÖüß@µ*$-- ',
-       my_varchar_1000 = ' ---äÖüß@µ*$-- ',
-       my_binary_30 = ' ---äÖüß@µ*$-- ',
-       my_varbinary_1000 = ' ---äÖüß@µ*$-- ',
+       my_char_30 = _latin1 ' ---äÖüß@µ*$-- ',
+       my_varchar_1000 = _latin1 ' ---äÖüß@µ*$-- ',
+       my_binary_30 = _latin1 ' ---äÖüß@µ*$-- ',
+       my_varbinary_1000 = _latin1 ' ---äÖüß@µ*$-- ',
        my_datetime = '2004-02-29 23:59:59',
        my_date = '2004-02-29',
        my_timestamp = '2004-02-29 23:59:59',

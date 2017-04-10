@@ -30,7 +30,7 @@ count(name)
 select count(name) from mutex_instances
 where name like "wait/synch/mutex/sql/LOCK_thd_list";
 count(name)
-1
+8
 select count(name) from mutex_instances
 where name like "wait/synch/mutex/sql/LOCK_log_throttle_qni";
 count(name)

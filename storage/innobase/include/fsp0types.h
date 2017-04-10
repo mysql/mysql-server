@@ -26,8 +26,6 @@ Created May 26, 2009 Vasil Dimov
 #ifndef fsp0types_h
 #define fsp0types_h
 
-#ifndef UNIV_INNOCHECKSUM
-
 #include "univ.i"
 
 /** @name Flags for inserting records in order
@@ -41,7 +39,6 @@ fseg_alloc_free_page) */
 #define	FSP_NO_DIR	((byte)113)	/*!< no order */
 /* @} */
 
-#endif /* !UNIV_INNOCHECKSUM */
 /** File space extent size in pages
 page size | file space extent size
 ----------+-----------------------
@@ -51,11 +48,12 @@ page size | file space extent size
   32 KiB  |  64 pages = 2 MiB
   64 KiB  |  64 pages = 4 MiB
 */
-#define FSP_EXTENT_SIZE         ((UNIV_PAGE_SIZE <= (16384) ?	\
+#define FSP_EXTENT_SIZE static_cast<page_no_t>(			\
+				((UNIV_PAGE_SIZE <= (16384) ?	\
 				(1048576 / UNIV_PAGE_SIZE) :	\
 				((UNIV_PAGE_SIZE <= (32768)) ?	\
 				(2097152 / UNIV_PAGE_SIZE) :	\
-				(4194304 / UNIV_PAGE_SIZE))))
+				(4194304 / UNIV_PAGE_SIZE)))))
 
 /** File space extent size (four megabyte) in pages for MAX page size */
 #define	FSP_EXTENT_SIZE_MAX	(4194304 / UNIV_PAGE_SIZE_MAX)
@@ -67,7 +65,6 @@ page size | file space extent size
 offset */
 #define FSEG_PAGE_DATA		FIL_PAGE_DATA
 
-#ifndef UNIV_INNOCHECKSUM
 /** @name File segment header
 The file segment header points to the inode describing the file segment. */
 /* @{ */
@@ -158,8 +155,9 @@ every XDES_DESCRIBED_PER_PAGE pages in every tablespace. */
 				multiple of XDES_DESCRIBED_PER_PAGE */
 
 #define FSP_FIRST_INODE_PAGE_NO		2	/*!< in every tablespace */
-				/* The following pages exist
-				in the system tablespace (space 0). */
+
+/* The following pages exist in the system tablespace (space 0). */
+
 #define FSP_IBUF_HEADER_PAGE_NO		3	/*!< insert buffer
 						header page, in
 						tablespace 0 */
@@ -176,14 +174,19 @@ every XDES_DESCRIBED_PER_PAGE pages in every tablespace. */
 						page, in tablespace 0 */
 #define FSP_DICT_HDR_PAGE_NO		7	/*!< data dictionary header
 						page, in tablespace 0 */
+#define FSP_TBL_BUFFER_TREE_ROOT_PAGE_NO	\
+					8	/*!< DDTableBuffer table's
+						B-tree root page in tablespace
+						0 */
+
 /*--------------------------------------*/
 /* @} */
 
 /** Validate the tablespace flags.
 These flags are stored in the tablespace header at offset FSP_SPACE_FLAGS.
 They should be 0 for ROW_FORMAT=COMPACT and ROW_FORMAT=REDUNDANT.
-The newer row formats, COMPRESSED and DYNAMIC, use a file format > Antelope
-so they should have a file format number plus the DICT_TF_COMPACT bit set.
+The newer row formats, COMPRESSED and DYNAMIC, will have at least
+the DICT_TF_COMPACT bit set.
 @param[in]	flags	Tablespace flags
 @return true if valid, false if not */
 bool
@@ -191,28 +194,23 @@ fsp_flags_is_valid(
 	ulint	flags)
 	MY_ATTRIBUTE((warn_unused_result, const));
 
-/** Check if tablespace is system temporary.
-@param[in]      space_id        verify is checksum is enabled for given space.
+/** Check whether a space id is an undo tablespace ID
+@param[in]	space_id	space id to check
+@return true if it is undo tablespace else false. */
+bool
+fsp_is_undo_tablespace(space_id_t space_id);
+
+/** Check if a space_id is the system temporary space ID.
+@param[in]	space_id	tablespace ID
 @return true if tablespace is system temporary. */
 bool
-fsp_is_system_temporary(
-	ulint	space_id);
+fsp_is_system_temporary(space_id_t space_id);
 
 /** Check if checksum is disabled for the given space.
 @param[in]	space_id	verify is checksum is enabled for given space.
 @return true if checksum is disabled for given space. */
 bool
-fsp_is_checksum_disabled(
-	ulint	space_id);
-
-/** Check if tablespace is file-per-table.
-@param[in]	space_id	Tablespace ID
-@param[in]	fsp_flags	Tablespace Flags
-@return true if tablespace is file-per-table. */
-bool
-fsp_is_file_per_table(
-	ulint	space_id,
-	ulint	fsp_flags);
+fsp_is_checksum_disabled(space_id_t space_id);
 
 #ifdef UNIV_DEBUG
 /** Skip some of the sanity checks that are time consuming even in debug mode
@@ -220,11 +218,8 @@ and can affect frequent verification runs that are done to ensure stability of
 the product.
 @return true if check should be skipped for given space. */
 bool
-fsp_skip_sanity_check(
-	ulint	space_id);
+fsp_skip_sanity_check(space_id_t space_id);
 #endif /* UNIV_DEBUG */
-
-#endif /* !UNIV_INNOCHECKSUM */
 
 /* @defgroup fsp_flags InnoDB Tablespace Flag Constants @{ */
 
@@ -234,7 +229,7 @@ fsp_skip_sanity_check(
 #define FSP_FLAGS_WIDTH_ZIP_SSIZE	4
 /** Width of the ATOMIC_BLOBS flag.  The ability to break up a long
 column into an in-record prefix and an externally stored part is available
-to the two Barracuda row formats COMPRESSED and DYNAMIC. */
+to ROW_FORMAT=REDUNDANT and ROW_FORMAT=COMPACT. */
 #define FSP_FLAGS_WIDTH_ATOMIC_BLOBS	1
 /** Number of flag bits used to indicate the tablespace page size */
 #define FSP_FLAGS_WIDTH_PAGE_SSIZE	4
@@ -251,6 +246,10 @@ it is for a single client and should be deleted upon startup if it exists. */
 /** Width of the encryption flag.  This flag indicates that the tablespace
 is a tablespace with encryption. */
 #define FSP_FLAGS_WIDTH_ENCRYPTION	1
+/** Width of the SDI flag.  This flag indicates the presence of
+tablespace dictionary.*/
+#define FSP_FLAGS_WIDTH_SDI		1
+
 /** Width of all the currently known tablespace flags */
 #define FSP_FLAGS_WIDTH		(FSP_FLAGS_WIDTH_POST_ANTELOPE	\
 				+ FSP_FLAGS_WIDTH_ZIP_SSIZE	\
@@ -259,7 +258,8 @@ is a tablespace with encryption. */
 				+ FSP_FLAGS_WIDTH_DATA_DIR	\
 				+ FSP_FLAGS_WIDTH_SHARED	\
 				+ FSP_FLAGS_WIDTH_TEMPORARY	\
-				+ FSP_FLAGS_WIDTH_ENCRYPTION)
+				+ FSP_FLAGS_WIDTH_ENCRYPTION	\
+				+ FSP_FLAGS_WIDTH_SDI)
 
 /** A mask of all the known/used bits in tablespace flags */
 #define FSP_FLAGS_MASK		(~(~0 << FSP_FLAGS_WIDTH))
@@ -287,9 +287,13 @@ is a tablespace with encryption. */
 /** Zero relative shift position of the start of the ENCRYPTION bit */
 #define FSP_FLAGS_POS_ENCRYPTION	(FSP_FLAGS_POS_TEMPORARY	\
 					+ FSP_FLAGS_WIDTH_TEMPORARY)
-/** Zero relative shift position of the start of the UNUSED bits */
-#define FSP_FLAGS_POS_UNUSED		(FSP_FLAGS_POS_ENCRYPTION	\
+/** Zero relative shift position of the start of the SDI bits */
+#define FSP_FLAGS_POS_SDI		(FSP_FLAGS_POS_ENCRYPTION	\
 					+ FSP_FLAGS_WIDTH_ENCRYPTION)
+
+/** Zero relative shift position of the start of the UNUSED bits */
+#define FSP_FLAGS_POS_UNUSED		(FSP_FLAGS_POS_SDI		\
+					+ FSP_FLAGS_WIDTH_SDI)
 
 /** Bit mask of the POST_ANTELOPE field */
 #define FSP_FLAGS_MASK_POST_ANTELOPE				\
@@ -323,6 +327,10 @@ is a tablespace with encryption. */
 #define FSP_FLAGS_MASK_ENCRYPTION				\
 		((~(~0U << FSP_FLAGS_WIDTH_ENCRYPTION))		\
 		<< FSP_FLAGS_POS_ENCRYPTION)
+/** Bit mask of the SDI field */
+#define FSP_FLAGS_MASK_SDI					\
+		((~(~0U << FSP_FLAGS_WIDTH_SDI))		\
+		<< FSP_FLAGS_POS_SDI)
 
 /** Return the value of the POST_ANTELOPE field */
 #define FSP_FLAGS_GET_POST_ANTELOPE(flags)			\
@@ -356,9 +364,17 @@ is a tablespace with encryption. */
 #define FSP_FLAGS_GET_ENCRYPTION(flags)				\
 		((flags & FSP_FLAGS_MASK_ENCRYPTION)		\
 		>> FSP_FLAGS_POS_ENCRYPTION)
+/** Return the value of the SDI field */
+#define FSP_FLAGS_HAS_SDI(flags)				\
+		((flags & FSP_FLAGS_MASK_SDI)			\
+		>> FSP_FLAGS_POS_SDI)
 /** Return the contents of the UNUSED bits */
 #define FSP_FLAGS_GET_UNUSED(flags)				\
 		(flags >> FSP_FLAGS_POS_UNUSED)
+
+/** Set SDI Index bit in tablespace flags */
+#define FSP_FLAGS_SET_SDI(flags)				\
+		(flags | (1 << FSP_FLAGS_POS_SDI))
 
 /** Use an alias in the code for FSP_FLAGS_GET_SHARED() */
 #define fsp_is_shared_tablespace FSP_FLAGS_GET_SHARED

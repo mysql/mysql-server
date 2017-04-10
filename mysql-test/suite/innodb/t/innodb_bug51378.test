@@ -1,3 +1,13 @@
+########################################
+##### WL#7554 Force schema `test` to character set latin1
+##### This test should be migrated to utf8mb4
+--disable_query_log
+let $testdbcs58=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
+alter schema default character set latin1;
+use test;
+--enable_query_log
+########################################
+
 # This is the test for bug 51378. Unique index created
 # through "create index" and "alter table add unique index"
 # interfaces should not be treated as primary index if indexed
@@ -9,7 +19,6 @@
 # will be created as primary index
 # Following queries test various scenario, no mismatch
 # error message should be printed.
---source include/have_innodb.inc
 
 # Create a table contains a BLOB column
 create table bug51378 (
@@ -75,3 +84,10 @@ create unique index idx on bug51378(col1, col2);
 SHOW CREATE TABLE bug51378;
 
 drop table bug51378;
+
+########################################
+##### WL#7554 set schema `test` back to what it was
+--disable_query_log
+--eval alter schema test default character set $testdbcs58;
+--enable_query_log
+########################################

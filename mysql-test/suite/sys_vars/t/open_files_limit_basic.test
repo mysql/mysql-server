@@ -11,9 +11,9 @@ show global variables like 'open_files_limit';
 show session variables like 'open_files_limit';
 --disable_warnings
 --replace_column 2 #
-select * from information_schema.global_variables where variable_name='open_files_limit';
+select * from performance_schema.global_variables where variable_name='open_files_limit';
 --replace_column 2 #
-select * from information_schema.session_variables where variable_name='open_files_limit';
+select * from performance_schema.session_variables where variable_name='open_files_limit';
 --enable_warnings
 
 #

@@ -4,6 +4,11 @@
 --source include/master-slave.inc
 --connection master
 
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("Following users were specified in CREATE USER IF NOT EXISTS");
+call mtr.add_suppression("Following users were specified in ALTER USER IF EXISTS");
+SET SESSION sql_log_bin= 1;
+
 SHOW GLOBAL VARIABLES LIKE 'log_builtin_as_identified_by_password';
 
 --echo #
@@ -31,6 +36,12 @@ DROP USER b21807286@localhost;
 --source include/sync_slave_sql_with_master.inc
 --echo [On Slave]
 --source include/show_binlog_events.inc
+
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("Following users were specified in CREATE USER IF NOT EXISTS");
+call mtr.add_suppression("Following users were specified in ALTER USER IF EXISTS");
+SET SESSION sql_log_bin= 1;
+
 --source include/rpl_end.inc
 
 --echo

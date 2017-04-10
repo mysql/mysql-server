@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2006, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2006, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -102,15 +102,15 @@ ib_vector_pop(
 					/* out: pointer to the "new" element */
 	ib_vector_t*	vec);		/* in/out: vector */
 
-/*******************************************************************//**
-Remove an element to the vector
+/** Remove an element to the vector
+@param[in]	vec	vector
+@param[in]	elem	value to remove
 @return pointer to the "removed" element */
 UNIV_INLINE
 void*
 ib_vector_remove(
-/*=============*/
-	ib_vector_t*	vec,	/*!< in: vector */
-	const void*	elem);	/*!< in: value to remove */
+	ib_vector_t*	vec,
+	const void*	elem);
 
 /********************************************************************
 Get the number of elements in the vector. */
@@ -138,15 +138,15 @@ ib_vector_is_empty(
 /*===============*/
 	const ib_vector_t*	vec);    /*!< in: vector */
 
-/****************************************************************//**
-Get the n'th element.
+/** Get the n'th element.
+@param[in]	vec	vector
+@param[in]	n	element index to get
 @return n'th element */
 UNIV_INLINE
 void*
 ib_vector_get(
-/*==========*/
-	ib_vector_t*	vec,	/*!< in: vector */
-	ulint		n);	/*!< in: element index to get */
+	ib_vector_t*	vec,
+	ulint		n);
 
 /********************************************************************
 Const version of the get n'th element.
@@ -165,15 +165,17 @@ void*
 ib_vector_get_last(
 /*===============*/
 	ib_vector_t*	vec);	/*!< in: vector */
-/****************************************************************//**
-Set the n'th element. */
+
+/** Set the n'th element.
+@param[in]	vec	vector
+@param[in]	n	element index to set
+@param[in]	elem	data element */
 UNIV_INLINE
 void
 ib_vector_set(
-/*==========*/
-	ib_vector_t*	vec,	/*!< in/out: vector */
-	ulint		n,	/*!< in: element index to set */
-	void*		elem);	/*!< in: data element */
+	ib_vector_t*	vec,
+	ulint		n,
+	void*		elem);
 
 /********************************************************************
 Reset the vector size to 0 elements. */
@@ -281,8 +283,6 @@ struct ib_vector_t {
 	ulint		sizeof_value;
 };
 
-#ifndef UNIV_NONINL
 #include "ut0vec.ic"
-#endif
 
 #endif /* IB_VECTOR_H */

@@ -22,9 +22,9 @@ include/stop_slave_io.inc
 CALL mtr.add_suppression(".*worker thread retried transaction 1 time.*");
 CALL mtr.add_suppression(".*The slave coordinator and worker threads are "
                          "stopped, possibly leaving data in inconsistent.*");
-include/assert.inc [slave_retried_transactions should be greater than 0]
+include/assert.inc [count_transactions_retries should be greater than 0]
 RESET SLAVE ALL;
-include/assert.inc [slave_retried_transactions should be 0]
+include/assert.inc [count_transactions_retries should be 0]
 [connection slave]
 ROLLBACK;
 #

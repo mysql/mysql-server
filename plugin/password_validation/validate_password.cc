@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,17 +14,37 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <my_sys.h>
-#include <string>
 #include <mysql/plugin_validate_password.h>
 #include <mysql/service_my_plugin_log.h>
 #include <mysql/service_mysql_string.h>
-#include <set>
-#include <iostream>
-#include <fstream>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/types.h>
+#include <time.h>
+#include <typelib.h>
 #include <algorithm> // std::swap
+#include <fstream>
+#include <set>
+#include <string>
+
+#include "my_compiler.h"
+#include "my_inttypes.h"
+#include "my_psi_config.h"
+#include "mysql/mysql_lex_string.h"
+#include "mysql/plugin.h"
+#include "mysql/psi/mysql_rwlock.h"
+#include "mysql/psi/psi_base.h"
+#include "mysql/psi/psi_rwlock.h"
+#include "mysql/service_locking.h"
+#include "mysql/service_my_snprintf.h"
+#include "mysql/service_mysql_alloc.h"
+#include "mysql/service_security_context.h"
+
+class THD;
+
 THD *thd_get_current_thd(); // from sql_class.cc
 
-
+#undef MAX_PASSWORD_LENGTH
 
 #define MAX_DICTIONARY_FILE_LENGTH    1024 * 1024
 #define PASSWORD_SCORE                25
@@ -42,12 +62,12 @@ static PSI_rwlock_info all_validate_password_rwlocks[]=
   { &key_validate_password_LOCK_dict_file, "LOCK_dict_file", 0}
 };
 
-void init_validate_password_psi_keys()
+static void init_validate_password_psi_keys()
 {
   const char* category= "validate";
   int count;
 
-  count= array_elements(all_validate_password_rwlocks);
+  count= static_cast<int>(array_elements(all_validate_password_rwlocks));
   mysql_rwlock_register(category, all_validate_password_rwlocks, count);
 }
 #endif /* HAVE_PSI_INTERFACE */
@@ -90,7 +110,7 @@ static ulong validate_password_policy;
 static char *validate_password_dictionary_file;
 static char *validate_password_dictionary_file_last_parsed= NULL;
 static long long validate_password_dictionary_file_words_count= 0;
-static my_bool check_user_name;
+static bool check_user_name;
 
 /**
   Activate the new dictionary
@@ -166,7 +186,7 @@ static void read_dictionary_file()
     {
       dictionary_stream.close();
       my_plugin_log_message(&plugin_info_ptr, MY_WARNING_LEVEL,
-                            "Dictionary file size exceeded",
+                            "Dictionary file size exceeded "
                             "MAX_DICTIONARY_FILE_LENGTH, not loaded");
       return;
     }
@@ -614,7 +634,7 @@ static MYSQL_SYSVAR_BOOL(check_user_name, check_user_name,
   PLUGIN_VAR_NOCMDARG,
   "Check if the password matches the login or the effective user names "
   "or the reverse of them",
-  NULL, NULL, FALSE);
+  NULL, NULL, TRUE);
 
 static struct st_mysql_sys_var* validate_password_system_variables[]= {
   MYSQL_SYSVAR(length),

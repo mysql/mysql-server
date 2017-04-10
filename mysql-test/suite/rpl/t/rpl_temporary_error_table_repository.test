@@ -59,9 +59,10 @@ while ($retry_number < 2)
 
   # Notice the status var accumulates retries over the loop
   --let $retry_counted = `SELECT $retry_counted + $retry_number`
-  --let $status_var = Slave_retried_transactions
-  --let $status_var_value = $retry_counted
-  --source include/wait_for_status_var.inc
+  --let $status_col = count_transactions_retries
+  --let $status_col_value = $retry_counted
+  --let $table = replication_applier_status
+  --source include/wait_for_rpl_pfs_status.inc
 
   --echo ### Timeout error is expected ###
 

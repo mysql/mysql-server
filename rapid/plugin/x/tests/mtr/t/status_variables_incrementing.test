@@ -1,7 +1,7 @@
 ## Tests for mysqlx status variables.
 
 ## Preamble
---source ../include/xplugin_preamble.inc
+--source include/xplugin_preamble.inc
 
 # Tests
 

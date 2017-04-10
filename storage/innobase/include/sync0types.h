@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -29,13 +29,15 @@ Created 9/5/1995 Heikki Tuuri
 #include <vector>
 #include <iostream>
 
+#include "univ.i"
 #include "ut0new.h"
 #include "ut0counter.h"
+#include "sync0sync.h"
 
-#if defined(UNIV_DEBUG) && !defined(UNIV_INNOCHECKSUM)
+#ifdef UNIV_DEBUG
 /** Set when InnoDB has invoked exit(). */
 extern bool	innodb_calling_exit;
-#endif /* UNIV_DEBUG && !UNIV_INNOCHECKSUM */
+#endif /* UNIV_DEBUG */
 
 #ifdef _WIN32
 /** Native mutex */
@@ -184,7 +186,7 @@ V
 Search system mutex
 |
 V
-Buffer pool mutex
+Buffer pool mutexes
 |
 V
 Log mutex
@@ -208,6 +210,8 @@ enum latch_level_t {
 	RW_LOCK_X,
 	RW_LOCK_NOT_LOCKED,
 
+	SYNC_LOCK_FREE_HASH,
+
 	SYNC_MONITOR_MUTEX,
 
 	SYNC_ANY_LATCH,
@@ -215,11 +219,13 @@ enum latch_level_t {
 	SYNC_DOUBLEWRITE,
 
 	SYNC_BUF_FLUSH_LIST,
-
+	SYNC_BUF_FLUSH_STATE,
+	SYNC_BUF_ZIP_HASH,
+	SYNC_BUF_FREE_LIST,
+	SYNC_BUF_ZIP_FREE,
 	SYNC_BUF_BLOCK,
 	SYNC_BUF_PAGE_HASH,
-
-	SYNC_BUF_POOL,
+	SYNC_BUF_LRU_LIST,
 
 	SYNC_POOL,
 	SYNC_POOL_MANAGER,
@@ -236,6 +242,7 @@ enum latch_level_t {
 	SYNC_LOG_FLUSH_ORDER,
 	SYNC_LOG,
 	SYNC_LOG_WRITE,
+
 	SYNC_PAGE_CLEANER,
 	SYNC_PURGE_QUEUE,
 	SYNC_TRX_SYS_HEADER,
@@ -262,14 +269,19 @@ enum latch_level_t {
 	SYNC_TRX_UNDO_PAGE,
 	SYNC_RSEG_HEADER,
 	SYNC_RSEG_HEADER_NEW,
-	SYNC_NOREDO_RSEG,
-	SYNC_REDO_RSEG,
+	SYNC_TEMP_SPACE_RSEG,
+	SYNC_TRX_SYS_RSEG,
 	SYNC_TRX_UNDO,
 	SYNC_PURGE_LATCH,
 	SYNC_TREE_NODE,
 	SYNC_TREE_NODE_FROM_HASH,
 	SYNC_TREE_NODE_NEW,
 	SYNC_INDEX_TREE,
+
+	SYNC_PERSIST_METADATA_BUFFER,
+	SYNC_PERSIST_DIRTY_TABLES,
+	SYNC_PERSIST_AUTOINC,
+	SYNC_PERSIST_CHECKPOINT,
 
 	SYNC_IBUF_PESS_INSERT_MUTEX,
 	SYNC_IBUF_HEADER,
@@ -280,8 +292,6 @@ enum latch_level_t {
 	SYNC_FTS_CACHE,
 
 	SYNC_DICT_OPERATION,
-
-	SYNC_FILE_FORMAT_TAG,
 
 	SYNC_TRX_I_S_LAST_READ,
 
@@ -308,12 +318,15 @@ enum latch_id_t {
 	LATCH_ID_NONE = 0,
 	LATCH_ID_AUTOINC,
 	LATCH_ID_BUF_BLOCK_MUTEX,
-	LATCH_ID_BUF_POOL,
 	LATCH_ID_BUF_POOL_ZIP,
+	LATCH_ID_BUF_POOL_LRU_LIST,
+	LATCH_ID_BUF_POOL_FREE_LIST,
+	LATCH_ID_BUF_POOL_ZIP_FREE,
+	LATCH_ID_BUF_POOL_ZIP_HASH,
+	LATCH_ID_BUF_POOL_FLUSH_STATE,
 	LATCH_ID_CACHE_LAST_READ,
 	LATCH_ID_DICT_FOREIGN_ERR,
 	LATCH_ID_DICT_SYS,
-	LATCH_ID_FILE_FORMAT_MAX,
 	LATCH_ID_FIL_SYSTEM,
 	LATCH_ID_FLUSH_LIST,
 	LATCH_ID_FTS_BG_THREADS,
@@ -325,18 +338,21 @@ enum latch_id_t {
 	LATCH_ID_IBUF_BITMAP,
 	LATCH_ID_IBUF,
 	LATCH_ID_IBUF_PESSIMISTIC_INSERT,
+	LATCH_ID_LOCK_FREE_HASH,
 	LATCH_ID_LOG_SYS,
 	LATCH_ID_LOG_WRITE,
 	LATCH_ID_LOG_FLUSH_ORDER,
-	LATCH_ID_LIST,
-	LATCH_ID_MUTEX_LIST,
+	LATCH_ID_PERSIST_METADATA_BUFFER,
+	LATCH_ID_DICT_PERSIST_DIRTY_TABLES,
+	LATCH_ID_PERSIST_AUTOINC,
+	LATCH_ID_DICT_PERSIST_CHECKPOINT,
 	LATCH_ID_PAGE_CLEANER,
 	LATCH_ID_PURGE_SYS_PQ,
 	LATCH_ID_RECALC_POOL,
 	LATCH_ID_RECV_SYS,
 	LATCH_ID_RECV_WRITER,
-	LATCH_ID_REDO_RSEG,
-	LATCH_ID_NOREDO_RSEG,
+	LATCH_ID_TEMP_SPACE_RSEG,
+	LATCH_ID_TRX_SYS_RSEG,
 	LATCH_ID_RW_LOCK_DEBUG,
 	LATCH_ID_RTR_SSN_MUTEX,
 	LATCH_ID_RTR_ACTIVE_MUTEX,
@@ -394,7 +410,6 @@ enum latch_id_t {
 	LATCH_ID_MAX = LATCH_ID_TEST_MUTEX
 };
 
-#ifndef UNIV_INNOCHECKSUM
 /** OS mutex, without any policy. It is a thin wrapper around the
 system mutexes. The interface is different from the policy mutexes,
 to ensure that it is called directly and not confused with the
@@ -496,6 +511,18 @@ struct OSMutex {
 		return(&m_mutex);
 	}
 
+#if defined(UNIV_LIBRARY) && defined(UNIV_DEBUG)
+	bool is_owned()
+	{
+		/* This should never be reached. This is
+		added to fix is_owned() compilation errors
+		for library. We will never reach here because
+		mutexes are disabled in library. */
+		ut_error;
+		return(false);
+	}
+#endif /* UNIV_LIBRARY && UNIV_DEBUG */
+
 private:
 #ifdef UNIV_DEBUG
 	/** true if the mutex has been freed/destroyed. */
@@ -505,15 +532,34 @@ private:
 	sys_mutex_t		m_mutex;
 };
 
+#ifndef UNIV_LIBRARY
 #ifdef UNIV_PFS_MUTEX
 /** Latch element
+Used for mutexes which have PFS keys defined under UNIV_PFS_MUTEX.
 @param[in]	id		Latch id
 @param[in]	level		Latch level
 @param[in]	key		PFS key */
-# define LATCH_ADD(id, level, key)	latch_meta[LATCH_ID_ ## id] =	\
+# define LATCH_ADD_MUTEX(id, level, key)	latch_meta[LATCH_ID_ ## id] =\
+	UT_NEW_NOKEY(latch_meta_t(LATCH_ID_ ## id, #id, level, #level, key))
+
+#ifdef UNIV_PFS_RWLOCK
+/** Latch element.
+Used for rwlocks which have PFS keys defined under UNIV_PFS_RWLOCK.
+@param[in]	id		Latch id
+@param[in]	level		Latch level
+@param[in]	key		PFS key */
+# define LATCH_ADD_RWLOCK(id, level, key)	latch_meta[LATCH_ID_ ## id] =\
 	UT_NEW_NOKEY(latch_meta_t(LATCH_ID_ ## id, #id, level, #level, key))
 #else
-# define LATCH_ADD(id, level, key)	latch_meta[LATCH_ID_ ## id] =	\
+# define LATCH_ADD_RWLOCK(id, level, key)	latch_meta[LATCH_ID_ ## id] =\
+	UT_NEW_NOKEY(latch_meta_t(LATCH_ID_ ## id, #id, level, #level,	     \
+		     PSI_NOT_INSTRUMENTED))
+#endif /* UNIV_PFS_RWLOCK */
+
+#else
+# define LATCH_ADD_MUTEX(id, level, key)	latch_meta[LATCH_ID_ ## id] =\
+	UT_NEW_NOKEY(latch_meta_t(LATCH_ID_ ## id, #id, level, #level))
+# define LATCH_ADD_RWLOCK(id, level, key)	latch_meta[LATCH_ID_ ## id] =\
 	UT_NEW_NOKEY(latch_meta_t(LATCH_ID_ ## id, #id, level, #level))
 #endif /* UNIV_PFS_MUTEX */
 
@@ -920,7 +966,7 @@ sync_latch_get_level(latch_id_t id)
 	return(meta.get_level());
 }
 
-#ifdef HAVE_PSI_INTERFACE
+#ifdef UNIV_PFS_MUTEX
 /** Get the latch PFS key from the latch ID
 @param[in]	id		Latch ID
 @return the PFS key */
@@ -932,7 +978,7 @@ sync_latch_get_pfs_key(latch_id_t id)
 
 	return(meta.get_pfs_key());
 }
-#endif
+#endif /* UNIV_PFS_MUTEX */
 
 /** String representation of the filename and line number where the
 latch was created
@@ -975,6 +1021,8 @@ sync_file_created_deregister(const void* ptr);
 @return created information or "" if can't be found */
 std::string
 sync_file_created_get(const void* ptr);
+
+#endif /* !UNIV_LIBRARY */
 
 #ifdef UNIV_DEBUG
 
@@ -1019,7 +1067,16 @@ struct latch_t {
 	{
 		ut_a(m_id != LATCH_ID_NONE);
 
+#ifndef UNIV_LIBRARY
 		return(sync_latch_get_level(m_id));
+#else
+		/* This should never be reached. This is
+		added to fix compilation errors
+		for library. We will never reach here because
+		mutexes are disabled in library. */
+		ut_error;
+		return(SYNC_UNKNOWN);
+#endif /* !UNIV_LIBRARY */
 	}
 
 	/** @return true if the latch is for a temporary file space*/
@@ -1046,7 +1103,16 @@ struct latch_t {
 	{
 		ut_a(m_id != LATCH_ID_NONE);
 
+#ifndef UNIV_LIBRARY
 		return(sync_latch_get_name(m_id));
+#else
+		/* This should never be reached. This is
+		added to fix compilation errors
+		for library. We will never reach here because
+		mutexes are disabled in library. */
+		ut_error;
+		return(NULL);
+#endif /* !UNIV_LIBRARY */
 	}
 
 	/** Latch ID */
@@ -1133,7 +1199,7 @@ private:
 struct dict_sync_check : public sync_check_functor_t {
 
 	/** Constructor
-	@param[in]	dict_mutex_allow	true if the dict mutex
+	@param[in]	dict_mutex_allowed	true if the dict mutex
 						is allowed */
 	explicit dict_sync_check(bool dict_mutex_allowed)
 		:
@@ -1195,7 +1261,7 @@ struct sync_allowed_latches : public sync_check_functor_t {
 	latch belongs to a latch level that is not there in the allowed list,
 	then it is a violation.
 
-	@param[in]	latch	The latch level to check
+	@param[in]	level	The latch level to check
 	@return true if there is a latch ordering violation */
 	virtual bool operator()(const latch_level_t level)
 	{
@@ -1234,7 +1300,7 @@ private:
 };
 
 /** Get the latch id from a latch name.
-@param[in]	id	Latch name
+@param[in]	name	Latch name
 @return LATCH_ID_NONE. */
 latch_id_t
 sync_latch_get_id(const char* name);
@@ -1249,7 +1315,5 @@ enum rw_lock_flag_t {
 };
 
 #endif /* UNIV_DBEUG */
-
-#endif /* UNIV_INNOCHECKSUM */
 
 #endif /* sync0types_h */

@@ -29,6 +29,9 @@ struct Error_entry {
   const char *name;
   int error_code;
   const char *description;
+  const char *odbc_state;
+  const char *jdbc_state;
+  unsigned int error_index;
 };
 
 int get_error_code_by_text(const std::string &argument);

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2012, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2012, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -41,7 +41,7 @@ extern mysql_pfs_key_t	dict_stats_recalc_pool_mutex_key;
 
 #ifdef UNIV_DEBUG
 /** Value of MySQL global used to disable dict_stats thread. */
-extern my_bool		innodb_dict_stats_disabled_debug;
+extern bool		innodb_dict_stats_disabled_debug;
 #endif /* UNIV_DEBUG */
 
 /*****************************************************************//**
@@ -127,24 +127,16 @@ dict_stats_disabled_debug_update(
 	const void*			save);
 #endif /* UNIV_DEBUG */
 
-/*****************************************************************//**
-This is the thread for background stats gathering. It pops tables, from
+/** This is the thread for background stats gathering. It pops tables, from
 the auto recalc list and proceeds them, eventually recalculating their
-statistics.
-@return this function does not return, it calls os_thread_exit() */
-extern "C"
-os_thread_ret_t
-DECLARE_THREAD(dict_stats_thread)(
-/*==============================*/
-	void*	arg);	/*!< in: a dummy parameter
-			required by os_thread_create */
+statistics. */
+void
+dict_stats_thread();
 
 /** Shutdown the dict stats thread. */
 void
 dict_stats_shutdown();
 
-# ifndef UNIV_NONINL
-#  include "dict0stats_bg.ic"
-# endif
+# include "dict0stats_bg.ic"
 
 #endif /* dict0stats_bg_h */

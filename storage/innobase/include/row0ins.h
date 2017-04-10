@@ -52,7 +52,7 @@ row_ins_check_foreign_constraint(
 				table, else the referenced table */
 	dtuple_t*	entry,	/*!< in: index entry for index */
 	que_thr_t*	thr)	/*!< in: query thread */
-	MY_ATTRIBUTE((nonnull, warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 /*********************************************************************//**
 Creates an insert node struct.
 @return own: insert node struct */
@@ -93,39 +93,50 @@ row_ins_clust_index_entry_low(
 	ulint		n_uniq,	/*!< in: 0 or index->n_uniq */
 	dtuple_t*	entry,	/*!< in/out: index entry to insert */
 	ulint		n_ext,	/*!< in: number of externally stored columns */
-	que_thr_t*	thr,	/*!< in: query thread or NULL */
+	que_thr_t*	thr,	/*!< in: query thread,  or NULL if
+				flags & (BTR_NO_LOCKING_FLAG
+				| BTR_NO_UNDO_LOG_FLAG) and a duplicate
+				can't occur */
 	bool		dup_chk_only)
 				/*!< in: if true, just do duplicate check
 				and return. don't execute actual insert. */
 	MY_ATTRIBUTE((warn_unused_result));
 
-/***************************************************************//**
-Tries to insert an entry into a secondary index. If a record with exactly the
-same fields is found, the other record is necessarily marked deleted.
+
+/** Tries to insert an entry into a secondary index. If a record with exactly
+the same fields is found, the other record is necessarily marked deleted.
 It is then unmarked. Otherwise, the entry is just inserted to the index.
+@param[in]	flags		undo logging and locking flags
+@param[in]	mode		BTR_MODIFY_LEAF or BTR_MODIFY_TREE,
+				depending on whether we wish optimistic or
+				pessimistic descent down the index tree
+@param[in]	index		secondary index
+@param[in,out]	offsets_heap	memory heap that can be emptied
+@param[in,out]	heap		memory heap
+@param[in,out]	entry		index entry to insert
+@param[in]	trx_id		PAGE_MAX_TRX_ID during row_log_table_apply(),
+				or trx_id when undo log is disabled during
+				alter copy operation or 0
+@param[in]	thr		query thread
+@param[in]	dup_chk_only	TRUE, just do duplicate check and return.
+				don't execute actual insert
 @retval DB_SUCCESS on success
 @retval DB_LOCK_WAIT on lock wait when !(flags & BTR_NO_LOCKING_FLAG)
 @retval DB_FAIL if retry with BTR_MODIFY_TREE is needed
 @return error code */
 dberr_t
 row_ins_sec_index_entry_low(
-/*========================*/
-	ulint		flags,	/*!< in: undo logging and locking flags */
-	ulint		mode,	/*!< in: BTR_MODIFY_LEAF or BTR_MODIFY_TREE,
-				depending on whether we wish optimistic or
-				pessimistic descent down the index tree */
-	dict_index_t*	index,	/*!< in: secondary index */
+	ulint		flags,
+	ulint		mode,
+	dict_index_t*	index,
 	mem_heap_t*	offsets_heap,
-				/*!< in/out: memory heap that can be emptied */
-	mem_heap_t*	heap,	/*!< in/out: memory heap */
-	dtuple_t*	entry,	/*!< in/out: index entry to insert */
-	trx_id_t	trx_id,	/*!< in: PAGE_MAX_TRX_ID during
-				row_log_table_apply(), or 0 */
-	que_thr_t*	thr,	/*!< in: query thread */
+	mem_heap_t*	heap,
+	dtuple_t*	entry,
+	trx_id_t	trx_id,
+	que_thr_t*	thr,
 	bool		dup_chk_only)
-				/*!< in: if true, just do duplicate check
-				and return. don't execute actual insert. */
 	MY_ATTRIBUTE((warn_unused_result));
+
 /** Sets the values of the dtuple fields in entry from the values of appropriate
 columns in row.
 @param[in]	index	index handler
@@ -137,31 +148,6 @@ row_ins_index_entry_set_vals(
 	dtuple_t*		entry,
 	const dtuple_t*		row);
 
-/***************************************************************//**
-Tries to insert the externally stored fields (off-page columns)
-of a clustered index entry.
-@return DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
-dberr_t
-row_ins_index_entry_big_rec_func(
-/*=============================*/
-	const dtuple_t*		entry,	/*!< in/out: index entry to insert */
-	const big_rec_t*	big_rec,/*!< in: externally stored fields */
-	ulint*			offsets,/*!< in/out: rec offsets */
-	mem_heap_t**		heap,	/*!< in/out: memory heap */
-	dict_index_t*		index,	/*!< in: index */
-	const char*		file,	/*!< in: file name of caller */
-#ifndef DBUG_OFF
-	const void*		thd,	/*!< in: connection, or NULL */
-#endif /* DBUG_OFF */
-	ulint			line)	/*!< in: line number of caller */
-	MY_ATTRIBUTE((nonnull(1,2,3,4,5,6), warn_unused_result));
-#ifdef DBUG_OFF
-# define row_ins_index_entry_big_rec(e,big,ofs,heap,index,thd,file,line) \
-	row_ins_index_entry_big_rec_func(e,big,ofs,heap,index,file,line)
-#else /* DBUG_OFF */
-# define row_ins_index_entry_big_rec(e,big,ofs,heap,index,thd,file,line) \
-	row_ins_index_entry_big_rec_func(e,big,ofs,heap,index,file,thd,line)
-#endif /* DBUG_OFF */
 /***************************************************************//**
 Inserts an entry into a clustered index. Tries first optimistic,
 then pessimistic descent down the tree. If the entry matches enough
@@ -252,8 +238,6 @@ struct ins_node_t{
 #define	INS_NODE_INSERT_ENTRIES 3	/* index entries should be built and
 					inserted */
 
-#ifndef UNIV_NONINL
 #include "row0ins.ic"
-#endif
 
 #endif

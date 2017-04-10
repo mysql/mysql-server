@@ -1,8 +1,5 @@
 # Tests for PERFORMANCE_SCHEMA
 
---source include/not_embedded.inc
---source include/have_perfschema.inc
-
 -- error ER_DBACCESS_DENIED_ERROR
 alter table performance_schema.memory_summary_by_account_by_event_name
   add column foo integer;
@@ -17,3 +14,6 @@ ALTER TABLE performance_schema.memory_summary_by_account_by_event_name
 CREATE UNIQUE INDEX test_index
   ON performance_schema.memory_summary_by_account_by_event_name(USERNAME);
 
+-- error ER_DBACCESS_DENIED_ERROR
+DROP INDEX `ACCOUNT`
+  ON performance_schema.memory_summary_by_account_by_event_name;

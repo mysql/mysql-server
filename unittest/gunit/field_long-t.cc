@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -57,7 +57,7 @@ public:
                  8,                             // len_arg
                  NULL,                          // null_ptr_arg
                  1,                             // null_bit_arg
-                 Field::NONE,                   // unireg_check_arg
+                 Field::NONE,                   // auto_flags_arg
                  "field_name",                  // field_name_arg
                  false,                         // zero_arg
                  false)                         // unsigned_arg
@@ -107,7 +107,7 @@ TEST_F(FieldLongTest, StoreLegalIntValues)
   table.in_use= thd();
   field_long.make_writable();
   field_long.make_readable();
-  thd()->count_cuted_fields= CHECK_FIELD_WARN;
+  thd()->check_for_truncated_fields= CHECK_FIELD_WARN;
 
   SCOPED_TRACE(""); test_store_long(&field_long, 0,   0, 0, TYPE_OK);
   SCOPED_TRACE(""); test_store_long(&field_long, 5,   5, 0, TYPE_OK);
@@ -148,7 +148,7 @@ TEST_F(FieldLongTest, StoreOutOfRangeIntValues)
   table.in_use= thd();
   field_long.make_writable();
   field_long.make_readable();
-  thd()->count_cuted_fields= CHECK_FIELD_WARN;
+  thd()->check_for_truncated_fields= CHECK_FIELD_WARN;
 
 
   // Field_long is signed
@@ -192,7 +192,7 @@ TEST_F(FieldLongTest, StoreLegalStringValues)
   table.in_use= thd();
   field_long.make_writable();
   field_long.make_readable();
-  thd()->count_cuted_fields= CHECK_FIELD_WARN;
+  thd()->check_for_truncated_fields= CHECK_FIELD_WARN;
 
   const char min_int[]= "-2147483648";
   const char max_int[]= "2147483647";
@@ -247,7 +247,7 @@ TEST_F(FieldLongTest, StoreIllegalStringValues)
   table.in_use= thd();
   field_long.make_writable();
   field_long.make_readable();
-  thd()->count_cuted_fields= CHECK_FIELD_WARN;
+  thd()->check_for_truncated_fields= CHECK_FIELD_WARN;
 
   const char max_int_plus1[]=  "2147483648";
   const char min_int_minus1[]= "-2147483649";
@@ -336,7 +336,7 @@ TEST_F(FieldLongTest, StoreNullValue)
   table.in_use= thd();
   field_long.make_writable();
   field_long.make_readable();
-  thd()->count_cuted_fields= CHECK_FIELD_WARN;
+  thd()->check_for_truncated_fields= CHECK_FIELD_WARN;
 
   type_conversion_status err;
 

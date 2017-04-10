@@ -98,7 +98,7 @@ SET @@session.sql_notes = "Y";
 SET @@session.sql_notes = TRÜE;
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@session.sql_notes = ÕN;
---Error ER_WRONG_VALUE_FOR_VAR
+--error ER_PARSE_ERROR
 SET @@session.sql_notes = OF;
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@session.sql_notes = ÓFF;
@@ -124,7 +124,7 @@ SELECT @@global.sql_notes;
 #########################################################################
 
 --disable_warnings
-SELECT count(VARIABLE_VALUE) FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME='sql_notes';
+SELECT count(VARIABLE_VALUE) FROM performance_schema.global_variables WHERE VARIABLE_NAME='sql_notes';
 --enable_warnings
 
 --echo '#----------------------FN_DYNVARS_161_07------------------------#'
@@ -134,13 +134,13 @@ SELECT count(VARIABLE_VALUE) FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARI
 
 --disable_warnings
 SELECT IF(@@session.sql_notes, "ON", "OFF") = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+FROM performance_schema.session_variables 
 WHERE VARIABLE_NAME='sql_notes';
 --enable_warnings
 SELECT @@session.sql_notes;
 --disable_warnings
 SELECT VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+FROM performance_schema.session_variables 
 WHERE VARIABLE_NAME='sql_notes';
 --enable_warnings
 

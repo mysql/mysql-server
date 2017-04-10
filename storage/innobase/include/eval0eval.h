@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -54,14 +54,16 @@ void
 eval_exp(
 /*=====*/
 	que_node_t*	exp_node);	/*!< in: expression */
-/*****************************************************************//**
-Sets an integer value as the value of an expression node. */
+
+/** Sets an integer value as the value of an expression node.
+@param[in]	node	expression node
+@param[in]	val	value to set */
 UNIV_INLINE
 void
 eval_node_set_int_val(
-/*==================*/
-	que_node_t*	node,	/*!< in: expression node */
-	lint		val);	/*!< in: value to set */
+	que_node_t*	node,
+	lint		val);
+
 /*****************************************************************//**
 Gets an integer value from an expression node.
 @return integer value */
@@ -70,24 +72,28 @@ lint
 eval_node_get_int_val(
 /*==================*/
 	que_node_t*	node);	/*!< in: expression node */
-/*****************************************************************//**
-Copies a binary string value as the value of a query graph node. Allocates a
-new buffer if necessary. */
+
+/** Copies a binary string value as the value of a query graph node. Allocates
+a new buffer if necessary.
+@param[in]	node	query graph node
+@param[in]	str	binary string
+@param[in]	len	string length or UNIV_SQL_NULL */
 UNIV_INLINE
 void
 eval_node_copy_and_alloc_val(
-/*=========================*/
-	que_node_t*	node,	/*!< in: query graph node */
-	const byte*	str,	/*!< in: binary string */
-	ulint		len);	/*!< in: string length or UNIV_SQL_NULL */
-/*****************************************************************//**
-Copies a query node value to another node. */
+	que_node_t*	node,
+	const byte*	str,
+	ulint		len);
+
+/** Copies a query node value to another node.
+@param[in]	node1	node to copy to
+@param[in]	node2	node to copy from */
 UNIV_INLINE
 void
 eval_node_copy_val(
-/*===============*/
-	que_node_t*	node1,	/*!< in: node to copy to */
-	que_node_t*	node2);	/*!< in: node to copy from */
+	que_node_t*	node1,
+	que_node_t*	node2);
+
 /*****************************************************************//**
 Gets a iboolean value from a query node.
 @return iboolean value */
@@ -105,8 +111,6 @@ eval_cmp(
 	func_node_t*	cmp_node);	/*!< in: comparison node */
 
 
-#ifndef UNIV_NONINL
 #include "eval0eval.ic"
-#endif
 
 #endif

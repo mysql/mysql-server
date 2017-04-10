@@ -102,28 +102,6 @@ In summary, the compressed page looks like this:
 */
 
 /**********************************************************************//**
-Determine the size of a compressed page in bytes.
-@return size in bytes */
-UNIV_INLINE
-ulint
-page_zip_get_size(
-/*==============*/
-	const page_zip_des_t*	page_zip)	/*!< in: compressed page */
-{
-	ulint	size;
-
-	if (!page_zip->ssize) {
-		return(0);
-	}
-
-	size = (UNIV_ZIP_SIZE_MIN >> 1) << page_zip->ssize;
-
-	ut_ad(size >= UNIV_ZIP_SIZE_MIN);
-	ut_ad(size <= UNIV_PAGE_SIZE);
-
-	return(size);
-}
-/**********************************************************************//**
 Set the size of a compressed page in bytes. */
 UNIV_INLINE
 void
@@ -190,29 +168,6 @@ page_zip_rec_needs_ext(
 }
 #endif /* !UNIV_HOTBACKUP */
 
-#ifdef UNIV_DEBUG
-/**********************************************************************//**
-Validate a compressed page descriptor.
-@return TRUE if ok */
-UNIV_INLINE
-ibool
-page_zip_simple_validate(
-/*=====================*/
-	const page_zip_des_t*	page_zip)/*!< in: compressed page descriptor */
-{
-	ut_ad(page_zip);
-	ut_ad(page_zip->data);
-	ut_ad(page_zip->ssize <= PAGE_ZIP_SSIZE_MAX);
-	ut_ad(page_zip_get_size(page_zip)
-	      > PAGE_DATA + PAGE_ZIP_DIR_SLOT_SIZE);
-	ut_ad(page_zip->m_start <= page_zip->m_end);
-	ut_ad(page_zip->m_end < page_zip_get_size(page_zip));
-	ut_ad(page_zip->n_blobs
-	      < page_zip_get_size(page_zip) / BTR_EXTERN_FIELD_REF_SIZE);
-	return(TRUE);
-}
-#endif /* UNIV_DEBUG */
-
 /**********************************************************************//**
 Determine if the length of the page trailer.
 @return length of the page trailer, in bytes, not including the
@@ -222,7 +177,7 @@ ibool
 page_zip_get_trailer_len(
 /*=====================*/
 	const page_zip_des_t*	page_zip,/*!< in: compressed page */
-	ibool			is_clust)/*!< in: TRUE if clustered index */
+	bool			is_clust)/*!< in: TRUE if clustered index */
 {
 	ulint	uncompressed_size;
 
@@ -283,7 +238,7 @@ ibool
 page_zip_available(
 /*===============*/
 	const page_zip_des_t*	page_zip,/*!< in: compressed page */
-	ibool			is_clust,/*!< in: TRUE if clustered index */
+	bool			is_clust,/*!< in: TRUE if clustered index */
 	ulint			length,	/*!< in: combined size of the record */
 	ulint			create)	/*!< in: nonzero=add the record to
 					the heap */
@@ -334,20 +289,19 @@ page_zip_write_header_log(
 	ulint		length,	/*!< in: length of the data */
 	mtr_t*		mtr);	/*!< in: mini-transaction */
 
-/**********************************************************************//**
-Write data to the uncompressed header portion of a page.  The data must
+/** Write data to the uncompressed header portion of a page.  The data must
 already have been written to the uncompressed page.
-However, the data portion of the uncompressed page may differ from
-the compressed page when a record is being inserted in
-page_cur_insert_rec_zip(). */
+@param[in,out]	page_zip	compressed page
+@param[in]	str		address on the uncompressed page
+@param[in]	length		length of the data
+@param[in]	mtr		mini-transaction, or NULL */
 UNIV_INLINE
 void
 page_zip_write_header(
-/*==================*/
-	page_zip_des_t*	page_zip,/*!< in/out: compressed page */
-	const byte*	str,	/*!< in: address on the uncompressed page */
-	ulint		length,	/*!< in: length of the data */
-	mtr_t*		mtr)	/*!< in: mini-transaction, or NULL */
+	page_zip_des_t*	page_zip,
+	const byte*	str,
+	ulint		length,
+	mtr_t*		mtr)
 {
 	ulint	pos;
 
@@ -415,7 +369,7 @@ page_zip_parse_compress_no_data(
 	was successful. Crash in this case. */
 
 	if (page
-	    && !page_zip_compress(page_zip, page, index, level, NULL, NULL)) {
+	    && !page_zip_compress(page_zip, page, index, level, NULL)) {
 		ut_error;
 	}
 
@@ -437,6 +391,80 @@ page_zip_reset_stat_per_index()
 		page_zip_stat_per_index.end());
 
 	mutex_exit(&page_zip_stat_per_index_mutex);
+}
+
+/*************************************************************//**
+Find the slot of the given record in the dense page directory.
+@return dense directory slot, or NULL if record not found */
+UNIV_INLINE
+byte*
+page_zip_dir_find_low(
+/*==================*/
+	byte*	slot,			/*!< in: start of records */
+	byte*	end,			/*!< in: end of records */
+	ulint	offset)			/*!< in: offset of user record */
+{
+	ut_ad(slot <= end);
+
+	for (; slot < end; slot += PAGE_ZIP_DIR_SLOT_SIZE) {
+		if ((mach_read_from_2(slot) & PAGE_ZIP_DIR_SLOT_MASK)
+		    == offset) {
+			return(slot);
+		}
+	}
+
+	return(NULL);
+}
+
+/*************************************************************//**
+Gets the size of the compressed page trailer (the dense page directory),
+only including user records (excluding the free list).
+@return length of dense page directory comprising existing records, in bytes */
+UNIV_INLINE
+ulint
+page_zip_dir_user_size(
+/*===================*/
+	const page_zip_des_t*	page_zip)	/*!< in: compressed page */
+{
+	ulint	size = PAGE_ZIP_DIR_SLOT_SIZE
+		* page_get_n_recs(page_zip->data);
+	ut_ad(size <= page_zip_dir_size(page_zip));
+	return(size);
+}
+
+/*************************************************************//**
+Find the slot of the given free record in the dense page directory.
+@return dense directory slot, or NULL if record not found */
+UNIV_INLINE
+byte*
+page_zip_dir_find_free(
+/*===================*/
+	page_zip_des_t*	page_zip,		/*!< in: compressed page */
+	ulint		offset)			/*!< in: offset of user record */
+{
+	byte*	end	= page_zip->data + page_zip_get_size(page_zip);
+
+	ut_ad(page_zip_simple_validate(page_zip));
+
+	return(page_zip_dir_find_low(end - page_zip_dir_size(page_zip),
+				     end - page_zip_dir_user_size(page_zip),
+				     offset));
+}
+
+/*************************************************************//**
+Gets an offset to the compressed page trailer (the dense page directory),
+including deleted records (the free list).
+@return offset of the dense page directory */
+UNIV_INLINE
+ulint
+page_zip_dir_start_offs(
+/*====================*/
+	const page_zip_des_t*	page_zip,	/*!< in: compressed page */
+	ulint			n_dense)	/*!< in: directory size */
+{
+	ut_ad(n_dense * PAGE_ZIP_DIR_SLOT_SIZE < page_zip_get_size(page_zip));
+
+	return(page_zip_get_size(page_zip) - n_dense * PAGE_ZIP_DIR_SLOT_SIZE);
 }
 
 #ifdef UNIV_MATERIALIZE

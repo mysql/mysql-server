@@ -1,6 +1,6 @@
 #ifndef SQL_RECORDS_H
 #define SQL_RECORDS_H 
-/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,13 +15,14 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include <my_global.h>                /* for uint typedefs */
+#include <sys/types.h>
+
 #include "my_base.h"
+#include "my_inttypes.h"
 
 class QEP_TAB;
-class handler;
-struct TABLE;
 class THD;
+struct TABLE;
 
 /**
   A context for reading through a single table using a chosen access method:

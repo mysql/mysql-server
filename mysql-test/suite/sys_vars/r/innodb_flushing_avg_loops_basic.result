@@ -68,7 +68,7 @@ SELECT @@global.innodb_flushing_avg_loops;
 1000
 '#----------------------FN_DYNVARS_046_05------------------------#'
 SELECT @@global.innodb_flushing_avg_loops =
-VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+VARIABLE_VALUE FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='innodb_flushing_avg_loops';
 @@global.innodb_flushing_avg_loops =
 VARIABLE_VALUE
@@ -76,7 +76,7 @@ VARIABLE_VALUE
 SELECT @@global.innodb_flushing_avg_loops;
 @@global.innodb_flushing_avg_loops
 1000
-SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+SELECT VARIABLE_VALUE FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='innodb_flushing_avg_loops';
 VARIABLE_VALUE
 1000

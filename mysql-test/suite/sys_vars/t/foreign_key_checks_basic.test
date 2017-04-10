@@ -93,7 +93,7 @@ SET @@session.foreign_key_checks = "Y";
 SET @@session.foreign_key_checks = TRÜE;
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@session.foreign_key_checks = ÕN;
---Error ER_WRONG_VALUE_FOR_VAR
+--error ER_PARSE_ERROR
 SET @@session.foreign_key_checks = OF;
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@session.foreign_key_checks = ÓFF;
@@ -118,7 +118,7 @@ SET @@global.foreign_key_checks = 1;
 #########################################################################
 
 --disable_warnings
-SELECT count(VARIABLE_VALUE) FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME='foreign_key_checks';
+SELECT count(VARIABLE_VALUE) FROM performance_schema.global_variables WHERE VARIABLE_NAME='foreign_key_checks';
 --enable_warnings
 
 --echo '#----------------------FN_DYNVARS_032_07------------------------#'
@@ -128,13 +128,13 @@ SELECT count(VARIABLE_VALUE) FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARI
 
 --disable_warnings
 SELECT IF(@@session.foreign_key_checks, "ON", "OFF") = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+FROM performance_schema.session_variables 
 WHERE VARIABLE_NAME='foreign_key_checks';
 --enable_warnings
 SELECT @@session.foreign_key_checks;
 --disable_warnings
 SELECT VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+FROM performance_schema.session_variables 
 WHERE VARIABLE_NAME='foreign_key_checks';
 --enable_warnings
 

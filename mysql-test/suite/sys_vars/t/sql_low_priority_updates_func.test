@@ -169,7 +169,7 @@ delimiter |;
 
 send
 LOCK TABLE t1 READ;
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY a ASC;
 UNLOCK TABLES;|
 
 delimiter ;|

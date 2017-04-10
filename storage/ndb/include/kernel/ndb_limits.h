@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -27,6 +27,7 @@
  *  since NodeId = 0 can not be used
  */
 #define MAX_NDB_NODES 49
+#define MAX_NDB_NODE_GROUPS 48
 #define MAX_NODES     256
 #define NDB_UNDEF_NODEGROUP 0xFFFF
 #define MAX_BACKUPS   0xFFFFFFFF

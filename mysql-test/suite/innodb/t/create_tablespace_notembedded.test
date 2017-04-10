@@ -5,11 +5,15 @@
 --echo #
 --echo # Check CREATE TABLESPACE is handled properly in read-only mode
 
+--disable_query_log
+call mtr.add_suppression("Skip re-populating collations and character sets tables in InnoDB read-only mode.");
+--enable_query_log
+
 CREATE TABLESPACE s1 ADD DATAFILE 's1.ibd' ENGINE InnoDB;
 
 let $restart_parameters = restart: --innodb_read_only;
 --source include/restart_mysqld.inc
---error ER_CREATE_FILEGROUP_FAILED
+--error ER_OPEN_AS_READONLY
 CREATE TABLESPACE s2 ADD DATAFILE 's2.ibd' ENGINE InnoDB;
 SHOW WARNINGS;
 --error ER_DROP_FILEGROUP_FAILED

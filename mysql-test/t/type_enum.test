@@ -1,3 +1,13 @@
+########################################
+##### WL#7554 Force schema `test` to character set latin1
+##### This test should be migrated to utf8mb4
+--disable_query_log
+let $testdbcs298=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
+alter schema default character set latin1;
+use test;
+--enable_query_log
+########################################
+
 
  #Get deafult engine value
 --let $DEFAULT_ENGINE = `select @@global.default_storage_engine`
@@ -185,10 +195,10 @@ create table t1(russian_deviant enum('E','F','EÿF','F,E') NOT NULL DEFAULT'E');
 show create table t1;
 drop table t1;
 
-# ER_WRONG_FIELD_TERMINATORS
---error 1083
+# This enum is now valid with the new DD
 create table t1(exhausting_charset enum('ABCDEFGHIJKLMNOPQRSTUVWXYZ','	
  !"','#$%&\'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~','xx\','yy\€','zz‚ƒ„…†‡ˆ‰Š‹Œ‘’“”•–—˜™š›œŸ ¡¢£¤¥¦§¨©ª«¬­®¯°±²³´µ¶·¸¹º»¼½¾¿ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏĞÑÒÓÔÕÖ×ØÙÚÛÜİŞßàáâãäåæçèéêëìíîïğñòóôõö÷øùúûüışÿ'));
+drop table t1;
 
 #
 # Bug #29251: MySQL coerces special 0 enum values to normal '' value
@@ -259,3 +269,10 @@ SELECT a FROM t1 WHERE a=0;
 DROP TABLE t1;
 SET sql_mode = default;
 --echo End of 5.1 tests
+
+########################################
+##### WL#7554 set schema `test` back to what it was
+--disable_query_log
+--eval alter schema test default character set $testdbcs298;
+--enable_query_log
+########################################

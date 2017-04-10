@@ -64,7 +64,7 @@ SET @@global.slow_query_log_file = 12;
 
 --disable_warnings
 SELECT @@global.slow_query_log_file = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='slow_query_log_file';
 --enable_warnings
 

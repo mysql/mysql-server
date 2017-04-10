@@ -20,8 +20,8 @@
   Visitor interface for parse trees.
 */
 
-typedef class st_select_lex_unit SELECT_LEX_UNIT;
-typedef class st_select_lex SELECT_LEX;
+class SELECT_LEX_UNIT;
+class SELECT_LEX;
 class Item;
 
 /**

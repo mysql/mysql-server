@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -24,7 +24,6 @@ Created 2/2/1994 Heikki Tuuri
 *******************************************************/
 
 #include "mach0data.h"
-#ifndef UNIV_INNOCHECKSUM
 #ifdef UNIV_DEBUG
 # include "log0recv.h"
 #endif /* !UNIV_DEBUG */
@@ -104,14 +103,13 @@ page_update_max_trx_id(
 	}
 }
 
-/*************************************************************//**
-Returns the RTREE SPLIT SEQUENCE NUMBER (FIL_RTREE_SPLIT_SEQ_NUM).
-@return	SPLIT SEQUENCE NUMBER */
+/** Returns the RTREE SPLIT SEQUENCE NUMBER (FIL_RTREE_SPLIT_SEQ_NUM).
+@param[in]	page	page
+@return SPLIT SEQUENCE NUMBER */
 UNIV_INLINE
 node_seq_t
 page_get_ssn_id(
-/*============*/
-	const page_t*	page)	/*!< in: page */
+	const page_t*	page)
 {
 	ut_ad(page);
 
@@ -119,17 +117,19 @@ page_get_ssn_id(
 		mach_read_from_8(page + FIL_RTREE_SPLIT_SEQ_NUM)));
 }
 
-/*************************************************************//**
-Sets the RTREE SPLIT SEQUENCE NUMBER field value */
+/** Sets the RTREE SPLIT SEQUENCE NUMBER field value
+@param[in,out]	block		page
+@param[in,out]	page_zip	compressed page whose uncompressed part will
+				be updated, or NULL
+@param[in]	ssn_id		transaction id
+@param[in,out]	mtr		mini-transaction */
 UNIV_INLINE
 void
 page_set_ssn_id(
-/*============*/
-	buf_block_t*	block,	/*!< in/out: page */
-	page_zip_des_t*	page_zip,/*!< in/out: compressed page whose
-				uncompressed part will be updated, or NULL */
-	node_seq_t	ssn_id,	/*!< in: transaction id */
-	mtr_t*		mtr)	/*!< in/out: mini-transaction */
+	buf_block_t*	block,
+	page_zip_des_t*	page_zip,
+	node_seq_t	ssn_id,
+	mtr_t*		mtr)
 {
 	page_t*	page = buf_block_get_frame(block);
 #ifndef UNIV_HOTBACKUP
@@ -150,25 +150,6 @@ page_set_ssn_id(
 		mach_write_to_8(page + FIL_RTREE_SPLIT_SEQ_NUM, ssn_id);
 	}
 }
-
-#endif /* !UNIV_INNOCHECKSUM */
-
-/*************************************************************//**
-Reads the given header field. */
-UNIV_INLINE
-ulint
-page_header_get_field(
-/*==================*/
-	const page_t*	page,	/*!< in: page */
-	ulint		field)	/*!< in: PAGE_LEVEL, ... */
-{
-	ut_ad(page);
-	ut_ad(field <= PAGE_INDEX_ID);
-
-	return(mach_read_from_2(page + PAGE_HEADER + field));
-}
-
-#ifndef UNIV_INNOCHECKSUM
 
 /*************************************************************//**
 Sets the given header field. */
@@ -355,9 +336,9 @@ page_is_root(
 #if FIL_PAGE_NEXT != FIL_PAGE_PREV + 4
 # error FIL_PAGE_NEXT must be adjacent to FIL_PAGE_PREV
 #endif
-#if FIL_NULL != 0xffffffff
-# error FIL_NULL != 0xffffffff
-#endif
+
+	static_assert(FIL_NULL == 0xffffffff, "FIL_NULL != 0xffffffff");
+
 	/* Check that this is an index page and both the PREV and NEXT
 	pointers are FIL_NULL, because the root page does not have any
 	siblings. */
@@ -624,7 +605,7 @@ page_get_middle_rec(
 Gets the page number.
 @return page number */
 UNIV_INLINE
-ulint
+page_no_t
 page_get_page_no(
 /*=============*/
 	const page_t*	page)	/*!< in: page */
@@ -637,7 +618,7 @@ page_get_page_no(
 Gets the tablespace identifier.
 @return space id */
 UNIV_INLINE
-ulint
+space_id_t
 page_get_space_id(
 /*==============*/
 	const page_t*	page)	/*!< in: page */
@@ -682,18 +663,6 @@ page_dir_set_n_slots(
 	ulint		n_slots)/*!< in: number of slots */
 {
 	page_header_set_field(page, page_zip, PAGE_N_DIR_SLOTS, n_slots);
-}
-
-/*************************************************************//**
-Gets the number of records in the heap.
-@return number of user records */
-UNIV_INLINE
-ulint
-page_dir_get_n_heap(
-/*================*/
-	const page_t*	page)	/*!< in: index page */
-{
-	return(page_header_get_field(page, PAGE_N_HEAP) & 0x7fff);
 }
 
 /*************************************************************//**
@@ -1259,7 +1228,26 @@ page_mem_free(
 	}
 }
 
-#endif /* !UNIV_INNOCHECKSUM */
+/** Check that a page_size is correct for InnoDB.
+If correct, set the associated page_size_shift which is the power of 2
+for this page size.
+@param[in]	page_size	Page Size to evaluate
+@return an associated page_size_shift if valid, 0 if invalid. */
+inline
+ulong
+page_size_validate(
+	ulong	page_size)
+{
+	for (ulong n = UNIV_PAGE_SIZE_SHIFT_MIN;
+	     n <= UNIV_PAGE_SIZE_SHIFT_MAX;
+	     n++) {
+		if (page_size == static_cast<ulong>(1 << n)) {
+			return(n);
+		}
+	}
+	return(0);
+}
+
 #ifdef UNIV_MATERIALIZE
 #undef UNIV_INLINE
 #define UNIV_INLINE	UNIV_INLINE_ORIGINAL

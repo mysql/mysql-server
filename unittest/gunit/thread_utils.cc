@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,12 +13,18 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-// First include (the generated) my_config.h, to get correct platform defines.
-#include "my_config.h"
-#include <gtest/gtest.h>
+#include "unittest/gunit/thread_utils.h"
 
-#include "thread_utils.h"
+#include <errno.h>
+#include <gtest/gtest.h>
+#include <stddef.h>
+#include <ostream>
+
+#include "gtest/gtest-message.h"
 #include "mutex_lock.h"
+#include "my_inttypes.h"
+#include "mysql/psi/mysql_cond.h"
+#include "thr_mutex.h"
 
 namespace thread {
 
@@ -71,7 +77,7 @@ void Thread::join()
 
 void Thread::run_wrapper(Thread *start_arg)
 {
-  const my_bool error= my_thread_init();
+  const bool error= my_thread_init();
   ASSERT_FALSE(error);
   start_arg->run();
   my_thread_end();

@@ -1,5 +1,5 @@
-/* Copyright (c) 2006 MySQL AB, 2009 Sun Microsystems, Inc.
-   Use is subject to license terms.
+/*
+   Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,6 +18,7 @@
 #ifndef SEMISYNC_SLAVE_H
 #define SEMISYNC_SLAVE_H
 
+#include "my_inttypes.h"
 #include "semisync.h"
 
 /**
@@ -90,7 +91,7 @@ private:
 
 
 /* System and status variables for the slave component */
-extern char rpl_semi_sync_slave_enabled;
+extern bool rpl_semi_sync_slave_enabled;
 extern unsigned long rpl_semi_sync_slave_trace_level;
 extern char rpl_semi_sync_slave_status;
 

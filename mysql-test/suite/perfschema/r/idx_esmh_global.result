@@ -1,0 +1,43 @@
+create database explain_test_db;
+use explain_test_db;
+select 1;
+1
+1
+use test;
+
+====================================================================
+Testing index for columns BUCKET_NUMBER
+====================================================================
+############ Explain for Query ####################################
+explain select COUNT_BUCKET 
+from performance_schema.events_statements_histogram_global 
+where BUCKET_NUMBER = "impossible";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	events_statements_histogram_global	NULL	const	PRIMARY	PRIMARY	4	const	#	100.00	NULL
+############ Explain for Query ####################################
+explain select COUNT_BUCKET
+from performance_schema.events_statements_histogram_global
+where BUCKET_NUMBER > "impossible";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	events_statements_histogram_global	NULL	ALL	PRIMARY	NULL	NULL	NULL	#	33.33	Using where
+############ Explain for Query ####################################
+explain select COUNT_BUCKET
+from performance_schema.events_statements_histogram_global
+where BUCKET_NUMBER < "impossible";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	events_statements_histogram_global	NULL	ALL	PRIMARY	NULL	NULL	NULL	#	33.33	Using where
+############ Explain for Query ####################################
+explain select COUNT_BUCKET
+from performance_schema.events_statements_histogram_global
+where BUCKET_NUMBER = 12;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	events_statements_histogram_global	NULL	const	PRIMARY	PRIMARY	4	const	#	100.00	NULL
+############# Explain End #########################################
+flush status;
+select COUNT_BUCKET
+from performance_schema.events_statements_histogram_global
+where BUCKET_NUMBER = 12;
+COUNT_BUCKET
+#
+OK: handler_read_key incremented
+drop database explain_test_db;

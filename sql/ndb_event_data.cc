@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,7 +17,8 @@
 
 #include "ndb_event_data.h"
 
-#include <table.h>
+#include "my_pointer_arithmetic.h"
+#include "table.h"
 
 
 Ndb_event_data::Ndb_event_data(NDB_SHARE *the_share) :
@@ -80,7 +81,7 @@ void Ndb_event_data::print(const char* where, FILE* file) const
       mem_root_used += block_used;
       mem_root_size += mem_block->size;
     }
-    fprintf(file, "  - mem_root size: %lu\n", mem_root_size);
-    fprintf(file, "  - mem_root used: %lu\n", mem_root_used);
+    fprintf(file, "  - mem_root size: %lu\n", (unsigned long)mem_root_size);
+    fprintf(file, "  - mem_root used: %lu\n", (unsigned long)mem_root_used);
   }
 }

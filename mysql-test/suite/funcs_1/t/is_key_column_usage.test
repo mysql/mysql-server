@@ -16,6 +16,13 @@
 #
 
 --source include/not_embedded.inc
+
+# Result differences depending on FS case sensitivity.
+if (!$require_case_insensitive_file_system)
+{
+  --source include/have_case_sensitive_file_system.inc
+}
+
 --source include/have_myisam.inc
 let $engine_type= InnoDB;
 --source suite/funcs_1/datadict/is_key_column_usage.inc

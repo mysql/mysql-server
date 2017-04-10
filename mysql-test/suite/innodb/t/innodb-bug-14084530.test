@@ -1,4 +1,3 @@
--- source include/have_innodb.inc
 
 let MYSQLD_DATADIR =`SELECT @@datadir`;
 
@@ -16,7 +15,7 @@ SELECT c1 FROM testdb_wl5522.t1;
 
 FLUSH TABLES testdb_wl5522.t1 FOR EXPORT;
 perl;
-do 'include/innodb-util.inc';
+require 'include/innodb-util.inc';
 ib_backup_tablespaces("testdb_wl5522", "t1");
 EOF
 UNLOCK TABLES;
@@ -27,7 +26,7 @@ CREATE TABLE testdb_wl5522.t1 (c1 int ) ENGINE = Innodb;
 ALTER TABLE testdb_wl5522.t1 DISCARD TABLESPACE;
 
 perl;
-do 'include/innodb-util.inc';
+require 'include/innodb-util.inc';
 ib_discard_tablespaces("testdb_wl5522", "t1");
 ib_restore_tablespaces("testdb_wl5522", "t1");
 EOF

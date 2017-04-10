@@ -2,10 +2,19 @@
 # These test make sure that tables are visible after rebooting
 #
 
---source include/have_innodb.inc
---source include/have_innodb_zip.inc
---source include/have_partition.inc
+--source include/have_innodb_max_16k.inc
 --source include/not_embedded.inc
+
+########################################
+##### WL#7554 Force schema `test` to character set latin1
+##### This test should be migrated to utf8mb4
+--disable_query_log
+let $testdbcs105=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
+alter schema default character set latin1;
+use test;
+--enable_query_log
+########################################
+
 SET default_storage_engine=InnoDB;
 LET $MYSQLD_DATADIR = `select @@datadir`;
 LET $INNODB_PAGE_SIZE = `select @@innodb_page_size`;
@@ -14,7 +23,6 @@ LET $INNODB_PAGE_SIZE = `select @@innodb_page_size`;
 # This error is expected in the error log for this test.
 call mtr.add_suppression("\\[ERROR\\] InnoDB: Error number 17 means 'File exists'");
 call mtr.add_suppression("\\[ERROR\\] InnoDB: Operating system error number (17|80) in a file operation.");
-call mtr.add_suppression("\\[ERROR\\] InnoDB: Cannot create file .*t55_restart.isl");
 call mtr.add_suppression("\\[ERROR\\] InnoDB: The link file: .* already exists.");
 call mtr.add_suppression("\\[ERROR\\] InnoDB: Cannot open datafile for read-only:");
 call mtr.add_suppression("\\[ERROR\\] InnoDB: Operating system error number 2 in a file operation.");
@@ -243,8 +251,6 @@ SELECT count(*) FROM t9_restart;
 DROP TABLE t1_restart;
 DROP TABLE t2_restart;
 DROP TABLE t3_restart;
-# Tablespace for t4_restart will be moved later from default directory to a new directory
-# and an ISL file will be created not using InnoDB.
 # Table t5_restart will be expanded.
 # Tables t6_restart and t7_restart will be truncated.
 DROP TABLE t8_restart;
@@ -283,8 +289,6 @@ SHOW CREATE TABLE t7_restart;
 --source include/shutdown_mysqld.inc
 
 --copy_file $MYSQL_TMP_DIR/alt_dir/test/t5_restart.ibd $MYSQL_TMP_DIR/alt_dir/test/t5_restart.ibd.bak
---copy_file $MYSQL_DATA_DIR/test/t5_restart.isl $MYSQL_DATA_DIR/test/t5_restart.isl.bak
---copy_file $MYSQL_DATA_DIR/test/t5_restart.frm $MYSQL_DATA_DIR/test/t5_restart.frm.bak
 
 --echo ---- MYSQL_DATA_DIR/test
 --replace_result #P# #p#  #SP# #sp#
@@ -318,23 +322,6 @@ SHOW CREATE TABLE t7_restart;
 --echo # Try to rename a tablespace to a file that already exists
 --echo #
 
---copy_file $MYSQL_DATA_DIR/test/t5_restart.frm.bak $MYSQL_DATA_DIR/test/t55_restart.frm
---error ER_TABLE_EXISTS_ERROR
-RENAME TABLE t5_restart TO t55_restart;
---remove_file $MYSQL_DATA_DIR/test/t55_restart.frm
---remove_file $MYSQL_DATA_DIR/test/t5_restart.frm.bak
-
---copy_file $MYSQL_DATA_DIR/test/t5_restart.isl.bak $MYSQL_DATA_DIR/test/t55_restart.isl
---error ER_ERROR_ON_RENAME
-RENAME TABLE t5_restart TO t55_restart;
---remove_file $MYSQL_DATA_DIR/test/t55_restart.isl
---remove_file $MYSQL_DATA_DIR/test/t5_restart.isl.bak
-
-#--copy_file $MYSQL_TMP_DIR/alt_dir/test/t5_restart.ibd.bak $MYSQL_TMP_DIR/alt_dir/test/t55_restart.ibd
-# This RENAME TABLE works of Linux but gets ER_ERROR_ON_RENAME on Windows
-#--error ER_ERROR_ON_RENAME
-#RENAME TABLE t5_restart TO t55_restart;
-#--remove_file $MYSQL_TMP_DIR/alt_dir/test/t55_restart.ibd
 --remove_file $MYSQL_TMP_DIR/alt_dir/test/t5_restart.ibd.bak
 
 --echo ---- MYSQL_DATA_DIR/test
@@ -404,73 +391,12 @@ SHOW CREATE TABLE t77_restart;
 --echo #
 --source include/shutdown_mysqld.inc
 
---echo #
---echo # Move the remote tablespaces to a new location and change the ISL files
---echo #
---mkdir $MYSQL_TMP_DIR/new_dir
---mkdir $MYSQL_TMP_DIR/new_dir/test
 --echo ---- MYSQL_DATA_DIR/test
 --replace_result #P# #p#  #SP# #sp#
 --list_files $MYSQL_DATA_DIR/test
 --echo ---- MYSQL_TMP_DIR/alt_dir/test
 --replace_result #P# #p#  #SP# #sp#
 --list_files $MYSQL_TMP_DIR/alt_dir/test
---echo ---- MYSQL_TMP_DIR/new_dir/test
---replace_result #P# #p#  #SP# #sp#
---list_files $MYSQL_TMP_DIR/new_dir/test
-
---echo # Moving tablespace 't4_restart' from MYSQL_DATA_DIR to MYSQL_TMP_DIR/new_dir
---copy_file $MYSQL_DATA_DIR/test/t4_restart.ibd $MYSQL_TMP_DIR/new_dir/test/t4_restart.ibd
---remove_file $MYSQL_DATA_DIR/test/t4_restart.ibd
---exec echo $MYSQL_TMP_DIR/new_dir/test/t4_restart.ibd > $MYSQL_DATA_DIR/test/t4_restart.isl
-
---echo # Moving tablespace 't55_restart' from MYSQL_TMP_DIR/alt_dir to MYSQL_TMP_DIR/new_dir
---copy_file $MYSQL_TMP_DIR/alt_dir/test/t55_restart.ibd $MYSQL_TMP_DIR/new_dir/test/t55_restart.ibd
---remove_file $MYSQL_TMP_DIR/alt_dir/test/t55_restart.ibd
---remove_file $MYSQL_DATA_DIR/test/t55_restart.isl
---exec echo $MYSQL_TMP_DIR/new_dir/test/t55_restart.ibd > $MYSQL_DATA_DIR/test/t55_restart.isl
-
---echo # Moving tablespace 't66_restart' from MYSQL_TMP_DIR/alt_dir to MYSQL_TMP_DIR/new_dir
---copy_file $MYSQL_TMP_DIR/alt_dir/test/t66_restart#P#p0.ibd $MYSQL_TMP_DIR/new_dir/test/t66_restart#P#p0.ibd
---copy_file $MYSQL_TMP_DIR/alt_dir/test/t66_restart#P#p1.ibd $MYSQL_TMP_DIR/new_dir/test/t66_restart#P#p1.ibd
---copy_file $MYSQL_TMP_DIR/alt_dir/test/t66_restart#P#p2.ibd $MYSQL_TMP_DIR/new_dir/test/t66_restart#P#p2.ibd
---remove_file $MYSQL_TMP_DIR/alt_dir/test/t66_restart#P#p0.ibd
---remove_file $MYSQL_TMP_DIR/alt_dir/test/t66_restart#P#p1.ibd
---remove_file $MYSQL_TMP_DIR/alt_dir/test/t66_restart#P#p2.ibd
---remove_file $MYSQL_DATA_DIR/test/t66_restart#P#p0.isl
---remove_file $MYSQL_DATA_DIR/test/t66_restart#P#p1.isl
---remove_file $MYSQL_DATA_DIR/test/t66_restart#P#p2.isl
---exec echo $MYSQL_TMP_DIR/new_dir/test/t66_restart#P#p0.ibd > $MYSQL_DATA_DIR/test/t66_restart#P#p0.isl
---exec echo $MYSQL_TMP_DIR/new_dir/test/t66_restart#P#p1.ibd > $MYSQL_DATA_DIR/test/t66_restart#P#p1.isl
---exec echo $MYSQL_TMP_DIR/new_dir/test/t66_restart#P#p2.ibd > $MYSQL_DATA_DIR/test/t66_restart#P#p2.isl
-
---echo # Moving tablespace 't77_restart' from MYSQL_TMP_DIR/alt_dir to MYSQL_TMP_DIR/new_dir
---copy_file $MYSQL_TMP_DIR/alt_dir/test/t77_restart#P#p0#SP#s0.ibd $MYSQL_TMP_DIR/new_dir/test/t77_restart#P#p0#SP#s0.ibd
---copy_file $MYSQL_TMP_DIR/alt_dir/test/t77_restart#P#p0#SP#s1.ibd $MYSQL_TMP_DIR/new_dir/test/t77_restart#P#p0#SP#s1.ibd
---copy_file $MYSQL_TMP_DIR/alt_dir/test/t77_restart#P#p1#SP#s2.ibd $MYSQL_TMP_DIR/new_dir/test/t77_restart#P#p1#SP#s2.ibd
---copy_file $MYSQL_TMP_DIR/alt_dir/test/t77_restart#P#p1#SP#s3.ibd $MYSQL_TMP_DIR/new_dir/test/t77_restart#P#p1#SP#s3.ibd
---remove_file $MYSQL_TMP_DIR/alt_dir/test/t77_restart#P#p0#SP#s0.ibd
---remove_file $MYSQL_TMP_DIR/alt_dir/test/t77_restart#P#p0#SP#s1.ibd
---remove_file $MYSQL_TMP_DIR/alt_dir/test/t77_restart#P#p1#SP#s2.ibd
---remove_file $MYSQL_TMP_DIR/alt_dir/test/t77_restart#P#p1#SP#s3.ibd
---remove_file $MYSQL_DATA_DIR/test/t77_restart#P#p0#SP#s0.isl
---remove_file $MYSQL_DATA_DIR/test/t77_restart#P#p0#SP#s1.isl
---remove_file $MYSQL_DATA_DIR/test/t77_restart#P#p1#SP#s2.isl
---remove_file $MYSQL_DATA_DIR/test/t77_restart#P#p1#SP#s3.isl
---exec echo $MYSQL_TMP_DIR/new_dir/test/t77_restart#P#p0#SP#s0.ibd > $MYSQL_DATA_DIR/test/t77_restart#P#p0#SP#s0.isl
---exec echo $MYSQL_TMP_DIR/new_dir/test/t77_restart#P#p0#SP#s1.ibd > $MYSQL_DATA_DIR/test/t77_restart#P#p0#SP#s1.isl
---exec echo $MYSQL_TMP_DIR/new_dir/test/t77_restart#P#p1#SP#s2.ibd > $MYSQL_DATA_DIR/test/t77_restart#P#p1#SP#s2.isl
---exec echo $MYSQL_TMP_DIR/new_dir/test/t77_restart#P#p1#SP#s3.ibd > $MYSQL_DATA_DIR/test/t77_restart#P#p1#SP#s3.isl
-
---echo ---- MYSQL_DATA_DIR/test
---replace_result #P# #p#  #SP# #sp#
---list_files $MYSQL_DATA_DIR/test
---echo ---- MYSQL_TMP_DIR/alt_dir/test
---replace_result #P# #p#  #SP# #sp#
---list_files $MYSQL_TMP_DIR/alt_dir/test
---echo ---- MYSQL_TMP_DIR/new_dir/test
---replace_result #P# #p#  #SP# #sp#
---list_files $MYSQL_TMP_DIR/new_dir/test
 
 --echo #
 --echo # Start the server and check tablespaces.
@@ -506,59 +432,6 @@ SHOW CREATE TABLE t77_restart;
 --source include/shutdown_mysqld.inc
 
 --echo #
---echo # Move the remote tablespaces back to the default datadir and delete the ISL file.
---echo #
-
---echo ---- MYSQL_DATA_DIR/test
---replace_result #P# #p#  #SP# #sp#
---list_files $MYSQL_DATA_DIR/test
---echo ---- MYSQL_TMP_DIR/new_dir/test
---replace_result #P# #p#  #SP# #sp#
---list_files $MYSQL_TMP_DIR/new_dir/test
-
---echo # Moving 't4_restart' from MYSQL_TMP_DIR/new_dir to MYSQL_DATA_DIR
---copy_file $MYSQL_TMP_DIR/new_dir/test/t4_restart.ibd $MYSQL_DATA_DIR/test/t4_restart.ibd
---remove_file $MYSQL_TMP_DIR/new_dir/test/t4_restart.ibd
---remove_file $MYSQL_DATA_DIR/test/t4_restart.isl
-
---echo # Moving 't55_restart' from MYSQL_TMP_DIR/new_dir to MYSQL_DATA_DIR
---copy_file $MYSQL_TMP_DIR/new_dir/test/t55_restart.ibd $MYSQL_DATA_DIR/test/t55_restart.ibd
---remove_file $MYSQL_TMP_DIR/new_dir/test/t55_restart.ibd
---remove_file $MYSQL_DATA_DIR/test/t55_restart.isl
-
---echo # Moving 't66_restart' from MYSQL_TMP_DIR/new_dir to MYSQL_DATA_DIR
---copy_file $MYSQL_TMP_DIR/new_dir/test/t66_restart#P#p0.ibd $MYSQL_DATA_DIR/test/t66_restart#P#p0.ibd
---copy_file $MYSQL_TMP_DIR/new_dir/test/t66_restart#P#p1.ibd $MYSQL_DATA_DIR/test/t66_restart#P#p1.ibd
---copy_file $MYSQL_TMP_DIR/new_dir/test/t66_restart#P#p2.ibd $MYSQL_DATA_DIR/test/t66_restart#P#p2.ibd
---remove_file $MYSQL_TMP_DIR/new_dir/test/t66_restart#P#p0.ibd
---remove_file $MYSQL_TMP_DIR/new_dir/test/t66_restart#P#p1.ibd
---remove_file $MYSQL_TMP_DIR/new_dir/test/t66_restart#P#p2.ibd
---remove_file $MYSQL_DATA_DIR/test/t66_restart#P#p0.isl
---remove_file $MYSQL_DATA_DIR/test/t66_restart#P#p1.isl
---remove_file $MYSQL_DATA_DIR/test/t66_restart#P#p2.isl
-
---echo # Moving 't77_restart' from MYSQL_TMP_DIR/new_dir to MYSQL_DATA_DIR
---copy_file $MYSQL_TMP_DIR/new_dir/test/t77_restart#P#p0#SP#s0.ibd $MYSQL_DATA_DIR/test/t77_restart#P#p0#SP#s0.ibd
---copy_file $MYSQL_TMP_DIR/new_dir/test/t77_restart#P#p0#SP#s1.ibd $MYSQL_DATA_DIR/test/t77_restart#P#p0#SP#s1.ibd
---copy_file $MYSQL_TMP_DIR/new_dir/test/t77_restart#P#p1#SP#s2.ibd $MYSQL_DATA_DIR/test/t77_restart#P#p1#SP#s2.ibd
---copy_file $MYSQL_TMP_DIR/new_dir/test/t77_restart#P#p1#SP#s3.ibd $MYSQL_DATA_DIR/test/t77_restart#P#p1#SP#s3.ibd
---remove_file $MYSQL_TMP_DIR/new_dir/test/t77_restart#P#p0#SP#s0.ibd
---remove_file $MYSQL_TMP_DIR/new_dir/test/t77_restart#P#p0#SP#s1.ibd
---remove_file $MYSQL_TMP_DIR/new_dir/test/t77_restart#P#p1#SP#s2.ibd
---remove_file $MYSQL_TMP_DIR/new_dir/test/t77_restart#P#p1#SP#s3.ibd
---remove_file $MYSQL_DATA_DIR/test/t77_restart#P#p0#SP#s0.isl
---remove_file $MYSQL_DATA_DIR/test/t77_restart#P#p0#SP#s1.isl
---remove_file $MYSQL_DATA_DIR/test/t77_restart#P#p1#SP#s2.isl
---remove_file $MYSQL_DATA_DIR/test/t77_restart#P#p1#SP#s3.isl
-
---echo ---- MYSQL_DATA_DIR/test
---replace_result #P# #p#  #SP# #sp#
---list_files $MYSQL_DATA_DIR/test
---echo ---- MYSQL_TMP_DIR/new_dir/test
---replace_result #P# #p#  #SP# #sp#
---list_files $MYSQL_TMP_DIR/new_dir/test
-
---echo #
 --echo # Start the server and check tablespaces.
 --echo #
 -- source include/start_mysqld.inc
@@ -571,14 +444,17 @@ SHOW CREATE TABLE t4_restart;
 
 INSERT INTO t55_restart (SELECT 0, c2, c3, c4, c5 FROM t55_restart);
 SELECT count(*) FROM t55_restart;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SHOW CREATE TABLE t55_restart;
 
 INSERT INTO t66_restart (SELECT 0, c2, c3, c4, c5 FROM t66_restart);
 SELECT count(*) FROM t66_restart;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SHOW CREATE TABLE t66_restart;
 
 INSERT INTO t77_restart (SELECT 0, c2, c3, c4, c5 FROM t77_restart);
 SELECT count(*) FROM t77_restart;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SHOW CREATE TABLE t77_restart;
 
 
@@ -593,10 +469,15 @@ DROP TABLE t77_restart;
 
 --rmdir $MYSQL_TMP_DIR/alt_dir/test
 --rmdir $MYSQL_TMP_DIR/alt_dir
---rmdir $MYSQL_TMP_DIR/new_dir/test
---rmdir $MYSQL_TMP_DIR/new_dir
 
 -- disable_query_log
 eval set global innodb_file_per_table=$innodb_file_per_table_orig;
 -- enable_query_log
 
+
+########################################
+##### WL#7554 set schema `test` back to what it was
+--disable_query_log
+--eval alter schema test default character set $testdbcs105;
+--enable_query_log
+########################################

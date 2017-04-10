@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,13 +18,20 @@
   them in sorted order through SORT_INFO functions.
 */
 
+#include <sys/types.h>
+
 #include "fulltext.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_io.h"
+#include "my_macros.h"
 #if defined(_WIN32)
 #include <fcntl.h>
 #else
 #include <stddef.h>
 #endif
-#include <queues.h>
+#include "queues.h"
 
 /* static variables */
 
@@ -98,7 +105,7 @@ my_var_write(MI_SORT_PARAM *info, IO_CACHE *to_file, uchar *bufs);
    <> 0 Error
 */
 
-int _create_index_by_sort(MI_SORT_PARAM *info,my_bool no_messages,
+int _create_index_by_sort(MI_SORT_PARAM *info,bool no_messages,
 			  ulonglong sortbuff_size)
 {
   int error,maxbuffer,skr;
@@ -185,7 +192,6 @@ int _create_index_by_sort(MI_SORT_PARAM *info,my_bool no_messages,
     mi_check_print_error(info->sort_info->param,"MyISAM sort buffer too small"); /* purecov: tested */
     goto err; /* purecov: tested */
   }
-  (*info->lock_in_memory)(info->sort_info->param);/* Everything is allocated */
 
   if (!no_messages)
     printf("  - Searching for keys, allocating buffer for %d keys\n",keys);
@@ -669,7 +675,7 @@ static int write_keys(MI_SORT_PARAM *info, uchar **sort_keys,
   uint sort_length=info->key_length;
   DBUG_ENTER("write_keys");
 
-  my_qsort2((uchar*) sort_keys,count,sizeof(uchar*),(qsort2_cmp) info->key_cmp,
+  my_qsort2((uchar*) sort_keys,count,sizeof(uchar*), info->key_cmp,
             info);
   if (!my_b_inited(tempfile) &&
       open_cached_file(tempfile, my_tmpdir(info->tmpdir), "ST",
@@ -712,7 +718,7 @@ static int write_keys_varlen(MI_SORT_PARAM *info,
   int err;
   DBUG_ENTER("write_keys_varlen");
 
-  my_qsort2((uchar*) sort_keys,count,sizeof(uchar*),(qsort2_cmp) info->key_cmp,
+  my_qsort2((uchar*) sort_keys,count,sizeof(uchar*), info->key_cmp,
             info);
   if (!my_b_inited(tempfile) &&
       open_cached_file(tempfile, my_tmpdir(info->tmpdir), "ST",
@@ -755,7 +761,7 @@ static int write_index(MI_SORT_PARAM *info, uchar **sort_keys,
   DBUG_ENTER("write_index");
 
   my_qsort2((uchar*) sort_keys,(size_t) count,sizeof(uchar*),
-           (qsort2_cmp) info->key_cmp,info);
+            info->key_cmp,info);
   while (count--)
   {
     if ((*info->key_write)(info,*sort_keys++))
@@ -935,7 +941,7 @@ merge_buffers(MI_SORT_PARAM *info, uint keys, IO_CACHE *from_file,
   strpos=(uchar*) sort_keys;
   sort_length=info->key_length;
 
-  if (init_queue(&queue,(uint) (Tb-Fb)+1,offsetof(BUFFPEK,key),0,
+  if (init_queue(&queue,key_memory_QUEUE,(uint) (Tb-Fb)+1,offsetof(BUFFPEK,key),0,
                  (int (*)(void*, uchar *,uchar*)) info->key_cmp,
                  (void*) info))
     DBUG_RETURN(1); /* purecov: inspected */

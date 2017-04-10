@@ -1,0 +1,13 @@
+# Tests for PERFORMANCE_SCHEMA
+
+#setup
+let $select_column = COUNT_STAR;
+let $table = performance_schema.socket_summary_by_event_name;
+
+# Test index on EVENT_NAME
+
+let $column_count = 1;
+let $col1 = EVENT_NAME;
+let $col1_act = "wait/io/socket/sql/client_connection";
+
+--source ../include/idx_explain_test.inc

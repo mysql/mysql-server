@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,45 +13,53 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "bootstrap.h"
+#include "sql/bootstrap.h"
 
-#include "log.h"                 // sql_print_warning
-#include "mysqld_thd_manager.h"  // Global_THD_manager
+#include "my_config.h"
+
+#include <fcntl.h>
+#include <stdio.h>
+#include <string.h>
+#include <sys/types.h>
+#include <string>
+
 #include "bootstrap_impl.h"
-#include "sql_initialize.h"
+#include "error_handler.h"       // Internal_error_handler
+#include "lex_string.h"
+#include "log.h"                 // sql_print_warning
+#include "m_string.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_sys.h"
+#include "my_thread.h"
+#include "mysql/psi/mysql_file.h"
+#include "mysql/psi/mysql_thread.h"
+#include "mysql_com.h"
+#include "mysqld.h"              // key_file_init
+#include "mysqld_error.h"
+#include "mysqld_thd_manager.h"  // Global_THD_manager
+#include "protocol_classic.h"
+#include "query_options.h"
+#include "set_var.h"
+#include "sql_bootstrap.h"
 #include "sql_class.h"           // THD
 #include "sql_connect.h"         // close_connection
+#include "sql_error.h"
+#include "sql_initialize.h"
+#include "sql_lex.h"
 #include "sql_parse.h"           // mysql_parse
+#include "sql_plugin.h"
+#include "sql_profile.h"
+#include "sql_security_ctx.h"
+#include "sys_vars_shared.h"     // intern_find_sys_var
+#include "system_variables.h"
+#include "transaction_info.h"
 
-#include "pfs_file_provider.h"
-#include "mysql/psi/mysql_file.h"
+namespace bootstrap {
 
 static MYSQL_FILE *bootstrap_file= NULL;
-static const char *bootstrap_query= NULL;
-static int bootstrap_error= 0;
-
-
-class Query_command_iterator: public Command_iterator
-{
-public:
-  Query_command_iterator(const char* query):
-    m_query(query), m_is_read(false) {}
-  virtual int next(std::string &query, int *read_error, int *query_source)
-  {
-    if (m_is_read)
-      return READ_BOOTSTRAP_EOF;
-
-    query= m_query;
-    m_is_read= true;
-    *read_error= 0;
-    *query_source= QUERY_SOURCE_COMPILED;
-    return READ_BOOTSTRAP_SUCCESS;
-  }
-private:
-  const char *m_query; // Owned externally.
-  bool m_is_read;
-};
-
+static bool bootstrap_error= false;
+static bootstrap_functor bootstrap_handler= NULL;
 
 int File_command_iterator::next(std::string &query, int *error,
                                 int *query_source)
@@ -68,7 +76,8 @@ int File_command_iterator::next(std::string &query, int *error,
 }
 
 
-char *mysql_file_fgets_fn(char *buffer, size_t size, MYSQL_FILE* input, int *error)
+static char *mysql_file_fgets_fn(char *buffer, size_t size, MYSQL_FILE* input,
+                                 int *error)
 {
   char *line= mysql_file_fgets(buffer, static_cast<int>(size), input);
   if (error)
@@ -103,14 +112,15 @@ void File_command_iterator::end(void)
 
 Command_iterator *Command_iterator::current_iterator= NULL;
 
-static void handle_bootstrap_impl(THD *thd)
+
+static bool handle_bootstrap_impl(THD *thd)
 {
   std::string query;
 
   DBUG_ENTER("handle_bootstrap");
   File_command_iterator file_iter(bootstrap_file, mysql_file_fgets_fn);
   Compiled_in_command_iterator comp_iter;
-  Query_command_iterator query_iter(bootstrap_query);
+  Key_length_error_handler error_handler;
   bool has_binlog_option= thd->variables.option_bits & OPTION_BIN_LOG;
   int query_source, last_query_source= -1;
 
@@ -126,25 +136,12 @@ static void handle_bootstrap_impl(THD *thd)
     thd->get_protocol_classic()->add_client_capability(
     CLIENT_MULTI_RESULTS);
 
-  thd->init_for_queries();
+  thd->init_query_mem_roots();
 
-  /*
-    If a single bootstrap query is submitted, execute it regardless of the
-    command line options. If no query is submitted, read commands from the
-    executable or from file depending on option.
-  */
-  if (bootstrap_query)
-  {
-    Command_iterator::current_iterator= &query_iter;
-    bootstrap_query= NULL;
-  }
+  if (opt_initialize)
+    Command_iterator::current_iterator= &comp_iter;
   else
-  {
-    if (opt_initialize)
-      Command_iterator::current_iterator= &comp_iter;
-    else
-      Command_iterator::current_iterator= &file_iter;
-  }
+    Command_iterator::current_iterator= &file_iter;
 
   Command_iterator::current_iterator->begin();
   for ( ; ; )
@@ -222,15 +219,17 @@ static void handle_bootstrap_impl(THD *thd)
       }
 
       thd->send_statement_status();
-      bootstrap_error= 1;
+      bootstrap_error= true;
       break;
     }
 
     char *query_copy= static_cast<char*>(thd->alloc(query.length() + 1));
     if (query_copy == NULL)
     {
-      bootstrap_error= 1;
+      /* purecov: begin inspected */
+      bootstrap_error= true;
       break;
+      /* purecov: end */
     }
     memcpy(query_copy, query.c_str(), query.length());
     query_copy[query.length()]= '\0';
@@ -246,12 +245,17 @@ static void handle_bootstrap_impl(THD *thd)
     Parser_state parser_state;
     if (parser_state.init(thd, thd->query().str, thd->query().length))
     {
+      /* purecov: begin inspected */
       thd->send_statement_status();
-      bootstrap_error= 1;
+      bootstrap_error= true;
       break;
+      /* purecov: end */
     }
 
+    // Ignore ER_TOO_LONG_KEY for system tables.
+    thd->push_internal_handler(&error_handler);
     mysql_parse(thd, &parser_state);
+    thd->pop_internal_handler();
 
     bootstrap_error= thd->is_error();
     thd->send_statement_status();
@@ -289,7 +293,7 @@ static void handle_bootstrap_impl(THD *thd)
     thd->variables.option_bits|= OPTION_BIN_LOG;
   }
 
-  DBUG_VOID_RETURN;
+  DBUG_RETURN(bootstrap_error);
 }
 
 
@@ -299,8 +303,8 @@ static void handle_bootstrap_impl(THD *thd)
   Used when creating the initial grant tables.
 */
 
-namespace {
-extern "C" void *handle_bootstrap(void *arg)
+extern "C" {
+static void *handle_bootstrap(void *arg)
 {
   THD *thd=(THD*) arg;
 
@@ -310,11 +314,9 @@ extern "C" void *handle_bootstrap(void *arg)
   thd->thread_stack= (char*) &thd;
   if (my_thread_init() || thd->store_globals())
   {
-#ifndef EMBEDDED_LIBRARY
     close_connection(thd, ER_OUT_OF_RESOURCES);
-#endif
     thd->fatal_error();
-    bootstrap_error= 1;
+    bootstrap_error= true;
     thd->get_protocol_classic()->end_net();
   }
   else
@@ -322,7 +324,15 @@ extern "C" void *handle_bootstrap(void *arg)
     Global_THD_manager *thd_manager= Global_THD_manager::get_instance();
     thd_manager->add_thd(thd);
 
-    handle_bootstrap_impl(thd);
+    // Set tx_read_only to false to allow installing DD tables even
+    // if the server is started with --transaction-read-only=true.
+    thd->variables.tx_read_only= false;
+    thd->tx_read_only= false;
+
+    if (bootstrap_handler)
+      bootstrap_error= (*bootstrap_handler)(thd);
+    else
+      bootstrap_error= handle_bootstrap_impl(thd);
 
     thd->get_protocol_classic()->end_net();
     thd->release_resources();
@@ -331,21 +341,26 @@ extern "C" void *handle_bootstrap(void *arg)
   my_thread_end();
   return 0;
 }
-} // namespace
+} // extern "C"
 
-
-int bootstrap(MYSQL_FILE *file)
+bool run_bootstrap_thread(MYSQL_FILE *file, bootstrap_functor boot_handler,
+                          enum_thread_type thread_type)
 {
   DBUG_ENTER("bootstrap");
 
   THD *thd= new THD;
-  thd->bootstrap= 1;
+  thd->system_thread= thread_type;
   thd->get_protocol_classic()->init_net(NULL);
   thd->security_context()->set_master_access(~(ulong)0);
 
   thd->set_new_thread_id();
 
   bootstrap_file=file;
+  bootstrap_handler= boot_handler;
+
+  // Set server default sql_mode irrespective of
+  // mysqld server command line argument.
+  thd->variables.sql_mode= intern_find_sys_var("sql_mode", 0)->get_default();
 
   my_thread_attr_t thr_attr;
   my_thread_attr_init(&thr_attr);
@@ -359,18 +374,15 @@ int bootstrap(MYSQL_FILE *file)
                                  &thread_handle, &thr_attr, handle_bootstrap, thd);
   if (error)
   {
+    /* purecov: begin inspected */
     sql_print_warning("Can't create thread to handle bootstrap (errno= %d)",
                       error);
-    DBUG_RETURN(-1);
+    DBUG_RETURN(true);
+    /* purecov: end */
   }
   /* Wait for thread to die */
   my_thread_join(&thread_handle, NULL);
   delete thd;
   DBUG_RETURN(bootstrap_error);
 }
-
-int bootstrap_single_query(const char* query)
-{
-  bootstrap_query= query;
-  return bootstrap(NULL);
-}
+} // namespace

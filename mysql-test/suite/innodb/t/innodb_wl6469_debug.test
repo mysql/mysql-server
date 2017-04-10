@@ -2,7 +2,6 @@
 # WL#6469: Optimizing CREATE/DROP performance for temporary tables
 #
 
---source include/have_innodb.inc
 
 # Must have debug code to use SET SESSION debug
 --source include/have_debug.inc
@@ -25,7 +24,6 @@
 # create test-bed.
 #
 let $per_table = `select @@innodb_file_per_table`;
-let $format = `select @@innodb_file_format`;
 set global innodb_file_per_table = 0;
 
 #------------------------------------------------------------

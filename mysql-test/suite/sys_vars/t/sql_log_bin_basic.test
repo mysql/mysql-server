@@ -97,7 +97,7 @@ SET @@session.sql_log_bin = "Y";
 SET @@session.sql_log_bin = TRÜE;
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@session.sql_log_bin = ÕN;
---Error ER_WRONG_VALUE_FOR_VAR
+--error ER_PARSE_ERROR
 SET @@session.sql_log_bin = OF;
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@session.sql_log_bin = ÓFF;
@@ -126,7 +126,7 @@ SET @@global.sql_log_bin = 1;
 #########################################################################
 
 --disable_warnings
-SELECT count(VARIABLE_VALUE) FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME='sql_log_bin';
+SELECT count(VARIABLE_VALUE) FROM performance_schema.global_variables WHERE VARIABLE_NAME='sql_log_bin';
 --enable_warnings
 
 --echo '#----------------------FN_DYNVARS_156_07------------------------#'
@@ -136,13 +136,13 @@ SELECT count(VARIABLE_VALUE) FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARI
 
 --disable_warnings
 SELECT IF(@@session.sql_log_bin, "ON", "OFF") = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+FROM performance_schema.session_variables 
 WHERE VARIABLE_NAME='sql_log_bin';
 --enable_warnings
 SELECT @@session.sql_log_bin;
 --disable_warnings
 SELECT VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+FROM performance_schema.session_variables 
 WHERE VARIABLE_NAME='sql_log_bin';
 --enable_warnings
 

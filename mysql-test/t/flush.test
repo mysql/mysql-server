@@ -1,3 +1,5 @@
+# Test needs myisam for Test for bug #55273
+--source include/have_myisam.inc
 
 connect (con1,localhost,root,,);
 connect (con2,localhost,root,,);

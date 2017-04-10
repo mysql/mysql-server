@@ -143,13 +143,13 @@ SELECT @@session.block_encryption_mode;
 aes-128-ecb
 '#------------------FN_DYNVARS_002_06-----------------------#'
 SELECT @@global.block_encryption_mode = VARIABLE_VALUE
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='block_encryption_mode';
 @@global.block_encryption_mode = VARIABLE_VALUE
 1
 '#------------------FN_DYNVARS_002_07-----------------------#'
 SELECT @@session.block_encryption_mode = VARIABLE_VALUE
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES
+FROM performance_schema.session_variables
 WHERE VARIABLE_NAME='block_encryption_mode';
 @@session.block_encryption_mode = VARIABLE_VALUE
 1

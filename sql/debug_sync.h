@@ -1,7 +1,7 @@
 #ifndef DEBUG_SYNC_INCLUDED
 #define DEBUG_SYNC_INCLUDED
 
-/* Copyright (c) 2009, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -22,7 +22,13 @@
   Declarations for the Debug Sync Facility. See debug_sync.cc for details.
 */
 
-#include <my_global.h>
+#include <stddef.h>
+#include <sys/types.h>
+
+#include "m_string.h"
+#include "my_compiler.h"
+#include "my_inttypes.h"
+#include "my_sharedlib.h"
 
 class THD;
 
@@ -48,6 +54,8 @@ extern void debug_sync_claim_memory_ownership(THD *thd);
 extern void debug_sync_end_thread(THD *thd);
 extern void debug_sync(THD *thd, const char *sync_point_name, size_t name_len);
 extern bool debug_sync_set_action(THD *thd, const char *action_str, size_t len);
+extern bool debug_sync_update(THD *thd, char *val_str);
+extern uchar *debug_sync_value_ptr(THD *thd);
 
 #else /* defined(ENABLED_DEBUG_SYNC) */
 

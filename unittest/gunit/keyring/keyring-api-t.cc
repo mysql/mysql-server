@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,13 +14,15 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 
-#include <my_global.h>
-#include <gtest/gtest.h>
 #include <gmock/gmock.h>
+#include <gtest/gtest.h>
 #include <sql_plugin_ref.h>
+
 #include "keyring.cc"
 #include "keyring_impl.cc"
+#include "lex_string.h"
 #include "mock_logger.h"
+#include "my_inttypes.h"
 
 namespace keyring__api_unittest
 {
@@ -202,6 +204,8 @@ namespace keyring__api_unittest
                               sample_key_data.length() + 1), 0);
   }
 
+// HAVE_UBSAN: undefined behaviour in gmock.
+#if !defined(HAVE_UBSAN)
   TEST_F(Keyring_api_test, StoreInvalidType)
   {
     EXPECT_CALL(*((Mock_logger *)logger.get()), log(MY_ERROR_LEVEL, StrEq("Error while storing key: invalid key_type")));
@@ -214,6 +218,7 @@ namespace keyring__api_unittest
                               &key_len), 0);
     ASSERT_TRUE(key == NULL);
   }
+#endif  // HAVE_UBSAN
 
   TEST_F(Keyring_api_test, StoreTwiceTheSameDifferentTypes)
   {
@@ -241,7 +246,7 @@ namespace keyring__api_unittest
     my_free(key_type);
   }
 
-  TEST_F(Keyring_api_test, KeyringFileChange)
+  TEST_F(Keyring_api_test, InitWithDifferentKeyringFile)
   {
     EXPECT_EQ(mysql_key_store("Robert_key", "AES", "Robert", sample_key_data.c_str(),
                               sample_key_data.length() + 1), 0);
@@ -260,6 +265,7 @@ namespace keyring__api_unittest
     delete[] keyring_filename;
     keyring_filename= new char[strlen("./new_keyring")+1];
     strcpy(keyring_filename, "./new_keyring");
+    remove(keyring_filename);
     keyring_file_data_value= keyring_filename;
     keyring_deinit_with_mock_logger();
     keyring_init_with_mock_logger();
@@ -359,6 +365,8 @@ namespace keyring__api_unittest
     key= NULL;
   }
 
+// HAVE_UBSAN: undefined behaviour in gmock.
+#if !defined(HAVE_UBSAN)
   TEST_F(Keyring_api_test, NullKeyId)
   {
     EXPECT_CALL(*((Mock_logger *)logger.get()), log(MY_ERROR_LEVEL, StrEq("Error while storing key: key_id cannot be empty")));
@@ -403,11 +411,6 @@ namespace keyring__api_unittest
     EXPECT_CALL(*((Mock_logger *)logger.get()), log(MY_ERROR_LEVEL, StrEq("Error while generating key: key_id cannot be empty")));
     EXPECT_EQ(mysql_key_generate("", "AES", NULL, 128), 1);
   }
+#endif  // HAVE_UBSAN
 
-  int main(int argc, char **argv) {
-    if (mysql_rwlock_init(key_LOCK_keyring, &LOCK_keyring))
-      return TRUE;
-    ::testing::InitGoogleTest(&argc, argv);
-    return RUN_ALL_TESTS();
-  }
 }

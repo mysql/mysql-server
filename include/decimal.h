@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,6 +16,15 @@
 #ifndef DECIMAL_INCLUDED
 #define DECIMAL_INCLUDED
 
+#ifndef MYSQL_ABI_CHECK
+#include <stdlib.h>
+#endif
+
+#include "my_inttypes.h"
+#include "my_macros.h"
+
+C_MODE_START
+
 typedef enum
 {TRUNCATE=0, HALF_EVEN, HALF_UP, CEILING, FLOOR}
   decimal_round_mode;
@@ -32,13 +41,13 @@ typedef int32 decimal_digit_t;
  */
 typedef struct st_decimal_t {
   int    intg, frac, len;
-  my_bool sign;
+  bool sign;
   decimal_digit_t *buf;
 } decimal_t;
 
 #ifndef MYSQL_ABI_CHECK
 int internal_str2dec(const char *from, decimal_t *to, char **end,
-                     my_bool fixed);
+                     bool fixed);
 int decimal2string(const decimal_t *from, char *to, int *to_len,
                    int fixed_precision, int fixed_decimals,
                    char filler);
@@ -57,7 +66,7 @@ int bin2decimal(const uchar *from, decimal_t *to, int precision, int scale);
   The integer part is stored in to->quot.
   The fractional part is multiplied to 10^9 and stored to to->rem.
   @param  from  Decimal value
-  @param  to    lldiv_t value
+  @param  [out] to    lldiv_t value
   @retval 0     on success
   @retval !0    in error
 */
@@ -67,13 +76,13 @@ int decimal2lldiv_t(const decimal_t *from, lldiv_t *to);
   Convert doube to lldiv_t.
   The integer part is stored in to->quot.
   The fractional part is multiplied to 10^9 and stored to to->rem.
-  @param  from  Decimal value
-  @param  to    lldiv_t value
+  @param  nr  Decimal value
+  @param  [out] lld    lldiv_t value
   @retval 0     on success
   @retval !0    in error
 */
 
-int double2lldiv_t(double from, lldiv_t *to);
+int double2lldiv_t(double nr, lldiv_t *lld);
 int decimal_size(int precision, int scale);
 int decimal_bin_size(int precision, int scale);
 int decimal_result_size(decimal_t *from1, decimal_t *from2, char op,
@@ -91,26 +100,29 @@ int decimal_round(const decimal_t *from, decimal_t *to, int new_scale,
                   decimal_round_mode mode);
 int decimal_is_zero(const decimal_t *from);
 void max_decimal(int precision, int frac, decimal_t *to);
-
-#define string2decimal(A,B,C) internal_str2dec((A), (B), (C), 0)
-#define string2decimal_fixed(A,B,C) internal_str2dec((A), (B), (C), 1)
+int decimal_shift(decimal_t *dec, int shift);
 
 /* set a decimal_t to zero */
+static inline void decimal_make_zero(decimal_t *dec)
+{
+  dec->buf[0]= 0;
+  dec->intg= 1;
+  dec->frac= 0;
+  dec->sign= 0;
+}
 
-#define decimal_make_zero(dec)        do {                \
-                                        (dec)->buf[0]=0;    \
-                                        (dec)->intg=1;      \
-                                        (dec)->frac=0;      \
-                                        (dec)->sign=0;      \
-                                      } while(0)
-
-/*
-  returns the length of the buffer to hold string representation
+/**
+  Returns the length of the buffer to hold string representation
   of the decimal (including decimal dot, possible sign and \0)
 */
-
-#define decimal_string_size(dec) (((dec)->intg ? (dec)->intg : 1) + \
-				  (dec)->frac + ((dec)->frac > 0) + 2)
+static inline int decimal_string_size(const decimal_t *dec)
+{
+  return
+    (dec->intg ? dec->intg : 1) +
+    dec->frac +
+    (dec->frac > 0) +
+    2;
+}
 
 /*
   conventions:
@@ -132,6 +144,8 @@ void max_decimal(int precision, int frac, decimal_t *to);
 #define E_DEC_ERROR            31
 #define E_DEC_FATAL_ERROR      30
 
-#endif // !MYSQL_ABI_CHECK
+C_MODE_END
 
-#endif
+#endif // MYSQL_ABI_CHECK
+
+#endif  // DECIMAL_INCLUDED

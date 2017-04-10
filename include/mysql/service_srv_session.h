@@ -17,7 +17,7 @@
 #define MYSQL_SRV_SESSION_SERVICE_INCLUDED
 
 /**
-  @file
+  @file include/mysql/service_srv_session.h
   Header file for the Server session service. This service is to provide
   of creating sessions with the server. These sessions can be furtherly used
   together with the Command service to execute commands in the server.
@@ -112,14 +112,14 @@ void srv_session_deinit_thread();
   In a thread not initialized by the server itself, this function should be
   called only after srv_session_init_thread() has already been called.
 
-  @param error_cb    Default completion callback
+  @param error_cb    session error callback
   @param plugin_ctx  Plugin's context, opaque pointer that would
                      be provided to callbacks. Might be NULL.
   @return
     session   on success
     NULL      on failure
 */
-MYSQL_SESSION srv_session_open(srv_session_error_cb cb, void *plugix_ctx);
+MYSQL_SESSION srv_session_open(srv_session_error_cb error_cb, void *plugin_ctx);
 
 /**
   Detaches a session from current physical thread.

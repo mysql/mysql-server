@@ -1,6 +1,6 @@
 /***********************************************************************
 
-Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify it
 under the terms of the GNU General Public License as published by the
@@ -46,6 +46,36 @@ a connection before committing the transaction */
 /** Structure contains the cursor information for each connection */
 typedef struct innodb_conn_data_struct		innodb_conn_data_t;
 
+/** Range search mode, whether it is bound by one end, such as
+LOW_BOUND (> key) or (>= key), UPPER_BOUND (< key) or (<= key),
+or RANGE BOUND (key1 <[=] value <[=] key2) */
+#define LOW_BOUND	0x1
+#define UPPER_BOUND	0x2
+#define RANGE_BOUND	0x4
+
+/** structure to carry search keys */
+typedef struct innodb_range_key {
+	char*	start;			/* Low end key */
+	int	start_len;		/* Low end key length */
+	int	start_mode;		/* whether it is > or >= */
+	char*	end;			/* high end key */
+	int	end_len;		/* high end key len */
+	int	end_mode;		/* whether it is < or <= */
+	int	bound;			/* range search mode (LOW_BOUND etc.) */
+} innodb_range_key_t;
+
+/** Pre-allocated memory structure used to cache result */
+typedef struct mem_buf_struct	mem_buf_t;
+
+/** Result caching memory structure list */
+struct mem_buf_struct {
+	void*				mem;		/* memory buffer */
+	UT_LIST_NODE_T(mem_buf_t)	mem_list;	/* list to next buf */
+};
+
+/** memory buffer list */
+typedef UT_LIST_BASE_NODE_T(mem_buf_t)		mem_list_t;
+
 /** Connection specific data */
 struct innodb_conn_data_struct {
 	ib_crsr_t	read_crsr;	/*!< read only cursor for the
@@ -59,17 +89,31 @@ struct innodb_conn_data_struct {
 	ib_tpl_t	tpl;		/*!< read tuple */
 	ib_tpl_t	idx_tpl;	/*!< read tuple */
 	void*		result;		/*!< result info */
-	void*		row_buf;	/*!< row buffer to cache row read */
-	ib_ulint_t	row_buf_len;	/*!< row buffer len */
+	void**		row_buf;	/*!< row buffer to cache row read,
+					it is array of 16k pages */
+	ib_ulint_t	row_buf_slot;	/*!< row buffer pages used so far */
+	ib_ulint_t	row_buf_used;	/*!< row buffer used (for multi-get)
+					in a 16k buffer */
+	bool		range;		/*!< range search */
+	innodb_range_key_t* range_key;	/*!< range search key */
+	bool		multi_get;	/*!< multiple get */
 	void*		cmd_buf;	/*!< buffer for incoming command */
 	ib_ulint_t	cmd_buf_len;	/*!< cmd buffer len */
+#ifdef UNIV_MEMCACHED_SDI
+	void*		sdi_buf;
+	uint64_t	sdi_buf_len;
+#endif /* UNIV_MEMCACHED_SDI */
 	bool		result_in_use;	/*!< result set or above row_buf
 					contain active result set */
 	bool		use_default_mem;/*!<  whether to use default engine
 					(memcached) memory */
-	void*		mul_col_buf;	/*!< buffer to construct final result
+	char*		mul_col_buf;	/*!< buffer to construct final result
 					from multiple mapped column */
 	ib_ulint_t	mul_col_buf_len;/*!< mul_col_buf len */
+	ib_ulint_t	mul_col_buf_used;/*!< used length for multi-col
+					buffer */
+	mem_list_t	mul_used_buf;	/*!< list of multi-result buffer that
+					can no longer fit additional result */
 	bool            in_use;		/*!< whether the connection
 					is processing a request */
 	bool		is_stale;	/*!< connection closed, this is

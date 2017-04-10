@@ -2,8 +2,11 @@
 # Partition pruning tests. Currently we only detect which partitions to
 # prune, so the test is EXPLAINs.
 #
+
+# Skipping the test when log-bin is enabled due to Bug#22508362
+--source include/not_log_bin.inc
+
 --source include/no_valgrind_without_big.inc
---source include/have_partition.inc
 let $verify_without_partitions=0;
 
 --echo #
@@ -1716,9 +1719,9 @@ explain extended select * from t2 where b > 5;
 explain partitions select * from t2 where b > 5;
 
 --replace_column 10 #
-explain extended select * from t2 where b > 5 and b < 8;
+explain extended select * from t2 where b > 5 and b < 9;
 --replace_column 10 #
-explain partitions select * from t2 where b > 5 and b < 8;
+explain partitions select * from t2 where b > 5 and b < 9;
 
 --replace_column 10 #
 explain extended select * from t2 where b > 5 and b < 7;
@@ -1739,7 +1742,7 @@ flush status;
 --eval $q
 show status like 'Handler_read_rnd_next';
 show status like 'Handler_read_key';
---let $q = update t2 set a = 111 where b in (5,6)
+--let $q = update t2 set a = 111 where b in (5,6,7)
 --replace_column 10 #
 --eval explain partitions $q
 flush status;
@@ -1967,6 +1970,7 @@ ALTER TABLE t1 REMOVE PARTITIONING;
 }
 select * from t1 where s1 = 0 or s1 is null;
 insert into t1 values ('aa'),('bb'),('0');
+analyze table t1;
 --replace_column 10 #
 explain partitions select * from t1 where s1 = 0 or s1 is null;
 drop table t1;

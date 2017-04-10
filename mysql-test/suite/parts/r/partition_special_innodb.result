@@ -316,3 +316,23 @@ SELECT * FROM t1;
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 UNLOCK TABLES;
 DROP TABLE t1;
+#
+# Bug#53770: Server crash at handler.cc:2076 on LOAD DATA
+#            after timed out COALESCE PARTITION.
+# Rewritten to use InnoDB after WL#8971.
+CREATE TABLE t1 ( i INT NOT NULL AUTO_INCREMENT PRIMARY KEY, f INT )
+ENGINE = InnoDB PARTITION BY HASH(i) PARTITIONS 3;
+# Connection 1 starts transaction and gets lock
+START TRANSACTION;
+SELECT * FROM t1;
+i	f
+SET lock_wait_timeout = 2;
+# Connection 2 tries to coalesce partitions (timeout):
+ALTER TABLE t1 COALESCE PARTITION 2;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+# Connection 3 tries to load into the table:
+LOAD DATA INFILE 'load.in' INTO TABLE t1 (f);
+# Connection 1 commits the transaction
+COMMIT;
+# Connection 3...
+DROP TABLE t1;

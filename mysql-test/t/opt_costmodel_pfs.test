@@ -1,7 +1,7 @@
 #
 # Cost model tests that requires performance schema
 #
---source include/have_perfschema.inc
+--source include/not_embedded.inc
 
 --echo #
 --echo # Bug#20755430 COST CONSTANT CACHE MUTEX NOT INSTRUMENTED BY

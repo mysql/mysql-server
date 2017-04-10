@@ -149,25 +149,25 @@ c
 2
 EXPLAIN EXTENDED SELECT myfunc_int(MIN(b) xx) as c FROM t1 GROUP BY a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary; Using filesort
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select myfunc_int(min(`test`.`t1`.`b`) AS `xx`) AS `c` from `test`.`t1` group by `test`.`t1`.`a`
 EXPLAIN EXTENDED SELECT test.fn(MIN(b)) as c FROM t1 GROUP BY a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary; Using filesort
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`fn`(min(`test`.`t1`.`b`)) AS `c` from `test`.`t1` group by `test`.`t1`.`a`
 EXPLAIN EXTENDED SELECT myfunc_int(fn(MIN(b))) as c FROM t1 GROUP BY a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary; Using filesort
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select myfunc_int(`fn`(min(`test`.`t1`.`b`)) AS `fn(MIN(b))`) AS `c` from `test`.`t1` group by `test`.`t1`.`a`
 EXPLAIN EXTENDED SELECT myfunc_int(test.fn(MIN(b))) as c FROM t1 GROUP BY a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary; Using filesort
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select myfunc_int(`test`.`fn`(min(`test`.`t1`.`b`)) AS `test.fn(MIN(b))`) AS `c` from `test`.`t1` group by `test`.`t1`.`a`
@@ -324,6 +324,7 @@ drop function myfunc_double;
 drop function myfunc_int;
 CREATE FUNCTION metaphon RETURNS STRING SONAME "UDF_EXAMPLE_LIB";
 create table t1 (a char);
+SET @save_query_cache_size = @@query_cache_size;
 set GLOBAL query_cache_size=1355776;
 reset query cache;
 select metaphon('MySQL') from t1;
@@ -344,7 +345,7 @@ Variable_name	Value
 Qcache_queries_in_cache	0
 drop table t1;
 drop function metaphon;
-set GLOBAL query_cache_size=default;
+set GLOBAL query_cache_size=@save_query_cache_size;
 DROP DATABASE IF EXISTS mysqltest;
 CREATE DATABASE mysqltest;
 USE mysqltest;
@@ -536,3 +537,102 @@ a	my_median(b)
 3	42
 DROP FUNCTION my_median;
 DROP TABLE t1;
+#
+# Using C++ 11 Standard Library with MySQL code
+#
+CREATE FUNCTION my_cpp11_re_match
+RETURNS INTEGER SONAME "UDF_EXAMPLE_LIB";
+SELECT my_cpp11_re_match('foo.*', 'foobar');
+my_cpp11_re_match('foo.*', 'foobar')
+1
+CREATE TABLE t1(a VARCHAR(32), b VARCHAR(64));
+INSERT INTO t1 VALUES
+('.*middle.*', 'a value in the middle of a string'),
+('missing', 'some string value');
+SELECT a, b FROM t1 WHERE my_cpp11_re_match(a, b) > 0;
+a	b
+.*middle.*	a value in the middle of a string
+DROP FUNCTION my_cpp11_re_match;
+DROP TABLE t1;
+#
+# WL8980 - Move udf metatable table from MyISAM to InnoDB.
+#
+SET autocommit= 0;
+SET innodb_lock_wait_timeout= 1;
+
+# Connection: con1
+
+#######################################################
+# A.1. Checking lock-wait-timeout with CREATE USER
+#######################################################
+START TRANSACTION;
+INSERT INTO mysql.func(name, ret, dl, type) VALUES ('metaphon', 0, 'UDF_EXAMPLE_LIB', 'function');
+
+# Connection: con1
+CREATE FUNCTION metaphon RETURNS STRING SONAME "UDF_EXAMPLE_LIB";;
+
+# Connection: default
+ROLLBACK;
+
+# Connection: con1
+
+# Connection: default
+DROP FUNCTION metaphon;
+
+###############################################################
+# A.2. Checking lock-wait-timeout with DROP FUNCTION.
+###############################################################
+CREATE FUNCTION metaphon RETURNS STRING SONAME "UDF_EXAMPLE_LIB";
+START TRANSACTION;
+SELECT name FROM mysql.func WHERE name ='metaphon' FOR UPDATE;
+name
+metaphon
+
+# Connection: con1
+DROP FUNCTION metaphon;
+
+# Connection: default
+ROLLBACK;
+
+# Connection: con1
+
+# Connection: default
+SELECT name FROM mysql.func WHERE name = 'metaphon';
+name
+
+##############################################################
+# B.1 Check that CREATE FUNCTION does implicit commit.
+##############################################################
+CREATE TABLE t1(a INT);
+START TRANSACTION;
+INSERT INTO t1 VALUES(1),(2),(3);
+CREATE FUNCTION metaphon RETURNS STRING SONAME "UDF_EXAMPLE_LIB";
+
+# Connection: con1
+SELECT * FROM t1;
+a
+1
+2
+3
+SELECT * FROM mysql.func;
+name	ret	dl	type
+metaphon	0	UDF_EXAMPLE_LIB	function
+
+# Connection: default
+ROLLBACK;
+SELECT * FROM mysql.func;
+name	ret	dl	type
+metaphon	0	UDF_EXAMPLE_LIB	function
+DROP FUNCTION metaphon;
+DROP TABLE t1;
+
+######################################################################
+# C. Check that it is possible to ALTER storage engine for
+#    mysql.func to MyISAM.
+#    This is necessary for mysql_system_tables_fix_for_downgrade.sql
+#    to work.
+######################################################################
+ALTER TABLE mysql.func ENGINE = MYISAM;
+SELECT * FROM mysql.func;
+name	ret	dl	type
+ALTER TABLE mysql.func ENGINE = INNODB;

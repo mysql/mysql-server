@@ -15,14 +15,14 @@ SELECT @@global.lower_case_table_names in (0,1,2);
 # Show that value of the variable matches the value in the GLOBAL I_S table
 --disable_warnings
 SELECT @@global.lower_case_table_names = VARIABLE_VALUE
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='lower_case_table_names';
 --enable_warnings
 
 # Show that value of the variable matches the value in the SESSION I_S table
 --disable_warnings
 SELECT @@global.lower_case_table_names = VARIABLE_VALUE
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='lower_case_table_names';
 --enable_warnings
 

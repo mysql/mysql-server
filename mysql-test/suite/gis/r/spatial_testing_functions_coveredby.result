@@ -523,12 +523,12 @@ SELECT MBRCOVEREDBY(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star
 MBRCOVEREDBY(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_elem_horizontal_3))
 0
 SELECT MBRCOVEREDBY(g,ST_GEOMFROMTEXT('POLYGON((11 15,19 15,11 15))')) FROM gis_geometrycollection WHERE fid=110;
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 #====================================================================================
 # linestring,multipolygon
 #====================================================================================
 SELECT MBRCOVEREDBY(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT('MULTIPOLYGON(((11 15,19 15,11 15)),((25 0,0 15,25 0)))'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT MBRCOVEREDBY(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_of_elems));
 MBRCOVEREDBY(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_of_elems))
 1
@@ -539,7 +539,7 @@ SELECT MBRCOVEREDBY(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star
 MBRCOVEREDBY(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_of_elems_3))
 0
 SELECT MBRCOVEREDBY(g,ST_GEOMFROMTEXT('MULTIPOLYGON(((11 15,19 15,11 15)),((25 0,0 15,25 0)))')) FROM gis_geometrycollection WHERE fid=110;
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 #====================================================================================
 # linestring,geometrycollection
 #====================================================================================
@@ -1050,27 +1050,44 @@ MBRCOVEREDBY(ST_GEOMFROMTEXT(@star_top,0),ST_GEOMFROMTEXT(@star_center,0))
 SELECT MBRCOVEREDBY(ST_GEOMFROMTEXT(@star_top,100),ST_GEOMFROMTEXT(@star_center,100));
 MBRCOVEREDBY(ST_GEOMFROMTEXT(@star_top,100),ST_GEOMFROMTEXT(@star_center,100))
 0
+Warnings:
+Warning	3565	There's no spatial reference system with SRID 100. The axis order is unknown.
+Warning	3565	There's no spatial reference system with SRID 100. The axis order is unknown.
+Warning	3519	There's no spatial reference system with SRID 100. Calculations in function mbrcoveredby will be done in SRID 0.
 SELECT MBRCOVEREDBY(ST_GEOMFROMTEXT(@star_top,20000),ST_GEOMFROMTEXT(@star_center,20000));
 MBRCOVEREDBY(ST_GEOMFROMTEXT(@star_top,20000),ST_GEOMFROMTEXT(@star_center,20000))
 0
+Warnings:
+Warning	3565	There's no spatial reference system with SRID 20000. The axis order is unknown.
+Warning	3565	There's no spatial reference system with SRID 20000. The axis order is unknown.
+Warning	3519	There's no spatial reference system with SRID 20000. Calculations in function mbrcoveredby will be done in SRID 0.
 SELECT MBRCOVEREDBY(ST_GEOMFROMTEXT(@star_top,123456),ST_GEOMFROMTEXT(@star_center,123456));
 MBRCOVEREDBY(ST_GEOMFROMTEXT(@star_top,123456),ST_GEOMFROMTEXT(@star_center,123456))
 0
+Warnings:
+Warning	3565	There's no spatial reference system with SRID 123456. The axis order is unknown.
+Warning	3565	There's no spatial reference system with SRID 123456. The axis order is unknown.
+Warning	3519	There's no spatial reference system with SRID 123456. Calculations in function mbrcoveredby will be done in SRID 0.
 SELECT MBRCOVEREDBY(ST_GEOMFROMTEXT(@star_top,1048575),ST_GEOMFROMTEXT(@star_center,1048575));
 MBRCOVEREDBY(ST_GEOMFROMTEXT(@star_top,1048575),ST_GEOMFROMTEXT(@star_center,1048575))
 0
+Warnings:
+Warning	3565	There's no spatial reference system with SRID 1048575. The axis order is unknown.
+Warning	3565	There's no spatial reference system with SRID 1048575. The axis order is unknown.
+Warning	3519	There's no spatial reference system with SRID 1048575. Calculations in function mbrcoveredby will be done in SRID 0.
 SELECT MBRCOVEREDBY(ST_GEOMFROMTEXT(@star_top,4294967295),ST_GEOMFROMTEXT(@star_center,4294967295));
 MBRCOVEREDBY(ST_GEOMFROMTEXT(@star_top,4294967295),ST_GEOMFROMTEXT(@star_center,4294967295))
 0
+Warnings:
+Warning	3565	There's no spatial reference system with SRID 4294967295. The axis order is unknown.
+Warning	3565	There's no spatial reference system with SRID 4294967295. The axis order is unknown.
+Warning	3519	There's no spatial reference system with SRID 4294967295. Calculations in function mbrcoveredby will be done in SRID 0.
 SELECT MBRCOVEREDBY(ST_GEOMFROMTEXT(@star_top,-1),ST_GEOMFROMTEXT(@star_center,-1));
-MBRCOVEREDBY(ST_GEOMFROMTEXT(@star_top,-1),ST_GEOMFROMTEXT(@star_center,-1))
-0
+ERROR 22003: SRID value is out of range in 'st_geomfromtext'
 SELECT MBRCOVEREDBY(ST_GEOMFROMTEXT(@star_top,-1024),ST_GEOMFROMTEXT(@star_center,-1024));
-MBRCOVEREDBY(ST_GEOMFROMTEXT(@star_top,-1024),ST_GEOMFROMTEXT(@star_center,-1024))
-0
+ERROR 22003: SRID value is out of range in 'st_geomfromtext'
 SELECT MBRCOVEREDBY(ST_GEOMFROMTEXT(@star_top,4294967295000),ST_GEOMFROMTEXT(@star_center,4294967295000));
-MBRCOVEREDBY(ST_GEOMFROMTEXT(@star_top,4294967295000),ST_GEOMFROMTEXT(@star_center,4294967295000))
-0
+ERROR 22003: SRID value is out of range in 'st_geomfromtext'
 #####################################################################################
 # Invalid function calls
 #####################################################################################
@@ -1098,31 +1115,31 @@ ERROR 22023: Invalid GIS data provided to function mbrcoveredby.
 SELECT MBRCOVEREDBY(ST_GEOMFROMTEXT(@star_of_elems),fid) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=103 and fid2=103;
 ERROR 22023: Invalid GIS data provided to function mbrcoveredby.
 SELECT MBRCOVEREDBY(ST_GEOMFROMTEXT('POINT(a 0)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT MBRCOVEREDBY(ST_GEOMFROMTEXT('POINT(! 0)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT MBRCOVEREDBY(ST_GEOMFROMTEXT('POINT('!' 0)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'))' at line 1
 SELECT MBRCOVEREDBY(ST_GEOMFROMTEXT('POINT(12,34 0)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT MBRCOVEREDBY(ST_GEOMFROMTEXT('LINESTRING(a 0,10 10)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT MBRCOVEREDBY(ST_GEOMFROMTEXT('LINESTRING(0 0,! 10)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT MBRCOVEREDBY(ST_GEOMFROMTEXT('LINESTRING('!' 0,10 10)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0,10 10)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'))' at line 1
 SELECT MBRCOVEREDBY(ST_GEOMFROMTEXT('LINESTRING(12,34 0,10 10)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT MBRCOVEREDBY(ST_GEOMFROMTEXT('POLYGON((a 0,10 10,10 0,0 0))'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT MBRCOVEREDBY(ST_GEOMFROMTEXT('POLYGON((0 0,! 10,10 0,0 0))'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT MBRCOVEREDBY(ST_GEOMFROMTEXT('POLYGON(('!' 0,10 10,10 0,0 0))'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0,10 10,10 0,0 0))'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'))' at line 1
 SELECT MBRCOVEREDBY(ST_GEOMFROMTEXT('POLYGON((12,34 0,10 10,10 0,0 0))'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT MBRCOVEREDBY(ST_GEOMFROMTEXT('POLYGON((12,34 0,10 10,10 0,0 0)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT MBRCOVEREDBY(,);
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ')' at line 1
 SELECT MBRCOVEREDBY(ST_GEOMFROMTEXT(@star_of_elems),);
@@ -1657,3 +1674,60 @@ MBRCOVEREDBY(a.g, b.g)
 DROP TABLE t1;
 DROP TABLE gis_geometrycollection;
 DROP TABLE gis_geometrycollection_2;
+#
+# WL#8579 Spatial Reference Systems
+#
+# SRID 0 (should pass)
+SELECT MBRCOVEREDBY(
+ST_GEOMFROMTEXT('POINT(0 0)', 0),
+ST_GEOMFROMTEXT('POINT(0 0)', 0)
+);
+MBRCOVEREDBY(
+ST_GEOMFROMTEXT('POINT(0 0)', 0),
+ST_GEOMFROMTEXT('POINT(0 0)', 0)
+)
+1
+# Projected SRS (should pass)
+SELECT MBRCOVEREDBY(
+ST_GEOMFROMTEXT('POINT(0 0)', 2000),
+ST_GEOMFROMTEXT('POINT(0 0)', 2000)
+);
+MBRCOVEREDBY(
+ST_GEOMFROMTEXT('POINT(0 0)', 2000),
+ST_GEOMFROMTEXT('POINT(0 0)', 2000)
+)
+1
+# Geographic SRS (should pass)
+SELECT MBRCOVEREDBY(
+ST_GEOMFROMTEXT('POINT(0 0)', 4326),
+ST_GEOMFROMTEXT('POINT(0 0)', 4326)
+);
+MBRCOVEREDBY(
+ST_GEOMFROMTEXT('POINT(0 0)', 4326),
+ST_GEOMFROMTEXT('POINT(0 0)', 4326)
+)
+1
+# Undefined SRS (should pass with warning)
+SELECT MBRCOVEREDBY(
+ST_GEOMFROMTEXT('POINT(0 0)', 26000000),
+ST_GEOMFROMTEXT('POINT(0 0)', 26000000)
+);
+MBRCOVEREDBY(
+ST_GEOMFROMTEXT('POINT(0 0)', 26000000),
+ST_GEOMFROMTEXT('POINT(0 0)', 26000000)
+)
+1
+Warnings:
+Warning	3565	There's no spatial reference system with SRID 26000000. The axis order is unknown.
+Warning	3565	There's no spatial reference system with SRID 26000000. The axis order is unknown.
+Warning	3519	There's no spatial reference system with SRID 26000000. Calculations in function mbrcoveredby will be done in SRID 0.
+# Unparseable SRS definition (should fail)
+INSERT INTO mysql.st_spatial_reference_systems(id, catalog_id, name,
+organization, organization_coordsys_id, definition, description)
+VALUES (26000001, 1, 'TEST26000001', 'Foo', 26000001, 'FOOBAR', '');
+SELECT MBRCOVEREDBY(
+ST_GEOMFROMTEXT('POINT(0 0)', 26000001),
+ST_GEOMFROMTEXT('POINT(0 0)', 26000001)
+);
+ERROR SR002: Can't parse the spatial reference system definition of SRID 26000001.
+DELETE FROM mysql.st_spatial_reference_systems WHERE id = 26000001;

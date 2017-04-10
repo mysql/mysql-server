@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,7 +15,14 @@
 
 /* Remove a row from a MyISAM table */
 
+#include <errno.h>
+#include <fcntl.h>
+#include <sys/types.h>
+
 #include "fulltext.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_macros.h"
 #include "rt_index.h"
 
 static int d_search(MI_INFO *info,MI_KEYDEF *keyinfo,uint comp_flag,
@@ -220,7 +227,7 @@ static int d_search(MI_INFO *info, MI_KEYDEF *keyinfo,
 {
   int flag,ret_value,save_flag;
   uint length,nod_flag,search_key_length;
-  my_bool last_key;
+  bool last_key;
   uchar *leaf_buff,*keypos;
   my_off_t leaf_page= 0, next_block;
   uchar lastkey[MI_MAX_KEY_BUFF];
@@ -375,7 +382,7 @@ static int d_search(MI_INFO *info, MI_KEYDEF *keyinfo,
 	goto err;
       }
       ret_value=_mi_insert(info,keyinfo,key,anc_buff,keypos,lastkey,
-			   (uchar*) 0,(uchar*) 0,(my_off_t) 0,(my_bool) 0);
+			   (uchar*) 0,(uchar*) 0,(my_off_t) 0,(bool) 0);
     }
   }
   if (ret_value == 0 && mi_getint(anc_buff) > keyinfo->block_length)
@@ -413,8 +420,8 @@ static int del(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *key,
   MYISAM_SHARE *share=info->s;
   MI_KEY_PARAM s_temp;
   DBUG_ENTER("del");
-  DBUG_PRINT("enter",("leaf_page: %ld  keypos: 0x%lx", (long) leaf_page,
-		      (ulong) keypos));
+  DBUG_PRINT("enter",("leaf_page: %ld  keypos: %p", (long) leaf_page,
+		      keypos));
   DBUG_DUMP("leaf_buff",(uchar*) leaf_buff,mi_getint(leaf_buff));
 
   endpos=leaf_buff+mi_getint(leaf_buff);
@@ -518,8 +525,8 @@ static int underflow(MI_INFO *info, MI_KEYDEF *keyinfo,
   MI_KEY_PARAM s_temp;
   MYISAM_SHARE *share=info->s;
   DBUG_ENTER("underflow");
-  DBUG_PRINT("enter",("leaf_page: %ld  keypos: 0x%lx",(long) leaf_page,
-		      (ulong) keypos));
+  DBUG_PRINT("enter",("leaf_page: %ld  keypos: %p",(long) leaf_page,
+		      keypos));
   DBUG_DUMP("anc_buff",(uchar*) anc_buff,mi_getint(anc_buff));
   DBUG_DUMP("leaf_buff",(uchar*) leaf_buff,mi_getint(leaf_buff));
 
@@ -599,8 +606,8 @@ static int underflow(MI_INFO *info, MI_KEYDEF *keyinfo,
     else
     {						/* Page is full */
       endpos=anc_buff+anc_length;
-      DBUG_PRINT("test",("anc_buff: 0x%lx  endpos: 0x%lx",
-                         (long) anc_buff, (long) endpos));
+      DBUG_PRINT("test",("anc_buff: %p  endpos: %p",
+                         anc_buff, endpos));
       if (keypos != anc_buff+2+key_reflength &&
 	  !_mi_get_last_key(info,keyinfo,anc_buff,anc_key,keypos,&length))
 	goto err;
@@ -778,7 +785,7 @@ static uint remove_key(MI_KEYDEF *keyinfo, uint nod_flag,
   int s_length;
   uchar *start;
   DBUG_ENTER("remove_key");
-  DBUG_PRINT("enter",("keypos: 0x%lx  page_end: 0x%lx",(long) keypos, (long) page_end));
+  DBUG_PRINT("enter",("keypos: %p  page_end: %p", keypos, page_end));
 
   start=keypos;
   if (!(keyinfo->flag &

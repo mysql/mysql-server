@@ -89,7 +89,7 @@ SELECT @@global.innodb_max_dirty_pages_pct_lwm;
 75.000000
 '#----------------------FN_DYNVARS_046_05------------------------#'
 SELECT @@global.innodb_max_dirty_pages_pct_lwm =
-VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+VARIABLE_VALUE FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='innodb_max_dirty_pages_pct_lwm';
 @@global.innodb_max_dirty_pages_pct_lwm =
 VARIABLE_VALUE
@@ -97,7 +97,7 @@ VARIABLE_VALUE
 SELECT @@global.innodb_max_dirty_pages_pct_lwm;
 @@global.innodb_max_dirty_pages_pct_lwm
 75.000000
-SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+SELECT VARIABLE_VALUE FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='innodb_max_dirty_pages_pct_lwm';
 VARIABLE_VALUE
 75.000000

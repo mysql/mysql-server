@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2003, 2005, 2006 MySQL AB
-    All rights reserved. Use is subject to license terms.
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -34,6 +33,12 @@
 #include "NDBT_Error.hpp"
 #include "NDBT_ResultRow.hpp"
 #include "NDBT_Output.hpp"
+
+#define CHK_NDB_READY(a) \
+  if ((a)->waitUntilReady() != 0) \
+  { \
+    return NDBT_FAILED; \
+  }
 
 #endif
 

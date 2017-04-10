@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -24,23 +24,38 @@
   doesn't resemble an IP address.
 */
 
-#include "my_global.h"
-#include "hostname.h"
+#include "sql/hostname.h"
+
+#include "my_config.h"
+
+#ifndef _WIN32
+#include <netdb.h>
+#endif
+#include <stdint.h>
+#include <stdlib.h>
+#include <string.h>
+#ifdef HAVE_SYS_SOCKET_H
+#include <sys/socket.h>
+#endif
+
 #include "hash_filo.h"
-#include <m_ctype.h>
 #include "log.h"                                // sql_print_warning,
+#include "m_ctype.h"
+#include "m_string.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_sys.h"
+#include "mysql/psi/mysql_mutex.h"
+#include "mysql/service_mysql_alloc.h"
+#include "mysqld.h"                             // specialflag
                                                 // sql_print_information
-#include "violite.h"                            // vio_getnameinfo,
+#include "psi_memory_key.h"
                                                 // vio_get_normalized_ip_string
+#include "template_utils.h"
+#include "violite.h"                            // vio_getnameinfo,
 
 #ifdef HAVE_ARPA_INET_H
 #include <arpa/inet.h>
-#endif
-#ifdef HAVE_SYS_UN_H
-#include <sys/un.h>
-#endif
-#if !defined(_WIN32)
-#include <sys/utsname.h>
 #endif
 
 Host_errors::Host_errors()
@@ -137,15 +152,19 @@ void hostname_cache_resize(uint size)
   hostname_cache->resize(size);
 }
 
+static const uchar* hostname_get_key(const uchar *arg, size_t *length)
+{
+  const Host_entry *entry= pointer_cast<const Host_entry*>(arg);
+  *length= HOST_ENTRY_KEY_SIZE;
+  return pointer_cast<const uchar*>(entry->ip_key);
+}
+
 bool hostname_cache_init(uint size)
 {
-  Host_entry tmp;
-  uint key_offset= (uint) ((char*) (&tmp.ip_key) - (char*) &tmp);
-
   if (!(hostname_cache= new hash_filo(key_memory_host_cache_hostname,
                                       size,
-                                      key_offset, HOST_ENTRY_KEY_SIZE,
-                                      NULL, (my_hash_free_key) free,
+                                      HOST_ENTRY_KEY_SIZE,
+                                      hostname_get_key, free,
                                       &my_charset_bin)))
     return 1;
 
@@ -344,14 +363,12 @@ static inline bool is_ip_loopback(const struct sockaddr *ip)
       return ntohl(ip4->s_addr) == INADDR_LOOPBACK;
     }
 
-#ifdef HAVE_IPV6
   case AF_INET6:
     {
       /* Check for IPv6 ::1. */
       struct in6_addr *ip6= &((struct sockaddr_in6 *) ip)->sin6_addr;
       return IN6_IS_ADDR_LOOPBACK(ip6);
     }
-#endif /* HAVE_IPV6 */
 
   default:
     return FALSE;
@@ -750,7 +767,6 @@ int ip_to_hostname(struct sockaddr_storage *ip_storage,
                   }
                   );
 
-#ifdef HAVE_IPV6
   DBUG_EXECUTE_IF("getaddrinfo_fake_bad_ipv6",
                   {
                     if (free_addr_info_list)
@@ -891,7 +907,6 @@ int ip_to_hostname(struct sockaddr_storage *ip_storage,
                     free_addr_info_list= false;
                   }
                   );
-#endif /* HAVE_IPV6 */
 
   /*
   ===========================================================================

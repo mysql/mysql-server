@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,30 +13,42 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
+/**
+  @file mysys_ssl/crypt_genhash_impl.cc
+*/
 
 // First include (the generated) my_config.h, to get correct platform defines.
 #include "my_config.h"
 
+#include <sys/types.h>
+
 #ifdef HAVE_OPENSSL
 
 #ifdef HAVE_YASSL
-#include <sha.hpp>
 #include <openssl/ssl.h>
+#include <sha.hpp>
 #else
-#include <openssl/sha.h>
 #include <openssl/rand.h>
+#include <openssl/sha.h>
 #endif
 
-#include "crypt_genhash_impl.h"
-
-#include "m_string.h"
-
 #include <stdint.h>
-#include <time.h>
+#include <stdlib.h>
 #include <string.h>
+#include <time.h>
+
+#include "crypt_genhash_impl.h"
+#include "m_string.h"
+#include "mysql/service_my_snprintf.h"
 
 #ifdef HAVE_ALLOCA_H
 #include <alloca.h>
+#endif
+
+#include <errno.h>
+
+#ifdef _WIN32
+#include <malloc.h>
 #endif
 
 #ifndef HAVE_YASSL
@@ -48,17 +60,17 @@
 #else
 #define DIGEST_CTX TaoCrypt::SHA256
 #define DIGEST_LEN 32
-void DIGESTInit(DIGEST_CTX *ctx)
+static void DIGESTInit(DIGEST_CTX *ctx)
 {
   ctx->Init();
 }
 
-void DIGESTUpdate(DIGEST_CTX *ctx, const void *plaintext, int len)
+static void DIGESTUpdate(DIGEST_CTX *ctx, const void *plaintext, int len)
 {
   ctx->Update((const TaoCrypt::byte *)plaintext, len);
 }
 
-void DIGESTFinal(void *txt, DIGEST_CTX *ctx)
+static void DIGESTFinal(void *txt, DIGEST_CTX *ctx)
 {
   ctx->Final((TaoCrypt::byte *)txt);
 }
@@ -75,12 +87,13 @@ static const char crypt_alg_magic[] = "$5";
 #endif
 
 
+#ifndef HAVE_STRLCAT
 /**
   Size-bounded string copying and concatenation
   This is a replacement for STRLCPY(3)
 */
 
-size_t
+static size_t
 strlcat(char *dst, const char *src, size_t siz)
 {
   char *d= dst;
@@ -106,6 +119,7 @@ strlcat(char *dst, const char *src, size_t siz)
   *d= '\0';
   return(dlen + (s - src));       /* count does not include NUL */
 }
+#endif
 
 static const int crypt_alg_magic_len = sizeof (crypt_alg_magic) - 1;
 
@@ -171,10 +185,10 @@ static uint getrounds(const char *s)
   The crypt format is assumed to be $a$bbbb$cccccc\0 and the salt is found
   by counting the delimiters and marking begin and end.
 
-   @param salt_being[in]  Pointer to start of crypt passwd
-   @param salt_being[out] Pointer to first byte of the salt
-   @param salt_end[in]    Pointer to the last byte in passwd
-   @param salt_end[out]   Pointer to the byte immediatly following the salt ($)
+   @param [in,out] salt_begin  As input, pointer to start of crypt passwd,
+                           as output, pointer to first byte of the salt
+   @param [in,out] salt_end    As input, pointer to the last byte in passwd,
+                           as output, pointer to the byte immediatly following the salt ($)
 
    @return The size of the salt identified
 */
@@ -202,11 +216,6 @@ int extract_user_salt(char **salt_begin,
   return *salt_end - *salt_begin;
 }
 
-const char *sha256_find_digest(char *pass)
-{
-  int sz= strlen(pass);
-  return pass + sz - SHA256_HASH_LENGTH;
-}
 
 /*
  * Portions of the below code come from crypt_bsdmd5.so (bsdmd5.c) :
@@ -246,7 +255,7 @@ my_crypt_genhash(char *ctbuffer,
                    const char *plaintext,
                    size_t plaintext_len,
                    const char *switchsalt,
-                   const char **params)
+                   const char **)
 {
   int salt_len;
   size_t i;

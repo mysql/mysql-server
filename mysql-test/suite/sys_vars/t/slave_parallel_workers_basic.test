@@ -10,8 +10,8 @@ eval set @save.$var= @@global.$var;
 eval select @@session.$var;
 
 --disable_warnings
-select variable_name from information_schema.global_variables where variable_name='$var';
-select variable_name from information_schema.session_variables where variable_name='$var';
+select variable_name from performance_schema.global_variables where variable_name='$var';
+select variable_name from performance_schema.session_variables where variable_name='$var';
 --enable_warnings
 
 #

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2010, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2010, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -87,7 +87,6 @@ struct fts_psort_t {
 	ulint			state;		/*!< parent thread state */
 	fts_doc_list_t		fts_doc_list;	/*!< doc list to process */
 	fts_psort_common_t*	psort_common;	/*!< ptr to all psort info */
-	os_thread_id_t		thread_hdl;	/*!< thread handle */
 	dberr_t			error;		/*!< db error during psort */
 	ulint			memory_used;	/*!< memory used by fts_doc_list */
 	ib_mutex_t		mutex;		/*!< mutex for fts_doc_list */
@@ -197,9 +196,8 @@ row_fts_psort_info_init(
 					store Doc ID during sort */
 	fts_psort_t**		psort,	/*!< out: parallel sort info to be
 					instantiated */
-	fts_psort_t**		merge)	/*!< out: parallel merge info
+	fts_psort_t**		merge);	/*!< out: parallel merge info
 					to be instantiated */
-	MY_ATTRIBUTE((nonnull));
 /********************************************************************//**
 Clean up and deallocate FTS parallel sort structures, and close
 temparary merge sort files */
@@ -216,44 +214,17 @@ row_fts_free_pll_merge_buf(
 	fts_psort_t*	psort_info);	/*!< in: parallel sort info */
 
 /*********************************************************************//**
-Function performs parallel tokenization of the incoming doc strings.
-@return OS_THREAD_DUMMY_RETURN */
-os_thread_ret_t
-fts_parallel_tokenization(
-/*======================*/
-	void*		arg);		/*!< in: psort_info for the thread */
-/*********************************************************************//**
 Start the parallel tokenization and parallel merge sort */
 void
 row_fts_start_psort(
 /*================*/
 	fts_psort_t*	psort_info);	/*!< in: parallel sort info */
 /*********************************************************************//**
-Function performs the merge and insertion of the sorted records.
-@return OS_THREAD_DUMMY_RETURN */
-os_thread_ret_t
-fts_parallel_merge(
-/*===============*/
-	void*		arg);		/*!< in: parallel merge info */
-/*********************************************************************//**
 Kick off the parallel merge and insert thread */
 void
 row_fts_start_parallel_merge(
 /*=========================*/
 	fts_psort_t*	merge_info);	/*!< in: parallel sort info */
-/********************************************************************//**
-Read sorted FTS data files and insert data tuples to auxillary tables.
-@return DB_SUCCESS or error number */
-void
-row_fts_insert_tuple(
-/*=================*/
-	fts_psort_insert_t*
-			ins_ctx,        /*!< in: insert context */
-	fts_tokenizer_word_t* word,	/*!< in: last processed
-					tokenized word */
-	ib_vector_t*	positions,	/*!< in: word position */
-	doc_id_t*	in_doc_id,	/*!< in: last item doc id */
-	dtuple_t*	dtuple);	/*!< in: entry to insert */
 /********************************************************************//**
 Propagate a newly added record up one level in the selection tree
 @return parent where this value propagated to */
@@ -266,16 +237,18 @@ row_merge_fts_sel_propagate(
 	const mrec_t**	 mrec,		/*<! in: sort record */
 	ulint**		offsets,	/*<! in: record offsets */
 	dict_index_t*	index);		/*<! in: FTS index */
-/********************************************************************//**
-Read sorted file containing index data tuples and insert these data
+
+/** Read sorted file containing index data tuples and insert these data
 tuples to the index
+@param[in]	index		index
+@param[in]	table		new table
+@param[in]	psort_info	parallel sort info
+@param[in]	id		which auxiliary table's data to insert to
 @return DB_SUCCESS or error number */
 dberr_t
 row_fts_merge_insert(
-/*=================*/
-	dict_index_t*	index,		/*!< in: index */
-	dict_table_t*	table,		/*!< in: new table */
-	fts_psort_t*	psort_info,	/*!< parallel sort info */
-	ulint		id);		/* !< in: which auxiliary table's data
-					to insert to */
+	dict_index_t*	index,
+	dict_table_t*	table,
+	fts_psort_t*	psort_info,
+	ulint		id);
 #endif /* row0ftsort_h */

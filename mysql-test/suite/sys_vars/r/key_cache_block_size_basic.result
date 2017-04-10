@@ -101,12 +101,12 @@ SELECT @@session.key_cache_block_size;
 ERROR HY000: Variable 'key_cache_block_size' is a GLOBAL variable
 '#----------------------FN_DYNVARS_057_06------------------------#'
 SELECT @@global.key_cache_block_size = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='key_cache_block_size';
 @@global.key_cache_block_size = VARIABLE_VALUE
 1
 SELECT @@key_cache_block_size = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+FROM performance_schema.session_variables 
 WHERE VARIABLE_NAME='key_cache_block_size';
 @@key_cache_block_size = VARIABLE_VALUE
 1

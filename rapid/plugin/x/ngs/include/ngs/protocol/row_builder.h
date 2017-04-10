@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
+* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 *
 * This program is free software; you can redistribute it and/or
 * modify it under the terms of the GNU General Public License as
@@ -20,14 +20,17 @@
 #ifndef _NGS_ROW_BUILDER_H_
 #define _NGS_ROW_BUILDER_H_
 
-#include "m_ctype.h"
-#include "mysql_time.h"
+#include <sys/types.h>
+#include <set>
+#include <string>
+
 #include "decimal.h"
+#include "m_ctype.h"
+#include "my_inttypes.h"
 #include "mysql_com.h"
+#include "mysql_time.h"
 #include "ngs/protocol/message_builder.h"
 #include "ngs_common/protocol_protobuf.h"
-#include <string>
-#include <set>
 
 namespace ngs
 {
@@ -45,7 +48,7 @@ namespace ngs
     void end_row();
 
     void add_null_field();
-    void add_longlong_field(longlong value, my_bool unsigned_flag);
+    void add_longlong_field(longlong value, bool unsigned_flag);
     void add_decimal_field(const decimal_t * value);
     void add_decimal_field(const char * const value, size_t length);
     void add_double_field(double value);

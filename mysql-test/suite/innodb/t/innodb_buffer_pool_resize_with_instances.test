@@ -1,0 +1,26 @@
+#
+# BUG#24287290 BUF POOL MUTEX ORDER VIOLATION IN BUF_POOL_RESIZE
+#              WITH MULTIPLE INSTANCES
+#
+
+--source include/have_innodb_max_16k.inc
+--source include/have_debug.inc
+
+let $wait_timeout = 180;
+let $wait_condition =
+  SELECT SUBSTR(variable_value, 1, 34) = 'Completed resizing buffer pool at '
+  FROM performance_schema.global_status
+  WHERE LOWER(variable_name) = 'innodb_buffer_pool_resize_status';
+
+set @old_innodb_buffer_pool_size = @@innodb_buffer_pool_size;
+
+# Expand buffer pool
+set global innodb_buffer_pool_size = 50331648;
+
+--source include/wait_condition.inc
+
+select @@innodb_buffer_pool_size;
+
+# Shrink buffer pool
+set global innodb_buffer_pool_size = @old_innodb_buffer_pool_size;
+--source include/wait_condition.inc

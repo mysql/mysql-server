@@ -156,13 +156,13 @@ SELECT @@time_zone;
 SYSTEM
 '#----------------------FN_DYNVARS_001_06------------------------#'
 SELECT @@time_zone = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+FROM performance_schema.session_variables 
 WHERE VARIABLE_NAME='time_zone';
 @@time_zone = VARIABLE_VALUE
 1
 '#----------------------FN_DYNVARS_001_07------------------------#'
 SELECT @@global.time_zone = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='time_zone';
 @@global.time_zone = VARIABLE_VALUE
 1

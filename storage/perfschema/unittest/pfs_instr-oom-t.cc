@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -13,24 +13,20 @@
   along with this program; if not, write to the Free Software Foundation,
   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include <my_global.h>
 #include <my_thread.h>
-#include <pfs_instr.h>
-#include <pfs_stat.h>
-#include <pfs_global.h>
-#include <pfs_user.h>
-#include <pfs_host.h>
+#include <pfs.h>
 #include <pfs_account.h>
-#include <pfs_instr_class.h>
 #include <pfs_buffer_container.h>
+#include <pfs_global.h>
+#include <pfs_host.h>
+#include <pfs_instr.h>
+#include <pfs_instr_class.h>
+#include <pfs_stat.h>
+#include <pfs_user.h>
+#include <string.h> /* memset */
 #include <tap.h>
 
 #include "stub_pfs_global.h"
-#include "stub_global_status_var.h"
-
-#include <string.h> /* memset */
-
-extern struct PSI_bootstrap PFS_bootstrap;
 
 PSI_thread_key thread_key_1;
 PSI_thread_info all_thread[]=
@@ -40,10 +36,9 @@ PSI_thread_info all_thread[]=
 
 /** Simulate initialize_performance_schema(). */
 
-PSI * initialize_performance_schema_helper(PFS_global_param *param)
+static PSI_thread_service_t * initialize_performance_schema_helper(PFS_global_param *param)
 {
-  PSI *psi;
-
+  PSI_thread_service_t *thread_service;
   stub_alloc_always_fails= false;
   stub_alloc_fails_after_count= 1000;
 
@@ -88,16 +83,15 @@ PSI * initialize_performance_schema_helper(PFS_global_param *param)
   init_prepared_stmt(param);
   pfs_initialized= true;
 
-  PSI_bootstrap *boot= &PFS_bootstrap;
-  psi= (PSI *)boot->get_interface(PSI_VERSION_1);
-  psi->register_thread("test", all_thread, 1);
-  return (psi);
+  thread_service= (PSI_thread_service_t *)pfs_thread_bootstrap.get_interface(PSI_THREAD_VERSION_1);
+  thread_service->register_thread("test", all_thread, 1);
+  return (thread_service);
 }
 
-void test_oom()
+static void test_oom()
 {
   int rc;
-  PSI *psi;
+  PSI_thread_service_t *thread_service;
   PFS_global_param param;
 
   stub_alloc_always_fails= false;
@@ -292,79 +286,97 @@ void test_oom()
   param.m_rwlock_class_sizing= 50;
   param.m_cond_class_sizing= 50;
   param.m_file_class_sizing= 50;
-  param.m_socket_class_sizing= 0;
-  psi= initialize_performance_schema_helper(&param);
+  thread_service= initialize_performance_schema_helper(&param);
   stub_alloc_fails_after_count= 2;
-  thread= psi->new_thread(thread_key_1, NULL, 0);
+  thread= thread_service->new_thread(thread_key_1, NULL, 0);
   ok(thread == NULL, "oom (per thread wait)");
+
+  cleanup_sync_class();
+  cleanup_thread_class();
+  cleanup_file_class();
   cleanup_instruments();
 
   /* Thread waits history sizing. */
   memset(&param, 0, sizeof(param));
   param.m_enabled= true;
   param.m_events_waits_history_sizing= 10;
-  psi= initialize_performance_schema_helper(&param);
+  thread_service= initialize_performance_schema_helper(&param);
   stub_alloc_fails_after_count= 3;
-  thread= psi->new_thread(thread_key_1, NULL, 0);
+  thread= thread_service->new_thread(thread_key_1, NULL, 0);
   ok(thread == NULL, "oom (thread waits history sizing)");
+
+  cleanup_thread_class();
   cleanup_instruments();
 
   /* Per thread stages. */
   memset(&param, 0, sizeof(param));
   param.m_stage_class_sizing= 50;
-  psi= initialize_performance_schema_helper(&param);
+  thread_service= initialize_performance_schema_helper(&param);
   stub_alloc_fails_after_count= 3;
-  thread= psi->new_thread(thread_key_1, NULL, 0);
+  thread= thread_service->new_thread(thread_key_1, NULL, 0);
   ok(thread == NULL, "oom (per thread stages)");
-  cleanup_instruments();
+
   cleanup_stage_class();
+  cleanup_thread_class();
+  cleanup_instruments();
 
   /* Thread stages history sizing. */
   memset(&param, 0, sizeof(param));
   param.m_events_stages_history_sizing= 10;
-  psi= initialize_performance_schema_helper(&param);
+  thread_service= initialize_performance_schema_helper(&param);
   stub_alloc_fails_after_count= 3;
-  thread= psi->new_thread(thread_key_1, NULL, 0);
+  thread= thread_service->new_thread(thread_key_1, NULL, 0);
   ok(thread == NULL, "oom (thread stages history sizing)");
+  
   cleanup_instruments();
+  cleanup_thread_class();
 
   /* Per thread statements. */
   memset(&param, 0, sizeof(param));
   param.m_stage_class_sizing= 50;
-  psi= initialize_performance_schema_helper(&param);
+  thread_service= initialize_performance_schema_helper(&param);
   init_statement_class(param.m_statement_class_sizing);
   stub_alloc_fails_after_count= 3;
-  thread= psi->new_thread(thread_key_1, NULL, 0);
+  thread= thread_service->new_thread(thread_key_1, NULL, 0);
   ok(thread == NULL, "oom (per thread statements)");
-  cleanup_instruments();
+
+  cleanup_stage_class();
   cleanup_statement_class();
+  cleanup_thread_class();
+  cleanup_instruments();
 
   /* Thread statements history sizing. */
   memset(&param, 0, sizeof(param));
   param.m_events_statements_history_sizing= 10;
-  psi= initialize_performance_schema_helper(&param);
+  thread_service= initialize_performance_schema_helper(&param);
   stub_alloc_fails_after_count= 3;
-  thread= psi->new_thread(thread_key_1, NULL, 0);
+  thread= thread_service->new_thread(thread_key_1, NULL, 0);
   ok(thread == NULL, "oom (thread statements history sizing)");
+  
+  cleanup_thread_class();
   cleanup_instruments();
 
   /* Per thread transactions. */
   memset(&param, 0, sizeof(param));
-  psi= initialize_performance_schema_helper(&param);
+  thread_service= initialize_performance_schema_helper(&param);
   transaction_class_max= 1; // set by register_global_classes();
   stub_alloc_fails_after_count= 3;
-  thread= psi->new_thread(thread_key_1, NULL, 0);
+  thread= thread_service->new_thread(thread_key_1, NULL, 0);
   ok(thread == NULL, "oom (per thread transactions)");
   transaction_class_max= 0;
+
+  cleanup_thread_class();
   cleanup_instruments();
 
   /* Thread transactions history sizing. */
   memset(&param, 0, sizeof(param));
   param.m_events_transactions_history_sizing= 10;
-  psi= initialize_performance_schema_helper(&param);
+  thread_service= initialize_performance_schema_helper(&param);
   stub_alloc_fails_after_count= 3;
-  thread= psi->new_thread(thread_key_1, NULL, 0);
+  thread= thread_service->new_thread(thread_key_1, NULL, 0);
   ok(thread == NULL, "oom (thread transactions history sizing)");
+
+  cleanup_thread_class();
   cleanup_instruments();
 
   /* Global stages. */
@@ -379,8 +391,9 @@ void test_oom()
   ok(rc == 0, "init stage class");
   rc= init_instruments(& param);
   ok(rc == 1, "oom (global stages)");
-  cleanup_instruments();
+
   cleanup_stage_class();
+  cleanup_instruments();
 
   /* Global statements. */
   memset(&param, 0, sizeof(param));
@@ -394,8 +407,9 @@ void test_oom()
   ok(rc == 0, "init statement class");
   rc= init_instruments(&param);
   ok(rc == 1, "oom (global statements)");
-  cleanup_instruments();
+
   cleanup_statement_class();
+  cleanup_instruments();
 
   /* Global memory. */
   memset(&param, 0, sizeof(param));
@@ -409,11 +423,12 @@ void test_oom()
   ok(rc == 0, "init memory class");
   rc= init_instruments(& param);
   ok(rc == 1, "oom (global memory)");
-  cleanup_instruments();
+
   cleanup_memory_class();
+  cleanup_instruments();
 }
 
-void do_all_tests()
+static void do_all_tests()
 {
   test_oom();
 }
@@ -423,6 +438,6 @@ int main(int, char **)
   plan(32);
   MY_INIT("pfs_instr-oom-t");
   do_all_tests();
-  return 0;
+  return (exit_status());
 }
 

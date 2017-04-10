@@ -1,5 +1,3 @@
-
--- source include/have_ujis.inc
 -- source include/big_test.inc
 
 #
@@ -1341,14 +1339,12 @@ DROP TABLE t1;
 
 set names ujis;
 --source include/weight_string.inc
---source include/weight_string_l1.inc
 --source include/weight_string_A1A1.inc
 --source include/weight_string_8EA1.inc
 --source include/weight_string_8FA2C3.inc
 
 set collation_connection=ujis_bin;
 --source include/weight_string.inc
---source include/weight_string_l1.inc
 --source include/weight_string_A1A1.inc
 --source include/weight_string_8EA1.inc
 --source include/weight_string_8FA2C3.inc

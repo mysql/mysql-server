@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -35,21 +35,26 @@ struct sync_cell_t;
 /** Synchronization wait array */
 struct sync_array_t;
 
-/******************************************************************//**
-Get an instance of the sync wait array and reserve a wait array cell
-in the instance for waiting for an object. The event of the cell is
-reset to nonsignalled state.
-If reserving cell of the instance fails, try to get another new
-instance until we can reserve an empty cell of it.
+/** Get an instance of the sync wait array and reserve a wait array cell in
+the instance for waiting for an object. The event of the cell is reset to
+nonsignalled state.
+If reserving cell of the instance fails, try to get another new instance until
+we can reserve an empty cell of it.
+@param[in]	object	pointer to the object to wait for
+@param[in]	type	lock request type
+@param[in]	file	file where requested
+@param[in]	line	line where requested
+@param[out]	cell	the cell reserved, never NULL
 @return the sync array found, never NULL. */
 UNIV_INLINE
 sync_array_t*
 sync_array_get_and_reserve_cell(
-	void*		object,	/*!< in: pointer to the object to wait for */
-	ulint		type,	/*!< in: lock request type */
-	const char*	file,	/*!< in: file where requested */
-	ulint		line,	/*!< in: line where requested */
-	sync_cell_t**	cell);	/*!< out: the cell reserved, never NULL */
+	void*		object,
+	ulint		type,
+	const char*	file,
+	ulint		line,
+	sync_cell_t**	cell);
+
 /******************************************************************//**
 Reserves a wait array cell for waiting for an object.
 The event of the cell is reset to nonsignalled state. */
@@ -99,13 +104,6 @@ sync_array_print_long_waits(
 	os_thread_id_t*	waiter,	/*!< out: longest waiting thread */
 	const void**	sema);	/*!< out: longest-waited-for semaphore */
 
-/********************************************************************//**
-Validates the integrity of the wait array. Checks
-that the number of reserved cells equals the count variable. */
-void
-sync_array_validate(
-	sync_array_t*	arr);	/*!< in: sync wait array */
-
 /**********************************************************************//**
 Prints info of the wait array. */
 void
@@ -129,8 +127,6 @@ UNIV_INLINE
 sync_array_t*
 sync_array_get();
 
-#ifndef UNIV_NONINL
 #include "sync0arr.ic"
-#endif /* UNIV_NOINL */
 
 #endif /* sync0arr_h */

@@ -1,4 +1,3 @@
---source include/have_partition.inc
 SET @auto= @@global.autocommit;
 SET @@global.autocommit= off;
 SET @iso= @@global.tx_isolation;

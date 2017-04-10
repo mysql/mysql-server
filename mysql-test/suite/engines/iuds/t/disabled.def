@@ -1,5 +1,3 @@
-insert_calendar : Bug#52283 Innodb reports extra warnings when SELECT/WHERE is performed using invalid value
-update_delete_calendar : Bug#52824 + Bug#52283(in case of Innodb)
-type_bit_iuds : Anitha: Bug#11766521 SELECT DOES NOT RETURN RESULT FOR "EQUAL / NULL SAFE EQUAL" OPERATOR ON B
-update_delete_number : Bug#20415775 disabled this on 2015-01-28 due to failing too often
+# List of disabled tests
+# test name : comment
 

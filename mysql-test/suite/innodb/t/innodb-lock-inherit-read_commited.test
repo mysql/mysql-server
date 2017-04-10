@@ -2,7 +2,6 @@
 --echo # Bug #21025880	DUPLICATE UK VALUES IN READ-COMMITTED(AGAIN)
 --echo #
 
---source include/have_innodb.inc
 --source include/have_debug.inc
 --source include/have_debug_sync.inc
 
@@ -75,7 +74,7 @@ SET GLOBAL innodb_purge_run_now=ON;
 
 # Wait for purge to delete the delete-marked record
 let $wait_condition=
-    SELECT COUNT(*) = 1 FROM INFORMATION_SCHEMA.GLOBAL_STATUS
+    SELECT COUNT(*) = 1 FROM performance_schema.global_status
     WHERE VARIABLE_NAME='INNODB_PURGE_TRX_ID_AGE' AND VARIABLE_VALUE=2;
 --source include/wait_condition.inc
 

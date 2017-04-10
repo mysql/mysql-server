@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,10 +15,16 @@
 
 
 #include "semisync_slave.h"
-#include "mysql.h"
-#include "debug_sync.h"
 
-char rpl_semi_sync_slave_enabled;
+#include <assert.h>
+#include <sys/types.h>
+
+#include "current_thd.h"
+#include "debug_sync.h"
+#include "my_dbug.h"
+#include "mysql.h"
+
+bool rpl_semi_sync_slave_enabled;
 char rpl_semi_sync_slave_status= 0;
 unsigned long rpl_semi_sync_slave_trace_level;
 
@@ -86,7 +92,7 @@ int ReplSemiSyncSlave::slaveStart(Binlog_relay_IO_param *param)
   return 0;
 }
 
-int ReplSemiSyncSlave::slaveStop(Binlog_relay_IO_param *param)
+int ReplSemiSyncSlave::slaveStop(Binlog_relay_IO_param*)
 {
   if (rpl_semi_sync_slave_status)
     rpl_semi_sync_slave_status= 0;

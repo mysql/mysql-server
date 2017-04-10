@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,10 +21,10 @@
 #include <NDBT.hpp>
 
 static const char* opt_dbname = 0;
-static my_bool opt_check_orphans = false;
-static my_bool opt_delete_orphans = false;
+static bool opt_check_orphans = false;
+static bool opt_delete_orphans = false;
 static const char* opt_dump_file = 0;
-static my_bool opt_verbose = false;
+static bool opt_verbose = false;
 
 static FILE* g_dump_file = 0;
 static FileOutputStream* g_dump_out = 0;
@@ -127,7 +127,7 @@ doconnect()
   do
   {
     g_ncc = new Ndb_cluster_connection(opt_ndb_connectstring);
-    CHK2(g_ncc->connect(6, 5) == 0, getNdbError(g_ncc));
+    CHK2(g_ncc->connect(opt_connect_retries - 1, opt_connect_retry_delay) == 0, getNdbError(g_ncc));
     CHK2(g_ncc->wait_until_ready(30, 10) == 0, getNdbError(g_ncc));
 
     g_ndb = new Ndb(g_ncc, opt_dbname);

@@ -2,7 +2,7 @@
 
 ## Preamble
 --source ../include/have_performance_schema_threads.inc
---source ../include/xplugin_preamble.inc
+--source include/xplugin_preamble.inc
 
 # Tests
 --write_file $MYSQL_TMP_DIR/performance_schema.tmp
@@ -930,15 +930,6 @@ Mysqlx.Crud.Find {
 -->recvresult
 -->recvresult
 
-#
-# Bug#22859462: SQL STMT EXECUTED THROUGH PLUGIN SERVICE API DON'T APPEAR IN PERFORMANCE SCHEMA
-#
--->sql
-TRUNCATE TABLE performance_schema.events_statements_summary_by_digest;
-SELECT 1;
-SELECT SCHEMA_NAME, DIGEST, DIGEST_TEXT, COUNT_STAR from performance_schema.events_statements_summary_by_digest ORDER BY DIGEST;
--->endsql
-
 EOF
 
 
@@ -960,3 +951,8 @@ where EVENT_NAME rlike '^wait/synch/(cond|mutex)/mysqlx/(queue|client_session|ob
 UNINSTALL PLUGIN mysqlx;
 update performance_schema.setup_instruments set ENABLED='YES'
 where NAME rlike '^wait/synch/(cond|mutex)/mysqlx/(lock_list_access|scheduler_dynamic_worker_pending)$';
+
+-- echo # Check if any classes are not lost, this may happen if they are already
+-- echo # just on the limit
+SELECT * FROM performance_schema.global_status
+  WHERE variable_name LIKE '%_LOST' AND variable_value > 0;

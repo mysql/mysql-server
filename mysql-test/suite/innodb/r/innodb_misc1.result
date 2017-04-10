@@ -44,11 +44,13 @@ drop table t1;
 create table t1 (a int not null auto_increment primary key, val int) engine=InnoDB;
 insert into t1 (val) values (1);
 update t1 set a=2 where a=1;
-insert into t1 (val) values (1);
+insert into t1 values (2, 2);
 ERROR 23000: Duplicate entry '2' for key 'PRIMARY'
+insert into t1 (val) value (3);
 select * from t1;
 a	val
 2	1
+3	3
 drop table t1;
 CREATE TABLE t1 (GRADE DECIMAL(4) NOT NULL, PRIMARY KEY (GRADE)) ENGINE=INNODB;
 INSERT INTO t1 (GRADE) VALUES (151),(252),(343);
@@ -125,48 +127,48 @@ drop table t1, t2, t3, t4, t5, t6, t7, t8;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 Warnings:
 Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
-SET GLOBAL innodb_large_prefix=OFF;
-Warnings:
-Warning	131	Using innodb_large_prefix is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.7/en/innodb-file-format.html
-create table t1 (col1 varchar(768), index(col1))
-character set = latin1 engine = innodb;
-Warnings:
-Warning	1071	Specified key was too long; max key length is 767 bytes
-create table t2 (col1 varbinary(768), index(col1))
-character set = latin1 engine = innodb;
-Warnings:
-Warning	1071	Specified key was too long; max key length is 767 bytes
-create table t3 (col1 text, index(col1(768)))
-character set = latin1 engine = innodb;
-Warnings:
-Warning	1071	Specified key was too long; max key length is 767 bytes
-create table t4 (col1 blob, index(col1(768)))
-character set = latin1 engine = innodb;
-Warnings:
-Warning	1071	Specified key was too long; max key length is 767 bytes
-show create table t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `col1` varchar(768) DEFAULT NULL,
-  KEY `col1` (`col1`(767))
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-drop table t1, t2, t3, t4;
-SET sql_mode = default;
+SET GLOBAL innodb_default_row_format=compact;
 create table t1 (col1 varchar(768) primary key)
 character set = latin1 engine = innodb;
-ERROR 42000: Specified key was too long; max key length is 767 bytes
+ERROR HY000: Index column size too large. The maximum column size is 767 bytes.
 create table t2 (col1 varbinary(768) primary key)
 character set = latin1 engine = innodb;
-ERROR 42000: Specified key was too long; max key length is 767 bytes
+ERROR HY000: Index column size too large. The maximum column size is 767 bytes.
 create table t3 (col1 text, primary key(col1(768)))
 character set = latin1 engine = innodb;
-ERROR 42000: Specified key was too long; max key length is 767 bytes
+ERROR HY000: Index column size too large. The maximum column size is 767 bytes.
 create table t4 (col1 blob, primary key(col1(768)))
 character set = latin1 engine = innodb;
-ERROR 42000: Specified key was too long; max key length is 767 bytes
-SET GLOBAL innodb_large_prefix=default;
-Warnings:
-Warning	131	Using innodb_large_prefix is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.7/en/innodb-file-format.html
+ERROR HY000: Index column size too large. The maximum column size is 767 bytes.
+SET GLOBAL innodb_default_row_format=dynamic;
+create table t1 (col1 varchar(768) primary key)
+character set = latin1 engine = innodb;
+drop table t1;
+create table t2 (col1 varbinary(768) primary key)
+character set = latin1 engine = innodb;
+drop table t2;
+create table t3 (col1 text, primary key(col1(768)))
+character set = latin1 engine = innodb;
+drop table t3;
+create table t4 (col1 blob, primary key(col1(768)))
+character set = latin1 engine = innodb;
+drop table t4;
+SET GLOBAL innodb_default_row_format=default;
+SET sql_mode = default;
+SET GLOBAL innodb_default_row_format=compact;
+create table t1 (col1 varchar(768) primary key)
+character set = latin1 engine = innodb;
+ERROR HY000: Index column size too large. The maximum column size is 767 bytes.
+create table t2 (col1 varbinary(768) primary key)
+character set = latin1 engine = innodb;
+ERROR HY000: Index column size too large. The maximum column size is 767 bytes.
+create table t3 (col1 text, primary key(col1(768)))
+character set = latin1 engine = innodb;
+ERROR HY000: Index column size too large. The maximum column size is 767 bytes.
+create table t4 (col1 blob, primary key(col1(768)))
+character set = latin1 engine = innodb;
+ERROR HY000: Index column size too large. The maximum column size is 767 bytes.
+SET GLOBAL innodb_default_row_format=default;
 CREATE TABLE t1
 (
 id INT PRIMARY KEY
@@ -777,10 +779,13 @@ drop table t1;
 set @save_innodb_file_per_table= @@global.innodb_file_per_table;
 set @@global.innodb_file_per_table=0;
 create table t1 (id int) comment='this is a comment' engine=innodb;
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 select table_comment, data_free > 0 as data_free_is_set
 from information_schema.tables
 where table_schema='test' and table_name = 't1';
-table_comment	data_free_is_set
+TABLE_COMMENT	data_free_is_set
 this is a comment	1
 drop table t1;
 set @@global.innodb_file_per_table= @save_innodb_file_per_table;
@@ -794,6 +799,9 @@ c1 INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
 c2 INT(10) UNSIGNED DEFAULT NULL,
 PRIMARY KEY(c1)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 AUTO_INCREMENT=200;
+ANALYZE TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	analyze	status	OK
 SELECT AUTO_INCREMENT FROM INFORMATION_SCHEMA.TABLES WHERE table_name = 't2';
 AUTO_INCREMENT
 200
@@ -815,11 +823,11 @@ TRUNCATE TABLE t1;
 affected rows: 0
 DROP TABLE t1;
 Variable_name	Value
-Handler_update	0
+Handler_update	2
 Variable_name	Value
 Handler_delete	0
 Variable_name	Value
-Handler_update	1
+Handler_update	3
 Variable_name	Value
 Handler_delete	1
 count_alloc WHERE event_name like 'memory/innodb/other'

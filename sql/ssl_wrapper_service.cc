@@ -1,4 +1,4 @@
-/*  Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/*  Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
     This program is free software; you can redistribute it and/or
     modify it under the terms of the GNU General Public License as
@@ -20,15 +20,16 @@
   the function comments.
 */
 
-#include <my_global.h>
-#include "mysql/service_rules_table.h"
+#include <string.h>
+
+#include "my_compiler.h"
+#include "my_io.h"  // IWYU pragma: keep (for Winsock definitions)
 #include "openssl/ssl.h"
+
 #if defined(HAVE_YASSL)
 using namespace yaSSL;
 #endif // defined(HAVE_YASSL)
-#include "mysql/service_ssl_wrapper.h"
-
-#ifndef EMBEDDED_LIBRARY
+#include "mysql/service_ssl_wrapper.h"  // IWYU pragma: keep
 
 namespace ssl_wrappe_service
 {
@@ -327,5 +328,3 @@ void ssl_wrapper_thread_cleanup()
 }
 
 } /* extern "C" */
-
-#endif // EMBEDDED_LIBRARY

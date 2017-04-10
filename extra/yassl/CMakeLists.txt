@@ -26,14 +26,12 @@ ADD_DEFINITIONS(-Dget_tty_password_ext=yassl_mysql_get_tty_password_ext)
 ADD_DEFINITIONS(-Dget_tty_password=yassl_mysql_get_tty_password)
 
 
-MY_CHECK_CXX_COMPILER_FLAG("-Wno-unused-const-variable" HAVE_NO_UNUSED_CONST_VAR)
-
-IF(CMAKE_GENERATOR MATCHES "Xcode" AND HAVE_NO_UNUSED_CONST_VAR)
+IF(CMAKE_GENERATOR MATCHES "Xcode")
   INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
   ADD_COMPILE_FLAGS(
     src/yassl_int.cpp
     src/socket_wrapper.cpp
-    COMPILE_FLAGS -Wno-unused-const-variable)
+    COMPILE_FLAGS "-Wno-unused-const-variable")
 ENDIF()
 
 SET(YASSL_SOURCES  src/buffer.cpp src/cert_wrapper.cpp src/crypto_wrapper.cpp src/handshake.cpp src/lock.cpp 

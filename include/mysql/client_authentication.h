@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,7 +14,11 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #ifndef CLIENT_AUTHENTICATION_H
 #define CLIENT_AUTHENTICATION_H
-#include <my_global.h>
+
+/**
+  @file include/mysql/client_authentication.h
+*/
+
 #include "mysql.h"
 #include "mysql/client_plugin.h"
 

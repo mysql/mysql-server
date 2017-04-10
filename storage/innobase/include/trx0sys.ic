@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -63,31 +63,6 @@ trx_sys_hdr_page(
 	       && page_id.page_no() == TRX_SYS_PAGE_NO);
 }
 
-/***************************************************************//**
-Gets the pointer in the nth slot of the rseg array.
-@return pointer to rseg object, NULL if slot not in use */
-UNIV_INLINE
-trx_rseg_t*
-trx_sys_get_nth_rseg(
-/*=================*/
-	trx_sys_t*	sys,		/*!< in: trx system */
-	ulint		n,		/*!< in: index of slot */
-	bool		is_redo_rseg)	/*!< in: true if redo rseg. */
-{
-	ut_ad(n < TRX_SYS_N_RSEGS);
-
-	/* If redo rseg is being requested and id falls in range of
-	non-redo rseg that is from slot-1....slot-srv_tmp_undo_logs then
-	server is being upgraded from pre-5.7.2. In such case return
-	rseg from pending_purge_rseg_array array. */
-	if (is_redo_rseg && trx_sys_is_noredo_rseg_slot(n)) {
-		ut_ad(trx_sys->pending_purge_rseg_array[n] != NULL);
-		return(trx_sys->pending_purge_rseg_array[n]);
-	}
-
-	return(sys->rseg_array[n]);
-}
-
 /**********************************************************************//**
 Gets a pointer to the transaction system header and x-latches its page.
 @return pointer to system header, page x-latched. */
@@ -116,7 +91,7 @@ Gets the space of the nth rollback segment slot in the trx system
 file copy.
 @return space id */
 UNIV_INLINE
-ulint
+space_id_t
 trx_sysf_rseg_get_space(
 /*====================*/
 	trx_sysf_t*	sys_header,	/*!< in: trx sys header */
@@ -127,8 +102,8 @@ trx_sysf_rseg_get_space(
 	ut_ad(i < TRX_SYS_N_RSEGS);
 
 	return(mtr_read_ulint(sys_header + TRX_SYS_RSEGS
-			      + i * TRX_SYS_RSEG_SLOT_SIZE
-			      + TRX_SYS_RSEG_SPACE, MLOG_4BYTES, mtr));
+			+ i * TRX_SYS_RSEG_SLOT_SIZE
+			+ TRX_SYS_RSEG_SPACE, MLOG_4BYTES, mtr));
 }
 
 /*****************************************************************//**
@@ -136,19 +111,19 @@ Gets the page number of the nth rollback segment slot in the trx system
 header.
 @return page number, FIL_NULL if slot unused */
 UNIV_INLINE
-ulint
+page_no_t
 trx_sysf_rseg_get_page_no(
 /*======================*/
 	trx_sysf_t*	sys_header,	/*!< in: trx system header */
-	ulint		i,		/*!< in: slot index == rseg id */
+	ulint		slot,		/*!< in: slot index == rseg id */
 	mtr_t*		mtr)		/*!< in: mtr */
 {
 	ut_ad(sys_header);
-	ut_ad(i < TRX_SYS_N_RSEGS);
+	ut_ad(slot < TRX_SYS_N_RSEGS);
 
 	return(mtr_read_ulint(sys_header + TRX_SYS_RSEGS
-			      + i * TRX_SYS_RSEG_SLOT_SIZE
-			      + TRX_SYS_RSEG_PAGE_NO, MLOG_4BYTES, mtr));
+			+ slot * TRX_SYS_RSEG_SLOT_SIZE
+			+ TRX_SYS_RSEG_PAGE_NO, MLOG_4BYTES, mtr));
 }
 
 /*****************************************************************//**
@@ -160,7 +135,7 @@ trx_sysf_rseg_set_space(
 /*====================*/
 	trx_sysf_t*	sys_header,	/*!< in: trx sys file copy */
 	ulint		i,		/*!< in: slot index == rseg id */
-	ulint		space,		/*!< in: space id */
+	space_id_t	space,		/*!< in: space id */
 	mtr_t*		mtr)		/*!< in: mtr */
 {
 	ut_ad(sys_header);
@@ -182,7 +157,7 @@ trx_sysf_rseg_set_page_no(
 /*======================*/
 	trx_sysf_t*	sys_header,	/*!< in: trx sys header */
 	ulint		i,		/*!< in: slot index == rseg id */
-	ulint		page_no,	/*!< in: page number, FIL_NULL if the
+	page_no_t	page_no,	/*!< in: page number, FIL_NULL if the
 					slot is reset to unused */
 	mtr_t*		mtr)		/*!< in: mtr */
 {
@@ -213,18 +188,6 @@ trx_write_trx_id(
 #endif
 	ut_ad(id > 0);
 	mach_write_to_6(ptr, id);
-}
-
-/*****************************************************************//**
-Check if slot-id is reserved slot-id for noredo rsegs. */
-UNIV_INLINE
-bool
-trx_sys_is_noredo_rseg_slot(
-/*========================*/
-	ulint	slot_id)	/*!< in: slot_id to check */
-{
-	/* Slots allocated from temp-tablespace are no-redo slots. */
-	return(slot_id > 0 && slot_id < (srv_tmp_undo_logs + 1));
 }
 
 #ifndef UNIV_HOTBACKUP
@@ -466,23 +429,23 @@ trx_sys_get_max_trx_id(void)
 #endif /* UNIV_WORD_SIZE < DATA_TRX_ID_LEN */
 }
 
-/*****************************************************************//**
-Get the number of transaction in the system, independent of their state.
-@return count of transactions in trx_sys_t::rw_trx_list */
+/** Determine if there are incomplete transactions in the system.
+@return whether incomplete transactions need rollback */
 UNIV_INLINE
-ulint
-trx_sys_get_n_rw_trx(void)
-/*======================*/
+bool
+trx_sys_need_rollback()
 {
 	ulint	n_trx;
 
 	trx_sys_mutex_enter();
 
 	n_trx = UT_LIST_GET_LEN(trx_sys->rw_trx_list);
+	ut_ad(n_trx >= trx_sys->n_prepared_trx);
+	n_trx -= trx_sys->n_prepared_trx;
 
 	trx_sys_mutex_exit();
 
-	return(n_trx);
+	return(n_trx > 0);
 }
 
 /**

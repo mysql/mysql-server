@@ -1,2 +1,0 @@
-let $engine= MyISAM;
---source suite/parts/inc/partition-dml-1-2.inc

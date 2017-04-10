@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -17,7 +17,7 @@ Fifth Floor, Boston, MA 02110-1301 USA
 *****************************************************************************/
 
 /**************************************************//**
-@file pars/pars0pars.c
+@file pars/pars0pars.cc
 SQL parser
 
 Created 11/19/1996 Heikki Tuuri
@@ -26,29 +26,26 @@ Created 11/19/1996 Heikki Tuuri
 /* Historical note: Innobase executed its first SQL string (CREATE TABLE)
 on 1/27/1998 */
 
-#include "ha_prototypes.h"
-
-#include "pars0pars.h"
-
-#ifdef UNIV_NONINL
-#include "pars0pars.ic"
-#endif
-
-#include "row0sel.h"
-#include "row0ins.h"
-#include "row0upd.h"
-#include "dict0dict.h"
-#include "dict0mem.h"
-#include "dict0crea.h"
-#include "que0que.h"
-#include "pars0grm.h"
-#include "pars0opt.h"
 #include "data0data.h"
 #include "data0type.h"
-#include "trx0trx.h"
-#include "trx0roll.h"
-#include "lock0lock.h"
+#include "dict0crea.h"
+#include "dict0dict.h"
+#include "dict0mem.h"
 #include "eval0eval.h"
+#include "ha_prototypes.h"
+#include "lock0lock.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "pars0grm.h"
+#include "pars0opt.h"
+#include "pars0pars.h"
+#include "que0que.h"
+#include "row0ins.h"
+#include "row0sel.h"
+#include "row0upd.h"
+#include "trx0roll.h"
+#include "trx0trx.h"
 
 /* Global variable used while parsing a single procedure or query : the code is
 NOT re-entrant */
@@ -57,20 +54,11 @@ sym_tab_t*	pars_sym_tab_global;
 /* Global variables used to denote certain reserved words, used in
 constructing the parsing tree */
 
-pars_res_word_t	pars_to_char_token = {PARS_TO_CHAR_TOKEN};
-pars_res_word_t	pars_to_number_token = {PARS_TO_NUMBER_TOKEN};
 pars_res_word_t	pars_to_binary_token = {PARS_TO_BINARY_TOKEN};
-pars_res_word_t	pars_binary_to_number_token = {PARS_BINARY_TO_NUMBER_TOKEN};
 pars_res_word_t	pars_substr_token = {PARS_SUBSTR_TOKEN};
-pars_res_word_t	pars_replstr_token = {PARS_REPLSTR_TOKEN};
 pars_res_word_t	pars_concat_token = {PARS_CONCAT_TOKEN};
 pars_res_word_t	pars_instr_token = {PARS_INSTR_TOKEN};
 pars_res_word_t	pars_length_token = {PARS_LENGTH_TOKEN};
-pars_res_word_t	pars_sysdate_token = {PARS_SYSDATE_TOKEN};
-pars_res_word_t	pars_printf_token = {PARS_PRINTF_TOKEN};
-pars_res_word_t	pars_assert_token = {PARS_ASSERT_TOKEN};
-pars_res_word_t	pars_rnd_token = {PARS_RND_TOKEN};
-pars_res_word_t	pars_rnd_str_token = {PARS_RND_STR_TOKEN};
 pars_res_word_t	pars_count_token = {PARS_COUNT_TOKEN};
 pars_res_word_t	pars_sum_token = {PARS_SUM_TOKEN};
 pars_res_word_t	pars_distinct_token = {PARS_DISTINCT_TOKEN};
@@ -89,7 +77,7 @@ pars_res_word_t	pars_share_token = {PARS_SHARE_TOKEN};
 pars_res_word_t	pars_unique_token = {PARS_UNIQUE_TOKEN};
 pars_res_word_t	pars_clustered_token = {PARS_CLUSTERED_TOKEN};
 
-/** Global variable used to denote the '*' in SELECT * FROM.. */
+/** Global variable used to denote the '*' in SELECT * FROM. */
 ulint	pars_star_denoter	= 12345678;
 
 /********************************************************************
@@ -205,21 +193,12 @@ pars_func_get_class(
 	case PARS_COUNT_TOKEN: case PARS_SUM_TOKEN:
 		return(PARS_FUNC_AGGREGATE);
 
-	case PARS_TO_CHAR_TOKEN:
-	case PARS_TO_NUMBER_TOKEN:
 	case PARS_TO_BINARY_TOKEN:
-	case PARS_BINARY_TO_NUMBER_TOKEN:
 	case PARS_SUBSTR_TOKEN:
 	case PARS_CONCAT_TOKEN:
 	case PARS_LENGTH_TOKEN:
 	case PARS_INSTR_TOKEN:
-	case PARS_SYSDATE_TOKEN:
 	case PARS_NOTFOUND_TOKEN:
-	case PARS_PRINTF_TOKEN:
-	case PARS_ASSERT_TOKEN:
-	case PARS_RND_TOKEN:
-	case PARS_RND_STR_TOKEN:
-	case PARS_REPLSTR_TOKEN:
 		return(PARS_FUNC_PREDEFINED);
 
 	default:
@@ -523,13 +502,6 @@ pars_resolve_func_data_type(
 		dtype_set(que_node_get_data_type(node), DATA_INT, 0, 4);
 		break;
 
-	case PARS_TO_CHAR_TOKEN:
-	case PARS_RND_STR_TOKEN:
-		ut_a(dtype_get_mtype(que_node_get_data_type(arg)) == DATA_INT);
-		dtype_set(que_node_get_data_type(node), DATA_VARCHAR,
-			  DATA_ENGLISH, 0);
-		break;
-
 	case PARS_TO_BINARY_TOKEN:
 		if (dtype_get_mtype(que_node_get_data_type(arg)) == DATA_INT) {
 			dtype_set(que_node_get_data_type(node), DATA_VARCHAR,
@@ -540,16 +512,9 @@ pars_resolve_func_data_type(
 		}
 		break;
 
-	case PARS_TO_NUMBER_TOKEN:
-	case PARS_BINARY_TO_NUMBER_TOKEN:
 	case PARS_LENGTH_TOKEN:
 	case PARS_INSTR_TOKEN:
 		ut_a(pars_is_string_type(que_node_get_data_type(arg)->mtype));
-		dtype_set(que_node_get_data_type(node), DATA_INT, 0, 4);
-		break;
-
-	case PARS_SYSDATE_TOKEN:
-		ut_a(arg == NULL);
 		dtype_set(que_node_get_data_type(node), DATA_INT, 0, 4);
 		break;
 
@@ -570,11 +535,6 @@ pars_resolve_func_data_type(
 	case PARS_NOTFOUND_TOKEN:
 
 		/* We currently have no iboolean type: use integer type */
-		dtype_set(que_node_get_data_type(node), DATA_INT, 0, 4);
-		break;
-
-	case PARS_RND_TOKEN:
-		ut_a(dtype_get_mtype(que_node_get_data_type(arg)) == DATA_INT);
 		dtype_set(que_node_get_data_type(node), DATA_INT, 0, 4);
 		break;
 
@@ -749,13 +709,11 @@ pars_resolve_exp_columns(
 	while (t_node) {
 		table = t_node->table;
 
-		n_cols = dict_table_get_n_cols(table);
+		n_cols = table->get_n_cols();
 
 		for (i = 0; i < n_cols; i++) {
-			const dict_col_t*	col
-				= dict_table_get_nth_col(table, i);
-			const char*		col_name
-				= dict_table_get_col_name(table, i);
+			const dict_col_t* col = table->get_col(i);
+			const char*	col_name = table->get_col_name(i);
 
 			if ((sym_node->name_len == ut_strlen(col_name))
 			    && (0 == ut_memcmp(sym_node->name, col_name,
@@ -767,10 +725,8 @@ pars_resolve_exp_columns(
 				sym_node->col_no = i;
 				sym_node->prefetch_buf = NULL;
 
-				dict_col_copy_type(
-					col,
-					dfield_get_type(&sym_node
-							->common.val));
+				col->copy_type(dfield_get_type(
+						&sym_node->common.val));
 
 				return;
 			}
@@ -872,9 +828,8 @@ pars_select_all_columns(
 	while (table_node) {
 		table = table_node->table;
 
-		for (i = 0; i < dict_table_get_n_user_cols(table); i++) {
-			const char*	col_name = dict_table_get_col_name(
-				table, i);
+		for (i = 0; i < table->get_n_user_cols(); i++) {
+			const char*	col_name = table->get_col_name(i);
 
 			col_node = sym_tab_add_id(pars_sym_tab_global,
 						  (byte*) col_name,
@@ -1142,7 +1097,7 @@ pars_process_assign_list(
 	table_sym = node->table_sym;
 	col_assign_list = static_cast<col_assign_node_t*>(
 		 node->col_assign_list);
-	clust_index = dict_table_get_first_index(node->table);
+	clust_index = node->table->first_index();
 
 	assign_node = col_assign_list;
 	n_assigns = 0;
@@ -1182,15 +1137,13 @@ pars_process_assign_list(
 
 		col_sym = assign_node->col;
 
-		upd_field_set_field_no(upd_field, dict_index_get_nth_col_pos(
-					       clust_index, col_sym->col_no),
-				       clust_index, NULL);
+		upd_field_set_field_no(upd_field,
+				clust_index->get_col_pos(col_sym->col_no),
+				clust_index, NULL);
 		upd_field->exp = assign_node->val;
 
-		if (!dict_col_get_fixed_size(
-			    dict_index_get_nth_col(clust_index,
-						   upd_field->field_no),
-			    dict_table_is_comp(node->table))) {
+		if (!clust_index->get_col(upd_field->field_no)->get_fixed_size(
+			dict_table_is_comp(node->table))) {
 			changes_field_size = 0;
 		}
 
@@ -1283,7 +1236,7 @@ pars_update_statement(
 
 	plan->no_prefetch = TRUE;
 
-	if (!dict_index_is_clust(plan->index)) {
+	if (!plan->index->is_clustered()) {
 
 		plan->must_get_clust = TRUE;
 
@@ -1324,7 +1277,7 @@ pars_insert_statement(
 			       pars_sym_tab_global->heap);
 
 	row = dtuple_create(pars_sym_tab_global->heap,
-			    dict_table_get_n_cols(node->table));
+			    node->table->get_n_cols());
 
 	dict_table_copy_types(row, table_sym->table);
 
@@ -1336,7 +1289,7 @@ pars_insert_statement(
 		select->common.parent = node;
 
 		ut_a(que_node_list_get_len(select->select_list)
-		     == dict_table_get_n_user_cols(table_sym->table));
+		     == table_sym->table->get_n_user_cols());
 	}
 
 	node->values_list = values_list;
@@ -1345,7 +1298,7 @@ pars_insert_statement(
 		pars_resolve_exp_list_variables_and_types(NULL, values_list);
 
 		ut_a(que_node_list_get_len(values_list)
-		     == dict_table_get_n_user_cols(table_sym->table));
+		     == table_sym->table->get_n_user_cols());
 	}
 
 	return(node);
@@ -1672,24 +1625,6 @@ pars_assignment_statement(
 }
 
 /*********************************************************************//**
-Parses a procedure call.
-@return function node */
-func_node_t*
-pars_procedure_call(
-/*================*/
-	que_node_t*	res_word,/*!< in: procedure name reserved word */
-	que_node_t*	args)	/*!< in: argument list */
-{
-	func_node_t*	node;
-
-	node = pars_func(res_word, args);
-
-	pars_resolve_exp_list_variables_and_types(NULL, args);
-
-	return(node);
-}
-
-/*********************************************************************//**
 Parses a fetch statement. into_list or user_func (but not both) must be
 non-NULL.
 @return fetch statement node */
@@ -1775,28 +1710,6 @@ pars_open_statement(
 }
 
 /*********************************************************************//**
-Parses a row_printf-statement.
-@return row_printf-statement node */
-row_printf_node_t*
-pars_row_printf_statement(
-/*======================*/
-	sel_node_t*	sel_node)	/*!< in: select node */
-{
-	row_printf_node_t*	node;
-
-	node = static_cast<row_printf_node_t*>(
-		mem_heap_alloc(
-			pars_sym_tab_global->heap, sizeof(row_printf_node_t)));
-	node->common.type = QUE_NODE_ROW_PRINTF;
-
-	node->sel_node = sel_node;
-
-	sel_node->common.parent = node;
-
-	return(node);
-}
-
-/*********************************************************************//**
 Parses a commit statement.
 @return own: commit node struct */
 commit_node_t*
@@ -1846,28 +1759,28 @@ pars_column_def(
 	return(sym_node);
 }
 
-/*********************************************************************//**
-Parses a table creation operation.
+/** Parses a table creation operation.
+@param[in]	table_sym		table name node in the symbol table
+@param[in]	column_defs		list of column names
+@param[in]	not_fit_in_memory	a non-NULL pointer means that this is a
+					table which in simulations should be
+					simulated as not fitting in memory;
+					thread is put to sleep to simulate disk
+					accesses; NOTE that this flag is not
+					stored to the data dictionary on disk,
+					and the database will forget about
+					non-NULL value if it has to reload the
+					table definition from disk
+@param[in]	compact			non-NULL if COMPACT table
+@param[in]	block_size		block size (can be NULL)
 @return table create subgraph */
 tab_node_t*
 pars_create_table(
-/*==============*/
-	sym_node_t*	table_sym,	/*!< in: table name node in the symbol
-					table */
-	sym_node_t*	column_defs,	/*!< in: list of column names */
-	sym_node_t*	compact,	/* in: non-NULL if COMPACT table. */
-	sym_node_t*	block_size,	/* in: block size (can be NULL) */
+	sym_node_t*	table_sym,
+	sym_node_t*	column_defs,
+	sym_node_t*	compact,
+	sym_node_t*	block_size,
 	void*		not_fit_in_memory MY_ATTRIBUTE((unused)))
-					/*!< in: a non-NULL pointer means that
-					this is a table which in simulations
-					should be simulated as not fitting
-					in memory; thread is put to sleep
-					to simulate disk accesses; NOTE that
-					this flag is not stored to the data
-					dictionary on disk, and the database
-					will forget about non-NULL value if
-					it has to reload the table definition
-					from disk */
 {
 	dict_table_t*	table;
 	sym_node_t*	column;
@@ -1995,7 +1908,8 @@ pars_create_index(
 	column = column_list;
 
 	while (column) {
-		dict_mem_index_add_field(index, column->name, 0);
+		/* The internal parser only supports ascending indexes. */
+		index->add_field(column->name, 0, true);
 
 		column->resolved = TRUE;
 		column->token_type = SYM_COLUMN;
@@ -2062,28 +1976,12 @@ pars_procedure_definition(
 }
 
 /*************************************************************//**
-Parses a stored procedure call, when this is not within another stored
-procedure, that is, the client issues a procedure call directly.
-In MySQL/InnoDB, stored InnoDB procedures are invoked via the
-parsed procedure tree, not via InnoDB SQL, so this function is not used.
-@return query graph */
-que_fork_t*
-pars_stored_procedure_call(
-/*=======================*/
-	sym_node_t*	sym_node MY_ATTRIBUTE((unused)))
-					/*!< in: stored procedure name */
-{
-	ut_error;
-	return(NULL);
-}
-
-/*************************************************************//**
 Retrieves characters to the lexical analyzer. */
 int
 pars_get_lex_chars(
 /*===============*/
 	char*	buf,		/*!< in/out: buffer where to copy */
-	int	max_size)	/*!< in: maximum number of characters which fit
+	size_t	max_size)	/*!< in: maximum number of characters which fit
 				in the buffer */
 {
 	int	len;
@@ -2095,8 +1993,8 @@ pars_get_lex_chars(
 		return(0);
 	}
 
-	if (len > max_size) {
-		len = max_size;
+	if (len > static_cast<int>(max_size)) {
+		len =  static_cast<int>(max_size);
 	}
 
 	ut_memcpy(buf, pars_sym_tab_global->sql_string
@@ -2367,15 +2265,16 @@ pars_info_add_int4_literal(
 	pars_info_add_literal(info, name, buf, 4, DATA_INT, 0);
 }
 
-/********************************************************************
-If the literal value already exists then it rebinds otherwise it
-creates a new entry. */
+/** If the literal value already exists then it rebinds otherwise it creates a
+new entry.
+@param[in]	info	info struct
+@param[in]	name 	name
+@param[in]	val	value */
 void
 pars_info_bind_int4_literal(
-/*========================*/
-	pars_info_t*		info,   /* in: info struct */
-	const char*		name,   /* in: name */
-	const ib_uint32_t*	val)    /* in: value */
+	pars_info_t*		info,
+	const char*		name,
+	const ib_uint32_t*	val)
 {
 	pars_bound_lit_t*       pbl;
 
@@ -2392,15 +2291,16 @@ pars_info_bind_int4_literal(
 	}
 }
 
-/********************************************************************
-If the literal value already exists then it rebinds otherwise it
-creates a new entry. */
+/** If the literal value already exists then it rebinds otherwise it creates a
+new entry.
+@param[in]	info	info struct
+@param[in]	name 	name
+@param[in]	val	value */
 void
 pars_info_bind_int8_literal(
-/*========================*/
-	pars_info_t*		info,	/* in: info struct */
-	const char*		name,	/* in: name */
-	const ib_uint64_t*	val)	/* in: value */
+	pars_info_t*		info,
+	const char*		name,
+	const ib_uint64_t*	val)
 {
 	pars_bound_lit_t*	pbl;
 
@@ -2501,15 +2401,17 @@ pars_info_bind_function(
 	puf->func = func;
 }
 
-/********************************************************************
-Add bound id. */
+/** Add bound id.
+@param[in]	info		info struct
+@param[in]	copy_name	copy name if TRUE
+@param[in]	name		name
+@param[in]	id		id */
 void
 pars_info_bind_id(
-/*==============*/
-	pars_info_t*	info,		/*!< in: info struct */
-	ibool		copy_name,	/* in: copy name if TRUE */
-	const char*	name,		/*!< in: name */
-	const char*	id)		/*!< in: id */
+	pars_info_t*	info,
+	ibool		copy_name,
+	const char*	name,
+	const char*	id)
 {
 	pars_bound_id_t*	bid;
 
@@ -2537,15 +2439,14 @@ pars_info_bind_id(
 	bid->id = id;
 }
 
-/********************************************************************
-Get bound identifier with the given name.*/
+/** Get bound identifier with the given name.
+@param[in]	info	info struct
+@param[in]	name	bound id name to find
+@return bound id, or NULL if not found */
 pars_bound_id_t*
 pars_info_get_bound_id(
-/*===================*/
-					/* out: bound id, or NULL if not
-					found */
-	pars_info_t*		info,	/* in: info struct */
-	const char*		name)	/* in: bound id name to find */
+	pars_info_t*		info,
+	const char*		name)
 {
 	return(pars_info_lookup_bound_id(info, name));
 }

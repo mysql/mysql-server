@@ -1,5 +1,5 @@
 # -*- cperl -*-
-# Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -135,23 +135,30 @@ EOF
 
 # The 'cdb debug' prints are added to pinpoint the location of a hang
 # which could not be reproduced manually. Will be removed later.
-
 # Check that Debugging tools for Windows are installed
-sub cdb_check {
-   `cdb -? 2>&1`;
+sub cdb_check
+{
   print localtime() . " cdb debug X\n";
+
+  `cdb -version 2>&1`;
   if ($? >> 8)
   {
     print "Cannot find cdb. Please Install Debugging tools for Windows\n";
     print "from http://www.microsoft.com/whdc/devtools/debugging/";
+
     if($ENV{'ProgramW6432'})
     {
       print "install64bit.mspx (native x64 version)\n";
     }
     else
-   {
+    {
       print "installx86.mspx\n";
-   }
+    }
+    return 0;
+  }
+  else
+  {
+    return 1;
   }
 }
 

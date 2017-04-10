@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,14 +15,12 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#ifndef MYSQL_SERVER
-#define MYSQL_SERVER
-#endif
-
-#include "ha_ndbcluster_glue.h"
+#include "my_dbug.h"
 #include "ndb_thd.h"
 #include "ndb_thd_ndb.h"
 
+#include <sql_class.h>
+#include "mysqld.h"         // opt_server_id_mask
 
 /*
   Make sure THD has a Thd_ndb struct allocated and associated
@@ -51,24 +49,6 @@ Ndb* check_ndb_in_thd(THD* thd, bool validate_ndb)
   return thd_ndb->ndb;
 }
 
-#include <sql_class.h>
-
-void
-thd_print_warning_list(THD* thd, const char* prefix)
-{
-  Diagnostics_area::Sql_condition_iterator
-   it(thd->get_stmt_da()->sql_conditions());
-
-  const Sql_condition *err;
-  while ((err= it++))
-  {
-    sql_print_warning("%s: (%d)%s",
-                      prefix,
-                      err->mysql_errno(),
-                      err->message_text());
-  }
-}
-
 
 bool
 applying_binlog(const THD* thd)
@@ -91,4 +71,13 @@ applying_binlog(const THD* thd)
   }
 
   return false;
+}
+
+
+uint32
+thd_unmasked_server_id(const THD* thd)
+{
+  const uint32 unmasked_server_id = thd->unmasked_server_id;
+  assert(thd->server_id == (thd->unmasked_server_id & opt_server_id_mask));
+  return unmasked_server_id;
 }

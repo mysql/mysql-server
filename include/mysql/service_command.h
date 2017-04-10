@@ -1,6 +1,6 @@
 #ifndef MYSQL_SERVICE_COMMAND_INCLUDED
 #define MYSQL_SERVICE_COMMAND_INCLUDED
-/*  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+/*  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
     This program is free software; you can redistribute it and/or
     modify it under the terms of the GNU General Public License as
@@ -17,7 +17,7 @@
     Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA */
 
 /**
-  @file
+  @file include/mysql/service_command.h
   Header file for the Command service. This service is to provide means
   of executing different commands, like COM_QUERY, COM_STMT_PREPARE,
   in the server.
@@ -33,6 +33,7 @@ extern "C" {
 #include "mysql_time.h"
 #include "decimal.h"
 #ifndef MYSQL_ABI_CHECK
+#include "binary_log_types.h"
 #include "m_ctype.h"
 #include <stdint.h>                    /* uint32_t */
 #endif
@@ -52,6 +53,265 @@ struct st_send_field
   enum_field_types type;
 };
 
+/**
+  Indicates beginning of metadata for the result set
+
+  @param ctx      Plugin's context
+  @param num_cols Number of fields being sent
+  @param flags    Flags to alter the metadata sending
+  @param resultcs Charset of the result set
+
+  @note resultcs is the charset in which the data should be encoded before
+  sent to the client. This is the value of the session variable
+  character_set_results. The implementor most probably will need to save
+  this value in the context and use it as "to" charset in get_string().
+
+  In case of CS_BINARY_REPRESENTATION, get_string() receives as a parameter
+  the charset of the string, as it is stored on disk.
+
+  In case of CS_TEXT_REPRESENTATION, the string value might be already a
+  stringified value or non-string data, which is in character_set_results.
+
+  @returns
+    1  an error occured, server will abort the command
+    0  ok
+*/
+typedef int (*start_result_metadata_t)(void *ctx, uint num_cols, uint flags,
+                                       const CHARSET_INFO *resultcs);
+
+/**
+  Field metadata is provided via this callback
+
+  @param ctx     Plugin's context
+  @param field   Field's metadata (see field.h)
+  @param charset Field's charset
+
+  @returns
+    1  an error occured, server will abort the command
+    0  ok
+*/
+typedef int (*field_metadata_t)(void *ctx, struct st_send_field *field,
+                                const CHARSET_INFO *charset);
+
+/**
+  Indicates end of metadata for the result set
+
+  @param ctx            Plugin's context
+  @param server_status  Status of server (see mysql_com.h, SERVER_STATUS_*)
+  @param warn_count     Number of warnings generated during execution to the
+                          moment when the metadata is sent.
+  @returns
+    1  an error occured, server will abort the command
+    0  ok
+*/
+typedef int (*end_result_metadata_t)(void *ctx, uint server_status,
+                                     uint warn_count);
+
+/**
+  Indicates the beginning of a new row in the result set/metadata
+
+  @param ctx   Plugin's context
+
+  @returns
+    1  an error occured, server will abort the command
+    0  ok
+*/
+typedef int (*start_row_t)(void *ctx);
+
+/**
+  Indicates the end of the current row in the result set/metadata
+
+  @param ctx   Plugin's context
+
+  @returns
+    1  an error occured, server will abort the command
+    0  ok
+*/
+typedef int (*end_row_t)(void *ctx);
+
+/**
+  An error occured during execution
+
+  This callback indicates that an error occurred during command
+  execution and the partial row should be dropped. Server will raise error
+  and return.
+
+  @param ctx   Plugin's context
+*/
+typedef void (*abort_row_t)(void *ctx);
+
+/**
+  Return client's capabilities (see mysql_com.h, CLIENT_*)
+
+  @param ctx     Plugin's context
+
+  @return Bitmap of client's capabilities
+*/
+typedef ulong (*get_client_capabilities_t)(void *ctx);
+
+/**
+  Receive NULL value from server
+
+  @param ctx  Plugin's context
+
+  @returns
+    1  an error occured, server will abort the command
+    0  ok
+*/
+typedef int (*get_null_t)(void * ctx);
+
+/**
+  Receive TINY/SHORT/LONG value from server
+
+  @param ctx           Plugin's context
+  @param value         Value received
+
+  @note In order to know which type exactly was received, the plugin must
+  track the metadata that was sent just prior to the result set.
+
+  @returns
+    1  an error occured, server will abort the command
+    0  ok
+*/
+typedef int (*get_integer_t)(void * ctx, longlong value);
+
+/**
+  Get LONGLONG value from server
+
+  @param ctx           Plugin's context
+  @param value         Value received
+  @param is_unsigned   TRUE <=> value is unsigned
+
+  @returns
+    1  an error occured, server will abort the command
+    0  ok
+*/
+typedef int (*get_longlong_t)(void * ctx, longlong value, uint is_unsigned);
+
+/**
+  Receive DECIMAL value from server
+
+  @param ctx   Plugin's context
+  @param value Value received
+
+  @returns
+    1  an error occured, server will abort the command
+    0  ok
+*/
+typedef int (*get_decimal_t)(void * ctx, const decimal_t * value);
+
+/**
+  Receive FLOAT/DOUBLE from server
+
+  @param ctx      Plugin's context
+  @param value    Value received
+  @param decimals Number of decimals
+
+  @note In order to know which type exactly was received, the plugin must
+  track the metadata that was sent just prior to the result set.
+
+  @returns
+    1  an error occured, server will abort the command
+    0  ok
+*/
+typedef int (*get_double_t)(void * ctx, double value, uint32_t decimals);
+
+/**
+  Get DATE value from server
+
+  @param ctx      Plugin's context
+  @param value    Value received
+
+  @returns
+    1  an error occured during storing, server will abort the command
+    0  ok
+*/
+typedef int (*get_date_t)(void * ctx, const MYSQL_TIME * value);
+
+/**
+  Receive TIME value from server
+
+  @param ctx      Plugin's context
+  @param value    Value received
+  @param decimals Number of decimals
+
+  @returns
+    1  an error occured during storing, server will abort the command
+    0  ok
+*/
+typedef int (*get_time_t)(void * ctx, const MYSQL_TIME * value, uint decimals);
+
+/**
+  Receive DATETIME value from server
+
+  @param ctx      Plugin's context
+  @param value    Value received
+  @param decimals Number of decimals
+
+  @returns
+    1  an error occured during storing, server will abort the command
+    0  ok
+*/
+typedef int (*get_datetime_t)(void * ctx, const MYSQL_TIME * value, uint decimals);
+
+/**
+  Get STRING value from server
+
+  @param ctx     Plugin's context
+  @param value   Data
+  @param length  Data length
+  @param valuecs Data charset
+
+  @note In case of CS_BINARY_REPRESENTATION, get_string() receives as
+  a parameter the charset of the string, as it is stored on disk.
+
+  In case of CS_TEXT_REPRESENTATION, the string value might be already a
+  stringified value or non-string data, which is in character_set_results.
+
+  @see start_result_metadata()
+
+  @returns
+    1  an error occured, server will abort the command
+    0  ok
+*/
+typedef int (*get_string_t)(void * ctx, const char * value, size_t length,
+                            const CHARSET_INFO * valuecs);
+
+/**
+  Command ended with success
+
+  @param ctx                  Plugin's context
+  @param server_status        Status of server (see mysql_com.h,
+                              SERVER_STATUS_*)
+  @param statement_warn_count Number of warnings thrown during execution
+  @param affected_rows        Number of rows affected by the command
+  @param last_insert_id       Last insert id being assigned during execution
+  @param message              A message from server
+*/
+typedef void (*handle_ok_t)(void * ctx,
+                            uint server_status, uint statement_warn_count,
+                            ulonglong affected_rows, ulonglong last_insert_id,
+                            const char * message);
+
+/**
+  Command ended with ERROR
+
+  @param ctx       Plugin's context
+  @param sql_errno Error code
+  @param err_msg   Error message
+  @param sqlstate  SQL state corresponding to the error code
+*/
+typedef void (*handle_error_t)(void * ctx, uint sql_errno, const char * err_msg,
+                               const char * sqlstate);
+
+/**
+  Callback for shutdown notification from the server.
+
+  @param ctx              Plugin's context
+  @param server_shutdown  Whether this is a normal connection shutdown (0) or
+                          server shutdown (1).
+*/
+typedef void (*shutdown_t)(void *ctx, int server_shutdown);
 
 struct st_command_service_cbs
 {
@@ -83,273 +343,33 @@ struct st_command_service_cbs
     execution of the statement.
   */
 
-  /*** Getting metadata ***/
-  /**
-    Indicates beginning of metadata for the result set
+  /* Getting metadata */
 
-    @param ctx      Plugin's context
-    @param num_cols Number of fields being sent
-    @param flags    Flags to alter the metadata sending
-    @param resultcs Charset of the result set
+  start_result_metadata_t start_result_metadata;
+  field_metadata_t field_metadata;
+  end_result_metadata_t end_result_metadata;
+  start_row_t start_row;
+  end_row_t end_row;
+  abort_row_t abort_row;
+  get_client_capabilities_t get_client_capabilities;
 
-    @note resultcs is the charset in which the data should be encoded before
-    sent to the client. This is the value of the session variable
-    character_set_results. The implementor most probably will need to save
-    this value in the context and use it as "to" charset in get_string().
+  /* Getting data */
 
-    In case of CS_BINARY_REPRESENTATION, get_string() receives as a parameter
-    the charset of the string, as it is stored on disk.
+  get_null_t get_null;
+  get_integer_t get_integer;
+  get_longlong_t get_longlong;
+  get_decimal_t get_decimal;
+  get_double_t get_double;
+  get_date_t get_date;
+  get_time_t get_time;
+  get_datetime_t get_datetime;
+  get_string_t get_string;
 
-    In case of CS_TEXT_REPRESENTATION, the string value might be already a
-    stringified value or non-string data, which is in character_set_results.
+  /* Getting execution status */
 
-    @returns
-      1  an error occured, server will abort the command
-      0  ok
-  */
-  int (*start_result_metadata)(void *ctx, uint num_cols, uint flags,
-                               const CHARSET_INFO *resultcs);
-
-  /**
-    Field metadata is provided via this callback
-
-    @param ctx     Plugin's context
-    @param field   Field's metadata (see field.h)
-    @param charset Field's charset
-
-    @returns
-      1  an error occured, server will abort the command
-      0  ok
-  */
-  int (*field_metadata)(void *ctx, struct st_send_field *field,
-                        const CHARSET_INFO *charset);
-
-  /**
-    Indicates end of metadata for the result set
-
-    @param ctx            Plugin's context
-    @param server_status  Status of server (see mysql_com.h, SERVER_STATUS_*)
-    @param warn_count     Number of warnings generated during execution to the
-                          moment when the metadata is sent.
-    @returns
-      1  an error occured, server will abort the command
-      0  ok
-  */
-  int (*end_result_metadata)(void *ctx, uint server_status,
-                             uint warn_count);
-
-  /**
-    Indicates the beginning of a new row in the result set/metadata
-
-    @param ctx   Plugin's context
-
-    @returns
-      1  an error occured, server will abort the command
-      0  ok
-  */
-  int (*start_row)(void *ctx);
-
-  /**
-    Indicates the end of the current row in the result set/metadata
-
-    @param ctx   Plugin's context
-
-    @returns
-      1  an error occured, server will abort the command
-      0  ok
-  */
-  int (*end_row)(void *ctx);
-
-  /**
-    An error occured during execution
-
-    @details This callback indicates that an error occured during command
-    execution and the partial row should be dropped. Server will raise error
-    and return.
-
-    @param ctx   Plugin's context
-
-    @returns
-      true  an error occured, server will abort the command
-      false ok
-
-  */
-  void (*abort_row)(void *ctx);
-
-  /**
-    Return client's capabilities (see mysql_com.h, CLIENT_*)
-
-    @param ctx     Plugin's context
-
-    @return Bitmap of client's capabilities
-  */
-  ulong (*get_client_capabilities)(void *ctx);
-
-  /****** Getting data ******/
-  /**
-    Receive NULL value from server
-
-    @param ctx  Plugin's context
-
-    @returns
-      1  an error occured, server will abort the command
-      0  ok
-  */
-  int (*get_null)(void * ctx);
-
-  /**
-    Receive TINY/SHORT/LONG value from server
-
-    @param ctx           Plugin's context
-    @param value         Value received
-
-    @note In order to know which type exactly was received, the plugin must
-    track the metadata that was sent just prior to the result set.
-
-    @returns
-      1  an error occured, server will abort the command
-      0  ok
-  */
-  int (*get_integer)(void * ctx, longlong value);
-
-  /**
-    Get LONGLONG value from server
-
-    @param ctx           Plugin's context
-    @param value         Value received
-    @param is_unsigned   TRUE <=> value is unsigned
-
-    @returns
-      1  an error occured, server will abort the command
-      0  ok
-  */
-  int (*get_longlong)(void * ctx, longlong value, uint is_unsigned);
-
-  /**
-    Receive DECIMAL value from server
-
-    @param ctx   Plugin's context
-    @param value Value received
-
-    @returns
-      1  an error occured, server will abort the command
-      0  ok
-  */
-  int (*get_decimal)(void * ctx, const decimal_t * value);
-
-  /**
-    Receive FLOAT/DOUBLE from server
-
-    @param ctx      Plugin's context
-    @param value    Value received
-    @param decimals Number of decimals
-
-    @note In order to know which type exactly was received, the plugin must
-    track the metadata that was sent just prior to the result set.
-
-    @returns
-      1  an error occured, server will abort the command
-      0  ok
-  */
-  int (*get_double)(void * ctx, double value, uint32_t decimals);
-
-  /**
-    Get DATE value from server
-
-    @param ctx      Plugin's context
-    @param value    Value received
-
-    @returns
-      1  an error occured during storing, server will abort the command
-      0  ok
-  */
-  int (*get_date)(void * ctx, const MYSQL_TIME * value);
-
-  /**
-    Receive TIME value from server
-
-    @param ctx      Plugin's context
-    @param value    Value received
-    @param decimals Number of decimals
-
-    @returns
-      1  an error occured during storing, server will abort the command
-      0  ok
-  */
-  int (*get_time)(void * ctx, const MYSQL_TIME * value, uint decimals);
-
-  /**
-    Receive DATETIME value from server
-
-    @param ctx      Plugin's context
-    @param value    Value received
-    @param decimals Number of decimals
-
-    @returns
-      1  an error occured during storing, server will abort the command
-      0  ok
-  */
-  int (*get_datetime)(void * ctx, const MYSQL_TIME * value, uint decimals);
-
-  /**
-    Get STRING value from server
-
-    @param ctx     Plugin's context
-    @param value   Data
-    @param length  Data length
-    @param valuecs Data charset
-
-    @note In case of CS_BINARY_REPRESENTATION, get_string() receives as
-    a parameter the charset of the string, as it is stored on disk.
-
-    In case of CS_TEXT_REPRESENTATION, the string value might be already a
-    stringified value or non-string data, which is in character_set_results.
-
-    @see start_result_metadata()
-
-    @returns
-      1  an error occured, server will abort the command
-      0  ok
-  */
-  int (*get_string)(void * ctx, const char * value, size_t length,
-                    const CHARSET_INFO * valuecs);
-
-  /****** Getting execution status ******/
-  /**
-    Command ended with success
-
-    @param ctx                  Plugin's context
-    @param server_status        Status of server (see mysql_com.h,
-                                SERVER_STATUS_*)
-    @param statement_warn_count Number of warnings thrown during execution
-    @param affected_rows        Number of rows affected by the command
-    @param last_insert_id       Last insert id being assigned during execution
-    @param message              A message from server
-  */
-  void (*handle_ok)(void * ctx,
-                    uint server_status, uint statement_warn_count,
-                    ulonglong affected_rows, ulonglong last_insert_id,
-                    const char * message);
-
-  /**
-    Command ended with ERROR
-
-    @param ctx       Plugin's context
-    @param sql_errno Error code
-    @param err_msg   Error message
-    @param sqlstate  SQL state correspongin to the error code
-  */
-  void (*handle_error)(void * ctx, uint sql_errno, const char * err_msg,
-                       const char * sqlstate);
-
-  /**
-    Callback for shutdown notification from the server.
-
-    @param ctx              Plugin's context
-    @param server_shutdown  Whether this is a normal connection shutdown (0) or
-                            server shutdown (1).
-  */
-  void (*shutdown)(void *ctx, int server_shutdown);
+  handle_ok_t handle_ok;
+  handle_error_t handle_error;
+  shutdown_t shutdown;
 };
 
 enum cs_text_or_binary

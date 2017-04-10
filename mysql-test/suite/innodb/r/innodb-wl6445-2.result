@@ -14,6 +14,7 @@ i	LEFT(j,20)
 1	aaaaaaaaaaaaaaaaaaaa
 2	bbbbbbbbbbbbbbbbbbbb
 3	cccccccccccccccccccc
+SET GLOBAL innodb_fast_shutdown = 0;
 # restart: --innodb-read-only
 USE testdb_wl6445;
 SELECT i FROM t1 ORDER BY i;
@@ -36,7 +37,7 @@ i	LEFT(j,20)
 2	bbbbbbbbbbbbbbbbbbbb
 3	cccccccccccccccccccc
 CREATE TABLE t2 ( i int , j blob) ENGINE = Innodb;
-ERROR HY000: InnoDB is in read only mode.
+ERROR HY000: Table 'tables' is read only
 UPDATE t1 SET i = i+1;
 ERROR HY000: Can't lock file (errno: 165 - Table is read only)
 FLUSH STATUS;
@@ -77,6 +78,7 @@ i	LEFT(j,20)
 DELETE FROM t2;
 SELECT i,LEFT(j,20) FROM t2 ORDER BY i;
 i	LEFT(j,20)
+SET GLOBAL innodb_fast_shutdown = 0;
 # restart: --innodb-read-only
 USE testdb_wl6445;
 SELECT i FROM t1 ORDER BY i;
@@ -103,7 +105,7 @@ i	LEFT(j,20)
 CREATE TABLE t2 ( i int , j blob) ENGINE = Innodb;
 ERROR 42S01: Table 't2' already exists
 CREATE TABLE t3 ( i int , j blob) ENGINE = Innodb;
-ERROR HY000: InnoDB is in read only mode.
+ERROR HY000: Table 'tables' is read only
 UPDATE t1 SET i = i+1;
 ERROR HY000: Can't lock file (errno: 165 - Table is read only)
 FLUSH STATUS;

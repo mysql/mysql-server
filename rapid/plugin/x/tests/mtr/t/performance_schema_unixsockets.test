@@ -3,9 +3,8 @@
 ## Preamble
 --source include/not_windows.inc
 --source ../include/have_performance_schema_threads.inc
---source include/have_perfschema.inc
 
---source ../include/xplugin_preamble.inc
+--source include/xplugin_preamble.inc
 
 # Tests
 --write_file $MYSQL_TMP_DIR/performance_schema_socket_num.tmp

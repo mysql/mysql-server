@@ -24,3 +24,18 @@ UNLOCK TABLES;
 LOCK TABLES performance_schema.table_io_waits_summary_by_index_usage WRITE;
 ERROR 42000: SELECT, LOCK TABLES command denied to user 'root'@'localhost' for table 'table_io_waits_summary_by_index_usage'
 UNLOCK TABLES;
+#
+# WL#6599/BUG#23044286: New Data Dictionary and I_S Integration.
+#
+CREATE TABLE test.t1(fld1 INT);
+LOCK TABLE test.t1 WRITE;
+ALTER TABLE test.t1 OPTIMIZE PARTITION ALL;
+Table	Op	Msg_type	Msg_text
+test.t1	optimize	Error	Partition management on a not partitioned table is not possible
+test.t1	optimize	status	Operation failed
+SELECT object_name FROM performance_schema.table_io_waits_summary_by_index_usage
+WHERE object_schema= 'test';
+object_name
+# Cleanup
+UNLOCK TABLES;
+DROP TABLE test.t1;

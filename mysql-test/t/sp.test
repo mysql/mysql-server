@@ -1,8 +1,7 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
 
+--source include/no_valgrind_without_big.inc
+# Thread stack overrun in debug mode on sparc
+--source include/not_sparc_debug.inc
 #
 # Basic stored PROCEDURE tests
 #
@@ -14,8 +13,6 @@
 # Tests that require multiple connections, except security/privilege tests,
 #   go to sp-thread.
 # Tests that uses 'goto' to into sp-goto.test (currently disabled)
-# Tests that destroys system tables (e.g. mysql.proc) for error testing
-#   go to sp-destruct.
 # Tests that require --with-geometry go into sp_gis.test
 # Tests that require multibyte character sets, which are not always available,
 #   go into separate files (e.g. sp-ucs2.test)
@@ -27,6 +24,10 @@ use test;
 # t1 and t2 are reused throughout the file, and dropped at the end.
 # t3 and up are created and dropped when needed.
 #
+
+# Test needs MyISAM for disable warnings subtest which use engines other than innodb
+--source include/have_myisam.inc
+
 --disable_warnings
 drop table if exists t1,t2,t3,t4;
 drop view if exists v1;
@@ -38,12 +39,12 @@ drop function if exists f2;
 create table t1 (
 	id   char(16) not null default '',
         data int not null
-);
+) engine=myisam;
 create table t2 (
 	s   char(16),
         i   int,
 	d   double
-);
+) engine=myisam;
 
 
 # Single statement, no params.
@@ -186,7 +187,7 @@ create procedure mixset(x char(16), y int)
 begin
   declare z int;
 
-  set @z = y, z = 666, max_join_size = 100;
+  set @z = y, z = 666;
   insert into test.t1 values (x, z);
 end|
 
@@ -415,7 +416,8 @@ drop procedure b|
 --disable_warnings ONCE
 drop procedure if exists b2|
 create procedure b2(x int)
-repeat(select 1 into outfile 'b2');
+repeat
+  select 1 into outfile 'b2';
   insert into test.t1 values (repeat("b2",3), x);
   set x = x-1;
 until x = 0 end repeat|
@@ -1068,8 +1070,7 @@ create procedure dummy(out x int)
 use test|
 drop database sp_db3|
 # Check that it's gone
-select type,db,name from mysql.proc where db = 'sp_db3'|
-
+select routine_type, routine_schema, routine_name from information_schema.routines where routine_schema = 'sp_db3'|
 
 # ROW_COUNT() function after a CALL
 # We test the other cases here too, although it's not strictly SP specific
@@ -1259,18 +1260,6 @@ select * from v0|
 select *, f0() from v0, (select 123) as d1|
 --error ER_TABLE_NOT_LOCKED
 select id, f3() from t1|
---error ER_TABLE_NOT_LOCKED
-select f4()|
-unlock tables|
-
-# Let us test how LOCK TABLES which implicitly depends on functions
-# works
-lock tables v2 read, mysql.proc read|
-select * from v2|
-select * from v1|
-# These should not work as we have too little instances of tables locked
---error ER_TABLE_NOT_LOCKED
-select * from v1, t1|
 --error ER_TABLE_NOT_LOCKED
 select f4()|
 unlock tables|
@@ -2736,6 +2725,9 @@ drop table t3|
 #
 --disable_warnings ONCE
 drop procedure if exists bug4902|
+# The below flag is set in order to allow larger results
+# from SELECT's from SHOW statements in procedure bug4902.
+set SQL_BIG_SELECTS=1|
 create procedure bug4902()
 begin
   show charset like 'foo';
@@ -2850,12 +2842,12 @@ create procedure bug5251()
 begin
 end|
 
-select created into @c1 from mysql.proc
-  where db='test' and name='bug5251'|
+select created into @c1 from information_schema.routines
+  where routine_schema='test' and routine_name='bug5251'|
 --sleep 2
 alter procedure bug5251 comment 'foobar'|
-select count(*) from mysql.proc
-  where  db='test' and name='bug5251' and created = @c1|
+select count(*) from information_schema.routines
+  where routine_schema='test' and routine_name='bug5251' and created = @c1|
 
 drop procedure bug5251|
 
@@ -2919,7 +2911,7 @@ create procedure bug5258_aux()
 begin
   declare c, m char(19);
 
-  select created,modified into c,m from mysql.proc where name = 'bug5258';
+  select created,last_altered into c,m from information_schema.routines where routine_name = 'bug5258';
   if c = m then
     select 'Ok';
   else
@@ -3981,7 +3973,8 @@ create function bug10055(v char(255)) returns char(255) return lower(v)|
 # This select should not crash server and should return all fields in t1
 select t.column_name, bug10055(t.column_name)
 from information_schema.columns as t
-where t.table_schema = 'test' and t.table_name = 't1'|
+where t.table_schema = 'test' and t.table_name = 't1'
+order by t.column_name|
 drop function bug10055|
 
 #
@@ -4961,7 +4954,7 @@ drop procedure bug14376|
 drop procedure if exists bug5967|
 drop table if exists t3|
 --enable_warnings
-create table t3 (a varchar(255))|
+create table t3 (a varchar(255)) engine=myisam|
 insert into t3 (a) values ("a - table column")|
 create procedure bug5967(a varchar(255))
 begin
@@ -5001,8 +4994,6 @@ drop procedure bug5967|
 # Bug#13012 "SP: REPAIR/BACKUP/RESTORE TABLE crashes the server"
 #
 --let $backupdir = $MYSQLTEST_VARDIR/tmp/
---error 0,1
---remove_file $backupdir/t1.frm
 --error 0,1
 --remove_file $backupdir/t1.MYD
 
@@ -6092,20 +6083,6 @@ UNLOCK TABLES|
 --echo The following should succeed.
 DROP PROCEDURE bug21414|
 
-
-#
-# BUG#21311: Possible stack overrun if SP has non-latin1 name
-#
-set names utf8|
---disable_warnings ONCE
-drop database if exists това_е_дълго_име_за_база_данни_нали|
-create database това_е_дълго_име_за_база_данни_нали|
-INSERT INTO mysql.proc VALUES ('това_е_дълго_име_за_база_данни_нали','това_е_процедура_с_доста_дълго_име_нали_и_още_по_дълго','PROCEDURE','това_е_процедура_с_доста_дълго_име_нали_и_още_по_дълго','SQL','CONTAINS_SQL','NO','DEFINER','','','bad_body','root@localhost',now(), now(),'','', 'utf8', 'utf8_general_ci', 'utf8_general_ci', 'n/a')|
---error ER_SP_PROC_TABLE_CORRUPT
-call това_е_дълго_име_за_база_данни_нали.това_е_процедура_с_доста_дълго_име_нали_и_още_по_дълго()|
-drop database това_е_дълго_име_за_база_данни_нали|
-
-
 #
 # BUG#21493: Crash on the second call of a procedure containing
 #            a select statement that uses an IN aggregating subquery  
@@ -7192,7 +7169,9 @@ show create procedure proc_25411_a;
 call proc_25411_a();
 
 show create procedure proc_25411_b;
-select name, param_list, body from mysql.proc where name like "%25411%";
+# procedure - proc_25411_b
+select routine_name, routine_definition from information_schema.routines where routine_name like '%25411%';
+select parameter_name from information_schema.parameters where SPECIFIC_NAME= '%25411%';
 call proc_25411_b(10, 20);
 
 show create procedure proc_25411_c;
@@ -7234,6 +7213,7 @@ INSERT INTO t1 VALUES (1), (2), (3), (4), (5);
 
 CREATE VIEW v1 AS SELECT c1 FROM t1;
 
+analyze table t1;
 EXPLAIN SELECT * FROM t1 WHERE c1=1;
 EXPLAIN SELECT * FROM t1 WHERE c1=f1();
 
@@ -7276,7 +7256,7 @@ connection bug29408;
 
 show create view test.v1;      
 select column_name from information_schema.columns
-where table_name='v1' and table_schema='test';
+where table_name='v1' and table_schema='test' order by column_name;
 
 disconnect bug29408;
 --source include/wait_until_disconnected.inc
@@ -7992,14 +7972,14 @@ DROP FUNCTION f1;
 #
 # Bug#32633 Can not create any routine if SQL_MODE=no_engine_substitution
 #
-# Ensure that when new SQL modes are introduced, they are also added to
-# the mysql.proc table.
+# Ensure that when new SQL modes are introduced, they are also added to the
+# mysql.routines table.
 #
 
 --disable_warnings ONCE
 drop procedure if exists p;
 set @old_mode= @@sql_mode;
-set @@sql_mode= cast(pow(2,32)-1 as unsigned integer);
+set @@sql_mode= cast(pow(2,33)-1 as unsigned integer);
 select @@sql_mode into @full_mode;
 create procedure p() begin end;
 call p();
@@ -8007,7 +7987,7 @@ set @@sql_mode= @old_mode;
 # Rename SQL modes that differ in name between the server and the table definition.
 select replace(@full_mode, ',,,', ',NOT_USED,') into @full_mode;
 select replace(@full_mode, 'ALLOW_INVALID_DATES', 'INVALID_DATES') into @full_mode;
-select name from mysql.proc where name = 'p' and sql_mode = @full_mode;
+select routine_name from information_schema.routines where routine_name = 'p' and sql_mode = @full_mode;
 drop procedure p;
 
 #
@@ -8346,8 +8326,6 @@ COMMENT
 BEGIN
 END;
 
-SELECT comment FROM mysql.proc WHERE name = "p1";
-
 SELECT routine_comment FROM information_schema.routines WHERE routine_name = "p1";
 
 DROP PROCEDURE p1;
@@ -8372,13 +8350,13 @@ CALL p1(1);
 
 CREATE TEMPORARY TABLE t1 (f1 INT);
 
---echo # t1 still refers to the view since it was inlined
---error ER_NON_INSERTABLE_TABLE
+--echo # Since last call to p1 was unsuccessful, the query will be reparsed
+--echo # and the procedure will refer to the temporary table
 CALL p1(2);
 
 DROP VIEW t1;
 
---echo # t1 now refers to the temporary table
+--echo # t1 still refers to the temporary table
 CALL p1(3);
 
 --echo # Check which values were inserted into the temp table.
@@ -8803,7 +8781,7 @@ BEGIN
     SELECT '2012-03-01 01:00:00',       2,       1       FROM dual
     ) AS t2
   WHERE t2.c2 = t1.c2
-  GROUP BY c1, c2
+  GROUP BY c1 ASC, c2 ASC
   ;
 END|
 
@@ -9135,20 +9113,43 @@ DROP USER myuser@localhost;
 DROP FUNCTION f1;
 
 --echo #
---echo # Bug #22222013 ASSERTION `! IS_SET() || M_CAN_OVERWRITE_STATUS' FAILED
---echo #               IN ::SET_ERROR_STATUS
+--echo # WL#7897 -- Use DD API for Stored Routines.
+--echo # Basic test to verify:
+--echo #   i) The table mysql.proc does not exists any more.
+--echo #  ii) Stored routine metadata is still available with the
+--echo #      information_schema tables "routines" and "parameters".
+--echo #      These tables are filled from the new DD tables mysql.routine
+--echo #      and mysql.parameter.
+--echo # iii) Basic test to cover "READS SQL DATA" in ALTER operation.
 --echo #
 
-CREATE DATABASE bug22222013;
-USE bug22222013;
-SET NAMES swe7;
-CREATE FUNCTION f1() RETURNS INT RETURN (1);
-CREATE FUNCTION f21(p1 CHAR) RETURNS CHAR RETURN (p1);
---error ER_PARSE_ERROR
-SELECT sql_data_access FROM information_schema.routines WHERE
-specific_name like 'p%' and routine_schema=0;
-DROP DATABASE bug22222013;
-SET NAMES default;
+CREATE FUNCTION f1(a INT) RETURNS INT return 1;
+CREATE PROCEDURE p1(IN a INT, INOUT b INT, OUT c INT) select 1;
+
+--echo # The table mysql.proc does not exists any more.
+--error ER_NO_SUCH_TABLE
+SELECT * FROM mysql.proc;
+
+--echo # Metadata of stored function f1.
+--sorted_result
+--replace_column 24 <created> 25 <modified>
+SELECT * FROM INFORMATION_SCHEMA.ROUTINES WHERE ROUTINE_NAME = 'f1';
+--sorted_result
+SELECT * FROM INFORMATION_SCHEMA.PARAMETERS WHERE SPECIFIC_NAME = 'f1';
+
+--echo # Metadata of stored procedure p1.
+--sorted_result
+--replace_column 24 <created> 25 <modified>
+SELECT * FROM INFORMATION_SCHEMA.ROUTINES WHERE ROUTINE_NAME = 'p1';
+--sorted_result
+SELECT * FROM INFORMATION_SCHEMA.PARAMETERS WHERE SPECIFIC_NAME = 'p1';
+
+--echo # Basic test to cover "READS SQL DATA" in ALTER operation.
+ALTER FUNCTION f1 READS SQL DATA;
+
+# Cleanup
+DROP FUNCTION f1;
+DROP PROCEDURE p1;
 
 --echo #
 --echo # WL#9262: All system tables should support 32 character length user names
@@ -9169,64 +9170,5 @@ DROP PROCEDURE test.proc_test;
 SHOW FUNCTION STATUS LIKE 'f_test';
 DROP FUNCTION test.f_test;
 
---echo # Changing mysql.proc.definer column to char(77) - i.e. old layout (5.7.12)
-SET @orig_sql_mode= @@sql_mode;
-SET sql_mode='';
-ALTER TABLE mysql.proc
-  MODIFY definer char(77) collate utf8_bin DEFAULT '' NOT NULL;
-SET sql_mode= @orig_sql_mode;
-
---echo #Now we make sure that username + hostname with length of 77 or less work with
---echo #this old db schema
-
---echo #This should just pass as the DEFINER length is 77 chars - so the same as mysql.proc.definer
-CREATE USER robert_golebiows@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char;
---echo #For procedure
-CREATE DEFINER=robert_golebiows@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char PROCEDURE test.proc_test_1() SELECT CURRENT_USER();
-DROP PROCEDURE test.proc_test_1;
---echo #For function
-CREATE DEFINER=robert_golebiows@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char FUNCTION test.f_test_1() RETURNS INT RETURN 1;
-DROP FUNCTION test.f_test_1;
-
---echo #Now definer is 93 char long so we should get error as mysql.proc.definer in old schema was only 77 char long
---echo #For procedure
---error ER_USER_COLUMN_OLD_LENGTH
-CREATE DEFINER=user_name_robert_golebiowski1234@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char PROCEDURE test.proc_test() SELECT CURRENT_USER();
---echo #For function
---error ER_USER_COLUMN_OLD_LENGTH
-CREATE DEFINER=user_name_robert_golebiowski1234@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char FUNCTION test.f_test_1() RETURNS INT RETURN 1;
-
---echo # Let us check with user name + hostname of length 78
---echo #For procedure
---error ER_USER_COLUMN_OLD_LENGTH
-CREATE DEFINER=robert_golebiowsk@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char PROCEDURE test.proc_test() SELECT CURRENT_USER();
---echo #For function
---error ER_USER_COLUMN_OLD_LENGTH
-CREATE DEFINER=robert_golebiowsk@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char FUNCTION test.f_test_1() RETURNS INT RETURN 1;
-
---echo # DEFINER with length longer than 93 characters should fail with old plain error staying that data is too long for username
---echo # as upgrading to 93 characters (with mysql_upgrade) will not help
---echo # Let us try with 94 characters long username
-
---error ER_WRONG_STRING_LENGTH
-CREATE DEFINER=user_name_robert_golebiowski12345@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char PROCEDURE test.proc_test() SELECT CURRENT_USER();
---error ER_WRONG_STRING_LENGTH
-CREATE DEFINER=user_name_robert_golebiowski12345@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char FUNCTION test.f_test_1() RETURNS INT RETURN 1;
-
---error ER_WRONG_STRING_LENGTH
-CREATE DEFINER=user_name_robert_golebiowski1234@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char1 PROCEDURE test.proc_test() SELECT CURRENT_USER();
---error ER_WRONG_STRING_LENGTH
-CREATE DEFINER=user_name_robert_golebiowski1234@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char1 FUNCTION test.f_test_1() RETURNS INT RETURN 1;
-
---echo #Cleanup
-
 DROP USER user_name_robert_golebiowski1234@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char;
-DROP USER robert_golebiows@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char;
-
---echo Restore mysql.proc
-SET @orig_sql_mode= @@sql_mode;
-SET sql_mode='';
-ALTER TABLE mysql.proc
-  MODIFY definer char(93) collate utf8_bin DEFAULT '' NOT NULL;
-SET sql_mode= @orig_sql_mode;
 

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -17,11 +17,14 @@
 
 #include "single_transaction_connection_provider.h"
 
+#include <stddef.h>
+#include <functional>
+
 using namespace Mysql::Tools::Dump;
 
 Mysql::Tools::Base::Mysql_query_runner*
   Single_transaction_connection_provider::create_new_runner(
-    Mysql::I_callable<bool, const Mysql::Tools::Base::Message_data&>*
+    std::function<bool(const Mysql::Tools::Base::Message_data&)>*
       message_handler)
 {
   Mysql::Tools::Base::Mysql_query_runner* runner= NULL;
@@ -37,7 +40,7 @@ Mysql::Tools::Base::Mysql_query_runner*
 Single_transaction_connection_provider::Single_transaction_connection_provider(
   Mysql::Tools::Base::I_connection_factory* connection_factory,
   unsigned int connections,
-  Mysql::I_callable<bool, const Mysql::Tools::Base::Message_data&>*
+  std::function<bool(const Mysql::Tools::Base::Message_data&)>*
   message_handler)
   : Thread_specific_connection_provider(connection_factory),
     m_connections(connections)

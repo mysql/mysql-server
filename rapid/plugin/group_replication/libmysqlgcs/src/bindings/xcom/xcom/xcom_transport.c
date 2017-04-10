@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,47 +13,47 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include <rpc/rpc.h>
-
 #include <assert.h>
 #include <errno.h>
-#include <string.h>
-#include <stdlib.h>
-#include <math.h>
 #include <limits.h>
+#include <math.h>
+#include <rpc/rpc.h>
+#include <stdlib.h>
+#include <string.h>
 
-#include "xcom_common.h"
-#include "x_platform.h"
-#include "simset.h"
-#include "xcom_vp.h"
-#include "task.h"
-#include "task_os.h"
-#include "task_debug.h"
+#include "my_compiler.h"
+#include "node_connection.h"
 #include "node_no.h"
 #include "server_struct.h"
-#include "xcom_detector.h"
-#include "site_struct.h"
-#include "node_connection.h"
-#include "xcom_transport.h"
-#include "xcom_statistics.h"
-#include "xcom_base.h"
-#include "xcom_vp_str.h"
-#include "xcom_msg_queue.h"
-#include "xcom_memory.h"
+#include "simset.h"
 #include "site_def.h"
+#include "site_struct.h"
 #include "synode_no.h"
+#include "task.h"
+#include "task_debug.h"
+#include "task_os.h"
+#include "x_platform.h"
+#include "xcom_base.h"
+#include "xcom_common.h"
+#include "xcom_detector.h"
+#include "xcom_memory.h"
+#include "xcom_msg_queue.h"
+#include "xcom_statistics.h"
+#include "xcom_transport.h"
+#include "xcom_vp.h"
+#include "xcom_vp_str.h"
 
 #ifdef XCOM_HAVE_OPENSSL
-#include "openssl/ssl.h"
 #include "openssl/err.h"
+#include "openssl/ssl.h"
 #endif
-#include "sock_probe.h"
 #include "retry.h"
+#include "sock_probe.h"
 #ifdef XCOM_HAVE_OPENSSL
 #include "xcom_ssl_transport.h"
 #endif
 
-#define MY_XCOM_PROTO x_1_1
+#define MY_XCOM_PROTO x_1_2
 
 xcom_proto const my_min_xcom_version = x_1_0; /* The minimum protocol version I am able to understand */
 xcom_proto const my_xcom_version = MY_XCOM_PROTO; /* The maximun protocol version I am able to understand */
@@ -554,6 +554,7 @@ xdr_proto_sizeof (xcom_proto x_proto, xdrproc_t func, void *data)
   typedef bool_t (*dummyfunc2) (XDR *, caddr_t, u_int);
 #endif
 
+  memset(&ops, 0, sizeof(struct xdr_ops));
   ops.x_putlong = x_putlong;
   ops.x_putbytes = x_putbytes;
   ops.x_inline = x_inline;
@@ -1031,7 +1032,8 @@ int	send_msg(server *s, node_no from, node_no to, uint32_t group_id, pax_msg *p)
 		p->to = to;
 		p->group_id = group_id;
 		p->max_synode = get_max_synode();
- 		MAY_DBG(FN; PTREXP(p); STREXP(s->srv); NDBG(p->from, d); NDBG(p->to, d); NDBG(p->group_id, u));
+		p->delivered_msg = get_delivered_msg();
+		MAY_DBG(FN; PTREXP(p); STREXP(s->srv); NDBG(p->from, d); NDBG(p->to, d); NDBG(p->group_id, u));
 		channel_put(&s->outgoing, &link->l);
 	}
 	return 0;
@@ -1596,7 +1598,7 @@ int	sender_task(task_arg arg)
 							add_event(string_arg("sending ep->link->p->synode"));
 							add_synode_event(ep->link->p->synode);
 							add_event(string_arg("to"));
-							add_event(int_arg(ep->link->p->to));
+							add_event(uint_arg(ep->link->p->to));
 							add_event(string_arg(pax_op_to_str(ep->link->p->op)));
 						);
 						TASK_CALL(_send_msg(ep->s, ep->link->p, ep->link->to, &ret));
@@ -1607,7 +1609,7 @@ int	sender_task(task_arg arg)
 							add_event(string_arg("sent ep->link->p->synode"));
 							add_synode_event(ep->link->p->synode);
 							add_event(string_arg("to"));
-							add_event(int_arg(ep->link->p->to));
+							add_event(uint_arg(ep->link->p->to));
 							add_event(string_arg(pax_op_to_str(ep->link->p->op)));
 						);
 					}
@@ -2095,6 +2097,7 @@ bool_t xdr_node_list_1_1(XDR *xdrs, node_list_1_1 *objp)
 		return xdr_array (xdrs, (char **)&objp->node_list_val, (u_int *) &objp->node_list_len, NSERVERS,
 		sizeof (node_address), (xdrproc_t) xdr_node_address_with_1_0);
 	case x_1_1:
+	case x_1_2:
 		return xdr_array (xdrs, (char **)&objp->node_list_val, (u_int *) &objp->node_list_len, NSERVERS,
 		sizeof (node_address), (xdrproc_t) xdr_node_address);
 	default:
@@ -2113,3 +2116,24 @@ bool_t xdr_checked_data(XDR *xdrs, checked_data *objp)
 		return FALSE;
 	return xdr_bytes(xdrs, (char **)&objp->data_val, (u_int *) &objp->data_len, 0xffffffff);
 }
+
+bool_t xdr_pax_msg(XDR *xdrs, pax_msg *objp)
+{
+	xcom_proto vx = *((xcom_proto * )xdrs->x_public);
+	/* Select protocol encode/decode based on the x_public field of the xdr struct */
+	switch (vx) {
+	case x_1_0:
+	case x_1_1:
+		if (!xdr_pax_msg_1_1(xdrs, (pax_msg_1_1*)objp))
+			return FALSE;
+		if (xdrs->x_op == XDR_DECODE)
+			objp->delivered_msg = get_delivered_msg(); /* Use our own minimum */
+		return TRUE;
+	case x_1_2:
+		return xdr_pax_msg_1_2(xdrs, objp);
+	default:
+		return FALSE;
+	}
+}
+
+

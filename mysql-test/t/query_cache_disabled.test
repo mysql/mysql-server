@@ -1,5 +1,3 @@
-
--- source include/have_query_cache.inc
 #
 # Bug#38551 query cache can still consume [very little] cpu time even when it is off.
 #
@@ -9,9 +7,10 @@ SET GLOBAL query_cache_type=ON;
 --error ER_QUERY_CACHE_DISABLED
 SET GLOBAL query_cache_type=DEMAND;
 SET GLOBAL query_cache_type=OFF;
+SET @save_query_cache_size = @@query_cache_size;
 SET GLOBAL query_cache_size=1024*1024;
 SHOW GLOBAL VARIABLES LIKE 'query_cache_size';
-SET GLOBAL query_cache_size=DEFAULT;
+SET GLOBAL query_cache_size=@save_query_cache_size;
 
 --echo #
 --echo # BUG#16906827 - CAN'T SET QUERY_CACHE_TYPE TO 0 WHEN IT IS ALREADY 0

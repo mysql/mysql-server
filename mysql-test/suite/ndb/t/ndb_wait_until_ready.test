@@ -1,6 +1,8 @@
 # test needs two different servers, hence disable test for
 # embedded which only runs on one
 -- source include/not_embedded.inc
+# test is timing dependent, skip when valgrinding
+-- source include/not_valgrind.inc
 -- source include/have_ndb.inc
 -- source include/have_multi_ndb.inc
 

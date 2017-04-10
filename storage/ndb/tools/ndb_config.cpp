@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -72,7 +72,6 @@
 #include <NdbTCP.h>
 
 static int g_verbose = 0;
-static int try_reconnect = 3;
 
 static int g_nodes, g_connections, g_system, g_section;
 static const char * g_query = 0;
@@ -113,9 +112,6 @@ static struct my_option my_long_options[] =
   { "type", NDB_OPT_NOSHORT, "Type of node/connection",
     (uchar**) &g_type, (uchar**) &g_type,
     0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  { "id", NDB_OPT_NOSHORT, "Nodeid",
-    (uchar**) &g_nodeid, (uchar**) &g_nodeid,
-    0, GET_INT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   { "nodeid", NDB_OPT_NOSHORT, "Nodeid",
     (uchar**) &g_nodeid, (uchar**) &g_nodeid,
     0, GET_INT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -319,7 +315,7 @@ parse_query(Vector<Apply*>& select, int &argc, char**& argv)
       const char * str= list[i].c_str();
       if(g_section == CFG_SECTION_NODE)
       {
-	if(native_strcasecmp(str, "id") == 0 || native_strcasecmp(str, "nodeid") == 0)
+	if(native_strcasecmp(str, "nodeid") == 0)
 	{
 	  select.push_back(new Apply(CFG_NODE_ID));
 	  continue;
@@ -474,36 +470,47 @@ HostMatch::eval(const Iter& iter)
   
   if(iter.get(m_key, &valc) == 0)
   {
-	  struct hostent *h1, *h2, copy1;
-	  char *addr1;
+    struct hostent *h1, *h2, copy1;
+    char *addr1;
 
-	  h1 = gethostbyname(m_value.c_str());
-	  if (h1 == NULL) {
-		  return 0;
-	  }
+    if (m_value.empty())
+    {
+      return 0;
+    }
+    h1 = gethostbyname(m_value.c_str());
+    if (h1 == NULL)
+    {
+      return 0;
+    }
 
-	  // gethostbyname returns a pointer to a static structure
-	  // so we need to copy the results before doing the next call
-	  memcpy(&copy1, h1, sizeof(struct hostent));
-	  addr1 = (char *)malloc(copy1.h_length);
-	  NdbAutoPtr<char> tmp_aptr(addr1);
-	  memcpy(addr1, h1->h_addr, copy1.h_length);
+    // gethostbyname returns a pointer to a static structure
+    // so we need to copy the results before doing the next call
+    memcpy(&copy1, h1, sizeof(struct hostent));
+    addr1 = (char *)malloc(copy1.h_length);
+    NdbAutoPtr<char> tmp_aptr(addr1);
+    memcpy(addr1, h1->h_addr, copy1.h_length);
 
-	  h2 = gethostbyname(valc);
-	  if (h2 == NULL) {
-		  return 0;
-	  }
+    if (valc == NULL || strlen(valc) == 0)
+    {
+      return 0;
+    }
+    h2 = gethostbyname(valc);
+    if (h2 == NULL)
+    {
+      return 0;
+    }
 
-	  if (copy1.h_addrtype != h2->h_addrtype) {
-		  return 0;
-	  }
+    if (copy1.h_addrtype != h2->h_addrtype)
+    {
+      return 0;
+    }
 
-	  if (copy1.h_length != h2->h_length) 
-	  {
-		  return 0;
-	  }
-	  
-	  return 0 ==  memcmp(addr1, h2->h_addr, copy1.h_length);	  
+    if (copy1.h_length != h2->h_length) 
+    {
+      return 0;
+    }
+ 
+    return 0 ==  memcmp(addr1, h2->h_addr, copy1.h_length);	  
   }
 
   return 0;
@@ -588,7 +595,7 @@ fetch_configuration(int from_node)
     goto noconnect;
   }
 
-  if(ndb_mgm_connect(mgm, try_reconnect-1, 5, 1))
+  if(ndb_mgm_connect(mgm, opt_connect_retries - 1, opt_connect_retry_delay, 1))
   {
     fprintf(stderr, "Connect failed");
     fprintf(stderr, " code: %d, msg: %s\n",

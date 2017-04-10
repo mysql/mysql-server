@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,14 +16,16 @@
 #ifndef GCS_XCOM_GROUP_MANAGEMENT_INCLUDED
 #define GCS_XCOM_GROUP_MANAGEMENT_INCLUDED
 
-#include "gcs_group_management_interface.h" // Base class: Gcs_group_management_interface
+#include "mysql/gcs/gcs_group_management_interface.h" // Base class: Gcs_group_management_interface
 #include "gcs_xcom_utils.h"
+#include "gcs_xcom_state_exchange.h"
 
 class Gcs_xcom_group_management : public Gcs_group_management_interface
 {
 public:
   explicit Gcs_xcom_group_management(
     Gcs_xcom_proxy *xcom_proxy,
+    Gcs_xcom_view_change_control_interface *view_control,
     const Gcs_group_identifier& group_identifier);
   virtual ~Gcs_xcom_group_management();
 
@@ -32,6 +34,7 @@ public:
 
 private:
   Gcs_xcom_proxy *m_xcom_proxy;
+  Gcs_xcom_view_change_control_interface *m_view_control;
   Gcs_group_identifier* m_gid;
   unsigned int m_gid_hash;
 

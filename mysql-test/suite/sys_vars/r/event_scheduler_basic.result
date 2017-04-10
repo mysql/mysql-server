@@ -53,7 +53,7 @@ SELECT @@session.event_scheduler;
 ERROR HY000: Variable 'event_scheduler' is a GLOBAL variable
 '#----------------------FN_DYNVARS_004_05------------------------#'
 SELECT @@global.event_scheduler = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='event_scheduler';
 @@global.event_scheduler = VARIABLE_VALUE
 1

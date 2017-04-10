@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,18 +16,23 @@
 #ifndef FILESORT_INCLUDED
 #define FILESORT_INCLUDED
 
-#include "my_global.h"                          /* uint, uchar */
+#include <stddef.h>
+#include <sys/types.h>
+
 #include "my_base.h"                            /* ha_rows */
-#include "sql_list.h"                           /* Sql_alloc */
-class THD;
-struct TABLE;
-struct st_sort_field;
-struct st_order;
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "sql_alloc.h"                          /* Sql_alloc */
+
 class Addon_fields;
 class Field;
-
-
 class QEP_TAB;
+class THD;
+struct TABLE;
+struct st_order;
+struct st_sort_field;
+
+enum class Addon_fields_status;
 
 /**
   Sorting related info.
@@ -64,10 +69,10 @@ public:
 
   Addon_fields *get_addon_fields(ulong max_length_for_sort_data,
                                  Field **ptabfield,
-                                 uint sortlength, uint *plength,
+                                 uint sortlength,
+                                 Addon_fields_status *addon_fields_status,
+                                 uint *plength,
                                  uint *ppackable_length);
-private:
-  void cleanup();
 };
 
 bool filesort(THD *thd, Filesort *fsort, bool sort_positions,
@@ -78,6 +83,6 @@ void change_double_for_sort(double nr,uchar *to);
 
 /// Declared here so we can unit test it.
 uint sortlength(THD *thd, st_sort_field *sortorder, uint s_length,
-                bool *multi_byte_charset, bool *use_hash);
+                bool *multi_byte_charset);
 
 #endif /* FILESORT_INCLUDED */

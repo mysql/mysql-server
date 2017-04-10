@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,17 +14,24 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "gcs_xcom_state_exchange.h"
-#include "gcs_xcom_communication_interface.h"
-#include "gcs_logging.h"
-#include "synode_no.h"
 
+#include <assert.h>
 #include <time.h>
-#include <xplatform/byteorder.h>
+
+#include "mysql/gcs/gcs_logging.h"
+#include "gcs_xcom_communication_interface.h"
+#include "synode_no.h"
 
 #ifdef _WIN32
 #include<iterator>
 #endif
 
+#include "mysql/gcs/xplatform/byteorder.h"
+
+#include "gcs_xcom_state_exchange.h"
+#include "gcs_xcom_communication_interface.h"
+
+#include "synode_no.h"
 
 Xcom_member_state::Xcom_member_state(const Gcs_xcom_view_identifier &view_id,
                                      synode_no configuration_id,
@@ -300,9 +307,8 @@ void Gcs_xcom_state_exchange::reset_with_flush()
 
 void Gcs_xcom_state_exchange::reset()
 {
-  Gcs_xcom_communication_interface *binding_broadcaster=
-    static_cast<Gcs_xcom_communication_interface *>(m_broadcaster);
-  assert(binding_broadcaster->number_buffered_messages() == 0);
+  assert(static_cast<Gcs_xcom_communication_interface *>(m_broadcaster)->
+         number_buffered_messages() == 0);
 
   m_configuration_id= null_synode;
 
@@ -354,7 +360,7 @@ state_exchange(synode_no configuration_id,
                Gcs_member_identifier *local_info)
 {
   uint64_t fixed_part= 0;
-  int monotonic_part= 0;
+  uint32_t monotonic_part= 0;
 
   /* Keep track of when the view was internally delivered. */
   m_configuration_id= configuration_id;
@@ -396,7 +402,8 @@ state_exchange(synode_no configuration_id,
       timers we default to rand.
     */
     uint64_t ts= My_xp_util::getsystime();
-    fixed_part= (ts == 0) ? rand() : (ts + (rand() % 1000));
+    fixed_part= ((ts == 0) ? static_cast<uint64_t>(rand()) :
+                 (ts + static_cast<uint64_t>((rand()) % 1000)));
     monotonic_part= 0;
   }
   Gcs_xcom_view_identifier proposed_view(fixed_part, monotonic_part);
@@ -679,7 +686,7 @@ Gcs_xcom_state_exchange::get_new_view_id()
   assert(view_id != NULL);
   MYSQL_GCS_DEBUG_EXECUTE(
     uint64_t fixed_view_id= 0;
-    int monotonic_view_id= 0;
+    uint32_t monotonic_view_id= 0;
     for (state_it= m_member_states.begin(); state_it != m_member_states.end();
          state_it++)
     {

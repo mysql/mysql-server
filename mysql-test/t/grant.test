@@ -1,11 +1,7 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 # Store the time of password_last_changed column from mysql.user table
 # to restore it back later.
-let $date_to_restore=`SELECT password_last_changed from mysql.user where host='localhost'`;
+let $date_to_restore_root=`SELECT password_last_changed from mysql.user where host='localhost' and user='root'`;
+let $date_to_restore_sys=`SELECT password_last_changed from mysql.user where host='localhost' and user='mysql.sys'`;
 # Test of GRANT commands
 
 # Grant tests not performed with embedded server
@@ -414,6 +410,7 @@ delete from mysql.user where user='mysqltest_3';
 delete from mysql.db where user="mysqltest_3";
 delete from mysql.tables_priv where user="mysqltest_3";
 delete from mysql.columns_priv where user="mysqltest_3";
+delete from mysql.global_grants where user="mysqltest_3";
 flush privileges;
 drop database mysqltest_1;
 drop database mysqltest_2;
@@ -422,6 +419,7 @@ disconnect conn2;
 #
 # just SHOW PRIVILEGES test
 #
+--sorted_result
 SHOW PRIVILEGES;
 
 #
@@ -1716,11 +1714,11 @@ CREATE PROCEDURE mysqltest1.test() SQL SECURITY DEFINER
 CREATE FUNCTION mysqltest1.test() RETURNS INT RETURN 1;
 --error ER_NO_SUCH_TABLE
 GRANT EXECUTE ON FUNCTION mysqltest1.test TO mysqltest_1@localhost;
+--error ER_NO_SUCH_TABLE
 GRANT ALL PRIVILEGES ON test.* TO mysqltest_1@localhost;
 CALL mysqltest1.test();
 DROP DATABASE mysqltest1;
 RENAME TABLE mysql.procs_gone TO mysql.procs_priv;
-DROP USER mysqltest_1@localhost;
 FLUSH PRIVILEGES;
 
 
@@ -2343,7 +2341,9 @@ connect(con1,localhost,wl7131,wl7131,,);
 --error 1820
 SELECT 1;
 --echo # Setting password should work
+--disable_ps_protocol
 ALTER USER wl7131 IDENTIFIED BY 'new_wl7131';
+--enable_ps_protocol
 --echo # Doing something should pass
 SELECT 1;
 disconnect con1;
@@ -2432,7 +2432,9 @@ SELECT (SELECT password_last_changed FROM mysql.user where user='wl7131') IS NOT
 DROP USER 'wl7131'@'localhost';
 
 --disable_query_log ONCE
---eval UPDATE mysql.user SET password_last_changed = '$date_to_restore'
+--eval UPDATE mysql.user SET password_last_changed = '$date_to_restore_root' WHERE user='root'
+--disable_query_log ONCE
+--eval UPDATE mysql.user SET password_last_changed = '$date_to_restore_sys' WHERE user='mysql.sys'
 --echo # mysql.user table restored to original values.
 
 set GLOBAL sql_mode= @orig_sql_mode_global;

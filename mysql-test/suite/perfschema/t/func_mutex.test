@@ -4,9 +4,6 @@
 ## Functional testing of mutexes and RW-locks
 ##
 
---source include/not_embedded.inc
---source include/have_perfschema.inc
-
 UPDATE performance_schema.setup_instruments SET enabled = 'NO', timed = 'YES';
 
 UPDATE performance_schema.setup_instruments SET enabled = 'YES'
@@ -20,8 +17,6 @@ flush status;
 # Make sure objects are instrumented
 select NAME from performance_schema.mutex_instances
   where NAME = 'wait/synch/mutex/sql/LOCK_open';
-select NAME from performance_schema.rwlock_instances
-  where NAME = 'wait/synch/rwlock/sql/LOCK_grant' limit 1;
 
 --disable_warnings
 DROP TABLE IF EXISTS t1;
@@ -80,49 +75,6 @@ SET @after_count = (SELECT SUM(TIMER_WAIT)
 
 SELECT IF((COALESCE(@after_count, 0) - COALESCE(@before_count, 0)) = 0, 'Success', 'Failure') test_fm2_timed;
 
-#
-# Repeat for RW-lock
-#
-
-TRUNCATE TABLE performance_schema.events_waits_history_long;
-TRUNCATE TABLE performance_schema.events_waits_history;
-TRUNCATE TABLE performance_schema.events_waits_current;
-
-SELECT * FROM t1 WHERE id = 1;
-
-SET @before_count = (SELECT SUM(TIMER_WAIT)
-                     FROM performance_schema.events_waits_history_long
-                     WHERE (EVENT_NAME = 'wait/synch/rwlock/sql/LOCK_grant'));
-
-SELECT * FROM t1;
-
-SET @after_count = (SELECT SUM(TIMER_WAIT)
-                    FROM performance_schema.events_waits_history_long
-                    WHERE (EVENT_NAME = 'wait/synch/rwlock/sql/LOCK_grant'));
-
-SELECT IF((@after_count - @before_count) > 0, 'Success', 'Failure') test_fm1_rw_timed;
-
-UPDATE performance_schema.setup_instruments SET enabled = 'NO'
-WHERE NAME = 'wait/synch/rwlock/sql/LOCK_grant';
-
-TRUNCATE TABLE performance_schema.events_waits_history_long;
-TRUNCATE TABLE performance_schema.events_waits_history;
-TRUNCATE TABLE performance_schema.events_waits_current;
-
-SELECT * FROM t1 WHERE id = 1;
-
-SET @before_count = (SELECT SUM(TIMER_WAIT)
-                     FROM performance_schema.events_waits_history_long
-                     WHERE (EVENT_NAME = 'wait/synch/rwlock/sql/LOCK_grant'));
-
-SELECT * FROM t1;
-
-SET @after_count = (SELECT SUM(TIMER_WAIT)
-                    FROM performance_schema.events_waits_history_long
-                    WHERE (EVENT_NAME = 'wait/synch/rwlock/sql/LOCK_grant'));
-
-SELECT IF((COALESCE(@after_count, 0) - COALESCE(@before_count, 0)) = 0, 'Success', 'Failure') test_fm2_rw_timed;
-
 # Clean-up.
 UPDATE performance_schema.setup_instruments SET enabled = 'YES';
 DROP TABLE t1;
@@ -130,5 +82,5 @@ DROP TABLE t1;
 UPDATE performance_schema.setup_instruments SET enabled = 'YES', timed = 'YES';
 
 # In case of failure, will indicate the root cause
-show global status like "performance_schema%";
+show global status like "performance_schema%_lost";
 

@@ -1,9 +1,0 @@
---source include/have_innodb.inc
---source include/master-slave.inc
---source include/not_embedded.inc
---source include/not_windows.inc
---source include/have_binlog_format_mixed.inc
---source include/not_gtid_enabled.inc
-
---source extra/rpl_tests/rpl_binlog_max_cache_size.test
---source include/rpl_end.inc

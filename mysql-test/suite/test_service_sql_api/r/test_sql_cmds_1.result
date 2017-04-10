@@ -16,12 +16,12 @@ num_cols: 2
 server status: 34
 warn count: 0
 -----------------------------------------------------------------
-SELECT * FROM information_schema.global_variables WHERE variable_name LIKE 'INNODB_READ_IO_THREADS'
+SELECT * FROM performance_schema.global_variables WHERE variable_name LIKE 'INNODB_READ_IO_THREADS'
 -----------------------------------------------------------------
 info	
 num_cols: 2
 server status: 34
-warn count: 1
+warn count: 0
 ERROR 1064 You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'garbage' at line 1
 error after bad SQL: 1064: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'garbage' at line 1
 srv_session_close.

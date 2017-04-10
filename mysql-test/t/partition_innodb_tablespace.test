@@ -1,10 +1,18 @@
+########################################
+##### WL#7554 Force schema `test` to character set latin1
+##### This test should be migrated to utf8mb4
+--disable_query_log
+let $testdbcs242=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
+alter schema default character set latin1;
+use test;
+--enable_query_log
+########################################
+
 #
 # A series of tests to show the correct tablespace behavior when the
 # partition engine uses InnoDB.
 #
 --source include/not_embedded.inc
---source include/have_partition.inc
---source include/have_innodb.inc
 --let $old_default_storage_engine = @@default_storage_engine;
 SET default_storage_engine=InnoDB;
 
@@ -48,10 +56,7 @@ SHOW CREATE TABLE t1;
 --source suite/innodb/include/show_i_s_tables.inc
 --source suite/innodb/include/show_i_s_tablespaces.inc
 
---echo # Verifying .frm, .isl & .ibd files
---file_exists $MYSQLD_DATADIR/test/t1.frm
---file_exists $MYSQLD_DATADIR/test/t1#P#p0.isl
---file_exists $MYSQLD_DATADIR/test/t1#P#p1.isl
+--echo # Verifying .ibd files
 --file_exists $MYSQL_TMP_DIR/alternate_dir/data/test/t1#P#p0.ibd
 --file_exists $MYSQL_TMP_DIR/alternate_dir/data2/test/t1#P#p1.ibd
 
@@ -89,10 +94,7 @@ SELECT * FROM t1;
 SHOW CREATE TABLE t1;
 --source suite/innodb/include/show_i_s_tables.inc
 --source suite/innodb/include/show_i_s_tablespaces.inc
---echo # Verifying .frm and InnoDB files (.isl, .ibd)
---file_exists $MYSQLD_DATADIR/test/t1.frm
---file_exists $MYSQLD_DATADIR/test/t1#P#p0.isl
---file_exists $MYSQLD_DATADIR/test/t1#P#p1.isl
+--echo # Verifying .ibd files
 --file_exists $MYSQL_TMP_DIR/alternate_dir/data/test/t1#P#p0.ibd
 --file_exists $MYSQL_TMP_DIR/alternate_dir/data2/test/t1#P#p1.ibd
 
@@ -102,10 +104,7 @@ RENAME TABLE t1 TO t11;
 SHOW CREATE TABLE t11;
 --source suite/innodb/include/show_i_s_tables.inc
 --source suite/innodb/include/show_i_s_tablespaces.inc
---echo # Verifying .frm and InnoDB files (.isl, .ibd)
---file_exists $MYSQLD_DATADIR/test/t11.frm
---file_exists $MYSQLD_DATADIR/test/t11#P#p0.isl
---file_exists $MYSQLD_DATADIR/test/t11#P#p1.isl
+--echo # Verifying .ibd files
 --file_exists $MYSQL_TMP_DIR/alternate_dir/data/test/t11#P#p0.ibd
 --file_exists $MYSQL_TMP_DIR/alternate_dir/data2/test/t11#P#p1.ibd
 
@@ -161,14 +160,7 @@ SHOW CREATE TABLE t1;
 --source suite/innodb/include/show_i_s_tables.inc
 --source suite/innodb/include/show_i_s_tablespaces.inc
 
---echo # Verifying .frm, .isl & .ibd files
---file_exists $MYSQLD_DATADIR/test/t1.frm
---file_exists $MYSQLD_DATADIR/test/t1#P#p0#SP#s0.isl
---file_exists $MYSQLD_DATADIR/test/t1#P#p0#SP#s1.isl
---file_exists $MYSQLD_DATADIR/test/t1#P#p1#SP#s2.isl
---file_exists $MYSQLD_DATADIR/test/t1#P#p1#SP#s3.isl
---file_exists $MYSQLD_DATADIR/test/t1#P#p2#SP#s4.isl
---file_exists $MYSQLD_DATADIR/test/t1#P#p2#SP#s5.isl
+--echo # Verifying .ibd files
 --file_exists $MYSQL_TMP_DIR/alternate_dir/data/test/t1#P#p0#SP#s0.ibd
 --file_exists $MYSQL_TMP_DIR/alternate_dir/data2/test/t1#P#p0#SP#s1.ibd
 --file_exists $MYSQL_TMP_DIR/alternate_dir/data/test/t1#P#p1#SP#s2.ibd
@@ -211,14 +203,7 @@ SHOW CREATE TABLE t1;
 --source suite/innodb/include/show_i_s_tables.inc
 --source suite/innodb/include/show_i_s_tablespaces.inc
 
---echo # Verifying .frm, .isl & .ibd files
---file_exists $MYSQLD_DATADIR/test/t1.frm
---file_exists $MYSQLD_DATADIR/test/t1#P#p0#SP#s0.isl
---file_exists $MYSQLD_DATADIR/test/t1#P#p0#SP#s1.isl
---file_exists $MYSQLD_DATADIR/test/t1#P#p1#SP#s2.isl
---file_exists $MYSQLD_DATADIR/test/t1#P#p1#SP#s3.isl
---file_exists $MYSQLD_DATADIR/test/t1#P#p2#SP#s4.isl
---file_exists $MYSQLD_DATADIR/test/t1#P#p2#SP#s5.isl
+--echo # Verifying .ibd files
 --file_exists $MYSQL_TMP_DIR/alternate_dir/data/test/t1#P#p0#SP#s0.ibd
 --file_exists $MYSQL_TMP_DIR/alternate_dir/data2/test/t1#P#p0#SP#s1.ibd
 --file_exists $MYSQL_TMP_DIR/alternate_dir/data/test/t1#P#p1#SP#s2.ibd
@@ -256,17 +241,7 @@ SUBPARTITION BY HASH (a) SUBPARTITIONS 3
  (SUBPARTITION sp6,
   SUBPARTITION sp7 DATA DIRECTORY='$MYSQL_TMP_DIR/alternate_dir/data_subpart',
   SUBPARTITION sp8));
---echo # Verifying .frm, .isl & .ibd files
---file_exists $MYSQLD_DATADIR/test/t1.frm
---file_exists $MYSQLD_DATADIR/test/t1#P#p0#SP#sp0.isl
---file_exists $MYSQLD_DATADIR/test/t1#P#p0#SP#sp1.isl
---file_exists $MYSQLD_DATADIR/test/t1#P#p0#SP#sp2.isl
---file_exists $MYSQLD_DATADIR/test/t1#P#p1#SP#sp3.isl
---file_exists $MYSQLD_DATADIR/test/t1#P#p1#SP#sp4.isl
---file_exists $MYSQLD_DATADIR/test/t1#P#p1#SP#sp5.isl
---file_exists $MYSQLD_DATADIR/test/t1#P#p2#SP#sp6.isl
---file_exists $MYSQLD_DATADIR/test/t1#P#p2#SP#sp7.isl
---file_exists $MYSQLD_DATADIR/test/t1#P#p2#SP#sp8.isl
+--echo # Verifying .ibd files
 --file_exists $MYSQL_TMP_DIR/alternate_dir/data_table/test/t1#P#p0#SP#sp0.ibd
 --file_exists $MYSQL_TMP_DIR/alternate_dir/data_table/test/t1#P#p0#SP#sp2.ibd
 --file_exists $MYSQL_TMP_DIR/alternate_dir/data_table/test/t1#P#p2#SP#sp6.ibd
@@ -430,3 +405,9 @@ EVAL SET SESSION innodb_strict_mode=$innodb_strict_mode_orig;
 EVAL SET @@default_storage_engine=$old_default_storage_engine;
 --enable_query_log
 
+########################################
+##### WL#7554 set schema `test` back to what it was
+--disable_query_log
+--eval alter schema test default character set $testdbcs242;
+--enable_query_log
+########################################

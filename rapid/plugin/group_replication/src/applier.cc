@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,11 +13,17 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include <signal.h>
-#include "applier.h"
+#include <assert.h>
+#include <errno.h>
 #include <mysql/group_replication_priv.h>
-#include "plugin_log.h"
+#include <signal.h>
+#include <time.h>
+
+#include "applier.h"
+#include "my_dbug.h"
+#include "my_systime.h"
 #include "plugin.h"
+#include "plugin_log.h"
 #include "single_primary_message.h"
 
 char applier_module_channel_name[] = "group_replication_applier";
@@ -176,8 +182,8 @@ Applier_module::setup_pipeline_handlers()
 void
 Applier_module::set_applier_thread_context()
 {
-  my_thread_init();
   THD *thd= new THD;
+  my_thread_init();
   thd->set_new_thread_id();
   thd->thread_stack= (char*) &thd;
   thd->store_globals();
@@ -190,7 +196,7 @@ Applier_module::set_applier_thread_context()
 
   global_thd_manager_add_thd(thd);
 
-  thd->init_for_queries();
+  thd->init_query_mem_roots();
   set_slave_thread_options(thd);
 #ifndef _WIN32
   THD_STAGE_INFO(thd, stage_executing);
@@ -640,12 +646,13 @@ delete_pipeline:
   DBUG_RETURN(0);
 }
 
-void Applier_module::inform_of_applier_stop(my_thread_id thread_id,
+void Applier_module::inform_of_applier_stop(char* channel_name,
                                             bool aborted)
 {
   DBUG_ENTER("Applier_module::inform_of_applier_stop");
 
-  if (is_own_event_channel(thread_id) && aborted && applier_running )
+  if (!strcmp(channel_name, applier_module_channel_name) &&
+      aborted && applier_running )
   {
     log_message(MY_ERROR_LEVEL,
                 "The applier thread execution was aborted."
@@ -799,7 +806,7 @@ Applier_module::is_applier_thread_waiting()
 }
 
 int
-Applier_module::wait_for_applier_event_execution(ulonglong timeout)
+Applier_module::wait_for_applier_event_execution(double timeout)
 {
   DBUG_ENTER("Applier_module::wait_for_applier_event_execution");
   int error= 0;
@@ -825,19 +832,6 @@ Applier_module::wait_for_applier_event_execution(ulonglong timeout)
   DBUG_RETURN(error);
 }
 
-bool
-Applier_module::is_own_event_channel(my_thread_id id){
-
-  Event_handler* event_applier= NULL;
-  Event_handler::get_handler_by_role(pipeline, APPLIER, &event_applier);
-
-  //No applier exists so return false
-  if (event_applier == NULL)
-    return false; /* purecov: inspected */
-
-  //The only event applying handler by now
-  return ((Applier_handler*)event_applier)->is_own_event_applier(id);
-}
 
 Certification_handler* Applier_module::get_certification_handler(){
 

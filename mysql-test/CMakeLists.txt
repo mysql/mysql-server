@@ -13,6 +13,10 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 
+# Skip -- Up-to-date messages in case of multiple 'make install'.
+# This works for CMAKE 3.1.3 and up
+SET(CMAKE_INSTALL_MESSAGE LAZY)
+
 IF(INSTALL_MYSQLTESTDIR)
 INSTALL(
   DIRECTORY .
@@ -30,7 +34,6 @@ INSTALL(
   PATTERN "*.in" EXCLUDE
 )
 ENDIF()
-
 
 
 IF(NOT ${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_BINARY_DIR})

@@ -13,6 +13,10 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+/**
+  @file storage/myisam/mi_extrafunc.h
+*/
+
 void _mi_report_crashed(MI_INFO *file MY_ATTRIBUTE((unused)),
                         const char *message MY_ATTRIBUTE((unused)),
                         const char *sfile MY_ATTRIBUTE((unused)),

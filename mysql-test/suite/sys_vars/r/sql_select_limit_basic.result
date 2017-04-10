@@ -14,12 +14,12 @@ sql_select_limit	18446744073709551615
 show session variables like 'sql_select_limit';
 Variable_name	Value
 sql_select_limit	18446744073709551615
-select * from information_schema.global_variables where variable_name='sql_select_limit';
+select * from performance_schema.global_variables where variable_name='sql_select_limit';
 VARIABLE_NAME	VARIABLE_VALUE
-SQL_SELECT_LIMIT	18446744073709551615
-select * from information_schema.session_variables where variable_name='sql_select_limit';
+sql_select_limit	18446744073709551615
+select * from performance_schema.session_variables where variable_name='sql_select_limit';
 VARIABLE_NAME	VARIABLE_VALUE
-SQL_SELECT_LIMIT	18446744073709551615
+sql_select_limit	18446744073709551615
 set global sql_select_limit=10;
 set session sql_select_limit=20;
 select @@global.sql_select_limit;
@@ -34,12 +34,12 @@ sql_select_limit	10
 show session variables like 'sql_select_limit';
 Variable_name	Value
 sql_select_limit	20
-select * from information_schema.global_variables where variable_name='sql_select_limit';
+select * from performance_schema.global_variables where variable_name='sql_select_limit';
 VARIABLE_NAME	VARIABLE_VALUE
-SQL_SELECT_LIMIT	10
-select * from information_schema.session_variables where variable_name='sql_select_limit';
+sql_select_limit	10
+select * from performance_schema.session_variables where variable_name='sql_select_limit';
 VARIABLE_NAME	VARIABLE_VALUE
-SQL_SELECT_LIMIT	20
+sql_select_limit	20
 set global sql_select_limit=1.1;
 ERROR 42000: Incorrect argument type to variable 'sql_select_limit'
 set global sql_select_limit=1e1;

@@ -3,7 +3,6 @@
 # (concurrent sql; allocation fail;)
 #
 
---source include/have_innodb.inc
 --source include/have_innodb_max_16k.inc
 --source include/have_debug.inc
 
@@ -12,8 +11,6 @@ set @old_innodb_buffer_pool_size = @@innodb_buffer_pool_size;
 set @old_innodb_file_per_table = @@innodb_file_per_table;
 set @old_innodb_thread_concurrency = @@innodb_thread_concurrency;
 set @old_innodb_thread_sleep_delay = @@innodb_thread_sleep_delay;
-set @old_innodb_disable_resize = @@innodb_disable_resize_buffer_pool_debug;
-set global innodb_disable_resize_buffer_pool_debug = OFF;
 --enable_query_log
 
 # Save the initial number of concurrent sessions
@@ -59,7 +56,7 @@ set global innodb_buffer_pool_size = 12*1024*1024;
 
 let $wait_condition =
   SELECT SUBSTR(variable_value, 1, 30) = 'Latching whole of buffer pool.'
-  FROM information_schema.global_status
+  FROM performance_schema.global_status
   WHERE LOWER(variable_name) = 'innodb_buffer_pool_resize_status';
 --source include/wait_condition.inc
 
@@ -111,7 +108,7 @@ set global DEBUG="-d,ib_buf_pool_resize_wait_before_resize";
 
 let $wait_condition =
   SELECT SUBSTR(variable_value, 1, 34) = 'Completed resizing buffer pool at '
-  FROM information_schema.global_status
+  FROM performance_schema.global_status
   WHERE LOWER(variable_name) = 'innodb_buffer_pool_resize_status';
 --source include/wait_condition.inc
 
@@ -157,7 +154,7 @@ set global DEBUG="+d,ib_buf_chunk_init_fails";
 set global innodb_buffer_pool_size = 16*1024*1024;
 let $wait_condition =
   SELECT SUBSTR(variable_value, 1, 27) = 'Resizing buffer pool failed'
-  FROM information_schema.global_status
+  FROM performance_schema.global_status
   WHERE LOWER(variable_name) = 'innodb_buffer_pool_resize_status';
 --source include/wait_condition.inc
 set global DEBUG="-d,ib_buf_chunk_init_fails";
@@ -178,12 +175,11 @@ set global innodb_buffer_pool_size = @old_innodb_buffer_pool_size;
 set global innodb_file_per_table = @old_innodb_file_per_table;
 set global innodb_thread_concurrency = @old_innodb_thread_concurrency;
 set global innodb_thread_sleep_delay = @old_innodb_thread_sleep_delay;
-set global innodb_disable_resize_buffer_pool_debug = @old_innodb_disable_resize;
 --enable_query_log
 
 let $wait_condition =
   SELECT SUBSTR(variable_value, 1, 34) = 'Completed resizing buffer pool at '
-  FROM information_schema.global_status
+  FROM performance_schema.global_status
   WHERE LOWER(variable_name) = 'innodb_buffer_pool_resize_status';
 --source include/wait_condition.inc
 

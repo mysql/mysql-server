@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -156,15 +156,6 @@ rbt_remove_node(
 						because the caller has access
 						only to const nodes.*/
 /**********************************************************************//**
-Return a node from the red black tree, identified by
-key, NULL if not found
-@return node if found else return NULL */
-const ib_rbt_node_t*
-rbt_lookup(
-/*=======*/
-	const ib_rbt_t*	tree,			/*!< in: rb tree to search */
-	const void*	key);			/*!< in: key to lookup */
-/**********************************************************************//**
 Add data to the red black tree, identified by key (no dups yet!)
 @return inserted node */
 const ib_rbt_node_t*
@@ -217,22 +208,6 @@ rbt_prev(
 	const ib_rbt_node_t*			/* in: current node */
 			current);
 /**********************************************************************//**
-Find the node that has the lowest key that is >= key.
-@return node that satisfies the lower bound constraint or NULL */
-const ib_rbt_node_t*
-rbt_lower_bound(
-/*============*/
-	const ib_rbt_t*	tree,			/*!< in: rb tree */
-	const void*	key);			/*!< in: key to search */
-/**********************************************************************//**
-Find the node that has the greatest key that is <= key.
-@return node that satisifies the upper bound constraint or NULL */
-const ib_rbt_node_t*
-rbt_upper_bound(
-/*============*/
-	const ib_rbt_t*	tree,			/*!< in: rb tree */
-	const void*	key);			/*!< in: key to search */
-/**********************************************************************//**
 Search for the key, a node will be retuned in parent.last, whether it
 was found or not. If not found then parent.last will contain the
 parent node for the possibly new key otherwise the matching node.
@@ -259,12 +234,6 @@ rbt_search_cmp(
 			arg_compare);		/*!< in: fn to compare items
 						with argument */
 /**********************************************************************//**
-Clear the tree, deletes (and free's) all the nodes. */
-void
-rbt_clear(
-/*======*/
-	ib_rbt_t*	tree);			/*!< in: rb tree */
-/**********************************************************************//**
 Merge the node from dst into src. Return the number of nodes merged.
 @return no. of recs merged */
 ulint
@@ -272,18 +241,7 @@ rbt_merge_uniq(
 /*===========*/
 	ib_rbt_t*	dst,			/*!< in: dst rb tree */
 	const ib_rbt_t*	src);			/*!< in: src rb tree */
-/**********************************************************************//**
-Merge the node from dst into src. Return the number of nodes merged.
-Delete the nodes from src after copying node to dst. As a side effect
-the duplicates will be left untouched in the src, since we don't support
-duplicates (yet). NOTE: src and dst must be similar, the function doesn't
-check for this condition (yet).
-@return no. of recs merged */
-ulint
-rbt_merge_uniq_destructive(
-/*=======================*/
-	ib_rbt_t*	dst,			/*!< in: dst rb tree */
-	ib_rbt_t*	src);			/*!< in: src rb tree */
+#if defined UNIV_DEBUG || defined IB_RBT_TESTING
 /**********************************************************************//**
 Verify the integrity of the RB tree. For debugging. 0 failure else height
 of tree (in count of black nodes).
@@ -292,12 +250,6 @@ ibool
 rbt_validate(
 /*=========*/
 	const ib_rbt_t*	tree);			/*!< in: tree to validate */
-/**********************************************************************//**
-Iterate over the tree in depth first order. */
-void
-rbt_print(
-/*======*/
-	const ib_rbt_t*		tree,		/*!< in: tree to traverse */
-	ib_rbt_print_node	print);		/*!< in: print function */
+#endif /* UNIV_DEBUG || IB_RBT_TESTING */
 
 #endif /* INNOBASE_UT0RBT_H */

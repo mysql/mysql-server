@@ -53,29 +53,18 @@ enum dict_stats_upd_option_t {
 				otherwise do nothing */
 };
 
-/*********************************************************************//**
-Calculates new estimates for table and index statistics. This function
-is relatively quick and is used to calculate transient statistics that
-are not saved on disk.
-This was the only way to calculate statistics before the
-Persistent Statistics feature was introduced. */
-void
-dict_stats_update_transient(
-/*========================*/
-	dict_table_t*	table);	/*!< in/out: table */
-
-/*********************************************************************//**
-Set the persistent statistics flag for a given table. This is set only
-in the in-memory table object and is not saved on disk. It will be read
-from the .frm file upon first open from MySQL after a server restart. */
+/** Set the persistent statistics flag for a given table. This is set only in
+the in-memory table object and is not saved on disk. It will be read from the
+.frm file upon first open from MySQL after a server restart.
+@param[in,out]	table	table
+@param[in]	ps_on	persistent stats explicitly enabled
+@param[in]	ps_off	persistent stats explicitly disabled */
 UNIV_INLINE
 void
 dict_stats_set_persistent(
-/*======================*/
-	dict_table_t*	table,	/*!< in/out: table */
-	ibool		ps_on,	/*!< in: persistent stats explicitly enabled */
-	ibool		ps_off)	/*!< in: persistent stats explicitly disabled */
-	MY_ATTRIBUTE((nonnull));
+	dict_table_t*	table,
+	ibool		ps_on,
+	ibool		ps_off);
 
 /*********************************************************************//**
 Check whether persistent statistics is enabled for a given table.
@@ -85,20 +74,21 @@ ibool
 dict_stats_is_persistent_enabled(
 /*=============================*/
 	const dict_table_t*	table)	/*!< in: table */
-	MY_ATTRIBUTE((nonnull, warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 
-/*********************************************************************//**
-Set the auto recalc flag for a given table (only honored for a persistent
-stats enabled table). The flag is set only in the in-memory table object
-and is not saved in InnoDB files. It will be read from the .frm file upon
-first open from MySQL after a server restart. */
+/** Set the auto recalc flag for a given table (only honored for a persistent
+stats enabled table). The flag is set only in the in-memory table object and is
+not saved in InnoDB files. It will be read from the .frm file upon first open
+from MySQL after a server restart.
+@param[in,out]	table		table
+@param[in]	auto_recalc_on	explicitly enabled
+@param[in]	auto_recalc_off	explicitly disabled */
 UNIV_INLINE
 void
 dict_stats_auto_recalc_set(
-/*=======================*/
-	dict_table_t*	table,			/*!< in/out: table */
-	ibool		auto_recalc_on,		/*!< in: explicitly enabled */
-	ibool		auto_recalc_off);	/*!< in: explicitly disabled */
+	dict_table_t*	table,
+	ibool		auto_recalc_on,
+	ibool		auto_recalc_off);
 
 /*********************************************************************//**
 Check whether auto recalc is enabled for a given table.
@@ -124,8 +114,7 @@ UNIV_INLINE
 void
 dict_stats_deinit(
 /*==============*/
-	dict_table_t*	table)	/*!< in/out: table */
-	MY_ATTRIBUTE((nonnull));
+	dict_table_t*	table);	/*!< in/out: table */
 
 /*********************************************************************//**
 Calculates new estimates for table and index statistics. The statistics
@@ -172,8 +161,7 @@ Fetches or calculates new estimates for index statistics. */
 void
 dict_stats_update_for_index(
 /*========================*/
-	dict_index_t*	index)	/*!< in/out: index */
-	MY_ATTRIBUTE((nonnull));
+	dict_index_t*	index);	/*!< in/out: index */
 
 /*********************************************************************//**
 Renames a table in InnoDB persistent stats storage.
@@ -202,9 +190,7 @@ dict_stats_rename_index(
 	const char*		new_index_name)	/*!< in: new index name */
 	MY_ATTRIBUTE((warn_unused_result));
 
-#ifndef UNIV_NONINL
 #include "dict0stats.ic"
-#endif
 
 #ifdef UNIV_ENABLE_UNIT_TEST_DICT_STATS
 void test_dict_stats_all();

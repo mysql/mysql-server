@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,19 +13,36 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#ifndef PARSE_TREE_NODE_INCLUDED
-#define PARSE_TREE_NODE_INCLUDED
+#ifndef PARSE_TREE_NODE_BASE_INCLUDED
+#define PARSE_TREE_NODE_BASE_INCLUDED
 
-#include "my_config.h"
+#include <stdarg.h>
 #include <cstdlib>
-#include <cstring>
+#include <new>
+
+#include "check_stack.h"
+#include "mem_root_array.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
 #include "my_sys.h"
-#include "sql_const.h"
-
+#include "parse_error.h"
 #include "parse_location.h"
+#include "sql_const.h"
+#include "thr_malloc.h"
 
+class SELECT_LEX;
+class Sql_alloc;
 class THD;
-class st_select_lex;
+
+/**
+  Sql_alloc-ed version of Mem_root_array with a trivial destructor of elements
+
+  @tparam Element_type The type of the elements of the container.
+                       Elements must be copyable.
+*/
+template<typename Element_type> using Trivial_array=
+  Mem_root_array<Element_type, Sql_alloc>;
 
 // uncachable cause
 #define UNCACHEABLE_DEPENDENT   1
@@ -84,25 +101,22 @@ typedef YYLTYPE POS;
 struct Parse_context {
   THD * const thd;              ///< Current thread handler
   MEM_ROOT *mem_root;           ///< Current MEM_ROOT
-  st_select_lex * select;       ///< Current SELECT_LEX object
+  SELECT_LEX * select;          ///< Current SELECT_LEX object
 
-  Parse_context(THD *thd, st_select_lex *select);
+  Parse_context(THD *thd, SELECT_LEX *sl);
 };
-
-
-// defined in sql_parse.cc:
-bool check_stack_overrun(THD *thd, long margin, uchar *dummy);
 
 
 /**
   Base class for parse tree nodes
 */
-class Parse_tree_node
+template<typename Context>
+class Parse_tree_node_tmpl
 {
   friend class Item; // for direct access to the "contextualized" field
 
-  Parse_tree_node(const Parse_tree_node &); // undefined
-  void operator=(const Parse_tree_node &); // undefined
+  Parse_tree_node_tmpl(const Parse_tree_node_tmpl &); // undefined
+  void operator=(const Parse_tree_node_tmpl &); // undefined
 
 #ifndef DBUG_OFF
 private:
@@ -111,13 +125,19 @@ private:
 #endif//DBUG_OFF
 
 public:
-  static void *operator new(size_t size, MEM_ROOT *mem_root) throw ()
+  static void *operator new(size_t size, MEM_ROOT *mem_root,
+                            const std::nothrow_t &arg MY_ATTRIBUTE((unused))
+                            = std::nothrow) throw ()
   { return alloc_root(mem_root, size); }
-  static void operator delete(void *ptr,size_t size) { TRASH(ptr, size); }
-  static void operator delete(void *ptr, MEM_ROOT *mem_root) {}
+  static void operator delete(void *ptr MY_ATTRIBUTE((unused)),
+                              size_t size MY_ATTRIBUTE((unused)))
+  { TRASH(ptr, size); }
+  static void operator delete(void*, MEM_ROOT*,
+                              const std::nothrow_t&) throw ()
+  {}
 
 protected:
-  Parse_tree_node()
+  Parse_tree_node_tmpl()
   {
 #ifndef DBUG_OFF
     contextualized= false;
@@ -126,7 +146,7 @@ protected:
   }
 
 public:
-  virtual ~Parse_tree_node() {}
+  virtual ~Parse_tree_node_tmpl() {}
 
 #ifndef DBUG_OFF
   bool is_contextualized() const { return contextualized; }
@@ -136,11 +156,11 @@ public:
     Do all context-sensitive things and mark the node as contextualized
 
     @param      pc      current parse context
-    
+
     @retval     false   success
     @retval     true    syntax/OOM/etc error
   */
-  virtual bool contextualize(Parse_context *pc)
+  virtual bool contextualize(Context *pc)
   {
 #ifndef DBUG_OFF
     if (transitional)
@@ -169,7 +189,7 @@ public:
 
     During the step-by-step refactoring of the parser grammar we wrap
     each context-sensitive semantic action with 3 calls:
-    1. Parse_tree_node() context-independent constructor call,
+    1. Parse_tree_node_tmpl() context-independent constructor call,
     2. contextualize_() function call to evaluate all context-sensitive things
        from the former context-sensitive semantic action code.
     3. Call of dummy contextualize() function.
@@ -189,7 +209,7 @@ public:
 
     Note: remove this function together with Item::contextualize_().
   */
-  virtual bool contextualize_(Parse_context *pc)
+  virtual bool contextualize_(Context*)
   {
 #ifndef DBUG_OFF
     DBUG_ASSERT(!contextualized && !transitional);
@@ -199,9 +219,36 @@ public:
     return false;
   }
 
-  void error(Parse_context *pc,
-             const POS &position,
-             const char * msg= NULL) const;
+  /**
+    my_syntax_error() function replacement for deferred reporting of syntax
+    errors
+
+    @param      pc      Current parse context.
+    @param      pos     Location of the error in lexical scanner buffers.
+    @param      msg     Error message: NULL default means ER(ER_SYNTAX_ERROR).
+  */
+  void error(Context *pc, const POS &pos, const char * msg= NULL) const
+  {
+    syntax_error_at(pc->thd, pos, msg);
+  }
+
+  /**
+    my_syntax_error() function replacement for deferred reporting of syntax
+    errors
+
+    @param      pc      Current parse context.
+    @param      pos     Location of the error in lexical scanner buffers.
+    @param      format  Error message format string with optional argument list.
+  */
+  void errorf(Context *pc, const POS &pos, const char *format, ...) const
+  {
+    va_list args;
+    va_start(args, format);
+    vsyntax_error_at(pc->thd, pos, format, args);
+    va_end(args);
+  }
 };
 
-#endif /* PARSE_TREE_NODE_INCLUDED */
+typedef Parse_tree_node_tmpl<Parse_context> Parse_tree_node;
+
+#endif /* PARSE_TREE_NODE_BASE_INCLUDED */

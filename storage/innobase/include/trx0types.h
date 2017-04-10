@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -44,7 +44,7 @@ the terminating NUL character. */
 static const ulint TRX_ID_MAX_LEN = 17;
 
 /** Space id of the transaction system page (the system tablespace) */
-static const ulint TRX_SYS_SPACE = 0;
+static const space_id_t TRX_SYS_SPACE = 0;
 
 /** Page number of the transaction system page */
 #define TRX_SYS_PAGE_NO		FSP_TRX_SYS_PAGE_NO
@@ -173,15 +173,13 @@ typedef ib_mutex_t UndoMutex;
 typedef ib_mutex_t PQMutex;
 typedef ib_mutex_t TrxSysMutex;
 
+using Rsegs = std::vector<trx_rseg_t*, ut_allocator<trx_rseg_t*>>;
+using Rseg_Iterator = Rsegs::iterator;
+
 /** Rollback segements from a given transaction with trx-no
 scheduled for purge. */
 class TrxUndoRsegs {
-private:
-	typedef std::vector<trx_rseg_t*, ut_allocator<trx_rseg_t*> >
-		trx_rsegs_t;
 public:
-	typedef trx_rsegs_t::iterator iterator;
-
 	/** Default constructor */
 	TrxUndoRsegs() : m_trx_no() { }
 
@@ -207,8 +205,8 @@ public:
 	}
 
 	/** Erase the element pointed by given iterator.
-	@param[in]	iterator	iterator */
-	void erase(iterator& it)
+	@param[in]	it	iterator */
+	void erase(Rseg_Iterator& it)
 	{
 		m_rsegs.erase(it);
 	}
@@ -222,14 +220,14 @@ public:
 
 	/**
 	@return an iterator to the first element */
-	iterator begin()
+	Rseg_Iterator begin()
 	{
 		return(m_rsegs.begin());
 	}
 
 	/**
 	@return an iterator to the end */
-	iterator end()
+	Rseg_Iterator end()
 	{
 		return(m_rsegs.end());
 	}
@@ -246,8 +244,8 @@ public:
 	}
 
 	/** Compare two TrxUndoRsegs based on trx_no.
-	@param elem1 first element to compare
-	@param elem2 second element to compare
+	@param lhs first element to compare
+	@param rhs second element to compare
 	@return true if elem1 > elem2 else false.*/
 	bool operator()(const TrxUndoRsegs& lhs, const TrxUndoRsegs& rhs)
 	{
@@ -263,7 +261,7 @@ private:
 	trx_id_t		m_trx_no;
 
 	/** Rollback segments of a transaction, scheduled for purge. */
-	trx_rsegs_t		m_rsegs;
+	Rsegs			m_rsegs;
 };
 
 typedef std::priority_queue<

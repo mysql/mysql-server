@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -21,16 +21,41 @@
   Table EVENTS_STAGES_SUMMARY_BY_THREAD_BY_EVENT_NAME (declarations).
 */
 
+#include <sys/types.h>
+
+#include "my_inttypes.h"
 #include "pfs_column_types.h"
 #include "pfs_engine_table.h"
-#include "pfs_instr_class.h"
 #include "pfs_instr.h"
+#include "pfs_instr_class.h"
 #include "table_helper.h"
 
 /**
-  @addtogroup Performance_schema_tables
+  @addtogroup performance_schema_tables
   @{
 */
+
+class PFS_index_esgs_by_thread_by_event_name : public PFS_engine_index
+{
+public:
+  PFS_index_esgs_by_thread_by_event_name()
+    : PFS_engine_index(&m_key_1, &m_key_2),
+      m_key_1("THREAD_ID"),
+      m_key_2("EVENT_NAME")
+  {
+  }
+
+  ~PFS_index_esgs_by_thread_by_event_name()
+  {
+  }
+
+  bool match(PFS_thread *pfs);
+  bool match(PFS_stage_class *klass);
+
+private:
+  PFS_key_thread_id m_key_1;
+  PFS_key_event_name m_key_2;
+};
 
 /**
   A row of table
@@ -52,26 +77,28 @@ struct row_esgs_by_thread_by_event_name
   Index 1 on thread (0 based).
   Index 2 on stage class (1 based).
 */
-struct pos_esgs_by_thread_by_event_name
-: public PFS_double_index
+struct pos_esgs_by_thread_by_event_name : public PFS_double_index
 {
-  pos_esgs_by_thread_by_event_name()
-    : PFS_double_index(0, 1)
-  {}
-
-  inline void reset(void)
+  pos_esgs_by_thread_by_event_name() : PFS_double_index(0, 1)
   {
-    m_index_1= 0;
-    m_index_2= 1;
   }
 
-  inline void next_thread(void)
+  inline void
+  reset(void)
+  {
+    m_index_1 = 0;
+    m_index_2 = 1;
+  }
+
+  inline void
+  next_thread(void)
   {
     m_index_1++;
-    m_index_2= 1;
+    m_index_2 = 1;
   }
 
-  inline void next_stage(void)
+  inline void
+  next_stage(void)
   {
     m_index_2++;
   }
@@ -83,14 +110,18 @@ class table_esgs_by_thread_by_event_name : public PFS_engine_table
 public:
   /** Table share */
   static PFS_engine_table_share m_share;
-  static PFS_engine_table* create();
+  static PFS_engine_table *create();
   static int delete_all_rows();
   static ha_rows get_row_count();
+
+  virtual void reset_position(void);
 
   virtual int rnd_init(bool scan);
   virtual int rnd_next();
   virtual int rnd_pos(const void *pos);
-  virtual void reset_position(void);
+
+  virtual int index_init(uint idx, bool sorted);
+  virtual int index_next();
 
 protected:
   virtual int read_row_values(TABLE *table,
@@ -102,10 +133,11 @@ protected:
 
 public:
   ~table_esgs_by_thread_by_event_name()
-  {}
+  {
+  }
 
 protected:
-  void make_row(PFS_thread *thread, PFS_stage_class *klass);
+  int make_row(PFS_thread *thread, PFS_stage_class *klass);
 
 private:
   /** Table share lock. */
@@ -115,12 +147,12 @@ private:
 
   /** Current row. */
   row_esgs_by_thread_by_event_name m_row;
-  /** True is the current row exists. */
-  bool m_row_exists;
   /** Current position. */
   pos_esgs_by_thread_by_event_name m_pos;
   /** Next position. */
   pos_esgs_by_thread_by_event_name m_next_pos;
+
+  PFS_index_esgs_by_thread_by_event_name *m_opened_index;
 };
 
 /** @} */

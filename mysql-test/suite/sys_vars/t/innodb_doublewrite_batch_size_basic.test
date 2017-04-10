@@ -1,4 +1,3 @@
---source include/have_innodb.inc
 --source include/have_debug.inc
 
 #
@@ -11,8 +10,8 @@ select @@session.innodb_doublewrite_batch_size;
 show global variables like 'innodb_doublewrite_batch_size';
 show session variables like 'innodb_doublewrite_batch_size';
 --disable_warnings
-select * from information_schema.global_variables where variable_name='innodb_doublewrite_batch_size';
-select * from information_schema.session_variables where variable_name='innodb_doublewrite_batch_size';
+select * from performance_schema.global_variables where variable_name='innodb_doublewrite_batch_size';
+select * from performance_schema.session_variables where variable_name='innodb_doublewrite_batch_size';
 --enable_warnings
 
 #

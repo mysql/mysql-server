@@ -14,12 +14,12 @@ relay_log_index	REPLACED
 show session variables like 'relay_log_index';
 Variable_name	Value
 relay_log_index	REPLACED
-select * from information_schema.global_variables where variable_name='relay_log_index';
+select * from performance_schema.global_variables where variable_name='relay_log_index';
 VARIABLE_NAME	VARIABLE_VALUE
-RELAY_LOG_INDEX	REPLACED
-select * from information_schema.session_variables where variable_name='relay_log_index';
+relay_log_index	REPLACED
+select * from performance_schema.session_variables where variable_name='relay_log_index';
 VARIABLE_NAME	VARIABLE_VALUE
-RELAY_LOG_INDEX	REPLACED
+relay_log_index	REPLACED
 set global relay_log_index=1;
 ERROR HY000: Variable 'relay_log_index' is a read only variable
 set session relay_log_index=1;

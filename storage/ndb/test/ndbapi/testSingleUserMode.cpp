@@ -1,5 +1,5 @@
-/* Copyright (C) 2008 MySQL AB
-   Use is subject to license terms
+/*
+  Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -116,6 +116,7 @@ runTestSingleUserMode(NDBT_Context* ctx, NDBT_Step* step)
     CHECK(restarter.restartOneDbNode(nodeId) != 0)
     CHECK(restarter.exitSingleUserMode() == 0);
     CHECK(restarter.waitClusterStarted(timeout) == 0);
+    CHK_NDB_READY(pNdb);
 
     // Test that the single user mode api can do everything
     CHECK(restarter.enterSingleUserMode(pNdb->getNodeId()) == 0);
@@ -132,6 +133,7 @@ runTestSingleUserMode(NDBT_Context* ctx, NDBT_Step* step)
     CHECK(utilTrans.clearTable(pNdb, records/2) == 0);
     CHECK(restarter.exitSingleUserMode() == 0);
     CHECK(restarter.waitClusterStarted(timeout) == 0);
+    CHK_NDB_READY(pNdb);
 
     // Test create index in single user mode
     CHECK(restarter.enterSingleUserMode(pNdb->getNodeId()) == 0);
@@ -146,6 +148,7 @@ runTestSingleUserMode(NDBT_Context* ctx, NDBT_Step* step)
     CHECK(drop_index_on_pk(pNdb, tabName) == 0);
     CHECK(restarter.exitSingleUserMode() == 0);
     CHECK(restarter.waitClusterStarted(timeout) == 0);
+    CHK_NDB_READY(pNdb);
 
     // Test recreate index in single user mode
     CHECK(create_index_on_pk(pNdb, tabName) == 0);
@@ -158,6 +161,7 @@ runTestSingleUserMode(NDBT_Context* ctx, NDBT_Step* step)
     CHECK(create_index_on_pk(pNdb, tabName) == 0);
     CHECK(restarter.exitSingleUserMode() == 0);
     CHECK(restarter.waitClusterStarted(timeout) == 0);
+    CHK_NDB_READY(pNdb);
     CHECK(drop_index_on_pk(pNdb, tabName) == 0);
 
     CHECK(utilTrans.clearTable(GETNDB(step),  records) == 0);

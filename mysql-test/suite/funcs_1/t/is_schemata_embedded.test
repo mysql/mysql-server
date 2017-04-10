@@ -13,12 +13,12 @@
 # 2008-06-06 mleich Create this this variant for the embedded server.
 #
 
-if (`SELECT VERSION() NOT LIKE '%embedded%'`)
+# Result differences depending on FS case sensitivity.
+if (!$require_case_insensitive_file_system)
 {
-   --skip Test requires: embedded server
+  --source include/have_case_sensitive_file_system.inc
 }
-if (`SELECT VERSION() LIKE '%embedded%'`)
-{
-   --skip Bug#37456 funcs_1: Several tests crash when used with embedded server
-}
+
+--source include/is_embedded.inc
+
 --source suite/funcs_1/datadict/is_schemata.inc

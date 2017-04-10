@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -114,7 +114,6 @@ protected:
    * DIH signals
    */
   void execDIH_SCAN_TAB_CONF(Signal* signal);
-  void execDIH_SCAN_GET_NODES_CONF(Signal* signal);
   void execCHECK_NODE_RESTARTCONF(Signal*);
 
   /**
@@ -180,6 +179,8 @@ public:
     union { Uint32 prevList; Uint32 nextPool; };
   };
   typedef Ptr<Node> NodePtr;
+  typedef ArrayPool<Node> Node_pool;
+  typedef SLList<Node, Node_pool> Node_list;
 
   void update_lcp_pages_scanned(Signal *signal,
                                 Uint32 filePtrI,
@@ -187,15 +188,11 @@ public:
 
 #define BACKUP_WORDS_PER_PAGE 8191
   struct Page32 {
-    union {
-      Uint32 data[BACKUP_WORDS_PER_PAGE];
-      Uint32 chunkSize;
-      Uint32 nextChunk;
-      Uint32 lastChunk;
-    };
+    Uint32 data[BACKUP_WORDS_PER_PAGE];
     Uint32 nextPool;
   };
   typedef Ptr<Page32> Page32Ptr;
+  typedef ArrayPool<Page32> Page32_pool;
 
   struct Fragment {
     Uint64 noOfRecords;
@@ -206,21 +203,18 @@ public:
     Uint8 scanned;  // 0 = not scanned x = scanned by node x
     Uint8 scanning; // 0 = not scanning x = scanning on node x
     Uint8 lcp_no;
-    union {
-      Uint32 nextPool;
-      Uint32 chunkSize;
-      Uint32 nextChunk;
-      Uint32 lastChunk;
-    };
+    Uint32 nextPool;
   };
   typedef Ptr<Fragment> FragmentPtr;
+  typedef ArrayPool<Fragment> Fragment_pool;
 
   struct Table {
-    Table(ArrayPool<Fragment> &);
+    Table(Fragment_pool &);
     
     Uint64 noOfRecords;
 
     Uint32 tableId;
+    Uint32 backupPtrI;
     Uint32 schemaVersion;
     Uint32 tableType;
     Uint32 m_scan_cookie;
@@ -238,8 +232,15 @@ public:
 
     Uint32 nextList;
     union { Uint32 nextPool; Uint32 prevList; };
+    /**
+     * Pointer used by c_tableMap
+     */
+    Uint32 nextMapTable;
   };
   typedef Ptr<Table> TablePtr;
+  typedef ArrayPool<Table> Table_pool;
+  typedef SLList<Table, Table_pool> Table_list;
+  typedef DLCFifoList<Table, Table_pool> Table_fifo;
 
   struct OperationRecord {
   public:
@@ -306,8 +307,8 @@ public:
     Backup & backup;
     BlockNumber number() const { return backup.number(); }
     EmulatedJamBuffer *jamBuffer() const { return backup.jamBuffer(); }
-    void progError(int line, int cause, const char * extra) { 
-      backup.progError(line, cause, extra); 
+    void progError(int line, int cause, const char * extra, const char * check) {
+      backup.progError(line, cause, extra, check);
     }
   };
   friend struct OperationRecord;
@@ -325,12 +326,14 @@ public:
     union { Uint32 nextPool; Uint32 nextList; };
   };
   typedef Ptr<TriggerRecord> TriggerPtr;
-  
+  typedef ArrayPool<TriggerRecord> TriggerRecord_pool;
+  typedef SLList<TriggerRecord, TriggerRecord_pool> TriggerRecord_list;
+
   /**
    * BackupFile - At least 3 per backup
    */
   struct BackupFile {
-    BackupFile(Backup & backup, ArrayPool<Page32> & pp) 
+    BackupFile(Backup & backup, Page32_pool& pp)
       : operation(backup),  pages(pp) { m_retry_count = 0; }
     
     Uint32 backupPtr; // Pointer to backup record
@@ -360,7 +363,8 @@ public:
     Uint32 m_pos;
   }; 
   typedef Ptr<BackupFile> BackupFilePtr;
- 
+  typedef ArrayPool<BackupFile> BackupFile_pool;
+  typedef SLList<BackupFile, BackupFile_pool> BackupFile_list;
 
   /**
    * State for BackupRecord
@@ -402,8 +406,8 @@ public:
     
     BlockNumber number() const { return backup.number(); }
     EmulatedJamBuffer *jamBuffer() const { return backup.jamBuffer(); }
-    void progError(int line, int cause, const char * extra) { 
-      backup.progError(line, cause, extra); 
+    void progError(int line, int cause, const char * extra, const char * check) {
+      backup.progError(line, cause, extra, check);
     }
   private:
     Backup & backup;
@@ -425,9 +429,9 @@ public:
    */
   struct BackupRecord {
     BackupRecord(Backup& b, 
-		 ArrayPool<Table> & tp, 
-		 ArrayPool<BackupFile> & bp,
-		 ArrayPool<TriggerRecord> & trp) 
+                 Table_pool& tp,
+                 BackupFile_pool& bp,
+                 TriggerRecord_pool& trp)
       : slaveState(b, validSlaveTransitions, validSlaveTransitionsCount,1)
       , tables(tp), triggers(trp), files(bp)
       , ctlFilePtr(RNIL), logFilePtr(RNIL), dataFilePtr(RNIL)
@@ -468,10 +472,10 @@ public:
     Uint32 startGCP;
     Uint32 currGCP;
     Uint32 stopGCP;
-    DLCFifoList<Table> tables;
-    SLList<TriggerRecord> triggers;
+    Table_fifo tables;
+    TriggerRecord_list triggers;
     
-    SLList<BackupFile> files; 
+    BackupFile_list files;
     Uint32 ctlFilePtr;  // Ptr.i to ctl-file
     Uint32 logFilePtr;  // Ptr.i to log-file
     Uint32 dataFilePtr; // Ptr.i to first data-file
@@ -537,12 +541,25 @@ public:
     Backup & backup;
     BlockNumber number() const { return backup.number(); }
     EmulatedJamBuffer *jamBuffer() const { return backup.jamBuffer(); }
-    void progError(int line, int cause, const char * extra) { 
-      backup.progError(line, cause, extra); 
+    void progError(int line, int cause, const char * extra, const char * check) {
+      backup.progError(line, cause, extra, check);
     }
   };
   friend struct BackupRecord;
   typedef Ptr<BackupRecord> BackupRecordPtr;
+  typedef ArrayPool<BackupRecord> BackupRecord_pool;
+  typedef SLList<BackupRecord, BackupRecord_pool> BackupRecord_sllist;
+  typedef DLList<BackupRecord, BackupRecord_pool> BackupRecord_dllist;
+
+/**
+ * Number of words needed in buff to start a new scan batch
+ * (Which can directly write a number of rows of max size
+ *  into the buffer)
+ */
+#define BACKUP_MIN_BUFF_WORDS (ZRESERVED_SCAN_BATCH_SIZE *   \
+                               (MAX_TUPLE_SIZE_IN_WORDS +    \
+                                MAX_ATTRIBUTES_IN_TABLE +    \
+                                128))
 
   struct Config {
     Uint32 m_dataBufferSize;
@@ -555,6 +572,7 @@ public:
     Uint64 m_disk_write_speed_max;
     Uint64 m_disk_write_speed_max_other_node_restart;
     Uint64 m_disk_write_speed_max_own_restart;
+    Uint32 m_backup_disk_write_pct;
     Uint32 m_disk_synch_size;
     Uint32 m_diskless;
     Uint32 m_o_direct;
@@ -566,15 +584,23 @@ public:
    * Variables
    */
   Uint32 * c_startOfPages;
+  /**
+   * Map from tableId to tabPtr.i to speed up findTable
+   * If the same table is mapped to several backups we will
+   * look for the table with the correct backupPtr.
+   */
+  Uint32 * c_tableMap;
   NodeId c_masterNodeId;
-  SLList<Node> c_nodes;
+  Node_list c_nodes;
   NdbNodeBitmask c_aliveNodes;
-  DLList<BackupRecord> c_backups;
+  BackupRecord_dllist c_backups;
   Config c_defaults;
 
   /*
     Variables that control checkpoint to disk speed
   */
+  bool m_is_lcp_running;
+  bool m_is_backup_running;
   bool m_is_any_node_restarting;
   bool m_node_restart_check_sent;
   bool m_our_node_started;
@@ -647,8 +673,9 @@ public:
   void calculate_next_delay(const NDB_TICKS curr_time);
   void monitor_disk_write_speed(const NDB_TICKS curr_time,
                                 const Uint64 millisPassed);
-  void adjust_disk_write_speed_down(int adjust_speed);
-  void adjust_disk_write_speed_up(int adjust_speed);
+  void calculate_current_speed_bounds(Uint64& max_speed, Uint64& min_speed);
+  void adjust_disk_write_speed_down(Uint64 min_speed, int adjust_speed);
+  void adjust_disk_write_speed_up(Uint64 max_speed, int adjust_speed);
   void calculate_disk_write_speed(Signal *signal);
   void send_next_reset_disk_speed_counter(Signal *signal);
 
@@ -685,13 +712,13 @@ public:
   /**
    * Pools
    */
-  ArrayPool<Table> c_tablePool;
-  ArrayPool<BackupRecord> c_backupPool;
-  ArrayPool<BackupFile> c_backupFilePool;
-  ArrayPool<Page32> c_pagePool;
-  ArrayPool<Fragment> c_fragmentPool;
-  ArrayPool<Node> c_nodePool;
-  ArrayPool<TriggerRecord> c_triggerPool;
+  Table_pool c_tablePool;
+  BackupRecord_pool c_backupPool;
+  BackupFile_pool c_backupFilePool;
+  Page32_pool c_pagePool;
+  Fragment_pool c_fragmentPool;
+  Node_pool c_nodePool;
+  TriggerRecord_pool c_triggerPool;
 
   void checkFile(Signal*, BackupFilePtr);
   void checkScan(Signal*, BackupRecordPtr, BackupFilePtr);
@@ -720,6 +747,7 @@ public:
   void backupFragmentRef(Signal * signal, BackupFilePtr filePtr);
 
   void nextFragment(Signal*, BackupRecordPtr);
+  void release_tables(BackupRecordPtr);
   
   void sendCreateTrig(Signal*, BackupRecordPtr ptr, TablePtr tabPtr);
   void createAttributeMask(TablePtr tab, Bitmask<MAXNROFATTRIBUTESINWORDS>&);
@@ -766,7 +794,9 @@ public:
 
 
   NodeId getMasterNodeId() const { return c_masterNodeId; }
-  bool findTable(const BackupRecordPtr &, TablePtr &, Uint32 tableId) const;
+  bool findTable(const BackupRecordPtr &, TablePtr &, Uint32 tableId);
+  void insertTableMap(TablePtr &, Uint32 backupPtrI, Uint32 tableId);
+  void removeTableMap(TablePtr &, Uint32 backupPtrI, Uint32 tableId);
   bool parseTableDescription(Signal*, BackupRecordPtr ptr, TablePtr, const Uint32*, Uint32);
   
   bool insertFileHeader(BackupFormat::FileType, BackupRecord*, BackupFile*);
@@ -816,6 +846,19 @@ public:
   Uint32 instanceKey(BackupRecordPtr ptr) {
     return ptr.p->is_lcp() ? instance() : UserBackupInstanceKey;
   }
+
+  bool is_backup_worker()
+  {
+    return isNdbMtLqh() ? (instance() == UserBackupInstanceKey) :  true;
+  }
+
+  /**
+   * Ugly shared state to allow different worker instances
+   * to detect that a backup is going, although they are
+   * not participating.
+   * Modified by the instance performing backup
+   */  
+  static bool g_is_backup_running;
 };
 
 inline

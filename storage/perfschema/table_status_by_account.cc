@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -18,17 +18,26 @@
   Table STATUS_BY_ACCOUNT (implementation).
 */
 
-#include "my_global.h"
-#include "table_status_by_account.h"
+#include "storage/perfschema/table_status_by_account.h"
+
+#include <stddef.h>
+#include <new>
+
+#include "current_thd.h"
+#include "field.h"
+#include "my_dbug.h"
 #include "my_thread.h"
-#include "pfs_instr_class.h"
+#include "mysqld.h"
+#include "pfs_account.h"
 #include "pfs_column_types.h"
 #include "pfs_column_values.h"
 #include "pfs_global.h"
-#include "pfs_account.h"
+#include "pfs_instr_class.h"
+#include "sql_class.h"
 
 THR_LOCK table_status_by_account::m_table_lock;
 
+/* clang-format off */
 static const TABLE_FIELD_TYPE field_types[]=
 {
   {
@@ -52,15 +61,13 @@ static const TABLE_FIELD_TYPE field_types[]=
     { NULL, 0}
   }
 };
+/* clang-format on */
 
 TABLE_FIELD_DEF
-table_status_by_account::m_field_def=
-{ 4, field_types };
+table_status_by_account::m_field_def = {4, field_types};
 
-PFS_engine_table_share
-table_status_by_account::m_share=
-{
-  { C_STRING_WITH_LEN("status_by_account") },
+PFS_engine_table_share table_status_by_account::m_share = {
+  {C_STRING_WITH_LEN("status_by_account")},
   &pfs_truncatable_acl,
   table_status_by_account::create,
   NULL, /* write_row */
@@ -73,13 +80,48 @@ table_status_by_account::m_share=
   false  /* perpetual */
 };
 
-PFS_engine_table*
+bool
+PFS_index_status_by_account::match(PFS_account *pfs)
+{
+  if (m_fields >= 1)
+  {
+    if (!m_key_1.match(pfs))
+    {
+      return false;
+    }
+  }
+
+  if (m_fields >= 2)
+  {
+    if (!m_key_2.match(pfs))
+    {
+      return false;
+    }
+  }
+  return true;
+}
+
+bool
+PFS_index_status_by_account::match(const Status_variable *pfs)
+{
+  if (m_fields >= 3)
+  {
+    if (!m_key_3.match(pfs))
+    {
+      return false;
+    }
+  }
+  return true;
+}
+
+PFS_engine_table *
 table_status_by_account::create(void)
 {
   return new table_status_by_account();
 }
 
-int table_status_by_account::delete_all_rows(void)
+int
+table_status_by_account::delete_all_rows(void)
 {
   mysql_mutex_lock(&LOCK_status);
   reset_status_by_thread();
@@ -88,83 +130,77 @@ int table_status_by_account::delete_all_rows(void)
   return 0;
 }
 
-ha_rows table_status_by_account::get_row_count(void)
+ha_rows
+table_status_by_account::get_row_count(void)
 {
   mysql_mutex_lock(&LOCK_status);
-  size_t status_var_count= all_status_vars.size();
+  size_t status_var_count = all_status_vars.size();
   mysql_mutex_unlock(&LOCK_status);
   return (global_account_container.get_row_count() * status_var_count);
 }
 
 table_status_by_account::table_status_by_account()
   : PFS_engine_table(&m_share, &m_pos),
-    m_status_cache(true), m_row_exists(false), m_pos(), m_next_pos()
-{}
+    m_status_cache(true),
+    m_pos(),
+    m_next_pos(),
+    m_context(NULL)
+{
+}
 
-void table_status_by_account::reset_position(void)
+void
+table_status_by_account::reset_position(void)
 {
   m_pos.reset();
   m_next_pos.reset();
 }
 
-int table_status_by_account::rnd_init(bool scan)
+int
+table_status_by_account::rnd_init(bool scan)
 {
-  if (show_compatibility_56)
-    return 0;
-
-  /*
-    Build array of SHOW_VARs from the global status array prior to materializing
-    threads in rnd_next() or rnd_pos().
-  */
+  /* Build array of SHOW_VARs from the global status array. */
   m_status_cache.initialize_client_session();
 
-  /* Use the current number of status variables to detect changes. */
-  ulonglong status_version= m_status_cache.get_status_array_version();
+  /* Record the version of the global status variable array, store in TLS. */
+  ulonglong status_version = m_status_cache.get_status_array_version();
 
-  /*
-    The table context holds the current version of the global status array
-    and a record of which accounts were materialized. If scan == true, then
-    allocate a new context from mem_root and store in TLS. If scan == false,
-    then restore from TLS.
-  */
-  m_context= (table_status_by_account_context *)current_thd->alloc(sizeof(table_status_by_account_context));
-  new(m_context) table_status_by_account_context(status_version, !scan);
+  m_context = (table_status_by_account_context *)current_thd->alloc(
+    sizeof(table_status_by_account_context));
+  new (m_context) table_status_by_account_context(status_version, !scan);
   return 0;
 }
 
-int table_status_by_account::rnd_next(void)
+int
+table_status_by_account::rnd_next(void)
 {
-  if (show_compatibility_56)
+  if (m_context && !m_context->versions_match())
+  {
+    status_variable_warning();
     return HA_ERR_END_OF_FILE;
-
-  /* If status array changes, exit with warning. */ // TODO: Issue warning
-  if (!m_context->versions_match())
-    return HA_ERR_END_OF_FILE;
+  }
 
   /*
     For each account, build a cache of status variables using totals from all
     threads associated with the account.
   */
-  bool has_more_account= true;
+  bool has_more_account = true;
 
-  for (m_pos.set_at(&m_next_pos);
-       has_more_account;
-       m_pos.next_account())
+  for (m_pos.set_at(&m_next_pos); has_more_account; m_pos.next_account())
   {
-    PFS_account *pfs_account= global_account_container.get(m_pos.m_index_1, &has_more_account);
+    PFS_account *pfs_account =
+      global_account_container.get(m_pos.m_index_1, &has_more_account);
 
     if (m_status_cache.materialize_account(pfs_account) == 0)
     {
-      /* Mark this account as materialized. */
-      m_context->set_item(m_pos.m_index_1);
-
-      /* Get the next status variable. */
-      const Status_variable *stat_var= m_status_cache.get(m_pos.m_index_2);
+      const Status_variable *stat_var = m_status_cache.get(m_pos.m_index_2);
       if (stat_var != NULL)
       {
-        make_row(pfs_account, stat_var);
-        m_next_pos.set_after(&m_pos);
-        return 0;
+        /* If make_row() fails, get the next account. */
+        if (!make_row(pfs_account, stat_var))
+        {
+          m_next_pos.set_after(&m_pos);
+          return 0;
+        }
       }
     }
   }
@@ -174,81 +210,155 @@ int table_status_by_account::rnd_next(void)
 int
 table_status_by_account::rnd_pos(const void *pos)
 {
-  if (show_compatibility_56)
-    return HA_ERR_RECORD_DELETED;
-
-  /* If status array changes, exit with warning. */ // TODO: Issue warning
-  if (!m_context->versions_match())
+  if (m_context && !m_context->versions_match())
+  {
+    status_variable_warning();
     return HA_ERR_END_OF_FILE;
+  }
 
   set_position(pos);
   DBUG_ASSERT(m_pos.m_index_1 < global_account_container.get_row_count());
 
-  PFS_account *pfs_account= global_account_container.get(m_pos.m_index_1);
+  PFS_account *pfs_account = global_account_container.get(m_pos.m_index_1);
 
-  /*
-    Only materialize threads that were previously materialized by rnd_next().
-    If a account cannot be rematerialized, then do nothing.
-  */
-  if (m_context->is_item_set(m_pos.m_index_1) &&
-      m_status_cache.materialize_account(pfs_account) == 0)
+  if (m_status_cache.materialize_account(pfs_account) == 0)
   {
-    const Status_variable *stat_var= m_status_cache.get(m_pos.m_index_2);
+    const Status_variable *stat_var = m_status_cache.get(m_pos.m_index_2);
     if (stat_var != NULL)
     {
-      make_row(pfs_account, stat_var);
-      return 0;
+      return make_row(pfs_account, stat_var);
     }
   }
   return HA_ERR_RECORD_DELETED;
 }
 
-void table_status_by_account
-::make_row(PFS_account *pfs_account, const Status_variable *status_var)
+int
+table_status_by_account::index_init(uint idx, bool)
+{
+  /* Build array of SHOW_VARs from the global status array prior to
+   * materializing. */
+  m_status_cache.initialize_client_session();
+
+  /* Record the version of the global status variable, store in TLS. */
+  ulonglong status_version = m_status_cache.get_status_array_version();
+  m_context = (table_status_by_account_context *)current_thd->alloc(
+    sizeof(table_status_by_account_context));
+  new (m_context) table_status_by_account_context(status_version, false);
+
+  PFS_index_status_by_account *result = NULL;
+  DBUG_ASSERT(idx == 0);
+  result = PFS_NEW(PFS_index_status_by_account);
+  m_opened_index = result;
+  m_index = result;
+  return 0;
+}
+
+int
+table_status_by_account::index_next(void)
+{
+  if (m_context && !m_context->versions_match())
+  {
+    status_variable_warning();
+    return HA_ERR_END_OF_FILE;
+  }
+
+  /*
+    For each account, build a cache of status variables using totals from all
+    threads associated with the account.
+  */
+  bool has_more_account = true;
+
+  for (m_pos.set_at(&m_next_pos); has_more_account; m_pos.next_account())
+  {
+    PFS_account *pfs_account =
+      global_account_container.get(m_pos.m_index_1, &has_more_account);
+
+    if (pfs_account != NULL)
+    {
+      if (m_opened_index->match(pfs_account))
+      {
+        if (m_status_cache.materialize_account(pfs_account) == 0)
+        {
+          const Status_variable *stat_var;
+          do
+          {
+            stat_var = m_status_cache.get(m_pos.m_index_2);
+            if (stat_var != NULL)
+            {
+              if (m_opened_index->match(stat_var))
+              {
+                if (!make_row(pfs_account, stat_var))
+                {
+                  m_next_pos.set_after(&m_pos);
+                  return 0;
+                }
+              }
+              m_pos.m_index_2++;
+            }
+          } while (stat_var != NULL);
+        }
+      }
+    }
+  }
+  return HA_ERR_END_OF_FILE;
+}
+
+int
+table_status_by_account::make_row(PFS_account *pfs_account,
+                                  const Status_variable *status_var)
 {
   pfs_optimistic_state lock;
-  m_row_exists= false;
   pfs_account->m_lock.begin_optimistic_lock(&lock);
 
   if (m_row.m_account.make_row(pfs_account))
-    return;
+  {
+    return HA_ERR_RECORD_DELETED;
+  }
 
-  m_row.m_variable_name.make_row(status_var->m_name, status_var->m_name_length);
-  m_row.m_variable_value.make_row(status_var);
+  if (m_row.m_variable_name.make_row(status_var->m_name,
+                                     status_var->m_name_length))
+  {
+    return HA_ERR_RECORD_DELETED;
+  }
+
+  if (m_row.m_variable_value.make_row(status_var))
+  {
+    return HA_ERR_RECORD_DELETED;
+  }
 
   if (!pfs_account->m_lock.end_optimistic_lock(&lock))
-    return;
+  {
+    return HA_ERR_RECORD_DELETED;
+  }
 
-  m_row_exists= true;
+  return 0;
 }
 
-int table_status_by_account
-::read_row_values(TABLE *table,
-                  unsigned char *buf,
-                  Field **fields,
-                  bool read_all)
+int
+table_status_by_account::read_row_values(TABLE *table,
+                                         unsigned char *buf,
+                                         Field **fields,
+                                         bool read_all)
 {
   Field *f;
 
-  if (unlikely(! m_row_exists))
-    return HA_ERR_RECORD_DELETED;
-
   /* Set the null bits */
   DBUG_ASSERT(table->s->null_bytes == 1);
-  buf[0]= 0;
+  buf[0] = 0;
 
-  for (; (f= *fields) ; fields++)
+  for (; (f = *fields); fields++)
   {
     if (read_all || bitmap_is_set(table->read_set, f->field_index))
     {
-      switch(f->field_index)
+      switch (f->field_index)
       {
       case 0: /* USER */
       case 1: /* HOST */
         m_row.m_account.set_field(f->field_index, f);
         break;
       case 2: /* VARIABLE_NAME */
-        set_field_varchar_utf8(f, m_row.m_variable_name.m_str, m_row.m_variable_name.m_length);
+        set_field_varchar_utf8(
+          f, m_row.m_variable_name.m_str, m_row.m_variable_name.m_length);
         break;
       case 3: /* VARIABLE_VALUE */
         m_row.m_variable_value.set_field(f);
@@ -261,4 +371,3 @@ int table_status_by_account
 
   return 0;
 }
-

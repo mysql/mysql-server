@@ -1,6 +1,5 @@
 let $DATA_PATH=;
 let $INDEX_PATH=;
---source include/have_partition.inc
 --source include/master-slave.inc
 set @old_global_binlog_format=  @@global.binlog_format;
 set @old_session_binlog_format=  @@session.binlog_format;

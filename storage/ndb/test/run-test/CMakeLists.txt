@@ -60,11 +60,8 @@ INSTALL(PROGRAMS atrt-analyze-result.sh atrt-backtrace.sh atrt-gather-result.sh
                  check-tests.sh make-config.sh make-html-reports.sh
                  make-index.sh ndb-autotest.sh upgrade-boot.sh
         DESTINATION mysql-test/ndb)
-INSTALL(FILES   daily-basic-tests.txt daily-devel-tests.txt 16node-tests.txt
-                conf-ndbmaster.cnf conf-fimafeng08.cnf conf-fimafeng09.cnf 
-                conf-dl145a.cnf conf-loki27.cnf conf-ndb07.cnf conf-repl.cnf
-                conf-techra29.cnf conf-test.cnf conf-tyr64.cnf conf-upgrade.cnf
-                test-tests.txt upgrade-tests.txt release-bigmem-tests.txt
-                conf-tyr13.cnf
-		conf-blade08.cnf conf-mikael1.cnf
-        DESTINATION mysql-test/ndb)
+INSTALL(DIRECTORY .
+        DESTINATION mysql-test/ndb
+        FILES_MATCHING
+        PATTERN "*-tests.txt"
+        PATTERN "conf-*.cnf")

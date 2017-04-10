@@ -18,6 +18,7 @@
 #include <string>
 #include "sql_bootstrap.h"       // MAX_BOOTSTRAP_QUERY_SIZE
 
+namespace bootstrap {
 
 /** abstract interface to reading bootstrap commands */
 class Command_iterator
@@ -70,5 +71,6 @@ protected:
   bool is_allocated;
 };
 
+}
 
 #endif /* BOOTSTRAP_IMPL_H */

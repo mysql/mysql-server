@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -26,11 +26,11 @@ Created 2/16/1997 Heikki Tuuri
 #ifndef read0read_h
 #define read0read_h
 
-#include "univ.i"
+#include <stddef.h>
+#include <algorithm>
 
 #include "read0types.h"
-
-#include <algorithm>
+#include "univ.i"
 
 /** The MVCC read view manager */
 class MVCC {
@@ -52,7 +52,7 @@ public:
 
 	/**
 	Close a view created by the above function.
-	@para view		view allocated by trx_open.
+	@param view		view allocated by trx_open.
 	@param own_mutex	true if caller owns trx_sys_t::mutex */
 	void view_close(ReadView*& view, bool own_mutex);
 

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -24,32 +24,31 @@ from dictionary tables
 Created 4/24/1996 Heikki Tuuri
 *******************************************************/
 
-#include "ha_prototypes.h"
+#include <set>
+#include <stack>
 
-#include "dict0load.h"
-#ifdef UNIV_NONINL
-#include "dict0load.ic"
-#endif
-
-#include "mysql_version.h"
-#include "btr0pcur.h"
 #include "btr0btr.h"
+#include "btr0pcur.h"
 #include "dict0boot.h"
 #include "dict0crea.h"
 #include "dict0dict.h"
+#include "dict0load.h"
 #include "dict0mem.h"
 #include "dict0priv.h"
 #include "dict0stats.h"
 #include "fsp0file.h"
 #include "fsp0sysspace.h"
 #include "fts0priv.h"
+#include "ha_prototypes.h"
 #include "mach0data.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "mysql_version.h"
 #include "page0page.h"
 #include "rem0cmp.h"
-#include "srv0start.h"
 #include "srv0srv.h"
-#include <stack>
-#include <set>
+#include "srv0start.h"
 
 /** Following are the InnoDB system tables. The positions in
 this array are referenced by enum dict_system_table_id. */
@@ -95,7 +94,7 @@ dict_load_table_one(
 Does not load any columns or indexes.
 @param[in]	name	Table name
 @param[in]	rec	SYS_TABLES record
-@param[out,own]	table	Table, or NULL
+@param[out]	table	Table, or NULL
 @return error message, or NULL on success */
 static
 const char*
@@ -106,7 +105,7 @@ dict_load_table_low(
 
 /* If this flag is TRUE, then we will load the cluster index's (and tables')
 metadata even if it is marked as "corrupted". */
-my_bool     srv_load_corrupted = FALSE;
+bool     srv_load_corrupted = FALSE;
 
 #ifdef UNIV_DEBUG
 /****************************************************************//**
@@ -121,11 +120,9 @@ name_of_col_is(
 	ulint			i,	/*!< in: index field offset */
 	const char*		name)	/*!< in: name to compare to */
 {
-	ulint	tmp = dict_col_get_no(dict_field_get_col(
-					      dict_index_get_nth_field(
-						      index, i)));
+	ulint	tmp = dict_col_get_no(index->get_field(i)->col);
 
-	return(strcmp(name, dict_table_get_col_name(table, tmp)) == 0);
+	return(strcmp(name, table->get_col_name(tmp)) == 0);
 }
 #endif /* UNIV_DEBUG */
 
@@ -351,6 +348,166 @@ dict_process_sys_tables_rec_and_mtr_commit(
 	return(NULL);
 }
 
+/** Error message for a delete-marked record in dict_load_index_low() */
+static const char* dict_load_index_del = "delete-marked record in SYS_INDEXES";
+/** Error message for table->id mismatch in dict_load_index_low() */
+static const char* dict_load_index_id_err = "SYS_INDEXES.TABLE_ID mismatch";
+
+/** Load an index definition from a SYS_INDEXES record to dict_index_t.
+If allocate=TRUE, we will create a dict_index_t structure and fill it
+accordingly. If allocated=FALSE, the dict_index_t will be supplied by
+the caller and filled with information read from the record.  @return
+error message, or NULL on success */
+static
+const char*
+dict_load_index_low(
+	byte*		table_id,	/*!< in/out: table id (8 bytes),
+					an "in" value if allocate=TRUE
+					and "out" when allocate=FALSE */
+	const char*	table_name,	/*!< in: table name */
+	mem_heap_t*	heap,		/*!< in/out: temporary memory heap */
+	const rec_t*	rec,		/*!< in: SYS_INDEXES record */
+	ibool		allocate,	/*!< in: TRUE=allocate *index,
+					FALSE=fill in a pre-allocated
+					*index */
+	dict_index_t**	index)		/*!< out,own: index, or NULL */
+{
+	const byte*	field;
+	ulint		len;
+	ulint		name_len;
+	char*		name_buf;
+	space_index_t	id;
+	ulint		n_fields;
+	ulint		type;
+	ulint		space;
+	ulint		merge_threshold;
+
+	if (allocate) {
+		/* If allocate=TRUE, no dict_index_t will
+		be supplied. Initialize "*index" to NULL */
+		*index = NULL;
+	}
+
+	if (rec_get_deleted_flag(rec, 0)) {
+		return(dict_load_index_del);
+	}
+
+	if (rec_get_n_fields_old(rec) == DICT_NUM_FIELDS__SYS_INDEXES) {
+		/* MERGE_THRESHOLD exists */
+		field = rec_get_nth_field_old(
+			rec, DICT_FLD__SYS_INDEXES__MERGE_THRESHOLD, &len);
+		switch (len) {
+		case 4:
+			merge_threshold = mach_read_from_4(field);
+			break;
+		case UNIV_SQL_NULL:
+			merge_threshold = DICT_INDEX_MERGE_THRESHOLD_DEFAULT;
+			break;
+		default:
+			return("incorrect MERGE_THRESHOLD length"
+			       " in SYS_INDEXES");
+		}
+	} else if (rec_get_n_fields_old(rec)
+		   == DICT_NUM_FIELDS__SYS_INDEXES - 1) {
+		/* MERGE_THRESHOLD doesn't exist */
+
+		merge_threshold = DICT_INDEX_MERGE_THRESHOLD_DEFAULT;
+	} else {
+		return("wrong number of columns in SYS_INDEXES record");
+	}
+
+	field = rec_get_nth_field_old(
+		rec, DICT_FLD__SYS_INDEXES__TABLE_ID, &len);
+	if (len != 8) {
+err_len:
+		return("incorrect column length in SYS_INDEXES");
+	}
+
+	if (!allocate) {
+		/* We are reading a SYS_INDEXES record. Copy the table_id */
+		memcpy(table_id, (const char*) field, 8);
+	} else if (memcmp(field, table_id, 8)) {
+		/* Caller supplied table_id, verify it is the same
+		id as on the index record */
+		return(dict_load_index_id_err);
+	}
+
+	field = rec_get_nth_field_old(
+		rec, DICT_FLD__SYS_INDEXES__ID, &len);
+	if (len != 8) {
+		goto err_len;
+	}
+
+	id = mach_read_from_8(field);
+
+	rec_get_nth_field_offs_old(
+		rec, DICT_FLD__SYS_INDEXES__DB_TRX_ID, &len);
+	if (len != DATA_TRX_ID_LEN && len != UNIV_SQL_NULL) {
+		goto err_len;
+	}
+	rec_get_nth_field_offs_old(
+		rec, DICT_FLD__SYS_INDEXES__DB_ROLL_PTR, &len);
+	if (len != DATA_ROLL_PTR_LEN && len != UNIV_SQL_NULL) {
+		goto err_len;
+	}
+
+	field = rec_get_nth_field_old(
+		rec, DICT_FLD__SYS_INDEXES__NAME, &name_len);
+	if (name_len == UNIV_SQL_NULL) {
+		goto err_len;
+	}
+
+	name_buf = mem_heap_strdupl(heap, (const char*) field,
+				    name_len);
+
+	field = rec_get_nth_field_old(
+		rec, DICT_FLD__SYS_INDEXES__N_FIELDS, &len);
+	if (len != 4) {
+		goto err_len;
+	}
+	n_fields = mach_read_from_4(field);
+
+	field = rec_get_nth_field_old(
+		rec, DICT_FLD__SYS_INDEXES__TYPE, &len);
+	if (len != 4) {
+		goto err_len;
+	}
+	type = mach_read_from_4(field);
+	if (type & (~0U << DICT_IT_BITS)) {
+		return("unknown SYS_INDEXES.TYPE bits");
+	}
+
+	field = rec_get_nth_field_old(
+		rec, DICT_FLD__SYS_INDEXES__SPACE, &len);
+	if (len != 4) {
+		goto err_len;
+	}
+	space = mach_read_from_4(field);
+
+	field = rec_get_nth_field_old(
+		rec, DICT_FLD__SYS_INDEXES__PAGE_NO, &len);
+	if (len != 4) {
+		goto err_len;
+	}
+
+	if (allocate) {
+		*index = dict_mem_index_create(table_name, name_buf,
+					       space, type, n_fields);
+	} else {
+		ut_a(*index);
+
+		dict_mem_fill_index_struct(*index, NULL, NULL, name_buf,
+					   space, type, n_fields);
+	}
+
+	(*index)->id = id;
+	(*index)->page = mach_read_from_4(field);
+	ut_ad((*index)->page);
+	(*index)->merge_threshold = merge_threshold;
+
+	return(NULL);
+}
+
 /********************************************************************//**
 This function parses a SYS_INDEXES record and populate a dict_index_t
 structure with the information from the record. For detail information
@@ -378,6 +535,176 @@ dict_process_sys_indexes_rec(
 	return(err_msg);
 }
 
+/** Error message for a delete-marked record in dict_load_column_low() */
+static const char* dict_load_column_del = "delete-marked record in SYS_COLUMN";
+
+/** Load a table column definition from a SYS_COLUMNS record to
+dict_table_t.
+@return error message, or NULL on success */
+static
+const char*
+dict_load_column_low(
+	dict_table_t*	table,		/*!< in/out: table, could be NULL
+					if we just populate a dict_column_t
+					struct with information from
+					a SYS_COLUMNS record */
+	mem_heap_t*	heap,		/*!< in/out: memory heap
+					for temporary storage */
+	dict_col_t*	column,		/*!< out: dict_column_t to fill,
+					or NULL if table != NULL */
+	table_id_t*	table_id,	/*!< out: table id */
+	const char**	col_name,	/*!< out: column name */
+	const rec_t*	rec,		/*!< in: SYS_COLUMNS record */
+	ulint*		nth_v_col)	/*!< out: if not NULL, this
+					records the "n" of "nth" virtual
+					column */
+{
+	char*		name;
+	const byte*	field;
+	ulint		len;
+	ulint		mtype;
+	ulint		prtype;
+	ulint		col_len;
+	ulint		pos;
+	ulint		num_base;
+
+	ut_ad(table || column);
+
+	if (rec_get_deleted_flag(rec, 0)) {
+		return(dict_load_column_del);
+	}
+
+	if (rec_get_n_fields_old(rec) != DICT_NUM_FIELDS__SYS_COLUMNS) {
+		return("wrong number of columns in SYS_COLUMNS record");
+	}
+
+	field = rec_get_nth_field_old(
+		rec, DICT_FLD__SYS_COLUMNS__TABLE_ID, &len);
+	if (len != 8) {
+err_len:
+		return("incorrect column length in SYS_COLUMNS");
+	}
+
+	if (table_id) {
+		*table_id = mach_read_from_8(field);
+	} else if (table->id != mach_read_from_8(field)) {
+		return("SYS_COLUMNS.TABLE_ID mismatch");
+	}
+
+	field = rec_get_nth_field_old(
+		rec, DICT_FLD__SYS_COLUMNS__POS, &len);
+	if (len != 4) {
+
+		goto err_len;
+	}
+
+	pos = mach_read_from_4(field);
+
+	rec_get_nth_field_offs_old(
+		rec, DICT_FLD__SYS_COLUMNS__DB_TRX_ID, &len);
+	if (len != DATA_TRX_ID_LEN && len != UNIV_SQL_NULL) {
+		goto err_len;
+	}
+	rec_get_nth_field_offs_old(
+		rec, DICT_FLD__SYS_COLUMNS__DB_ROLL_PTR, &len);
+	if (len != DATA_ROLL_PTR_LEN && len != UNIV_SQL_NULL) {
+		goto err_len;
+	}
+
+	field = rec_get_nth_field_old(
+		rec, DICT_FLD__SYS_COLUMNS__NAME, &len);
+	if (len == 0 || len == UNIV_SQL_NULL) {
+		goto err_len;
+	}
+
+	name = mem_heap_strdupl(heap, (const char*) field, len);
+
+	if (col_name) {
+		*col_name = name;
+	}
+
+	field = rec_get_nth_field_old(
+		rec, DICT_FLD__SYS_COLUMNS__MTYPE, &len);
+	if (len != 4) {
+		goto err_len;
+	}
+
+	mtype = mach_read_from_4(field);
+
+	field = rec_get_nth_field_old(
+		rec, DICT_FLD__SYS_COLUMNS__PRTYPE, &len);
+	if (len != 4) {
+		goto err_len;
+	}
+	prtype = mach_read_from_4(field);
+
+	if (dtype_get_charset_coll(prtype) == 0
+	    && dtype_is_string_type(mtype)) {
+		/* The table was created with < 4.1.2. */
+
+		if (dtype_is_binary_string_type(mtype, prtype)) {
+			/* Use the binary collation for
+			string columns of binary type. */
+
+			prtype = dtype_form_prtype(
+				prtype,
+				DATA_MYSQL_BINARY_CHARSET_COLL);
+		} else {
+			/* Use the default charset for
+			other than binary columns. */
+
+			prtype = dtype_form_prtype(
+				prtype,
+				data_mysql_default_charset_coll);
+		}
+	}
+
+	if (table && table->n_def != pos && !(prtype & DATA_VIRTUAL)) {
+		return("SYS_COLUMNS.POS mismatch");
+	}
+
+	field = rec_get_nth_field_old(
+		rec, DICT_FLD__SYS_COLUMNS__LEN, &len);
+	if (len != 4) {
+		goto err_len;
+	}
+	col_len = mach_read_from_4(field);
+	field = rec_get_nth_field_old(
+		rec, DICT_FLD__SYS_COLUMNS__PREC, &len);
+	if (len != 4) {
+		goto err_len;
+	}
+
+	num_base = mach_read_from_4(field);
+
+	if (column == NULL) {
+		if (prtype & DATA_VIRTUAL) {
+#ifdef UNIV_DEBUG
+			dict_v_col_t*   vcol =
+#endif
+			dict_mem_table_add_v_col(
+				table, heap, name, mtype,
+				prtype, col_len,
+				dict_get_v_col_mysql_pos(pos), num_base);
+			ut_ad(vcol->v_pos == dict_get_v_col_pos(pos));
+		} else {
+			ut_ad(num_base == 0);
+			dict_mem_table_add_col(table, heap, name, mtype,
+					       prtype, col_len);
+		}
+	} else {
+		dict_mem_fill_column_struct(column, pos, mtype,
+					    prtype, col_len);
+	}
+
+	/* Report the virtual column number */
+	if (prtype & DATA_VIRTUAL && nth_v_col != NULL) {
+		*nth_v_col = dict_get_v_col_pos(pos);
+	}
+
+	return(NULL);
+}
+
 /********************************************************************//**
 This function parses a SYS_COLUMNS record and populate a dict_column_t
 structure with the information from the record.
@@ -402,6 +729,96 @@ dict_process_sys_columns_rec(
 	return(err_msg);
 }
 
+/** Error message for a delete-marked record in dict_load_virtual_low() */
+static const char* dict_load_virtual_del = "delete-marked record in SYS_VIRTUAL";
+
+/** Loads a virtual column "mapping" (to base columns) information
+from a SYS_VIRTUAL record
+@param[in,out]	table		table
+@param[in,out]	heap		memory heap
+@param[in,out]	column		mapped base column's dict_column_t
+@param[in,out]	table_id	table id
+@param[in,out]	pos		virtual column position
+@param[in,out]	base_pos	base column position
+@param[in]	rec		SYS_VIRTUAL record
+@return error message, or NULL on success */
+static
+const char*
+dict_load_virtual_low(
+	dict_table_t*	table,
+	mem_heap_t*	heap,
+	dict_col_t**	column,
+	table_id_t*	table_id,
+	ulint*		pos,
+	ulint*		base_pos,
+	const rec_t*	rec)
+{
+	const byte*	field;
+	ulint		len;
+	ulint		base;
+
+	if (rec_get_deleted_flag(rec, 0)) {
+		return(dict_load_virtual_del);
+	}
+
+	if (rec_get_n_fields_old(rec) != DICT_NUM_FIELDS__SYS_VIRTUAL) {
+		return("wrong number of columns in SYS_VIRTUAL record");
+	}
+
+	field = rec_get_nth_field_old(
+		rec, DICT_FLD__SYS_VIRTUAL__TABLE_ID, &len);
+	if (len != 8) {
+err_len:
+		return("incorrect column length in SYS_VIRTUAL");
+	}
+
+	if (table_id != NULL) {
+		*table_id = mach_read_from_8(field);
+	} else if (table->id != mach_read_from_8(field)) {
+		return("SYS_VIRTUAL.TABLE_ID mismatch");
+	}
+
+	field = rec_get_nth_field_old(
+		rec, DICT_FLD__SYS_VIRTUAL__POS, &len);
+	if (len != 4) {
+		goto err_len;
+	}
+
+	if (pos != NULL) {
+		*pos = mach_read_from_4(field);
+	}
+
+	field = rec_get_nth_field_old(
+		rec, DICT_FLD__SYS_VIRTUAL__BASE_POS, &len);
+	if (len != 4) {
+		goto err_len;
+	}
+
+	base = mach_read_from_4(field);
+
+	if (base_pos != NULL) {
+		*base_pos = base;
+	}
+
+	rec_get_nth_field_offs_old(
+		rec, DICT_FLD__SYS_VIRTUAL__DB_TRX_ID, &len);
+	if (len != DATA_TRX_ID_LEN && len != UNIV_SQL_NULL) {
+		goto err_len;
+	}
+
+	rec_get_nth_field_offs_old(
+		rec, DICT_FLD__SYS_VIRTUAL__DB_ROLL_PTR, &len);
+	if (len != DATA_ROLL_PTR_LEN && len != UNIV_SQL_NULL) {
+		goto err_len;
+	}
+
+	if (column != NULL) {
+		*column = table->get_col(base);
+	}
+
+	return(NULL);
+}
+
 /** This function parses a SYS_VIRTUAL record and extracts virtual column
 information
 @param[in,out]	heap		heap memory
@@ -422,10 +839,251 @@ dict_process_sys_virtual_rec(
 
 	/* Parse the record, and get "dict_col_t" struct filled */
 	err_msg = dict_load_virtual_low(NULL, heap, NULL, table_id,
-					pos, base_pos, rec);
+				       pos, base_pos, rec);
 
 	return(err_msg);
 }
+
+/** Loads SYS_VIRTUAL info for one virtual column
+@param[in,out]	table		table
+@param[in]	nth_v_col	virtual column sequence num
+@param[in,out]	v_col		virtual column
+@param[in,out]	heap		memory heap
+*/
+static
+void
+dict_load_virtual_one_col(
+	dict_table_t*	table,
+	ulint		nth_v_col,
+	dict_v_col_t*	v_col,
+	mem_heap_t*	heap)
+{
+	dict_table_t*	sys_virtual;
+	dict_index_t*	sys_virtual_index;
+	btr_pcur_t	pcur;
+	dtuple_t*	tuple;
+	dfield_t*	dfield;
+	const rec_t*	rec;
+	byte*		buf;
+	ulint		i = 0;
+	mtr_t		mtr;
+	ulint		skipped = 0;
+
+	ut_ad(mutex_own(&dict_sys->mutex));
+
+	if (v_col->num_base == 0) {
+		return;
+	}
+
+	mtr_start(&mtr);
+
+	sys_virtual = dict_table_get_low("SYS_VIRTUAL");
+	sys_virtual_index = UT_LIST_GET_FIRST(sys_virtual->indexes);
+	ut_ad(!dict_table_is_comp(sys_virtual));
+
+	ut_ad(name_of_col_is(sys_virtual, sys_virtual_index,
+			     DICT_FLD__SYS_VIRTUAL__POS, "POS"));
+
+	tuple = dtuple_create(heap, 2);
+
+	/* table ID field */
+	dfield = dtuple_get_nth_field(tuple, 0);
+
+	buf = static_cast<byte*>(mem_heap_alloc(heap, 8));
+	mach_write_to_8(buf, table->id);
+
+	dfield_set_data(dfield, buf, 8);
+
+	/* virtual column pos field */
+	dfield = dtuple_get_nth_field(tuple, 1);
+
+	buf = static_cast<byte*>(mem_heap_alloc(heap, 4));
+	ulint	vcol_pos = dict_create_v_col_pos(nth_v_col, v_col->m_col.ind);
+	mach_write_to_4(buf, vcol_pos);
+
+	dfield_set_data(dfield, buf, 4);
+
+	dict_index_copy_types(tuple, sys_virtual_index, 2);
+
+	btr_pcur_open_on_user_rec(sys_virtual_index, tuple, PAGE_CUR_GE,
+				  BTR_SEARCH_LEAF, &pcur, &mtr);
+
+	for (i = 0; i < v_col->num_base + skipped; i++) {
+		const char*	err_msg;
+		ulint		pos;
+
+		ut_ad(btr_pcur_is_on_user_rec(&pcur));
+
+		rec = btr_pcur_get_rec(&pcur);
+
+		ut_a(btr_pcur_is_on_user_rec(&pcur));
+
+		err_msg = dict_load_virtual_low(table, heap,
+						&v_col->base_col[i - skipped],
+						NULL,
+					        &pos, NULL, rec);
+
+		if (err_msg) {
+			if (err_msg != dict_load_virtual_del) {
+				ib::fatal() << err_msg;
+			} else {
+				skipped++;
+			}
+		} else {
+			ut_ad(pos == vcol_pos);
+		}
+
+		btr_pcur_move_to_next_user_rec(&pcur, &mtr);
+	}
+
+	btr_pcur_close(&pcur);
+	mtr_commit(&mtr);
+}
+
+/** Loads info from SYS_VIRTUAL for virtual columns.
+@param[in,out]	table	table
+@param[in]	heap	memory heap
+*/
+static
+void
+dict_load_virtual(
+	dict_table_t*	table,
+	mem_heap_t*	heap)
+{
+	for (ulint i = 0; i < table->n_v_cols; i++) {
+		dict_v_col_t*	v_col = dict_table_get_nth_v_col(table, i);
+
+		dict_load_virtual_one_col(table, i, v_col, heap);
+	}
+}
+/** Error message for a delete-marked record in dict_load_field_low() */
+static const char* dict_load_field_del = "delete-marked record in SYS_FIELDS";
+
+/** Loads an index field definition from a SYS_FIELDS record to
+dict_index_t.
+@return error message
+@retval NULL on success */
+static
+const char*
+dict_load_field_low(
+	byte*		index_id,	/*!< in/out: index id (8 bytes)
+					an "in" value if index != NULL
+					and "out" if index == NULL */
+	dict_index_t*	index,		/*!< in/out: index, could be NULL
+					if we just populate a dict_field_t
+					struct with information from
+					a SYS_FIELDS record */
+	dict_field_t*	sys_field,	/*!< out: dict_field_t to be
+					filled */
+	ulint*		pos,		/*!< out: Field position */
+	byte*		last_index_id,	/*!< in: last index id */
+	mem_heap_t*	heap,		/*!< in/out: memory heap
+					for temporary storage */
+	const rec_t*	rec)		/*!< in: SYS_FIELDS record */
+{
+	const byte*	field;
+	ulint		len;
+	ulint		pos_and_prefix_len;
+	ulint		prefix_len;
+	bool		is_ascending;
+	ibool		first_field;
+	ulint		position;
+
+	/* Either index or sys_field is supplied, not both */
+	ut_a((!index) || (!sys_field));
+
+	if (rec_get_deleted_flag(rec, 0)) {
+		return(dict_load_field_del);
+	}
+
+	if (rec_get_n_fields_old(rec) != DICT_NUM_FIELDS__SYS_FIELDS) {
+		return("wrong number of columns in SYS_FIELDS record");
+	}
+
+	field = rec_get_nth_field_old(
+		rec, DICT_FLD__SYS_FIELDS__INDEX_ID, &len);
+	if (len != 8) {
+err_len:
+		return("incorrect column length in SYS_FIELDS");
+	}
+
+	if (!index) {
+		ut_a(last_index_id);
+		memcpy(index_id, (const char*) field, 8);
+		first_field = memcmp(index_id, last_index_id, 8);
+	} else {
+		first_field = (index->n_def == 0);
+		if (memcmp(field, index_id, 8)) {
+			return("SYS_FIELDS.INDEX_ID mismatch");
+		}
+	}
+
+	/* The next field stores the field position in the index and a
+	possible column prefix length if the index field does not
+	contain the whole column. The storage format is like this: if
+	there is at least one prefix field in the index, then the HIGH
+	2 bytes contain the field number (index->n_def) and the low 2
+	bytes the prefix length for the field. Otherwise the field
+	number (index->n_def) is contained in the 2 LOW bytes. */
+
+	field = rec_get_nth_field_old(
+		rec, DICT_FLD__SYS_FIELDS__POS, &len);
+	if (len != 4) {
+		goto err_len;
+	}
+
+	pos_and_prefix_len = mach_read_from_4(field);
+
+	if (index && UNIV_UNLIKELY
+	    ((pos_and_prefix_len & 0xFFFFUL) != index->n_def
+	     && (pos_and_prefix_len >> 16 & 0xFFFF) != index->n_def)) {
+		return("SYS_FIELDS.POS mismatch");
+	}
+
+	if (first_field || pos_and_prefix_len > 0xFFFFUL) {
+		prefix_len = pos_and_prefix_len & 0x7FFFUL;
+		is_ascending = !(pos_and_prefix_len & 0x8000UL);
+		position = (pos_and_prefix_len & 0xFFFF0000UL)  >> 16;
+	} else {
+		prefix_len = 0;
+		is_ascending = true;
+		position = pos_and_prefix_len & 0xFFFFUL;
+	}
+
+	rec_get_nth_field_offs_old(
+		rec, DICT_FLD__SYS_FIELDS__DB_TRX_ID, &len);
+	if (len != DATA_TRX_ID_LEN && len != UNIV_SQL_NULL) {
+		goto err_len;
+	}
+	rec_get_nth_field_offs_old(
+		rec, DICT_FLD__SYS_FIELDS__DB_ROLL_PTR, &len);
+	if (len != DATA_ROLL_PTR_LEN && len != UNIV_SQL_NULL) {
+		goto err_len;
+	}
+
+	field = rec_get_nth_field_old(
+		rec, DICT_FLD__SYS_FIELDS__COL_NAME, &len);
+	if (len == 0 || len == UNIV_SQL_NULL) {
+		goto err_len;
+	}
+
+	if (index) {
+		index->add_field(
+			mem_heap_strdupl(heap, (const char*) field, len),
+			prefix_len, is_ascending);
+	} else {
+		ut_a(sys_field);
+		ut_a(pos);
+
+		sys_field->name = mem_heap_strdupl(
+			heap, (const char*) field, len);
+		sys_field->prefix_len = prefix_len;
+		*pos = position;
+	}
+
+	return(NULL);
+}
+
 /********************************************************************//**
 This function parses a SYS_FIELDS record and populates a dict_field_t
 structure with the information from the record.
@@ -438,8 +1096,8 @@ dict_process_sys_fields_rec(
 	dict_field_t*	sys_field,	/*!< out: dict_field_t to be
 					filled */
 	ulint*		pos,		/*!< out: Field position */
-	index_id_t*	index_id,	/*!< out: current index id */
-	index_id_t	last_id)	/*!< in: previous index id */
+	space_index_t*	index_id,	/*!< out: current index id */
+	space_index_t	last_id)	/*!< in: previous index id */
 {
 	byte*		buf;
 	byte*		last_index_id;
@@ -618,7 +1276,7 @@ dict_process_sys_tablespaces(
 /*=========================*/
 	mem_heap_t*	heap,		/*!< in/out: heap memory */
 	const rec_t*	rec,		/*!< in: current SYS_TABLESPACES rec */
-	ulint*		space,		/*!< out: space id */
+	space_id_t*	space,		/*!< out: space id */
 	const char**	name,		/*!< out: tablespace name */
 	ulint*		flags)		/*!< out: tablespace flags */
 {
@@ -626,7 +1284,7 @@ dict_process_sys_tablespaces(
 	const byte*	field;
 
 	/* Initialize the output values */
-	*space = ULINT_UNDEFINED;
+	*space = SPACE_UNKNOWN;
 	*name = NULL;
 	*flags = ULINT_UNDEFINED;
 
@@ -818,7 +1476,7 @@ dict_get_first_path(
 static
 char*
 dict_space_get_name(
-	ulint		space_id,
+	space_id_t	space_id,
 	mem_heap_t*	callers_heap)
 {
 	mtr_t		mtr;
@@ -906,64 +1564,6 @@ dict_space_get_name(
 	return(space_name);
 }
 
-/** Update the record for space_id in SYS_TABLESPACES to this filepath.
-@param[in]	space_id	Tablespace ID
-@param[in]	filepath	Tablespace filepath
-@return DB_SUCCESS if OK, dberr_t if the insert failed */
-dberr_t
-dict_update_filepath(
-	ulint		space_id,
-	const char*	filepath)
-{
-	if (!srv_sys_tablespaces_open) {
-		/* Startup procedure is not yet ready for updates. */
-		return(DB_SUCCESS);
-	}
-
-	dberr_t		err = DB_SUCCESS;
-	trx_t*		trx;
-
-	ut_ad(rw_lock_own(dict_operation_lock, RW_LOCK_X));
-	ut_ad(mutex_own(&dict_sys->mutex));
-
-	trx = trx_allocate_for_background();
-	trx->op_info = "update filepath";
-	trx->dict_operation_lock_mode = RW_X_LATCH;
-	trx_start_for_ddl(trx, TRX_DICT_OP_INDEX);
-
-	pars_info_t*	info = pars_info_create();
-
-	pars_info_add_int4_literal(info, "space", space_id);
-	pars_info_add_str_literal(info, "path", filepath);
-
-	err = que_eval_sql(info,
-			   "PROCEDURE UPDATE_FILEPATH () IS\n"
-			   "BEGIN\n"
-			   "UPDATE SYS_DATAFILES"
-			   " SET PATH = :path\n"
-			   " WHERE SPACE = :space;\n"
-			   "END;\n", FALSE, trx);
-
-	trx_commit_for_mysql(trx);
-	trx->dict_operation_lock_mode = 0;
-	trx_free_for_background(trx);
-
-	if (err == DB_SUCCESS) {
-		/* We just updated SYS_DATAFILES due to the contents in
-		a link file.  Make a note that we did this. */
-		ib::info() << "The InnoDB data dictionary table SYS_DATAFILES"
-			" for tablespace ID " << space_id
-			<< " was updated to use file " << filepath << ".";
-	} else {
-		ib::warn() << "Error occurred while updating InnoDB data"
-			" dictionary table SYS_DATAFILES for tablespace ID "
-			<< space_id << " to file " << filepath << ": "
-			<< ut_strerr(err) << ".";
-	}
-
-	return(err);
-}
-
 /** Replace records in SYS_TABLESPACES and SYS_DATAFILES associated with
 the given space_id using an independent transaction.
 @param[in]	space_id	Tablespace ID
@@ -973,7 +1573,7 @@ the given space_id using an independent transaction.
 @return DB_SUCCESS if OK, dberr_t if the insert failed */
 dberr_t
 dict_replace_tablespace_and_filepath(
-	ulint		space_id,
+	space_id_t	space_id,
 	const char*	name,
 	const char*	filepath,
 	ulint		fsp_flags)
@@ -1102,10 +1702,11 @@ err_len:
 @param[in,out]	name	Buffer for Tablespace Name of length NAME_LEN
 @param[out]	flags	Pointer to tablespace flags
 @return true if the record was read correctly, false if not. */
+static
 bool
 dict_sys_tablespaces_rec_read(
 	const rec_t*	rec,
-	ulint*		id,
+	space_id_t*	id,
 	char*		name,
 	ulint*		flags)
 {
@@ -1149,11 +1750,11 @@ If it is valid, add it to the file_system list.
 @param[in]	validate	true when the previous shutdown was not clean
 @return the highest space ID found. */
 UNIV_INLINE
-ulint
+space_id_t
 dict_check_sys_tablespaces(
 	bool		validate)
 {
-	ulint		max_space_id = 0;
+	space_id_t	max_space_id = 0;
 	btr_pcur_t	pcur;
 	const rec_t*	rec;
 	mtr_t		mtr;
@@ -1174,36 +1775,22 @@ dict_check_sys_tablespaces(
 	     rec != NULL;
 	     rec = dict_getnext_system(&pcur, &mtr))
 	{
-		char	space_name[NAME_LEN];
-		ulint	space_id = 0;
-		ulint	fsp_flags;
+		char		space_name[NAME_LEN];
+		space_id_t	space_id = 0;
+		ulint		fsp_flags;
 
 		if (!dict_sys_tablespaces_rec_read(rec, &space_id,
 						   space_name, &fsp_flags)) {
 			continue;
 		}
 
-		/* Ignore system and file-per-table tablespaces. */
-		if (is_system_tablespace(space_id)
-		    || !fsp_is_shared_tablespace(fsp_flags)) {
-			continue;
-		}
-
-		/* Ignore tablespaces that already are in the tablespace
-		cache. */
-		if (fil_space_for_table_exists_in_mem(
-				space_id, space_name, false, true, NULL, 0)) {
-			/* Recovery can open a datafile that does not
-			match SYS_DATAFILES.  If they don't match, update
-			SYS_DATAFILES. */
-			char *dict_path = dict_get_first_path(space_id);
-			char *fil_path = fil_space_get_first_path(space_id);
-			if (dict_path && fil_path
-			    && strcmp(dict_path, fil_path)) {
-				dict_update_filepath(space_id, fil_path);
-			}
-			ut_free(dict_path);
-			ut_free(fil_path);
+		/* Ignore system, undo and file-per-table tablespaces,
+		and tablespaces that already are in the tablespace cache. */
+		if (fsp_is_system_or_temp_tablespace(space_id)
+		    || fsp_is_undo_tablespace(space_id)
+		    || !fsp_is_shared_tablespace(fsp_flags)
+		    || fil_space_for_table_exists_in_mem(
+			    space_id, space_name, false, true, NULL, 0)) {
 			continue;
 		}
 
@@ -1217,7 +1804,6 @@ dict_check_sys_tablespaces(
 		/* Check that the .ibd file exists. */
 		dberr_t	err = fil_ibd_open(
 			validate,
-			!srv_read_only_mode && srv_log_file_size != 0,
 			FIL_TYPE_TABLESPACE,
 			space_id,
 			fsp_flags,
@@ -1242,7 +1828,7 @@ dict_check_sys_tablespaces(
 
 /** Read and return 5 integer fields from a SYS_TABLES record.
 @param[in]	rec		A record of SYS_TABLES
-@param[in]	name		Table Name, the same as SYS_TABLES.NAME
+@param[in]	table_name	Table Name, the same as SYS_TABLES.NAME
 @param[out]	table_id	Pointer to the table_id for this table
 @param[out]	space_id	Pointer to the space_id for this table
 @param[out]	n_cols		Pointer to number of columns for this table.
@@ -1255,7 +1841,7 @@ dict_sys_tables_rec_read(
 	const rec_t*		rec,
 	const table_name_t&	table_name,
 	table_id_t*		table_id,
-	ulint*			space_id,
+	space_id_t*		space_id,
 	ulint*			n_cols,
 	ulint*			flags,
 	ulint*			flags2)
@@ -1330,11 +1916,11 @@ the REDO log occurred.
 @param[in]	validate	Whether to do validation on the table.
 @return the highest space ID found. */
 UNIV_INLINE
-ulint
+space_id_t
 dict_check_sys_tables(
 	bool		validate)
 {
-	ulint		max_space_id = 0;
+	space_id_t	max_space_id = 0;
 	btr_pcur_t	pcur;
 	const rec_t*	rec;
 	mtr_t		mtr;
@@ -1363,7 +1949,7 @@ dict_check_sys_tables(
 		char*		space_name;
 		table_name_t	table_name;
 		table_id_t	table_id;
-		ulint		space_id;
+		space_id_t	space_id;
 		ulint		n_cols;
 		ulint		flags;
 		ulint		flags2;
@@ -1386,7 +1972,8 @@ dict_check_sys_tables(
 					 &table_id, &space_id,
 					 &n_cols, &flags, &flags2);
 		if (flags == ULINT_UNDEFINED
-		    || is_system_tablespace(space_id)) {
+		    || fsp_is_system_or_temp_tablespace(space_id)) {
+                        ut_ad(!fsp_is_undo_tablespace(space_id));
 			ut_free(table_name.m_name);
 			continue;
 		}
@@ -1425,17 +2012,6 @@ dict_check_sys_tables(
 		cache. */
 		if (fil_space_for_table_exists_in_mem(
 			    space_id, space_name, false, true, NULL, 0)) {
-			/* Recovery can open a datafile that does not
-			match SYS_DATAFILES.  If they don't match, update
-			SYS_DATAFILES. */
-			char *dict_path = dict_get_first_path(space_id);
-			char *fil_path = fil_space_get_first_path(space_id);
-			if (dict_path && fil_path
-			    && strcmp(dict_path, fil_path)) {
-				dict_update_filepath(space_id, fil_path);
-			}
-			ut_free(dict_path);
-			ut_free(fil_path);
 			ut_free(table_name.m_name);
 			ut_free(shared_space_name);
 			continue;
@@ -1449,15 +2025,12 @@ dict_check_sys_tables(
 		char*	filepath = dict_get_first_path(space_id);
 
 		/* Check that the .ibd file exists. */
-		bool	is_temp = flags2 & DICT_TF2_TEMPORARY;
 		bool	is_encrypted = flags2 & DICT_TF2_ENCRYPTION;
 		ulint	fsp_flags = dict_tf_to_fsp_flags(flags,
-							 is_temp,
 							 is_encrypted);
 
 		dberr_t	err = fil_ibd_open(
 			validate,
-			!srv_read_only_mode && srv_log_file_size != 0,
 			FIL_TYPE_TABLESPACE,
 			space_id,
 			fsp_flags,
@@ -1509,7 +2082,7 @@ dict_check_tablespaces_and_store_max_id(
 
 	/* Initialize the max space_id from sys header */
 	mtr_start(&mtr);
-	ulint	max_space_id = mtr_read_ulint(
+	space_id_t	max_space_id = mtr_read_ulint(
 		dict_hdr_get(&mtr) + DICT_HDR_MAX_SPACE_ID,
 		MLOG_4BYTES, &mtr);
 	mtr_commit(&mtr);
@@ -1517,12 +2090,12 @@ dict_check_tablespaces_and_store_max_id(
 	fil_set_max_space_id_if_bigger(max_space_id);
 
 	/* Open all general tablespaces found in SYS_TABLESPACES. */
-	ulint	max1 = dict_check_sys_tablespaces(validate);
+	space_id_t	max1 = dict_check_sys_tablespaces(validate);
 
 	/* Open all tablespaces referenced in SYS_TABLES.
 	This will update SYS_TABLESPACES and SYS_DATAFILES if it
 	finds any file-per-table tablespaces not already there. */
-	ulint	max2 = dict_check_sys_tables(validate);
+	space_id_t	max2 = dict_check_sys_tables(validate);
 
 	/* Store the max space_id found */
 	max_space_id = ut_max(max1, max2);
@@ -1534,263 +2107,6 @@ dict_check_tablespaces_and_store_max_id(
 	DBUG_VOID_RETURN;
 }
 
-/** Error message for a delete-marked record in dict_load_column_low() */
-static const char* dict_load_column_del = "delete-marked record in SYS_COLUMN";
-
-/********************************************************************//**
-Loads a table column definition from a SYS_COLUMNS record to
-dict_table_t.
-@return error message, or NULL on success */
-const char*
-dict_load_column_low(
-/*=================*/
-	dict_table_t*	table,		/*!< in/out: table, could be NULL
-					if we just populate a dict_column_t
-					struct with information from
-					a SYS_COLUMNS record */
-	mem_heap_t*	heap,		/*!< in/out: memory heap
-					for temporary storage */
-	dict_col_t*	column,		/*!< out: dict_column_t to fill,
-					or NULL if table != NULL */
-	table_id_t*	table_id,	/*!< out: table id */
-	const char**	col_name,	/*!< out: column name */
-	const rec_t*	rec,		/*!< in: SYS_COLUMNS record */
-	ulint*		nth_v_col)	/*!< out: if not NULL, this
-					records the "n" of "nth" virtual
-					column */
-{
-	char*		name;
-	const byte*	field;
-	ulint		len;
-	ulint		mtype;
-	ulint		prtype;
-	ulint		col_len;
-	ulint		pos;
-	ulint		num_base;
-
-	ut_ad(table || column);
-
-	if (rec_get_deleted_flag(rec, 0)) {
-		return(dict_load_column_del);
-	}
-
-	if (rec_get_n_fields_old(rec) != DICT_NUM_FIELDS__SYS_COLUMNS) {
-		return("wrong number of columns in SYS_COLUMNS record");
-	}
-
-	field = rec_get_nth_field_old(
-		rec, DICT_FLD__SYS_COLUMNS__TABLE_ID, &len);
-	if (len != 8) {
-err_len:
-		return("incorrect column length in SYS_COLUMNS");
-	}
-
-	if (table_id) {
-		*table_id = mach_read_from_8(field);
-	} else if (table->id != mach_read_from_8(field)) {
-		return("SYS_COLUMNS.TABLE_ID mismatch");
-	}
-
-	field = rec_get_nth_field_old(
-		rec, DICT_FLD__SYS_COLUMNS__POS, &len);
-	if (len != 4) {
-		goto err_len;
-	}
-
-	pos = mach_read_from_4(field);
-
-	rec_get_nth_field_offs_old(
-		rec, DICT_FLD__SYS_COLUMNS__DB_TRX_ID, &len);
-	if (len != DATA_TRX_ID_LEN && len != UNIV_SQL_NULL) {
-		goto err_len;
-	}
-	rec_get_nth_field_offs_old(
-		rec, DICT_FLD__SYS_COLUMNS__DB_ROLL_PTR, &len);
-	if (len != DATA_ROLL_PTR_LEN && len != UNIV_SQL_NULL) {
-		goto err_len;
-	}
-
-	field = rec_get_nth_field_old(
-		rec, DICT_FLD__SYS_COLUMNS__NAME, &len);
-	if (len == 0 || len == UNIV_SQL_NULL) {
-		goto err_len;
-	}
-
-	name = mem_heap_strdupl(heap, (const char*) field, len);
-
-	if (col_name) {
-		*col_name = name;
-	}
-
-	field = rec_get_nth_field_old(
-		rec, DICT_FLD__SYS_COLUMNS__MTYPE, &len);
-	if (len != 4) {
-		goto err_len;
-	}
-
-	mtype = mach_read_from_4(field);
-
-	field = rec_get_nth_field_old(
-		rec, DICT_FLD__SYS_COLUMNS__PRTYPE, &len);
-	if (len != 4) {
-		goto err_len;
-	}
-	prtype = mach_read_from_4(field);
-
-	if (dtype_get_charset_coll(prtype) == 0
-	    && dtype_is_string_type(mtype)) {
-		/* The table was created with < 4.1.2. */
-
-		if (dtype_is_binary_string_type(mtype, prtype)) {
-			/* Use the binary collation for
-			string columns of binary type. */
-
-			prtype = dtype_form_prtype(
-				prtype,
-				DATA_MYSQL_BINARY_CHARSET_COLL);
-		} else {
-			/* Use the default charset for
-			other than binary columns. */
-
-			prtype = dtype_form_prtype(
-				prtype,
-				data_mysql_default_charset_coll);
-		}
-	}
-
-	if (table && table->n_def != pos && !(prtype & DATA_VIRTUAL)) {
-		return("SYS_COLUMNS.POS mismatch");
-	}
-
-	field = rec_get_nth_field_old(
-		rec, DICT_FLD__SYS_COLUMNS__LEN, &len);
-	if (len != 4) {
-		goto err_len;
-	}
-	col_len = mach_read_from_4(field);
-	field = rec_get_nth_field_old(
-		rec, DICT_FLD__SYS_COLUMNS__PREC, &len);
-	if (len != 4) {
-		goto err_len;
-	}
-	num_base = mach_read_from_4(field);
-
-	if (column == NULL) {
-		if (prtype & DATA_VIRTUAL) {
-#ifdef UNIV_DEBUG
-			dict_v_col_t*	vcol =
-#endif
-			dict_mem_table_add_v_col(
-				table, heap, name, mtype,
-				prtype, col_len,
-				dict_get_v_col_mysql_pos(pos), num_base);
-			ut_ad(vcol->v_pos == dict_get_v_col_pos(pos));
-		} else {
-			ut_ad(num_base == 0);
-			dict_mem_table_add_col(table, heap, name, mtype,
-					       prtype, col_len);
-		}
-	} else {
-		dict_mem_fill_column_struct(column, pos, mtype,
-					    prtype, col_len);
-	}
-
-	/* Report the virtual column number */
-	if ((prtype & DATA_VIRTUAL) && nth_v_col != NULL) {
-		*nth_v_col = dict_get_v_col_pos(pos);
-	}
-
-	return(NULL);
-}
-
-/** Error message for a delete-marked record in dict_load_virtual_low() */
-static const char* dict_load_virtual_del = "delete-marked record in SYS_VIRTUAL";
-
-/** Loads a virtual column "mapping" (to base columns) information
-from a SYS_VIRTUAL record
-@param[in,out]	table		table
-@param[in,out]	heap		memory heap
-@param[in,out]	column		mapped base column's dict_column_t
-@param[in,out]	table_id	table id
-@param[in,out]	pos		virtual column position
-@param[in,out]	base_pos	base column position
-@param[in]	rec		SYS_VIRTUAL record
-@return error message, or NULL on success */
-const char*
-dict_load_virtual_low(
-	dict_table_t*	table,
-	mem_heap_t*	heap,
-	dict_col_t**	column,
-	table_id_t*	table_id,
-	ulint*		pos,
-	ulint*		base_pos,
-	const rec_t*	rec)
-{
-	const byte*	field;
-	ulint		len;
-	ulint		base;
-
-	if (rec_get_deleted_flag(rec, 0)) {
-		return(dict_load_virtual_del);
-	}
-
-	if (rec_get_n_fields_old(rec) != DICT_NUM_FIELDS__SYS_VIRTUAL) {
-		return("wrong number of columns in SYS_VIRTUAL record");
-	}
-
-	field = rec_get_nth_field_old(
-		rec, DICT_FLD__SYS_VIRTUAL__TABLE_ID, &len);
-	if (len != 8) {
-err_len:
-		return("incorrect column length in SYS_VIRTUAL");
-	}
-
-	if (table_id != NULL) {
-		*table_id = mach_read_from_8(field);
-	} else if (table->id != mach_read_from_8(field)) {
-		return("SYS_VIRTUAL.TABLE_ID mismatch");
-	}
-
-	field = rec_get_nth_field_old(
-		rec, DICT_FLD__SYS_VIRTUAL__POS, &len);
-	if (len != 4) {
-		goto err_len;
-	}
-
-	if (pos != NULL) {
-		*pos = mach_read_from_4(field);
-	}
-
-	field = rec_get_nth_field_old(
-		rec, DICT_FLD__SYS_VIRTUAL__BASE_POS, &len);
-	if (len != 4) {
-		goto err_len;
-	}
-
-	base = mach_read_from_4(field);
-
-	if (base_pos != NULL) {
-		*base_pos = base;
-	}
-
-	rec_get_nth_field_offs_old(
-		rec, DICT_FLD__SYS_VIRTUAL__DB_TRX_ID, &len);
-	if (len != DATA_TRX_ID_LEN && len != UNIV_SQL_NULL) {
-		goto err_len;
-	}
-
-	rec_get_nth_field_offs_old(
-		rec, DICT_FLD__SYS_VIRTUAL__DB_ROLL_PTR, &len);
-	if (len != DATA_ROLL_PTR_LEN && len != UNIV_SQL_NULL) {
-		goto err_len;
-	}
-
-	if (column != NULL) {
-		*column = dict_table_get_nth_col(table, base);
-	}
-
-	return(NULL);
-}
 /********************************************************************//**
 Loads definitions for table columns. */
 static
@@ -1838,7 +2154,7 @@ dict_load_columns(
 				  BTR_SEARCH_LEAF, &pcur, &mtr);
 
 	ut_ad(table->n_t_cols == static_cast<ulint>(
-	      table->n_cols) + static_cast<ulint>(table->n_v_cols));
+	     table->n_cols) + static_cast<ulint>(table->n_v_cols));
 
 	for (i = 0;
 	     i + DATA_N_SYS_COLS < table->n_t_cols + n_skipped;
@@ -1883,7 +2199,7 @@ dict_load_columns(
 
 			ut_a(table->fts->doc_col == ULINT_UNDEFINED);
 
-			col = dict_table_get_nth_col(table, i - n_skipped);
+			col = table->get_col(i - n_skipped);
 
 			ut_ad(col->len == sizeof(doc_id_t));
 
@@ -1902,244 +2218,6 @@ next_rec:
 
 	btr_pcur_close(&pcur);
 	mtr_commit(&mtr);
-}
-
-/** Loads SYS_VIRTUAL info for one virtual column
-@param[in,out]	table		table
-@param[in]	nth_v_col	virtual column sequence num
-@param[in,out]	v_col		virtual column
-@param[in,out]	heap		memory heap
-*/
-static
-void
-dict_load_virtual_one_col(
-	dict_table_t*	table,
-	ulint		nth_v_col,
-	dict_v_col_t*	v_col,
-	mem_heap_t*	heap)
-{
-	dict_table_t*	sys_virtual;
-	dict_index_t*	sys_virtual_index;
-	btr_pcur_t	pcur;
-	dtuple_t*	tuple;
-	dfield_t*	dfield;
-	const rec_t*	rec;
-	byte*		buf;
-	ulint		i = 0;
-	mtr_t		mtr;
-	ulint		skipped = 0;
-
-	ut_ad(mutex_own(&dict_sys->mutex));
-
-	if (v_col->num_base == 0) {
-		return;
-	}
-
-	mtr_start(&mtr);
-
-	sys_virtual = dict_table_get_low("SYS_VIRTUAL");
-	sys_virtual_index = UT_LIST_GET_FIRST(sys_virtual->indexes);
-	ut_ad(!dict_table_is_comp(sys_virtual));
-
-	ut_ad(name_of_col_is(sys_virtual, sys_virtual_index,
-			     DICT_FLD__SYS_VIRTUAL__POS, "POS"));
-
-	tuple = dtuple_create(heap, 2);
-
-	/* table ID field */
-	dfield = dtuple_get_nth_field(tuple, 0);
-
-	buf = static_cast<byte*>(mem_heap_alloc(heap, 8));
-	mach_write_to_8(buf, table->id);
-
-	dfield_set_data(dfield, buf, 8);
-
-	/* virtual column pos field */
-	dfield = dtuple_get_nth_field(tuple, 1);
-
-	buf = static_cast<byte*>(mem_heap_alloc(heap, 4));
-	ulint	vcol_pos = dict_create_v_col_pos(nth_v_col, v_col->m_col.ind);
-	mach_write_to_4(buf, vcol_pos);
-
-	dfield_set_data(dfield, buf, 4);
-
-	dict_index_copy_types(tuple, sys_virtual_index, 2);
-
-	btr_pcur_open_on_user_rec(sys_virtual_index, tuple, PAGE_CUR_GE,
-				  BTR_SEARCH_LEAF, &pcur, &mtr);
-
-	for (i = 0; i < v_col->num_base + skipped; i++) {
-		const char*	err_msg;
-		ulint		pos;
-
-		ut_ad(btr_pcur_is_on_user_rec(&pcur));
-
-		rec = btr_pcur_get_rec(&pcur);
-
-		ut_a(btr_pcur_is_on_user_rec(&pcur));
-
-		err_msg = dict_load_virtual_low(table, heap,
-						&v_col->base_col[i - skipped],
-						NULL,
-					        &pos, NULL, rec);
-
-		if (err_msg) {
-			if (err_msg != dict_load_virtual_del) {
-				ib::fatal() << err_msg;
-			} else {
-				skipped++;
-			}
-		} else {
-			ut_ad(pos == vcol_pos);
-		}
-
-		btr_pcur_move_to_next_user_rec(&pcur, &mtr);
-	}
-
-	btr_pcur_close(&pcur);
-	mtr_commit(&mtr);
-}
-
-/** Loads info from SYS_VIRTUAL for virtual columns.
-@param[in,out]	table	table
-@param[in]	heap	memory heap
-*/
-static
-void
-dict_load_virtual(
-	dict_table_t*	table,
-	mem_heap_t*	heap)
-{
-	for (ulint i = 0; i < table->n_v_cols; i++) {
-		dict_v_col_t*	v_col = dict_table_get_nth_v_col(table, i);
-
-		dict_load_virtual_one_col(table, i, v_col, heap);
-	}
-}
-
-/** Error message for a delete-marked record in dict_load_field_low() */
-static const char* dict_load_field_del = "delete-marked record in SYS_FIELDS";
-
-/********************************************************************//**
-Loads an index field definition from a SYS_FIELDS record to
-dict_index_t.
-@return error message, or NULL on success */
-const char*
-dict_load_field_low(
-/*================*/
-	byte*		index_id,	/*!< in/out: index id (8 bytes)
-					an "in" value if index != NULL
-					and "out" if index == NULL */
-	dict_index_t*	index,		/*!< in/out: index, could be NULL
-					if we just populate a dict_field_t
-					struct with information from
-					a SYS_FIELDS record */
-	dict_field_t*	sys_field,	/*!< out: dict_field_t to be
-					filled */
-	ulint*		pos,		/*!< out: Field position */
-	byte*		last_index_id,	/*!< in: last index id */
-	mem_heap_t*	heap,		/*!< in/out: memory heap
-					for temporary storage */
-	const rec_t*	rec)		/*!< in: SYS_FIELDS record */
-{
-	const byte*	field;
-	ulint		len;
-	ulint		pos_and_prefix_len;
-	ulint		prefix_len;
-	ibool		first_field;
-	ulint		position;
-
-	/* Either index or sys_field is supplied, not both */
-	ut_a((!index) || (!sys_field));
-
-	if (rec_get_deleted_flag(rec, 0)) {
-		return(dict_load_field_del);
-	}
-
-	if (rec_get_n_fields_old(rec) != DICT_NUM_FIELDS__SYS_FIELDS) {
-		return("wrong number of columns in SYS_FIELDS record");
-	}
-
-	field = rec_get_nth_field_old(
-		rec, DICT_FLD__SYS_FIELDS__INDEX_ID, &len);
-	if (len != 8) {
-err_len:
-		return("incorrect column length in SYS_FIELDS");
-	}
-
-	if (!index) {
-		ut_a(last_index_id);
-		memcpy(index_id, (const char*) field, 8);
-		first_field = memcmp(index_id, last_index_id, 8);
-	} else {
-		first_field = (index->n_def == 0);
-		if (memcmp(field, index_id, 8)) {
-			return("SYS_FIELDS.INDEX_ID mismatch");
-		}
-	}
-
-	/* The next field stores the field position in the index and a
-	possible column prefix length if the index field does not
-	contain the whole column. The storage format is like this: if
-	there is at least one prefix field in the index, then the HIGH
-	2 bytes contain the field number (index->n_def) and the low 2
-	bytes the prefix length for the field. Otherwise the field
-	number (index->n_def) is contained in the 2 LOW bytes. */
-
-	field = rec_get_nth_field_old(
-		rec, DICT_FLD__SYS_FIELDS__POS, &len);
-	if (len != 4) {
-		goto err_len;
-	}
-
-	pos_and_prefix_len = mach_read_from_4(field);
-
-	if (index && UNIV_UNLIKELY
-	    ((pos_and_prefix_len & 0xFFFFUL) != index->n_def
-	     && (pos_and_prefix_len >> 16 & 0xFFFF) != index->n_def)) {
-		return("SYS_FIELDS.POS mismatch");
-	}
-
-	if (first_field || pos_and_prefix_len > 0xFFFFUL) {
-		prefix_len = pos_and_prefix_len & 0xFFFFUL;
-		position = (pos_and_prefix_len & 0xFFFF0000UL)  >> 16;
-	} else {
-		prefix_len = 0;
-		position = pos_and_prefix_len & 0xFFFFUL;
-	}
-
-	rec_get_nth_field_offs_old(
-		rec, DICT_FLD__SYS_FIELDS__DB_TRX_ID, &len);
-	if (len != DATA_TRX_ID_LEN && len != UNIV_SQL_NULL) {
-		goto err_len;
-	}
-	rec_get_nth_field_offs_old(
-		rec, DICT_FLD__SYS_FIELDS__DB_ROLL_PTR, &len);
-	if (len != DATA_ROLL_PTR_LEN && len != UNIV_SQL_NULL) {
-		goto err_len;
-	}
-
-	field = rec_get_nth_field_old(
-		rec, DICT_FLD__SYS_FIELDS__COL_NAME, &len);
-	if (len == 0 || len == UNIV_SQL_NULL) {
-		goto err_len;
-	}
-
-	if (index) {
-		dict_mem_index_add_field(
-			index, mem_heap_strdupl(heap, (const char*) field, len),
-			prefix_len);
-	} else {
-		ut_a(sys_field);
-		ut_a(pos);
-
-		sys_field->name = mem_heap_strdupl(
-			heap, (const char*) field, len);
-		sys_field->prefix_len = prefix_len;
-		*pos = position;
-	}
-
-	return(NULL);
 }
 
 /********************************************************************//**
@@ -2216,173 +2294,12 @@ func_exit:
 	return(error);
 }
 
-/** Error message for a delete-marked record in dict_load_index_low() */
-static const char* dict_load_index_del = "delete-marked record in SYS_INDEXES";
-/** Error message for table->id mismatch in dict_load_index_low() */
-static const char* dict_load_index_id_err = "SYS_INDEXES.TABLE_ID mismatch";
-
-/********************************************************************//**
-Loads an index definition from a SYS_INDEXES record to dict_index_t.
-If allocate=TRUE, we will create a dict_index_t structure and fill it
-accordingly. If allocated=FALSE, the dict_index_t will be supplied by
-the caller and filled with information read from the record.  @return
-error message, or NULL on success */
-const char*
-dict_load_index_low(
-/*================*/
-	byte*		table_id,	/*!< in/out: table id (8 bytes),
-					an "in" value if allocate=TRUE
-					and "out" when allocate=FALSE */
-	const char*	table_name,	/*!< in: table name */
-	mem_heap_t*	heap,		/*!< in/out: temporary memory heap */
-	const rec_t*	rec,		/*!< in: SYS_INDEXES record */
-	ibool		allocate,	/*!< in: TRUE=allocate *index,
-					FALSE=fill in a pre-allocated
-					*index */
-	dict_index_t**	index)		/*!< out,own: index, or NULL */
-{
-	const byte*	field;
-	ulint		len;
-	ulint		name_len;
-	char*		name_buf;
-	index_id_t	id;
-	ulint		n_fields;
-	ulint		type;
-	ulint		space;
-	ulint		merge_threshold;
-
-	if (allocate) {
-		/* If allocate=TRUE, no dict_index_t will
-		be supplied. Initialize "*index" to NULL */
-		*index = NULL;
-	}
-
-	if (rec_get_deleted_flag(rec, 0)) {
-		return(dict_load_index_del);
-	}
-
-	if (rec_get_n_fields_old(rec) == DICT_NUM_FIELDS__SYS_INDEXES) {
-		/* MERGE_THRESHOLD exists */
-		field = rec_get_nth_field_old(
-			rec, DICT_FLD__SYS_INDEXES__MERGE_THRESHOLD, &len);
-		switch (len) {
-		case 4:
-			merge_threshold = mach_read_from_4(field);
-			break;
-		case UNIV_SQL_NULL:
-			merge_threshold = DICT_INDEX_MERGE_THRESHOLD_DEFAULT;
-			break;
-		default:
-			return("incorrect MERGE_THRESHOLD length"
-			       " in SYS_INDEXES");
-		}
-	} else if (rec_get_n_fields_old(rec)
-		   == DICT_NUM_FIELDS__SYS_INDEXES - 1) {
-		/* MERGE_THRESHOLD doesn't exist */
-
-		merge_threshold = DICT_INDEX_MERGE_THRESHOLD_DEFAULT;
-	} else {
-		return("wrong number of columns in SYS_INDEXES record");
-	}
-
-	field = rec_get_nth_field_old(
-		rec, DICT_FLD__SYS_INDEXES__TABLE_ID, &len);
-	if (len != 8) {
-err_len:
-		return("incorrect column length in SYS_INDEXES");
-	}
-
-	if (!allocate) {
-		/* We are reading a SYS_INDEXES record. Copy the table_id */
-		memcpy(table_id, (const char*) field, 8);
-	} else if (memcmp(field, table_id, 8)) {
-		/* Caller supplied table_id, verify it is the same
-		id as on the index record */
-		return(dict_load_index_id_err);
-	}
-
-	field = rec_get_nth_field_old(
-		rec, DICT_FLD__SYS_INDEXES__ID, &len);
-	if (len != 8) {
-		goto err_len;
-	}
-
-	id = mach_read_from_8(field);
-
-	rec_get_nth_field_offs_old(
-		rec, DICT_FLD__SYS_INDEXES__DB_TRX_ID, &len);
-	if (len != DATA_TRX_ID_LEN && len != UNIV_SQL_NULL) {
-		goto err_len;
-	}
-	rec_get_nth_field_offs_old(
-		rec, DICT_FLD__SYS_INDEXES__DB_ROLL_PTR, &len);
-	if (len != DATA_ROLL_PTR_LEN && len != UNIV_SQL_NULL) {
-		goto err_len;
-	}
-
-	field = rec_get_nth_field_old(
-		rec, DICT_FLD__SYS_INDEXES__NAME, &name_len);
-	if (name_len == UNIV_SQL_NULL) {
-		goto err_len;
-	}
-
-	name_buf = mem_heap_strdupl(heap, (const char*) field,
-				    name_len);
-
-	field = rec_get_nth_field_old(
-		rec, DICT_FLD__SYS_INDEXES__N_FIELDS, &len);
-	if (len != 4) {
-		goto err_len;
-	}
-	n_fields = mach_read_from_4(field);
-
-	field = rec_get_nth_field_old(
-		rec, DICT_FLD__SYS_INDEXES__TYPE, &len);
-	if (len != 4) {
-		goto err_len;
-	}
-	type = mach_read_from_4(field);
-	if (type & (~0U << DICT_IT_BITS)) {
-		return("unknown SYS_INDEXES.TYPE bits");
-	}
-
-	field = rec_get_nth_field_old(
-		rec, DICT_FLD__SYS_INDEXES__SPACE, &len);
-	if (len != 4) {
-		goto err_len;
-	}
-	space = mach_read_from_4(field);
-
-	field = rec_get_nth_field_old(
-		rec, DICT_FLD__SYS_INDEXES__PAGE_NO, &len);
-	if (len != 4) {
-		goto err_len;
-	}
-
-	if (allocate) {
-		*index = dict_mem_index_create(table_name, name_buf,
-					       space, type, n_fields);
-	} else {
-		ut_a(*index);
-
-		dict_mem_fill_index_struct(*index, NULL, NULL, name_buf,
-					   space, type, n_fields);
-	}
-
-	(*index)->id = id;
-	(*index)->page = mach_read_from_4(field);
-	ut_ad((*index)->page);
-	(*index)->merge_threshold = merge_threshold;
-
-	return(NULL);
-}
-
 /********************************************************************//**
 Loads definitions for table indexes. Adds them to the data dictionary
 cache.
 @return DB_SUCCESS if ok, DB_CORRUPTION if corruption of dictionary
 table or DB_UNSUPPORTED if table has unknown index type */
-static MY_ATTRIBUTE((nonnull))
+static
 dberr_t
 dict_load_indexes(
 /*==============*/
@@ -2435,7 +2352,7 @@ dict_load_indexes(
 			without index when DICT_ERR_IGNORE_CORRUPT is set.
 			DICT_ERR_IGNORE_CORRUPT is currently only set
 			for drop table */
-			if (dict_table_get_first_index(table) == NULL
+			if (table->first_index() == NULL
 			    && !(ignore_err & DICT_ERR_IGNORE_CORRUPT)) {
 				ib::warn() << "Cannot load table "
 					<< table->name
@@ -2481,7 +2398,7 @@ dict_load_indexes(
 			/* TABLE_ID mismatch means that we have
 			run out of index definitions for the table. */
 
-			if (dict_table_get_first_index(table) == NULL
+			if (table->first_index() == NULL
 			    && !(ignore_err & DICT_ERR_IGNORE_CORRUPT)) {
 
 				ib::warn() << "Failed to load the"
@@ -2512,7 +2429,7 @@ dict_load_indexes(
 		ut_ad(index);
 
 		/* Check whether the index is corrupted */
-		if (dict_index_is_corrupted(index)) {
+		if (index->is_corrupted()) {
 
 			ib::error() << "Index " << index->name
 				<< " of table " << table->name
@@ -2520,7 +2437,7 @@ dict_load_indexes(
 
 			if (!srv_load_corrupted
 			    && !(ignore_err & DICT_ERR_IGNORE_CORRUPT)
-			    && dict_index_is_clust(index)) {
+			    && index->is_clustered()) {
 				dict_mem_index_free(index);
 
 				error = DB_INDEX_CORRUPT;
@@ -2558,44 +2475,18 @@ dict_load_indexes(
 			error = DB_UNSUPPORTED;
 			dict_mem_index_free(index);
 			goto func_exit;
-		} else if (index->page == FIL_NULL
-			   && !table->ibd_file_missing
-			   && (!(index->type & DICT_FTS))) {
-
-			ib::error() << "Trying to load index " << index->name
-				<< " for table " << table->name
-				<< ", but the index tree has been freed!";
-
-			if (ignore_err & DICT_ERR_IGNORE_INDEX_ROOT) {
-				/* If caller can tolerate this error,
-				we will continue to load the index and
-				let caller deal with this error. However
-				mark the index and table corrupted. We
-				only need to mark such in the index
-				dictionary cache for such metadata corruption,
-				since we would always be able to set it
-				when loading the dictionary cache */
-				index->table = table;
-				dict_set_corrupted_index_cache_only(index);
-
-				ib::info() << "Index is corrupt but forcing"
-					" load into data dictionary";
-			} else {
-corrupted:
-				dict_mem_index_free(index);
-				error = DB_CORRUPTION;
-				goto func_exit;
-			}
-		} else if (!dict_index_is_clust(index)
-			   && NULL == dict_table_get_first_index(table)) {
+		} else if (!index->is_clustered()
+			   && NULL == table->first_index()) {
 
 			ib::error() << "Trying to load index " << index->name
 				<< " for table " << table->name
 				<< ", but the first index is not clustered!";
 
-			goto corrupted;
+			dict_mem_index_free(index);
+			error = DB_CORRUPTION;
+			goto func_exit;
 		} else if (dict_is_sys_table(table->id)
-			   && (dict_index_is_clust(index)
+			   && (index->is_clustered()
 			       || ((table == dict_sys->sys_tables)
 				   && !strcmp("ID_IND", index->name)))) {
 
@@ -2648,7 +2539,7 @@ func_exit:
 Does not load any columns or indexes.
 @param[in]	name	Table name
 @param[in]	rec	SYS_TABLES record
-@param[out,own]	table	table, or NULL
+@param[out]	table	table, or NULL
 @return error message, or NULL on success */
 static
 const char*
@@ -2658,7 +2549,7 @@ dict_load_table_low(
 	dict_table_t**	table)
 {
 	table_id_t	table_id;
-	ulint		space_id;
+	space_id_t	space_id;
 	ulint		n_cols;
 	ulint		t_num;
 	ulint		flags;
@@ -2681,6 +2572,7 @@ dict_load_table_low(
 
 	*table = dict_mem_table_create(
 		name.m_name, space_id, n_cols + n_v_col, n_v_col, flags, flags2);
+
 	(*table)->id = table_id;
 	(*table)->ibd_file_missing = FALSE;
 
@@ -2693,6 +2585,7 @@ table->data_dir_path and replace the 'databasename/tablename.ibd'
 portion with 'tablename'.
 This allows SHOW CREATE TABLE to return the correct DATA DIRECTORY path.
 Make this data directory path only if it has not yet been saved. */
+static
 void
 dict_save_data_dir_path(
 /*====================*/
@@ -2893,20 +2786,16 @@ dict_load_tablespace(
 	mem_heap_t*		heap,
 	dict_err_ignore_t	ignore_err)
 {
-	/* The system tablespace is always available. */
-	if (is_system_tablespace(table->space)) {
+	ut_ad(!table->is_temporary());
+
+	/* The system and temporary tablespaces are preloaded and always available. */
+	if (fsp_is_system_or_temp_tablespace(table->space)) {
 		return;
 	}
 
 	if (table->flags2 & DICT_TF2_DISCARDED) {
 		ib::warn() << "Tablespace for table " << table->name
 			<< " is set as discarded.";
-		table->ibd_file_missing = TRUE;
-		return;
-	}
-
-	if (dict_table_is_temporary(table)) {
-		/* Do not bother to retry opening temporary tables. */
 		table->ibd_file_missing = TRUE;
 		return;
 	}
@@ -2984,11 +2873,12 @@ dict_load_tablespace(
 
 	/* Try to open the tablespace.  We set the 2nd param (fix_dict) to
 	false because we do not have an x-lock on dict_operation_lock */
+	bool is_encrypted = dict_table_is_encrypted(table);
 	ulint fsp_flags = dict_tf_to_fsp_flags(table->flags,
-					       false,
-					       dict_table_is_encrypted(table));
+					       is_encrypted);
+
 	dberr_t err = fil_ibd_open(
-		true, false, FIL_TYPE_TABLESPACE, table->space,
+		true, FIL_TYPE_TABLESPACE, table->space,
 		fsp_flags, space_name, filepath);
 
 	if (err != DB_SUCCESS) {
@@ -3044,6 +2934,11 @@ dict_load_table_one(
 	DBUG_PRINT("dict_load_table_one", ("table: %s", name.m_name));
 
 	ut_ad(mutex_own(&dict_sys->mutex));
+#if 0 /* FIXME: enable this in WL#7141 */
+	/* Currently, the master thread may call us in
+	row_drop_tables_for_mysql_in_background(). */
+	ut_ad(!srv_is_being_shutdown);
+#endif
 
 	heap = mem_heap_create(32000);
 
@@ -3131,33 +3026,34 @@ err_exit:
 		: ignore_err;
 	err = dict_load_indexes(table, heap, index_load_err);
 
+	dict_table_load_dynamic_metadata(table);
+
+	/* Re-check like we do in dict_load_indexes() */
+	if (!srv_load_corrupted
+	    && !(index_load_err & DICT_ERR_IGNORE_CORRUPT)
+	    && table->is_corrupted()) {
+		err = DB_INDEX_CORRUPT;
+	}
+
 	if (err == DB_INDEX_CORRUPT) {
 		/* Refuse to load the table if the table has a corrupted
-		cluster index */
-		if (!srv_load_corrupted) {
+		clustered index */
+		ut_ad(!srv_load_corrupted);
 
-			ib::error() << "Load table " << table->name
-				<< " failed, the table has"
-				" corrupted clustered indexes. Turn on"
-				" 'innodb_force_load_corrupted' to drop it";
-			dict_table_remove_from_cache(table);
-			table = NULL;
-			goto func_exit;
-		} else {
-			dict_index_t*	clust_index;
-			clust_index = dict_table_get_first_index(table);
-
-			if (dict_index_is_corrupted(clust_index)) {
-				table->corrupted = TRUE;
-			}
-		}
+		ib::error() << "Load table " << table->name
+			<< " failed, the table contains a"
+			" corrupted clustered index. Turn on"
+			" 'innodb_force_load_corrupted' to drop it";
+		dict_table_remove_from_cache(table);
+		table = NULL;
+		goto func_exit;
 	}
 
 	/* We don't trust the table->flags2(retrieved from SYS_TABLES.MIX_LEN
 	field) if the datafiles are from 3.23.52 version. To identify this
 	version, we do the below check and reset the flags. */
 	if (!DICT_TF2_FLAG_IS_SET(table, DICT_TF2_FTS_HAS_DOC_ID)
-	    && table->space == srv_sys_space.space_id()
+	    && table->space == TRX_SYS_SPACE
 	    && table->flags == 0) {
 		table->flags2 = 0;
 	}
@@ -3203,6 +3099,7 @@ err_exit:
 			dict_table_remove_from_cache(table);
 			table = NULL;
 		} else {
+			dict_mem_table_free_foreign_vcol_set(table);
 			dict_mem_table_fill_foreign_vcol_set(table);
 			table->fk_max_recusive_level = 0;
 		}
@@ -3211,22 +3108,15 @@ err_exit:
 
 		/* Make sure that at least the clustered index was loaded.
 		Otherwise refuse to load the table */
-		index = dict_table_get_first_index(table);
+		index = table->first_index();
 
 		if (!srv_force_recovery
 		    || !index
-		    || !dict_index_is_clust(index)) {
+		    || !index->is_clustered()) {
 
 			dict_table_remove_from_cache(table);
 			table = NULL;
 
-		} else if (dict_index_is_corrupted(index)
-			   && !table->ibd_file_missing) {
-
-			/* It is possible we force to load a corrupted
-			clustered index if srv_load_corrupted is set.
-			Mark the table as corrupted in this case */
-			table->corrupted = TRUE;
 		}
 	}
 
@@ -3236,7 +3126,7 @@ func_exit:
 	ut_ad(!table
 	      || ignore_err != DICT_ERR_IGNORE_NONE
 	      || table->ibd_file_missing
-	      || !table->corrupted);
+	      || !table->is_corrupted());
 
 	if (table && table->fts) {
 		if (!(dict_table_has_fts_index(table)
@@ -3281,6 +3171,7 @@ dict_load_table_on_id(
 	mtr_t		mtr;
 
 	ut_ad(mutex_own(&dict_sys->mutex));
+	ut_ad(!srv_is_being_shutdown);
 
 	table = NULL;
 
@@ -3292,10 +3183,9 @@ dict_load_table_on_id(
 	/*---------------------------------------------------*/
 	/* Get the secondary index based on ID for table SYS_TABLES */
 	sys_tables = dict_sys->sys_tables;
-	sys_table_ids = dict_table_get_next_index(
-		dict_table_get_first_index(sys_tables));
+	sys_table_ids = sys_tables->first_index()->next();
 	ut_ad(!dict_table_is_comp(sys_tables));
-	ut_ad(!dict_index_is_clust(sys_table_ids));
+	ut_ad(!sys_table_ids->is_clustered());
 	heap = mem_heap_create(256);
 
 	tuple  = dtuple_create(heap, 1);
@@ -3502,7 +3392,7 @@ dict_load_foreign_cols(
 Loads a foreign key constraint to the dictionary cache. If the referenced
 table is not yet loaded, it is added in the output parameter (fk_tables).
 @return DB_SUCCESS or error code */
-static MY_ATTRIBUTE((nonnull(1), warn_unused_result))
+static MY_ATTRIBUTE((warn_unused_result))
 dberr_t
 dict_load_foreign(
 /*==============*/
@@ -3748,9 +3638,8 @@ dict_load_foreigns(
 	/* Get the secondary index based on FOR_NAME from table
 	SYS_FOREIGN */
 
-	sec_index = dict_table_get_next_index(
-		dict_table_get_first_index(sys_foreign));
-	ut_ad(!dict_index_is_clust(sec_index));
+	sec_index = sys_foreign->first_index()->next();
+	ut_ad(!sec_index->is_clustered());
 start_load:
 
 	tuple = dtuple_create_from_mem(tuple_buf, sizeof(tuple_buf), 1, 0);
@@ -3782,6 +3671,7 @@ loop:
 
 	if (0 != cmp_data_data(dfield_get_type(dfield)->mtype,
 			       dfield_get_type(dfield)->prtype,
+			       true,
 			       static_cast<const byte*>(
 				       dfield_get_data(dfield)),
 			       dfield_get_len(dfield),
@@ -3846,7 +3736,7 @@ load_next_index:
 	btr_pcur_close(&pcur);
 	mtr_commit(&mtr);
 
-	sec_index = dict_table_get_next_index(sec_index);
+	sec_index = sec_index->next();
 
 	if (sec_index != NULL) {
 

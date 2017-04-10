@@ -167,10 +167,13 @@ while ($i)
          SELECT * FROM t1 WHERE (t1.i) IN 
            (SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i);
          eval EXPLAIN $query;
+         --sorted_result
          eval $query;
 
          eval PREPARE stmt FROM "$query";
+         --sorted_result
          EXECUTE stmt;
+         --sorted_result
          EXECUTE stmt;
          DEALLOCATE PREPARE stmt;
 
@@ -178,10 +181,13 @@ while ($i)
          SELECT * FROM t1 WHERE (t1.i) IN 
            (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
          eval EXPLAIN $query;
+         --sorted_result
          eval $query;
 
          eval PREPARE stmt FROM "$query";
+         --sorted_result
          EXECUTE stmt;
+         --sorted_result
          EXECUTE stmt;
          DEALLOCATE PREPARE stmt;
 
@@ -189,36 +195,42 @@ while ($i)
          SELECT * FROM t1 WHERE (t1.i) IN 
            (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
          eval EXPLAIN $query;
+         --sorted_result
          eval $query;
 
          let $query=
          SELECT * FROM t1 WHERE (t1.i) IN 
            (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
          eval EXPLAIN $query;
+         --sorted_result
          eval $query;
 
          let $query=
          SELECT * FROM t1 WHERE (11) IN 
            (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
          eval EXPLAIN $query;
+         --sorted_result
          eval $query;
 
          let $query=
          SELECT * FROM t1 WHERE (11) IN 
            (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i WHERE t1.i);
          eval EXPLAIN $query;
+         --sorted_result
          eval $query;
 
          let $query=
          SELECT * FROM t1 WHERE (11) IN 
            (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
          eval EXPLAIN $query;
+         --sorted_result
          eval $query;
 
          let $query=
          SELECT * FROM t1 WHERE (11) IN 
            (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
          eval EXPLAIN $query;
+         --sorted_result
          eval $query;
 
 	 dec $k;
@@ -503,7 +515,7 @@ drop table t1;
 create table t1 (a int);
 insert into t1 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
 create table t2 as select * from t1;
-create table t3 (a int, b int, filler char(100), key(a));
+create table t3 (a int, b int, filler char(100), key(a)) charset utf8mb4;
 insert into t3 select A.a + 10*B.a, A.a + 10*B.a, 'filler' from t1 A, t1 B, t1 C;
 explain select * from t1, t3 where t3.a in (select a from t2) and (t3.a < 10 or t3.a >30) and t1.a =3;
 --replace_regex /"rows_produced_per_join": 792/"rows_produced_per_join": 793/
@@ -792,9 +804,9 @@ from t1_16
 where a1 in (select group_concat(b1) from t2_16 group by b2);
 
 # BLOB column at the second (intermediate) level of nesting
-create table t1 (a1 char(8), a2 char(8));
-create table t2 (b1 char(8), b2 char(8));
-create table t3 (c1 char(8), c2 char(8));
+create table t1 (a1 char(8), a2 char(8)) charset latin1;
+create table t2 (b1 char(8), b2 char(8)) charset latin1;
+create table t3 (c1 char(8), c2 char(8)) charset latin1;
 insert into t1 values ('1 - 00', '2 - 00');
 insert into t1 values ('1 - 01', '2 - 01');
 insert into t1 values ('1 - 02', '2 - 02');
@@ -1741,7 +1753,7 @@ CREATE TABLE t0 (
   vnokey VARCHAR(1),
   PRIMARY KEY (pk),
   KEY vkey(vkey)
-);
+) charset utf8mb4;
 
 INSERT INTO t0 
 VALUES (1,'g','g'), (2,'v','v'), (3,'t','t'), (4,'u','u'), (5,'n','n');
@@ -1945,7 +1957,7 @@ CREATE TABLE t0 (
   varchar_nokey varchar(1) DEFAULT NULL,
   KEY int_key (int_key),
   KEY varchar_key (varchar_key,int_key)
-);
+) charset utf8mb4;
 
 INSERT INTO t0 VALUES
 (1,'m','m'),
@@ -1975,7 +1987,7 @@ CREATE TABLE t1 (
   varchar_nokey varchar(1) DEFAULT NULL,
   KEY int_key (int_key),
   KEY varchar_key (varchar_key,int_key)
-);
+) charset utf8mb4;
 INSERT INTO t1 VALUES (7,NULL,NULL),(4,'x','x');
 
 CREATE TABLE t2 (
@@ -1984,7 +1996,7 @@ CREATE TABLE t2 (
   varchar_nokey varchar(1) DEFAULT NULL,
   KEY int_key (int_key),
   KEY varchar_key (varchar_key,int_key)
-);
+) charset utf8mb4;
 INSERT INTO t2 VALUES (123,NULL,NULL);
 
 SELECT int_key  
@@ -2201,9 +2213,9 @@ DROP VIEW v2, v3;
 --echo # Bug#48623 Multiple subqueries are optimized incorrectly
 --echo # 
 
-CREATE TABLE ot(val VARCHAR(10));
-CREATE TABLE it1(val VARCHAR(10));
-CREATE TABLE it2(val VARCHAR(10));
+CREATE TABLE ot(val VARCHAR(10)) charset utf8mb4;
+CREATE TABLE it1(val VARCHAR(10)) charset utf8mb4;
+CREATE TABLE it2(val VARCHAR(10)) charset utf8mb4;
 
 INSERT INTO ot  VALUES('aaa'), ('bbb'), ('eee'), ('mmm'), ('ppp');
 INSERT INTO it1 VALUES('aaa'), ('aaa'), ('bbb'), ('eee'), ('mmm'), ('ppp');
@@ -2365,15 +2377,15 @@ DROP TABLE t1;
 --echo # Bug#45191: Incorrectly initialized semi-join led to a wrong result.
 --echo #
 CREATE TABLE staff (EMPNUM   CHAR(3) NOT NULL,
-    EMPNAME  CHAR(20), GRADE DECIMAL(4), CITY CHAR(15));
+    EMPNAME  CHAR(20), GRADE DECIMAL(4), CITY CHAR(15)) charset latin1;
 
 CREATE TABLE proj (PNUM CHAR(3) NOT NULL,
     PNAME    CHAR(20), PTYPE CHAR(6),
     BUDGET   DECIMAL(9),
-    CITY     CHAR(15));
+    CITY     CHAR(15)) charset latin1;
 
 CREATE TABLE works (EMPNUM CHAR(3) NOT NULL,
-    PNUM CHAR(3) NOT NULL, HOURS DECIMAL(5));
+    PNUM CHAR(3) NOT NULL, HOURS DECIMAL(5)) charset latin1;
 INSERT INTO staff VALUES ('E1','Alice',12,'Deale');
 INSERT INTO staff VALUES ('E2','Betty',10,'Vienna');
 INSERT INTO staff VALUES ('E3','Carmen',13,'Vienna');
@@ -2519,7 +2531,7 @@ DROP TABLE t1;
 # Bug#30788 Inconsistent retrieval of char/varchar
 #
 
-CREATE TABLE t1 (a CHAR(1), b VARCHAR(10));
+CREATE TABLE t1 (a CHAR(1), b VARCHAR(10)) charset utf8mb4;
 INSERT INTO t1 VALUES ('a', 'aa');
 INSERT INTO t1 VALUES ('a', 'aaa');
 SELECT a,b FROM t1 WHERE b IN (SELECT a FROM t1);
@@ -2528,7 +2540,7 @@ CREATE INDEX I2 ON t1 (b);
 EXPLAIN SELECT a,b FROM t1 WHERE b IN (SELECT a FROM t1);
 SELECT a,b FROM t1 WHERE b IN (SELECT a FROM t1);
 
-CREATE TABLE t2 (a VARCHAR(1), b VARCHAR(10));
+CREATE TABLE t2 (a VARCHAR(1), b VARCHAR(10)) charset utf8mb4;
 INSERT INTO t2 SELECT * FROM t1;
 CREATE INDEX I1 ON t2 (a);
 CREATE INDEX I2 ON t2 (b);
@@ -2605,19 +2617,19 @@ CREATE TABLE t1
  (EMPNUM   CHAR(3) NOT NULL,
   EMPNAME  CHAR(20),
   GRADE    DECIMAL(4),
-  CITY     CHAR(15));
+  CITY     CHAR(15)) charset latin1;
 
 CREATE TABLE t2
  (PNUM     CHAR(3) NOT NULL,
   PNAME    CHAR(20),
   PTYPE    CHAR(6),
   BUDGET   DECIMAL(9),
-  CITY     CHAR(15));
+  CITY     CHAR(15)) charset latin1;
 
 CREATE TABLE t3
  (EMPNUM   CHAR(3) NOT NULL,
   PNUM     CHAR(3) NOT NULL,
-  HOURS    DECIMAL(5));
+  HOURS    DECIMAL(5)) charset latin1;
 
 INSERT INTO t1 VALUES ('E1','Alice',12,'Deale');
 INSERT INTO t1 VALUES ('E2','Betty',10,'Vienna');
@@ -2883,7 +2895,7 @@ CREATE TABLE t1 (
   c varchar(4),
   d varchar(4),
   PRIMARY KEY (pk)
-);
+) charset utf8mb4;
 INSERT INTO t1 VALUES (1,'o','ffff','ffff','ffoo'),(2,'f','ffff','ffff','ffff');
 
 CREATE TABLE t2 LIKE t1;
@@ -2926,7 +2938,7 @@ CREATE TABLE t1 (
   PRIMARY KEY  (ID),
   INDEX (Population),
   INDEX (Country) 
-);
+) charset utf8mb4;
 CREATE TABLE t2 (
   Code char(3) NOT NULL default '',
   Name char(52) NOT NULL default '',
@@ -2936,14 +2948,14 @@ CREATE TABLE t2 (
   PRIMARY KEY  (Code),
   UNIQUE INDEX (Name),
   INDEX (Population)
-);
+) charset utf8mb4;
 CREATE TABLE t3 (
   Country char(3) NOT NULL default '',
   Language char(30) NOT NULL default '',
   Percentage float(3,1) NOT NULL default '0.0',
   PRIMARY KEY  (Country, Language),
   INDEX (Percentage)
-);
+) charset utf8mb4;
 
 --disable_query_log
 INSERT INTO t1 VALUES
@@ -3028,7 +3040,7 @@ CREATE TABLE t1 (
   Capital int(11) DEFAULT NULL,
   Code2 char(2) NOT NULL DEFAULT '',
   PRIMARY KEY (Code)
-);
+) charset utf8mb4;
 
 CREATE TABLE t2 (
   ID int(11) NOT NULL AUTO_INCREMENT,
@@ -3038,7 +3050,7 @@ CREATE TABLE t2 (
   Population int(11) NOT NULL DEFAULT '0',
   PRIMARY KEY (ID),
   KEY CountryCode (CountryCode)
-);
+) charset utf8mb4;
 
 --echo Fill the table with test data
 --disable_query_log
@@ -3469,7 +3481,7 @@ drop table t0, t1, t2, t3;
 create table t0 (a int);
 insert into t0 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
 create table t1 (a int) as select A.a + 10 *(B.a + 10*C.a) as a  from t0 A, t0 B, t0 C;
-create table t2 (id int, a int, primary key(id), key(a)) as select a as id, a as a  from t1;
+create table t2 (id int, a int, primary key(id), key(a)) charset utf8mb4 as select a as id, a as a  from t1;
 show create table t2;
 set @a=0;
 create table t3 as select * from t2 limit 0;
@@ -3569,7 +3581,7 @@ CREATE TABLE t1 (
   j longtext,
   k geometry,
   PRIMARY KEY (pk)
-);
+) charset utf8mb4;
 
 INSERT INTO t1 VALUES (1,'o','ffff','ffff','ffoo','ffff','ffff','ffff','ffff','ffff','ffff',ST_GeomFromText('POLYGON((0 0, 0 2, 2 2, 2 0, 0 0))')), (2,'f','ffff','ffff','ffff', 'ffff','ffff','ffff','ffff','ffff','ffff',ST_GeomFromText('POLYGON((0 0, 0 2, 2 2, 2 0, 0 0))'));
 
@@ -3691,7 +3703,7 @@ drop table t1,t2,t3,t4;
 CREATE TABLE t1 (
   id INT PRIMARY KEY,
   partner_id VARCHAR(35)
-);
+) charset utf8mb4;
 
 INSERT INTO t1 VALUES
  (1, 'partner1'), (2, 'partner2'),
@@ -3702,7 +3714,7 @@ CREATE TABLE t2 (
   t1_line_id INT,
   article_id VARCHAR(20),
   PRIMARY KEY(id, t1_line_id)
-);
+) charset utf8mb4;
 
 INSERT INTO t2 VALUES
  (1, 1, 'sup'), (2, 1, 'sup'),
@@ -3714,7 +3726,7 @@ CREATE TABLE t3 (
   user_id VARCHAR(50),
   article_id VARCHAR(20) NOT NULL,
   PRIMARY KEY(user_id)
-);
+) charset utf8mb4;
 
 INSERT INTO t3 VALUES('nicke', 'imp');
 
@@ -3905,7 +3917,7 @@ DROP TABLE t1,t2a,t2b,t2c;
 
 CREATE TABLE t1 (
   varchar_nokey varchar(1) NOT NULL
-);
+) charset utf8mb4;
 
 INSERT INTO t1 VALUES
  ('v'), ('u'), ('n'), ('l'), ('h'), ('u'), ('n'), ('j'), ('k'),
@@ -3917,7 +3929,7 @@ CREATE TABLE t2 (
   varchar_nokey varchar(1) NOT NULL,
   PRIMARY KEY(pk),
   KEY varchar_key(varchar_key)
-);
+) charset utf8mb4;
 
 INSERT INTO t2 VALUES
  (11,'m','m'), (12,'j','j'), (13,'z','z'), (14,'a','a'), (15,'',''),
@@ -4074,6 +4086,7 @@ CREATE TABLE t3 (
 );
 INSERT INTO t3 VALUES (4,4);
 
+--sorted_result
 SELECT *
 FROM t1
 WHERE f2 IN (SELECT a1.col_varchar_1024_utf8 AS f2
@@ -4144,7 +4157,7 @@ CREATE TABLE t1 (
   PRIMARY KEY (pk),
   KEY col_varchar_1024_utf8_key(col_varchar_1024_utf8_key(333)),
   KEY col_varchar_10_latin1_key(col_varchar_10_latin1_key)
-);
+) charset utf8mb4;
 
 INSERT INTO t1 VALUES
 (1, 'a', 'a'),
@@ -4155,9 +4168,9 @@ INSERT INTO t1 VALUES
 CREATE TABLE t2 (
   pk int NOT NULL AUTO_INCREMENT,
   PRIMARY KEY (pk)
-) ENGINE=Innodb;
+) charset utf8mb4 ENGINE=Innodb;
 
-CREATE TABLE t3
+CREATE TABLE t3 charset utf8mb4
 SELECT alias1.col_varchar_10_latin1_key
 FROM t1 AS alias1
      LEFT JOIN t1 AS alias2
@@ -4197,7 +4210,7 @@ CREATE TABLE t1 (
   PRIMARY KEY(pk),
   KEY col_int_key(col_int_key),
   KEY col_varchar_key(col_varchar_key, col_int_key)
-) engine=innodb;
+) charset utf8mb4 engine=innodb;
 
 INSERT INTO t1 VALUES
 (1,7,'a','a'),
@@ -4224,7 +4237,7 @@ CREATE TABLE t2 (
   col_varchar_key varchar(1) NOT NULL,
   PRIMARY KEY(pk),
   KEY col_varchar_key(col_varchar_key, col_int_key)
-) engine=innodb;
+) charset utf8mb4 engine=innodb;
 
 INSERT INTO t2(pk,col_int_key,col_varchar_key) VALUES
 (8,7,'c'),
@@ -4279,7 +4292,7 @@ CREATE TABLE t1 (
   col_varchar_key varchar(1) ,
   col_varchar_nokey varchar(1) ,
   KEY col_varchar_key(col_varchar_key)
-);
+) charset latin1;
 
 INSERT INTO t1 VALUES
 ('i','i'),
@@ -4300,7 +4313,7 @@ INSERT INTO t1 VALUES
 
 CREATE TABLE t2 (
   col_varchar_nokey varchar(1)
-);
+) charset latin1;
 
 INSERT INTO t2 VALUES
 ('b');
@@ -4335,7 +4348,7 @@ CREATE TABLE t1 (
  KEY col_int_key (col_int_key),
  KEY col_datetime_key(col_datetime_key),
  KEY col_varchar_key (col_varchar_key,col_int_key)
-) ENGINE=InnoDB;
+) charset utf8mb4 ENGINE=InnoDB;
 
 INSERT INTO t1 VALUES
  (7,'2004-06-06 04:22:12','v'), (0,'2005-11-13 01:12:31','s'),
@@ -4351,7 +4364,7 @@ INSERT INTO t1 VALUES
 
 CREATE TABLE t2 (
  col_varchar_nokey VARCHAR(1) NOT NULL
-) ENGINE=InnoDB;
+) charset utf8mb4 ENGINE=InnoDB;
 
 INSERT INTO t2 VALUES ('v'), ('y'), ('j'), ('c'), ('d'), ('r');
 
@@ -4408,7 +4421,7 @@ DROP TABLE t1, t2;
 
 CREATE TABLE t1 (
  g1 VARCHAR(1) NOT NULL
-) ENGINE=InnoDB;
+) charset utf8mb4 ENGINE=InnoDB;
 
 INSERT INTO t1 VALUES ('d'), ('s');
 
@@ -4419,7 +4432,7 @@ CREATE TABLE t2 (
  col_varchar_nokey VARCHAR(1) NOT NULL,
  PRIMARY KEY (pk),
  KEY col_varchar_key(col_varchar_key, col_int_key)
-) ENGINE=InnoDB;
+) charset utf8mb4 ENGINE=InnoDB;
 
 INSERT INTO t2 VALUES
  (1,4,'j','j'), (2,6,'v','v'), (3,3,'c','c'), (4,5,'m','m'),
@@ -4676,7 +4689,7 @@ DROP VIEW v1;
 CREATE TABLE t1 (
   col_varchar_key VARCHAR(1),
   KEY col_varchar_key (col_varchar_key)
-);
+) charset utf8mb4;
 
 INSERT INTO t1 VALUES
  ('o'), ('w'), ('m'), ('q'),
@@ -4687,7 +4700,7 @@ CREATE TABLE t2 (
   col_int_key INTEGER,
   col_varchar_key varchar(1),
   KEY col_int_key (col_int_key)
-);
+) charset utf8mb4;
 
 INSERT INTO t2 VALUES
  (8,5,'u'),(4,5,'p'),(8,1,'o'),(NULL,7,'v'),
@@ -4726,7 +4739,7 @@ CREATE TABLE t1 (
   PRIMARY KEY (pk),
   KEY col_int_key (col_int_key),
   KEY col_varchar_key (col_varchar_key, col_int_key)
-) ENGINE=InnoDB;
+) charset utf8mb4 ENGINE=InnoDB;
 
 INSERT INTO t1 VALUES
 (10,8,'x','x'),
@@ -4885,7 +4898,7 @@ DROP TABLE t1, t2, t3;
 CREATE TABLE t1 (
   col_int_nokey INT,
   col_varchar_nokey VARCHAR(1)
-);
+) charset utf8mb4;
 
 INSERT INTO t1 VALUES
  (1,'o'),
@@ -4981,7 +4994,7 @@ CREATE TABLE t1 (
   a VARCHAR(1),
   b VARCHAR(1),
   KEY a (a)
-);
+) charset utf8mb4;
 
 INSERT INTO t1 VALUES
  (NULL,8,'x','x'), (7,4,'q','q'), (6,8,'c','c');
@@ -4989,7 +5002,7 @@ INSERT INTO t1 VALUES
 CREATE TABLE t2 (
   a VARCHAR(1),
   KEY a (a)
-);
+) charset utf8mb4;
 
 INSERT INTO t2 VALUES
  ('c'), (NULL), ('x'), ('q');
@@ -5021,7 +5034,7 @@ CREATE TABLE t1 (
   col_varchar_nokey varchar(1),
   KEY col_int_key (col_int_key),
   KEY col_varchar_key (col_varchar_key,col_int_key)
-) ;
+) charset utf8mb4;
 
 INSERT INTO t1 VALUES
  (8,'x','x'), (0,'p','p'), (8,'c','c');
@@ -5032,7 +5045,7 @@ CREATE TABLE t2 (
   col_varchar_nokey varchar(1),
   PRIMARY KEY (pk),
   KEY col_varchar_key (col_varchar_key)
-);
+) charset utf8mb4;
 
 INSERT INTO t2 VALUES
  (1,'v','v'), (2,'v','v'), (3,'c','c'), (4,NULL,NULL),
@@ -5075,7 +5088,7 @@ CREATE TABLE t1 (
   col_varchar_nokey varchar(1) DEFAULT NULL,
   KEY col_int_key (col_int_key),
   KEY col_varchar_key (col_varchar_key,col_int_key)
-);
+) charset utf8mb4;
 
 INSERT INTO t1 VALUES (4,'v','v');
 INSERT INTO t1 VALUES (62,'v','v');
@@ -5114,7 +5127,7 @@ CREATE TABLE t1 (
   col_int_key INT NOT NULL,
   col_varchar_nokey VARCHAR(1) NOT NULL,
   KEY col_int_key (col_int_key)
-) ENGINE=InnoDB;
+) charset utf8mb4 ENGINE=InnoDB;
 
 INSERT INTO t1 VALUES
  (7,'v'), (0,'s'), (9,'l'), (3,'y'), (4,'c'), (2,'i'), (5,'h'), (3,'q'),
@@ -5129,7 +5142,7 @@ CREATE TABLE t2 (
   PRIMARY KEY (pk),
   KEY col_int_key (col_int_key),
   KEY col_varchar_key (col_varchar_key,col_int_key)
-) ENGINE=InnoDB;
+) charset utf8mb4 ENGINE=InnoDB;
 
 INSERT INTO t2 VALUES
  (1,0,'j','j'), (2,8,'v','v'), (3,1,'c','c'), (4,8,'m','m'),
@@ -5171,7 +5184,7 @@ CREATE TABLE t1 (
  col_int_nokey int NOT NULL,
  col_varchar_key varchar(1) NOT NULL,
  KEY col_varchar_key (col_varchar_key)
-) engine=InnoDB;
+) charset utf8mb4 engine=InnoDB;
 
 INSERT INTO t1 VALUES
  (1,'v'), (7,'s'), (4,'l'), (7,'y'), (0,'c'), (2,'i'), (9,'h'), (4,'q'),
@@ -5181,7 +5194,7 @@ INSERT INTO t1 VALUES
 CREATE TABLE t2 (
  col_int_nokey int NOT NULL,
  col_varchar_nokey varchar(1) NOT NULL
-) engine=InnoDB;
+) charset utf8mb4 engine=InnoDB;
 
 INSERT INTO t2 VALUES
  (4,'j'), (6,'v'), (3,'c'), (5,'m'), (3,'d'), (246,'d'), (2,'y'), (9,'t'),
@@ -5233,7 +5246,7 @@ CREATE TABLE t1 (
   col_varchar_key VARCHAR(1),
   col_varchar_nokey VARCHAR(1),
   KEY (col_varchar_key)
-);
+) charset utf8mb4;
 
 INSERT INTO t1 VALUES (100,'m','m'),
 (200,'b','b'), (300,'x','x');
@@ -5242,7 +5255,7 @@ CREATE TABLE t2 (
   col_varchar_key VARCHAR(1),
   col_varchar_nokey VARCHAR(1),
   KEY (col_varchar_key)
-);
+) charset utf8mb4;
 
 INSERT INTO t2 VALUES ('b','b');
 
@@ -5250,7 +5263,7 @@ CREATE TABLE t3 (
   col_varchar_key VARCHAR(1),
   col_varchar_nokey VARCHAR(1),
   KEY (col_varchar_key)
-);
+) charset utf8mb4;
 
 INSERT INTO t3 VALUES ('k','k');
 
@@ -5283,7 +5296,7 @@ CREATE TABLE t1 (
   vc_nokey varchar(1) DEFAULT NULL,
   KEY int_key (int_key),
   KEY vc_key (vc_key, int_key)
-) ENGINE=MyISAM;
+) charset utf8mb4 ENGINE=MyISAM;
 
 INSERT INTO t1 VALUES
  (8,'x','x'), (7,'d','d'), (1,'r','r'), (7,'f','f'),
@@ -5297,7 +5310,7 @@ CREATE TABLE t2 (
   vc_key varchar(1) DEFAULT NULL,
   KEY int_key (int_key),
   KEY vc_key (vc_key, int_key)
-) ENGINE=MyISAM;
+) charset utf8mb4 ENGINE=MyISAM;
 
 INSERT INTO t2 VALUES (8,'g');
 
@@ -5409,7 +5422,7 @@ CREATE TABLE t1 (
   KEY col_int_key (col_int_key),
   KEY col_datetime_key (col_datetime_key),
   KEY col_varchar_key (col_varchar_key,col_int_key)
-);
+) charset utf8mb4;
 
 INSERT INTO t1 VALUES (0,'2002-02-13 17:30:06','j','j');
 INSERT INTO t1 VALUES (8,'2008-09-27 00:34:58','v','v');
@@ -5422,7 +5435,7 @@ CREATE TABLE t2 (
   KEY col_int_key (col_int_key),
   KEY col_datetime_key (col_datetime_key),
   KEY col_varchar_key (col_varchar_key,col_int_key)
-);
+) charset utf8mb4;
 
 INSERT INTO t2 VALUES (7,'2003-08-21 00:00:00','b','b');
 
@@ -5460,14 +5473,14 @@ CREATE TABLE t1 (
   col_varchar_key VARCHAR(1),
   KEY col_int_key (col_int_key),
   KEY col_varchar_key (col_varchar_key)
-);
+) charset utf8mb4;
 
 INSERT INTO t1 VALUES (8,'x');
 
 CREATE TABLE t2 (
   col_varchar_key VARCHAR(1),
   KEY col_varchar_key (col_varchar_key)
-);
+) charset utf8mb4;
 
 INSERT INTO t2 VALUES ('x'), ('y');
 
@@ -5498,7 +5511,7 @@ CREATE TABLE t1 (
   PRIMARY KEY (pk),
   KEY col_int_key (col_int_key),
   KEY col_varchar_key (col_varchar_key,col_int_key)
-) ENGINE=InnoDB;
+) charset utf8mb4 ENGINE=InnoDB;
 
 INSERT INTO t1 VALUES (10,NULL,8,'x');
 
@@ -5506,7 +5519,7 @@ CREATE TABLE t2 (
   pk int NOT NULL,
   col_varchar_nokey varchar(1) DEFAULT NULL,
   PRIMARY KEY (pk)
-) ENGINE=InnoDB;
+) charset utf8mb4 ENGINE=InnoDB;
 
 INSERT INTO t2 VALUES (1,'x');
 
@@ -5516,7 +5529,7 @@ CREATE TABLE t3 (
   col_varchar_nokey varchar(1) DEFAULT NULL,
   PRIMARY KEY (pk),
   KEY col_varchar_key (col_varchar_key)
-) ENGINE=InnoDB;
+) charset utf8mb4 ENGINE=InnoDB;
 
 INSERT INTO t3 VALUES
  (1,'v','v'), (2,'v','v'), (3,'c','c'), (4,NULL,NULL);
@@ -5622,7 +5635,7 @@ CREATE TABLE t1 (
   col_varchar_nokey VARCHAR(1),
   PRIMARY KEY (pk),
   KEY (col_varchar_key)
-) ENGINE=INNODB;
+) charset utf8mb4 ENGINE=INNODB;
 
 INSERT INTO t1 (
   col_int_key, col_int_nokey,
@@ -5640,7 +5653,7 @@ CREATE TABLE t2 (
   col_int_key INT,
   PRIMARY KEY (pk),
   KEY (col_int_key)
-) AUTO_INCREMENT=10 ENGINE=INNODB;
+) charset utf8mb4 AUTO_INCREMENT=10 ENGINE=INNODB;
 
 INSERT INTO t2 (col_int_key, col_int_nokey) VALUES
  (8, NULL), (7, 8), (1, 1), (7, 9), (9, 4), (NULL, 3), (1, 2), (9, NULL),
@@ -5652,7 +5665,7 @@ CREATE TABLE t3 (
   col_varchar_key VARCHAR(1),
   PRIMARY KEY (pk),
   KEY (col_varchar_key)
-) ENGINE=INNODB;
+) charset utf8mb4 ENGINE=INNODB;
 
 INSERT INTO t3 (col_varchar_key) VALUES
  ('c'), ('c'), ('q'), ('g'), ('e'), ('l'), (NULL), ('c'), ('h'), ('d'),
@@ -5753,7 +5766,7 @@ CREATE TABLE t1 (
   PRIMARY KEY (pk),
   KEY col_int_key (col_int_key),
   KEY col_varchar_key (col_varchar_key,col_int_key)
-);
+) charset utf8mb4;
 
 INSERT INTO t1 VALUES (26,6,NULL,'f','f');
 INSERT INTO t1 VALUES (29,6,8,'c','c');
@@ -5767,7 +5780,7 @@ CREATE TABLE t2 (
   PRIMARY KEY (pk),
   KEY col_int_key (col_int_key),
   KEY col_varchar_key (col_varchar_key,col_int_key)
-);
+) charset utf8mb4;
 
 INSERT INTO t2 VALUES (1,2,4,'v','v');
 INSERT INTO t2 VALUES (2,150,62,'v','v');
@@ -5972,13 +5985,13 @@ CREATE TABLE t1 (
   pk INT,
   col_varchar_key VARCHAR(1),
   col_varchar_nokey VARCHAR(1)
-);
+) charset latin1;
 
 CREATE TABLE t2 (
   pk INT,
   col_varchar_key VARCHAR(1),
   col_varchar_nokey VARCHAR(1)
-);
+) charset latin1;
 
 INSERT INTO t2 VALUES
  (10,'j','j'), (11,'z','z'), (12,'c','c'), (13,'a','a'),
@@ -5990,7 +6003,7 @@ CREATE TABLE t3 (
   col_int_key INT,
   col_varchar_key VARCHAR(1),
   KEY col_int_key (col_int_key)
-);
+) charset latin1;
 
 INSERT INTO t3 VALUES
  (15,NULL,'u'), (16,1,'m'), (17,9,NULL), (18,2,'o'),
@@ -6119,7 +6132,7 @@ CREATE TABLE t1 (
   col_varchar_key VARCHAR(1),
   PRIMARY KEY (pk),
   KEY col_varchar_key (col_varchar_key,col_int_key)
-);
+) charset utf8mb4;
 
 CREATE TABLE t2 (
   pk INT,
@@ -6127,7 +6140,7 @@ CREATE TABLE t2 (
   col_varchar_key VARCHAR(1),
   col_varchar_nokey VARCHAR(1),
   PRIMARY KEY (pk)
-) ENGINE=InnoDB;
+) charset utf8mb4 ENGINE=InnoDB;
 
 CREATE TABLE t3 (
   i INT
@@ -6239,14 +6252,14 @@ SET TIMESTAMP = DEFAULT;
 CREATE TABLE t1 (
   ik INT,
   vc varchar(1)
-);
+) charset utf8mb4;
 
 INSERT INTO t1 VALUES (8, 'x'), (NULL, 'x');
 
 CREATE TABLE t2 (
   ik INT,
   vc varchar(1)
-);
+) charset utf8mb4;
 
 INSERT INTO t2 VALUES
  (0, 'x'), (7, 'i'), (7, 'e'), (1, 'p'), (7, 's'), (1, 'j');
@@ -6304,7 +6317,7 @@ DROP TABLE t1;
 
 CREATE TABLE t1 (
   col_varchar_nokey VARCHAR(1)
-);
+) charset utf8mb4;
 
 INSERT INTO t1 VALUES
  ('v'), ('s'), ('l'), ('y'), ('c'), ('i'), ('h'), ('q'), ('a'), ('v'),
@@ -6314,7 +6327,7 @@ CREATE TABLE t2 (
   col_varchar_key VARCHAR(1),
   col_varchar_nokey VARCHAR(1),
   KEY col_varchar_key(col_varchar_key)
-);
+) charset utf8mb4;
 
 INSERT INTO t2 VALUES
  ('j','j'), ('v','v'), ('c','c'), ('m','m'), ('d','d'), ('d','d'), ('y','y');
@@ -6383,7 +6396,7 @@ CREATE TABLE t1 (
   KEY col_int_key (col_int_key),  
   KEY col_datetime_key (col_datetime_key),  
   KEY col_varchar_key (col_varchar_key,col_int_key)
-) engine=MyISAM;
+) charset utf8mb4 engine=MyISAM;
  
 INSERT INTO t1 VALUES
  (10,7,'2004-06-06 04:22:12','v','v'), (11,0,'2005-11-13 01:12:31','s','s'),
@@ -6407,7 +6420,7 @@ CREATE TABLE t2 (
   KEY col_int_key (col_int_key),
   KEY col_datetime_key (col_datetime_key),
   KEY col_varchar_key (col_varchar_key,col_int_key)
-) engine=MyISAM;
+) charset utf8mb4 engine=MyISAM;
  
 INSERT INTO t2 VALUES
  (1,0,'2002-02-13 17:30:06','j','j'), (2,8,'2008-09-27 00:34:58','v','v'),
@@ -6546,7 +6559,7 @@ set @@optimizer_switch=@old_opt_switch;
 
 CREATE TABLE t1 (
   col_varchar_nokey varchar(1)
-) ENGINE=InnoDB;
+) charset utf8mb4 ENGINE=InnoDB;
 
 INSERT INTO t1 VALUES ('c'),(NULL),('x');
 
@@ -6555,7 +6568,7 @@ CREATE TABLE t2 (
   col_varchar_key varchar(1),
   PRIMARY KEY (pk),
   KEY col_varchar_key (col_varchar_key)
-) ENGINE=InnoDB;
+) charset utf8mb4 ENGINE=InnoDB;
 
 INSERT INTO t2 VALUES (10,'l'),(11,'p');
 
@@ -6624,7 +6637,7 @@ CREATE TABLE t2 (
   c1 VARCHAR(1) NOT NULL,
   PRIMARY KEY (pk),
   KEY c1_key (c1)
-) ENGINE=InnoDB;
+) charset utf8mb4 ENGINE=InnoDB;
 
 INSERT INTO t2 VALUES (1,'j'),(2,'v'),(3,'c');
 
@@ -6633,7 +6646,7 @@ CREATE TABLE t3 (
   c1 VARCHAR(1) NOT NULL,
   PRIMARY KEY (pk),
   KEY c1_key (c1)
-) ENGINE=InnoDB;
+) charset utf8mb4 ENGINE=InnoDB;
 
 INSERT INTO t3 VALUES (10,'v'),(11,'s');
 
@@ -6686,7 +6699,7 @@ CREATE TABLE t1 (
   pk int(11) NOT NULL,
   col_varchar_nokey varchar(1) DEFAULT NULL,
   PRIMARY KEY (pk)
-);
+) charset utf8mb4;
 INSERT INTO t1 VALUES (1,'x');
 
 CREATE TABLE t2 (
@@ -6697,7 +6710,7 @@ CREATE TABLE t2 (
   KEY col_int_key (col_int_key),
   KEY col_date_key (col_date_key),
   KEY col_varchar_key (col_varchar_key,col_int_key)
-);
+) charset utf8mb4;
 INSERT INTO t2 VALUES ('2000-12-03', 8, 'x', 'x'),('2008-05-03', 7, 'd', 'd'),
 ('2005-12-06', 1, 'r', 'r'),('2000-04-10', 7, 'f', 'f'),
 ('2002-11-05', 9, 'y', 'y'),('2000-09-06', NULL, 'u', 'u'),
@@ -6713,7 +6726,7 @@ CREATE TABLE t3 (
   pk int(11) NOT NULL,
   col_varchar_nokey varchar(1) DEFAULT NULL,
   PRIMARY KEY (pk)
-);
+) charset utf8mb4;
 INSERT INTO t3 VALUES (1, 'c'),(2, 'c'),(3, 'q'),(4, 'g'),(5, 'e'),(6, 'l'),
 (7, NULL),(8, 'v'),(9, 'c'),(10, 'u'),(11, 'x'),(12, 'x'),(13, 'x'),(14, 'l'),
 (15, 'e'),(16, 's'),(17, 'k'),(18, 'm'),(19, 'x'),(20, 's');
@@ -7140,5 +7153,17 @@ WHERE t1.a IN (SELECT t2.a
 ANALYZE TABLE t;
 eval EXPLAIN extended $query;
 eval $query;
+
+DROP TABLE t;
+
+--echo #
+--echo # Bug#24287772 SUBQUERY RETURNS EMPTY LIST WHILE IDENTICAL QUERY
+--echo #              WITH JOIN RETURNS RESULT
+--echo #
+
+CREATE TABLE t SELECT 4096 c;
+
+SELECT c FROM t WHERE 1 IN
+(SELECT t.c = page_size FROM information_schema.innodb_cmpmem);
 
 DROP TABLE t;

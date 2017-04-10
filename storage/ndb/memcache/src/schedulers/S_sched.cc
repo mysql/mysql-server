@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights
+ Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights
  reserved.
  
  This program is free software; you can redistribute it and/or
@@ -23,7 +23,6 @@
 #include <ctype.h>
 #include <stdio.h>
 #include <sys/errno.h>
-#define __STDC_FORMAT_MACROS 
 #include <inttypes.h>
 
 /* Memcache headers */
@@ -186,7 +185,7 @@ void S::SchedulerGlobal::parse_config_string(int nthreads, const char *str) {
   /* Test validity of configuration */
   if(options.force_send < 0 || options.force_send > 2) {
     logger->log(LOG_WARNING, 0, "Invalid scheduler configuration.\n");
-    assert(options.force_send >= 0 || options.force_send <= 2);
+    assert(options.force_send >= 0 && options.force_send <= 2);
   }
   if(options.n_connections < 0 || options.n_connections > 4) {
     logger->log(LOG_WARNING, 0, "Invalid scheduler configuration.\n");

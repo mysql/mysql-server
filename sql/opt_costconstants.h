@@ -2,7 +2,7 @@
 #define OPT_COSTCONSTANTS_INCLUDED
 
 /*
-   Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,9 +17,13 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "my_dbug.h"                            // DBUG_ASSERT
-#include "handler.h"                            // MAX_HA
+#include <stddef.h>
+#include <sys/types.h>
+
+#include "lex_string.h"
 #include "m_string.h"                           // LEX_CSTRING
+#include "my_dbug.h"
+#include "prealloced_array.h"
 
 class THD;
 struct TABLE;
@@ -224,7 +228,7 @@ protected:
 
     @param name    name of cost constant
     @param value   new value
-    @param default specify whether the new value is a default value or
+    @param default_value specify whether the new value is a default value or
                    an engine specific value
 
     @return Status for updating the cost constant
@@ -276,7 +280,7 @@ protected:
     @param[in,out] cost_constant_is_default whether the current value has the
                                             default value or not
     @param new_value                        the new value for the cost constant
-    @param default_value_is_default         whether this is a new default value
+    @param new_value_is_default             whether this is a new default value
                                             or not
   */
 
@@ -550,16 +554,14 @@ private:
   /// Cost constants for server operations
   Server_cost_constants m_server_constants;
 
-  /// Cost constants for storage engines
-  Cost_model_se_info m_engines[MAX_HA];
+  /**
+    Cost constants for storage engines
+    15 should be enough for most use cases, see PREALLOC_NUM_HA.
+  */
+  Prealloced_array<Cost_model_se_info, 15> m_engines;
 
   /// Reference counter for this set of cost constants.
   unsigned int m_ref_counter;
-
-#if !defined(DBUG_OFF)
-  /// Version number for this cost constant set. Not used. Will likely remove
-  unsigned int version_no;
-#endif
 };
 
 #endif /* OPT_COSTCONSTANTS_INCLUDEDED */

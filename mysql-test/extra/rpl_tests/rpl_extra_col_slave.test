@@ -3,7 +3,6 @@
 ##################################################
 
 # Some tests in here requre partitioning
--- source include/have_partition.inc
 
 #################################################
 ############ Different Table Def Test ###########
@@ -865,9 +864,12 @@ sync_slave_with_master;
 --replace_column 7 CURRENT_TIMESTAMP
 SELECT * FROM t16 ORDER BY c1;
 
---echo *** Add Partition on master ***
+--echo *** Add Partition on master if native partitioning is supported ***
 connection master;
-ALTER TABLE t16 PARTITION BY KEY(c1) PARTITIONS 4;
+if (`SELECT UPPER($engine_type) IN ('INNODB','NDB')`)
+{
+  ALTER TABLE t16 PARTITION BY KEY(c1) PARTITIONS 4;
+}
 INSERT INTO t16 () VALUES(4,1.00,'Replication Rocks',@b1,'Omer');
 SHOW CREATE TABLE t16;
 

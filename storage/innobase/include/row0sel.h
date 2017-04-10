@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -16,6 +16,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
+#include "my_compiler.h"
+
 /**************************************************//**
 @file include/row0sel.h
 Select
@@ -26,17 +28,17 @@ Created 12/19/1997 Heikki Tuuri
 #ifndef row0sel_h
 #define row0sel_h
 
-#include "univ.i"
-#include "data0data.h"
-#include "que0types.h"
-#include "dict0types.h"
-#include "trx0types.h"
-#include "read0types.h"
-#include "row0types.h"
-#include "que0types.h"
-#include "pars0sym.h"
 #include "btr0pcur.h"
+#include "data0data.h"
+#include "dict0types.h"
+#include "pars0sym.h"
+#include "que0types.h"
+#include "que0types.h"
+#include "read0types.h"
 #include "row0mysql.h"
+#include "row0types.h"
+#include "trx0types.h"
+#include "univ.i"
 
 /*********************************************************************//**
 Creates a select node struct.
@@ -59,15 +61,17 @@ void
 sel_col_prefetch_buf_free(
 /*======================*/
 	sel_buf_t*	prefetch_buf);	/*!< in, own: prefetch buffer */
-/*********************************************************************//**
-Gets the plan node for the nth table in a join.
+
+/** Gets the plan node for the nth table in a join.
+@param[in]	node	select node
+@param[in]	i	get ith plan node
 @return plan node */
 UNIV_INLINE
 plan_t*
 sel_node_get_nth_plan(
-/*==================*/
-	sel_node_t*	node,	/*!< in: select node */
-	ulint		i);	/*!< in: get ith plan node */
+	sel_node_t*	node,
+	ulint		i);
+
 /**********************************************************************//**
 Performs a select step. This is a high-level function used in SQL execution
 graphs.
@@ -90,21 +94,6 @@ Performs a fetch for a cursor.
 que_thr_t*
 fetch_step(
 /*=======*/
-	que_thr_t*	thr);	/*!< in: query thread */
-/****************************************************************//**
-Sample callback function for fetch that prints each row.
-@return always returns non-NULL */
-void*
-row_fetch_print(
-/*============*/
-	void*	row,		/*!< in:  sel_node_t* */
-	void*	user_arg);	/*!< in:  not used */
-/***********************************************************//**
-Prints a row in a select result.
-@return query thread to run next or NULL */
-que_thr_t*
-row_printf_step(
-/*============*/
 	que_thr_t*	thr);	/*!< in: query thread */
 
 /** Copy used fields from cached row.
@@ -221,15 +210,6 @@ It also has optimization such as pre-caching the rows, using AHI, etc.
 				Note: if this is != 0, then prebuilt must has a
 				pcur with stored position! In opening of a
 				cursor 'direction' should be 0.
-@param[in]	ins_sel_stmt	if true, then this statement is
-				insert .... select statement. For normal table
-				this can be detected by checking out locked
-				tables using trx->mysql_n_tables_locked > 0
-				condition. For intrinsic table
-				external_lock is not invoked and so condition
-				above will not stand valid instead this is
-				traced using alternative condition
-				at caller level.
 @return DB_SUCCESS or error code */
 dberr_t
 row_search_mvcc(
@@ -275,7 +255,7 @@ row_search_max_autoinc(
 	dict_index_t*	index,		/*!< in: index to search */
 	const char*	col_name,	/*!< in: autoinc column name */
 	ib_uint64_t*	value)		/*!< out: AUTOINC value read */
-	MY_ATTRIBUTE((nonnull, warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 
 /** A structure for caching column values for prefetched rows */
 struct sel_buf_t{
@@ -445,9 +425,7 @@ struct fetch_node_t{
 					further rows and the cursor is
 					modified so (cursor % NOTFOUND) is
 					true. If it returns not-NULL,
-					continue normally. See
-					row_fetch_print() for an example
-					(and a useful debugging tool). */
+					continue normally. */
 };
 
 /** Open or close cursor operation type */
@@ -463,12 +441,6 @@ struct open_node_t{
 			op_type;	/*!< operation type: open or
 					close cursor */
 	sel_node_t*	cursor_def;	/*!< cursor definition */
-};
-
-/** Row printf statement node */
-struct row_printf_node_t{
-	que_common_t	common;		/*!< type: QUE_NODE_ROW_PRINTF */
-	sel_node_t*	sel_node;	/*!< select */
 };
 
 /** Search direction for the MySQL interface */
@@ -489,45 +461,48 @@ enum row_sel_match_mode {
 
 #ifdef UNIV_DEBUG
 /** Convert a non-SQL-NULL field from Innobase format to MySQL format. */
-# define row_sel_field_store_in_mysql_format(dest,templ,idx,field,src,len) \
-        row_sel_field_store_in_mysql_format_func(dest,templ,idx,field,src,len)
+# define row_sel_field_store_in_mysql_format(dest,templ,idx,field,src,len,sec) \
+        row_sel_field_store_in_mysql_format_func(dest,templ,idx,field,src,len,sec)
 #else /* UNIV_DEBUG */
 /** Convert a non-SQL-NULL field from Innobase format to MySQL format. */
-# define row_sel_field_store_in_mysql_format(dest,templ,idx,field,src,len) \
+# define row_sel_field_store_in_mysql_format(dest,templ,idx,field,src,len,sec) \
         row_sel_field_store_in_mysql_format_func(dest,templ,src,len)
 #endif /* UNIV_DEBUG */
 
-/**************************************************************//**
-Stores a non-SQL-NULL field in the MySQL format. The counterpart of this
-function is row_mysql_store_col_in_innobase_format() in row0mysql.cc. */
-
+/** Stores a non-SQL-NULL field in the MySQL format. The counterpart of this
+function is row_mysql_store_col_in_innobase_format() in row0mysql.cc.
+@param[in,out] dest		buffer where to store; NOTE
+				that BLOBs are not in themselves stored
+				here: the caller must allocate and copy
+				the BLOB into buffer before, and pass
+				the pointer to the BLOB in 'data'
+@param[in]	templ		MySQL column template. Its following fields
+				are referenced: type, is_unsigned, mysql_col_len,
+				mbminlen, mbmaxlen
+@param[in]	index		InnoDB index
+@param[in]	field_no	templ->rec_field_no or templ->clust_rec_field_no
+				or templ->icp_rec_field_no
+@param[in]	data		data to store
+@param[in]	len		length of the data
+@param[in]	sec_field	secondary index field no if the secondary index
+				record but the prebuilt template is in
+				clustered index format and used only for end
+				range comparison. */
 void
 row_sel_field_store_in_mysql_format_func(
-/*=====================================*/
-        byte*           dest,   /*!< in/out: buffer where to store; NOTE
-                                that BLOBs are not in themselves
-                                stored here: the caller must allocate
-                                and copy the BLOB into buffer before,
-                                and pass the pointer to the BLOB in
-                                'data' */
-        const mysql_row_templ_t* templ,
-                                /*!< in: MySQL column template.
-                                Its following fields are referenced:
-                                type, is_unsigned, mysql_col_len,
-                                mbminlen, mbmaxlen */
+	byte*				dest,
+	const mysql_row_templ_t*	templ,
 #ifdef UNIV_DEBUG
-        const dict_index_t* index,
-                                /*!< in: InnoDB index */
-        ulint           field_no,
-                                /*!< in: templ->rec_field_no or
-                                templ->clust_rec_field_no or
-                                templ->icp_rec_field_no */
+	const dict_index_t*		index,
+	ulint				field_no,
 #endif /* UNIV_DEBUG */
-        const byte*     data,   /*!< in: data to store */
-        ulint           len);    /*!< in: length of the data */
+	const byte*			data,
+	ulint				len
+#ifdef UNIV_DEBUG
+	,ulint				sec_field
+#endif /* UNIV_DEBUG */
+	);
 
-#ifndef UNIV_NONINL
 #include "row0sel.ic"
-#endif
 
 #endif

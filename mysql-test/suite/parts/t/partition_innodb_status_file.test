@@ -1,5 +1,3 @@
---source include/have_innodb.inc
---source include/have_partition.inc
 
 CREATE TABLE t1 (a INT) ENGINE = InnoDB PARTITION BY HASH(a);
 INSERT INTO t1 VALUES (0), (1), (2);

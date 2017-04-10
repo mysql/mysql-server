@@ -571,34 +571,34 @@ SELECT ST_ASTEXT(ST_POINTFROMGEOHASH("zzzzzzzzzzzzzzzzzzzz", (CAST(100 AS BINARY
 --error ER_INCORRECT_TYPE
 SELECT ST_ASTEXT(ST_POINTFROMGEOHASH("rzzzzzzzzzzzzzzzzzzz", 12345.67890));
 
---error ER_WRONG_VALUE_FOR_TYPE
+--error ER_DATA_OUT_OF_RANGE
 SELECT ST_ASTEXT(ST_POINTFROMGEOHASH("zzzzzzzzzzzzzzzzzzzz", 4294967296));
 
---error ER_WRONG_VALUE_FOR_TYPE
+--error ER_DATA_OUT_OF_RANGE
 SELECT ST_ASTEXT(ST_POINTFROMGEOHASH("bpbpbpbpbpbpbpbpbpbp", 10000000000));
 
---error ER_WRONG_VALUE_FOR_TYPE
+--error ER_DATA_OUT_OF_RANGE
 SELECT ST_ASTEXT(ST_POINTFROMGEOHASH("pbpbpbpbpbpbpbpbpbpb", 4294967295000));
 
---error ER_WRONG_VALUE_FOR_TYPE
+--error ER_DATA_OUT_OF_RANGE
 SELECT ST_ASTEXT(ST_POINTFROMGEOHASH("gzzzzzzzzzzzzzzzzzzz", -1));
 
---error ER_WRONG_VALUE_FOR_TYPE
+--error ER_DATA_OUT_OF_RANGE
 SELECT ST_ASTEXT(ST_POINTFROMGEOHASH("5bpbpbpbpbpbpbpbpbpb", -1024));
 
---error ER_WRONG_VALUE_FOR_TYPE
+--error ER_DATA_OUT_OF_RANGE
 SELECT ST_ASTEXT(ST_POINTFROMGEOHASH("7zzzzzzzzzzzzzzzzzzz", -04294967295));
 
---error ER_WRONG_VALUE_FOR_TYPE
+--error ER_DATA_OUT_OF_RANGE
 SELECT ST_ASTEXT(ST_POINTFROMGEOHASH("00000000000000000000", "4294967296"));
 
---error ER_WRONG_VALUE_FOR_TYPE
+--error ER_DATA_OUT_OF_RANGE
 SELECT ST_ASTEXT(ST_POINTFROMGEOHASH("00000000000000000000", "10000000000"));
 
---error ER_WRONG_VALUE_FOR_TYPE
+--error ER_DATA_OUT_OF_RANGE
 SELECT ST_ASTEXT(ST_POINTFROMGEOHASH("00000000000000000000", "-1"));
 
---error ER_WRONG_VALUE_FOR_TYPE
+--error ER_DATA_OUT_OF_RANGE
 SELECT ST_ASTEXT(ST_POINTFROMGEOHASH("00000000000000000000", "-1024"));
 
 --error ER_PARSE_ERROR
@@ -1463,3 +1463,65 @@ SELECT ST_LongFromGeoHash('xkcd');
 SELECT ST_LatFromGeoHash('xkcd');
 SELECT ST_GeoHash(ST_PointFromGeoHash('ebrb', 0), 4);
 SELECT ST_LatFromGeoHash('m7s9pyctu9bbwqkgbw5x6vutzkztd9szjh86gmz9w9nsz6792d');
+
+--echo #
+--echo # Bug#22838668 CRASH IN ITEM_FUNC_LATLONGFROMGEOHASH::VAL_REAL
+--echo # WITH BAD PARAMETERS
+--echo #
+--error ER_GIS_INVALID_DATA
+DO ST_Disjoint(
+  POLYGON(
+    LINESTRING(POINT(1, 1))
+  ),
+  ST_LatFromGeoHash(ExtractValue(1, NULL))
+);
+
+--error ER_GIS_INVALID_DATA
+DO ST_Disjoint(
+  POLYGON(
+    LINESTRING(POINT(1, 1))
+  ),
+  ST_LongFromGeoHash(ExtractValue(1, NULL))
+);
+
+--error ER_GIS_INVALID_DATA
+DO ST_Disjoint(
+  POLYGON(
+    LINESTRING(POINT(1, 1))
+  ),
+  ST_LatFromGeoHash(UpdateXML(1, NULL, NULL))
+);
+
+--error ER_GIS_INVALID_DATA
+DO ST_Disjoint(
+  POLYGON(
+    LINESTRING(POINT(1, 1))
+  ),
+  ST_LongFromGeoHash(UpdateXML(1, NULL, NULL))
+);
+
+--echo #
+--echo # WL#8579 Spatial Reference Systems
+--echo #
+
+--echo # SRID 0 (should pass)
+SELECT ST_GEOHASH(ST_GEOMFROMTEXT('POINT(0 0)', 0), 10);
+
+--echo # Projected SRS (should pass)
+SELECT ST_GEOHASH(ST_GEOMFROMTEXT('POINT(0 0)', 2000), 10);
+
+--echo # Geographic SRS (should pass)
+SELECT ST_GEOHASH(ST_GEOMFROMTEXT('POINT(0 0)', 4326), 10);
+
+--echo # Undefined SRS (should pass)
+# Assume SRID 19000000 is undefined
+SELECT ST_GEOHASH(ST_GEOMFROMTEXT('POINT(0 0)', 19000000), 10);
+
+--echo # Unparseable SRS definition (should pass)
+# Assume SRID 11111111 is undefined
+INSERT INTO mysql.st_spatial_reference_systems(id, catalog_id, name,
+organization, organization_coordsys_id, definition, description)
+VALUES (11111111, 1, 'TEST11111111', 'Foo', 11111111, 'FOOBAR', '');
+--error ER_SRS_PARSE_ERROR
+SELECT ST_GEOHASH(ST_GEOMFROMTEXT('POINT(0 0)', 11111111), 10);
+DELETE FROM mysql.st_spatial_reference_systems WHERE id = 11111111;

@@ -1,0 +1,66 @@
+# WL#7796 - WAIT_FOR_EXECUTED_GTID_SET
+#
+# This test checks for the invalid set of inputs and the corresponding error
+# messages generated.
+#
+
+--source include/have_log_bin.inc
+
+RESET MASTER;
+--let $master_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
+
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1);
+
+# Case I - Testing for invalid GTID set input
+--error ER_MALFORMED_GTID_SET_SPECIFICATION
+SELECT WAIT_FOR_EXECUTED_GTID_SET('Incorrect_value');
+
+--error ER_MALFORMED_GTID_SET_SPECIFICATION
+SELECT WAIT_FOR_EXECUTED_GTID_SET('Incorrect_value', 5);
+
+--error ER_MALFORMED_GTID_SET_SPECIFICATION
+SELECT WAIT_FOR_EXECUTED_GTID_SET(NULL, 5);
+
+# Case II - Testing for wrong parameter list
+--error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+SELECT WAIT_FOR_EXECUTED_GTID_SET();
+
+--error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+SELECT WAIT_FOR_EXECUTED_GTID_SET('NULL', 5, 5);
+
+DROP TABLE t1;
+
+#
+# Bug#24976304 WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS TIMEOUT VALUE HANDLES SOME
+# INPUTS BADLY
+#
+--echo Test WAIT_FOR_EXECUTED_GTID_SET function with negative timeout value.
+--echo When SQL_MODE is strict, then it will throw WRONG_ARGUMENTS
+--echo error.
+SET @save_sql_mode=@@SESSION.SQL_MODE;
+SET @@SESSION.SQL_MODE="STRICT_ALL_TABLES";
+--replace_result $master_uuid MASTER_UUID
+--error ER_WRONG_ARGUMENTS
+--eval SELECT WAIT_FOR_EXECUTED_GTID_SET('$master_uuid:100', -1);
+
+--echo When SQL_MODE is non-strict mode, then it will return NULL immediately
+--echo without doing any work and generates WRONG_ARGUMENTS warning.
+SET @@SESSION.SQL_MODE="";
+--replace_result $master_uuid MASTER_UUID
+--eval SELECT WAIT_FOR_EXECUTED_GTID_SET('$master_uuid:100', -1);
+SET @@SESSION.SQL_MODE=@save_sql_mode;
+
+--echo Test WAIT_FOR_EXECUTED_GTID_SET function with fractional timeout value.
+--echo Earlier(before fix), 0.4 is read as integer value '0' and the function
+--echo hanged forever (or till all the specified gtids are executed).
+--echo Now(after fix) 0.4 will be read as doube 0.4 and will waitfor
+--echo atleast 0.4 seconds (or till all the specified  gtids are executed).
+--echo Also check that function returns 1 if timeout has been executed.
+
+--let $assert_text= WAIT_FOR_EXECUTED_GTID_SET returns 1 if the timeout has been exceeded.
+--let $query_result= query_get_value("SELECT WAIT_FOR_EXECUTED_GTID_SET('$master_uuid:100', 0.4) AS VALUE", VALUE, 1)
+--let $assert_cond= "$query_result" = "1"
+--source include/assert.inc
+
+# End of Test Bug#24976304

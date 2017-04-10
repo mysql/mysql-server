@@ -1,9 +1,17 @@
 # Test archive engine when symbolic links are available.
 --source include/not_windows.inc
---source include/have_archive.inc
 
-# DATA DIRECTORY/INDEX DIRECTORY require symbolic link support
---source include/have_symlink.inc
+########################################
+##### WL#7554 Force schema `test` to character set latin1
+##### This test should be migrated to utf8mb4
+--disable_query_log
+let $testdbcs114=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
+alter schema default character set latin1;
+use test;
+--enable_query_log
+########################################
+
+--source include/have_archive.inc
 
 let $MYSQLD_DATADIR= `select @@datadir`;
 let $data_directory = DATA DIRECTORY = '$MYSQL_TMP_DIR/archive';
@@ -70,3 +78,10 @@ ENGINE archive INDEX DIRECTORY '$MYSQLD_DATADIR/test';
 --echo # 
 --rmdir $MYSQL_TMP_DIR/archive
 
+
+########################################
+##### WL#7554 set schema `test` back to what it was
+--disable_query_log
+--eval alter schema test default character set $testdbcs114;
+--enable_query_log
+########################################

@@ -1,5 +1,14 @@
+########################################
+##### WL#7554 Force schema `test` to character set latin1
+##### This test should be migrated to utf8mb4
+--disable_query_log
+let $testdbcs93=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
+alter schema test default character set latin1;
+--enable_query_log
+########################################
+
 --disable_warnings
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from performance_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --enable_warnings
 
 --disable_warnings
@@ -14,7 +23,7 @@ SHOW TABLES;
 RENAME TABLE t2 TO t1;
 --error 1050
 RENAME TABLE t3 TO t1;
---error 1017
+--error ER_NO_SUCH_TABLE
 RENAME TABLE t3 TO doesnotexist.t1;
 SHOW TABLES; 
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
@@ -25,3 +34,10 @@ DROP TABLE t2;
 SHOW TABLES;
 
 DROP TABLE t1;
+
+########################################
+##### WL#7554 set schema `test` back to what it was
+--disable_query_log
+--eval alter schema test default character set $testdbcs93;
+--enable_query_log
+########################################

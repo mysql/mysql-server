@@ -26,12 +26,6 @@ Created 1/30/1994 Heikki Tuuri
 #ifndef ut0dbg_h
 #define ut0dbg_h
 
-#ifdef UNIV_INNOCHECKSUM
-#define ut_a		assert
-#define ut_ad		assert
-#define ut_error	assert(0)
-#else /* !UNIV_INNOCHECKSUM */
-
 /* Do not include univ.i because univ.i includes this. */
 
 #include "os0thread.h"
@@ -44,7 +38,7 @@ ut_dbg_assertion_failed(
 	const char*	expr,	/*!< in: the failed assertion */
 	const char*	file,	/*!< in: source file containing the assertion */
 	ulint		line)	/*!< in: line number of the assertion */
-	UNIV_COLD MY_ATTRIBUTE((nonnull(2), noreturn));
+	UNIV_COLD MY_ATTRIBUTE((noreturn));
 
 /** Abort execution if EXPR does not evaluate to nonzero.
 @param EXPR assertion expression that should hold */
@@ -180,7 +174,5 @@ private:
 };
 
 #endif /* HAVE_SYS_TIME_H && HAVE_SYS_RESOURCE_H */
-
-#endif /* !UNIV_INNOCHECKSUM */
 
 #endif

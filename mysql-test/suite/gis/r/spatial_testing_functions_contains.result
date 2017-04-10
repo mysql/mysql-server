@@ -205,7 +205,7 @@ SELECT MBRCONTAINS(g,ST_GEOMFROMTEXT(@star_top_to_center)) FROM gis_geometrycoll
 MBRCONTAINS(g,ST_GEOMFROMTEXT(@star_top_to_center))
 0
 SELECT MBRCONTAINS(ST_GEOMFROMTEXT('POINT(0 0)'),ST_GEOMFROMTEXT('LINESTRING(0 0)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT MBRCONTAINS(ST_GEOMFROMTEXT('POINT(5 0)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 0)'));
 MBRCONTAINS(ST_GEOMFROMTEXT('POINT(5 0)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 0)'))
 0
@@ -225,7 +225,7 @@ SELECT MBRCONTAINS(g,ST_GEOMFROMTEXT(@star_lines_near_vertical)) FROM gis_geomet
 MBRCONTAINS(g,ST_GEOMFROMTEXT(@star_lines_near_vertical))
 0
 SELECT MBRCONTAINS(ST_GEOMFROMTEXT('POINT(0 0)'),ST_GEOMFROMTEXT('MULTILINESTRING((0 0))'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT MBRCONTAINS(ST_GEOMFROMTEXT('POINT(10 0)'),ST_GEOMFROMTEXT('MULTILINESTRING((0 0,5 0),(5 0,10 0))'));
 MBRCONTAINS(ST_GEOMFROMTEXT('POINT(10 0)'),ST_GEOMFROMTEXT('MULTILINESTRING((0 0,5 0),(5 0,10 0))'))
 0
@@ -449,7 +449,7 @@ SELECT MBRCONTAINS(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_
 MBRCONTAINS(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_elem_horizontal))
 0
 SELECT MBRCONTAINS(g,ST_GEOMFROMTEXT('POLYGON((11 15,19 15,11 15))')) FROM gis_geometrycollection WHERE fid=110;
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT MBRCONTAINS(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT('POLYGON((11 15,19 15,19 10,11 15))'));
 MBRCONTAINS(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT('POLYGON((11 15,19 15,19 10,11 15))'))
 0
@@ -457,12 +457,12 @@ MBRCONTAINS(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT('POLYGON((11 
 # linestring,multipolygon
 #====================================================================================
 SELECT MBRCONTAINS(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT('MULTIPOLYGON(((11 15,19 15,11 15)),((25 0,0 15,25 0)))'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT MBRCONTAINS(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_of_elems));
 MBRCONTAINS(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_of_elems))
 0
 SELECT MBRCONTAINS(g,ST_GEOMFROMTEXT('MULTIPOLYGON(((11 15,19 15,11 15)),((25 0,0 15,25 0)))')) FROM gis_geometrycollection WHERE fid=110;
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 #====================================================================================
 # linestring,geometrycollection
 #====================================================================================
@@ -926,7 +926,7 @@ SELECT ST_CONTAINS(g,ST_GEOMFROMTEXT(@star_top_to_center)) FROM gis_geometrycoll
 ST_CONTAINS(g,ST_GEOMFROMTEXT(@star_top_to_center))
 0
 SELECT ST_CONTAINS(ST_GEOMFROMTEXT('POINT(0 0)'),ST_GEOMFROMTEXT('LINESTRING(0 0)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_CONTAINS(ST_GEOMFROMTEXT('POINT(5 0)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 0)'));
 ST_CONTAINS(ST_GEOMFROMTEXT('POINT(5 0)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 0)'))
 0
@@ -946,7 +946,7 @@ SELECT ST_CONTAINS(g,ST_GEOMFROMTEXT(@star_lines_near_vertical)) FROM gis_geomet
 ST_CONTAINS(g,ST_GEOMFROMTEXT(@star_lines_near_vertical))
 0
 SELECT ST_CONTAINS(ST_GEOMFROMTEXT('POINT(0 0)'),ST_GEOMFROMTEXT('MULTILINESTRING((0 0))'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_CONTAINS(ST_GEOMFROMTEXT('POINT(10 0)'),ST_GEOMFROMTEXT('MULTILINESTRING((0 0,5 0),(5 0,10 0))'));
 ST_CONTAINS(ST_GEOMFROMTEXT('POINT(10 0)'),ST_GEOMFROMTEXT('MULTILINESTRING((0 0,5 0),(5 0,10 0))'))
 0
@@ -1167,7 +1167,7 @@ SELECT ST_CONTAINS(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_
 ST_CONTAINS(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_elem_horizontal))
 0
 SELECT ST_CONTAINS(g,ST_GEOMFROMTEXT('POLYGON((11 15,19 15,11 15))')) FROM gis_geometrycollection WHERE fid=110;
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_CONTAINS(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT('POLYGON((11 15,19 15,19 10,11 15))'));
 ST_CONTAINS(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT('POLYGON((11 15,19 15,19 10,11 15))'))
 0
@@ -1175,12 +1175,12 @@ ST_CONTAINS(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT('POLYGON((11 
 # linestring,multipolygon
 #====================================================================================
 SELECT ST_CONTAINS(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT('MULTIPOLYGON(((11 15,19 15,11 15)),((25 0,0 15,25 0)))'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_CONTAINS(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_of_elems));
 ST_CONTAINS(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_of_elems))
 0
 SELECT ST_CONTAINS(g,ST_GEOMFROMTEXT('MULTIPOLYGON(((11 15,19 15,11 15)),((25 0,0 15,25 0)))')) FROM gis_geometrycollection WHERE fid=110;
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 #====================================================================================
 # linestring,geometrycollection
 #====================================================================================
@@ -1611,27 +1611,44 @@ MBRCONTAINS(ST_GEOMFROMTEXT(@star_top,0),ST_GEOMFROMTEXT(@star_center,0))
 SELECT MBRCONTAINS(ST_GEOMFROMTEXT(@star_top,100),ST_GEOMFROMTEXT(@star_center,100));
 MBRCONTAINS(ST_GEOMFROMTEXT(@star_top,100),ST_GEOMFROMTEXT(@star_center,100))
 0
+Warnings:
+Warning	3565	There's no spatial reference system with SRID 100. The axis order is unknown.
+Warning	3565	There's no spatial reference system with SRID 100. The axis order is unknown.
+Warning	3519	There's no spatial reference system with SRID 100. Calculations in function mbrcontains will be done in SRID 0.
 SELECT MBRCONTAINS(ST_GEOMFROMTEXT(@star_top,20000),ST_GEOMFROMTEXT(@star_center,20000));
 MBRCONTAINS(ST_GEOMFROMTEXT(@star_top,20000),ST_GEOMFROMTEXT(@star_center,20000))
 0
+Warnings:
+Warning	3565	There's no spatial reference system with SRID 20000. The axis order is unknown.
+Warning	3565	There's no spatial reference system with SRID 20000. The axis order is unknown.
+Warning	3519	There's no spatial reference system with SRID 20000. Calculations in function mbrcontains will be done in SRID 0.
 SELECT MBRCONTAINS(ST_GEOMFROMTEXT(@star_top,123456),ST_GEOMFROMTEXT(@star_center,123456));
 MBRCONTAINS(ST_GEOMFROMTEXT(@star_top,123456),ST_GEOMFROMTEXT(@star_center,123456))
 0
+Warnings:
+Warning	3565	There's no spatial reference system with SRID 123456. The axis order is unknown.
+Warning	3565	There's no spatial reference system with SRID 123456. The axis order is unknown.
+Warning	3519	There's no spatial reference system with SRID 123456. Calculations in function mbrcontains will be done in SRID 0.
 SELECT MBRCONTAINS(ST_GEOMFROMTEXT(@star_top,1048575),ST_GEOMFROMTEXT(@star_center,1048575));
 MBRCONTAINS(ST_GEOMFROMTEXT(@star_top,1048575),ST_GEOMFROMTEXT(@star_center,1048575))
 0
+Warnings:
+Warning	3565	There's no spatial reference system with SRID 1048575. The axis order is unknown.
+Warning	3565	There's no spatial reference system with SRID 1048575. The axis order is unknown.
+Warning	3519	There's no spatial reference system with SRID 1048575. Calculations in function mbrcontains will be done in SRID 0.
 SELECT MBRCONTAINS(ST_GEOMFROMTEXT(@star_top,4294967295),ST_GEOMFROMTEXT(@star_center,4294967295));
 MBRCONTAINS(ST_GEOMFROMTEXT(@star_top,4294967295),ST_GEOMFROMTEXT(@star_center,4294967295))
 0
+Warnings:
+Warning	3565	There's no spatial reference system with SRID 4294967295. The axis order is unknown.
+Warning	3565	There's no spatial reference system with SRID 4294967295. The axis order is unknown.
+Warning	3519	There's no spatial reference system with SRID 4294967295. Calculations in function mbrcontains will be done in SRID 0.
 SELECT MBRCONTAINS(ST_GEOMFROMTEXT(@star_top,-1),ST_GEOMFROMTEXT(@star_center,-1));
-MBRCONTAINS(ST_GEOMFROMTEXT(@star_top,-1),ST_GEOMFROMTEXT(@star_center,-1))
-0
+ERROR 22003: SRID value is out of range in 'st_geomfromtext'
 SELECT MBRCONTAINS(ST_GEOMFROMTEXT(@star_top,-1024),ST_GEOMFROMTEXT(@star_center,-1024));
-MBRCONTAINS(ST_GEOMFROMTEXT(@star_top,-1024),ST_GEOMFROMTEXT(@star_center,-1024))
-0
+ERROR 22003: SRID value is out of range in 'st_geomfromtext'
 SELECT MBRCONTAINS(ST_GEOMFROMTEXT(@star_top,4294967295000),ST_GEOMFROMTEXT(@star_center,4294967295000));
-MBRCONTAINS(ST_GEOMFROMTEXT(@star_top,4294967295000),ST_GEOMFROMTEXT(@star_center,4294967295000))
-0
+ERROR 22003: SRID value is out of range in 'st_geomfromtext'
 #====================================================================================
 # ST_CONTAINS(g1,g2)
 #====================================================================================
@@ -1641,27 +1658,44 @@ ST_CONTAINS(ST_GEOMFROMTEXT(@star_top,0),ST_GEOMFROMTEXT(@star_center,0))
 SELECT ST_CONTAINS(ST_GEOMFROMTEXT(@star_top,100),ST_GEOMFROMTEXT(@star_center,100));
 ST_CONTAINS(ST_GEOMFROMTEXT(@star_top,100),ST_GEOMFROMTEXT(@star_center,100))
 0
+Warnings:
+Warning	3565	There's no spatial reference system with SRID 100. The axis order is unknown.
+Warning	3565	There's no spatial reference system with SRID 100. The axis order is unknown.
+Warning	3519	There's no spatial reference system with SRID 100. Calculations in function st_contains will be done in SRID 0.
 SELECT ST_CONTAINS(ST_GEOMFROMTEXT(@star_top,20000),ST_GEOMFROMTEXT(@star_center,20000));
 ST_CONTAINS(ST_GEOMFROMTEXT(@star_top,20000),ST_GEOMFROMTEXT(@star_center,20000))
 0
+Warnings:
+Warning	3565	There's no spatial reference system with SRID 20000. The axis order is unknown.
+Warning	3565	There's no spatial reference system with SRID 20000. The axis order is unknown.
+Warning	3519	There's no spatial reference system with SRID 20000. Calculations in function st_contains will be done in SRID 0.
 SELECT ST_CONTAINS(ST_GEOMFROMTEXT(@star_top,123456),ST_GEOMFROMTEXT(@star_center,123456));
 ST_CONTAINS(ST_GEOMFROMTEXT(@star_top,123456),ST_GEOMFROMTEXT(@star_center,123456))
 0
+Warnings:
+Warning	3565	There's no spatial reference system with SRID 123456. The axis order is unknown.
+Warning	3565	There's no spatial reference system with SRID 123456. The axis order is unknown.
+Warning	3519	There's no spatial reference system with SRID 123456. Calculations in function st_contains will be done in SRID 0.
 SELECT ST_CONTAINS(ST_GEOMFROMTEXT(@star_top,1048575),ST_GEOMFROMTEXT(@star_center,1048575));
 ST_CONTAINS(ST_GEOMFROMTEXT(@star_top,1048575),ST_GEOMFROMTEXT(@star_center,1048575))
 0
+Warnings:
+Warning	3565	There's no spatial reference system with SRID 1048575. The axis order is unknown.
+Warning	3565	There's no spatial reference system with SRID 1048575. The axis order is unknown.
+Warning	3519	There's no spatial reference system with SRID 1048575. Calculations in function st_contains will be done in SRID 0.
 SELECT ST_CONTAINS(ST_GEOMFROMTEXT(@star_top,4294967295),ST_GEOMFROMTEXT(@star_center,4294967295));
 ST_CONTAINS(ST_GEOMFROMTEXT(@star_top,4294967295),ST_GEOMFROMTEXT(@star_center,4294967295))
 0
+Warnings:
+Warning	3565	There's no spatial reference system with SRID 4294967295. The axis order is unknown.
+Warning	3565	There's no spatial reference system with SRID 4294967295. The axis order is unknown.
+Warning	3519	There's no spatial reference system with SRID 4294967295. Calculations in function st_contains will be done in SRID 0.
 SELECT ST_CONTAINS(ST_GEOMFROMTEXT(@star_top,-1),ST_GEOMFROMTEXT(@star_center,-1));
-ST_CONTAINS(ST_GEOMFROMTEXT(@star_top,-1),ST_GEOMFROMTEXT(@star_center,-1))
-0
+ERROR 22003: SRID value is out of range in 'st_geomfromtext'
 SELECT ST_CONTAINS(ST_GEOMFROMTEXT(@star_top,-1024),ST_GEOMFROMTEXT(@star_center,-1024));
-ST_CONTAINS(ST_GEOMFROMTEXT(@star_top,-1024),ST_GEOMFROMTEXT(@star_center,-1024))
-0
+ERROR 22003: SRID value is out of range in 'st_geomfromtext'
 SELECT ST_CONTAINS(ST_GEOMFROMTEXT(@star_top,4294967295000),ST_GEOMFROMTEXT(@star_center,4294967295000));
-ST_CONTAINS(ST_GEOMFROMTEXT(@star_top,4294967295000),ST_GEOMFROMTEXT(@star_center,4294967295000))
-0
+ERROR 22003: SRID value is out of range in 'st_geomfromtext'
 #####################################################################################
 # Invalid function calls
 #####################################################################################
@@ -1692,31 +1726,31 @@ ERROR 22023: Invalid GIS data provided to function st_contains.
 SELECT ST_CONTAINS(ST_GEOMFROMTEXT(@star_of_elems),fid) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=103 and fid2=103;
 ERROR 22023: Invalid GIS data provided to function st_contains.
 SELECT ST_CONTAINS(ST_GEOMFROMTEXT('POINT(a 0)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_CONTAINS(ST_GEOMFROMTEXT('POINT(! 0)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_CONTAINS(ST_GEOMFROMTEXT('POINT('!' 0)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'))' at line 1
 SELECT ST_CONTAINS(ST_GEOMFROMTEXT('POINT(12,34 0)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_CONTAINS(ST_GEOMFROMTEXT('LINESTRING(a 0,10 10)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_CONTAINS(ST_GEOMFROMTEXT('LINESTRING(0 0,! 10)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_CONTAINS(ST_GEOMFROMTEXT('LINESTRING('!' 0,10 10)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0,10 10)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'))' at line 1
 SELECT ST_CONTAINS(ST_GEOMFROMTEXT('LINESTRING(12,34 0,10 10)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_CONTAINS(ST_GEOMFROMTEXT('POLYGON((a 0,10 10,10 0,0 0))'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_CONTAINS(ST_GEOMFROMTEXT('POLYGON((0 0,! 10,10 0,0 0))'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_CONTAINS(ST_GEOMFROMTEXT('POLYGON(('!' 0,10 10,10 0,0 0))'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0,10 10,10 0,0 0))'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'))' at line 1
 SELECT ST_CONTAINS(ST_GEOMFROMTEXT('POLYGON((12,34 0,10 10,10 0,0 0))'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_CONTAINS(ST_GEOMFROMTEXT('POLYGON((12,34 0,10 10,10 0,0 0)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_CONTAINS(,);
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ')' at line 1
 SELECT ST_CONTAINS(ST_GEOMFROMTEXT(@star_of_elems),);
@@ -1750,31 +1784,31 @@ ERROR 22023: Invalid GIS data provided to function mbrcontains.
 SELECT MBRCONTAINS(ST_GEOMFROMTEXT(@star_of_elems),fid) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=103 and fid2=103;
 ERROR 22023: Invalid GIS data provided to function mbrcontains.
 SELECT MBRCONTAINS(ST_GEOMFROMTEXT('POINT(a 0)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT MBRCONTAINS(ST_GEOMFROMTEXT('POINT(! 0)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT MBRCONTAINS(ST_GEOMFROMTEXT('POINT('!' 0)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'))' at line 1
 SELECT MBRCONTAINS(ST_GEOMFROMTEXT('POINT(12,34 0)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT MBRCONTAINS(ST_GEOMFROMTEXT('LINESTRING(a 0,10 10)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT MBRCONTAINS(ST_GEOMFROMTEXT('LINESTRING(0 0,! 10)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT MBRCONTAINS(ST_GEOMFROMTEXT('LINESTRING('!' 0,10 10)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0,10 10)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'))' at line 1
 SELECT MBRCONTAINS(ST_GEOMFROMTEXT('LINESTRING(12,34 0,10 10)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT MBRCONTAINS(ST_GEOMFROMTEXT('POLYGON((a 0,10 10,10 0,0 0))'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT MBRCONTAINS(ST_GEOMFROMTEXT('POLYGON((0 0,! 10,10 0,0 0))'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT MBRCONTAINS(ST_GEOMFROMTEXT('POLYGON(('!' 0,10 10,10 0,0 0))'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0,10 10,10 0,0 0))'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'))' at line 1
 SELECT MBRCONTAINS(ST_GEOMFROMTEXT('POLYGON((12,34 0,10 10,10 0,0 0))'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT MBRCONTAINS(ST_GEOMFROMTEXT('POLYGON((12,34 0,10 10,10 0,0 0)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT MBRCONTAINS(,);
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ')' at line 1
 SELECT MBRCONTAINS(ST_GEOMFROMTEXT(@star_of_elems),);
@@ -2752,3 +2786,105 @@ MBRCONTAINS(a.g, b.g)
 DROP TABLE t1;
 DROP TABLE gis_geometrycollection;
 DROP TABLE gis_geometrycollection_2;
+#
+# WL#8579 Spatial Reference Systems
+#
+# SRID 0 (should pass)
+SELECT ST_CONTAINS(
+ST_GEOMFROMTEXT('POINT(0 0)', 0),
+ST_GEOMFROMTEXT('POINT(0 0)', 0)
+);
+ST_CONTAINS(
+ST_GEOMFROMTEXT('POINT(0 0)', 0),
+ST_GEOMFROMTEXT('POINT(0 0)', 0)
+)
+1
+SELECT MBRCONTAINS(
+ST_GEOMFROMTEXT('POINT(0 0)', 0),
+ST_GEOMFROMTEXT('POINT(0 0)', 0)
+);
+MBRCONTAINS(
+ST_GEOMFROMTEXT('POINT(0 0)', 0),
+ST_GEOMFROMTEXT('POINT(0 0)', 0)
+)
+1
+# Projected SRS (should pass)
+SELECT ST_CONTAINS(
+ST_GEOMFROMTEXT('POINT(0 0)', 2000),
+ST_GEOMFROMTEXT('POINT(0 0)', 2000)
+);
+ST_CONTAINS(
+ST_GEOMFROMTEXT('POINT(0 0)', 2000),
+ST_GEOMFROMTEXT('POINT(0 0)', 2000)
+)
+1
+SELECT MBRCONTAINS(
+ST_GEOMFROMTEXT('POINT(0 0)', 2000),
+ST_GEOMFROMTEXT('POINT(0 0)', 2000)
+);
+MBRCONTAINS(
+ST_GEOMFROMTEXT('POINT(0 0)', 2000),
+ST_GEOMFROMTEXT('POINT(0 0)', 2000)
+)
+1
+# Geographic SRS (should pass)
+SELECT ST_CONTAINS(
+ST_GEOMFROMTEXT('POINT(0 0)', 4326),
+ST_GEOMFROMTEXT('POINT(0 0)', 4326)
+);
+ST_CONTAINS(
+ST_GEOMFROMTEXT('POINT(0 0)', 4326),
+ST_GEOMFROMTEXT('POINT(0 0)', 4326)
+)
+1
+SELECT MBRCONTAINS(
+ST_GEOMFROMTEXT('POINT(0 0)', 4326),
+ST_GEOMFROMTEXT('POINT(0 0)', 4326)
+);
+MBRCONTAINS(
+ST_GEOMFROMTEXT('POINT(0 0)', 4326),
+ST_GEOMFROMTEXT('POINT(0 0)', 4326)
+)
+1
+# Undefined SRS (should pass with warning)
+SELECT ST_CONTAINS(
+ST_GEOMFROMTEXT('POINT(0 0)', 8000000),
+ST_GEOMFROMTEXT('POINT(0 0)', 8000000)
+);
+ST_CONTAINS(
+ST_GEOMFROMTEXT('POINT(0 0)', 8000000),
+ST_GEOMFROMTEXT('POINT(0 0)', 8000000)
+)
+1
+Warnings:
+Warning	3565	There's no spatial reference system with SRID 8000000. The axis order is unknown.
+Warning	3565	There's no spatial reference system with SRID 8000000. The axis order is unknown.
+Warning	3519	There's no spatial reference system with SRID 8000000. Calculations in function st_contains will be done in SRID 0.
+SELECT MBRCONTAINS(
+ST_GEOMFROMTEXT('POINT(0 0)', 8000000),
+ST_GEOMFROMTEXT('POINT(0 0)', 8000000)
+);
+MBRCONTAINS(
+ST_GEOMFROMTEXT('POINT(0 0)', 8000000),
+ST_GEOMFROMTEXT('POINT(0 0)', 8000000)
+)
+1
+Warnings:
+Warning	3565	There's no spatial reference system with SRID 8000000. The axis order is unknown.
+Warning	3565	There's no spatial reference system with SRID 8000000. The axis order is unknown.
+Warning	3519	There's no spatial reference system with SRID 8000000. Calculations in function mbrcontains will be done in SRID 0.
+# Unparseable SRS definition (should fail)
+INSERT INTO mysql.st_spatial_reference_systems(id, catalog_id, name,
+organization, organization_coordsys_id, definition, description)
+VALUES (8000001, 1, 'TEST8000001', 'Foo', 8000001, 'FOOBAR', '');
+SELECT ST_CONTAINS(
+ST_GEOMFROMTEXT('POINT(0 0)', 8000001),
+ST_GEOMFROMTEXT('POINT(0 0)', 8000001)
+);
+ERROR SR002: Can't parse the spatial reference system definition of SRID 8000001.
+SELECT MBRCONTAINS(
+ST_GEOMFROMTEXT('POINT(0 0)', 8000001),
+ST_GEOMFROMTEXT('POINT(0 0)', 8000001)
+);
+ERROR SR002: Can't parse the spatial reference system definition of SRID 8000001.
+DELETE FROM mysql.st_spatial_reference_systems WHERE id = 8000001;

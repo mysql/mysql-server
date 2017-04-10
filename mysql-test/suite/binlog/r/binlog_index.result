@@ -14,9 +14,16 @@ master-bin.000001	#
 master-bin.000002	#
 master-bin.000003	#
 master-bin.000004	#
+# Create a dedicated user to demonstrate the BINLOG_ADMIN privilege
+CREATE USER binlog_admin@localhost IDENTIFIED BY 'foo';
+GRANT BINLOG_ADMIN ON *.* TO binlog_admin@localhost;
 purge binary logs TO 'master-bin.000004';
 Warnings:
 Warning	1612	Being purged log master-bin.000001 was not found
+REVOKE binlog_admin ON *.* FROM binlog_admin@localhost;
+purge binary logs TO 'master-bin.000004';
+ERROR 42000: Access denied; you need (at least one of) the SUPER or BINLOG_ADMIN privilege(s) for this operation
+DROP USER binlog_admin@localhost;
 *** must show a list starting from the 'TO' argument of PURGE ***
 show binary logs;
 Log_name	File_size

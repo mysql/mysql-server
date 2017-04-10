@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,17 +15,26 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "abstract_query_plan.h"
+#include "sql/abstract_query_plan.h"
 
+#include <stddef.h>
+
+#include "handler.h"
+#include "item.h"
+#include "key.h"
+#include "my_base.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "opt_range.h"        // QUICK_SELECT_I
+#include "sql_const.h"
+#include "sql_executor.h"     // QEP_TAB
+#include "sql_opt_exec_shared.h"
 #include "sql_optimizer.h"    // JOIN
+#include "table.h"
+#include "temp_table_param.h"
 
 namespace AQP
 {
-
-  /**
-    @param join_tab Array of access methods constituting the nested loop join.
-    @param access_count Length of array.
-  */
   Join_plan::Join_plan(const JOIN* join)
    : m_qep_tabs(join->qep_tab),
      m_access_count(join->primary_tables),
@@ -62,7 +71,7 @@ namespace AQP
 
   /**
     Determine join type between this table access and some other table
-    access that preceeds it in the join plan..
+    access that preceeds it in the join plan.
   */
   enum_join_type 
   Table_access::get_join_type(const Table_access* predecessor) const
@@ -509,5 +518,5 @@ namespace AQP
     qep_tab->set_pushed_table_access_method();
   }
 
-};
+}
 // namespace AQP

@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,14 +16,20 @@
 #ifndef TABLE_MAPPING_H
 #define TABLE_MAPPING_H
 
-#include "my_global.h"
+#include <stddef.h>
+#include <sys/types.h>
+
 #include "hash.h"        // HASH
+#include "my_alloc.h"
+#include "my_inttypes.h"
+#include "template_utils.h"
 
 /* Forward declarations */
-#ifndef MYSQL_CLIENT
+#ifdef MYSQL_SERVER
 struct TABLE;
 #else
 class Table_map_log_event;
+
 typedef Table_map_log_event TABLE;
 void free_table_map_log_event(TABLE *table);
 #endif
@@ -79,10 +85,7 @@ public:
   ulong     count() const { return m_table_ids.records; }
 
 private:
-  /*
-    This is a POD (Plain Old Data).  Keep it that way (we apply offsetof() to
-    it, which only works for PODs)
-  */
+
   struct entry { 
     ulonglong table_id;
     union {
@@ -90,6 +93,13 @@ private:
       entry *next;
     };
   };
+
+  static const uchar *table_id_get_key(const uchar *ptr, size_t *length)
+  {
+    const entry *ent= pointer_cast<const entry*>(ptr);
+    *length= sizeof(ent->table_id);
+    return pointer_cast<const uchar*>(&ent->table_id);
+  }
 
   entry *find_entry(ulonglong table_id)
   {

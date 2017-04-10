@@ -1,0 +1,6 @@
+
+# Separated testcases for MyISAM and InnoDB because result file   
+# differs. (Reason: Non Transactional and Trasactional differences)
+
+--let $DEFAULT_ENGINE = innodb
+--source extra/rpl_tests/rpl_sp.test

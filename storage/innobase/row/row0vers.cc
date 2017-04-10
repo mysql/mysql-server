@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -23,31 +23,30 @@ Row versions
 Created 2/6/1997 Heikki Tuuri
 *******************************************************/
 
-#include "ha_prototypes.h"
+#include <stddef.h>
 
-#include "row0vers.h"
-
-#ifdef UNIV_NONINL
-#include "row0vers.ic"
-#endif
-
-#include "dict0dict.h"
-#include "dict0boot.h"
 #include "btr0btr.h"
+#include "current_thd.h"
+#include "dict0boot.h"
+#include "dict0dict.h"
+#include "ha_prototypes.h"
+#include "lock0lock.h"
 #include "mach0data.h"
-#include "trx0rseg.h"
-#include "trx0trx.h"
-#include "trx0roll.h"
-#include "trx0undo.h"
-#include "trx0purge.h"
-#include "trx0rec.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
 #include "que0que.h"
+#include "read0read.h"
+#include "rem0cmp.h"
+#include "row0mysql.h"
 #include "row0row.h"
 #include "row0upd.h"
-#include "rem0cmp.h"
-#include "read0read.h"
-#include "lock0lock.h"
-#include "row0mysql.h"
+#include "row0vers.h"
+#include "trx0purge.h"
+#include "trx0rec.h"
+#include "trx0roll.h"
+#include "trx0rseg.h"
+#include "trx0trx.h"
+#include "trx0undo.h"
 
 /** Check whether all non-virtual columns in a virtual index match that of in
 the cluster index
@@ -67,6 +66,7 @@ row_vers_non_vc_match(
 	const dtuple_t*		ientry,
 	mem_heap_t*		heap,
 	ulint*			n_non_v_col);
+
 /*****************************************************************//**
 Finds out if an active transaction has inserted or modified a secondary
 index record.
@@ -278,7 +278,7 @@ row_vers_impl_x_locked_low(
 
 		/* We check if entry and rec are identified in the alphabetical
 		ordering */
-		if (0 == cmp_dtuple_rec(entry, rec, offsets)) {
+		if (0 == cmp_dtuple_rec(entry, rec, index, offsets)) {
 			/* The delete marks of rec and prev_version should be
 			equal for rec to be in the state required by
 			prev_version */
@@ -296,7 +296,7 @@ row_vers_impl_x_locked_low(
 			dtuple_set_types_binary(
 				entry, dtuple_get_n_fields(entry));
 
-			if (0 != cmp_dtuple_rec(entry, rec, offsets)) {
+			if (0 != cmp_dtuple_rec(entry, rec, index, offsets)) {
 
 				break;
 			}
@@ -442,13 +442,12 @@ row_vers_non_vc_match(
 	dtuple_t* nentry = row_build_index_entry(row, ext, index, heap);
 
 	for (ulint i = 0; i < n_fields; i++) {
-		const dict_field_t*	ind_field = dict_index_get_nth_field(
-							index, i);
+		const dict_field_t*	ind_field = index->get_field(i);
 
 		const dict_col_t*	col = ind_field->col;
 
 		/* Only check non-virtual columns */
-		if (dict_col_is_virtual(col)) {
+		if (col->is_virtual()) {
 			continue;
 		}
 
@@ -456,7 +455,8 @@ row_vers_non_vc_match(
 			field1  = dtuple_get_nth_field(ientry, i);
 			field2  = dtuple_get_nth_field(nentry, i);
 
-			if (cmp_dfield_dfield(field1, field2) != 0) {
+			if (cmp_dfield_dfield(field1, field2,
+                                              ind_field->is_ascending) != 0) {
 				ret = false;
 			}
 		}
@@ -482,10 +482,9 @@ row_vers_build_clust_v_col(
 {
 	mem_heap_t*	local_heap = NULL;
 	for (ulint i = 0; i < dict_index_get_n_fields(index); i++) {
-		const dict_field_t* ind_field = dict_index_get_nth_field(
-				index, i);
+		const dict_field_t* ind_field = index->get_field(i);
 
-		if (dict_col_is_virtual(ind_field->col)) {
+		if (ind_field->col->is_virtual()) {
 			const dict_v_col_t*       col;
 
 			col = reinterpret_cast<const dict_v_col_t*>(
@@ -512,7 +511,7 @@ row_vers_build_clust_v_col(
 @param[in]	roll_ptr	the rollback pointer for the purging record
 @param[in]	trx_id		trx id for the purging record
 @param[in,out]	v_heap		heap used to build vrow
-@param[out]	v_row		dtuple holding the virtual rows
+@param[out]	vrow		dtuple holding the virtual rows
 @param[in,out]	mtr		mtr holding the latch on rec */
 static
 void
@@ -581,10 +580,10 @@ row_vers_build_cur_vrow_low(
 
 		for (i = 0; i < entry_len; i++) {
 			const dict_field_t*	ind_field
-				 = dict_index_get_nth_field(index, i);
+				 = index->get_field(i);
 			const dict_col_t*	col = ind_field->col;
 
-			if (!dict_col_is_virtual(col)) {
+			if (!col->is_virtual()) {
 				continue;
 			}
 
@@ -626,7 +625,7 @@ stored in undo log
 @param[in]	roll_ptr	the rollback pointer for the purging record
 @param[in]	trx_id		trx id for the purging record
 @param[in,out]	v_heap		heap used to build virtual dtuple
-@param[in,out]	v_row		dtuple holding the virtual rows (if needed)
+@param[in,out]	vrow		dtuple holding the virtual rows (if needed)
 @param[in]	mtr		mtr holding the latch on rec
 @return true if matches, false otherwise */
 static
@@ -717,11 +716,11 @@ row_vers_vc_matches_cluster(
 
 		for (i = 0; i < entry_len; i++) {
 			const dict_field_t*	ind_field
-				 = dict_index_get_nth_field(index, i);
+				 = index->get_field(i);
 			const dict_col_t*	col = ind_field->col;
 			field1 = dtuple_get_nth_field(ientry, i);
 
-			if (!dict_col_is_virtual(col)) {
+			if (!col->is_virtual()) {
 				continue;
 			}
 
@@ -740,8 +739,9 @@ row_vers_vc_matches_cluster(
 				}
 
 				/* The index field mismatch */
-				if (v_heap
-				    || cmp_dfield_dfield(field2, field1) != 0) {
+				if (v_heap || cmp_dfield_dfield(
+					    field2, field1,
+					    ind_field->is_ascending) != 0) {
 					if (v_heap) {
 						dtuple_dup_v_fld(*vrow, v_heap);
 					}
@@ -881,7 +881,7 @@ row_vers_old_has_index_entry(
 	      || mtr_memo_contains_page(mtr, rec, MTR_MEMO_PAGE_S_FIX));
 	ut_ad(!rw_lock_own(&(purge_sys->latch), RW_LOCK_S));
 
-	clust_index = dict_table_get_first_index(index->table);
+	clust_index = index->table->first_index();
 
 	comp = page_rec_is_comp(rec);
 	ut_ad(!dict_table_is_comp(index->table) == !comp);
@@ -889,12 +889,21 @@ row_vers_old_has_index_entry(
 	clust_offsets = rec_get_offsets(rec, clust_index, NULL,
 					ULINT_UNDEFINED, &heap);
 
-	if (dict_index_has_virtual(index)) {
-		v_heap = mem_heap_create(100);
-	}
+	DBUG_EXECUTE_IF("ib_purge_virtual_index_crash",
+			DBUG_SUICIDE(););
 
 	DBUG_EXECUTE_IF("ib_purge_virtual_index_crash",
 			DBUG_SUICIDE(););
+
+	DBUG_EXECUTE_IF("ib_purge_virtual_index_crash",
+			DBUG_SUICIDE(););
+
+	DBUG_EXECUTE_IF("ib_purge_virtual_index_crash",
+			DBUG_SUICIDE(););
+
+	if (dict_index_has_virtual(index)) {
+		v_heap = mem_heap_create(100);
+	}
 
 	if (also_curr && !rec_get_deleted_flag(rec, comp)) {
 		row_ext_t*	ext;
@@ -911,11 +920,11 @@ row_vers_old_has_index_entry(
 				NULL, NULL, NULL, &ext, heap);
 
 		if (dict_index_has_virtual(index)) {
-#ifdef DBUG_OFF
+#ifndef UNIV_DEBUG
 # define dbug_v_purge false
-#else /* DBUG_OFF */
+#else /* UNIV_DEBUG */
                         bool    dbug_v_purge = false;
-#endif /* DBUG_OFF */
+#endif /* UNIV_DEBUG */
 
 			DBUG_EXECUTE_IF(
 				"ib_purge_virtual_index_callback",
@@ -928,6 +937,7 @@ row_vers_old_has_index_entry(
 			columns need to be computed */
 			if (trx_undo_roll_ptr_is_insert(t_roll_ptr)
 			    || dbug_v_purge) {
+#ifdef INNODB_DD_VC_SUPPORT
 				row_vers_build_clust_v_col(
 					row, clust_index, index, heap);
 
@@ -943,6 +953,15 @@ row_vers_old_has_index_entry(
 
 					return(TRUE);
 				}
+#else
+				mem_heap_free(heap);
+
+				if (v_heap) {
+					mem_heap_free(v_heap);
+				}
+
+				return(TRUE);
+#endif /* INNODB_DD_VC_SUPPORT */
 			} else {
 				if (row_vers_vc_matches_cluster(
 					also_curr, rec, row, ext, clust_index,
@@ -985,7 +1004,7 @@ row_vers_old_has_index_entry(
 			the clustered index record has already been updated to
 			a different binary value in a char field, but the
 			collation identifies the old and new value anyway! */
-			if (entry && !dtuple_coll_cmp(ientry, entry)) {
+			if (entry && dtuple_coll_eq(ientry, entry)) {
 
 				mem_heap_free(heap);
 
@@ -1081,7 +1100,7 @@ row_vers_old_has_index_entry(
 			a char field, but the collation identifies the old
 			and new value anyway! */
 
-			if (entry && !dtuple_coll_cmp(ientry, entry)) {
+			if (entry && dtuple_coll_eq(ientry, entry)) {
 
 				mem_heap_free(heap);
 				if (v_heap) {
@@ -1132,7 +1151,7 @@ row_vers_build_for_consistent_read(
 	byte*		buf;
 	dberr_t		err;
 
-	ut_ad(dict_index_is_clust(index));
+	ut_ad(index->is_clustered());
 	ut_ad(mtr_memo_contains_page(mtr, rec, MTR_MEMO_PAGE_X_FIX)
 	      || mtr_memo_contains_page(mtr, rec, MTR_MEMO_PAGE_S_FIX));
 	ut_ad(!rw_lock_own(&(purge_sys->latch), RW_LOCK_S));
@@ -1244,7 +1263,7 @@ row_vers_build_for_semi_consistent_read(
 	byte*		buf;
 	trx_id_t	rec_trx_id	= 0;
 
-	ut_ad(dict_index_is_clust(index));
+	ut_ad(index->is_clustered());
 	ut_ad(mtr_memo_contains_page(mtr, rec, MTR_MEMO_PAGE_X_FIX)
 	      || mtr_memo_contains_page(mtr, rec, MTR_MEMO_PAGE_S_FIX));
 	ut_ad(!rw_lock_own(&(purge_sys->latch), RW_LOCK_S));

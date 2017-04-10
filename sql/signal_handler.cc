@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,17 +13,32 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
-#include "my_global.h"
-#include <signal.h>
+#include "my_config.h"
 
-#include "sys_vars.h"
-#include "my_stacktrace.h"
+#include <signal.h>
+#include <sys/types.h>
+#include <time.h>
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
+#endif
+
 #include "connection_handler_manager.h"  // Connection_handler_manager
+#include "current_thd.h"                 // my_thread_get_THR_THD
+#include "keycache.h"
+#include "my_inttypes.h"
+#include "my_macros.h"
+#include "my_stacktrace.h"
+#include "my_sys.h"
+#include "mysqld.h"
 #include "mysqld_thd_manager.h"          // Global_THD_manager
+#include "session_tracker.h"
 #include "sql_class.h"
+#include "sql_const.h"
+#include "system_variables.h"
 
 #ifdef _WIN32
 #include <crtdbg.h>
+
 #define SIGNAL_FMT "exception 0x%x"
 #else
 #define SIGNAL_FMT "signal %d"
@@ -110,12 +125,11 @@ extern "C" void handle_fatal_signal(int sig)
                         Connection_handler_manager::max_used_connections);
 
   uint max_threads= 1;
-#ifndef EMBEDDED_LIBRARY
   max_threads= Connection_handler_manager::max_threads;
-#endif
   my_safe_printf_stderr("max_threads=%u\n", max_threads);
 
-  my_safe_printf_stderr("thread_count=%u\n", Global_THD_manager::global_thd_count);
+  my_safe_printf_stderr("thread_count=%u\n",
+                        Global_THD_manager::get_thd_count());
 
   my_safe_printf_stderr("connection_count=%u\n",
                         Connection_handler_manager::connection_count);
@@ -153,9 +167,6 @@ extern "C" void handle_fatal_signal(int sig)
     switch (thd->killed) {
     case THD::NOT_KILLED:
       kreason= "NOT_KILLED";
-      break;
-    case THD::KILL_BAD_DATA:
-      kreason= "KILL_BAD_DATA";
       break;
     case THD::KILL_CONNECTION:
       kreason= "KILL_CONNECTION";

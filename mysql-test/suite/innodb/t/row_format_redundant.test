@@ -1,4 +1,3 @@
---source include/have_innodb.inc
 --source include/have_debug.inc
 # Embedded mode doesn't allow restarting
 --source include/not_embedded.inc
@@ -41,6 +40,11 @@ row_format=redundant;
 
 insert into t3 values(444, 'dddd', 'bbbbb', 'aaaaa');
 insert into t3 values(555, 'eeee', 'ccccc', 'aaaaa');
+
+# Suppress warning regarding re-populating charsets and collations.
+--disable_query_log
+CALL mtr.add_suppression("Skip re-populating collations and character sets tables in InnoDB read-only mode.");
+--enable_query_log
 
 # read-only restart requires the change buffer to be empty; therefore we
 # do a slow shutdown.

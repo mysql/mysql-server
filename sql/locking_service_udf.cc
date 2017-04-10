@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,11 +13,14 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "my_global.h"
-#include "mysql_com.h"             // UDF_INIT
-#include "locking_service.h"       // acquire_locking_service_locks
-
 #include <string.h>
+#include <sys/types.h>
+
+#include "locking_service.h"       // acquire_locking_service_locks
+#include "my_inttypes.h"
+#include "my_macros.h"
+#include "mysql/service_locking.h"
+#include "mysql_com.h"             // UDF_INIT
 
 /*
   These functions are provided as UDFs rather than built-in SQL functions
@@ -30,7 +33,7 @@
 */
 
 // Common initialization code for get_read_lock and get_write_lock
-static inline my_bool init_acquire(UDF_INIT *initid, UDF_ARGS *args, char *message)
+static inline bool init_acquire(UDF_INIT *initid, UDF_ARGS *args, char *message)
 {
   initid->maybe_null= FALSE;
   initid->decimals= 0;
@@ -70,8 +73,8 @@ static inline my_bool init_acquire(UDF_INIT *initid, UDF_ARGS *args, char *messa
 
 C_MODE_START
 
-my_bool service_get_read_locks_init(UDF_INIT *initid, UDF_ARGS *args,
-                                   char *message)
+bool service_get_read_locks_init(UDF_INIT *initid, UDF_ARGS *args,
+                                 char *message)
 {
   return init_acquire(initid, args, message);
 }
@@ -92,8 +95,8 @@ long long service_get_read_locks(UDF_INIT *initid, UDF_ARGS *args,
 }
 
 
-my_bool service_get_write_locks_init(UDF_INIT *initid, UDF_ARGS *args,
-                                    char *message)
+bool service_get_write_locks_init(UDF_INIT *initid, UDF_ARGS *args,
+                                  char *message)
 {
   return init_acquire(initid, args, message);
 }
@@ -114,8 +117,8 @@ long long service_get_write_locks(UDF_INIT *initid, UDF_ARGS *args,
 }
 
 
-my_bool service_release_locks_init(UDF_INIT *initid, UDF_ARGS *args,
-                                   char *message)
+bool service_release_locks_init(UDF_INIT *initid, UDF_ARGS *args,
+                                char *message)
 {
   initid->maybe_null= FALSE;
   initid->decimals= 0;

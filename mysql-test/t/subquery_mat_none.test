@@ -29,4 +29,3 @@ if (`select locate('mrr', @@optimizer_switch) > 0`)
 --source include/subquery_mat.inc
 
 set optimizer_switch=default;
-

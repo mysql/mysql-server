@@ -1,8 +1,2 @@
---source include/have_utf8mb4.inc
---source include/have_innodb.inc
---source include/have_innodb_16k.inc
-
 let $engine= InnoDB;
-set global innodb_large_prefix=off;
 --source include/ctype_utf8mb4.inc
-set global innodb_large_prefix=default;

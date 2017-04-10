@@ -1,5 +1,4 @@
 
--- source include/have_cp1250_ch.inc
 --disable_warnings
 drop table if exists t1;
 --enable_warnings
@@ -106,9 +105,6 @@ set names cp1250 collate cp1250_czech_cs;
 --source include/weight_string.inc
 --source include/weight_string_euro.inc
 --source include/weight_string_chde.inc
---source include/weight_string_l1.inc
---source include/weight_string_l2.inc
---source include/weight_string_l12.inc
 
 --echo #
 --echo # Bugs#12635232: VALGRIND WARNINGS: IS_IPV6, IS_IPV4, INET6_ATON,

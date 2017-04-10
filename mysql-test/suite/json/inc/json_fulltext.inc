@@ -19,7 +19,6 @@ create table messages
  key( received, sender, receiver ),
  key( sender, receiver, received )
 );
-show create table messages;
 
 insert into messages(id, raw_message) values
 (
@@ -88,9 +87,9 @@ analyze table messages;
 
 select * from messages order by id;
 
-# FULLTEXT INDEX can't be created on JSON column type.
---error ER_BAD_FT_COLUMN
-alter table messages add fulltext index (raw_message) ;
+## FULLTEXT INDEX can't be created on JSON column type.
+#--error ER_BAD_FT_COLUMN
+#alter table messages add fulltext index (raw_message) ;
 
 # Search the message subject and body
 select id from messages

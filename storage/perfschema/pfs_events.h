@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -21,6 +21,7 @@
   Events data structures (declarations).
 */
 
+#include "my_inttypes.h"
 #include "pfs_column_types.h"
 
 struct PFS_instr_class;
@@ -46,19 +47,20 @@ struct PFS_events
   PFS_instr_class *m_class;
   /**
     Timer start.
-    This member is populated only if m_class->m_timed is true.
+    This member is populated only if @c m_class->m_timed is true.
   */
   ulonglong m_timer_start;
   /**
     Timer end.
-    This member is populated only if m_class->m_timed is true.
+    This member is populated only if @c m_class->m_timed is true.
   */
   ulonglong m_timer_end;
   /** Location of the instrumentation in the source code (file name). */
   const char *m_source_file;
   /** Location of the instrumentation in the source code (line number). */
   uint m_source_line;
+
+  PFS_events &operator=(const PFS_events &rhs) = default;
 };
 
 #endif
-

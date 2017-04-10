@@ -9,8 +9,7 @@
 # greater than the
 # the size of the table when compression level=9
 #*******************************************************************
---source include/have_innodb.inc
---source include/have_innodb_zip.inc
+--source include/have_innodb_max_16k.inc
 
 USE test;
 DROP TABLE IF EXISTS tab5;
@@ -106,6 +105,9 @@ eval INSERT INTO tab6(col_1,col_2,col_3,col_4,col_5,col_6,col_7,col_8,col_9,col_
 VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,@col_7,@col_8,@col_9,@col_10);
 dec $i;
 }
+
+ANALYZE TABLE tab5;
+ANALYZE TABLE tab6;
 
 -- echo #diff the sizes of the No compressed table and high compressed table
 SET @size=(SELECT 

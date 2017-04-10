@@ -1,0 +1,56 @@
+# Mixed DDL-DML (CREATE ... SELECT ...) statements can only be
+# replicated properly in statement-based replication.
+# Currently statement based due to bug 12345
+--source include/have_binlog_format_mixed_or_statement.inc
+--source include/not_group_replication_plugin.inc
+
+source include/master-slave.inc;
+
+# Test replication of auto_increment
+
+
+#Get default engine value          WL#6921
+--let $DEFAULT_ENGINE = `select @@global.default_storage_engine`
+create table t1 (n int auto_increment primary key);
+set insert_id = 2000;
+insert into t1 values (NULL),(NULL),(NULL);
+--source include/sync_slave_sql_with_master.inc
+select * from t1;
+connection master;
+--source include/show_slave_hosts.inc
+drop table t1;
+--source include/sync_slave_sql_with_master.inc
+stop slave;
+--source include/wait_for_slave_to_stop.inc
+connection master;
+
+# Test replication of timestamp
+
+create table t2(id int auto_increment primary key, created datetime);
+set timestamp=12345;
+insert into t2 set created=now();
+select * from t2;
+
+# Test replication of CREATE .. LIKE (Bug #2557)
+
+create table t3 like t2;
+create temporary table t4 like t2;
+create table t5 select * from t4;
+save_master_pos;
+connection slave;
+start slave;
+--source include/wait_for_slave_to_start.inc
+sync_with_master;
+select * from t2;
+#Replace default engine value with static engine string          WL#6921
+--replace_result $DEFAULT_ENGINE ENGINE
+show create table t3;
+--replace_result $DEFAULT_ENGINE ENGINE
+show create table t5;
+connection master;
+drop table t2,t3,t5;
+drop temporary table if exists t4;
+--source include/sync_slave_sql_with_master.inc
+
+# End of 4.1 tests
+--source include/rpl_end.inc

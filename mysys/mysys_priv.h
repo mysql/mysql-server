@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,16 +13,20 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+/**
+  @file mysys/mysys_priv.h
+*/
+
 #ifndef MYSYS_PRIV_INCLUDED
 #define MYSYS_PRIV_INCLUDED
 
-#include "my_global.h"
+#include "my_macros.h"
+#include "my_psi_config.h"
 #include "mysql/psi/mysql_thread.h"
+#include "mysql/psi/mysql_stage.h"
+#include "mysql/psi/mysql_file.h"
 
 #ifdef HAVE_PSI_INTERFACE
-
-#include <mysql/psi/mysql_file.h>
-#include <mysql/psi/mysql_thread.h>
 
 C_MODE_START
 
@@ -40,12 +44,16 @@ extern PSI_cond_key key_IO_CACHE_SHARE_cond,
   key_IO_CACHE_SHARE_cond_writer,
   key_THR_COND_threads;
 
+C_MODE_END
+
 #endif /* HAVE_PSI_INTERFACE */
+
+C_MODE_START
 
 extern PSI_stage_info stage_waiting_for_table_level_lock;
 
 extern mysql_mutex_t THR_LOCK_malloc, THR_LOCK_open, THR_LOCK_keycache;
-extern mysql_mutex_t THR_LOCK_lock, THR_LOCK_net;
+extern mysql_mutex_t THR_LOCK_net;
 extern mysql_mutex_t THR_LOCK_charset;
 
 #ifdef HAVE_PSI_INTERFACE
@@ -54,13 +62,9 @@ extern PSI_file_key key_file_proc_meminfo;
 #endif /* HAVE_LINUX_LARGE_PAGES */
 extern PSI_file_key key_file_charset;
 
-C_MODE_END
-
 #endif /* HAVE_PSI_INTERFACE */
 
 /* These keys are always defined. */
-
-C_MODE_START
 
 extern PSI_memory_key key_memory_charset_file;
 extern PSI_memory_key key_memory_charset_loader;
@@ -78,8 +82,6 @@ extern PSI_memory_key key_memory_pack_frm;
 extern PSI_memory_key key_memory_my_err_head;
 extern PSI_memory_key key_memory_my_file_info;
 extern PSI_memory_key key_memory_MY_DIR;
-extern PSI_memory_key key_memory_MY_STAT;
-extern PSI_memory_key key_memory_QUEUE;
 extern PSI_memory_key key_memory_DYNAMIC_STRING;
 extern PSI_memory_key key_memory_TREE;
 extern PSI_memory_key key_memory_defaults;
@@ -89,6 +91,8 @@ extern PSI_memory_key key_memory_win_SECURITY_ATTRIBUTES;
 extern PSI_memory_key key_memory_win_PACL;
 extern PSI_memory_key key_memory_win_IP_ADAPTER_ADDRESSES;
 #endif
+
+extern PSI_thread_key key_thread_timer_notifier;
 
 C_MODE_END
 

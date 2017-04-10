@@ -237,6 +237,8 @@ icp_no_match	disabled
 icp_out_of_range	disabled
 icp_match	disabled
 set global innodb_monitor_enable = all;
+create table monitor_test(col int) engine = innodb;
+drop table monitor_test;
 select name from information_schema.innodb_metrics where status!='enabled';
 name
 set global innodb_monitor_enable = aaa;

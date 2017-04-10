@@ -125,9 +125,6 @@ struct undo_node_t{
 				on a row */
 };
 
-
-#ifndef UNIV_NONINL
 #include "row0undo.ic"
-#endif
 
 #endif

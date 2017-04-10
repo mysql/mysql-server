@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,9 +19,11 @@
 #include "my_config.h"
 #include <gtest/gtest.h>
 
-#include <mysqld_error.h>
-#include <sql_class.h>
-#include <sql_table.h>
+#include "derror.h"
+#include "mysqld_error.h"
+#include "sql_class.h"
+#include "sql_locale.h"
+#include "sql_table.h"
 
 namespace explain_filename_unittest {
 

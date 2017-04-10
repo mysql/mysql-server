@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,9 +16,23 @@
 #ifndef RPL_MI_H
 #define RPL_MI_H
 
-#ifdef HAVE_REPLICATION
+#include <sys/types.h>
+#include <time.h>
 
-#include "my_global.h"
+#include "m_string.h"
+#include "my_inttypes.h"
+#include "my_io.h"
+#include "my_psi_config.h"
+#include "mysql/psi/mysql_mutex.h"
+#include "mysql/psi/psi_base.h"
+#include "mysql_com.h"
+#include "sql_const.h"
+
+class Relay_log_info;
+class Rpl_info_handler;
+class Server_ids;
+class THD;
+
 #include "binlog_event.h"            // enum_binlog_checksum_alg
 #include "log_event.h"               // Format_description_log_event
 #include "rpl_gtid.h"                // Gtid
@@ -26,7 +40,6 @@
 #include "rpl_trx_boundary_parser.h" // Transaction_boundary_parser
 
 typedef struct st_mysql MYSQL;
-class Rpl_info_factory;
 
 #define DEFAULT_CONNECT_RETRY 60
 
@@ -62,7 +75,7 @@ class Rpl_info_factory;
 
 *****************************************************************************/
 
-class Master_info : public Rpl_info
+class Master_info : public Rpl_info, public Gtid_mode_copy
 {
 friend class Rpl_info_factory;
 
@@ -71,6 +84,19 @@ public:
     Host name or ip address stored in the master.info.
   */
   char host[HOSTNAME_LENGTH + 1];
+
+  /*
+    Check if the channel is configured.
+
+    @param mi Pointer to Master_info.
+
+    @retval true  The channel is configured.
+    @retval false The channel is not configured.
+  */
+  static bool is_configured(Master_info *mi)
+  {
+    return mi && mi->host[0];
+  }
 
 private:
   /**
@@ -102,6 +128,11 @@ private:
     START SLAVE.
   */
   char start_plugin_dir[FN_REFLEN + 1];
+
+  /// Information on the last queued transaction
+  trx_monitoring_info *last_queued_trx;
+  /// Information on the currently queueing transaction
+  trx_monitoring_info *queueing_trx;
 
 public:
   /**
@@ -160,8 +191,8 @@ public:
       strmake(user, user_arg, sizeof(user) - 1);
     }
   }
-  /*
-    Returns user's size name. See @code get_user().
+  /**
+    Returns user's size name. See @c get_user().
 
     @return user's size name.
   */
@@ -192,7 +223,8 @@ public:
     Returns either user's password in the master.info repository or
     user's password used in START SLAVE.
 
-    @param password_arg is user's password.
+    @param[out] password_arg is user's password.
+    @param[out] password_arg_size is user's password size.
 
     @return false if there is no error, otherwise true is returned.
   */
@@ -221,8 +253,6 @@ public:
   }
   /**
     Stores the DEFAULT_AUTH defined by START SLAVE.
-
-    @param DEFAULT_AUTH.
   */
   void set_plugin_auth(const char* src)
   {
@@ -231,8 +261,6 @@ public:
   }
   /**
     Stores the DEFAULT_AUTH defined by START SLAVE.
-
-    @param DEFAULT_AUTH.
   */
   void set_plugin_dir(const char* src)
   {
@@ -240,11 +268,11 @@ public:
       strmake(start_plugin_dir, src, sizeof(start_plugin_dir) - 1);
   }
 
-  my_bool ssl; // enables use of SSL connection if true
+  bool ssl; // enables use of SSL connection if true
   char ssl_ca[FN_REFLEN], ssl_capath[FN_REFLEN], ssl_cert[FN_REFLEN];
   char ssl_cipher[FN_REFLEN], ssl_key[FN_REFLEN], tls_version[FN_REFLEN];
   char ssl_crl[FN_REFLEN], ssl_crlpath[FN_REFLEN];
-  my_bool ssl_verify_server_cert;
+  bool ssl_verify_server_cert;
 
   MYSQL* mysql;
   uint32 file_id;				/* for 3.23 load data infile */
@@ -264,7 +292,7 @@ public:
   float heartbeat_period;         // interface with CHANGE MASTER or master.info
   ulonglong received_heartbeats;  // counter of received heartbeat events
 
-  time_t last_heartbeat;
+  ulonglong last_heartbeat;
 
   Server_ids *ignore_server_ids;
 
@@ -292,6 +320,86 @@ public:
    */
   char for_channel_str[CHANNEL_NAME_LENGTH+15];
   char for_channel_uppercase_str[CHANNEL_NAME_LENGTH+15];
+
+  /**
+   @return the queueing transaction information
+   */
+  trx_monitoring_info* get_queueing_trx()
+  {
+    return queueing_trx;
+  }
+
+  /**
+   @return the last queued transaction information
+  */
+  trx_monitoring_info* get_last_queued_trx()
+  {
+    return last_queued_trx;
+  }
+
+  /**
+    Stores the details of the transaction the receiver thread has just started
+    queueing in queueing_trx.
+
+    @param  gtid_arg         the gtid of the trx
+    @param  original_ts_arg  the original commit timestamp of the transaction
+    @param  immediate_ts_arg the immediate commit timestamp of the transaction
+  */
+  void started_queueing(Gtid gtid_arg, ulonglong original_ts_arg,
+                        ulonglong immediate_ts_arg)
+  {
+    queueing_trx->set(gtid_arg, original_ts_arg, immediate_ts_arg,
+                      my_getsystime() /*start_time*/);
+  }
+
+  /**
+    When the receiver thread finishes queueing a transaction, that timestamp
+    is recorded and the information is copied to last_queued_trx and cleared
+    from queueing_trx.
+  */
+  void finished_queueing()
+  {
+    queueing_trx->end_time= my_getsystime();
+    last_queued_trx->copy(queueing_trx);
+    queueing_trx->clear();
+  }
+
+  /**
+   @return True if there is a transaction currently being queued
+  */
+  bool is_queueing_trx()
+  {
+    return queueing_trx->is_set();
+  }
+
+  /**
+   Clears the queueing_trx structure fields. Normally called when there is an
+   error while queueing the transaction.
+   @param need_lock if false then the lock has already been acquired before the
+                    method was called; if true then the lock must be acquired
+                    before modifying queueing_trx.
+  */
+  void clear_queueing_trx(bool need_lock)
+  {
+    if (need_lock)
+    {
+      mysql_mutex_lock(&data_lock);
+    }
+    queueing_trx->clear();
+    if (need_lock)
+    {
+      mysql_mutex_unlock(&data_lock);
+    }
+  }
+
+  /**
+   Clears the last_queued_trx structure fields.
+  */
+  void clear_last_queued_trx()
+  {
+    last_queued_trx->clear();
+  }
+
 
   virtual ~Master_info();
 
@@ -412,21 +520,7 @@ private:
   Master_info(const Master_info& info);
   Master_info& operator=(const Master_info& info);
 
-  /*
-    Last GTID queued by IO thread. This may contain a GTID of non-fully
-    replicated transaction and will be used when the last event of the
-    transaction be queued to add the GTID to the Retrieved_Gtid_Set.
-  */
-  Gtid last_gtid_queued;
 public:
-  Gtid *get_last_gtid_queued() { return &last_gtid_queued; }
-  void set_last_gtid_queued(Gtid &gtid) { last_gtid_queued= gtid; }
-  void set_last_gtid_queued(rpl_sidno sno, rpl_gno gtidno)
-  {
-    last_gtid_queued.set(sno, gtidno);
-  }
-  void clear_last_gtid_queued() { last_gtid_queued.clear(); }
-
   /*
     This will be used to verify transactions boundaries of events sent by the
     master server.
@@ -451,7 +545,7 @@ private:
   Checkable_rwlock *m_channel_lock;
 
   /* References of the channel, the channel can only be deleted when it is 0. */
-  Atomic_int32 references;
+  std::atomic<int32> atomic_references{0};
 public:
   /**
     Acquire the channel read lock.
@@ -482,27 +576,25 @@ public:
   { m_channel_lock->assert_some_wrlock(); }
 
   /**
-    Increase the references to prohibit deleting a channel. This function
-    must be protected by channel_map.rdlock(). dec_reference have to be
-    called with inc_reference() together.
+    Increase the reference count to prohibit deleting a channel. This function
+    must be protected by channel_map.rdlock(). dec_reference has to be
+    called in conjunction with inc_reference().
   */
-  void inc_reference() { references.atomic_add(1); }
+  void inc_reference() { ++atomic_references; }
 
   /**
-    Decrease the references. It doesn't need the protection of
+    Decrease the reference count. Doesn't need the protection of
     channel_map.rdlock.
   */
-  void dec_reference() { references.atomic_add(-1); }
+  void dec_reference() { --atomic_references; }
 
   /**
     It mush be called before deleting a channel and protected by
     channel_map_lock.wrlock().
 
-    @param THD thd the THD object of current thread
+    @param thd the THD object of current thread
   */
   void wait_until_no_reference(THD *thd);
 };
-int change_master_server_id_cmp(ulong *id1, ulong *id2);
 
-#endif /* HAVE_REPLICATION */
 #endif /* RPL_MI_H */

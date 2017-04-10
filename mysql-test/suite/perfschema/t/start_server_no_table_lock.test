@@ -1,8 +1,5 @@
 # Tests for PERFORMANCE_SCHEMA
 
---source include/not_embedded.inc
---source include/have_perfschema.inc
-
 --source ../include/start_server_common.inc
 
 #############################
@@ -38,13 +35,13 @@ select COUNT_STAR from performance_schema.table_lock_waits_summary_by_table
 
 # Expect TABLE_LOCK_STAT lost
 --disable_warnings
-select variable_value > 0 from information_schema.global_status
+select variable_value > 0 from performance_schema.global_status
   where variable_name like 'PERFORMANCE_SCHEMA_TABLE_LOCK_STAT_LOST';
 
 # While at it, check that FLUSH STATUS Resets the lost counter
 FLUSH STATUS;
 
-select variable_value from information_schema.global_status
+select variable_value from performance_schema.global_status
   where variable_name like 'PERFORMANCE_SCHEMA_TABLE_LOCK_STAT_LOST';
 --enable_warnings
 

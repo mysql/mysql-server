@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -40,18 +40,19 @@ unsigned int my_datetime_binary_length(unsigned int dec);
 unsigned int my_timestamp_binary_length(unsigned int dec);
 
 /**
- This helper function calculates the size in bytes of a particular field in a
- row type event as defined by the field_ptr and metadata_ptr arguments.
- @param column_type Field type code
- @param field_ptr The field data
- @param metadata_ptr The field metadata
+  This helper function calculates the size in bytes of a particular field in a
+  row type event as defined by the field_ptr and metadata_ptr arguments.
 
- @note We need the actual field data because the string field size is not
- part of the meta data. :(
+  @param col Field type code
+  @param master_data The field data
+  @param metadata The field metadata
 
- @return The size in bytes of a particular field
+  @note We need the actual field data because the string field size is not
+  part of the meta data. :(
+
+  @return The size in bytes of a particular field
 */
-uint32_t calc_field_size(unsigned char column_type, const unsigned char *field_ptr,
+uint32_t calc_field_size(unsigned char col, const unsigned char *master_data,
                          unsigned int metadata);
 
 

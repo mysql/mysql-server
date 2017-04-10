@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,8 +13,28 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "opt_trace.h"
 #include "opt_explain_json.h"
+
+#include <limits.h>
+#include <sys/types.h>
+
+#include "current_thd.h"            // current_thd
+#include "item.h"
+#include "my_config.h"
+#include "my_dbug.h"
+#include "mysql/service_my_snprintf.h"
+#include "opt_trace.h"              // Opt_trace_object
+#include "opt_trace_context.h"      // Opt_trace_context
+#include "protocol.h"               // Protocol
+#include "query_result.h"           // Query_result
+#include "sql_class.h"              // THD
+#include "sql_list.h"
+#include "sql_security_ctx.h"
+#include "sql_string.h"
+#include "system_variables.h"
+
+class SELECT_LEX_UNIT;
+
 
 /**
   Property names, former parts of traditional "extra" column
@@ -54,7 +74,9 @@ static const char *json_extra_tags[ET_total]=
   "unique_row_not_found",               // ET_UNIQUE_ROW_NOT_FOUND
   "impossible_on_condition",            // ET_IMPOSSIBLE_ON_CONDITION
   "pushed_join",                        // ET_PUSHED_JOIN
-  "ft_hints"                            // ET_FT_HINTS
+  "ft_hints",                           // ET_FT_HINTS
+  "backward_index_scan",                // ET_BACKWARD_SCAN
+  "recursive"                           // ET_RECURSIVE
 };
 
 
@@ -85,6 +107,7 @@ static const char K_QUERY_SPECIFICATIONS[]=         "query_specifications";
 static const char K_REF[]=                          "ref";
 static const char K_SELECT_ID[]=                    "select_id";
 static const char K_SELECT_LIST_SUBQUERIES[]=       "select_list_subqueries";
+static const char K_SHARING_TMP_TABLE[]=            "sharing_temporary_table_with";
 static const char K_TABLE[]=                        "table";
 static const char K_TABLE_NAME[]=                   "table_name";
 static const char K_UNION_RESULT[]=                 "union_result";
@@ -228,10 +251,10 @@ public:
 
     This function is to be overloaded by subquery_ctx.
   */
-  virtual void set_child(context *child) {}
+  virtual void set_child(context*) {}
 
   /// associate CTX_UNION_RESULT node with CTX_UNION node
-  virtual void set_union_result(union_result_ctx *ctx) { DBUG_ASSERT(0); }
+  virtual void set_union_result(union_result_ctx*) { DBUG_ASSERT(0); }
 
   /**
     Append a subquery node to the specified list of the unit node
@@ -242,8 +265,10 @@ public:
     @retval false           Ok
     @retval true            Error
   */
-  virtual bool add_subquery(subquery_list_enum subquery_type,
-                            subquery_ctx *ctx) { DBUG_ASSERT(0);return true; }
+  virtual bool
+  add_subquery(subquery_list_enum subquery_type MY_ATTRIBUTE((unused)),
+               subquery_ctx *ctx MY_ATTRIBUTE((unused)))
+  { DBUG_ASSERT(0);return true; }
   /**
     Format nested loop join subtree (if any) to JSON formatter
 
@@ -252,7 +277,8 @@ public:
     @retval false               Ok
     @retval true                Error
   */
-  virtual bool format_nested_loop(Opt_trace_context *json)
+  virtual bool
+  format_nested_loop(Opt_trace_context *json MY_ATTRIBUTE((unused)))
   { DBUG_ASSERT(0); return true; }
 
   /**
@@ -263,17 +289,17 @@ public:
     @retval false           Ok
     @retval true            Error
   */
-  virtual bool add_join_tab(joinable_ctx *ctx) { DBUG_ASSERT(0);return true; }
+  virtual bool add_join_tab(joinable_ctx *ctx MY_ATTRIBUTE((unused)))
+  { DBUG_ASSERT(0);return true; }
 
   /**
     Set nested ORDER BY/GROUP BY/DISTINCT node to @c ctx
 
-    @param json                 Formatter
-
     @retval false               Ok
     @retval true                Error
   */
-  virtual void set_sort(sort_ctx *ctx) { DBUG_ASSERT(0); }
+  virtual void set_sort(sort_ctx *ctx MY_ATTRIBUTE((unused)))
+  { DBUG_ASSERT(0); }
 
   /**
     Add a query specification node to the CTX_UNION node
@@ -283,7 +309,8 @@ public:
     @retval false           Ok
     @retval true            Error
   */
-  virtual bool add_query_spec(context *ctx) { DBUG_ASSERT(0); return true; }
+  virtual bool add_query_spec(context *ctx MY_ATTRIBUTE((unused)))
+  { DBUG_ASSERT(0); return true; }
 
   /**
     Try to associate a derived subquery node with this or underlying node
@@ -294,7 +321,7 @@ public:
     @retval false       Can't associate: this node or its child nodes are not
                         derived from the subquery
   */
-  virtual bool find_and_set_derived(context *subquery)
+  virtual bool find_and_set_derived(context *subquery MY_ATTRIBUTE((unused)))
   {
     DBUG_ASSERT(0);
     return false;
@@ -311,21 +338,22 @@ public:
        0   subqusery were added
        1   error occured
   */
-  virtual int add_where_subquery(subquery_ctx *ctx,
-                                  SELECT_LEX_UNIT *subquery)
+  virtual int
+  add_where_subquery(subquery_ctx *ctx MY_ATTRIBUTE((unused)),
+                     SELECT_LEX_UNIT *subquery MY_ATTRIBUTE((unused)))
   {
     DBUG_ASSERT(0);
     return false;
   }
 
   /// Helper function to format output for derived subquery if any
-  virtual bool format_derived(Opt_trace_context *json) { return false; }
+  virtual bool format_derived(Opt_trace_context*) { return false; }
 
   /// Helper function to format output for associated WHERE subqueries if any
-  virtual bool format_where(Opt_trace_context *json) { return false; }
+  virtual bool format_where(Opt_trace_context*) { return false; }
 
   /// Helper function to format output for HAVING, ORDER/GROUP BY subqueries
-  virtual bool format_unit(Opt_trace_context *json) { return false; }
+  virtual bool format_unit(Opt_trace_context*) { return false; }
 };
 
 
@@ -390,6 +418,13 @@ private:
   {
     if (type == CTX_DERIVED)
     {
+      if (derived_clone_id)
+      {
+        Opt_trace_object(json, K_SHARING_TMP_TABLE).
+          add(K_SELECT_ID, derived_clone_id);
+        // Don't show underlying tables of derived table clone
+        return false;
+      }
       obj->add(K_USING_TMP_TABLE, true);
       obj->add(K_DEPENDENT, dependent());
       obj->add(K_CACHEABLE, cacheable());
@@ -408,22 +443,22 @@ private:
         Opt_trace_object tmp_table(json, K_TABLE);
 
         if (!col_table_name.is_empty())
-          obj->add_utf8(K_TABLE_NAME, col_table_name.str);
+          tmp_table.add_utf8(K_TABLE_NAME, col_table_name.str);
         if (!col_join_type.is_empty())
           tmp_table.add_alnum(K_ACCESS_TYPE, col_join_type.str);
         if (!col_key.is_empty())
           tmp_table.add_utf8(K_KEY, col_key.str);
         if (!col_key_len.is_empty())
-          obj->add_alnum(K_KEY_LENGTH, col_key_len.str);
+          tmp_table.add_alnum(K_KEY_LENGTH, col_key_len.str);
         if (!col_rows.is_empty())
           tmp_table.add(K_ROWS, col_rows.value);
 
         if (is_materialized_from_subquery)
         {
           Opt_trace_object materialized(json, K_MATERIALIZED_FROM_SUBQUERY);
-          obj->add(K_USING_TMP_TABLE, true);
-          obj->add(K_DEPENDENT, dependent());
-          obj->add(K_CACHEABLE, cacheable());
+          materialized.add(K_USING_TMP_TABLE, true);
+          materialized.add(K_DEPENDENT, dependent());
+          materialized.add(K_CACHEABLE, cacheable());
           return format_query_block(json);
         }
       }
@@ -540,7 +575,7 @@ public:
 class table_base_ctx : virtual public context, virtual public qep_row
 {
 protected:
-  bool is_hidden_id; //< if true, don't output K_SELECT_ID property
+  bool is_hidden_id; ///< if true, don't output K_SELECT_ID property
 
 public:
   table_base_ctx(enum_parsing_context type_arg,
@@ -554,7 +589,7 @@ protected:
   virtual bool format_body(Opt_trace_context *json, Opt_trace_object *obj);
 
 public:
-  virtual size_t id(bool hide)
+  virtual size_t id(bool)
   {
     return col_id.is_empty() ? 0 : col_id.value;
   }
@@ -635,19 +670,7 @@ bool table_base_ctx::format_body(Opt_trace_context *json, Opt_trace_object *obj)
     obj->add_utf8(K_FILTERED, buf);
   }
 
-  if (!col_extra.is_empty())
-  {
-    List_iterator<qep_row::extra> it(col_extra);
-    qep_row::extra *e;
-    while ((e= it++))
-    {
-      DBUG_ASSERT(json_extra_tags[e->tag] != NULL);
-      if (e->data)
-        obj->add_utf8(json_extra_tags[e->tag], e->data);
-      else
-        obj->add(json_extra_tags[e->tag], true);
-    }
-  }
+  format_extra(obj);
 
   if (!col_read_cost.is_empty())
   {
@@ -862,7 +885,7 @@ public:
   }
 
   virtual int add_where_subquery(subquery_ctx *ctx,
-                                  SELECT_LEX_UNIT *subquery)
+                                 SELECT_LEX_UNIT*)
   {
     return where_subqueries.push_back(ctx);
   }
@@ -956,11 +979,14 @@ public:
 class simple_sort_ctx : public joinable_ctx
 {
 protected:
-  joinable_ctx *join_tab; //< single JOIN_TAB that we sort
+  /** Single JOIN_TAB that we sort. */
+  joinable_ctx *join_tab;
 
 private:
-  const bool using_tmptable; //< true if the clause creates intermediate table
-  const bool using_filesort; //< true if the clause uses filesort
+  /** True if the clause creates intermediate table. */
+  const bool using_tmptable;
+  /** True if the clause uses filesort. */
+  const bool using_filesort;
 
 public:
   simple_sort_ctx(enum_parsing_context type_arg, const char *name_arg,
@@ -1015,7 +1041,8 @@ protected:
 
 class simple_sort_with_subqueries_ctx : public simple_sort_ctx
 {
-  const subquery_list_enum subquery_type; //< type of this clause subqueries
+  /** Type of this clause subqueries. */
+  const subquery_list_enum subquery_type;
   List<subquery_ctx> subqueries;
 
 public:
@@ -1139,8 +1166,10 @@ TODO
 
 class sort_ctx : public join_ctx
 {
-  const bool using_tmptable; //< the clause creates temporary table
-  const bool using_filesort; //< the clause uses filesort
+  /** The clause creates temporary table. */
+  const bool using_tmptable;
+  /** The clause uses filesort. */
+  const bool using_filesort;
 
 public:
   sort_ctx(enum_parsing_context type_arg, const char *name_arg,
@@ -1171,7 +1200,8 @@ protected:
 
 class sort_with_subqueries_ctx : public sort_ctx
 {
-  const subquery_list_enum subquery_type; //< subquery type for this clause
+  /** Subquery type for this clause. */
+  const subquery_list_enum subquery_type;
   List<subquery_ctx> subqueries;
 
 public:
@@ -1260,6 +1290,9 @@ bool join_ctx::format_body(Opt_trace_context *json, Opt_trace_object *obj)
 {
   if (type == CTX_JOIN)
     obj->add(K_SELECT_ID, id(true));
+
+  format_extra(obj);
+
   if (!col_read_cost.is_empty())
   {
     char buf[32];                         // 32 is enough for digits of a double
@@ -1582,7 +1615,7 @@ public:
   {}
 
 private:
-  virtual bool format_body(Opt_trace_context *json, Opt_trace_object *obj)
+  virtual bool format_body(Opt_trace_context *json, Opt_trace_object*)
   {
     if (union_result)
       return (union_result->format(json)) || format_unit(json);
@@ -2061,3 +2094,17 @@ bool Explain_format_JSON::send_headers(Query_result *result)
                                           Protocol::SEND_EOF);
 }
 
+
+void qep_row::format_extra(Opt_trace_object *obj)
+{
+  List_iterator<qep_row::extra> it(col_extra);
+  qep_row::extra *e;
+  while ((e= it++))
+  {
+    DBUG_ASSERT(json_extra_tags[e->tag] != NULL);
+    if (e->data)
+      obj->add_utf8(json_extra_tags[e->tag], e->data);
+    else
+      obj->add(json_extra_tags[e->tag], true);
+  }
+}

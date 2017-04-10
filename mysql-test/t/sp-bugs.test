@@ -1,3 +1,13 @@
+########################################
+##### WL#7554 Force schema `test` to character set latin1
+##### This test should be migrated to utf8mb4
+--disable_query_log
+let $testdbcs269=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
+alter schema default character set latin1;
+use test;
+--enable_query_log
+########################################
+
 # Test file for stored procedure bugfixes
 
 --echo #
@@ -368,3 +378,35 @@ delimiter ;|
 SELECT fn1();
 DROP FUNCTION fn1;
 SET sql_mode= default;
+
+--echo #
+--echo # Bug#24401273: PROBLEM WITH STORED FUNCTION WHICH GENERATES
+--echo #               BIGINT UNSIGNED USED IN WHERE CLAUSE
+--echo #
+--echo # Note: The AND TRUE is to work around Bug #24457368.
+--echo #
+
+CREATE FUNCTION crc(_text TEXT) RETURNS BIGINT(20) UNSIGNED DETERMINISTIC
+  RETURN CONV(LEFT(MD5(_text),16),16,10);
+
+CREATE TABLE t1 (
+  id bigint(20) UNSIGNED NOT NULL
+);
+
+INSERT INTO t1 (id) VALUES (crc('photos'));
+INSERT INTO t1 (id) VALUES (crc('photos1'));
+
+ALTER TABLE t1 ADD INDEX idx (id);
+
+SELECT * FROM t1 FORCE INDEX (idx) WHERE (id = crc('photos')) AND TRUE;
+SELECT * FROM t1 IGNORE INDEX (idx) WHERE (id = crc('photos')) AND TRUE;
+
+DROP FUNCTION crc;
+DROP TABLE t1;
+
+########################################
+##### WL#7554 set schema `test` back to what it was
+--disable_query_log
+--eval alter schema test default character set $testdbcs269;
+--enable_query_log
+########################################

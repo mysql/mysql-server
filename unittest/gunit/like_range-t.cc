@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,12 +13,10 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
-// First include (the generated) my_config.h, to get correct platform defines.
-#include "my_config.h"
 #include <gtest/gtest.h>
-
-#include <my_global.h>
 #include <my_sys.h>
+
+#include "my_inttypes.h"
 
 namespace like_range_unittest {
 
@@ -52,59 +50,51 @@ test_like_range_for_charset(CHARSET_INFO *cs, const char *src, size_t src_len)
 }
 
 
-static CHARSET_INFO *charset_list[]=
+static const char *charset_list[]=
 {
-#ifdef HAVE_CHARSET_big5
-  &my_charset_big5_chinese_ci,
-  &my_charset_big5_bin,
-#endif
-#ifdef HAVE_CHARSET_euckr
-  &my_charset_euckr_korean_ci,
-  &my_charset_euckr_bin,
-#endif
-#ifdef HAVE_CHARSET_gb2312
-  &my_charset_gb2312_chinese_ci,
-  &my_charset_gb2312_bin,
-#endif
-#ifdef HAVE_CHARSET_gbk
-  &my_charset_gbk_chinese_ci,
-  &my_charset_gbk_bin,
-#endif
-#ifdef HAVE_CHARSET_gb18030
-  &my_charset_gb18030_chinese_ci,
-  &my_charset_gb18030_bin,
-#endif
-#ifdef HAVE_CHARSET_latin1
-  &my_charset_latin1,
-  &my_charset_latin1_bin,
-#endif
-#ifdef HAVE_CHARSET_sjis
-  &my_charset_sjis_japanese_ci,
-  &my_charset_sjis_bin,
-#endif
-#ifdef HAVE_CHARSET_tis620
-  &my_charset_tis620_thai_ci,
-  &my_charset_tis620_bin,
-#endif
-#ifdef HAVE_CHARSET_ujis
-  &my_charset_ujis_japanese_ci,
-  &my_charset_ujis_bin,
-#endif
-#ifdef HAVE_CHARSET_utf8
-  &my_charset_utf8_general_ci,
-  &my_charset_utf8_unicode_ci,
-  &my_charset_utf8_bin,
-#endif
+  "big5_chinese_ci",
+  "big5_bin",
+
+  "euckr_korean_ci",
+  "euckr_bin",
+
+  "gb2312_chinese_ci",
+  "gb2312_bin",
+
+  "gbk_chinese_ci",
+  "gbk_bin",
+
+  "gb18030_chinese_ci",
+  "gb18030_bin",
+
+  "latin1_swedish_ci",
+  "latin1_bin",
+
+  "sjis_japanese_ci",
+  "sjis_bin",
+
+  "tis620_thai_ci",
+  "tis620_bin",
+
+  "ujis_japanese_ci",
+  "ujis_bin",
+
+  "utf8_general_ci",
+  "utf8_unicode_ci",
+  "utf8_bin",
 };
 
 #if defined(GTEST_HAS_PARAM_TEST)
 
-class LikeRangeTest : public ::testing::TestWithParam<CHARSET_INFO*>
+class LikeRangeTest : public ::testing::TestWithParam<const char *>
 {
 protected:
   virtual void SetUp()
   {
-    m_charset= GetParam();
+    MY_CHARSET_LOADER loader;
+    my_charset_loader_init_mysys(&loader);
+    m_charset= my_collation_get_by_name(&loader, GetParam(), MYF(0));
+    DBUG_ASSERT(m_charset);
   }
   CHARSET_INFO *m_charset;
 };

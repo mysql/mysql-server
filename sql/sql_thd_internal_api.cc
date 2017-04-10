@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,18 +13,51 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "sql_thd_internal_api.h"
+#include "sql/sql_thd_internal_api.h"
 
+#include "my_config.h"
+
+#include <fcntl.h>
+#include <string.h>
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
+#endif
+
+#include "binlog.h"               // mysql_bin_log
+#include "current_thd.h"          // current_thd
+#include "lex_string.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_io.h"
+#include "my_macros.h"
+#include "my_psi_config.h"
+#include "my_sys.h"
+#include "mysql/psi/mysql_cond.h"
+#include "mysql/psi/mysql_mutex.h"
+#include "mysql/psi/mysql_socket.h"
+#include "mysql/psi/mysql_thread.h"
+#include "mysql/psi/psi_stage.h"
+#include "mysql/psi/psi_thread.h"
+#include "mysql/thread_type.h"
+#include "mysqld.h"
 #include "mysqld_thd_manager.h"   // Global_THD_manager
+#include "protocol_classic.h"
+#include "query_options.h"
+#include "rpl_filter.h"           // binlog_filter
 #include "sql_class.h"            // THD
+#include "sql_lex.h"
+#include "sql_parse.h"            // sqlcom_can_generate_row_events
+#include "sql_plugin.h"
+#include "system_variables.h"
+#include "transaction_info.h"
+#include "violite.h"
 
+struct PSI_thread;
 
 int thd_init(THD *thd, char *stack_start, bool bound, PSI_thread_key psi_key)
 {
-  DBUG_ENTER("thd_new_connection_setup");
-  thd->set_time();
-  thd->thr_create_utime= thd->start_utime= my_micro_time();
-
+  DBUG_ENTER("thd_init");
   // TODO: Purge threads currently terminate too late for them to be added.
   // Note that P_S interprets all threads with thread_id != 0 as
   // foreground threads. And THDs need thread_id != 0 to be added
@@ -86,6 +119,147 @@ void thd_set_thread_stack(THD *thd, const char *stack_start)
   thd->thread_stack= stack_start;
 }
 
+
+extern "C"
+void thd_enter_cond(void *opaque_thd, mysql_cond_t *cond, mysql_mutex_t *mutex,
+                    const PSI_stage_info *stage, PSI_stage_info *old_stage,
+                    const char *src_function, const char *src_file,
+                    int src_line)
+{
+  THD *thd= static_cast<THD*>(opaque_thd);
+  if (!thd)
+    thd= current_thd;
+
+  return thd->enter_cond(cond, mutex, stage, old_stage,
+                         src_function, src_file, src_line);
+}
+
+extern "C"
+void thd_exit_cond(void *opaque_thd, const PSI_stage_info *stage,
+                   const char *src_function, const char *src_file,
+                   int src_line)
+{
+  THD *thd= static_cast<THD*>(opaque_thd);
+  if (!thd)
+    thd= current_thd;
+
+  thd->exit_cond(stage, src_function, src_file, src_line);
+}
+
+
+void thd_increment_bytes_sent(size_t length)
+{
+  THD *thd= current_thd;
+  if (likely(thd != NULL))
+  { /* current_thd==NULL when close_connection() calls net_send_error() */
+    thd->status_var.bytes_sent+= length;
+  }
+}
+
+
+void thd_increment_bytes_received(size_t length)
+{
+  THD *thd= current_thd;
+  if (likely(thd != NULL))
+    thd->status_var.bytes_received+= length;
+}
+
+
+partition_info *thd_get_work_part_info(THD *thd)
+{
+  return thd->work_part_info;
+}
+
+
+enum_tx_isolation thd_get_trx_isolation(const THD *thd)
+{
+  return thd->tx_isolation;
+}
+
+
+const struct charset_info_st *thd_charset(THD *thd)
+{
+  return(thd->charset());
+}
+
+
+LEX_CSTRING thd_query_unsafe(THD *thd)
+{
+  DBUG_ASSERT(current_thd == thd);
+  return thd->query();
+}
+
+
+size_t thd_query_safe(THD *thd, char *buf, size_t buflen)
+{
+  mysql_mutex_lock(&thd->LOCK_thd_query);
+  LEX_CSTRING query_string= thd->query();
+  size_t len= MY_MIN(buflen - 1, query_string.length);
+  if (len > 0)
+    strncpy(buf, query_string.str, len);
+  buf[len]= '\0';
+  mysql_mutex_unlock(&thd->LOCK_thd_query);
+  return len;
+}
+
+
+int thd_slave_thread(const THD *thd)
+{
+  return(thd->slave_thread);
+}
+
+
+int thd_non_transactional_update(const THD *thd)
+{
+  return thd->get_transaction()->has_modified_non_trans_table(
+    Transaction_ctx::SESSION);
+}
+
+
+int thd_binlog_format(const THD *thd)
+{
+  if (mysql_bin_log.is_open() && (thd->variables.option_bits & OPTION_BIN_LOG))
+    return (int) thd->variables.binlog_format;
+  else
+    return BINLOG_FORMAT_UNSPEC;
+}
+
+
+bool thd_binlog_filter_ok(const THD *thd)
+{
+  return binlog_filter->db_ok(thd->db().str);
+}
+
+
+bool thd_sqlcom_can_generate_row_events(const THD *thd)
+{
+  return sqlcom_can_generate_row_events(thd->lex->sql_command);
+}
+
+
+enum durability_properties thd_get_durability_property(const THD *thd)
+{
+  enum durability_properties ret= HA_REGULAR_DURABILITY;
+
+  if (thd != NULL)
+    ret= thd->durability_property;
+
+  return ret;
+}
+
+
+void thd_get_autoinc(const THD *thd, ulong* off, ulong* inc)
+{
+  *off = thd->variables.auto_increment_offset;
+  *inc = thd->variables.auto_increment_increment;
+}
+
+
+bool thd_is_strict_mode(const THD *thd)
+{
+  return thd->is_strict_mode();
+}
+
 bool is_mysql_datadir_path(const char *path)
 {
   if (path == NULL || strlen(path) >= FN_REFLEN)
@@ -120,21 +294,12 @@ int mysql_tmpfile_path(const char *path, const char *prefix)
   char filename[FN_REFLEN];
   File fd = create_temp_file(filename, path, prefix,
 #ifdef _WIN32
-                             O_BINARY | O_TRUNC | O_SEQUENTIAL |
-                             O_SHORT_LIVED |
+                             O_TRUNC | O_SEQUENTIAL |
 #endif /* _WIN32 */
-                             O_CREAT | O_EXCL | O_RDWR | O_TEMPORARY,
+                             O_CREAT | O_EXCL | O_RDWR,
                              MYF(MY_WME));
-  if (fd >= 0) {
-#ifndef _WIN32
-    /*
-      This can be removed once the following bug is fixed:
-      Bug #28903  create_temp_file() doesn't honor O_TEMPORARY option
-                  (file not removed) (Unix)
-    */
+  if (fd >= 0)
     unlink(filename);
-#endif /* !_WIN32 */
-  }
 
   return fd;
 }

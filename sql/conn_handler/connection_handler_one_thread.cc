@@ -15,17 +15,23 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "connection_handler_impl.h"
+#include <stddef.h>
 
 #include "channel_info.h"                // Channel_info
+#include "connection_handler_impl.h"
 #include "connection_handler_manager.h"  // Connection_handler_manager
+#include "mysql/psi/mysql_socket.h"
+#include "mysql/psi/mysql_thread.h"
+#include "mysql_com.h"
+#include "mysqld.h"                      // connection_errors_internal
 #include "mysqld_error.h"                // ER_*
 #include "mysqld_thd_manager.h"          // Global_THD_manager
-#include "sql_audit.h"                   // mysql_audit_release
-#include "sql_connect.h"                 // close_connection
+#include "protocol_classic.h"
 #include "sql_class.h"                   // THD
+#include "sql_connect.h"                 // close_connection
 #include "sql_parse.h"                   // do_command
 #include "sql_thd_internal_api.h"        // thd_set_thread_stack
+#include "violite.h"
 
 
 bool One_thread_connection_handler::add_connection(Channel_info* channel_info)
@@ -48,8 +54,6 @@ bool One_thread_connection_handler::add_connection(Channel_info* channel_info)
   }
 
   thd->set_new_thread_id();
-
-  thd->start_utime= thd->thr_create_utime= my_micro_time();
 
   /*
     handle_one_connection() is normally the only way a thread would

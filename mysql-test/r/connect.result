@@ -1,12 +1,15 @@
 drop table if exists t1,t2;
-show tables;
+show tables where Tables_in_mysql != 'ndb_binlog_index';
 Tables_in_mysql
+column_stats
 columns_priv
+component
 db
+default_roles
 engine_cost
-event
 func
 general_log
+global_grants
 gtid_executed
 help_category
 help_keyword
@@ -14,11 +17,10 @@ help_relation
 help_topic
 innodb_index_stats
 innodb_table_stats
-ndb_binlog_index
 plugin
-proc
 procs_priv
 proxies_priv
+role_edges
 server_cost
 servers
 slave_master_info
@@ -42,14 +44,17 @@ create user test@localhost identified by "gambling";
 grant ALL on *.* to test@localhost;
 create user test@127.0.0.1 identified by "gambling";
 grant ALL on *.* to test@127.0.0.1;
-show tables;
+show tables where Tables_in_mysql != 'ndb_binlog_index';
 Tables_in_mysql
+column_stats
 columns_priv
+component
 db
+default_roles
 engine_cost
-event
 func
 general_log
+global_grants
 gtid_executed
 help_category
 help_keyword
@@ -57,11 +62,10 @@ help_relation
 help_topic
 innodb_index_stats
 innodb_table_stats
-ndb_binlog_index
 plugin
-proc
 procs_priv
 proxies_priv
+role_edges
 server_cost
 servers
 slave_master_info
@@ -307,6 +311,14 @@ ALTER USER
 invalid_user@localhost,
 must_change@localhost PASSWORD EXPIRE;
 ERROR HY000: Operation ALTER USER failed for 'invalid_user'@'localhost'
+SELECT password_expired FROM mysql.user
+WHERE user='must_change' and host = 'localhost';
+password_expired
+N
+SELECT USER();
+USER()
+must_change@localhost
+ALTER USER must_change@localhost PASSWORD EXPIRE;
 SELECT password_expired FROM mysql.user
 WHERE user='must_change' and host = 'localhost';
 password_expired

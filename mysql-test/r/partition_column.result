@@ -567,7 +567,7 @@ drop table t1;
 create table t1 as select to_seconds(null) as to_seconds;
 select data_type from information_schema.columns
 where column_name='to_seconds';
-data_type
+DATA_TYPE
 int
 drop table t1;
 create table t1 (a int, b int)
@@ -610,7 +610,7 @@ partition by range columns(a,b)
 ERROR 42000: Inconsistency in usage of column lists for partitioning near '))' at line 3
 create table t1 (a int, b int)
 partition by range columns(a,b)
-(partition p0 values less than (1,1,1);
+(partition p0 values less than (1,1,1));
 ERROR HY000: Inconsistency in usage of column lists for partitioning
 create table t1 (a int, b int)
 partition by range columns(a,b)

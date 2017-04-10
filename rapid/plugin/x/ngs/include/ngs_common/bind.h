@@ -20,23 +20,14 @@
 #ifndef _NGS_BIND_H_
 #define _NGS_BIND_H_
 
-#include <boost/bind.hpp>
-#include <boost/function.hpp>
-#include <boost/ref.hpp>
+#include <functional>
 
 namespace ngs
 {
-namespace placeholders
-{
-using ::_1;
-using ::_2;
-using ::_3;
-using ::_4;
-} // namespace placeholders
-
-using boost::bind;
-using boost::function;
-using boost::ref;
+namespace placeholders = std::placeholders;
+using std::bind;
+using std::function;
+using std::ref;
 } // namespace ngs
 
 #endif // _NGS_BIND_H_

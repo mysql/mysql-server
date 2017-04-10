@@ -1,7 +1,7 @@
 #ifndef ATOMIC_SOLARIS_INCLUDED
 #define ATOMIC_SOLARIS_INCLUDED
 
-/* Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,7 +16,13 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+/**
+  @file include/atomic/solaris.h
+*/
+
 #include <atomic.h>
+
+#include "my_inttypes.h"
 
 #if defined(__GNUC__)
 #define atomic_typeof(T,V)      __typeof__(V)

@@ -10,18 +10,18 @@ show session variables like 'pseudo_thread_id';
 Variable_name	Value
 pseudo_thread_id	#
 should be empty
-select * from information_schema.global_variables where variable_name='pseudo_thread_id';
+select * from performance_schema.global_variables where variable_name='pseudo_thread_id';
 VARIABLE_NAME	VARIABLE_VALUE
-select @@session.pseudo_thread_id = variable_value from information_schema.session_variables where variable_name='pseudo_thread_id';
+select @@session.pseudo_thread_id = variable_value from performance_schema.session_variables where variable_name='pseudo_thread_id';
 @@session.pseudo_thread_id = variable_value
 1
 set session pseudo_thread_id=42;
 select @@session.pseudo_thread_id;
 @@session.pseudo_thread_id
 42
-select * from information_schema.global_variables where variable_name='pseudo_thread_id';
+select * from performance_schema.global_variables where variable_name='pseudo_thread_id';
 VARIABLE_NAME	VARIABLE_VALUE
-select variable_value from information_schema.session_variables where variable_name='pseudo_thread_id';
+select variable_value from performance_schema.session_variables where variable_name='pseudo_thread_id';
 variable_value
 42
 set global pseudo_thread_id=1;

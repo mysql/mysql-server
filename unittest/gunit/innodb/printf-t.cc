@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -48,11 +48,11 @@ TEST(hainnodb, UtMySnprintf)
 
 	bufsz = sizeof buf;
 #define ARGS buf, bufsz, "foo %u " IB_ID_FMT ".", 1, (trx_id_t) -1
-	ut_snprintf(ARGS);
+	snprintf(ARGS);
 	test_snprintf("foo 1 18446744073709551615.", ARGS);
 
 	bufsz = 25;
-	ut_snprintf(ARGS); EXPECT_STREQ(buf, "foo 1 184467440737095516");
+	snprintf(ARGS); EXPECT_STREQ(buf, "foo 1 184467440737095516");
 	my_snprintf(ARGS); EXPECT_STREQ(buf, "foo 1 .");
 	bufsz = sizeof buf;
 #undef ARGS
@@ -65,21 +65,21 @@ TEST(hainnodb, UtMySnprintf)
 	a, b, c, b
 
 	a = 0, b = 1, c = 2;
-	ut_snprintf(ARGS);
+	snprintf(ARGS);
 	test_snprintf(
 		"0/1/2/0000000000000001*", ARGS);
 	a = -1, b = -2, c = -3;
-	ut_snprintf(ARGS);
+	snprintf(ARGS);
 	test_snprintf(
 		"4294967295/18446744073709551614/-3/fffffffffffffffe*", ARGS);
 
 	a = 1234567890, b = 12345678901234567890ULL, c = static_cast<int64_t>(b);
-	ut_snprintf(ARGS);
+	snprintf(ARGS);
 	test_snprintf(
 		"1234567890/12345678901234567890/-6101065172474983726/"
 		"ab54a98ceb1f0ad2*", ARGS);
 	a = -1234567890, c = -8765432109876543210LL, b = ib_uint64_t (c);
-	ut_snprintf(ARGS);
+	snprintf(ARGS);
 	test_snprintf(
 		"3060399406/9681311963833008406/-8765432109876543210/"
 		"865aedeff4018116*", ARGS);

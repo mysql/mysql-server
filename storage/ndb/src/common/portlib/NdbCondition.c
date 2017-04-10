@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,7 +20,6 @@
 
 #include <NdbCondition.h>
 #include <NdbMutex.h>
-#include <NdbMem.h>
 
 static int init = 0;
 #ifdef HAVE_CLOCK_GETTIME
@@ -55,7 +54,7 @@ NdbCondition_initialize()
   clock_id = CLOCK_HIGHRES;
 #endif
 
-  if (clock_gettime(clock_id, &tick_time) != 0)
+  if ((res = clock_gettime(clock_id, &tick_time)) != 0)
   {
     assert(FALSE);
     goto nogo;
@@ -128,8 +127,7 @@ NdbCondition_Create(void)
 {
   struct NdbCondition* tmpCond;
 
-  tmpCond = (struct NdbCondition*)NdbMem_Allocate(sizeof(struct NdbCondition));
-
+  tmpCond = (struct NdbCondition*)malloc(sizeof(struct NdbCondition));
   if (tmpCond == NULL)
     return NULL;
 
@@ -195,6 +193,36 @@ NdbCondition_ComputeAbsTime(struct timespec * abstime, unsigned msecs)
   }
 #else
   set_timespec_nsec(abstime,msecs*1000000ULL);
+#endif
+}
+
+void
+NdbCondition_ComputeAbsTime_ns(struct timespec * abstime, Uint64 nsecs)
+{
+#ifndef NDB_WIN
+#ifdef HAVE_CLOCK_GETTIME
+  clock_gettime(clock_id, abstime);
+#else
+  {
+    struct timeval tick_time;
+    gettimeofday(&tick_time, 0);
+    abstime->tv_sec  = tick_time.tv_sec;
+    abstime->tv_nsec = tick_time.tv_usec * 1000;
+  }
+#endif
+
+  nsecs += abstime->tv_nsec;
+
+  if (nsecs >= 1000*1000*1000) {
+    abstime->tv_sec  += (nsecs / (1000*1000*1000));
+    abstime->tv_nsec  = (nsecs % (1000*1000*1000));
+  }
+  else
+  {
+    abstime->tv_nsec  = nsecs;
+  }
+#else
+  set_timespec_nsec(abstime,nsecs);
 #endif
 }
 

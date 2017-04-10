@@ -23,8 +23,6 @@ Policy based mutexes.
 Created 2013-03-26 Sunny Bains.
 ***********************************************************************/
 
-#ifndef UNIV_INNOCHECKSUM
-
 #ifndef ib0mutex_h
 #define ib0mutex_h
 
@@ -1081,7 +1079,7 @@ struct PolicyMutex
 	void pfs_add(mysql_pfs_key_t key) UNIV_NOTHROW
 	{
 		ut_ad(m_ptr == 0);
-		m_ptr = PSI_MUTEX_CALL(init_mutex)(key, this);
+		m_ptr = PSI_MUTEX_CALL(init_mutex)(key.m_value, this);
 	}
 
 private:
@@ -1162,5 +1160,3 @@ private:
 };
 
 #endif /* ib0mutex_h */
-
-#endif /* !UNIV_INNOCHECKSUM */

@@ -17,52 +17,52 @@ innodb_ft_enable_diag_print	OFF
 show session variables like 'innodb_ft_enable_diag_print';
 Variable_name	Value
 innodb_ft_enable_diag_print	OFF
-select * from information_schema.global_variables where variable_name='innodb_ft_enable_diag_print';
+select * from performance_schema.global_variables where variable_name='innodb_ft_enable_diag_print';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_FT_ENABLE_DIAG_PRINT	OFF
-select * from information_schema.session_variables where variable_name='innodb_ft_enable_diag_print';
+innodb_ft_enable_diag_print	OFF
+select * from performance_schema.session_variables where variable_name='innodb_ft_enable_diag_print';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_FT_ENABLE_DIAG_PRINT	OFF
+innodb_ft_enable_diag_print	OFF
 set global innodb_ft_enable_diag_print='OFF';
 select @@global.innodb_ft_enable_diag_print;
 @@global.innodb_ft_enable_diag_print
 0
-select * from information_schema.global_variables where variable_name='innodb_ft_enable_diag_print';
+select * from performance_schema.global_variables where variable_name='innodb_ft_enable_diag_print';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_FT_ENABLE_DIAG_PRINT	OFF
-select * from information_schema.session_variables where variable_name='innodb_ft_enable_diag_print';
+innodb_ft_enable_diag_print	OFF
+select * from performance_schema.session_variables where variable_name='innodb_ft_enable_diag_print';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_FT_ENABLE_DIAG_PRINT	OFF
+innodb_ft_enable_diag_print	OFF
 set @@global.innodb_ft_enable_diag_print=1;
 select @@global.innodb_ft_enable_diag_print;
 @@global.innodb_ft_enable_diag_print
 1
-select * from information_schema.global_variables where variable_name='innodb_ft_enable_diag_print';
+select * from performance_schema.global_variables where variable_name='innodb_ft_enable_diag_print';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_FT_ENABLE_DIAG_PRINT	ON
-select * from information_schema.session_variables where variable_name='innodb_ft_enable_diag_print';
+innodb_ft_enable_diag_print	ON
+select * from performance_schema.session_variables where variable_name='innodb_ft_enable_diag_print';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_FT_ENABLE_DIAG_PRINT	ON
+innodb_ft_enable_diag_print	ON
 set global innodb_ft_enable_diag_print=0;
 select @@global.innodb_ft_enable_diag_print;
 @@global.innodb_ft_enable_diag_print
 0
-select * from information_schema.global_variables where variable_name='innodb_ft_enable_diag_print';
+select * from performance_schema.global_variables where variable_name='innodb_ft_enable_diag_print';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_FT_ENABLE_DIAG_PRINT	OFF
-select * from information_schema.session_variables where variable_name='innodb_ft_enable_diag_print';
+innodb_ft_enable_diag_print	OFF
+select * from performance_schema.session_variables where variable_name='innodb_ft_enable_diag_print';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_FT_ENABLE_DIAG_PRINT	OFF
+innodb_ft_enable_diag_print	OFF
 set @@global.innodb_ft_enable_diag_print='ON';
 select @@global.innodb_ft_enable_diag_print;
 @@global.innodb_ft_enable_diag_print
 1
-select * from information_schema.global_variables where variable_name='innodb_ft_enable_diag_print';
+select * from performance_schema.global_variables where variable_name='innodb_ft_enable_diag_print';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_FT_ENABLE_DIAG_PRINT	ON
-select * from information_schema.session_variables where variable_name='innodb_ft_enable_diag_print';
+innodb_ft_enable_diag_print	ON
+select * from performance_schema.session_variables where variable_name='innodb_ft_enable_diag_print';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_FT_ENABLE_DIAG_PRINT	ON
+innodb_ft_enable_diag_print	ON
 set session innodb_ft_enable_diag_print='OFF';
 ERROR HY000: Variable 'innodb_ft_enable_diag_print' is a GLOBAL variable and should be set with SET GLOBAL
 set @@session.innodb_ft_enable_diag_print='ON';
@@ -78,12 +78,12 @@ set global innodb_ft_enable_diag_print=-3;
 select @@global.innodb_ft_enable_diag_print;
 @@global.innodb_ft_enable_diag_print
 1
-select * from information_schema.global_variables where variable_name='innodb_ft_enable_diag_print';
+select * from performance_schema.global_variables where variable_name='innodb_ft_enable_diag_print';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_FT_ENABLE_DIAG_PRINT	ON
-select * from information_schema.session_variables where variable_name='innodb_ft_enable_diag_print';
+innodb_ft_enable_diag_print	ON
+select * from performance_schema.session_variables where variable_name='innodb_ft_enable_diag_print';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_FT_ENABLE_DIAG_PRINT	ON
+innodb_ft_enable_diag_print	ON
 set global innodb_ft_enable_diag_print='AUTO';
 ERROR 42000: Variable 'innodb_ft_enable_diag_print' can't be set to the value of 'AUTO'
 SET @@global.innodb_ft_enable_diag_print = @start_global_value;

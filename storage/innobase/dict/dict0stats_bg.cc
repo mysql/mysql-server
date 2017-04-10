@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2012, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2012, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -23,18 +23,19 @@ Code used for background table and index stats gathering.
 Created Apr 25, 2012 Vasil Dimov
 *******************************************************/
 
+#include "dict0stats_bg.h"
+
+#include <stddef.h>
+#include <sys/types.h>
+#include <vector>
+
 #include "dict0dict.h"
 #include "dict0stats.h"
-#include "dict0stats_bg.h"
+#include "my_inttypes.h"
+#include "os0thread-create.h"
 #include "row0mysql.h"
 #include "srv0start.h"
 #include "ut0new.h"
-
-#ifdef UNIV_NONINL
-# include "dict0stats_bg.ic"
-#endif
-
-#include <vector>
 
 /** Minimum time interval between stats recalc for a given table */
 #define MIN_RECALC_INTERVAL	10 /* seconds */
@@ -46,7 +47,7 @@ os_event_t			dict_stats_event = NULL;
 
 #ifdef UNIV_DEBUG
 /** Used by SET GLOBAL innodb_dict_stats_disabled_debug = 1; */
-my_bool				innodb_dict_stats_disabled_debug;
+bool				innodb_dict_stats_disabled_debug;
 
 static os_event_t		dict_stats_disabled_event;
 #endif /* UNIV_DEBUG */
@@ -113,6 +114,7 @@ dict_stats_recalc_pool_deinit()
 	recalc_pool->clear();
 
 	UT_DELETE(recalc_pool);
+	recalc_pool = NULL;
 }
 
 /*****************************************************************//**
@@ -270,6 +272,10 @@ dict_stats_thread_deinit()
 	ut_a(!srv_read_only_mode);
 	ut_ad(!srv_dict_stats_thread_active);
 
+	if (recalc_pool == NULL) {
+		return;
+	}
+
 	dict_stats_recalc_pool_deinit();
 
 	mutex_free(&recalc_pool_mutex);
@@ -318,7 +324,7 @@ dict_stats_process_entry_from_recalc_pool()
 	}
 
 	/* Check whether table is corrupted */
-	if (table->corrupted) {
+	if (table->is_corrupted()) {
 		dict_table_close(table, TRUE, FALSE);
 		mutex_exit(&dict_sys->mutex);
 		return;
@@ -375,7 +381,7 @@ dict_stats_disabled_debug_update(
 	/* This method is protected by mutex, as every SET GLOBAL .. */
 	ut_ad(dict_stats_disabled_event != NULL);
 
-	const bool disable = *static_cast<const my_bool*>(save);
+	const bool disable = *static_cast<const bool*>(save);
 
 	const int64_t sig_count = os_event_reset(dict_stats_disabled_event);
 
@@ -388,27 +394,17 @@ dict_stats_disabled_debug_update(
 }
 #endif /* UNIV_DEBUG */
 
-/*****************************************************************//**
-This is the thread for background stats gathering. It pops tables, from
+/** This is the thread for background stats gathering. It pops tables, from
 the auto recalc list and proceeds them, eventually recalculating their
-statistics.
-@return this function does not return, it calls os_thread_exit() */
-extern "C"
-os_thread_ret_t
-DECLARE_THREAD(dict_stats_thread)(
-/*==============================*/
-	void*	arg MY_ATTRIBUTE((unused)))	/*!< in: a dummy parameter
-						required by os_thread_create */
+statistics. */
+void
+dict_stats_thread()
 {
-	ut_a(!srv_read_only_mode);
-
 	my_thread_init();
 
-#ifdef UNIV_PFS_THREAD
-	pfs_register_thread(dict_stats_thread_key);
-#endif /* UNIV_PFS_THREAD */
+	ut_a(!srv_read_only_mode);
 
-	srv_dict_stats_thread_active = TRUE;
+	srv_dict_stats_thread_active = true;
 
 	while (!dict_stats_start_shutdown) {
 
@@ -440,16 +436,11 @@ DECLARE_THREAD(dict_stats_thread)(
 		os_event_reset(dict_stats_event);
 	}
 
-	srv_dict_stats_thread_active = FALSE;
+	srv_dict_stats_thread_active = false;
 
 	os_event_set(dict_stats_shutdown_event);
+
 	my_thread_end();
-
-	/* We count the number of threads in os_thread_exit(). A created
-	thread should always use that to exit instead of return(). */
-	os_thread_exit();
-
-	OS_THREAD_DUMMY_RETURN;
 }
 
 /** Shutdown the dict stats thread. */

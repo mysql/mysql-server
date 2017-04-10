@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,11 +18,28 @@
    Implementation of the Optimizer trace API (WL#5257)
 */
 
-#include "opt_trace.h"
-#include "mysqld.h"    // system_charset_info
+#include "sql/opt_trace.h"
+
+#include <assert.h>
+#include <stdio.h>
+#include <new>
+
+#include "current_thd.h"
+#include "enum_query_type.h"
+#include "handler.h"
 #include "item.h"      // Item
-#include "sql_string.h" // String
+#include "key.h"
 #include "m_string.h"  // _dig_vec_lower
+#include "my_dbug.h"
+#include "my_pointer_arithmetic.h"
+#include "my_sys.h"
+#include "mysql/psi/psi_base.h"
+#include "mysql/service_my_snprintf.h"
+#include "mysqld_error.h"
+#include "prealloced_array.h"
+#include "sql_string.h" // String
+#include "system_variables.h"
+#include "table.h"
 
 #ifdef OPTIMIZER_TRACE
 
@@ -284,13 +301,6 @@ void Opt_trace_struct::do_destruct()
 }
 
 
-/**
-   @note add() has an up-front if(), hopefully inlined, so that in the common
-   case - tracing run-time disabled - we have no function call. If tracing is
-   enabled, we call do_add().
-   In a 20-table plan search (as in BUG#50595), the execution time was
-   decreased from 2.6 to 2.0 seconds thanks to this inlined-if trick.
-*/
 Opt_trace_struct& Opt_trace_struct::do_add(const char *key, const char *val,
                                            size_t val_length,
                                            bool escape)
@@ -1152,8 +1162,9 @@ void Opt_trace_context::purge_stmts(bool purge_all)
     DBUG_VOID_RETURN;
   }
   long idx;
-  compile_time_assert(
-    static_cast<long>(static_cast<size_t>(LONG_MAX)) == LONG_MAX);
+  static_assert(
+    static_cast<long>(static_cast<size_t>(LONG_MAX)) == LONG_MAX,
+    "Every positive long must be able to round-trip through size_t.");
   /*
     Start from the newest traces (array's end), scroll back in time. This
     direction is necessary, as we may delete elements from the array (assume

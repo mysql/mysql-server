@@ -23,7 +23,9 @@ alter table child add constraint fk1 foreign key (a) references parent(a);
 alter table child add constraint fk2 foreign key (b) references parent(a);
 alter table child add constraint fk3 foreign key (c) references parent(a);
 
+--disable_warnings
 show create table child;
+--enable_warnings
 
 # Parent uk
 # child pk, uk, oi
@@ -31,7 +33,9 @@ alter table child add constraint fk4 foreign key (a) references parent(b);
 alter table child add constraint fk5 foreign key (b) references parent(b);
 alter table child add constraint fk6 foreign key (c) references parent(b);
 
+--disable_warnings
 show create table child;
+--enable_warnings
 
 # Parent oi
 # child pk, uk, oi
@@ -88,6 +92,8 @@ create table child (
   constraint fk6 foreign key(c) references parent (b)
 ) engine=ndbcluster;
 
+--disable_warnings
 show create table child;
+--enable_warnings
 drop table child, parent;
 

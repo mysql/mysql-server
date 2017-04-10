@@ -1,0 +1,120 @@
+# Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; version 2 of the License.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+#
+# GENERATED FILE
+#
+cmd: test_event
+args: -n createDropEvent_NF T1
+max-time: 1200
+
+cmd: test_event
+args: -n Apiv2-check_event_received_after_restart T1
+max-time: 300
+
+cmd: test_event
+args: -n Apiv2-check_drop_event_op_after_restart T1
+max-time: 300
+
+cmd: test_event
+args: -n SubscribeUnsubscribe -l1000 T1
+max-time: 180
+
+cmd: test_event
+args: -n SubscribeUnsubscribeWithLoad -l1000 T1
+max-time: 180
+
+cmd: testFK
+args: -n DropTableWithFKDuringRestart T1
+max-time : 300
+
+cmd: test_event
+args: -n getEventBufferUsage2 T1
+max-time : 300
+
+cmd: testNdbApi
+args: -n GetNdbIndexOperationTest I3
+max-time : 180
+
+cmd: testNdbApi
+args: -n GetNdbIndexOperationBatchTest I3
+max-time : 180
+
+cmd: testNdbApi
+args: -n GetNdbIndexOperationParallelDroppingTest I3
+max-time : 300
+
+cmd: testNodeRestart
+args: -n ArbitrationWithApiNodeFailure T1
+
+cmd: testScan
+args: -n ScanDuringExpandAndShrinkBack T1
+max-time : 180
+
+cmd: testScan
+args: -n ScanDuringShrinkAndExpandBack T1
+max-time : 180
+
+cmd: testSystemRestart
+args: -n StaleNodeTakeoverDuringSR T1
+max-time : 300
+
+cmd: testFK
+args: -n AbortWithSlowChildScans T1
+max-time : 180
+
+cmd: testNodeRestart
+args: -n RestoreOlderLCP T1
+
+cmd: testNdbApi
+args: -n CheckTransId T1
+max-time : 180
+
+cmd: testNdbApi
+args: -n CheckTransIdMt T1
+max-time : 180
+
+cmd: testNdbApi
+args: -n CheckDisconnectCommit T1
+max-time : 180
+
+cmd: testNdbApi
+args: -n CheckDisconnectComplete T1
+max-time : 180
+
+cmd: testNdbApi
+args: -n CheckSlowCommit T1
+max-time : 180
+
+cmd: testNodeRestart
+args: -n StartDuringNodeRestart T1
+max-time : 300
+ 
+cmd: testRedo
+args: -n CheckLCPStartsAfterSR T1
+max-time: 1440
+ 
+cmd: testRedo
+args: -n CheckLCPStartsAfterNR T1
+max-time: 1440
+
+cmd: testDict
+args: -n StoreExtraMetadata T2
+max-time: 180
+
+cmd: testDict
+args: -n StoreExtraMetadataError T3
+max-time: 180
+
+

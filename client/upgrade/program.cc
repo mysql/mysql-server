@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,28 +15,37 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "../client_priv.h"
-#include <string>
-#include <sstream>
-#include <vector>
+#include <errno.h>
+#include <fcntl.h>
+#include <stdlib.h>
+#include <sys/types.h>
 #include <algorithm>
-#include <memory>
+#include <functional>
 #include <iostream>
-#include "sql_string.h"
-#include "mysqld_error.h"
-#include "my_default.h"
-#include "check/mysqlcheck.h"
+#include <memory>
+#include <sstream>
+#include <string>
+#include <vector>
+
+#include "../client_priv.h"
 #include "../scripts/mysql_fix_privilege_tables_sql.c"
 #include "../scripts/sql_commands_sys_schema.h"
-
+#include "../scripts/sql_commands_system_tables_data_fix.h"
 #include "base/abstract_connection_program.h"
 #include "base/abstract_options_provider.h"
-#include "base/show_variable_query_extractor.h"
 #include "base/mysql_query_runner.h"
+#include "base/show_variable_query_extractor.h"
+#include "check/mysqlcheck.h"
+#include "my_default.h"
+#include "my_inttypes.h"
+#include "my_io.h"
+#include "mysqld_error.h"
+#include "sql_string.h"
 
+using namespace Mysql::Tools::Base;
+using std::placeholders::_1;
 using std::string;
 using std::vector;
-using namespace Mysql::Tools::Base;
 using std::stringstream;
 
 int mysql_check_errors;
@@ -150,8 +159,8 @@ public:
     // Remember to call mysql_close()
     Mysql_connection_holder connection_holder(m_mysql_connection);
     this->m_query_runner= new Mysql_query_runner(this->m_mysql_connection);
-    this->m_query_runner->add_message_callback(new Instance_callback
-      <int64, const Message_data&, Program>(this, &Program::process_error));
+    this->m_query_runner->add_message_callback(new std::function<
+      int64(const Message_data&)>(std::bind(&Program::process_error, this, _1)));
 
     /*
       Master and slave should be upgraded separately. All statements executed
@@ -211,14 +220,15 @@ public:
       return EXIT_UPGRADING_QUERIES_ERROR;
     }
 
+    if (this->run_commands_system_tables_data_fix() != 0)
+    {
+      return EXIT_UPGRADING_QUERIES_ERROR;
+    }
+
     if (this->m_upgrade_systables_only == false)
     {
       this->print_verbose_message("Checking system database.");
 
-      if (this->run_mysqlcheck_mysql_db_fixnames() != 0)
-      {
-        return this->print_error(EXIT_MYSQL_CHECK_ERROR, "Error during call to mysql_check.");
-      }
       if (this->run_mysqlcheck_mysql_db_upgrade() != 0)
       {
         return this->print_error(EXIT_MYSQL_CHECK_ERROR, "Error during call to mysql_check.");
@@ -475,10 +485,6 @@ public:
     {
       this->print_verbose_message("Checking databases.");
 
-      if (this->run_mysqlcheck_fixnames() != 0)
-      {
-        return this->print_error(EXIT_MYSQL_CHECK_ERROR, "Error during call to mysql_check.");
-      }
       if (this->run_mysqlcheck_upgrade() != 0)
       {
         return this->print_error(EXIT_MYSQL_CHECK_ERROR, "Error during call to mysql_check.");
@@ -585,10 +591,10 @@ private:
     int64 result;
 
     Mysql_query_runner runner(*this->m_query_runner);
-    Instance_callback<int64, const Mysql_query_runner::Row&, Program>
-      result_cb(this, &Program::result_callback);
-    Instance_callback<int64, const Message_data&, Program>
-      message_cb(this, &Program::fix_privilage_tables_error);
+    std::function<int64(const Mysql_query_runner::Row&)> result_cb(
+      std::bind(&Program::result_callback, this, _1));
+    std::function<int64(const Message_data&)> message_cb(
+      std::bind(&Program::fix_privilage_tables_error, this, _1));
 
     runner.add_result_callback(&result_cb);
     runner.add_message_callback(&message_cb);
@@ -618,6 +624,42 @@ private:
   }
 
   /**
+    Update system table data
+
+    @retval 0 Success
+    @retval non-zero Error
+  */
+  int run_commands_system_tables_data_fix()
+  {
+    const char **query_ptr;
+    int result;
+
+    Mysql_query_runner runner(*this->m_query_runner);
+    std::function<int64(const Mysql_query_runner::Row&)> result_cb(
+      std::bind(&Program::result_callback, this, _1));
+    std::function<int64(const Message_data&)> message_cb(
+      std::bind(&Program::fix_privilage_tables_error, this, _1));
+
+    runner.add_result_callback(&result_cb);
+    runner.add_message_callback(&message_cb);
+
+    this->print_verbose_message("Upgrading system table data.");
+
+    for (query_ptr= &mysql_system_tables_data_fix[0];
+         *query_ptr != NULL;
+         query_ptr++)
+    {
+      result= runner.run_query(*query_ptr);
+      if (!this->m_ignore_errors && result != 0)
+      {
+        return result;
+      }
+    }
+
+    return 0;
+  }
+
+  /**
     Update the sys schema
    */
   int run_sys_schema_upgrade()
@@ -626,10 +668,10 @@ private:
     int result;
 
     Mysql_query_runner runner(*this->m_query_runner);
-    Instance_callback<int64, const Mysql_query_runner::Row&, Program>
-      result_cb(this, &Program::result_callback);
-    Instance_callback<int64, const Message_data&, Program>
-      message_cb(this, &Program::fix_privilage_tables_error);
+    std::function<int64(const Mysql_query_runner::Row&)> result_cb(
+      std::bind(&Program::result_callback, this, _1));
+    std::function<int64(const Message_data&)> message_cb(
+      std::bind(&Program::fix_privilage_tables_error, this, _1));
 
     runner.add_result_callback(&result_cb);
     runner.add_message_callback(&message_cb);
@@ -905,20 +947,6 @@ private:
   }
 
   /**
-    Upgrade all tables and DBs names in the server using mysqlcheck.
-   */
-  int run_mysqlcheck_fixnames()
-  {
-    Mysql::Tools::Check::Program mysql_check;
-    this->prepare_mysqlcheck(mysql_check)
-      ->enable_fixing_db_names(true)
-      ->enable_fixing_table_names(true)
-      ->set_skip_database("mysql")
-      ->upgrade_all_databases(this->m_mysql_connection);
-    return mysql_check_errors;
-  }
-
-  /**
     Check and upgrade(if necessary) all system tables in the server using
     mysqlcheck.
    */
@@ -932,23 +960,6 @@ private:
       ->enable_auto_repair(true)
       ->enable_upgrade(true)
       ->check_databases(this->m_mysql_connection, databases);
-    return mysql_check_errors;
-  }
-
-  /**
-    Upgrade all system tables and system DB names in the server using
-    mysqlcheck.
-   */
-  int run_mysqlcheck_mysql_db_fixnames()
-  {
-    vector<string> databases;
-    Mysql::Tools::Check::Program mysql_check;
-
-    databases.push_back("mysql");
-    this->prepare_mysqlcheck(mysql_check)
-      ->enable_fixing_db_names(true)
-      ->enable_fixing_table_names(true)
-      ->upgrade_databases(this->m_mysql_connection, databases);
     return mysql_check_errors;
   }
 

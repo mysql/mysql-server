@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -57,7 +57,7 @@ buffer pool; the latter method is used for very big heaps */
 					allocation functions can return
 					NULL. */
 
-/** Different type of heaps in terms of which datastructure is using them */
+/** Different type of heaps in terms of which data structure is using them */
 #define MEM_HEAP_FOR_BTR_SEARCH		(MEM_HEAP_BTR_SEARCH | MEM_HEAP_BUFFER)
 #define MEM_HEAP_FOR_PAGE_HASH		(MEM_HEAP_DYNAMIC)
 #define MEM_HEAP_FOR_RECV_SYS		(MEM_HEAP_BUFFER)
@@ -73,12 +73,36 @@ allocations of small buffers. */
 	(UNIV_PAGE_SIZE >= 16384 ? 8000 : MEM_MAX_ALLOC_IN_BUF)
 
 /** If a memory heap is allowed to grow into the buffer pool, the following
-is the maximum size for a single allocated buffer: */
-#define MEM_MAX_ALLOC_IN_BUF		(UNIV_PAGE_SIZE - 200)
+is the maximum size for a single allocated buffer
+(from UNIV_PAGE_SIZE we subtract MEM_BLOCK_HEADER_SIZE and 2*MEM_NO_MANS_LAND
+since it's something we always need to put. Since in MEM_SPACE_NEEDED we round
+n to the next multiple of UNIV_MEM_ALINGMENT, we need to cut from the rest the
+part that cannot be divided by UNIV_MEM_ALINGMENT): */
+#define MEM_MAX_ALLOC_IN_BUF		((UNIV_PAGE_SIZE - \
+	MEM_BLOCK_HEADER_SIZE - \
+	2 * MEM_NO_MANS_LAND) & ~(UNIV_MEM_ALIGNMENT - 1))
+
+/* Before and after any allocated object we will put MEM_NO_MANS_LAND bytes of
+some data (different before and after) which is supposed not to be modified by
+anyone. This way it would be much easier to determine whether anyone was
+writing on not his memory, especially that Valgrind can assure there was no
+reads or writes to this memory. */
+#ifdef UNIV_DEBUG
+const int MEM_NO_MANS_LAND = 16;
+#else
+const int MEM_NO_MANS_LAND = 0;
+#endif
+
+/* Byte that we would put before allocated object MEM_NO_MANS_LAND times.*/
+const byte MEM_NO_MANS_LAND_BEFORE_BYTE = 0xCE;
+/* Byte that we would put after allocated object MEM_NO_MANS_LAND times.*/
+const byte MEM_NO_MANS_LAND_AFTER_BYTE = 0xDF;
 
 /** Space needed when allocating for a user a field of length N.
-The space is allocated only in multiples of UNIV_MEM_ALIGNMENT.  */
-#define MEM_SPACE_NEEDED(N) ut_calc_align((N), UNIV_MEM_ALIGNMENT)
+The space is allocated only in multiples of UNIV_MEM_ALIGNMENT. In debug mode
+contains two areas of no mans lands before and after the buffer requested. */
+#define MEM_SPACE_NEEDED(N) \
+	ut_calc_align(N + 2 * MEM_NO_MANS_LAND, UNIV_MEM_ALIGNMENT)
 
 #ifdef UNIV_DEBUG
 /** Macro for memory heap creation.
@@ -209,64 +233,74 @@ mem_heap_is_top(
 	ulint		buf_sz)
 	MY_ATTRIBUTE((warn_unused_result));
 
-/*****************************************************************//**
-Allocate a new chunk of memory from a memory heap, possibly discarding
-the topmost element. If the memory chunk specified with (top, top_sz)
-is the topmost element, then it will be discarded, otherwise it will
-be left untouched and this function will be equivallent to
-mem_heap_alloc().
+/** Allocate a new chunk of memory from a memory heap, possibly discarding the
+topmost element. If the memory chunk specified with (top, top_sz) is the
+topmost element, then it will be discarded, otherwise it will be left untouched
+and this function will be equivallent to mem_heap_alloc().
+@param[in,out]	heap	memory heap
+@param[in]	top	chunk to discard if possible
+@param[in]	top_sz	size of top in bytes
+@param[in]	new_sz	desired size of the new chunk
 @return allocated storage, NULL if did not succeed (only possible for
 MEM_HEAP_BTR_SEARCH type heaps) */
 UNIV_INLINE
 void*
 mem_heap_replace(
-/*=============*/
-	mem_heap_t*	heap,	/*!< in/out: memory heap */
-	const void*	top,	/*!< in: chunk to discard if possible */
-	ulint		top_sz,	/*!< in: size of top in bytes */
-	ulint		new_sz);/*!< in: desired size of the new chunk */
-/*****************************************************************//**
-Allocate a new chunk of memory from a memory heap, possibly discarding
-the topmost element and then copy the specified data to it. If the memory
-chunk specified with (top, top_sz) is the topmost element, then it will be
-discarded, otherwise it will be left untouched and this function will be
-equivallent to mem_heap_dup().
+	mem_heap_t*	heap,
+	const void*	top,
+	ulint		top_sz,
+	ulint		new_sz);
+
+/** Allocate a new chunk of memory from a memory heap, possibly discarding the
+topmost element and then copy the specified data to it. If the memory chunk
+specified with (top, top_sz) is the topmost element, then it will be discarded,
+otherwise it will be left untouched and this function will be equivalent to
+mem_heap_dup().
+@param[in,out]	heap	memory heap
+@param[in]	top	chunk to discard if possible
+@param[in]	top_sz	size of top in bytes
+@param[in]	data	new data to duplicate
+@param[in]	data_sz	size of data in bytes
 @return allocated storage, NULL if did not succeed (only possible for
 MEM_HEAP_BTR_SEARCH type heaps) */
 UNIV_INLINE
 void*
 mem_heap_dup_replace(
-/*=================*/
-	mem_heap_t*	heap,	/*!< in/out: memory heap */
-	const void*	top,	/*!< in: chunk to discard if possible */
-	ulint		top_sz,	/*!< in: size of top in bytes */
-	const void*	data,	/*!< in: new data to duplicate */
-	ulint		data_sz);/*!< in: size of data in bytes */
-/*****************************************************************//**
-Allocate a new chunk of memory from a memory heap, possibly discarding
-the topmost element and then copy the specified string to it. If the memory
-chunk specified with (top, top_sz) is the topmost element, then it will be
-discarded, otherwise it will be left untouched and this function will be
-equivallent to mem_heap_strdup().
+	mem_heap_t*	heap,
+	const void*	top,
+	ulint		top_sz,
+	const void*	data,
+	ulint		data_sz);
+
+/** Allocate a new chunk of memory from a memory heap, possibly discarding the
+topmost element and then copy the specified string to it. If the memory chunk
+specified with (top, top_sz) is the topmost element, then it will be discarded,
+otherwise it will be left untouched and this function will be equivalent to
+mem_heap_strdup().
+@param[in,out]	heap	memory heap
+@param[in]	top	chunk to discard if possible
+@param[in]	top_sz	size of top in bytes
+@param[in]	str	new data to duplicate
 @return allocated string, NULL if did not succeed (only possible for
 MEM_HEAP_BTR_SEARCH type heaps) */
 UNIV_INLINE
 char*
 mem_heap_strdup_replace(
-/*====================*/
-	mem_heap_t*	heap,	/*!< in/out: memory heap */
-	const void*	top,	/*!< in: chunk to discard if possible */
-	ulint		top_sz,	/*!< in: size of top in bytes */
-	const char*	str);	/*!< in: new data to duplicate */
-/*****************************************************************//**
-Frees the topmost element in a memory heap.
+	mem_heap_t*	heap,
+	const void*	top,
+	ulint		top_sz,
+	const char*	str);
+
+/** Frees the topmost element in a memory heap.
+@param[in]	heap	memory heap
+@param[in]	n	size of the topmost element
 The size of the element must be given. */
 UNIV_INLINE
 void
 mem_heap_free_top(
-/*==============*/
-	mem_heap_t*	heap,	/*!< in: memory heap */
-	ulint		n);	/*!< in: size of the topmost element */
+	mem_heap_t*	heap,
+	ulint		n);
+
 /*****************************************************************//**
 Returns the space in bytes occupied by a memory heap. */
 UNIV_INLINE
@@ -275,23 +309,23 @@ mem_heap_get_size(
 /*==============*/
 	mem_heap_t*	heap);		/*!< in: heap */
 
-/**********************************************************************//**
-Duplicates a NUL-terminated string.
+/** Duplicates a NUL-terminated string.
+@param[in]	str	string to be copied
 @return own: a copy of the string, must be deallocated with ut_free */
 UNIV_INLINE
 char*
 mem_strdup(
-/*=======*/
-	const char*	str);	/*!< in: string to be copied */
-/**********************************************************************//**
-Makes a NUL-terminated copy of a nonterminated string.
+	const char*	str);
+
+/** Makes a NUL-terminated copy of a nonterminated string.
+@param[in]	str	string to be copied
+@param[in]	len	length of str, in bytes
 @return own: a copy of the string, must be deallocated with ut_free */
 UNIV_INLINE
 char*
 mem_strdupl(
-/*========*/
-	const char*	str,	/*!< in: string to be copied */
-	ulint		len);	/*!< in: length of str, in bytes */
+	const char*	str,
+	ulint		len);
 
 /** Duplicates a NUL-terminated string, allocated from a memory heap.
 @param[in]	heap	memory heap where string is allocated
@@ -302,17 +336,18 @@ mem_heap_strdup(
 	mem_heap_t*	heap,
 	const char*	str);
 
-/**********************************************************************//**
-Makes a NUL-terminated copy of a nonterminated string,
-allocated from a memory heap.
+/** Makes a NUL-terminated copy of a nonterminated string, allocated from a
+memory heap.
+@param[in]	heap	memory heap where string is allocated
+@param[in]	str	string to be copied
+@param[in]	len	length of str, in bytes
 @return own: a copy of the string */
 UNIV_INLINE
 char*
 mem_heap_strdupl(
-/*=============*/
-	mem_heap_t*	heap,	/*!< in: memory heap where string is allocated */
-	const char*	str,	/*!< in: string to be copied */
-	ulint		len);	/*!< in: length of str, in bytes */
+	mem_heap_t*	heap,
+	const char*	str,
+	ulint		len);
 
 /**********************************************************************//**
 Concatenate two strings and return the result, using a memory heap.
@@ -368,9 +403,9 @@ mem_heap_validate(
 
 /** The info structure stored at the beginning of a heap block */
 struct mem_block_info_t {
-	ulint	magic_n;/* magic number for debugging */
+	uint64_t	magic_n;/* magic number for debugging */
 #ifdef UNIV_DEBUG
-	char	file_name[8];/* file name where the mem heap was created */
+	char	file_name[16];/* file name where the mem heap was created */
 	ulint	line;	/*!< line number where the mem heap was created */
 #endif /* UNIV_DEBUG */
 	UT_LIST_BASE_NODE_T(mem_block_t) base; /* In the first block in the
@@ -404,16 +439,14 @@ struct mem_block_info_t {
 #endif /* !UNIV_HOTBACKUP */
 };
 
-#define MEM_BLOCK_MAGIC_N	764741555
-#define MEM_FREED_BLOCK_MAGIC_N	547711122
+#define MEM_BLOCK_MAGIC_N	0x445566778899AABB
+#define MEM_FREED_BLOCK_MAGIC_N	0xBBAA998877665544
 
 /* Header size for a memory heap block */
 #define MEM_BLOCK_HEADER_SIZE	ut_calc_align(sizeof(mem_block_info_t),\
 							UNIV_MEM_ALIGNMENT)
 
-#ifndef UNIV_NONINL
 #include "mem0mem.ic"
-#endif
 
 /** A C++ wrapper class to the mem_heap_t routines, so that it can be used
 as an STL allocator */

@@ -9,8 +9,8 @@ select @@session.flush_time;
 show global variables like 'flush_time';
 show session variables like 'flush_time';
 --disable_warnings
-select * from information_schema.global_variables where variable_name='flush_time';
-select * from information_schema.session_variables where variable_name='flush_time';
+select * from performance_schema.global_variables where variable_name='flush_time';
+select * from performance_schema.session_variables where variable_name='flush_time';
 --enable_warnings
 
 #

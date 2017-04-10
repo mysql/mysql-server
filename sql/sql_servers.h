@@ -1,7 +1,7 @@
 #ifndef SQL_SERVERS_INCLUDED
 #define SQL_SERVERS_INCLUDED
 
-/* Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,13 +16,18 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
-#include "my_global.h"                  /* uint */
-#include "sql_cmd.h"
-#include "sql_string.h"
-#include "sql_alloc.h"
+#include <stddef.h>
+
+#include "lex_string.h"
+#include "my_alloc.h"
+#include "my_sqlcommand.h"
+#include "mysql/mysql_lex_string.h" // LEX_STRING
+#include "sql_alloc.h"              // Sql_alloc
+#include "sql_cmd.h"                // Sql_cmd
 
 class THD;
 struct TABLE;
+
 typedef struct st_mem_root MEM_ROOT;
 
 class FOREIGN_SERVER : public Sql_alloc

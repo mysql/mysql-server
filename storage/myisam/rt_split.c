@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2017, Oracle and/or its affiliates. All rights reserved.
    
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,10 +13,26 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include <math.h>
+#include <sys/types.h>
+
+#include "my_dbug.h"
+#include "my_inttypes.h"
 #include "myisamdef.h"
 #include "rt_index.h"
 #include "rt_key.h"
 #include "rt_mbr.h"
+
+/* Our ifdef trickery for my_isfinite does not work with gcc/solaris unless we: */
+#ifdef HAVE_IEEEFP_H
+#include <ieeefp.h>
+#endif
+
+#if defined _WIN32
+  #define my_isfinite(X) _finite(X)
+#else
+  #define my_isfinite(X) finite(X)
+#endif
 
 typedef struct
 {
@@ -66,7 +82,7 @@ static double mbr_join_square(const double *a, const double *b, int n_dim)
   }while (a != end);
 
   /* Check for infinity or NaN */
-  if (my_isinf(square) || my_isnan(square))
+  if (!my_isfinite(square))
     square = DBL_MAX;
 
   return square;

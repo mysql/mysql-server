@@ -4,7 +4,6 @@
 # Not supported in embedded
 --source include/not_embedded.inc
 
---source include/have_innodb.inc
 --source include/have_debug.inc
 --source include/have_debug_sync.inc
 --source include/big_test.inc
@@ -240,7 +239,9 @@ INSERT INTO t1  VALUES (1, ST_GeomFromText('LineString(8 8, 210 210)'));
 # Connection default will place predicate lock on follow range
 set @g1 = ST_GeomFromText('Polygon((3 3, 3 5, 5 5, 5 3, 3 3))');
 start transaction;
+--disable_warnings
 select count(*) from t1 where MBRWithin(t1.c2, @g1) for update;
+--enable_warnings
 
 connection a;
 set session innodb_lock_wait_timeout = 1;

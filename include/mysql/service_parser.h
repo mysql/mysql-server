@@ -38,7 +38,7 @@ extern "C" {
 #endif
 
 /**
-  @file service_parser
+  @file include/mysql/service_parser.h
 
   Plugin service that provides access to the parser and some operations on the
   parse tree.
@@ -61,146 +61,157 @@ int (*sql_condition_handler_function)(int sql_errno,
 
 struct st_my_thread_handle;
 
+typedef MYSQL_THD (*mysql_current_session_t)();
+
+typedef MYSQL_THD (*mysql_open_session_t)();
+
+typedef void (*mysql_start_thread_t)(MYSQL_THD thd,
+                                     void *(*callback_fun)(void*),
+                                     void *arg,
+                                     struct st_my_thread_handle *thread_handle);
+
+typedef void (*mysql_join_thread_t)(struct st_my_thread_handle *thread_handle);
+
+typedef void (*mysql_set_current_database_t)(MYSQL_THD thd, const MYSQL_LEX_STRING db);
+
+/**
+  Parses the query.
+
+  @param thd The session in which to parse.
+
+  @param query The query to parse.
+
+  @param is_prepared If non-zero, the query will be parsed as a prepared
+  statement and won't throw errors when the query string contains '?'.
+
+  @param handle_condition Callback function that is called if a condition is
+  raised during the preparation, parsing or cleanup after parsing. If this
+  argument is non-NULL, the diagnostics area will be cleared before this
+  function returns.
+
+  @param condition_handler_state Will be passed to handle_condition when
+  called. Otherwise ignored.
+
+  @retval 0 Success.
+  @retval 1 Parse error.
+*/
+typedef int (*mysql_parse_t)(MYSQL_THD thd, const MYSQL_LEX_STRING query,
+                             unsigned char is_prepared,
+                             sql_condition_handler_function handle_condition,
+                             void *condition_handler_state);
+
+typedef int (*mysql_get_statement_type_t)(MYSQL_THD thd);
+
+/**
+  Returns the digest of the last parsed statement in the session.
+
+  @param thd The session in which the statement was parsed.
+
+  @param [out] digest An area of at least size PARSER_SERVICE_DIGEST_LENGTH,
+  where the digest is written.
+
+  @retval 0 Success.
+  @retval 1 Parse error.
+*/
+typedef int (*mysql_get_statement_digest_t)(MYSQL_THD thd, unsigned char *digest);
+
+/**
+  Returns the number of parameters ('?') in the parsed query.
+  This works only if the last query was parsed as a prepared statement.
+
+  @param thd The session in which the query was parsed.
+
+  @return The number of parameter markers.
+*/
+typedef int (*mysql_get_number_params_t)(MYSQL_THD thd);
+
+/**
+  Stores in 'positions' the positions in the last parsed query of each
+  parameter marker('?'). Positions must be an already allocated array of at
+  least mysql_parser_service_st::mysql_get_number_params() size. This works
+  only if the last query was parsed as a prepared statement.
+
+  @param thd The session in which the query was parsed.
+
+  @param positions An already allocated array of at least
+  mysql_parser_service_st::mysql_get_number_params() size.
+
+  @return The number of parameter markers and hence number of written
+  positions.
+*/
+typedef int (*mysql_extract_prepared_params_t)(MYSQL_THD thd, int *positions);
+
+/**
+  Walks the tree depth first and applies a user defined function on each
+  literal.
+
+  @param thd The session in which the query was parsed.
+
+  @param processor Will be called for each literal in the parse tree.
+
+  @param arg Will be passed as argument to each call to 'processor'.
+*/
+typedef int (*mysql_visit_tree_t)(MYSQL_THD thd,
+                                  parse_node_visit_function processor,
+                                  unsigned char* arg);
+
+/**
+  Renders the MYSQL_ITEM as a string and returns a reference in the form of
+  a MYSQL_LEX_STRING. The string buffer is allocated by the server and must
+  be freed by mysql_free_string().
+
+  @param item The literal to print.
+
+  @return The result of printing the literal.
+
+  @see mysql_parser_service_st::mysql_free_string().
+*/
+typedef MYSQL_LEX_STRING (*mysql_item_string_t)(MYSQL_ITEM item);
+
+/**
+  Frees a string buffer allocated by the server.
+
+  @param string The string whose buffer will be freed.
+*/
+typedef void (*mysql_free_string_t)(MYSQL_LEX_STRING string);
+
+/**
+  Returns the current query string. This string is managed by the server and
+  should @b not be freed by a plugin.
+
+  @param thd The session in which the query was submitted.
+
+  @return The query string.
+*/
+typedef MYSQL_LEX_STRING (*mysql_get_query_t)(MYSQL_THD thd);
+
+/**
+  Returns the current query in normalized form. This string is managed by
+  the server and should @b not be freed by a plugin.
+
+  @param thd The session in which the query was submitted.
+
+  @return The query string normalized.
+*/
+typedef MYSQL_LEX_STRING (*mysql_get_normalized_query_t)(MYSQL_THD thd);
+
+
 extern struct mysql_parser_service_st {
-
-  MYSQL_THD (*mysql_current_session)();
-
-  MYSQL_THD (*mysql_open_session)();
-
-  void (*mysql_start_thread)(MYSQL_THD thd, void *(*callback_fun)(void*),
-                             void *arg,
-                             struct st_my_thread_handle *thread_handle);
-
-  void (*mysql_join_thread)(struct st_my_thread_handle *thread_handle);
-
-  void (*mysql_set_current_database)(MYSQL_THD thd, const MYSQL_LEX_STRING db);
-
-  /**
-    Parses the query.
-
-    @param thd The session in which to parse.
-
-    @param query The query to parse.
-
-    @param is_prepared If non-zero, the query will be parsed as a prepared
-    statement and won't throw errors when the query string contains '?'.
-
-    @param handle_condition Callback function that is called if a condition is
-    raised during the preparation, parsing or cleanup after parsing. If this
-    argument is non-NULL, the diagnostics area will be cleared before this
-    function returns.
-
-    @param condition_handler_state Will be passed to handle_condition when
-    called. Otherwise ignored.
-
-    @retval 0 Success.
-    @retval 1 Parse error.
-  */
-  int (*mysql_parse)(MYSQL_THD thd, const MYSQL_LEX_STRING query,
-                     unsigned char is_prepared,
-                     sql_condition_handler_function handle_condition,
-                     void *condition_handler_state);
-
-  int (*mysql_get_statement_type)(MYSQL_THD thd);
-
-  /**
-    Returns the digest of the last parsed statement in the session.
-
-    @param thd The session in which the statement was parsed.
-
-    @param digest[out] An area of at least size PARSER_SERVICE_DIGEST_LENGTH,
-    where the digest is written.
-
-    @retval 0 Success.
-    @retval 1 Parse error.
-  */
-  int (*mysql_get_statement_digest)(MYSQL_THD thd, unsigned char *digest);
-
-
-  /**
-    Returns the number of parameters ('?') in the parsed query.
-    This works only if the last query was parsed as a prepared statement.
-
-    @param thd The session in which the query was parsed.
-
-    @return The number of parameter markers.
-  */
-  int (*mysql_get_number_params)(MYSQL_THD thd);
-
-
-  /**
-    Stores in 'positions' the positions in the last parsed query of each
-    parameter marker('?'). Positions must be an already allocated array of at
-    least mysql_parser_service_st::mysql_get_number_params() size. This works
-    only if the last query was parsed as a prepared statement.
-
-    @param thd The session in which the query was parsed.
-
-    @param positions An already allocated array of at least
-    mysql_parser_service_st::mysql_get_number_params() size.
-
-    @return The number of parameter markers and hence number of written
-    positions.
-  */
-  int (*mysql_extract_prepared_params)(MYSQL_THD thd, int *positions);
-
-
-  /**
-    Walks the tree depth first and applies a user defined function on each
-    literal.
-
-    @param thd The session in which the query was parsed.
-
-    @param processor Will be called for each literal in the parse tree.
-
-    @param arg Will be passed as argument to each call to 'processor'.
-  */
-  int (*mysql_visit_tree)(MYSQL_THD thd, parse_node_visit_function processor,
-                          unsigned char* arg);
-
-
-  /**
-    Renders the MYSQL_ITEM as a string and returns a reference in the form of
-    a MYSQL_LEX_STRING. The string buffer is allocated by the server and must
-    be freed by mysql_free_string().
-
-    @param item The literal to print.
-
-    @return The result of printing the literal.
-
-    @see mysql_parser_service_st::mysql_free_string().
-  */
-  MYSQL_LEX_STRING (*mysql_item_string)(MYSQL_ITEM item);
-
-
-  /**
-    Frees a string buffer allocated by the server.
-
-    @param The string whose buffer will be freed.
-  */
-  void (*mysql_free_string)(MYSQL_LEX_STRING string);
-
-
-  /**
-    Returns the current query string. This string is managed by the server and
-    should @b not be freed by a plugin.
-
-    @param thd The session in which the query was submitted.
-
-    @return The query string.
-  */
-  MYSQL_LEX_STRING (*mysql_get_query)(MYSQL_THD thd);
-
-
-  /**
-    Returns the current query in normalized form. This string is managed by
-    the server and should @b not be freed by a plugin.
-
-    @param thd The session in which the query was submitted.
-
-    @return The query string normalized.
-  */
-  MYSQL_LEX_STRING (*mysql_get_normalized_query)(MYSQL_THD thd);
+  mysql_current_session_t mysql_current_session;
+  mysql_open_session_t mysql_open_session;
+  mysql_start_thread_t mysql_start_thread;
+  mysql_join_thread_t mysql_join_thread;
+  mysql_set_current_database_t mysql_set_current_database;
+  mysql_parse_t mysql_parse;
+  mysql_get_statement_type_t mysql_get_statement_type;
+  mysql_get_statement_digest_t mysql_get_statement_digest;
+  mysql_get_number_params_t mysql_get_number_params;
+  mysql_extract_prepared_params_t mysql_extract_prepared_params;
+  mysql_visit_tree_t mysql_visit_tree;
+  mysql_item_string_t mysql_item_string;
+  mysql_free_string_t mysql_free_string;
+  mysql_get_query_t mysql_get_query;
+  mysql_get_normalized_query_t mysql_get_normalized_query;
 } *mysql_parser_service;
 
 #ifdef MYSQL_DYNAMIC_PLUGIN

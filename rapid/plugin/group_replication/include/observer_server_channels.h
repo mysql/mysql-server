@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,6 +17,8 @@
 #define	OBSERVER_SERVER_CHANNELS
 
 #include <mysql/group_replication_priv.h>
+
+#include "my_inttypes.h"
 
 int group_replication_thread_start(Binlog_relay_IO_param *param);
 int group_replication_thread_stop(Binlog_relay_IO_param *param);

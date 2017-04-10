@@ -95,8 +95,7 @@ dict_create_index_step(
 	que_thr_t*	thr);		/*!< in: query thread */
 
 /***************************************************************//**
-Builds an index definition but doesn't update sys_table.
-@return DB_SUCCESS or error code */
+Builds an index definition but doesn't update sys_table. */
 void
 dict_build_index_def(
 /*=================*/
@@ -104,31 +103,15 @@ dict_build_index_def(
 	dict_index_t*		index,	/*!< in/out: index */
 	trx_t*			trx);	/*!< in/out: InnoDB transaction
 					handle */
-/***************************************************************//**
-Creates an index tree for the index if it is not a member of a cluster.
+/** Creates an index tree for the index if it is not a member of a cluster.
 Don't update SYSTEM TABLES.
+@param[in,out]	index	index
+@param[in]	trx	InnoDB transaction handle
 @return DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
 dberr_t
 dict_create_index_tree(
-/*===================*/
-	dict_index_t*	index,	/*!< in/out: index */
-	const trx_t*	trx);	/*!< in: InnoDB transaction handle */
-
-/*******************************************************************//**
-Recreate the index tree associated with a row in SYS_INDEXES table.
-@return	new root page number, or FIL_NULL on failure */
-ulint
-dict_recreate_index_tree(
-/*======================*/
-	const dict_table_t*	table,	/*!< in: the table the index
-					belongs to */
-	btr_pcur_t*		pcur,	/*!< in/out: persistent cursor pointing
-					to record in the clustered index of
-					SYS_INDEXES table. The cursor may be
-					repositioned in this call. */
-	mtr_t*			mtr);	/*!< in: mtr having the latch
-					on the record page. The mtr may be
-					committed and restarted in this call. */
+	dict_index_t*	index,
+	const trx_t*	trx);
 
 /** Drop the index tree associated with a row in SYS_INDEXES table.
 @param[in,out]	rec	SYS_INDEXES record
@@ -151,21 +134,13 @@ dict_create_index_tree_in_mem(
 	dict_index_t*	index,		/*!< in/out: index */
 	const trx_t*	trx);		/*!< in: InnoDB transaction handle */
 
-/*******************************************************************//**
-Truncates the index tree but don't update SYSTEM TABLES.
-@return DB_SUCCESS or error */
-dberr_t
-dict_truncate_index_tree_in_mem(
-/*============================*/
-	dict_index_t*	index);		/*!< in/out: index */
-
-/*******************************************************************//**
-Drops the index tree but don't update SYS_INDEXES table. */
+/** Drop an index tree belonging to a temporary table.
+@param[in]	index		index in a temporary table
+@param[in]	root_page_no	index root page number */
 void
-dict_drop_index_tree_in_mem(
-/*========================*/
-	const dict_index_t*	index,	/*!< in: index */
-	ulint			page_no);/*!< in: index page-no */
+dict_drop_temporary_table_index(
+	const dict_index_t*	index,
+	page_no_t		root_page_no);
 
 /****************************************************************//**
 Creates the foreign key constraints system tables inside InnoDB
@@ -176,19 +151,19 @@ dberr_t
 dict_create_or_check_foreign_constraint_tables(void);
 /*================================================*/
 
-/********************************************************************//**
-Generate a foreign key constraint name when it was not named by the user.
+/** Generate a foreign key constraint name when it was not named by the user.
 A generated constraint has a name of the format dbname/tablename_ibfk_NUMBER,
 where the numbers start from 1, and are given locally for this table, that is,
-the number is not global, as it used to be before MySQL 4.0.18.  */
+the number is not global, as it used to be before MySQL 4.0.18.
+@param[in,out]	id_nr	number to use in id generation; incremented if used
+@param[in]	name	table name
+@param[in,out]	foreign	foreign key */
 UNIV_INLINE
 dberr_t
 dict_create_add_foreign_id(
-/*=======================*/
-	ulint*		id_nr,		/*!< in/out: number to use in id
-					generation; incremented if used */
-	const char*	name,		/*!< in: table name */
-	dict_foreign_t*	foreign);	/*!< in/out: foreign key */
+	ulint*		id_nr,
+	const char*	name,
+	dict_foreign_t*	foreign);
 
 /** Adds the given set of foreign key objects to the dictionary tables
 in the database. This function does not modify the dictionary cache. The
@@ -206,7 +181,7 @@ dict_create_add_foreigns_to_dictionary(
 	const dict_foreign_set&	local_fk_set,
 	const dict_table_t*	table,
 	trx_t*			trx)
-	MY_ATTRIBUTE((nonnull, warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 
 /** Check if a foreign constraint is on columns server as base columns
 of any stored column. This is to prevent creating SET NULL or CASCADE
@@ -238,16 +213,16 @@ dict_create_or_check_sys_virtual();
 
 /** Put a tablespace definition into the data dictionary,
 replacing what was there previously.
-@param[in]	space	Tablespace id
-@param[in]	name	Tablespace name
-@param[in]	flags	Tablespace flags
-@param[in]	path	Tablespace path
-@param[in]	trx	Transaction
-@param[in]	commit	If true, commit the transaction
+@param[in]	space_id	Tablespace id
+@param[in]	name		Tablespace name
+@param[in]	flags		Tablespace flags
+@param[in]	path		Tablespace path
+@param[in]	trx		Transaction
+@param[in]	commit		If true, commit the transaction
 @return error code or DB_SUCCESS */
 dberr_t
 dict_replace_tablespace_in_dictionary(
-	ulint		space_id,
+	space_id_t	space_id,
 	const char*	name,
 	ulint		flags,
 	const char*	path,
@@ -261,7 +236,7 @@ with a particular tablespace ID.
 @return DB_SUCCESS if OK, dberr_t if the operation failed */
 dberr_t
 dict_delete_tablespace_and_datafiles(
-	ulint		space,
+	space_id_t	space,
 	trx_t*		trx);
 
 /********************************************************************//**
@@ -273,7 +248,7 @@ dict_create_add_foreign_to_dictionary(
 	const char*		name,	/*!< in: table name */
 	const dict_foreign_t*	foreign,/*!< in: foreign key */
 	trx_t*			trx)	/*!< in/out: dictionary transaction */
-	MY_ATTRIBUTE((nonnull, warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 
 /* Table create node structure */
 struct tab_node_t{
@@ -300,6 +275,19 @@ struct tab_node_t{
 	mem_heap_t*	heap;		/*!< memory heap used as auxiliary
 					storage */
 };
+
+/** Create in-memory tablespace dictionary index & table
+@param[in]	space		tablespace id
+@param[in]	copy_num	copy of sdi table
+@param[in]	space_discarded	true if space is discarded
+@param[in]	in_flags	space flags to use when space_discarded is true
+@return in-memory index structure for tablespace dictionary or NULL */
+dict_index_t*
+dict_sdi_create_idx_in_mem(
+	space_id_t	space,
+	uint32_t	copy_num,
+	bool		space_discarded,
+	ulint		in_flags);
 
 /* Table create node states */
 #define	TABLE_BUILD_TABLE_DEF	1
@@ -372,8 +360,6 @@ dict_get_v_col_pos(
 #define	INDEX_CREATE_INDEX_TREE	3
 #define	INDEX_ADD_TO_CACHE	4
 
-#ifndef UNIV_NONINL
 #include "dict0crea.ic"
-#endif
 
 #endif

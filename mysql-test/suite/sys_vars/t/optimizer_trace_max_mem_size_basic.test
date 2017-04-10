@@ -8,13 +8,13 @@ SELECT @@global.optimizer_trace_max_mem_size;
 SET @@global.optimizer_trace_max_mem_size=5;
 show global variables like 'optimizer_trace_max_mem_size';
 --disable_warnings
-select * from information_schema.global_variables where variable_name='optimizer_trace_max_mem_size';
+select * from performance_schema.global_variables where variable_name='optimizer_trace_max_mem_size';
 --enable_warnings
 
 select @@session.optimizer_trace_max_mem_size;
 show session variables like 'optimizer_trace_max_mem_size';
 --disable_warnings
-select * from information_schema.session_variables where variable_name='optimizer_trace_max_mem_size';
+select * from performance_schema.session_variables where variable_name='optimizer_trace_max_mem_size';
 --enable_warnings
 
 #

@@ -90,7 +90,7 @@ SELECT @@global.innodb_concurrency_tickets;
 1
 '#----------------------FN_DYNVARS_046_06------------------------#'
 SELECT @@global.innodb_concurrency_tickets =
-VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+VARIABLE_VALUE FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='innodb_concurrency_tickets';
 @@global.innodb_concurrency_tickets =
 VARIABLE_VALUE
@@ -98,7 +98,7 @@ VARIABLE_VALUE
 SELECT @@global.innodb_concurrency_tickets;
 @@global.innodb_concurrency_tickets
 1
-SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+SELECT VARIABLE_VALUE FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='innodb_concurrency_tickets';
 VARIABLE_VALUE
 1

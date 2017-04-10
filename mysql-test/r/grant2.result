@@ -65,12 +65,12 @@ Warnings:
 Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 show grants for mysqltest_1@localhost;
 Grants for mysqltest_1@localhost
-GRANT CREATE USER ON *.* TO 'mysqltest_1'@'localhost'
-GRANT ALL PRIVILEGES ON `my\_%`.* TO 'mysqltest_1'@'localhost' WITH GRANT OPTION
+GRANT CREATE USER ON *.* TO `mysqltest_1`@`localhost`
+GRANT ALL PRIVILEGES ON `my\_%`.* TO `mysqltest_1`@`localhost` WITH GRANT OPTION
 show grants for mysqltest_2@localhost;
 Grants for mysqltest_2@localhost
-GRANT USAGE ON *.* TO 'mysqltest_2'@'localhost'
-GRANT ALL PRIVILEGES ON `my\_1`.* TO 'mysqltest_2'@'localhost' WITH GRANT OPTION
+GRANT USAGE ON *.* TO `mysqltest_2`@`localhost`
+GRANT ALL PRIVILEGES ON `my\_1`.* TO `mysqltest_2`@`localhost` WITH GRANT OPTION
 show grants for mysqltest_3@localhost;
 ERROR 42000: There is no such grant defined for user 'mysqltest_3' on host 'localhost'
 delete from mysql.user where user like 'mysqltest\_%';
@@ -92,8 +92,8 @@ grant all privileges on `mysqltest_1`.* to mysqltest_1@localhost with grant opti
 ERROR 42000: Access denied for user 'mysqltest_1'@'localhost' to database 'mysqltest_1'
 show grants for mysqltest_1@localhost;
 Grants for mysqltest_1@localhost
-GRANT USAGE ON *.* TO 'mysqltest_1'@'localhost'
-GRANT ALL PRIVILEGES ON `mysqltest\_1`.* TO 'mysqltest_1'@'localhost' WITH GRANT OPTION
+GRANT USAGE ON *.* TO `mysqltest_1`@`localhost`
+GRANT ALL PRIVILEGES ON `mysqltest\_1`.* TO `mysqltest_1`@`localhost` WITH GRANT OPTION
 delete from mysql.user where user like 'mysqltest\_%';
 delete from mysql.db where user like 'mysqltest\_%';
 drop database mysqltest_1;
@@ -107,8 +107,8 @@ use mysqltest;
 create table t1 (id int primary key, data varchar(255));
 show grants for current_user();
 Grants for mysqltest_1@localhost
-GRANT USAGE ON *.* TO 'mysqltest_1'@'localhost'
-GRANT SELECT, INSERT ON `mysqltest`.* TO 'mysqltest_1'@'localhost'
+GRANT USAGE ON *.* TO `mysqltest_1`@`localhost`
+GRANT SELECT, INSERT ON `mysqltest`.* TO `mysqltest_1`@`localhost`
 insert into t1 values (1, 'I can''t change it!');
 update t1 set data='I can change it!' where id = 1;
 ERROR 42000: UPDATE command denied to user 'mysqltest_1'@'localhost' for table 't1'
@@ -153,9 +153,9 @@ grant select, insert, update on `mysqltest\_1`.* to mysqltest_1@localhost;
 Warnings:
 Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 set sql_log_off = 1;
-ERROR 42000: Access denied; you need (at least one of) the SUPER privilege(s) for this operation
+ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
 set sql_log_bin = 0;
-ERROR 42000: Access denied; you need (at least one of) the SUPER privilege(s) for this operation
+ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
 delete from mysql.user where user like 'mysqltest\_1';
 delete from mysql.db where user like 'mysqltest\_1';
 drop database mysqltest_1;
@@ -192,13 +192,13 @@ host	db	user	table_name	column_name
 %	test	mysqltest_2	t2	c2
 show grants for 'mysqltest_1';
 Grants for mysqltest_1@%
-GRANT USAGE ON *.* TO 'mysqltest_1'@'%'
+GRANT USAGE ON *.* TO "mysqltest_1"@"%"
 show grants for 'mysqltest_2';
 Grants for mysqltest_2@%
-GRANT SELECT ON *.* TO 'mysqltest_2'@'%'
-GRANT INSERT ON "test".* TO 'mysqltest_2'@'%'
-GRANT UPDATE (c2) ON "test"."t2" TO 'mysqltest_2'@'%'
-GRANT UPDATE ON "test"."t1" TO 'mysqltest_2'@'%'
+GRANT SELECT ON *.* TO "mysqltest_2"@"%"
+GRANT INSERT ON "test".* TO "mysqltest_2"@"%"
+GRANT UPDATE ON "test"."t1" TO "mysqltest_2"@"%"
+GRANT UPDATE ("c2") ON "test"."t2" TO "mysqltest_2"@"%"
 drop user 'mysqltest_1';
 select host,user,authentication_string from mysql.user where user like 'mysqltest_%' order by host,user,authentication_string;
 host	user	authentication_string
@@ -231,10 +231,10 @@ host	db	user	table_name	column_name
 %	test	mysqltest_1	t2	c2
 show grants for 'mysqltest_1';
 Grants for mysqltest_1@%
-GRANT SELECT ON *.* TO 'mysqltest_1'@'%'
-GRANT INSERT ON "test".* TO 'mysqltest_1'@'%'
-GRANT UPDATE (c2) ON "test"."t2" TO 'mysqltest_1'@'%'
-GRANT UPDATE ON "test"."t1" TO 'mysqltest_1'@'%'
+GRANT SELECT ON *.* TO "mysqltest_1"@"%"
+GRANT INSERT ON "test".* TO "mysqltest_1"@"%"
+GRANT UPDATE ON "test"."t1" TO "mysqltest_1"@"%"
+GRANT UPDATE ("c2") ON "test"."t2" TO "mysqltest_1"@"%"
 drop user 'mysqltest_1';
 drop user 'mysqltest_1';
 ERROR HY000: Operation DROP USER failed for 'mysqltest_1'@'%'
@@ -274,11 +274,13 @@ drop user 'mysqltest_1a', 'mysqltest_2a', 'mysqltest_3a';
 create user 'mysqltest_1', 'mysqltest_2', 'mysqltest_3';
 create user 'mysqltest_1a', 'mysqltest_2', 'mysqltest_3a';
 ERROR HY000: Operation CREATE USER failed for 'mysqltest_2'@'%'
+create user 'mysqltest_1a', 'mysqltest_3a';
 rename user 'mysqltest_1a' to 'mysqltest_1b', 'mysqltest_2a' TO 'mysqltest_2b', 'mysqltest_3a' TO 'mysqltest_3b';
 ERROR HY000: Operation RENAME USER failed for 'mysqltest_2a'@'%'
 drop user 'mysqltest_1', 'mysqltest_2', 'mysqltest_3';
 drop user 'mysqltest_1b', 'mysqltest_2b', 'mysqltest_3b';
-ERROR HY000: Operation DROP USER failed for 'mysqltest_2b'@'%'
+ERROR HY000: Operation DROP USER failed for 'mysqltest_1b'@'%','mysqltest_2b'@'%','mysqltest_3b'@'%'
+drop user 'mysqltest_1a', 'mysqltest_3a';
 create user 'mysqltest_2' identified by 'Mysqltest-2';
 drop user 'mysqltest_2' identified by 'Mysqltest-2';
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'identified by 'Mysqltest-2'' at line 1
@@ -286,19 +288,19 @@ drop user 'mysqltest_2';
 create user '%@b'@'b';
 show grants for '%@b'@'b';
 Grants for %@b@b
-GRANT USAGE ON *.* TO '%@b'@'b'
+GRANT USAGE ON *.* TO "%@b"@"b"
 grant select on mysql.* to '%@b'@'b';
 show grants for '%@b'@'b';
 Grants for %@b@b
-GRANT USAGE ON *.* TO '%@b'@'b'
-GRANT SELECT ON "mysql".* TO '%@b'@'b'
+GRANT USAGE ON *.* TO "%@b"@"b"
+GRANT SELECT ON "mysql".* TO "%@b"@"b"
 rename user '%@b'@'b' to '%@a'@'a';
 show grants for '%@b'@'b';
 ERROR 42000: There is no such grant defined for user '%@b' on host 'b'
 show grants for '%@a'@'a';
 Grants for %@a@a
-GRANT USAGE ON *.* TO '%@a'@'a'
-GRANT SELECT ON "mysql".* TO '%@a'@'a'
+GRANT USAGE ON *.* TO "%@a"@"a"
+GRANT SELECT ON "mysql".* TO "%@a"@"a"
 drop user '%@a'@'a';
 create user mysqltest_2@localhost;
 grant create user on *.* to mysqltest_2@localhost;
@@ -312,8 +314,8 @@ create user mysqltest_3@localhost;
 grant INSERT,DELETE,UPDATE on mysql.* to mysqltest_3@localhost;
 show grants;
 Grants for mysqltest_3@localhost
-GRANT USAGE ON *.* TO 'mysqltest_3'@'localhost'
-GRANT INSERT, UPDATE, DELETE ON `mysql`.* TO 'mysqltest_3'@'localhost'
+GRANT USAGE ON *.* TO `mysqltest_3`@`localhost`
+GRANT INSERT, UPDATE, DELETE ON `mysql`.* TO `mysqltest_3`@`localhost`
 select host,user,authentication_string from mysql.user where user like 'mysqltest_%' order by host,user,authentication_string;
 ERROR 42000: SELECT command denied to user 'mysqltest_3'@'localhost' for table 'user'
 insert ignore into mysql.user set host='%', user='mysqltest_B';
@@ -337,8 +339,8 @@ Warnings:
 Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 show grants for current_user();
 Grants for mysqltest_1@127.0.0.0/255.0.0.0
-GRANT USAGE ON *.* TO 'mysqltest_1'@'127.0.0.0/255.0.0.0'
-GRANT ALL PRIVILEGES ON `mysqltest_1`.`t1` TO 'mysqltest_1'@'127.0.0.0/255.0.0.0'
+GRANT USAGE ON *.* TO `mysqltest_1`@`127.0.0.0/255.0.0.0`
+GRANT ALL PRIVILEGES ON `mysqltest_1`.`t1` TO `mysqltest_1`@`127.0.0.0/255.0.0.0`
 select * from t1;
 i
 1
@@ -447,7 +449,7 @@ show create table mysqltest_2.t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `i` int(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 create table t1 like mysqltest_2.t1;
 use test;
 drop database mysqltest_1;
@@ -597,9 +599,9 @@ CREATE TABLE mysqltest_db2.t2_1(a INT);
 #
 # Variants of CREATE TABLE.
 #
-CREATE TEMPORARY TABLE t1(a INT);
+CREATE TEMPORARY TABLE t1(a INT) engine=myisam;
 CREATE TEMPORARY TABLE t2 LIKE t1;
-CREATE TEMPORARY TABLE t3(a INT, b INT, PRIMARY KEY (a));
+CREATE TEMPORARY TABLE t3(a INT, b INT, PRIMARY KEY (a)) engine=myisam;
 CREATE TEMPORARY TABLE t4 SELECT * FROM t1;
 # Check that we do *not* allow creation of MERGE table with underlying
 # temporary table without additional privileges.
@@ -684,8 +686,8 @@ a
 SHOW COLUMNS FROM t1;
 Field	Type	Null	Key	Default	Extra
 SHOW KEYS FROM t3;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
-t3	0	PRIMARY	1	a	A	0	NULL	NULL		BTREE		
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+t3	0	PRIMARY	1	a	A	0	NULL	NULL		BTREE			YES
 #
 # SHOW CREATE TABLE.
 #
@@ -693,7 +695,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TEMPORARY TABLE `t1` (
   `a` int(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 #
 # LOAD DATA INFILE (also SELECT INTO OUTFILE).
 #
@@ -876,9 +878,9 @@ DROP TEMPORARY TABLE t4;
 ###########################################################################
 
 # -- connect con4, mysqltest_u5@localhost, mysqltest_db1
-CREATE TEMPORARY TABLE t7(a INT);
-CREATE TEMPORARY TABLE t8(a INT);
-CREATE TEMPORARY TABLE t9(a INT);
+CREATE TEMPORARY TABLE t7(a INT) engine=myisam;
+CREATE TEMPORARY TABLE t8(a INT) engine=myisam;
+CREATE TEMPORARY TABLE t9(a INT) engine=myisam;
 CREATE TEMPORARY TABLE t10(a INT) ENGINE = MERGE UNION = (t7, t8);
 ALTER TABLE t10 UNION = (t9);
 ALTER TABLE t10 UNION = (mysqltest_db2.t2_1);

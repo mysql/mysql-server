@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2007, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2007, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,20 +21,62 @@
 
 #include "sql_connect.h"
 
-#include "hash.h"                       // HASH
-#include "m_string.h"                   // my_stpcpy
-#include "probes_mysql.h"               // MYSQL_CONNECTION_START
+#include "my_config.h"
+
+#ifndef _WIN32
+#include <netdb.h>
+#endif
+#ifdef HAVE_NETINET_IN_H
+#include <netinet/in.h>
+#endif
+#include <stdint.h>
+#include <string.h>
+#ifdef HAVE_SYS_SOCKET_H
+#include <sys/socket.h>
+#endif
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
+#endif
+#include <algorithm>
+
+#include "auth_acls.h"
 #include "auth_common.h"                // SUPER_ACL
+#include "derror.h"                     // ER_THD
+#include "handler.h"
+#include "hash.h"                       // HASH
 #include "hostname.h"                   // Host_errors
+#include "item_func.h"                  // mqh_used
+#include "key.h"
+#include "lex_string.h"
 #include "log.h"                        // sql_print_information
+#include "m_ctype.h"
+#include "m_string.h"                   // my_stpcpy
+#include "my_command.h"
+#include "my_dbug.h"
+#include "my_sqlcommand.h"
+#include "my_sys.h"
+#include "mysql/plugin_audit.h"
+#include "mysql/psi/mysql_mutex.h"
+#include "mysql/psi/mysql_statement.h"
+#include "mysql/service_mysql_alloc.h"
+#include "mysql_com.h"
 #include "mysqld.h"                     // LOCK_user_conn
+#include "mysqld_error.h"
+#include "protocol.h"
+#include "protocol_classic.h"
+#include "psi_memory_key.h"
+#include "session_tracker.h"
 #include "sql_audit.h"                  // MYSQL_AUDIT_NOTIFY_CONNECTION_CONNECT
 #include "sql_class.h"                  // THD
+#include "sql_error.h"
+#include "sql_lex.h"
 #include "sql_parse.h"                  // sql_command_flags
 #include "sql_plugin.h"                 // plugin_thdvar_cleanup
-
-#include <algorithm>
-#include <string.h>
+#include "sql_security_ctx.h"
+#include "sql_string.h"
+#include "system_variables.h"
+#include "template_utils.h"
+#include "violite.h"
 
 #ifdef HAVE_ARPA_INET_H
 #include <arpa/inet.h>
@@ -43,7 +85,7 @@
 using std::min;
 using std::max;
 
-#if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
+#if defined(HAVE_OPENSSL)
 /*
   Without SSL the handshake consists of one packet. This packet
   has both client capabilites and scrambled password.
@@ -59,13 +101,12 @@ using std::max;
 #define MIN_HANDSHAKE_SIZE      2
 #else
 #define MIN_HANDSHAKE_SIZE      6
-#endif /* HAVE_OPENSSL && !EMBEDDED_LIBRARY */
+#endif /* HAVE_OPENSSL */
 
 /*
   Get structure for logging connection data for the current user
 */
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
 static HASH hash_user_connections;
 
 int get_or_create_user_conn(THD *thd, const char *user,
@@ -102,7 +143,7 @@ int get_or_create_user_conn(THD *thd, const char *user,
     uc->len= temp_len;
     uc->connections= uc->questions= uc->updates= uc->conn_per_hour= 0;
     uc->user_resources= *mqh;
-    uc->reset_utime= thd->thr_create_utime;
+    uc->reset_utime= thd->start_utime;
     if (my_hash_insert(&hash_user_connections, (uchar*) uc))
     {
       /* The only possible error is out of memory, MY_WME sets an error. */
@@ -308,75 +349,46 @@ end:
   mysql_mutex_unlock(&LOCK_user_conn);
   DBUG_RETURN(error);
 }
-#else
 
-int check_for_max_user_connections(THD *thd, const USER_CONN *uc)
-{
-  return 0;
-}
-
-void decrease_user_connections(USER_CONN *uc)
-{
-  return;
-}
-
-void release_user_connection(THD *thd)
-{
-  const USER_CONN *uc= thd->get_user_connect();
-  DBUG_ENTER("release_user_connection");
-
-  if (uc)
-  {
-    thd->set_user_connect(NULL);
-  }
-
-  DBUG_VOID_RETURN;
-}
-
-#endif /* NO_EMBEDDED_ACCESS_CHECKS */
 
 /*
   Check for maximum allowable user connections, if the mysqld server is
   started with corresponding variable that is greater then 0.
 */
 
-extern "C" uchar *get_key_conn(user_conn *buff, size_t *length,
-            my_bool not_used MY_ATTRIBUTE((unused)))
+static const uchar *get_key_conn(const uchar *arg, size_t *length)
 {
+  const user_conn *buff= pointer_cast<const user_conn*>(arg);
   *length= buff->len;
   return (uchar*) buff->user;
 }
 
 
-extern "C" void free_user(struct user_conn *uc)
+static void free_user(void *arg)
 {
+  struct user_conn *uc= pointer_cast<user_conn*>(arg);
   my_free(uc);
 }
 
 
 void init_max_user_conn(void)
 {
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   (void)
     my_hash_init(&hash_user_connections,system_charset_info,max_connections,
-                 0,0, (my_hash_get_key) get_key_conn,
-                 (my_hash_free_key) free_user, 0,
+                 0, get_key_conn,
+                 free_user, 0,
                  key_memory_user_conn);
-#endif
 }
 
 
 void free_max_user_conn(void)
 {
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   my_hash_free(&hash_user_connections);
-#endif /* NO_EMBEDDED_ACCESS_CHECKS */
 }
 
 
-void reset_mqh(LEX_USER *lu, bool get_them= 0)
+void reset_mqh(THD *thd, LEX_USER *lu, bool get_them= 0)
 {
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   mysql_mutex_lock(&LOCK_user_conn);
   if (lu)  // for GRANT
   {
@@ -392,7 +404,7 @@ void reset_mqh(LEX_USER *lu, bool get_them= 0)
                                                    temp_len)))
     {
       uc->questions=0;
-      get_mqh(temp_user,&temp_user[lu->user.length+1],uc);
+      get_mqh(thd, temp_user,&temp_user[lu->user.length+1],uc);
       uc->updates=0;
       uc->conn_per_hour=0;
     }
@@ -405,14 +417,13 @@ void reset_mqh(LEX_USER *lu, bool get_them= 0)
       USER_CONN *uc=(struct user_conn *)
         my_hash_element(&hash_user_connections, idx);
       if (get_them)
-  get_mqh(uc->user,uc->host,uc);
+  get_mqh(thd, uc->user,uc->host,uc);
       uc->questions=0;
       uc->updates=0;
       uc->conn_per_hour=0;
     }
   }
   mysql_mutex_unlock(&LOCK_user_conn);
-#endif /* NO_EMBEDDED_ACCESS_CHECKS */
 }
 
 
@@ -478,7 +489,6 @@ bool thd_init_client_charset(THD *thd, uint cs_number)
 }
 
 
-#ifndef EMBEDDED_LIBRARY
 /*
   Perform handshake, authorize client and update thd ACL variables.
 
@@ -496,14 +506,15 @@ static int check_connection(THD *thd)
   uint connect_errors= 0;
   int auth_rc;
   NET *net= thd->get_protocol_classic()->get_net();
-  DBUG_PRINT("info",
-             ("New connection received on %s", vio_description(net->vio)));
+  char desc[VIO_DESCRIPTION_SIZE];
+  vio_description(net->vio, desc);
+  DBUG_PRINT("info", ("New connection received on %s", desc));
 
   thd->set_active_vio(net->vio);
 
   if (!thd->m_main_security_ctx.host().length)     // If TCP/IP connection
   {
-    my_bool peer_rc;
+    bool peer_rc;
     char ip[NI_MAXHOST];
     LEX_CSTRING main_sctx_ip;
 
@@ -534,7 +545,6 @@ static int check_connection(THD *thd)
                     }
                     );
 
-#ifdef HAVE_IPV6
     DBUG_EXECUTE_IF("vio_peer_addr_fake_ipv6",
                     {
                       struct sockaddr_in6 *sa= (sockaddr_in6 *) &net->vio->remote;
@@ -563,7 +573,6 @@ static int check_connection(THD *thd)
                       peer_rc= 0;
                     }
                     );
-#endif /* HAVE_IPV6 */
 
     /*
     ===========================================================================
@@ -637,7 +646,7 @@ static int check_connection(THD *thd)
            (thd->m_main_security_ctx.host().length ?
               thd->m_main_security_ctx.host().str : "unknown host"),
            (main_sctx_ip.length ? main_sctx_ip.str : "unknown ip")));
-    if (acl_check_host(thd->m_main_security_ctx.host().str, main_sctx_ip.str))
+    if (acl_check_host(thd, thd->m_main_security_ctx.host().str, main_sctx_ip.str))
     {
       /* HOST_CACHE stats updated by acl_check_host(). */
       my_error(ER_HOST_NOT_PRIVILEGED, MYF(0),
@@ -657,8 +666,8 @@ static int check_connection(THD *thd)
   }
   vio_keepalive(net->vio, TRUE);
 
-  if (thd->get_protocol_classic()->get_packet()->alloc(
-      thd->variables.net_buffer_length))
+  if (thd->get_protocol_classic()->get_output_packet()->
+        alloc(thd->variables.net_buffer_length))
   {
     /*
       Important note:
@@ -783,14 +792,14 @@ void end_connection(THD *thd)
     {
       Security_context *sctx= thd->security_context();
       LEX_CSTRING sctx_user= sctx->user();
-      sql_print_information(ER(ER_NEW_ABORTING_CONNECTION),
+      sql_print_information(ER_DEFAULT(ER_NEW_ABORTING_CONNECTION),
                             thd->thread_id(),
                             (thd->db().str ? thd->db().str : "unconnected"),
                             sctx_user.str ? sctx_user.str : "unauthenticated",
                             sctx->host_or_ip().str,
                             (thd->get_stmt_da()->is_error() ?
                              thd->get_stmt_da()->message_text() :
-                             ER(ER_UNKNOWN_ERROR)));
+                             ER_DEFAULT(ER_UNKNOWN_ERROR)));
     }
   }
 }
@@ -811,17 +820,13 @@ static void prepare_new_connection_state(THD* thd)
   // Initializing session system variables.
   alloc_and_copy_thd_dynamic_variables(thd, true);
 
-  /*
-    Much of this is duplicated in create_embedded_thd() for the
-    embedded server library.
-    TODO: refactor this to avoid code duplication there
-  */
   thd->proc_info= 0;
   thd->set_command(COM_SLEEP);
-  thd->set_time();
-  thd->init_for_queries();
+  thd->init_query_mem_roots();
 
-  if (opt_init_connect.length && !(sctx->check_access(SUPER_ACL)))
+  if (opt_init_connect.length &&
+      !(sctx->check_access(SUPER_ACL) ||
+        sctx->has_global_grant(STRING_WITH_LEN("CONNECTION_ADMIN")).first))
   {
     execute_init_command(thd, &opt_init_connect, &LOCK_sys_init_connect);
     if (thd->is_error())
@@ -830,7 +835,7 @@ static void prepare_new_connection_state(THD* thd)
       ulong packet_length;
       LEX_CSTRING sctx_user= sctx->user();
 
-      sql_print_warning(ER(ER_NEW_ABORTING_CONNECTION),
+      sql_print_warning(ER_DEFAULT(ER_NEW_ABORTING_CONNECTION),
                         thd->thread_id(),
                         thd->db().str ? thd->db().str : "unconnected",
                         sctx_user.str ? sctx_user.str : "unauthenticated",
@@ -862,8 +867,7 @@ static void prepare_new_connection_state(THD* thd)
     }
 
     thd->proc_info=0;
-    thd->set_time();
-    thd->init_for_queries();
+    thd->init_query_mem_roots();
   }
 }
 
@@ -877,10 +881,6 @@ bool thd_prepare_connection(THD *thd)
   if (rc)
     return rc;
 
-  MYSQL_CONNECTION_START(thd->thread_id(),
-                         (char *) &thd->security_context()->priv_user().str[0],
-                         (char *) thd->security_context()->host_or_ip().str);
-
   prepare_new_connection_state(thd);
   return FALSE;
 }
@@ -891,7 +891,7 @@ bool thd_prepare_connection(THD *thd)
 
   @param thd        Thread handle.
   @param sql_errno  The error code to send before disconnect.
-  @param server_shutdown Argument passed to the THD's disconnect method.
+  @param server_shutdown True for a server shutdown
   @param generate_event  Generate Audit API disconnect event.
 
   @note
@@ -905,21 +905,14 @@ void close_connection(THD *thd, uint sql_errno,
 
   if (sql_errno)
     net_send_error(thd, sql_errno, ER_DEFAULT(sql_errno));
-
   thd->disconnect(server_shutdown);
-
-  MYSQL_CONNECTION_DONE((int) sql_errno, thd->thread_id());
-
-  if (MYSQL_CONNECTION_DONE_ENABLED())
-  {
-    sleep(0); /* Workaround to avoid tailcall optimisation */
-  }
 
   if (generate_event)
     mysql_audit_notify(thd,
                        AUDIT_EVENT(MYSQL_AUDIT_CONNECTION_DISCONNECT),
                        sql_errno);
 
+  thd->security_context()->logout();
   DBUG_VOID_RETURN;
 }
 
@@ -933,5 +926,3 @@ bool thd_connection_alive(THD *thd)
     return true;
   return false;
 }
-
-#endif /* EMBEDDED_LIBRARY */

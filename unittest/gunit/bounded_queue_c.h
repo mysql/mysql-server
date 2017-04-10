@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,10 +17,11 @@
 #define BOUNDED_QUEUE_C_INCLUDED
 
 #include <string.h>
-#include "my_global.h"
+
+#include "../storage/myisam/queues.h"
 #include "my_base.h"
+#include "my_dbug.h"
 #include "my_sys.h"
-#include "queues.h"
 #include "test_utils.h"
 
 /**
@@ -150,7 +151,7 @@ int Bounded_QUEUE<Element_type, Key_type, Key_generator>
   DBUG_ASSERT(sort_keys != NULL);
 
   m_sort_keys=      sort_keys;
-  m_compare_length= sort_param->compare_length();
+  m_compare_length= sort_param->max_compare_length();
   m_sort_param=     sort_param;
   // init_queue() takes an uint, and also does (max_elements + 1)
   if (max_elements >= (UINT_MAX - 1))
@@ -164,7 +165,7 @@ int Bounded_QUEUE<Element_type, Key_type, Key_generator>
                   DBUG_SET("+d,simulate_out_of_memory"););
 
   // We allocate space for one extra element, for replace when queue is full.
-  return init_queue(&m_queue, (uint) max_elements + 1,
+  return init_queue(&m_queue, PSI_INSTRUMENT_ME, (uint) max_elements + 1,
                     0, max_at_top,
                     reinterpret_cast<queue_compare>(compare),
                     &m_compare_length);

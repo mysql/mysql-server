@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -67,9 +67,11 @@ int          g_restart = 0;
 const char * g_cwd = 0;
 const char * g_basedir = 0;
 const char * g_my_cnf = 0;
-const char * g_prefix = 0;
-const char * g_prefix1 = 0;
+const char * g_prefix = NULL;
+const char * g_prefix0 = NULL;
+const char * g_prefix1 = NULL;
 const char * g_clusters = 0;
+const char * g_site = NULL;
 BaseString g_replicate;
 const char *save_file = 0;
 const char *save_group_suffix = 0;
@@ -123,6 +125,9 @@ static struct my_option g_options[] =
     0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 }, 
   { "version", 'V', "Output version information and exit.", 0, 0, 0, 
     GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0 }, 
+  { "site", 256, "Site",
+    (uchar **) &g_site, (uchar **) &g_site,
+    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   { "clusters", 256, "Cluster",
     (uchar **) &g_clusters, (uchar **) &g_clusters,
     0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -147,8 +152,11 @@ static struct my_option g_options[] =
   { "baseport", 256, "Base port",
     (uchar **) &g_baseport, (uchar **) &g_baseport,
     0, GET_INT, REQUIRED_ARG, g_baseport, 0, 0, 0, 0, 0},
-  { "prefix", 256, "mysql install dir",
+  { "prefix", 256, "atrt install dir",
     (uchar **) &g_prefix, (uchar **) &g_prefix,
+    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  { "prefix0", 256, "mysql install dir",
+    (uchar **) &g_prefix0, (uchar **) &g_prefix0,
     0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   { "prefix1", 256, "mysql install dir 1",
     (uchar **) &g_prefix1, (uchar **) &g_prefix1,
@@ -199,14 +207,6 @@ static void print_testcase_file_syntax();
 int
 main(int argc, char ** argv)
 {
-  // If program is called with --check-testcase-files as first option
-  // it is assumed that the rest of command line arguments are
-  // testcase-filenames and those files will be syntax checked.
-  if (argc >= 2 && strcmp(argv[1], "--check-testcase-files") == 0)
-  {
-    exit(check_testcase_file_main(argc, argv));
-  }
-
   ndb_init();
 
   bool restart = true;
@@ -218,6 +218,14 @@ main(int argc, char ** argv)
   g_logger.enable(Logger::LL_ALL);
   g_logger.createConsoleHandler();
   
+  // If program is called with --check-testcase-files as first option
+  // it is assumed that the rest of command line arguments are
+  // testcase-filenames and those files will be syntax checked.
+  if (argc >= 2 && strcmp(argv[1], "--check-testcase-files") == 0)
+  {
+    exit(check_testcase_file_main(argc, argv));
+  }
+
   if(!parse_args(argc, argv))
   {
     g_logger.critical("Failed to parse arguments");
@@ -428,9 +436,15 @@ main(int argc, char ** argv)
     
     // const int start_line = lineno;
     atrt_testcase test_case;
-    if(!read_test_case(g_test_case_file, test_case, lineno))
+    const int num_element_lines = read_test_case(g_test_case_file, test_case, lineno);
+    if (num_element_lines == 0)
     {
-      g_logger.critical("Corrupt testcase at line %d)", lineno);
+      // Should be at end of file.  Let while condition catch that.
+      continue;
+    }
+    if(num_element_lines < 0)
+    {
+      g_logger.critical("Corrupt testcase at line %d (error %d)", lineno, num_element_lines);
       goto end;
     
     }
@@ -584,7 +598,7 @@ main(int argc, char ** argv)
 }
 
 extern "C"
-my_bool 
+bool 
 get_one_option(int arg, const struct my_option * opt, char * value)
 {
   if (arg == 1024)
@@ -735,9 +749,28 @@ parse_args(int argc, char** argv)
     g_logger.info("basedir, %s", g_basedir);
   }
 
-  if (!g_prefix)
+  const char* default_prefix;
+  if (g_prefix != NULL)
+  {
+    default_prefix = g_prefix;
+  }
+  else if (g_prefix0 != NULL)
+  {
+    default_prefix = g_prefix0;
+  }
+  else
+  {
+    default_prefix = DEFAULT_PREFIX;
+  }
+
+  if (g_prefix == NULL)
   {
     g_prefix = DEFAULT_PREFIX;
+  }
+
+  if (g_prefix0 == NULL)
+  {
+    g_prefix0 = DEFAULT_PREFIX;
   }
 
   /**
@@ -828,8 +861,6 @@ parse_args(int argc, char** argv)
     g_my_cnf = strdup(mycnf.c_str());
   }
   
-  g_logger.info("Using --prefix=\"%s\"", g_prefix);
-
   if (g_prefix1)
   {
     g_logger.info("Using --prefix1=\"%s\"", g_prefix1);
@@ -861,6 +892,7 @@ parse_args(int argc, char** argv)
     g_logger.info("No default user specified, will use 'sakila'.");
     g_logger.info("Please set LOGNAME environment variable for other username");
   }
+
   return true;
 }
 
@@ -1075,14 +1107,67 @@ start_process(atrt_process & proc){
     return false;
   }
   
+  /**
+   * For MySQL server program we need to pass the correct basedir.
+   */
+  const bool mysqld = proc.m_type & atrt_process::AP_MYSQLD;
+  if (mysqld)
+  {
+    BaseString basedir;
+    /**
+     * If MYSQL_BASE_DIR is set use that for basedir.
+     */
+    ssize_t pos = proc.m_proc.m_env.indexOf("MYSQL_BASE_DIR=");
+    if (pos > 0)
+    {
+      pos = proc.m_proc.m_env.indexOf(" MYSQL_BASE_DIR=");
+      if (pos != -1) pos ++;
+    }
+    if (pos >= 0)
+    {
+      pos += strlen("MYSQL_BASE_DIR=");
+      ssize_t endpos = proc.m_proc.m_env.indexOf(' ', pos);
+      if (endpos == -1) endpos = proc.m_proc.m_env.length();
+      basedir = proc.m_proc.m_env.substr(pos, endpos);
+    }
+    else
+    {
+      /**
+       * If no MYSQL_BASE_DIR set, derive basedir from program path.
+       * Assumming that program path is on the form
+       *   <basedir>/{bin,sql}/mysqld
+       */
+      const BaseString sep("/");
+      Vector<BaseString> dir_parts;
+      int num_of_parts = proc.m_proc.m_path.split(dir_parts, sep);
+      dir_parts.erase(num_of_parts - 1); // remove trailing /mysqld
+      dir_parts.erase(num_of_parts - 2); // remove trailing /bin
+      num_of_parts -= 2;
+      basedir.assign(dir_parts, sep);
+    }
+    if (proc.m_proc.m_args.indexOf("--basedir=") == -1)
+    {
+      proc.m_proc.m_args.appfmt(" --basedir=%s", basedir.c_str());
+      g_logger.info("appended '--basedir=%s' to mysqld process", basedir.c_str());
+    }
+  }
+  BaseString save_args(proc.m_proc.m_args);
   {
     Properties reply;
     if(proc.m_host->m_cpcd->define_process(proc.m_proc, reply) != 0){
       BaseString msg;
       reply.get("errormessage", msg);
-      g_logger.error("Unable to define process: %s", msg.c_str());      
+      g_logger.error("Unable to define process: %s", msg.c_str());
+      if (mysqld)
+      {
+        proc.m_proc.m_args = save_args; /* restore args */
+      }
       return false;
     }
+  }
+  if (mysqld)
+  {
+    proc.m_proc.m_args = save_args; /* restore args */
   }
   {
     Properties reply;
@@ -1234,8 +1319,6 @@ int
 insert(const char * pair, Properties & p){
   BaseString tmp(pair);
   
-  tmp.trim(" \t\n\r");
-
   Vector<BaseString> split;
   tmp.split(split, ":=", 2);
 
@@ -1247,7 +1330,15 @@ insert(const char * pair, Properties & p){
   return 0;
 }
 
-bool
+/*
+ * read_test_case - extract one testcase from file
+ *
+ * On success return a positive number with actual lines describing
+ * the test case not counting blank lines and comments.
+ * On end of file it returns 0.
+ * On failure a nehative number is returned.
+ */
+int
 read_test_case(FILE * file, atrt_testcase& tc, int& line){
 
   Properties p;
@@ -1266,34 +1357,48 @@ read_test_case(FILE * file, atrt_testcase& tc, int& line){
     if(tmp.length() > 0 && tmp.c_str()[0] == '#')
       continue;
     
-    if(insert(tmp.c_str(), p) != 0)
-      break;
-    
+    tmp.trim(" \t\n\r");
+
+    if (tmp.length() == 0)
+    {
+      break; // End of test case definition
+    }
+
+    if (insert(tmp.c_str(), p) != 0)
+    {
+      // Element line had no : or =
+      if (elements == 0 && file == stdin)
+      {
+        // Assume a single line command with command and arguments
+        // separated with a space
+        Vector<BaseString> split;
+        tmp.split(split, " ", 2);
+        tc.m_cmd.m_exe = split[0];
+        if (split.size() == 2)
+          tc.m_cmd.m_args = split[1];
+        else
+          tc.m_cmd.m_args = "";
+        tc.m_max_time = 60000;
+        return 1;
+      }
+      g_logger.critical("Invalid test file: Corrupt line: %d: %s", line, buf);
+      return -1;
+    }
+
     elements++;
   }
   
-  if(elements == 0){
-    if(file == stdin){
-      BaseString tmp(buf); 
-      tmp.trim(" \t\n\r");
-      Vector<BaseString> split;
-      tmp.split(split, " ", 2);
-      tc.m_cmd.m_exe = split[0];
-      if(split.size() == 2)
-	tc.m_cmd.m_args = split[1];
-      else
-	tc.m_cmd.m_args = "";
-      tc.m_max_time = 60000;
-      return true;
-    }
-    return false;
+  if (elements == 0)
+  {
+    // End of file
+    return 0;
   }
 
   int used_elements = 0;
 
   if(!p.get("cmd", tc.m_cmd.m_exe)){
-    g_logger.critical("Invalid test file: cmd is missing near line: %d", line);
-    return false;
+    g_logger.critical("Invalid test file: cmd is missing in test case above line: %d", line);
+    return -2;
   }
   used_elements ++;
   
@@ -1360,11 +1465,11 @@ read_test_case(FILE * file, atrt_testcase& tc, int& line){
 
   if (used_elements != elements)
   {
-    g_logger.critical("Invalid test file: unknown properties near line: %d", line);
-    return false;
+    g_logger.critical("Invalid test file: unknown properties in test case above line: %d", line);
+    return -3;
   }
 
-  return true;
+  return elements;
 }
 
 bool
@@ -1559,7 +1664,7 @@ deploy(int d, atrt_config & config)
 
     if (d & 2)
     {
-      if (!do_rsync(g_prefix, config.m_hosts[i]->m_hostname.c_str()))
+      if (!do_rsync(g_prefix0, config.m_hosts[i]->m_hostname.c_str()))
         return false;
     
       if (g_prefix1 && 
@@ -1735,7 +1840,7 @@ check_testcase_file_main(int argc, char ** argv)
   if (argi == argc)
   {
     ok = false;
-    fprintf(stderr, "Error: No files to check!\n");
+    g_logger.critical("Error: No files to check!\n");
   }
   else for (; argi < argc; argi ++)
   {
@@ -1743,27 +1848,26 @@ check_testcase_file_main(int argc, char ** argv)
     if (f == NULL)
     {
       ok = false;
-      perror(argv[argi]);
+      g_logger.critical("Unable to open file: %s (%d: %s)", argv[argi], errno, strerror(errno));
       continue;
     }
     atrt_testcase tc_dummy;
-    int prev_line_num = 0;
     int line_num = 0;
     int ntests = 0;
-    while (read_test_case(f, tc_dummy, line_num))
+    int num_element_lines;
+    while ((num_element_lines = read_test_case(f, tc_dummy, line_num)) > 0)
     {
-      prev_line_num = line_num;
       ntests ++;
     }
     // If line count does not change that indicates end of file.
-    if (line_num == prev_line_num)
+    if (num_element_lines >= 0)
     {
       printf("%s: Contains %d tests in %d lines.\n", argv[argi], ntests, line_num);
     }
     else
     {
       ok = false;
-      fprintf(stderr, "%s: Error at line %d\n", argv[argi], line_num);
+      g_logger.critical("%s: Error at line %d (error %d)\n", argv[argi], line_num, num_element_lines);
     }
     fclose(f);
   }

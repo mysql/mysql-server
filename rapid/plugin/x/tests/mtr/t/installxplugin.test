@@ -1,6 +1,6 @@
 ## This is test file for install xplugin feature
 ##
---source ../include/xplugin_preamble.inc
+--source include/xplugin_preamble.inc
 call mtr.add_suppression("Plugin mysqlx reported: 'Delayed startup failed. Plugin is unable to accept connections.'");
 call mtr.add_suppression("Plugin mysqlx reported: 'Invalid server state'");
 call mtr.add_suppression("Plugin mysqlx reported: '.*: Internal error executing query'");
@@ -22,6 +22,7 @@ select user(),current_user(),@@bind_address;
 EOF
 
 --write_file $MYSQL_TMP_DIR/mysqlx-uninstallxplugin.tmp
+-->expecterror ER_PLUGGABLE_PROTOCOL_COMMAND_NOT_SUPPORTED
 -->sql
 show variables like 'mysqlx_idle_worker_thread_timeout%';
 show variables like 'mysqlx_max_allowed_packet%';
@@ -38,6 +39,7 @@ EOF
 
 --replace_regex /\.dll/.so/
 --write_file $MYSQL_TMP_DIR/mysqlx-installxplugin.tmp
+-->expecterror ER_PLUGGABLE_PROTOCOL_COMMAND_NOT_SUPPORTED
 -->sql
 select user(),current_user(),@@bind_address;
 show grants;
@@ -47,6 +49,7 @@ EOF
 
 --replace_regex /\.dll/.so/
 --write_file $MYSQL_TMP_DIR/mysqlx-uninstallxplugin-variables.tmp
+-->expecterror ER_PLUGGABLE_PROTOCOL_COMMAND_NOT_SUPPORTED
 -->sql
 show variables like 'mysqlx_idle_worker_thread_timeout%';
 show variables like 'mysqlx_max_allowed_packet%';
@@ -61,6 +64,9 @@ show variables like 'mysqlx_max_allowed_packet%';
 show variables like 'mysqlx_max_connections%';
 show variables like 'mysqlx_min_worker_threads%';
 uninstall plugin mysqlx;
+-->endsql
+-->expecterror ER_PLUGGABLE_PROTOCOL_COMMAND_NOT_SUPPORTED
+-->sql
 install plugin mysqlx soname '$MYSQLXPLUGIN';
 -->endsql
 EOF
@@ -84,7 +90,7 @@ uninstall plugin mysqlx;
 --replace_regex /ERROR.*(No connection could be made because the target machine actively refused it connecting to *| *Connection refused connecting to*) .*:[0-9]*/ERROR: Connection refused connecting to HOST:PORT/
 --error 1
 --exec $MYSQLXTEST -u xplugin --password='xplugin' --file=$MYSQL_TMP_DIR/mysqlx-uninstallxplugin.tmp 2>&1
---source ../include/xplugin_install_and_wait.inc
+--source include/xplugin_install_and_wait.inc
 
 ##try uninstalling mysqlx plugin using old protocol when mysqlx plugin variables are set
 show variables like 'mysqlx_idle_worker_thread_timeout%';
@@ -100,7 +106,7 @@ show variables like 'mysqlx_max_allowed_packet%';
 show variables like 'mysqlx_max_connections%';
 show variables like 'mysqlx_min_worker_threads%';
 uninstall plugin mysqlx;
---source ../include/xplugin_install_and_wait.inc
+--source include/xplugin_install_and_wait.inc
 
 ###try install mysqlx plugin with valid credentials when this plugin already installed
 --exec $MYSQLXTEST -u session --password='session' --file=$MYSQL_TMP_DIR/mysqlx-installxplugin.tmp 2>&1
@@ -127,7 +133,7 @@ show variables like 'mysqlx_idle_worker_thread_timeout%';
 show variables like 'mysqlx_max_allowed_packet%';
 show variables like 'mysqlx_max_connections%';
 show variables like 'mysqlx_min_worker_threads%';
---source ../include/xplugin_install_and_wait.inc
+--source include/xplugin_install_and_wait.inc
 show variables like 'mysqlx_idle_worker_thread_timeout%';
 show variables like 'mysqlx_max_allowed_packet%';
 show variables like 'mysqlx_max_connections%';
@@ -150,7 +156,7 @@ show variables like 'mysqlx_max_allowed_packet%';
 show variables like 'mysqlx_max_connections%';
 show variables like 'mysqlx_min_worker_threads%';
 SELECT PLUGIN_NAME,PLUGIN_VERSION,PLUGIN_STATUS,PLUGIN_TYPE,LOAD_OPTION from information_schema.plugins where PLUGIN_NAME LIKE 'mysqlx%';
---source ../include/xplugin_install_and_wait.inc
+--source include/xplugin_install_and_wait.inc
 
 ###start server without this plugin and install plugin using mysql and restart without this plugin and connect using xprotocol
 uninstall plugin mysqlx;
@@ -158,7 +164,7 @@ let $restart_parameters = restart: --max_connections=151;
 --let $wait_for_tcpsocket_status = no_wait
 --let $wait_for_unixsocket_status = no_wait
 --source ../include/restart_mysqld_and_wait_for_xplugin.inc
---source ../include/xplugin_install_and_wait.inc
+--source include/xplugin_install_and_wait.inc
 let $restart_parameters = restart: --max_connections=151;
 --source ../include/restart_mysqld_and_wait_for_xplugin.inc
 --exec $MYSQLXTEST -u root --password='' --file=$MYSQL_TMP_DIR/mysqlx-connection_current_user.tmp 2>&1
@@ -169,7 +175,7 @@ let $restart_parameters = restart: --max_connections=151;
 --let $wait_for_tcpsocket_status = no_wait
 --let $wait_for_unixsocket_status = no_wait
 --source ../include/restart_mysqld_and_wait_for_xplugin.inc
---source ../include/xplugin_install_and_wait.inc
+--source include/xplugin_install_and_wait.inc
 let $restart_parameters = restart: --max_connections=151 --mysqlx_idle_worker_thread_timeout=70 --mysqlx_max_allowed_packet=4048576 --mysqlx_max_connections=500 --mysqlx_min_worker_threads=50;
 --source ../include/restart_mysqld_and_wait_for_xplugin.inc
 --exec $MYSQLXTEST -u root --password='' --file=$MYSQL_TMP_DIR/mysqlx-xplugin-variables.tmp 2>&1
@@ -190,7 +196,7 @@ let $restart_parameters = restart: ;
 --let $wait_for_tcpsocket_status = no_wait
 --let $wait_for_unixsocket_status = no_wait
 --source ../include/restart_mysqld_and_wait_for_xplugin.inc
---source ../include/xplugin_install_and_wait.inc
+--source include/xplugin_install_and_wait.inc
 
 ###uninstall mysqlx plugin with new protocol session when server started
 ###with mysqlx plugin variables with other than default values

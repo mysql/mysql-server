@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,11 +16,9 @@
 #ifndef PLUGIN_TRACE_INCLUDED
 #define PLUGIN_TRACE_INCLUDED
 /**
-  @file
+  @file include/mysql/plugin_trace.h
 
-  ========================================================================
-   Declarations for client-side plugins of type MYSQL_CLIENT_TRACE_PLUGIN
-  ========================================================================
+  Declarations for client-side plugins of type MYSQL_CLIENT_TRACE_PLUGIN.
 
   See libmysql/mysql_trace.c for a brief description of the client-side
   protocol tracing infrastructure.
@@ -261,7 +259,7 @@ struct st_mysql;
   stored in a connection handle and passed to other plugin methods.
 
   @param self   pointer to the plugin instance
-  @param connection_handle
+  @param connection_handle Session
   @param stage  protocol stage in which tracing has started - currently
                 it is always CONNECTING stage.
 
@@ -281,7 +279,7 @@ void* (tracing_start_callback)(struct st_mysql_client_plugin_TRACE *self,
   here.
 
   @param self   pointer to the plugin instance
-  @param connection_handle
+  @param connection_handle Session
   @param plugin_data pointer to plugin's per-connection data.
 */
 
@@ -298,7 +296,7 @@ void (tracing_stop_callback)(struct st_mysql_client_plugin_TRACE *self,
 
   @param self         pointer to the plugin instance
   @param plugin_data  pointer to plugin's per-connection data
-  @param connection_handle
+  @param connection_handle Session
   @param stage        current protocol stage
   @param event        the trace event
   @param args         trace event arguments

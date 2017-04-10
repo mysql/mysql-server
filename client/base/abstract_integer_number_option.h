@@ -63,7 +63,7 @@ protected:
     @param var_type my_getopt internal option type.
     @param name Name of option. It is used in command line option name as
       --name.
-    @param desription Description of option to be printed in --help.
+    @param description Description of option to be printed in --help.
    */
   Abstract_integer_number_option(
     T_value* value, ulong var_type, std::string name, std::string description);

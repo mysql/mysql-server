@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -24,6 +24,7 @@
 
 #include "univ.i"
 
+#include "benchmark.h"
 #include "ut0crc32.h"
 #include "ut0dbg.h"
 
@@ -2082,13 +2083,14 @@ static const byte	page[] = {
 };
 static const size_t	page_size = UT_ARR_SIZE(page);
 
+static
 void
 init()
 {
 	ut_crc32_init();
 
 	fprintf(stderr, "Using %s, CPU is %s-endian\n",
-		ut_crc32_sse2_enabled
+		ut_crc32_cpu_enabled
 		? "hardware CPU crc32 instructions"
 		: "software crc32 implementation",
 #ifdef WORDS_BIGENDIAN
@@ -2163,61 +2165,38 @@ TEST(ut0crc32, basic)
 	delete[] buf;
 }
 
-TEST(ut0crc32, perf)
+static void BM_CRC32(size_t num_iterations)
 {
+	StopBenchmarkTiming();
 	init();
 
-	// Change to e.g. 128 and build optimized when doing perf analysis:
-	static const size_t	n_megabytes_to_checksum = 1;
-
-	static const size_t	n_bytes = n_megabytes_to_checksum * 1024 * 1024;
-
-	unsigned char*		p = new unsigned char[n_bytes];
-
-	ASSERT_TRUE(p != NULL);
-
-	/* Fill with some data. */
-	for (size_t i = 0; i < n_bytes; i++) {
-		p[i] = i & 0xFF;
+	StartBenchmarkTiming();
+	size_t sum = 0;
+	for (size_t n = 0; n < num_iterations; n++) {
+		sum += ut_crc32(page, sizeof(page));
 	}
+	StopBenchmarkTiming();
 
-	static const size_t	page_size = 16 * 1024;
-	static const size_t	n_pages = n_bytes / page_size;
-
-#ifdef HAVE_UT_CHRONO_T
-	ut_chrono_t*	chrono;
-
-	chrono = new ut_chrono_t("    normal CRC32");
-#endif /* HAVE_UT_CHRONO_T */
-
-	for (size_t n = 0; n < 128; n++) {
-		for (size_t i = 0; i < n_pages; i++) {
-
-			ASSERT_EQ(3911978414U,
-				  ut_crc32(p + i * page_size, page_size));
-		}
-	}
-
-#ifdef HAVE_UT_CHRONO_T
-	delete chrono; /* shows the timings */
-
-	chrono = new ut_chrono_t("big endian CRC32");
-#endif /* HAVE_UT_CHRONO_T */
-
-	for (size_t n = 0; n < 128; n++) {
-		for (size_t i = 0; i < n_pages; i++) {
-
-			ASSERT_EQ(281254546U,
-				  ut_crc32_legacy_big_endian(p + i * page_size,
-							     page_size));
-		}
-	}
-
-#ifdef HAVE_UT_CHRONO_T
-	delete chrono; /* shows the timings */
-#endif /* HAVE_UT_CHRONO_T */
-
-	delete[] p;
+	EXPECT_NE(0U, sum);  // To keep the compiler from optimizing it away.
+	SetBytesProcessed(num_iterations * sizeof(page));
 }
+BENCHMARK(BM_CRC32);
 
+static void BM_BigEndianCRC32(size_t num_iterations)
+{
+	StopBenchmarkTiming();
+	init();
+
+	StartBenchmarkTiming();
+	size_t sum = 0;
+	for (size_t n = 0; n < num_iterations; n++) {
+		sum += ut_crc32_legacy_big_endian(page, sizeof(page));
+	}
+	StopBenchmarkTiming();
+
+	EXPECT_NE(0U, sum);  // To keep the compiler from optimizing it away.
+	SetBytesProcessed(num_iterations * sizeof(page));
 }
+BENCHMARK(BM_BigEndianCRC32);
+
+}  // namespace

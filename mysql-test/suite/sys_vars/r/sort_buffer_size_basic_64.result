@@ -21,10 +21,10 @@ SELECT @@session.sort_buffer_size;
 @@session.sort_buffer_size
 262144
 '#--------------------FN_DYNVARS_151_03-------------------------#'
-SET @@global.sort_buffer_size = 32776;
+SET @@global.sort_buffer_size = 32768;
 SELECT @@global.sort_buffer_size;
 @@global.sort_buffer_size
-32776
+32768
 SET @@global.sort_buffer_size = 32777;
 SELECT @@global.sort_buffer_size;
 @@global.sort_buffer_size
@@ -37,11 +37,15 @@ SET @@global.sort_buffer_size = 4294967294;
 SELECT @@global.sort_buffer_size;
 @@global.sort_buffer_size
 4294967294
+SET @@global.sort_buffer_size = 18446744073709551615;
+SELECT @@global.sort_buffer_size;
+@@global.sort_buffer_size
+18446744073709551615
 '#--------------------FN_DYNVARS_151_04-------------------------#'
-SET @@session.sort_buffer_size = 32776;
+SET @@session.sort_buffer_size = 32768;
 SELECT @@session.sort_buffer_size;
 @@session.sort_buffer_size
-32776
+32768
 SET @@session.sort_buffer_size = 32777;
 SELECT @@session.sort_buffer_size;
 @@session.sort_buffer_size
@@ -54,53 +58,59 @@ SET @@session.sort_buffer_size = 4294967294;
 SELECT @@session.sort_buffer_size;
 @@session.sort_buffer_size
 4294967294
+SET @@session.sort_buffer_size = 18446744073709551615;
+SELECT @@session.sort_buffer_size;
+@@session.sort_buffer_size
+18446744073709551615
 '#------------------FN_DYNVARS_151_05-----------------------#'
-SET @@global.sort_buffer_size = 32775;
+SET @@global.sort_buffer_size = 32767;
 SELECT @@global.sort_buffer_size;
 @@global.sort_buffer_size
-32775
+32768
 SET @@global.sort_buffer_size = -1024;
 SELECT @@global.sort_buffer_size;
 @@global.sort_buffer_size
 32768
-SET @@global.sort_buffer_size = 4294967296;
-SELECT @@global.sort_buffer_size;
-@@global.sort_buffer_size
-4294967296
 SET @@global.sort_buffer_size = 65530.34;
 ERROR 42000: Incorrect argument type to variable 'sort_buffer_size'
 SELECT @@global.sort_buffer_size;
 @@global.sort_buffer_size
-4294967296
+32768
 SET @@global.sort_buffer_size = test;
 ERROR 42000: Incorrect argument type to variable 'sort_buffer_size'
 SELECT @@global.sort_buffer_size;
 @@global.sort_buffer_size
-4294967296
-SET @@session.sort_buffer_size = 32775;
+32768
+SET @@global.sort_buffer_size = 18446744073709551616;
+ERROR 42000: Incorrect argument type to variable 'sort_buffer_size'
+SELECT @@global.sort_buffer_size;
+@@global.sort_buffer_size
+32768
+SET @@session.sort_buffer_size = 32767;
 SELECT @@session.sort_buffer_size;
 @@session.sort_buffer_size
-32775
+32768
 SET @@session.sort_buffer_size = -2;
 SELECT @@session.sort_buffer_size;
 @@session.sort_buffer_size
 32768
 SET @@session.sort_buffer_size = 65530.34;
 ERROR 42000: Incorrect argument type to variable 'sort_buffer_size'
-SET @@session.sort_buffer_size = 4294967296;
-SELECT @@session.sort_buffer_size;
-@@session.sort_buffer_size
-4294967296
 SET @@session.sort_buffer_size = test;
 ERROR 42000: Incorrect argument type to variable 'sort_buffer_size'
+SET @@session.sort_buffer_size = 18446744073709551616;
+ERROR 42000: Incorrect argument type to variable 'sort_buffer_size'
+SELECT @@session.sort_buffer_size;
+@@session.sort_buffer_size
+32768
 '#------------------FN_DYNVARS_151_06-----------------------#'
 SELECT @@global.sort_buffer_size = VARIABLE_VALUE FROM 
-INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME='sort_buffer_size';
+performance_schema.global_variables WHERE VARIABLE_NAME='sort_buffer_size';
 @@global.sort_buffer_size = VARIABLE_VALUE
 1
 '#------------------FN_DYNVARS_151_07-----------------------#'
 SELECT @@session.sort_buffer_size = VARIABLE_VALUE FROM
-INFORMATION_SCHEMA.SESSION_VARIABLES WHERE VARIABLE_NAME='sort_buffer_size';
+performance_schema.session_variables WHERE VARIABLE_NAME='sort_buffer_size';
 @@session.sort_buffer_size = VARIABLE_VALUE
 1
 '#------------------FN_DYNVARS_151_08-----------------------#'
@@ -116,7 +126,7 @@ SELECT @@global.sort_buffer_size;
 SET @@global.sort_buffer_size = 9000;
 SELECT @@sort_buffer_size = @@global.sort_buffer_size;
 @@sort_buffer_size = @@global.sort_buffer_size
-0
+1
 '#---------------------FN_DYNVARS_151_10----------------------#'
 SET @@sort_buffer_size = 9000;
 SELECT @@sort_buffer_size = @@local.sort_buffer_size;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,14 +13,19 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#define MYSQL_SERVER  "We need security context"
-#include <m_ctype.h>                    /* my_charset_bin */
-#include <sql_class.h>                  /* THD, Security context */
-#include <item_cmpfunc.h>
-#include <mysql/psi/mysql_thread.h>
 
-#include "connection_delay.h"
+#include <current_thd.h>                /* current_thd */
+#include <item_cmpfunc.h>
+#include <m_ctype.h>                    /* my_charset_bin */
+#include <mysql/psi/mysql_thread.h>
+#include <sql_class.h>                  /* THD, Security context */
+#include <time.h>
+
 #include "connection_control.h"
+#include "connection_delay.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_systime.h"
 #include "security_context_wrapper.h"
 
 
@@ -94,11 +99,9 @@ namespace connection_control
   /**
     Helper function for Connection_delay_event::reset_all
 
-    @param ptr [in]        Pointer to an entry in hash
-
     @returns 1 to indicate that entry is a match
   */
-  int match_all_entries(const uchar *ptr)
+  int match_all_entries(const uchar*)
   {
     return 1;
   }
@@ -113,13 +116,13 @@ namespace connection_control
     fed to an internal calc_hash() which use the defined charset to
     calculate a hash from the key buffer (in most cases a murmur)
 
-    @param el [in]        Pointer to an element in the hash
-    @param length [out]   The length of the key belonging to the element
+    @param [in] el        Pointer to an element in the hash
+    @param [out] length   The length of the key belonging to the element
 
     @returns Pointer to key buffer
   */
 
-  uchar *connection_delay_event_hash_key(const uchar *el, size_t *length, my_bool huh)
+  const uchar *connection_delay_event_hash_key(const uchar *el, size_t *length)
   {
     const Connection_event_record * const *entry;
     const Connection_event_record *entry_info;
@@ -150,7 +153,7 @@ namespace connection_control
   /**
     Creates or updates an entry in hash
 
-    @param s [in]    User information in '<user'@'<host>' format
+    @param [in] s    User information in '<user'@'<host>' format
 
     @returns status of insertion/update
       @retval false  Insertion/Update successful
@@ -173,7 +176,7 @@ namespace connection_control
     searched_entry= reinterpret_cast<Connection_event_record **>
       (lf_hash_search(&m_entries, pins, s.c_str(), s.length()));
 
-    if (searched_entry && (searched_entry != MY_ERRPTR))
+    if (searched_entry && (searched_entry != MY_LF_ERRPTR))
     {
       /* We found an entry, so increment the count */
       searched_entry_info= *searched_entry;
@@ -214,7 +217,7 @@ namespace connection_control
   /**
     Resets count stored against given user entry
 
-    @param s [in]    User information in '<user'@'<host>' format
+    @param [in] s    User information in '<user'@'<host>' format
 
     @returns status of reset operation
       @retval false Reset successful
@@ -233,7 +236,7 @@ namespace connection_control
     searched_entry= reinterpret_cast<Connection_event_record **>
       (lf_hash_search(&m_entries, pins, s.c_str(), s.length()));
 
-    if (searched_entry && searched_entry != MY_ERRPTR)
+    if (searched_entry && searched_entry != MY_LF_ERRPTR)
     {
       searched_entry_info= *searched_entry;
       DBUG_ASSERT(searched_entry_info != NULL);
@@ -260,7 +263,7 @@ namespace connection_control
   /**
     Retrieve stored value for given user entry
 
-    @param s [in]        User information in '<user'@'<host>' format
+    @param [in] s        User information in '<user'@'<host>' format
     @param value [out]   Buffer to hold value stored against given user
 
     @returns whether given entry is present in hash or not
@@ -282,7 +285,7 @@ namespace connection_control
     searched_entry= reinterpret_cast<Connection_event_record **>
       (lf_hash_search(&m_entries, pins, s.c_str(), s.length()));
 
-    if (searched_entry && searched_entry != MY_ERRPTR)
+    if (searched_entry && searched_entry != MY_LF_ERRPTR)
     {
       searched_entry_info= *searched_entry;
       count= searched_entry_info->get_count();
@@ -318,7 +321,7 @@ namespace connection_control
       searched_entry= reinterpret_cast<Connection_event_record**>
         (lf_hash_random_match(&m_entries, pins, match_all_entries, 0));
 
-      if (searched_entry != NULL && searched_entry != MY_ERRPTR
+      if (searched_entry != NULL && searched_entry != MY_LF_ERRPTR
           && (*searched_entry)
           && !lf_hash_delete(&m_entries, pins,
           (*searched_entry)->get_userhost(),
@@ -350,7 +353,7 @@ namespace connection_control
   /**
     Function to populate information_schema view.
 
-    @param ptr [in]  Entry from LF hash
+    @param [in] ptr  Entry from LF hash
 
     @returns status of row insertion
       @retval 0 Success
@@ -379,14 +382,12 @@ namespace connection_control
   /**
     Function to dump LF hash data to IS table.
 
-    @param thd [in]    THD handle
-    @param tables [in] Handle to
+    @param [in] tables Handle to
                        information_schema.connection_control_failed_attempts
   */
 
   void
-  Connection_delay_event::fill_IS_table(THD *thd,
-                                        TABLE_LIST *tables)
+  Connection_delay_event::fill_IS_table(TABLE_LIST *tables)
   {
     DBUG_ENTER("Connection_delay_event::fill_IS_table");
     TABLE *table= tables->table;
@@ -457,8 +458,8 @@ namespace connection_control
     2. Use priv_user/priv_host if either of them is not empty. Else,
     3. Use user/host
 
-    @param thd [in]        THD pointer for getting security context
-    @param s [out]         Hash key is stored here
+    @param [in] thd        THD pointer for getting security context
+    @param [out] s         Hash key is stored here
   */
 
   void
@@ -518,8 +519,8 @@ namespace connection_control
   /**
     Wait till the wait_time expires or thread is killed
 
-    @param thd [in]        Handle to MYSQL_THD object
-    @param wait_time [in]  Maximum time to wait
+    @param [in] thd        Handle to MYSQL_THD object
+    @param [in] wait_time  Maximum time to wait
   */
 
   void
@@ -527,7 +528,6 @@ namespace connection_control
                                             ulonglong wait_time)
   {
     DBUG_ENTER("Connection_delay_action::conditional_wait");
-    const char * category= "connection_delay";
 
     /** mysql_cond_timedwait requires wait time in timespec format */
     struct timespec abstime;
@@ -541,13 +541,14 @@ namespace connection_control
 
     /** Initialize mutex required for mysql_cond_timedwait */
     mysql_mutex_t connection_delay_mutex;
+    const char * category= "conn_delay";
     PSI_mutex_key key_connection_delay_mutex;
     PSI_mutex_info connection_delay_mutex_info[]=
     {
-      {&key_connection_delay_mutex, "connection_delay_mutex", PSI_FLAG_GLOBAL}
+      {&key_connection_delay_mutex, "connection_delay_mutex", PSI_FLAG_GLOBAL, 0}
     };
     int count_mutex= array_elements(connection_delay_mutex_info);
-    PSI_server->register_mutex(category, connection_delay_mutex_info, count_mutex);
+    PSI_MUTEX_CALL(register_mutex)(category, connection_delay_mutex_info, count_mutex);
     mysql_mutex_init(key_connection_delay_mutex, &connection_delay_mutex,
                      MY_MUTEX_INIT_FAST);
 
@@ -559,7 +560,7 @@ namespace connection_control
       {&key_connection_delay_wait, "connection_delay_wait_condition", 0}
     };
     int count_cond= array_elements(connection_delay_wait_info);
-    PSI_server->register_cond(category, connection_delay_wait_info, count_cond);
+    PSI_COND_CALL(register_cond)(category, connection_delay_wait_info, count_cond);
     mysql_cond_init(key_connection_delay_wait, &connection_delay_wait_condition);
 
     /** Register wait condition with THD */
@@ -596,10 +597,10 @@ namespace connection_control
 
     We only care about CONNECT and CHANGE_USER sub events.
 
-    @param thd [in]                THD pointer
-    @param coordinator [in]        Connection_event_coordinator
-    @param connection_event [in]   Connection event to be handled
-    @param error_handler [in]      Error handler object
+    @param [in] thd                THD pointer
+    @param [in] coordinator        Connection_event_coordinator
+    @param [in] connection_event   Connection event to be handled
+    @param [in] error_handler      Error handler object
 
     @returns status of connection event handling
       @retval false  Successfully handled an event.
@@ -712,11 +713,11 @@ namespace connection_control
   /**
     Notification of a change in system variable value
 
-    @param coordinator [in]        Handle to coordinator
-    @param variable [in]           Enum of variable
-    @param new_value [in]          New value for variable
-    @param error_buffer [out]      Buffer to log error message if any
-    @param error_buffer_size [in]  Size of error buffer
+    @param [in] coordinator        Handle to coordinator
+    @param [in] variable           Enum of variable
+    @param [in] new_value          New value for variable
+    @param [out] error_buffer      Buffer to log error message if any
+    @param [in] error_buffer_size  Size of error buffer
 
     @returns processing status
       @retval false  Change in variable value processed successfully
@@ -780,7 +781,7 @@ namespace connection_control
   /**
     Subscribe with coordinator for connection events
 
-    @param coordinator [in]  Handle to Connection_event_coordinator_services
+    @param [in] coordinator  Handle to Connection_event_coordinator_services
                              for registration
   */
   void
@@ -822,9 +823,9 @@ namespace connection_control
   /**
     Get user information from "where userhost = <value>"
 
-    @param cond [in]        Equality condition structure
-    @param eq_arg [out]     Sql_string handle to store user information
-    @param field_name [in]  userhost field
+    @param [in] cond        Equality condition structure
+    @param [out] eq_arg     Sql_string handle to store user information
+    @param [in] field_name  userhost field
 
     @returns whether a value was found or not
       @retval false Found a value. Check eq_arg
@@ -870,10 +871,10 @@ namespace connection_control
 
     Permission : SUPER_ACL is required.
 
-    @param thd [in]     THD handle.
-    @param tables [in]  Handle to
+    @param [in] thd     THD handle.
+    @param [in] tables  Handle to
                         information_schema.connection_control_failed_attempts.
-    @param cond [in]    Condition if any.
+    @param [in] cond    Condition if any.
   */
 
   void
@@ -909,7 +910,7 @@ namespace connection_control
       }
     }
     else
-      m_userhost_hash.fill_IS_table(thd, tables);
+      m_userhost_hash.fill_IS_table(tables);
 
     DBUG_VOID_RETURN;
   }
@@ -918,7 +919,7 @@ namespace connection_control
   /**
     Initializes required objects for handling connection events.
 
-    @param coordinator [in]    Connection_event_coordinator_services handle.
+    @param [in] coordinator    Connection_event_coordinator_services handle.
   */
 
   bool init_connection_delay_event(Connection_event_coordinator_services *coordinator,
@@ -967,10 +968,10 @@ namespace connection_control
 /**
   Function to fill information_schema.connection_control_failed_attempts.
 
-  @param thd [in]     THD handle.
-  @param tables [in]  Handle to
+  @param [in] thd     THD handle.
+  @param [in] tables  Handle to
                       information_schema.connection_control_failed_attempts.
-  @param cond [in]    Condition if any.
+  @param [in] cond    Condition if any.
 
   @returns Always returns FALSE.
 */
@@ -988,7 +989,7 @@ int fill_failed_attempts_view(THD *thd,
 /**
   View init function
 
-  @param ptr [in]    Handle to
+  @param [in] ptr    Handle to
                      information_schema.connection_control_failed_attempts.
 
   @returns Always returns 0.

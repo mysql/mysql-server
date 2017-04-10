@@ -32,7 +32,7 @@ ERROR 42000: Incorrect argument type to variable 'sql_slave_skip_counter'
 '#--------------------FN_DYNVARS_165_03-------------------------#'
 SET @@global.sql_slave_skip_counter = 1024;
 SELECT VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+FROM performance_schema.session_variables 
 WHERE VARIABLE_NAME='sql_slave_skip_counter';
 VARIABLE_VALUE
 1024

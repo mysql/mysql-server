@@ -44,7 +44,7 @@ row_import_for_mysql(
 	dict_table_t*	table,		/*!< in/out: table */
 	row_prebuilt_t*	prebuilt)	/*!< in: prebuilt struct
 						in MySQL */
-	MY_ATTRIBUTE((nonnull, warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 
 /*****************************************************************//**
 Update the DICT_TF2_DISCARDED flag in SYS_TABLES.
@@ -61,7 +61,7 @@ row_import_update_discarded_flag(
 	bool		dict_locked)		/*!< in: Set to true if the
 						caller already owns the
 						dict_sys_t:: mutex. */
-	MY_ATTRIBUTE((nonnull, warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 
 /*****************************************************************//**
 Update the (space, root page) of a table's indexes from the values
@@ -79,9 +79,8 @@ row_import_update_index_root(
 	bool			dict_locked)	/*!< in: Set to true if the
 						caller already owns the
 						dict_sys_t:: mutex. */
-	MY_ATTRIBUTE((nonnull, warn_unused_result));
-#ifndef UNIV_NONINL
+	MY_ATTRIBUTE((warn_unused_result));
+
 #include "row0import.ic"
-#endif
 
 #endif /* row0import_h */

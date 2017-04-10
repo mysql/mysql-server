@@ -1,6 +1,14 @@
---source include/have_innodb.inc
 --source include/have_debug.inc
 --source include/have_debug_sync.inc
+
+########################################
+##### WL#7554 Force schema `test` to character set latin1
+##### This test should be migrated to utf8mb4
+--disable_query_log
+let $testdbcs36=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
+alter schema test default character set latin1;
+--enable_query_log
+########################################
 
 --source include/count_sessions.inc
 
@@ -176,7 +184,7 @@ INSERT IGNORE INTO t2 (a2,b2) VALUES (1,repeat('a',254)),(2,repeat('b',254)),(3,
 SELECT a,LEFT(b,10),LENGTH(b) = 254 FROM t1,t2 WHERE t1.a = t2.a2 ORDER BY a;
 connect (con1,localhost,root,,);
 connection con1;
---error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+--error ER_FK_DUP_NAME
 ALTER TABLE t2 CHANGE b2 b2 varchar(255),DROP FOREIGN KEY fk,ADD CONSTRAINT fk FOREIGN KEY (b2) REFERENCES t1 (b),ADD INDEX idx(a2) ,ALGORITHM=INPLACE;
 SET DEBUG_SYNC = 'row_log_apply_before SIGNAL s1 WAIT_FOR s2';
 --send ALTER TABLE t1 ADD INDEX idx(a),CHANGE b b varchar(255) ,ALGORITHM=INPLACE;
@@ -209,3 +217,10 @@ DROP TABLE t2,t1;
 SET DEBUG_SYNC = 'RESET';
 
 --source include/wait_until_count_sessions.inc
+
+########################################
+##### WL#7554 set schema `test` back to what it was
+--disable_query_log
+--eval alter schema test default character set $testdbcs36;
+--enable_query_log
+########################################

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -25,13 +25,13 @@ Created 2/23/1996 Heikki Tuuri
 
 #include "btr0pcur.h"
 
-#ifdef UNIV_NONINL
-#include "btr0pcur.ic"
-#endif
+#include <stddef.h>
 
-#include "ut0byte.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
 #include "rem0cmp.h"
 #include "trx0trx.h"
+#include "ut0byte.h"
 
 /**************************************************************//**
 Allocates memory for a persistent cursor object and initializes the cursor.
@@ -53,7 +53,7 @@ btr_pcur_create_for_mysql(void)
 }
 
 /**************************************************************//**
-Resets a persistent cursor object, freeing ::old_rec_buf if it is
+Resets a persistent cursor object, freeing "::old_rec_buf" if it is
 allocated and resetting the other members to their initial values. */
 void
 btr_pcur_reset(
@@ -133,7 +133,7 @@ btr_pcur_store_position(
 	} else {
 		ut_ad(mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_S_FIX)
 		      || mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX)
-		      || dict_table_is_intrinsic(index->table));
+		      || index->table->is_intrinsic());
 	}
 #endif /* UNIV_DEBUG */
 
@@ -279,7 +279,7 @@ btr_pcur_restore_position_func(
 	     || latch_mode == BTR_MODIFY_LEAF
 	     || latch_mode == BTR_SEARCH_PREV
 	     || latch_mode == BTR_MODIFY_PREV)
-            && !dict_table_is_intrinsic(cursor->btr_cur.index->table)) {
+            && !cursor->btr_cur.index->table->is_intrinsic()) {
 		/* Try optimistic restoration. */
 
 		if (!buf_pool_is_obsolete(cursor->withdraw_clock)
@@ -365,7 +365,7 @@ btr_pcur_restore_position_func(
 	      || cursor->rel_pos == BTR_PCUR_AFTER);
 	if (cursor->rel_pos == BTR_PCUR_ON
 	    && btr_pcur_is_on_user_rec(cursor)
-	    && !cmp_dtuple_rec(tuple, btr_pcur_get_rec(cursor),
+	    && !cmp_dtuple_rec(tuple, btr_pcur_get_rec(cursor), index,
 			       rec_get_offsets(btr_pcur_get_rec(cursor),
 			       index, NULL, ULINT_UNDEFINED, &heap))) {
 
@@ -407,7 +407,7 @@ btr_pcur_move_to_next_page(
 				last record of the current page */
 	mtr_t*		mtr)	/*!< in: mtr */
 {
-	ulint		next_page_no;
+	page_no_t	next_page_no;
 	page_t*		page;
 	buf_block_t*	next_block;
 	page_t*		next_page;
@@ -436,7 +436,7 @@ btr_pcur_move_to_next_page(
 
 	/* For intrinsic tables we avoid taking any latches as table is
 	accessed by only one thread at any given time. */
-	if (dict_table_is_intrinsic(table)) {
+	if (table->is_intrinsic()) {
 		mode = BTR_NO_LATCHES;
 	}
 
@@ -470,6 +470,7 @@ alphabetical position of the cursor is guaranteed to be sensible on
 return, but it may happen that the cursor is not positioned on the last
 record of any page, because the structure of the tree may have changed
 during the time when the cursor had no latches. */
+static
 void
 btr_pcur_move_backward_from_page(
 /*=============================*/
@@ -477,7 +478,7 @@ btr_pcur_move_backward_from_page(
 				record of the current page */
 	mtr_t*		mtr)	/*!< in: mtr */
 {
-	ulint		prev_page_no;
+	page_no_t	prev_page_no;
 	page_t*		page;
 	buf_block_t*	prev_block;
 	ulint		latch_mode;
@@ -515,8 +516,8 @@ btr_pcur_move_backward_from_page(
 
 	/* For intrinsic table we don't do optimistic restore and so there is
 	no left block that is pinned that needs to be released. */
-	if (!dict_table_is_intrinsic(
-		btr_cur_get_index(btr_pcur_get_btr_cur(cursor))->table)) {
+	if (!btr_cur_get_index(
+		btr_pcur_get_btr_cur(cursor))->table->is_intrinsic()) {
 
 		if (prev_page_no == FIL_NULL) {
 		} else if (btr_pcur_is_before_first_on_page(cursor)) {

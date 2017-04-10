@@ -1,7 +1,17 @@
+
 # Tests for setting innodb-page-size=16k; default value
 --source include/big_test.inc
---source include/have_innodb.inc
---source include/have_innodb_16k.inc
+
+########################################
+##### WL#7554 Force schema `test` to character set latin1
+##### This test should be migrated to utf8mb4
+--disable_query_log
+let $testdbcs100=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
+alter schema default character set latin1;
+use test;
+--enable_query_log
+########################################
+
 SET default_storage_engine=InnoDB;
 
 --disable_query_log
@@ -14,14 +24,14 @@ call mtr.add_suppression("Cannot add field .* in table .* because after adding i
 
 --echo # Test 1) Show the page size from Information Schema
 --disable_warnings
-SELECT variable_value FROM information_schema.global_status
+SELECT variable_value FROM performance_schema.global_status
        WHERE LOWER(variable_name) = 'innodb_page_size';
 --enable_warnings
 
 --echo # Test 2) The number of buffer pool pages is dependent upon the page size.
 --disable_warnings
 --replace_result 1535 {checked_valid} 1536 {checked_valid}
-SELECT variable_value FROM information_schema.global_status
+SELECT variable_value FROM performance_schema.global_status
        WHERE LOWER(variable_name) = 'innodb_buffer_pool_pages_total';
 --enable_warnings
 
@@ -43,6 +53,7 @@ SELECT	t.name table_name, t.n_cols, t.flag table_flags,
 		INFORMATION_SCHEMA.INNODB_SYS_INDEXES i
 	WHERE	t.table_id = i.table_id
 	AND	t.name LIKE 'mysql%'
+        AND     t.name NOT LIKE 'mysql/ndb_binlog_index'
 	ORDER BY t.name, i.index_id;
 
 CREATE TABLE t1 (a INT KEY, b TEXT) ROW_FORMAT=REDUNDANT ENGINE=innodb;
@@ -295,15 +306,11 @@ SHOW WARNINGS;
 CREATE TABLE t5 (id int PRIMARY KEY) ENGINE=innodb KEY_BLOCK_SIZE=16;
 SHOW WARNINGS;
 SET GLOBAL innodb_file_per_table = ON;
-SET GLOBAL innodb_file_format = `Antelope`;
---error ER_ILLEGAL_HA
 CREATE TABLE t4 (id int PRIMARY KEY) ENGINE=innodb KEY_BLOCK_SIZE=8;
 SHOW WARNINGS;
---error ER_ILLEGAL_HA
 CREATE TABLE t5 (id int PRIMARY KEY) ENGINE=innodb KEY_BLOCK_SIZE=16;
 SHOW WARNINGS;
-SET GLOBAL innodb_file_format = `Barracuda`;
-
+DROP TABLE t4,t5;
 
 --echo # Test 7) This series of tests were moved from innodb-index to here
 --echo # because the second alter table t1 assumes a 16k page size.
@@ -551,7 +558,7 @@ DELETE FROM t4_purge;
 # We need to activate the purge thread.
 # Instead of doing a --sleep 10 now,  do it once at the end.
 
-# Bug#12637786 - Assertion hit; ut_ad(dict_index_is_clust(index));
+# Bug#12637786 - Assertion hit; ut_ad(index->is_clustered());
 # A secondary index tuple is found to be too long to fit into a page.
 # This test is not in innodb_8k or innodb_4k since the bug is not about
 # page size.  It just tests the condition that caused the assertion.
@@ -713,3 +720,10 @@ DROP TABLE t1;
 DROP TABLE t1_purge, t2_purge, t3_purge, t4_purge;
 DROP TABLE t12637786;
 DROP TABLE t12963823;
+
+########################################
+##### WL#7554 set schema `test` back to what it was
+--disable_query_log
+--eval alter schema test default character set $testdbcs100;
+--enable_query_log
+########################################

@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -19,13 +19,6 @@ INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
 IF(SSL_DEFINES)
   ADD_DEFINITIONS(${SSL_DEFINES})
 ENDIF()
-
-# Note that no COMPONENTS option is to be used for header only components,
-# it would try to find a library
-SET(Boost_USE_STATIC_LIBS OFF)
-ADD_DEFINITIONS(-DBOOST_ALL_NO_LIB -DBOOST_NO_AUTO_PTR)
-
-MESSAGE(STATUS "Using Boost headers from ${BOOST_INCLUDE_DIR}")
 
 SET(XPLUGIN_LOG_PROTOBUF 1 CACHE STRING "Enable logging of protobuf messages")
 
@@ -66,24 +59,11 @@ ELSE()
     PROTO_LITE_SRCS PROTO_LITE_HDRS
     ${PROTOBUF_MYSQLX_FILES})
 
-  MY_CHECK_CXX_COMPILER_FLAG("-Wignored-qualifiers" HAVE_NO_IGNORED_QUALIFIERS)
-  IF(HAVE_NO_IGNORED_QUALIFIERS)
+  IF(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     ADD_COMPILE_FLAGS(${PROTO_SRCS} COMPILE_FLAGS
-      "-Wno-ignored-qualifiers")
+      "-Wno-ignored-qualifiers -Wno-sign-compare -Wno-unused-variable")
   ENDIF()
-
-  MY_CHECK_CXX_COMPILER_FLAG("-Wsign-compare" CXX_HAVE_SIGN_COMPARE)
-  IF(CXX_HAVE_SIGN_COMPARE)
-    ADD_COMPILE_FLAGS(${PROTO_SRCS} COMPILE_FLAGS
-      "-Wno-sign-compare")
-  ENDIF()
-
-  MY_CHECK_CXX_COMPILER_FLAG("-Wunused-variable" CXX_HAVE_UNUSED_VARIABLE)
-  IF(CXX_HAVE_UNUSED_VARIABLE)
-    ADD_COMPILE_FLAGS(${PROTO_SRCS} COMPILE_FLAGS
-      "-Wno-unused-variable")
-  ENDIF()
-
+  
   INCLUDE_DIRECTORIES(${CMAKE_CURRENT_BINARY_DIR}
     ${CMAKE_CURRENT_SOURCE_DIR}/protocol/errors
     ${CMAKE_CURRENT_SOURCE_DIR}/src
@@ -91,12 +71,12 @@ ELSE()
     ${CMAKE_CURRENT_SOURCE_DIR}/ngs/include
     ${CMAKE_SOURCE_DIR}/include #temporary
     ${CMAKE_CURRENT_SOURCE_DIR}/include/mysql
+    ${CMAKE_CURRENT_BINARY_DIR}/generated
     ${SSL_INCLUDE_DIRS}
     ${ZLIB_INCLUDE_DIR}
   )
 
   INCLUDE_DIRECTORIES(SYSTEM
-    ${BOOST_INCLUDE_DIR}
     ${PROTOBUF_INCLUDE_DIRS}
     ${LIBEVENT_INCLUDE_DIR}
   )
@@ -120,27 +100,24 @@ ELSE()
     ADD_COMPILE_FLAGS(${PROTO_SRCS} ${PROTO_LITE_SRCS} COMPILE_FLAGS "/wd4018")
   ENDIF(MSVC)
 
-  # boost::shared_ptr depends on scoped_lock
-  # Prevent missing symbols scoped_lock() CTOR/DTOR in mysqlx.so
-  #   boost::atomics::detail::lockpool::scoped_lock::~scoped_lock()
-  UNSET(BOOST_LIB_SOURCES)
-  IF (CMAKE_CXX_COMPILER_ID STREQUAL "SunPro")
-    SET(BOOST_LIB_SOURCES
-      ${BOOST_SOURCES_DIR}/libs/atomic/src/lockpool.cpp)
-  ENDIF()
-
   ADD_COMPILE_FLAGS(
     src/xpl_plugin.cc
     src/xpl_performance_schema.cc
     ${xplugin_SRC} ${xplugin_PROTOBUF_SRC}
     COMPILE_FLAGS
-    "-I${xplugin_PROTOBUF_DIR}"
-    "-I${CMAKE_CURRENT_BINARY_DIR}/generated/")
+    "-I${xplugin_PROTOBUF_DIR}")
+
+  # assertion failed in function assert_with_dumps() @ ssa.c:621 when using -xO3
+  IF(CMAKE_CXX_COMPILER_ID MATCHES "SunPro")
+    ADD_COMPILE_FLAGS(
+      ${MYSQLX_PROJECT_DIR}/ngs/src/client.cc
+      COMPILE_FLAGS "-xO2")
+  ENDIF()
 
   MYSQL_ADD_PLUGIN(mysqlx
     src/xpl_plugin.cc
     src/xpl_performance_schema.cc
-    ${xplugin_SRC} ${xplugin_HDRS} ${xplugin_PROTOBUF_SRC} ${BOOST_LIB_SOURCES}
+    ${xplugin_SRC} ${xplugin_HDRS} ${xplugin_PROTOBUF_SRC}
     LINK_LIBRARIES ${xplugin_PROTOBUF_LIB} ${LIBEVENT_LIBRARY} ${LIBEVENT_LIBRARIES}
     MODULE_ONLY MODULE_OUTPUT_NAME "mysqlx")
 
@@ -189,20 +166,19 @@ ELSE()
 
   ADD_DEPENDENCIES(mysqlxtest GenError)
 
-  MY_CHECK_CXX_COMPILER_FLAG("-Wunused-but-set-parameter" HAVE_UNUSED_BUT_SET)
-  IF(HAVE_UNUSED_BUT_SET)
-    ADD_COMPILE_FLAGS(${mysqlxtest_SRC} COMPILE_FLAGS
-      "-Wno-unused-but-set-parameter")
-  ENDIF()
-
-  MY_CHECK_CXX_COMPILER_FLAG("-Wunused-parameter" HAVE_UNUSED_PARAMETER)
-  IF(HAVE_UNUSED_PARAMETER)
+  IF(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     ADD_COMPILE_FLAGS(${mysqlxtest_SRC} COMPILE_FLAGS "-Wno-unused-parameter")
+
+    MY_CHECK_CXX_COMPILER_FLAG("-Wunused-but-set-parameter" HAVE_UNUSED_BUT_SET)
+    IF(HAVE_UNUSED_BUT_SET)
+      ADD_COMPILE_FLAGS(${mysqlxtest_SRC} COMPILE_FLAGS
+        "-Wno-unused-but-set-parameter")
+    ENDIF()
   ENDIF()
 
   GET_PROPERTY(OLD_COMPILE_FLAGS TARGET mysqlxtest PROPERTY COMPILE_FLAGS)
   SET_PROPERTY(TARGET mysqlxtest PROPERTY COMPILE_FLAGS
-    "${OLD_COMPILE_FLAGS} -I${CMAKE_CURRENT_BINARY_DIR}/generated/protobuf -I${CMAKE_CURRENT_BINARY_DIR}/generated/")
+    "${OLD_COMPILE_FLAGS} -I${CMAKE_CURRENT_BINARY_DIR}/generated/protobuf")
 
     GET_TARGET_PROPERTY(mysqlxtest_compile_definitions
       mysqlxtest COMPILE_DEFINITIONS)

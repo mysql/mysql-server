@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,37 +16,39 @@
 #ifndef OPT_TRACE_INCLUDED
 #define OPT_TRACE_INCLUDED
 
-#include "my_config.h"  // OPTIMIZER_TRACE
-#include "sql_list.h"   // because sql_cmd.h needs it
-#include "sql_cmd.h"    // for enum_sql_command
+#include "my_config.h"
+
+#include <limits.h>
+#include <string.h>
+#include <sys/types.h>
+
+#include "m_ctype.h"
+#include "my_compiler.h"
+#include "my_inttypes.h"
+#include "my_sqlcommand.h"     // enum_sql_command
 #include "opt_trace_context.h" // Opt_trace_context
 
-struct st_schema_table;
-struct TABLE_LIST;
-struct TABLE;
-class sp_head;
-class sp_printable;
-class set_var_base;
 class Cost_estimate;
 class Item;
+class THD;
+class set_var_base;
+class sp_head;
+class sp_printable;
+struct TABLE_LIST;
+
+typedef struct charset_info_st CHARSET_INFO;
+template <class T> class List;
+
 
 /**
-   @file
-   API for the Optimizer trace (WL#5257)
-
-   Doxygen parses include files in order to find defined symbols, which in
-   turn influence what code is scanned. OPTIMIZER_TRACE must be defined for
-   the optimizer trace code to be documented. Doxygen searches for include
-   files in "INCLUDE_PATH". But in out-of-source builds, this path varies
-   accross builds. An alternative is to use
-   PREDEFINED             = OPTIMIZER_TRACE
+  @file sql/opt_trace.h
+  API for the Optimizer trace (WL#5257)
 */
-
 
 #ifdef OPTIMIZER_TRACE
 
 /**
-  @page OPTIMIZER_TRACE The Optimizer Trace
+  @page PAGE_OPT_TRACE The Optimizer Trace
 
   @section INTRODUCTION Introduction
 
@@ -364,7 +366,6 @@ class Item;
   and then @ref opt_trace.h as a whole.
 */
 
-class Opt_trace_struct;
 class Opt_trace_stmt;           // implementation detail local to opt_trace.cc
 
 
@@ -505,7 +506,6 @@ public:
 
      @param  key    key
      @param  value  value
-     @param  val_length  length of string 'value'
      @returns a reference to the structure, useful for chaining like this:
      @verbatim add(x,y).add(z,t).add(u,v) @endverbatim
 
@@ -542,7 +542,7 @@ public:
   /**
      Like add_alnum() but supports any UTF8 characters in 'value'.
      Will "escape" 'value' to be JSON-compliant.
-     @param  key
+     @param  key         key
      @param  value       value
      @param  val_length  length of string 'value'
   */
@@ -799,9 +799,18 @@ private:
   void do_destruct();
   /**
      Really adds to the object. @sa add().
-     @param  escape  do JSON-compliant escaping of 'value'.
-     @details If 'escape' is false, 'value' should be ASCII. Otherwise, should
-     be UTF8.
+
+     @note add() has an up-front if(), hopefully inlined, so that in the
+     common case - tracing run-time disabled - we have no function call. If
+     tracing is enabled, we call do_add().
+     In a 20-table plan search (as in BUG#50595), the execution time was
+     decreased from 2.6 to 2.0 seconds thanks to this inlined-if trick.
+
+     @param key         key
+     @param value       value
+     @param val_length  length of string 'value'
+     @param escape      do JSON-compliant escaping of 'value'. If 'escape' is
+     false, 'value' should be ASCII. Otherwise, should be UTF8.
   */
   Opt_trace_struct& do_add(const char *key, const char *value,
                            size_t val_length, bool escape);
@@ -1035,7 +1044,8 @@ private:
 };
 
 
-class st_select_lex;
+class SELECT_LEX;
+
 /**
    Prints SELECT query to optimizer trace. It is not the original query (as in
    @c Opt_trace_context::set_query()) but a printout of the parse tree
@@ -1045,7 +1055,7 @@ class st_select_lex;
    @param  trace_object  Opt_trace_object to which the query will be added
 */
 void opt_trace_print_expanded_query(THD *thd,
-                                    st_select_lex *select_lex,
+                                    SELECT_LEX *select_lex,
                                     Opt_trace_object *trace_object);
 
 /**
@@ -1126,7 +1136,7 @@ void opt_trace_disable_if_no_stored_proc_func_access(THD *thd, sp_head *sp);
    @retval 0 ok
    @retval 1 error
 */
-int fill_optimizer_trace_info(THD *thd, TABLE_LIST *tables, Item *cond);
+int fill_optimizer_trace_info(THD *thd, TABLE_LIST *tables, Item*);
 
 //@}
 
@@ -1231,9 +1241,9 @@ public:
    code line. This produces
    {
      "transformation": {
-       "select#": <select_number>,
-       "from": <from>,
-       "to": <to>
+       "select#": @<select_number@>,
+       "from": @<from@>,
+       "to": @<to@>
    The objects are left open, so that one can add more to them (often a
    "chosen" property after making some computation). Objects get closed when
    going out of scope as usual.

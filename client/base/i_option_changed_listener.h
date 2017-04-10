@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -32,6 +32,8 @@ namespace Options{
 class I_option_changed_listener
 {
 public:
+  virtual ~I_option_changed_listener() {}
+
   /**
     Called after specified option has name changed.
     It is also called when new option is added, old_name is empty string in

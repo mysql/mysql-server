@@ -1,0 +1,17 @@
+flush status;
+SHOW SESSION STATUS;
+SHOW GLOBAL STATUS;
+SHOW SESSION VARIABLES;
+SHOW GLOBAL VARIABLES;
+SHOW SESSION STATUS like "Com_help";
+Variable_name	Value
+Com_help	0
+SHOW GLOBAL STATUS like "Com_help";
+Variable_name	Value
+Com_help	0
+SHOW SESSION VARIABLES like "autocommit";
+Variable_name	Value
+autocommit	ON
+SHOW GLOBAL VARIABLES like "autocommit";
+Variable_name	Value
+autocommit	ON

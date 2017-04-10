@@ -113,7 +113,7 @@ SET @@session.unique_checks = 123456789031;
 
 --disable_warnings
 SELECT IF(@@session.unique_checks, "ON", "OFF") = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+FROM performance_schema.session_variables 
 WHERE VARIABLE_NAME='unique_checks';
 --enable_warnings
 

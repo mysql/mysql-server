@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,14 +15,16 @@
 
 // First include (the generated) my_config.h, to get correct platform defines.
 #include "my_config.h"
-#include <gtest/gtest.h>
 
-#include "test_utils.h"
+#include <gtest/gtest.h>
+#include <stddef.h>
+#include <sys/types.h>
 
 #include "fake_table.h"
 #include "mock_field_long.h"
-#include "sql_optimizer.cc"
 #include "parse_tree_helpers.h"
+#include "sql_optimizer.cc"
+#include "test_utils.h"
 
 
 // Unit tests of the ref optimizer.
@@ -80,7 +82,7 @@ public:
   virtual void SetUp()
   {
     // We do some pointer arithmetic on these
-    compile_time_assert(sizeof(Fake_key_field) == sizeof(Key_field));
+    static_assert(sizeof(Fake_key_field) == sizeof(Key_field), "");
     initializer.SetUp();
 
     item_zero= new Item_int(0);
@@ -97,7 +99,7 @@ public:
 
   THD *thd() { return initializer.thd(); }
 
-  key_map indexes;
+  Key_map indexes;
 
   Mock_field_long field_t1_a, field_t1_b;
   Mock_field_long field_t2_a, field_t2_b;
@@ -133,7 +135,7 @@ private:
 };
 
 
-Item_row *make_item_row(Item *a, Item *b)
+static Item_row *make_item_row(Item *a, Item *b)
 {
   /*
     The Item_row CTOR doesn't store the reference to the list, hence
@@ -207,7 +209,7 @@ TEST_F(OptRefTest, addKeyFieldsFromInOneRowWithCols)
 
   // We expect the key_fields pointer not to be incremented.
   EXPECT_EQ(0, t1_key_fields - static_cast<Key_field*>(&t1_key_field_arr[0]));
-  EXPECT_EQ(key_map(0), t1_join_tab.const_keys);
+  EXPECT_EQ(Key_map(0), t1_join_tab.const_keys);
   EXPECT_EQ(indexes, t1_join_tab.keys());
 
   EXPECT_EQ(t2.pos_in_table_list->map(), t1_join_tab.key_dependent);

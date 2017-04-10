@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -203,7 +203,8 @@ public:
    */
   static int snprintf(char *str, size_t size, const char *format, ...)
     ATTRIBUTE_FORMAT(printf, 3, 4);
-  static int vsnprintf(char *str, size_t size, const char *format, va_list ap);
+  static int vsnprintf(char *str, size_t size, const char *format, va_list ap)
+    ATTRIBUTE_FORMAT(printf, 3, 0);
 
   template<unsigned size>
   static BaseString getText(const Bitmask<size>& mask) {

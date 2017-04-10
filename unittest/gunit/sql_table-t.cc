@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -25,6 +25,7 @@
 #include "sql_class.h"
 #include "rpl_handler.h"                        // delegates_init()
 #include "sql_table.h"
+
 
 namespace sql_table_unittest {
 
@@ -62,8 +63,9 @@ TEST_F(SqlTableTest, PromoteFirstTimestampColumn1)
   definitions.push_front(&column_1_definition);
   definitions.push_back(&column_2_definition);
   promote_first_timestamp_column(&definitions);
-  EXPECT_EQ(Field::TIMESTAMP_DNUN_FIELD, column_1_definition.unireg_check);
-  EXPECT_EQ(Field::NONE, column_2_definition.unireg_check);
+  EXPECT_EQ((Field::DEFAULT_NOW|Field::ON_UPDATE_NOW),
+            column_1_definition.auto_flags);
+  EXPECT_EQ(Field::NONE, column_2_definition.auto_flags);
 }
 
 
@@ -84,8 +86,9 @@ TEST_F(SqlTableTest, PromoteFirstTimestampColumn2)
   definitions.push_front(&column_1_definition);
   definitions.push_back(&column_2_definition);
   promote_first_timestamp_column(&definitions);
-  EXPECT_EQ(Field::TIMESTAMP_DNUN_FIELD, column_1_definition.unireg_check);
-  EXPECT_EQ(Field::NONE, column_2_definition.unireg_check);
+  EXPECT_EQ((Field::DEFAULT_NOW|Field::ON_UPDATE_NOW),
+            column_1_definition.auto_flags);
+  EXPECT_EQ(Field::NONE, column_2_definition.auto_flags);
 }
 
 
@@ -104,8 +107,8 @@ TEST_F(SqlTableTest, PromoteFirstTimestampColumn3)
   definitions.push_front(&column_1_definition);
   definitions.push_back(&column_2_definition);
   promote_first_timestamp_column(&definitions);
-  EXPECT_EQ(Field::NONE, column_1_definition.unireg_check);
-  EXPECT_EQ(Field::NONE, column_2_definition.unireg_check);
+  EXPECT_EQ(Field::NONE, column_1_definition.auto_flags);
+  EXPECT_EQ(Field::NONE, column_2_definition.auto_flags);
 }
 
 
@@ -127,9 +130,7 @@ TEST_F(SqlTableTest, FileNameToTableName)
   MEM_NOACCESS(&foo.foo2, 1);
 
   const char test_filename[] = "-@";
-  char       test_tablename[sizeof test_filename
-                            + sizeof("#mysql50#") - 1];
-  //#mysql50# is prefix used by MySQL to indicate pre-5.1 table name encoding.
+  char       test_tablename[sizeof test_filename - 1];
 
 
   // This one used to fail with AddressSanitizer

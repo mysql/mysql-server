@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,21 +13,22 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
 
-#include <my_global.h>
-#include <my_sys.h>
-#include "my_default.h"
-#include <mysql.h>
 #include <errmsg.h>
-#include <my_getopt.h>
 #include <m_string.h>
+#include <my_getopt.h>
+#include <my_sys.h>
+#include <mysql.h>
+#include <mysql/client_plugin.h>
 #include <mysqld_error.h>
 #include <sql_common.h>
-#include <mysql/client_plugin.h>
 
-#define VER "2.1"
+#include "my_default.h"
+#include "mysql/service_mysql_alloc.h"
+#include "print_version.h"
+#include "welcome_copyright_notice.h"           /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
+
 #define MAX_TEST_QUERY_LENGTH 300 /* MAX QUERY BUFFER LENGTH */
 #define MAX_KEY MAX_INDEXES
-#define MAX_SERVER_ARGS 64
 
 /* set default options */
 static int   opt_testcase = 0;
@@ -36,20 +37,21 @@ static char *opt_user= 0;
 static char *opt_password= 0;
 static char *opt_host= 0;
 static char *opt_unix_socket= 0;
-#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
+#if defined (_WIN32)
 static char *shared_memory_base_name= 0;
 #endif
 static unsigned int  opt_port;
-static my_bool tty_password= 0, opt_silent= 0;
+static bool tty_password= 0;
+static int opt_silent= 0;
 
-static my_bool opt_secure_auth= 1;
+static bool opt_secure_auth= 1;
 static MYSQL *mysql= 0;
 static char current_db[]= "client_test_db";
 static unsigned int test_count= 0;
 static unsigned int opt_count= 0;
 static unsigned int opt_count_read= 0;
 static unsigned int iter_count= 0;
-static my_bool have_innodb= FALSE;
+static bool have_innodb= FALSE;
 static char *opt_plugin_dir= 0, *opt_default_auth= 0;
 static unsigned int opt_drop_db= 1;
 
@@ -61,15 +63,6 @@ static longlong opt_getopt_ll_test= 0;
 static char **defaults_argv;
 static int   original_argc;
 static char **original_argv;
-static int embedded_server_arg_count= 0;
-static char *embedded_server_args[MAX_SERVER_ARGS];
-
-static const char *embedded_server_groups[]= {
-"server",
-"embedded",
-"mysql_client_test_SERVER",
-NullS
-};
 
 static time_t start_time, end_time;
 static double total_time;
@@ -110,6 +103,8 @@ static void print_error(MYSQL * l_mysql, const char *msg);
 static void print_st_error(MYSQL_STMT *stmt, const char *msg);
 static void client_disconnect(MYSQL* mysql);
 static void get_options(int *argc, char ***argv);
+static void die(const char *file, int line,
+                const char *expr) MY_ATTRIBUTE((noreturn));
 
 /*
 Abort unless given experssion is non-zero.
@@ -212,11 +207,9 @@ static void verify_st_affected_rows(MYSQL_STMT *stmt,
 static void verify_affected_rows(ulonglong exp_count) MY_ATTRIBUTE((unused));
 static void verify_field_count(MYSQL_RES *result,
                                uint exp_count) MY_ATTRIBUTE((unused));
-#ifndef EMBEDDED_LIBRARY
 static void execute_prepare_query(const char *query,
                                   ulonglong exp_count) MY_ATTRIBUTE((unused));
-#endif
-static my_bool thread_query(const char *query) MY_ATTRIBUTE((unused));
+static bool thread_query(const char *query) MY_ATTRIBUTE((unused));
 
 
 /* A workaround for Sun Forte 5.6 on Solaris x86 */
@@ -273,7 +266,7 @@ base on Windows.
 static MYSQL *mysql_client_init(MYSQL* con)
 {
  MYSQL* res = mysql_init(con);
- #if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
+ #if defined (_WIN32)
  if (res && shared_memory_base_name)
  mysql_options(res, MYSQL_SHARED_MEMORY_BASE_NAME, shared_memory_base_name);
  #endif
@@ -296,12 +289,12 @@ Disable direct calls of mysql_init, as it disregards  shared memory base.
 
 /* Check if the connection has InnoDB tables */
 
-static my_bool check_have_innodb(MYSQL *conn)
+static bool check_have_innodb(MYSQL *conn)
 {
  MYSQL_RES *res;
  MYSQL_ROW row;
  int rc;
- my_bool result= FALSE;
+ bool result= FALSE;
 
  rc= mysql_query(conn, 
  "SELECT (support = 'YES' or support = 'DEFAULT' or support = 'ENABLED') "
@@ -343,13 +336,13 @@ Connect to the server with options given by arguments to this application,
 stored in global variables opt_host, opt_user, opt_password, opt_db, 
 opt_port and opt_unix_socket.
 
-@param flag[in]           client_flag passed on to mysql_real_connect
-@param protocol[in]       MYSQL_PROTOCOL_* to use for this connection
-@param auto_reconnect[in] set to 1 for auto reconnect
+@param flag           client_flag passed on to mysql_real_connect
+@param protocol       MYSQL_PROTOCOL_* to use for this connection
+@param auto_reconnect set to 1 for auto reconnect
    
 @return pointer to initialized and connected MYSQL object
 */
-static MYSQL* client_connect(ulong flag, uint protocol, my_bool auto_reconnect)
+static MYSQL* client_connect(ulong flag, uint protocol, bool auto_reconnect)
 {
  MYSQL* mysql;
  int  rc;
@@ -608,7 +601,7 @@ static int my_process_stmt_result(MYSQL_STMT *stmt)
  MYSQL_RES   *result;
  char        data[MAX_RES_FIELDS][MAX_FIELD_DATA_SIZE];
  ulong       length[MAX_RES_FIELDS];
- my_bool     is_null[MAX_RES_FIELDS];
+ bool        is_null[MAX_RES_FIELDS];
  int         rc, i;
 
  if (!(result= mysql_stmt_result_metadata(stmt))) /* No meta info */
@@ -802,7 +795,7 @@ const char *file, int line)
  }
  cs= get_charset(field->charsetnr, 0);
  DIE_UNLESS(cs);
- if ((expected_field_length= length * cs->mbmaxlen) > UINT_MAX32)
+ if ((expected_field_length= (ulonglong)length * cs->mbmaxlen) > UINT_MAX32)
  expected_field_length= UINT_MAX32;
  if (!opt_silent)
  {
@@ -916,7 +909,6 @@ static void verify_field_count(MYSQL_RES *result, uint exp_count)
 
 /* Utility function to execute a query using prepare-execute */
 
-#ifndef EMBEDDED_LIBRARY
 static void execute_prepare_query(const char *query, ulonglong exp_count)
 {
  MYSQL_STMT *stmt;
@@ -937,7 +929,7 @@ static void execute_prepare_query(const char *query, ulonglong exp_count)
  DIE_UNLESS(affected_rows == exp_count);
  mysql_stmt_close(stmt);
 }
-#endif
+
 
 /*
 Accepts arbitrary number of queries and runs them against the database.
@@ -971,7 +963,7 @@ typedef struct st_stmt_fetch
 const char *query;
 unsigned stmt_no;
 MYSQL_STMT *handle;
-my_bool is_open;
+bool is_open;
 MYSQL_BIND *bind_array;
 char **out_data;
 unsigned long *out_data_length;
@@ -985,7 +977,7 @@ Create statement handle, prepare it with statement, execute and allocate
 fetch buffers.
 */
 
-void stmt_fetch_init(Stmt_fetch *fetch, unsigned stmt_no_arg,
+static void stmt_fetch_init(Stmt_fetch *fetch, unsigned stmt_no_arg,
 const char *query_arg)
 {
  unsigned long type= CURSOR_TYPE_READ_ONLY;
@@ -1050,7 +1042,7 @@ const char *query_arg)
 
 /* Fetch and print one row from cursor */
 
-int stmt_fetch_fetch_row(Stmt_fetch *fetch)
+static int stmt_fetch_fetch_row(Stmt_fetch *fetch)
 {
  int rc;
  unsigned i;
@@ -1074,7 +1066,7 @@ int stmt_fetch_fetch_row(Stmt_fetch *fetch)
 }
 
 
-void stmt_fetch_close(Stmt_fetch *fetch)
+static void stmt_fetch_close(Stmt_fetch *fetch)
 {
  unsigned i;
  DBUG_ENTER("stmt_fetch_close");
@@ -1097,7 +1089,7 @@ reading from the rest.
 
 enum fetch_type { USE_ROW_BY_ROW_FETCH= 0, USE_STORE_RESULT= 1 };
 
-my_bool fetch_n(const char **query_list, unsigned query_count,
+bool fetch_n(const char **query_list, unsigned query_count,
 enum fetch_type fetch_type)
 {
  unsigned open_statements= query_count;
@@ -1165,10 +1157,10 @@ enum fetch_type fetch_type)
 
 /* Separate thread query to test some cases */
 
-static my_bool thread_query(const char *query)
+static bool thread_query(const char *query)
 {
  MYSQL *l_mysql;
- my_bool error;
+ bool error;
 
  error= 0;
  if (!opt_silent)
@@ -1226,13 +1218,11 @@ static struct my_option client_test_long_options[] =
  #endif
  "built-in default (" STRINGIFY_ARG(MYSQL_PORT) ").",
  &opt_port, &opt_port, 0, GET_UINT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-{"server-arg", 'A', "Send embedded server this as a parameter.",
- 0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 {"show-tests", 'T', "Show all tests' names", 0, 0, 0, GET_NO_ARG, NO_ARG,
  0, 0, 0, 0, 0, 0},
 {"silent", 's', "Be more silent", 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0,
  0},
-#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
+#if defined (_WIN32)
 {"shared-memory-base-name", 'm', "Base name of shared memory.", 
  &shared_memory_base_name, (uchar**)&shared_memory_base_name, 0, 
  GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -1266,14 +1256,8 @@ static struct my_option client_test_long_options[] =
 static void usage(void)
 {
 /* show the usage string when the user asks for this */
- putc('\n', stdout);
- printf("%s  Ver %s Distrib %s, for %s (%s)\n",
- my_progname, VER, MYSQL_SERVER_VERSION, SYSTEM_TYPE, MACHINE_TYPE);
- puts("By Monty, Venu, Kent and others\n");
- printf("\
-Copyright (C) 2002-2004 MySQL AB\n\
-This software comes with ABSOLUTELY NO WARRANTY. This is free software,\n\
-and you are welcome to modify and redistribute it under the GPL license\n");
+ print_version();
+ puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2002"));
  printf("Usage: %s [OPTIONS] [TESTNAME1 TESTNAME2...]\n", my_progname);
  my_print_help(client_test_long_options);
  print_defaults("my", client_test_load_default_groups);
@@ -1284,7 +1268,7 @@ static struct my_tests_st *get_my_tests();  /* To be defined in main .c file */
 
 static struct my_tests_st *my_testlist= 0;
 
-static my_bool
+static bool
 get_one_option(int optid, const struct my_option *opt MY_ATTRIBUTE((unused)),
 char *argument)
 {
@@ -1317,26 +1301,6 @@ char *argument)
  break;
  case 'd':
  opt_drop_db= 0;
- break;
- case 'A':
- /*
- When the embedded server is being tested, the test suite needs to be
- able to pass command-line arguments to the embedded server so it can
- locate the language files and data directory. The test suite
- (mysql-test-run) never uses config files, just command-line options.
- */
- if (!embedded_server_arg_count)
- {
-   embedded_server_arg_count= 1;
-   embedded_server_args[0]= (char*) "";
- }
- if (embedded_server_arg_count == MAX_SERVER_ARGS-1 ||
- !(embedded_server_args[embedded_server_arg_count++]=
- my_strdup(PSI_NOT_INSTRUMENTED,
-           argument, MYF(MY_FAE))))
- {
-   DIE("Can't use server argument");
- }
  break;
  case 'T':
  {
@@ -1438,10 +1402,8 @@ int main(int argc, char **argv)
    tests_to_run[i]= NULL;
  }
 
- if (mysql_server_init(embedded_server_arg_count,
- embedded_server_args,
- (char**) embedded_server_groups))
- DIE("Can't initialize MySQL server");
+ if (mysql_server_init(0, NULL, NULL))
+   DIE("Can't initialize MySQL server");
 
  /* connect to server with no flags, default protocol, auto reconnect true */
  mysql= client_connect(0, MYSQL_PROTOCOL_DEFAULT, 1);
@@ -1492,9 +1454,6 @@ int main(int argc, char **argv)
 
  free_defaults(defaults_argv);
  print_test_output();
-
- while (embedded_server_arg_count > 1)
- my_free(embedded_server_args[--embedded_server_arg_count]);
 
  mysql_server_end();
 

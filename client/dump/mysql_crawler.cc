@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -15,26 +15,30 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "mysql_crawler.h"
-#include "mysql_function.h"
-#include "stored_procedure.h"
-#include "table_definition_dump_task.h"
-#include "table_rows_dump_task.h"
-#include "table_deferred_indexes_dump_task.h"
-#include "event_scheduler_event.h"
-#include "privilege.h"
-#include "trigger.h"
-#include "view.h"
-#include "base/mysql_query_runner.h"
+#include <stdlib.h>
+#include <functional>
 #include <string>
 #include <vector>
+
+#include "base/mysql_query_runner.h"
+#include "event_scheduler_event.h"
+#include "mysql_crawler.h"
+#include "mysql_function.h"
+#include "privilege.h"
+#include "stored_procedure.h"
+#include "table_deferred_indexes_dump_task.h"
+#include "table_definition_dump_task.h"
+#include "table_rows_dump_task.h"
+#include "trigger.h"
+#include "view.h"
+
 using std::string;
 using std::vector;
 
 using namespace Mysql::Tools::Dump;
 
 Mysql_crawler::Mysql_crawler(I_connection_provider* connection_provider,
-  Mysql::I_callable<bool, const Mysql::Tools::Base::Message_data&>*
+  std::function<bool(const Mysql::Tools::Base::Message_data&)>*
     message_handler, Simple_id_generator* object_id_generator,
   Mysql_chain_element_options* options,
   Mysql::Tools::Base::Abstract_program* program)
@@ -45,14 +49,41 @@ Mysql_crawler::Mysql_crawler(I_connection_provider* connection_provider,
 
 void Mysql_crawler::enumerate_objects()
 {
-  m_dump_start_task= new Dump_start_dump_task();
+  Mysql::Tools::Base::Mysql_query_runner* runner= this->get_runner();
+  std::vector<const Mysql::Tools::Base::Mysql_query_runner::Row*> gtid_mode;
+  std::string gtid_value("OFF");
+  /* Check if the server is GTID enabled */
+  runner->run_query_store("SELECT @@global.gtid_mode", &gtid_mode);
+  if (gtid_mode.size())
+  {
+    std::vector<const Mysql::Tools::Base::Mysql_query_runner::Row*>
+      ::iterator mode_it= gtid_mode.begin();
+    const Mysql::Tools::Base::Mysql_query_runner::Row& gtid_data= **mode_it;
+    gtid_value= gtid_data[0];
+  }
+  Mysql::Tools::Base::Mysql_query_runner::cleanup_result(&gtid_mode);
+
+  /* get the GTID_EXECUTED value */
+  std::vector<const Mysql::Tools::Base::Mysql_query_runner::Row*> gtid_executed;
+  runner->run_query_store("SELECT @@GLOBAL.GTID_EXECUTED", &gtid_executed);
+
+  std::string gtid_output_val;
+  if (gtid_executed.size())
+  {
+    std::vector<const Mysql::Tools::Base::Mysql_query_runner::Row*>
+      ::iterator gtid_executed_iter= gtid_executed.begin();
+    const Mysql::Tools::Base::Mysql_query_runner::Row& gtid_executed_val=
+      **gtid_executed_iter;
+    gtid_output_val= gtid_executed_val[0];
+  }
+  Mysql::Tools::Base::Mysql_query_runner::cleanup_result(&gtid_executed);
+
+  m_dump_start_task= new Dump_start_dump_task(gtid_value, gtid_output_val);
   m_dump_end_task= new Dump_end_dump_task();
   m_tables_definition_ready_dump_task=
     new Tables_definition_ready_dump_task();
 
   this->process_dump_task(m_dump_start_task);
-
-  Mysql::Tools::Base::Mysql_query_runner* runner= this->get_runner();
 
   std::vector<const Mysql::Tools::Base::Mysql_query_runner::Row*> databases;
   runner->run_query_store("SHOW DATABASES", &databases);
@@ -122,6 +153,15 @@ void Mysql_crawler::enumerate_database_objects(const Database& db)
 void Mysql_crawler::enumerate_tables(const Database& db)
 {
   Mysql::Tools::Base::Mysql_query_runner* runner= this->get_runner();
+
+  /*
+    Get statistics from SE by setting information_schema_stats=LATEST
+    for this session. This makes the queries IS queries retrieve latest
+    statistics and avoids getting outdated statistics.
+  */
+  std::vector<const Mysql::Tools::Base::Mysql_query_runner::Row*> t;
+  runner->run_query_store("SET SESSION information_schema_stats=latest", &t);
+
   std::vector<const Mysql::Tools::Base::Mysql_query_runner::Row*> tables;
 
   runner->run_query_store("SHOW TABLE STATUS FROM "
@@ -347,10 +387,12 @@ void Mysql_crawler::enumerate_users()
 
     std::vector<const Mysql::Tools::Base::Mysql_query_runner::Row*> create_user;
     std::vector<const Mysql::Tools::Base::Mysql_query_runner::Row*> user_grants;
-    runner->run_query_store(
-      "SHOW CREATE USER " + user_row[0], &create_user);
-    runner->run_query_store(
-      "SHOW GRANTS FOR " + user_row[0], &user_grants);
+    if (runner->run_query_store(
+      "SHOW CREATE USER " + user_row[0], &create_user))
+      return;
+    if (runner->run_query_store(
+      "SHOW GRANTS FOR " + user_row[0], &user_grants))
+      return;
 
     Abstract_dump_task* previous_grant= m_dump_start_task;
 

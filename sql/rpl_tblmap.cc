@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,13 +13,22 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#ifdef HAVE_REPLICATION
-#include "rpl_tblmap.h"
-#ifndef MYSQL_CLIENT
+#include "sql/rpl_tblmap.h"
+
+#include <stddef.h>
+
+#ifdef MYSQL_SERVER
 #include "table.h"       // TABLE
 #endif
+#include "lex_string.h"
+#include "m_ctype.h"
+#include "my_dbug.h"
+#include "my_sys.h"
+#include "mysql/psi/psi_base.h"
+#include "psi_memory_key.h"
+#include "sql_plugin_ref.h"
 
-#ifdef MYSQL_CLIENT
+#ifndef MYSQL_SERVER
 #define MAYBE_TABLE_NAME(T) ("")
 #else
 #define MAYBE_TABLE_NAME(T) ((T) ? (T)->s->table_name.str : "<>")
@@ -32,7 +41,7 @@ table_mapping::table_mapping()
 {
   PSI_memory_key psi_key;
 
-#ifdef MYSQL_CLIENT
+#ifndef MYSQL_SERVER
   psi_key= PSI_NOT_INSTRUMENTED;
 #else
   psi_key= key_memory_table_mapping_root;
@@ -46,8 +55,7 @@ table_mapping::table_mapping()
     constructor is called at startup only.
   */
   (void) my_hash_init(&m_table_ids,&my_charset_bin,TABLE_ID_HASH_SIZE,
-		   offsetof(entry,table_id),sizeof(ulonglong),
-                   0, 0, 0, psi_key);
+                      0, table_id_get_key, nullptr, 0, psi_key);
   /* We don't preallocate any block, this is consistent with m_free=0 above */
   init_alloc_root(psi_key,
                   &m_mem_root, TABLE_ID_HASH_SIZE*sizeof(entry), 0);
@@ -55,7 +63,7 @@ table_mapping::table_mapping()
 
 table_mapping::~table_mapping()
 {
-#ifdef MYSQL_CLIENT
+#ifndef MYSQL_SERVER
   clear_tables();
 #endif
   my_hash_free(&m_table_ids);
@@ -69,8 +77,8 @@ TABLE* table_mapping::get_table(ulonglong table_id)
   entry *e= find_entry(table_id);
   if (e) 
   {
-    DBUG_PRINT("info", ("tid %llu -> table 0x%lx (%s)",
-			table_id, (long) e->table,
+    DBUG_PRINT("info", ("tid %llu -> table %p (%s)",
+			table_id, e->table,
 			MAYBE_TABLE_NAME(e->table)));
     DBUG_RETURN(e->table);
   }
@@ -108,9 +116,9 @@ int table_mapping::expand()
 int table_mapping::set_table(ulonglong table_id, TABLE* table)
 {
   DBUG_ENTER("table_mapping::set_table(ulong,TABLE*)");
-  DBUG_PRINT("enter", ("table_id: %llu  table: 0x%lx (%s)",
+  DBUG_PRINT("enter", ("table_id: %llu  table: %p (%s)",
 		       table_id, 
-		       (long) table, MAYBE_TABLE_NAME(table)));
+		       table, MAYBE_TABLE_NAME(table)));
   entry *e= find_entry(table_id);
   if (e == 0)
   {
@@ -121,7 +129,7 @@ int table_mapping::set_table(ulonglong table_id, TABLE* table)
   }
   else
   {
-#ifdef MYSQL_CLIENT
+#ifndef MYSQL_SERVER
     free_table_map_log_event(e->table);
 #endif
     my_hash_delete(&m_table_ids,(uchar *)e);
@@ -136,8 +144,8 @@ int table_mapping::set_table(ulonglong table_id, TABLE* table)
     DBUG_RETURN(ERR_MEMORY_ALLOCATION);
   }
 
-  DBUG_PRINT("info", ("tid %llu -> table 0x%lx (%s)",
-		      table_id, (long) e->table,
+  DBUG_PRINT("info", ("tid %llu -> table %p (%s)",
+		      table_id, e->table,
 		      MAYBE_TABLE_NAME(e->table)));
   DBUG_RETURN(0);		// All OK
 }
@@ -166,7 +174,7 @@ void table_mapping::clear_tables()
   for (uint i= 0; i < m_table_ids.records; i++)
   {
     entry *e= (entry *)my_hash_element(&m_table_ids, i);
-#ifdef MYSQL_CLIENT
+#ifndef MYSQL_SERVER
     free_table_map_log_event(e->table);
 #endif
     e->next= m_free;
@@ -175,5 +183,3 @@ void table_mapping::clear_tables()
   my_hash_reset(&m_table_ids);
   DBUG_VOID_RETURN;
 }
-
-#endif

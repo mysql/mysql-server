@@ -96,6 +96,7 @@ struct index_field_t {
 	ulint		prefix_len;	/*!< column prefix length, or 0
 					if indexing the whole column */
 	bool		is_v_col;	/*!< whether this is a virtual column */
+	bool		is_ascending;	/*!< true=ASC, false=DESC */
 };
 
 /** Definition of an index being created */
@@ -167,7 +168,7 @@ void
 row_merge_drop_temp_indexes(void);
 /*=============================*/
 
-/** Create temporary merge files in the given paramater path, and if
+/**Create temporary merge files in the given paramater path, and if
 UNIV_PFS_IO defined, register the file descriptor with Performance Schema.
 @param[in]	path	location for creating temporary merge files.
 @return File descriptor */
@@ -175,6 +176,7 @@ int
 row_merge_file_create_low(
 	const char*	path)
 	MY_ATTRIBUTE((warn_unused_result));
+
 /*********************************************************************//**
 Destroy a merge file. And de-register the file from Performance Schema
 if UNIV_PFS_IO is defined. */
@@ -219,7 +221,7 @@ row_merge_rename_index_to_add(
 /*==========================*/
 	trx_t*		trx,		/*!< in/out: transaction */
 	table_id_t	table_id,	/*!< in: table identifier */
-	index_id_t	index_id);	/*!< in: index identifier */
+	space_index_t	index_id);	/*!< in: index identifier */
 /*********************************************************************//**
 Rename an index in the dictionary that is to be dropped. The data
 dictionary must have been locked exclusively by the caller, because
@@ -230,7 +232,7 @@ row_merge_rename_index_to_drop(
 /*===========================*/
 	trx_t*		trx,		/*!< in/out: transaction */
 	table_id_t	table_id,	/*!< in: table identifier */
-	index_id_t	index_id);	/*!< in: index identifier */
+	space_index_t	index_id);	/*!< in: index identifier */
 /** Create the index and load in to the dictionary.
 @param[in,out]	trx		trx (sets error_state)
 @param[in,out]	table		the index is on this table
@@ -244,14 +246,6 @@ row_merge_create_index(
 	dict_table_t*		table,
 	const index_def_t*	index_def,
 	const dict_add_v_col_t*	add_v);
-/*********************************************************************//**
-Check if a transaction can use an index.
-@return TRUE if index can be used by the transaction else FALSE */
-ibool
-row_merge_is_index_usable(
-/*======================*/
-	const trx_t*		trx,	/*!< in: transaction */
-	const dict_index_t*	index);	/*!< in: index to check */
 /*********************************************************************//**
 Drop a table. The caller must have ensured that the background stats
 thread is not processing the table. This can be done by calling
@@ -312,14 +306,15 @@ row_merge_build_indexes(
 	struct TABLE*		eval_table)
 MY_ATTRIBUTE((warn_unused_result));
 
-/********************************************************************//**
-Write a buffer to a block. */
+/** Write a buffer to a block.
+@param[in]	buf	sorted buffer
+@param[in]	of	output file
+@param[out]	block	buffer for writing to file */
 void
 row_merge_buf_write(
-/*================*/
-	const row_merge_buf_t*	buf,	/*!< in: sorted buffer */
-	const merge_file_t*	of,	/*!< in: output file */
-	row_merge_block_t*	block);	/*!< out: buffer for writing to file */
+	const row_merge_buf_t*	buf,
+	const merge_file_t*	of,
+	row_merge_block_t*	block);
 
 /********************************************************************//**
 Sort a buffer. */
@@ -348,7 +343,7 @@ row_merge_buf_empty(
 	row_merge_buf_t*	buf)	/*!< in,own: sort buffer */
 	MY_ATTRIBUTE((warn_unused_result));
 
-/** Create a merge file in the given location.
+/** Create a merge file int the given location.
 @param[out]	merge_file	merge file structure
 @param[in]	path		location for creating temporary file
 @return file descriptor, or -1 on failure */

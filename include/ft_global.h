@@ -1,7 +1,7 @@
 #ifndef FT_GLOBAL_INCLUDED
 #define FT_GLOBAL_INCLUDED
 
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,13 +18,18 @@
 
 /* Written by Sergei A. Golubchik, who has a shared copyright to this code */
 
-/* some definitions for full-text indices */
+/**
+  @file include/ft_global.h
+  Some definitions for full-text indices.
+*/
 
 /* #include "myisam.h" */
 
-#include "my_global.h"
-#include "my_base.h"
+#include <sys/types.h>
+
 #include "m_ctype.h"
+#include "my_base.h"
+#include "my_inttypes.h"
 
 #ifdef  __cplusplus
 extern "C" {
@@ -124,7 +129,7 @@ struct ft_hints
 
 FT_INFO *ft_init_search(uint,void *, uint, uchar *, uint,
                         const CHARSET_INFO *, uchar *);
-my_bool ft_boolean_check_syntax_string(const uchar *);
+bool ft_boolean_check_syntax_string(const uchar *);
 
 #ifdef  __cplusplus
 }

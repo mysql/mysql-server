@@ -22,7 +22,6 @@
 #                                                                             #
 ###############################################################################
 
---source include/have_innodb.inc
 
 # safe initial value
 SET @innodb_max_dirty_pages_pct = @@global.innodb_max_dirty_pages_pct;
@@ -83,9 +82,9 @@ BEGIN
   DECLARE res DECIMAL(20,17);
   DECLARE a1, b1 VARCHAR(256);
   DECLARE a2, b2 VARCHAR(256);
-  DECLARE dirty CURSOR FOR SELECT * FROM information_schema.global_status
+  DECLARE dirty CURSOR FOR SELECT * FROM performance_schema.global_status
                 WHERE variable_name LIKE 'Innodb_buffer_pool_pages_dirty';
-  DECLARE total CURSOR FOR SELECT * FROM information_schema.global_status
+  DECLARE total CURSOR FOR SELECT * FROM performance_schema.global_status
                 WHERE variable_name LIKE 'Innodb_buffer_pool_pages_total';
 
   OPEN dirty;

@@ -1,5 +1,3 @@
---source include/have_ujis.inc
---source include/have_innodb.inc
 
 --disable_warnings
 DROP TABLE IF EXISTS `£Ô£±a`;

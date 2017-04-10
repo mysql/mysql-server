@@ -1,4 +1,3 @@
---source include/have_partition.inc
 
 # DATA DIRECTORY
 # Make directory for partition data

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2017, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -31,21 +31,18 @@ Created 9/11/1995 Heikki Tuuri
 *******************************************************/
 
 #include "sync0rw.h"
-#ifdef UNIV_NONINL
-#include "sync0rw.ic"
-#include "sync0arr.ic"
-#endif
 
-#include "ha_prototypes.h"
-
-#include "os0thread.h"
-#include "mem0mem.h"
-#include "srv0srv.h"
-#include "os0event.h"
-#include "srv0mon.h"
-#include "sync0debug.h"
-#include "ha_prototypes.h"
 #include <my_sys.h>
+#include <sys/types.h>
+
+#include "ha_prototypes.h"
+#include "mem0mem.h"
+#include "my_inttypes.h"
+#include "os0event.h"
+#include "os0thread.h"
+#include "srv0mon.h"
+#include "srv0srv.h"
+#include "sync0debug.h"
 
 /*
 	IMPLEMENTATION OF THE RW_LOCK
@@ -345,6 +342,7 @@ rw_lock_s_lock_spin(
 	it here for efficiency. */
 
 	ut_ad(rw_lock_validate(lock));
+	rw_lock_stats.rw_s_spin_wait_count.inc();
 
 lock_loop:
 
@@ -415,12 +413,10 @@ lock_loop:
 		/* see comments in trx_commit_low() to
 		before_trx_state_committed_in_memory explaining
 		this care to invoke the following sync check.*/
-#ifndef DBUG_OFF
 #ifdef UNIV_DEBUG
 		if (lock->get_level() != SYNC_DICT_OPERATION) {
 			DEBUG_SYNC_C("rw_s_lock_waiting");
 		}
-#endif
 #endif
 		sync_array_wait_event(sync_arr, cell);
 
@@ -720,6 +716,7 @@ rw_lock_x_lock_func(
 	sync_array_t*	sync_arr;
 	ulint		spin_count = 0;
 	uint64_t	count_os_wait = 0;
+	bool		spinning = false;
 
 	ut_ad(rw_lock_validate(lock));
 	ut_ad(!rw_lock_own(lock, RW_LOCK_S));
@@ -740,6 +737,10 @@ lock_loop:
 		return;
 
 	} else {
+		if (!spinning) {
+			spinning = true;
+			rw_lock_stats.rw_x_spin_wait_count.inc();
+		}
 
 		/* Spin waiting for the lock_word to become free */
 		os_rmb;
@@ -1093,6 +1094,7 @@ typedef std::vector<rw_lock_debug_t*> Infos;
 @param[in]	infos		The rw-lock mode owned by the threads
 @param[in]	lock		rw-lock to check
 @return the thread debug info or NULL if not found */
+static
 void
 rw_lock_get_debug_info(const rw_lock_t* lock, Infos* infos)
 {
@@ -1226,50 +1228,6 @@ rw_lock_list_print_info(
 	mutex_exit(&rw_lock_list_mutex);
 }
 
-/***************************************************************//**
-Prints debug info of an rw-lock. */
-void
-rw_lock_print(
-/*==========*/
-	rw_lock_t*	lock)	/*!< in: rw-lock */
-{
-	rw_lock_debug_t* info;
-
-	fprintf(stderr,
-		"-------------\n"
-		"RW-LATCH INFO\n"
-		"RW-LATCH: %p ", (void*) lock);
-
-#ifndef INNODB_RW_LOCKS_USE_ATOMICS
-	/* We used to acquire lock->mutex here, but it would cause a
-	recursive call to sync_thread_add_level() if UNIV_DEBUG
-	is defined.  Since this function is only invoked from
-	sync_thread_levels_g(), let us choose the smaller evil:
-	performing dirty reads instead of causing bogus deadlocks or
-	assertion failures. */
-#endif /* INNODB_RW_LOCKS_USE_ATOMICS */
-
-	if (lock->lock_word != X_LOCK_DECR) {
-
-		if (rw_lock_get_waiters(lock)) {
-			fputs(" Waiters for the lock exist\n", stderr);
-		} else {
-			putc('\n', stderr);
-		}
-
-		rw_lock_debug_mutex_enter();
-
-		for (info = UT_LIST_GET_FIRST(lock->debug_list);
-		     info != NULL;
-		     info = UT_LIST_GET_NEXT(list, info)) {
-
-			rw_lock_debug_print(stderr, info);
-		}
-
-		rw_lock_debug_mutex_exit();
-	}
-}
-
 /*********************************************************************//**
 Prints info of a debug struct. */
 void
@@ -1280,10 +1238,10 @@ rw_lock_debug_print(
 {
 	ulint	rwt = info->lock_type;
 
-	fprintf(f, "Locked: thread %lu file %s line %lu  ",
-		static_cast<ulong>(os_thread_pf(info->thread_id)),
+	fprintf(f, "Locked: thread " UINT64PF " file %s line " ULINTPF "  ",
+		(uint64_t)(info->thread_id),
 		sync_basename(info->file_name),
-		static_cast<ulong>(info->line));
+		info->line);
 
 	switch (rwt) {
 	case RW_LOCK_S:
@@ -1307,32 +1265,6 @@ rw_lock_debug_print(
 	}
 
 	fprintf(f, "\n");
-}
-
-/***************************************************************//**
-Returns the number of currently locked rw-locks. Works only in the debug
-version.
-@return number of locked rw-locks */
-ulint
-rw_lock_n_locked(void)
-/*==================*/
-{
-	ulint		count = 0;
-
-	mutex_enter(&rw_lock_list_mutex);
-
-	for (const rw_lock_t* lock = UT_LIST_GET_FIRST(rw_lock_list);
-	     lock != NULL;
-	     lock = UT_LIST_GET_NEXT(list, lock)) {
-
-		if (lock->lock_word != X_LOCK_DECR) {
-			count++;
-		}
-	}
-
-	mutex_exit(&rw_lock_list_mutex);
-
-	return(count);
 }
 
 /** Print where it was locked from
@@ -1376,7 +1308,7 @@ rw_lock_t::to_string() const
 	std::ostringstream	msg;
 
 	msg << "RW-LATCH: "
-	    << "thread id " << os_thread_pf(os_thread_get_curr_id())
+	    << "thread id " << os_thread_get_curr_id()
 	    << " addr: " << this
 	    << " Locked from: " << locked_from().c_str();
 

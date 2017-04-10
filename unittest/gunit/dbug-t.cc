@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,12 +15,11 @@
 
 // First include (the generated) my_config.h, to get correct platform defines.
 #include "my_config.h"
+
 #include <gtest/gtest.h>
 
-#include "thread_utils.h"
-
-#include "my_global.h"
 #include "my_dbug.h"
+#include "thread_utils.h"
 
 using thread::Notification;
 using thread::Thread;
@@ -74,29 +73,25 @@ TEST(DebugFlushGcov, FlushGcovParallel)
 #endif
 
 
-#if !defined(DBUG_OFF) && !defined(HAVE_ASAN)
+#if !defined(DBUG_OFF)
 TEST(DebugPrintTest, PrintEval)
 {
   int y= 0;
 
   // This DBUG_PRINT args should never be evaluated.
-  DBUG_PRINT("never",("%d",1/y));
+  DBUG_PRINT("never",("%d", y+= 1));
+  EXPECT_EQ(y, 0) << "DBUG_PRINT arg is evaluated.";
 }
 
 
-TEST(DebugPrintDeathTest, PrintEval)
+TEST(DebugPrintEvalTest, PrintEval)
 {
   int y= 0;
 
-  ::testing::FLAGS_gtest_death_test_style = "threadsafe";
-
   DBUG_SET("+d,never");
-  /*
-    The DBUG_PRINT would be evaluated resulting in floating point exception
-    killing the server.
-  */
-  EXPECT_DEATH_IF_SUPPORTED(DBUG_PRINT("never",("%d",1/y)), "");
+  DBUG_PRINT("never",("%d", y+= 1));
   DBUG_SET("");
+  EXPECT_GE(y, 1) << "DBUG_PRINT arg is not evaluated.";
 }
 
 

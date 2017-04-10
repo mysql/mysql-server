@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,12 +17,11 @@
 #define RPL_GROUP_REPLICATION_INCLUDED
 
 #include <string>
-#include "sql_plugin.h"
-#include <mysql/plugin.h>
-#include <mysql/plugin_group_replication.h>
-#include "replication.h"
-#include "log_event.h"
 
+#include "mysql/plugin_group_replication.h"
+#include "sql_plugin_ref.h"    // plugin_ref
+
+class View_change_log_event;
 
 /*
   Group Replication plugin handler.

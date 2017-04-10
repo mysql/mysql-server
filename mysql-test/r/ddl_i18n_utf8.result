@@ -1200,8 +1200,7 @@ END|
 
 SHOW CREATE TRIGGER trg1|
 Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
-trg1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER trg1 BEFORE INSERT ON t1 FOR EACH ROW
-BEGIN
+trg1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `trg1` BEFORE INSERT ON `t1` FOR EACH ROW BEGIN
 DECLARE перем1 CHAR(10);
 INSERT INTO log VALUES(COLLATION(перем1));
 INSERT INTO log VALUES(COLLATION('текст'));
@@ -1216,8 +1215,7 @@ END	utf8	utf8_general_ci	utf8_unicode_ci	CREATED
 
 SHOW CREATE TRIGGER trg2|
 Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
-trg2	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER trg2 AFTER INSERT ON t1 FOR EACH ROW
-BEGIN
+trg2	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `trg2` AFTER INSERT ON `t1` FOR EACH ROW BEGIN
 DECLARE перем1 CHAR(10) CHARACTER SET utf8;
 INSERT INTO log VALUES(COLLATION(перем1));
 INSERT INTO log VALUES(COLLATION('текст'));
@@ -1232,8 +1230,7 @@ END	utf8	utf8_general_ci	utf8_unicode_ci	CREATED
 
 SHOW CREATE TRIGGER mysqltest2.trg3|
 Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
-trg3	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER mysqltest2.trg3 BEFORE INSERT ON mysqltest2.t1 FOR EACH ROW
-BEGIN
+trg3	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `trg3` BEFORE INSERT ON `t1` FOR EACH ROW BEGIN
 DECLARE перем1 CHAR(10);
 INSERT INTO log VALUES(COLLATION(перем1));
 INSERT INTO log VALUES(COLLATION('текст'));
@@ -1248,8 +1245,7 @@ END	utf8	utf8_general_ci	utf8_unicode_ci	CREATED
 
 SHOW CREATE TRIGGER mysqltest2.trg4|
 Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
-trg4	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER mysqltest2.trg4 AFTER INSERT ON mysqltest2.t1 FOR EACH ROW
-BEGIN
+trg4	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `trg4` AFTER INSERT ON `t1` FOR EACH ROW BEGIN
 DECLARE перем1 CHAR(10) CHARACTER SET utf8;
 INSERT INTO log VALUES(COLLATION(перем1));
 INSERT INTO log VALUES(COLLATION('текст'));
@@ -1395,18 +1391,18 @@ INSERT INTO t1 VALUES(1)|
 ---> Log:
 SELECT msg FROM log|
 msg
+koi8r_general_ci
+koi8r_general_ci
+utf8
+utf8
+utf8_general_ci
+utf8_general_ci
+utf8_general_ci
+utf8_general_ci
+utf8_general_ci
+utf8_general_ci
+utf8_general_ci
 utf8_unicode_ci
-utf8_general_ci
-utf8_general_ci
-koi8r_general_ci
-utf8_general_ci
-utf8
-utf8_general_ci
-utf8_general_ci
-utf8_general_ci
-koi8r_general_ci
-utf8_general_ci
-utf8
 
 SELECT
 COLLATION(@a1) AS ca1,
@@ -1426,18 +1422,18 @@ INSERT INTO mysqltest2.t1 VALUES(1)|
 ---> Log:
 SELECT msg FROM mysqltest2.log|
 msg
+koi8r_general_ci
+koi8r_general_ci
+utf8
+utf8
+utf8_general_ci
+utf8_general_ci
+utf8_general_ci
+utf8_general_ci
+utf8_general_ci
+utf8_general_ci
+utf8_general_ci
 utf8_unicode_ci
-utf8_general_ci
-utf8_general_ci
-koi8r_general_ci
-utf8_general_ci
-utf8
-utf8_general_ci
-utf8_general_ci
-utf8_general_ci
-koi8r_general_ci
-utf8_general_ci
-utf8
 
 SELECT
 COLLATION(@a1) AS ca1,
@@ -1473,8 +1469,7 @@ use mysqltest1|
 
 SHOW CREATE TRIGGER trg1|
 Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
-trg1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER trg1 BEFORE INSERT ON t1 FOR EACH ROW
-BEGIN
+trg1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `trg1` BEFORE INSERT ON `t1` FOR EACH ROW BEGIN
 DECLARE перем1 CHAR(10);
 INSERT INTO log VALUES(COLLATION(перем1));
 INSERT INTO log VALUES(COLLATION('текст'));
@@ -1489,8 +1484,7 @@ END	utf8	utf8_general_ci	utf8_unicode_ci	CREATED
 
 SHOW CREATE TRIGGER trg2|
 Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
-trg2	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER trg2 AFTER INSERT ON t1 FOR EACH ROW
-BEGIN
+trg2	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `trg2` AFTER INSERT ON `t1` FOR EACH ROW BEGIN
 DECLARE перем1 CHAR(10) CHARACTER SET utf8;
 INSERT INTO log VALUES(COLLATION(перем1));
 INSERT INTO log VALUES(COLLATION('текст'));
@@ -1505,8 +1499,7 @@ END	utf8	utf8_general_ci	utf8_unicode_ci	CREATED
 
 SHOW CREATE TRIGGER mysqltest2.trg3|
 Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
-trg3	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER mysqltest2.trg3 BEFORE INSERT ON mysqltest2.t1 FOR EACH ROW
-BEGIN
+trg3	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `trg3` BEFORE INSERT ON `t1` FOR EACH ROW BEGIN
 DECLARE перем1 CHAR(10);
 INSERT INTO log VALUES(COLLATION(перем1));
 INSERT INTO log VALUES(COLLATION('текст'));
@@ -1521,8 +1514,7 @@ END	utf8	utf8_general_ci	utf8_unicode_ci	CREATED
 
 SHOW CREATE TRIGGER mysqltest2.trg4|
 Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
-trg4	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER mysqltest2.trg4 AFTER INSERT ON mysqltest2.t1 FOR EACH ROW
-BEGIN
+trg4	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `trg4` AFTER INSERT ON `t1` FOR EACH ROW BEGIN
 DECLARE перем1 CHAR(10) CHARACTER SET utf8;
 INSERT INTO log VALUES(COLLATION(перем1));
 INSERT INTO log VALUES(COLLATION('текст'));
@@ -1668,18 +1660,18 @@ INSERT INTO t1 VALUES(1)|
 ---> Log:
 SELECT msg FROM log|
 msg
+koi8r_general_ci
+koi8r_general_ci
+utf8
+utf8
+utf8_general_ci
+utf8_general_ci
+utf8_general_ci
+utf8_general_ci
+utf8_general_ci
+utf8_general_ci
+utf8_general_ci
 utf8_unicode_ci
-utf8_general_ci
-utf8_general_ci
-koi8r_general_ci
-utf8_general_ci
-utf8
-utf8_general_ci
-utf8_general_ci
-utf8_general_ci
-koi8r_general_ci
-utf8_general_ci
-utf8
 
 SELECT
 COLLATION(@a1) AS ca1,
@@ -1699,18 +1691,18 @@ INSERT INTO mysqltest2.t1 VALUES(1)|
 ---> Log:
 SELECT msg FROM mysqltest2.log|
 msg
+koi8r_general_ci
+koi8r_general_ci
+utf8
+utf8
+utf8_general_ci
+utf8_general_ci
+utf8_general_ci
+utf8_general_ci
+utf8_general_ci
+utf8_general_ci
+utf8_general_ci
 utf8_unicode_ci
-utf8_general_ci
-utf8_general_ci
-koi8r_general_ci
-utf8_general_ci
-utf8
-utf8_general_ci
-utf8_general_ci
-utf8_general_ci
-koi8r_general_ci
-utf8_general_ci
-utf8
 
 SELECT
 COLLATION(@a1) AS ca1,
@@ -1733,13 +1725,13 @@ USE `mysqltest1`;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `log` (
   `msg` varchar(255) COLLATE utf8_unicode_ci DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `t1` (
   `c` int(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 INSERT INTO `t1` VALUES (1),(0),(1);
 ALTER DATABASE `mysqltest1` CHARACTER SET utf8 COLLATE utf8_unicode_ci ;
@@ -1752,8 +1744,7 @@ ALTER DATABASE `mysqltest1` CHARACTER SET utf8 COLLATE utf8_unicode_ci ;
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
 /*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION' */ ;
 DELIMITER ;;
-/*!50003 CREATE*/ /*!50017 DEFINER=`root`@`localhost`*/ /*!50003 TRIGGER trg1 BEFORE INSERT ON t1 FOR EACH ROW
-BEGIN
+/*!50003 CREATE*/ /*!50017 DEFINER=`root`@`localhost`*/ /*!50003 TRIGGER `trg1` BEFORE INSERT ON `t1` FOR EACH ROW BEGIN
 DECLARE перем1 CHAR(10);
 INSERT INTO log VALUES(COLLATION(перем1));
 INSERT INTO log VALUES(COLLATION('текст'));
@@ -1781,8 +1772,7 @@ ALTER DATABASE `mysqltest1` CHARACTER SET utf8 COLLATE utf8_unicode_ci ;
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
 /*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION' */ ;
 DELIMITER ;;
-/*!50003 CREATE*/ /*!50017 DEFINER=`root`@`localhost`*/ /*!50003 TRIGGER trg2 AFTER INSERT ON t1 FOR EACH ROW
-BEGIN
+/*!50003 CREATE*/ /*!50017 DEFINER=`root`@`localhost`*/ /*!50003 TRIGGER `trg2` AFTER INSERT ON `t1` FOR EACH ROW BEGIN
 DECLARE перем1 CHAR(10) CHARACTER SET utf8;
 INSERT INTO log VALUES(COLLATION(перем1));
 INSERT INTO log VALUES(COLLATION('текст'));
@@ -1812,13 +1802,13 @@ USE `mysqltest2`;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `log` (
   `msg` varchar(255) COLLATE utf8_unicode_ci DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `t1` (
   `c` int(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 INSERT INTO `t1` VALUES (1),(0),(1);
 ALTER DATABASE `mysqltest2` CHARACTER SET utf8 COLLATE utf8_unicode_ci ;
@@ -1831,8 +1821,7 @@ ALTER DATABASE `mysqltest2` CHARACTER SET utf8 COLLATE utf8_unicode_ci ;
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
 /*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION' */ ;
 DELIMITER ;;
-/*!50003 CREATE*/ /*!50017 DEFINER=`root`@`localhost`*/ /*!50003 TRIGGER mysqltest2.trg3 BEFORE INSERT ON mysqltest2.t1 FOR EACH ROW
-BEGIN
+/*!50003 CREATE*/ /*!50017 DEFINER=`root`@`localhost`*/ /*!50003 TRIGGER `trg3` BEFORE INSERT ON `t1` FOR EACH ROW BEGIN
 DECLARE перем1 CHAR(10);
 INSERT INTO log VALUES(COLLATION(перем1));
 INSERT INTO log VALUES(COLLATION('текст'));
@@ -1860,8 +1849,7 @@ ALTER DATABASE `mysqltest2` CHARACTER SET utf8 COLLATE utf8_unicode_ci ;
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
 /*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION' */ ;
 DELIMITER ;;
-/*!50003 CREATE*/ /*!50017 DEFINER=`root`@`localhost`*/ /*!50003 TRIGGER mysqltest2.trg4 AFTER INSERT ON mysqltest2.t1 FOR EACH ROW
-BEGIN
+/*!50003 CREATE*/ /*!50017 DEFINER=`root`@`localhost`*/ /*!50003 TRIGGER `trg4` AFTER INSERT ON `t1` FOR EACH ROW BEGIN
 DECLARE перем1 CHAR(10) CHARACTER SET utf8;
 INSERT INTO log VALUES(COLLATION(перем1));
 INSERT INTO log VALUES(COLLATION('текст'));
@@ -1908,8 +1896,7 @@ use mysqltest1|
 
 SHOW CREATE TRIGGER trg1|
 Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
-trg1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER trg1 BEFORE INSERT ON t1 FOR EACH ROW
-BEGIN
+trg1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `trg1` BEFORE INSERT ON `t1` FOR EACH ROW BEGIN
 DECLARE перем1 CHAR(10);
 INSERT INTO log VALUES(COLLATION(перем1));
 INSERT INTO log VALUES(COLLATION('текст'));
@@ -1924,8 +1911,7 @@ END	utf8	utf8_general_ci	utf8_unicode_ci	CREATED
 
 SHOW CREATE TRIGGER trg2|
 Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
-trg2	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER trg2 AFTER INSERT ON t1 FOR EACH ROW
-BEGIN
+trg2	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `trg2` AFTER INSERT ON `t1` FOR EACH ROW BEGIN
 DECLARE перем1 CHAR(10) CHARACTER SET utf8;
 INSERT INTO log VALUES(COLLATION(перем1));
 INSERT INTO log VALUES(COLLATION('текст'));
@@ -1940,8 +1926,7 @@ END	utf8	utf8_general_ci	utf8_unicode_ci	CREATED
 
 SHOW CREATE TRIGGER mysqltest2.trg3|
 Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
-trg3	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER mysqltest2.trg3 BEFORE INSERT ON mysqltest2.t1 FOR EACH ROW
-BEGIN
+trg3	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `trg3` BEFORE INSERT ON `t1` FOR EACH ROW BEGIN
 DECLARE перем1 CHAR(10);
 INSERT INTO log VALUES(COLLATION(перем1));
 INSERT INTO log VALUES(COLLATION('текст'));
@@ -1956,8 +1941,7 @@ END	utf8	utf8_general_ci	utf8_unicode_ci	CREATED
 
 SHOW CREATE TRIGGER mysqltest2.trg4|
 Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
-trg4	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER mysqltest2.trg4 AFTER INSERT ON mysqltest2.t1 FOR EACH ROW
-BEGIN
+trg4	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `trg4` AFTER INSERT ON `t1` FOR EACH ROW BEGIN
 DECLARE перем1 CHAR(10) CHARACTER SET utf8;
 INSERT INTO log VALUES(COLLATION(перем1));
 INSERT INTO log VALUES(COLLATION('текст'));
@@ -2103,18 +2087,18 @@ INSERT INTO t1 VALUES(1)|
 ---> Log:
 SELECT msg FROM log|
 msg
+koi8r_general_ci
+koi8r_general_ci
+utf8
+utf8
+utf8_general_ci
+utf8_general_ci
+utf8_general_ci
+utf8_general_ci
+utf8_general_ci
+utf8_general_ci
+utf8_general_ci
 utf8_unicode_ci
-utf8_general_ci
-utf8_general_ci
-koi8r_general_ci
-utf8_general_ci
-utf8
-utf8_general_ci
-utf8_general_ci
-utf8_general_ci
-koi8r_general_ci
-utf8_general_ci
-utf8
 
 SELECT
 COLLATION(@a1) AS ca1,
@@ -2134,18 +2118,18 @@ INSERT INTO mysqltest2.t1 VALUES(1)|
 ---> Log:
 SELECT msg FROM mysqltest2.log|
 msg
+koi8r_general_ci
+koi8r_general_ci
+utf8
+utf8
+utf8_general_ci
+utf8_general_ci
+utf8_general_ci
+utf8_general_ci
+utf8_general_ci
+utf8_general_ci
+utf8_general_ci
 utf8_unicode_ci
-utf8_general_ci
-utf8_general_ci
-koi8r_general_ci
-utf8_general_ci
-utf8
-utf8_general_ci
-utf8_general_ci
-utf8_general_ci
-koi8r_general_ci
-utf8_general_ci
-utf8
 
 SELECT
 COLLATION(@a1) AS ca1,
@@ -2778,26 +2762,26 @@ CALL p1()|
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `col1` varchar(10) COLLATE utf8_unicode_ci DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci
 
 SHOW CREATE TABLE t1|
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `col1` varchar(10) COLLATE utf8_unicode_ci DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci
 
 
 CALL mysqltest2.p2()|
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `col1` varchar(10) COLLATE utf8_unicode_ci DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci
 
 SHOW CREATE TABLE mysqltest2.t2|
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `col1` varchar(10) COLLATE utf8_unicode_ci DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci
 
 ALTER DATABASE mysqltest1 COLLATE cp1251_general_cs|
 ALTER DATABASE mysqltest2 COLLATE cp1251_general_cs|
@@ -2808,26 +2792,26 @@ CALL p1()|
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `col1` varchar(10) COLLATE cp1251_general_cs DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=cp1251 COLLATE=cp1251_general_cs
+) ENGINE=InnoDB DEFAULT CHARSET=cp1251 COLLATE=cp1251_general_cs
 
 SHOW CREATE TABLE t1|
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `col1` varchar(10) COLLATE cp1251_general_cs DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=cp1251 COLLATE=cp1251_general_cs
+) ENGINE=InnoDB DEFAULT CHARSET=cp1251 COLLATE=cp1251_general_cs
 
 
 CALL mysqltest2.p2()|
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `col1` varchar(10) COLLATE cp1251_general_cs DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=cp1251 COLLATE=cp1251_general_cs
+) ENGINE=InnoDB DEFAULT CHARSET=cp1251 COLLATE=cp1251_general_cs
 
 SHOW CREATE TABLE mysqltest2.t2|
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `col1` varchar(10) COLLATE cp1251_general_cs DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=cp1251 COLLATE=cp1251_general_cs
+) ENGINE=InnoDB DEFAULT CHARSET=cp1251 COLLATE=cp1251_general_cs
 
 ---> connection: con2
 

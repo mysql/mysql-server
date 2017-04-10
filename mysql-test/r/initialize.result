@@ -4,32 +4,6 @@ CALL mtr.add_suppression("InnoDB:");
 # shut server down
 # Server is down
 #
-# Try --bootstrap and see if you get a warning
-#
-# create bootstrap file
-# play tiny_bootstrap.sql
-# create the empty datadir
-# try --bootstrap
-# look for bootstrap deprecated
-bootstrap deprecated found 1 times
-# delete datadir
-# delete bootstrap file
-# delete mysqld log
-#
-# Try --bootstrap and --initialize and expect an error
-#
-# create bootstrap file
-# try --bootstrap --initialize
-# delete bootstrap file
-# delete mysqld log
-#
-# Try --bootstrap and --initialize-insecure and expect an error
-#
-# create bootstrap file
-# try --bootstrap --initialize-initialize-insecure
-# delete bootstrap file
-# delete mysqld log
-#
 # Try --initialize
 #
 # Run the server with --initialize

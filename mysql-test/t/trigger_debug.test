@@ -18,3 +18,20 @@ INSERT INTO th1 VALUES(1);
 DROP TRIGGER trg_bi;
 DROP TABLE th1;
 DROP TABLE th2;
+
+
+--echo #
+--echo # Bug#24506766: SIG 11 IN TRIGGER::ADD_TABLES_AND_ROUTINES
+--echo #               AT SQL/TRIGGER.CC:697
+--echo #
+
+CREATE TABLE t1(a INT);
+LOCK TABLES t1 WRITE;
+SET @@debug= "+d,create_trigger_fail";
+--error ER_LOCK_DEADLOCK
+CREATE TRIGGER trig1 BEFORE INSERT ON t1 FOR EACH ROW BEGIN END;
+INSERT INTO t1 VALUES(0);
+
+SET @@debug= "-d,create_trigger_fail";
+UNLOCK TABLES;
+DROP TABLE t1;

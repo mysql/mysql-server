@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -57,7 +57,7 @@ recovery, this function loads the pages from double write buffer into memory.
 @return DB_SUCCESS or error code */
 dberr_t
 buf_dblwr_init_or_load_pages(
-	os_file_t	file,
+	pfs_os_file_t	file,
 	const char*	path);
 
 /** Process and remove the double write buffer pages for all tablespaces. */
@@ -83,15 +83,15 @@ doublewrite buffer */
 ibool
 buf_dblwr_page_inside(
 /*==================*/
-	ulint	page_no);	/*!< in: page number */
-/********************************************************************//**
-Posts a buffer page for writing. If the doublewrite memory buffer is
-full, calls buf_dblwr_flush_buffered_writes and waits for for free
-space to appear. */
+	page_no_t	page_no);	/*!< in: page number */
+
+/** Posts a buffer page for writing. If the doublewrite memory buffer
+is full, calls buf_dblwr_flush_buffered_writes and waits for for free
+space to appear.
+@param[in]	bpage	buffer block to write */
 void
 buf_dblwr_add_to_batch(
-/*====================*/
-	buf_page_t*	bpage);	/*!< in: buffer block to write */
+	buf_page_t*	bpage);
 
 /********************************************************************//**
 Flush a batch of writes to the datafiles that have already been
@@ -126,10 +126,10 @@ buf_dblwr_write_single_page(
 struct buf_dblwr_t{
 	ib_mutex_t	mutex;	/*!< mutex protecting the first_free
 				field and write_buf */
-	ulint		block1;	/*!< the page number of the first
+	page_no_t	block1;	/*!< the page number of the first
 				doublewrite block (64 pages) */
-	ulint		block2;	/*!< page number of the second block */
-	ulint		first_free;/*!< first free position in write_buf
+	page_no_t	block2;	/*!< page number of the second block */
+	page_no_t	first_free;/*!< first free position in write_buf
 				measured in units of UNIV_PAGE_SIZE */
 	ulint		b_reserved;/*!< number of slots currently reserved
 				for batch flush. */

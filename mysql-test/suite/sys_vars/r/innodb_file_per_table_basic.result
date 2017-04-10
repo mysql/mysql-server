@@ -26,7 +26,7 @@ SELECT @@global.innodb_file_per_table;
 1
 '#---------------------BS_STVARS_028_03----------------------#'
 SELECT IF(@@GLOBAL.innodb_file_per_table,'ON','OFF') = VARIABLE_VALUE
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='innodb_file_per_table';
 IF(@@GLOBAL.innodb_file_per_table,'ON','OFF') = VARIABLE_VALUE
 1
@@ -36,7 +36,7 @@ COUNT(@@GLOBAL.innodb_file_per_table)
 1
 1 Expected
 SELECT COUNT(VARIABLE_VALUE)
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='innodb_file_per_table';
 COUNT(VARIABLE_VALUE)
 1

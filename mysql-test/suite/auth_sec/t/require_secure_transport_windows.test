@@ -2,17 +2,7 @@
 --source include/not_embedded.inc
 --source include/windows.inc
 
-# Only run this test if shared memory is avaliable
-let $shm= query_get_value("SHOW VARIABLES LIKE 'shared_memory'", Value, 1);
-if ($shm != ON){
-  skip No shm support;
-}
 let $shm_name= query_get_value("SHOW GLOBAL VARIABLES LIKE 'shared_memory_base_name'", Value, 1);
-
-let $nmp= query_get_value("SHOW VARIABLES LIKE 'named_pipe'", Value, 1);
-if ($nmp != ON){
-  skip No named pipe support;
-}
 
 CREATE USER 'user_tcp'@'127.0.0.1';
 GRANT ALL PRIVILEGES ON *.* TO 'user_tcp'@'127.0.0.1';
@@ -124,6 +114,7 @@ SET @@global.require_secure_transport = ON;
 connect(pipe_con4,localhost,root,,,,,PIPE);
 disconnect pipe_con4;
 --disable_query_log
+--replace_regex /client could not create request event \([0-9]+\)/client could not create request event (Errcode)/
 --error 2038
 connect(memory_con3,localhost,root,,,,$shm_name,SHM);
 --enable_query_log

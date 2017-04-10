@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,15 +16,34 @@
 
 #include "table_trigger_dispatcher.h"
 
-#include "auth_common.h"            // check_global_access
-#include "sp_head.h"                // sp_head
-#include "sql_parse.h"              // create_default_definer
-#include "sql_show.h"               // append_definer
-#include "sql_table.h"              // check_n_cut_mysql50_prefix
+#include <sys/types.h>
 
-#include "trigger_loader.h"
-#include "trigger_chain.h"
+#include "auth_acls.h"
+#include "auth_common.h"            // check_global_access
+#include "dd/dd_trigger.h"          // dd::create_trigger
+#include "derror.h"                 // ER_THD
+#include "field.h"
+#include "handler.h"
+#include "key.h"
+#include "m_ctype.h"
+#include "my_dbug.h"
+#include "my_sqlcommand.h"
+#include "mysqld.h"                 // table_alias_charset
+#include "psi_memory_key.h"
+#include "sp_head.h"                // sp_head
+#include "sql_admin.h"
+#include "sql_class.h"
+#include "sql_error.h"
+#include "sql_lex.h"
+#include "sql_list.h"
+#include "sql_parse.h"              // create_default_definer
+#include "sql_plugin.h"
+#include "sql_plugin_ref.h"
+#include "sql_security_ctx.h"
+#include "thr_lock.h"
+#include "thr_malloc.h"
 #include "trigger.h"
+#include "trigger_chain.h"
 
 ///////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////
@@ -94,10 +113,6 @@ Table_trigger_dispatcher::Table_trigger_dispatcher(const char *db_name,
 
 Table_trigger_dispatcher::~Table_trigger_dispatcher()
 {
-  // Destroy all Trigger objects in m_triggers.
-
-  m_triggers.delete_elements();
-
   // Destroy fields.
 
   if (m_record1_field)
@@ -108,7 +123,7 @@ Table_trigger_dispatcher::~Table_trigger_dispatcher()
 
   // Destroy trigger chains.
 
-  for (int i= 0; i < (int) TRG_ACTION_MAX; ++i)
+  for (int i= 0; i < (int) TRG_EVENT_MAX; ++i)
     for (int j= 0; j < (int) TRG_ACTION_MAX; ++j)
       delete m_trigger_map[i][j];
 
@@ -118,6 +133,32 @@ Table_trigger_dispatcher::~Table_trigger_dispatcher()
 
   if (!m_subject_table)
     free_root(&m_mem_root, MYF(0));
+}
+
+
+List<Trigger>* Table_trigger_dispatcher::fill_and_return_trigger_list(
+  List<Trigger> *triggers)
+{
+  for (int i= 0; i < static_cast<int>(TRG_EVENT_MAX); ++i)
+  {
+    for (int j= 0; j < static_cast<int>(TRG_ACTION_MAX); ++j)
+    {
+      Trigger_chain *tc= get_triggers(i, j);
+
+      if (tc == nullptr)
+        continue;
+
+      List_iterator<Trigger> it(tc->get_trigger_list());
+      Trigger *t;
+
+      while ((t= it++) != nullptr)
+      {
+        if (triggers->push_back(t, get_mem_root()))
+          return nullptr;
+      }
+    }
+  }
+  return triggers;
 }
 
 
@@ -162,22 +203,17 @@ bool Table_trigger_dispatcher::create_trigger(
 
   // Check that the trigger does not exist.
 
+  bool trigger_exists;
+  if (dd::check_trigger_exists(thd,
+                               thd->lex->spname->m_db.str,
+                               thd->lex->spname->m_name.str,
+                               &trigger_exists))
+    return true;
+
+  if (trigger_exists)
   {
-    char trn_path_buffer[FN_REFLEN];
-
-    LEX_STRING trn_path =
-      Trigger_loader::build_trn_path(trn_path_buffer, FN_REFLEN,
-                                     thd->lex->spname->m_db.str,
-                                     thd->lex->spname->m_name.str);
-
-    if (!trn_path.str)
-      return true;
-
-    if (!Trigger_loader::check_trn_exists(trn_path))
-    {
-      my_error(ER_TRG_ALREADY_EXISTS, MYF(0));
-      return true;
-    }
+    my_error(ER_TRG_ALREADY_EXISTS, MYF(0));
+    return true;
   }
 
   // Make sure DEFINER clause is specified.
@@ -190,8 +226,8 @@ bool Table_trigger_dispatcher::create_trigger(
       If we are in slave thread, this means that we received CREATE TRIGGER
       from the master, that does not support definer in triggers. So, we
       should mark this trigger as non-SUID. Note that this does not happen
-      when we parse triggers' definitions during opening .TRG file.
-      LEX::definer is ignored in that case.
+      when we parse triggers' definitions during reading metadata from
+      the Data Dictionary. LEX::definer is ignored in that case.
 
       Otherwise, we should use CURRENT_USER() as definer.
 
@@ -208,6 +244,12 @@ bool Table_trigger_dispatcher::create_trigger(
       if (!(lex->definer= create_default_definer(thd)))
         return true;
     }
+    else
+    {
+      my_error(ER_TRG_NO_DEFINER,  MYF(0),
+               m_db_name.str, thd->lex->spname->m_name.str);
+      return true;
+    }
   }
 
   /*
@@ -223,28 +265,29 @@ bool Table_trigger_dispatcher::create_trigger(
                      lex->definer->host.str,
                      thd->security_context()->priv_host().str)))
   {
-    if (check_global_access(thd, SUPER_ACL))
+    Security_context *sctx= thd->security_context();
+    if (!sctx->check_access(SUPER_ACL) &&
+        !sctx->has_global_grant(STRING_WITH_LEN("SET_USER_ID")).first)
     {
-      my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), "SUPER");
+      my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0),
+               "SUPER or SET_USER_ID");
       return true;
     }
   }
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
-  if (lex->definer && !is_acl_user(lex->definer->host.str,
+  if (lex->definer && !is_acl_user(thd, lex->definer->host.str,
                                    lex->definer->user.str))
   {
     push_warning_printf(thd,
                         Sql_condition::SL_NOTE,
                         ER_NO_SUCH_USER,
-                        ER(ER_NO_SUCH_USER),
+                        ER_THD(thd, ER_NO_SUCH_USER),
                         lex->definer->user.str,
                         lex->definer->host.str);
 
     if (thd->get_stmt_da()->is_error())
       return true;
   }
-#endif /* NO_EMBEDDED_ACCESS_CHECKS */
 
   /*
     Check if all references to fields in OLD/NEW-rows in this trigger are valid.
@@ -275,7 +318,7 @@ bool Table_trigger_dispatcher::create_trigger(
   m_old_field= NULL;
   m_new_field= NULL;
 
-  // Create ne trigger.
+  // Create new trigger.
 
   Trigger *t= Trigger::create_from_parser(thd,
                                           m_subject_table,
@@ -291,7 +334,7 @@ bool Table_trigger_dispatcher::create_trigger(
 
   if (!tc)
   {
-    delete t; // that's not needed, but it's good manner.
+    delete t;
     return true;
   }
 
@@ -301,24 +344,13 @@ bool Table_trigger_dispatcher::create_trigger(
                       lex->sphead->m_trg_chistics.ordering_clause,
                       lex->sphead->m_trg_chistics.anchor_trigger_name))
   {
-    delete t; // that's not needed, but it's good manner.
+    delete t;
     return true;
   }
 
-  /*
-    NOTE: no need to renumerate_triggers() as this is only for storing a new
-    trigger in Data Dictionary.
-  */
-
-  /*
-    Now it's necessary to prepare a list of all triggers assigned to a table.
-    The current state of m_triggers might be not appropriate because a new
-    trigger was added to a trigger chain lately.
-  */
-
-  return rebuild_trigger_list() ||
-         Trigger_loader::store_trigger(m_db_name, m_subject_table_name,
-                                       get_mem_root(), t, &m_triggers);
+  return dd::create_trigger(thd, t,
+                            lex->sphead->m_trg_chistics.ordering_clause,
+                            lex->sphead->m_trg_chistics.anchor_trigger_name);
 }
 
 
@@ -338,20 +370,16 @@ bool Table_trigger_dispatcher::drop_trigger(THD *thd,
                                             const LEX_STRING &trigger_name,
                                             bool *trigger_found)
 {
-  if (rebuild_trigger_list() ||
-      Trigger_loader::drop_trigger(m_db_name,
-                                   m_subject_table_name,
-                                   trigger_name,
-                                   get_mem_root(),
-                                   &m_triggers,
-                                   trigger_found))
+  if (dd::drop_trigger(thd, m_db_name.str,
+                       m_subject_table_name.str,
+                       trigger_name.str,
+                       trigger_found))
     return true;
 
   if (*trigger_found)
     return false;
 
-  DBUG_ASSERT (!*trigger_found);
-  my_message(ER_TRG_DOES_NOT_EXIST, ER(ER_TRG_DOES_NOT_EXIST), MYF(0));
+  my_error(ER_TRG_DOES_NOT_EXIST, MYF(0));
 
   return true;
 }
@@ -408,16 +436,13 @@ bool Table_trigger_dispatcher::prepare_record1_accessors()
 
   @note The table object passed to this function can be fake. This is usually
   happens when names_only is set. This is the case when triggers should be
-  loaded just to get their names (in order to get a trigger name, the trigger
-  definition has to be parsed; trigger names are not stored in TRG files).
+  loaded just to get their names.
 
   @note If table object is fake, only its memory root can be used.
 
   @param thd          current thread context
-  @param db_name      table's database name
-  @param table_name   table's name
-  @param table        pointer to table object
-  @param names_only   stop after loading trigger names
+  @param names_only   stop after loading triggers metadata from
+                      the Data Dictionary
 
   @return Operation status.
     @retval false Success
@@ -428,18 +453,17 @@ bool Table_trigger_dispatcher::check_n_load(THD *thd, bool names_only)
 {
   // Load triggers from Data Dictionary.
 
-  if (Trigger_loader::load_triggers(thd,
-                                    get_mem_root(),
-                                    m_db_name.str,
-                                    m_subject_table_name.str,
-                                    &m_triggers))
-  {
+  List<Trigger> triggers;
+
+  if (dd::load_triggers(thd,
+                        get_mem_root(),
+                        m_db_name.str,
+                        m_subject_table_name.str,
+                        &triggers))
     return true;
-  }
 
-  // Parse trigger definitions (names are known after this point).
-
-  parse_triggers(thd);
+  // 'false' flag for 'is_upgrade' as we read Trigger from DD.
+  parse_triggers(thd, &triggers, false);
 
   // Create m_unparseable_triggers if needed.
 
@@ -454,7 +478,7 @@ bool Table_trigger_dispatcher::check_n_load(THD *thd, bool names_only)
   // Create trigger chains and assigns triggers to chains.
 
   {
-    List_iterator_fast<Trigger> it(m_triggers);
+    List_iterator_fast<Trigger> it(triggers);
     Trigger *t;
 
     while ((t= it++))
@@ -466,19 +490,6 @@ bool Table_trigger_dispatcher::check_n_load(THD *thd, bool names_only)
 
       if (!tc || tc->add_trigger(get_mem_root(), t))
         return true;
-    }
-  }
-
-  // Update action_order trigger attribute.
-
-  for (int i= 0; i < (int) TRG_EVENT_MAX; i++)
-  {
-    for (int j= 0; j < (int) TRG_ACTION_MAX; j++)
-    {
-      Trigger_chain *tc= get_triggers(i, j);
-
-      if (tc)
-        tc->renumerate_triggers();
     }
   }
 
@@ -497,7 +508,7 @@ bool Table_trigger_dispatcher::check_n_load(THD *thd, bool names_only)
       Table_trigger_dispatcher object.
     */
 
-    List_iterator_fast<Trigger> it(m_triggers);
+    List_iterator_fast<Trigger> it(triggers);
     Trigger *t;
 
     while ((t= it++))
@@ -515,6 +526,39 @@ bool Table_trigger_dispatcher::check_n_load(THD *thd, bool names_only)
   return false;
 }
 
+
+bool Table_trigger_dispatcher::load_triggers(THD *thd)
+{
+  // Load triggers from Data Dictionary.
+
+  List<Trigger> triggers;
+
+  if (dd::load_triggers(thd,
+                        get_mem_root(),
+                        m_db_name.str,
+                        m_subject_table_name.str,
+                        &triggers))
+    return true;
+
+  // Create trigger chains and assigns triggers to chains.
+
+  {
+    List_iterator_fast<Trigger> it(triggers);
+    Trigger *t;
+
+    while ((t= it++) != nullptr)
+    {
+      Trigger_chain *tc= create_trigger_chain(t->get_event(),
+                                              t->get_action_time());
+
+      if (tc == nullptr || tc->add_trigger(get_mem_root(), t))
+        return true;
+    }
+  }
+
+
+  return false;
+}
 
 /**
   Make sure there is a chain for the specified event and action time.
@@ -545,58 +589,6 @@ Trigger_chain *Table_trigger_dispatcher::create_trigger_chain(
 
 
 /**
-  Rebuild trigger list so that triggers there are listed in the proper order.
-
-  @return Operation status.
-    @retval false Success
-    @retval true  Failure
-*/
-
-bool Table_trigger_dispatcher::rebuild_trigger_list()
-{
-  m_triggers.empty();
-
-  // Add triggers from regular chains.
-
-  for (int i= 0; i < (int) TRG_EVENT_MAX; ++i)
-  {
-    for (int j= 0; j < (int) TRG_ACTION_MAX; ++j)
-    {
-      Trigger_chain *tc= get_triggers(i, j);
-
-      if (!tc)
-        continue;
-
-      List_iterator<Trigger> it(tc->get_trigger_list());
-      Trigger *t;
-
-      while ((t= it++))
-      {
-        if (m_triggers.push_back(t, get_mem_root()))
-          return true;
-      }
-    }
-  }
-
-  // Add unparseable triggers.
-
-  if (m_unparseable_triggers)
-  {
-    List_iterator<Trigger> it(m_unparseable_triggers->get_trigger_list());
-    Trigger *t;
-
-    while ((t= it++))
-    {
-      if (m_triggers.push_back(t, get_mem_root()))
-        return true;
-    }
-  }
-
-  return false;
-}
-
-
-/**
   Get trigger object by trigger name.
 
   @param [in] trigger_name  trigger name
@@ -606,78 +598,48 @@ bool Table_trigger_dispatcher::rebuild_trigger_list()
 
 Trigger *Table_trigger_dispatcher::find_trigger(const LEX_STRING &trigger_name)
 {
-  List_iterator_fast<Trigger> it(m_triggers);
-  Trigger *t;
-
-  while ((t= it++))
+  for (int i= 0; i < static_cast<int>(TRG_EVENT_MAX); ++i)
   {
-    if (my_strcasecmp(table_alias_charset,
-                      t->get_trigger_name().str,
-                      trigger_name.str) == 0)
+    for (int j= 0; j < static_cast<int>(TRG_ACTION_MAX); ++j)
     {
-      return t;
+      Trigger_chain *tc= get_triggers(i, j);
+
+      if (tc == nullptr)
+        continue;
+
+      List_iterator<Trigger> it(tc->get_trigger_list());
+      Trigger *t;
+
+      while ((t= it++) != nullptr)
+      {
+        if (my_strcasecmp(table_alias_charset,
+                          t->get_trigger_name().str,
+                          trigger_name.str) == 0)
+        {
+          return t;
+        }
+      }
     }
   }
 
-  return NULL;
-}
-
-
-/**
-  Update .TRG file after renaming triggers' subject table
-  (change name of table in triggers' definitions).
-
-  @param thd                 Thread context
-  @param old_db_name         Old database of subject table
-  @param new_db_name         New database of subject table
-  @param old_table_name_str  Old subject table's name
-  @param new_table_name_str  New subject table's name
-
-  @return Operation status.
-    @retval false Success
-    @retval true  Failure
-*/
-
-bool Table_trigger_dispatcher::rename_subject_table(
-  THD *thd,
-  const char *old_db_name,
-  const char *new_db_name,
-  const char *old_table_name_str,
-  const char *new_table_name_str,
-  bool upgrading50to51)
-{
-  LEX_STRING old_table_name;
-  lex_string_set(&old_table_name, old_table_name_str);
-
-  LEX_STRING new_table_name;
-  lex_string_set(&new_table_name, new_table_name_str);
-
-  List_iterator_fast<Trigger> it(m_triggers);
-  Trigger *t;
-
-  while ((t= it++))
-    t->rename_subject_table(thd, new_table_name);
-
-  if (thd->is_fatal_error)
-    return true; /* OOM */
-
-  return Trigger_loader::rename_subject_table(get_mem_root(),
-                                              &m_triggers,
-                                              old_db_name, &old_table_name,
-                                              new_db_name, &new_table_name,
-                                              upgrading50to51);
+  return nullptr;
 }
 
 
 /**
   Parse trigger definition statements (CREATE TRIGGER).
 
-  @param [in] thd   Thread context
+  @param [in] thd         Thread context
+  @param [in] is_upgrade  Flag to indicate that trigger being parsed is read
+                          from .TRG file in case of upgrade.
+  @param [in] triggers    List of triggers to parse
 */
 
-void Table_trigger_dispatcher::parse_triggers(THD *thd)
+void Table_trigger_dispatcher::parse_triggers(THD *thd,
+                                              List<Trigger> *triggers,
+                                              bool is_upgrade)
 {
-  List_iterator<Trigger> it(m_triggers);
+  List_iterator<Trigger> it(*triggers);
 
   while (true)
   {
@@ -686,7 +648,7 @@ void Table_trigger_dispatcher::parse_triggers(THD *thd)
     if (!t)
       break;
 
-    bool fatal_parse_error= t->parse(thd);
+    bool fatal_parse_error= t->parse(thd, is_upgrade);
 
     /*
       There are two kinds of parse errors here:
@@ -721,6 +683,17 @@ void Table_trigger_dispatcher::parse_triggers(THD *thd)
       if (t->has_parse_error())
         set_parse_error_message(t->get_parse_error_message());
 
+      /*
+        In case we are upgrading, call set_parse_error_message() to set
+        m_has_unparseable_trigger in case of fatal errors too. As return type
+        of this function is void, we use m_has_unparseable_trigger to check
+        for any errors in Trigger upgrade upgrade.
+      */
+      if (is_upgrade && fatal_parse_error)
+      {
+        set_parse_error_message("Fatal Error in Parsing Trigger.");
+      }
+
       if (fatal_parse_error)
       {
         delete t;
@@ -746,10 +719,10 @@ void Table_trigger_dispatcher::parse_triggers(THD *thd)
   The operation executes trigger for the specified event (insert, update,
   delete) and time (after, before) if it is set.
 
-  @param thd
-  @param event
-  @param action_time
-  @param old_row_is_record1
+  @param thd                 Thread handle
+  @param event               Insert, update or delete
+  @param action_time         Before or after
+  @param old_row_is_record1  If record1 contains old or new field.
 
   @return Operation status.
     @retval false Success
@@ -817,7 +790,7 @@ bool Table_trigger_dispatcher::add_tables_and_routines_for_triggers(
   Query_tables_list *prelocking_ctx,
   TABLE_LIST *table_list)
 {
-  DBUG_ASSERT(static_cast<int>(table_list->lock_type) >=
+  DBUG_ASSERT(static_cast<int>(table_list->lock_descriptor().type) >=
               static_cast<int>(TL_WRITE_ALLOW_WRITE));
 
   for (int i= 0; i < (int) TRG_EVENT_MAX; ++i)
@@ -840,7 +813,7 @@ bool Table_trigger_dispatcher::add_tables_and_routines_for_triggers(
 
 /**
   Mark all trigger fields as "temporary nullable" and remember the current
-  THD::count_cuted_fields value.
+  THD::check_for_truncated_fields value.
 
   @param thd Thread context.
 */
@@ -852,7 +825,8 @@ void Table_trigger_dispatcher::enable_fields_temporary_nullability(THD *thd)
   for (Field **next_field= m_subject_table->field; *next_field; ++next_field)
   {
     (*next_field)->set_tmp_nullable();
-    (*next_field)->set_count_cuted_fields(thd->count_cuted_fields);
+    (*next_field)->set_check_for_truncated_fields(
+      thd->check_for_truncated_fields);
 
     /*
       For statement LOAD INFILE we set field values during parsing of data file
@@ -895,11 +869,24 @@ void Table_trigger_dispatcher::disable_fields_temporary_nullability()
 
 void Table_trigger_dispatcher::print_upgrade_warnings(THD *thd)
 {
-  List_iterator_fast<Trigger> it(m_triggers);
-  Trigger *t;
+  for (int i= 0; i < static_cast<int>(TRG_EVENT_MAX); ++i)
+  {
+    for (int j= 0; j < static_cast<int>(TRG_ACTION_MAX); ++j)
+    {
+      Trigger_chain *tc= get_triggers(i, j);
 
-  while ((t= it++))
-    t->print_upgrade_warning(thd);
+      if (tc == nullptr)
+        continue;
+
+      List_iterator<Trigger> it(tc->get_trigger_list());
+      Trigger *t;
+
+      while ((t= it++) != nullptr)
+      {
+        t->print_upgrade_warning(thd);
+      }
+    }
+  }
 }
 
 

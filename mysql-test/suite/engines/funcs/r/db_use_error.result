@@ -2,8 +2,8 @@ DROP DATABASE IF EXISTS d6;
 CREATE DATABASE d6;
 SHOW DATABASES;
 Database
-information_schema
 d6
+information_schema
 mtr
 mysql
 performance_schema

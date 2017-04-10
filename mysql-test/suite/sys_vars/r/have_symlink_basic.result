@@ -13,7 +13,7 @@ COUNT(@@GLOBAL.have_symlink)
 1 Expected
 '#---------------------BS_STVARS_018_03----------------------#'
 SELECT @@GLOBAL.have_symlink = VARIABLE_VALUE
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='have_symlink';
 @@GLOBAL.have_symlink = VARIABLE_VALUE
 1
@@ -23,7 +23,7 @@ COUNT(@@GLOBAL.have_symlink)
 1
 1 Expected
 SELECT COUNT(VARIABLE_VALUE)
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='have_symlink';
 COUNT(VARIABLE_VALUE)
 1

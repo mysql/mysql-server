@@ -3,17 +3,6 @@
 # session that reads the rules table.
 #
 # Query rewrite plugin was installed.
-# Let's be clear on what the global and session values are
-# for this variable.
-SHOW VARIABLES LIKE 'character_set_client';
-Variable_name	Value
-character_set_client	latin1
-SHOW SESSION VARIABLES LIKE 'character_set_client';
-Variable_name	Value
-character_set_client	latin1
-SHOW GLOBAL VARIABLES LIKE 'character_set_client';
-Variable_name	Value
-character_set_client	latin1
 DELETE FROM query_rewrite.rewrite_rules;
 INSERT INTO query_rewrite.rewrite_rules ( pattern, replacement )
 VALUES ( 'SELECT * FROM mydb.mytable WHERE mycol = ?', 'select "rule1"' );

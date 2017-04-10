@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2001, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2001, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,16 +15,22 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#define CHECK_VERSION "2.5.1"
-
-#include "client_priv.h"
-#include "my_default.h"
-#include "mysqlcheck.h"
 #include <m_ctype.h>
 #include <mysql_version.h>
 #include <mysqld_error.h>
 #include <sslopt-vars.h>
+#include <stdlib.h>
 #include <welcome_copyright_notice.h> /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
+
+#include "client_priv.h"
+#include "my_dbug.h"
+#include "my_default.h"
+#include "my_inttypes.h"
+#include "my_macros.h"
+#include "mysql/service_mysql_alloc.h"
+#include "mysqlcheck.h"
+#include "print_version.h"
+#include "typelib.h"
 
 using namespace Mysql::Tools::Check;
 using std::string;
@@ -36,16 +42,16 @@ using std::vector;
 #define EX_MYSQLERR 2
 
 static MYSQL mysql_connection, *sock = 0;
-static my_bool opt_alldbs = 0, opt_check_only_changed = 0, opt_extended = 0,
-               opt_compress = 0, opt_databases = 0, opt_fast = 0,
-               opt_medium_check = 0, opt_quick = 0, opt_all_in_1 = 0,
-               opt_silent = 0, opt_auto_repair = 0, ignore_errors = 0,
-               tty_password= 0, opt_frm= 0, debug_info_flag= 0, debug_check_flag= 0,
-               opt_fix_table_names= 0, opt_fix_db_names= 0, opt_upgrade= 0,
-               opt_write_binlog= 1, opt_secure_auth=TRUE;
+static bool opt_alldbs = 0, opt_check_only_changed = 0, opt_extended = 0,
+            opt_compress = 0, opt_databases = 0, opt_fast = 0,
+            opt_medium_check = 0, opt_quick = 0, opt_all_in_1 = 0,
+            opt_silent = 0, opt_auto_repair = 0, ignore_errors = 0,
+            tty_password= 0, opt_frm= 0, debug_info_flag= 0, debug_check_flag= 0,
+            opt_fix_table_names= 0, opt_fix_db_names= 0, opt_upgrade= 0,
+            opt_write_binlog= 1, opt_secure_auth=TRUE;
 static uint verbose = 0, opt_mysql_port=0;
 static uint opt_enable_cleartext_plugin= 0;
-static my_bool using_opt_enable_cleartext_plugin= 0;
+static bool using_opt_enable_cleartext_plugin= 0;
 static int my_end_arg;
 static char * opt_mysql_unix_port = 0;
 static char *opt_password = 0, *current_user = 0,
@@ -53,7 +59,7 @@ static char *opt_password = 0, *current_user = 0,
 static char *opt_plugin_dir= 0, *opt_default_auth= 0;
 static int first_error = 0;
 static const char *opt_skip_database= "";
-#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
+#if defined (_WIN32)
 static char *shared_memory_base_name=0;
 #endif
 static uint opt_protocol=0;
@@ -127,12 +133,6 @@ static struct my_option my_long_options[] =
   {"fast",'F', "Check only tables that haven't been closed properly.",
    &opt_fast, &opt_fast, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0,
    0},
-  {"fix-db-names", OPT_FIX_DB_NAMES, "Fix database names.",
-    &opt_fix_db_names, &opt_fix_db_names,
-    0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"fix-table-names", OPT_FIX_TABLE_NAMES, "Fix table names.",
-    &opt_fix_table_names, &opt_fix_table_names,
-    0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"force", 'f', "Continue even if we get an SQL error.",
    &ignore_errors, &ignore_errors, 0, GET_BOOL, NO_ARG, 0, 0,
    0, 0, 0, 0},
@@ -184,7 +184,7 @@ static struct my_option my_long_options[] =
   {"repair", 'r',
    "Can fix almost anything except unique keys that aren't unique.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
-#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
+#if defined (_WIN32)
   {"shared-memory-base-name", OPT_SHARED_MEMORY_BASE_NAME,
    "Base name of shared memory.", &shared_memory_base_name, &shared_memory_base_name,
    0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -198,6 +198,7 @@ static struct my_option my_long_options[] =
    &opt_mysql_unix_port, &opt_mysql_unix_port, 0, GET_STR,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #include <sslopt-longopts.h>
+
   {"tables", OPT_TABLES, "Overrides option --databases (-B).", 0, 0, 0,
    GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"use-frm", OPT_FRM,
@@ -216,7 +217,6 @@ static struct my_option my_long_options[] =
 static const char *load_default_groups[] = { "mysqlcheck", "client", 0 };
 
 
-static void print_version(void);
 static void usage(void);
 static int get_options(int *argc, char ***argv);
 static int dbConnect(char *host, char *user,char *passwd);
@@ -225,14 +225,6 @@ static void DBerror(MYSQL *mysql, string when);
 static void safe_exit(int error);
 
 static int what_to_do = 0;
-
-
-static void print_version(void)
-{
-  printf("%s  Ver %s Distrib %s, for %s (%s)\n", my_progname, CHECK_VERSION,
-   MYSQL_SERVER_VERSION, SYSTEM_TYPE, MACHINE_TYPE);
-} /* print_version */
-
 
 static void usage(void)
 {
@@ -273,8 +265,9 @@ static void usage(void)
 } /* usage */
 
 
-static my_bool
-get_one_option(int optid, const struct my_option *opt MY_ATTRIBUTE((unused)),
+extern "C" {
+static bool
+get_one_option(int optid, const struct my_option *opt,
 	       char *argument)
 {
   int orig_what_to_do= what_to_do;
@@ -300,15 +293,6 @@ get_one_option(int optid, const struct my_option *opt MY_ATTRIBUTE((unused)),
     break;
   case 'o':
     what_to_do = DO_OPTIMIZE;
-    break;
-  case OPT_FIX_DB_NAMES:
-    what_to_do= DO_UPGRADE;
-    opt_databases= 1;
-    CLIENT_WARN_DEPRECATED_NO_REPLACEMENT("--fix-db-names");
-    break;
-  case OPT_FIX_TABLE_NAMES:
-    what_to_do= DO_UPGRADE;
-    CLIENT_WARN_DEPRECATED_NO_REPLACEMENT("--fix-table-names");
     break;
   case 'p':
     if (argument == disabled_my_option)
@@ -344,6 +328,7 @@ get_one_option(int optid, const struct my_option *opt MY_ATTRIBUTE((unused)),
     debug_check_flag= 1;
     break;
 #include <sslopt-case.h>
+
   case OPT_TABLES:
     opt_databases = 0;
     break;
@@ -377,6 +362,7 @@ get_one_option(int optid, const struct my_option *opt MY_ATTRIBUTE((unused)),
     return 1;
   }
   return 0;
+}
 }
 
 
@@ -469,7 +455,7 @@ static int dbConnect(char *host, char *user, char *passwd)
     mysql_options(&mysql_connection,MYSQL_OPT_PROTOCOL,(char*)&opt_protocol);
   if (opt_bind_addr)
     mysql_options(&mysql_connection, MYSQL_OPT_BIND, opt_bind_addr);
-#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
+#if defined (_WIN32)
   if (shared_memory_base_name)
     mysql_options(&mysql_connection,MYSQL_SHARED_MEMORY_BASE_NAME,shared_memory_base_name);
 #endif
@@ -563,7 +549,7 @@ int main(int argc, char **argv)
 
   dbDisconnect(current_host);
   my_free(opt_password);
-#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
+#if defined (_WIN32)
   my_free(shared_memory_base_name);
 #endif
   free_defaults(argv);

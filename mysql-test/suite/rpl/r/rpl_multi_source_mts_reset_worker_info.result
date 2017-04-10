@@ -39,12 +39,12 @@ Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 include/assert.inc [Two workers are expected to survive the last RESET SLAVE]
-include/start_slave.inc
+include/start_slave.inc [FOR CHANNEL 'ch_b']
 
 === RESTART SERVER ===
 include/rpl_restart_server.inc [server_number=1 parameters: --gtid-mode=off --master-info-repository=TABLE --relay-log-info-repository=TABLE]
 include/rpl_restart_server.inc [server_number=2 parameters: --relay-log-recovery --skip-slave-start --gtid-mode=off --master-info-repository=TABLE --relay-log-info-repository=TABLE]
 [connection slave]
 START SLAVE;
-include/stop_slave.inc
+include/stop_slave.inc [FOR CHANNEL 'ch_b']
 RESET SLAVE ALL;

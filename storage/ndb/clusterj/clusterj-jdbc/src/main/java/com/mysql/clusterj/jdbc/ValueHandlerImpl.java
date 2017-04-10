@@ -453,4 +453,9 @@ public class ValueHandlerImpl implements ValueHandlerBatching {
         this.parameterBindings = null;
     }
 
+    @Override
+    public boolean wasReleased() {
+        return this.parameterBindings == null;
+    }
+
 }

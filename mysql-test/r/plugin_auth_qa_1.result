@@ -7,6 +7,7 @@ user	plugin	authentication_string
 CREATE USER plug_user IDENTIFIED WITH test_plugin_server AS 'plug_dest';
 CREATE USER plug_dest IDENTIFIED BY 'plug_dest_passwd';
 GRANT PROXY ON plug_dest TO plug_user;
+GRANT ALL PRIVILEGES ON test_user_db.* TO plug_dest;
 mysql: [Warning] Using a password on the command line interface can be insecure.
 current_user()
 plug_dest@%
@@ -59,6 +60,7 @@ IDENTIFIED WITH test_plugin_server AS 'plug_dest';
 Warnings:
 Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 CREATE USER plug_dest IDENTIFIED BY 'plug_dest_passwd';
+GRANT ALL PRIVILEGES ON test_user_db.* TO plug_dest;
 1)
 mysql: [Warning] Using a password on the command line interface can be insecure.
 ERROR 1045 (28000): Access denied for user 'plug_user'@'localhost' (using password: YES)

@@ -55,8 +55,12 @@ insert into t1 values (1);
 --disable_query_log
 --connection con1
 --source include/ndb_not_readonly.inc
+# wait for server1 stats thread to re-initialize
+--source include/ndb_index_stat_wait.inc
 --connection con2
 --source include/ndb_not_readonly.inc
+# wait for server2 stats thread to re-initialize
+--source include/ndb_index_stat_wait.inc
 --enable_query_log
 
 --connection server1
@@ -86,8 +90,12 @@ select * from t2 order by a limit 3;
 --disable_query_log
 --connection con1
 --source include/ndb_not_readonly.inc
+# wait for server1 stats thread to re-initialize
+--source include/ndb_index_stat_wait.inc
 --connection con2
 --source include/ndb_not_readonly.inc
+# wait for server2 stats thread to re-initialize
+--source include/ndb_index_stat_wait.inc
 --enable_query_log
 
 --connection server2
@@ -116,8 +124,12 @@ reset master;
 --disable_query_log
 --connection con1
 --source include/ndb_not_readonly.inc
+# wait for server1 stats thread to re-initialize
+--source include/ndb_index_stat_wait.inc
 --connection con2
 --source include/ndb_not_readonly.inc
+# wait for server2 stats thread to re-initialize
+--source include/ndb_index_stat_wait.inc
 --enable_query_log
 
 --connection server1

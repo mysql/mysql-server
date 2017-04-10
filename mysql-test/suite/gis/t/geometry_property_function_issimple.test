@@ -8,7 +8,6 @@
 #                                                                             #
 ###############################################################################
 
---source include/have_geometry.inc
 
 ############################################################################################
 # Creating the spatial objects                                                             #
@@ -358,8 +357,10 @@ SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(0 0),'
 --echo # ST_ISSIMPLE(geometry) with different SRID values
 --echo #####################################################################################
 
+--error ER_DATA_OUT_OF_RANGE
 SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT(@star_center,-1024));
 
+--error ER_DATA_OUT_OF_RANGE
 SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT(@star_all_points,-1));
 
 SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT(@star_top_to_center,0));
@@ -370,8 +371,10 @@ SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT(@star,123456789));
 
 SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT(@star_elem_vertical,4294967295));
 
+--error ER_DATA_OUT_OF_RANGE
 SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT(@star_of_elems,4294967296));
 
+--error ER_DATA_OUT_OF_RANGE
 SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT(@star_collection_elems,4294967295000));
 
 --echo #####################################################################################
@@ -494,3 +497,29 @@ EXECUTE stmt;
 
 DEALLOCATE PREPARE stmt;
 DROP TABLE t1, t2;
+
+--echo #
+--echo # WL#8579 Spatial Reference Systems
+--echo #
+
+--echo # SRID 0 (should pass)
+SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT('POINT(0 0)', 0));
+
+--echo # Projected SRS (should pass)
+SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT('POINT(0 0)', 2000));
+
+--echo # Geographic SRS (should pass)
+SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT('POINT(0 0)', 4326));
+
+--echo # Undefined SRS (should pass with warning)
+# Assume SRID 18000000 is undefined
+SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT('POINT(0 0)', 18000000));
+
+--echo # Unparseable SRS definition (should fail)
+# Assume SRID 18000001 is undefined
+INSERT INTO mysql.st_spatial_reference_systems(id, catalog_id, name,
+organization, organization_coordsys_id, definition, description)
+VALUES (18000001, 1, 'TEST18000001', 'Foo', 18000001, 'FOOBAR', '');
+--error ER_SRS_PARSE_ERROR
+SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT('POINT(0 0)', 18000001));
+DELETE FROM mysql.st_spatial_reference_systems WHERE id = 18000001;

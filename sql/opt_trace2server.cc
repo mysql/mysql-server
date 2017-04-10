@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,16 +19,46 @@
    Helpers connecting the optimizer trace to THD or Information Schema. They
    are dedicated "to the server" (hence the file's name).
    In order to create a unit test of the optimizer trace without defining
-   Item_field (and all its parent classes), st_select_lex..., these helpers
+   Item_field (and all its parent classes), SELECT_LEX..., these helpers
    are defined in opt_trace2server.cc.
 */
 
-#include "opt_trace.h"
+#include "my_config.h"
 
+#include <string.h>
+#include <sys/types.h>
+
+#include "auth_acls.h"
 #include "auth_common.h" // check_table_access
-#include "sql_show.h"    // schema_table_stored_record
-#include "sql_parse.h"   // sql_command_flags
+#include "binary_log_types.h"
+#include "enum_query_type.h"
+#include "field.h"
+#include "lex_string.h"
+#include "m_ctype.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_sqlcommand.h"
+#include "mysql/psi/mysql_statement.h"
+#include "opt_trace.h"
+#include "opt_trace_context.h"
+#include "set_var.h"
 #include "sp_head.h"     // sp_head
+#include "sp_instr.h"    // sp_printable
+#include "sql_class.h"
+#include "sql_lex.h"
+#include "sql_list.h"
+#include "sql_parse.h"   // sql_command_flags
+#include "sql_plugin.h"
+#include "sql_profile.h"
+#include "sql_security_ctx.h"
+#include "sql_show.h"    // schema_table_stored_record
+#include "sql_string.h"
+#include "system_variables.h"
+#include "table.h"
+
+class Item;
+class sp_head;
 
 #ifdef OPTIMIZER_TRACE
 
@@ -233,13 +263,13 @@ Opt_trace_start::~Opt_trace_start()
 }
 
 
-void opt_trace_print_expanded_query(THD *thd, st_select_lex *select_lex,
+void opt_trace_print_expanded_query(THD *thd, SELECT_LEX *select_lex,
                                     Opt_trace_object *trace_object)
 
 {
   Opt_trace_context * const trace= &thd->opt_trace;
   /**
-     It's hard to prove that st_select_lex::print() doesn't modify any of its
+     It's hard to prove that SELECT_LEX::print() doesn't modify any of its
      Item-s in a dangerous way. Item_int::print(), for example, modifies its
      internal str_value.
      To make the danger rare, we print the expanded query as rarely as
@@ -268,7 +298,6 @@ void opt_trace_print_expanded_query(THD *thd, st_select_lex *select_lex,
 
 void opt_trace_disable_if_no_security_context_access(THD *thd)
 {
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   DBUG_ENTER("opt_trace_check_disable_if_no_security_context_access");
   if (likely(!(thd->variables.optimizer_trace &
                Opt_trace_context::FLAG_ENABLED)) || // (1)
@@ -337,13 +366,11 @@ void opt_trace_disable_if_no_security_context_access(THD *thd)
                           thd->security_context()->priv_host().str)))
     trace->missing_privilege();
   DBUG_VOID_RETURN;
-#endif
 }
 
 
 void opt_trace_disable_if_no_stored_proc_func_access(THD *thd, sp_head *sp)
 {
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   DBUG_ENTER("opt_trace_disable_if_no_stored_proc_func_access");
   if (likely(!(thd->variables.optimizer_trace &
                Opt_trace_context::FLAG_ENABLED)) || thd->system_thread)
@@ -365,14 +392,12 @@ void opt_trace_disable_if_no_stored_proc_func_access(THD *thd, sp_head *sp)
   if (rc)
     trace->missing_privilege();
   DBUG_VOID_RETURN;
-#endif
 }
 
 
 void opt_trace_disable_if_no_view_access(THD *thd, TABLE_LIST *view,
                                          TABLE_LIST *underlying_tables)
 {
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   DBUG_ENTER("opt_trace_disable_if_no_view_access");
   if (likely(!(thd->variables.optimizer_trace &
                Opt_trace_context::FLAG_ENABLED)) || thd->system_thread)
@@ -411,7 +436,6 @@ void opt_trace_disable_if_no_view_access(THD *thd, TABLE_LIST *view,
   */
   opt_trace_disable_if_no_tables_access(thd, underlying_tables);
   DBUG_VOID_RETURN;
-#endif
 }
 
 
@@ -434,7 +458,6 @@ namespace {
 */
 void opt_trace_disable_if_no_tables_access(THD *thd, TABLE_LIST *tbl)
 {
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   DBUG_ENTER("opt_trace_disable_if_no_tables_access");
   if (likely(!(thd->variables.optimizer_trace &
                Opt_trace_context::FLAG_ENABLED)) || thd->system_thread)
@@ -495,13 +518,12 @@ void opt_trace_disable_if_no_tables_access(THD *thd, TABLE_LIST *tbl)
   }
   thd->set_security_context(backup_thd_sctx);
   DBUG_VOID_RETURN;
-#endif
 }
 
 } // namespace
 
 
-int fill_optimizer_trace_info(THD *thd, TABLE_LIST *tables, Item *cond)
+int fill_optimizer_trace_info(THD *thd, TABLE_LIST *tables, Item*)
 {
   TABLE *table= tables->table;
   Opt_trace_info info;

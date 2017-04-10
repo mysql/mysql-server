@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,17 +13,19 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#ifndef _WIN32
+#include <netdb.h>
+#endif
 #include <stdlib.h>
 
-#include "x_platform.h"
-
-#include "xcom_vp.h"
 #include "node_no.h"
-#include "simset.h"
-#include "task.h"
 #include "server_struct.h"
-#include "xcom_detector.h"
+#include "simset.h"
 #include "site_struct.h"
+#include "task.h"
+#include "x_platform.h"
+#include "xcom_detector.h"
+#include "xcom_vp.h"
 
 #ifdef WIN
 #include "sock_probe_win32.c"
@@ -32,14 +34,17 @@
 #endif
 
 
-/* Get host name from host:port string */
+/*
+  Get host name from host:port string.
+  name should be a buffer at least MAXHOSTNAMELEN+1 bytes.
+*/
 void get_host_name(char *a, char *name)
 {
 	if (!a || !name)
 		return ;
 	{
 		int i = 0;
-		while(a[i] != 0 && a[i] != ':'){
+		while(a[i] != 0 && a[i] != ':' && i <= MAXHOSTNAMELEN){
 			name[i] = a[i];
 			i++;
 		}
@@ -70,7 +75,7 @@ node_no xcom_find_node_index(node_list *nodes)
 {
 	node_no i;
 	node_no retval = VOID_NODE_NO;
-	char	name[MAXHOSTNAMELEN+1];
+  char *name = NULL;
 	struct addrinfo *a = 0;
 	sock_probe * s = calloc(1, sizeof(sock_probe));
 
@@ -78,6 +83,16 @@ node_no xcom_find_node_index(node_list *nodes)
 		free(s);
 		return retval;
 	}
+
+  /*
+    On some platform, MAXHOSTNAMELEN is sysconf(_SC_HOST_NAME_MAX).
+    so need to check if it is greater than 0.
+  */
+	if (MAXHOSTNAMELEN <= 0)
+		return retval;
+
+	name = (char *)calloc(1, (size_t)(MAXHOSTNAMELEN+1));
+
 	/* For each node in list */
 	for (i = 0; i < nodes->node_list_len; i++) {
 		/* See if port matches first */
@@ -107,6 +122,7 @@ node_no xcom_find_node_index(node_list *nodes)
 	}
 	/* Free resources and return result */
 end_loop:
+	free(name);
 	delete_sock_probe(s);
 	return retval;
 }

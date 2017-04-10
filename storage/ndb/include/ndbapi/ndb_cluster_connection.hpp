@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -71,8 +71,28 @@ public:
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
   Ndb_cluster_connection(const char * connectstring,
                          Ndb_cluster_connection *main_connection);
+  Ndb_cluster_connection(const char * connectstring,
+                         Ndb_cluster_connection *main_connection,
+                         int force_api_nodeid);
 #endif
   ~Ndb_cluster_connection();
+
+  /**
+   * Set data node neighbour of the connection. This will be used for optimal
+   * placement of transaction coordinator.
+   *
+   * In normal cases this method, if used, is called when
+   * ndb_cluster_connection is created before query threads are started.
+   *
+   * Note that this method may change internal state of ndb_cluster_connection
+   * shared by all threads using it.  This state is not thread safe and can at
+   * the time change occur cause a non optimal node selection.
+   *
+   * Also any outstanding iterators (Ndb_cluster_connection_node_iter) may
+   * become invalid when method is called.  This may result in a non optimal
+   * node selection the next time the iterator is used.
+   */
+  void set_data_node_neighbour(Uint32 neighbour_node);
 
   /**
    * Set a name on the connection, which will be reported in cluster log
@@ -142,12 +162,12 @@ public:
    * Lock creation of ndb-objects
    *   Needed to iterate over created ndb objects
    */
-  void lock_ndb_objects();
+  void lock_ndb_objects() const;
 
   /**
    * Unlock creation of ndb-objects
    */
-  void unlock_ndb_objects();
+  void unlock_ndb_objects() const;
 
   /**
    * Iterator of ndb-objects
@@ -196,6 +216,14 @@ public:
    * the receiver thread as the receiver, before this level the normal
    * user threads are used to receive signals. If we set the level to
    * 16 or higher we will never use receive threads as receivers.
+   *
+   * Note that level 0 is a special value which will always keep the
+   * receive thread active, *and* allow it to keep the poll right
+   * for its own exclusive usage. Thus user threads will effectively
+   * be blocked from being receiver. For this setting care should be
+   * taken to ensure that the receive thread will not compete with the
+   * user thread for CPU resources. It should preferably be locked
+   * to a CPU for its own exclusive usage.
    *
    * By default we have one receiver thread, this thread is not locked to
    * any specific CPU and the level is 8.

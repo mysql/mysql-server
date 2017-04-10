@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2017, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -34,16 +34,26 @@ Created 9/5/1995 Heikki Tuuri
 #include "sync0rw.h"
 #include "sync0sync.h"
 
+/** Keeps count of number of Performance Schema keys defined. */
+unsigned int mysql_pfs_key_t::s_count;
+
 #ifdef UNIV_PFS_MUTEX
 /* Key to register autoinc_mutex with performance schema */
 mysql_pfs_key_t	autoinc_mutex_key;
+mysql_pfs_key_t	autoinc_persisted_mutex_key;
+#  ifndef PFS_SKIP_BUFFER_MUTEX_RWLOCK
 mysql_pfs_key_t	buffer_block_mutex_key;
-mysql_pfs_key_t	buf_pool_mutex_key;
+#  endif /* !PFS_SKIP_BUFFER_MUTEX_RWLOCK */
+mysql_pfs_key_t	buf_pool_flush_state_mutex_key;
+mysql_pfs_key_t	buf_pool_LRU_list_mutex_key;
+mysql_pfs_key_t	buf_pool_free_list_mutex_key;
+mysql_pfs_key_t	buf_pool_zip_free_mutex_key;
+mysql_pfs_key_t	buf_pool_zip_hash_mutex_key;
 mysql_pfs_key_t	buf_pool_zip_mutex_key;
 mysql_pfs_key_t	cache_last_read_mutex_key;
 mysql_pfs_key_t	dict_foreign_err_mutex_key;
+mysql_pfs_key_t	dict_persist_dirty_tables_mutex_key;
 mysql_pfs_key_t	dict_sys_mutex_key;
-mysql_pfs_key_t	file_format_max_mutex_key;
 mysql_pfs_key_t	fil_system_mutex_key;
 mysql_pfs_key_t	flush_list_mutex_key;
 mysql_pfs_key_t	fts_bg_threads_mutex_key;
@@ -55,6 +65,7 @@ mysql_pfs_key_t	hash_table_mutex_key;
 mysql_pfs_key_t	ibuf_bitmap_mutex_key;
 mysql_pfs_key_t	ibuf_mutex_key;
 mysql_pfs_key_t	ibuf_pessimistic_insert_mutex_key;
+mysql_pfs_key_t	lock_free_hash_mutex_key;
 mysql_pfs_key_t	log_sys_mutex_key;
 mysql_pfs_key_t	log_sys_write_mutex_key;
 mysql_pfs_key_t	log_cmdq_mutex_key;
@@ -65,8 +76,8 @@ mysql_pfs_key_t	page_cleaner_mutex_key;
 mysql_pfs_key_t	purge_sys_pq_mutex_key;
 mysql_pfs_key_t	recv_sys_mutex_key;
 mysql_pfs_key_t	recv_writer_mutex_key;
-mysql_pfs_key_t	redo_rseg_mutex_key;
-mysql_pfs_key_t	noredo_rseg_mutex_key;
+mysql_pfs_key_t	temp_space_rseg_mutex_key;
+mysql_pfs_key_t	trx_sys_rseg_mutex_key;
 mysql_pfs_key_t page_zip_stat_per_index_mutex_key;
 # ifdef UNIV_DEBUG
 mysql_pfs_key_t	rw_lock_debug_mutex_key;
@@ -94,8 +105,10 @@ mysql_pfs_key_t	lock_wait_mutex_key;
 mysql_pfs_key_t	trx_sys_mutex_key;
 mysql_pfs_key_t	srv_sys_mutex_key;
 mysql_pfs_key_t	srv_threads_mutex_key;
+#  ifndef PFS_SKIP_EVENT_MUTEX
 mysql_pfs_key_t	event_mutex_key;
 mysql_pfs_key_t	event_manager_mutex_key;
+#  endif /* !PFS_SKIP_EVENT_MUTEX */
 mysql_pfs_key_t	sync_array_mutex_key;
 mysql_pfs_key_t	thread_mutex_key;
 mysql_pfs_key_t zip_pad_mutex_key;
@@ -106,12 +119,15 @@ mysql_pfs_key_t	master_key_id_mutex_key;
 
 #ifdef UNIV_PFS_RWLOCK
 mysql_pfs_key_t	btr_search_latch_key;
+#  ifndef PFS_SKIP_BUFFER_MUTEX_RWLOCK
 mysql_pfs_key_t	buf_block_lock_key;
+#  endif /* !PFS_SKIP_BUFFER_MUTEX_RWLOCK */
 # ifdef UNIV_DEBUG
 mysql_pfs_key_t	buf_block_debug_latch_key;
 # endif /* UNIV_DEBUG */
 mysql_pfs_key_t	checkpoint_lock_key;
 mysql_pfs_key_t	dict_operation_lock_key;
+mysql_pfs_key_t	dict_persist_checkpoint_key;
 mysql_pfs_key_t	dict_table_stats_key;
 mysql_pfs_key_t	hash_table_locks_key;
 mysql_pfs_key_t	index_tree_rw_lock_key;
@@ -122,6 +138,12 @@ mysql_pfs_key_t	fts_cache_init_rw_lock_key;
 mysql_pfs_key_t trx_i_s_cache_lock_key;
 mysql_pfs_key_t	trx_purge_latch_key;
 #endif /* UNIV_PFS_RWLOCK */
+
+/* There are mutexes/rwlocks that we want to exclude from instrumentation
+even if their corresponding performance schema define is set. And this
+PFS_NOT_INSTRUMENTED is used as the key value to identify those objects that
+would be excluded from instrumentation.*/
+mysql_pfs_key_t	PFS_NOT_INSTRUMENTED(ULINT32_UNDEFINED);
 
 /** For monitoring active mutexes */
 MutexMonitor*	mutex_monitor;
@@ -140,28 +162,25 @@ sync_print_wait_info(FILE* file)
 		" OS waits " UINT64PF "\n"
 		"RW-sx spins " UINT64PF ", rounds " UINT64PF ","
 		" OS waits " UINT64PF "\n",
-		(ib_uint64_t) rw_lock_stats.rw_s_spin_wait_count,
-		(ib_uint64_t) rw_lock_stats.rw_s_spin_round_count,
-		(ib_uint64_t) rw_lock_stats.rw_s_os_wait_count,
-		(ib_uint64_t) rw_lock_stats.rw_x_spin_wait_count,
-		(ib_uint64_t) rw_lock_stats.rw_x_spin_round_count,
-		(ib_uint64_t) rw_lock_stats.rw_x_os_wait_count,
-		(ib_uint64_t) rw_lock_stats.rw_sx_spin_wait_count,
-		(ib_uint64_t) rw_lock_stats.rw_sx_spin_round_count,
-		(ib_uint64_t) rw_lock_stats.rw_sx_os_wait_count);
+		(uint64_t) rw_lock_stats.rw_s_spin_wait_count,
+		(uint64_t) rw_lock_stats.rw_s_spin_round_count,
+		(uint64_t) rw_lock_stats.rw_s_os_wait_count,
+		(uint64_t) rw_lock_stats.rw_x_spin_wait_count,
+		(uint64_t) rw_lock_stats.rw_x_spin_round_count,
+		(uint64_t) rw_lock_stats.rw_x_os_wait_count,
+		(uint64_t) rw_lock_stats.rw_sx_spin_wait_count,
+		(uint64_t) rw_lock_stats.rw_sx_spin_round_count,
+		(uint64_t) rw_lock_stats.rw_sx_os_wait_count);
 
 	fprintf(file,
 		"Spin rounds per wait: %.2f RW-shared,"
 		" %.2f RW-excl, %.2f RW-sx\n",
 		(double) rw_lock_stats.rw_s_spin_round_count /
-		(rw_lock_stats.rw_s_spin_wait_count
-		 ? rw_lock_stats.rw_s_spin_wait_count : 1),
+		std::max(uint64_t(1), (uint64_t) rw_lock_stats.rw_s_spin_wait_count),
 		(double) rw_lock_stats.rw_x_spin_round_count /
-		(rw_lock_stats.rw_x_spin_wait_count
-		 ? rw_lock_stats.rw_x_spin_wait_count : 1),
+		std::max(uint64_t(1), (uint64_t) rw_lock_stats.rw_x_spin_wait_count),
 		(double) rw_lock_stats.rw_sx_spin_round_count /
-		(rw_lock_stats.rw_sx_spin_wait_count
-		 ? rw_lock_stats.rw_sx_spin_wait_count : 1));
+		std::max(uint64_t(1), (uint64_t) rw_lock_stats.rw_sx_spin_wait_count));
 }
 
 /**

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -15,10 +15,13 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include <stddef.h>
+#include <functional>
+
 #include "abstract_connection_provider.h"
-#include "instance_callback.h"
 
 using namespace Mysql::Tools::Dump;
+using std::placeholders::_1;
 
 int64 Abstract_connection_provider::Message_handler_wrapper::pass_message(
   const Mysql::Tools::Base::Message_data& message)
@@ -31,27 +34,25 @@ int64 Abstract_connection_provider::Message_handler_wrapper::pass_message(
 }
 
 Abstract_connection_provider::Message_handler_wrapper::Message_handler_wrapper(
-  Mysql::I_callable<bool, const Mysql::Tools::Base::Message_data&>*
+  std::function<bool(const Mysql::Tools::Base::Message_data&)>*
     message_handler)
   : m_message_handler(message_handler)
 {}
 
 Mysql::Tools::Base::Mysql_query_runner*
   Abstract_connection_provider::create_new_runner(
-    Mysql::I_callable<bool, const Mysql::Tools::Base::Message_data&>*
+    std::function<bool(const Mysql::Tools::Base::Message_data&)>*
       message_handler)
 {
   MYSQL* connection= m_connection_factory->create_connection();
   Message_handler_wrapper* message_wrapper=
     new Message_handler_wrapper(message_handler);
-  I_callable<int64, const Mysql::Tools::Base::Message_data&>* callback
-    = new Mysql::Instance_callback_own<
-    int64, const Mysql::Tools::Base::Message_data&,
-    Message_handler_wrapper>(
-      message_wrapper, &Message_handler_wrapper::pass_message);
+  auto *callback = new std::function<int64(const Mysql::Tools::Base::Message_data&)>(
+    std::bind(&Message_handler_wrapper::pass_message, message_wrapper, _1));
+  auto cleanup_callback = [message_wrapper]{ delete message_wrapper; };
 
   return &((new Mysql::Tools::Base::Mysql_query_runner(connection))
-    ->add_message_callback(callback));
+    ->add_message_callback(callback, cleanup_callback));
 }
 
 Abstract_connection_provider::Abstract_connection_provider(

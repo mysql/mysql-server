@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -417,11 +417,7 @@ public:
       0
     };
 
-#ifdef NDB_WIN
-    m_event_socket.s = ndb_mgm_listen_event(m_handle, filter); 
-#else
-    m_event_socket.fd = ndb_mgm_listen_event(m_handle, filter);
-#endif
+    m_event_socket = ndb_socket_create_from_native(ndb_mgm_listen_event(m_handle, filter));
     
     return my_socket_valid(m_event_socket);
   }

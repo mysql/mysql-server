@@ -61,8 +61,12 @@
 #     Mask ANONYMOUS_GTID_LOG_EVENT as GTID_LOG_EVENTS to make a non-GTID
 #     enabled event stream similar to a GTID enabled one, as the server now
 #     generates [ANONYMOUS_]GTID always.
-
-
+#
+#   $keep_ddl_xid
+#     When specified leaves the XID field printed out. The flag is not supposed
+#     to be specified in "old" tests that do not expect DDL Query_log_event:s
+#     with XID info.
+#
 --let $include_filename= show_binlog_events.inc
 --source include/begin_include_file.inc
 

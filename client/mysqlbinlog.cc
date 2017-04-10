@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -28,41 +28,36 @@
    Format_desc_of_slave, Rotate_of_master, Format_desc_of_master.
 */
 
-#define MYSQL_CLIENT
-#undef MYSQL_SERVER
-#include "client_priv.h"
-#include "my_default.h"
-#include <my_time.h>
-#include <sslopt-vars.h>
-/* That one is necessary for defines of OPTION_NO_FOREIGN_KEY_CHECKS etc */
-#include "query_options.h"
+#include "client/mysqlbinlog.h"
+
+#include <fcntl.h>
 #include <signal.h>
-#include <my_dir.h>
-
-#include "prealloced_array.h"
-
-/*
-  error() is used in macro BINLOG_ERROR which is invoked in
-  rpl_gtid.h, hence the early forward declaration.
-*/
-static void error(const char *format, ...)
-  MY_ATTRIBUTE((format(printf, 1, 2)));
-static void warning(const char *format, ...)
-  MY_ATTRIBUTE((format(printf, 1, 2)));
-
-#include "rpl_gtid.h"
-#include "log_event.h"
-#include "log_event_old.h"
-#include "sql_common.h"
-#include "my_dir.h"
-#include <welcome_copyright_notice.h> // ORACLE_WELCOME_COPYRIGHT_NOTICE
-#include "sql_string.h"
-#include "my_decimal.h"
-#include "rpl_constants.h"
-
+#include <stdarg.h>
+#include <stdlib.h>
+#include <time.h>
 #include <algorithm>
-#include <utility>
 #include <map>
+#include <utility>
+
+#include "client_priv.h"
+#include "log_event.h"
+#include "my_dbug.h"
+#include "my_decimal.h"
+#include "my_default.h"
+#include "my_dir.h"
+#include "my_io.h"
+#include "my_macros.h"
+#include "my_time.h"
+#include "mysql/service_my_snprintf.h"
+#include "prealloced_array.h"
+#include "print_version.h"
+#include "rpl_constants.h"
+#include "rpl_gtid.h"
+#include "sql_common.h"
+#include "sql_string.h"
+#include "sslopt-vars.h"
+#include "typelib.h"
+#include "welcome_copyright_notice.h" // ORACLE_WELCOME_COPYRIGHT_NOTICE
 
 using std::min;
 using std::max;
@@ -293,7 +288,7 @@ struct buff_event_info
   the Query_log_event. This dynamic array buff_ev is used to buffer a structure 
   which stores such an event and the corresponding log position.
 */
-typedef Prealloced_array<buff_event_info, 16, true> Buff_ev;
+typedef Prealloced_array<buff_event_info, 16> Buff_ev;
 Buff_ev *buff_ev(PSI_NOT_INSTRUMENTED);
 
 // needed by net_serv.c
@@ -310,8 +305,8 @@ static const char* default_dbug_option = "d:t:o,/tmp/mysqlbinlog.trace";
 #endif
 static const char *load_default_groups[]= { "mysqlbinlog","client",0 };
 
-static my_bool one_database=0, disable_log_bin= 0;
-static my_bool opt_hexdump= 0;
+static bool one_database=0, disable_log_bin= 0;
+static bool opt_hexdump= 0;
 const char *base64_output_mode_names[]=
 {"NEVER", "AUTO", "UNSPEC", "DECODE-ROWS", NullS};
 TYPELIB base64_output_mode_typelib=
@@ -319,7 +314,7 @@ TYPELIB base64_output_mode_typelib=
     base64_output_mode_names, NULL };
 static enum_base64_output_mode opt_base64_output_mode= BASE64_OUTPUT_UNSPEC;
 static char *opt_base64_output_mode_str= 0;
-static my_bool opt_remote_alias= 0;
+static bool opt_remote_alias= 0;
 const char *remote_proto_names[]=
 {"BINLOG-DUMP-NON-GTIDS", "BINLOG-DUMP-GTIDS", NullS};
 TYPELIB remote_proto_typelib=
@@ -334,11 +329,11 @@ static char *opt_remote_proto_str= 0;
 static char *database= 0;
 static char *output_file= 0;
 static char *rewrite= 0;
-static my_bool force_opt= 0, short_form= 0, idempotent_mode= 0;
-static my_bool debug_info_flag, debug_check_flag;
-static my_bool force_if_open_opt= 1, raw_mode= 0;
-static my_bool to_last_remote_log= 0, stop_never= 0;
-static my_bool opt_verify_binlog_checksum= 1;
+bool force_opt= 0, short_form= 0, idempotent_mode= 0;
+static bool debug_info_flag, debug_check_flag;
+static bool force_if_open_opt= 1, raw_mode= 0;
+static bool to_last_remote_log= 0, stop_never= 0;
+static bool opt_verify_binlog_checksum= 1;
 static ulonglong offset = 0;
 static int64 stop_never_slave_server_id= -1;
 static int64 connection_server_id= -1;
@@ -347,9 +342,9 @@ static int port= 0;
 static uint my_end_arg;
 static const char* sock= 0;
 static char *opt_plugin_dir= 0, *opt_default_auth= 0;
-static my_bool opt_secure_auth= TRUE;
+static bool opt_secure_auth= TRUE;
 
-#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
+#if defined (_WIN32)
 static char *shared_memory_base_name= 0;
 #endif
 static char* user = 0;
@@ -369,11 +364,13 @@ static ulonglong rec_count= 0;
 static MYSQL* mysql = NULL;
 static char* dirname_for_local_load= 0;
 static uint opt_server_id_bits = 0;
-static ulong opt_server_id_mask = 0;
+ulong opt_server_id_mask = 0;
 Sid_map *global_sid_map= NULL;
 Checkable_rwlock *global_sid_lock= NULL;
 Gtid_set *gtid_set_included= NULL;
 Gtid_set *gtid_set_excluded= NULL;
+
+static bool opt_print_table_metadata;
 
 /**
   Pointer to the Format_description_log_event of the currently active binlog.
@@ -381,7 +378,7 @@ Gtid_set *gtid_set_excluded= NULL;
   This will be changed each time a new Format_description_log_event is
   found in the binlog. It is finally destroyed at program termination.
 */
-static Format_description_log_event* glob_description_event= NULL;
+Format_description_log_event* glob_description_event= NULL;
 
 /**
   Exit status for functions in this file.
@@ -400,7 +397,7 @@ enum Exit_status {
 */
 static char *opt_include_gtids_str= NULL,
             *opt_exclude_gtids_str= NULL;
-static my_bool opt_skip_gtids= 0;
+static bool opt_skip_gtids= 0;
 static bool filter_based_on_gtids= false;
 
 /* It is set to true when BEGIN is found, and false when the transaction ends. */
@@ -428,16 +425,10 @@ class Load_log_processor
     When we see first event corresponding to some LOAD DATA statement in
     binlog, we create temporary file to store data to be loaded.
     We add name of this file to file_names set using its file_id as index.
-    If we have Create_file event (i.e. we have binary log in pre-5.0.3
-    format) we also store save event object to be able which is needed to
-    emit LOAD DATA statement when we will meet Exec_load_data event.
-    If we have Begin_load_query event we simply store 0 in
-    File_name_record::event field.
   */
   struct File_name_record
   {
     char *fname;
-    Create_file_log_event *event;
   };
 
   typedef std::map<uint, File_name_record> File_names;
@@ -466,7 +457,7 @@ class Load_log_processor
       {
 	sprintf(file_name_end,"-%x",version);
 	if ((res= my_create(filename,0,
-			    O_CREAT|O_EXCL|O_BINARY|O_WRONLY,MYF(0)))!=-1)
+			    O_CREAT | O_EXCL | O_WRONLY, MYF(0)))!=-1)
 	  return res;
       }
       return -1;
@@ -498,41 +489,11 @@ public:
       if (ptr->fname)
       {
         my_free(ptr->fname);
-        delete ptr->event;
         memset(ptr, 0, sizeof(File_name_record));
       }
     }
 
     file_names.clear();
-  }
-
-  /**
-    Obtain Create_file event for LOAD DATA statement by its file_id
-    and remove it from this Load_log_processor's list of events.
-
-    Checks whether we have already seen a Create_file_log_event with
-    the given file_id.  If yes, returns a pointer to the event and
-    removes the event from array describing active temporary files.
-    From this moment, the caller is responsible for freeing the memory
-    occupied by the event.
-
-    @param[in] file_id File id identifying LOAD DATA statement.
-
-    @return Pointer to Create_file_log_event, or NULL if we have not
-    seen any Create_file_log_event with this file_id.
-  */
-  Create_file_log_event *grab_event(uint file_id)
-  {
-    File_name_record *ptr;
-    Create_file_log_event *res;
-
-    File_names::iterator it= file_names.find(file_id);
-    if (it == file_names.end())
-      return NULL;
-    ptr= &((*it).second);
-    if ((res= ptr->event))
-      memset(ptr, 0, sizeof(File_name_record));
-    return res;
   }
 
   /**
@@ -559,139 +520,29 @@ public:
     if (it == file_names.end())
       return NULL;
     ptr= &((*it).second);
-    if (!ptr->event)
-    {
-      res= ptr->fname;
-      memset(ptr, 0, sizeof(File_name_record));
-    }
+    res= ptr->fname;
+    memset(ptr, 0, sizeof(File_name_record));
     return res;
   }
-  Exit_status process(Create_file_log_event *ce);
   Exit_status process(Begin_load_query_log_event *ce);
   Exit_status process(Append_block_log_event *ae);
-  File prepare_new_file_for_old_format(Load_log_event *le, char *filename);
-  Exit_status load_old_format_file(NET* net, const char *server_fname,
-                                   uint server_fname_len, File file);
   Exit_status process_first_event(const char *bname, size_t blen,
                                   const uchar *block,
-                                  size_t block_len, uint file_id,
-                                  Create_file_log_event *ce);
+                                  size_t block_len, uint file_id);
 };
-
-
-/**
-  Creates and opens a new temporary file in the directory specified by previous call to init_by_dir_name() or init_by_cur_dir().
-
-  @param[in] le The basename of the created file will start with the
-  basename of the file pointed to by this Load_log_event.
-
-  @param[out] filename Buffer to save the filename in.
-
-  @return File handle >= 0 on success, -1 on error.
-*/
-File Load_log_processor::prepare_new_file_for_old_format(Load_log_event *le,
-							 char *filename)
-{
-  size_t len;
-  char *tail;
-  File file;
-  
-  fn_format(filename, le->fname, target_dir_name, "", MY_REPLACE_DIR);
-  len= strlen(filename);
-  tail= filename + len;
-  
-  if ((file= create_unique_file(filename,tail)) < 0)
-  {
-    error("Could not construct local filename %s.",filename);
-    return -1;
-  }
-  
-  le->set_fname_outside_temp_buf(filename,len+(uint) strlen(tail));
-  
-  return file;
-}
-
-
-/**
-  Reads a file from a server and saves it locally.
-
-  @param[in,out] net The server to read from.
-
-  @param[in] server_fname The name of the file that the server should
-  read.
-
-  @param[in] server_fname_len The length of server_fname.
-
-  @param[in,out] file The file to write to.
-
-  @retval ERROR_STOP An error occurred - the program should terminate.
-  @retval OK_CONTINUE No error, the program should continue.
-*/
-Exit_status Load_log_processor::load_old_format_file(NET* net,
-                                                     const char*server_fname,
-                                                     uint server_fname_len,
-                                                     File file)
-{
-  uchar buf[FN_REFLEN+1];
-  buf[0] = 0;
-  memcpy(buf + 1, server_fname, server_fname_len + 1);
-  if (my_net_write(net, buf, server_fname_len +2) || net_flush(net))
-  {
-    error("Failed requesting the remote dump of %s.", server_fname);
-    return ERROR_STOP;
-  }
-  
-  for (;;)
-  {
-    ulong packet_len = my_net_read(net);
-    if (packet_len == 0)
-    {
-      if (my_net_write(net, (uchar*) "", 0) || net_flush(net))
-      {
-        error("Failed sending the ack packet.");
-        return ERROR_STOP;
-      }
-      /*
-	we just need to send something, as the server will read but
-	not examine the packet - this is because mysql_load() sends 
-	an OK when it is done
-      */
-      break;
-    }
-    else if (packet_len == packet_error)
-    {
-      error("Failed reading a packet during the dump of %s.", server_fname);
-      return ERROR_STOP;
-    }
-    
-    if (packet_len > UINT_MAX)
-    {
-      error("Illegal length of packet read from net.");
-      return ERROR_STOP;
-    }
-    if (my_write(file, (uchar*) net->read_pos, 
-		 (uint) packet_len, MYF(MY_WME|MY_NABP)))
-      return ERROR_STOP;
-  }
-  
-  return OK_CONTINUE;
-}
-
 
 /**
   Process the first event in the sequence of events representing a
   LOAD DATA statement.
 
-  Creates a temporary file to be used in LOAD DATA and writes first
-  block of data to it. Registers its file name (and optional
-  Create_file event) in the array of active temporary files.
+  Creates a temporary file to be used in LOAD DATA and writes first block of
+  data to it. Registers its file name in the array of active temporary files.
 
   @param bname Base name for temporary file to be created.
   @param blen Base name length.
   @param block First block of data to be loaded.
   @param block_len First block length.
   @param file_id Identifies the LOAD DATA statement.
-  @param ce Pointer to Create_file event object if we are processing
   this type of event.
 
   @retval ERROR_STOP An error occurred - the program should terminate.
@@ -701,8 +552,7 @@ Exit_status Load_log_processor::process_first_event(const char *bname,
                                                     size_t blen,
                                                     const uchar *block,
                                                     size_t block_len,
-                                                    uint file_id,
-                                                    Create_file_log_event *ce)
+                                                    uint file_id)
 {
   size_t full_len= target_dir_name_len + blen + 9 + 9 + 1;
   Exit_status retval= OK_CONTINUE;
@@ -715,7 +565,6 @@ Exit_status Load_log_processor::process_first_event(const char *bname,
                                  full_len,MYF(MY_WME))))
   {
     error("Out of memory.");
-    delete ce;
     DBUG_RETURN(ERROR_STOP);
   }
 
@@ -730,12 +579,10 @@ Exit_status Load_log_processor::process_first_event(const char *bname,
     error("Could not construct local filename %s%s.",
           target_dir_name,bname);
     my_free(fname);
-    delete ce;
     DBUG_RETURN(ERROR_STOP);
   }
 
   rec.fname= fname;
-  rec.event= ce;
 
   /*
      fname is freed in process_event()
@@ -743,9 +590,6 @@ Exit_status Load_log_processor::process_first_event(const char *bname,
      will have been processed, otherwise in Load_log_processor::destroy()
   */
   file_names[file_id]= rec;
-
-  if (ce)
-    ce->set_fname_outside_temp_buf(fname, (uint) strlen(fname));
 
   if (my_write(file, (uchar*)block, block_len, MYF(MY_WME|MY_NABP)))
   {
@@ -760,33 +604,12 @@ Exit_status Load_log_processor::process_first_event(const char *bname,
   DBUG_RETURN(retval);
 }
 
-
-/**
-  Process the given Create_file_log_event.
-
-  @see Load_log_processor::process_first_event(const char*,uint,const char*,uint,uint,Create_file_log_event*)
-
-  @param ce Create_file_log_event to process.
-
-  @retval ERROR_STOP An error occurred - the program should terminate.
-  @retval OK_CONTINUE No error, the program should continue.
-*/
-Exit_status  Load_log_processor::process(Create_file_log_event *ce)
-{
-  const char *bname= ce->fname + dirname_length(ce->fname);
-  size_t blen= ce->fname_len - (bname-ce->fname);
-
-  return process_first_event(bname, blen, ce->block, ce->block_len,
-                             ce->file_id, ce);
-}
-
-
 /**
   Process the given Begin_load_query_log_event.
 
-  @see Load_log_processor::process_first_event(const char*,uint,const char*,uint,uint,Create_file_log_event*)
+  @see Load_log_processor::process_first_event(const char*,uint,const char*,uint,uint)
 
-  @param ce Begin_load_query_log_event to process.
+  @param blqe Begin_load_query_log_event to process.
 
   @retval ERROR_STOP An error occurred - the program should terminate.
   @retval OK_CONTINUE No error, the program should continue.
@@ -794,7 +617,7 @@ Exit_status  Load_log_processor::process(Create_file_log_event *ce)
 Exit_status Load_log_processor::process(Begin_load_query_log_event *blqe)
 {
   return process_first_event("SQL_LOAD_MB", 11, blqe->block, blqe->block_len,
-                             blqe->file_id, 0);
+                             blqe->file_id);
 }
 
 
@@ -802,16 +625,15 @@ Exit_status Load_log_processor::process(Begin_load_query_log_event *blqe)
   Process the given Append_block_log_event.
 
   Appends the chunk of the file contents specified by the event to the
-  file created by a previous Begin_load_query_log_event or
-  Create_file_log_event.
+  file created by a previous Begin_load_query_log_event.
 
   If the file_id for the event does not correspond to any file
-  previously registered through a Begin_load_query_log_event or
-  Create_file_log_event, this member function will print a warning and
+  previously registered through a Begin_load_query_log_event,
+  this member function will print a warning and
   return OK_CONTINUE.  It is safe to return OK_CONTINUE, because no
   query will be written for this event.  We should not print an error
   and fail, since the missing file_id could be because a (valid)
-  --start-position has been specified after the Begin/Create event but
+  --start-position has been specified after the Begin_load_query_log_event but
   before this Append event.
 
   @param ae Append_block_log_event to process.
@@ -832,7 +654,7 @@ Exit_status Load_log_processor::process(Append_block_log_event *ae)
     File file;
     Exit_status retval= OK_CONTINUE;
     if (((file= my_open(fname,
-			O_APPEND|O_BINARY|O_WRONLY,MYF(MY_WME))) < 0))
+			O_APPEND | O_WRONLY, MYF(MY_WME))) < 0))
     {
       error("Failed opening file %s", fname);
       DBUG_RETURN(ERROR_STOP);
@@ -851,12 +673,12 @@ Exit_status Load_log_processor::process(Append_block_log_event *ae)
   }
 
   /*
-    There is no Create_file event (a bad binlog or a big
+    There is no Begin_load_query_log_event (a bad binlog or a big
     --start-position). Assuming it's a big --start-position, we just do
     nothing and print a warning.
   */
   warning("Ignoring Append_block as there is no "
-          "Create_file event for file_id: %u", ae->file_id);
+          "Begin_load_query_log_event for file_id: %u", ae->file_id);
   DBUG_RETURN(OK_CONTINUE);
 }
 
@@ -871,7 +693,7 @@ static Load_log_processor load_processor;
   @todo This is only useful under windows, so may be ifdef'ed out on
   other systems.  /Sven
 
-  @todo If a Create_file_log_event contains a filename with a
+  @todo If a Begin_load_query_log_event contains a filename with a
   backslash (valid under unix), then we have problems under windows.
   /Sven
 
@@ -1166,8 +988,7 @@ void end_binlog(PRINT_EVENT_INFO *print_event_info)
 
   The deletion may be delegated in two cases: (1) the event is a
   Format_description_log_event, and is saved in
-  glob_description_event; (2) the event is a Create_file_log_event,
-  and is saved in load_processor.
+  glob_description_event;
 
   @param[in,out] print_event_info Parameters and context state
   determining how to print.
@@ -1180,12 +1001,12 @@ void end_binlog(PRINT_EVENT_INFO *print_event_info)
   @retval OK_STOP No error, but the end of the specified range of
   events to process has been reached and the program should terminate.
 */
-Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
-                          my_off_t pos, const char *logname)
+static Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
+                                 my_off_t pos, const char *logname)
 {
   char ll_buff[21];
   Log_event_type ev_type= ev->get_type_code();
-  my_bool destroy_evt= TRUE;
+  bool destroy_evt= TRUE;
   DBUG_ENTER("process_event");
   Exit_status retval= OK_CONTINUE;
   IO_CACHE *const head= &print_event_info->head_cache;
@@ -1339,48 +1160,6 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
       buff_ev->push_back(buff_event);
       break; 
     }
-
-
-    case binary_log::CREATE_FILE_EVENT:
-    {
-      Create_file_log_event* ce= (Create_file_log_event*)ev;
-      /*
-        We test if this event has to be ignored. If yes, we don't save
-        this event; this will have the good side-effect of ignoring all
-        related Append_block and Exec_load.
-        Note that Load event from 3.23 is not tested.
-      */
-      if (shall_skip_database(ce->db))
-      {
-        print_event_info->skipped_event_in_transaction= true;
-        goto end;                // Next event
-      }
-      /*
-	We print the event, but with a leading '#': this is just to inform 
-	the user of the original command; the command we want to execute 
-	will be a derivation of this original command (we will change the 
-	filename and use LOCAL), prepared in the 'case EXEC_LOAD_EVENT' 
-	below.
-      */
-      {
-      ce->print(result_file, print_event_info, TRUE);
-        if (head->error == -1)
-          goto err;
-      }
-      // If this binlog is not 3.23 ; why this test??
-      if (glob_description_event->binlog_version >= 3)
-      {
-        /*
-          transfer the responsibility for destroying the event to
-          load_processor
-        */
-        ev= NULL;
-        if ((retval= load_processor.process(ce)) != OK_CONTINUE)
-          goto end;
-      }
-      break;
-    }
-
     case binary_log::APPEND_BLOCK_EVENT:
       /*
         Append_block_log_events can safely print themselves even if
@@ -1394,37 +1173,6 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
           OK_CONTINUE)
         goto end;
       break;
-
-    case binary_log::EXEC_LOAD_EVENT:
-    {
-      ev->print(result_file, print_event_info);
-      if (head->error == -1)
-        goto err;
-      Execute_load_log_event *exv= (Execute_load_log_event*)ev;
-      Create_file_log_event *ce= load_processor.grab_event(exv->file_id);
-      /*
-	if ce is 0, it probably means that we have not seen the Create_file
-	event (a bad binlog, or most probably --start-position is after the
-	Create_file event). Print a warning comment.
-      */
-      if (ce)
-      {
-        /*
-          We must not convert earlier, since the file is used by
-          my_open() in Load_log_processor::append().
-        */
-        convert_path_to_forward_slashes((char*) ce->fname);
-	ce->print(result_file, print_event_info, TRUE);
-	my_free((void*)ce->fname);
-	delete ce;
-        if (head->error == -1)
-          goto err;
-      }
-      else
-        warning("Ignoring Execute_load_log_event as there is no "
-                "Create_file event for file_id: %u", exv->file_id);
-      break;
-    }
     case binary_log::FORMAT_DESCRIPTION_EVENT:
     {
       delete glob_description_event;
@@ -1542,9 +1290,6 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
     case binary_log::WRITE_ROWS_EVENT_V1:
     case binary_log::UPDATE_ROWS_EVENT_V1:
     case binary_log::DELETE_ROWS_EVENT_V1:
-    case binary_log::PRE_GA_WRITE_ROWS_EVENT:
-    case binary_log::PRE_GA_DELETE_ROWS_EVENT:
-    case binary_log::PRE_GA_UPDATE_ROWS_EVENT:
     {
       bool stmt_end= FALSE;
       Table_map_log_event *ignored_map= NULL;
@@ -1559,15 +1304,6 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
         if (new_ev->get_flags(Rows_log_event::STMT_END_F))
           stmt_end= TRUE;
         ignored_map= print_event_info->m_table_map_ignored.get_table(new_ev->get_table_id());
-      }
-      else if (ev_type == binary_log::PRE_GA_WRITE_ROWS_EVENT ||
-               ev_type == binary_log::PRE_GA_DELETE_ROWS_EVENT ||
-               ev_type == binary_log::PRE_GA_UPDATE_ROWS_EVENT)
-      {
-        Old_rows_log_event *old_ev= (Old_rows_log_event*) ev;
-        if (old_ev->get_flags(Rows_log_event::STMT_END_F))
-          stmt_end= TRUE;
-        ignored_map= print_event_info->m_table_map_ignored.get_table(old_ev->get_table_id());
       }
 
       bool skip_event= (ignored_map != NULL);
@@ -1864,7 +1600,7 @@ static struct my_option my_long_options[] =
   {"set-charset", OPT_SET_CHARSET,
    "Add 'SET NAMES character_set' to the output.", &charset,
    &charset, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
+#if defined (_WIN32)
   {"shared-memory-base-name", OPT_SHARED_MEMORY_BASE_NAME,
    "Base name of shared memory.", &shared_memory_base_name,
    &shared_memory_base_name,
@@ -1880,6 +1616,7 @@ static struct my_option my_long_options[] =
    &sock, &sock, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0,
    0, 0},
 #include <sslopt-longopts.h>
+
   {"start-datetime", OPT_START_DATETIME,
    "Start reading the binlog at first event having a datetime equal or "
    "posterior to the argument; the argument must be a date and time "
@@ -1954,7 +1691,7 @@ static struct my_option my_long_options[] =
    &opt_binlog_rows_event_max_size, 0,
    GET_ULONG, REQUIRED_ARG,
    /* def_value 4GB */ UINT_MAX, /* min_value */ 256,
-   /* max_value */ ULONG_MAX, /* sub_size */ 0,
+   /* max_value */ ULONG_MAX, /* arg_source */ 0,
    /* block_size */ 256, /* app_type */ 0},
   {"skip-gtids", OPT_MYSQLBINLOG_SKIP_GTIDS,
    "Do not preserve Global Transaction Identifiers; instead make the server "
@@ -1971,6 +1708,10 @@ static struct my_option my_long_options[] =
    "Identifiers were provided.",
    &opt_exclude_gtids_str, &opt_exclude_gtids_str, 0,
    GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"print-table-metadata", OPT_PRINT_TABLE_METADATA,
+   "Print metadata stored in Table_map_log_event",
+   &opt_print_table_metadata, &opt_print_table_metadata, 0,
+   GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
@@ -1985,7 +1726,7 @@ static struct my_option my_long_options[] =
   @param args List of arguments for the format string.
   @param msg Text to print before the string.
 */
-static void error_or_warning(const char *format, va_list args, const char *msg)
+void error_or_warning(const char *format, va_list args, const char *msg)
 {
   fprintf(stderr, "%s: ", msg);
   vfprintf(stderr, format, args);
@@ -1999,7 +1740,7 @@ static void error_or_warning(const char *format, va_list args, const char *msg)
   @param format Printf-style format string, followed by printf
   varargs.
 */
-static void error(const char *format,...)
+void error(const char *format,...)
 {
   va_list args;
   va_start(args, format);
@@ -2014,7 +1755,7 @@ static void error(const char *format,...)
   @param format Printf-style format string, followed by printf
   varargs.
 */
-static void sql_print_error(const char *format,...)
+void sql_print_error(const char *format,...)
 {
   va_list args;
   va_start(args, format);
@@ -2029,7 +1770,7 @@ static void sql_print_error(const char *format,...)
   @param format Printf-style format string, followed by printf
   varargs.
 */
-static void warning(const char *format,...)
+void warning(const char *format,...)
 {
   va_list args;
   va_start(args, format);
@@ -2060,13 +1801,6 @@ static void cleanup()
   if (mysql)
     mysql_close(mysql);
 }
-
-
-static void print_version()
-{
-  printf("%s Ver 3.4 for %s at %s\n", my_progname, SYSTEM_TYPE, MACHINE_TYPE);
-}
-
 
 static void usage()
 {
@@ -2099,7 +1833,7 @@ static my_time_t convert_str_to_timestamp(const char* str)
   MYSQL_TIME_STATUS status;
   MYSQL_TIME l_time;
   long dummy_my_timezone;
-  my_bool dummy_in_dst_time_gap;
+  bool dummy_in_dst_time_gap;
   /* We require a total specification (date AND time) */
   if (str_to_datetime(str, strlen(str), &l_time, 0, &status) ||
       l_time.time_type != MYSQL_TIMESTAMP_DATETIME || status.warnings)
@@ -2117,8 +1851,8 @@ static my_time_t convert_str_to_timestamp(const char* str)
 }
 
 
-extern "C" my_bool
-get_one_option(int optid, const struct my_option *opt MY_ATTRIBUTE((unused)),
+extern "C" bool
+get_one_option(int optid, const struct my_option *opt,
 	       char *argument)
 {
   bool tty_password=0;
@@ -2129,6 +1863,7 @@ get_one_option(int optid, const struct my_option *opt MY_ATTRIBUTE((unused)),
     break;
 #endif
 #include <sslopt-case.h>
+
   case 'd':
     one_database = 1;
     break;
@@ -2283,7 +2018,7 @@ static Exit_status safe_connect()
     mysql_options(mysql, MYSQL_OPT_PROTOCOL, (char*) &opt_protocol);
   if (opt_bind_addr)
     mysql_options(mysql, MYSQL_OPT_BIND, opt_bind_addr);
-#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
+#if defined (_WIN32)
   if (shared_memory_base_name)
     mysql_options(mysql, MYSQL_SHARED_MEMORY_BASE_NAME,
                   shared_memory_base_name);
@@ -2346,7 +2081,7 @@ static Exit_status dump_multiple_logs(int argc, char **argv)
   DBUG_ENTER("dump_multiple_logs");
   Exit_status rc= OK_CONTINUE;
 
-  PRINT_EVENT_INFO print_event_info;
+  PRINT_EVENT_INFO print_event_info{};
   if (!print_event_info.init_ok())
     DBUG_RETURN(ERROR_STOP);
   /*
@@ -2363,6 +2098,7 @@ static Exit_status dump_multiple_logs(int argc, char **argv)
   print_event_info.short_form= short_form;
   print_event_info.base64_output_mode= opt_base64_output_mode;
   print_event_info.skip_gtids= opt_skip_gtids;
+  print_event_info.print_table_metadata= opt_print_table_metadata;
 
   // Dump all logs.
   my_off_t save_stop_position= stop_position;
@@ -2470,6 +2206,7 @@ static Exit_status check_master_version()
     glob_description_event= new Format_description_log_event(3);
     break;
   case '5':
+  case '8':
     /*
       The server is soon going to send us its Format_description log
       event, unless it is a 5.0 server with 3.23 or 4.0 binlogs.
@@ -2499,9 +2236,33 @@ err:
 }
 
 
-static int get_dump_flags()
+static uint get_dump_flags()
 {
   return stop_never ? 0 : BINLOG_DUMP_NON_BLOCK;
+}
+
+
+/**
+  Callback function for mysql_binlog_open().
+
+  Sets gtid data in the command packet.
+
+  @param rpl              Replication stream information.
+  @param packet_gtid_set  Pointer to command packet where gtid
+                          data should be stored.
+*/
+static void fix_gtid_set(MYSQL_RPL *rpl, uchar *packet_gtid_set)
+{
+  Gtid_set *gtid_set= (Gtid_set *) rpl->gtid_set_arg;
+
+  gtid_set->encode(packet_gtid_set);
+
+  /*
+    Note: we acquire lock in the dump_remote_log_entries()
+    just before mysql_binlog_open() call if GTID used.
+  */
+  global_sid_lock->assert_some_rdlock();
+  global_sid_lock->unlock();
 }
 
 
@@ -2521,21 +2282,14 @@ static int get_dump_flags()
 static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
                                            const char* logname)
 {
-  uchar *command_buffer= NULL;
-  size_t command_size= 0;
-  ulong len= 0;
-  size_t logname_len= 0;
   uint server_id= 0;
-  NET* net= NULL;
   my_off_t old_off= start_position_mot;
-  char fname[FN_REFLEN + 1];
   char log_file_name[FN_REFLEN + 1];
   Exit_status retval= OK_CONTINUE;
-  enum enum_server_command command= COM_END;
 
   DBUG_ENTER("dump_remote_log_entries");
 
-  fname[0]= log_file_name[0]= 0;
+  log_file_name[0]= 0;
 
   /*
     Even if we already read one binlog (case of >=2 binlogs on command line),
@@ -2544,7 +2298,6 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
   */
   if ((retval= safe_connect()) != OK_CONTINUE)
     DBUG_RETURN(retval);
-  net= &mysql->net;
 
   if ((retval= check_master_version()) != OK_CONTINUE)
     DBUG_RETURN(retval);
@@ -2566,137 +2319,63 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
   if (connection_server_id != -1)
     server_id= static_cast<uint>(connection_server_id);
 
-  size_t tlen = strlen(logname);
-  if (tlen > UINT_MAX) 
-  {
-    error("Log name too long.");
-    DBUG_RETURN(ERROR_STOP);
-  }
-  const size_t BINLOG_NAME_INFO_SIZE= logname_len= tlen;
-  
-  if (opt_remote_proto == BINLOG_DUMP_NON_GTID)
-  {
-    command= COM_BINLOG_DUMP;
-    size_t allocation_size= ::BINLOG_POS_OLD_INFO_SIZE +
-      BINLOG_NAME_INFO_SIZE + ::BINLOG_FLAGS_INFO_SIZE +
-      ::BINLOG_SERVER_ID_INFO_SIZE + 1;
-    if (!(command_buffer= (uchar *) my_malloc(PSI_NOT_INSTRUMENTED,
-                                              allocation_size, MYF(MY_WME))))
-    {
-      error("Got fatal error allocating memory.");
-      DBUG_RETURN(ERROR_STOP);
-    }
-    uchar* ptr_buffer= command_buffer;
+  /*
+    Ignore HEARBEAT events. They can show up if mysqlbinlog is
+    running with:
 
-    /*
-      COM_BINLOG_DUMP accepts only 4 bytes for the position, so
-      we are forced to cast to uint32.
-    */
-    int4store(ptr_buffer, (uint32) start_position);
-    ptr_buffer+= ::BINLOG_POS_OLD_INFO_SIZE;
-    int2store(ptr_buffer, get_dump_flags());
-    ptr_buffer+= ::BINLOG_FLAGS_INFO_SIZE;
-    int4store(ptr_buffer, server_id);
-    ptr_buffer+= ::BINLOG_SERVER_ID_INFO_SIZE;
-    memcpy(ptr_buffer, logname, BINLOG_NAME_INFO_SIZE);
-    ptr_buffer+= BINLOG_NAME_INFO_SIZE;
+      --read-from-remote-server
+      --read-from-remote-master=BINLOG-DUMP-GTIDS'
+      --stop-never
+      --stop-never-slave-server-id
 
-    command_size= ptr_buffer - command_buffer;
-    DBUG_ASSERT(command_size == (allocation_size - 1));
-  }
-  else
+    i.e., acting as a fake slave.
+  */
+  MYSQL_RPL rpl= {0, logname, start_position, server_id,
+                  get_dump_flags() | MYSQL_RPL_SKIP_HEARTBEAT,
+                  0, NULL, NULL, 0, NULL};
+
+  if (opt_remote_proto != BINLOG_DUMP_NON_GTID)
   {
-    command= COM_BINLOG_DUMP_GTID;
+    rpl.flags|= MYSQL_RPL_GTID;
 
     global_sid_lock->rdlock();
-
-    // allocate buffer
-    size_t encoded_data_size= gtid_set_excluded->get_encoded_length();
-    size_t allocation_size=
-      ::BINLOG_FLAGS_INFO_SIZE + ::BINLOG_SERVER_ID_INFO_SIZE +
-      ::BINLOG_NAME_SIZE_INFO_SIZE + BINLOG_NAME_INFO_SIZE +
-      ::BINLOG_POS_INFO_SIZE + ::BINLOG_DATA_SIZE_INFO_SIZE +
-      encoded_data_size + 1;
-    if (!(command_buffer= (uchar *) my_malloc(PSI_NOT_INSTRUMENTED,
-                                              allocation_size, MYF(MY_WME))))
-    {
-      error("Got fatal error allocating memory.");
-      global_sid_lock->unlock();
-      DBUG_RETURN(ERROR_STOP);
-    }
-    uchar* ptr_buffer= command_buffer;
-
-    int2store(ptr_buffer, get_dump_flags());
-    ptr_buffer+= ::BINLOG_FLAGS_INFO_SIZE;
-    int4store(ptr_buffer, server_id);
-    ptr_buffer+= ::BINLOG_SERVER_ID_INFO_SIZE;
-    int4store(ptr_buffer, static_cast<uint32>(BINLOG_NAME_INFO_SIZE));
-    ptr_buffer+= ::BINLOG_NAME_SIZE_INFO_SIZE;
-    memcpy(ptr_buffer, logname, BINLOG_NAME_INFO_SIZE);
-    ptr_buffer+= BINLOG_NAME_INFO_SIZE;
-    int8store(ptr_buffer, start_position);
-    ptr_buffer+= ::BINLOG_POS_INFO_SIZE;
-    int4store(ptr_buffer, static_cast<uint32>(encoded_data_size));
-    ptr_buffer+= ::BINLOG_DATA_SIZE_INFO_SIZE;
-    gtid_set_excluded->encode(ptr_buffer);
-    ptr_buffer+= encoded_data_size;
-
-    global_sid_lock->unlock();
-
-    command_size= ptr_buffer - command_buffer;
-    DBUG_ASSERT(command_size == (allocation_size - 1));
+    rpl.gtid_set_encoded_size= gtid_set_excluded->get_encoded_length();
+    rpl.fix_gtid_set= fix_gtid_set;
+    rpl.gtid_set_arg= (void *) gtid_set_excluded;
   }
 
-  if (simple_command(mysql, command, command_buffer, command_size, 1))
+  if (mysql_binlog_open(mysql, &rpl))
   {
-    error("Got fatal error sending the log dump command.");
-    my_free(command_buffer);
+    error("Open binlog error: %s", mysql_error(mysql));
     DBUG_RETURN(ERROR_STOP);
   }
-  my_free(command_buffer);
 
   for (;;)
   {
-    const char *error_msg= NULL;
-    Log_event *ev= NULL;
-    Log_event_type type= binary_log::UNKNOWN_EVENT;
-
-    len= cli_safe_read(mysql, NULL);
-    if (len == packet_error)
+    if (mysql_binlog_fetch(mysql, &rpl)) // Error packet
     {
       error("Got error reading packet from server: %s", mysql_error(mysql));
       DBUG_RETURN(ERROR_STOP);
     }
-    if (len < 8 && net->read_pos[0] == 254)
-      break; // end of data
+    else if (rpl.size == 0) // EOF
+      break;
+
     DBUG_PRINT("info",( "len: %lu  net->read_pos[5]: %d\n",
-			len, net->read_pos[5]));
+			rpl.size, mysql->net.read_pos[5]));
     /*
       In raw mode We only need the full event details if it is a 
       ROTATE_EVENT or FORMAT_DESCRIPTION_EVENT
     */
 
-    type= (Log_event_type) net->read_pos[1 + EVENT_TYPE_OFFSET];
-
-    /*
-      Ignore HEARBEAT events. They can show up if mysqlbinlog is
-      running with:
-
-        --read-from-remote-server
-        --read-from-remote-master=BINLOG-DUMP-GTIDS'
-        --stop-never
-        --stop-never-slave-server-id
-
-      i.e., acting as a fake slave.
-    */
-    if (type == binary_log::HEARTBEAT_LOG_EVENT)
-      continue;
+    Log_event_type type= (Log_event_type) rpl.buffer[1 + EVENT_TYPE_OFFSET];
+    Log_event *ev= NULL;
 
     if (!raw_mode || (type == binary_log::ROTATE_EVENT) ||
         (type == binary_log::FORMAT_DESCRIPTION_EVENT))
     {
-      if (!(ev= Log_event::read_log_event((const char*) net->read_pos + 1 ,
-                                          len - 1, &error_msg,
+      const char *error_msg= NULL;
+      if (!(ev= Log_event::read_log_event((const char*) rpl.buffer + 1,
+                                          rpl.size - 1, &error_msg,
                                           glob_description_event,
                                           opt_verify_binlog_checksum)))
       {
@@ -2707,9 +2386,9 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
         If reading from a remote host, ensure the temp_buf for the
         Log_event class is pointing to the incoming stream.
       */
-      ev->register_temp_buf((char *) net->read_pos + 1);
+      ev->register_temp_buf((char *) rpl.buffer + 1);
     }
-    if (raw_mode || (type != binary_log::LOAD_EVENT))
+
     {
       /*
         If this is a Rotate event, maybe it's the end of the requested binlog;
@@ -2747,8 +2426,8 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
         {
           if (!to_last_remote_log)
           {
-            if ((rev->ident_len != logname_len) ||
-                memcmp(rev->new_log_ident, logname, logname_len))
+            if ((rev->ident_len != rpl.file_name_length) ||
+                memcmp(rev->new_log_ident, logname, rpl.file_name_length))
             {
               reset_temp_buf_and_delete(rev);
               DBUG_RETURN(OK_CONTINUE);
@@ -2767,7 +2446,7 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
              next binlog file (fake rotate) picked by mysqlbinlog --to-last-log
          */
           old_off= start_position_mot;
-          len= 1; // fake Rotate, so don't increment old_off
+          rpl.size= 1; // fake Rotate, so don't increment old_off
         }
       }
       else if (type == binary_log::FORMAT_DESCRIPTION_EVENT)
@@ -2781,12 +2460,13 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
         */
         // fake event when not in raw mode, don't increment old_off
         if ((old_off != BIN_LOG_HEADER_SIZE) && (!raw_mode))
-          len= 1;
+          rpl.size= 1;
         if (raw_mode)
         {
           if (result_file && (result_file != stdout))
             my_fclose(result_file, MYF(0));
-          if (!(result_file = my_fopen(log_file_name, O_WRONLY | O_BINARY,
+          if (!(result_file = my_fopen(log_file_name,
+                                       O_WRONLY | MY_FOPEN_BINARY,
                                        MYF(MY_WME))))
           {
             error("Could not create log file '%s'", log_file_name);
@@ -2811,20 +2491,12 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
           ev= 0;
         }
       }
-      
-      if (type == binary_log::LOAD_EVENT)
-      {
-        DBUG_ASSERT(raw_mode);
-        warning("Attempting to load a remote pre-4.0 binary log that contains "
-                "LOAD DATA INFILE statements. The file will not be copied from "
-                "the remote server. ");
-      }
 
       if (raw_mode)
       {
         DBUG_EXECUTE_IF("simulate_result_file_write_error",
                         DBUG_SET("+d,simulate_fwrite_error"););
-        if (my_fwrite(result_file, net->read_pos + 1 , len - 1, MYF(MY_NABP)))
+        if (my_fwrite(result_file, rpl.buffer + 1, rpl.size - 1, MYF(MY_NABP)))
         {
           error("Could not write into log file '%s'", log_file_name);
           retval= ERROR_STOP;
@@ -2840,34 +2512,13 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
       if (retval != OK_CONTINUE)
         DBUG_RETURN(retval);
     }
-    else
-    {
-      Load_log_event *le= (Load_log_event*)ev;
-      const char *old_fname= le->fname;
-      size_t old_len= le->fname_len;
-      File file;
-
-      if ((file= load_processor.prepare_new_file_for_old_format(le,fname)) < 0)
-        DBUG_RETURN(ERROR_STOP);
-
-      retval= process_event(print_event_info, ev, old_off, logname);
-      if (retval != OK_CONTINUE)
-      {
-        my_close(file,MYF(MY_WME));
-        DBUG_RETURN(retval);
-      }
-      retval= load_processor.load_old_format_file(net,old_fname,old_len,file);
-      my_close(file,MYF(MY_WME));
-      if (retval != OK_CONTINUE)
-        DBUG_RETURN(retval);
-    }
     /*
       Let's adjust offset for remote log as for local log to produce
       similar text and to have --stop-position to work identically.
     */
-    old_off+= len-1;
+    old_off+= rpl.size - 1;
   }
-
+  mysql_binlog_close(mysql, &rpl);
   DBUG_RETURN(OK_CONTINUE);
 }
 
@@ -2918,7 +2569,7 @@ static Exit_status check_header(IO_CACHE* file,
   pos= my_b_tell(file);
 
   /* fstat the file to check if the file is a regular file. */
-  if (my_fstat(file->file, &my_file_stat, MYF(0)) == -1)
+  if (my_fstat(file->file, &my_file_stat) == -1)
   {
     error("Unable to stat the file.");
     DBUG_RETURN(ERROR_STOP);
@@ -3092,7 +2743,7 @@ static Exit_status dump_local_log_entries(PRINT_EVENT_INFO *print_event_info,
   if (logname && strcmp(logname, "-") != 0)
   {
     /* read from normal file */
-    if ((fd = my_open(logname, O_RDONLY | O_BINARY, MYF(MY_WME))) < 0)
+    if ((fd = my_open(logname, O_RDONLY, MYF(MY_WME))) < 0)
       return ERROR_STOP;
     if (init_io_cache(file, fd, 0, READ_CACHE, start_position_mot, 0,
 		      MYF(MY_WME | MY_NABP)))
@@ -3115,7 +2766,7 @@ static Exit_status dump_local_log_entries(PRINT_EVENT_INFO *print_event_info,
       halting the function and printing an error message to stderr.
     */
 #if defined(_WIN32)
-    if (_setmode(fileno(stdin), O_BINARY) == -1)
+    if (_setmode(fileno(stdin), _O_BINARY) == -1)
     {
       error("Could not set binary mode on stdin.");
       return ERROR_STOP;
@@ -3254,7 +2905,8 @@ static int args_post_process(void)
   }
   else if (output_file)
   {
-    if (!(result_file = my_fopen(output_file, O_WRONLY | O_BINARY, MYF(MY_WME))))
+    if (!(result_file = my_fopen(output_file, O_WRONLY | MY_FOPEN_BINARY,
+                                 MYF(MY_WME))))
     {
       error("Could not create log file '%s'", output_file);
       DBUG_RETURN(ERROR_STOP);
@@ -3479,19 +3131,3 @@ int main(int argc, char** argv)
   /* Keep compilers happy. */
   DBUG_RETURN(retval == ERROR_STOP ? 1 : 0);
 }
-
-/*
-  We must include this here as it's compiled with different options for
-  the server
-*/
-
-#include "decimal.c"
-#include "my_decimal.cc"
-#include "log_event.cc"
-#include "log_event_old.cc"
-#include "rpl_utility.cc"
-#include "rpl_gtid_sid_map.cc"
-#include "rpl_gtid_misc.cc"
-#include "rpl_gtid_set.cc"
-#include "rpl_gtid_specification.cc"
-#include "rpl_tblmap.cc"

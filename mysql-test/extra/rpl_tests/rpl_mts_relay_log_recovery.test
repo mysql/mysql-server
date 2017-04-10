@@ -64,7 +64,10 @@ CALL mtr.add_suppression("Recovery from master pos");
 --let $assert_cond= [select count(*) from d2.t] = 3
 --source include/assert.inc
 
+if ($skip_slave_start_var == TRUE)
+{
 --source include/start_slave.inc
+}
 
 # Check consistency
 --source include/rpl_connection_master.inc

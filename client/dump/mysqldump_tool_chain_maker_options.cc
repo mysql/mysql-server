@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -15,10 +15,13 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include <functional>
+
 #include "mysqldump_tool_chain_maker_options.h"
 #include <boost/algorithm/string.hpp>
 
 using namespace Mysql::Tools::Dump;
+using std::placeholders::_1;
 
 void Mysqldump_tool_chain_maker_options::parallel_schemas_callback(char*)
 {
@@ -138,6 +141,28 @@ void Mysqldump_tool_chain_maker_options::process_positional_options(
   }
 
   /*
+    INFORMATION_SCHEMA DB content dump is only used to reload the data
+    into another tables for analysis purpose. This feature is not the
+    core responsibility of mysqlpump tool. INFORMATION_SCHEMA DB
+    content can even be dumped using other methods like SELECT INTO
+    OUTFILE... for such purpose.
+    Hence reporting error if INFORMATION_SCHEMA DB is in databases list.
+  */
+  for (auto database : m_object_filter.m_databases_included)
+  {
+    auto db_name= std::get<1>(database);
+
+    if (!my_strcasecmp(&my_charset_latin1, db_name.c_str(),
+                       INFORMATION_SCHEMA_DB_NAME))
+    {
+      m_mysql_chain_element_options->get_program()->error(
+        Mysql::Tools::Base::Message_data(1, "Dumping "
+        "\'INFORMATION_SCHEMA\' DB content is not supported.",
+        Mysql::Tools::Base::Message_type_error));
+    }
+  }
+
+  /*
     We add standard exclusions only if objects are included by default, i.e.
     there are exclusions or there is no exclusions and inclusions.
   */
@@ -169,13 +194,6 @@ void Mysqldump_tool_chain_maker_options::process_positional_options(
       "mysql", "procs_priv"));
     m_object_filter.m_tables_excluded.push_back(std::make_pair(
       "mysql", "proxies_priv"));
-    /*
-      Since we dump CREATE EVENT/FUNCTION/PROCEDURE statement skip this table.
-    */
-    m_object_filter.m_tables_excluded.push_back(std::make_pair(
-      "mysql", "event"));
-    m_object_filter.m_tables_excluded.push_back(std::make_pair(
-      "mysql", "proc"));
   }
   if (m_object_filter.m_databases_excluded.size() > 0 ||
     m_object_filter.m_databases_included.size() == 0)
@@ -188,6 +206,44 @@ void Mysqldump_tool_chain_maker_options::process_positional_options(
       "", "ndbinfo"));
     m_object_filter.m_databases_excluded.push_back(std::make_pair(
       "", "sys"));
+  }
+
+  if (m_dump_all_databases)
+    m_formatter_options->m_innodb_stats_tables_included= true;
+  else if (m_dump_selected_databases)
+  {
+    for (auto database : m_object_filter.m_databases_included)
+    {
+      auto db_name= std::get<1>(database);
+      if (!my_strcasecmp(&my_charset_latin1, db_name.c_str(), "mysql"))
+      {
+        m_formatter_options->m_innodb_stats_tables_included= true;
+        break;
+      }
+    }
+  }
+  /* check positional options */
+  else
+  for (auto database : m_object_filter.m_databases_included)
+  {
+    auto db_name= std::get<1>(database);
+    if (!my_strcasecmp(&my_charset_latin1, db_name.c_str(), "mysql"))
+    {
+      if (m_object_filter.m_tables_included.size() == 0)
+        m_formatter_options->m_innodb_stats_tables_included= true;
+      for (auto table : m_object_filter.m_tables_included)
+      {
+        auto table_name= std::get<1>(table);
+        if (!my_strcasecmp(&my_charset_latin1,
+                           table_name.c_str(), "innodb_table_stats") ||
+            !my_strcasecmp(&my_charset_latin1,
+                           table_name.c_str(), "innodb_index_stats"))
+        {
+          m_formatter_options->m_innodb_stats_tables_included= true;
+          break;
+        }
+      }
+    }
   }
 }
 
@@ -207,9 +263,9 @@ void Mysqldump_tool_chain_maker_options::create_options()
     "specified schemas using separate queue handled by "
     "--default-parallelism threads or N threads, if N is specified. Can be "
     "used multiple times to specify more parallel processes.")
-    ->add_callback(new Mysql::Instance_callback
-    <void, char*, Mysqldump_tool_chain_maker_options>(
-    this, &Mysqldump_tool_chain_maker_options::parallel_schemas_callback));
+    ->add_callback(new std::function<void(char*)>(
+      std::bind(&Mysqldump_tool_chain_maker_options::parallel_schemas_callback,
+                this, _1)));
   this->create_new_option(&m_default_parallelism, "default-parallelism",
     "Specifies number of threads to process each parallel queue for values "
     "N > 0. if N is 0 then no queue will be used. Default value is 2. "

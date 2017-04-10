@@ -1,6 +1,7 @@
 drop table if exists t1;
 create table t1(a int) engine = myisam;
 insert into t1 values (1), (2), (3), (4), (5);
+alter table t1 force;
 update performance_schema.threads
 set instrumented = 'NO'
   where processlist_id = connection_id();

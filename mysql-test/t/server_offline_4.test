@@ -44,6 +44,7 @@ SET GLOBAL offline_mode = ON;
 # Wait until all non super user have been disconnected (for slow machines)
 let $count_sessions= $user_count;
 --source include/wait_until_count_sessions.inc
+--replace_regex /_[0-9]+\.SDI/_XXX.SDI/
 --list_files $MYSQLD_DATADIR/test t*
 SELECT COUNT(USER) FROM INFORMATION_SCHEMA.PROCESSLIST;
 
@@ -73,4 +74,3 @@ DROP USER 'user1'@'localhost';
 
 --echo # Restoring the original values.
 SET @@global.offline_mode = @global_saved_tmp;
-

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -86,26 +86,35 @@
 */
 
 #define MYSQL_SERVER 1
+#include "my_config.h"
+
+#include <m_ctype.h>
+#include <mysql/plugin.h>
+#include <algorithm>
+
+#include "../myisam/ha_myisam.h"
+#include "current_thd.h"
+#include "debug_sync.h"
+#include "ha_myisammrg.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_pointer_arithmetic.h"
+#include "my_psi_config.h"
+#include "myrg_def.h"
+#include "mysqld.h"
 #include "sql_cache.h"                          // query_cache_*
+#include "sql_class.h"                          // THD
 #include "sql_show.h"                           // append_identifier
 #include "sql_table.h"                         // build_table_filename
-#include "probes_mysql.h"
-#include <mysql/plugin.h>
-#include <m_ctype.h>
-#include "../myisam/ha_myisam.h"
-#include "ha_myisammrg.h"
-#include "myrg_def.h"
 #include "thr_malloc.h"                         // int_sql_alloc
-#include "sql_class.h"                          // THD
-#include "debug_sync.h"
-
-#include <algorithm>
+#include "typelib.h"
 
 using std::min;
 using std::max;
 
 static handler *myisammrg_create_handler(handlerton *hton,
                                          TABLE_SHARE *table,
+                                         bool,
                                          MEM_ROOT *mem_root)
 {
   return new (mem_root) ha_myisammrg(hton, table);
@@ -138,13 +147,6 @@ static const char *ha_myisammrg_exts[] = {
   ".MRG",
   NullS
 };
-extern int table2myisam(TABLE *table_arg, MI_KEYDEF **keydef_out,
-                        MI_COLUMNDEF **recinfo_out, uint *records_out);
-extern int check_definition(MI_KEYDEF *t1_keyinfo, MI_COLUMNDEF *t1_recinfo,
-                            uint t1_keys, uint t1_recs,
-                            MI_KEYDEF *t2_keyinfo, MI_COLUMNDEF *t2_recinfo,
-                            uint t2_keys, uint t2_recs, bool strict,
-                            TABLE *table_arg);
 static void split_file_name(const char *file_name,
 			    LEX_STRING *db, LEX_STRING *name);
 
@@ -168,24 +170,7 @@ extern "C" void myrg_print_wrong_table(const char *table_name)
   my_error(ER_ADMIN_WRONG_MRG_TABLE, MYF(0), buf);
 }
 
-
-const char **ha_myisammrg::bas_ext() const
-{
-  return ha_myisammrg_exts;
-}
-
-
-const char *ha_myisammrg::index_type(uint key_number)
-{
-  return ((table->key_info[key_number].flags & HA_FULLTEXT) ? 
-	  "FULLTEXT" :
-	  (table->key_info[key_number].flags & HA_SPATIAL) ?
-	  "SPATIAL" :
-	  (table->key_info[key_number].algorithm == HA_KEY_ALG_RTREE) ?
-	  "RTREE" :
-	  "BTREE");
-}
-
+namespace {
 
 /**
   Callback function for open of a MERGE parent table.
@@ -198,8 +183,6 @@ const char *ha_myisammrg::index_type(uint key_number)
   @return status
     @retval     0               OK
     @retval     != 0            Error
-
-  @detail
 
     This function adds a TABLE_LIST object for a MERGE child table to a
     list of tables in the parent handler object. It is called for each
@@ -225,8 +208,6 @@ const char *ha_myisammrg::index_type(uint key_number)
     #                                                        |
     children_last_l -----------------------------------------+
 */
-
-namespace {
 
 extern "C" int myisammrg_parent_open_callback(void *callback_param,
                                               const char *filename)
@@ -335,21 +316,24 @@ extern "C" int myisammrg_parent_open_callback(void *callback_param,
   @param[in]    name               MERGE table path name
   @param[in]    mode               read/write mode, unused
   @param[in]    test_if_locked_arg open flags
+  @param[in]    table_def          dd::Table object describing
+                                   table to be opened.
 
   @return       status
   @retval     0                    OK
   @retval     -1                   Error, my_errno gives reason
 
-  @detail
+  @details
   This function initializes the MERGE storage engine structures
   and adds a child list of TABLE_LIST to the parent handler.
 */
 
 int ha_myisammrg::open(const char *name, int mode MY_ATTRIBUTE((unused)),
-                       uint test_if_locked_arg)
+                       uint test_if_locked_arg,
+                       const dd::Table *table_def MY_ATTRIBUTE((unused)))
 {
   DBUG_ENTER("ha_myisammrg::open");
-  DBUG_PRINT("myrg", ("name: '%s'  table: 0x%lx", name, (long) table));
+  DBUG_PRINT("myrg", ("name: '%s'  table: %p", name, table));
   DBUG_PRINT("myrg", ("test_if_locked_arg: %u", test_if_locked_arg));
 
   /* Must not be used when table is open. */
@@ -402,8 +386,8 @@ int ha_myisammrg::open(const char *name, int mode MY_ATTRIBUTE((unused)),
     DBUG_RETURN(my_errno() ? my_errno() : -1);
     /* purecov: end */
   }
-  DBUG_PRINT("myrg", ("MYRG_INFO: 0x%lx  child tables: %u",
-                      (long) file, file->tables));
+  DBUG_PRINT("myrg", ("MYRG_INFO: %p  child tables: %u",
+                      file, file->tables));
   DBUG_RETURN(0);
 }
 
@@ -415,7 +399,7 @@ int ha_myisammrg::open(const char *name, int mode MY_ATTRIBUTE((unused)),
     @retval     0               OK
     @retval     != 0            Error
 
-  @detail
+  @details
     When a MERGE parent table has just been opened, insert the
     TABLE_LIST chain from the MERGE handler into the table list used for
     opening tables for this statement. This lets the children be opened
@@ -429,8 +413,8 @@ int ha_myisammrg::add_children_list(void)
   List_iterator_fast<Mrg_child_def> it(child_def_list);
   Mrg_child_def *mrg_child_def;
   DBUG_ENTER("ha_myisammrg::add_children_list");
-  DBUG_PRINT("myrg", ("table: '%s'.'%s' 0x%lx", this->table->s->db.str,
-                      this->table->s->table_name.str, (long) this->table));
+  DBUG_PRINT("myrg", ("table: '%s'.'%s' %p", this->table->s->db.str,
+                      this->table->s->table_name.str, this->table));
 
   /* Must call this with open table. */
   DBUG_ASSERT(this->file);
@@ -474,7 +458,7 @@ int ha_myisammrg::add_children_list(void)
 
     child_l->init_one_table(db, mrg_child_def->db.length,
                             table_name, mrg_child_def->name.length,
-                            table_name, parent_l->lock_type);
+                            table_name, parent_l->lock_descriptor().type);
     /* Set parent reference. Used to detect MERGE in children list. */
     child_l->parent_l= parent_l;
     /* Copy select_lex. Used in unique_table() at least. */
@@ -597,6 +581,7 @@ public:
   }
 };
 
+namespace {
 
 /**
   Callback function for attaching a MERGE child table.
@@ -608,12 +593,10 @@ public:
     @retval     !=NULL                  OK, returning pointer
     @retval     NULL,                   Error.
 
-  @detail
+  @details
     This function retrieves the MyISAM table handle from the
     next child table. It is called for each child table.
 */
-
-namespace {
 
 extern "C" MI_INFO *myisammrg_attach_children_callback(void *callback_param)
 {
@@ -680,12 +663,12 @@ extern "C" MI_INFO *myisammrg_attach_children_callback(void *callback_param)
   if ((child->file->ht->db_type != DB_TYPE_MYISAM) ||
       !(myisam= ((ha_myisam*) child->file)->file_ptr()))
   {
-    DBUG_PRINT("error", ("no MyISAM handle for child table: '%s'.'%s' 0x%lx",
+    DBUG_PRINT("error", ("no MyISAM handle for child table: '%s'.'%s' %p",
                          child->s->db.str, child->s->table_name.str,
-                         (long) child));
+                         child));
   }
 
-  DBUG_PRINT("myrg", ("MyISAM handle: 0x%lx", (long) myisam));
+  DBUG_PRINT("myrg", ("MyISAM handle: %p", myisam));
 
  end:
 
@@ -719,7 +702,8 @@ handler *ha_myisammrg::clone(const char *name, MEM_ROOT *mem_root)
 {
   MYRG_TABLE    *u_table,*newu_table;
   ha_myisammrg *new_handler= 
-    (ha_myisammrg*) get_new_handler(table->s, mem_root, table->s->db_type());
+    (ha_myisammrg*) get_new_handler(table->s, false, mem_root,
+                                    table->s->db_type());
   if (!new_handler)
     return NULL;
   
@@ -737,7 +721,7 @@ handler *ha_myisammrg::clone(const char *name, MEM_ROOT *mem_root)
   }
 
   if (new_handler->ha_open(table, name, table->db_stat,
-                           HA_OPEN_IGNORE_IF_LOCKED))
+                           HA_OPEN_IGNORE_IF_LOCKED, NULL))
   {
     delete new_handler;
     return NULL;
@@ -767,7 +751,7 @@ handler *ha_myisammrg::clone(const char *name, MEM_ROOT *mem_root)
     @retval     0               OK
     @retval     != 0            Error, my_errno gives reason
 
-  @detail
+  @details
     Let the storage engine attach its children through a callback
     function. Check table definitions for consistency.
 
@@ -792,8 +776,8 @@ int ha_myisammrg::attach_children(void)
   int           error;
   Mrg_attach_children_callback_param param(parent_l, this->children_l, child_def_list);
   DBUG_ENTER("ha_myisammrg::attach_children");
-  DBUG_PRINT("myrg", ("table: '%s'.'%s' 0x%lx", table->s->db.str,
-                      table->s->table_name.str, (long) table));
+  DBUG_PRINT("myrg", ("table: '%s'.'%s' %p", table->s->db.str,
+                      table->s->table_name.str, table));
   DBUG_PRINT("myrg", ("test_if_locked: %u", this->test_if_locked));
 
   /* Must call this with open table. */
@@ -820,7 +804,7 @@ int ha_myisammrg::attach_children(void)
   if (myrg_attach_children(this->file, this->test_if_locked |
                            current_thd->open_options,
                            myisammrg_attach_children_callback, &param,
-                           (my_bool *) &param.need_compat_check))
+                           (bool *) &param.need_compat_check))
   {
     error= my_errno();
     goto err;
@@ -875,7 +859,7 @@ int ha_myisammrg::attach_children(void)
       if (check_definition(keyinfo, recinfo, keys, recs,
                            u_table->table->s->keyinfo, u_table->table->s->rec,
                            u_table->table->s->base.keys,
-                           u_table->table->s->base.fields, false, NULL))
+                           u_table->table->s->base.fields, false))
       {
         DBUG_PRINT("error", ("table definition mismatch: '%s'",
                              u_table->table->filename));
@@ -1074,7 +1058,7 @@ int ha_myisammrg::write_row(uchar * buf)
 {
   DBUG_ENTER("ha_myisammrg::write_row");
   DBUG_ASSERT(this->file->children_attached);
-  ha_statistic_increment(&SSV::ha_write_count);
+  ha_statistic_increment(&System_status_var::ha_write_count);
 
   if (file->merge_insert_method == MERGE_INSERT_DISABLED || !file->tables)
     DBUG_RETURN(HA_ERR_TABLE_READONLY);
@@ -1091,14 +1075,14 @@ int ha_myisammrg::write_row(uchar * buf)
 int ha_myisammrg::update_row(const uchar * old_data, uchar * new_data)
 {
   DBUG_ASSERT(this->file->children_attached);
-  ha_statistic_increment(&SSV::ha_update_count);
+  ha_statistic_increment(&System_status_var::ha_update_count);
   return myrg_update(file,old_data,new_data);
 }
 
 int ha_myisammrg::delete_row(const uchar * buf)
 {
   DBUG_ASSERT(this->file->children_attached);
-  ha_statistic_increment(&SSV::ha_delete_count);
+  ha_statistic_increment(&System_status_var::ha_delete_count);
   return myrg_delete(file,buf);
 }
 
@@ -1107,11 +1091,8 @@ int ha_myisammrg::index_read_map(uchar * buf, const uchar * key,
                                  enum ha_rkey_function find_flag)
 {
   DBUG_ASSERT(this->file->children_attached);
-  MYSQL_INDEX_READ_ROW_START(table_share->db.str, table_share->table_name.str);
-  ha_statistic_increment(&SSV::ha_read_key_count);
+  ha_statistic_increment(&System_status_var::ha_read_key_count);
   int error=myrg_rkey(file,buf,active_index, key, keypart_map, find_flag);
-  table->status=error ? STATUS_NOT_FOUND: 0;
-  MYSQL_INDEX_READ_ROW_DONE(error);
   return error;
 }
 
@@ -1120,11 +1101,8 @@ int ha_myisammrg::index_read_idx_map(uchar * buf, uint index, const uchar * key,
                                      enum ha_rkey_function find_flag)
 {
   DBUG_ASSERT(this->file->children_attached);
-  MYSQL_INDEX_READ_ROW_START(table_share->db.str, table_share->table_name.str);
-  ha_statistic_increment(&SSV::ha_read_key_count);
+  ha_statistic_increment(&System_status_var::ha_read_key_count);
   int error=myrg_rkey(file,buf,index, key, keypart_map, find_flag);
-  table->status=error ? STATUS_NOT_FOUND: 0;
-  MYSQL_INDEX_READ_ROW_DONE(error);
   return error;
 }
 
@@ -1132,56 +1110,41 @@ int ha_myisammrg::index_read_last_map(uchar *buf, const uchar *key,
                                       key_part_map keypart_map)
 {
   DBUG_ASSERT(this->file->children_attached);
-  MYSQL_INDEX_READ_ROW_START(table_share->db.str, table_share->table_name.str);
-  ha_statistic_increment(&SSV::ha_read_key_count);
+  ha_statistic_increment(&System_status_var::ha_read_key_count);
   int error=myrg_rkey(file,buf,active_index, key, keypart_map,
 		      HA_READ_PREFIX_LAST);
-  table->status=error ? STATUS_NOT_FOUND: 0;
-  MYSQL_INDEX_READ_ROW_DONE(error);
   return error;
 }
 
 int ha_myisammrg::index_next(uchar * buf)
 {
   DBUG_ASSERT(this->file->children_attached);
-  MYSQL_INDEX_READ_ROW_START(table_share->db.str, table_share->table_name.str);
-  ha_statistic_increment(&SSV::ha_read_next_count);
+  ha_statistic_increment(&System_status_var::ha_read_next_count);
   int error=myrg_rnext(file,buf,active_index);
-  table->status=error ? STATUS_NOT_FOUND: 0;
-  MYSQL_INDEX_READ_ROW_DONE(error);
   return error;
 }
 
 int ha_myisammrg::index_prev(uchar * buf)
 {
   DBUG_ASSERT(this->file->children_attached);
-  MYSQL_INDEX_READ_ROW_START(table_share->db.str, table_share->table_name.str);
-  ha_statistic_increment(&SSV::ha_read_prev_count);
+  ha_statistic_increment(&System_status_var::ha_read_prev_count);
   int error=myrg_rprev(file,buf, active_index);
-  table->status=error ? STATUS_NOT_FOUND: 0;
-  MYSQL_INDEX_READ_ROW_DONE(error);
   return error;
 }
 
 int ha_myisammrg::index_first(uchar * buf)
 {
   DBUG_ASSERT(this->file->children_attached);
-  MYSQL_INDEX_READ_ROW_START(table_share->db.str, table_share->table_name.str);
-  ha_statistic_increment(&SSV::ha_read_first_count);
+  ha_statistic_increment(&System_status_var::ha_read_first_count);
   int error=myrg_rfirst(file, buf, active_index);
-  table->status=error ? STATUS_NOT_FOUND: 0;
-  MYSQL_INDEX_READ_ROW_DONE(error);
   return error;
 }
 
 int ha_myisammrg::index_last(uchar * buf)
 {
   DBUG_ASSERT(this->file->children_attached);
-  MYSQL_INDEX_READ_ROW_START(table_share->db.str, table_share->table_name.str);
-  ha_statistic_increment(&SSV::ha_read_last_count);
+  ha_statistic_increment(&System_status_var::ha_read_last_count);
   int error=myrg_rlast(file, buf, active_index);
-  table->status=error ? STATUS_NOT_FOUND: 0;
-  MYSQL_INDEX_READ_ROW_DONE(error);
   return error;
 }
 
@@ -1191,19 +1154,16 @@ int ha_myisammrg::index_next_same(uchar * buf,
 {
   int error;
   DBUG_ASSERT(this->file->children_attached);
-  MYSQL_INDEX_READ_ROW_START(table_share->db.str, table_share->table_name.str);
-  ha_statistic_increment(&SSV::ha_read_next_count);
+  ha_statistic_increment(&System_status_var::ha_read_next_count);
   do
   {
     error= myrg_rnext_same(file,buf);
   } while (error == HA_ERR_RECORD_DELETED);
-  table->status=error ? STATUS_NOT_FOUND: 0;
-  MYSQL_INDEX_READ_ROW_DONE(error);
   return error;
 }
 
 
-int ha_myisammrg::rnd_init(bool scan)
+int ha_myisammrg::rnd_init(bool)
 {
   DBUG_ASSERT(this->file->children_attached);
   return myrg_reset(file);
@@ -1213,12 +1173,8 @@ int ha_myisammrg::rnd_init(bool scan)
 int ha_myisammrg::rnd_next(uchar *buf)
 {
   DBUG_ASSERT(this->file->children_attached);
-  MYSQL_READ_ROW_START(table_share->db.str, table_share->table_name.str,
-                       TRUE);
-  ha_statistic_increment(&SSV::ha_read_rnd_next_count);
+  ha_statistic_increment(&System_status_var::ha_read_rnd_next_count);
   int error=myrg_rrnd(file, buf, HA_OFFSET_ERROR);
-  table->status=error ? STATUS_NOT_FOUND: 0;
-  MYSQL_READ_ROW_DONE(error);
   return error;
 }
 
@@ -1226,16 +1182,12 @@ int ha_myisammrg::rnd_next(uchar *buf)
 int ha_myisammrg::rnd_pos(uchar * buf, uchar *pos)
 {
   DBUG_ASSERT(this->file->children_attached);
-  MYSQL_READ_ROW_START(table_share->db.str, table_share->table_name.str,
-                       TRUE);
-  ha_statistic_increment(&SSV::ha_read_rnd_count);
+  ha_statistic_increment(&System_status_var::ha_read_rnd_count);
   int error=myrg_rrnd(file, buf, my_get_ptr(pos,ref_length));
-  table->status=error ? STATUS_NOT_FOUND: 0;
-  MYSQL_READ_ROW_DONE(error);
   return error;
 }
 
-void ha_myisammrg::position(const uchar *record)
+void ha_myisammrg::position(const uchar*)
 {
   DBUG_ASSERT(this->file->children_attached);
   ulonglong row_position= myrg_position(file);
@@ -1251,7 +1203,7 @@ ha_rows ha_myisammrg::records_in_range(uint inx, key_range *min_key,
 }
 
 
-int ha_myisammrg::truncate()
+int ha_myisammrg::truncate(dd::Table*)
 {
   int err= 0;
   MYRG_TABLE *my_table;
@@ -1395,7 +1347,7 @@ int ha_myisammrg::extra_opt(enum ha_extra_function operation, ulong cache_size)
   return myrg_extra(file, operation, (void*) &cache_size);
 }
 
-int ha_myisammrg::external_lock(THD *thd, int lock_type)
+int ha_myisammrg::external_lock(THD*, int lock_type)
 {
   /*
     This can be called with no children attached. E.g. FLUSH TABLES
@@ -1418,9 +1370,9 @@ uint ha_myisammrg::lock_count(void) const
 }
 
 
-THR_LOCK_DATA **ha_myisammrg::store_lock(THD *thd,
+THR_LOCK_DATA **ha_myisammrg::store_lock(THD*,
 					 THR_LOCK_DATA **to,
-					 enum thr_lock_type lock_type)
+					 enum thr_lock_type)
 {
   return to;
 }
@@ -1502,8 +1454,9 @@ err:
 }
 
 
-int ha_myisammrg::create(const char *name, TABLE *form,
-			 HA_CREATE_INFO *create_info)
+int ha_myisammrg::create(const char *name, TABLE*,
+                         HA_CREATE_INFO *create_info,
+                         dd::Table*)
 {
   char buff[FN_REFLEN];
   const char **table_names, **pos;
@@ -1563,7 +1516,7 @@ int ha_myisammrg::create(const char *name, TABLE *form,
                                     MY_UNPACK_FILENAME|MY_APPEND_EXT),
 			  table_names,
                           create_info->merge_insert_method,
-                          (my_bool) 0));
+                          (bool) 0));
 }
 
 
@@ -1615,8 +1568,7 @@ void ha_myisammrg::append_create_info(String *packet)
 }
 
 
-bool ha_myisammrg::check_if_incompatible_data(HA_CREATE_INFO *info,
-					      uint table_changes)
+bool ha_myisammrg::check_if_incompatible_data(HA_CREATE_INFO *, uint)
 {
   /*
     For myisammrg, we should always re-generate the mapping file as this
@@ -1626,7 +1578,7 @@ bool ha_myisammrg::check_if_incompatible_data(HA_CREATE_INFO *info,
 }
 
 
-int ha_myisammrg::check(THD* thd, HA_CHECK_OPT* check_opt)
+int ha_myisammrg::check(THD*, HA_CHECK_OPT*)
 {
   return this->file->children_attached ? HA_ADMIN_OK : HA_ADMIN_CORRUPT;
 }
@@ -1639,8 +1591,7 @@ int ha_myisammrg::records(ha_rows *num_rows)
 }
 
 
-extern int myrg_panic(enum ha_panic_function flag);
-int myisammrg_panic(handlerton *hton, ha_panic_function flag)
+static int myisammrg_panic(handlerton*, ha_panic_function flag)
 {
   return myrg_panic(flag);
 }
@@ -1659,6 +1610,8 @@ static int myisammrg_init(void *p)
   myisammrg_hton->create= myisammrg_create_handler;
   myisammrg_hton->panic= myisammrg_panic;
   myisammrg_hton->flags= HTON_NO_PARTITION;
+  myisammrg_hton->file_extensions= ha_myisammrg_exts;
+  myisammrg_hton->rm_tmp_tables= default_rm_tmp_tables;
 
   return 0;
 }

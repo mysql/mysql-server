@@ -5,7 +5,10 @@
 # Performance schema tracks prepared statements separately, and does not
 # yet have a summary view that we can use for this view.
 # Until then, we disable this test with --ps-protocol
+# Test requires: sp-protocol/ps-protocol/view-protocol/cursor-protocol disabled
 -- source include/no_protocol.inc
+# Skipping the test when log-bin is enabled due to Bug#22636699
+-- source include/not_log_bin.inc
 
 # Passing unknown connection id should return NULL
 SELECT sys.ps_thread_trx_info(234623462376);
@@ -16,6 +19,13 @@ SELECT JSON_VALID(sys.ps_thread_trx_info(sys.ps_thread_id(NULL)));
 # Dummy up some transactions and inspect
 CREATE DATABASE trx;
 CREATE TABLE trx.info (id INT PRIMARY KEY, info VARCHAR(20));
+
+--echo # Warm-up data-dictionary cache.
+--disable_query_log
+--disable_result_log
+SELECT * FROM trx.info;
+--enable_result_log
+--enable_query_log
 
 --connect(con1,localhost,root,,)
 connection con1;

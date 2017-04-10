@@ -6,7 +6,6 @@
 # non-compressed non-temp table residing in single tablespace.
 # with row_format=compact
 
---source include/have_innodb.inc
 --source include/have_debug.inc
 --source include/big_test.inc
 
@@ -20,7 +19,6 @@
 let $wl6501_file_per_table = 1;
 let $wl6501_row_fmt = compact;
 let $wl6501_kbs = 16;
-let $wl6501_file_format = 'Antelope';
 --source suite/innodb/include/innodb_wl6501_crash.inc
 
 let $wl6501_temp = temporary;

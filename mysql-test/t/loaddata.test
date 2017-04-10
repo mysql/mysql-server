@@ -1,5 +1,3 @@
---source include/have_utf8.inc
-
 #
 # Some simple test of load data
 #
@@ -23,7 +21,7 @@ load data infile '../../std_data/loaddata2.dat' ignore into table t1 fields term
 select concat('|',a,'|'), concat('|',b,'|') from t1;
 drop table t1;
 
-create table t1 (a int, b char(10));
+create table t1 (a int, b char(10)) charset latin1;
 load data infile '../../std_data/loaddata3.dat' ignore into table t1 fields terminated by '' enclosed by '' ignore 1 lines;
 select * from t1;
 truncate table t1;
@@ -663,8 +661,9 @@ SET sql_mode=default;
 --copy_file $EXE_MYSQL $MYSQLTEST_VARDIR/mysql
 
 --echo # Without fix, load data hangs forever.
+# The actual error code depends on character set
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
---error ER_TRUNCATED_WRONG_VALUE_FOR_FIELD,1000
+--error ER_TRUNCATED_WRONG_VALUE_FOR_FIELD,ER_INVALID_CHARACTER_STRING
 eval LOAD DATA LOCAL INFILE '$MYSQLTEST_VARDIR/mysql' REPLACE INTO TABLE t1
      FIELDS TERMINATED BY 't' LINES TERMINATED BY '';
 
@@ -709,3 +708,18 @@ LOAD DATA INFILE 'test.dat' INTO TABLE v(@a, @d) SET a= @a, d= @d;
 
 DROP VIEW v;
 DROP TABLE t;
+
+--echo #
+--echo # Bug #25147988: LOAD DATA INFILE FAILS WITH AN ESCAPE CHARACTER
+--echo #                FOLLOWED BY A MULTI-BYTE ONE
+--echo #
+# Test escape mark followed by multibyte character
+CREATE TABLE t1(a VARCHAR(20)) CHARSET utf8mb4;
+LOAD DATA INFILE '../../std_data/loaddata_utf8.dat' INTO TABLE t1 CHARACTER SET utf8mb4;
+SELECT HEX(a) FROM t1;
+DROP TABLE t1;
+# Test multibyte character whose second byte is 0x5C
+CREATE TABLE t1(a VARCHAR(20)) CHARSET gb18030;
+LOAD DATA INFILE '../../std_data/loaddata7.dat' INTO TABLE t1 CHARACTER SET gb18030;
+SELECT HEX(a) FROM t1;
+DROP TABLE t1;

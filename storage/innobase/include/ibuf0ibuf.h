@@ -50,19 +50,16 @@ typedef enum {
 	IBUF_OP_COUNT = 3
 } ibuf_op_t;
 
-/** Combinations of operations that can be buffered.  Because the enum
-values are used for indexing innobase_change_buffering_values[], they
-should start at 0 and there should not be any gaps. */
-typedef enum {
+/** Combinations of operations that can be buffered.
+@see innodb_change_buffering_names */
+enum ibuf_use_t {
 	IBUF_USE_NONE = 0,
 	IBUF_USE_INSERT,	/* insert */
 	IBUF_USE_DELETE_MARK,	/* delete */
 	IBUF_USE_INSERT_DELETE_MARK,	/* insert+delete */
 	IBUF_USE_DELETE,	/* delete+purge */
-	IBUF_USE_ALL,		/* insert+delete+purge */
-
-	IBUF_USE_COUNT		/* number of entries in ibuf_use_t */
-} ibuf_use_t;
+	IBUF_USE_ALL		/* insert+delete+purge */
+};
 
 /** Operations that can currently be buffered. */
 extern ibuf_use_t	ibuf_use;
@@ -114,16 +111,14 @@ UNIV_INLINE
 void
 ibuf_mtr_start(
 /*===========*/
-	mtr_t*	mtr)	/*!< out: mini-transaction */
-	MY_ATTRIBUTE((nonnull));
+	mtr_t*	mtr);	/*!< out: mini-transaction */
 /***************************************************************//**
 Commits an insert buffer mini-transaction. */
 UNIV_INLINE
 void
 ibuf_mtr_commit(
 /*============*/
-	mtr_t*	mtr)	/*!< in/out: mini-transaction */
-	MY_ATTRIBUTE((nonnull));
+	mtr_t*	mtr);	/*!< in/out: mini-transaction */
 /*********************************************************************//**
 Initializes an ibuf bitmap page. */
 void
@@ -146,34 +141,34 @@ ibuf_reset_free_bits(
 	buf_block_t*	block);	/*!< in: index page; free bits are set to 0
 				if the index is a non-clustered
 				non-unique, and page level is 0 */
-/************************************************************************//**
-Updates the free bits of an uncompressed page in the ibuf bitmap if
-there is not enough free on the page any more.  This is done in a
-separate mini-transaction, hence this operation does not restrict
-further work to only ibuf bitmap operations, which would result if the
-latch to the bitmap page were kept.  NOTE: The free bits in the insert
-buffer bitmap must never exceed the free space on a page.  It is
-unsafe to increment the bits in a separately committed
-mini-transaction, because in crash recovery, the free bits could
+
+/** Updates the free bits of an uncompressed page in the ibuf bitmap if there
+is not enough free on the page any more.  This is done in a separate
+mini-transaction, hence this operation does not restrict further work to only
+ibuf bitmap operations, which would result if the latch to the bitmap page were
+kept.  NOTE: The free bits in the insert buffer bitmap must never exceed the
+free space on a page.  It is unsafe to increment the bits in a separately
+committed mini-transaction, because in crash recovery, the free bits could
 momentarily be set too high.  It is only safe to use this function for
-decrementing the free bits.  Should more free space become available,
-we must not update the free bits here, because that would break crash
-recovery. */
+decrementing the free bits.  Should more free space become available, we must
+not update the free bits here, because that would break crash recovery.
+@param[in]	block		index page to which we have added new records;
+				the free bits are updated if the index is
+				non-clustered and non-unique and the page level
+				is 0, and the page becomes fuller
+@param[in]	max_ins_size	value of maximum insert size with reorganize
+				before the latest operation performed to the
+				page
+@param[in]	increase	upper limit for the additional space used in
+				the latest operation, if known, or
+				ULINT_UNDEFINED */
 UNIV_INLINE
 void
 ibuf_update_free_bits_if_full(
-/*==========================*/
-	buf_block_t*	block,	/*!< in: index page to which we have added new
-				records; the free bits are updated if the
-				index is non-clustered and non-unique and
-				the page level is 0, and the page becomes
-				fuller */
-	ulint		max_ins_size,/*!< in: value of maximum insert size with
-				reorganize before the latest operation
-				performed to the page */
-	ulint		increase);/*!< in: upper limit for the additional space
-				used in the latest operation, if known, or
-				ULINT_UNDEFINED */
+	buf_block_t*	block,
+	ulint		max_ins_size,
+	ulint		increase);
+
 /**********************************************************************//**
 Updates the free bits for an uncompressed page to reflect the present
 state.  Does this in the mtr given, which means that the latching
@@ -218,18 +213,19 @@ ibuf_update_free_bits_for_two_pages_low(
 	buf_block_t*	block1,	/*!< in: index page */
 	buf_block_t*	block2,	/*!< in: index page */
 	mtr_t*		mtr);	/*!< in: mtr */
-/**********************************************************************//**
-A basic partial test if an insert to the insert buffer could be possible and
-recommended. */
+
+/** A basic partial test if an insert to the insert buffer could be possible
+and recommended.
+@param[in]	index			index where to insert
+@param[in]	ignore_sec_unique	if != 0, we should ignore UNIQUE
+					constraint on a secondary index when
+					we decide*/
 UNIV_INLINE
 ibool
 ibuf_should_try(
-/*============*/
-	dict_index_t*	index,			/*!< in: index where to insert */
-	ulint		ignore_sec_unique);	/*!< in: if != 0, we should
-						ignore UNIQUE constraint on
-						a secondary index when we
-						decide */
+	dict_index_t*	index,
+	ulint		ignore_sec_unique);
+
 /******************************************************************//**
 Returns TRUE if the current OS thread is performing an insert buffer
 routine.
@@ -355,7 +351,7 @@ become CORRUPT when you call this function! */
 void
 ibuf_delete_for_discarded_space(
 /*============================*/
-	ulint	space);	/*!< in: space id */
+	space_id_t	space);	/*!< in: space id */
 /** Contract the change buffer by reading pages to the buffer pool.
 @param[in]	full		If true, do a full contraction based
 on PCT_IO(100). If false, the size of contract batch is determined
@@ -373,7 +369,7 @@ to the buffer pool.
 ulint
 ibuf_merge_space(
 /*=============*/
-	ulint	space);	/*!< in: space id */
+	space_id_t	space);	/*!< in: space id */
 
 #endif /* !UNIV_HOTBACKUP */
 /*********************************************************************//**
@@ -431,12 +427,12 @@ dberr_t
 ibuf_check_bitmap_on_import(
 /*========================*/
 	const trx_t*	trx,		/*!< in: transaction */
-	ulint		space_id)	/*!< in: tablespace identifier */
-	MY_ATTRIBUTE((nonnull, warn_unused_result));
+	space_id_t	space_id)	/*!< in: tablespace identifier */
+	MY_ATTRIBUTE((warn_unused_result));
 
 /** Updates free bits and buffered bits for bulk loaded page.
 @param[in]      block   index page
-@param]in]      reset   flag if reset free val */
+@param[in]      reset   flag if reset free val */
 void
 ibuf_set_bitmap_for_bulk_load(
 	buf_block_t*    block,
@@ -452,11 +448,6 @@ for the file segment from which the pages for the ibuf tree are allocated */
 #define IBUF_HEADER		PAGE_DATA
 #define	IBUF_TREE_SEG_HEADER	0	/* fseg header for ibuf tree */
 
-/* The insert buffer tree itself is always located in space 0. */
-#define IBUF_SPACE_ID		static_cast<ulint>(0)
-
-#ifndef UNIV_NONINL
 #include "ibuf0ibuf.ic"
-#endif
 
 #endif

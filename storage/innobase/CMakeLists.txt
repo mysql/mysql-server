@@ -16,6 +16,20 @@
 # This is the CMakeLists for InnoDB
 
 INCLUDE(innodb.cmake)
+INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
+
+SET(INNOBASE_ZIP_DECOMPRESS_SOURCES
+	buf/buf.cc
+	buf/checksum.cc
+	dict/dict.cc
+	dict/mem.cc
+	mem/memory.cc
+	os/file.cc
+	os/os0thread.cc
+	page/zipdecompress.cc
+	rem/rec.cc
+	ut/crc32.cc
+	ut/ut.cc)
 
 SET(INNOBASE_SOURCES
 	api/api0api.cc
@@ -28,7 +42,6 @@ SET(INNOBASE_SOURCES
 	buf/buf0buddy.cc
 	buf/buf0buf.cc
 	buf/buf0dblwr.cc
-	buf/buf0checksum.cc
 	buf/buf0dump.cc
 	buf/buf0flu.cc
 	buf/buf0lru.cc
@@ -49,7 +62,6 @@ SET(INNOBASE_SOURCES
 	fsp/fsp0file.cc
 	fsp/fsp0space.cc
 	fsp/fsp0sysspace.cc
-	fut/fut0fut.cc
 	fut/fut0lst.cc
 	ha/ha0ha.cc
 	ha/ha0storage.cc
@@ -71,7 +83,10 @@ SET(INNOBASE_SOURCES
 	handler/ha_innopart.cc
 	handler/handler0alter.cc
 	handler/i_s.cc
+	handler/p_s.cc
 	ibuf/ibuf0ibuf.cc
+	lob/lob0fit.cc
+	lob/lob0lob.cc
 	lock/lock0iter.cc
 	lock/lock0prdt.cc
 	lock/lock0lock.cc
@@ -79,13 +94,11 @@ SET(INNOBASE_SOURCES
 	log/log0log.cc
 	log/log0recv.cc
 	mach/mach0data.cc
-	mem/mem0mem.cc
 	mtr/mtr0log.cc
 	mtr/mtr0mtr.cc
 	os/os0file.cc
 	os/os0proc.cc
 	os/os0event.cc
-	os/os0thread.cc
 	page/page0cur.cc
 	page/page0page.cc
 	page/page0zip.cc
@@ -108,7 +121,6 @@ SET(INNOBASE_SOURCES
 	row/row0purge.cc
 	row/row0row.cc
 	row/row0sel.cc
-	row/row0trunc.cc
 	row/row0uins.cc
 	row/row0umod.cc
 	row/row0undo.cc
@@ -132,8 +144,6 @@ SET(INNOBASE_SOURCES
 	trx/trx0trx.cc
 	trx/trx0undo.cc
 	usr/usr0sess.cc
-	ut/ut0byte.cc
-	ut/ut0crc32.cc
 	ut/ut0dbg.cc
 	ut/ut0list.cc
 	ut/ut0mem.cc
@@ -149,18 +159,22 @@ IF(WITH_INNODB)
   SET(WITH_INNOBASE_STORAGE_ENGINE TRUE)
 ENDIF()
 
+ADD_LIBRARY(innodb_zipdecompress STATIC ${INNOBASE_ZIP_DECOMPRESS_SOURCES})
+SET_TARGET_PROPERTIES(innodb_zipdecompress PROPERTIES
+  COMPILE_DEFINITIONS "UNIV_LIBRARY")
+ADD_DEPENDENCIES(innodb_zipdecompress GenError)
+
 UNSET(NUMA_LIBRARY)
 IF(HAVE_LIBNUMA)
-   SET(NUMA_LIBRARY "numa")
+  SET(NUMA_LIBRARY "numa")
 ENDIF()
 
-MYSQL_ADD_PLUGIN(innobase ${INNOBASE_SOURCES} STORAGE_ENGINE
+MYSQL_ADD_PLUGIN(innobase
+  ${INNOBASE_SOURCES} ${INNOBASE_ZIP_DECOMPRESS_SOURCES} STORAGE_ENGINE
   MANDATORY
   MODULE_OUTPUT_NAME ha_innodb
   LINK_LIBRARIES ${ZLIB_LIBRARY} ${LZ4_LIBRARY} ${NUMA_LIBRARY})
 
-# Remove -DMYSQL_SERVER, it breaks embedded build
-SET_TARGET_PROPERTIES(innobase PROPERTIES COMPILE_DEFINITIONS "")
 
 IF(WITH_INNOBASE_STORAGE_ENGINE)
   ADD_DEPENDENCIES(innobase GenError)
@@ -172,9 +186,19 @@ IF(CMAKE_SYSTEM_NAME MATCHES "SunOS" AND CMAKE_SYSTEM_PROCESSOR MATCHES "i386")
   MY_CHECK_CXX_COMPILER_FLAG("-Wa,-nH" HAVE_WA_NH)
   IF(HAVE_WA_NH)
     ADD_COMPILE_FLAGS(
-      ut/ut0crc32.cc
+      ut/crc32.cc
       COMPILE_FLAGS "-Wa,-nH"
     )
+  ENDIF()
+ENDIF()
+
+# Generated code with logical-op warnings
+IF(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+  MY_CHECK_CXX_COMPILER_FLAG("-Wlogical-op" HAVE_LOGICAL_OP)
+  IF(HAVE_LOGICAL_OP)
+    INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
+    ADD_COMPILE_FLAGS(fts/fts0pars.cc
+                      COMPILE_FLAGS "-Wno-logical-op")
   ENDIF()
 ENDIF()
 

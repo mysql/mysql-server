@@ -34,7 +34,7 @@ let BOOTSTRAP_SQL=$MYSQL_TMP_DIR/boot.sql;
 
 --echo # create bootstrap file
 write_file $BOOTSTRAP_SQL;
-CREATE DATABASE test;
+CREATE DATABASE test DEFAULT CHARACTER SET latin1;
 EOF
 
 # Note: we add the following parameters: "--innodb_log_file_size=5M
@@ -43,7 +43,7 @@ EOF
 # time to create redo log files.
 
 # Set the bootstrap parameter page size 32k for datadir1
-let NEW_CMD = $MYSQLD --no-defaults --initialize-insecure $KEYRING_PLUGIN_OPT --lc_messages_dir=$MYSQL_SHAREDIR --innodb_page_size=32K --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLD_DATADIR1 --innodb_log_file_size=5M --innodb_log_files_in_group=2 --init-file=$BOOTSTRAP_SQL --innodb_undo_tablespaces=0 </dev/null>>$MYSQLTEST_VARDIR/tmp/bootstrap.log 2>&1;
+let NEW_CMD = $MYSQLD --no-defaults --initialize-insecure $KEYRING_PLUGIN_OPT --lc_messages_dir=$MYSQL_SHAREDIR --innodb_page_size=32K --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLD_DATADIR1 --innodb_log_file_size=5M --innodb_log_files_in_group=2 --init-file=$BOOTSTRAP_SQL --innodb_undo_tablespaces=0  --secure-file-priv="" </dev/null>>$MYSQLTEST_VARDIR/tmp/bootstrap.log 2>&1;
 
 --echo # Run the bootstrap command with page size 32k
 --exec $NEW_CMD
@@ -57,8 +57,6 @@ SET innodb_strict_mode=ON;
 
 # Check page size 32k
 SELECT @@innodb_page_size;
-
-SELECT @@innodb_file_format;
 
 SELECT @@Innodb_file_per_table;
 
@@ -139,8 +137,6 @@ col60 CHAR(255),col61 CHAR(255),col62 CHAR(255),col63 CHAR(255),col64  CHAR(255)
 ENGINE = innodb ROW_FORMAT=FIXED;
 
 SET innodb_strict_mode=OFF;
-SET GLOBAL innodb_file_format='Antelope';
-SELECT @@innodb_file_format;
 
 # Check the Warning |  139 | Row size too large (> 16318)
 
@@ -160,10 +156,6 @@ ENGINE = innodb ROW_FORMAT=COMPACT;
 
 DROP TABLE tab5;
 
-SET GLOBAL innodb_file_format='Barracuda';
-SELECT @@innodb_file_format;
-
-
 #Check the ERROR 1118 (42000): Row size too large (> 16383).
 
 CREATE TABLE tab5(col1 CHAR (255), col2 CHAR (255), col3 CHAR(255),col4 CHAR(255), col5 CHAR(255),
@@ -179,6 +171,7 @@ col54 CHAR(255),col55 CHAR(255),col56 CHAR(255),col57 CHAR(255),col58  CHAR(255)
 col60 CHAR(255),col61 CHAR(255),col62 CHAR(255),col63 CHAR(255),col64  CHAR(255), col65  CHAR(255))
 ENGINE = innodb ROW_FORMAT=DYNAMIC;
 DROP TABLE tab5;
+
 #Check the ERROR 1118 (42000): Row size too large (> 16383).
 
 CREATE TABLE tab5(col1 CHAR (255), col2 CHAR (255), col3 CHAR(255),col4 CHAR(255), col5 CHAR(255),
@@ -201,7 +194,7 @@ DROP TABLE tab5;
 --source include/shutdown_mysqld.inc
 
 # Check Server startup failure when page sizes are mismatch
-let NEW_CMD = $MYSQLD --no-defaults $KEYRING_PLUGIN_OPT --lc_messages_dir=$MYSQL_SHAREDIR --innodb_page_size=64K --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLD_DATADIR1 --innodb_log_file_size=5M --innodb_log_files_in_group=2 --innodb_undo_tablespaces=0</dev/null>>$MYSQLTEST_VARDIR/tmp/bootstrap.log 2>&1;
+let NEW_CMD = $MYSQLD --no-defaults $KEYRING_PLUGIN_OPT --lc_messages_dir=$MYSQL_SHAREDIR --innodb_page_size=64K --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLD_DATADIR1 --innodb_log_file_size=5M --innodb_log_files_in_group=2 --innodb_undo_tablespaces=0  --secure-file-priv="" </dev/null>>$MYSQLTEST_VARDIR/tmp/bootstrap.log 2>&1;
 
 --echo # Check Server startup failure when page size 64K
 --error 1
@@ -225,11 +218,10 @@ SELECT @@innodb_page_size;
 --source include/shutdown_mysqld.inc
 
 # Remove residue files and data folder of page size 32K
-let CLEANUP_FOLDER=$MYSQL_TMP_DIR/datadir1/data;
---source ../include/cleanup_folder.inc
+--force-rmdir $MYSQL_TMP_DIR/datadir1/data
 
 # Set the bootstrap parameters for datadir1 and page size 64k
-let NEW_CMD = $MYSQLD --no-defaults --initialize-insecure $KEYRING_PLUGIN_OPT --lc_messages_dir=$MYSQL_SHAREDIR --innodb_page_size=64K --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLD_DATADIR1 --innodb_log_file_size=5M --innodb_log_files_in_group=2 --init-file=$BOOTSTRAP_SQL --innodb_undo_tablespaces=0 </dev/null>>$MYSQLTEST_VARDIR/tmp/bootstrap.log 2>&1;
+let NEW_CMD = $MYSQLD --no-defaults --initialize-insecure $KEYRING_PLUGIN_OPT --lc_messages_dir=$MYSQL_SHAREDIR --innodb_page_size=64K --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLD_DATADIR1 --innodb_log_file_size=5M --innodb_log_files_in_group=2 --init-file=$BOOTSTRAP_SQL --innodb_undo_tablespaces=0  --secure-file-priv="" </dev/null>>$MYSQLTEST_VARDIR/tmp/bootstrap.log 2>&1;
 
 --echo # Run the bootstrap command with page size 64k
 --exec $NEW_CMD
@@ -284,6 +276,4 @@ call mtr.add_suppression("\\[Warning\\] InnoDB: Cannot add field.*");
 --enable_query_log
 --remove_file $BOOTSTRAP_SQL
 # Remove residue files and data folder of page size 32K
-let CLEANUP_FOLDER=$MYSQL_TMP_DIR/datadir1/data;
---source ../include/cleanup_folder.inc
---rmdir $MYSQL_TMP_DIR/datadir1
+--force-rmdir $MYSQL_TMP_DIR/datadir1

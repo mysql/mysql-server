@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1868,6 +1868,7 @@ missing_nodegroup:
 			 "Unable to start missing node group! "
 			 " starting: %s (missing fs for: %s)",
 			 mask1, mask2);
+    CRASH_INSERTION(944);
     progError(__LINE__, NDBD_EXIT_INSUFFICENT_NODES, buf);
     return 0;                                     // Deadcode
   }
@@ -1881,6 +1882,7 @@ incomplete_log:
 			 "Incomplete log for node group: %d! "
 			 " starting nodes: %s",
 			 incompleteng, mask1);
+    CRASH_INSERTION(944);
     progError(__LINE__, NDBD_EXIT_INSUFFICENT_NODES, buf);
     return 0;                                     // Deadcode
   }
@@ -3083,7 +3085,7 @@ void Qmgr::checkStartInterface(Signal* signal, NDB_TICKS now)
             if (nodePtr.p->failState == WAITING_FOR_API_FAILCONF)
             {
               jam();
-              compile_time_assert(NDB_ARRAY_SIZE(nodePtr.p->m_failconf_blocks) == 5);
+              static_assert(NDB_ARRAY_SIZE(nodePtr.p->m_failconf_blocks) == 5, "");
               BaseString::snprintf(buf, sizeof(buf),
                                    "  Waiting for blocks: %u %u %u %u %u",
                                    nodePtr.p->m_failconf_blocks[0],
@@ -3466,6 +3468,7 @@ void Qmgr::execDISCONNECT_REP(Signal* signal)
     jam();
     CRASH_INSERTION(932);
     CRASH_INSERTION(938);
+    CRASH_INSERTION(944);
     BaseString::snprintf(buf, 100, "Node %u disconnected", nodeId);    
     progError(__LINE__, NDBD_EXIT_SR_OTHERNODEFAILED, buf);
     ndbrequire(false);
@@ -4429,8 +4432,11 @@ void Qmgr::handleApiCloseComConf(Signal* signal)
          */
         jam();
         sendApiFailReq(signal, nodeId, false); // !sumaOnly
-        arbitRec.code = ArbitCode::ApiFail;
-        handleArbitApiFail(signal, nodeId);
+        if(arbitRec.node == nodeId)
+        {
+          arbitRec.code = ArbitCode::ApiFail;
+          handleArbitApiFail(signal, nodeId);
+        }
       }
       else
       {
@@ -4478,6 +4484,20 @@ void Qmgr::execCLOSE_COMCONF(Signal* signal)
   if (requestType == CloseComReqConf::RT_API_FAILURE)
   {
     jam();
+    if (ERROR_INSERTED(945))
+    {
+      if (arbitRec.code != ArbitCode::WinChoose)
+      {
+        // Delay API failure handling until arbitration in WinChoose
+        sendSignalWithDelay(reference(),
+                            GSN_CLOSE_COMCONF,
+                            signal,
+                            10,
+                            signal->getLength());
+        return;
+      }
+      CLEAR_ERROR_INSERT_VALUE;
+    }
     handleApiCloseComConf(signal);
     return;
   }
@@ -5621,6 +5641,11 @@ Qmgr::runArbitThread(Signal* signal)
     break;
   case ARBIT_CHOOSE:		// partitition thread
     jam();
+    if (ERROR_INSERTED(945) && arbitRec.code == ArbitCode::WinChoose)
+    {
+      // Delay ARBIT_CHOOSE until NdbAPI node is disconnected
+      break;
+    }
     stateArbitChoose(signal);
     break;
   case ARBIT_CRASH:
@@ -6232,6 +6257,7 @@ Qmgr::stateArbitCrash(Signal* signal)
   CRASH_INSERTION(932);
   CRASH_INSERTION(938);
   CRASH_INSERTION(943);
+  CRASH_INSERTION(944);
   progError(__LINE__, NDBD_EXIT_ARBIT_SHUTDOWN,
             "Arbitrator decided to shutdown this node");
 }

@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -21,11 +21,15 @@
   Table SETUP_CONSUMERS (declarations).
 */
 
+#include <sys/types.h>
+
+#include "lex_string.h"
 #include "pfs_column_types.h"
 #include "pfs_engine_table.h"
+#include "table_helper.h"
 
 /**
-  @addtogroup Performance_schema_tables
+  @addtogroup performance_schema_tables
   @{
 */
 
@@ -42,18 +46,39 @@ struct row_setup_consumers
   bool m_thread_refresh;
 };
 
+class PFS_index_setup_consumers : public PFS_engine_index
+{
+public:
+  PFS_index_setup_consumers() : PFS_engine_index(&m_key), m_key("NAME")
+  {
+  }
+
+  ~PFS_index_setup_consumers()
+  {
+  }
+
+  virtual bool match(row_setup_consumers *row);
+
+private:
+  PFS_key_name m_key;
+};
+
 /** Table PERFORMANCE_SCHEMA.SETUP_CONSUMERS. */
 class table_setup_consumers : public PFS_engine_table
 {
 public:
   /** Table share. */
   static PFS_engine_table_share m_share;
-  static PFS_engine_table* create();
+  static PFS_engine_table *create();
   static ha_rows get_row_count();
+
+  virtual void reset_position(void);
 
   virtual int rnd_next();
   virtual int rnd_pos(const void *pos);
-  virtual void reset_position(void);
+
+  virtual int index_init(uint idx, bool sorted);
+  virtual int index_next();
 
 protected:
   virtual int read_row_values(TABLE *table,
@@ -65,12 +90,12 @@ protected:
                                 const unsigned char *old_buf,
                                 unsigned char *new_buf,
                                 Field **fields);
-
   table_setup_consumers();
 
 public:
   ~table_setup_consumers()
-  {}
+  {
+  }
 
 private:
   /** Table share lock. */
@@ -84,6 +109,8 @@ private:
   PFS_simple_index m_pos;
   /** Next position. */
   PFS_simple_index m_next_pos;
+
+  PFS_index_setup_consumers *m_opened_index;
 };
 
 /** @} */

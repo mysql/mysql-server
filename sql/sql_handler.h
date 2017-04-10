@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,12 +17,15 @@
 #define SQL_HANDLER_INCLUDED
 
 #include "my_base.h"                   /* ha_rkey_function, ha_rows */
+#include "my_sqlcommand.h"
 #include "sql_cmd.h"                   // Sql_cmd
-#include "sql_lex.h"                   // enum_ha_read_modes
-#include "sql_list.h"                  /* List */
 
+class Item;
 class THD;
 struct TABLE_LIST;
+
+enum class enum_ha_read_modes { RFIRST, RNEXT, RPREV, RLAST, RKEY, RNEXT_SAME };
+template <class T> class List;
 
 /**
   Sql_cmd_handler_open represents HANDLER OPEN statement.
@@ -80,7 +83,7 @@ public:
 
 private:
   /** Read mode for HANDLER READ: FIRST, NEXT, LAST, ... */
-  enum enum_ha_read_modes m_read_mode;
+  enum_ha_read_modes m_read_mode;
 
   /**
     Name of key to be used for reading,
@@ -127,13 +130,5 @@ void mysql_ha_rm_tables(THD *thd, TABLE_LIST *tables);
 void mysql_ha_rm_temporary_tables(THD *thd);
 void mysql_ha_cleanup(THD *thd);
 void mysql_ha_set_explicit_lock_duration(THD *thd);
-
-typedef bool Log_func(THD*, TABLE*, bool,
-                      const uchar*, const uchar*);
-
-int  binlog_log_row(TABLE* table,
-                          const uchar *before_record,
-                          const uchar *after_record,
-                          Log_func *log_func);
 
 #endif /* SQL_HANDLER_INCLUDED */

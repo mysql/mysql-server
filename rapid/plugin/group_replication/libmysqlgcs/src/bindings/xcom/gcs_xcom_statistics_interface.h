@@ -16,7 +16,7 @@
 #ifndef GCS_XCOM_STATISTICS_INTERFACE_INCLUDED
 #define GCS_XCOM_STATISTICS_INTERFACE_INCLUDED
 
-#include "gcs_statistics_interface.h"
+#include "mysql/gcs/gcs_statistics_interface.h"
 
 #include <algorithm>
 #include <time.h>

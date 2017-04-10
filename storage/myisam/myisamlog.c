@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,13 +15,22 @@
 
 /* write whats in isam.log */
 
-#ifndef USE_MY_FUNC
-#define USE_MY_FUNC
-#endif
+#include "my_config.h"
 
-#include "myisamdef.h"
+#include <fcntl.h>
 #include <my_tree.h>
 #include <stdarg.h>
+#include <stdlib.h>
+#include <sys/types.h>
+
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_io.h"
+#include "my_macros.h"
+#include "myisamdef.h"
+#include "print_version.h"
+#include "welcome_copyright_notice.h"
 #ifdef HAVE_SYS_RESOURCE_H
 #include <sys/resource.h>
 #endif
@@ -35,7 +44,7 @@ struct file_info {
   char *name, *show_name;
   uchar *record;
   MI_INFO *isam;
-  my_bool closed, used;
+  bool closed, used;
   ulong accessed;
 };
 
@@ -56,7 +65,7 @@ extern int main(int argc,char * *argv);
 static void get_options(int *argc,char ***argv);
 static int examine_log(char * file_name,char **table_names);
 static int read_string(IO_CACHE *file,uchar* *to,uint length);
-static int file_info_compare(void *cmp_arg, void *a,void *b);
+static int file_info_compare(const void *cmp_arg, const void *a, const void *b);
 static int test_if_open(struct file_info *key,element_count count,
 			struct test_if_open_param *param);
 static void fix_blob_pointers(MI_INFO *isam,uchar *record);
@@ -66,8 +75,9 @@ static void file_info_free(struct file_info *info);
 static int close_some_file(TREE *tree);
 static int reopen_closed_file(TREE *tree,struct file_info *file_info);
 static int find_record_with_key(struct file_info *file_info,uchar *record);
-static void printf_log(const char *str,...);
-static my_bool cmp_filename(struct file_info *file_info,char * name);
+static void printf_log(const char *str,...)
+  MY_ATTRIBUTE((format(printf, 1, 2)));
+static bool cmp_filename(struct file_info *file_info,char * name);
 
 static uint verbose=0,update=0,test_info=0,max_files=0,re_open_count=0,
   recover=0,prefix_remove=0,opt_processes=0;
@@ -136,7 +146,6 @@ int main(int argc, char **argv)
   my_end(test_info ? MY_CHECK_ERROR | MY_GIVE_INFO : MY_CHECK_ERROR);
   mysql_cond_destroy(&main_thread_keycache_var.suspend);
   exit(error);
-  return 0;				/* No compiler warning */
 } /* main */
 
 
@@ -259,9 +268,8 @@ static void get_options(int *argc, char ***argv)
 	/* Fall through */
       case 'I':
       case '?':
-	printf("%s  Ver 1.4 for %s at %s\n",my_progname,SYSTEM_TYPE,
-	       MACHINE_TYPE);
-	puts("By Monty, for your professional use\n");
+	print_version();
+	puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000"));
 	if (version)
 	  break;
 	puts("Write info about whats in a MyISAM log file.");
@@ -339,7 +347,7 @@ static int examine_log(char * file_name, char **table_names)
 
   init_io_cache(&cache,file,0,READ_CACHE,start_offset,0,MYF(0));
   memset(com_count, 0, sizeof(com_count));
-  init_tree(&tree,0,0,sizeof(file_info),(qsort_cmp2) file_info_compare,1,
+  init_tree(&tree,0,0,sizeof(file_info),file_info_compare,1,
 	    (tree_element_free) file_info_free, NULL);
   (void) init_key_cache(dflt_key_cache,KEY_CACHE_BLOCK_SIZE,KEY_CACHE_SIZE,
                       0, 0);
@@ -566,7 +574,7 @@ static int examine_log(char * file_name, char **table_names)
 	if (verbose)
 	  printf_log("%s: %s at %ld, length=%ld -> %d",
 		     FILENAME(curr_file_info),
-		     command_name[command], filepos,length,result);
+		     command_name[command], (long)filepos,length,result);
       }
       if (update && curr_file_info && !curr_file_info->closed)
       {
@@ -709,8 +717,8 @@ static int read_string(IO_CACHE *file, uchar* *to, uint length)
 }				/* read_string */
 
 
-static int file_info_compare(void* cmp_arg MY_ATTRIBUTE((unused)),
-			     void *a, void *b)
+static int file_info_compare(const void* cmp_arg MY_ATTRIBUTE((unused)),
+			     const void *a, const void *b)
 {
   long lint;
 
@@ -851,7 +859,7 @@ static void printf_log(const char *format,...)
 }
 
 
-static my_bool cmp_filename(struct file_info *file_info, char * name)
+static bool cmp_filename(struct file_info *file_info, char * name)
 {
   if (!file_info)
     return 1;

@@ -22,15 +22,6 @@
 #  server-system-variables.html                                               #
 #                                                                             #
 ###############################################################################
---source include/have_big5.inc
---source include/have_ujis.inc
---source include/have_sjis.inc
---source include/have_utf8.inc
---source include/have_ucs2.inc
---source include/have_utf8mb4.inc
---source include/have_utf16.inc
---source include/have_utf32.inc
-
 --source include/load_sysvars.inc
 
 ###################################################
@@ -222,14 +213,14 @@ SET @@global.character_set_filesystem = ON;
 ##############################################################################
 --disable_warnings
 SELECT @@global.character_set_filesystem =
- (SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+ (SELECT VARIABLE_VALUE FROM performance_schema.global_variables
   WHERE VARIABLE_NAME='character_set_filesystem') AS res;
 --enable_warnings
 SET @@global.character_set_filesystem = 1;
 SELECT @@global.character_set_filesystem;
 --disable_warnings
 SELECT @@global.character_set_filesystem =
- (SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+ (SELECT VARIABLE_VALUE FROM performance_schema.global_variables
   WHERE VARIABLE_NAME='character_set_filesystem') AS res;
 --enable_warnings
 
@@ -239,13 +230,13 @@ SELECT @@global.character_set_filesystem =
 #############################################################################
 --disable_warnings
 SELECT @@character_set_filesystem =
- (SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.SESSION_VARIABLES
+ (SELECT VARIABLE_VALUE FROM performance_schema.session_variables
   WHERE VARIABLE_NAME='character_set_filesystem') AS res;
 SELECT @@local.character_set_filesystem =
- (SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.SESSION_VARIABLES
+ (SELECT VARIABLE_VALUE FROM performance_schema.session_variables
   WHERE VARIABLE_NAME='character_set_filesystem') AS res;
 SELECT @@session.character_set_filesystem =
- (SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.SESSION_VARIABLES
+ (SELECT VARIABLE_VALUE FROM performance_schema.session_variables
   WHERE VARIABLE_NAME='character_set_filesystem') AS res;
 --enable_warnings
 

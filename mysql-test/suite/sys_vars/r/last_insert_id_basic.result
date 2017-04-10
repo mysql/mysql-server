@@ -8,11 +8,11 @@ Variable_name	Value
 show session variables like 'last_insert_id';
 Variable_name	Value
 last_insert_id	0
-select * from information_schema.global_variables where variable_name='last_insert_id';
+select * from performance_schema.global_variables where variable_name='last_insert_id';
 VARIABLE_NAME	VARIABLE_VALUE
-select * from information_schema.session_variables where variable_name='last_insert_id';
+select * from performance_schema.session_variables where variable_name='last_insert_id';
 VARIABLE_NAME	VARIABLE_VALUE
-LAST_INSERT_ID	0
+last_insert_id	0
 set global last_insert_id=99;
 ERROR HY000: Variable 'last_insert_id' is a SESSION variable and can't be used with SET GLOBAL
 set session last_insert_id=42;
@@ -26,11 +26,11 @@ Variable_name	Value
 show session variables like 'last_insert_id';
 Variable_name	Value
 last_insert_id	42
-select * from information_schema.global_variables where variable_name='last_insert_id';
+select * from performance_schema.global_variables where variable_name='last_insert_id';
 VARIABLE_NAME	VARIABLE_VALUE
-select * from information_schema.session_variables where variable_name='last_insert_id';
+select * from performance_schema.session_variables where variable_name='last_insert_id';
 VARIABLE_NAME	VARIABLE_VALUE
-LAST_INSERT_ID	42
+last_insert_id	42
 set session last_insert_id=1.1;
 ERROR 42000: Incorrect argument type to variable 'last_insert_id'
 set session last_insert_id=1e1;

@@ -1,4 +1,4 @@
-################################################################################
+ ################################################################################
 # inc/gcol_ins_upd.inc                                                         #
 #                                                                              #
 # Purpose:                                                                     #
@@ -63,7 +63,8 @@ select * from t1;
 --echo # INSERT INTO tbl_name (<normal+gcols>) VALUES... DEFAULT is specified 
 --echo # against gcols
 insert into t1 (a,b) values (1,default), (2,default);
-select * from t1 order by a;
+--sorted_result
+select * from t1;
 delete from t1;
 select * from t1;
 
@@ -114,6 +115,7 @@ drop table t2;
 --echo # CREATE new_table ... LIKE old_table INSERT INTO new_table (<non-gcols>, <gcols>) 
 --echo # SELECT <non-gcols>, <gcols> from old_table
 insert into t1 values (1,default,default);
+--sorted_result
 select * from t1;
 create table t2 like t1;
 --error ER_NON_DEFAULT_VALUE_FOR_GENERATED_COLUMN
@@ -138,27 +140,33 @@ select * from t1;
 
 --echo # UPDATE tbl_name SET gcol=expr WHERE non-gcol=expr
 insert into t1 (a) values (1), (2);
-select * from t1 order by a;
+--sorted_result
+select * from t1;
 --error ER_NON_DEFAULT_VALUE_FOR_GENERATED_COLUMN
 update t1 set c=3 where a=2;
-select * from t1 order by a;
+--sorted_result
+select * from t1;
 delete from t1;
 select * from t1;
 
 --echo # UPDATE tbl_name SET non-gcol=expr WHERE gcol=expr
 insert into t1 (a) values (1), (2);
-select * from t1 order by a;
+--sorted_result
+select * from t1;
 update t1 set a=3 where b=-2;
-select * from t1 order by a;
+--sorted_result
+select * from t1;
 delete from t1;
 select * from t1;
 
 --echo # UPDATE tbl_name SET gcol=expr WHERE gcol=expr
 insert into t1 (a) values (1), (2);
-select * from t1 order by a;
+--sorted_result
+select * from t1;
 --error ER_NON_DEFAULT_VALUE_FOR_GENERATED_COLUMN
 update t1 set c=3 where b=-2;
-select * from t1 order by a;
+--sorted_result
+select * from t1;
 delete from t1;
 select * from t1;
 drop table t1;
@@ -169,6 +177,7 @@ eval $create3;
 insert into t1 (a) values (1), (2);
 select * from t1 order by a;
 update t1 set a=3 where c=-2;
+--sorted_result
 select * from t1;
 delete from t1;
 select * from t1;
@@ -177,18 +186,22 @@ select * from t1;
 --echo # INDEX created on gcol 
 --echo # UPDATE tbl_name SET non-gcol=expr WHERE gcol=between const1 and const2
 insert into t1 (a) values (1), (2);
-select * from t1 order by a;
+--sorted_result
+select * from t1;
 update t1 set a=3 where c between -3 and -2;
-select * from t1 order by a;
+--sorted_result
+select * from t1;
 delete from t1;
 select * from t1;
 
 --echo # No INDEX created on gcol 
 --echo # UPDATE tbl_name SET non-gcol=expr WHERE gcol=between const1 and const2
 insert into t1 (a) values (1), (2);
-select * from t1 order by a;
+--sorted_result
+select * from t1;
 update t1 set a=3 where b between -3 and -2;
-select * from t1 order by a;
+--sorted_result
+select * from t1;
 delete from t1;
 select * from t1;
 
@@ -196,10 +209,12 @@ select * from t1;
 --echo # UPDATE tbl_name SET non-gcol=expr 
 --echo # WHERE gcol=between const1 and const2 ORDER BY gcol
 insert into t1 (a) values (1), (2), (3), (4), (5);
-select * from t1 order by a;
+--sorted_result
+select * from t1;
 update t1 set a=6 where c between -1 and 0
           order by c;
-select * from t1 order by a;
+--sorted_result
+select * from t1;
 delete from t1 where c between -6 and 0;
 select * from t1;
 
@@ -210,7 +225,8 @@ insert into t1 (a) values (1), (2), (3), (4), (5);
 select * from t1 order by a;
 update t1 set a=6 where c between -1 and 0
           order by c limit 2;
-select * from t1 order by a;
+--sorted_result
+select * from t1;
 delete from t1 where c between -2 and 0 order by c;
 select * from t1 order by a;
 delete from t1;
@@ -219,9 +235,11 @@ delete from t1;
 --echo # UPDATE tbl_name SET non-gcol=expr
 --echo # WHERE indexed gcol=between const1 and const2 and non-indexed gcol=const3
 insert into t1 (a) values (1), (2), (3), (4), (5);
-select * from t1 order by a;
+--sorted_result
+select * from t1;
 update t1 set a=6 where (c between -2 and 0) and (b=-1);
-select * from t1 order by a;
+--sorted_result
+select * from t1;
 delete from t1;
 
 --echo # INDEX created on gcol 
@@ -229,9 +247,11 @@ delete from t1;
 --echo # WHERE indexed gcol=between const1 and const2 and non-indexed gcol=const3
 --echo # ORDER BY indexed gcol
 insert into t1 (a) values (1), (2), (3), (4), (5);
-select * from t1 order by a;
+--sorted_result
+select * from t1;
 update t1 set a=6 where (c between -2 and 0) and (b=-1) order by c;
-select * from t1 order by a;
+--sorted_result
+select * from t1;
 delete from t1;
 drop table t1;
 
@@ -633,6 +653,22 @@ INSERT INTO t1 (a) VALUES (0), (0), (0);
 ALTER TABLE t1 ADD INDEX idx (b);
 
 DELETE FROM t1;
+
+DROP TEMPORARY TABLE t1;
+
+
+--echo #
+--echo #  WL#6599 - Add test case for SHOW COLUMNS/KEYS on a temporary table.
+--echo #
+
+CREATE TEMPORARY TABLE t1 (
+  a INTEGER NOT NULL,
+  b INTEGER GENERATED ALWAYS AS (a+1) VIRTUAL
+);
+
+--replace_column 8 #
+SHOW FULL COLUMNS FROM t1;
+SHOW KEYS FROM t1;
 
 DROP TEMPORARY TABLE t1;
 

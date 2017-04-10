@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,17 +15,19 @@
 
 // First include (the generated) my_config.h, to get correct platform defines.
 #include "my_config.h"
-#include <iostream>
-#include <fstream>
-#include <gtest/gtest.h>
+
 #include <gmock/gmock.h>
+#include <gtest/gtest.h>
 #include <m_ctype.h>
+#include <sys/types.h>
+#include <cstring>
+#include <fstream>
+#include <iostream>
 #include <string>
 
-#include "json_path.h"
 #include "json_dom.h"
+#include "json_path.h"
 #include "sql_string.h"
-
 #include "test_utils.h"
 
 /**
@@ -39,10 +41,16 @@ class JsonPathTest : public ::testing::Test
 protected:
   virtual void SetUp() { initializer.SetUp(); }
   virtual void TearDown() { initializer.TearDown(); }
-
-  THD *thd() { return initializer.thd(); }
-
+  THD *thd() const { return initializer.thd(); }
   my_testing::Server_initializer initializer;
+  void vet_wrapper_seek(Json_wrapper *wrapper, const Json_path &path,
+                        const std::string &expected, bool expected_null) const;
+  void vet_wrapper_seek(const char *json_text, const char *path_text,
+                        const std::string &expected, bool expected_null) const;
+  void vet_remove(Json_dom *parent, const Json_path &path,
+                  const std::string &expected, bool expect_match) const;
+  void vet_remove(const char *json_text, const char *path_text,
+                  const std::string& expected, bool expect_match) const;
 };
 
 /**
@@ -130,6 +138,8 @@ class JsonGoodOnoTestP : public ::testing::TestWithParam<Ono_tuple>
   virtual void SetUp() { initializer.SetUp(); }
   virtual void TearDown() { initializer.TearDown(); }
   my_testing::Server_initializer initializer;
+protected:
+  THD *thd() const { return initializer.thd(); }
 };
 
 /**
@@ -325,12 +335,14 @@ void bad_identifier(const char *identifier, size_t expected_index)
   Helper functions for Json_wrapper tests.
 */
 
-void vet_wrapper_seek(Json_wrapper &wrapper, const Json_path &path,
-                      std::string expected, bool expected_null)
+void JsonPathTest::vet_wrapper_seek(Json_wrapper *wrapper,
+                                    const Json_path &path,
+                                    const std::string &expected,
+                                    bool expected_null) const
 {
   Json_wrapper_vector hits(PSI_NOT_INSTRUMENTED);
-  wrapper.seek(path, &hits, true, false);
-  String  result_buffer;
+  wrapper->seek(path, &hits, true, false);
+  String result_buffer;
 
   if (hits.size() == 1)
   {
@@ -341,7 +353,7 @@ void vet_wrapper_seek(Json_wrapper &wrapper, const Json_path &path,
     Json_array *a= new (std::nothrow) Json_array();
     for (uint i= 0; i < hits.size(); ++i)
     {
-      a->append_clone(hits[i].to_dom());
+      a->append_clone(hits[i].to_dom(thd()));
     }
     Json_wrapper w(a);
     EXPECT_FALSE(w.to_string(&result_buffer, true, "test"));
@@ -358,7 +370,7 @@ void vet_wrapper_seek(Json_wrapper &wrapper, const Json_path &path,
     if (hits.size() > 0)
     {
       String  source_buffer;
-      EXPECT_FALSE(wrapper.to_string(&source_buffer, true, "test"));
+      EXPECT_FALSE(wrapper->to_string(&source_buffer, true, "test"));
       source_output= source_buffer.ptr();
       result_output= actual.c_str();
     }
@@ -375,8 +387,10 @@ void vet_wrapper_seek(Json_wrapper &wrapper, const Json_path &path,
   }
 }
 
-void vet_wrapper_seek(char *json_text, char *path_text,
-                      std::string expected, bool expected_null)
+void JsonPathTest::vet_wrapper_seek(const char *json_text,
+                                    const char *path_text,
+                                    const std::string &expected,
+                                    bool expected_null) const
 {
   const char *msg;
   size_t msg_offset;
@@ -386,7 +400,7 @@ void vet_wrapper_seek(char *json_text, char *path_text,
   Json_wrapper dom_wrapper(dom);
 
   String  serialized_form;
-  EXPECT_FALSE(json_binary::serialize(dom, &serialized_form));
+  EXPECT_FALSE(json_binary::serialize(thd(), dom, &serialized_form));
   json_binary::Value binary=
     json_binary::parse_binary(serialized_form.ptr(),
                               serialized_form.length());
@@ -394,8 +408,8 @@ void vet_wrapper_seek(char *json_text, char *path_text,
 
   Json_path path;
   good_path_common(false, path_text, &path);
-  vet_wrapper_seek(dom_wrapper, path, expected, expected_null);
-  vet_wrapper_seek(binary_wrapper, path, expected, expected_null);
+  vet_wrapper_seek(&dom_wrapper, path, expected, expected_null);
+  vet_wrapper_seek(&binary_wrapper, path, expected, expected_null);
 }
 
 void vet_dom_location(bool begins_with_column_id,
@@ -454,10 +468,11 @@ void vet_only_needs_one(Json_wrapper &wrapper, const Json_path &path,
   @param[in] json_text              Text of the json document to search.
   @param[in] path_text              Text of the path expression to use.
   @param[in] expected_hits          Total number of expected matches.
+  @param[in] thd                    THD handle
 */
 void vet_only_needs_one(bool begins_with_column_id,
                         const char *json_text, const char *path_text,
-                        uint expected_hits)
+                        uint expected_hits, const THD *thd)
 {
   const char *msg;
   size_t msg_offset;
@@ -467,7 +482,7 @@ void vet_only_needs_one(bool begins_with_column_id,
   Json_wrapper dom_wrapper(dom);
 
   String  serialized_form;
-  EXPECT_FALSE(json_binary::serialize(dom, &serialized_form));
+  EXPECT_FALSE(json_binary::serialize(thd, dom, &serialized_form));
   json_binary::Value binary=
     json_binary::parse_binary(serialized_form.ptr(),
                               serialized_form.length());
@@ -501,10 +516,10 @@ std::string format(Json_dom *dom)
   return std::string(buffer.ptr(), buffer.length());
 }
 
-void vet_remove(Json_dom *parent,
-                const Json_path &path,
-                std::string expected,
-                bool expect_match)
+void JsonPathTest::vet_remove(Json_dom *parent,
+                              const Json_path &path,
+                              const std::string &expected,
+                              bool expect_match) const
 {
   Json_dom_vector hits(PSI_NOT_INSTRUMENTED);
 
@@ -519,7 +534,7 @@ void vet_remove(Json_dom *parent,
       const Json_dom *child= hits[0];
 
       bool was_removed= false;
-      if (parent->json_type() == Json_dom::J_OBJECT)
+      if (parent->json_type() == enum_json_type::J_OBJECT)
       {
         Json_object *object= (Json_object *) parent;
         was_removed= object->remove(child);
@@ -542,8 +557,9 @@ void vet_remove(Json_dom *parent,
 }
 
 
-void vet_remove(char *json_text, char *path_text, std::string expected,
-                bool expect_match)
+void JsonPathTest::vet_remove(const char *json_text, const char *path_text,
+                              const std::string& expected, bool expect_match)
+  const
 {
   const char *msg;
   size_t msg_offset;
@@ -553,11 +569,11 @@ void vet_remove(char *json_text, char *path_text, std::string expected,
   Json_path path;
   good_path_common(false, path_text, &path);
   String  serialized_form;
-  EXPECT_FALSE(json_binary::serialize(parent, &serialized_form));
+  EXPECT_FALSE(json_binary::serialize(thd(), parent, &serialized_form));
   json_binary::Value parent_binary=
     json_binary::parse_binary(
                               serialized_form.ptr(), serialized_form.length());
-  Json_dom *reparsed_parent= Json_dom::parse(parent_binary);
+  Json_dom *reparsed_parent= Json_dom::parse(thd(), parent_binary);
 
   vet_remove(parent, path, expected, expect_match);
   vet_remove(reparsed_parent, path, expected, expect_match);
@@ -633,6 +649,14 @@ static const Good_path good_paths_no_column_scope[]=
 
   // backslash in front of a quote
   { false, "$.\"\\\\\"", "$.\"\\\\\"" },
+
+  // 0-length member names must be quoted
+  { false, "$.\"\"", "$.\"\"" },
+  { false, "$.\"\".\"\"", "$.\"\".\"\"" },
+  { false, "$.\"\".a.\"\"", "$.\"\".a.\"\"" },
+  { false, "$.abc.\"\"", "$.abc.\"\"" },
+  { false, "$.abc.\"\".def", "$.abc.\"\".def" },
+  { false, "$.\"abc\".\"\".def", "$.abc.\"\".def" },
 };
 
 /** Test good paths without column scope */
@@ -858,10 +882,13 @@ static const Bad_path bad_paths_no_column_scope[]=
   // unterminated double-quoted name
   { false, "$.\"bar", 6 },
 
-  // 0-length member name
+  // 0-length member names must be quoted
   { false, "$..ab", 2 },
   { false, "$.", 2 },
-  { false, "$.\"\"", 4 },
+  { false, "$. ", 3 },
+  { false, "$.abc.", 6 },
+  { false, "$.abc..def", 6 },
+  { false, "$.\"abc\"..def", 8 },
 
   // backslash in front of a quote, and no end quote
   { false, "$.\"\\\"", 5 },
@@ -926,11 +953,6 @@ static const Bad_path bad_quoted_key_names[]=
   { false, "$.a.\"bcd", 8 },
   { false, "$.a.\"", 5 },
   { false, "$.\"a\".\"bcd", 10 },
-
-  // empty key name
-  { false, "$.abc.\"\"", 8 },
-  { false, "$.abc.\"\".def", 8 },
-  { false, "$.\"abc\".\"\".def", 10 },
 
   // not followed by a member or array cell
   { false, "$.abc.\"def\"ghi", 11 },
@@ -1030,42 +1052,33 @@ TEST_F(JsonPathTest, WrapperSeekTest)
   // vacuous path
   {
     SCOPED_TRACE("");
-    vet_wrapper_seek((char *) "false", (char *) "$", "false", false);
+    vet_wrapper_seek("false", "$", "false", false);
   }
   {
     SCOPED_TRACE("");
-    vet_wrapper_seek((char *) "[ false, true, 1 ]",
-                     (char *) "$",
-                     "[false, true, 1]",
-                     false);
+    vet_wrapper_seek("[ false, true, 1 ]", "$", "[false, true, 1]", false);
   }
 
   // no match
   {
     SCOPED_TRACE("");
-    vet_wrapper_seek((char *) "false", (char *) "$.a", "", true);
+    vet_wrapper_seek("false", "$.a", "", true);
   }
   {
     SCOPED_TRACE("");
-    vet_wrapper_seek((char *) "[ false, true, 1 ]",
-                     (char *) "$[3]",
-                     "",
-                     true);
+    vet_wrapper_seek("[ false, true, 1 ]", "$[3]", "", true);
   }
 
   // first level retrieval
   {
     SCOPED_TRACE("");
-    vet_wrapper_seek((char *) "[ false, true, 1 ]",
-                     (char *) "$[2]",
-                     "1",
-                     false);
+    vet_wrapper_seek("[ false, true, 1 ]", "$[2]", "1", false);
   }
   {
     SCOPED_TRACE("");
-    vet_wrapper_seek((char *) "{ \"a\" : 1, \"b\" : { \"c\" : [ 1, 2, 3 ] }, "
+    vet_wrapper_seek("{ \"a\" : 1, \"b\" : { \"c\" : [ 1, 2, 3 ] }, "
                      "\"d\" : 4 }",
-                     (char *) "$.b",
+                     "$.b",
                      "{\"c\": [1, 2, 3]}",
                      false);
   }
@@ -1073,32 +1086,32 @@ TEST_F(JsonPathTest, WrapperSeekTest)
   // second level retrieval
   {
     SCOPED_TRACE("");
-    vet_wrapper_seek((char *) "[ false, true, [ 1, null, 200, 300 ], 400 ]",
-                     (char *) "$[2][3]",
+    vet_wrapper_seek("[ false, true, [ 1, null, 200, 300 ], 400 ]",
+                     "$[2][3]",
                      "300",
                      false);
   }
   {
     SCOPED_TRACE("");
-    vet_wrapper_seek((char *) "{ \"a\" : 1, \"b\" : { \"c\" : [ 1, 2, 3 ] }, "
+    vet_wrapper_seek("{ \"a\" : 1, \"b\" : { \"c\" : [ 1, 2, 3 ] }, "
                      "\"d\" : 4 }",
-                     (char *) "$.b.c",
+                     "$.b.c",
                      "[1, 2, 3]",
                      false);
   }
   {
     SCOPED_TRACE("");
-    vet_wrapper_seek((char *) "[ false, {\"abc\": 500}, "
+    vet_wrapper_seek("[ false, {\"abc\": 500}, "
                      "[ 1, null, 200, 300 ], 400 ]",
-                     (char *) "$[1].abc",
+                     "$[1].abc",
                      "500",
                      false);
   }
   {
     SCOPED_TRACE("");
-    vet_wrapper_seek((char *) "{ \"a\" : 1, \"b\" : [ 100, 200, 300 ], "
+    vet_wrapper_seek("{ \"a\" : 1, \"b\" : [ 100, 200, 300 ], "
                      "\"d\" : 4 }",
-                     (char *) "$.b[2]",
+                     "$.b[2]",
                      "300",
                      false);
   }
@@ -1106,26 +1119,25 @@ TEST_F(JsonPathTest, WrapperSeekTest)
   // wildcards
   {
     SCOPED_TRACE("");
-    vet_wrapper_seek((char *) "{ \"a\" : 1, \"b\" : [ 100, 200, 300 ], "
+    vet_wrapper_seek("{ \"a\" : 1, \"b\" : [ 100, 200, 300 ], "
                      "\"d\" : 4 }",
-                     (char *) "$.*",
+                     "$.*",
                      "[1, [100, 200, 300], 4]",
                      false);
   }
   {
     SCOPED_TRACE("");
-    vet_wrapper_seek((char *) "[ false, {\"a\": true}, {\"b\": 200}, "
+    vet_wrapper_seek("[ false, {\"a\": true}, {\"b\": 200}, "
                      "{\"a\": 300} ]",
-                     (char *) "$[*].a",
+                     "$[*].a",
                      "[true, 300]",
                      false);
   }
   {
     SCOPED_TRACE("");
-    vet_wrapper_seek((char *)
-                     "{ \"b\": {\"c\": 100}, \"d\": {\"a\": 200}, "
+    vet_wrapper_seek("{ \"b\": {\"c\": 100}, \"d\": {\"a\": 200}, "
                      "\"e\": {\"a\": 300}}",
-                     (char *) "$.*.a",
+                     "$.*.a",
                      "[200, 300]",
                      false);
   }
@@ -1135,9 +1147,9 @@ TEST_F(JsonPathTest, WrapperSeekTest)
   //
   {
     SCOPED_TRACE("");
-    vet_wrapper_seek((char *) "{ \"b\": {\"c\": 100}, \"d\": {\"a\": 200}, "
+    vet_wrapper_seek("{ \"b\": {\"c\": 100}, \"d\": {\"a\": 200}, "
                      "\"e\": {\"a\": 300}, \"f\": {\"g\": {\"a\": 500} } }",
-                     (char *) "$**.a",
+                     "$**.a",
                      "[200, 300, 500]",
                      false);
   }
@@ -1145,11 +1157,11 @@ TEST_F(JsonPathTest, WrapperSeekTest)
   // ellipsis with array recursing into object
   {
     SCOPED_TRACE("");
-    vet_wrapper_seek((char *) "{ \"a\": 100, "
+    vet_wrapper_seek("{ \"a\": 100, "
                      "\"d\": [ {\"a\": 200}, "
                      "{ \"e\": {\"a\": 300, \"f\": 500} }, "
                      " { \"g\" : true, \"a\": 600 } ] }",
-                     (char *) "$.d**.a",
+                     "$.d**.a",
                      "[200, 300, 600]",
                      false);
   }
@@ -1157,7 +1169,7 @@ TEST_F(JsonPathTest, WrapperSeekTest)
   // ellipsis with object recursing into arrays
   {
     SCOPED_TRACE("");
-    vet_wrapper_seek((char *) "{ \"a\": true, "
+    vet_wrapper_seek("{ \"a\": true, "
                      " \"b\": { "
                      " \"a\": 100,"
                      " \"c\": [ "
@@ -1167,7 +1179,7 @@ TEST_F(JsonPathTest, WrapperSeekTest)
                      "]"
                      "}, "
                      " \"g\": { \"a\": 700 } }",
-                     (char *) "$.b**.a",
+                     "$.b**.a",
                      "[100, 300, 400, 600]",
                      false);
   }
@@ -1175,15 +1187,15 @@ TEST_F(JsonPathTest, WrapperSeekTest)
   // daisy-chained ellipses
   {
     SCOPED_TRACE("");
-    vet_wrapper_seek((char *) "{ \"a\": { \"x\" : { \"b\": { \"y\": { \"b\": "
+    vet_wrapper_seek("{ \"a\": { \"x\" : { \"b\": { \"y\": { \"b\": "
                      "{ \"z\": { \"c\": 100 } } } } } } }",
-                     (char *) "$.a**.b**.c",
+                     "$.a**.b**.c",
                      "100",
                      false);
   }
   {
     SCOPED_TRACE("");
-    vet_wrapper_seek((char *) "{ "
+    vet_wrapper_seek("{ "
                      " \"c\": true"
                      ", \"a\": { "
                      " \"d\": [ "
@@ -1201,14 +1213,13 @@ TEST_F(JsonPathTest, WrapperSeekTest)
                      " }"
                      ", \"b\": true"
                      " }",
-                     (char *) "$.a**.b**.c",
+                     "$.a**.b**.c",
                      "[100, 300]",
                      false);
   }
   {
     SCOPED_TRACE("");
-    vet_wrapper_seek((char *)
-                     "["
+    vet_wrapper_seek("["
                      "  100,"
                      "  ["
                      "    true,"
@@ -1229,7 +1240,7 @@ TEST_F(JsonPathTest, WrapperSeekTest)
                      "  ],"
                      "  200"
                      "]",
-                     (char *) "$[1]**[2]**[3]",
+                     "$[1]**[2]**[3]",
                      "[4, 800]",
                      false);
   }
@@ -1237,8 +1248,7 @@ TEST_F(JsonPathTest, WrapperSeekTest)
   // $[1][2][3].b[3] is a match for $[1]**[2]**[3]
   {
     SCOPED_TRACE("");
-    vet_wrapper_seek((char *)
-                     "["
+    vet_wrapper_seek("["
                      "  100,"
                      "  ["
                      "                  300,"
@@ -1252,7 +1262,7 @@ TEST_F(JsonPathTest, WrapperSeekTest)
                      "  ],"
                      "  200"
                      "]",
-                     (char *) "$[1]**[2]**[3]",
+                     "$[1]**[2]**[3]",
                      "[4, 800]",
                      false);
   }
@@ -1271,8 +1281,7 @@ TEST_F(JsonPathTest, WrapperSeekTest)
   */
   {
     SCOPED_TRACE("");
-    vet_wrapper_seek((char *)
-                     "{"
+    vet_wrapper_seek("{"
                      " \"a\": [ 0, 1, [ 0, { \"c\": 100 } ] ],"
                      " \"b\": [ 0, [ 0, { \"c\": 200 } ] ],"
                      " \"c\": { \"d\": [ 0, 1, [ 0, 1, 2, 3, 4, "
@@ -1281,7 +1290,7 @@ TEST_F(JsonPathTest, WrapperSeekTest)
                      "{ \"c\": 400 } } ] ],"
                      " \"e\": [ 0, 1, { \"c\": 500 } ]"
                      "}",
-                     (char *) "$**[2]**.c",
+                     "$**[2]**.c",
                      "[100, 300, 400, 500]",
                      false);
   }
@@ -1289,17 +1298,12 @@ TEST_F(JsonPathTest, WrapperSeekTest)
   // auto-wrapping
   {
     SCOPED_TRACE("");
-    vet_wrapper_seek((char *)
-                     "{ \"a\": 100 }",
-                     (char *) "$.a[ 0 ]",
-                     "100",
-                     false);
+    vet_wrapper_seek("{ \"a\": 100 }", "$.a[ 0 ]", "100", false);
   }
   {
     SCOPED_TRACE("");
-    vet_wrapper_seek((char *)
-                     "[ [ 100, 200, 300 ], 400, { \"c\": 500 } ]",
-                     (char *) "$[*][ 0 ]",
+    vet_wrapper_seek("[ [ 100, 200, 300 ], 400, { \"c\": 500 } ]",
+                     "$[*][ 0 ]",
                      "[100, 400, {\"c\": 500}]",
                      false);
   }
@@ -1307,9 +1311,8 @@ TEST_F(JsonPathTest, WrapperSeekTest)
   // auto-wrapping only works for the 0th index
   {
     SCOPED_TRACE("");
-    vet_wrapper_seek((char *)
-                     "[ [ 100, 200, 300 ], 400, { \"c\": 500 } ]",
-                     (char *) "$[*][ 1 ]",
+    vet_wrapper_seek("[ [ 100, 200, 300 ], 400, { \"c\": 500 } ]",
+                     "$[*][ 1 ]",
                      "200",
                      false);
   }
@@ -1319,58 +1322,34 @@ TEST_F(JsonPathTest, WrapperSeekTest)
   // these two should have the same result.
   {
     SCOPED_TRACE("");
-    vet_wrapper_seek((char *)
-                     "[1]",
-                     (char *) "$[0][0]",
-                     "1",
-                     false);
+    vet_wrapper_seek("[1]", "$[0][0]", "1", false);
     SCOPED_TRACE("");
   }
   {
     SCOPED_TRACE("");
-    vet_wrapper_seek((char *)
-                     "[1]",
-                     (char *) "$**[0]",
-                     "1",
-                     false);
+    vet_wrapper_seek("[1]", "$**[0]", "1", false);
   }
 
   // these two should have the same result.
   {
     SCOPED_TRACE("");
-    vet_wrapper_seek((char *)
-                     "{ \"a\": 1 }",
-                     (char *) "$.a[0]",
-                     "1",
-                     false);
+    vet_wrapper_seek("{ \"a\": 1 }", "$.a[0]", "1", false);
     SCOPED_TRACE("");
   }
   {
     SCOPED_TRACE("");
-    vet_wrapper_seek((char *)
-                     "{ \"a\": 1 }",
-                     (char *) "$**[0]",
-                     "[{\"a\": 1}, 1]",
-                     false);
+    vet_wrapper_seek("{ \"a\": 1 }", "$**[0]", "[{\"a\": 1}, 1]", false);
   }
 
   // these two should have the same result.
   {
     SCOPED_TRACE("");
-    vet_wrapper_seek((char *)
-                     "{ \"a\": 1 }",
-                     (char *) "$[0].a",
-                     "1",
-                     false);
+    vet_wrapper_seek("{ \"a\": 1 }", "$[0].a", "1", false);
     SCOPED_TRACE("");
   }
   {
     SCOPED_TRACE("");
-    vet_wrapper_seek((char *)
-                     "{ \"a\": 1 }",
-                     (char *) "$**.a",
-                     "1",
-                     false);
+    vet_wrapper_seek("{ \"a\": 1 }", "$**.a", "1", false);
   }
 }
 
@@ -1379,15 +1358,15 @@ TEST_F(JsonPathTest, RemoveDomTest)
   // successful removes
   {
     SCOPED_TRACE("");
-    vet_remove((char *) "[100, 200, 300]",
-               (char *) "$[1]",
+    vet_remove("[100, 200, 300]",
+               "$[1]",
                "[100, 300]",
                true);
   }
   {
     SCOPED_TRACE("");
-    vet_remove((char *) "{\"a\": 100, \"b\": 200, \"c\": 300}",
-               (char *) "$.b",
+    vet_remove("{\"a\": 100, \"b\": 200, \"c\": 300}",
+               "$.b",
                "{\"a\": 100, \"c\": 300}",
                true);
   }
@@ -1538,7 +1517,7 @@ TEST_P(JsonGoodOnoTestP, GoodOno)
   vet_only_needs_one(param.m_begins_with_column_id,
                      param.m_json_text,
                      param.m_path_expression,
-                     param.m_expected_hits);
+                     param.m_expected_hits, thd());
 }
 
 INSTANTIATE_TEST_CASE_P(OnoTesting, JsonGoodOnoTestP,

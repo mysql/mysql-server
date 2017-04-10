@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License as
@@ -15,9 +15,21 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
    02110-1301 USA */
 
-#include "rpl_gtid.h"
+#include <stddef.h>
 
+#include "mdl.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_sys.h"
+#include "mysql/psi/mysql_cond.h"
+#include "mysql/psi/mysql_mutex.h"
+#include "mysql/psi/psi_stage.h"
+#include "mysql/service_mysql_alloc.h"
+#include "mysqld.h"           // key_gtid_ensure_index_mutex
 #include "mysqld_error.h"     // ER_*
+#include "prealloced_array.h"
+#include "psi_memory_key.h"
+#include "rpl_gtid.h"
 #include "sql_class.h"        // THD
 
 
@@ -69,8 +81,6 @@ enum_return_status Mutex_cond_array::ensure_index(int n)
   int max_index= get_max_index();
   if (n > max_index)
   {
-    if (m_array.reserve(n + 1))
-      goto error;
     for (int i= max_index + 1; i <= n; i++)
     {
       Mutex_cond *mutex_cond=

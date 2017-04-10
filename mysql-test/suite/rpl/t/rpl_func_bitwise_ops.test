@@ -1,0 +1,134 @@
+############################################################################################
+#                                                                                          #
+# The aim of this test is to set up replication between a master and slave and             #
+# test the modified behaviour of bitwise operations which was brought by WL#8699:          #
+# Bit-wise operations on binary data types.                                                #
+#                                                                                          #
+# Creation Date: 2016-03-02                                                                #
+# Author: Deepa Dixit                                                                      #
+#                                                                                          #
+############################################################################################
+
+--source include/master-slave.inc
+
+call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
+
+--echo # Create table with columns of binary data types and insert values
+
+--connection master
+
+CREATE TABLE bitwise_table(id INT PRIMARY KEY NOT NULL AUTO_INCREMENT, vbin1 VARBINARY(32), vbin2 VARBINARY(32));
+
+INSERT INTO bitwise_table(vbin1, vbin2) VALUES
+(x'59', x'6a'),
+(x'5939', x'6ac3'),
+(x'5939a998', x'6ac35d2a'),
+(x'5939a99861154f35', x'6ac35d2a3ab34bda'),
+(x'5939a99861154f3587d5440618e9b28b', x'6ac35d2a3ab34bda8ac412ea0141852c'),
+(x'5939a99861154f3587d5440618e9b28b166181c5ca514ab1b8e9c970ae5e421a', x'6ac35d2a3ab34bda8ac412ea0141852c3c8e38bb19934a7092a40bb19db13a80'),
+(x'5939a99861154f3587d5440618e9b28b', x'8ac412ea0141852c'),
+(x'5939a99861154f35', x'6ac35d2a3ab34bda8ac412ea0141852c');
+
+--disable_warnings
+INSERT INTO bitwise_table(vbin1, vbin2)
+SELECT (vbin1 & vbin2) , (vbin1 | vbin2) FROM bitwise_table WHERE id <= 6;
+
+INSERT INTO bitwise_table(vbin1, vbin2)
+SELECT (vbin1 ^ vbin2) , ( ~ vbin1 ) FROM bitwise_table WHERE id <= 6;
+
+INSERT INTO bitwise_table(vbin1, vbin2)
+SELECT (vbin1 >> 4 ) , ( vbin2 << 3 ) FROM bitwise_table WHERE id <= 6;
+
+INSERT INTO bitwise_table(vbin1, vbin2)
+SELECT (vbin1 ^ x'6ac3'), (vbin2 & x'5939') FROM bitwise_table WHERE id = 2;
+--enable_warnings
+
+--error ER_INVALID_BITWISE_OPERANDS_SIZE
+INSERT INTO bitwise_table(vbin1, vbin2)
+SELECT (vbin1 & vbin2) , (vbin1 | vbin2) FROM bitwise_table WHERE id = 7;
+
+--source include/sync_slave_sql_with_master.inc
+--echo [Connection Slave]
+
+--echo # check whether table was created and values were inserted on slave
+
+SELECT HEX(vbin1), BIT_COUNT(vbin1), HEX(vbin2), BIT_COUNT(vbin2) FROM bitwise_table;
+
+SELECT (vbin1 | NULL ), (vbin2 & NULL) FROM bitwise_table;
+
+SELECT HEX(vbin1), HEX(BIT_AND(vbin1)), HEX(BIT_OR(vbin1)), HEX(BIT_XOR(vbin1)), BIT_COUNT(vbin1)  FROM bitwise_table GROUP BY id;
+
+SELECT HEX(vbin2), HEX(BIT_AND(vbin2)), HEX(BIT_OR(vbin2)), HEX(BIT_XOR(vbin2)), BIT_COUNT(vbin2)  FROM bitwise_table GROUP BY id;
+
+--let $diff_tables = master:bitwise_table, slave:bitwise_table
+--source include/diff_tables.inc
+
+--echo [Connection Master]
+--connection master
+
+--echo # Update rows inside the table
+
+UPDATE bitwise_table SET vbin1 = (vbin1 | vbin2) WHERE id <= 6;
+UPDATE bitwise_table SET vbin2 = (vbin1 & vbin2) WHERE id <= 6;
+
+--source include/sync_slave_sql_with_master.inc
+--echo [Connection Slave]
+
+--echo # Check whether rows are updated
+
+SELECT HEX(vbin1), HEX(vbin2) FROM bitwise_table WHERE id <= 6;
+
+--let $diff_tables = master:bitwise_table, slave:bitwise_table
+--source include/diff_tables.inc
+
+--echo [Connection Master]
+--connection master
+
+UPDATE bitwise_table SET vbin1 = (vbin1 ^ vbin2) WHERE id <= 6;
+UPDATE bitwise_table SET vbin2 = (~ vbin1) WHERE id <= 6;
+
+--source include/sync_slave_sql_with_master.inc
+--echo [Connection Slave]
+
+--echo # Check whether rows are updated
+
+SELECT HEX(vbin1), HEX(vbin2) FROM bitwise_table WHERE id <= 6;
+
+--let $diff_tables = master:bitwise_table, slave:bitwise_table
+--source include/diff_tables.inc
+
+--echo [Connection Master]
+--connection master
+
+--echo # Delete rows from the table
+
+DELETE FROM bitwise_table WHERE BIT_COUNT(vbin1) <= 8;
+
+--source include/sync_slave_sql_with_master.inc
+--echo [Connection Slave]
+
+--echo # check whether the rows are deleted
+
+SELECT HEX(vbin1), HEX(vbin2) FROM bitwise_table;
+
+--let $diff_tables = master:bitwise_table, slave:bitwise_table
+--source include/diff_tables.inc
+
+
+--echo [Connection Master]
+--connection master
+
+--echo # Drop tables and clean up
+
+DROP TABLE bitwise_table;
+
+--source include/sync_slave_sql_with_master.inc
+--echo [Connection Slave]
+
+--echo # Check whether table is dropped
+
+--error ER_NO_SUCH_TABLE
+SELECT * FROM bitwise_table;
+
+--source include/rpl_end.inc
+

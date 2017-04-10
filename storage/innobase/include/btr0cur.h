@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -16,6 +16,11 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
+#include <stddef.h>
+#include <sys/types.h>
+
+#include "my_compiler.h"
+
 /**************************************************//**
 @file include/btr0cur.h
 The index tree cursor
@@ -26,11 +31,11 @@ Created 10/16/1994 Heikki Tuuri
 #ifndef btr0cur_h
 #define btr0cur_h
 
-#include "univ.i"
-#include "dict0dict.h"
-#include "page0cur.h"
 #include "btr0types.h"
+#include "dict0dict.h"
 #include "gis0type.h"
+#include "page0cur.h"
+#include "univ.i"
 
 /** Mode flags for btr_cur operations; these can be ORed */
 enum {
@@ -61,9 +66,9 @@ struct btr_latch_leaves_t {
 };
 
 #ifndef UNIV_HOTBACKUP
+#include "ha0ha.h"
 #include "que0types.h"
 #include "row0types.h"
-#include "ha0ha.h"
 
 #define BTR_CUR_ADAPT
 #define BTR_CUR_HASH_ADAPT
@@ -119,16 +124,19 @@ Returns the index of a cursor.
 @param cursor b-tree cursor
 @return index */
 #define btr_cur_get_index(cursor) ((cursor)->index)
-/*********************************************************//**
-Positions a tree cursor at a given record. */
+
+/** Positions a tree cursor at a given record.
+@param[in]	index	index
+@param[in]	rec	record in tree
+@param[in]	block	buffer block of rec
+@param[in]	cursor	cursor */
 UNIV_INLINE
 void
 btr_cur_position(
-/*=============*/
-	dict_index_t*	index,	/*!< in: index */
-	rec_t*		rec,	/*!< in: record in tree */
-	buf_block_t*	block,	/*!< in: buffer block of rec */
-	btr_cur_t*	cursor);/*!< in: cursor */
+	dict_index_t*	index,
+	rec_t*		rec,
+	buf_block_t*	block,
+	btr_cur_t*	cursor);
 
 /** Optimistically latches the leaf page or pages requested.
 @param[in]	block		guessed buffer block
@@ -205,7 +213,7 @@ should be used only for cases where-in latching is not needed.
 			to search the position.
 @param[in,out]	cursor	tree cursor; points to record of interest.
 @param[in]	file	file name
-@param[in[	line	line where called from
+@param[in]	line	line where called from
 @param[in,out]	mtr	mtr
 @param[in]	mark_dirty
 			if true then mark the block as dirty */
@@ -246,7 +254,6 @@ as they are not shared and so there is no need of latching.
 @param[in]	from_left	true if open to low end, false if open
 				to high end.
 @param[in]	index		index
-@param[in]	latch_mode	latch mode
 @param[in,out]	cursor		cursor
 @param[in]	file		file name
 @param[in]	line		line where called
@@ -392,7 +399,11 @@ btr_cur_update_in_place(
 	const upd_t*	update,	/*!< in: update vector */
 	ulint		cmpl_info,/*!< in: compiler info on secondary index
 				updates */
-	que_thr_t*	thr,	/*!< in: query thread */
+	que_thr_t*	thr,	/*!< in: query thread, or NULL if
+				flags & (BTR_NO_LOCKING_FLAG
+				| BTR_NO_UNDO_LOG_FLAG
+				| BTR_CREATE_FLAG
+				| BTR_KEEP_SYS_FLAG) */
 	trx_id_t	trx_id,	/*!< in: transaction id */
 	mtr_t*		mtr)	/*!< in/out: mini-transaction; if this
 				is a secondary index, the caller must
@@ -435,7 +446,11 @@ btr_cur_optimistic_update(
 				contain trx id and roll ptr fields */
 	ulint		cmpl_info,/*!< in: compiler info on secondary index
 				updates */
-	que_thr_t*	thr,	/*!< in: query thread */
+	que_thr_t*	thr,	/*!< in: query thread, or NULL if
+				flags & (BTR_NO_UNDO_LOG_FLAG
+				| BTR_NO_LOCKING_FLAG
+				| BTR_CREATE_FLAG
+				| BTR_KEEP_SYS_FLAG) */
 	trx_id_t	trx_id,	/*!< in: transaction id */
 	mtr_t*		mtr)	/*!< in/out: mini-transaction; if this
 				is a secondary index, the caller must
@@ -471,7 +486,11 @@ btr_cur_pessimistic_update(
 				be appended to this. */
 	ulint		cmpl_info,/*!< in: compiler info on secondary index
 				updates */
-	que_thr_t*	thr,	/*!< in: query thread */
+	que_thr_t*	thr,	/*!< in: query thread, or NULL if
+				flags & (BTR_NO_UNDO_LOG_FLAG
+				| BTR_NO_LOCKING_FLAG
+				| BTR_CREATE_FLAG
+				| BTR_KEEP_SYS_FLAG) */
 	trx_id_t	trx_id,	/*!< in: transaction id */
 	mtr_t*		mtr)	/*!< in/out: mini-transaction; must be committed
 				before latching any further pages */
@@ -644,171 +663,27 @@ btr_estimate_number_of_different_key_vals(
 /*======================================*/
 	dict_index_t*	index);	/*!< in: index */
 
-/** Gets the externally stored size of a record, in units of a database page.
-@param[in]	rec	record
-@param[in]	offsets	array returned by rec_get_offsets()
-@return externally stored part, in units of a database page */
-ulint
-btr_rec_get_externally_stored_len(
-	const rec_t*	rec,
-	const ulint*	offsets);
-
-/*******************************************************************//**
-Marks non-updated off-page fields as disowned by this record. The ownership
-must be transferred to the updated record which is inserted elsewhere in the
-index tree. In purge only the owner of externally stored field is allowed
-to free the field. */
-void
-btr_cur_disown_inherited_fields(
-/*============================*/
-	page_zip_des_t*	page_zip,/*!< in/out: compressed page whose uncompressed
-				part will be updated, or NULL */
-	rec_t*		rec,	/*!< in/out: record in a clustered index */
-	dict_index_t*	index,	/*!< in: index of the page */
-	const ulint*	offsets,/*!< in: array returned by rec_get_offsets() */
-	const upd_t*	update,	/*!< in: update vector */
-	mtr_t*		mtr);	/*!< in/out: mini-transaction */
-
-/** Operation code for btr_store_big_rec_extern_fields(). */
-enum blob_op {
-	/** Store off-page columns for a freshly inserted record */
-	BTR_STORE_INSERT = 0,
-	/** Store off-page columns for an insert by update */
-	BTR_STORE_INSERT_UPDATE,
-	/** Store off-page columns for an update */
-	BTR_STORE_UPDATE,
-	/** Store off-page columns for a freshly inserted record by bulk */
-	BTR_STORE_INSERT_BULK
-};
-
-/*******************************************************************//**
-Determine if an operation on off-page columns is an update.
-@return TRUE if op != BTR_STORE_INSERT */
-UNIV_INLINE
-ibool
-btr_blob_op_is_update(
-/*==================*/
-	enum blob_op	op)	/*!< in: operation */
-	MY_ATTRIBUTE((warn_unused_result));
-
-/*******************************************************************//**
-Stores the fields in big_rec_vec to the tablespace and puts pointers to
-them in rec.  The extern flags in rec will have to be set beforehand.
-The fields are stored on pages allocated from leaf node
-file segment of the index tree.
-@return DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
-dberr_t
-btr_store_big_rec_extern_fields(
-/*============================*/
-	btr_pcur_t*	pcur,		/*!< in/out: a persistent cursor. if
-					btr_mtr is restarted, then this can
-					be repositioned. */
-	const upd_t*	upd,		/*!< in: update vector */
-	ulint*		offsets,	/*!< in/out: rec_get_offsets() on
-					pcur. the "external storage" flags
-					in offsets will correctly correspond
-					to rec when this function returns */
-	const big_rec_t*big_rec_vec,	/*!< in: vector containing fields
-					to be stored externally */
-	mtr_t*		btr_mtr,	/*!< in/out: mtr containing the
-					latches to the clustered index. can be
-					committed and restarted. */
-	enum blob_op	op)		/*! in: operation code */
-	MY_ATTRIBUTE((warn_unused_result));
-
-/*******************************************************************//**
-Frees the space in an externally stored field to the file space
-management if the field in data is owned the externally stored field,
-in a rollback we may have the additional condition that the field must
-not be inherited. */
-void
-btr_free_externally_stored_field(
-/*=============================*/
-	dict_index_t*	index,		/*!< in: index of the data, the index
-					tree MUST be X-latched; if the tree
-					height is 1, then also the root page
-					must be X-latched! (this is relevant
-					in the case this function is called
-					from purge where 'data' is located on
-					an undo log page, not an index
-					page) */
-	byte*		field_ref,	/*!< in/out: field reference */
-	const rec_t*	rec,		/*!< in: record containing field_ref, for
-					page_zip_write_blob_ptr(), or NULL */
-	const ulint*	offsets,	/*!< in: rec_get_offsets(rec, index),
-					or NULL */
-	page_zip_des_t*	page_zip,	/*!< in: compressed page corresponding
-					to rec, or NULL if rec == NULL */
-	ulint		i,		/*!< in: field number of field_ref;
-					ignored if rec == NULL */
-	bool		rollback,	/*!< in: performing rollback? */
-	mtr_t*		local_mtr);	/*!< in: mtr containing the latch */
-/** Copies the prefix of an externally stored field of a record.
-The clustered index record must be protected by a lock or a page latch.
-@param[out]	buf		the field, or a prefix of it
-@param[in]	len		length of buf, in bytes
-@param[in]	page_size	BLOB page size
-@param[in]	data		'internally' stored part of the field
-containing also the reference to the external part; must be protected by
-a lock or a page latch
-@param[in]	local_len	length of data, in bytes
-@return the length of the copied field, or 0 if the column was being
-or has been deleted */
-ulint
-btr_copy_externally_stored_field_prefix(
-	byte*			buf,
-	ulint			len,
-	const page_size_t&	page_size,
-	const byte*		data,
-	ulint			local_len);
-
-/** Copies an externally stored field of a record to mem heap.
-The clustered index record must be protected by a lock or a page latch.
-@param[out]	len		length of the whole field
-@param[in]	data		'internally' stored part of the field
-containing also the reference to the external part; must be protected by
-a lock or a page latch
-@param[in]	page_size	BLOB page size
-@param[in]	local_len	length of data
-@param[in,out]	heap		mem heap
-@return the whole field copied to heap */
-byte*
-btr_copy_externally_stored_field(
-	ulint*			len,
-	const byte*		data,
-	const page_size_t&	page_size,
-	ulint			local_len,
-	mem_heap_t*		heap);
-
 /** Copies an externally stored field of a record to mem heap.
 @param[in]	rec		record in a clustered index; must be
-protected by a lock or a page latch
-@param[in]	offset		array returned by rec_get_offsets()
+				protected by a lock or a page latch
+@param[in]	offsets		array returned by rec_get_offsets()
 @param[in]	page_size	BLOB page size
 @param[in]	no		field number
 @param[out]	len		length of the field
+@param[in]	is_sdi		true for SDI Indexes
 @param[in,out]	heap		mem heap
 @return the field copied to heap, or NULL if the field is incomplete */
 byte*
-btr_rec_copy_externally_stored_field(
+btr_rec_copy_externally_stored_field_func(
 	const rec_t*		rec,
 	const ulint*		offsets,
 	const page_size_t&	page_size,
 	ulint			no,
 	ulint*			len,
+#ifdef UNIV_DEBUG
+	bool			is_sdi,
+#endif /* UNIV_DEBUG */
 	mem_heap_t*		heap);
-
-/*******************************************************************//**
-Flags the data tuple fields that are marked as extern storage in the
-update vector.  We use this function to remember which fields we must
-mark as extern storage in a record inserted for an update.
-@return number of flagged external columns */
-ulint
-btr_push_update_extern_fields(
-/*==========================*/
-	dtuple_t*	tuple,	/*!< in/out: data tuple */
-	const upd_t*	update,	/*!< in: update vector */
-	mem_heap_t*	heap);	/*!< in: memory heap */
 
 /***********************************************************//**
 Sets a secondary index record's delete mark to the given value. This
@@ -823,15 +698,16 @@ btr_cur_set_deleted_flag_for_ibuf(
 	ibool		val,		/*!< in: value to set */
 	mtr_t*		mtr);		/*!< in/out: mini-transaction */
 
-/******************************************************//**
-The following function is used to set the deleted bit of a record. */
+/** The following function is used to set the deleted bit of a record.
+@param[in,out]	rec		physical record
+@param[in,out]	page_zip	compressed page (or NULL)
+@param[in]	flag		nonzero if delete marked */
 UNIV_INLINE
 void
 btr_rec_set_deleted_flag(
-/*=====================*/
-	rec_t*		rec,	/*!< in/out: physical record */
-	page_zip_des_t*	page_zip,/*!< in/out: compressed page (or NULL) */
-	ulint		flag);	/*!< in: nonzero if delete marked */
+	rec_t*		rec,
+	page_zip_des_t*	page_zip,
+	ulint		flag);
 
 /** Latches the leaf page or pages requested.
 @param[in]	block		leaf page where the search converged
@@ -868,19 +744,19 @@ struct btr_path_t {
 	(index in alphabetical order). Value ULINT_UNDEFINED denotes array
 	end. In the above example, if the search stopped on record 'c', then
 	nth_rec will be 3. */
-	ulint	nth_rec;
+	ulint		nth_rec;
 
 	/** Number of the records on the page, not counting inf and sup.
 	In the above example n_recs will be 4. */
-	ulint	n_recs;
+	ulint		n_recs;
 
 	/** Number of the page containing the record. */
-	ulint	page_no;
+	page_no_t	page_no;
 
 	/** Level of the page. If later we fetch the page under page_no
 	and it is no different level then we know that the tree has been
 	reorganized. */
-	ulint	page_level;
+	ulint		page_level;
 };
 
 #define BTR_PATH_ARRAY_N_SLOTS	250	/*!< size of path array (in slots) */
@@ -976,15 +852,16 @@ struct btr_cur_t {
 					/* default values */
 };
 
-/******************************************************//**
-The following function is used to set the deleted bit of a record. */
+/** The following function is used to set the deleted bit of a record.
+@param[in,out]	rec		physical record
+@param[in,out]	page_zip	compressed page (or NULL)
+@param[in]	flag		nonzero if delete marked */
 UNIV_INLINE
 void
 btr_rec_set_deleted_flag(
-/*=====================*/
-	rec_t*		rec,	/*!< in/out: physical record */
-	page_zip_des_t*	page_zip,/*!< in/out: compressed page (or NULL) */
-	ulint		flag);	/*!< in: nonzero if delete marked */
+	rec_t*		rec,
+	page_zip_des_t*	page_zip,
+	ulint		flag);
 
 
 /** If pessimistic delete fails because of lack of file space, there
@@ -995,37 +872,6 @@ times. */
 is still a good change of success a little later.  Sleep this many
 microseconds between retries. */
 #define BTR_CUR_RETRY_SLEEP_TIME	50000
-
-/** The reference in a field for which data is stored on a different page.
-The reference is at the end of the 'locally' stored part of the field.
-'Locally' means storage in the index record.
-We store locally a long enough prefix of each column so that we can determine
-the ordering parts of each index record without looking into the externally
-stored part. */
-/*-------------------------------------- @{ */
-#define BTR_EXTERN_SPACE_ID		0	/*!< space id where stored */
-#define BTR_EXTERN_PAGE_NO		4	/*!< page no where stored */
-#define BTR_EXTERN_OFFSET		8	/*!< offset of BLOB header
-						on that page */
-#define BTR_EXTERN_LEN			12	/*!< 8 bytes containing the
-						length of the externally
-						stored part of the BLOB.
-						The 2 highest bits are
-						reserved to the flags below. */
-/*-------------------------------------- @} */
-/* #define BTR_EXTERN_FIELD_REF_SIZE	20 // moved to btr0types.h */
-
-/** The most significant bit of BTR_EXTERN_LEN (i.e., the most
-significant bit of the byte at smallest address) is set to 1 if this
-field does not 'own' the externally stored field; only the owner field
-is allowed to free the field in purge! */
-#define BTR_EXTERN_OWNER_FLAG		128
-/** If the second most significant bit of BTR_EXTERN_LEN (i.e., the
-second most significant bit of the byte at smallest address) is 1 then
-it means that the externally stored field was inherited from an
-earlier version of the row.  In rollback we are not allowed to free an
-inherited external field. */
-#define BTR_EXTERN_INHERITED_FLAG	64
 
 /** Number of searches down the B-tree in btr_cur_search_to_nth_level(). */
 extern ulint	btr_cur_n_non_sea;
@@ -1047,8 +893,6 @@ extern ulint	btr_cur_n_sea_old;
 extern uint	btr_cur_limit_optimistic_insert_debug;
 #endif /* UNIV_DEBUG */
 
-#ifndef UNIV_NONINL
 #include "btr0cur.ic"
-#endif
 
 #endif

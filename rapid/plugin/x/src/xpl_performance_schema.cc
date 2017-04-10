@@ -17,11 +17,6 @@
 * 02110-1301  USA
 */
 
-#if !defined(MYSQL_DYNAMIC_PLUGIN) && defined(WIN32) && !defined(XPLUGIN_UNIT_TESTS)
-// Needed for importing PERFORMANCE_SCHEMA plugin API.
-#define MYSQL_DYNAMIC_PLUGIN 1
-#endif // WIN32
-
 #include "xpl_performance_schema.h"
 #include "ngs/memory.h"
 
@@ -41,9 +36,9 @@ PSI_mutex_key KEY_mutex_x_scheduler_dynamic_worker_pending = PSI_NOT_INSTRUMENTE
 PSI_mutex_key KEY_mutex_x_scheduler_dynamic_thread_exit = PSI_NOT_INSTRUMENTED;
 
 static PSI_mutex_info all_x_mutexes[] = {
-  { &KEY_mutex_x_lock_list_access, "lock_list_access", 0 },
-  { &KEY_mutex_x_scheduler_dynamic_worker_pending, "scheduler_dynamic_worker_pending", 0 },
-  { &KEY_mutex_x_scheduler_dynamic_thread_exit, "scheduler_dynamic_thread_exit", 0 },
+  { &KEY_mutex_x_lock_list_access, "lock_list_access", 0, 0},
+  { &KEY_mutex_x_scheduler_dynamic_worker_pending, "scheduler_dynamic_worker_pending", 0, 0},
+  { &KEY_mutex_x_scheduler_dynamic_thread_exit, "scheduler_dynamic_thread_exit", 0, 0},
 };
 
 PSI_cond_key KEY_cond_x_scheduler_dynamic_worker_pending = PSI_NOT_INSTRUMENTED;
@@ -98,12 +93,18 @@ void xpl_init_performance_schema()
 
   const char * const category = "mysqlx";
 
-  mysql_thread_register(category, all_x_threads, array_elements(all_x_threads));
-  mysql_mutex_register(category, all_x_mutexes, array_elements(all_x_mutexes));
-  mysql_cond_register(category, all_x_conds, array_elements(all_x_conds));
-  mysql_rwlock_register(category, all_x_rwlocks, array_elements(all_x_rwlocks));
-  mysql_socket_register(category, all_x_sockets, array_elements(all_x_sockets));
-  mysql_memory_register(category, all_x_memory, array_elements(all_x_memory));
+  mysql_thread_register(category, all_x_threads,
+                        static_cast<int>(array_elements(all_x_threads)));
+  mysql_mutex_register(category, all_x_mutexes,
+                       static_cast<int>(array_elements(all_x_mutexes)));
+  mysql_cond_register(category, all_x_conds,
+                      static_cast<int>(array_elements(all_x_conds)));
+  mysql_rwlock_register(category, all_x_rwlocks,
+                        static_cast<int>(array_elements(all_x_rwlocks)));
+  mysql_socket_register(category, all_x_sockets,
+                        static_cast<int>(array_elements(all_x_sockets)));
+  mysql_memory_register(category, all_x_memory,
+                        static_cast<int>(array_elements(all_x_memory)));
 
   ngs::x_psf_objects_key = KEY_memory_x_objects;
 

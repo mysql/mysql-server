@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,7 +17,16 @@
 #ifndef MEM_ROOT_ARRAY_INCLUDED
 #define MEM_ROOT_ARRAY_INCLUDED
 
-#include <my_alloc.h>
+#include <type_traits>
+
+#include "my_alloc.h"
+#include "my_dbug.h"
+
+/**
+  Just a dummy class for use as a default value in template parameters.
+*/
+class Empty_class {};
+
 
 /**
    A typesafe replacement for DYNAMIC_ARRAY.
@@ -25,27 +34,37 @@
    The interface is chosen to be similar to std::vector.
 
    @remark
+   Mem_root_array_YY is constructor-less for use in the parser stack of unions.
+   For other needs please use Mem_root_array.
+
+   @remark
    Unlike DYNAMIC_ARRAY, elements are properly copied
    (rather than memcpy()d) if the underlying array needs to be expanded.
 
    @remark
-   Depending on has_trivial_destructor, we destroy objects which are
+   Unless Element_type's destructor is trivial, we destroy objects when they are
    removed from the array (including when the array object itself is destroyed).
 
    @remark
    Note that MEM_ROOT has no facility for reusing free space,
    so don't use this if multiple re-expansions are likely to happen.
 
-   @param Element_type The type of the elements of the container.
-          Elements must be copyable.
-   @param has_trivial_destructor If true, we don't destroy elements.
-          We could have used type traits to determine this.
-          __has_trivial_destructor is supported by some (but not all)
-          compilers we use.
+   @tparam Element_type The type of the elements of the container.
+           Elements must be copyable.
+   @tparam Parent The parent class (e.g. Sql_alloc).
 */
-template<typename Element_type, bool has_trivial_destructor = true>
-class Mem_root_array_YY
+template<typename Element_type,
+         typename Parent = Empty_class>
+class Mem_root_array_YY : public Parent
 {
+  /**
+     Is Element_type trivially destructible? If it is, we don't destroy
+     elements when they are removed from the array or when the array is
+     destroyed.
+  */
+  static constexpr bool has_trivial_destructor=
+    std::is_trivially_destructible<Element_type>::value;
+
 public:
   /// Convenience typedef, same typedef name as std::vector
   typedef Element_type value_type;
@@ -55,6 +74,15 @@ public:
     DBUG_ASSERT(root != NULL);
 
     m_root= root;
+    m_array= NULL;
+    m_size= 0;
+    m_capacity= 0;
+  }
+
+  /// Initialize empty array that we aren't going to grow
+  void init_empty_const()
+  {
+    m_root= NULL;
     m_array= NULL;
     m_size= 0;
     m_capacity= 0;
@@ -248,11 +276,17 @@ private:
 };
 
 
-template<typename Element_type, bool has_trivial_destructor = true>
-class Mem_root_array : public Mem_root_array_YY<Element_type,
-                                                has_trivial_destructor>
+/**
+  A typesafe replacement for DYNAMIC_ARRAY.
+
+  @see Mem_root_array_YY.
+*/
+template<typename Element_type,
+         typename Parent= Empty_class>
+class Mem_root_array : public Mem_root_array_YY<Element_type, Parent>
 {
-  typedef Mem_root_array_YY<Element_type, has_trivial_destructor> super;
+  typedef Mem_root_array_YY<Element_type, Parent> super;
+
 public:
   /// Convenience typedef, same typedef name as std::vector
   typedef Element_type value_type;

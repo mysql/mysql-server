@@ -49,20 +49,11 @@ extern int	yydebug;
 NOT re-entrant */
 extern sym_tab_t*	pars_sym_tab_global;
 
-extern pars_res_word_t	pars_to_char_token;
-extern pars_res_word_t	pars_to_number_token;
 extern pars_res_word_t	pars_to_binary_token;
-extern pars_res_word_t	pars_binary_to_number_token;
 extern pars_res_word_t	pars_substr_token;
-extern pars_res_word_t	pars_replstr_token;
 extern pars_res_word_t	pars_concat_token;
 extern pars_res_word_t	pars_length_token;
 extern pars_res_word_t	pars_instr_token;
-extern pars_res_word_t	pars_sysdate_token;
-extern pars_res_word_t	pars_printf_token;
-extern pars_res_word_t	pars_assert_token;
-extern pars_res_word_t	pars_rnd_token;
-extern pars_res_word_t	pars_rnd_str_token;
 extern pars_res_word_t	pars_count_token;
 extern pars_res_word_t	pars_sum_token;
 extern pars_res_word_t	pars_distinct_token;
@@ -106,7 +97,7 @@ int
 pars_get_lex_chars(
 /*===============*/
 	char*	buf,		/*!< in/out: buffer where to copy */
-	int	max_size);	/*!< in: maximum number of characters which fit
+	size_t	max_size);	/*!< in: maximum number of characters which fit
 				in the buffer */
 /*************************************************************//**
 Called by yyparse on error. */
@@ -295,14 +286,6 @@ return_node_t*
 pars_return_statement(void);
 /*=======================*/
 /*********************************************************************//**
-Parses a procedure call.
-@return function node */
-func_node_t*
-pars_procedure_call(
-/*================*/
-	que_node_t*	res_word,/*!< in: procedure name reserved word */
-	que_node_t*	args);	/*!< in: argument list */
-/*********************************************************************//**
 Parses an assignment statement.
 @return assignment statement node */
 assign_node_t*
@@ -330,13 +313,6 @@ pars_open_statement(
 				or ROW_SEL_CLOSE_CURSOR */
 	sym_node_t*	cursor);	/*!< in: cursor node */
 /*********************************************************************//**
-Parses a row_printf-statement.
-@return row_printf-statement node */
-row_printf_node_t*
-pars_row_printf_statement(
-/*======================*/
-	sel_node_t*	sel_node);	/*!< in: select node */
-/*********************************************************************//**
 Parses a commit statement.
 @return own: commit node struct */
 commit_node_t*
@@ -363,28 +339,29 @@ pars_column_def(
 						is of type UNSIGNED. */
 	void*			is_not_null);	/*!< in: if not NULL, column
 						is of type NOT NULL. */
-/*********************************************************************//**
-Parses a table creation operation.
+/** Parses a table creation operation.
+@param[in]	table_sym		table name node in the symbol table
+@param[in]	column_defs		list of column names
+@param[in]	not_fit_in_memory	a non-NULL pointer means that this is a
+					table which in simulations should be
+					simulated as not fitting in memory;
+					thread is put to sleep to simulate disk
+					accesses; NOTE that this flag is not
+					stored to the data dictionary on disk,
+					and the database will forget about
+					non-NULL value if it has the reload the
+					table definition from disk
+@param[in]	compact			non-NULL if COMPACT table
+@param[in]	block_size		block size (can be NULL)
 @return table create subgraph */
 tab_node_t*
 pars_create_table(
-/*==============*/
-	sym_node_t*	table_sym,	/*!< in: table name node in the symbol
-					table */
-	sym_node_t*	column_defs,	/*!< in: list of column names */
-	sym_node_t*	compact,	/* in: non-NULL if COMPACT table. */
-	sym_node_t*	block_size,	/* in: block size (can be NULL) */
+	sym_node_t*	table_sym,
+	sym_node_t*	column_defs,
+	sym_node_t*	compact,
+	sym_node_t*	block_size,
 	void*		not_fit_in_memory);
-					/*!< in: a non-NULL pointer means that
-					this is a table which in simulations
-					should be simulated as not fitting
-					in memory; thread is put to sleep
-					to simulate disk accesses; NOTE that
-					this flag is not stored to the data
-					dictionary on disk, and the database
-					will forget about non-NULL value if
-					it has to reload the table definition
-					from disk */
+
 /*********************************************************************//**
 Parses an index creation operation.
 @return index create subgraph */
@@ -409,23 +386,13 @@ pars_procedure_definition(
 	sym_node_t*	param_list,	/*!< in: parameter declaration list */
 	que_node_t*	stat_list);	/*!< in: statement list */
 
-/*************************************************************//**
-Parses a stored procedure call, when this is not within another stored
-procedure, that is, the client issues a procedure call directly.
-In MySQL/InnoDB, stored InnoDB procedures are invoked via the
-parsed procedure tree, not via InnoDB SQL, so this function is not used.
-@return query graph */
-que_fork_t*
-pars_stored_procedure_call(
-/*=======================*/
-	sym_node_t*	sym_node);	/*!< in: stored procedure name */
 /** Completes a query graph by adding query thread and fork nodes
 above it and prepares the graph for running. The fork created is of
 type QUE_FORK_MYSQL_INTERFACE.
 @param[in]	node		root node for an incomplete query
 				graph, or NULL for dummy graph
 @param[in]	trx		transaction handle
-@param[in]	heap		memory heap from which allocated
+@param[in]	heap		memory heap which allocated
 @param[in]	prebuilt	row prebuilt structure
 @return query thread node to run */
 que_thr_t*
@@ -434,7 +401,7 @@ pars_complete_graph_for_exec(
 	trx_t*		trx,
 	mem_heap_t*	heap,
 	row_prebuilt_t*	prebuilt)
-	MY_ATTRIBUTE((nonnull(2,3), warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 
 /****************************************************************//**
 Create parser info struct.
@@ -494,30 +461,35 @@ pars_info_bind_varchar_literal(
 	const char*	name,		/*!< in: name */
 	const byte*	str,		/*!< in: string */
 	ulint		str_len);	/*!< in: string length */
-/****************************************************************//**
-Equivalent to:
+
+/** Equivalent to:
 
 char buf[4];
 mach_write_to_4(buf, val);
 pars_info_add_literal(info, name, buf, 4, DATA_INT, 0);
 
 except that the buffer is dynamically allocated from the info struct's
-heap. */
+heap.
+@param[in]	info	info struct
+@param[in]	name	name
+@param[in]	val	value */
 void
 pars_info_bind_int4_literal(
-/*=======================*/
-	pars_info_t*		info,		/*!< in: info struct */
-	const char*		name,		/*!< in: name */
-	const ib_uint32_t*	val);		/*!< in: value */
-/********************************************************************
-If the literal value already exists then it rebinds otherwise it
-creates a new entry. */
+	pars_info_t*		info,
+	const char*		name,
+	const ib_uint32_t*	val);
+
+/** If the literal value already exists then it rebinds otherwise it
+creates a new entry.
+@param[in]	info	info struct
+@param[in]	name	name
+@param[in]	val	value */
 void
 pars_info_bind_int8_literal(
-/*=======================*/
-	pars_info_t*		info,		/*!< in: info struct */
-	const char*		name,		/*!< in: name */
-	const ib_uint64_t*	val);		/*!< in: value */
+	pars_info_t*		info,
+	const char*		name,
+	const ib_uint64_t*	val);
+
 /****************************************************************//**
 Add user function. */
 void
@@ -527,15 +499,19 @@ pars_info_bind_function(
 	const char*		name,	/*!< in: function name */
 	pars_user_func_cb_t	func,	/*!< in: function address */
 	void*			arg);	/*!< in: user-supplied argument */
-/****************************************************************//**
-Add bound id. */
+
+/** Add bound id.
+@param[in]	info		info struct
+@param[in]	copy_name	copy name if TRUE
+@param[in]	name		name
+@param[in]	id		id */
 void
 pars_info_bind_id(
-/*=============*/
-	pars_info_t*		info,	/*!< in: info struct */
-	ibool			copy_name,/* in: make a copy of name if TRUE */
-	const char*		name,	/*!< in: name */
-	const char*		id);	/*!< in: id */
+	pars_info_t*		info,
+	ibool			copy_name,
+	const char*		name,
+	const char*		id);
+
 /****************************************************************//**
 Equivalent to:
 
@@ -576,17 +552,17 @@ pars_info_bind_ull_literal(
 /*=======================*/
 	pars_info_t*		info,	/*!< in: info struct */
 	const char*		name,	/*!< in: name */
-	const ib_uint64_t*	val)	/*!< in: value */
-	MY_ATTRIBUTE((nonnull));
+	const ib_uint64_t*	val);	/*!< in: value */
 
-/****************************************************************//**
-Add bound id. */
+/** Add bound id.
+@param[in]	info	info struct
+@param[in]	name	name
+@param[in]	id	id */
 void
 pars_info_add_id(
-/*=============*/
-	pars_info_t*	info,		/*!< in: info struct */
-	const char*	name,		/*!< in: name */
-	const char*	id);		/*!< in: id */
+	pars_info_t*	info,
+	const char*	name,
+	const char*	id);
 
 /****************************************************************//**
 Get bound literal with the given name.
@@ -597,14 +573,14 @@ pars_info_get_bound_lit(
 	pars_info_t*		info,	/*!< in: info struct */
 	const char*		name);	/*!< in: bound literal name to find */
 
-/****************************************************************//**
-Get bound id with the given name.
+/** Get bound id with the given name.
+@param[in]	info	info struct
+@param[in]	name	bound id name to find
 @return bound id, or NULL if not found */
 pars_bound_id_t*
 pars_info_get_bound_id(
-/*===================*/
-	pars_info_t*		info,	/*!< in: info struct */
-	const char*		name);	/*!< in: bound id name to find */
+	pars_info_t*		info,
+	const char*		name);
 
 /******************************************************************//**
 Release any resources used by the lexer. */
@@ -764,8 +740,6 @@ struct col_assign_node_t{
 					e.g., := */
 /* @} */
 
-#ifndef UNIV_NONINL
 #include "pars0pars.ic"
-#endif
 
 #endif

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -18,11 +18,12 @@
 #ifndef ABSTRACT_DUMP_TASK_INCLUDED
 #define ABSTRACT_DUMP_TASK_INCLUDED
 
+#include <functional>
+#include <vector>
+
 #include "abstract_simple_dump_task.h"
 #include "abstract_data_object.h"
-#include "i_callable.h"
 #include "base/mutex.h"
-#include <vector>
 
 namespace Mysql{
 namespace Tools{
@@ -55,7 +56,7 @@ public:
     Registers callback to be called once this task is able to be executed.
    */
   void register_execution_availability_callback(
-    Mysql::I_callable<void, const Abstract_dump_task*>* availability_callback);
+    std::function<void(const Abstract_dump_task*)>* availability_callback);
 
 private:
   void check_execution_availability();
@@ -63,7 +64,7 @@ private:
   Abstract_data_object* m_related_object;
   std::vector<const Abstract_dump_task*> m_dependencies;
   std::vector<Abstract_dump_task*> m_dependents;
-  std::vector<Mysql::I_callable<void, const Abstract_dump_task*>*>
+  std::vector<std::function<void(const Abstract_dump_task*)>*>
     m_availability_callbacks;
   my_boost::mutex m_task_mutex;
 };

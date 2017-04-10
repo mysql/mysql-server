@@ -2,9 +2,6 @@
 # Test how columns privileges can be used on performance schema tables,
 # for very fine control.
 
---source include/not_embedded.inc
---source include/have_perfschema.inc
-
 show grants;
 
 set @orig_sql_mode= @@sql_mode;

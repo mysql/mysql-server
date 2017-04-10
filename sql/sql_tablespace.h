@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,14 +16,14 @@
 #ifndef SQL_TABLESPACE_INCLUDED
 #define SQL_TABLESPACE_INCLUDED
 
-#include "table.h"                              // enum_ident_name_check
-
+enum class Ident_name_check;
 class THD;
 class st_alter_tablespace;
+struct handlerton;
 
 
 /**
-  Check if tablespace name is valid
+  Check if tablespace name has valid length.
 
   @param tablespace_name        Name of the tablespace
 
@@ -31,21 +31,34 @@ class st_alter_tablespace;
         character case conversion or consideration is not relevant.
 
   @note Checking for path characters or ending space is not done.
-        The only checks are for identifier length, both in terms of
+        The checks are for identifier length, both in terms of
         number of characters and number of bytes.
 
-  @retval  IDENT_NAME_OK        Identifier name is ok (Success)
-  @retval  IDENT_NAME_WRONG     Identifier name is wrong, if length == 0
-                                (ER_WRONG_TABLESPACE_NAME)
-  @retval  IDENT_NAME_TOO_LONG  Identifier name is too long if it is greater
-                                than 64 characters (ER_TOO_LONG_IDENT)
-
-  @note In case of IDENT_NAME_TOO_LONG or IDENT_NAME_WRONG, the function
-        reports an error (using my_error()).
+  @retval  false   No error encountered while checking length.
+  @retval  true    Error encountered and reported.
 */
 
-enum_ident_name_check check_tablespace_name(const char *tablespace_name);
+bool validate_tablespace_name_length(const char *tablespace_name);
 
-int mysql_alter_tablespace(THD* thd, st_alter_tablespace *ts_info);
+
+/**
+  Check if a tablespace name is valid.
+
+  SE specific validation is done by the SE by invoking a handlerton method.
+
+  @param tablespace_ddl         Whether this is tablespace DDL or not.
+  @param tablespace_name        Name of the tablespace
+  @param engine                 Handlerton for the tablespace.
+
+  @retval  false   No error encountered while checking the name.
+  @retval  true    Error encountered and reported.
+*/
+
+bool validate_tablespace_name(bool tablespace_ddl,
+                              const char *tablespace_name,
+                              const handlerton *engine);
+
+
+bool mysql_alter_tablespace(THD* thd, st_alter_tablespace *ts_info);
 
 #endif /* SQL_TABLESPACE_INCLUDED */

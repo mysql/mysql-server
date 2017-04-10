@@ -3,6 +3,8 @@
 --source include/big_test.inc
 # Valgrind will make the test Timeout so skip it if only in --valgrind mode
 --source include/not_valgrind.inc
+# Times out with ubsan
+--source include/not_ubsan.inc
 
 #from heap to ondisk
 set @old_heap_size= @@max_heap_table_size;

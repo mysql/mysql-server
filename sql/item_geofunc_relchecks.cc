@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,17 +14,44 @@
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 
-/**
-  @file
+#include <boost/concept/usage.hpp>
+#include <boost/geometry/algorithms/equals.hpp>
+#include <boost/geometry/algorithms/overlaps.hpp>
+#include <boost/geometry/geometries/box.hpp>
+#include <boost/geometry/index/rtree.hpp>
+#include <boost/iterator/iterator_facade.hpp>
+#include <stddef.h>
+#include <set>
+#include <utility>
+#include <vector>
 
-  @brief
-  This file defines implementations of GIS relation check functions.
-*/
-#include "my_config.h"
+#include "current_thd.h"
+#include "derror.h"                            // ER_THD
+#include "item.h"
+#include "item_cmpfunc.h"
+#include "item_func.h"
+#include "item_geofunc.h"
 #include "item_geofunc_internal.h"
 #include "item_geofunc_relchecks_bgwrap.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_sys.h"
+#include "mysqld_error.h"
+#include "parse_tree_node_base.h"
+#include "spatial.h"
+#include "sql_error.h"
+#include "sql_string.h"
 
-#include <set>
+namespace boost {
+namespace geometry {
+namespace cs {
+struct cartesian;
+}  // namespace cs
+}  // namespace geometry
+}  // namespace boost
+namespace dd {
+class Spatial_reference_system;
+}  // namespace dd
 
 /*
   Functions for spatial relations
@@ -90,6 +117,23 @@ longlong Item_func_spatial_mbr_rel::val_int()
     return 0;
   }
 
+  if (g1->get_srid() != 0)
+  {
+    bool srs_exists= false;
+    if (Srs_fetcher::srs_exists(current_thd, g1->get_srid(), &srs_exists))
+      return error_int(); // Error has already been flagged.
+
+    if (!srs_exists)
+    {
+      push_warning_printf(current_thd,
+                          Sql_condition::SL_WARNING,
+                          ER_WARN_SRS_NOT_FOUND,
+                          ER_THD(current_thd, ER_WARN_SRS_NOT_FOUND),
+                          g1->get_srid(),
+                          func_name());
+    }
+  }
+
   int ret= 0;
 
   switch (spatial_rel) {
@@ -139,56 +183,19 @@ longlong Item_func_spatial_mbr_rel::val_int()
 }
 
 
-Item_func_spatial_rel::Item_func_spatial_rel(const POS &pos, Item *a,Item *b,
-                                             enum Functype sp_rel) :
-    Item_bool_func2(pos, a,b)
-{
-  spatial_rel= sp_rel;
-}
-
-
-Item_func_spatial_rel::~Item_func_spatial_rel()
-{
-}
-
-
-const char *Item_func_spatial_rel::func_name() const
-{
-  switch (spatial_rel) {
-    case SP_CONTAINS_FUNC:
-      return "st_contains";
-    case SP_WITHIN_FUNC:
-      return "st_within";
-    case SP_EQUALS_FUNC:
-      return "st_equals";
-    case SP_DISJOINT_FUNC:
-      return "st_disjoint";
-    case SP_INTERSECTS_FUNC:
-      return "st_intersects";
-    case SP_TOUCHES_FUNC:
-      return "st_touches";
-    case SP_CROSSES_FUNC:
-      return "st_crosses";
-    case SP_OVERLAPS_FUNC:
-      return "st_overlaps";
-    default:
-      DBUG_ASSERT(0);  // Should never happened
-      return "sp_unknown";
-  }
-}
-
-
 longlong Item_func_spatial_rel::val_int()
 {
   DBUG_ENTER("Item_func_spatial_rel::val_int");
   DBUG_ASSERT(fixed == 1);
+  String tmp_value1;
+  String tmp_value2;
   String *res1= NULL;
   String *res2= NULL;
   Geometry_buffer buffer1, buffer2;
   Geometry *g1= NULL, *g2= NULL;
   int tres= 0;
   bool had_except= false;
-  my_bool had_error= false;
+  bool had_error= false;
   String wkt1, wkt2;
 
   res1= args[0]->val_str(&tmp_value1);
@@ -213,6 +220,23 @@ longlong Item_func_spatial_rel::val_int()
     goto exit;
   }
 
+  if (g1->get_srid() != 0)
+  {
+    bool srs_exists= false;
+    if (Srs_fetcher::srs_exists(current_thd, g1->get_srid(), &srs_exists))
+      DBUG_RETURN(error_int()); // Error has already been flagged.
+
+    if (!srs_exists)
+    {
+      push_warning_printf(current_thd,
+                          Sql_condition::SL_WARNING,
+                          ER_WARN_SRS_NOT_FOUND,
+                          ER_THD(current_thd, ER_WARN_SRS_NOT_FOUND),
+                          g1->get_srid(),
+                          func_name());
+    }
+  }
+
   /*
     Catch all exceptions to make sure no exception can be thrown out of
     current function. Put all and any code that calls Boost.Geometry functions,
@@ -225,8 +249,7 @@ longlong Item_func_spatial_rel::val_int()
         g2->get_type() != Geometry::wkb_geometrycollection)
     {
       // Must use double, otherwise may lose valid result, not only precision.
-      tres= bg_geo_relation_check<bgcs::cartesian>
-        (g1, g2, spatial_rel, &had_error);
+      tres= bg_geo_relation_check(g1, g2, functype(), &had_error);
     }
     else
       tres= geocol_relation_check<bgcs::cartesian>(g1, g2);
@@ -267,6 +290,7 @@ int Item_func_spatial_rel::geocol_relation_check(Geometry *g1, Geometry *g2)
   bool empty1= is_empty_geocollection(g1);
   bool empty2= is_empty_geocollection(g2);
   Var_resetter<enum Functype> resetter;
+  enum Functype spatial_rel= functype();
 
   /*
     An empty geometry collection is an empty point set, according to OGC
@@ -318,8 +342,8 @@ int Item_func_spatial_rel::geocol_relation_check(Geometry *g1, Geometry *g2)
   }
   else if (gv1->size() == 1 && gv2->size() == 1)
   {
-    tres= bg_geo_relation_check<Coordsys>
-      (*(gv1->begin()), *(gv2->begin()), spatial_rel, &null_value);
+    tres= bg_geo_relation_check(*(gv1->begin()), *(gv2->begin()), spatial_rel,
+                                &null_value);
     return tres;
   }
 
@@ -334,9 +358,9 @@ int Item_func_spatial_rel::geocol_relation_check(Geometry *g1, Geometry *g2)
   }
 
   if (spatial_rel == SP_DISJOINT_FUNC || spatial_rel == SP_INTERSECTS_FUNC)
-    tres= geocol_relcheck_intersect_disjoint<Coordsys>(gv1, gv2);
+    tres= geocol_relcheck_intersect_disjoint(gv1, gv2);
   else if (spatial_rel == SP_WITHIN_FUNC)
-    tres= geocol_relcheck_within<Coordsys>(gv1, gv2);
+    tres= geocol_relcheck_within<Coordsys>(gv1, gv2, spatial_rel);
   else if (spatial_rel == SP_EQUALS_FUNC)
     tres= geocol_equals_check<Coordsys>(gv1, gv2);
   else
@@ -358,25 +382,22 @@ int Item_func_spatial_rel::geocol_relation_check(Geometry *g1, Geometry *g2)
 /**
   Geometry collection relation checks for disjoint and intersects operations.
 
-  @tparam Coordsys Coordinate system type, specified using those defined in
-          boost::geometry::cs.
-  @param g1 the 1st geometry collection parameter.
-  @param g2 the 2nd geometry collection parameter.
-  @return whether g1 and g2 satisfy the specified relation, 0 for negative,
+  @param gv1 the 1st geometry collection parameter.
+  @param gv2 the 2nd geometry collection parameter.
+  @return whether @p gv1 and @p gv2 satisfy the specified relation, 0 for negative,
                 none 0 for positive.
  */
-template<typename Coordsys>
 int Item_func_spatial_rel::
-geocol_relcheck_intersect_disjoint(const typename BG_geometry_collection::
+geocol_relcheck_intersect_disjoint(const BG_geometry_collection::
                                    Geometry_list *gv1,
-                                   const typename BG_geometry_collection::
+                                   const BG_geometry_collection::
                                    Geometry_list *gv2)
 {
   int tres= 0;
 
-  DBUG_ASSERT(spatial_rel == SP_DISJOINT_FUNC ||
-              spatial_rel == SP_INTERSECTS_FUNC);
-  const typename BG_geometry_collection::Geometry_list *gv= NULL, *gvr= NULL;
+  DBUG_ASSERT(functype() == SP_DISJOINT_FUNC ||
+              functype() == SP_INTERSECTS_FUNC);
+  const BG_geometry_collection::Geometry_list *gv= NULL, *gvr= NULL;
 
   if (gv1->size() > gv2->size())
   {
@@ -405,12 +426,12 @@ geocol_relcheck_intersect_disjoint(const typename BG_geometry_collection::
          j != rtree.qend(); ++j)
     {
       bool had_except= false;
-      my_bool had_error= false;
+      bool had_error= false;
 
       try
       {
-        tres= bg_geo_relation_check<Coordsys>
-          (*i, (*gvr)[j->second], spatial_rel, &had_error);
+        tres= bg_geo_relation_check(*i, (*gvr)[j->second], functype(),
+                                    &had_error);
       }
       catch (...)
       {
@@ -429,8 +450,8 @@ geocol_relcheck_intersect_disjoint(const typename BG_geometry_collection::
         geometry collections intersect or don't disjoint, in both cases the
         check is completed.
        */
-      if ((spatial_rel == SP_INTERSECTS_FUNC && tres) ||
-          (spatial_rel == SP_DISJOINT_FUNC && !tres))
+      if ((functype() == SP_INTERSECTS_FUNC && tres) ||
+          (functype() == SP_DISJOINT_FUNC && !tres))
         return tres;
     }
   }
@@ -449,8 +470,8 @@ geocol_relcheck_intersect_disjoint(const typename BG_geometry_collection::
     tres can be either true or false for DISJOINT check because the inner
     loop may never executed and tres woule be false.
    */
-  DBUG_ASSERT(spatial_rel == SP_DISJOINT_FUNC ||
-              (!tres && spatial_rel == SP_INTERSECTS_FUNC));
+  DBUG_ASSERT(functype() == SP_DISJOINT_FUNC ||
+              (!tres && functype() == SP_INTERSECTS_FUNC));
   return tres;
 }
 
@@ -476,7 +497,7 @@ multipoint_within_geometry_collection(Gis_multi_point *pmpts,
 {
   int has_inner= 0;
   int tres= 0;
-  my_bool had_error= false;
+  bool had_error= false;
 
   Rtree_index &rtree= *((Rtree_index *)prtree);
 
@@ -509,8 +530,8 @@ multipoint_within_geometry_collection(Gis_multi_point *pmpts,
       */
       if (!has_inner)
       {
-        tres= bg_geo_relation_check<Coordsys>
-          (&(*k), (*gv2)[j->second], SP_WITHIN_FUNC, &had_error);
+        tres= bg_geo_relation_check(&(*k), (*gv2)[j->second], SP_WITHIN_FUNC,
+                                    &had_error);
         if (had_error || null_value)
           return error_int();
         if ((has_inner= tres))
@@ -526,8 +547,8 @@ multipoint_within_geometry_collection(Gis_multi_point *pmpts,
         *k has to intersect one of the components in this loop, otherwise *k
         is out of gv2.
        */
-      tres= bg_geo_relation_check<Coordsys>
-        (&(*k), (*gv2)[j->second], SP_INTERSECTS_FUNC, &had_error);
+      tres= bg_geo_relation_check(&(*k), (*gv2)[j->second], SP_INTERSECTS_FUNC,
+                                  &had_error);
       if (had_error || null_value)
         return error_int();
 
@@ -565,9 +586,10 @@ multipoint_within_geometry_collection(Gis_multi_point *pmpts,
 
   @tparam Coordsys Coordinate system type, specified using those defined in
           boost::geometry::cs.
-  @param g1 the 1st geometry collection parameter.
-  @param g2 the 2nd geometry collection parameter.
-  @return whether g1 and g2 satisfy the specified relation, 0 for negative,
+  @param gv1 the 1st geometry collection parameter.
+  @param gv2 the 2nd geometry collection parameter.
+  @param spatial_rel The spatial relational operator to test (within or equals).
+  @return whether @p gv1 and @p gv2 satisfy the specified relation, 0 for negative,
                 none 0 for positive.
  */
 template<typename Coordsys>
@@ -575,7 +597,8 @@ int Item_func_spatial_rel::
 geocol_relcheck_within(const typename BG_geometry_collection::
                        Geometry_list *gv1,
                        const typename BG_geometry_collection::
-                       Geometry_list *gv2)
+                       Geometry_list *gv2,
+                       enum Functype spatial_rel)
 {
   int tres= 0;
 
@@ -678,12 +701,12 @@ geocol_relcheck_within(const typename BG_geometry_collection::
          j != rtree.qend(); ++j)
     {
       bool had_except= false;
-      my_bool had_error= false;
+      bool had_error= false;
 
       try
       {
-        tres= bg_geo_relation_check<Coordsys>
-          (*i, (*gv2)[j->second], SP_WITHIN_FUNC, &had_error);
+        tres= bg_geo_relation_check(*i, (*gv2)[j->second], SP_WITHIN_FUNC,
+                                    &had_error);
       }
       catch (...)
       {
@@ -734,9 +757,9 @@ geocol_relcheck_within(const typename BG_geometry_collection::
   Geometry collection equality check.
   @tparam Coordsys Coordinate system type, specified using those defined in
           boost::geometry::cs.
-  @param g1 the 1st geometry collection parameter.
-  @param g2 the 2nd geometry collection parameter.
-  @return whether g1 and g2 satisfy the specified relation, 0 for negative,
+  @param gv1 the 1st geometry collection parameter.
+  @param gv2 the 2nd geometry collection parameter.
+  @return whether @p gv1 and @p gv2 satisfy the specified relation, 0 for negative,
                 none 0 for positive.
  */
 template<typename Coordsys>
@@ -745,11 +768,11 @@ geocol_equals_check(const typename BG_geometry_collection::Geometry_list *gv1,
                     const typename BG_geometry_collection::Geometry_list *gv2)
 {
   int tres= 0, num_try= 0;
-  DBUG_ASSERT(spatial_rel == SP_EQUALS_FUNC);
+  DBUG_ASSERT(functype() == SP_EQUALS_FUNC);
 
   do
   {
-    tres= geocol_relcheck_within<Coordsys>(gv1, gv2);
+    tres= geocol_relcheck_within<Coordsys>(gv1, gv2, functype());
     if (!tres || null_value)
       return tres;
     /*
@@ -778,7 +801,7 @@ geocol_equals_check(const typename BG_geometry_collection::Geometry_list *gv1,
 */
 template<typename Geom_types>
 int Item_func_spatial_rel::within_check(Geometry *g1, Geometry *g2,
-                                        my_bool *pnull_value)
+                                        bool *pnull_value)
 {
   Geometry::wkbType gt1;
   int result= 0;
@@ -822,7 +845,7 @@ int Item_func_spatial_rel::within_check(Geometry *g1, Geometry *g2,
 */
 template<typename Geom_types>
 int Item_func_spatial_rel::equals_check(Geometry *g1, Geometry *g2,
-                                        my_bool *pnull_value)
+                                        bool *pnull_value)
 {
   typedef typename Geom_types::Point Point;
   typedef typename Geom_types::Linestring Linestring;
@@ -906,7 +929,7 @@ int Item_func_spatial_rel::equals_check(Geometry *g1, Geometry *g2,
 */
 template<typename Geom_types>
 int Item_func_spatial_rel::disjoint_check(Geometry *g1, Geometry *g2,
-                                          my_bool *pnull_value)
+                                          bool *pnull_value)
 {
   Geometry::wkbType gt1;
   int result= 0;
@@ -965,7 +988,7 @@ int Item_func_spatial_rel::disjoint_check(Geometry *g1, Geometry *g2,
 */
 template<typename Geom_types>
 int Item_func_spatial_rel::intersects_check(Geometry *g1, Geometry *g2,
-                                            my_bool *pnull_value)
+                                            bool *pnull_value)
 {
   Geometry::wkbType gt1;
   int result= 0;
@@ -1027,7 +1050,7 @@ int Item_func_spatial_rel::intersects_check(Geometry *g1, Geometry *g2,
 */
 template<typename Geom_types>
 int Item_func_spatial_rel::overlaps_check(Geometry *g1, Geometry *g2,
-                                          my_bool *pnull_value)
+                                          bool *pnull_value)
 {
   typedef typename Geom_types::Point Point;
   typedef typename Geom_types::Multipoint Multipoint;
@@ -1057,7 +1080,7 @@ int Item_func_spatial_rel::overlaps_check(Geometry *g1, Geometry *g2,
   if (gt1 == Geometry::wkb_multipoint && gt2 == Geometry::wkb_multipoint)
   {
     result= BG_wrap<Geom_types>::
-      multipoint_overlaps_multipoint(g1, g2, pnull_value);
+      multipoint_overlaps_multipoint(g1, g2);
     return result;
   }
 
@@ -1150,7 +1173,7 @@ int Item_func_spatial_rel::overlaps_check(Geometry *g1, Geometry *g2,
 */
 template<typename Geom_types>
 int Item_func_spatial_rel::touches_check(Geometry *g1, Geometry *g2,
-                                         my_bool *pnull_value)
+                                         bool *pnull_value)
 {
   typedef typename Geom_types::Linestring Linestring;
   typedef typename Geom_types::Multilinestring Multilinestring;
@@ -1221,7 +1244,7 @@ int Item_func_spatial_rel::touches_check(Geometry *g1, Geometry *g2,
 */
 template<typename Geom_types>
 int Item_func_spatial_rel::crosses_check(Geometry *g1, Geometry *g2,
-                                         my_bool *pnull_value)
+                                         bool *pnull_value)
 {
   int result= 0;
   Geometry::wkbType gt1= g1->get_type();
@@ -1272,8 +1295,6 @@ int Item_func_spatial_rel::crosses_check(Geometry *g1, Geometry *g2,
   Item_func_spatial_rel object --- we do so to implement a few functionality
   for other classes in this file, e.g. Item_func_spatial_operation::val_str.
 
-  @tparam Coordsys Coordinate system type, specified using those defined in
-          boost::geometry::cs.
   @param g1 First Geometry operand, not a geometry collection.
   @param g2 Second Geometry operand, not a geometry collection.
   @param relchk_type The type of relation check.
@@ -1281,14 +1302,13 @@ int Item_func_spatial_rel::crosses_check(Geometry *g1, Geometry *g2,
   @return 0 if specified relation doesn't hold for the given operands,
                 otherwise returns none 0.
  */
-template<typename Coordsys>
 int Item_func_spatial_rel::bg_geo_relation_check(Geometry *g1, Geometry *g2,
                                                  Functype relchk_type,
-                                                 my_bool *pnull_value)
+                                                 bool *pnull_value)
 {
   int result= 0;
 
-  typedef BG_models<Coordsys> Geom_types;
+  typedef BG_models<boost::geometry::cs::cartesian> Geom_types;
 
   /*
     Dispatch calls to all specific type combinations for each relation check

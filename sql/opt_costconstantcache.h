@@ -2,7 +2,7 @@
 #define OPT_COSTCONSTANTCACHE_INCLUDED
 
 /*
-   Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,9 +17,12 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "my_global.h"
+#include <stddef.h>
 
-class Cost_model_constants;
+#include "my_dbug.h"
+#include "mysql/psi/mysql_mutex.h"
+#include "opt_costconstants.h"           // Cost_model_constants
+
 
 /**
   This class implements a cache for "cost constant sets". This cache
@@ -40,7 +43,7 @@ class Cost_model_constants;
   be deleted, reference counting is used. Each time a session asks for
   the cost constants, the reference counter is incremented. When the
   session releases the cost constant set by calling
-  ::release_cost_constants(), the reference counter will be
+  @c release_cost_constants(), the reference counter will be
   decremented. When the reference counter becomes zero, the cost
   constant set is deleted.
 */
@@ -50,14 +53,14 @@ class Cost_constant_cache
 public:
   /**
     Creates an empty cost constant cache. To initialize it with default
-    cost constants, ::init() must be called. To use cost constants from
-    the cost constant tables, ::reload() must be called.
+    cost constants, @c init() must be called. To use cost constants from
+    the cost constant tables, @c reload() must be called.
   */
   Cost_constant_cache();
 
   /**
     Destructor for the cost constant cache. Before the cost constant cache
-    is deleted, ::close() must have been called.
+    is deleted, @c close() must have been called.
   */
   ~Cost_constant_cache();
 
@@ -66,7 +69,7 @@ public:
 
     The cost constants will be initialized with the default values found in
     the source code. To start using the cost constant values found in
-    the configuration tables, the ::reload() function must be called.
+    the configuration tables, the @c reload() function must be called.
   */
 
   void init();
@@ -94,7 +97,7 @@ public:
     object, reference counting is used. This function will increase the
     ref count for the returned cost constant object. To decrease the reference
     counter when the cost constants are no longer used,
-    release_cost_constants() must be called.
+    @c release_cost_constants() must be called.
 
     @note To ensure that the reference counter is only incremented once for
     each session that uses the cost constant set, this function should only
@@ -122,7 +125,7 @@ public:
     if nobody is using it, it will be deleted. This function should be
     called each time a client (a session) no longer has any use for a
     cost constant set that it has previously gotten from calling
-    ::get_cost_constants()
+    @c get_cost_constants()
 
     @param cost_constants pointer to the cost constant set
   */

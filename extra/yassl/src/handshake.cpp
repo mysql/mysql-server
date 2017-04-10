@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -272,7 +272,8 @@ void decrypt_message(SSL& ssl, input_buffer& input, uint sz)
 // output operator for input_buffer
 output_buffer& operator<<(output_buffer& output, const input_buffer& input)
 {
-    output.write(input.get_buffer(), input.get_size());
+    if (input.get_size() > 0)
+        output.write(input.get_buffer(), input.get_size());
     return output;
 }
 

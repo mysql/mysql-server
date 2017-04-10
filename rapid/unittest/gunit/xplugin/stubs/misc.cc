@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,9 +13,14 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
-#include "my_global.h"
-#include "xpl_performance_schema.h"
+#include "my_config.h"
+
+#include <sys/types.h>
+
+#include "my_dbug.h"
+#include "my_inttypes.h"
 #include "replication.h"
+#include "xpl_performance_schema.h"
 #ifdef HAVE_ARPA_INET_H
 #include <arpa/inet.h>
 #endif
@@ -25,6 +30,8 @@
 #if !defined(_WIN32)
 #include <sys/utsname.h>
 #endif
+
+typedef struct st_vio Vio;
 
 PSI_thread_key KEY_thread_x_worker = PSI_NOT_INSTRUMENTED;
 PSI_thread_key KEY_thread_x_acceptor = PSI_NOT_INSTRUMENTED;
@@ -50,7 +57,7 @@ PSI_socket_key KEY_socket_x_unix = PSI_NOT_INSTRUMENTED;
 PSI_socket_key KEY_socket_x_client_connection = PSI_NOT_INSTRUMENTED;
 
 const char  *my_localhost;
-bool volatile abort_loop;
+int32 volatile connection_events_loop_aborted_flag;;
 
 int ip_to_hostname(struct sockaddr_storage *ip_storage,
                 const char *ip_string,

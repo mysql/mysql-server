@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -73,15 +73,39 @@
   we are forced to use mysql_lock_merge.
 */
 
-#include "debug_sync.h"
 #include "lock.h"
-#include "sql_base.h"                       // close_tables_for_reopen
-#include "sql_parse.h"                     // is_log_table_write_query
+
+#include <fcntl.h>
+#include <string.h>
+#include <algorithm>
+#include <atomic>
+
 #include "auth_common.h"                   // SUPER_ACL
+#include "debug_sync.h"
+#include "handler.h"
+#include "lex_string.h"
+#include "m_ctype.h"
+#include "m_string.h"
+#include "my_base.h"
+#include "my_dbug.h"
+#include "my_sqlcommand.h"
+#include "my_sys.h"
+#include "mysql/service_mysql_alloc.h"
+#include "mysql_com.h"
+#include "mysqld.h"                        // opt_readonly
+#include "mysqld_error.h"
+#include "psi_memory_key.h"
 #include "session_tracker.h"
-#include <hash.h>
-#include <assert.h>
-#include "my_atomic.h"
+#include "sql_base.h"                       // MYSQL_LOCK_LOG_TABLE
+#include "sql_class.h"
+#include "sql_const.h"
+#include "sql_error.h"
+#include "sql_lex.h"
+#include "sql_parse.h"                     // is_log_table_write_query
+#include "system_variables.h"
+#include "table.h"
+#include "thr_lock.h"
+
 /**
   @defgroup Locking Locking
   @{
@@ -212,7 +236,7 @@ lock_tables_check(THD *thd, TABLE **tables, size_t count, uint flags)
 /**
   Reset lock type in lock data
 
-  @param mysql_lock Lock structures to reset.
+  @param sql_lock Lock structures to reset.
 
   @note After a locking error we want to quit the locking of the table(s).
         The test case in the bug report for Bug #18544 has the following
@@ -268,7 +292,7 @@ static void track_table_access(THD *thd, TABLE **tables, size_t count)
 
     if (t)
     {
-      s= tst->calc_trx_state(thd, t->reginfo.lock_type,
+      s= tst->calc_trx_state(t->reginfo.lock_type,
                              t->file->has_transactions());
       tst->add_trx_state(thd, s);
     }
@@ -320,7 +344,9 @@ MYSQL_LOCK *mysql_lock_tables(THD *thd, TABLE **tables, size_t count, uint flags
   if (! (sql_lock= get_lock_data(thd, tables, count, GET_LOCK_STORE_LOCKS)))
     DBUG_RETURN(NULL);
 
-  THD_STAGE_INFO(thd, stage_system_lock);
+  if (!(thd->state_flags & Open_tables_state::SYSTEM_TABLES))
+    THD_STAGE_INFO(thd, stage_system_lock);
+
   DBUG_PRINT("info", ("thd->proc_info %s", thd->proc_info));
   if (sql_lock->table_count && lock_external(thd, sql_lock->table,
                                              sql_lock->table_count))
@@ -447,7 +473,7 @@ void mysql_unlock_read_tables(THD *thd, MYSQL_LOCK *sql_lock)
   {
     if (sql_lock->locks[i]->type > TL_WRITE_ALLOW_WRITE)
     {
-      swap_variables(THR_LOCK_DATA *, *lock, sql_lock->locks[i]);
+      std::swap(*lock, sql_lock->locks[i]);
       lock++;
       found++;
     }
@@ -467,7 +493,7 @@ void mysql_unlock_read_tables(THD *thd, MYSQL_LOCK *sql_lock)
     DBUG_ASSERT(sql_lock->table[i]->lock_position == i);
     if ((uint) sql_lock->table[i]->reginfo.lock_type > TL_WRITE_ALLOW_WRITE)
     {
-      swap_variables(TABLE *, *table, sql_lock->table[i]);
+      std::swap(*table, sql_lock->table[i]);
       table++;
       found++;
     }
@@ -561,23 +587,6 @@ void mysql_lock_remove(THD *thd, MYSQL_LOCK *locked,TABLE *table)
       }
     }
   }
-}
-
-
-/** Abort all other threads waiting to get lock in table. */
-
-void mysql_lock_abort(THD *thd, TABLE *table, bool upgrade_lock)
-{
-  MYSQL_LOCK *locked;
-  DBUG_ENTER("mysql_lock_abort");
-
-  if ((locked= get_lock_data(thd, &table, 1, GET_LOCK_UNLOCK)))
-  {
-    for (uint i=0; i < locked->lock_count; i++)
-      thr_abort_locks(locked->locks[i]->lock, upgrade_lock);
-    my_free(locked);
-  }
-  DBUG_VOID_RETURN;
 }
 
 
@@ -679,9 +688,10 @@ static int unlock_external(THD *thd, TABLE **table,uint count)
 /**
   Get lock structures from table structs and initialize locks.
 
-  @param thd		    Thread handler
-  @param table_ptr	    Pointer to tables that should be locks
-  @param flags		    One of:
+  @param thd                Thread handler
+  @param table_ptr          Pointer to tables that should be locks
+  @param count              Number of tables
+  @param flags              One of:
            - GET_LOCK_UNLOCK      : If we should send TL_IGNORE to store lock
            - GET_LOCK_STORE_LOCKS : Store lock info in TABLE
 */
@@ -879,9 +889,7 @@ bool lock_tablespace_name(THD *thd, const char *tablespace)
 }
 
 // Function generating hash key for Tablespace_hash_set.
-extern "C" uchar *tablespace_set_get_key(const uchar *record,
-                                         size_t *length,
-                                         my_bool not_used MY_ATTRIBUTE((unused)))
+const uchar *tablespace_set_get_key(const uchar *record, size_t *length)
 {
   const char *tblspace_name= reinterpret_cast<const char *>(record);
   *length= strlen(tblspace_name);
@@ -950,6 +958,9 @@ bool lock_tablespace_names(
   other metadata locks already taken by the current connection,
   and we must not wait for MDL locks while holding locks.
 
+  @note name is converted to lowercase before the lock is acquired
+  since stored routine and event names are case insensitive.
+
   @retval FALSE  Success.
   @retval TRUE   Failure: we're in LOCK TABLES mode, or out of memory,
                  or this connection was killed.
@@ -970,6 +981,19 @@ bool lock_object_name(THD *thd, MDL_key::enum_mdl_namespace mdl_type,
   }
 
   DBUG_ASSERT(name);
+  /*
+    Since name is converted to lowercase, check that this function
+    is only used for types which should be treated case insensitively.
+  */
+  DBUG_ASSERT(mdl_type == MDL_key::FUNCTION ||
+              mdl_type == MDL_key::PROCEDURE ||
+              mdl_type == MDL_key::EVENT);
+
+  char lc_name[NAME_LEN + 1];
+  my_stpncpy(lc_name, name, NAME_LEN);
+  my_casedn_str(system_charset_info, lc_name);
+  lc_name[NAME_LEN]= '\0';
+
   DEBUG_SYNC(thd, "before_wait_locked_pname");
 
   if (thd->global_read_lock.can_acquire_protection())
@@ -981,7 +1005,7 @@ bool lock_object_name(THD *thd, MDL_key::enum_mdl_namespace mdl_type,
                    MDL_key::SCHEMA, db, "", MDL_INTENTION_EXCLUSIVE,
                    MDL_TRANSACTION);
   MDL_REQUEST_INIT(&mdl_request,
-                   mdl_type, db, name, MDL_EXCLUSIVE, MDL_TRANSACTION);
+                   mdl_type, db, lc_name, MDL_EXCLUSIVE, MDL_TRANSACTION);
 
   mdl_requests.push_front(&mdl_request);
   mdl_requests.push_front(&schema_request);
@@ -1026,7 +1050,7 @@ static void print_lock_error(int error, const char *table)
   DBUG_VOID_RETURN;
 }
 
-volatile int32 Global_read_lock::m_active_requests;
+std::atomic<int32> Global_read_lock::m_atomic_active_requests;
 
 /****************************************************************************
   Handling of global read locks
@@ -1111,11 +1135,11 @@ bool Global_read_lock::lock_global_read_lock(THD *thd)
 
     /* Increment static variable first to signal innodb memcached server
        to release mdl locks held by it */
-    my_atomic_add32(&Global_read_lock::m_active_requests, 1);
+    Global_read_lock::m_atomic_active_requests++;
     if (thd->mdl_context.acquire_lock(&mdl_request,
                                       thd->variables.lock_wait_timeout))
     {
-      my_atomic_add32(&Global_read_lock::m_active_requests, -1);
+      Global_read_lock::m_atomic_active_requests--;
       DBUG_RETURN(1);
     }
 
@@ -1156,7 +1180,7 @@ void Global_read_lock::unlock_global_read_lock(THD *thd)
     m_mdl_blocks_commits_lock= NULL;
   }
   thd->mdl_context.release_lock(m_mdl_global_shared_lock);
-  my_atomic_add32(&Global_read_lock::m_active_requests, -1);
+  Global_read_lock::m_atomic_active_requests--;
   m_mdl_global_shared_lock= NULL;
   m_state= GRL_NONE;
 

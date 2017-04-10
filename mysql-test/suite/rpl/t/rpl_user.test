@@ -23,8 +23,7 @@ connection master;
 create user 'foo'@'fakehost';
 --error ER_CANNOT_USER
 create user 'foo'@'fakehost', 'bar'@'fakehost';
---error ER_CANNOT_USER
-create user 'foo'@'fakehost', 'bar'@'fakehost';
+create user 'bar'@'fakehost';
 
 # In log event, Plaintext password 'foo1' is replaced by ciphertext.
 create user 'foo1'@'fakehost' IDENTIFIED BY 'foo1', 'foo2'@'fakehost'
@@ -53,6 +52,7 @@ select Host,User from mysql.user where Host='fakehost';
 #
 connection master;
 drop user 'foofoo'@'fakehost';
+drop user 'bar'@'fakehost';
 drop user 'foo1'@'fakehost', 'foo2'@'fakehost', 'foo3'@'fakehost';
 --error ER_CANNOT_USER
 drop user 'not_exist_user1'@'fakehost', 'barbar'@'fakehost';

@@ -1,0 +1,13 @@
+#
+# Bug#22653180:ASSERT DD::CACHE::SHARED_MULTI_MAP<T>::
+# PUT(CONST K*, CONST T*, DD::CACHE::CACHE
+#
+CREATE TABLE t1(i int);
+# Force rename_table to fail after update has been applied to dd cache
+SET SESSION debug="+d,abort_rename_after_update";
+# rename table will fail with dummy error
+RENAME TABLE t1 to t2;
+ERROR HY000: Error writing file 'error inject' (errno: 42 - simulated write error)
+SELECT * FROM t1;
+i
+DROP TABLE t1;

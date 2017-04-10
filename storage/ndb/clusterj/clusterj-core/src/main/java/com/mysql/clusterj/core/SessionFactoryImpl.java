@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -57,6 +57,9 @@ public class SessionFactoryImpl implements SessionFactory, Constants {
     /** My logger */
     static final Logger logger = LoggerFactoryService.getFactory().getInstance(SessionFactoryImpl.class);
 
+    /** My class loader */
+    static final ClassLoader SESSION_FACTORY_IMPL_CLASS_LOADER = SessionFactoryImpl.class.getClassLoader();
+
     /** The properties */
     protected Map<?, ?> props;
 
@@ -110,7 +113,7 @@ public class SessionFactoryImpl implements SessionFactory, Constants {
      */
     protected ClusterConnectionService getClusterConnectionService() {
         return ClusterJHelper.getServiceInstance(ClusterConnectionService.class,
-                    CLUSTER_CONNECTION_SERVICE);
+                    CLUSTER_CONNECTION_SERVICE, SESSION_FACTORY_IMPL_CLASS_LOADER);
     }
 
     /** The smart value handler factory */
@@ -188,16 +191,32 @@ public class SessionFactoryImpl implements SessionFactory, Constants {
         CLUSTER_CONNECTION_SERVICE = getStringProperty(props, PROPERTY_CLUSTER_CONNECTION_SERVICE);
         CLUSTER_BYTE_BUFFER_POOL_SIZES = getByteBufferPoolSizes(props);
         createClusterConnectionPool();
-        // now get a Session and complete a transaction to make sure that the cluster is ready
+        // now get a Session for each connection in the pool and
+        // complete a transaction to make sure that each connection is ready
+        List<Integer> sessionCounts = null;
         try {
-            Session session = getSession(null);
-            session.currentTransaction().begin();
-            session.currentTransaction().commit();
-            session.close();
+            List<Session> sessions = new ArrayList<Session>(pooledConnections.size());
+            for (ClusterConnection connection: pooledConnections) {
+                sessions.add(getSession(null));
+            }
+            sessionCounts = getConnectionPoolSessionCounts();
+            for (Session session: sessions) {
+                session.currentTransaction().begin();
+                session.currentTransaction().commit();
+                session.close();
+            }
         } catch (Exception e) {
             if (e instanceof ClusterJException) {
                 logger.warn(local.message("ERR_Session_Factory_Impl_Failed_To_Complete_Transaction"));
                 throw (ClusterJException)e;
+            }
+        }
+        // verify that the session counts were correct
+        for (Integer count: sessionCounts) {
+            if (count != 1) {
+                throw new ClusterJFatalInternalException(
+                        local.message("ERR_Session_Counts_Wrong_Creating_Factory",
+                        sessionCounts.toString()));
             }
         }
     }
@@ -574,10 +593,10 @@ public class SessionFactoryImpl implements SessionFactory, Constants {
                     if (logger.isDebugEnabled())logger.debug("Removing dictionary entry for table " + tableName
                             + " for class " + cls.getName());
                     dictionary.removeCachedTable(tableName);
+                    for (ClusterConnection clusterConnection: pooledConnections) {
+                        clusterConnection.unloadSchema(tableName);
+                    }
                 }
-            }
-            for (ClusterConnection clusterConnection: pooledConnections) {
-                clusterConnection.unloadSchema(tableName);
             }
             return tableName;
         }

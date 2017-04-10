@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,8 +16,11 @@
 #ifndef MYSQL_BUFFER_H
 #define MYSQL_BUFFER_H
 
-#include "keyring_memory.h"
+#include <stddef.h>
+
 #include "i_serialized_object.h"
+#include "keyring_memory.h"
+#include "my_inttypes.h"
 
 namespace keyring
 {
@@ -39,9 +42,9 @@ public:
       delete[] data;
   }
 
-  inline void free();
-  my_bool get_next_key(IKey **key);
-  my_bool has_next_key();
+  void free();
+  bool get_next_key(IKey **key);
+  bool has_next_key();
   void reserve(size_t memory_size);
 
   uchar *data;

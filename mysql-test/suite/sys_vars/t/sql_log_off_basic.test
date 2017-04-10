@@ -96,7 +96,7 @@ SET @@session.sql_log_off = "Y";
 SET @@session.sql_log_off = TRÜE;
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@session.sql_log_off = ÕN;
---Error ER_WRONG_VALUE_FOR_VAR
+--error ER_PARSE_ERROR
 SET @@session.sql_log_off = OF;
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@session.sql_log_off = ÓFF;
@@ -123,7 +123,7 @@ SELECT @@global.sql_log_off;
 
 --disable_warnings
 SELECT count(VARIABLE_VALUE) 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='sql_log_off';
 --enable_warnings
 
@@ -134,13 +134,13 @@ WHERE VARIABLE_NAME='sql_log_off';
 
 --disable_warnings
 SELECT IF(@@session.sql_log_off, "ON", "OFF") = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+FROM performance_schema.session_variables 
 WHERE VARIABLE_NAME='sql_log_off';
 --enable_warnings
 SELECT @@session.sql_log_off;
 --disable_warnings
 SELECT VARIABLE_VALUE
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+FROM performance_schema.session_variables 
 WHERE VARIABLE_NAME='sql_log_off';
 --enable_warnings
 

@@ -19,6 +19,12 @@ IF(NOT GMOCK_FOUND)
 ENDIF()
 
 INCLUDE_DIRECTORIES(${BOOST_PATCHES_DIR} ${BOOST_INCLUDE_DIR})
+INCLUDE_DIRECTORIES(${SSL_INCLUDE_DIRS})
+
+IF(SSL_DEFINES)
+  ADD_DEFINITIONS(${SSL_DEFINES})
+ENDIF()
+
 
 INCLUDE_DIRECTORIES(
   ${GMOCK_INCLUDE_DIRS}
@@ -36,38 +42,42 @@ SET(TESTS
   file_io
 )
 
+SET(ALL_KEYRING_TESTS)
+FOREACH(test ${TESTS})
+  LIST(APPEND ALL_KEYRING_TESTS ${test}-t.cc)
+ENDFOREACH()
+
+
+SET(SRC_FILES)
+LIST(APPEND SRC_FILES
+  ${CMAKE_SOURCE_DIR}/plugin/keyring/common/keyring_key.cc
+  ${CMAKE_SOURCE_DIR}/plugin/keyring/common/keys_container.cc
+  ${CMAKE_SOURCE_DIR}/plugin/keyring/buffered_file_io.cc
+  ${CMAKE_SOURCE_DIR}/plugin/keyring/buffer.cc
+  ${CMAKE_SOURCE_DIR}/plugin/keyring/hash_to_buffer_serializer.cc
+  ${CMAKE_SOURCE_DIR}/plugin/keyring/digest.cc
+  ${CMAKE_SOURCE_DIR}/plugin/keyring/file_io.cc
+  ${CMAKE_SOURCE_DIR}/plugin/keyring/checker/checker.cc
+  ${CMAKE_SOURCE_DIR}/plugin/keyring/checker/checker_factory.cc
+  ${CMAKE_SOURCE_DIR}/plugin/keyring/checker/checker_ver_1_0.cc
+  ${CMAKE_SOURCE_DIR}/plugin/keyring/checker/checker_ver_2_0.cc
+  ${CMAKE_SOURCE_DIR}/unittest/gunit/keyring/buffered_file_io_10.cc
+  ${CMAKE_SOURCE_DIR}/unittest/gunit/keyring/psi_memory_key.cc
+  )
+
+IF(WIN32)
+  LIST(APPEND SRC_FILES ../../../sql/nt_servc.cc)
+ENDIF()
+ADD_LIBRARY(keyring_test STATIC ${SRC_FILES})
+
 IF (MERGE_UNITTESTS)
-  SET(merge_keyring_file_tests ${CMAKE_CURRENT_BINARY_DIR}/merge_keyring_file_tests-t.cc)
-  SET_SOURCE_FILES_PROPERTIES(merge_keyring_file_tests PROPERTIES GENERATED 1)
+  ADD_EXECUTABLE(merge_keyring_file_tests-t ${ALL_KEYRING_TESTS})
+  TARGET_LINK_LIBRARIES(merge_keyring_file_tests-t keyring_test)
 
-  INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR})
-
-  FILE(WRITE ${merge_keyring_file_tests} "// Merging Keyring_file unit tests\n")
-  FILE(APPEND ${merge_keyring_file_tests} "#include \"my_config.h\"\n")
-  FILE(APPEND ${merge_keyring_file_tests} "#define MERGE_UNITTESTS\n")
-
-  FOREACH(test ${TESTS})
-    FILE(APPEND ${merge_keyring_file_tests} "#include \"${test}-t.cc\"\n")
-  ENDFOREACH()
-
-  SET(SRC_FILES ${merge_keyring_file_tests})
-  LIST(APPEND SRC_FILES
-       ${CMAKE_SOURCE_DIR}/plugin/keyring/common/keyring_key.cc
-       ${CMAKE_SOURCE_DIR}/plugin/keyring/common/keys_container.cc
-       ${CMAKE_SOURCE_DIR}/plugin/keyring/buffered_file_io.cc
-       ${CMAKE_SOURCE_DIR}/plugin/keyring/file_io.cc
-       ${CMAKE_SOURCE_DIR}/plugin/keyring/buffer.cc
-       ${CMAKE_SOURCE_DIR}/plugin/keyring/hash_to_buffer_serializer.cc
-       )
-
-  IF(WIN32)
-    LIST(APPEND SRC_FILES ../../../sql/nt_servc.cc)
-  ENDIF()
-
-  ADD_EXECUTABLE(merge_keyring_file_tests-t ${SRC_FILES})
-
-  TARGET_LINK_LIBRARIES(merge_keyring_file_tests-t gunit_large strings dbug regex mysys sql)
-  TARGET_LINK_LIBRARIES(merge_keyring_file_tests-t sql binlog rpl master slave sql)
+  TARGET_LINK_LIBRARIES(merge_keyring_file_tests-t
+    gunit_large strings dbug regex mysys sql_main sql_gis)
+  TARGET_LINK_LIBRARIES(merge_keyring_file_tests-t
+    sql_main binlog rpl master slave sql_gis sql_main)
 
   IF(WITH_PERFSCHEMA_STORAGE_ENGINE)
     TARGET_LINK_LIBRARIES(merge_keyring_file_tests-t perfschema)
@@ -77,30 +87,29 @@ IF (MERGE_UNITTESTS)
 
   ADD_TEST(merge_keyring_file_tests merge_keyring_file_tests-t)
 
-ELSE()
+ENDIF(MERGE_UNITTESTS)
 
-  FOREACH(test ${TESTS})
-    SET(SRC_FILES ${test}-t.cc
-        ${CMAKE_SOURCE_DIR}/plugin/keyring/common/keyring_key.cc
-        ${CMAKE_SOURCE_DIR}/plugin/keyring/common/keys_container.cc
-        ${CMAKE_SOURCE_DIR}/plugin/keyring/buffered_file_io.cc
-        ${CMAKE_SOURCE_DIR}/plugin/keyring/file_io.cc
-        ${CMAKE_SOURCE_DIR}/plugin/keyring/buffer.cc
-        ${CMAKE_SOURCE_DIR}/plugin/keyring/hash_to_buffer_serializer.cc
-        )
+FOREACH(test ${TESTS})
+  ADD_EXECUTABLE(${test}-t ${test}-t.cc)
+  TARGET_LINK_LIBRARIES(${test}-t keyring_test)
+
+  TARGET_LINK_LIBRARIES(${test}-t
+    gunit_large strings dbug regex mysys sql_main sql_gis)
+  TARGET_LINK_LIBRARIES(${test}-t
+    sql_main binlog rpl master slave sql_main sql_gis)
+
+  IF(WITH_PERFSCHEMA_STORAGE_ENGINE)
+    TARGET_LINK_LIBRARIES(${test}-t perfschema)
+    TARGET_LINK_LIBRARIES(${test}-t perfschema pfs_server_stubs)
+  ENDIF()
+
+  IF(MERGE_UNITTESTS)
+    SET_PROPERTY(TARGET ${test}-t PROPERTY EXCLUDE_FROM_ALL TRUE)
     IF(WIN32)
-      LIST(APPEND SRC_FILES ../../../sql/nt_servc.cc)
+      SET_PROPERTY(TARGET ${test}-t PROPERTY EXCLUDE_FROM_DEFAULT_BUILD TRUE)
     ENDIF()
-    ADD_EXECUTABLE(${test}-t ${SRC_FILES})
-
-    TARGET_LINK_LIBRARIES(${test}-t gunit_large strings dbug regex mysys sql)
-    TARGET_LINK_LIBRARIES(${test}-t sql binlog rpl master slave sql)
-
-    IF(WITH_PERFSCHEMA_STORAGE_ENGINE)
-      TARGET_LINK_LIBRARIES(${test}-t perfschema)
-      TARGET_LINK_LIBRARIES(${test}-t perfschema pfs_server_stubs)
-    ENDIF()
-
+  ELSE()
     ADD_TEST(${test} ${test}-t)
-  ENDFOREACH()
-ENDIF()
+  ENDIF()
+ENDFOREACH()
+

@@ -1,7 +1,12 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
+########################################
+##### WL#7554 Force schema `test` to character set latin1
+##### This test should be migrated to utf8mb4
+--disable_query_log
+let $testdbcs302=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
+alter schema default character set latin1;
+use test;
+--enable_query_log
+########################################
 
 #
 # Test ranges for all types and some other basic tests
@@ -54,6 +59,7 @@ CREATE TABLE t1 (
 # We mask out the Privileges column because it differs with embedded server
 --replace_column 8 #
 show full fields from t1;
+analyze table t1;
 show keys from t1;
 
 CREATE UNIQUE INDEX test on t1 ( auto ) ;
@@ -81,7 +87,7 @@ alter short drop default,
 DROP INDEX utiny,
 DROP INDEX ushort,
 DROP PRIMARY KEY,
-DROP FOREIGN KEY any_name,
+DROP KEY any_name,
 ADD INDEX (auto);
 
 LOCK TABLES t1 WRITE;
@@ -179,3 +185,10 @@ select * from t3;
 drop table t1,t2,t3;
 SET sql_mode = default;
 # End of 4.1 tests
+
+########################################
+##### WL#7554 set schema `test` back to what it was
+--disable_query_log
+--eval alter schema test default character set $testdbcs302;
+--enable_query_log
+########################################

@@ -1,0 +1,27 @@
+# Tests for PERFORMANCE_SCHEMA
+
+#setup
+let $select_column = LOW_COUNT_USED;
+let $table = performance_schema.memory_summary_by_account_by_event_name;
+
+create user foo@localhost;
+grant ALL on *.* to foo@localhost;
+connect(con, localhost, foo,,);
+
+###########################################################################
+# Test index on HOST, USER, EVENT_NAME
+###########################################################################
+
+let $column_count = 3;
+let $col1 = HOST;
+let $col2 = USER;
+let $col3 = EVENT_NAME;
+let $col1_act = "localhost";
+let $col2_act = "foo";
+let $col3_act = "memory/sql/help";
+
+--source ../include/idx_explain_test.inc
+
+# Cleanup
+--connection default
+drop user foo@localhost;

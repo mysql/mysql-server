@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -15,20 +15,24 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "program.h"
-#include "i_connection_provider.h"
-#include "thread_specific_connection_provider.h"
-#include "single_transaction_connection_provider.h"
-#include "simple_id_generator.h"
-#include "i_progress_watcher.h"
-#include "standard_progress_watcher.h"
-#include "i_crawler.h"
-#include "mysql_crawler.h"
+#include <errno.h>
+#include <chrono>
+#include <functional>
+
 #include "i_chain_maker.h"
+#include "i_connection_provider.h"
+#include "i_crawler.h"
+#include "i_progress_watcher.h"
+#include "mysql_crawler.h"
 #include "mysqldump_tool_chain_maker.h"
-#include <boost/chrono.hpp>
+#include "program.h"
+#include "simple_id_generator.h"
+#include "single_transaction_connection_provider.h"
+#include "standard_progress_watcher.h"
+#include "thread_specific_connection_provider.h"
 
 using namespace Mysql::Tools::Dump;
+using std::placeholders::_1;
 
 void Program::close_redirected_stderr()
 {
@@ -75,8 +79,8 @@ void Program::create_options()
 {
   this->create_new_option(&m_error_log_file, "log-error-file",
     "Append warnings and errors to specified file.")
-    ->add_callback(new Mysql::Instance_callback<void, char*, Program>(
-    this, &Program::error_log_file_callback));
+    ->add_callback(new std::function<void(char*)>(
+      std::bind(&Program::error_log_file_callback, this, _1)));
   this->create_new_option(&m_watch_progress, "watch-progress",
     "Shows periodically dump process progress information on error output. "
     "Progress information include both completed and total number of "
@@ -138,10 +142,9 @@ int Program::execute(std::vector<std::string> positional_options)
   I_connection_provider* connection_provider= NULL;
   int num_connections= get_total_connections();
 
-  Mysql::I_callable<bool, const Mysql::Tools::Base::Message_data&>*
-    message_handler= new Mysql::Instance_callback
-    <bool, const Mysql::Tools::Base::Message_data&, Program>(
-    this, &Program::message_handler);
+  std::function<bool(const Mysql::Tools::Base::Message_data&)>*
+    message_handler= new std::function<bool(const Mysql::Tools::Base::Message_data&)>(
+      std::bind(&Program::message_handler, this, _1));
 
   try
   {
@@ -171,8 +174,8 @@ int Program::execute(std::vector<std::string> positional_options)
 
   Simple_id_generator* id_generator= new Simple_id_generator();
 
-  boost::chrono::high_resolution_clock::time_point start_time=
-    boost::chrono::high_resolution_clock::now();
+  std::chrono::high_resolution_clock::time_point start_time=
+    std::chrono::high_resolution_clock::now();
 
   I_progress_watcher* progress_watcher= NULL;
 
@@ -211,9 +214,10 @@ int Program::execute(std::vector<std::string> positional_options)
 
   if (!get_error_code())
   {
-    std::cerr << "Dump completed in " <<
-      boost::chrono::duration_cast<boost::chrono::milliseconds>(
-      boost::chrono::high_resolution_clock::now() - start_time) << std::endl;
+    std::cerr << "Dump completed in "
+      << std::chrono::duration_cast<std::chrono::milliseconds>(
+           std::chrono::high_resolution_clock::now() - start_time).count()
+      << std::endl;
   }
   return get_error_code();
 }

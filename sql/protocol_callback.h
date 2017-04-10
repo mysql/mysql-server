@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -23,8 +23,22 @@
 */
 
 
-#include "protocol.h"
+#include <stddef.h>
+#include <sys/types.h>
+
+#include "my_command.h"
+#include "my_decimal.h"
+#include "my_inttypes.h"
 #include "mysql/service_command.h"
+#include "protocol.h"
+#include "sql_list.h"               // List
+#include "thr_malloc.h"
+#include "violite.h"
+
+class Proto_field;
+class Send_field;
+class String;
+union COM_DATA;
 
 class Protocol_callback : public Protocol
 {
@@ -133,8 +147,6 @@ public:
     Sends DECIMAL value
 
     @param d    value
-    @param prec field's precision, unused
-    @param dec  field's decimals, unused
 
     @return
       false  success
@@ -144,8 +156,6 @@ public:
 
   /**
     Sends string (CHAR/VARCHAR/TEXT/BLOB) value
-
-    @param d value
 
     @return
       false  success
@@ -234,7 +244,7 @@ public:
   /**
     Checks if the protocol supports a capability
 
-    @param cap the capability
+    @param capability the capability
 
     @return
       true   supports
@@ -348,7 +358,7 @@ public:
 
     @param server_status Bit field with different statuses. See SERVER_STATUS_*
     @param warn_count      Warning count from the execution
-    @param affected_row    Rows changed/deleted during the operation
+    @param affected_rows   Rows changed/deleted during the operation
     @param last_insert_id  ID of the last insert row, which has AUTO_INCROMENT
                            column
     @param message         Textual message from the execution. May be NULL.
@@ -390,6 +400,13 @@ public:
   */
   virtual bool send_error(uint sql_errno, const char *err_msg,
                           const char *sql_state);
+
+  virtual bool store_ps_status(ulong stmt_id, uint column_count,
+                               uint param_count, ulong cond_count);
+
+  virtual bool send_parameters(List <Item_param> *parameters,
+                               bool is_sql_prepare);
+  virtual bool flush();
 
 private:
   void *callbacks_ctx;

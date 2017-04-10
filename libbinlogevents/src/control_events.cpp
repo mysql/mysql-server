@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,13 +13,14 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "binary_log_types.h"
-
-#include "statement_events.h"
-
+#include <sys/types.h>
 #include <algorithm>
 #include <cstdio>
 #include <string>
+
+#include "binary_log_types.h"
+#include "my_io.h"
+#include "statement_events.h"
 
 namespace binary_log
 {
@@ -30,9 +31,8 @@ namespace binary_log
 */
 Rotate_event::Rotate_event(const char* buf, unsigned int event_len,
                            const Format_description_event *description_event)
-: Binary_log_event(&buf, description_event->binlog_version,
-                   description_event->server_version), new_log_ident(0),
-  flags(DUP_NAME)
+: Binary_log_event(&buf, description_event->binlog_version),
+  new_log_ident(0), flags(DUP_NAME)
 {
   //buf is advanced in Binary_log_event constructor to point to
   //beginning of post-header
@@ -115,17 +115,17 @@ Format_description_event::Format_description_event(uint8_t binlog_ver,
       STOP_HEADER_LEN,
       ROTATE_HEADER_LEN,
       INTVAR_HEADER_LEN,
-      LOAD_HEADER_LEN,
+      0,
       /*
         Unused because the code for Slave log event was removed.
         (15th Oct. 2010)
       */
       0,
-      CREATE_FILE_HEADER_LEN,
+      0,
       APPEND_BLOCK_HEADER_LEN,
-      EXEC_LOAD_HEADER_LEN,
+      0,
       DELETE_FILE_HEADER_LEN,
-      NEW_LOAD_HEADER_LEN,
+      0,
       RAND_HEADER_LEN,
       USER_VAR_HEADER_LEN,
       FORMAT_DESCRIPTION_HEADER_LEN,
@@ -133,15 +133,9 @@ Format_description_event::Format_description_event(uint8_t binlog_ver,
       BEGIN_LOAD_QUERY_HEADER_LEN,
       EXECUTE_LOAD_QUERY_HEADER_LEN,
       TABLE_MAP_HEADER_LEN,
-      /*
-       The PRE_GA events are never be written to any binlog, but
-       their lengths are included in Format_description_log_event.
-       Hence, we need to be assign some value here, to avoid reading
-       uninitialized memory when the array is written to disk.
-      */
-      0,                                       /* PRE_GA_WRITE_ROWS_EVENT */
-      0,                                       /* PRE_GA_UPDATE_ROWS_EVENT*/
-      0,                                       /* PRE_GA_DELETE_ROWS_EVENT*/
+      0,
+      0,
+      0,
       ROWS_HEADER_LEN_V1,                      /* WRITE_ROWS_EVENT_V1*/
       ROWS_HEADER_LEN_V1,                      /* UPDATE_ROWS_EVENT_V1*/
       ROWS_HEADER_LEN_V1,                      /* DELETE_ROWS_EVENT_V1*/
@@ -206,17 +200,17 @@ Format_description_event::Format_description_event(uint8_t binlog_ver,
       STOP_HEADER_LEN,
       uint8_t(binlog_ver == 1 ? 0 : ROTATE_HEADER_LEN),
       INTVAR_HEADER_LEN,
-      LOAD_HEADER_LEN,
+      0,
       /*
        Unused because the code for Slave log event was removed.
        (15th Oct. 2010)
       */
       0,
-      CREATE_FILE_HEADER_LEN,
+      0,
       APPEND_BLOCK_HEADER_LEN,
-      EXEC_LOAD_HEADER_LEN,
+      0,
       DELETE_FILE_HEADER_LEN,
-      NEW_LOAD_HEADER_LEN,
+      0,
       RAND_HEADER_LEN,
       USER_VAR_HEADER_LEN
     };
@@ -274,8 +268,8 @@ bool Format_description_event::is_version_before_checksum() const
 
 Start_event_v3::Start_event_v3(const char* buf, unsigned int event_len,
                                const Format_description_event *description_event)
-  :Binary_log_event(&buf, description_event->binlog_version,
-   description_event->server_version), binlog_version(BINLOG_VERSION)
+  :Binary_log_event(&buf, description_event->binlog_version),
+   binlog_version(BINLOG_VERSION)
 {
   if (event_len < (unsigned int)description_event->common_header_len +
       ST_COMMON_HEADER_LEN_OFFSET)
@@ -338,11 +332,10 @@ Format_description_event(const char* buf, unsigned int event_len,
   number_of_event_types=
    event_len - (LOG_EVENT_MINIMAL_HEADER_LEN + ST_COMMON_HEADER_LEN_OFFSET + 1);
 
-  const uint8_t *ubuf = reinterpret_cast<const uint8_t*>(buf);
   post_header_len.resize(number_of_event_types);
   post_header_len.insert(post_header_len.begin(),
-                         ubuf + ST_COMMON_HEADER_LEN_OFFSET + 1,
-                         (ubuf + ST_COMMON_HEADER_LEN_OFFSET + 1 +
+                         reinterpret_cast<const uint8_t*>(buf + ST_COMMON_HEADER_LEN_OFFSET + 1),
+                         reinterpret_cast<const uint8_t*>(buf + ST_COMMON_HEADER_LEN_OFFSET + 1 +
                           number_of_event_types));
 
   calc_server_version_split();
@@ -440,15 +433,10 @@ Format_description_event(const char* buf, unsigned int event_len,
     static const uint8_t perm[EVENT_TYPE_PERMUTATION_NUM]=
       {
         UNKNOWN_EVENT, START_EVENT_V3, QUERY_EVENT, STOP_EVENT, ROTATE_EVENT,
-        INTVAR_EVENT, LOAD_EVENT, SLAVE_EVENT, CREATE_FILE_EVENT,
-        APPEND_BLOCK_EVENT, EXEC_LOAD_EVENT, DELETE_FILE_EVENT,
-        NEW_LOAD_EVENT,
-        RAND_EVENT, USER_VAR_EVENT,
+        INTVAR_EVENT, 0, SLAVE_EVENT, 0, APPEND_BLOCK_EVENT, 0,
+        DELETE_FILE_EVENT, 0, RAND_EVENT, USER_VAR_EVENT,
         FORMAT_DESCRIPTION_EVENT,
         TABLE_MAP_EVENT,
-        PRE_GA_WRITE_ROWS_EVENT,
-        PRE_GA_UPDATE_ROWS_EVENT,
-        PRE_GA_DELETE_ROWS_EVENT,
         XID_EVENT,
         BEGIN_LOAD_QUERY_EVENT,
         EXECUTE_LOAD_QUERY_EVENT,
@@ -478,8 +466,7 @@ Format_description_event::~Format_description_event()
 */
 Incident_event::Incident_event(const char *buf, unsigned int event_len,
                                const Format_description_event *descr_event)
-: Binary_log_event(&buf, descr_event->binlog_version,
-                   descr_event->server_version)
+: Binary_log_event(&buf, descr_event->binlog_version)
 {
   //buf is advanced in Binary_log_event constructor to point to
   //beginning of post-header
@@ -501,8 +488,9 @@ Incident_event::Incident_event(const char *buf, unsigned int event_len,
     incident= INCIDENT_NONE;
 
   }
+  else
+    incident= static_cast<enum_incident>(incident_number);
 
-  incident= static_cast<enum_incident>(incident_number);
   char const *ptr= buf + post_header_len;
   char const *const str_end= buf - common_header_len + event_len;
   uint8_t len= 0;                   // Assignment to keep compiler happy
@@ -528,7 +516,6 @@ Incident_event::Incident_event(const char *buf, unsigned int event_len,
     decoding. So that we just update the position and continue.
 
     @param buf                Contains the serialized event.
-    @param length             Length of the serialized event.
     @param descr_event        An FDE event, used to get the
                               following information
                               -binlog_version
@@ -541,8 +528,7 @@ Incident_event::Incident_event(const char *buf, unsigned int event_len,
 
 Ignorable_event::Ignorable_event(const char *buf,
                                  const Format_description_event *descr_event)
- : Binary_log_event(&buf, descr_event->binlog_version,
-                    descr_event->server_version)
+ : Binary_log_event(&buf, descr_event->binlog_version)
 {}
 
 /**
@@ -556,8 +542,7 @@ Ignorable_event::Ignorable_event(const char *buf,
 Xid_event::
 Xid_event(const char* buf,
           const Format_description_event *description_event)
-  :Binary_log_event(&buf, description_event->binlog_version,
-                    description_event->server_version)
+  :Binary_log_event(&buf, description_event->binlog_version)
 {
   //buf is advanced in Binary_log_event constructor to point to
   //beginning of post-header
@@ -581,8 +566,7 @@ Xid_event(const char* buf,
 XA_prepare_event::
 XA_prepare_event(const char* buf,
                  const Format_description_event *description_event)
- : Binary_log_event(&buf, description_event->binlog_version,
-                    description_event->server_version)
+ : Binary_log_event(&buf, description_event->binlog_version)
 {
   uint32_t temp= 0;
   uint8_t temp_byte;
@@ -608,16 +592,16 @@ XA_prepare_event(const char* buf,
 */
 Gtid_event::Gtid_event(const char *buffer, uint32_t event_len,
                        const Format_description_event *description_event)
- : Binary_log_event(&buffer, description_event->binlog_version,
-                    description_event->server_version),
-    last_committed(SEQ_UNINIT), sequence_number(SEQ_UNINIT)
+ : Binary_log_event(&buffer, description_event->binlog_version),
+    last_committed(SEQ_UNINIT), sequence_number(SEQ_UNINIT),
+    original_commit_timestamp(0), immediate_commit_timestamp(0)
 {
   /*
     The layout of the buffer is as follows:
-    +------+--------+-------+-------+--------------+---------------+
-    |unused|SID     |GNO    |lt_type|last_committed|sequence_number|
-    |1 byte|16 bytes|8 bytes|1 byte |8 bytes       |8 bytes        |
-    +------+--------+-------+-------+--------------+---------------+
+    +------+--------+-------+-------+--------------+---------------+------------+
+    |unused|SID     |GNO    |lt_type|last_committed|sequence_number| timestamps*|
+    |1 byte|16 bytes|8 bytes|1 byte |8 bytes       |8 bytes        | 7/14 bytes |
+    +------+--------+-------+-------+--------------+---------------+------------+
 
     The 'unused' field is not used.
 
@@ -630,8 +614,27 @@ Gtid_event::Gtid_event(const char *buffer, uint32_t event_len,
 
     The buffer is advanced in Binary_log_event constructor to point to
     beginning of post-header
+
+   * The section titled "timestamps" contains commit timestamps on originating
+     server and commit timestamp on the immediate master.
+
+     This is how we write the timestamps section serialized to a memory buffer.
+
+     if original_commit_timestamp != immediate_commit_timestamp:
+
+       +-7 bytes, high bit (1<<55) set-----+-7 bytes----------+
+       | immediate_commit_timestamp        |original_timestamp|
+       +-----------------------------------+------------------+
+
+     else:
+
+       +-7 bytes, high bit (1<<55) cleared-+
+       | immediate_commit_timestamp        |
+       +-----------------------------------+
   */
   char const *ptr_buffer= buffer;
+  char const *ptr_buffer_end= buffer + event_len -
+                            description_event->common_header_len;
 
   ptr_buffer+= ENCODED_FLAG_LENGTH;
 
@@ -652,7 +655,7 @@ Gtid_event::Gtid_event(const char *buffer, uint32_t event_len,
     avoid out of buffer reads.
   */
   if (ptr_buffer + LOGICAL_TIMESTAMP_TYPECODE_LENGTH +
-      LOGICAL_TIMESTAMP_LENGTH <= buffer + event_len &&
+      LOGICAL_TIMESTAMP_LENGTH <= ptr_buffer_end &&
       *ptr_buffer == LOGICAL_TIMESTAMP_TYPECODE)
   {
     ptr_buffer+= LOGICAL_TIMESTAMP_TYPECODE_LENGTH;
@@ -661,6 +664,39 @@ Gtid_event::Gtid_event(const char *buffer, uint32_t event_len,
     memcpy(&sequence_number, ptr_buffer + 8, sizeof(sequence_number));
     sequence_number= (int64_t)le64toh(sequence_number);
     ptr_buffer+= LOGICAL_TIMESTAMP_LENGTH;
+  }
+  /*
+    Fetch the timestamps used to monitor replication lags with respect to
+    the immediate master and the server that originated this transaction.
+    Check that the timestamps exist before reading. Note that a master
+    older than MySQL-5.8 will NOT send these timestamps. We should be
+    able to ignore these fields in this case.
+  */
+  has_commit_timestamps= ptr_buffer + IMMEDIATE_COMMIT_TIMESTAMP_LENGTH
+                         <= ptr_buffer_end;
+  if (has_commit_timestamps)
+  {
+    memcpy(&immediate_commit_timestamp, ptr_buffer,
+           IMMEDIATE_COMMIT_TIMESTAMP_LENGTH);
+    immediate_commit_timestamp=(int64_t)le64toh(immediate_commit_timestamp);
+    ptr_buffer+= IMMEDIATE_COMMIT_TIMESTAMP_LENGTH;
+    // Check the MSB to determine how we should populate original_commit_timestamp
+    if ((immediate_commit_timestamp & (1ULL << ENCODED_COMMIT_TIMESTAMP_LENGTH))
+        != 0)
+    {
+      // Read the original_commit_timestamp
+      immediate_commit_timestamp &=
+        ~(1ULL << ENCODED_COMMIT_TIMESTAMP_LENGTH); /* Clear MSB. */
+      memcpy(&original_commit_timestamp, ptr_buffer,
+          ORIGINAL_COMMIT_TIMESTAMP_LENGTH);
+      original_commit_timestamp=(int64_t)le64toh(original_commit_timestamp);
+      ptr_buffer+= ORIGINAL_COMMIT_TIMESTAMP_LENGTH;
+    }
+    else
+    {
+      // The transaction originated in the previous server
+      original_commit_timestamp= immediate_commit_timestamp;
+    }
   }
 
   return;
@@ -674,8 +710,7 @@ Gtid_event::Gtid_event(const char *buffer, uint32_t event_len,
 Previous_gtids_event::
 Previous_gtids_event(const char *buffer, unsigned int event_len,
                      const Format_description_event *description_event)
-: Binary_log_event(&buffer, description_event->binlog_version,
-                     description_event->server_version)
+: Binary_log_event(&buffer, description_event->binlog_version)
 {
   //buf is advanced in Binary_log_event constructor to point to
   //beginning of post-header
@@ -696,10 +731,9 @@ Previous_gtids_event(const char *buffer, unsigned int event_len,
   in this event.
 */
 Transaction_context_event::
-Transaction_context_event(const char *buffer, unsigned int event_len,
+Transaction_context_event(const char *buffer,
                           const Format_description_event *description_event)
-: Binary_log_event(&buffer, description_event->binlog_version,
-                   description_event->server_version)
+: Binary_log_event(&buffer, description_event->binlog_version)
 {
   //buf is advanced in Binary_log_event constructor to point to
   //beginning of post-header
@@ -826,10 +860,9 @@ View_change_event::View_change_event(char* raw_view_id)
 }
 
 View_change_event::
-View_change_event(const char *buffer, unsigned int event_len,
+View_change_event(const char *buffer,
                   const Format_description_event *description_event)
-: Binary_log_event(&buffer, description_event->binlog_version,
-                   description_event->server_version),
+: Binary_log_event(&buffer, description_event->binlog_version),
   view_id(), seq_number(0), certification_info()
 {
   //buf is advanced in Binary_log_event constructor to point to
@@ -904,8 +937,7 @@ View_change_event::~View_change_event()
 Heartbeat_event::Heartbeat_event(const char* buf, unsigned int event_len,
                                  const Format_description_event*
                                  description_event)
-: Binary_log_event(&buf, description_event->binlog_version,
-                   description_event->server_version),
+: Binary_log_event(&buf, description_event->binlog_version),
   log_ident(buf)
 {
   //buf is advanced in Binary_log_event constructor to point to

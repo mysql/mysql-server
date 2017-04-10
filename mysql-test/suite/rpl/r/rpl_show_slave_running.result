@@ -7,34 +7,26 @@ SET DEBUG_SYNC= 'RESET';
 include/stop_slave.inc
 set global debug= 'd,dbug.before_get_running_status_yes';
 Slave_running, Slave_IO_Running, Slave_SQL_Running, must be OFF, NO, NO in three following queries
-SHOW STATUS LIKE 'Slave_running';
-Variable_name	Value
-Slave_running	OFF
-Slave_IO_Running= No
-Slave_SQL_Running= No
+select rcs.SERVICE_STATE as Slave_IO_Running, ras.SERVICE_STATE as Slave_SQL_Running from performance_schema.replication_applier_status ras, performance_schema.replication_connection_status rcs;
+Slave_IO_Running	Slave_SQL_Running
+OFF	OFF
 start slave io_thread;
 Slave_running, Slave_IO_Running, Slave_SQL_Running must be OFF Connecting NO in three following queries
-SHOW STATUS LIKE 'Slave_running';
-Variable_name	Value
-Slave_running	OFF
-Slave_IO_Running= Connecting
-Slave_SQL_Running= No
+select rcs.SERVICE_STATE as Slave_IO_Running, ras.SERVICE_STATE as Slave_SQL_Running from performance_schema.replication_applier_status ras, performance_schema.replication_connection_status rcs;
+Slave_IO_Running	Slave_SQL_Running
+CONNECTING	OFF
 SET DEBUG_SYNC='now SIGNAL signal.io_thread_let_running';
 include/wait_for_slave_param.inc [Slave_IO_Running]
 Slave_running, Slave_IO_Running, Slave_SQL_Running must be OFF YES NO in three following queries
-SHOW STATUS LIKE 'Slave_running';
-Variable_name	Value
-Slave_running	OFF
-Slave_IO_Running= Yes
-Slave_SQL_Running= No
+select rcs.SERVICE_STATE as Slave_IO_Running, ras.SERVICE_STATE as Slave_SQL_Running from performance_schema.replication_applier_status ras, performance_schema.replication_connection_status rcs;
+Slave_IO_Running	Slave_SQL_Running
+ON	OFF
 start slave sql_thread;
 include/wait_for_slave_sql_to_start.inc
 Slave_running, Slave_IO_Running, Slave_SQL_Running must be ON, YES, YES in three following queries
-SHOW STATUS LIKE 'Slave_running';
-Variable_name	Value
-Slave_running	ON
-Slave_IO_Running= Yes
-Slave_SQL_Running= Yes
+select rcs.SERVICE_STATE as Slave_IO_Running, ras.SERVICE_STATE as Slave_SQL_Running from performance_schema.replication_applier_status ras, performance_schema.replication_connection_status rcs;
+Slave_IO_Running	Slave_SQL_Running
+ON	ON
 include/sync_slave_sql_with_master.inc
 set global debug= '';
 SET DEBUG_SYNC= 'RESET';

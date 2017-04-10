@@ -66,13 +66,13 @@ SET @@global.query_cache_type = ' ';
 ERROR 42000: Variable 'query_cache_type' can't be set to the value of ' '
 '#-------------------FN_DYNVARS_134_05----------------------------#'
 SELECT @@session.query_cache_type = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+FROM performance_schema.session_variables 
 WHERE VARIABLE_NAME='query_cache_type';
 @@session.query_cache_type = VARIABLE_VALUE
 1
 '#----------------------FN_DYNVARS_134_06------------------------#'
 SELECT @@global.query_cache_type = VARIABLE_VALUE
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='query_cache_type';
 @@global.query_cache_type = VARIABLE_VALUE
 1

@@ -1,0 +1,26 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+drop database if exists mysqltest1;
+drop database if exists mysqltest2;
+create database mysqltest1;
+create database mysqltest2;
+use mysqltest1;
+create table t1 (a int);
+insert into t1 values(1);
+include/sync_slave_sql_with_master.inc
+select * from mysqltest1.t1;
+ERROR 42000: Unknown database 'mysqltest1'
+use mysqltest2;
+create table t1 (a int);
+insert into t1 values(1);
+include/sync_slave_sql_with_master.inc
+select * from mysqltest2.t1;
+a
+1
+drop database mysqltest1;
+drop database mysqltest2;
+include/sync_slave_sql_with_master.inc
+include/rpl_end.inc

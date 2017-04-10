@@ -1,6 +1,6 @@
 # -*- cperl -*-
-# Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
-# 
+# Copyright (c) 2005, 2017 Oracle and/or its affiliates. All rights reserved.
+#
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation; version 2 of the License.
@@ -21,8 +21,12 @@
 package mtr_cases;
 use strict;
 
+my $threads_support= eval 'use threads; 1';
+my $threads_shared_support= eval 'use threads::shared; 1';
+
 use base qw(Exporter);
-our @EXPORT= qw(collect_option collect_test_cases);
+our @EXPORT= qw(collect_option collect_test_cases init_pattern
+                $suitedir $group_replication $xplugin);
 
 use mtr_report;
 use mtr_match;
@@ -46,7 +50,10 @@ our $quick_collect;
 # as default.  (temporary option used in connection
 # with the change of default storage engine to InnoDB)
 our $default_myisam= 0;
- 
+our $suitedir;
+
+our $xplugin;
+our $group_replication;
 
 sub collect_option {
   my ($opt, $value)= @_;
@@ -62,11 +69,13 @@ sub collect_option {
 
 use File::Basename;
 use File::Spec::Functions qw / splitdir /;
+use My::File::Path qw / get_bld_path /;
 use IO::File();
 use My::Config;
 use My::Platform;
 use My::Test;
 use My::Find;
+use My::SysInfo;
 
 require "mtr_misc.pl";
 
@@ -125,7 +134,7 @@ sub collect_test_cases ($$$$) {
 		  "ha_innodb_plugin.sl"],
 		 NOT_REQUIRED);
   $do_innodb_plugin= ($::mysql_version_id >= 50100 &&
-		      !(IS_WINDOWS && $::opt_embedded_server) &&
+		      !(IS_WINDOWS) &&
 		      $lib_innodb_plugin);
 
   # If not reordering, we also shouldn't group by suites, unless
@@ -133,18 +142,74 @@ sub collect_test_cases ($$$$) {
   # This also effects some logic in the loop following this.
   if ($opt_reorder or !@$opt_cases)
   {
-    foreach my $suite (split(",", $suites))
+    my $sys_info= My::SysInfo->new();
+    my $parallel= $sys_info->num_cpus();
+    $parallel= $::opt_parallel if ($::opt_parallel ne "auto" and
+                                   $::opt_parallel < $parallel);
+    $parallel= 1 if $quick_collect;
+    $parallel= 1 if @$opt_cases;
+
+    if ($parallel == 1 or !$threads_support or !$threads_shared_support)
     {
-      push(@$cases, collect_one_suite($suite, $opt_cases, $opt_skip_test_list));
-      last if $some_test_found;
-      push(@$cases, collect_one_suite("i_".$suite, $opt_cases, $opt_skip_test_list));
+      foreach my $suite (split(",", $suites))
+      {
+        push(@$cases, collect_one_suite($suite, $opt_cases,
+                                        $opt_skip_test_list));
+        last if $some_test_found;
+        push(@$cases, collect_one_suite("i_".$suite, $opt_cases,
+                                        $opt_skip_test_list));
+      }
+    }
+    else
+    {
+      share(\$xplugin);
+      share(\$group_replication);
+      share(\$some_test_found);
+      share(\$suitedir) if $quick_collect;
+      # Array containing thread id of all the threads used for
+      # collecting test cases from different test suites.
+      my @collect_test_cases_thrds;
+
+      foreach my $suite (split(",", $suites))
+      {
+        push(@collect_test_cases_thrds, threads->create("collect_one_suite",
+                                                        $suite, $opt_cases,
+                                                        $opt_skip_test_list));
+        while($parallel <= scalar @collect_test_cases_thrds)
+        {
+          mtr_milli_sleep(100);
+          @collect_test_cases_thrds= threads->list(threads::running());
+        }
+        last if $some_test_found;
+
+        push(@collect_test_cases_thrds, threads->create("collect_one_suite",
+                                                        "i_".$suite, $opt_cases,
+                                                        $opt_skip_test_list));
+        while($parallel <= scalar @collect_test_cases_thrds)
+        {
+          mtr_milli_sleep(100);
+          @collect_test_cases_thrds= threads->list(threads::running());
+        }
+      }
+
+      foreach my $collect_thrd(threads->list())
+      {
+        my @suite_cases= $collect_thrd->join();
+        push (@$cases, @suite_cases);
+      }
     }
   }
 
   if ( @$opt_cases )
   {
-    # A list of tests was specified on the command line
-    # Check that the tests specified was found
+    # A list of tests was specified on the command line.
+    # Among those, the tests which are not already collected will be
+    # collected and stored temporarily in an array of hashes pointed
+    # by the below reference. This array is eventually appeneded to
+    # the one having all collected test cases.
+    my $cmdline_cases;
+
+    # Check that the tests specified were found
     # in at least one suite
     foreach my $test_name_spec ( @$opt_cases )
     {
@@ -160,22 +225,59 @@ sub collect_test_cases ($$$$) {
 	  last;
 	}
       }
+
       if ( not $found )
       {
-	$sname= "main" if !$opt_reorder and !$sname;
-	mtr_error("Could not find '$tname' in '$suites' suite(s)") unless $sname;
-	# If suite was part of name, find it there, may come with combinations
-	my @this_case = collect_one_suite($sname, [ $tname ]);
-	if (@this_case)
+        if ( $sname )
         {
-	  push (@$cases, @this_case);
-	}
-	else
-	{
-	  mtr_error("Could not find '$tname' in '$sname' suite");
+          # If suite was part of name, find it there, may come with combinations
+          my @this_case = collect_one_suite($sname, [ $tname ]);
+
+          # If a test is specified multiple times on the command line, all
+          # instances of the test need to be picked. Hence, such tests are
+          # stored in the temporary array instead of adding them to $cases
+          # directly so that repeated tests are not run only once
+          if ( @this_case )
+          {
+            push (@$cmdline_cases, @this_case);
+          }
+          else
+          {
+	    mtr_error("Could not find '$tname' in '$sname' suite");
+          }
+        }
+        else
+        {
+          if ( !$opt_reorder )
+          {
+            # If --no-reorder is passed and if suite was not part of name,
+            # search in all the suites
+            foreach my $suite (split(",", $suites))
+            {
+              my @this_case = collect_one_suite($suite, [ $tname ]);
+              if ( @this_case )
+              {
+                push (@$cmdline_cases, @this_case);
+                $found= 1;
+              }
+              @this_case= collect_one_suite("i_".$suite, [ $tname ]);
+              if ( @this_case )
+              {
+                push (@$cmdline_cases, @this_case);
+                $found= 1;
+              }
+            }
+          }
+          if ( !$found )
+          {
+            mtr_error("Could not find '$tname' in '$suites' suite(s)");
+          }
         }
       }
     }
+    # Add test cases collected in the temporary array to the one
+    # containing all previously collected test cases
+    push (@$cases, @$cmdline_cases) if $cmdline_cases;
   }
 
   if ( $opt_reorder && !$quick_collect)
@@ -274,7 +376,7 @@ sub collect_one_suite($)
 
   mtr_verbose("Collecting: $suite");
 
-  my $suitedir= "$::glob_mysql_test_dir"; # Default
+  $suitedir= "$::glob_mysql_test_dir"; # Default
   if ( $suite ne "main" )
   {
     # Allow suite to be path to "some dir" if $suite has at least
@@ -339,6 +441,10 @@ sub collect_one_suite($)
   # Build a hash of disabled testcases for this suite
   # ----------------------------------------------------------------------
   my %disabled;
+  foreach my $skip_file(@{$opt_skip_test_list})
+  {
+    $skip_file= get_bld_path($skip_file);
+  }
   my @disabled_collection= @{$opt_skip_test_list} if $opt_skip_test_list;
   unshift (@disabled_collection, "$testdir/disabled.def");
   for my $skip (@disabled_collection)
@@ -607,7 +713,7 @@ sub optimize_cases {
 	# The test supports different binlog formats
 	# check if the selected one is ok
 	my $supported=
-	  grep { $_ eq $binlog_format } @{$tinfo->{'binlog_formats'}};
+	  grep { $_ eq lc $binlog_format } @{$tinfo->{'binlog_formats'}};
 	if ( !$supported )
 	{
 	  $tinfo->{'skip'}= 1;
@@ -625,15 +731,16 @@ sub optimize_cases {
       # Get binlog-format used by this test from master_opt
       my $test_binlog_format;
       foreach my $opt ( @{$tinfo->{master_opt}} ) {
+       (my $dash_opt = $opt) =~ s/_/-/g;
 	$test_binlog_format=
-	  mtr_match_prefix($opt, "--binlog-format=") || $test_binlog_format;
+	  mtr_match_prefix($dash_opt, "--binlog-format=") || $test_binlog_format;
       }
 
       if (defined $test_binlog_format and
 	  defined $tinfo->{binlog_formats} )
       {
 	my $supported=
-	  grep { $_ eq $test_binlog_format } @{$tinfo->{'binlog_formats'}};
+	  grep { My::Options::option_equals($_,$test_binlog_format) } @{$tinfo->{'binlog_formats'}};
 	if ( !$supported )
 	{
 	  $tinfo->{'skip'}= 1;
@@ -651,10 +758,11 @@ sub optimize_cases {
     my %builtin_engines = ('myisam' => 1, 'memory' => 1, 'csv' => 1);
 
     foreach my $opt ( @{$tinfo->{master_opt}} ) {
+     (my $dash_opt = $opt) =~ s/_/-/g;
       my $default_engine=
-	mtr_match_prefix($opt, "--default-storage-engine=");
+	mtr_match_prefix($dash_opt, "--default-storage-engine=");
       my $default_tmp_engine=
-	mtr_match_prefix($opt, "--default-tmp-storage-engine=");
+	mtr_match_prefix($dash_opt, "--default-tmp-storage-engine=");
 
       # Allow use of uppercase, convert to all lower case
       $default_engine =~ tr/A-Z/a-z/;
@@ -865,10 +973,12 @@ sub collect_one_test_case {
   # ----------------------------------------------------------------------
   # Check for replicaton tests
   # ----------------------------------------------------------------------
-  if ( $suitedir =~ 'rpl' )
-  {
-    $tinfo->{'rpl_test'}= 1;
-  }
+  $tinfo->{'rpl_test'}= 1 if ($suitename eq 'rpl' or $suitename eq 'i_rpl');
+  $tinfo->{'rpl_nogtid_test'}= 1 if
+  ($suitename eq 'rpl_nogtid' or $suitename eq 'i_rpl_nogtid');
+  $tinfo->{'rpl_gtid_test'}= 1 if
+  ($suitename eq 'rpl_gtid' or $suitename eq 'i_rpl_gtid');
+  $tinfo->{'grp_rpl_test'}= 1 if ($suitename =~ 'group_replication');
 
   # ----------------------------------------------------------------------
   # Check for disabled tests
@@ -879,7 +989,7 @@ sub collect_one_test_case {
     # Test was marked as disabled in suites disabled.def file
     $marked_as_disabled= 1;
     # Test name may have been disabled with or without suite name part
-    $tinfo->{'comment'}= $disabled->{$tname} || 
+    $tinfo->{'comment'}= $disabled->{$tname} ||
                          $disabled->{"$suitename.$tname"};
   }
 
@@ -913,15 +1023,6 @@ sub collect_one_test_case {
   push(@{$tinfo->{'slave_opt'}}, @$suite_opts);
 
   #-----------------------------------------------------------------------
-  # Check for test specific config file
-  #-----------------------------------------------------------------------
-  my $test_cnf_file= "$testdir/$tname.cnf";
-  if ( -f $test_cnf_file) {
-    # Specifies the configuration file to use for this test
-    $tinfo->{'template_path'}= $test_cnf_file;
-  }
-
-  # ----------------------------------------------------------------------
   # Check for test specific config file
   # ----------------------------------------------------------------------
   my $test_cnf_file= "$testdir/$tname.cnf";
@@ -987,18 +1088,34 @@ sub collect_one_test_case {
 
   }
 
-  if ( $tinfo->{'big_test'} and ! $::opt_big_test )
+  if ( ! $tinfo->{'not_parallel'} and $::opt_run_non_parallel_tests )
   {
     $tinfo->{'skip'}= 1;
-    $tinfo->{'comment'}= "Test needs 'big-test' option";
-    return $tinfo
+    $tinfo->{'comment'}= "Test needs 'include/not_parallel.inc' include file when 'run-non-parallel-tests' option is set";
+    return $tinfo;
+  }
+
+  # Normal tests shouldn't run with only-big-test option
+  if ($::opt_only_big_test and !$tinfo->{'big_test'})
+  {
+    $tinfo->{'skip'}= 1;
+    $tinfo->{'comment'}= "Not a big test";
+    return $tinfo;
+  }
+
+  # Check for big test
+  if ($tinfo->{'big_test'} and !($::opt_big_test or $::opt_only_big_test))
+  {
+    $tinfo->{'skip'}= 1;
+    $tinfo->{'comment'}= "Test needs 'big-test' or 'only-big-test' option";
+    return $tinfo;
   }
 
   if ( $tinfo->{'need_debug'} && ! $::debug_compiled_binaries )
   {
     $tinfo->{'skip'}= 1;
     $tinfo->{'comment'}= "Test needs debug binaries";
-    return $tinfo
+    return $tinfo;
   }
 
   if ( $tinfo->{'ndb_test'} )
@@ -1041,7 +1158,7 @@ sub collect_one_test_case {
   }
   if ( $tinfo->{'need_binlog'} )
   {
-    if (grep(/^--skip-log-bin/,  @::opt_extra_mysqld_opt) )
+    if (grep(/^--skip[-_]log[-_]bin/,  @::opt_extra_mysqld_opt) )
     {
       $tinfo->{'skip'}= 1;
       $tinfo->{'comment'}= "Test needs binlog";
@@ -1056,31 +1173,13 @@ sub collect_one_test_case {
     push(@{$tinfo->{'slave_opt'}}, "--loose-skip-log-bin");
   }
 
-  if ( $tinfo->{'rpl_test'} )
+  if ( $tinfo->{'rpl_test'} or $tinfo->{'grp_rpl_test'} )
   {
     if ( $skip_rpl )
     {
       $tinfo->{'skip'}= 1;
       $tinfo->{'comment'}= "No replication tests(--skip-rpl)";
       return $tinfo;
-    }
-  }
-
-  if ( $::opt_embedded_server )
-  {
-    if ( $tinfo->{'not_embedded'} )
-    {
-      $tinfo->{'skip'}= 1;
-      $tinfo->{'comment'}= "Not run for embedded server";
-      return $tinfo;
-    }
-#Setting the default storage engine to InnoDB for embedded tests as the default
-#storage engine for mysqld in embedded mode is still MyISAM.
-#To be removed after completion of WL #6911.
-    if ( !$tinfo->{'myisam_test'} && !defined $default_storage_engine)
-    {
-      push(@{$tinfo->{'master_opt'}}, "--default-storage-engine=InnoDB");
-      push(@{$tinfo->{'master_opt'}}, "--default-tmp-storage-engine=InnoDB");
     }
   }
 
@@ -1096,16 +1195,10 @@ sub collect_one_test_case {
   }
 
   # Check for group replication tests
-  if ( $tinfo->{'grp_rpl_test'} )
-  {
-    $::group_replication= 1;
-  }
+  $group_replication= 1 if ($tinfo->{'grp_rpl_test'});
 
   # Check for xplugin tests
-  if ( $tinfo->{'xplugin_test'} )
-  {
-    $::xplugin= 1;
-  }
+  $xplugin= 1 if ($tinfo->{'xplugin_test'});
 
   if ( $tinfo->{'not_windows'} && IS_WINDOWS )
   {
@@ -1119,6 +1212,7 @@ sub collect_one_test_case {
   # ----------------------------------------------------------------------
   if (defined $defaults_file) {
     # Using same config file for all tests
+    $defaults_file= get_bld_path($defaults_file);
     $tinfo->{template_path}= $defaults_file;
   }
   elsif (! $tinfo->{template_path} )
@@ -1129,14 +1223,27 @@ sub collect_one_test_case {
       # assume default.cnf will be used
       $config= "include/default_my.cnf";
 
-      # Suite has no config, autodetect which one to use
-      if ( $tinfo->{rpl_test} ){
+      # rpl_gtid and i_rpl_gtid tests must use the same cnf file.
+      if ( $tinfo->{rpl_gtid_test} )
+      {
+        $config= "suite/rpl_gtid/my.cnf";
+      }
+      # rpl_nogtid,i_rpl_nogtid tests must use the same cnf file.
+      elsif ( $tinfo->{rpl_nogtid_test} )
+      {
+        $config= "suite/rpl_nogtid/my.cnf";
+      }
+      # rpl,i_rpl tests must use the same cnf file.
+      elsif ( $tinfo->{rpl_test} )
+      {
 	$config= "suite/rpl/my.cnf";
-	if ( $tinfo->{ndb_test} ){
+	if ( $tinfo->{ndb_test} )
+        {
 	  $config= "suite/rpl_ndb/my.cnf";
 	}
       }
-      elsif ( $tinfo->{ndb_test} ){
+      elsif ( $tinfo->{ndb_test} )
+      {
 	$config= "suite/ndb/my.cnf";
       }
     }
@@ -1145,6 +1252,7 @@ sub collect_one_test_case {
 
   # Set extra config file to use
   if (defined $defaults_extra_file) {
+    $defaults_extra_file= get_bld_path($defaults_extra_file);
     $tinfo->{extra_template_path}= $defaults_extra_file;
   }
 
@@ -1154,16 +1262,18 @@ sub collect_one_test_case {
   push(@{$tinfo->{'master_opt'}}, @::opt_extra_mysqld_opt);
   push(@{$tinfo->{'slave_opt'}}, @::opt_extra_mysqld_opt);
 
-  # ----------------------------------------------------------------------
-  # Add master opts, extra options only for master
-  # ----------------------------------------------------------------------
-  process_opts_file($tinfo, "$testdir/$tname-master.opt", 'master_opt');
+  if ( !$::start_only or @::opt_cases )
+  {
+    # ----------------------------------------------------------------------
+    # Add master opts, extra options only for master
+    # ----------------------------------------------------------------------
+    process_opts_file($tinfo, "$testdir/$tname-master.opt", 'master_opt');
 
-  # ----------------------------------------------------------------------
-  # Add slave opts, list of extra option only for slave
-  # ----------------------------------------------------------------------
-  process_opts_file($tinfo, "$testdir/$tname-slave.opt", 'slave_opt');
-
+    # ----------------------------------------------------------------------
+    # Add slave opts, list of extra option only for slave
+    # ----------------------------------------------------------------------
+    process_opts_file($tinfo, "$testdir/$tname-slave.opt", 'slave_opt');
+  }
   return $tinfo;
 }
 
@@ -1174,11 +1284,11 @@ my @tags=
 (
  ["include/have_binlog_format_row.inc", "binlog_formats", ["row"]],
  ["include/have_binlog_format_statement.inc", "binlog_formats", ["statement"]],
- ["include/have_binlog_format_mixed.inc", "binlog_formats", ["mixed"]],
+ ["include/have_binlog_format_mixed.inc", "binlog_formats", ["mixed", "mix"]],
  ["include/have_binlog_format_mixed_or_row.inc",
-  "binlog_formats", ["mixed", "row"]],
+  "binlog_formats", ["mixed", "mix", "row"]],
  ["include/have_binlog_format_mixed_or_statement.inc",
-  "binlog_formats", ["mixed", "statement"]],
+  "binlog_formats", ["mixed", "mix", "statement"]],
  ["include/have_binlog_format_row_or_statement.inc",
   "binlog_formats", ["row", "statement"]],
 
@@ -1189,14 +1299,18 @@ my @tags=
  ["include/have_debug.inc", "need_debug", 1],
  ["include/have_ndb.inc", "ndb_test", 1],
  ["include/have_multi_ndb.inc", "ndb_test", 1],
- ["include/master-slave.inc", "rpl_test", 1],
- ["include/ndb_master-slave.inc", "rpl_test", 1],
- ["include/ndb_master-slave.inc", "ndb_test", 1],
+
+#  The tests with below four .inc files are considered to be rpl tests.
+ ["include/rpl_init.inc", "rpl_test", 1],
+ ["include/rpl_ip_mix.inc", "rpl_test", 1],
+ ["include/rpl_ip_mix2.inc", "rpl_test", 1],
+ ["include/rpl_ipv6.inc", "rpl_test", 1],
+
+["include/ndb_master-slave.inc", "ndb_test", 1],
  ["federated.inc", "federated_test", 1],
- ["include/not_embedded.inc", "not_embedded", 1],
  ["include/have_ssl.inc", "need_ssl", 1],
- ["include/have_ssl_communication.inc", "need_ssl", 1],
  ["include/not_windows.inc", "not_windows", 1],
+ ["include/not_parallel.inc", "not_parallel", 1],
 
  # Tests with below .inc file are considered to be group replication tests
  ["have_group_replication_plugin_base.inc", "grp_rpl_test", 1],

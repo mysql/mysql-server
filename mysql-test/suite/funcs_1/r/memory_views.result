@@ -55,9 +55,9 @@ f106 year(4) not null default 2000,
 f107 year(4) not null default 2000,
 f108 enum("1enum","2enum") not null default "1enum",
 f109 set("1set","2set") not null default "1set"
-) engine = memory;
+) charset latin1 engine = memory;
 load data infile '<MYSQLTEST_VARDIR>/std_data/funcs_1/memory_tb2.txt'
-into table tb2 ;
+into table tb2 character set latin1;
 DROP DATABASE IF EXISTS test1;
 CREATE DATABASE test1;
 USE test1;
@@ -114,9 +114,9 @@ f106 year(4) not null default 2000,
 f107 year(4) not null default 2000,
 f108 enum("1enum","2enum") not null default "1enum",
 f109 set("1set","2set") not null default "1set"
-) engine = memory;
+) charset latin1 engine = memory;
 load data infile '<MYSQLTEST_VARDIR>/std_data/funcs_1/memory_tb2.txt'
-into table tb2 ;
+into table tb2 character set latin1;
 USE test;
 set optimizer_switch='condition_fanout_filter=off';
 SET SESSION default_storage_engine = <storage_engine>;
@@ -3515,7 +3515,7 @@ INSERT INTO v1 VALUES (1) ;
 SELECT @a ;
 @a
 1
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1
 1
 DROP TRIGGER tr1 ;
@@ -3744,7 +3744,7 @@ CREATE TABLE t1 (f1 NUMERIC(4)) ENGINE = memory;
 INSERT INTO t1 VALUES(1111), (2222);
 CREATE VIEW v1 AS SELECT * FROM t1 WHERE f1 = 1111;
 CREATE VIEW V1 AS SELECT * FROM t1 WHERE f1 = 2222;
-SELECT * FROM v1;
+SELECT * FROM v1 ORDER BY 1;
 f1
 1111
 DROP TABLE IF EXISTS t1 ;
@@ -3780,7 +3780,7 @@ INSERT INTO t1 SET f1 = 'abcde';
 CREATE VIEW v1 AS SELECT f1 FROM t1;
 CREATE VIEW v2 AS SELECT *  FROM v1;
 DROP TABLE t1;
-SELECT * FROM v1;
+SELECT * FROM v1 ORDER BY 1;
 ERROR HY000: View 'test.v1' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
 DELETE FROM v1;
 ERROR HY000: View 'test.v1' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
@@ -3788,7 +3788,7 @@ UPDATE v1 SET f1 = 'aaaaa';
 ERROR HY000: View 'test.v1' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
 INSERT INTO v1 SET f1 = "fffff";
 ERROR HY000: View 'test.v1' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
-SELECT * FROM v2;
+SELECT * FROM v2 ORDER BY 1;
 ERROR HY000: View 'test.v2' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
 DELETE FROM v2;
 ERROR HY000: View 'test.v2' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
@@ -3797,7 +3797,7 @@ ERROR HY000: View 'test.v2' references invalid table(s) or column(s) or function
 INSERT INTO v2 SET f1 = "fffff";
 ERROR HY000: View 'test.v2' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
 DROP VIEW v1;
-SELECT * FROM v2;
+SELECT * FROM v2 ORDER BY 1;
 ERROR HY000: View 'test.v2' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
 DELETE FROM v2;
 ERROR HY000: View 'test.v2' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
@@ -3872,7 +3872,7 @@ USE test2;
 INSERT INTO  t1 VALUES('test2.t1 - 2');
 INSERT INTO  v1 VALUES('test2.v1 - 2');
 INSERT INTO  t0 VALUES('test2.t0 - 2');
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1
 test2.t1 - 1
 test2.t1 - 2
@@ -3880,16 +3880,16 @@ SELECT * FROM t2;
 f1
 test2.t0 - 1
 test2.t0 - 2
-SELECT * FROM v1;
+SELECT * FROM v1 ORDER BY 1;
 f1
 test2.v1 - 1
 test2.v1 - 2
-SELECT * FROM v2;
+SELECT * FROM v2 ORDER BY 1;
 f1
 test2.t0 - 1
 test2.t0 - 2
 USE test;
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1
 test.t1  - 1
 test.t1  - 2
@@ -3897,11 +3897,11 @@ SELECT * FROM t2;
 f1
 test.t2  - 1
 test.t2  - 2
-SELECT * FROM v1;
+SELECT * FROM v1 ORDER BY 1;
 f1
 test.t0  - 1
 test.t0  - 2
-SELECT * FROM v2;
+SELECT * FROM v2 ORDER BY 1;
 f1
 test.t0  - 1
 test.t0  - 2
@@ -4165,37 +4165,37 @@ CREATE VIEW v1 AS SELECT * FROM t1;
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`f1` AS `f1` from `t1`	latin1	latin1_swedish_ci
-SELECT * FROM v1;
+SELECT * FROM v1 ORDER BY 1;
 f1
 8.800
 CREATE OR REPLACE VIEW v1 AS SELECT f1 FROM t1;
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`f1` AS `f1` from `t1`	latin1	latin1_swedish_ci
-SELECT * FROM v1;
+SELECT * FROM v1 ORDER BY 1;
 f1
 8.800
 CREATE OR REPLACE VIEW v1 AS SELECT f1 As my_column FROM t1;
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`f1` AS `my_column` from `t1`	latin1	latin1_swedish_ci
-SELECT * FROM v1;
+SELECT * FROM v1 ORDER BY 1;
 my_column
 8.800
 CREATE OR REPLACE VIEW v1(column1,column2)
 AS SELECT f1 As my_column, f1 FROM t1;
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`f1` AS `column1`,`t1`.`f1` AS `column2` from `t1`	latin1	latin1_swedish_ci
-SELECT * FROM v1;
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` (`column1`,`column2`) AS select `t1`.`f1` AS `my_column`,`t1`.`f1` AS `f1` from `t1`	latin1	latin1_swedish_ci
+SELECT * FROM v1 ORDER BY 1;
 column1	column2
 8.800	8.800
 CREATE OR REPLACE VIEW test.v1(column1,column2)
 AS SELECT f1 As my_column, f1 FROM test.t1;
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`f1` AS `column1`,`t1`.`f1` AS `column2` from `t1`	latin1	latin1_swedish_ci
-SELECT * FROM v1;
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` (`column1`,`column2`) AS select `t1`.`f1` AS `my_column`,`t1`.`f1` AS `f1` from `t1`	latin1	latin1_swedish_ci
+SELECT * FROM v1 ORDER BY 1;
 column1	column2
 8.800	8.800
 
@@ -4228,23 +4228,23 @@ INSERT INTO t1 VALUES(7, 7.7);
 CREATE TABLE t2( f1 BIGINT, f2 DECIMAL(5,2));
 INSERT INTO t2 VALUES(6, 6.6);
 CREATE VIEW v1 AS SELECT * FROM t1;
-SELECT * FROM v1;
+SELECT * FROM v1 ORDER BY 1;
 f1	f2
 7	7.70
 CREATE OR REPLACE VIEW v1 AS SELECT f1, f2 FROM t1;
-SELECT * FROM v1;
+SELECT * FROM v1 ORDER BY 1;
 f1	f2
 7	7.70
 CREATE OR REPLACE VIEW v1 AS SELECT f1 AS my_f1, f2 AS my_f2 FROM t1;
-SELECT * FROM v1;
+SELECT * FROM v1 ORDER BY 1;
 my_f1	my_f2
 7	7.70
 CREATE OR REPLACE VIEW v1 (my_f1, my_f2) AS SELECT f1, f2 FROM t1;
-SELECT * FROM v1;
+SELECT * FROM v1 ORDER BY 1;
 my_f1	my_f2
 7	7.70
 CREATE OR REPLACE VIEW v1 (my_f1, my_f2) AS SELECT t1.f1, t2.f2 FROM t1, t2;
-SELECT * FROM v1;
+SELECT * FROM v1 ORDER BY 1;
 my_f1	my_f2
 7	6.60
 SELECT f1, f2 AS f1 FROM t1;
@@ -8127,24 +8127,24 @@ INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
 INSERT INTO t1 VALUES(7, 'seven');
 INSERT INTO t1 VALUES(8, 'eight');
-SELECT * FROM v1;
+SELECT * FROM v1 ORDER BY 1;
 f1	f2
 0	zero
 7	seven
 8	eight
-SELECT * FROM v2;
+SELECT * FROM v2 ORDER BY 1;
 col1	col2
 7	seven
 8	eight
-SELECT * FROM v3;
+SELECT * FROM v3 ORDER BY 1;
 my_col1	my_col2
 8	eight
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
 8	eight
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
@@ -8158,11 +8158,11 @@ DELETE FROM v3 WHERE my_col1 = 7;
 affected rows: 0
 DELETE FROM v3 WHERE my_col1 = 8;
 affected rows: 1
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
@@ -8180,31 +8180,31 @@ info: Rows matched: 0  Changed: 0  Warnings: 0
 UPDATE v3 SET my_col2 = 'whatever' WHERE my_col1 = 8;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
 8	whatever
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 7 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 0 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 16 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
@@ -8212,7 +8212,7 @@ INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 10 WHERE my_col1 = 8;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 10	eight
 DELETE FROM t1;
@@ -8224,7 +8224,7 @@ INSERT INTO v3 VALUES(7, 'seven');
 ERROR HY000: CHECK OPTION failed 'test.v3'
 INSERT INTO v3 VALUES(8, 'eight');
 affected rows: 1
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
@@ -8237,24 +8237,24 @@ INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
 INSERT INTO t1 VALUES(7, 'seven');
 INSERT INTO t1 VALUES(8, 'eight');
-SELECT * FROM v1;
+SELECT * FROM v1 ORDER BY 1;
 f1	f2
 0	zero
 7	seven
 8	eight
-SELECT * FROM v2;
+SELECT * FROM v2 ORDER BY 1;
 col1	col2
 7	seven
 8	eight
-SELECT * FROM v3;
+SELECT * FROM v3 ORDER BY 1;
 my_col1	my_col2
 8	eight
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
 8	eight
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
@@ -8268,11 +8268,11 @@ DELETE FROM v3 WHERE my_col1 = 7;
 affected rows: 0
 DELETE FROM v3 WHERE my_col1 = 8;
 affected rows: 1
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
@@ -8290,31 +8290,31 @@ info: Rows matched: 0  Changed: 0  Warnings: 0
 UPDATE v3 SET my_col2 = 'whatever' WHERE my_col1 = 8;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
 8	whatever
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 7 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 0 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 16 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
@@ -8322,7 +8322,7 @@ INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 10 WHERE my_col1 = 8;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 10	eight
 DELETE FROM t1;
@@ -8334,7 +8334,7 @@ INSERT INTO v3 VALUES(7, 'seven');
 ERROR HY000: CHECK OPTION failed 'test.v3'
 INSERT INTO v3 VALUES(8, 'eight');
 affected rows: 1
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
@@ -8347,24 +8347,24 @@ INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
 INSERT INTO t1 VALUES(7, 'seven');
 INSERT INTO t1 VALUES(8, 'eight');
-SELECT * FROM v1;
+SELECT * FROM v1 ORDER BY 1;
 f1	f2
 0	zero
 7	seven
 8	eight
-SELECT * FROM v2;
+SELECT * FROM v2 ORDER BY 1;
 col1	col2
 7	seven
 8	eight
-SELECT * FROM v3;
+SELECT * FROM v3 ORDER BY 1;
 my_col1	my_col2
 8	eight
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
 8	eight
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
@@ -8378,11 +8378,11 @@ DELETE FROM v3 WHERE my_col1 = 7;
 affected rows: 0
 DELETE FROM v3 WHERE my_col1 = 8;
 affected rows: 1
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
@@ -8400,31 +8400,31 @@ info: Rows matched: 0  Changed: 0  Warnings: 0
 UPDATE v3 SET my_col2 = 'whatever' WHERE my_col1 = 8;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
 8	whatever
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 7 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 0 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 16 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
@@ -8432,7 +8432,7 @@ INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 10 WHERE my_col1 = 8;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 10	eight
 DELETE FROM t1;
@@ -8444,7 +8444,7 @@ INSERT INTO v3 VALUES(7, 'seven');
 ERROR HY000: CHECK OPTION failed 'test.v3'
 INSERT INTO v3 VALUES(8, 'eight');
 affected rows: 1
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
@@ -8457,24 +8457,24 @@ INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
 INSERT INTO t1 VALUES(7, 'seven');
 INSERT INTO t1 VALUES(8, 'eight');
-SELECT * FROM v1;
+SELECT * FROM v1 ORDER BY 1;
 f1	f2
 0	zero
 7	seven
 8	eight
-SELECT * FROM v2;
+SELECT * FROM v2 ORDER BY 1;
 col1	col2
 7	seven
 8	eight
-SELECT * FROM v3;
+SELECT * FROM v3 ORDER BY 1;
 my_col1	my_col2
 8	eight
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
 8	eight
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
@@ -8488,11 +8488,11 @@ DELETE FROM v3 WHERE my_col1 = 7;
 affected rows: 0
 DELETE FROM v3 WHERE my_col1 = 8;
 affected rows: 1
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
@@ -8510,32 +8510,32 @@ info: Rows matched: 0  Changed: 0  Warnings: 0
 UPDATE v3 SET my_col2 = 'whatever' WHERE my_col1 = 8;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
 8	whatever
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 7 WHERE my_col1 = 8;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 7	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 0 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 16 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
@@ -8543,7 +8543,7 @@ INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 10 WHERE my_col1 = 8;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 10	eight
 DELETE FROM t1;
@@ -8555,7 +8555,7 @@ INSERT INTO v3 VALUES(7, 'seven');
 affected rows: 1
 INSERT INTO v3 VALUES(8, 'eight');
 affected rows: 1
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 7	seven
 8	eight
@@ -8572,24 +8572,24 @@ INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
 INSERT INTO t1 VALUES(7, 'seven');
 INSERT INTO t1 VALUES(8, 'eight');
-SELECT * FROM v1;
+SELECT * FROM v1 ORDER BY 1;
 f1	f2
 0	zero
 7	seven
 8	eight
-SELECT * FROM v2;
+SELECT * FROM v2 ORDER BY 1;
 col1	col2
 7	seven
 8	eight
-SELECT * FROM v3;
+SELECT * FROM v3 ORDER BY 1;
 my_col1	my_col2
 8	eight
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
 8	eight
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
@@ -8603,11 +8603,11 @@ DELETE FROM v3 WHERE my_col1 = 7;
 affected rows: 0
 DELETE FROM v3 WHERE my_col1 = 8;
 affected rows: 1
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
@@ -8625,31 +8625,31 @@ info: Rows matched: 0  Changed: 0  Warnings: 0
 UPDATE v3 SET my_col2 = 'whatever' WHERE my_col1 = 8;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
 8	whatever
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 7 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 0 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 16 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
@@ -8657,7 +8657,7 @@ INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 10 WHERE my_col1 = 8;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 10	eight
 DELETE FROM t1;
@@ -8669,7 +8669,7 @@ INSERT INTO v3 VALUES(7, 'seven');
 ERROR HY000: CHECK OPTION failed 'test.v3'
 INSERT INTO v3 VALUES(8, 'eight');
 affected rows: 1
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
@@ -8682,24 +8682,24 @@ INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
 INSERT INTO t1 VALUES(7, 'seven');
 INSERT INTO t1 VALUES(8, 'eight');
-SELECT * FROM v1;
+SELECT * FROM v1 ORDER BY 1;
 f1	f2
 0	zero
 7	seven
 8	eight
-SELECT * FROM v2;
+SELECT * FROM v2 ORDER BY 1;
 col1	col2
 7	seven
 8	eight
-SELECT * FROM v3;
+SELECT * FROM v3 ORDER BY 1;
 my_col1	my_col2
 8	eight
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
 8	eight
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
@@ -8713,11 +8713,11 @@ DELETE FROM v3 WHERE my_col1 = 7;
 affected rows: 0
 DELETE FROM v3 WHERE my_col1 = 8;
 affected rows: 1
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
@@ -8735,31 +8735,31 @@ info: Rows matched: 0  Changed: 0  Warnings: 0
 UPDATE v3 SET my_col2 = 'whatever' WHERE my_col1 = 8;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
 8	whatever
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 7 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 0 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 16 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
@@ -8767,7 +8767,7 @@ INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 10 WHERE my_col1 = 8;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 10	eight
 DELETE FROM t1;
@@ -8779,7 +8779,7 @@ INSERT INTO v3 VALUES(7, 'seven');
 ERROR HY000: CHECK OPTION failed 'test.v3'
 INSERT INTO v3 VALUES(8, 'eight');
 affected rows: 1
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
@@ -8792,24 +8792,24 @@ INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
 INSERT INTO t1 VALUES(7, 'seven');
 INSERT INTO t1 VALUES(8, 'eight');
-SELECT * FROM v1;
+SELECT * FROM v1 ORDER BY 1;
 f1	f2
 0	zero
 7	seven
 8	eight
-SELECT * FROM v2;
+SELECT * FROM v2 ORDER BY 1;
 col1	col2
 7	seven
 8	eight
-SELECT * FROM v3;
+SELECT * FROM v3 ORDER BY 1;
 my_col1	my_col2
 8	eight
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
 8	eight
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
@@ -8823,11 +8823,11 @@ DELETE FROM v3 WHERE my_col1 = 7;
 affected rows: 0
 DELETE FROM v3 WHERE my_col1 = 8;
 affected rows: 1
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
@@ -8845,31 +8845,31 @@ info: Rows matched: 0  Changed: 0  Warnings: 0
 UPDATE v3 SET my_col2 = 'whatever' WHERE my_col1 = 8;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
 8	whatever
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 7 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 0 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 16 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
@@ -8877,7 +8877,7 @@ INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 10 WHERE my_col1 = 8;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 10	eight
 DELETE FROM t1;
@@ -8889,7 +8889,7 @@ INSERT INTO v3 VALUES(7, 'seven');
 ERROR HY000: CHECK OPTION failed 'test.v3'
 INSERT INTO v3 VALUES(8, 'eight');
 affected rows: 1
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
@@ -8902,24 +8902,24 @@ INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
 INSERT INTO t1 VALUES(7, 'seven');
 INSERT INTO t1 VALUES(8, 'eight');
-SELECT * FROM v1;
+SELECT * FROM v1 ORDER BY 1;
 f1	f2
 0	zero
 7	seven
 8	eight
-SELECT * FROM v2;
+SELECT * FROM v2 ORDER BY 1;
 col1	col2
 7	seven
 8	eight
-SELECT * FROM v3;
+SELECT * FROM v3 ORDER BY 1;
 my_col1	my_col2
 8	eight
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
 8	eight
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
@@ -8933,11 +8933,11 @@ DELETE FROM v3 WHERE my_col1 = 7;
 affected rows: 0
 DELETE FROM v3 WHERE my_col1 = 8;
 affected rows: 1
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
@@ -8955,32 +8955,32 @@ info: Rows matched: 0  Changed: 0  Warnings: 0
 UPDATE v3 SET my_col2 = 'whatever' WHERE my_col1 = 8;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
 8	whatever
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 7 WHERE my_col1 = 8;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 7	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 0 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 16 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
@@ -8988,7 +8988,7 @@ INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 10 WHERE my_col1 = 8;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 10	eight
 DELETE FROM t1;
@@ -9000,7 +9000,7 @@ INSERT INTO v3 VALUES(7, 'seven');
 affected rows: 1
 INSERT INTO v3 VALUES(8, 'eight');
 affected rows: 1
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 7	seven
 8	eight
@@ -9017,24 +9017,24 @@ INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
 INSERT INTO t1 VALUES(7, 'seven');
 INSERT INTO t1 VALUES(8, 'eight');
-SELECT * FROM v1;
+SELECT * FROM v1 ORDER BY 1;
 f1	f2
 0	zero
 7	seven
 8	eight
-SELECT * FROM v2;
+SELECT * FROM v2 ORDER BY 1;
 col1	col2
 7	seven
 8	eight
-SELECT * FROM v3;
+SELECT * FROM v3 ORDER BY 1;
 my_col1	my_col2
 8	eight
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
 8	eight
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
@@ -9048,11 +9048,11 @@ DELETE FROM v3 WHERE my_col1 = 7;
 affected rows: 0
 DELETE FROM v3 WHERE my_col1 = 8;
 affected rows: 1
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
@@ -9070,31 +9070,31 @@ info: Rows matched: 0  Changed: 0  Warnings: 0
 UPDATE v3 SET my_col2 = 'whatever' WHERE my_col1 = 8;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
 8	whatever
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 7 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 0 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 16 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
@@ -9102,7 +9102,7 @@ INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 10 WHERE my_col1 = 8;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 10	eight
 DELETE FROM t1;
@@ -9114,7 +9114,7 @@ INSERT INTO v3 VALUES(7, 'seven');
 ERROR HY000: CHECK OPTION failed 'test.v3'
 INSERT INTO v3 VALUES(8, 'eight');
 affected rows: 1
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
@@ -9127,24 +9127,24 @@ INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
 INSERT INTO t1 VALUES(7, 'seven');
 INSERT INTO t1 VALUES(8, 'eight');
-SELECT * FROM v1;
+SELECT * FROM v1 ORDER BY 1;
 f1	f2
 0	zero
 7	seven
 8	eight
-SELECT * FROM v2;
+SELECT * FROM v2 ORDER BY 1;
 col1	col2
 7	seven
 8	eight
-SELECT * FROM v3;
+SELECT * FROM v3 ORDER BY 1;
 my_col1	my_col2
 8	eight
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
 8	eight
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
@@ -9158,11 +9158,11 @@ DELETE FROM v3 WHERE my_col1 = 7;
 affected rows: 0
 DELETE FROM v3 WHERE my_col1 = 8;
 affected rows: 1
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
@@ -9180,31 +9180,31 @@ info: Rows matched: 0  Changed: 0  Warnings: 0
 UPDATE v3 SET my_col2 = 'whatever' WHERE my_col1 = 8;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
 8	whatever
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 7 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 0 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 16 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
@@ -9212,7 +9212,7 @@ INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 10 WHERE my_col1 = 8;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 10	eight
 DELETE FROM t1;
@@ -9224,7 +9224,7 @@ INSERT INTO v3 VALUES(7, 'seven');
 ERROR HY000: CHECK OPTION failed 'test.v3'
 INSERT INTO v3 VALUES(8, 'eight');
 affected rows: 1
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
@@ -9237,24 +9237,24 @@ INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
 INSERT INTO t1 VALUES(7, 'seven');
 INSERT INTO t1 VALUES(8, 'eight');
-SELECT * FROM v1;
+SELECT * FROM v1 ORDER BY 1;
 f1	f2
 0	zero
 7	seven
 8	eight
-SELECT * FROM v2;
+SELECT * FROM v2 ORDER BY 1;
 col1	col2
 7	seven
 8	eight
-SELECT * FROM v3;
+SELECT * FROM v3 ORDER BY 1;
 my_col1	my_col2
 8	eight
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
 8	eight
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
@@ -9268,11 +9268,11 @@ DELETE FROM v3 WHERE my_col1 = 7;
 affected rows: 0
 DELETE FROM v3 WHERE my_col1 = 8;
 affected rows: 1
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
@@ -9290,31 +9290,31 @@ info: Rows matched: 0  Changed: 0  Warnings: 0
 UPDATE v3 SET my_col2 = 'whatever' WHERE my_col1 = 8;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
 8	whatever
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 7 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 0 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 16 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
@@ -9322,7 +9322,7 @@ INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 10 WHERE my_col1 = 8;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 10	eight
 DELETE FROM t1;
@@ -9334,7 +9334,7 @@ INSERT INTO v3 VALUES(7, 'seven');
 ERROR HY000: CHECK OPTION failed 'test.v3'
 INSERT INTO v3 VALUES(8, 'eight');
 affected rows: 1
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
@@ -9347,24 +9347,24 @@ INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
 INSERT INTO t1 VALUES(7, 'seven');
 INSERT INTO t1 VALUES(8, 'eight');
-SELECT * FROM v1;
+SELECT * FROM v1 ORDER BY 1;
 f1	f2
 0	zero
 7	seven
 8	eight
-SELECT * FROM v2;
+SELECT * FROM v2 ORDER BY 1;
 col1	col2
 7	seven
 8	eight
-SELECT * FROM v3;
+SELECT * FROM v3 ORDER BY 1;
 my_col1	my_col2
 8	eight
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
 8	eight
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
@@ -9378,11 +9378,11 @@ DELETE FROM v3 WHERE my_col1 = 7;
 affected rows: 0
 DELETE FROM v3 WHERE my_col1 = 8;
 affected rows: 1
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
@@ -9400,32 +9400,32 @@ info: Rows matched: 0  Changed: 0  Warnings: 0
 UPDATE v3 SET my_col2 = 'whatever' WHERE my_col1 = 8;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
 8	whatever
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 7 WHERE my_col1 = 8;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 7	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 0 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 16 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
@@ -9433,7 +9433,7 @@ INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 10 WHERE my_col1 = 8;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 10	eight
 DELETE FROM t1;
@@ -9445,7 +9445,7 @@ INSERT INTO v3 VALUES(7, 'seven');
 affected rows: 1
 INSERT INTO v3 VALUES(8, 'eight');
 affected rows: 1
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 7	seven
 8	eight
@@ -9462,24 +9462,24 @@ INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
 INSERT INTO t1 VALUES(7, 'seven');
 INSERT INTO t1 VALUES(8, 'eight');
-SELECT * FROM v1;
+SELECT * FROM v1 ORDER BY 1;
 f1	f2
 0	zero
 7	seven
 8	eight
-SELECT * FROM v2;
+SELECT * FROM v2 ORDER BY 1;
 col1	col2
 7	seven
 8	eight
-SELECT * FROM v3;
+SELECT * FROM v3 ORDER BY 1;
 my_col1	my_col2
 8	eight
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
 8	eight
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
@@ -9493,11 +9493,11 @@ DELETE FROM v3 WHERE my_col1 = 7;
 affected rows: 0
 DELETE FROM v3 WHERE my_col1 = 8;
 affected rows: 1
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
@@ -9515,17 +9515,17 @@ info: Rows matched: 0  Changed: 0  Warnings: 0
 UPDATE v3 SET my_col2 = 'whatever' WHERE my_col1 = 8;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
 8	whatever
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 7 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
@@ -9533,14 +9533,14 @@ INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 0 WHERE my_col1 = 8;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 0	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 16 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
@@ -9548,7 +9548,7 @@ INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 10 WHERE my_col1 = 8;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 10	eight
 DELETE FROM t1;
@@ -9560,7 +9560,7 @@ INSERT INTO v3 VALUES(7, 'seven');
 ERROR HY000: CHECK OPTION failed 'test.v3'
 INSERT INTO v3 VALUES(8, 'eight');
 affected rows: 1
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 0	zero
 8	eight
@@ -9574,24 +9574,24 @@ INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
 INSERT INTO t1 VALUES(7, 'seven');
 INSERT INTO t1 VALUES(8, 'eight');
-SELECT * FROM v1;
+SELECT * FROM v1 ORDER BY 1;
 f1	f2
 0	zero
 7	seven
 8	eight
-SELECT * FROM v2;
+SELECT * FROM v2 ORDER BY 1;
 col1	col2
 7	seven
 8	eight
-SELECT * FROM v3;
+SELECT * FROM v3 ORDER BY 1;
 my_col1	my_col2
 8	eight
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
 8	eight
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
@@ -9605,11 +9605,11 @@ DELETE FROM v3 WHERE my_col1 = 7;
 affected rows: 0
 DELETE FROM v3 WHERE my_col1 = 8;
 affected rows: 1
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
@@ -9627,31 +9627,31 @@ info: Rows matched: 0  Changed: 0  Warnings: 0
 UPDATE v3 SET my_col2 = 'whatever' WHERE my_col1 = 8;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
 8	whatever
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 7 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 0 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 16 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
@@ -9659,7 +9659,7 @@ INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 10 WHERE my_col1 = 8;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 10	eight
 DELETE FROM t1;
@@ -9671,7 +9671,7 @@ INSERT INTO v3 VALUES(7, 'seven');
 ERROR HY000: CHECK OPTION failed 'test.v3'
 INSERT INTO v3 VALUES(8, 'eight');
 affected rows: 1
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
@@ -9684,24 +9684,24 @@ INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
 INSERT INTO t1 VALUES(7, 'seven');
 INSERT INTO t1 VALUES(8, 'eight');
-SELECT * FROM v1;
+SELECT * FROM v1 ORDER BY 1;
 f1	f2
 0	zero
 7	seven
 8	eight
-SELECT * FROM v2;
+SELECT * FROM v2 ORDER BY 1;
 col1	col2
 7	seven
 8	eight
-SELECT * FROM v3;
+SELECT * FROM v3 ORDER BY 1;
 my_col1	my_col2
 8	eight
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
 8	eight
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
@@ -9715,11 +9715,11 @@ DELETE FROM v3 WHERE my_col1 = 7;
 affected rows: 0
 DELETE FROM v3 WHERE my_col1 = 8;
 affected rows: 1
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
@@ -9737,31 +9737,31 @@ info: Rows matched: 0  Changed: 0  Warnings: 0
 UPDATE v3 SET my_col2 = 'whatever' WHERE my_col1 = 8;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
 8	whatever
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 7 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 0 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 16 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
@@ -9769,7 +9769,7 @@ INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 10 WHERE my_col1 = 8;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 10	eight
 DELETE FROM t1;
@@ -9781,7 +9781,7 @@ INSERT INTO v3 VALUES(7, 'seven');
 ERROR HY000: CHECK OPTION failed 'test.v3'
 INSERT INTO v3 VALUES(8, 'eight');
 affected rows: 1
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
@@ -9794,24 +9794,24 @@ INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
 INSERT INTO t1 VALUES(7, 'seven');
 INSERT INTO t1 VALUES(8, 'eight');
-SELECT * FROM v1;
+SELECT * FROM v1 ORDER BY 1;
 f1	f2
 0	zero
 7	seven
 8	eight
-SELECT * FROM v2;
+SELECT * FROM v2 ORDER BY 1;
 col1	col2
 7	seven
 8	eight
-SELECT * FROM v3;
+SELECT * FROM v3 ORDER BY 1;
 my_col1	my_col2
 8	eight
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
 8	eight
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
@@ -9825,11 +9825,11 @@ DELETE FROM v3 WHERE my_col1 = 7;
 affected rows: 0
 DELETE FROM v3 WHERE my_col1 = 8;
 affected rows: 1
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
@@ -9847,18 +9847,18 @@ info: Rows matched: 0  Changed: 0  Warnings: 0
 UPDATE v3 SET my_col2 = 'whatever' WHERE my_col1 = 8;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
 8	whatever
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 7 WHERE my_col1 = 8;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 7	eight
 DELETE FROM t1;
@@ -9866,14 +9866,14 @@ INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 0 WHERE my_col1 = 8;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 0	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 16 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
@@ -9881,7 +9881,7 @@ INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 10 WHERE my_col1 = 8;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 10	eight
 DELETE FROM t1;
@@ -9893,7 +9893,7 @@ INSERT INTO v3 VALUES(7, 'seven');
 affected rows: 1
 INSERT INTO v3 VALUES(8, 'eight');
 affected rows: 1
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 0	zero
 7	seven
@@ -9914,24 +9914,24 @@ INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
 INSERT INTO t1 VALUES(7, 'seven');
 INSERT INTO t1 VALUES(8, 'eight');
-SELECT * FROM v1;
+SELECT * FROM v1 ORDER BY 1;
 f1	f2
 0	zero
 7	seven
 8	eight
-SELECT * FROM v2;
+SELECT * FROM v2 ORDER BY 1;
 col1	col2
 7	seven
 8	eight
-SELECT * FROM v3;
+SELECT * FROM v3 ORDER BY 1;
 my_col1	my_col2
 8	eight
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
 8	eight
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
@@ -9945,11 +9945,11 @@ DELETE FROM v3 WHERE my_col1 = 7;
 affected rows: 0
 DELETE FROM v3 WHERE my_col1 = 8;
 affected rows: 1
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
@@ -9967,31 +9967,31 @@ info: Rows matched: 0  Changed: 0  Warnings: 0
 UPDATE v3 SET my_col2 = 'whatever' WHERE my_col1 = 8;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
 8	whatever
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 7 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 0 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 16 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
@@ -9999,7 +9999,7 @@ INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 10 WHERE my_col1 = 8;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 10	eight
 DELETE FROM t1;
@@ -10011,7 +10011,7 @@ INSERT INTO v3 VALUES(7, 'seven');
 ERROR HY000: CHECK OPTION failed 'test.v3'
 INSERT INTO v3 VALUES(8, 'eight');
 affected rows: 1
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
@@ -10024,24 +10024,24 @@ INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
 INSERT INTO t1 VALUES(7, 'seven');
 INSERT INTO t1 VALUES(8, 'eight');
-SELECT * FROM v1;
+SELECT * FROM v1 ORDER BY 1;
 f1	f2
 0	zero
 7	seven
 8	eight
-SELECT * FROM v2;
+SELECT * FROM v2 ORDER BY 1;
 col1	col2
 7	seven
 8	eight
-SELECT * FROM v3;
+SELECT * FROM v3 ORDER BY 1;
 my_col1	my_col2
 8	eight
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
 8	eight
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
@@ -10055,11 +10055,11 @@ DELETE FROM v3 WHERE my_col1 = 7;
 affected rows: 0
 DELETE FROM v3 WHERE my_col1 = 8;
 affected rows: 1
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
@@ -10077,31 +10077,31 @@ info: Rows matched: 0  Changed: 0  Warnings: 0
 UPDATE v3 SET my_col2 = 'whatever' WHERE my_col1 = 8;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
 8	whatever
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 7 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 0 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 16 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
@@ -10109,7 +10109,7 @@ INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 10 WHERE my_col1 = 8;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 10	eight
 DELETE FROM t1;
@@ -10121,7 +10121,7 @@ INSERT INTO v3 VALUES(7, 'seven');
 ERROR HY000: CHECK OPTION failed 'test.v3'
 INSERT INTO v3 VALUES(8, 'eight');
 affected rows: 1
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
@@ -10134,24 +10134,24 @@ INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
 INSERT INTO t1 VALUES(7, 'seven');
 INSERT INTO t1 VALUES(8, 'eight');
-SELECT * FROM v1;
+SELECT * FROM v1 ORDER BY 1;
 f1	f2
 0	zero
 7	seven
 8	eight
-SELECT * FROM v2;
+SELECT * FROM v2 ORDER BY 1;
 col1	col2
 7	seven
 8	eight
-SELECT * FROM v3;
+SELECT * FROM v3 ORDER BY 1;
 my_col1	my_col2
 8	eight
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
 8	eight
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
@@ -10165,11 +10165,11 @@ DELETE FROM v3 WHERE my_col1 = 7;
 affected rows: 0
 DELETE FROM v3 WHERE my_col1 = 8;
 affected rows: 1
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
@@ -10187,31 +10187,31 @@ info: Rows matched: 0  Changed: 0  Warnings: 0
 UPDATE v3 SET my_col2 = 'whatever' WHERE my_col1 = 8;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
 8	whatever
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 7 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 0 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 16 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
@@ -10219,7 +10219,7 @@ INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 10 WHERE my_col1 = 8;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 10	eight
 DELETE FROM t1;
@@ -10231,7 +10231,7 @@ INSERT INTO v3 VALUES(7, 'seven');
 ERROR HY000: CHECK OPTION failed 'test.v3'
 INSERT INTO v3 VALUES(8, 'eight');
 affected rows: 1
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
@@ -10244,24 +10244,24 @@ INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
 INSERT INTO t1 VALUES(7, 'seven');
 INSERT INTO t1 VALUES(8, 'eight');
-SELECT * FROM v1;
+SELECT * FROM v1 ORDER BY 1;
 f1	f2
 0	zero
 7	seven
 8	eight
-SELECT * FROM v2;
+SELECT * FROM v2 ORDER BY 1;
 col1	col2
 7	seven
 8	eight
-SELECT * FROM v3;
+SELECT * FROM v3 ORDER BY 1;
 my_col1	my_col2
 8	eight
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
 8	eight
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
@@ -10275,11 +10275,11 @@ DELETE FROM v3 WHERE my_col1 = 7;
 affected rows: 0
 DELETE FROM v3 WHERE my_col1 = 8;
 affected rows: 1
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
@@ -10297,32 +10297,32 @@ info: Rows matched: 0  Changed: 0  Warnings: 0
 UPDATE v3 SET my_col2 = 'whatever' WHERE my_col1 = 8;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
 8	whatever
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 7 WHERE my_col1 = 8;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 7	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 0 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 16 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
@@ -10330,7 +10330,7 @@ INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 10 WHERE my_col1 = 8;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 10	eight
 DELETE FROM t1;
@@ -10342,7 +10342,7 @@ INSERT INTO v3 VALUES(7, 'seven');
 affected rows: 1
 INSERT INTO v3 VALUES(8, 'eight');
 affected rows: 1
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 7	seven
 8	eight
@@ -10359,24 +10359,24 @@ INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
 INSERT INTO t1 VALUES(7, 'seven');
 INSERT INTO t1 VALUES(8, 'eight');
-SELECT * FROM v1;
+SELECT * FROM v1 ORDER BY 1;
 f1	f2
 0	zero
 7	seven
 8	eight
-SELECT * FROM v2;
+SELECT * FROM v2 ORDER BY 1;
 col1	col2
 7	seven
 8	eight
-SELECT * FROM v3;
+SELECT * FROM v3 ORDER BY 1;
 my_col1	my_col2
 8	eight
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
 8	eight
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
@@ -10390,11 +10390,11 @@ DELETE FROM v3 WHERE my_col1 = 7;
 affected rows: 0
 DELETE FROM v3 WHERE my_col1 = 8;
 affected rows: 1
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
@@ -10412,31 +10412,31 @@ info: Rows matched: 0  Changed: 0  Warnings: 0
 UPDATE v3 SET my_col2 = 'whatever' WHERE my_col1 = 8;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
 8	whatever
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 7 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 0 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 16 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
@@ -10444,7 +10444,7 @@ INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 10 WHERE my_col1 = 8;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 10	eight
 DELETE FROM t1;
@@ -10456,7 +10456,7 @@ INSERT INTO v3 VALUES(7, 'seven');
 ERROR HY000: CHECK OPTION failed 'test.v3'
 INSERT INTO v3 VALUES(8, 'eight');
 affected rows: 1
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
@@ -10469,24 +10469,24 @@ INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
 INSERT INTO t1 VALUES(7, 'seven');
 INSERT INTO t1 VALUES(8, 'eight');
-SELECT * FROM v1;
+SELECT * FROM v1 ORDER BY 1;
 f1	f2
 0	zero
 7	seven
 8	eight
-SELECT * FROM v2;
+SELECT * FROM v2 ORDER BY 1;
 col1	col2
 7	seven
 8	eight
-SELECT * FROM v3;
+SELECT * FROM v3 ORDER BY 1;
 my_col1	my_col2
 8	eight
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
 8	eight
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
@@ -10500,11 +10500,11 @@ DELETE FROM v3 WHERE my_col1 = 7;
 affected rows: 0
 DELETE FROM v3 WHERE my_col1 = 8;
 affected rows: 1
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
@@ -10522,31 +10522,31 @@ info: Rows matched: 0  Changed: 0  Warnings: 0
 UPDATE v3 SET my_col2 = 'whatever' WHERE my_col1 = 8;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
 8	whatever
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 7 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 0 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 16 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
@@ -10554,7 +10554,7 @@ INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 10 WHERE my_col1 = 8;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 10	eight
 DELETE FROM t1;
@@ -10566,7 +10566,7 @@ INSERT INTO v3 VALUES(7, 'seven');
 ERROR HY000: CHECK OPTION failed 'test.v3'
 INSERT INTO v3 VALUES(8, 'eight');
 affected rows: 1
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
@@ -10579,24 +10579,24 @@ INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
 INSERT INTO t1 VALUES(7, 'seven');
 INSERT INTO t1 VALUES(8, 'eight');
-SELECT * FROM v1;
+SELECT * FROM v1 ORDER BY 1;
 f1	f2
 0	zero
 7	seven
 8	eight
-SELECT * FROM v2;
+SELECT * FROM v2 ORDER BY 1;
 col1	col2
 7	seven
 8	eight
-SELECT * FROM v3;
+SELECT * FROM v3 ORDER BY 1;
 my_col1	my_col2
 8	eight
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
 8	eight
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
@@ -10610,11 +10610,11 @@ DELETE FROM v3 WHERE my_col1 = 7;
 affected rows: 0
 DELETE FROM v3 WHERE my_col1 = 8;
 affected rows: 1
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
@@ -10632,31 +10632,31 @@ info: Rows matched: 0  Changed: 0  Warnings: 0
 UPDATE v3 SET my_col2 = 'whatever' WHERE my_col1 = 8;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
 8	whatever
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 7 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 0 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 16 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
@@ -10664,7 +10664,7 @@ INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 10 WHERE my_col1 = 8;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 10	eight
 DELETE FROM t1;
@@ -10676,7 +10676,7 @@ INSERT INTO v3 VALUES(7, 'seven');
 ERROR HY000: CHECK OPTION failed 'test.v3'
 INSERT INTO v3 VALUES(8, 'eight');
 affected rows: 1
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
@@ -10689,24 +10689,24 @@ INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
 INSERT INTO t1 VALUES(7, 'seven');
 INSERT INTO t1 VALUES(8, 'eight');
-SELECT * FROM v1;
+SELECT * FROM v1 ORDER BY 1;
 f1	f2
 0	zero
 7	seven
 8	eight
-SELECT * FROM v2;
+SELECT * FROM v2 ORDER BY 1;
 col1	col2
 7	seven
 8	eight
-SELECT * FROM v3;
+SELECT * FROM v3 ORDER BY 1;
 my_col1	my_col2
 8	eight
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
 8	eight
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
@@ -10720,11 +10720,11 @@ DELETE FROM v3 WHERE my_col1 = 7;
 affected rows: 0
 DELETE FROM v3 WHERE my_col1 = 8;
 affected rows: 1
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
@@ -10742,32 +10742,32 @@ info: Rows matched: 0  Changed: 0  Warnings: 0
 UPDATE v3 SET my_col2 = 'whatever' WHERE my_col1 = 8;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
 8	whatever
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 7 WHERE my_col1 = 8;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 7	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 0 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 16 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
@@ -10775,7 +10775,7 @@ INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 10 WHERE my_col1 = 8;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 10	eight
 DELETE FROM t1;
@@ -10787,7 +10787,7 @@ INSERT INTO v3 VALUES(7, 'seven');
 affected rows: 1
 INSERT INTO v3 VALUES(8, 'eight');
 affected rows: 1
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 7	seven
 8	eight
@@ -10804,24 +10804,24 @@ INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
 INSERT INTO t1 VALUES(7, 'seven');
 INSERT INTO t1 VALUES(8, 'eight');
-SELECT * FROM v1;
+SELECT * FROM v1 ORDER BY 1;
 f1	f2
 0	zero
 7	seven
 8	eight
-SELECT * FROM v2;
+SELECT * FROM v2 ORDER BY 1;
 col1	col2
 7	seven
 8	eight
-SELECT * FROM v3;
+SELECT * FROM v3 ORDER BY 1;
 my_col1	my_col2
 8	eight
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
 8	eight
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
@@ -10835,11 +10835,11 @@ DELETE FROM v3 WHERE my_col1 = 7;
 affected rows: 0
 DELETE FROM v3 WHERE my_col1 = 8;
 affected rows: 1
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
@@ -10857,31 +10857,31 @@ info: Rows matched: 0  Changed: 0  Warnings: 0
 UPDATE v3 SET my_col2 = 'whatever' WHERE my_col1 = 8;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
 8	whatever
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 7 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 0 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 16 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
@@ -10889,7 +10889,7 @@ INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 10 WHERE my_col1 = 8;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 10	eight
 DELETE FROM t1;
@@ -10901,7 +10901,7 @@ INSERT INTO v3 VALUES(7, 'seven');
 ERROR HY000: CHECK OPTION failed 'test.v3'
 INSERT INTO v3 VALUES(8, 'eight');
 affected rows: 1
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
@@ -10914,24 +10914,24 @@ INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
 INSERT INTO t1 VALUES(7, 'seven');
 INSERT INTO t1 VALUES(8, 'eight');
-SELECT * FROM v1;
+SELECT * FROM v1 ORDER BY 1;
 f1	f2
 0	zero
 7	seven
 8	eight
-SELECT * FROM v2;
+SELECT * FROM v2 ORDER BY 1;
 col1	col2
 7	seven
 8	eight
-SELECT * FROM v3;
+SELECT * FROM v3 ORDER BY 1;
 my_col1	my_col2
 8	eight
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
 8	eight
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
@@ -10945,11 +10945,11 @@ DELETE FROM v3 WHERE my_col1 = 7;
 affected rows: 0
 DELETE FROM v3 WHERE my_col1 = 8;
 affected rows: 1
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
@@ -10967,31 +10967,31 @@ info: Rows matched: 0  Changed: 0  Warnings: 0
 UPDATE v3 SET my_col2 = 'whatever' WHERE my_col1 = 8;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
 8	whatever
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 7 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 0 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 16 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
@@ -10999,7 +10999,7 @@ INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 10 WHERE my_col1 = 8;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 10	eight
 DELETE FROM t1;
@@ -11011,7 +11011,7 @@ INSERT INTO v3 VALUES(7, 'seven');
 ERROR HY000: CHECK OPTION failed 'test.v3'
 INSERT INTO v3 VALUES(8, 'eight');
 affected rows: 1
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
@@ -11024,24 +11024,24 @@ INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
 INSERT INTO t1 VALUES(7, 'seven');
 INSERT INTO t1 VALUES(8, 'eight');
-SELECT * FROM v1;
+SELECT * FROM v1 ORDER BY 1;
 f1	f2
 0	zero
 7	seven
 8	eight
-SELECT * FROM v2;
+SELECT * FROM v2 ORDER BY 1;
 col1	col2
 7	seven
 8	eight
-SELECT * FROM v3;
+SELECT * FROM v3 ORDER BY 1;
 my_col1	my_col2
 8	eight
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
 8	eight
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
@@ -11055,11 +11055,11 @@ DELETE FROM v3 WHERE my_col1 = 7;
 affected rows: 0
 DELETE FROM v3 WHERE my_col1 = 8;
 affected rows: 1
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
@@ -11077,31 +11077,31 @@ info: Rows matched: 0  Changed: 0  Warnings: 0
 UPDATE v3 SET my_col2 = 'whatever' WHERE my_col1 = 8;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
 8	whatever
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 7 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 0 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 16 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
@@ -11109,7 +11109,7 @@ INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 10 WHERE my_col1 = 8;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 10	eight
 DELETE FROM t1;
@@ -11121,7 +11121,7 @@ INSERT INTO v3 VALUES(7, 'seven');
 ERROR HY000: CHECK OPTION failed 'test.v3'
 INSERT INTO v3 VALUES(8, 'eight');
 affected rows: 1
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
@@ -11134,24 +11134,24 @@ INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
 INSERT INTO t1 VALUES(7, 'seven');
 INSERT INTO t1 VALUES(8, 'eight');
-SELECT * FROM v1;
+SELECT * FROM v1 ORDER BY 1;
 f1	f2
 0	zero
 7	seven
 8	eight
-SELECT * FROM v2;
+SELECT * FROM v2 ORDER BY 1;
 col1	col2
 7	seven
 8	eight
-SELECT * FROM v3;
+SELECT * FROM v3 ORDER BY 1;
 my_col1	my_col2
 8	eight
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
 8	eight
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
@@ -11165,11 +11165,11 @@ DELETE FROM v3 WHERE my_col1 = 7;
 affected rows: 0
 DELETE FROM v3 WHERE my_col1 = 8;
 affected rows: 1
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
@@ -11187,32 +11187,32 @@ info: Rows matched: 0  Changed: 0  Warnings: 0
 UPDATE v3 SET my_col2 = 'whatever' WHERE my_col1 = 8;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
 8	whatever
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 7 WHERE my_col1 = 8;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 7	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 0 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 16 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
@@ -11220,7 +11220,7 @@ INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 10 WHERE my_col1 = 8;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 10	eight
 DELETE FROM t1;
@@ -11232,7 +11232,7 @@ INSERT INTO v3 VALUES(7, 'seven');
 affected rows: 1
 INSERT INTO v3 VALUES(8, 'eight');
 affected rows: 1
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 7	seven
 8	eight
@@ -11249,24 +11249,24 @@ INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
 INSERT INTO t1 VALUES(7, 'seven');
 INSERT INTO t1 VALUES(8, 'eight');
-SELECT * FROM v1;
+SELECT * FROM v1 ORDER BY 1;
 f1	f2
 0	zero
 7	seven
 8	eight
-SELECT * FROM v2;
+SELECT * FROM v2 ORDER BY 1;
 col1	col2
 7	seven
 8	eight
-SELECT * FROM v3;
+SELECT * FROM v3 ORDER BY 1;
 my_col1	my_col2
 8	eight
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
 8	eight
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
@@ -11280,11 +11280,11 @@ DELETE FROM v3 WHERE my_col1 = 7;
 affected rows: 0
 DELETE FROM v3 WHERE my_col1 = 8;
 affected rows: 1
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
@@ -11302,17 +11302,17 @@ info: Rows matched: 0  Changed: 0  Warnings: 0
 UPDATE v3 SET my_col2 = 'whatever' WHERE my_col1 = 8;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
 8	whatever
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 7 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
@@ -11320,14 +11320,14 @@ INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 0 WHERE my_col1 = 8;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 0	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 16 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
@@ -11335,7 +11335,7 @@ INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 10 WHERE my_col1 = 8;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 10	eight
 DELETE FROM t1;
@@ -11347,7 +11347,7 @@ INSERT INTO v3 VALUES(7, 'seven');
 ERROR HY000: CHECK OPTION failed 'test.v3'
 INSERT INTO v3 VALUES(8, 'eight');
 affected rows: 1
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 0	zero
 8	eight
@@ -11361,24 +11361,24 @@ INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
 INSERT INTO t1 VALUES(7, 'seven');
 INSERT INTO t1 VALUES(8, 'eight');
-SELECT * FROM v1;
+SELECT * FROM v1 ORDER BY 1;
 f1	f2
 0	zero
 7	seven
 8	eight
-SELECT * FROM v2;
+SELECT * FROM v2 ORDER BY 1;
 col1	col2
 7	seven
 8	eight
-SELECT * FROM v3;
+SELECT * FROM v3 ORDER BY 1;
 my_col1	my_col2
 8	eight
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
 8	eight
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
@@ -11392,11 +11392,11 @@ DELETE FROM v3 WHERE my_col1 = 7;
 affected rows: 0
 DELETE FROM v3 WHERE my_col1 = 8;
 affected rows: 1
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
@@ -11414,31 +11414,31 @@ info: Rows matched: 0  Changed: 0  Warnings: 0
 UPDATE v3 SET my_col2 = 'whatever' WHERE my_col1 = 8;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
 8	whatever
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 7 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 0 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 16 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
@@ -11446,7 +11446,7 @@ INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 10 WHERE my_col1 = 8;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 10	eight
 DELETE FROM t1;
@@ -11458,7 +11458,7 @@ INSERT INTO v3 VALUES(7, 'seven');
 ERROR HY000: CHECK OPTION failed 'test.v3'
 INSERT INTO v3 VALUES(8, 'eight');
 affected rows: 1
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
@@ -11471,24 +11471,24 @@ INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
 INSERT INTO t1 VALUES(7, 'seven');
 INSERT INTO t1 VALUES(8, 'eight');
-SELECT * FROM v1;
+SELECT * FROM v1 ORDER BY 1;
 f1	f2
 0	zero
 7	seven
 8	eight
-SELECT * FROM v2;
+SELECT * FROM v2 ORDER BY 1;
 col1	col2
 7	seven
 8	eight
-SELECT * FROM v3;
+SELECT * FROM v3 ORDER BY 1;
 my_col1	my_col2
 8	eight
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
 8	eight
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
@@ -11502,11 +11502,11 @@ DELETE FROM v3 WHERE my_col1 = 7;
 affected rows: 0
 DELETE FROM v3 WHERE my_col1 = 8;
 affected rows: 1
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
@@ -11524,31 +11524,31 @@ info: Rows matched: 0  Changed: 0  Warnings: 0
 UPDATE v3 SET my_col2 = 'whatever' WHERE my_col1 = 8;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
 8	whatever
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 7 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 0 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 16 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
@@ -11556,7 +11556,7 @@ INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 10 WHERE my_col1 = 8;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 10	eight
 DELETE FROM t1;
@@ -11568,7 +11568,7 @@ INSERT INTO v3 VALUES(7, 'seven');
 ERROR HY000: CHECK OPTION failed 'test.v3'
 INSERT INTO v3 VALUES(8, 'eight');
 affected rows: 1
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
@@ -11581,24 +11581,24 @@ INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
 INSERT INTO t1 VALUES(7, 'seven');
 INSERT INTO t1 VALUES(8, 'eight');
-SELECT * FROM v1;
+SELECT * FROM v1 ORDER BY 1;
 f1	f2
 0	zero
 7	seven
 8	eight
-SELECT * FROM v2;
+SELECT * FROM v2 ORDER BY 1;
 col1	col2
 7	seven
 8	eight
-SELECT * FROM v3;
+SELECT * FROM v3 ORDER BY 1;
 my_col1	my_col2
 8	eight
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
 8	eight
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
@@ -11612,11 +11612,11 @@ DELETE FROM v3 WHERE my_col1 = 7;
 affected rows: 0
 DELETE FROM v3 WHERE my_col1 = 8;
 affected rows: 1
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
@@ -11634,18 +11634,18 @@ info: Rows matched: 0  Changed: 0  Warnings: 0
 UPDATE v3 SET my_col2 = 'whatever' WHERE my_col1 = 8;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
 8	whatever
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 7 WHERE my_col1 = 8;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 7	eight
 DELETE FROM t1;
@@ -11653,14 +11653,14 @@ INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 0 WHERE my_col1 = 8;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 0	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 16 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
@@ -11668,7 +11668,7 @@ INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 10 WHERE my_col1 = 8;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 10	eight
 DELETE FROM t1;
@@ -11680,7 +11680,7 @@ INSERT INTO v3 VALUES(7, 'seven');
 affected rows: 1
 INSERT INTO v3 VALUES(8, 'eight');
 affected rows: 1
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 0	zero
 7	seven
@@ -11701,24 +11701,24 @@ INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
 INSERT INTO t1 VALUES(7, 'seven');
 INSERT INTO t1 VALUES(8, 'eight');
-SELECT * FROM v1;
+SELECT * FROM v1 ORDER BY 1;
 f1	f2
 0	zero
 7	seven
 8	eight
-SELECT * FROM v2;
+SELECT * FROM v2 ORDER BY 1;
 col1	col2
 7	seven
 8	eight
-SELECT * FROM v3;
+SELECT * FROM v3 ORDER BY 1;
 my_col1	my_col2
 8	eight
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
 8	eight
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
@@ -11732,11 +11732,11 @@ DELETE FROM v3 WHERE my_col1 = 7;
 affected rows: 0
 DELETE FROM v3 WHERE my_col1 = 8;
 affected rows: 1
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
@@ -11754,31 +11754,31 @@ info: Rows matched: 0  Changed: 0  Warnings: 0
 UPDATE v3 SET my_col2 = 'whatever' WHERE my_col1 = 8;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
 8	whatever
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 7 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 0 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 16 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
@@ -11786,7 +11786,7 @@ INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 10 WHERE my_col1 = 8;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 10	eight
 DELETE FROM t1;
@@ -11798,7 +11798,7 @@ INSERT INTO v3 VALUES(7, 'seven');
 ERROR HY000: CHECK OPTION failed 'test.v3'
 INSERT INTO v3 VALUES(8, 'eight');
 affected rows: 1
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
@@ -11811,24 +11811,24 @@ INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
 INSERT INTO t1 VALUES(7, 'seven');
 INSERT INTO t1 VALUES(8, 'eight');
-SELECT * FROM v1;
+SELECT * FROM v1 ORDER BY 1;
 f1	f2
 0	zero
 7	seven
 8	eight
-SELECT * FROM v2;
+SELECT * FROM v2 ORDER BY 1;
 col1	col2
 7	seven
 8	eight
-SELECT * FROM v3;
+SELECT * FROM v3 ORDER BY 1;
 my_col1	my_col2
 8	eight
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
 8	eight
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
@@ -11842,11 +11842,11 @@ DELETE FROM v3 WHERE my_col1 = 7;
 affected rows: 0
 DELETE FROM v3 WHERE my_col1 = 8;
 affected rows: 1
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
@@ -11864,31 +11864,31 @@ info: Rows matched: 0  Changed: 0  Warnings: 0
 UPDATE v3 SET my_col2 = 'whatever' WHERE my_col1 = 8;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
 8	whatever
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 7 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 0 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 16 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
@@ -11896,7 +11896,7 @@ INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 10 WHERE my_col1 = 8;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 10	eight
 DELETE FROM t1;
@@ -11908,7 +11908,7 @@ INSERT INTO v3 VALUES(7, 'seven');
 ERROR HY000: CHECK OPTION failed 'test.v3'
 INSERT INTO v3 VALUES(8, 'eight');
 affected rows: 1
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
@@ -11921,24 +11921,24 @@ INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
 INSERT INTO t1 VALUES(7, 'seven');
 INSERT INTO t1 VALUES(8, 'eight');
-SELECT * FROM v1;
+SELECT * FROM v1 ORDER BY 1;
 f1	f2
 0	zero
 7	seven
 8	eight
-SELECT * FROM v2;
+SELECT * FROM v2 ORDER BY 1;
 col1	col2
 7	seven
 8	eight
-SELECT * FROM v3;
+SELECT * FROM v3 ORDER BY 1;
 my_col1	my_col2
 8	eight
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
 8	eight
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
@@ -11952,11 +11952,11 @@ DELETE FROM v3 WHERE my_col1 = 7;
 affected rows: 0
 DELETE FROM v3 WHERE my_col1 = 8;
 affected rows: 1
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
@@ -11974,31 +11974,31 @@ info: Rows matched: 0  Changed: 0  Warnings: 0
 UPDATE v3 SET my_col2 = 'whatever' WHERE my_col1 = 8;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
 8	whatever
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 7 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 0 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 16 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
@@ -12006,7 +12006,7 @@ INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 10 WHERE my_col1 = 8;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 10	eight
 DELETE FROM t1;
@@ -12018,7 +12018,7 @@ INSERT INTO v3 VALUES(7, 'seven');
 ERROR HY000: CHECK OPTION failed 'test.v3'
 INSERT INTO v3 VALUES(8, 'eight');
 affected rows: 1
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
@@ -12031,24 +12031,24 @@ INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
 INSERT INTO t1 VALUES(7, 'seven');
 INSERT INTO t1 VALUES(8, 'eight');
-SELECT * FROM v1;
+SELECT * FROM v1 ORDER BY 1;
 f1	f2
 0	zero
 7	seven
 8	eight
-SELECT * FROM v2;
+SELECT * FROM v2 ORDER BY 1;
 col1	col2
 7	seven
 8	eight
-SELECT * FROM v3;
+SELECT * FROM v3 ORDER BY 1;
 my_col1	my_col2
 8	eight
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
 8	eight
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
@@ -12062,11 +12062,11 @@ DELETE FROM v3 WHERE my_col1 = 7;
 affected rows: 0
 DELETE FROM v3 WHERE my_col1 = 8;
 affected rows: 1
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
@@ -12084,32 +12084,32 @@ info: Rows matched: 0  Changed: 0  Warnings: 0
 UPDATE v3 SET my_col2 = 'whatever' WHERE my_col1 = 8;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
 8	whatever
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 7 WHERE my_col1 = 8;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 7	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 0 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 16 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
@@ -12117,7 +12117,7 @@ INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 10 WHERE my_col1 = 8;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 10	eight
 DELETE FROM t1;
@@ -12129,7 +12129,7 @@ INSERT INTO v3 VALUES(7, 'seven');
 affected rows: 1
 INSERT INTO v3 VALUES(8, 'eight');
 affected rows: 1
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 7	seven
 8	eight
@@ -12146,24 +12146,24 @@ INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
 INSERT INTO t1 VALUES(7, 'seven');
 INSERT INTO t1 VALUES(8, 'eight');
-SELECT * FROM v1;
+SELECT * FROM v1 ORDER BY 1;
 f1	f2
 0	zero
 7	seven
 8	eight
-SELECT * FROM v2;
+SELECT * FROM v2 ORDER BY 1;
 col1	col2
 7	seven
 8	eight
-SELECT * FROM v3;
+SELECT * FROM v3 ORDER BY 1;
 my_col1	my_col2
 8	eight
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
 8	eight
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
@@ -12177,11 +12177,11 @@ DELETE FROM v3 WHERE my_col1 = 7;
 affected rows: 0
 DELETE FROM v3 WHERE my_col1 = 8;
 affected rows: 1
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
@@ -12199,31 +12199,31 @@ info: Rows matched: 0  Changed: 0  Warnings: 0
 UPDATE v3 SET my_col2 = 'whatever' WHERE my_col1 = 8;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
 8	whatever
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 7 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 0 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 16 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
@@ -12231,7 +12231,7 @@ INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 10 WHERE my_col1 = 8;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 10	eight
 DELETE FROM t1;
@@ -12243,7 +12243,7 @@ INSERT INTO v3 VALUES(7, 'seven');
 ERROR HY000: CHECK OPTION failed 'test.v3'
 INSERT INTO v3 VALUES(8, 'eight');
 affected rows: 1
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
@@ -12256,24 +12256,24 @@ INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
 INSERT INTO t1 VALUES(7, 'seven');
 INSERT INTO t1 VALUES(8, 'eight');
-SELECT * FROM v1;
+SELECT * FROM v1 ORDER BY 1;
 f1	f2
 0	zero
 7	seven
 8	eight
-SELECT * FROM v2;
+SELECT * FROM v2 ORDER BY 1;
 col1	col2
 7	seven
 8	eight
-SELECT * FROM v3;
+SELECT * FROM v3 ORDER BY 1;
 my_col1	my_col2
 8	eight
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
 8	eight
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
@@ -12287,11 +12287,11 @@ DELETE FROM v3 WHERE my_col1 = 7;
 affected rows: 0
 DELETE FROM v3 WHERE my_col1 = 8;
 affected rows: 1
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
@@ -12309,31 +12309,31 @@ info: Rows matched: 0  Changed: 0  Warnings: 0
 UPDATE v3 SET my_col2 = 'whatever' WHERE my_col1 = 8;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
 8	whatever
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 7 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 0 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 16 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
@@ -12341,7 +12341,7 @@ INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 10 WHERE my_col1 = 8;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 10	eight
 DELETE FROM t1;
@@ -12353,7 +12353,7 @@ INSERT INTO v3 VALUES(7, 'seven');
 ERROR HY000: CHECK OPTION failed 'test.v3'
 INSERT INTO v3 VALUES(8, 'eight');
 affected rows: 1
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
@@ -12366,24 +12366,24 @@ INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
 INSERT INTO t1 VALUES(7, 'seven');
 INSERT INTO t1 VALUES(8, 'eight');
-SELECT * FROM v1;
+SELECT * FROM v1 ORDER BY 1;
 f1	f2
 0	zero
 7	seven
 8	eight
-SELECT * FROM v2;
+SELECT * FROM v2 ORDER BY 1;
 col1	col2
 7	seven
 8	eight
-SELECT * FROM v3;
+SELECT * FROM v3 ORDER BY 1;
 my_col1	my_col2
 8	eight
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
 8	eight
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
@@ -12397,11 +12397,11 @@ DELETE FROM v3 WHERE my_col1 = 7;
 affected rows: 0
 DELETE FROM v3 WHERE my_col1 = 8;
 affected rows: 1
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
@@ -12419,31 +12419,31 @@ info: Rows matched: 0  Changed: 0  Warnings: 0
 UPDATE v3 SET my_col2 = 'whatever' WHERE my_col1 = 8;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
 8	whatever
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 7 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 0 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 16 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
@@ -12451,7 +12451,7 @@ INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 10 WHERE my_col1 = 8;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 10	eight
 DELETE FROM t1;
@@ -12463,7 +12463,7 @@ INSERT INTO v3 VALUES(7, 'seven');
 ERROR HY000: CHECK OPTION failed 'test.v3'
 INSERT INTO v3 VALUES(8, 'eight');
 affected rows: 1
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
@@ -12476,24 +12476,24 @@ INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
 INSERT INTO t1 VALUES(7, 'seven');
 INSERT INTO t1 VALUES(8, 'eight');
-SELECT * FROM v1;
+SELECT * FROM v1 ORDER BY 1;
 f1	f2
 0	zero
 7	seven
 8	eight
-SELECT * FROM v2;
+SELECT * FROM v2 ORDER BY 1;
 col1	col2
 7	seven
 8	eight
-SELECT * FROM v3;
+SELECT * FROM v3 ORDER BY 1;
 my_col1	my_col2
 8	eight
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
 8	eight
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
@@ -12507,11 +12507,11 @@ DELETE FROM v3 WHERE my_col1 = 7;
 affected rows: 0
 DELETE FROM v3 WHERE my_col1 = 8;
 affected rows: 1
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
@@ -12529,32 +12529,32 @@ info: Rows matched: 0  Changed: 0  Warnings: 0
 UPDATE v3 SET my_col2 = 'whatever' WHERE my_col1 = 8;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
 8	whatever
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 7 WHERE my_col1 = 8;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 7	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 0 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 16 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
@@ -12562,7 +12562,7 @@ INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 10 WHERE my_col1 = 8;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 10	eight
 DELETE FROM t1;
@@ -12574,7 +12574,7 @@ INSERT INTO v3 VALUES(7, 'seven');
 affected rows: 1
 INSERT INTO v3 VALUES(8, 'eight');
 affected rows: 1
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 7	seven
 8	eight
@@ -12591,24 +12591,24 @@ INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
 INSERT INTO t1 VALUES(7, 'seven');
 INSERT INTO t1 VALUES(8, 'eight');
-SELECT * FROM v1;
+SELECT * FROM v1 ORDER BY 1;
 f1	f2
 0	zero
 7	seven
 8	eight
-SELECT * FROM v2;
+SELECT * FROM v2 ORDER BY 1;
 col1	col2
 7	seven
 8	eight
-SELECT * FROM v3;
+SELECT * FROM v3 ORDER BY 1;
 my_col1	my_col2
 8	eight
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
 8	eight
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
@@ -12622,11 +12622,11 @@ DELETE FROM v3 WHERE my_col1 = 7;
 affected rows: 0
 DELETE FROM v3 WHERE my_col1 = 8;
 affected rows: 1
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
@@ -12644,31 +12644,31 @@ info: Rows matched: 0  Changed: 0  Warnings: 0
 UPDATE v3 SET my_col2 = 'whatever' WHERE my_col1 = 8;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
 8	whatever
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 7 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 0 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 16 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
@@ -12676,7 +12676,7 @@ INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 10 WHERE my_col1 = 8;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 10	eight
 DELETE FROM t1;
@@ -12688,7 +12688,7 @@ INSERT INTO v3 VALUES(7, 'seven');
 ERROR HY000: CHECK OPTION failed 'test.v3'
 INSERT INTO v3 VALUES(8, 'eight');
 affected rows: 1
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
@@ -12701,24 +12701,24 @@ INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
 INSERT INTO t1 VALUES(7, 'seven');
 INSERT INTO t1 VALUES(8, 'eight');
-SELECT * FROM v1;
+SELECT * FROM v1 ORDER BY 1;
 f1	f2
 0	zero
 7	seven
 8	eight
-SELECT * FROM v2;
+SELECT * FROM v2 ORDER BY 1;
 col1	col2
 7	seven
 8	eight
-SELECT * FROM v3;
+SELECT * FROM v3 ORDER BY 1;
 my_col1	my_col2
 8	eight
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
 8	eight
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
@@ -12732,11 +12732,11 @@ DELETE FROM v3 WHERE my_col1 = 7;
 affected rows: 0
 DELETE FROM v3 WHERE my_col1 = 8;
 affected rows: 1
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
@@ -12754,31 +12754,31 @@ info: Rows matched: 0  Changed: 0  Warnings: 0
 UPDATE v3 SET my_col2 = 'whatever' WHERE my_col1 = 8;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
 8	whatever
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 7 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 0 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 16 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
@@ -12786,7 +12786,7 @@ INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 10 WHERE my_col1 = 8;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 10	eight
 DELETE FROM t1;
@@ -12798,7 +12798,7 @@ INSERT INTO v3 VALUES(7, 'seven');
 ERROR HY000: CHECK OPTION failed 'test.v3'
 INSERT INTO v3 VALUES(8, 'eight');
 affected rows: 1
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
@@ -12811,24 +12811,24 @@ INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
 INSERT INTO t1 VALUES(7, 'seven');
 INSERT INTO t1 VALUES(8, 'eight');
-SELECT * FROM v1;
+SELECT * FROM v1 ORDER BY 1;
 f1	f2
 0	zero
 7	seven
 8	eight
-SELECT * FROM v2;
+SELECT * FROM v2 ORDER BY 1;
 col1	col2
 7	seven
 8	eight
-SELECT * FROM v3;
+SELECT * FROM v3 ORDER BY 1;
 my_col1	my_col2
 8	eight
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
 8	eight
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
@@ -12842,11 +12842,11 @@ DELETE FROM v3 WHERE my_col1 = 7;
 affected rows: 0
 DELETE FROM v3 WHERE my_col1 = 8;
 affected rows: 1
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
@@ -12864,31 +12864,31 @@ info: Rows matched: 0  Changed: 0  Warnings: 0
 UPDATE v3 SET my_col2 = 'whatever' WHERE my_col1 = 8;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
 8	whatever
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 7 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 0 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 16 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
@@ -12896,7 +12896,7 @@ INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 10 WHERE my_col1 = 8;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 10	eight
 DELETE FROM t1;
@@ -12908,7 +12908,7 @@ INSERT INTO v3 VALUES(7, 'seven');
 ERROR HY000: CHECK OPTION failed 'test.v3'
 INSERT INTO v3 VALUES(8, 'eight');
 affected rows: 1
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
@@ -12921,24 +12921,24 @@ INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
 INSERT INTO t1 VALUES(7, 'seven');
 INSERT INTO t1 VALUES(8, 'eight');
-SELECT * FROM v1;
+SELECT * FROM v1 ORDER BY 1;
 f1	f2
 0	zero
 7	seven
 8	eight
-SELECT * FROM v2;
+SELECT * FROM v2 ORDER BY 1;
 col1	col2
 7	seven
 8	eight
-SELECT * FROM v3;
+SELECT * FROM v3 ORDER BY 1;
 my_col1	my_col2
 8	eight
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
 8	eight
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
@@ -12952,11 +12952,11 @@ DELETE FROM v3 WHERE my_col1 = 7;
 affected rows: 0
 DELETE FROM v3 WHERE my_col1 = 8;
 affected rows: 1
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
@@ -12974,32 +12974,32 @@ info: Rows matched: 0  Changed: 0  Warnings: 0
 UPDATE v3 SET my_col2 = 'whatever' WHERE my_col1 = 8;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
 8	whatever
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 7 WHERE my_col1 = 8;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 7	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 0 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 16 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
@@ -13007,7 +13007,7 @@ INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 10 WHERE my_col1 = 8;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 10	eight
 DELETE FROM t1;
@@ -13019,7 +13019,7 @@ INSERT INTO v3 VALUES(7, 'seven');
 affected rows: 1
 INSERT INTO v3 VALUES(8, 'eight');
 affected rows: 1
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 7	seven
 8	eight
@@ -13036,24 +13036,24 @@ INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
 INSERT INTO t1 VALUES(7, 'seven');
 INSERT INTO t1 VALUES(8, 'eight');
-SELECT * FROM v1;
+SELECT * FROM v1 ORDER BY 1;
 f1	f2
 0	zero
 7	seven
 8	eight
-SELECT * FROM v2;
+SELECT * FROM v2 ORDER BY 1;
 col1	col2
 7	seven
 8	eight
-SELECT * FROM v3;
+SELECT * FROM v3 ORDER BY 1;
 my_col1	my_col2
 8	eight
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
 8	eight
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
@@ -13067,11 +13067,11 @@ DELETE FROM v3 WHERE my_col1 = 7;
 affected rows: 0
 DELETE FROM v3 WHERE my_col1 = 8;
 affected rows: 1
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
@@ -13089,17 +13089,17 @@ info: Rows matched: 0  Changed: 0  Warnings: 0
 UPDATE v3 SET my_col2 = 'whatever' WHERE my_col1 = 8;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
 8	whatever
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 7 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
@@ -13107,14 +13107,14 @@ INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 0 WHERE my_col1 = 8;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 0	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 16 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
@@ -13122,7 +13122,7 @@ INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 10 WHERE my_col1 = 8;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 10	eight
 DELETE FROM t1;
@@ -13134,7 +13134,7 @@ INSERT INTO v3 VALUES(7, 'seven');
 ERROR HY000: CHECK OPTION failed 'test.v3'
 INSERT INTO v3 VALUES(8, 'eight');
 affected rows: 1
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 0	zero
 8	eight
@@ -13148,24 +13148,24 @@ INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
 INSERT INTO t1 VALUES(7, 'seven');
 INSERT INTO t1 VALUES(8, 'eight');
-SELECT * FROM v1;
+SELECT * FROM v1 ORDER BY 1;
 f1	f2
 0	zero
 7	seven
 8	eight
-SELECT * FROM v2;
+SELECT * FROM v2 ORDER BY 1;
 col1	col2
 7	seven
 8	eight
-SELECT * FROM v3;
+SELECT * FROM v3 ORDER BY 1;
 my_col1	my_col2
 8	eight
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
 8	eight
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
@@ -13179,11 +13179,11 @@ DELETE FROM v3 WHERE my_col1 = 7;
 affected rows: 0
 DELETE FROM v3 WHERE my_col1 = 8;
 affected rows: 1
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
@@ -13201,31 +13201,31 @@ info: Rows matched: 0  Changed: 0  Warnings: 0
 UPDATE v3 SET my_col2 = 'whatever' WHERE my_col1 = 8;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
 8	whatever
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 7 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 0 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 16 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
@@ -13233,7 +13233,7 @@ INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 10 WHERE my_col1 = 8;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 10	eight
 DELETE FROM t1;
@@ -13245,7 +13245,7 @@ INSERT INTO v3 VALUES(7, 'seven');
 ERROR HY000: CHECK OPTION failed 'test.v3'
 INSERT INTO v3 VALUES(8, 'eight');
 affected rows: 1
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
@@ -13258,24 +13258,24 @@ INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
 INSERT INTO t1 VALUES(7, 'seven');
 INSERT INTO t1 VALUES(8, 'eight');
-SELECT * FROM v1;
+SELECT * FROM v1 ORDER BY 1;
 f1	f2
 0	zero
 7	seven
 8	eight
-SELECT * FROM v2;
+SELECT * FROM v2 ORDER BY 1;
 col1	col2
 7	seven
 8	eight
-SELECT * FROM v3;
+SELECT * FROM v3 ORDER BY 1;
 my_col1	my_col2
 8	eight
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
 8	eight
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
@@ -13289,11 +13289,11 @@ DELETE FROM v3 WHERE my_col1 = 7;
 affected rows: 0
 DELETE FROM v3 WHERE my_col1 = 8;
 affected rows: 1
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
@@ -13311,31 +13311,31 @@ info: Rows matched: 0  Changed: 0  Warnings: 0
 UPDATE v3 SET my_col2 = 'whatever' WHERE my_col1 = 8;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
 8	whatever
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 7 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 0 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 16 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
@@ -13343,7 +13343,7 @@ INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 10 WHERE my_col1 = 8;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 10	eight
 DELETE FROM t1;
@@ -13355,7 +13355,7 @@ INSERT INTO v3 VALUES(7, 'seven');
 ERROR HY000: CHECK OPTION failed 'test.v3'
 INSERT INTO v3 VALUES(8, 'eight');
 affected rows: 1
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
@@ -13368,24 +13368,24 @@ INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
 INSERT INTO t1 VALUES(7, 'seven');
 INSERT INTO t1 VALUES(8, 'eight');
-SELECT * FROM v1;
+SELECT * FROM v1 ORDER BY 1;
 f1	f2
 0	zero
 7	seven
 8	eight
-SELECT * FROM v2;
+SELECT * FROM v2 ORDER BY 1;
 col1	col2
 7	seven
 8	eight
-SELECT * FROM v3;
+SELECT * FROM v3 ORDER BY 1;
 my_col1	my_col2
 8	eight
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
 8	eight
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
@@ -13399,11 +13399,11 @@ DELETE FROM v3 WHERE my_col1 = 7;
 affected rows: 0
 DELETE FROM v3 WHERE my_col1 = 8;
 affected rows: 1
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
@@ -13421,18 +13421,18 @@ info: Rows matched: 0  Changed: 0  Warnings: 0
 UPDATE v3 SET my_col2 = 'whatever' WHERE my_col1 = 8;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
 8	whatever
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 7 WHERE my_col1 = 8;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 7	eight
 DELETE FROM t1;
@@ -13440,14 +13440,14 @@ INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 0 WHERE my_col1 = 8;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 0	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 16 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
@@ -13455,7 +13455,7 @@ INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 10 WHERE my_col1 = 8;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 10	eight
 DELETE FROM t1;
@@ -13467,7 +13467,7 @@ INSERT INTO v3 VALUES(7, 'seven');
 affected rows: 1
 INSERT INTO v3 VALUES(8, 'eight');
 affected rows: 1
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 0	zero
 7	seven
@@ -13488,24 +13488,24 @@ INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
 INSERT INTO t1 VALUES(7, 'seven');
 INSERT INTO t1 VALUES(8, 'eight');
-SELECT * FROM v1;
+SELECT * FROM v1 ORDER BY 1;
 f1	f2
 0	zero
 7	seven
 8	eight
-SELECT * FROM v2;
+SELECT * FROM v2 ORDER BY 1;
 col1	col2
 7	seven
 8	eight
-SELECT * FROM v3;
+SELECT * FROM v3 ORDER BY 1;
 my_col1	my_col2
 8	eight
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
 8	eight
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
@@ -13519,11 +13519,11 @@ DELETE FROM v3 WHERE my_col1 = 7;
 affected rows: 0
 DELETE FROM v3 WHERE my_col1 = 8;
 affected rows: 1
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
@@ -13541,24 +13541,24 @@ info: Rows matched: 0  Changed: 0  Warnings: 0
 UPDATE v3 SET my_col2 = 'whatever' WHERE my_col1 = 8;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
 8	whatever
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 7 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 0 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
@@ -13566,7 +13566,7 @@ INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 16 WHERE my_col1 = 8;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 16	eight
 DELETE FROM t1;
@@ -13574,7 +13574,7 @@ INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 10 WHERE my_col1 = 8;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 10	eight
 DELETE FROM t1;
@@ -13586,10 +13586,10 @@ INSERT INTO v3 VALUES(7, 'seven');
 ERROR HY000: CHECK OPTION failed 'test.v3'
 INSERT INTO v3 VALUES(8, 'eight');
 affected rows: 1
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 8	eight
+16	sixteen
 DELETE FROM t1;
 DROP VIEW v3;
 CREATE VIEW v3 (my_col1,my_col2) AS SELECT *
@@ -13600,24 +13600,24 @@ INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
 INSERT INTO t1 VALUES(7, 'seven');
 INSERT INTO t1 VALUES(8, 'eight');
-SELECT * FROM v1;
+SELECT * FROM v1 ORDER BY 1;
 f1	f2
 0	zero
 7	seven
 8	eight
-SELECT * FROM v2;
+SELECT * FROM v2 ORDER BY 1;
 col1	col2
 7	seven
 8	eight
-SELECT * FROM v3;
+SELECT * FROM v3 ORDER BY 1;
 my_col1	my_col2
 8	eight
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
 8	eight
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
@@ -13631,11 +13631,11 @@ DELETE FROM v3 WHERE my_col1 = 7;
 affected rows: 0
 DELETE FROM v3 WHERE my_col1 = 8;
 affected rows: 1
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
@@ -13653,31 +13653,31 @@ info: Rows matched: 0  Changed: 0  Warnings: 0
 UPDATE v3 SET my_col2 = 'whatever' WHERE my_col1 = 8;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
 8	whatever
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 7 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 0 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 16 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
@@ -13685,7 +13685,7 @@ INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 10 WHERE my_col1 = 8;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 10	eight
 DELETE FROM t1;
@@ -13697,7 +13697,7 @@ INSERT INTO v3 VALUES(7, 'seven');
 ERROR HY000: CHECK OPTION failed 'test.v3'
 INSERT INTO v3 VALUES(8, 'eight');
 affected rows: 1
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
@@ -13710,24 +13710,24 @@ INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
 INSERT INTO t1 VALUES(7, 'seven');
 INSERT INTO t1 VALUES(8, 'eight');
-SELECT * FROM v1;
+SELECT * FROM v1 ORDER BY 1;
 f1	f2
 0	zero
 7	seven
 8	eight
-SELECT * FROM v2;
+SELECT * FROM v2 ORDER BY 1;
 col1	col2
 7	seven
 8	eight
-SELECT * FROM v3;
+SELECT * FROM v3 ORDER BY 1;
 my_col1	my_col2
 8	eight
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
 8	eight
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
@@ -13741,11 +13741,11 @@ DELETE FROM v3 WHERE my_col1 = 7;
 affected rows: 0
 DELETE FROM v3 WHERE my_col1 = 8;
 affected rows: 1
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
@@ -13763,31 +13763,31 @@ info: Rows matched: 0  Changed: 0  Warnings: 0
 UPDATE v3 SET my_col2 = 'whatever' WHERE my_col1 = 8;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
 8	whatever
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 7 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 0 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 16 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
@@ -13795,7 +13795,7 @@ INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 10 WHERE my_col1 = 8;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 10	eight
 DELETE FROM t1;
@@ -13807,7 +13807,7 @@ INSERT INTO v3 VALUES(7, 'seven');
 ERROR HY000: CHECK OPTION failed 'test.v3'
 INSERT INTO v3 VALUES(8, 'eight');
 affected rows: 1
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
@@ -13820,24 +13820,24 @@ INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
 INSERT INTO t1 VALUES(7, 'seven');
 INSERT INTO t1 VALUES(8, 'eight');
-SELECT * FROM v1;
+SELECT * FROM v1 ORDER BY 1;
 f1	f2
 0	zero
 7	seven
 8	eight
-SELECT * FROM v2;
+SELECT * FROM v2 ORDER BY 1;
 col1	col2
 7	seven
 8	eight
-SELECT * FROM v3;
+SELECT * FROM v3 ORDER BY 1;
 my_col1	my_col2
 8	eight
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
 8	eight
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
@@ -13851,11 +13851,11 @@ DELETE FROM v3 WHERE my_col1 = 7;
 affected rows: 0
 DELETE FROM v3 WHERE my_col1 = 8;
 affected rows: 1
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
@@ -13873,25 +13873,25 @@ info: Rows matched: 0  Changed: 0  Warnings: 0
 UPDATE v3 SET my_col2 = 'whatever' WHERE my_col1 = 8;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
 8	whatever
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 7 WHERE my_col1 = 8;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 7	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 0 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
@@ -13899,7 +13899,7 @@ INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 16 WHERE my_col1 = 8;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 16	eight
 DELETE FROM t1;
@@ -13907,7 +13907,7 @@ INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 10 WHERE my_col1 = 8;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 10	eight
 DELETE FROM t1;
@@ -13919,11 +13919,11 @@ INSERT INTO v3 VALUES(7, 'seven');
 affected rows: 1
 INSERT INTO v3 VALUES(8, 'eight');
 affected rows: 1
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 7	seven
 8	eight
+16	sixteen
 DELETE FROM t1;
 DROP VIEW v3;
 DROP VIEW v2;
@@ -13937,24 +13937,24 @@ INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
 INSERT INTO t1 VALUES(7, 'seven');
 INSERT INTO t1 VALUES(8, 'eight');
-SELECT * FROM v1;
+SELECT * FROM v1 ORDER BY 1;
 f1	f2
 0	zero
 7	seven
 8	eight
-SELECT * FROM v2;
+SELECT * FROM v2 ORDER BY 1;
 col1	col2
 7	seven
 8	eight
-SELECT * FROM v3;
+SELECT * FROM v3 ORDER BY 1;
 my_col1	my_col2
 8	eight
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
 8	eight
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
@@ -13968,11 +13968,11 @@ DELETE FROM v3 WHERE my_col1 = 7;
 affected rows: 0
 DELETE FROM v3 WHERE my_col1 = 8;
 affected rows: 1
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
@@ -13990,31 +13990,31 @@ info: Rows matched: 0  Changed: 0  Warnings: 0
 UPDATE v3 SET my_col2 = 'whatever' WHERE my_col1 = 8;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
 8	whatever
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 7 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 0 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 16 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
@@ -14022,7 +14022,7 @@ INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 10 WHERE my_col1 = 8;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 10	eight
 DELETE FROM t1;
@@ -14034,7 +14034,7 @@ INSERT INTO v3 VALUES(7, 'seven');
 ERROR HY000: CHECK OPTION failed 'test.v3'
 INSERT INTO v3 VALUES(8, 'eight');
 affected rows: 1
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
@@ -14047,24 +14047,24 @@ INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
 INSERT INTO t1 VALUES(7, 'seven');
 INSERT INTO t1 VALUES(8, 'eight');
-SELECT * FROM v1;
+SELECT * FROM v1 ORDER BY 1;
 f1	f2
 0	zero
 7	seven
 8	eight
-SELECT * FROM v2;
+SELECT * FROM v2 ORDER BY 1;
 col1	col2
 7	seven
 8	eight
-SELECT * FROM v3;
+SELECT * FROM v3 ORDER BY 1;
 my_col1	my_col2
 8	eight
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
 8	eight
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
@@ -14078,11 +14078,11 @@ DELETE FROM v3 WHERE my_col1 = 7;
 affected rows: 0
 DELETE FROM v3 WHERE my_col1 = 8;
 affected rows: 1
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
@@ -14100,31 +14100,31 @@ info: Rows matched: 0  Changed: 0  Warnings: 0
 UPDATE v3 SET my_col2 = 'whatever' WHERE my_col1 = 8;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
 8	whatever
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 7 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 0 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 16 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
@@ -14132,7 +14132,7 @@ INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 10 WHERE my_col1 = 8;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 10	eight
 DELETE FROM t1;
@@ -14144,7 +14144,7 @@ INSERT INTO v3 VALUES(7, 'seven');
 ERROR HY000: CHECK OPTION failed 'test.v3'
 INSERT INTO v3 VALUES(8, 'eight');
 affected rows: 1
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
@@ -14157,24 +14157,24 @@ INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
 INSERT INTO t1 VALUES(7, 'seven');
 INSERT INTO t1 VALUES(8, 'eight');
-SELECT * FROM v1;
+SELECT * FROM v1 ORDER BY 1;
 f1	f2
 0	zero
 7	seven
 8	eight
-SELECT * FROM v2;
+SELECT * FROM v2 ORDER BY 1;
 col1	col2
 7	seven
 8	eight
-SELECT * FROM v3;
+SELECT * FROM v3 ORDER BY 1;
 my_col1	my_col2
 8	eight
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
 8	eight
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
@@ -14188,11 +14188,11 @@ DELETE FROM v3 WHERE my_col1 = 7;
 affected rows: 0
 DELETE FROM v3 WHERE my_col1 = 8;
 affected rows: 1
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
@@ -14210,31 +14210,31 @@ info: Rows matched: 0  Changed: 0  Warnings: 0
 UPDATE v3 SET my_col2 = 'whatever' WHERE my_col1 = 8;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
 8	whatever
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 7 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 0 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 16 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
@@ -14242,7 +14242,7 @@ INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 10 WHERE my_col1 = 8;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 10	eight
 DELETE FROM t1;
@@ -14254,7 +14254,7 @@ INSERT INTO v3 VALUES(7, 'seven');
 ERROR HY000: CHECK OPTION failed 'test.v3'
 INSERT INTO v3 VALUES(8, 'eight');
 affected rows: 1
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
@@ -14267,24 +14267,24 @@ INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
 INSERT INTO t1 VALUES(7, 'seven');
 INSERT INTO t1 VALUES(8, 'eight');
-SELECT * FROM v1;
+SELECT * FROM v1 ORDER BY 1;
 f1	f2
 0	zero
 7	seven
 8	eight
-SELECT * FROM v2;
+SELECT * FROM v2 ORDER BY 1;
 col1	col2
 7	seven
 8	eight
-SELECT * FROM v3;
+SELECT * FROM v3 ORDER BY 1;
 my_col1	my_col2
 8	eight
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
 8	eight
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
@@ -14298,11 +14298,11 @@ DELETE FROM v3 WHERE my_col1 = 7;
 affected rows: 0
 DELETE FROM v3 WHERE my_col1 = 8;
 affected rows: 1
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
@@ -14320,32 +14320,32 @@ info: Rows matched: 0  Changed: 0  Warnings: 0
 UPDATE v3 SET my_col2 = 'whatever' WHERE my_col1 = 8;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
 8	whatever
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 7 WHERE my_col1 = 8;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 7	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 0 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 16 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
@@ -14353,7 +14353,7 @@ INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 10 WHERE my_col1 = 8;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 10	eight
 DELETE FROM t1;
@@ -14365,7 +14365,7 @@ INSERT INTO v3 VALUES(7, 'seven');
 affected rows: 1
 INSERT INTO v3 VALUES(8, 'eight');
 affected rows: 1
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 7	seven
 8	eight
@@ -14382,24 +14382,24 @@ INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
 INSERT INTO t1 VALUES(7, 'seven');
 INSERT INTO t1 VALUES(8, 'eight');
-SELECT * FROM v1;
+SELECT * FROM v1 ORDER BY 1;
 f1	f2
 0	zero
 7	seven
 8	eight
-SELECT * FROM v2;
+SELECT * FROM v2 ORDER BY 1;
 col1	col2
 7	seven
 8	eight
-SELECT * FROM v3;
+SELECT * FROM v3 ORDER BY 1;
 my_col1	my_col2
 8	eight
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
 8	eight
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
@@ -14413,11 +14413,11 @@ DELETE FROM v3 WHERE my_col1 = 7;
 affected rows: 0
 DELETE FROM v3 WHERE my_col1 = 8;
 affected rows: 1
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
@@ -14435,31 +14435,31 @@ info: Rows matched: 0  Changed: 0  Warnings: 0
 UPDATE v3 SET my_col2 = 'whatever' WHERE my_col1 = 8;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
 8	whatever
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 7 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 0 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 16 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
@@ -14467,7 +14467,7 @@ INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 10 WHERE my_col1 = 8;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 10	eight
 DELETE FROM t1;
@@ -14479,7 +14479,7 @@ INSERT INTO v3 VALUES(7, 'seven');
 ERROR HY000: CHECK OPTION failed 'test.v3'
 INSERT INTO v3 VALUES(8, 'eight');
 affected rows: 1
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
@@ -14492,24 +14492,24 @@ INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
 INSERT INTO t1 VALUES(7, 'seven');
 INSERT INTO t1 VALUES(8, 'eight');
-SELECT * FROM v1;
+SELECT * FROM v1 ORDER BY 1;
 f1	f2
 0	zero
 7	seven
 8	eight
-SELECT * FROM v2;
+SELECT * FROM v2 ORDER BY 1;
 col1	col2
 7	seven
 8	eight
-SELECT * FROM v3;
+SELECT * FROM v3 ORDER BY 1;
 my_col1	my_col2
 8	eight
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
 8	eight
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
@@ -14523,11 +14523,11 @@ DELETE FROM v3 WHERE my_col1 = 7;
 affected rows: 0
 DELETE FROM v3 WHERE my_col1 = 8;
 affected rows: 1
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
@@ -14545,31 +14545,31 @@ info: Rows matched: 0  Changed: 0  Warnings: 0
 UPDATE v3 SET my_col2 = 'whatever' WHERE my_col1 = 8;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
 8	whatever
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 7 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 0 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 16 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
@@ -14577,7 +14577,7 @@ INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 10 WHERE my_col1 = 8;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 10	eight
 DELETE FROM t1;
@@ -14589,7 +14589,7 @@ INSERT INTO v3 VALUES(7, 'seven');
 ERROR HY000: CHECK OPTION failed 'test.v3'
 INSERT INTO v3 VALUES(8, 'eight');
 affected rows: 1
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
@@ -14602,24 +14602,24 @@ INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
 INSERT INTO t1 VALUES(7, 'seven');
 INSERT INTO t1 VALUES(8, 'eight');
-SELECT * FROM v1;
+SELECT * FROM v1 ORDER BY 1;
 f1	f2
 0	zero
 7	seven
 8	eight
-SELECT * FROM v2;
+SELECT * FROM v2 ORDER BY 1;
 col1	col2
 7	seven
 8	eight
-SELECT * FROM v3;
+SELECT * FROM v3 ORDER BY 1;
 my_col1	my_col2
 8	eight
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
 8	eight
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
@@ -14633,11 +14633,11 @@ DELETE FROM v3 WHERE my_col1 = 7;
 affected rows: 0
 DELETE FROM v3 WHERE my_col1 = 8;
 affected rows: 1
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
@@ -14655,31 +14655,31 @@ info: Rows matched: 0  Changed: 0  Warnings: 0
 UPDATE v3 SET my_col2 = 'whatever' WHERE my_col1 = 8;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
 8	whatever
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 7 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 0 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 16 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
@@ -14687,7 +14687,7 @@ INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 10 WHERE my_col1 = 8;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 10	eight
 DELETE FROM t1;
@@ -14699,7 +14699,7 @@ INSERT INTO v3 VALUES(7, 'seven');
 ERROR HY000: CHECK OPTION failed 'test.v3'
 INSERT INTO v3 VALUES(8, 'eight');
 affected rows: 1
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
@@ -14712,24 +14712,24 @@ INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
 INSERT INTO t1 VALUES(7, 'seven');
 INSERT INTO t1 VALUES(8, 'eight');
-SELECT * FROM v1;
+SELECT * FROM v1 ORDER BY 1;
 f1	f2
 0	zero
 7	seven
 8	eight
-SELECT * FROM v2;
+SELECT * FROM v2 ORDER BY 1;
 col1	col2
 7	seven
 8	eight
-SELECT * FROM v3;
+SELECT * FROM v3 ORDER BY 1;
 my_col1	my_col2
 8	eight
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
 8	eight
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
@@ -14743,11 +14743,11 @@ DELETE FROM v3 WHERE my_col1 = 7;
 affected rows: 0
 DELETE FROM v3 WHERE my_col1 = 8;
 affected rows: 1
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
@@ -14765,32 +14765,32 @@ info: Rows matched: 0  Changed: 0  Warnings: 0
 UPDATE v3 SET my_col2 = 'whatever' WHERE my_col1 = 8;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
 8	whatever
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 7 WHERE my_col1 = 8;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 7	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 0 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 16 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
@@ -14798,7 +14798,7 @@ INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 10 WHERE my_col1 = 8;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 10	eight
 DELETE FROM t1;
@@ -14810,7 +14810,7 @@ INSERT INTO v3 VALUES(7, 'seven');
 affected rows: 1
 INSERT INTO v3 VALUES(8, 'eight');
 affected rows: 1
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 7	seven
 8	eight
@@ -14827,24 +14827,24 @@ INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
 INSERT INTO t1 VALUES(7, 'seven');
 INSERT INTO t1 VALUES(8, 'eight');
-SELECT * FROM v1;
+SELECT * FROM v1 ORDER BY 1;
 f1	f2
 0	zero
 7	seven
 8	eight
-SELECT * FROM v2;
+SELECT * FROM v2 ORDER BY 1;
 col1	col2
 7	seven
 8	eight
-SELECT * FROM v3;
+SELECT * FROM v3 ORDER BY 1;
 my_col1	my_col2
 8	eight
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
 8	eight
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
@@ -14858,11 +14858,11 @@ DELETE FROM v3 WHERE my_col1 = 7;
 affected rows: 0
 DELETE FROM v3 WHERE my_col1 = 8;
 affected rows: 1
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
@@ -14880,17 +14880,17 @@ info: Rows matched: 0  Changed: 0  Warnings: 0
 UPDATE v3 SET my_col2 = 'whatever' WHERE my_col1 = 8;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
 8	whatever
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 7 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
@@ -14898,7 +14898,7 @@ INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 0 WHERE my_col1 = 8;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 0	eight
 DELETE FROM t1;
@@ -14906,7 +14906,7 @@ INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 16 WHERE my_col1 = 8;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 16	eight
 DELETE FROM t1;
@@ -14914,7 +14914,7 @@ INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 10 WHERE my_col1 = 8;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 10	eight
 DELETE FROM t1;
@@ -14926,11 +14926,11 @@ INSERT INTO v3 VALUES(7, 'seven');
 ERROR HY000: CHECK OPTION failed 'test.v3'
 INSERT INTO v3 VALUES(8, 'eight');
 affected rows: 1
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 8	eight
+16	sixteen
 DELETE FROM t1;
 DROP VIEW v3;
 CREATE VIEW v3 (my_col1,my_col2) AS SELECT *
@@ -14941,24 +14941,24 @@ INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
 INSERT INTO t1 VALUES(7, 'seven');
 INSERT INTO t1 VALUES(8, 'eight');
-SELECT * FROM v1;
+SELECT * FROM v1 ORDER BY 1;
 f1	f2
 0	zero
 7	seven
 8	eight
-SELECT * FROM v2;
+SELECT * FROM v2 ORDER BY 1;
 col1	col2
 7	seven
 8	eight
-SELECT * FROM v3;
+SELECT * FROM v3 ORDER BY 1;
 my_col1	my_col2
 8	eight
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
 8	eight
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
@@ -14972,11 +14972,11 @@ DELETE FROM v3 WHERE my_col1 = 7;
 affected rows: 0
 DELETE FROM v3 WHERE my_col1 = 8;
 affected rows: 1
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
@@ -14994,31 +14994,31 @@ info: Rows matched: 0  Changed: 0  Warnings: 0
 UPDATE v3 SET my_col2 = 'whatever' WHERE my_col1 = 8;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
 8	whatever
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 7 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 0 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 16 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
@@ -15026,7 +15026,7 @@ INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 10 WHERE my_col1 = 8;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 10	eight
 DELETE FROM t1;
@@ -15038,7 +15038,7 @@ INSERT INTO v3 VALUES(7, 'seven');
 ERROR HY000: CHECK OPTION failed 'test.v3'
 INSERT INTO v3 VALUES(8, 'eight');
 affected rows: 1
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
@@ -15051,24 +15051,24 @@ INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
 INSERT INTO t1 VALUES(7, 'seven');
 INSERT INTO t1 VALUES(8, 'eight');
-SELECT * FROM v1;
+SELECT * FROM v1 ORDER BY 1;
 f1	f2
 0	zero
 7	seven
 8	eight
-SELECT * FROM v2;
+SELECT * FROM v2 ORDER BY 1;
 col1	col2
 7	seven
 8	eight
-SELECT * FROM v3;
+SELECT * FROM v3 ORDER BY 1;
 my_col1	my_col2
 8	eight
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
 8	eight
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
@@ -15082,11 +15082,11 @@ DELETE FROM v3 WHERE my_col1 = 7;
 affected rows: 0
 DELETE FROM v3 WHERE my_col1 = 8;
 affected rows: 1
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
@@ -15104,31 +15104,31 @@ info: Rows matched: 0  Changed: 0  Warnings: 0
 UPDATE v3 SET my_col2 = 'whatever' WHERE my_col1 = 8;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
 8	whatever
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 7 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 0 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 16 WHERE my_col1 = 8;
 ERROR HY000: CHECK OPTION failed 'test.v3'
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
@@ -15136,7 +15136,7 @@ INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 10 WHERE my_col1 = 8;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 10	eight
 DELETE FROM t1;
@@ -15148,7 +15148,7 @@ INSERT INTO v3 VALUES(7, 'seven');
 ERROR HY000: CHECK OPTION failed 'test.v3'
 INSERT INTO v3 VALUES(8, 'eight');
 affected rows: 1
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 8	eight
 DELETE FROM t1;
@@ -15161,24 +15161,24 @@ INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
 INSERT INTO t1 VALUES(7, 'seven');
 INSERT INTO t1 VALUES(8, 'eight');
-SELECT * FROM v1;
+SELECT * FROM v1 ORDER BY 1;
 f1	f2
 0	zero
 7	seven
 8	eight
-SELECT * FROM v2;
+SELECT * FROM v2 ORDER BY 1;
 col1	col2
 7	seven
 8	eight
-SELECT * FROM v3;
+SELECT * FROM v3 ORDER BY 1;
 my_col1	my_col2
 8	eight
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
 8	eight
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
@@ -15192,11 +15192,11 @@ DELETE FROM v3 WHERE my_col1 = 7;
 affected rows: 0
 DELETE FROM v3 WHERE my_col1 = 8;
 affected rows: 1
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(16, 'sixteen');
 INSERT INTO t1 VALUES(0, 'zero');
@@ -15214,18 +15214,18 @@ info: Rows matched: 0  Changed: 0  Warnings: 0
 UPDATE v3 SET my_col2 = 'whatever' WHERE my_col1 = 8;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
 8	whatever
+16	sixteen
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 7 WHERE my_col1 = 8;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 7	eight
 DELETE FROM t1;
@@ -15233,7 +15233,7 @@ INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 0 WHERE my_col1 = 8;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 0	eight
 DELETE FROM t1;
@@ -15241,7 +15241,7 @@ INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 16 WHERE my_col1 = 8;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 16	eight
 DELETE FROM t1;
@@ -15249,7 +15249,7 @@ INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 10 WHERE my_col1 = 8;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
 10	eight
 DELETE FROM t1;
@@ -15261,12 +15261,12 @@ INSERT INTO v3 VALUES(7, 'seven');
 affected rows: 1
 INSERT INTO v3 VALUES(8, 'eight');
 affected rows: 1
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
 8	eight
+16	sixteen
 DELETE FROM t1;
 DROP VIEW v3;
 DROP VIEW v2;
@@ -20977,23 +20977,23 @@ INSERT INTO t1 VALUES(1, 'one',   1.1);
 INSERT INTO t1 VALUES(2, 'two',   2.2);
 INSERT INTO t1 VALUES(3, 'three', 3.3);
 CREATE OR REPLACE VIEW v1 AS SELECT * FROM t1;
-SELECT * FROM v1;
+SELECT * FROM v1 ORDER BY 1;
 f1	f2	f3
 1	one	1.10000
 2	two	2.20000
 3	three	3.30000
 CREATE OR REPLACE VIEW v1 AS SELECT f2 FROM t1;
-SELECT * FROM v1;
+SELECT * FROM v1 ORDER BY 1;
 f2
 one
-two
 three
+two
 CREATE OR REPLACE VIEW v1 AS SELECT * FROM t1 WHERE f3 = 2.2;
-SELECT * FROM v1;
+SELECT * FROM v1 ORDER BY 1;
 f1	f2	f3
 2	two	2.20000
 CREATE OR REPLACE VIEW v1 AS SELECT f2 FROM t1 WHERE f3 = 2.2;
-SELECT * FROM v1;
+SELECT * FROM v1 ORDER BY 1;
 f2
 two
 SET sql_mode = 'traditional,ansi';
@@ -21014,7 +21014,7 @@ SELECT f3 AS "pure column f3: ", f1 + f3 AS "sum of columns f1 + f3 = ",
          AS "expression with '||'=CONCAT and CAST(DECIMAL column AS CHAR): "
 FROM t1 WHERE f1 = 2;
 ERROR 42000: Incorrect column name 'pure column f3: '
-SELECT * FROM v1;
+SELECT * FROM v1 ORDER BY 1;
 pure column f3:	2.20000
 sum of columns f1 + f3 =	4.20000
 product of constants 3 * (- 0.11111E+1):	-3.3333
@@ -22092,7 +22092,7 @@ CREATE TABLE t1 ( f1 BIGINT, f2 CHAR(20), f3 NUMERIC(7,4),
 f4 CHAR, PRIMARY KEY(f1));
 CREATE VIEW v1 AS SELECT f1, f2, f3 FROM t1;
 INSERT INTO v1 SET f1 = 1;
-SELECT * from t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2	f3	f4
 1	NULL	NULL	NULL
 DELETE FROM t1;
@@ -22101,67 +22101,67 @@ Warnings:
 Warning	1423	Field of view 'test.v1' underlying table doesn't have a default value
 INSERT INTO v1 SET f2 = 'ABC';
 ERROR 23000: Duplicate entry '0' for key 'PRIMARY'
-SELECT * from t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2	f3	f4
 0	ABC	NULL	NULL
 DELETE FROM t1;
 INSERT INTO t1 VALUES(1, 'ABC', -1.2E-3, 'X');
 DELETE FROM v1 WHERE f1 = 1;
-SELECT * from t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2	f3	f4
 INSERT INTO t1 VALUES(1, 'ABC', -1.2E-3, 'X');
 DELETE FROM v1 WHERE f2 = 'ABC';
-SELECT * from t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2	f3	f4
 INSERT INTO t1 VALUES(1, 'ABC', -1.2E-3, 'X');
 DELETE FROM v1;
-SELECT * from t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2	f3	f4
 INSERT INTO t1 VALUES(1, 'ABC', -1.2E-3, 'X');
 UPDATE v1 SET f1 = 2 WHERE f1 = 1;
-SELECT * from t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2	f3	f4
 2	ABC	-0.0012	X
 DELETE FROM t1;
 INSERT INTO t1 VALUES(1, 'ABC', -1.2E-3, 'X');
 UPDATE v1 SET f1 = 2 WHERE f2 = 'ABC';
-SELECT * from t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2	f3	f4
 2	ABC	-0.0012	X
 DELETE FROM t1;
 INSERT INTO t1 VALUES(1, 'ABC', -1.2E-3, 'X');
 UPDATE v1 SET f1 = 2;
-SELECT * from t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2	f3	f4
 2	ABC	-0.0012	X
 DELETE FROM t1;
 INSERT INTO t1 VALUES(1, 'ABC', -1.2E-3, 'X');
 UPDATE v1 SET f2 = 'NNN' WHERE f1 = 1;
-SELECT * from t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2	f3	f4
 1	NNN	-0.0012	X
 DELETE FROM t1;
 INSERT INTO t1 VALUES(1, 'ABC', -1.2E-3, 'X');
 UPDATE v1 SET f2 = 'NNN' WHERE f2 = 'ABC';
-SELECT * from t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2	f3	f4
 1	NNN	-0.0012	X
 DELETE FROM t1;
 INSERT INTO t1 VALUES(1, 'ABC', -1.2E-3, 'X');
 UPDATE v1 SET f2 = 'NNN' WHERE f3 = -1.2E-3;
-SELECT * from t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2	f3	f4
 1	NNN	-0.0012	X
 DELETE FROM t1;
 INSERT INTO t1 VALUES(1, 'ABC', -1.2E-3, 'X');
 UPDATE v1 SET f2 = 'NNN';
-SELECT * from t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2	f3	f4
 1	NNN	-0.0012	X
 DELETE FROM t1;
 INSERT INTO t1 VALUES(1, 'ABC', -1.2E-3, 'X');
 UPDATE v1 SET f1 = 2, f2 = 'NNN' WHERE f1 = 1 AND f2 = 'ABC';
-SELECT * from t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2	f3	f4
 2	NNN	-0.0012	X
 DELETE FROM t1;
@@ -22172,33 +22172,33 @@ Warnings:
 Warning	1423	Field of view 'test.v1' underlying table doesn't have a default value
 INSERT INTO v1 SET f2 = 'ABC';
 ERROR 23000: Duplicate entry '0' for key 'PRIMARY'
-SELECT * from t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2	f3	f4
 0	ABC	NULL	NULL
 DELETE FROM t1;
 INSERT INTO t1 VALUES(1, 'ABC', -1.2E-3, 'X');
 DELETE FROM v1 WHERE f2 = 'ABC';
-SELECT * from t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2	f3	f4
 INSERT INTO t1 VALUES(1, 'ABC', -1.2E-3, 'X');
 DELETE FROM v1;
-SELECT * from t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2	f3	f4
 INSERT INTO t1 VALUES(1, 'ABC', -1.2E-3, 'X');
 UPDATE v1 SET f2 = 'NNN' WHERE f2 = 'ABC';
-SELECT * from t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2	f3	f4
 1	NNN	-0.0012	X
 DELETE FROM t1;
 INSERT INTO t1 VALUES(1, 'ABC', -1.2E-3, 'X');
 UPDATE v1 SET f2 = 'NNN' WHERE f3 = -1.2E-3;
-SELECT * from t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2	f3	f4
 1	NNN	-0.0012	X
 DELETE FROM t1;
 INSERT INTO t1 VALUES(1, 'ABC', -1.2E-3, 'X');
 UPDATE v1 SET f2 = 'NNN';
-SELECT * from t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2	f3	f4
 1	NNN	-0.0012	X
 DELETE FROM t1;
@@ -22206,115 +22206,115 @@ DROP VIEW v1;
 CREATE VIEW v1 AS SELECT f1, f2, f3, 'HELLO' AS my_greeting FROM t1;
 INSERT INTO v1 SET f1 = 1;
 ERROR HY000: The target table v1 of the INSERT is not insertable-into
-SELECT * from t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2	f3	f4
 DELETE FROM t1;
 INSERT INTO v1 SET f1 = 1, my_greeting = 'HELLO';
 ERROR HY000: Column 'my_greeting' is not updatable
-SELECT * from t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2	f3	f4
 DELETE FROM t1;
 INSERT INTO t1 VALUES(1, 'ABC', -1.2E-3, 'X');
 DELETE FROM v1 WHERE f1 = 1;
-SELECT * from t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2	f3	f4
 INSERT INTO t1 VALUES(1, 'ABC', -1.2E-3, 'X');
 DELETE FROM v1 WHERE f2 = 'ABC';
-SELECT * from t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2	f3	f4
 INSERT INTO t1 VALUES(1, 'ABC', -1.2E-3, 'X');
 DELETE FROM v1 WHERE my_greeting = 'HELLO';
-SELECT * from t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2	f3	f4
 INSERT INTO t1 VALUES(1, 'ABC', -1.2E-3, 'X');
 DELETE FROM v1;
-SELECT * from t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2	f3	f4
 INSERT INTO t1 VALUES(1, 'ABC', -1.2E-3, 'X');
 UPDATE v1 SET f1 = 2 WHERE f1 = 1;
-SELECT * from t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2	f3	f4
 2	ABC	-0.0012	X
 DELETE FROM t1;
 INSERT INTO t1 VALUES(1, 'ABC', -1.2E-3, 'X');
 UPDATE v1 SET f1 = 2 WHERE f2 = 'ABC';
-SELECT * from t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2	f3	f4
 2	ABC	-0.0012	X
 DELETE FROM t1;
 INSERT INTO t1 VALUES(1, 'ABC', -1.2E-3, 'X');
 UPDATE v1 SET f1 = 2 WHERE my_greeting = 'HELLO';
-SELECT * from t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2	f3	f4
 2	ABC	-0.0012	X
 DELETE FROM t1;
 INSERT INTO t1 VALUES(1, 'ABC', -1.2E-3, 'X');
 UPDATE v1 SET f1 = 2;
-SELECT * from t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2	f3	f4
 2	ABC	-0.0012	X
 DELETE FROM t1;
 INSERT INTO t1 VALUES(1, 'ABC', -1.2E-3, 'X');
 UPDATE v1 SET f2 = 'NNN' WHERE f1 = 1;
-SELECT * from t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2	f3	f4
 1	NNN	-0.0012	X
 DELETE FROM t1;
 INSERT INTO t1 VALUES(1, 'ABC', -1.2E-3, 'X');
 UPDATE v1 SET f2 = 'NNN' WHERE f2 = 'ABC';
-SELECT * from t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2	f3	f4
 1	NNN	-0.0012	X
 DELETE FROM t1;
 INSERT INTO t1 VALUES(1, 'ABC', -1.2E-3, 'X');
 UPDATE v1 SET f2 = 'NNN' WHERE f3 = -1.2E-3;
-SELECT * from t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2	f3	f4
 1	NNN	-0.0012	X
 DELETE FROM t1;
 INSERT INTO t1 VALUES(1, 'ABC', -1.2E-3, 'X');
 UPDATE v1 SET f2 = 'NNN' WHERE my_greeting = 'HELLO';
-SELECT * from t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2	f3	f4
 1	NNN	-0.0012	X
 DELETE FROM t1;
 INSERT INTO t1 VALUES(1, 'ABC', -1.2E-3, 'X');
 UPDATE v1 SET f2 = 'NNN';
-SELECT * from t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2	f3	f4
 1	NNN	-0.0012	X
 DELETE FROM t1;
 INSERT INTO t1 VALUES(1, 'ABC', -1.2E-3, 'X');
 UPDATE v1 SET my_greeting = 'Hej' WHERE f1 = 1;
 ERROR HY000: Column 'my_greeting' is not updatable
-SELECT * from t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2	f3	f4
 1	ABC	-0.0012	X
 DELETE FROM t1;
 INSERT INTO t1 VALUES(1, 'ABC', -1.2E-3, 'X');
 UPDATE v1 SET my_greeting = 'Hej' WHERE f2 = 'ABC';
 ERROR HY000: Column 'my_greeting' is not updatable
-SELECT * from t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2	f3	f4
 1	ABC	-0.0012	X
 DELETE FROM t1;
 INSERT INTO t1 VALUES(1, 'ABC', -1.2E-3, 'X');
 UPDATE v1 SET my_greeting = 'Hej' WHERE my_greeting = 'HELLO';
 ERROR HY000: Column 'my_greeting' is not updatable
-SELECT * from t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2	f3	f4
 1	ABC	-0.0012	X
 DELETE FROM t1;
 INSERT INTO t1 VALUES(1, 'ABC', -1.2E-3, 'X');
 UPDATE v1 SET my_greeting = 'Hej';
 ERROR HY000: Column 'my_greeting' is not updatable
-SELECT * from t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2	f3	f4
 1	ABC	-0.0012	X
 DELETE FROM t1;
 INSERT INTO t1 VALUES(1, 'ABC', -1.2E-3, 'X');
 UPDATE v1 SET f1 = 2, f2 = 'NNN' WHERE f1 = 1 AND f2 = 'ABC';
-SELECT * from t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2	f3	f4
 2	NNN	-0.0012	X
 DELETE FROM t1;
@@ -22328,14 +22328,14 @@ DROP VIEW v1;
 CREATE VIEW v1 AS SELECT f1, f2, f4 FROM t1;
 INSERT INTO v1 SET f1 = 1;
 ERROR HY000: Field of view 'test.v1' underlying table doesn't have a default value
-SELECT * from t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2	f3	f4
 DELETE FROM t1;
 INSERT INTO t1 VALUES(1, 'ABC', -1.2E-3, 'X');
 DELETE FROM v1 WHERE f1 = 1;
 INSERT INTO t1 VALUES(1, 'ABC', -1.2E-3, 'X');
 UPDATE v1 SET f4 = 'Y' WHERE f2 = 'ABC';
-SELECT * from t1;
+SELECT * FROM t1 ORDER BY 1;
 f1	f2	f3	f4
 1	ABC	-0.0012	Y
 DELETE FROM t1;
@@ -22635,7 +22635,7 @@ f1	f2	f4	report
 3	NULL	<-- 10 -	v1 3
 4	NULL	<------ 20 -------->	t1 4
 4	NULL	<------ 20 -------->	v1 4
-ALTER TABLE t1 CHANGE COLUMN f1 f1 VARCHAR(30);
+ALTER TABLE t1 CHANGE COLUMN f1 f1 VARCHAR(30) charset latin1;
 INSERT INTO t1 SET f1 = '<------------- 30 ----------->',
 f4 = '<------ 20 -------->', report = 't1 5';
 INSERT INTO v1 SET f1 = '<------------- 30 ----------->',

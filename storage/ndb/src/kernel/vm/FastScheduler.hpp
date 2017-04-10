@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -27,6 +27,7 @@
 #include <GlobalData.hpp>
 #include <TransporterDefinitions.hpp>
 #include <portlib/ndb_prefetch.h>
+#include <portlib/NdbTick.h>
 
 #define JAM_FILE_ID 244
 
@@ -145,6 +146,11 @@ public:
                               Uint32 *no_exec_loops, Uint32 *tot_exec_time,
                               Uint32 *no_extra_loops, Uint32 *tot_extra_time);
 
+  /* Get/Set high resolution timer in microseconds */
+  NDB_TICKS getHighResTimer() { return curr_ticks; }
+  const NDB_TICKS* getHighResTimerPtr() { return &curr_ticks; } 
+  void setHighResTimer(NDB_TICKS ticks)
+  { curr_ticks = ticks;}
 private:
   void highestAvailablePrio(Priority prio);
   void reportJob(Priority aPriority);
@@ -152,6 +158,7 @@ private:
 
   Uint32 theDoJobTotalCounter;
   Uint32 theDoJobCallCounter;
+  NDB_TICKS curr_ticks;
   Uint8 theJobPriority[4096];
   APZJobBuffer theJobBuffers[JB_LEVELS];
 

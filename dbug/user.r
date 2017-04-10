@@ -823,28 +823,6 @@ number of bytes to dump.
 .SP 1
 EX: \fCDBUG_DBUG\ ("net",\ packet,\ len);\fR
 .SP 1
-.LI DBUG_SETJMP\ 
-Used in place of the setjmp() function to first save the current
-debugger state and then execute the standard setjmp call.
-This allows to the debugger to restore its state when the
-DBUG_LONGJMP macro is used to invoke the standard longjmp() call.
-Currently all instances of DBUG_SETJMP must occur within the
-same function and at the same function nesting level.
-.SP 1
-EX: \fCDBUG_SETJMP\ (env);\fR
-.SP 1
-.LI DBUG_LONGJMP\ 
-Used in place of the longjmp() function to first restore the
-previous debugger state at the time of the last DBUG_SETJMP
-and then execute the standard longjmp() call.
-Note that currently all DBUG_LONGJMP macros restore the state
-at the time of the last DBUG_SETJMP.
-It would be possible to maintain separate DBUG_SETJMP and DBUG_LONGJMP
-pairs by having the debugger runtime support module use the first
-argument to differentiate the pairs.
-.SP 1
-EX: \fCDBUG_LONGJMP\ (env,val);\fR
-.SP 1
 .LI DBUG_LOCK_FILE\ 
 Used in multi-threaded environment to lock DBUG_FILE stream.
 It can be used, for example, in functions that need to write something to a

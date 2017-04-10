@@ -1,3 +1,9 @@
+# Result differences depending on FS case sensitivity.
+if (!$require_case_insensitive_file_system)
+{
+  --source include/have_case_sensitive_file_system.inc
+}
+
 -- source include/not_embedded.inc
 -- source ../include/ps_truncate_all_tables.inc
 # Tests for sys schema
@@ -34,6 +40,6 @@ CREATE TABLE rkey.rkey (
   KEY (i, j, k)
  );
 
- SELECT * FROM sys.schema_redundant_indexes;
+ SELECT * FROM sys.schema_redundant_indexes ORDER BY table_name, dominant_index_name;
 
  DROP DATABASE rkey;

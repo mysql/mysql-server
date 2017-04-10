@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -18,21 +18,28 @@
   Table PERFORMANCE_TIMERS (implementation).
 */
 
-#include "my_global.h"
-#include "my_thread.h"
-#include "table_performance_timers.h"
-#include "pfs_timer.h"
-#include "pfs_global.h"
+#include "storage/perfschema/table_performance_timers.h"
+
+#include <stddef.h>
+
 #include "field.h"
+#include "my_dbug.h"
+#include "my_thread.h"
+#include "pfs_global.h"
+#include "pfs_timer.h"
+#include "table_helper.h"
 
 THR_LOCK table_performance_timers::m_table_lock;
 
+/* clang-format off */
 static const TABLE_FIELD_TYPE field_types[]=
 {
   {
     { C_STRING_WITH_LEN("TIMER_NAME") },
-    { C_STRING_WITH_LEN("enum(\'CYCLE\',\'NANOSECOND\',\'MICROSECOND\',"
-                        "\'MILLISECOND\',\'TICK\')") },
+    {
+      C_STRING_WITH_LEN("enum(\'CYCLE\',\'NANOSECOND\',\'MICROSECOND\',"
+      "\'MILLISECOND\',\'TICK\')")
+    },
     { NULL, 0}
   },
   {
@@ -51,15 +58,13 @@ static const TABLE_FIELD_TYPE field_types[]=
     { NULL, 0}
   }
 };
+/* clang-format on */
 
 TABLE_FIELD_DEF
-table_performance_timers::m_field_def=
-{ 4, field_types };
+table_performance_timers::m_field_def = {4, field_types};
 
-PFS_engine_table_share
-table_performance_timers::m_share=
-{
-  { C_STRING_WITH_LEN("performance_timers") },
+PFS_engine_table_share table_performance_timers::m_share = {
+  {C_STRING_WITH_LEN("performance_timers")},
   &pfs_readonly_acl,
   table_performance_timers::create,
   NULL, /* write_row */
@@ -72,7 +77,8 @@ table_performance_timers::m_share=
   false  /* perpetual */
 };
 
-PFS_engine_table* table_performance_timers::create(void)
+PFS_engine_table *
+table_performance_timers::create(void)
 {
   return new table_performance_timers();
 }
@@ -84,39 +90,40 @@ table_performance_timers::get_row_count(void)
 }
 
 table_performance_timers::table_performance_timers()
-  : PFS_engine_table(&m_share, &m_pos),
-    m_row(NULL), m_pos(0), m_next_pos(0)
+  : PFS_engine_table(&m_share, &m_pos), m_row(NULL), m_pos(0), m_next_pos(0)
 {
   int index;
 
-  index= (int)TIMER_NAME_CYCLE - FIRST_TIMER_NAME;
-  m_data[index].m_timer_name= TIMER_NAME_CYCLE;
-  m_data[index].m_info= pfs_timer_info.cycles;
+  index = (int)TIMER_NAME_CYCLE - FIRST_TIMER_NAME;
+  m_data[index].m_timer_name = TIMER_NAME_CYCLE;
+  m_data[index].m_info = pfs_timer_info.cycles;
 
-  index= (int)TIMER_NAME_NANOSEC - FIRST_TIMER_NAME;
-  m_data[index].m_timer_name= TIMER_NAME_NANOSEC;
-  m_data[index].m_info= pfs_timer_info.nanoseconds;
+  index = (int)TIMER_NAME_NANOSEC - FIRST_TIMER_NAME;
+  m_data[index].m_timer_name = TIMER_NAME_NANOSEC;
+  m_data[index].m_info = pfs_timer_info.nanoseconds;
 
-  index= (int)TIMER_NAME_MICROSEC - FIRST_TIMER_NAME;
-  m_data[index].m_timer_name= TIMER_NAME_MICROSEC;
-  m_data[index].m_info= pfs_timer_info.microseconds;
+  index = (int)TIMER_NAME_MICROSEC - FIRST_TIMER_NAME;
+  m_data[index].m_timer_name = TIMER_NAME_MICROSEC;
+  m_data[index].m_info = pfs_timer_info.microseconds;
 
-  index= (int)TIMER_NAME_MILLISEC - FIRST_TIMER_NAME;
-  m_data[index].m_timer_name= TIMER_NAME_MILLISEC;
-  m_data[index].m_info= pfs_timer_info.milliseconds;
+  index = (int)TIMER_NAME_MILLISEC - FIRST_TIMER_NAME;
+  m_data[index].m_timer_name = TIMER_NAME_MILLISEC;
+  m_data[index].m_info = pfs_timer_info.milliseconds;
 
-  index= (int)TIMER_NAME_TICK - FIRST_TIMER_NAME;
-  m_data[index].m_timer_name= TIMER_NAME_TICK;
-  m_data[index].m_info= pfs_timer_info.ticks;
+  index = (int)TIMER_NAME_TICK - FIRST_TIMER_NAME;
+  m_data[index].m_timer_name = TIMER_NAME_TICK;
+  m_data[index].m_info = pfs_timer_info.ticks;
 }
 
-void table_performance_timers::reset_position(void)
+void
+table_performance_timers::reset_position(void)
 {
-  m_pos.m_index= 0;
-  m_next_pos.m_index= 0;
+  m_pos.m_index = 0;
+  m_next_pos.m_index = 0;
 }
 
-int table_performance_timers::rnd_next(void)
+int
+table_performance_timers::rnd_next(void)
 {
   int result;
 
@@ -124,31 +131,33 @@ int table_performance_timers::rnd_next(void)
 
   if (m_pos.m_index < COUNT_TIMER_NAME)
   {
-    m_row= &m_data[m_pos.m_index];
+    m_row = &m_data[m_pos.m_index];
     m_next_pos.set_after(&m_pos);
-    result= 0;
+    result = 0;
   }
   else
   {
-    m_row= NULL;
-    result= HA_ERR_END_OF_FILE;
+    m_row = NULL;
+    result = HA_ERR_END_OF_FILE;
   }
 
   return result;
 }
 
-int table_performance_timers::rnd_pos(const void *pos)
+int
+table_performance_timers::rnd_pos(const void *pos)
 {
   set_position(pos);
   DBUG_ASSERT(m_pos.m_index < COUNT_TIMER_NAME);
-  m_row= &m_data[m_pos.m_index];
+  m_row = &m_data[m_pos.m_index];
   return 0;
 }
 
-int table_performance_timers::read_row_values(TABLE *table,
-                                              unsigned char *buf,
-                                              Field **fields,
-                                              bool read_all)
+int
+table_performance_timers::read_row_values(TABLE *table,
+                                          unsigned char *buf,
+                                          Field **fields,
+                                          bool read_all)
 {
   Field *f;
 
@@ -156,34 +165,46 @@ int table_performance_timers::read_row_values(TABLE *table,
 
   /* Set the null bits */
   DBUG_ASSERT(table->s->null_bytes == 1);
-  buf[0]= 0;
+  buf[0] = 0;
 
-  for (; (f= *fields) ; fields++)
+  for (; (f = *fields); fields++)
   {
     if (read_all || bitmap_is_set(table->read_set, f->field_index))
     {
-      switch(f->field_index)
+      switch (f->field_index)
       {
       case 0: /* TIMER_NAME */
         set_field_enum(f, m_row->m_timer_name);
         break;
       case 1: /* TIMER_FREQUENCY */
         if (m_row->m_info.routine != 0)
+        {
           set_field_ulonglong(f, m_row->m_info.frequency);
+        }
         else
+        {
           f->set_null();
+        }
         break;
       case 2: /* TIMER_RESOLUTION */
         if (m_row->m_info.routine != 0)
+        {
           set_field_ulonglong(f, m_row->m_info.resolution);
+        }
         else
+        {
           f->set_null();
+        }
         break;
       case 3: /* TIMER_OVERHEAD */
         if (m_row->m_info.routine != 0)
+        {
           set_field_ulonglong(f, m_row->m_info.overhead);
+        }
         else
+        {
           f->set_null();
+        }
         break;
       default:
         DBUG_ASSERT(false);
@@ -193,4 +214,3 @@ int table_performance_timers::read_row_values(TABLE *table,
 
   return 0;
 }
-

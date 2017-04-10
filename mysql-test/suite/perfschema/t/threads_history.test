@@ -1,12 +1,11 @@
 # Check the impact of changes done in HISTORY column in
 # performance_schema.setup_actors.
 
---source include/not_embedded.inc
---source include/have_perfschema.inc
+# Test requires: sp-protocol/ps-protocol/view-protocol/cursor-protocol disabled
 --source include/no_protocol.inc
 
-# Presence of the query cache changes query stages,
-# causing noise in the test output
+#With QC enabled additional code paths are activated which will change
+#performance schema output.
 --source include/have_query_cache_disabled.inc
 
 create user user1@localhost;

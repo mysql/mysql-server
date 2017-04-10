@@ -15,7 +15,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**
-  @file
+  @file include/mysql/plugin_auth_common.h
 
   This file defines constants and data structures that are the same for
   both client- and server-side authentication plugins.

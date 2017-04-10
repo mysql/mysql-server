@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,10 +16,22 @@
 #ifndef _lf_h
 #define _lf_h
 
-#include "my_global.h"
-#include "my_atomic.h"
-#include "my_sys.h"
+/**
+  @file include/lf.h
+*/
+
+#include "my_config.h"
+
+#include <stddef.h>
+#include <sys/types.h>
+
 #include "hash.h"
+#include "my_atomic.h"
+#include "my_inttypes.h"
+#include "my_macros.h"
+#include "mysql/psi/mysql_statement.h"
+#include "mysql/service_mysql_alloc.h"
+#include "sql_string.h"
 
 C_MODE_START
 
@@ -143,10 +155,12 @@ static inline void lf_alloc_direct_free(LF_ALLOCATOR *allocator, void *addr)
 void *lf_alloc_new(LF_PINS *pins);
 
 struct st_lf_hash;
+
 typedef uint lf_hash_func(const struct st_lf_hash *, const uchar *, size_t);
 typedef void lf_hash_init_func(uchar *dst, const uchar* src);
 
 #define LF_HASH_UNIQUE 1
+#define MY_LF_ERRPTR ((void*)(intptr)1)
 
 /* lf_hash overhead per element (that is, sizeof(LF_SLIST) */
 extern const int LF_HASH_OVERHEAD;
@@ -154,7 +168,7 @@ extern const int LF_HASH_OVERHEAD;
 typedef struct st_lf_hash {
   LF_DYNARRAY array;                    /* hash itself */
   LF_ALLOCATOR alloc;                   /* allocator for elements */
-  my_hash_get_key get_key;              /* see HASH */
+  hash_get_key_function get_key;        /* see HASH */
   CHARSET_INFO *charset;                /* see HASH */
   lf_hash_func *hash_function;          /* see HASH */
   uint key_offset, key_length;          /* see HASH */
@@ -178,7 +192,8 @@ typedef struct st_lf_hash {
 #define lf_hash_init(A, B, C, D, E, F, G) \
           lf_hash_init2(A, B, C, D, E, F, G, NULL, NULL, NULL, NULL)
 void lf_hash_init2(LF_HASH *hash, uint element_size, uint flags,
-                   uint key_offset, uint key_length, my_hash_get_key get_key,
+                   uint key_offset, uint key_length,
+                   hash_get_key_function get_key,
                    CHARSET_INFO *charset, lf_hash_func *hash_function,
                    lf_allocator_func *ctor, lf_allocator_func *dtor,
                    lf_hash_init_func *init);

@@ -38,7 +38,7 @@ public:
       dynamically allocated string with my_strdup.
     @param name Name of option. It is used in command line option name as
       --name.
-    @param desription Description of option to be printed in --help.
+    @param description Description of option to be printed in --help.
    */
   Char_array_option(
     char** value, bool allocated, std::string name, std::string description);

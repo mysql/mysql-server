@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -23,23 +23,24 @@ Data dictionary creation and booting
 Created 4/18/1996 Heikki Tuuri
 *******************************************************/
 
-#include "ha_prototypes.h"
-
-#include "dict0boot.h"
-
-#ifdef UNIV_NONINL
-#include "dict0boot.ic"
-#endif
-
-#include "dict0crea.h"
 #include "btr0btr.h"
-#include "dict0load.h"
-#include "trx0trx.h"
-#include "srv0srv.h"
-#include "ibuf0ibuf.h"
 #include "buf0flu.h"
+#include "dict0boot.h"
+#include "dict0crea.h"
+#include "dict0load.h"
+#include "ha_prototypes.h"
+#include "ibuf0ibuf.h"
 #include "log0recv.h"
+#include "my_inttypes.h"
 #include "os0file.h"
+#include "srv0srv.h"
+#include "trx0trx.h"
+
+/** TRUE if we don't have DDTableBuffer in the system tablespace,
+this should be due to we run the server against old data files.
+Please do NOT change this when server is running.
+FIXME: This should be removed away once we can upgrade for new DD. */
+extern bool    srv_missing_dd_table_buffer;
 
 /**********************************************************************//**
 Gets a pointer to the dictionary header and x-latches its page.
@@ -68,9 +69,9 @@ dict_hdr_get_new_id(
 /*================*/
 	table_id_t*		table_id,	/*!< out: table id
 						(not assigned if NULL) */
-	index_id_t*		index_id,	/*!< out: index id
+	space_index_t*		index_id,	/*!< out: index id
 						(not assigned if NULL) */
-	ulint*			space_id,	/*!< out: space id
+	space_id_t*		space_id,	/*!< out: space id
 						(not assigned if NULL) */
 	const dict_table_t*	table,		/*!< in: table */
 	bool			disable_redo)	/*!< in: if true and table
@@ -82,6 +83,8 @@ dict_hdr_get_new_id(
 	mtr_t		mtr;
 
 	mtr_start(&mtr);
+	mtr.set_sys_modified();
+
 	if (table) {
 		dict_disable_redo_if_temporary(table, &mtr);
 	} else if (disable_redo) {
@@ -119,6 +122,12 @@ dict_hdr_get_new_id(
 	if (table_id) {
 		id = mach_read_from_8(dict_hdr + DICT_HDR_TABLE_ID);
 		id++;
+
+		if (id >= dict_sdi_get_table_id(0, 1)) {
+			id = DICT_HDR_FIRST_ID;
+			ut_ad(0); // WL#7141 TODO: handle wrap-around
+		}
+
 		mlog_write_ull(dict_hdr + DICT_HDR_TABLE_ID, id, &mtr);
 		*table_id = id;
 	}
@@ -158,6 +167,7 @@ dict_hdr_flush_row_id(void)
 	id = dict_sys->row_id;
 
 	mtr_start(&mtr);
+	mtr.set_sys_modified();
 
 	dict_hdr = dict_hdr_get(&mtr);
 
@@ -189,6 +199,15 @@ dict_hdr_create(
 
 	ut_a(DICT_HDR_PAGE_NO == block->page.id.page_no());
 
+	/* We create the root page for DDTableBuffer here, right after
+	all dict_header things have been created. Because
+	FSP_TBL_BUFFER_TREE_ROOT_PAGE_NO is right after
+	FSP_DICT_HDR_PAGE_NO */
+	root_page_no = btr_create(DICT_CLUSTERED, 0, univ_page_size,
+				  DICT_TBL_BUFFER_ID, dict_ind_redundant,
+				  mtr);
+	ut_ad(root_page_no == FSP_TBL_BUFFER_TREE_ROOT_PAGE_NO);
+
 	dict_header = dict_hdr_get(mtr);
 
 	/* Start counting row, table, index, and tree ids from
@@ -215,7 +234,7 @@ dict_hdr_create(
 	/*--------------------------*/
 	root_page_no = btr_create(DICT_CLUSTERED | DICT_UNIQUE, DICT_HDR_SPACE,
 				  univ_page_size, DICT_TABLES_ID,
-				  dict_ind_redundant, NULL, mtr);
+				  dict_ind_redundant, mtr);
 	if (root_page_no == FIL_NULL) {
 
 		return(FALSE);
@@ -226,7 +245,7 @@ dict_hdr_create(
 	/*--------------------------*/
 	root_page_no = btr_create(DICT_UNIQUE, DICT_HDR_SPACE,
 				  univ_page_size, DICT_TABLE_IDS_ID,
-				  dict_ind_redundant, NULL, mtr);
+				  dict_ind_redundant, mtr);
 	if (root_page_no == FIL_NULL) {
 
 		return(FALSE);
@@ -237,7 +256,7 @@ dict_hdr_create(
 	/*--------------------------*/
 	root_page_no = btr_create(DICT_CLUSTERED | DICT_UNIQUE, DICT_HDR_SPACE,
 				  univ_page_size, DICT_COLUMNS_ID,
-				  dict_ind_redundant, NULL, mtr);
+				  dict_ind_redundant, mtr);
 	if (root_page_no == FIL_NULL) {
 
 		return(FALSE);
@@ -248,7 +267,7 @@ dict_hdr_create(
 	/*--------------------------*/
 	root_page_no = btr_create(DICT_CLUSTERED | DICT_UNIQUE, DICT_HDR_SPACE,
 				  univ_page_size, DICT_INDEXES_ID,
-				  dict_ind_redundant, NULL, mtr);
+				  dict_ind_redundant, mtr);
 	if (root_page_no == FIL_NULL) {
 
 		return(FALSE);
@@ -259,7 +278,7 @@ dict_hdr_create(
 	/*--------------------------*/
 	root_page_no = btr_create(DICT_CLUSTERED | DICT_UNIQUE, DICT_HDR_SPACE,
 				  univ_page_size, DICT_FIELDS_ID,
-				  dict_ind_redundant, NULL, mtr);
+				  dict_ind_redundant, mtr);
 	if (root_page_no == FIL_NULL) {
 
 		return(FALSE);
@@ -341,8 +360,8 @@ dict_boot(void)
 	dict_mem_table_add_col(table, heap, "ID", DATA_BINARY, 0, 8);
 	/* ROW_FORMAT = (N_COLS >> 31) ? COMPACT : REDUNDANT */
 	dict_mem_table_add_col(table, heap, "N_COLS", DATA_INT, 0, 4);
-	/* The low order bit of TYPE is always set to 1.  If the format
-	is UNIV_FORMAT_B or higher, this field matches table->flags. */
+	/* The low order bit of TYPE is always set to 1.  If ROW_FORMAT
+	is not REDUNDANT or COMPACT, this field matches table->flags. */
 	dict_mem_table_add_col(table, heap, "TYPE", DATA_INT, 0, 4);
 	dict_mem_table_add_col(table, heap, "MIX_ID", DATA_BINARY, 0, 0);
 	/* MIX_LEN may contain additional table flags when
@@ -362,7 +381,7 @@ dict_boot(void)
 				      DICT_HDR_SPACE,
 				      DICT_UNIQUE | DICT_CLUSTERED, 1);
 
-	dict_mem_index_add_field(index, "NAME", 0);
+	index->add_field("NAME", 0, true);
 
 	index->id = DICT_TABLES_ID;
 
@@ -376,7 +395,7 @@ dict_boot(void)
 	/*-------------------------*/
 	index = dict_mem_index_create("SYS_TABLES", "ID_IND",
 				      DICT_HDR_SPACE, DICT_UNIQUE, 1);
-	dict_mem_index_add_field(index, "ID", 0);
+	index->add_field("ID", 0, true);
 
 	index->id = DICT_TABLE_IDS_ID;
 	error = dict_index_add_to_cache(table, index,
@@ -408,8 +427,8 @@ dict_boot(void)
 				      DICT_HDR_SPACE,
 				      DICT_UNIQUE | DICT_CLUSTERED, 2);
 
-	dict_mem_index_add_field(index, "TABLE_ID", 0);
-	dict_mem_index_add_field(index, "POS", 0);
+	index->add_field("TABLE_ID", 0, true);
+	index->add_field("POS", 0, true);
 
 	index->id = DICT_COLUMNS_ID;
 	error = dict_index_add_to_cache(table, index,
@@ -442,8 +461,8 @@ dict_boot(void)
 				      DICT_HDR_SPACE,
 				      DICT_UNIQUE | DICT_CLUSTERED, 2);
 
-	dict_mem_index_add_field(index, "TABLE_ID", 0);
-	dict_mem_index_add_field(index, "ID", 0);
+	index->add_field("TABLE_ID", 0, true);
+	index->add_field("ID", 0, true);
 
 	index->id = DICT_INDEXES_ID;
 	error = dict_index_add_to_cache(table, index,
@@ -470,8 +489,8 @@ dict_boot(void)
 				      DICT_HDR_SPACE,
 				      DICT_UNIQUE | DICT_CLUSTERED, 2);
 
-	dict_mem_index_add_field(index, "INDEX_ID", 0);
-	dict_mem_index_add_field(index, "POS", 0);
+	index->add_field("INDEX_ID", 0, true);
+	index->add_field("POS", 0, true);
 
 	index->id = DICT_FIELDS_ID;
 	error = dict_index_add_to_cache(table, index,
@@ -485,13 +504,18 @@ dict_boot(void)
 
 	/*-------------------------*/
 
-	/* Initialize the insert buffer table and index for each tablespace */
+	/* Initialize the insert buffer table, table buffer and indexes */
 
 	ibuf_init_at_db_start();
 
+	if (!srv_missing_dd_table_buffer) {
+		dict_persist->table_buffer = UT_NEW_NOKEY(DDTableBuffer());
+	}
+
 	dberr_t	err = DB_SUCCESS;
 
-	if (srv_read_only_mode && !ibuf_is_empty()) {
+	if (srv_force_recovery != SRV_FORCE_NO_LOG_REDO
+	    && srv_read_only_mode && !ibuf_is_empty()) {
 
 		ib::error() << "Change buffer must be empty when"
 			" --innodb-read-only is set!";
@@ -532,6 +556,7 @@ dict_create(void)
 	mtr_t	mtr;
 
 	mtr_start(&mtr);
+	mtr.set_sys_modified();
 
 	dict_hdr_create(&mtr);
 

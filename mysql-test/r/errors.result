@@ -88,7 +88,6 @@ Variable_name	Value
 Com_insert	2
 select * from t1;
 a
-1
 select * from t2;
 a
 drop table t1;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,8 +14,14 @@
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #include "keycaches.h"
-/* key_memory_KEY_CACHE */
+
+#include <stddef.h>
+
 #include "../mysys/mysys_priv.h"
+#include "m_string.h"
+#include "my_dbug.h"
+#include "template_utils.h"
+
 
 /****************************************************************************
   Named list handling
@@ -23,8 +29,8 @@
 
 NAMED_ILIST key_caches;
 
-uchar* find_named(I_List<NAMED_ILINK> *list, const char *name, size_t length,
-                NAMED_ILINK **found)
+static uchar* find_named(I_List<NAMED_ILINK> *list, const char *name,
+                         size_t length, NAMED_ILINK **found)
 {
   I_List_iterator<NAMED_ILINK> it(*list);
   NAMED_ILINK *element;
@@ -41,13 +47,14 @@ uchar* find_named(I_List<NAMED_ILINK> *list, const char *name, size_t length,
 }
 
 
-void NAMED_ILIST::delete_elements(void (*free_element)(const char *name, uchar*))
+void NAMED_ILIST::delete_elements()
 {
   NAMED_ILINK *element;
   DBUG_ENTER("NAMED_ILIST::delete_elements");
   while ((element= get()))
   {
-    (*free_element)(element->name, element->data);
+    end_key_cache(pointer_cast<KEY_CACHE*>(element->data), TRUE); // Can never fail
+    my_free(element->data);
     delete element;
   }
   DBUG_VOID_RETURN;
@@ -110,13 +117,6 @@ KEY_CACHE *get_or_create_key_cache(const char *name, size_t length)
   if (!(key_cache= get_key_cache(&key_cache_name)))
     key_cache= create_key_cache(name, length);
   return key_cache;
-}
-
-
-void free_key_cache(const char *name, KEY_CACHE *key_cache)
-{
-  end_key_cache(key_cache, 1);		// Can never fail
-  my_free(key_cache);
 }
 
 

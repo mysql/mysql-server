@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,7 +15,6 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include <my_global.h>
 #include "Backup.hpp"
 
 #include <ndb_version.h>
@@ -27,6 +26,7 @@
 #include <signaldata/ReadNodesConf.hpp>
 
 #include <signaldata/DihScanTab.hpp>
+#include <signaldata/DiGetNodes.hpp>
 #include <signaldata/ScanFrag.hpp>
 
 #include <signaldata/GetTabInfo.hpp>
@@ -131,6 +131,8 @@ Backup::execSTTOR(Signal* signal)
     slowdowns_due_to_io_lag = 0;
     slowdowns_due_to_high_cpu = 0;
     disk_write_speed_set_to_min = 0;
+    m_is_lcp_running = false;
+    m_is_backup_running = false;
     m_is_any_node_restarting = false;
     m_node_restart_check_sent = false;
     m_our_node_started = false;
@@ -405,28 +407,122 @@ Backup::monitor_disk_write_speed(const NDB_TICKS curr_time,
   m_monitor_snapshot_start = curr_time;
 }
 
+/**
+ * Calculate the current max and min write speeds, based on the
+ * current disk-write demands on this LDM thread
+ */
 void
-Backup::adjust_disk_write_speed_down(int adjust_speed)
+Backup::calculate_current_speed_bounds(Uint64& max_speed, Uint64& min_speed)
+{
+  jam();
+
+  max_speed = c_defaults.m_disk_write_speed_max;
+  min_speed = c_defaults.m_disk_write_speed_min;
+
+  if (m_is_any_node_restarting && m_is_lcp_running)
+  {
+    jam();
+    max_speed = c_defaults.m_disk_write_speed_max_other_node_restart;
+  }
+
+  /**
+   * Thread balance
+   *
+   * As Backup is currently run on one LDM instance, we need to take
+   * some steps to give it some extra DiskWriteSpeed allowance during
+   * a Backup.  This becomes more acute with more LDM threads.
+   * The correct way to handle this is to parallelise backup and
+   * the backup log.
+   *
+   * Until then, we will skew the per-LDM disk write speed bounds
+   * temporarily during a Backup so that LDM 1 has a large fixed
+   * portion as well as its usual 1/n share for LCP.
+   *
+   * When the Backup completes, balance is restored.
+   */
+
+  const Uint32 num_ldm_threads = globalData.ndbMtLqhThreads;
+
+  if (m_is_backup_running && 
+      num_ldm_threads > 1)
+  {
+    jam();
+
+    const Uint64 node_max_speed = 
+      max_speed * 
+      num_ldm_threads;
+  
+    /* Backup will get a percentage of the node total allowance */
+    Uint64 node_backup_max_speed = 
+      (node_max_speed * c_defaults.m_backup_disk_write_pct) /
+      100;
+
+    /* LCP gets the rest */
+    Uint64 node_lcp_max_speed = 
+      node_max_speed - node_backup_max_speed;
+    
+    /* LDM threads get a fair share of the LCP allowance */
+    Uint64 ldm_thread_lcp_max_speed =
+      node_lcp_max_speed / num_ldm_threads;
+    
+    /* Backup LDM must perform both node Backup + thread LCP */
+    Uint64 backup_ldm_max_speed = 
+      node_backup_max_speed + 
+      ldm_thread_lcp_max_speed;
+    
+    /* Other LDMs just do thread LCP */
+    Uint64 other_ldm_max_speed = 
+      ldm_thread_lcp_max_speed;
+    
+    ndbrequire(backup_ldm_max_speed + 
+               ((num_ldm_threads - 1) * 
+                other_ldm_max_speed) <=
+               node_max_speed);
+    
+    if (is_backup_worker())
+    {
+      jam();
+      /**
+       * Min is set to node backup speed, 
+       * this should quickly increase the thread's
+       * allowance.
+       */
+      max_speed = backup_ldm_max_speed;
+      min_speed = node_backup_max_speed;
+    }
+    else
+    {
+      jam();
+      /**
+       * Trim write bandwidth available
+       * to other LDM threads
+       */
+      max_speed = other_ldm_max_speed;
+      min_speed = MIN(min_speed, max_speed);
+    }
+  }
+
+  ndbrequire(min_speed <= max_speed);
+}
+
+void
+Backup::adjust_disk_write_speed_down(Uint64 min_speed, int adjust_speed)
 {
   m_curr_disk_write_speed -= adjust_speed;
-  if (m_curr_disk_write_speed < c_defaults.m_disk_write_speed_min)
+  if (m_curr_disk_write_speed < min_speed)
   {
     disk_write_speed_set_to_min++;
-    m_curr_disk_write_speed = c_defaults.m_disk_write_speed_min;
+    m_curr_disk_write_speed = min_speed;
   }
 }
 
 void
-Backup::adjust_disk_write_speed_up(int adjust_speed)
+Backup::adjust_disk_write_speed_up(Uint64 max_speed, int adjust_speed)
 {
-  Uint64 max_disk_write_speed = m_is_any_node_restarting ?
-    c_defaults.m_disk_write_speed_max_other_node_restart :
-    c_defaults.m_disk_write_speed_max;
-
   m_curr_disk_write_speed += adjust_speed;
-  if (m_curr_disk_write_speed > max_disk_write_speed)
+  if (m_curr_disk_write_speed > max_speed)
   {
-    m_curr_disk_write_speed = max_disk_write_speed;
+    m_curr_disk_write_speed = max_speed;
   }
 }
 
@@ -437,19 +533,48 @@ Backup::adjust_disk_write_speed_up(int adjust_speed)
 void
 Backup::calculate_disk_write_speed(Signal *signal)
 {
-  Uint64 max_disk_write_speed = m_is_any_node_restarting ?
-    c_defaults.m_disk_write_speed_max_other_node_restart :
-    c_defaults.m_disk_write_speed_max;
+  if (!m_our_node_started)
+  {
+    /* No adaptiveness while we're still starting. */
+    jam();
+    return;
+  }
+  Uint64 max_disk_write_speed, min_disk_write_speed;
+  calculate_current_speed_bounds(max_disk_write_speed,
+                                 min_disk_write_speed);
+
   /**
+   * It is possible that the limits (max + min) have moved so that
+   * the current speed is now outside them, if so we immediately
+   * track to the relevant limit.
+   * In these cases, the data collected for the last period regarding
+   * redo log etc will not be relevant here.
+   */
+  if (m_curr_disk_write_speed < min_disk_write_speed)
+  {
+    jam();
+    m_curr_disk_write_speed = min_disk_write_speed;
+    return;
+  }
+  else if (m_curr_disk_write_speed > max_disk_write_speed)
+  {
+    jam();
+    m_curr_disk_write_speed = max_disk_write_speed;
+    return;
+  }
+
+  /**
+   * Current speed is within bounds, now consider whether to adjust
+   * based on feedback.
+   * 
    * Calculate the max - min and divide by 12 to get the adjustment parameter
    * which is 8% of max - min. We will never adjust faster than this to avoid
-   * to quick adaptiveness. For adjustments down we will adapt faster for IO
+   * too quick adaptiveness. For adjustments down we will adapt faster for IO
    * lags, for CPU speed we will adapt a bit slower dependent on how high
    * the CPU load is.
    */
   int diff_disk_write_speed =
-    max_disk_write_speed -
-      c_defaults.m_disk_write_speed_min;
+    max_disk_write_speed - min_disk_write_speed;
 
   int adjust_speed_up = diff_disk_write_speed / 12;
   int adjust_speed_down_high = diff_disk_write_speed / 7;
@@ -467,12 +592,6 @@ Backup::calculate_disk_write_speed(Signal *signal)
      */
     return;
   }
-  if (!m_our_node_started)
-  {
-    /* No adaptiveness while we're still starting. */
-    jam();
-    return;
-  }
   if (c_lqh->is_ldm_instance_io_lagging())
   {
     /**
@@ -484,7 +603,7 @@ Backup::calculate_disk_write_speed(Signal *signal)
      */
     jam();
     slowdowns_due_to_io_lag++;
-    adjust_disk_write_speed_down(adjust_speed_down_high);
+    adjust_disk_write_speed_down(min_disk_write_speed, adjust_speed_down_high);
   }
   else
   {
@@ -537,7 +656,7 @@ Backup::calculate_disk_write_speed(Signal *signal)
     if (cpu_usage < 90)
     {
       jamEntry();
-      adjust_disk_write_speed_up(adjust_speed_up);
+      adjust_disk_write_speed_up(max_disk_write_speed, adjust_speed_up);
     }
     else if (cpu_usage < 95)
     {
@@ -548,21 +667,21 @@ Backup::calculate_disk_write_speed(Signal *signal)
       jamEntry();
       /* 95-96% load, slightly slow down */
       slowdowns_due_to_high_cpu++;
-      adjust_disk_write_speed_down(adjust_speed_down_low);
+      adjust_disk_write_speed_down(min_disk_write_speed, adjust_speed_down_low);
     }
     else if (cpu_usage < 99)
     {
       jamEntry();
       /* 97-98% load, slow down */
       slowdowns_due_to_high_cpu++;
-      adjust_disk_write_speed_down(adjust_speed_down_medium);
+      adjust_disk_write_speed_down(min_disk_write_speed, adjust_speed_down_medium);
     }
     else
     {
       jamEntry();
       /* 99-100% load, slow down a bit faster */
       slowdowns_due_to_high_cpu++;
-      adjust_disk_write_speed_down(adjust_speed_down_high);
+      adjust_disk_write_speed_down(min_disk_write_speed, adjust_speed_down_high);
     }
   }
 }
@@ -582,19 +701,46 @@ Backup::send_next_reset_disk_speed_counter(Signal *signal)
 void
 Backup::execCHECK_NODE_RESTARTCONF(Signal *signal)
 {
+  bool old_is_backup_running = m_is_backup_running;
   bool old_is_any_node_restarting = m_is_any_node_restarting;
-  m_is_any_node_restarting = (signal->theData[0] == 1);
+  m_is_lcp_running = (signal->theData[0] == 1);
+  m_is_backup_running = g_is_backup_running;  /* Global from backup instance */
+  m_is_any_node_restarting = (signal->theData[1] == 1);
+  const char* backup_text=NULL;
+  const char* restart_text=NULL;
+  
+  /* No logging of LCP start/stop w.r.t. Disk Speed */
+  if (old_is_backup_running != m_is_backup_running)
+  {
+    if (old_is_backup_running)
+    {
+      backup_text=" Backup completed";
+    }
+    else
+    {
+      backup_text=" Backup started";
+    }
+  }
   if (old_is_any_node_restarting != m_is_any_node_restarting)
   {
     if (old_is_any_node_restarting)
     {
-      g_eventLogger->info("We are adjusting Max Disk Write Speed,"
-                          " no restarts ongoing anymore");
+      restart_text=" Node restart finished";
     }
     else
     {
-      g_eventLogger->info("We are adjusting Max Disk Write Speed,"
-                          " a restart is ongoing now");
+      restart_text=" Node restart ongoing";
+    }
+  }
+
+  if (is_backup_worker())
+  {
+    /* Just have one LDM log the transition */
+    if (backup_text || restart_text)
+    {
+      g_eventLogger->info("Adjusting disk write speed bounds due to :%s%s",
+                          (backup_text ? backup_text : ""),
+                          (restart_text ? restart_text : ""));
     }
   }
 }
@@ -730,7 +876,6 @@ Backup::execCONTINUEB(Signal* signal)
     checkFile(signal, filePtr);
     return;
   }
-  break;
   case BackupContinueB::BUFFER_FULL_SCAN:
   {
     jam();
@@ -807,6 +952,7 @@ Backup::execCONTINUEB(Signal* signal)
     return;
   }
   case BackupContinueB::ZDELAY_SCAN_NEXT:
+  {
     if (ERROR_INSERTED(10039))
     {
       jam();
@@ -826,7 +972,7 @@ Backup::execCONTINUEB(Signal* signal)
       BackupRecordPtr ptr;
       c_backupPool.getPtr(ptr, filePtr.p->backupPtr);
       TablePtr tabPtr;
-      findTable(ptr, tabPtr, filePtr.p->tableId);
+      ndbrequire(findTable(ptr, tabPtr, filePtr.p->tableId));
       FragmentPtr fragPtr;
       tabPtr.p->fragments.getPtr(fragPtr, filePtr.p->fragmentNo);
 
@@ -846,6 +992,17 @@ Backup::execCONTINUEB(Signal* signal)
 		 ScanFragNextReq::SignalLength, JBB);
       return ;
     }
+  }
+  case BackupContinueB::ZGET_NEXT_FRAGMENT:
+  {
+    BackupRecordPtr backupPtr;
+    TablePtr tabPtr;
+    Uint32 fragNo = signal->theData[3];
+    c_backupPool.getPtr(backupPtr, signal->theData[1]);
+    ndbrequire(findTable(backupPtr, tabPtr, signal->theData[2]));
+    getFragmentInfo(signal, backupPtr, tabPtr, fragNo);
+    return;
+  }
   default:
     ndbrequire(0);
   }//switch
@@ -1728,22 +1885,83 @@ void Backup::execDBINFO_SCANREQ(Signal *signal)
   ndbinfo_send_scan_conf(signal, req, rl);
 }
 
+static const Uint32 MAX_TABLE_MAPS = 2;
 bool
 Backup::findTable(const BackupRecordPtr & ptr, 
-		  TablePtr & tabPtr, Uint32 tableId) const
+		  TablePtr & tabPtr, Uint32 tableId)
 {
-  for(ptr.p->tables.first(tabPtr); 
-      tabPtr.i != RNIL; 
-      ptr.p->tables.next(tabPtr)) {
-    jam();
-    if(tabPtr.p->tableId == tableId){
+  Uint32 loopCount = 0;
+  tabPtr.i = c_tableMap[tableId];
+  while (loopCount++ < MAX_TABLE_MAPS)
+  {
+    if (tabPtr.i == RNIL)
+    {
+      jam();
+      return false;
+    }
+    c_tablePool.getPtr(tabPtr);
+    if (tabPtr.p->backupPtrI == ptr.i)
+    {
       jam();
       return true;
-    }//if
-  }//for
-  tabPtr.i = RNIL;
-  tabPtr.p = 0;
+    }
+    jam();
+    tabPtr.i = tabPtr.p->nextMapTable;
+  }
   return false;
+}
+
+void
+Backup::insertTableMap(TablePtr & tabPtr,
+                       Uint32 backupPtrI,
+                       Uint32 tableId)
+{
+  tabPtr.p->backupPtrI = backupPtrI;
+  tabPtr.p->tableId = tableId;
+  tabPtr.p->nextMapTable = c_tableMap[tableId];
+  c_tableMap[tableId] = tabPtr.i;
+} 
+
+void
+Backup::removeTableMap(TablePtr &tabPtr,
+                       Uint32 backupPtr,
+                       Uint32 tableId)
+{
+  TablePtr prevTabPtr;
+  TablePtr locTabPtr;
+  Uint32 loopCount = 0;
+
+  prevTabPtr.i = RNIL;
+  prevTabPtr.p = 0;
+  locTabPtr.i = c_tableMap[tableId];
+
+  while (loopCount++ < MAX_TABLE_MAPS)
+  {
+    jam();
+    c_tablePool.getPtr(locTabPtr);
+    ndbrequire(locTabPtr.p->tableId == tableId);
+    if (locTabPtr.p->backupPtrI == backupPtr)
+    {
+      ndbrequire(tabPtr.i == locTabPtr.i);
+      if (prevTabPtr.i == RNIL)
+      {
+        jam();
+        c_tableMap[tableId] = locTabPtr.p->nextMapTable;
+      }
+      else
+      {
+        jam();
+        prevTabPtr.p->nextMapTable = locTabPtr.p->nextMapTable;
+      }
+      locTabPtr.p->nextMapTable = RNIL;
+      locTabPtr.p->tableId = RNIL;
+      locTabPtr.p->backupPtrI = RNIL;
+      return;
+    }
+    prevTabPtr = locTabPtr;
+    locTabPtr.i = locTabPtr.p->nextMapTable;
+  }
+  ndbrequire(false);
 }
 
 static Uint32 xps(Uint64 x, Uint64 ms)
@@ -1956,7 +2174,7 @@ Backup::CompoundState::forceState(State newState)
 #endif
 }
 
-Backup::Table::Table(ArrayPool<Fragment> & fh)
+Backup::Table::Table(Fragment_pool & fh)
   : fragments(fh)
 {
   triggerIds[0] = ILLEGAL_TRIGGER_ID;
@@ -2884,6 +3102,8 @@ Backup::createTrigReply(Signal* signal, BackupRecordPtr ptr)
     ref->backupId = ptr.p->backupId;
     ref->errorCode = ptr.p->errorCode;
     ref->nodeId = getOwnNodeId();
+    ndbout_c("Backup::createTrigReply : CREATE_TRIG_IMPL error %d, backup id %u node %d",
+             ref->errorCode, ref->backupId, ref->nodeId);
     sendSignal(ptr.p->masterRef, GSN_START_BACKUP_REF, signal,
                StartBackupRef::SignalLength, JBB);
     return;
@@ -3142,13 +3362,15 @@ Backup::nextFragment(Signal* signal, BackupRecordPtr ptr)
 
   TablePtr tabPtr;
   ptr.p->tables.first(tabPtr);
-  for(; tabPtr.i != RNIL && idleNodes > 0; ptr.p->tables.next(tabPtr)) {
+  for(; tabPtr.i != RNIL && idleNodes > 0; ptr.p->tables.next(tabPtr))
+  {
     jam();
     FragmentPtr fragPtr;
     Array<Fragment> & frags = tabPtr.p->fragments;
     const Uint32 fragCount = frags.getSize();
     
-    for(Uint32 i = 0; i<fragCount && idleNodes > 0; i++) {
+    for(Uint32 i = 0; i<fragCount && idleNodes > 0; i++)
+    {
       jam();
       tabPtr.p->fragments.getPtr(fragPtr, i);
       const Uint32 nodeId = fragPtr.p->node;
@@ -3245,6 +3467,7 @@ Backup::execBACKUP_FRAGMENT_CONF(Signal* signal)
 
   if(ptr.p->checkError()) 
   {
+    jam();
     if(ptr.p->masterData.sendCounter.done())
     {
       jam();
@@ -3254,10 +3477,12 @@ Backup::execBACKUP_FRAGMENT_CONF(Signal* signal)
   }
   else
   {
+    jam();
     NdbNodeBitmask nodes = ptr.p->nodes;
     nodes.clear(getOwnNodeId());
     if (!nodes.isclear())
     {
+      jam();
       BackupFragmentCompleteRep *rep =
         (BackupFragmentCompleteRep*)signal->getDataPtrSend();
       rep->backupId = ptr.p->backupId;
@@ -3372,7 +3597,7 @@ Backup::sendDropTrig(Signal* signal, BackupRecordPtr ptr)
 
   if (ptr.p->slaveData.dropTrig.tableId == RNIL) {
     jam();
-    if(ptr.p->tables.count())
+    if(ptr.p->tables.getCount())
       ptr.p->tables.first(tabPtr);
     else
     {
@@ -3980,9 +4205,7 @@ Backup::execDEFINE_BACKUP_REQ(Signal* signal)
   const Uint32 maxInsert[] = {
     MAX_WORDS_META_FILE,
     4096,    // 16k
-    // Max 16 tuples
-    ZRESERVED_SCAN_BATCH_SIZE *
-      (MAX_TUPLE_SIZE_IN_WORDS + MAX_ATTRIBUTES_IN_TABLE + 128/* safety */),
+    BACKUP_MIN_BUFF_WORDS
   };
   Uint32 minWrite[] = {
     8192,
@@ -4154,6 +4377,7 @@ Backup::execLIST_TABLES_CONF(Signal* signal)
       Uint32 tableId = ltd.getTableId();
       Uint32 tableType = ltd.getTableType();
       Uint32 state= ltd.getTableState();
+      jamLine(tableId);
 
       if (! (DictTabInfo::isTable(tableType) ||
              DictTabInfo::isIndex(tableType) ||
@@ -4181,8 +4405,13 @@ Backup::execLIST_TABLES_CONF(Signal* signal)
         releaseSections(handle);
         return;
       }//if
-      tabPtr.p->tableId = tableId;
       tabPtr.p->tableType = tableType;
+      tabPtr.p->tableId = tableId;
+#ifdef VM_TRACE
+      TablePtr locTabPtr;
+      ndbassert(findTable(ptr, locTabPtr, tabPtr.p->tableId) == false);
+#endif
+      insertTableMap(tabPtr, ptr.i, tabPtr.p->tableId);
     }//for
   }
 
@@ -4194,6 +4423,7 @@ Backup::execLIST_TABLES_CONF(Signal* signal)
    */
   if ((fragInfo == 1) || (fragInfo == 2))
   {
+    jam();
     return;
   }
   openFiles(signal, ptr);
@@ -4427,7 +4657,7 @@ Backup::openFilesReply(Signal* signal,
   
   const Uint32 sz = 
     (sizeof(BackupFormat::CtlFile::TableList) >> 2) +
-    ptr.p->tables.count() - 1;
+    ptr.p->tables.getCount() - 1;
   
   Uint32 * dst;
   ndbrequire(sz < buf.getMaxWrite());
@@ -4581,8 +4811,10 @@ Backup::execGET_TABINFO_CONF(Signal* signal)
     jam();
 
     TablePtr tmp = tabPtr;
+    removeTableMap(tmp, ptr.i, tmp.p->tableId);
     ptr.p->tables.next(tabPtr);
     ptr.p->tables.release(tmp);
+    jamLine(tmp.p->tableId);
     afterGetTabinfoLockTab(signal, ptr, tabPtr);
     return;
   }
@@ -4641,15 +4873,19 @@ Backup::afterGetTabinfoLockTab(Signal *signal,
       lcp_open_file_done(signal, ptr);
       return;
     }
-    
     ndbrequire(ptr.p->tables.first(tabPtr));
     DihScanTabReq * req = (DihScanTabReq*)signal->getDataPtrSend();
     req->senderRef = reference();
     req->senderData = ptr.i;
     req->tableId = tabPtr.p->tableId;
     req->schemaTransId = 0;
-    sendSignal(DBDIH_REF, GSN_DIH_SCAN_TAB_REQ, signal,
-               DihScanTabReq::SignalLength, JBB);
+    req->jamBufferPtr = jamBuffer();
+    EXECUTE_DIRECT(DBDIH, GSN_DIH_SCAN_TAB_REQ, signal,
+               DihScanTabReq::SignalLength, 0);
+    DihScanTabConf * conf = (DihScanTabConf*)signal->getDataPtr();
+    ndbrequire(conf->senderData == 0);
+    conf->senderData = ptr.i;
+    execDIH_SCAN_TAB_CONF(signal);
     return;
   }//if
 
@@ -4810,15 +5046,25 @@ Backup::execDIH_SCAN_TAB_CONF(Signal* signal)
   /**
    * Next table
    */
-  if(ptr.p->tables.next(tabPtr)) {
+  if(ptr.p->tables.next(tabPtr))
+  {
     jam();
     DihScanTabReq * req = (DihScanTabReq*)signal->getDataPtrSend();
     req->senderRef = reference();
     req->senderData = ptr.i;
     req->tableId = tabPtr.p->tableId;
     req->schemaTransId = 0;
-    sendSignal(DBDIH_REF, GSN_DIH_SCAN_TAB_REQ, signal,
-               DihScanTabReq::SignalLength, JBB);
+    req->jamBufferPtr = jamBuffer();
+    EXECUTE_DIRECT(DBDIH, GSN_DIH_SCAN_TAB_REQ, signal,
+                   DihScanTabReq::SignalLength, 0);
+    jamEntry();
+    DihScanTabConf * conf = (DihScanTabConf*)signal->getDataPtr();
+    ndbrequire(conf->senderData == 0);
+    conf->senderData = ptr.i;
+    /* conf is already set up properly to be sent as signal */
+    /* Real-time break to ensure we don't run for too long in one signal. */
+    sendSignal(reference(), GSN_DIH_SCAN_TAB_CONF, signal,
+               DihScanTabConf::SignalLength, JBB);
     return;
   }//if
   
@@ -4830,6 +5076,7 @@ void
 Backup::getFragmentInfo(Signal* signal, 
 			BackupRecordPtr ptr, TablePtr tabPtr, Uint32 fragNo)
 {
+  Uint32 loopCount = 0;
   jam();
   
   for(; tabPtr.i != RNIL; ptr.p->tables.next(tabPtr)) {
@@ -4842,70 +5089,55 @@ Backup::getFragmentInfo(Signal* signal,
       
       if(fragPtr.p->scanned == 0 && fragPtr.p->scanning == 0) {
         jam();
-        DihScanGetNodesReq* req = (DihScanGetNodesReq*)signal->getDataPtrSend();
-        req->senderRef = reference();
+        DiGetNodesReq * const req = (DiGetNodesReq *)&signal->theData[0];
         req->tableId = tabPtr.p->tableId;
-        req->scanCookie = tabPtr.p->m_scan_cookie;
-        req->fragCnt = 1;
-        req->fragItem[0].senderData = ptr.i;
-        req->fragItem[0].fragId = fragNo;
-        sendSignal(DBDIH_REF, GSN_DIH_SCAN_GET_NODES_REQ, signal,
-                   DihScanGetNodesReq::FixedSignalLength
-                   + DihScanGetNodesReq::FragItem::Length,
-                   JBB);
-	return;
+        req->hashValue = fragNo;
+        req->distr_key_indicator = ZTRUE;
+        req->anyNode = 0;
+        req->scan_indicator = ZTRUE;
+        req->jamBufferPtr = jamBuffer();
+        req->get_next_fragid_indicator = 0;
+        EXECUTE_DIRECT(DBDIH, GSN_DIGETNODESREQ, signal,
+                       DiGetNodesReq::SignalLength, 0);
+        jamEntry();
+        DiGetNodesConf * conf = (DiGetNodesConf *)&signal->theData[0];
+        Uint32 reqinfo = conf->reqinfo;
+        Uint32 nodeId = conf->nodes[0];
+        /* Require successful read of table fragmentation */
+        ndbrequire(conf->zero == 0);
+        Uint32 instanceKey = (reqinfo >> 24) & 127;
+        fragPtr.p->lqhInstanceKey = instanceKey;
+        fragPtr.p->node = nodeId;
+        if (++loopCount >= DiGetNodesReq::MAX_DIGETNODESREQS ||
+            ERROR_INSERTED(10046))
+        {
+          jam();
+          if (ERROR_INSERTED(10046))
+          {
+            CLEAR_ERROR_INSERT_VALUE;
+          }
+          signal->theData[0] = BackupContinueB::ZGET_NEXT_FRAGMENT;
+          signal->theData[1] = ptr.i;
+          signal->theData[2] = tabPtr.p->tableId;
+          signal->theData[3] = fragNo + 1;
+          sendSignal(reference(), GSN_CONTINUEB, signal, 4, JBB);
+          return;
+        }
       }//if
     }//for
 
     DihScanTabCompleteRep*rep= (DihScanTabCompleteRep*)signal->getDataPtrSend();
     rep->tableId = tabPtr.p->tableId;
     rep->scanCookie = tabPtr.p->m_scan_cookie;
-    sendSignal(DBDIH_REF, GSN_DIH_SCAN_TAB_COMPLETE_REP, signal,
-               DihScanTabCompleteRep::SignalLength, JBB);
+    rep->jamBufferPtr = jamBuffer();
+    EXECUTE_DIRECT(DBDIH, GSN_DIH_SCAN_TAB_COMPLETE_REP, signal,
+                   DihScanTabCompleteRep::SignalLength, 0);
 
     fragNo = 0;
   }//for
   
 
   getFragmentInfoDone(signal, ptr);
-}
-
-void
-Backup::execDIH_SCAN_GET_NODES_CONF(Signal* signal)
-{
-  jamEntry();
-  
-  /**
-   * Assume only short CONFs with a single FragItem as we only do single
-   * fragment requests in DIH_SCAN_GET_NODES_REQ from Backup::getFragmentInfo.
-   */
-  ndbrequire(signal->getNoOfSections() == 0);
-  ndbassert(signal->getLength() ==
-            DihScanGetNodesConf::FixedSignalLength
-            + DihScanGetNodesConf::FragItem::Length);
-
-  DihScanGetNodesConf* conf = (DihScanGetNodesConf*)signal->getDataPtrSend();
-  const Uint32 tableId = conf->tableId;
-  const Uint32 senderData = conf->fragItem[0].senderData;
-  const Uint32 nodeCount = conf->fragItem[0].count;
-  const Uint32 fragNo = conf->fragItem[0].fragId;
-  const Uint32 instanceKey = conf->fragItem[0].instanceKey; 
-
-  ndbrequire(nodeCount > 0 && nodeCount <= MAX_REPLICAS);
-  
-  BackupRecordPtr ptr;
-  c_backupPool.getPtr(ptr, senderData);
-
-  TablePtr tabPtr;
-  ndbrequire(findTable(ptr, tabPtr, tableId));
-
-  FragmentPtr fragPtr;
-  tabPtr.p->fragments.getPtr(fragPtr, fragNo);
-  fragPtr.p->lqhInstanceKey = instanceKey;
-  
-  fragPtr.p->node = conf->fragItem[0].nodes[0];
-
-  getFragmentInfo(signal, ptr, tabPtr, fragNo + 1);
 }
 
 void
@@ -4941,6 +5173,14 @@ Backup::execSTART_BACKUP_REQ(Signal* signal)
 
   ptr.p->slaveState.setState(STARTED);
   ptr.p->m_gsn = GSN_START_BACKUP_REQ;
+
+  /* At this point, we are effectively starting
+   * bulk file writes for this backup, so lets
+   * record the fact
+   */
+  ndbrequire(is_backup_worker());
+  ndbassert(!Backup::g_is_backup_running);
+  Backup::g_is_backup_running = true;
 
   /**
    * Start file threads...
@@ -6201,6 +6441,7 @@ Backup::ready_to_write(bool ready, Uint32 sz, bool eof, BackupFile *fileP)
   if (ERROR_INSERTED(10043) && eof)
   {
     /* Block indefinitely without closing the file */
+    jam();
     return false;
   }
 
@@ -6217,6 +6458,7 @@ Backup::ready_to_write(bool ready, Uint32 sz, bool eof, BackupFile *fileP)
       write that was issued more than 100 milliseconds should be
       completed by now.
     */
+    jam();
     int overflow;
     m_monitor_words_written+= sz;
     m_words_written_this_period += sz;
@@ -6234,6 +6476,7 @@ Backup::ready_to_write(bool ready, Uint32 sz, bool eof, BackupFile *fileP)
 #if 0
     ndbout << "Will not write now" << endl << endl;
 #endif
+    jam();
     return false;
   }
 }
@@ -6250,7 +6493,7 @@ Backup::checkFile(Signal* signal, BackupFilePtr filePtr)
   Uint32 *tmp = NULL;
   Uint32 sz = 0;
   bool eof = FALSE;
-  bool ready = op.dataBuffer.getReadPtr(&tmp, &sz, &eof); 
+  bool ready = op.dataBuffer.getReadPtr(&tmp, &sz, &eof);
 #if 0
   ndbout << "Ptr to data = " << hex << tmp << endl;
 #endif
@@ -6338,19 +6581,38 @@ Backup::checkFile(Signal* signal, BackupFilePtr filePtr)
     }
 #endif
 
-    ndbassert((Uint64(tmp - c_startOfPages) >> 32) == 0); // 4Gb buffers!
-    FsAppendReq * req = (FsAppendReq *)signal->getDataPtrSend();
-    req->filePointer   = filePtr.p->filePointer;
-    req->userPointer   = filePtr.i;
-    req->userReference = reference();
-    req->varIndex      = 0;
-    req->offset        = Uint32(tmp - c_startOfPages); // 4Gb buffers!
-    req->size          = sz;
-    req->synch_flag    = 0;
+    if (!eof ||
+        !c_defaults.m_o_direct ||
+        (sz % 128 == 0) ||
+        (filePtr.i != ptr.p->dataFilePtr) ||
+        (ptr.p->slaveState.getState() != STOPPING) ||
+        ptr.p->is_lcp())
+    {
+      /**
+       * We always perform the writes for LCPs, for backups we ignore
+       * the writes when we have reached end of file and we are in the
+       * process of stopping a backup (this means we are about to abort
+       * the backup and will not be interested in its results.). We avoid
+       * writing in this case since we don't want to handle errors for
+       * e.g. O_DIRECT calls in this case. However we only avoid this write
+       * for data files since CTL files and LOG files never use O_DIRECT.
+       * Also no need to avoid write if we don't use O_DIRECT at all.
+       */
+      jam();
+      ndbassert((Uint64(tmp - c_startOfPages) >> 32) == 0); // 4Gb buffers!
+      FsAppendReq * req = (FsAppendReq *)signal->getDataPtrSend();
+      req->filePointer   = filePtr.p->filePointer;
+      req->userPointer   = filePtr.i;
+      req->userReference = reference();
+      req->varIndex      = 0;
+      req->offset        = Uint32(tmp - c_startOfPages); // 4Gb buffers!
+      req->size          = sz;
+      req->synch_flag    = 0;
     
-    sendSignal(NDBFS_REF, GSN_FSAPPENDREQ, signal, 
-	       FsAppendReq::SignalLength, JBA);
-    return;
+      sendSignal(NDBFS_REF, GSN_FSAPPENDREQ, signal, 
+	         FsAppendReq::SignalLength, JBA);
+      return;
+    }
   }
 
   Uint32 flags = filePtr.p->m_flags;
@@ -6734,7 +6996,7 @@ Backup::closeFiles(Signal* sig, BackupRecordPtr ptr)
       jam();
       continue;
     }//if
-    
+
     filePtr.p->operation.dataBuffer.eof();
     if(filePtr.p->m_flags & BackupFile::BF_FILE_THREAD)
     {
@@ -6822,6 +7084,24 @@ Backup::execFSCLOSECONF(Signal* signal)
 				    BackupFile::BF_CLOSING));
 
   
+  const Uint32 usableBytes = 
+    filePtr.p->operation.dataBuffer.getUsableSize() << 2;
+  const Uint32 freeLwmBytes = 
+    filePtr.p->operation.dataBuffer.getFreeLwm() << 2;
+
+  const BackupFormat::FileType ft = filePtr.p->fileType;
+
+  if (ft == BackupFormat::LOG_FILE ||
+      ft == BackupFormat::UNDO_FILE)
+  {
+    g_eventLogger->info("Backup log buffer report : size %u bytes, "
+                        "hwm %u bytes (%u pct)",
+                        usableBytes,
+                        (usableBytes - freeLwmBytes),
+                        ((usableBytes - freeLwmBytes) * 100) / 
+                        usableBytes);
+  }
+
   filePtr.p->m_flags &= ~(Uint32)(BackupFile::BF_OPEN |BackupFile::BF_CLOSING);
   filePtr.p->operation.dataBuffer.reset();
 
@@ -6842,6 +7122,11 @@ Backup::closeFilesDone(Signal* signal, BackupRecordPtr ptr)
   }
   
   jam();
+
+  /* Record end-of-backup */
+  ndbrequire(is_backup_worker());
+  //ndbassert(Backup::g_is_backup_running); /* !set on error paths */
+  Backup::g_is_backup_running = false;
 
   //error when do insert footer or close file
   if(ptr.p->checkError())
@@ -7066,6 +7351,23 @@ Backup::cleanup(Signal* signal, BackupRecordPtr ptr)
 }
 
 void
+Backup::release_tables(BackupRecordPtr ptr)
+{
+  TablePtr tabPtr;
+  /* Clear backupPtr before releasing */
+  for (ptr.p->tables.first(tabPtr);
+       tabPtr.i != RNIL;
+       ptr.p->tables.next(tabPtr))
+  {
+    jam();
+    tabPtr.p->fragments.release();
+    jamLine(tabPtr.p->tableId);
+    removeTableMap(tabPtr, ptr.i, tabPtr.p->tableId);
+  }
+  while (ptr.p->tables.releaseFirst());
+}
+
+void
 Backup::cleanupNextTable(Signal *signal, BackupRecordPtr ptr, TablePtr tabPtr)
 {
   if (tabPtr.i != RNIL)
@@ -7106,7 +7408,7 @@ Backup::cleanupNextTable(Signal *signal, BackupRecordPtr ptr, TablePtr tabPtr)
   }//for
 
   while (ptr.p->files.releaseFirst());
-  while (ptr.p->tables.releaseFirst());
+  release_tables(ptr);
   while (ptr.p->triggers.releaseFirst());
   ptr.p->backupId = ~0;
   
@@ -7382,8 +7684,7 @@ Backup::execLCP_PREPARE_REQ(Signal* signal)
     else
     {
       jam();
-      tabPtr.p->fragments.release();
-      while (ptr.p->tables.releaseFirst());
+      release_tables(ptr);
       ptr.p->errorCode = 0;
       // fall-through
     }
@@ -7391,11 +7692,15 @@ Backup::execLCP_PREPARE_REQ(Signal* signal)
   
   if (!ptr.p->tables.seizeLast(tabPtr) || !tabPtr.p->fragments.seize(1))
   {
-    if(!tabPtr.isNull())
-      while (ptr.p->tables.releaseFirst());
     ndbrequire(false); // TODO
   }
-  tabPtr.p->tableId = req.tableId;
+  jam();
+  jamLine(req.tableId);
+#ifdef VM_TRACE
+  TablePtr locTabPtr;
+  ndbassert(findTable(ptr, locTabPtr, req.tableId) == false);
+#endif
+  insertTableMap(tabPtr, ptr.i, req.tableId);
   tabPtr.p->fragments.getPtr(fragPtr, 0);
   tabPtr.p->tableType = DictTabInfo::UserTable;
   fragPtr.p->fragmentId = req.fragmentId;
@@ -7438,9 +7743,8 @@ Backup::lcp_close_file_conf(Signal* signal, BackupRecordPtr ptr)
   FragmentPtr fragPtr;
   tabPtr.p->fragments.getPtr(fragPtr, 0);
   Uint32 fragmentId = fragPtr.p->fragmentId;
-  
-  tabPtr.p->fragments.release();
-  while (ptr.p->tables.releaseFirst());
+
+  release_tables(ptr);
 
   if (ptr.p->errorCode != 0)
   {
@@ -7579,10 +7883,7 @@ Backup::execEND_LCPREQ(Signal* signal)
   {
     jam();
     ndbrequire(ptr.p->errorCode);
-    TablePtr tabPtr;
-    ptr.p->tables.first(tabPtr);
-    tabPtr.p->fragments.release();
-    while (ptr.p->tables.releaseFirst());
+    release_tables(ptr);
     ptr.p->errorCode = 0;
   }
 
@@ -7751,3 +8052,5 @@ Backup::execLCP_STATUS_REQ(Signal* signal)
              signal, LcpStatusRef::SignalLength, JBB);
   return;
 }
+
+bool Backup::g_is_backup_running = false;

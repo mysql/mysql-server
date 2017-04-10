@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -20,7 +20,7 @@
 #ifndef NGS_SERVER_INTERFACE_H_
 #define NGS_SERVER_INTERFACE_H_
 
-#include "ngs/protocol_authentication.h"
+#include "authentication_interface.h"
 #include "ngs_common/smart_ptr.h"
 
 
@@ -38,11 +38,10 @@ class Server_interface {
 public:
   virtual ~Server_interface() {}
 
-
   virtual void get_authentication_mechanisms(std::vector<std::string> &auth_mech, Client_interface &client) = 0;
 
   virtual ngs::shared_ptr<Scheduler_dynamic> get_worker_scheduler() const = 0;
-  virtual Authentication_handler_ptr         get_auth_handler(const std::string &name, Session_interface *session) = 0;
+  virtual Authentication_interface_ptr       get_auth_handler(const std::string &name, Session_interface *session) = 0;
   virtual ngs::shared_ptr<Protocol_config>   get_config() const = 0;
   virtual Mutex &get_client_exit_mutex() = 0;
 
@@ -57,7 +56,6 @@ public:
 
   virtual void on_client_closed(const Client_interface &client) = 0;
   virtual void restart_client_supervision_timer() = 0;
-
 };
 
 } // namespace ngs

@@ -3,4 +3,4 @@
 # But ignore sys / performance_schema, as these are not included in embedded
 #
 select schema_name from information_schema.schemata where schema_name not in ('sys', 'performance_schema');
-show tables in mysql;
+show tables in mysql where Tables_in_mysql != 'ndb_binlog_index';

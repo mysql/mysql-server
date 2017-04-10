@@ -291,44 +291,35 @@ struct fts_token_t {
 /** It's defined in fts/fts0fts.c */
 extern const fts_index_selector_t fts_index_selector[];
 
-/******************************************************************//**
-Compare two fts_trx_row_t instances doc_ids. */
+/** Compare two fts_trx_row_t instances doc_ids.
+@param[in]	p1	id1
+@param[in]	p2	id2
+@return < 0 if n1 < n2, < 0 if n1 < n2, > 0 if n1 > n2 */
 UNIV_INLINE
 int
 fts_trx_row_doc_id_cmp(
-/*===================*/
-						/*!< out:
-						< 0 if n1 < n2,
-						0 if n1 == n2,
-						> 0 if n1 > n2 */
-	const void*	p1,			/*!< in: id1 */
-	const void*	p2);			/*!< in: id2 */
+	const void*	p1,
+	const void*	p2);
 
-/******************************************************************//**
-Compare two fts_ranking_t instances doc_ids. */
+/** Compare two fts_ranking_t instances doc_ids.
+@param[in]	p1	id1
+@param[in]	p2	id2
+@return < 0 if n1 < n2, < 0 if n1 < n2, > 0 if n1 > n2 */
 UNIV_INLINE
 int
 fts_ranking_doc_id_cmp(
-/*===================*/
-						/*!< out:
-						< 0 if n1 < n2,
-						0 if n1 == n2,
-						> 0 if n1 > n2 */
-	const void*	p1,			/*!< in: id1 */
-	const void*	p2);			/*!< in: id2 */
+	const void*	p1,
+	const void*	p2);
 
-/******************************************************************//**
-Compare two fts_update_t instances doc_ids. */
+/** Compare two fts_update_t instances doc_ids.
+@param[in]	p1	id1
+@param[in]	p2	id2
+@return < 0 if n1 < n2, < 0 if n1 < n2, > 0 if n1 > n2 */
 UNIV_INLINE
 int
 fts_update_doc_id_cmp(
-/*==================*/
-						/*!< out:
-						< 0 if n1 < n2,
-						0 if n1 == n2,
-						> 0 if n1 > n2 */
-	const void*	p1,			/*!< in: id1 */
-	const void*	p2);			/*!< in: id2 */
+	const void*	p1,
+	const void*	p2);
 
 /******************************************************************//**
 Decode and return the integer that was encoded using our VLC scheme.*/
@@ -340,19 +331,17 @@ fts_decode_vlc(
 	byte**	ptr);	/*!< in: ptr to decode from, this ptr is
 			incremented by the number of bytes decoded */
 
-/******************************************************************//**
-Duplicate a string. */
+/** Duplicate a string.
+@param[in]	dst	dup to here
+@param[in]	src	src string
+@param[in]	heap	heap to use
+*/
 UNIV_INLINE
 void
 fts_string_dup(
-/*===========*/
-						/*!< out:
-						< 0 if n1 < n2,
-						0 if n1 == n2,
-						> 0 if n1 > n2 */
-	fts_string_t*		dst,		/*!< in: dup to here */
-	const fts_string_t*	src,		/*!< in: src string */
-	mem_heap_t*		heap);		/*!< in: heap to use */
+	fts_string_t*		dst,
+	const fts_string_t*	src,
+	mem_heap_t*		heap);
 
 /******************************************************************//**
 Return length of val if it were encoded using our VLC scheme. */
@@ -364,17 +353,15 @@ fts_get_encoded_len(
 						 encoded, in bytes */
 	ulint		val);			/*!< in: value to encode */
 
-/******************************************************************//**
-Encode an integer using our VLC scheme and return the length in bytes. */
+/** Encode an integer using our VLC scheme and return the length in bytes.
+@param[in]	val	value to encode
+@param[in]	buf	buffer, must have enough space
+@return length of value encoded, in bytes */
 UNIV_INLINE
 ulint
 fts_encode_int(
-/*===========*/
-						/*!< out: length of value
-						encoded, in bytes */
-	ulint		val,			/*!< in: value to encode */
-	byte*		buf);			/*!< in: buffer, must have
-						enough space */
+	ulint		val,
+	byte*		buf);
 
 /******************************************************************//**
 Get the selected FTS aux INDEX suffix. */
@@ -396,9 +383,7 @@ fts_select_index(
 	const byte*		str,
 	ulint			len);
 
-#ifndef UNIV_NONINL
 #include "fts0types.ic"
 #include "fts0vlc.ic"
-#endif
 
 #endif /* INNOBASE_FTS0TYPES_H */

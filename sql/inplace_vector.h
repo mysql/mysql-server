@@ -1,7 +1,7 @@
 #ifndef INPLACE_VECTOR_INCLUDED
 #define INPLACE_VECTOR_INCLUDED
 
-/* Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,11 +19,12 @@
 
 /* This file defines the Inplace_vector class template. */
 
-#include "my_config.h"
 #include <vector>
+
 #include "my_dbug.h"
 #include "my_sys.h"
 #include "mysql/psi/psi_memory.h"
+#include "mysql/service_mysql_alloc.h"
 
 
 /**
@@ -175,6 +176,9 @@ public:
     std::vector::resize except that no element copy construction or
     reassignment is ever caused by this operation.
 
+    @param new_size New size of vector. If smaller than current size,
+               objects at the tail are removed and destroyed. If greater,
+               new objects are added with default value.
     @param val default value assigned to extended slots in the vector. Unused
                if the vector is shrinked. We have to define a const reference
                instead of passing by value because MSVC on 32bit Windows

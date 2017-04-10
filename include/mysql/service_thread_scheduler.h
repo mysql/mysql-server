@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -17,6 +17,10 @@
 
 #ifndef SERVICE_THREAD_SCHEDULER_INCLUDED
 #define SERVICE_THREAD_SCHEDULER_INCLUDED
+
+/**
+  @file include/mysql/service_thread_scheduler.h
+*/
 
 #ifdef __cplusplus
 extern "C" {

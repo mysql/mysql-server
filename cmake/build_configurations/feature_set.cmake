@@ -1,4 +1,4 @@
-# Copyright (c) 2012, 2014, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -18,7 +18,6 @@ SET(FEATURE_SET "community" CACHE STRING
 )
 
 IF(FEATURE_SET AND NOT WITHOUT_SERVER)
-  SET(WITH_EMBEDDED_SERVER ON CACHE BOOL "")
 
   # Set these ON by default. They can be disabled with
   # -DWITHOUT_${eng}_STORAGE_ENGINE
@@ -26,11 +25,10 @@ IF(FEATURE_SET AND NOT WITHOUT_SERVER)
   SET(WITH_BLACKHOLE_STORAGE_ENGINE ON)
   SET(WITH_FEDERATED_STORAGE_ENGINE ON)
   SET(WITH_INNOBASE_STORAGE_ENGINE ON)
-  SET(WITH_PARTITION_STORAGE_ENGINE ON)
 
   # Update cache with current values, remove engines we do not care about
   # from build.
-  FOREACH(eng ARCHIVE BLACKHOLE FEDERATED INNOBASE PARTITION)
+  FOREACH(eng ARCHIVE BLACKHOLE FEDERATED INNOBASE)
     IF(WITHOUT_${eng}_STORAGE_ENGINE)
       SET(WITH_${eng}_STORAGE_ENGINE OFF)
       SET(WITH_${eng}_STORAGE_ENGINE OFF CACHE BOOL "")

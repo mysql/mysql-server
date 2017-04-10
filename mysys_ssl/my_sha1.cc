@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,15 +15,14 @@
 
 
 /**
-  @file
-
-  @brief
+  @file mysys_ssl/my_sha1.cc
   Wrapper functions for OpenSSL, YaSSL implementations. Also provides a
   Compatibility layer to make available YaSSL's SHA1 implementation.
 */
 
-#include <my_global.h>
 #include <sha1.h>
+
+#include "my_inttypes.h"
 
 #if defined(HAVE_YASSL)
 #include "sha.hpp"
@@ -31,13 +30,11 @@
 /**
   Compute SHA1 message digest using YaSSL.
 
-  @param digest [out]  Computed SHA1 digest
-  @param buf    [in]   Message to be computed
-  @param len    [in]   Length of the message
-
-  @return              void
+  @param [out] digest   Computed SHA1 digest
+  @param [in] buf       Message to be computed
+  @param [in] len       Length of the message
 */
-void mysql_sha1_yassl(uint8 *digest, const char *buf, size_t len)
+static void mysql_sha1_yassl(uint8 *digest, const char *buf, size_t len)
 {
   TaoCrypt::SHA hasher;
   hasher.Update((const TaoCrypt::byte *) buf, (TaoCrypt::word32)len);
@@ -48,16 +45,14 @@ void mysql_sha1_yassl(uint8 *digest, const char *buf, size_t len)
   Compute SHA1 message digest for two messages in order to
   emulate sha1(msg1, msg2) using YaSSL.
 
-  @param digest [out]  Computed SHA1 digest
-  @param buf1   [in]   First message
-  @param len1   [in]   Length of first message
-  @param buf2   [in]   Second message
-  @param len2   [in]   Length of second message
-
-  @return              void
+  @param [out] digest  Computed SHA1 digest
+  @param [in] buf1     First message
+  @param [in] len1     Length of first message
+  @param [in] buf2     Second message
+  @param [in] len2     Length of second message
 */
-void mysql_sha1_multi_yassl(uint8 *digest, const char *buf1, int len1,
-                            const char *buf2, int len2)
+static void mysql_sha1_multi_yassl(uint8 *digest, const char *buf1, int len1,
+                                   const char *buf2, int len2)
 {
   TaoCrypt::SHA hasher;
   hasher.Update((const TaoCrypt::byte *) buf1, len1);
@@ -68,21 +63,21 @@ void mysql_sha1_multi_yassl(uint8 *digest, const char *buf1, int len1,
 #elif defined(HAVE_OPENSSL)
 #include <openssl/sha.h>
 
-int mysql_sha1_reset(SHA_CTX *context)
+static int mysql_sha1_reset(SHA_CTX *context)
 {
     return SHA1_Init(context);
 }
 
 
-int mysql_sha1_input(SHA_CTX *context, const uint8 *message_array,
-                     unsigned length)
+static int mysql_sha1_input(SHA_CTX *context, const uint8 *message_array,
+                            unsigned length)
 {
     return SHA1_Update(context, message_array, length);
 }
 
 
-int mysql_sha1_result(SHA_CTX *context,
-                      uint8 Message_Digest[SHA1_HASH_SIZE])
+static int mysql_sha1_result(SHA_CTX *context,
+                             uint8 Message_Digest[SHA1_HASH_SIZE])
 {
     return SHA1_Final(Message_Digest, context);
 }
@@ -92,11 +87,9 @@ int mysql_sha1_result(SHA_CTX *context,
 /**
   Wrapper function to compute SHA1 message digest.
 
-  @param digest [out]  Computed SHA1 digest
-  @param buf    [in]   Message to be computed
-  @param len    [in]   Length of the message
-
-  @return              void
+  @param [out] digest  Computed SHA1 digest
+  @param [in] buf      Message to be computed
+  @param [in] len      Length of the message
 */
 void compute_sha1_hash(uint8 *digest, const char *buf, size_t len)
 {
@@ -116,13 +109,11 @@ void compute_sha1_hash(uint8 *digest, const char *buf, size_t len)
   Wrapper function to compute SHA1 message digest for
   two messages in order to emulate sha1(msg1, msg2).
 
-  @param digest [out]  Computed SHA1 digest
-  @param buf1   [in]   First message
-  @param len1   [in]   Length of first message
-  @param buf2   [in]   Second message
-  @param len2   [in]   Length of second message
-
-  @return              void
+  @param [out] digest  Computed SHA1 digest
+  @param [in] buf1     First message
+  @param [in] len1     Length of first message
+  @param [in] buf2     Second message
+  @param [in] len2     Length of second message
 */
 void compute_sha1_hash_multi(uint8 *digest, const char *buf1, int len1,
                              const char *buf2, int len2)

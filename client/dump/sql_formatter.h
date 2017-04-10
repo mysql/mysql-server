@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -18,18 +18,22 @@
 #ifndef SQL_FORMATTER_INCLUDED
 #define SQL_FORMATTER_INCLUDED
 
-#include "abstract_output_writer_wrapper.h"
-#include "i_data_formatter.h"
+#include <functional>
+
 #include "abstract_mysql_chain_element_extension.h"
+#include "abstract_output_writer_wrapper.h"
 #include "abstract_plain_sql_object_dump_task.h"
-#include "dump_start_dump_task.h"
-#include "dump_end_dump_task.h"
-#include "database_start_dump_task.h"
 #include "database_end_dump_task.h"
-#include "table_definition_dump_task.h"
-#include "table_deferred_indexes_dump_task.h"
+#include "database_start_dump_task.h"
+#include "dump_end_dump_task.h"
+#include "dump_start_dump_task.h"
+#include "i_data_formatter.h"
+#include "my_inttypes.h"
+#include "mysqldump_tool_chain_maker_options.h"
 #include "row_group_dump_task.h"
 #include "sql_formatter_options.h"
+#include "table_deferred_indexes_dump_task.h"
+#include "table_definition_dump_task.h"
 
 namespace Mysql{
 namespace Tools{
@@ -46,8 +50,9 @@ class Sql_formatter
 public:
   Sql_formatter(
     I_connection_provider* connection_provider,
-    Mysql::I_callable<bool, const Mysql::Tools::Base::Message_data&>*
+    std::function<bool(const Mysql::Tools::Base::Message_data&)>*
       message_handler, Simple_id_generator* object_id_generator,
+      const Mysqldump_tool_chain_maker_options* mysqldump_tool_options,
       const Sql_formatter_options* options);
 
     ~Sql_formatter();
@@ -57,6 +62,19 @@ public:
     dump task object.
    */
   void format_object(Item_processing_data* item_to_process);
+
+  // Fix "inherits ... via dominance" warnings
+  void register_progress_watcher(I_progress_watcher* new_progress_watcher)
+  { Abstract_chain_element::register_progress_watcher(new_progress_watcher); }
+
+  // Fix "inherits ... via dominance" warnings
+  uint64 get_id() const
+  { return Abstract_chain_element::get_id(); }
+
+protected:
+  // Fix "inherits ... via dominance" warnings
+  void item_completion_in_child_callback(Item_processing_data* item_processed)
+  { Abstract_chain_element::item_completion_in_child_callback(item_processed); }
 
 private:
   void format_plain_sql_object(
@@ -80,7 +98,11 @@ private:
   void format_sql_objects_definer(
     Abstract_plain_sql_object_dump_task* , std::string);
 
+  bool innodb_stats_tables(std::string db,
+                           std::string table);
+
   Mysql::Tools::Base::Mysql_query_runner* m_escaping_runner;
+  const Mysqldump_tool_chain_maker_options* m_mysqldump_tool_options;
   const Sql_formatter_options* m_options;
 };
 

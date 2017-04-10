@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,22 +16,48 @@
 #ifndef SQL_BASE_INCLUDED
 #define SQL_BASE_INCLUDED
 
-#include "sql_class.h"                          /* enum_mark_columns */
+#include <stddef.h>
+#include <sys/types.h>
 
+#include "hash.h"                   // my_hash_value_type
+#include "lex_string.h"
+#include "m_string.h"
+#include "mdl.h"                    // MDL_savepoint
+#include "my_base.h"                // ha_extra_function
+#include "my_inttypes.h"
+#include "mysql/psi/mysql_mutex.h"
+#include "sql_array.h"              // Bounds_checked_array
+#include "thr_lock.h"               // thr_lock_type
+#include "trigger_def.h"            // enum_trigger_event_type
+
+class Field;
+class Item;
 class Item_ident;
-struct Name_resolution_context;
 class Open_table_context;
-class Open_tables_state;
+class Open_tables_backup;
 class Prelocking_strategy;
-struct TABLE_LIST;
+class Query_tables_list;
+class Sroutine_hash_entry;
 class THD;
-struct handlerton;
+class sp_head;
+struct LEX;
+struct Name_resolution_context;
 struct TABLE;
-class Table_trigger_dispatcher;
+struct TABLE_LIST;
+struct TABLE_SHARE;
+struct handlerton;
+template <class T> class List;
+template <class T> class List_iterator;
 
-typedef class st_select_lex SELECT_LEX;
+typedef struct st_bitmap MY_BITMAP;
+typedef struct st_open_table_list OPEN_TABLE_LIST;
+class SELECT_LEX;
 
-typedef struct st_lock_param_type ALTER_PARTITION_PARAM_TYPE;
+typedef Bounds_checked_array<Item *> Ref_item_array;
+namespace dd {
+class Table;
+}  // namespace dd
+
 
 #define TEMP_PREFIX	"MY"
 
@@ -83,6 +109,17 @@ typedef struct st_lock_param_type ALTER_PARTITION_PARAM_TYPE;
   This flag is used to instruct tdc_open_view() to check metadata version.
 */
 #define CHECK_METADATA_VERSION OPEN_TRIGGER_ONLY*2
+/**
+  This flag is used to instruct open_table() to open
+  TMP_TABLE_COLUMNS/KEYS I_S table only for the SHOW commands.
+*/
+#define OPEN_FOR_SHOW_ONLY     CHECK_METADATA_VERSION*2
+/**
+  Avoid dd::Table lookup in open_table_from_share() call.
+  Temporary workaround used by upgrade code until we start
+  reading info from InnoDB SYS tables directly.
+*/
+#define OPEN_NO_DD_TABLE       OPEN_FOR_SHOW_ONLY*2
 
 
 /*
@@ -113,16 +150,7 @@ enum enum_tdc_remove_table_type {TDC_RT_REMOVE_ALL, TDC_RT_REMOVE_NOT_OWN,
                                  TDC_RT_REMOVE_UNUSED,
                                  TDC_RT_REMOVE_NOT_OWN_KEEP_SHARE};
 
-/* bits for last argument to remove_table_from_cache() */
-#define RTFC_NO_FLAG                0x0000
-#define RTFC_OWNED_BY_THD_FLAG      0x0001
-#define RTFC_WAIT_OTHER_THREAD_FLAG 0x0002
-#define RTFC_CHECK_KILLED_FLAG      0x0004
-
-bool check_dup(const char *db, const char *name, TABLE_LIST *tables);
 extern mysql_mutex_t LOCK_open;
-bool table_cache_init(void);
-void table_cache_free(void);
 bool table_def_init(void);
 void table_def_free(void);
 void table_def_start_shutdown(void);
@@ -131,11 +159,8 @@ uint cached_table_definitions(void);
 size_t get_table_def_key(const TABLE_LIST *table_list, const char **key);
 TABLE_SHARE *get_table_share(THD *thd, TABLE_LIST *table_list,
                              const char *key, size_t key_length,
-                             uint db_flags, int *error,
-                             my_hash_value_type hash_value);
+                             bool open_view, my_hash_value_type hash_value);
 void release_table_share(TABLE_SHARE *share);
-TABLE_SHARE *get_cached_table_share(THD *thd, const char *db,
-                                    const char *table_name);
 
 TABLE *open_ltable(THD *thd, TABLE_LIST *table_list, thr_lock_type update,
                    uint lock_flags);
@@ -186,6 +211,12 @@ TABLE *open_ltable(THD *thd, TABLE_LIST *table_list, thr_lock_type update,
   table flush, wait on thr_lock.c locks) while opening and locking table.
 */
 #define MYSQL_OPEN_IGNORE_KILLED                0x4000
+/**
+  For new TABLE instances constructed do not open table in the storage
+  engine. Existing TABLE instances for which there is a handler object
+  which represents table open in storage engines can still be used.
+*/
+#define MYSQL_OPEN_NO_NEW_TABLE_IN_SE           0x8000
 
 /** Please refer to the internals manual. */
 #define MYSQL_OPEN_REOPEN  (MYSQL_OPEN_IGNORE_FLUSH |\
@@ -198,30 +229,24 @@ TABLE *open_ltable(THD *thd, TABLE_LIST *table_list, thr_lock_type update,
 
 bool open_table(THD *thd, TABLE_LIST *table_list, Open_table_context *ot_ctx);
 
-bool get_key_map_from_key_list(key_map *map, TABLE *table,
-                               List<String> *index_list);
 TABLE *open_table_uncached(THD *thd, const char *path, const char *db,
 			   const char *table_name,
                            bool add_to_temporary_tables_list,
-                           bool open_in_engine);
+                           bool open_in_engine,
+                           const dd::Table *table_def);
 TABLE *find_locked_table(TABLE *list, const char *db, const char *table_name);
 thr_lock_type read_lock_type_for_table(THD *thd,
                                        Query_tables_list *prelocking_ctx,
                                        TABLE_LIST *table_list,
                                        bool routine_modifies_data);
 
-my_bool mysql_rm_tmp_tables(void);
-bool rm_temporary_table(handlerton *base, const char *path);
+bool mysql_rm_tmp_tables(void);
+bool rm_temporary_table(THD *thd, handlerton *base, const char *path,
+                        const dd::Table *table_def);
 void close_tables_for_reopen(THD *thd, TABLE_LIST **tables,
                              const MDL_savepoint &start_of_statement_svp);
-TABLE_LIST *find_table_in_list(TABLE_LIST *table,
-                               TABLE_LIST *TABLE_LIST::*link,
-                               const char *db_name,
-                               const char *table_name);
 TABLE *find_temporary_table(THD *thd, const char *db, const char *table_name);
 TABLE *find_temporary_table(THD *thd, const TABLE_LIST *tl);
-TABLE *find_temporary_table(THD *thd, const char *table_key,
-                            size_t table_key_length);
 void close_thread_tables(THD *thd);
 bool fill_record_n_invoke_before_triggers(THD *thd, List<Item> &fields,
                                           List<Item> &values,
@@ -233,10 +258,11 @@ bool fill_record_n_invoke_before_triggers(THD *thd, Field **field,
                                           TABLE *table,
                                           enum enum_trigger_event_type event,
                                           int num_fields);
+bool resolve_var_assignments(THD *thd, LEX *lex);
 bool insert_fields(THD *thd, Name_resolution_context *context,
 		   const char *db_name, const char *table_name,
                    List_iterator<Item> *it, bool any_privileges);
-bool setup_fields(THD *thd, Ref_ptr_array ref_pointer_array,
+bool setup_fields(THD *thd, Ref_item_array ref_item_array,
                   List<Item> &item, ulong privilege,
                   List<Item> *sum_func_list,
                   bool allow_sum_func, bool column_update);
@@ -261,11 +287,12 @@ find_field_in_table_ref(THD *thd, TABLE_LIST *table_list,
                         uint *cached_field_index_ptr,
                         bool register_tree_change, TABLE_LIST **actual_table);
 Field *
-find_field_in_table(THD *thd, TABLE *table, const char *name, size_t length,
+find_field_in_table(TABLE *table, const char *name, size_t length,
                     bool allow_rowid, uint *cached_field_index_ptr);
 Field *
 find_field_in_table_sef(TABLE *table, const char *name);
-Item ** find_item_in_list(Item *item, List<Item> &items, uint *counter,
+Item ** find_item_in_list(THD *thd, Item *item,
+                          List<Item> &items, uint *counter,
                           find_item_error_report_type report_error,
                           enum_resolution_type *resolution);
 bool setup_natural_join_row_types(THD *thd,
@@ -274,8 +301,6 @@ bool setup_natural_join_row_types(THD *thd,
 bool wait_while_table_is_used(THD *thd, TABLE *table,
                               enum ha_extra_function function);
 
-void drop_open_table(THD *thd, TABLE *table, const char *db_name,
-                     const char *table_name);
 void update_non_unique_table_error(TABLE_LIST *update,
                                    const char *operation,
                                    TABLE_LIST *duplicate);
@@ -300,12 +325,12 @@ void free_io_cache(TABLE *entry);
 void intern_close_table(TABLE *entry);
 void close_thread_table(THD *thd, TABLE **table_ptr);
 bool close_temporary_tables(THD *thd);
-TABLE_LIST *unique_table(THD *thd, const TABLE_LIST *table,
+TABLE_LIST *unique_table(const TABLE_LIST *table,
                          TABLE_LIST *table_list, bool check_alias);
-int drop_temporary_table(THD *thd, TABLE_LIST *table_list, bool *is_trans);
+void drop_temporary_table(THD *thd, TABLE_LIST *table_list);
 void close_temporary_table(THD *thd, TABLE *table, bool free_share,
                            bool delete_table);
-void close_temporary(TABLE *table, bool free_share, bool delete_table);
+void close_temporary(THD *thd, TABLE *table, bool free_share, bool delete_table);
 bool rename_temporary_table(THD* thd, TABLE *table, const char *new_db,
 			    const char *table_name);
 bool open_temporary_tables(THD *thd, TABLE_LIST *tl_list);
@@ -313,19 +338,11 @@ bool open_temporary_table(THD *thd, TABLE_LIST *tl);
 bool is_equal(const LEX_STRING *a, const LEX_STRING *b);
 
 /* Functions to work with system tables. */
-bool open_nontrans_system_tables_for_read(THD *thd, TABLE_LIST *table_list,
-                                 Open_tables_backup *backup);
 bool open_trans_system_tables_for_read(THD *thd, TABLE_LIST *table_list);
-void close_nontrans_system_tables(THD *thd, Open_tables_backup *backup);
 void close_trans_system_tables(THD *thd);
 void close_mysql_tables(THD *thd);
-TABLE *open_system_table_for_update(THD *thd, TABLE_LIST *one_table);
 TABLE *open_log_table(THD *thd, TABLE_LIST *one_table, Open_tables_backup *backup);
 void close_log_table(THD *thd, Open_tables_backup *backup);
-
-TABLE *open_performance_schema_table(THD *thd, TABLE_LIST *one_table,
-                                     Open_tables_state *backup);
-void close_performance_schema_table(THD *thd, Open_tables_state *backup);
 
 bool close_cached_tables(THD *thd, TABLE_LIST *tables,
                          bool wait_for_refresh, ulong timeout);
@@ -336,7 +353,7 @@ OPEN_TABLE_LIST *list_open_tables(THD *thd, const char *db, const char *wild);
 void tdc_remove_table(THD *thd, enum_tdc_remove_table_type remove_type,
                       const char *db, const char *table_name,
                       bool has_lock);
-bool tdc_open_view(THD *thd, TABLE_LIST *table_list, const char *alias,
+bool tdc_open_view(THD *thd, TABLE_LIST *table_list,
                    const char *cache_key, size_t cache_key_length, uint flags);
 void tdc_flush_unused_tables();
 TABLE *find_table_for_mdl_upgrade(THD *thd, const char *db,
@@ -350,30 +367,9 @@ extern Field *not_found_field;
 extern Field *view_ref_found;
 extern HASH table_def_cache;
 
-/**
-  clean/setup table fields and map.
-
-  @param table        TABLE structure pointer (which should be setup)
-  @param table_list   TABLE_LIST structure pointer (owner of TABLE)
-  @param tableno      table number
-*/
-
-inline TABLE_LIST *find_table_in_global_list(TABLE_LIST *table,
-                                             const char *db_name,
-                                             const char *table_name)
-{
-  return find_table_in_list(table, &TABLE_LIST::next_global,
-                            db_name, table_name);
-}
-
-inline TABLE_LIST *find_table_in_local_list(TABLE_LIST *table,
-                                            const char *db_name,
-                                            const char *table_name)
-{
-  return find_table_in_list(table, &TABLE_LIST::next_local,
-                            db_name, table_name);
-}
-
+TABLE_LIST *find_table_in_global_list(TABLE_LIST *table,
+                                      const char *db_name,
+                                      const char *table_name);
 
 /**
   An abstract class for a strategy specifying how the prelocking
@@ -492,7 +488,8 @@ public:
     OT_BACKOFF_AND_RETRY,
     OT_REOPEN_TABLES,
     OT_DISCOVER,
-    OT_REPAIR
+    OT_REPAIR,
+    OT_FIX_ROW_TYPE
   };
   Open_table_context(THD *thd, uint flags);
 
@@ -544,9 +541,9 @@ private:
   /* THD for which tables are opened. */
   THD *m_thd;
   /**
-    For OT_DISCOVER and OT_REPAIR actions, the table list element for
-    the table which definition should be re-discovered or which
-    should be repaired.
+    For OT_DISCOVER, OT_REPAIR and OT_FIX_ROW_TYPE actions, the table list
+    element for the table which definition should be re-discovered/updated
+    or which should be repaired.
   */
   TABLE_LIST *m_failed_table;
   MDL_savepoint m_start_of_statement_svp;
@@ -571,197 +568,5 @@ private:
   */
   bool m_has_protection_against_grl;
 };
-
-
-/**
-  Check if a TABLE_LIST instance represents a pre-opened temporary table.
-*/
-
-inline bool is_temporary_table(TABLE_LIST *tl)
-{
-  if (tl->is_view() || tl->schema_table)
-    return FALSE;
-
-  if (!tl->table)
-    return FALSE;
-
-  /*
-    NOTE: 'table->s' might be NULL for specially constructed TABLE
-    instances. See SHOW TRIGGERS for example.
-  */
-
-  if (!tl->table->s)
-    return FALSE;
-
-  return tl->table->s->tmp_table != NO_TMP_TABLE;
-}
-
-/**
-  A simple holder for Internal_error_handler.
-  The class utilizes RAII technique to not forget to pop the handler.
-
-  @tparam Error_handler      Internal_error_handler to instantiate.
-  @tparam Error_handler_arg  Type of the error handler ctor argument.
-*/
-template<typename Error_handler, typename Error_handler_arg>
-class Internal_error_handler_holder
-{
-  THD *m_thd;
-  bool m_activate;
-  Error_handler m_error_handler;
-
-public:
-  Internal_error_handler_holder(THD *thd, bool activate,
-                                Error_handler_arg *arg)
-    : m_thd(thd), m_activate(activate), m_error_handler(arg)
-  {
-    if (activate)
-      thd->push_internal_handler(&m_error_handler);
-  }
-
-
-  ~Internal_error_handler_holder()
-  {
-    if (m_activate)
-      m_thd->pop_internal_handler();
-  }
-};
-
-/**
-   An Internal_error_handler that suppresses errors regarding views'
-   underlying tables that occur during privilege checking. It hides errors which
-   show view underlying table information.
-   This happens in the cases when
-
-   - A view's underlying table (e.g. referenced in its SELECT list) does not
-     exist or columns of underlying table are altered. There should not be an
-     error as no attempt was made to access it per se.
-
-   - Access is denied for some table, column, function or stored procedure
-     such as mentioned above. This error gets raised automatically, since we
-     can't untangle its access checking from that of the view itself.
-
-    There are currently two mechanisms at work that handle errors for views
-    based on an Internal_error_handler. This one and another one is
-    Show_create_error_handler. The latter handles errors encountered during
-    execution of SHOW CREATE VIEW, while this mechanism using this method is
-    handles SELECT from views. The two methods should not clash.
-
-*/
-class View_error_handler : public Internal_error_handler
-{
-  TABLE_LIST *m_top_view;
-
-public:
-  View_error_handler(TABLE_LIST *top_view) :
-  m_top_view(top_view)
-  {}
-  virtual bool handle_condition(THD *thd, uint sql_errno, const char *,
-                                Sql_condition::enum_severity_level *level,
-                                const char *message);
-};
-
-/**
-  This internal handler is used to trap ER_NO_SUCH_TABLE.
-*/
-
-class No_such_table_error_handler : public Internal_error_handler
-{
-public:
-  No_such_table_error_handler()
-    : m_handled_errors(0), m_unhandled_errors(0)
-  {}
-
-  virtual bool handle_condition(THD *thd,
-                                uint sql_errno,
-                                const char* sqlstate,
-                                Sql_condition::enum_severity_level *level,
-                                const char* msg)
-  {
-    if (sql_errno == ER_NO_SUCH_TABLE)
-    {
-      m_handled_errors++;
-      return true;
-    }
-
-    m_unhandled_errors++;
-    return false;
-  }
-
-  /**
-    Returns true if one or more ER_NO_SUCH_TABLE errors have been
-    trapped and no other errors have been seen. false otherwise.
-  */
-  bool safely_trapped_errors() const
-  {
-    /*
-      If m_unhandled_errors != 0, something else, unanticipated, happened,
-      so the error is not trapped but returned to the caller.
-      Multiple ER_NO_SUCH_TABLE can be raised in case of views.
-    */
-    return ((m_handled_errors > 0) && (m_unhandled_errors == 0));
-  }
-
-private:
-  int m_handled_errors;
-  int m_unhandled_errors;
-};
-
-
-/**
-  This internal handler implements downgrade from SL_ERROR to SL_WARNING
-  for statements which support IGNORE.
-*/
-
-class Ignore_error_handler : public Internal_error_handler
-{
-public:
-  virtual bool handle_condition(THD *thd,
-                                uint sql_errno,
-                                const char* sqlstate,
-                                Sql_condition::enum_severity_level *level,
-                                const char* msg);
-};
-
-/**
-  This internal handler implements upgrade from SL_WARNING to SL_ERROR
-  for the error codes affected by STRICT mode. Currently STRICT mode does
-  not affect SELECT statements.
-*/
-
-class Strict_error_handler : public Internal_error_handler
-{
-public:
-  enum enum_set_select_behavior
-  {
-    DISABLE_SET_SELECT_STRICT_ERROR_HANDLER,
-    ENABLE_SET_SELECT_STRICT_ERROR_HANDLER
-  };
-
-  Strict_error_handler()
-    : m_set_select_behavior(DISABLE_SET_SELECT_STRICT_ERROR_HANDLER)
-  {}
-
-  Strict_error_handler(enum_set_select_behavior param)
-    : m_set_select_behavior(param)
-  {}
-
-  virtual bool handle_condition(THD *thd,
-                                uint sql_errno,
-                                const char* sqlstate,
-                                Sql_condition::enum_severity_level *level,
-                                const char* msg);
-
-private:
-  /*
-    For SELECT and SET statement, we do not always give error in STRICT mode.
-    For triggers, Strict_error_handler is pushed in the beginning of statement.
-    If a SELECT or SET is executed from the Trigger, it should not always give
-    error. We use this flag to choose when to give error and when warning.
-  */
-  enum_set_select_behavior m_set_select_behavior;
-};
-
-void update_indexed_column_map(TABLE *table, MY_BITMAP *read_set);
 
 #endif /* SQL_BASE_INCLUDED */

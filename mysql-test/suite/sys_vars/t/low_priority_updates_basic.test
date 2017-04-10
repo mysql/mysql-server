@@ -131,7 +131,7 @@ SET @@global.low_priority_updates = test;
 SET @@session.low_priority_updates = ONN;
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@session.low_priority_updates = ONF;
---Error ER_WRONG_VALUE_FOR_VAR
+--error ER_PARSE_ERROR
 SET @@session.low_priority_updates = OF;
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@session.low_priority_updates = 'OFN';
@@ -154,7 +154,7 @@ SET @@session.low_priority_updates = test;
 
 --disable_warnings
 SELECT IF(@@global.low_priority_updates, "ON", "OFF") = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='low_priority_updates';
 --enable_warnings
 
@@ -165,7 +165,7 @@ WHERE VARIABLE_NAME='low_priority_updates';
 
 --disable_warnings
 SELECT IF(@@session.low_priority_updates, "ON", "OFF") = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+FROM performance_schema.session_variables 
 WHERE VARIABLE_NAME='low_priority_updates';
 --enable_warnings
 

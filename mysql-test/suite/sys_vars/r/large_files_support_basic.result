@@ -9,12 +9,12 @@ large_files_support	ON
 show session variables like 'large_files_support';
 Variable_name	Value
 large_files_support	ON
-select * from information_schema.global_variables where variable_name='large_files_support';
+select * from performance_schema.global_variables where variable_name='large_files_support';
 VARIABLE_NAME	VARIABLE_VALUE
-LARGE_FILES_SUPPORT	ON
-select * from information_schema.session_variables where variable_name='large_files_support';
+large_files_support	ON
+select * from performance_schema.session_variables where variable_name='large_files_support';
 VARIABLE_NAME	VARIABLE_VALUE
-LARGE_FILES_SUPPORT	ON
+large_files_support	ON
 set global large_files_support=1;
 ERROR HY000: Variable 'large_files_support' is a read only variable
 set session large_files_support=1;

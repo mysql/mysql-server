@@ -47,7 +47,7 @@
 # ========================================
 
 --source include/not_embedded.inc
---source include/have_perfschema.inc
+# Test requires: sp-protocol/ps-protocol/view-protocol/cursor-protocol disabled
 --source include/no_protocol.inc
 --source ../include/wait_for_pfs_thread_count.inc
 
@@ -100,7 +100,7 @@ begin
     where host is not null
     order by host;
 
-  select variable_name, variable_value from information_schema.global_status
+  select variable_name, variable_value from performance_schema.global_status
     where variable_name in ('PERFORMANCE_SCHEMA_ACCOUNTS_LOST',
                             'PERFORMANCE_SCHEMA_USERS_LOST',
                             'PERFORMANCE_SCHEMA_HOSTS_LOST');

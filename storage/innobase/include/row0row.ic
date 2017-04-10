@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -42,10 +42,10 @@ row_get_trx_id_offset(
 	ulint	offset;
 	ulint	len;
 
-	ut_ad(dict_index_is_clust(index));
+	ut_ad(index->is_clustered());
 	ut_ad(rec_offs_validate(NULL, index, offsets));
 
-	pos = dict_index_get_sys_col_pos(index, DATA_TRX_ID);
+	pos = index->get_sys_col_pos(DATA_TRX_ID);
 
 	offset = rec_get_nth_field_offs(offsets, pos, &len);
 
@@ -67,7 +67,7 @@ row_get_rec_trx_id(
 {
 	ulint	offset;
 
-	ut_ad(dict_index_is_clust(index));
+	ut_ad(index->is_clustered());
 	ut_ad(rec_offs_validate(rec, index, offsets));
 
 	offset = index->trx_id_offset;
@@ -92,7 +92,7 @@ row_get_rec_roll_ptr(
 {
 	ulint	offset;
 
-	ut_ad(dict_index_is_clust(index));
+	ut_ad(index->is_clustered());
 	ut_ad(rec_offs_validate(rec, index, offsets));
 
 	offset = index->trx_id_offset;
@@ -173,3 +173,52 @@ row_build_row_ref_fast(
 		}
 	}
 }
+
+/** Parse the integer data from specified data, which could be
+DATA_INT, DATA_FLOAT or DATA_DOUBLE. If the value is less than 0
+and the type is not unsigned then we reset the value to 0
+@param[in]	data		data to read
+@param[in]	len		length of data
+@param[in]	mtype		mtype of data
+@param[in]	unsigned_type	if the data is unsigned
+@return the integer value from the data */
+ib_uint64_t
+row_parse_int(
+	const byte*	data,
+	ulint		len,
+	ulint		mtype,
+	bool		unsigned_type)
+{
+	ib_uint64_t	value = 0;
+
+	switch (mtype) {
+	case DATA_INT:
+
+		ut_a(len <= sizeof value);
+		value = mach_read_int_type(data, len, unsigned_type);
+		break;
+
+	case DATA_FLOAT:
+
+		ut_a(len == sizeof(float));
+		value = static_cast<ib_uint64_t>(mach_float_read(data));
+		break;
+
+	case DATA_DOUBLE:
+
+		ut_a(len == sizeof(double));
+		value = static_cast<ib_uint64_t>(mach_double_read(data));
+		break;
+
+	default:
+		ut_error;
+
+	}
+
+	if (!unsigned_type && static_cast<int64_t>(value) < 0) {
+		value = 0;
+	}
+
+	return(value);
+}
+

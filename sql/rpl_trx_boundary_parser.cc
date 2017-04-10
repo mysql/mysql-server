@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,8 +15,15 @@
 
 #include "rpl_trx_boundary_parser.h"
 
+#include <string.h>
+#include <sys/types.h>
+
+#include "binlog_event.h"
 #include "log.h"           // sql_print_warning
 #include "log_event.h"     // Log_event
+#include "m_string.h"
+#include "my_byteorder.h"
+#include "my_dbug.h"
 
 
 #ifndef DBUG_OFF
@@ -87,7 +94,7 @@ bool Transaction_boundary_parser::feed_event(const char *buf, size_t length,
 
    @param buf               Pointer to the event buffer.
    @param length            The size of the event buffer.
-   @param description_event The description event of the master which logged
+   @param fd_event          The description event of the master which logged
                             the event.
    @param throw_warnings    If the function should throw warnings getting the
                             event boundary type.
@@ -203,9 +210,6 @@ Transaction_boundary_parser::get_event_boundary_type(
     case binary_log::WRITE_ROWS_EVENT_V1:
     case binary_log::UPDATE_ROWS_EVENT_V1:
     case binary_log::DELETE_ROWS_EVENT_V1:
-    case binary_log::PRE_GA_WRITE_ROWS_EVENT:
-    case binary_log::PRE_GA_DELETE_ROWS_EVENT:
-    case binary_log::PRE_GA_UPDATE_ROWS_EVENT:
     case binary_log::VIEW_CHANGE_EVENT:
       boundary_type= EVENT_BOUNDARY_TYPE_STATEMENT;
       break;
@@ -221,12 +225,8 @@ Transaction_boundary_parser::get_event_boundary_type(
     case binary_log::PREVIOUS_GTIDS_LOG_EVENT:
     case binary_log::START_EVENT_V3:
     case binary_log::STOP_EVENT:
-    case binary_log::LOAD_EVENT:
     case binary_log::SLAVE_EVENT:
-    case binary_log::CREATE_FILE_EVENT:
     case binary_log::DELETE_FILE_EVENT:
-    case binary_log::NEW_LOAD_EVENT:
-    case binary_log::EXEC_LOAD_EVENT:
     case binary_log::INCIDENT_EVENT:
     case binary_log::TRANSACTION_CONTEXT_EVENT:
       boundary_type= EVENT_BOUNDARY_TYPE_IGNORE;

@@ -471,7 +471,7 @@ rw_lock_x_lock_func_nowait(
 		/* Relock: this lock_word modification is safe since no other
 		threads can modify (lock, unlock, or reserve) lock_word while
 		there is an exclusive writer and this is the writer thread. */
-		if (lock->lock_word == 0 || lock->lock_word == -X_LOCK_HALF_DECR) {
+		if (lock->lock_word == 0|| lock->lock_word == -X_LOCK_HALF_DECR) {
 			/* There are 1 x-locks */
 			lock->lock_word -= X_LOCK_DECR;
 		} else if (lock->lock_word <= -X_LOCK_DECR) {
@@ -665,7 +665,7 @@ pfs_rw_lock_create_func(
 	ut_d(new(lock) rw_lock_t());
 
 	/* Initialize the rwlock for performance schema */
-	lock->pfs_psi = PSI_RWLOCK_CALL(init_rwlock)(key, lock);
+	lock->pfs_psi = PSI_RWLOCK_CALL(init_rwlock)(key.m_value, lock);
 
 	/* The actual function to initialize an rwlock */
 	rw_lock_create_func(lock,

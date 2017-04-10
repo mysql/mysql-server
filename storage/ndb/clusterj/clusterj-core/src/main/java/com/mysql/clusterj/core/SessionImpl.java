@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2009, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2009, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -151,6 +151,7 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
      * @return the query
      */
     public <T> Query<T> createQuery(QueryDefinition<T> qd) {
+        assertNotClosed();
         if (!(qd instanceof QueryDomainTypeImpl)) {
             throw new ClusterJUserException(
                     local.message("ERR_Exception_On_Method", "createQuery"));
@@ -167,6 +168,7 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
      * @return the instance
      */
     public <T> T find(Class<T> cls, Object key) {
+        assertNotClosed();
         DomainTypeHandler<T> domainTypeHandler = getDomainTypeHandler(cls);
         ValueHandler keyHandler = domainTypeHandler.createKeyValueHandler(key, db);
         // initialize from the database using the key
@@ -209,6 +211,7 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
                     return domainTypeHandler.newInstance(smartValueHandler);
                 } else {
                     // not found
+                    keyHandler.release();
                     return null;
                 }
             } catch (ClusterJException ex) {
@@ -244,6 +247,8 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
                 if (instanceHandler != null) {
                     // mark the handler as not found
                     instanceHandler.found(Boolean.FALSE);
+                    // release handler resources
+                    instanceHandler.release();
                 }
                 endAutoTransaction();
                 return null;
@@ -263,10 +268,10 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
      */
     private void setPartitionKey(DomainTypeHandler<?> domainTypeHandler,
             ValueHandler keyHandler) {
-        if (!isEnlisted()) {
+        assertNotClosed();
+        if (partitionKey == null && !isEnlisted()) {
             // there is still time to set the partition key
-            PartitionKey partitionKey = 
-                domainTypeHandler.createPartitionKey(keyHandler);
+            partitionKey = domainTypeHandler.createPartitionKey(keyHandler);
             clusterTransaction.setPartitionKey(partitionKey);
         }
     }
@@ -277,6 +282,7 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
      * @return a new instance that can be used with makePersistent
      */
     public <T> T newInstance(Class<T> cls) {
+        assertNotClosed();
         return factory.newInstance(cls, dictionary, db);
     }
 
@@ -287,6 +293,7 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
      * savePersistent, writePersistent, updatePersistent, or deletePersistent
      */
     public <T> T newInstance(Class<T> cls, Object key) {
+        assertNotClosed();
         DomainTypeHandler<T> domainTypeHandler = getDomainTypeHandler(cls);
         T instance = factory.newInstance(cls, dictionary, db);
         domainTypeHandler.objectSetKeys(key, instance);
@@ -383,6 +390,7 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
      * </li></ul>
      */
     public Boolean found(Object instance) {
+        assertNotClosed();
         if (instance == null) {
             return null;
         }
@@ -421,6 +429,7 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
             endAutoTransaction();
             return object;
         }
+        assertNotClosed();
         DomainTypeHandler<T> domainTypeHandler = getDomainTypeHandler(object);
         ValueHandler valueHandler = domainTypeHandler.getValueHandler(object);
         insert(domainTypeHandler, valueHandler);
@@ -495,6 +504,7 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
      * @param key the primary key
      */
     public <T> void deletePersistent(Class<T> cls, Object key) {
+        assertNotClosed();
         DomainTypeHandler<T> domainTypeHandler = getDomainTypeHandler(cls);
         ValueHandler keyValueHandler = domainTypeHandler.createKeyValueHandler(key, db);
         delete(domainTypeHandler, keyValueHandler);
@@ -506,6 +516,7 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
      * @param object the instance to remove from the database
      */
     public void deletePersistent(Object object) {
+        assertNotClosed();
         if (object == null) {
             return;
         }
@@ -559,6 +570,7 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
      * @param cls the class of instances to delete
      */
     public <T> int deletePersistentAll(Class<T> cls) {
+        assertNotClosed();
         DomainTypeHandler<T> domainTypeHandler = getDomainTypeHandler(cls);
         return deletePersistentAll(domainTypeHandler);
     }
@@ -663,6 +675,7 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
      * @param object the instance to update in the database
      */
     public void updatePersistent(Object object) {
+        assertNotClosed();
         if (object == null) {
             return;
         }
@@ -719,11 +732,18 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
      * @param instance the instance to save
      */
     public <T> T savePersistent(T instance) {
-        DomainTypeHandler<T> domainTypeHandler = getDomainTypeHandler(instance);
-        if (logger.isDetailEnabled()) logger.detail("UpdatePersistent on object " + instance);
-        ValueHandler valueHandler = domainTypeHandler.getValueHandler(instance);
         startAutoTransaction();
-        setPartitionKey(domainTypeHandler, valueHandler);
+        if (logger.isDetailEnabled()) logger.detail("SavePersistent on object " + instance);
+        DomainTypeHandler<T> domainTypeHandler;
+        ValueHandler valueHandler;
+        try {
+            domainTypeHandler = getDomainTypeHandler(instance);
+            valueHandler = domainTypeHandler.getValueHandler(instance);
+            setPartitionKey(domainTypeHandler, valueHandler);
+        } catch (ClusterJException cjex) {
+            failAutoTransaction();
+            throw cjex;
+        }
         if (valueHandler instanceof SmartValueHandler) {
             try {
             SmartValueHandler smartValueHandler = (SmartValueHandler)valueHandler;
@@ -803,6 +823,7 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
      * 
      */
     public void begin() {
+        assertNotClosed();
         if (logger.isDebugEnabled()) logger.debug("begin transaction.");
         transactionState = transactionState.begin();
         handleTransactionException();
@@ -829,6 +850,7 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
      * 
      */
     public void commit() {
+        assertNotClosed();
         if (logger.isDebugEnabled()) logger.debug("commit transaction.");
         transactionState = transactionState.commit();
         handleTransactionException();
@@ -862,6 +884,7 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
      *
      */
     public void rollback() {
+        assertNotClosed();
         if (logger.isDebugEnabled()) logger.debug("roll back transaction.");
         transactionState = transactionState.rollback();
         handleTransactionException();
@@ -891,6 +914,7 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
      * Throw a ClusterJException if there is any problem.
      */
     public void startAutoTransaction() {
+        assertNotClosed();
         if (logger.isDebugEnabled()) logger.debug("start AutoTransaction");
         transactionState = transactionState.start();
         handleTransactionException();
@@ -1164,6 +1188,7 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
      * Throw a user exception if not.
      */
     private void assertActive() {
+        assertNotClosed();
         if (!transactionState.isActive()) {
             throw new ClusterJUserException(
                     local.message("ERR_Transaction_Must_Be_Active"));
@@ -1188,6 +1213,7 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
      * @return the query
      */
     public Query createQuery(Class cls) {
+        assertNotClosed();
         throw new UnsupportedOperationException(
                 local.message("ERR_NotImplemented"));
     }
@@ -1197,6 +1223,7 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
      * @return the query builder
      */
     public QueryBuilder getQueryBuilder() {
+        assertNotClosed();
         return new QueryBuilderImpl(this);
     }
 
@@ -1401,10 +1428,12 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
     }
 
     public void flush() {
+        assertNotClosed();
         flush(false);
     }
 
     public List getChangeList() {
+        assertNotClosed();
         return Collections.unmodifiableList(changeList);
     }
 
@@ -1417,10 +1446,12 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
     }
 
     public void markModified(StateManager instance) {
+        assertNotClosed();
         changeList.add(instance);
     }
 
     public void setPartitionKey(Class<?> domainClass, Object key) {
+        assertNotClosed();
         DomainTypeHandler<?> domainTypeHandler = getDomainTypeHandler(domainClass);
         String tableName = domainTypeHandler.getTableName();
         // if transaction is enlisted, throw a user exception
@@ -1439,6 +1470,8 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
         if (clusterTransaction != null) {
             clusterTransaction.setPartitionKey(partitionKey);
         }
+        // we are done with this handler; the partition key has all of its information
+        handler.release();
     }
 
     /** Mark the field in the instance as modified so it is flushed.
@@ -1447,6 +1480,7 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
      * @param fieldName the field to mark as modified
      */
     public void markModified(Object instance, String fieldName) {
+        assertNotClosed();
         DomainTypeHandler<?> domainTypeHandler = getDomainTypeHandler(instance);
         ValueHandler handler = domainTypeHandler.getValueHandler(instance);
         domainTypeHandler.objectMarkModified(handler, fieldName);
@@ -1487,6 +1521,7 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
      * @return the coordinatedTransactionId
      */
     public String getCoordinatedTransactionId() {
+        assertNotClosed();
         return clusterTransaction.getCoordinatedTransactionId();
     }
 
@@ -1495,6 +1530,7 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
      * @param coordinatedTransactionId the coordinatedTransactionId
      */
     public void setCoordinatedTransactionId(String coordinatedTransactionId) {
+        assertNotClosed();
         clusterTransaction.setCoordinatedTransactionId(coordinatedTransactionId);
     }
 
@@ -1503,6 +1539,7 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
      * @param lockmode the lock mode
      */
     public void setLockMode(LockMode lockmode) {
+        assertNotClosed();
         this.lockmode = lockmode;
         if (clusterTransaction != null) {
             clusterTransaction.setLockMode(lockmode);
@@ -1513,6 +1550,7 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
      * @param cls the class for which to unload the schema
      */
     public String unloadSchema(Class<?> cls) {
+        assertNotClosed();
         return factory.unloadSchema(cls, dictionary);
     }
 
@@ -1524,6 +1562,9 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
      * or if the object is used after calling this method.
      */
     public <T> T release(T param) {
+        if (param == null) {
+            throw new ClusterJUserException(local.message("ERR_Release_Parameter"));
+        }
         // is the parameter an Iterable?
         if (Iterable.class.isAssignableFrom(param.getClass())) {
             Iterable<?> instances = (Iterable<?>)param;
@@ -1537,25 +1578,27 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
             for (Object instance:instances) {
                 release(instance);
             }
-        } else
-        // is the parameter a Dynamic Object?
-        if (DynamicObject.class.isAssignableFrom(param.getClass())) {
-            DynamicObject dynamicObject = (DynamicObject)param;
-            DynamicObjectDelegate delegate = dynamicObject.delegate();
-            if (delegate != null) {
-                delegate.release();
-            }
-        // it must be a Proxy with a clusterj InvocationHandler
         } else {
-            try {
-                InvocationHandler handler = Proxy.getInvocationHandler(param);
-                if (!ValueHandler.class.isAssignableFrom(handler.getClass())) {
-                    throw new ClusterJUserException(local.message("ERR_Release_Parameter"));
+            assertNotClosed();
+            // is the parameter a Dynamic Object?
+            if (DynamicObject.class.isAssignableFrom(param.getClass())) {
+                DynamicObject dynamicObject = (DynamicObject)param;
+                DynamicObjectDelegate delegate = dynamicObject.delegate();
+                if (delegate != null) {
+                    delegate.release();
                 }
-                ValueHandler valueHandler = (ValueHandler)handler;
-                valueHandler.release();
-            } catch (Throwable t) {
-                throw new ClusterJUserException(local.message("ERR_Release_Parameter"), t);
+            // it must be a Proxy with a clusterj InvocationHandler
+            } else {
+                try {
+                    InvocationHandler handler = Proxy.getInvocationHandler(param);
+                    if (!ValueHandler.class.isAssignableFrom(handler.getClass())) {
+                        throw new ClusterJUserException(local.message("ERR_Release_Parameter"));
+                    }
+                    ValueHandler valueHandler = (ValueHandler)handler;
+                    valueHandler.release();
+                } catch (Throwable t) {
+                    throw new ClusterJUserException(local.message("ERR_Release_Parameter"), t);
+                }
             }
         }
         return param;

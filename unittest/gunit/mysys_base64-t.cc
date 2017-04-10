@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License as
@@ -17,7 +17,6 @@
 #include "my_config.h"
 #include <gtest/gtest.h>
 
-#include <my_global.h>
 #include <my_sys.h>
 #include <base64.h>
 #include <string.h>

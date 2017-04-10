@@ -13,7 +13,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "xplatform/my_xp_cond.h"
+#include "mysql/gcs/xplatform/my_xp_cond.h"
 
 #ifdef _WIN32
 My_xp_cond_win::My_xp_cond_win()
@@ -40,7 +40,6 @@ DWORD My_xp_cond_win::get_milliseconds(const struct timespec *abstime)
 {
   if (abstime == NULL)
     return INFINITE;
-#ifdef HAVE_STRUCT_TIMESPEC
   /*
     Convert timespec to millis and subtract current time.
     My_xp_util::getsystime() returns time in 100 ns units.
@@ -51,35 +50,6 @@ DWORD My_xp_cond_win::get_milliseconds(const struct timespec *abstime)
   if (future < now)
     return 0;
   return (DWORD)(future - now);
-#else
-  long long millis;
-  union ft64 now;
-
-  GetSystemTimeAsFileTime(&now.ft);
-
-  /*
-    Calculate time left to abstime
-    - subtract start time from current time(values are in 100ns units)
-    - convert to millisec by dividing with 10000
-  */
-  millis= (abstime->tv.i64 - now.i64) / 10000;
-
-  /* Don't allow the timeout to be negative */
-  if (millis < 0)
-    return 0;
-
-  /*
-    Make sure the calculated timeout does not exceed original timeout
-    value which could cause "wait for ever" if system time changes
-  */
-  if (millis > abstime->max_timeout_msec)
-    millis= abstime->max_timeout_msec;
-
-  if (millis > UINT_MAX)
-    millis= UINT_MAX;
-
-  return (DWORD)millis;
-#endif
 }
 
 

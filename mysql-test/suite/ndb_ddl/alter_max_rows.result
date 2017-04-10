@@ -1,0 +1,14 @@
+ALTER TABLE t1
+algorithm=inplace,
+max_rows=1111111;
+ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: setting MAX_ROWS on table without MAX_ROWS. Try ALGORITHM=COPY.
+ALTER TABLE t1
+algorithm=copy,
+max_rows=1111111;
+ALTER TABLE t3
+algorithm=inplace,
+max_rows=4444444;
+ALTER TABLE t3
+algorithm=copy,
+max_rows=5555555;
+== verify_mysql_dd.inc ==

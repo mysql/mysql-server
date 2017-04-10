@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -23,19 +23,18 @@ Doublwrite buffer module
 Created 2011/12/19
 *******************************************************/
 
-#include "ha_prototypes.h"
-#include "buf0dblwr.h"
-
-#ifdef UNIV_NONINL
-#include "buf0buf.ic"
-#endif
+#include <sys/types.h>
 
 #include "buf0buf.h"
 #include "buf0checksum.h"
-#include "srv0start.h"
-#include "srv0srv.h"
+#include "buf0dblwr.h"
+#include "ha_prototypes.h"
+#include "my_compiler.h"
+#include "my_inttypes.h"
 #include "page0zip.h"
-#include "trx0sys.h"
+#include "srv0srv.h"
+#include "srv0start.h"
+#include "trx0purge.h"
 
 #ifndef UNIV_HOTBACKUP
 
@@ -52,7 +51,7 @@ doublewrite buffer */
 ibool
 buf_dblwr_page_inside(
 /*==================*/
-	ulint	page_no)	/*!< in: page number */
+	page_no_t	page_no)	/*!< in: page number */
 {
 	if (buf_dblwr == NULL) {
 
@@ -175,12 +174,12 @@ buf_dblwr_create(void)
 {
 	buf_block_t*	block2;
 	buf_block_t*	new_block;
-	byte*	doublewrite;
-	byte*	fseg_header;
-	ulint	page_no;
-	ulint	prev_page_no;
-	ulint	i;
-	mtr_t	mtr;
+	byte*		doublewrite;
+	byte*		fseg_header;
+	page_no_t	page_no;
+	page_no_t	prev_page_no;
+	ulint		i;
+	mtr_t		mtr;
 
 	if (buf_dblwr) {
 		/* Already inited */
@@ -190,6 +189,7 @@ buf_dblwr_create(void)
 
 start_again:
 	mtr_start(&mtr);
+	mtr.set_sys_modified();
 	buf_dblwr_being_created = TRUE;
 
 	doublewrite = buf_dblwr_get(&mtr);
@@ -305,6 +305,7 @@ start_again:
 			are active, restart the MTR occasionally. */
 			mtr_commit(&mtr);
 			mtr_start(&mtr);
+			mtr.set_sys_modified();
 			doublewrite = buf_dblwr_get(&mtr);
 			fseg_header = doublewrite
 				      + TRX_SYS_DOUBLEWRITE_FSEG;
@@ -349,14 +350,14 @@ recovery, this function loads the pages from double write buffer into memory.
 @return DB_SUCCESS or error code */
 dberr_t
 buf_dblwr_init_or_load_pages(
-	os_file_t	file,
+	pfs_os_file_t	file,
 	const char*	path)
 {
 	byte*		buf;
 	byte*		page;
-	ulint		block1;
-	ulint		block2;
-	ulint		space_id;
+	page_no_t	block1;
+	page_no_t	block2;
+	space_id_t	space_id;
 	byte*		read_buf;
 	byte*		doublewrite;
 	byte*		unaligned_read_buf;
@@ -465,9 +466,9 @@ buf_dblwr_init_or_load_pages(
 
 	page = buf;
 
-	for (ulint i = 0; i < TRX_SYS_DOUBLEWRITE_BLOCK_SIZE * 2; i++) {
+	for (page_no_t i = 0; i < TRX_SYS_DOUBLEWRITE_BLOCK_SIZE * 2; i++) {
 		if (reset_space_ids) {
-			ulint source_page_no;
+			page_no_t source_page_no;
 
 			space_id = 0;
 			mach_write_to_4(page + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID,
@@ -527,7 +528,7 @@ buf_dblwr_init_or_load_pages(
 void
 buf_dblwr_process(void)
 {
-	ulint		page_no_dblwr	= 0;
+	page_no_t	page_no_dblwr	= 0;
 	byte*		read_buf;
 	byte*		unaligned_read_buf;
 	recv_dblwr_t&	recv_dblwr	= recv_sys->dblwr;
@@ -543,8 +544,8 @@ buf_dblwr_process(void)
 	     ++i, ++page_no_dblwr) {
 
 		const byte*	page		= *i;
-		ulint		page_no		= page_get_page_no(page);
-		ulint		space_id	= page_get_space_id(page);
+		page_no_t	page_no		= page_get_page_no(page);
+		space_id_t	space_id	= page_get_space_id(page);
 
 		fil_space_t*	space = fil_space_get(space_id);
 
@@ -559,13 +560,8 @@ buf_dblwr_process(void)
 		if (page_no >= space->size) {
 
 			/* Do not report the warning if the tablespace is
-			schedule for truncate or was truncated and we have live
-			MLOG_TRUNCATE record in redo. */
-			bool	skip_warning =
-				srv_is_tablespace_truncated(space_id)
-				|| srv_was_tablespace_truncated(space);
-
-			if (!skip_warning) {
+			going to be truncated. */
+			if (!undo::is_under_construction(space_id)) {
 				ib::warn() << "Page " << page_no_dblwr
 					<< " in the doublewrite buffer is"
 					" not within space bounds: page "
@@ -598,19 +594,23 @@ buf_dblwr_process(void)
 			}
 
 			/* Check if the page is corrupt */
-			if (buf_page_is_corrupted(
+			BlockReporter	block(
 				true, read_buf, page_size,
-				fsp_is_checksum_disabled(space_id))) {
+				fsp_is_checksum_disabled(space_id));
 
-				ib::warn() << "Database page corruption or"
+			if (block.is_corrupted()) {
+
+				ib::info() << "Database page corruption or"
 					<< " a failed file read of page "
 					<< page_id
 					<< ". Trying to recover it from the"
 					<< " doublewrite buffer.";
 
-				if (buf_page_is_corrupted(
+				BlockReporter	dblwr_buf_page(
 					true, page, page_size,
-					fsp_is_checksum_disabled(space_id))) {
+					fsp_is_checksum_disabled(space_id));
+
+				if (dblwr_buf_page.is_corrupted()) {
 
 					ib::error() << "Dump of the page:";
 					buf_page_print(
@@ -630,25 +630,19 @@ buf_dblwr_process(void)
 						" recover the database with"
 						" innodb_force_recovery=6";
 				}
-			} else if (buf_page_is_zeroes(read_buf, page_size)
-				   && !buf_page_is_zeroes(page, page_size)
-				   && !buf_page_is_corrupted(
-					true, page, page_size,
-					fsp_is_checksum_disabled(space_id))) {
-
-				/* Database page contained only zeroes, while
-				a valid copy is available in dblwr buffer. */
-
 			} else {
 
-				bool t1 = buf_page_is_zeroes(
+				bool	t1 = buf_page_is_zeroes(
                                         read_buf, page_size);
 
-				bool t2 = buf_page_is_zeroes(page, page_size);
+				bool	t2 = buf_page_is_zeroes(
+					page, page_size);
 
-				bool t3 = buf_page_is_corrupted(
+				BlockReporter	reporter = BlockReporter(
 					true, page, page_size,
 					fsp_is_checksum_disabled(space_id));
+
+				bool	t3 = reporter.is_corrupted();
 
 				if (t1 && !(t2 || t3)) {
 
@@ -846,6 +840,7 @@ buf_dblwr_check_block(
 	switch (fil_page_get_type(block->frame)) {
 	case FIL_PAGE_INDEX:
 	case FIL_PAGE_RTREE:
+	case FIL_PAGE_SDI:
 		if (page_is_comp(block->frame)) {
 			if (page_simple_validate_new(block->frame)) {
 				return;
@@ -872,6 +867,9 @@ buf_dblwr_check_block(
 	case FIL_PAGE_TYPE_BLOB:
 	case FIL_PAGE_TYPE_ZBLOB:
 	case FIL_PAGE_TYPE_ZBLOB2:
+	case FIL_PAGE_TYPE_ZBLOB3:
+	case FIL_PAGE_SDI_BLOB:
+	case FIL_PAGE_SDI_ZBLOB:
 		/* TODO: validate also non-index pages */
 		return;
 	case FIL_PAGE_TYPE_ALLOCATED:
@@ -1080,16 +1078,16 @@ flush:
 	os_aio_simulated_wake_handler_threads();
 }
 
-/********************************************************************//**
-Posts a buffer page for writing. If the doublewrite memory buffer is
-full, calls buf_dblwr_flush_buffered_writes and waits for for free
-space to appear. */
+/** Posts a buffer page for writing. If the doublewrite memory buffer
+is full, calls buf_dblwr_flush_buffered_writes and waits for for free
+space to appear.
+@param[in]	bpage	buffer block to write */
 void
 buf_dblwr_add_to_batch(
-/*====================*/
-	buf_page_t*	bpage)	/*!< in: buffer block to write */
+	buf_page_t*	bpage)
 {
 	ut_a(buf_page_in_file(bpage));
+	ut_ad(!mutex_own(&buf_pool_from_bpage(bpage)->LRU_list_mutex));
 
 try_again:
 	mutex_enter(&buf_dblwr->mutex);
@@ -1174,9 +1172,9 @@ buf_dblwr_write_single_page(
 	bool		sync)	/*!< in: true if sync IO requested */
 {
 	ulint		n_slots;
-	ulint		size;
-	ulint		offset;
-	ulint		i;
+	page_no_t	size;
+	page_no_t	offset;
+	page_no_t	i;
 
 	ut_a(buf_page_in_file(bpage));
 	ut_a(srv_use_doublewrite_buf);

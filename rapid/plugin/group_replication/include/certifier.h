@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,20 +16,22 @@
 #ifndef CERTIFIER_INCLUDE
 #define CERTIFIER_INCLUDE
 
-#include <map>
-#include <string>
-#include <list>
-#include <vector>
-
-#include "certifier_stats_interface.h"
-#include "member_info.h"
-#include "gcs_plugin_messages.h"
-#include "plugin_utils.h"
-#include "pipeline_interfaces.h"
-
 #include <mysql/gcs/gcs_communication_interface.h>
 #include <mysql/gcs/gcs_control_interface.h>
 #include <mysql/group_replication_priv.h>
+#include <list>
+#include <map>
+#include <string>
+#include <unordered_map>
+#include <vector>
+
+#include "certifier_stats_interface.h"
+#include "gcs_plugin_messages.h"
+#include "member_info.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "pipeline_interfaces.h"
+#include "plugin_utils.h"
 
 
 /**
@@ -107,7 +109,7 @@ private:
   negatively certified. Otherwise, this transaction is marked
   certified and goes into applier.
 */
-typedef std::map<std::string, Gtid_set_ref*> Certification_info;
+typedef std::unordered_map<std::string, Gtid_set_ref*> Certification_info;
 
 
 class Certifier_broadcast_thread
@@ -179,7 +181,7 @@ class Certifier_interface : public Certifier_stats
 public:
   virtual ~Certifier_interface() {}
   virtual void handle_view_change()= 0;
-  virtual int handle_certifier_data(const uchar *data, uint len,
+  virtual int handle_certifier_data(const uchar *data, ulong len,
                                     const Gcs_member_identifier& gcs_member_id)= 0;
 
   virtual void get_certification_info(std::map<std::string, std::string> *cert_info)= 0;
@@ -233,7 +235,7 @@ public:
       @retval 0      OK
       @retval !=0    Error on queue
   */
-  virtual int handle_certifier_data(const uchar *data, uint len,
+  virtual int handle_certifier_data(const uchar *data, ulong len,
                                     const Gcs_member_identifier& gcs_member_id);
 
   /**
@@ -328,7 +330,7 @@ public:
   /**
     Get method to retrieve the size of the members.
   */
-  uint get_members_size();
+  size_t get_members_size();
 
   /**
     Generate group GNO for a view change log event.
@@ -389,7 +391,7 @@ public:
     @retval 0    if there is no GTID / the string is empty
     @retval !=0  the size of the string
   */
-  int get_local_certified_gtid(std::string& local_gtid_certified_string);
+  size_t get_local_certified_gtid(std::string& local_gtid_certified_string);
 
   /**
     Enables conflict detection.
@@ -453,7 +455,7 @@ private:
 
     @retval Gtid_set::Interval which is the interval os GTIDs attributed
   */
-  Gtid_set::Interval reserve_gtid_block(long block_size);
+  Gtid_set::Interval reserve_gtid_block(longlong block_size);
 
   /**
     This function updates parallel applier indexes.
@@ -762,7 +764,7 @@ protected:
    Implementation of the template methods of Gcs_plugin_message
    */
   void encode_payload(std::vector<unsigned char>* buffer) const;
-  void decode_payload(const unsigned char* buffer, size_t length);
+  void decode_payload(const unsigned char* buffer, const unsigned char*);
 
 private:
   std::vector<uchar> data;

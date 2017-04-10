@@ -1,0 +1,138 @@
+create table t1 (a bigint, primary key (a)) engine=ndb;
+create table t2 (a bigint, primary key (a)) engine=ndb
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
+create table t3 (a bigint, primary key (a)) engine=ndb
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RA_BY_LDM";
+create table t4 (a bigint, primary key (a)) engine=ndb
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_NODE";
+create table t5 (a bigint, primary key (a)) engine=ndb
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RA_BY_NODE";
+-- t1 --
+Version: Any
+Fragment type: HashMapPartition
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: no
+Number of attributes: 1
+Number of primary keys: 1
+Length of frm data: XXX
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 0
+ForceVarPart: 1
+FragmentCount: 8
+PartitionBalance: FOR_RP_BY_LDM
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
+TableStatus: Retrieved
+HashMap: DEFAULT-HASHMAP-3840-8
+-- Attributes --
+a Bigint PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+-- Indexes -- 
+PRIMARY KEY(a) - UniqueHashIndex
+PRIMARY(a) - OrderedIndex
+-- t2 --
+Version: Any
+Fragment type: HashMapPartition
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: no
+Number of attributes: 1
+Number of primary keys: 1
+Length of frm data: XXX
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 0
+ForceVarPart: 1
+FragmentCount: 8
+PartitionBalance: FOR_RP_BY_LDM
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
+TableStatus: Retrieved
+HashMap: DEFAULT-HASHMAP-3840-8
+-- Attributes --
+a Bigint PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+-- Indexes -- 
+PRIMARY KEY(a) - UniqueHashIndex
+PRIMARY(a) - OrderedIndex
+-- t3 --
+Version: Any
+Fragment type: HashMapPartition
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: no
+Number of attributes: 1
+Number of primary keys: 1
+Length of frm data: XXX
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 0
+ForceVarPart: 1
+FragmentCount: 4
+PartitionBalance: FOR_RA_BY_LDM
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
+TableStatus: Retrieved
+HashMap: DEFAULT-HASHMAP-3840-4
+-- Attributes --
+a Bigint PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+-- Indexes -- 
+PRIMARY KEY(a) - UniqueHashIndex
+PRIMARY(a) - OrderedIndex
+-- t4 --
+Version: Any
+Fragment type: HashMapPartition
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: no
+Number of attributes: 1
+Number of primary keys: 1
+Length of frm data: XXX
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 0
+ForceVarPart: 1
+FragmentCount: 2
+PartitionBalance: FOR_RP_BY_NODE
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
+TableStatus: Retrieved
+HashMap: DEFAULT-HASHMAP-3840-2
+-- Attributes --
+a Bigint PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+-- Indexes -- 
+PRIMARY KEY(a) - UniqueHashIndex
+PRIMARY(a) - OrderedIndex
+-- t5 --
+Version: Any
+Fragment type: HashMapPartition
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: no
+Number of attributes: 1
+Number of primary keys: 1
+Length of frm data: XXX
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 0
+ForceVarPart: 1
+FragmentCount: 1
+PartitionBalance: FOR_RA_BY_NODE
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
+TableStatus: Retrieved
+HashMap: DEFAULT-HASHMAP-3840-1
+-- Attributes --
+a Bigint PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+-- Indexes -- 
+PRIMARY KEY(a) - UniqueHashIndex
+PRIMARY(a) - OrderedIndex
+
+NDBT_ProgramExit: 0 - OK
+
+drop table t1, t2, t3, t4, t5;

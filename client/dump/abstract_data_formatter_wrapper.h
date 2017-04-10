@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -17,6 +17,8 @@
 
 #ifndef ABSTRACT_DATA_FORMATTER_WRAPPER_INCLUDED
 #define ABSTRACT_DATA_FORMATTER_WRAPPER_INCLUDED
+
+#include <functional>
 
 #include "i_data_formatter_wrapper.h"
 #include "abstract_chain_element.h"
@@ -37,7 +39,7 @@ public:
 
 protected:
   Abstract_data_formatter_wrapper(
-    Mysql::I_callable<bool, const Mysql::Tools::Base::Message_data&>*
+    std::function<bool(const Mysql::Tools::Base::Message_data&)>*
     message_handler, Simple_id_generator* object_id_generator);
 
   void format_object(Item_processing_data* current_processing_data);

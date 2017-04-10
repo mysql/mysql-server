@@ -6,8 +6,6 @@
 # compressed non-temp table residing in single tablespace
 # with page-size=16k
 
---source include/have_innodb.inc
---source include/have_innodb_16k.inc
 --source include/have_debug.inc
 --source include/big_test.inc
 
@@ -21,6 +19,4 @@
 let $wl6501_file_per_table = 1;
 let $wl6501_row_fmt = compressed;
 let $wl6501_kbs = 16;
-let $wl6501_file_format = 'Barracuda';
 --source suite/innodb/include/innodb_wl6501_crash.inc
-

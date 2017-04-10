@@ -1,4 +1,4 @@
-# Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2016, 2017 Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -15,16 +15,25 @@
 
 INCLUDE_DIRECTORIES(${BOOST_PATCHES_DIR} ${BOOST_INCLUDE_DIR})
 INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR}/common)
+INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR})
+INCLUDE_DIRECTORIES(${SSL_INCLUDE_DIRS})
+
 
 MYSQL_ADD_PLUGIN(keyring_file
                  common/keyring_key.cc
                  common/keys_container.cc
                  common/keyring_impl.cc
+                 checker/checker.cc
+                 checker/checker_factory.cc
                  keyring.cc
                  hash_to_buffer_serializer.cc
                  buffered_file_io.cc
-                 file_io.cc
                  buffer.cc
+                 digest.cc
+                 checker/checker_ver_1_0.cc
+                 checker/checker_ver_2_0.cc
+                 file_io.cc
+                 LINK_LIBRARIES ${SSL_LIBRARIES}
                  MODULE_ONLY
                  MODULE_OUTPUT_NAME "keyring_file")
 
@@ -38,6 +47,4 @@ ENDIF()
 
 IF(HAVE_DLOPEN)
     SET(DYNLIB_EXTENSION "so")
-    SET_TARGET_PROPERTIES(keyring_file
-      PROPERTIES LINK_FLAGS "${CMAKE_SHARED_LIBRARY_C_FLAGS}")
 ENDIF()

@@ -2,8 +2,7 @@
 # WL#6501: make truncate table atomic
 #
 
---source include/have_innodb.inc
---source include/have_innodb_zip.inc
+--source include/have_innodb_max_16k.inc
 --source include/have_debug.inc
 --source include/have_debug_sync.inc
 --source include/not_windows.inc
@@ -272,7 +271,6 @@ select count(*) from t1;
 drop table t1;
 #
 set global innodb_file_per_table = 0;
-set global innodb_file_format = 'Antelope';
 create table t1 (a int not null, d int not null, b varchar(198) not null,
 		 c char(185), unique key (b(10), a, d), index (d), index(a),
 		 index (c(120), b(120)), index (b(5), c(10), a))

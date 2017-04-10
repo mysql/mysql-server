@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2015, Oracle and/or its affiliates. All rights reserved.
    
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,6 +15,10 @@
 
 #ifndef _SP_DEFS_H
 #define _SP_DEFS_H
+
+/**
+  @file storage/myisam/sp_defs.h
+*/
 
 #define SPDIMS 2
 #define SPTYPE HA_KEYTYPE_DOUBLE

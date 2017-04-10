@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,7 +18,6 @@
 
 #include <Ndb.hpp>
 #include <NdbError.hpp>
-#include <portlib/NdbMem.h>
 #include "NdbEventOperationImpl.hpp"
 #include "NdbDictionaryImpl.hpp"
 #include <EventLogger.hpp>
@@ -176,9 +175,8 @@ NdbEventOperation::getEventType() const
    * Since this is called after nextEvent() returns a valid operation,
    * and nextEvent() does not return a valid operation
    * for exceptional event data
-   *  (nextEvent removes TE_EMPTY from the event queue,
-   *   it does not return a valid operation for TE_INCONSIS,
-   *   it crashes at TE_OUT_OF_MEMORY),
+   *  (nextEvent does not return a valid operation for TE_INCONSIS,
+   *   it crashes at TE_OUT_OF_MEMORY and TE_EMPTY),
    * getEventType should not see the new event types, unless getEventType
    * is called after nextEvent2().
    * Following assert will ensure that.

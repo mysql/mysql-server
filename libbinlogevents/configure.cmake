@@ -1,4 +1,4 @@
-# Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -20,7 +20,6 @@ INCLUDE(CheckSymbolExists)
 INCLUDE(CheckFunctionExists)
 INCLUDE(TestBigEndian)
 
-CHECK_INCLUDE_FILES(stdint.h HAVE_STDINT_H)
 # depending on the platform, we may or may not have this file
 CHECK_INCLUDE_FILES(endian.h HAVE_ENDIAN_H)
 
@@ -37,13 +36,11 @@ IF(HAVE_ENDIAN_H)
   ENDIF()
 ENDIF()
 
-IF(HAVE_STDINT_H)
-  SET(CMAKE_EXTRA_INCLUDE_FILES stdint.h)
-  CHECK_TYPE_SIZE("long long" LONG_LONG)
-  CHECK_TYPE_SIZE(long LONG)
-  CHECK_TYPE_SIZE(int INT)
-  SET(CMAKE_EXTRA_INCLUDE_FILES)
-ENDIF()
+SET(CMAKE_EXTRA_INCLUDE_FILES stdint.h)
+CHECK_TYPE_SIZE("long long" LONG_LONG)
+CHECK_TYPE_SIZE(long LONG)
+CHECK_TYPE_SIZE(int INT)
+SET(CMAKE_EXTRA_INCLUDE_FILES)
 
 # TODO: Is it better to use __BIG_ENDIAN instead of IS_BIG_ENDIAN
 TEST_BIG_ENDIAN(IS_BIG_ENDIAN)

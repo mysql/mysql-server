@@ -5,6 +5,11 @@
 CALL mtr.add_suppression("Plugin test_plugin_server reported: 'Wrong password supplied for plug_dest'");
 CALL mtr.add_suppression("The plugin 'new_plugin_server' used to authenticate user 'new_user'@'%' is not loaded. Nobody can currently login using this account.");
 
+# Official builds include separate debug enabled plugins to be used by
+# the debug enabled server. But the non-debug *client* should not use them.
+
+let PLUGIN_AUTH_OPT=`SELECT TRIM(TRAILING '/debug' FROM '$PLUGIN_AUTH_OPT')`;
+
 CREATE DATABASE test_user_db;
 
 --source include/plugin_auth_check_non_default_users.inc
@@ -15,6 +20,8 @@ CREATE DATABASE test_user_db;
 CREATE USER plug_user IDENTIFIED WITH test_plugin_server AS 'plug_dest';
 CREATE USER plug_dest IDENTIFIED BY 'plug_dest_passwd';
 GRANT PROXY ON plug_dest TO plug_user;
+GRANT ALL PRIVILEGES ON test_user_db.* TO plug_dest;
+
 --replace_result $MASTER_MYSOCK MASTER_MYSOCK $PLUGIN_AUTH_OPT PLUGIN_AUTH_OPT
 --exec $MYSQL -S $MASTER_MYSOCK -u plug_user $PLUGIN_AUTH_OPT --password=plug_dest -e "SELECT current_user();SELECT user();USE test_user_db;CREATE TABLE t1(a int);SHOW TABLES;DROP TABLE t1;" 2>&1
 REVOKE PROXY ON plug_dest FROM plug_user;
@@ -48,6 +55,7 @@ DROP USER plug_user,plug_dest;
 GRANT ALL PRIVILEGES ON test_user_db.* TO plug_user
   IDENTIFIED WITH test_plugin_server AS 'plug_dest';
 CREATE USER plug_dest IDENTIFIED BY 'plug_dest_passwd';
+GRANT ALL PRIVILEGES ON test_user_db.* TO plug_dest;
 --echo 1)
 --error 1
 --exec $MYSQL -S $MASTER_MYSOCK -u plug_user $PLUGIN_AUTH_OPT --password=plug_dest -e "SELECT current_user();SELECT user();USE test_user_db;CREATE TABLE t1(a int);SHOW TABLES;DROP TABLE t1;" 2>&1

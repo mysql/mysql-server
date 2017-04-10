@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,10 +20,23 @@
  *   o Flushing the tables every flush_time seconds.
  */
 
-#include "sql_manager.h"
+#include "sql/sql_manager.h"
 
-#include "my_thread.h"         // my_thread_t
+#include <errno.h>
+#include <sys/types.h>
+#include <time.h>
+
 #include "log.h"               // sql_print_warning
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_systime.h"
+#include "my_thread.h"         // my_thread_t
+#include "mysql/psi/mysql_cond.h"
+#include "mysql/psi/mysql_mutex.h"
+#include "mysql/psi/mysql_thread.h"
+#include "mysql_com.h"
+#include "mysqld.h"            // flush_time
 #include "sql_base.h"          // tdc_flush_unused_tables
 
 static bool volatile manager_thread_in_use;
@@ -33,7 +46,8 @@ my_thread_t manager_thread;
 mysql_mutex_t LOCK_manager;
 mysql_cond_t COND_manager;
 
-extern "C" void *handle_manager(void *arg MY_ATTRIBUTE((unused)))
+extern "C" {
+static void *handle_manager(void *arg MY_ATTRIBUTE((unused)))
 {
   int error = 0;
   struct timespec abstime;
@@ -69,7 +83,7 @@ extern "C" void *handle_manager(void *arg MY_ATTRIBUTE((unused)))
     if (abort_manager)
       break;
 
-    if (error == ETIMEDOUT || error == ETIME)
+    if (is_timeout(error))
     {
       tdc_flush_unused_tables();
       error = 0;
@@ -82,6 +96,7 @@ extern "C" void *handle_manager(void *arg MY_ATTRIBUTE((unused)))
   my_thread_end();
   return (NULL);
 }
+} // extern "C"
 
 
 /* Start handle manager thread */

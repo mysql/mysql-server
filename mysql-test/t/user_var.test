@@ -1,7 +1,12 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
+########################################
+##### WL#7554 Force schema `test` to character set latin1
+##### This test should be migrated to utf8mb4
+--disable_query_log
+let $testdbcs309=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
+alter schema default character set latin1;
+use test;
+--enable_query_log
+########################################
 
 # Initialise
 --disable_warnings
@@ -24,6 +29,7 @@ create table t2 (i int not null, unique (i));
 insert into t2 select distinct i from t1;
 select * from t2; 
 select distinct t2.i,@vv1:=if(sv1.i,1,0),@vv2:=if(sv2.i,1,0),@vv3:=if(sv3.i,1,0), @vv1+@vv2+@vv3 from t2 left join t1 as sv1 on sv1.i=t2.i and sv1.v=1 left join t1 as sv2 on sv2.i=t2.i and sv2.v=2 left join t1 as sv3 on sv3.i=t2.i and sv3.v=3;
+analyze table t1;
 explain select * from t1 where i=@vv1;
 select @vv1,i,v from t1 where i=@vv1;
 explain select * from t1 where @vv1:=@vv1+1 and i=@vv1;
@@ -521,3 +527,10 @@ SET @c =(SELECT 1 NOT IN (SELECT 1 FROM t1 as t1 GROUP BY 1 LIKE (SELECT 1 FROM 
 SET @d =(SELECT 1 NOT IN (SELECT 1 FROM t1 as t1 ORDER BY 1 LIKE (SELECT 1 FROM t1 as t2)) AS col);
 DROP TABLE t1; 
 
+
+########################################
+##### WL#7554 set schema `test` back to what it was
+--disable_query_log
+--eval alter schema test default character set $testdbcs309;
+--enable_query_log
+########################################

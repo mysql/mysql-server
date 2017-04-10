@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,6 +13,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
+#include <errno.h>
+
 #include "my_config.h"
 #include "log.h"
 #include "named_pipe.h"
@@ -24,7 +26,7 @@
   @param sec_descr   Security descriptor for the pipe.
   @param buffer_size Number of bytes to reserve for input and output buffers.
   @param name        The name of the pipe.
-  @param name_buff   Output argument: null-terminated concatenation of
+  @param name_buf    Output argument: null-terminated concatenation of
                      "\\.\pipe\" and name.
   @param buflen      The size of name_buff.
 

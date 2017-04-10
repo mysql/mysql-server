@@ -33,6 +33,12 @@ IF(HAVE_EXPLICIT_TEMPLATE_INSTANTIATION)
   SET(TAOCRYPT_SOURCES ${TAOCRYPT_SOURCES} src/template_instnt.cpp)
 ENDIF()
 
+## Crash in Integer::Integer(const Integer& other) when using -xO3
+IF(CMAKE_CXX_COMPILER_ID MATCHES "SunPro")
+  INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
+  ADD_COMPILE_FLAGS(src/integer.cpp COMPILE_FLAGS "-xO2")
+ENDIF()
+
 ADD_CONVENIENCE_LIBRARY(taocrypt ${TAOCRYPT_SOURCES})
 
 IF(MSVC)

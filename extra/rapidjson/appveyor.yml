@@ -1,4 +1,5 @@
-version: 0.12.{build}
+os: Visual Studio 2015 CTP  
+version: 1.1.0.{build}
 
 configuration:
 - Debug
@@ -6,18 +7,30 @@ configuration:
 
 environment:
   matrix:
-  - VS_VERSION: 11
+  # - VS_VERSION: 9 2008
+  #   VS_PLATFORM: win32
+  # - VS_VERSION: 9 2008
+  #   VS_PLATFORM: x64
+  - VS_VERSION: 10 2010
     VS_PLATFORM: win32
-  - VS_VERSION: 11
+  - VS_VERSION: 10 2010
     VS_PLATFORM: x64
-  - VS_VERSION: 12
+  - VS_VERSION: 11 2012
     VS_PLATFORM: win32
-  - VS_VERSION: 12
+  - VS_VERSION: 11 2012
+    VS_PLATFORM: x64
+  - VS_VERSION: 12 2013
+    VS_PLATFORM: win32
+  - VS_VERSION: 12 2013
+    VS_PLATFORM: x64
+  - VS_VERSION: 14 2015
+    VS_PLATFORM: win32
+  - VS_VERSION: 14 2015
     VS_PLATFORM: x64
 
 before_build:
 - git submodule update --init --recursive
-- cmake -H. -BBuild/VS -G "Visual Studio %VS_VERSION%" -DCMAKE_GENERATOR_PLATFORM=%VS_PLATFORM% -DBUILD_SHARED_LIBS=true -Wno-dev
+- cmake -H. -BBuild/VS -G "Visual Studio %VS_VERSION%" -DCMAKE_GENERATOR_PLATFORM=%VS_PLATFORM% -DCMAKE_VERBOSE_MAKEFILE=ON -DBUILD_SHARED_LIBS=true -Wno-dev
 
 build:
   project: Build\VS\RapidJSON.sln

@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,15 +19,14 @@
  */
 
 #include "my_config.h"
+
 #include <gtest/gtest.h>
+#include <math.h>
 
-#include <my_global.h>
-#include <m_string.h>
-
-extern "C" {
-#include <decimal.h>
-int decimal_shift(decimal_t *dec, int shift);
-}
+#include "decimal.h"
+#include "m_string.h"
+#include "my_decimal.h"
+#include "my_inttypes.h"
 
 
 namespace decimal_unittest {

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,6 +14,8 @@
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #include "recovery_message.h"
+
+#include "my_dbug.h"
 
 Recovery_message::Recovery_message(Recovery_message_type type,
                                    const std::string& uuid)
@@ -33,7 +35,8 @@ Recovery_message::Recovery_message(const uchar* buf, size_t len)
   decode(buf, len);
 }
 
-void Recovery_message::decode_payload(const unsigned char* buffer, size_t length)
+void Recovery_message::decode_payload(const unsigned char* buffer,
+                                      const unsigned char*)
 {
   DBUG_ENTER("Recovery_message::decode_payload");
   const unsigned char *slider= buffer;

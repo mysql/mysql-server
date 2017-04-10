@@ -86,3 +86,26 @@ a	b	d	c
 2	QWERTY	ZXCVBB	300
 COMMIT;
 DROP TABLE t1;
+#
+# Bug#22884631 FAILING ASSERTION: TRX->DUPLICATES == 0
+#
+SELECT @@table_open_cache_instances;
+@@table_open_cache_instances
+1
+CREATE TABLE t1(a INT);
+CREATE TABLE t2(a INT);
+INSERT INTO t1 VALUES(1);
+INSERT INTO t2 VALUES(2);
+# Connection con1
+INSERT INTO t1 VALUES(3);
+SET DEBUG_SYNC = 'RESET';
+SET DEBUG_SYNC = 'ib_after_row_insert WAIT_FOR go_ahead';
+REPLACE INTO t2 VALUES(3);
+# Connection con2
+INSERT INTO t1 VALUES(70, 80);
+ERROR 21S01: Column count doesn't match value count at row 1
+SET DEBUG_SYNC= 'now SIGNAL go_ahead';
+# Connection con1
+DROP TABLE t1;
+DROP TABLE t2;
+SET DEBUG_SYNC= 'RESET';

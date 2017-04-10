@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -33,6 +33,8 @@ struct DiGetNodesConf {
    */
   friend class Dbtc;
   friend class Dbspj;
+  friend class Backup;
+  friend class Suma;
 
   /**
    * Sender(s)
@@ -56,17 +58,22 @@ class DiGetNodesReq {
    */
   friend class Dbtc;
   friend class Dbspj;
+  friend class Backup;
+  friend class Suma;
   /**
    * Receiver(s)
    */
   friend class Dbdih;
 public:
-  STATIC_CONST( SignalLength = 4 + (sizeof(void*) / sizeof(Uint32)) );
+  STATIC_CONST( SignalLength = 6 + (sizeof(void*) / sizeof(Uint32)) );
+  STATIC_CONST(MAX_DIGETNODESREQS = 16);
 private:
   Uint32 tableId;
   Uint32 hashValue;
   Uint32 distr_key_indicator;
-  Uint32 unused;
+  Uint32 scan_indicator;
+  Uint32 get_next_fragid_indicator;
+  Uint32 anyNode;
   union {
     void * jamBufferPtr;
     Uint32 jamBufferStorage[2];

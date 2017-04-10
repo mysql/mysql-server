@@ -1,3 +1,13 @@
+########################################
+##### WL#7554 Force schema `test` to character set latin1
+##### This test should be migrated to utf8mb4
+--disable_query_log
+let $testdbcs324=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
+alter schema default character set latin1;
+use test;
+--enable_query_log
+########################################
+
 # This test takes long time, so only run it with the --big-test mtr-flag.
 --source include/big_test.inc
 ################################################################################
@@ -44,9 +54,6 @@ SET @max_row = 20;
 let $more_trigger_tests= 0;
 let $more_pk_ui_tests= 0;
 
-# The server must support partitioning.
---source include/have_partition.inc
-
 # Does not work with --embedded
 --source include/not_embedded.inc
 
@@ -54,7 +61,6 @@ let $more_pk_ui_tests= 0;
 # Engine specific settings and requirements
 
 ##### Storage engine to be tested
---source include/have_innodb.inc
 let $engine= 'InnoDB';
 
 ##### Execute the test of "table" files
@@ -85,3 +91,10 @@ let $MAX_VALUE= (2147483646);
 #------------------------------------------------------------------------------#
 # Cleanup
 --source suite/parts/inc/partition_cleanup.inc
+
+########################################
+##### WL#7554 set schema `test` back to what it was
+--disable_query_log
+--eval alter schema test default character set $testdbcs324;
+--enable_query_log
+########################################

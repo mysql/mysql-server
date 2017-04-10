@@ -16,32 +16,32 @@ innodb_online_alter_log_max_size	134217728
 show session variables like 'innodb_online_alter_log_max_size';
 Variable_name	Value
 innodb_online_alter_log_max_size	134217728
-select * from information_schema.global_variables where variable_name='innodb_online_alter_log_max_size';
+select * from performance_schema.global_variables where variable_name='innodb_online_alter_log_max_size';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_ONLINE_ALTER_LOG_MAX_SIZE	134217728
-select * from information_schema.session_variables where variable_name='innodb_online_alter_log_max_size';
+innodb_online_alter_log_max_size	134217728
+select * from performance_schema.session_variables where variable_name='innodb_online_alter_log_max_size';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_ONLINE_ALTER_LOG_MAX_SIZE	134217728
+innodb_online_alter_log_max_size	134217728
 set global innodb_online_alter_log_max_size=1048576;
 select @@global.innodb_online_alter_log_max_size;
 @@global.innodb_online_alter_log_max_size
 1048576
-select * from information_schema.global_variables where variable_name='innodb_online_alter_log_max_size';
+select * from performance_schema.global_variables where variable_name='innodb_online_alter_log_max_size';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_ONLINE_ALTER_LOG_MAX_SIZE	1048576
-select * from information_schema.session_variables where variable_name='innodb_online_alter_log_max_size';
+innodb_online_alter_log_max_size	1048576
+select * from performance_schema.session_variables where variable_name='innodb_online_alter_log_max_size';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_ONLINE_ALTER_LOG_MAX_SIZE	1048576
+innodb_online_alter_log_max_size	1048576
 set @@global.innodb_online_alter_log_max_size=524288;
 select @@global.innodb_online_alter_log_max_size;
 @@global.innodb_online_alter_log_max_size
 524288
-select * from information_schema.global_variables where variable_name='innodb_online_alter_log_max_size';
+select * from performance_schema.global_variables where variable_name='innodb_online_alter_log_max_size';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_ONLINE_ALTER_LOG_MAX_SIZE	524288
-select * from information_schema.session_variables where variable_name='innodb_online_alter_log_max_size';
+innodb_online_alter_log_max_size	524288
+select * from performance_schema.session_variables where variable_name='innodb_online_alter_log_max_size';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_ONLINE_ALTER_LOG_MAX_SIZE	524288
+innodb_online_alter_log_max_size	524288
 set session innodb_online_alter_log_max_size='some';
 ERROR HY000: Variable 'innodb_online_alter_log_max_size' is a GLOBAL variable and should be set with SET GLOBAL
 set @@session.innodb_online_alter_log_max_size='some';

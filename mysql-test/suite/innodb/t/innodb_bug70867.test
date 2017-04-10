@@ -2,7 +2,6 @@
 # Bug#70867 WRONG OS ERROR NUMBER REPORTED IN ERROR LOG DURING FAILURE AT STARTUP
 #
 
---source include/have_innodb.inc
 
 
 # This test uses chmod, can't be run with root permissions

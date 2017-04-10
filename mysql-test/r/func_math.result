@@ -192,7 +192,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `round(1, 6)` int(1) NOT NULL DEFAULT '0'
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 select * from t1;
 round(1, 6)
 1
@@ -299,13 +299,13 @@ create table t1
 (f1 varchar(32) not null,
 f2 smallint(5) unsigned not null,
 f3 int(10) unsigned not null default '0')
-engine=myisam default charset=utf8;
+default charset=utf8;
 insert into t1 values ('zombie',0,0),('gold',1,10000),('silver',2,10000);
 create table t2
 (f1 int(10) unsigned not null,
 f2 int(10) unsigned not null,
 f3 smallint(5) unsigned not null)
-engine=myisam default charset=utf8;
+default charset=utf8;
 insert into t2 values (16777216,16787215,1),(33554432,33564431,2);
 select format(t2.f2-t2.f1+1,0) from t1,t2
 where t1.f2 = t2.f3 order by t1.f1;
@@ -474,7 +474,7 @@ a	ROUND(a)
 -1.0000000000000002e16	-10000000000000002
 1.0000000000000002e16	10000000000000002
 DROP TABLE t1;
-CREATE TABLE t1(f1 LONGTEXT) engine=myisam;
+CREATE TABLE t1(f1 LONGTEXT);
 INSERT INTO t1 VALUES ('a');
 SELECT 1 FROM (SELECT ROUND(f1) AS a FROM t1) AS s WHERE a LIKE 'a';
 1
@@ -544,14 +544,14 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `C` varchar(23) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 DROP TABLE t1;
 #
 # Bug#11764994  57900: CREATE TABLE .. SELECT ASSERTS SCALE >= 0 && PRECISION > 0 && SCALE <= PR
 #
-CREATE TABLE t1 SELECT CEIL(LINESTRINGFROMWKB(1) DIV NULL);
+CREATE TABLE t1 SELECT CEIL(ST_LINESTRINGFROMWKB(1) DIV NULL);
 ERROR HY000: Incorrect arguments to DIV
-CREATE TABLE t1 SELECT FLOOR(LINESTRINGFROMWKB(1) DIV NULL);
+CREATE TABLE t1 SELECT FLOOR(ST_LINESTRINGFROMWKB(1) DIV NULL);
 ERROR HY000: Incorrect arguments to DIV
 #
 # Bug#11765923  58937: MANY VALGRIND ERRORS AFTER GROUPING BY RESULT OF DECIMAL COLUMN FUNCTION
@@ -953,3 +953,18 @@ number	Round(number, num_digits) > 0	Round(number, 3) > 0
 1	1	1
 0	0	0
 DROP PROCEDURE test_round_fn;
+#
+# Bug#23013359 FUNCTION FLOOR(CEIL()) TRUNCATES BIGINT UNSIGNED
+#
+SELECT floor(ceil(12345678901234567890));
+floor(ceil(12345678901234567890))
+12345678901234567890
+SELECT floor(18446744073709551616);
+floor(18446744073709551616)
+18446744073709551616
+SELECT floor(floor(18446744073709551616));
+floor(floor(18446744073709551616))
+18446744073709551616
+SELECT floor(floor(floor(18446744073709551616)));
+floor(floor(floor(18446744073709551616)))
+18446744073709551616

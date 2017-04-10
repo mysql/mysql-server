@@ -12,11 +12,9 @@
 --source include/have_archive.inc
 let $engine_type= ARCHIVE;
 
+# Test requires: sp-protocol/ps-protocol/view-protocol/cursor-protocol disabled
+--source include/no_protocol.inc
 
-if (`SELECT $PS_PROTOCOL + $SP_PROTOCOL + $CURSOR_PROTOCOL + $VIEW_PROTOCOL > 0`)
-{
-   --skip Test requires: ps-protocol/sp-protocol/cursor-protocol/view-protocol disabled
-}
 let $run= `SELECT '$BIG_TEST' = '1'`;
 if ($run)
 {

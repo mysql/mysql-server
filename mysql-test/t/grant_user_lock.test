@@ -294,30 +294,36 @@ ALTER USER u1@localhost PASSWORD EXPIRE NEVER ACCOUNT LOCK PASSWORD EXPIRE INTER
 SHOW CREATE USER u1@localhost;
 
 --echo # MySQL user table layout from the before ACCOUNT LOCK option
+call mtr.add_suppression("Column count of mysql.* is wrong. "
+                         "Expected .*, found .*. "
+                         "The table is probably corrupted");
+
 connection default;
-CREATE TABLE temp_user LIKE mysql.user;
-INSERT INTO temp_user SELECT * FROM mysql.user;
+CREATE TABLE mysql.temp_user LIKE mysql.user;
+INSERT INTO mysql.temp_user SELECT * FROM mysql.user;
 ALTER TABLE mysql.user DROP COLUMN account_locked;
---error ER_BAD_FIELD_ERROR
+ALTER TABLE mysql.user DROP COLUMN create_role_priv;
+ALTER TABLE mysql.user DROP COLUMN drop_role_priv;
+--error ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2
 CREATE USER backuser@localhost IDENTIFIED BY 'pass' ACCOUNT LOCK;
 SELECT COUNT(*) FROM mysql.user WHERE (user = 'backuser' and host = 'localhost');
---error ER_BAD_FIELD_ERROR
+--error ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2
 CREATE USER backuser@localhost IDENTIFIED BY 'pass' ACCOUNT UNLOCK;
 SELECT COUNT(*) FROM mysql.user WHERE (user = 'backuser' and host = 'localhost');
+--error ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2
 CREATE USER backuser@localhost IDENTIFIED BY 'pass';
 SELECT COUNT(*) FROM mysql.user WHERE (user = 'backuser' and host = 'localhost');
 --error ER_BAD_FIELD_ERROR
 SELECT user, account_locked FROM mysql.user WHERE (user = 'backuser' and host = 'localhost');
-connect(backuser_conn, localhost, backuser, pass);
-disconnect backuser_conn;
 connection default;
---error ER_BAD_FIELD_ERROR
+--error ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2
 ALTER USER backuser@localhost ACCOUNT LOCK;
---error ER_BAD_FIELD_ERROR
+--error ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2
 ALTER USER backuser@localhost ACCOUNT UNLOCK;
+--error ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2
 DROP USER backuser@localhost;
 DROP TABLE mysql.user;
-ALTER TABLE temp_user RENAME mysql.user;
+ALTER TABLE mysql.temp_user RENAME mysql.user;
 FLUSH PRIVILEGES;
 
 --echo # Check whether 'account' can be used as the identifier.
@@ -420,8 +426,10 @@ eval LOAD DATA LOCAL INFILE '$MYSQLTEST_VARDIR/log/rewrite_general.log'
 
 --echo Show what is logged:
 --echo ------ rewrite ------
-SELECT argument FROM mysql.general_log WHERE argument LIKE 'CREATE USER %';
-SELECT argument FROM mysql.general_log WHERE argument LIKE 'ALTER USER %';
+SELECT argument FROM mysql.general_log WHERE argument LIKE 'CREATE USER %' AND
+                                             command_type NOT LIKE 'Prepare';
+SELECT argument FROM mysql.general_log WHERE argument LIKE 'ALTER USER %'AND
+                                             command_type NOT LIKE 'Prepare';
 --echo ------ done ------
 
 # cleanup

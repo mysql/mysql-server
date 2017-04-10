@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2012, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2012, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -23,14 +23,35 @@ Policy based mutexes.
 Created 2012-03-24 Sunny Bains.
 ***********************************************************************/
 
-#ifndef UNIV_INNOCHECKSUM
-
 #ifndef ut0mutex_h
 #define ut0mutex_h
+
+#include "my_inttypes.h"
 
 extern ulong	srv_spin_wait_delay;
 extern ulong	srv_n_spin_wait_rounds;
 extern ulong	srv_force_recovery_crash;
+
+#ifdef UNIV_LIBRARY
+/* Mutexes are disabled under UNIV_LIBRARY */
+#define mutex_create(I, M)		(void)M
+#define mutex_enter(M)			(void)M
+#define mutex_enter_nospin(M)		(void)M
+#define mutex_enter_nowait(M)		(void)M
+#define mutex_exit(M)			(void)M
+#define mutex_free(M)			(void)M
+
+#ifdef UNIV_DEBUG
+#define mutex_validate(M)		(M)
+/* Since mutexes are disabled under UNIV_LIBRARY, the following is OK
+and necessary to suppress compiler warnings. */
+#define mutex_own(M)			((M) || false)
+#endif /* UNIV_DEBUG */
+typedef OSMutex	SysMutex;
+typedef OSMutex ib_mutex_t;
+typedef OSMutex ib_bpmutex_t;
+
+#else /* UNIV_LIBRARY */
 
 #include "os0atomic.h"
 #include "sync0policy.h"
@@ -39,7 +60,7 @@ extern ulong	srv_force_recovery_crash;
 
 /** Create a typedef using the MutexType<PolicyType>
 @param[in]	M		Mutex type
-@param[in[	P		Policy type
+@param[in]	P		Policy type
 @param[in]	T		The resulting typedef alias */
 #define UT_MUTEX_TYPE(M, P, T) typedef PolicyMutex<M<P> > T;
 
@@ -48,35 +69,35 @@ typedef OSMutex EventMutex;
 #ifndef UNIV_DEBUG
 
 # ifdef HAVE_IB_LINUX_FUTEX
-UT_MUTEX_TYPE(TTASFutexMutex, GenericPolicy, FutexMutex);
-UT_MUTEX_TYPE(TTASFutexMutex, BlockMutexPolicy, BlockFutexMutex);
+UT_MUTEX_TYPE(TTASFutexMutex, GenericPolicy, FutexMutex)
+UT_MUTEX_TYPE(TTASFutexMutex, BlockMutexPolicy, BlockFutexMutex)
 # endif /* HAVE_IB_LINUX_FUTEX */
 
-UT_MUTEX_TYPE(TTASMutex, GenericPolicy, SpinMutex);
-UT_MUTEX_TYPE(TTASMutex, BlockMutexPolicy, BlockSpinMutex);
+UT_MUTEX_TYPE(TTASMutex, GenericPolicy, SpinMutex)
+UT_MUTEX_TYPE(TTASMutex, BlockMutexPolicy, BlockSpinMutex)
 
 
-UT_MUTEX_TYPE(OSTrackMutex, GenericPolicy, SysMutex);
-UT_MUTEX_TYPE(OSTrackMutex, BlockMutexPolicy, BlockSysMutex);
+UT_MUTEX_TYPE(OSTrackMutex, GenericPolicy, SysMutex)
+UT_MUTEX_TYPE(OSTrackMutex, BlockMutexPolicy, BlockSysMutex)
 
-UT_MUTEX_TYPE(TTASEventMutex, GenericPolicy, SyncArrayMutex);
-UT_MUTEX_TYPE(TTASEventMutex, BlockMutexPolicy, BlockSyncArrayMutex);
+UT_MUTEX_TYPE(TTASEventMutex, GenericPolicy, SyncArrayMutex)
+UT_MUTEX_TYPE(TTASEventMutex, BlockMutexPolicy, BlockSyncArrayMutex)
 
 #else /* !UNIV_DEBUG */
 
 # ifdef HAVE_IB_LINUX_FUTEX
-UT_MUTEX_TYPE(TTASFutexMutex, GenericPolicy, FutexMutex);
-UT_MUTEX_TYPE(TTASFutexMutex, BlockMutexPolicy, BlockFutexMutex);
+UT_MUTEX_TYPE(TTASFutexMutex, GenericPolicy, FutexMutex)
+UT_MUTEX_TYPE(TTASFutexMutex, BlockMutexPolicy, BlockFutexMutex)
 # endif /* HAVE_IB_LINUX_FUTEX */
 
-UT_MUTEX_TYPE(TTASMutex, GenericPolicy, SpinMutex);
-UT_MUTEX_TYPE(TTASMutex, BlockMutexPolicy, BlockSpinMutex);
+UT_MUTEX_TYPE(TTASMutex, GenericPolicy, SpinMutex)
+UT_MUTEX_TYPE(TTASMutex, BlockMutexPolicy, BlockSpinMutex)
 
-UT_MUTEX_TYPE(OSTrackMutex, GenericPolicy, SysMutex);
-UT_MUTEX_TYPE(OSTrackMutex, BlockMutexPolicy, BlockSysMutex);
+UT_MUTEX_TYPE(OSTrackMutex, GenericPolicy, SysMutex)
+UT_MUTEX_TYPE(OSTrackMutex, BlockMutexPolicy, BlockSysMutex)
 
-UT_MUTEX_TYPE(TTASEventMutex, GenericPolicy, SyncArrayMutex);
-UT_MUTEX_TYPE(TTASEventMutex, BlockMutexPolicy, BlockSyncArrayMutex);
+UT_MUTEX_TYPE(TTASEventMutex, GenericPolicy, SyncArrayMutex)
+UT_MUTEX_TYPE(TTASEventMutex, BlockMutexPolicy, BlockSyncArrayMutex)
 
 #endif /* !UNIV_DEBUG */
 
@@ -195,7 +216,7 @@ necessary only if the memory block containing it is freed.
 Add the mutex instance to the global mutex list.
 @param[in,out]	mutex		mutex to initialise
 @param[in]	id		The mutex ID (Latch ID)
-@param[in]	filename	Filename from where it was called
+@param[in]	file_name	Filename from where it was called
 @param[in]	line		Line number in filename from where called */
 template <typename Mutex>
 void mutex_init(
@@ -219,7 +240,6 @@ void mutex_destroy(
 {
 	mutex->destroy();
 }
+#endif /* UNIV_LIBRARY */
 
 #endif /* ut0mutex_h */
-
-#endif /* UNIV_INNOCHECKSUM */

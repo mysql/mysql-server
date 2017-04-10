@@ -1,6 +1,6 @@
 #!/usr/bin/perl -w
 
-# Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -85,13 +85,13 @@ if(defined($ARGV[1]))
 use File::Basename;
 my $dirname= dirname(__FILE__);
 my $ndb_config= "$dirname/ndb_config";
-my @nodes= split ' ',`$ndb_config --config-file=$config_file --nodes --query=id --type=ndbd`;
-push @nodes, split ' ',`$ndb_config --config-file=$config_file --nodes --query=id --type=ndb_mgmd`;
+my @nodes= split ' ',`$ndb_config --config-file=$config_file --nodes --query=nodeid --type=ndbd`;
+push @nodes, split ' ',`$ndb_config --config-file=$config_file --nodes --query=nodeid --type=ndb_mgmd`;
 
 sub config {
     my $nodeid= shift;
     my $query= shift;
-    my $res= `$ndb_config --config-file=$config_file --id=$nodeid --query=$query`;
+    my $res= `$ndb_config --config-file=$config_file --nodeid=$nodeid --query=$query`;
     chomp $res;
     $res;
 }

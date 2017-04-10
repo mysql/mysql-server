@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -18,9 +18,11 @@
 #ifndef ABSTRACT_CONNECTION_PROVIDER_INCLUDED
 #define ABSTRACT_CONNECTION_PROVIDER_INCLUDED
 
-#include "i_connection_provider.h"
+#include <functional>
+
 #include "base/i_connection_factory.h"
-#include "i_callable.h"
+#include "i_connection_provider.h"
+#include "my_inttypes.h"
 
 namespace Mysql{
 namespace Tools{
@@ -33,7 +35,7 @@ protected:
     Mysql::Tools::Base::I_connection_factory* connection_factory);
 
   virtual Mysql::Tools::Base::Mysql_query_runner* create_new_runner(
-    Mysql::I_callable<bool, const Mysql::Tools::Base::Message_data&>*
+    std::function<bool(const Mysql::Tools::Base::Message_data&)>*
     message_handler);
 
 private:
@@ -43,13 +45,13 @@ private:
   {
   public:
     Message_handler_wrapper(
-      Mysql::I_callable<bool, const Mysql::Tools::Base::Message_data&>*
+      std::function<bool(const Mysql::Tools::Base::Message_data&)>*
       message_handler);
 
     int64 pass_message(const Mysql::Tools::Base::Message_data& message);
 
   private:
-    Mysql::I_callable<bool, const Mysql::Tools::Base::Message_data&>*
+    std::function<bool(const Mysql::Tools::Base::Message_data&)>*
       m_message_handler;
   };
 };

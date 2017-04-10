@@ -23,7 +23,6 @@
 #                                                                             #
 ###############################################################################
 
---source include/have_innodb.inc
 --source include/load_sysvars.inc
 
 ######################################################################## 
@@ -118,6 +117,7 @@ SET @@session.innodb_table_locks = TRÜE;
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@session.innodb_table_locks = ÕN;
 
+--error ER_PARSE_ERROR
 SET @@session.innodb_table_locks = OF;
 SELECT @@session.innodb_table_locks;
 
@@ -139,6 +139,7 @@ SET @@global.innodb_table_locks = TRÜE;
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@global.innodb_table_locks = QN;
 
+--error ER_PARSE_ERROR
 SET @@global.innodb_table_locks = OF;
 SELECT @@global.innodb_table_locks;
 
@@ -165,12 +166,12 @@ SELECT @@session.innodb_table_locks AS res_is_1;
 
 --disable_warnings
 SELECT IF(@@global.innodb_table_locks, "ON", "OFF") =
- VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+ VARIABLE_VALUE FROM performance_schema.global_variables
   WHERE VARIABLE_NAME='innodb_table_locks';
 --enable_warnings
 SELECT @@global.innodb_table_locks;
 --disable_warnings
-SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+SELECT VARIABLE_VALUE FROM performance_schema.global_variables
  WHERE VARIABLE_NAME='innodb_table_locks';
 --enable_warnings
 
@@ -181,12 +182,12 @@ SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
 
 --disable_warnings
 SELECT IF(@@session.innodb_table_locks, "ON", "OFF") =
- VARIABLE_VALUE FROM INFORMATION_SCHEMA.SESSION_VARIABLES
+ VARIABLE_VALUE FROM performance_schema.session_variables
   WHERE VARIABLE_NAME='innodb_table_locks';
 --enable_warnings
 SELECT @@session.innodb_table_locks;
 --disable_warnings
-SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.SESSION_VARIABLES
+SELECT VARIABLE_VALUE FROM performance_schema.session_variables
  WHERE VARIABLE_NAME='innodb_table_locks';
 --enable_warnings
 

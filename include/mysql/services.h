@@ -14,19 +14,19 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-
 /*
   Out of extern because of inclusion of files which include my_compiler.h
   which in turn complains about C-linkage of templates.
   service_srv_session.h and service_command.h use proper extern "C" for
   their exported symbols.
 */
-#ifndef EMBEDDED_LIBRARY
 #include <mysql/service_srv_session.h>
 #include <mysql/service_srv_session_info.h>
 #include <mysql/service_command.h>
-#endif
 
+/**
+  @file include/mysql/services.h
+*/
 
 #ifdef __cplusplus
 extern "C" {
@@ -46,6 +46,7 @@ extern "C" {
 #include <mysql/service_security_context.h>
 #include <mysql/service_locking.h>
 #include <mysql/service_mysql_keyring.h>
+#include <mysql/service_plugin_registry.h>
 
 #ifdef __cplusplus
 }

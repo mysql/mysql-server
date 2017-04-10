@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,14 +16,44 @@
 #ifndef PARSE_TREE_ITEMS_INCLUDED
 #define PARSE_TREE_ITEMS_INCLUDED
 
-#include "my_global.h"
+#include <stddef.h>
+#include <sys/types.h>
+
+#include "binary_log_types.h"
+#include "field.h"
+#include "item.h"
 #include "item_create.h"        // Create_func
+#include "item_func.h"
+#include "item_strfunc.h"
+#include "item_subselect.h"
 #include "item_sum.h"           // Item_sum_count
 #include "item_timefunc.h"      // Item_func_now_local
+#include "lex_string.h"
+#include "m_ctype.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_sys.h"
+#include "my_time.h"
+#include "mysql/psi/mysql_statement.h"
+#include "mysql_com.h"
+#include "mysqld_error.h"
+#include "parse_location.h"
 #include "parse_tree_helpers.h" // Parse_tree_item
-#include "sp.h"                 // sp_check_name
+#include "parse_tree_node_base.h"
+#include "protocol.h"
+#include "set_var.h"
 #include "sp_head.h"            // sp_head
+#include "sql_class.h"
+#include "sql_error.h"
+#include "sql_lex.h"
+#include "sql_list.h"
 #include "sql_parse.h"          // negate_expression
+#include "sql_security_ctx.h"
+#include "sql_string.h"
+#include "sql_udf.h"
+#include "system_variables.h"
+
+class PT_subquery;
 
 class PTI_table_wild : public Parse_tree_item
 {
@@ -90,12 +120,12 @@ class PTI_comp_op_all : public Parse_tree_item
   Item *left;
   chooser_compare_func_creator comp_op;
   bool is_all;
-  PT_subselect *subselect;
+  PT_subquery *subselect;
 
 public:
   PTI_comp_op_all(const POS &pos, Item *left_arg,
                   chooser_compare_func_creator comp_op_arg, bool is_all_arg,
-                  PT_subselect *subselect_arg)
+                  PT_subquery *subselect_arg)
   : super(pos), left(left_arg), comp_op(comp_op_arg),
     is_all(is_all_arg), subselect(subselect_arg)
   {}
@@ -213,16 +243,16 @@ public:
 };
 
 
-class PTI_function_call_nonkeyword_now : public Item_func_now_local
+class PTI_function_call_nonkeyword_now final : public Item_func_now_local
 {
   typedef Item_func_now_local super;
 
 public:
-  explicit PTI_function_call_nonkeyword_now(const POS &pos, uint8 dec_arg)
+  PTI_function_call_nonkeyword_now(const POS &pos, uint8 dec_arg)
   : super(pos, dec_arg)
   {}
 
-  virtual bool itemize(Parse_context *pc, Item **res)
+  bool itemize(Parse_context *pc, Item **res) override
   {
     if (super::itemize(pc, res))
       return true;
@@ -244,31 +274,7 @@ public:
   : super(pos), dec(dec_arg)
   {}
 
-  virtual bool itemize(Parse_context *pc, Item **res)
-  {
-    if (super::itemize(pc, res))
-      return true;
-
-    /*
-      Unlike other time-related functions, SYSDATE() is
-      replication-unsafe because it is not affected by the
-      TIMESTAMP variable.  It is unsafe even if
-      sysdate_is_now=1, because the slave may have
-      sysdate_is_now=0.
-    */
-    THD *thd= pc->thd;
-    LEX *lex= thd->lex;
-    lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_SYSTEM_FUNCTION);
-    if (global_system_variables.sysdate_is_now == 0)
-      *res= new (pc->mem_root) Item_func_sysdate_local(dec);
-    else
-      *res= new (pc->mem_root) Item_func_now_local(dec);
-    if (*res == NULL)
-      return true;
-    lex->safe_to_cache_query=0;
-
-    return false;
-  }
+  virtual bool itemize(Parse_context *pc, Item **res);
 };
 
 
@@ -309,59 +315,7 @@ public:
     opt_udf_expr_list(opt_udf_expr_list_arg)
   {}
 
-  virtual bool itemize(Parse_context *pc, Item **res)
-  {
-    if (super::itemize(pc, res))
-      return true;
-
-    THD *thd= pc->thd;
-#ifdef HAVE_DLOPEN
-    udf= 0;
-    if (using_udf_functions &&
-        (udf= find_udf(ident.str, ident.length)) &&
-        udf->type == UDFTYPE_AGGREGATE)
-    {
-      pc->select->in_sum_expr++;
-    }
-#endif
-
-    if (sp_check_name(&ident))
-      return true;
-
-    /*
-      Implementation note:
-      names are resolved with the following order:
-      - MySQL native functions,
-      - User Defined Functions,
-      - Stored Functions (assuming the current <use> database)
-
-      This will be revised with WL#2128 (SQL PATH)
-    */
-    Create_func *builder= find_native_function_builder(thd, ident);
-    if (builder)
-      *res= builder->create_func(thd, ident, opt_udf_expr_list);
-    else
-    {
-#ifdef HAVE_DLOPEN
-      if (udf)
-      {
-        if (udf->type == UDFTYPE_AGGREGATE)
-        {
-          pc->select->in_sum_expr--;
-        }
-
-        *res= Create_udf_func::s_singleton.create(thd, udf, opt_udf_expr_list);
-      }
-      else
-#endif
-      {
-        builder= find_qualified_function_builder(thd);
-        DBUG_ASSERT(builder);
-        *res= builder->create_func(thd, ident, opt_udf_expr_list);
-      }
-    }
-    return *res == NULL || (*res)->itemize(pc, res);
-  }
+  virtual bool itemize(Parse_context *pc, Item **res);
 };
 
 
@@ -384,36 +338,7 @@ public:
   {}
 
   
-  virtual bool itemize(Parse_context *pc, Item **res)
-  {
-    if (super::itemize(pc, res))
-      return true;
-
-    /*
-      The following in practice calls:
-      <code>Create_sp_func::create()</code>
-      and builds a stored function.
-
-      However, it's important to maintain the interface between the
-      parser and the implementation in item_create.cc clean,
-      since this will change with WL#2128 (SQL PATH):
-      - INFORMATION_SCHEMA.version() is the SQL 99 syntax for the native
-      function version(),
-      - MySQL.version() is the SQL 2003 syntax for the native function
-      version() (a vendor can specify any schema).
-    */
-
-    if (!db.str ||
-        (check_and_convert_db_name(&db, FALSE) != IDENT_NAME_OK))
-      return true;
-    if (sp_check_name(&func))
-      return true;
-
-    Create_qfunc *builder= find_qualified_function_builder(pc->thd);
-    DBUG_ASSERT(builder);
-    *res= builder->create(pc->thd, db, func, true, opt_expr_list);
-    return *res == NULL || (*res)->itemize(pc, res);
-  }
+  virtual bool itemize(Parse_context *pc, Item **res);
 };
 
 
@@ -504,17 +429,7 @@ public:
   : super(pos, is_7bit_arg, literal)
   {}
 
-  virtual bool itemize(Parse_context *pc, Item **res)
-  {
-    if (super::itemize(pc, res))
-      return true;
-
-    uint repertoire= is_7bit ? MY_REPERTOIRE_ASCII : MY_REPERTOIRE_UNICODE30;
-    DBUG_ASSERT(my_charset_is_ascii_based(national_charset_info));
-    init(literal.str, literal.length, national_charset_info,
-         DERIVATION_COERCIBLE, repertoire);
-    return false;
-  }
+  virtual bool itemize(Parse_context *pc, Item **res);
 };
 
 
@@ -582,19 +497,6 @@ public:
     *res= head_str;
     return false;
   }
-};
-
-
-class PTI_num_literal_num : public Item_int
-{
-  typedef Item_int super;
-
-public:
-  PTI_num_literal_num(const POS &pos,
-                       const LEX_STRING &num, int dummy_error= 0)
-  : super(pos, num, my_strtoll10(num.str, NULL, &dummy_error),
-          static_cast<uint>(num.length))
-  {}
 };
 
 
@@ -672,7 +574,7 @@ public:
 };
 
 
-class PTI_variable_aux_set_var : public Item_func_set_user_var
+class PTI_variable_aux_set_var final : public Item_func_set_user_var
 {
   typedef Item_func_set_user_var super;
 
@@ -699,7 +601,7 @@ public:
 };
 
 
-class PTI_variable_aux_ident_or_text : public Item_func_get_user_var
+class PTI_variable_aux_ident_or_text final : public Item_func_get_user_var
 {
   typedef Item_func_get_user_var super;
 
@@ -728,7 +630,7 @@ public:
 /**
   Parse tree Item wrapper for 3-dimentional variable names
   
-  Example: @global.default.x
+  Example: \@global.default.x
 */
 class PTI_variable_aux_3d : public Parse_tree_item
 {
@@ -835,10 +737,10 @@ class PTI_singlerow_subselect : public Parse_tree_item
 {
   typedef Parse_tree_item super;
 
-  PT_subselect *subselect;
+  PT_subquery *subselect;
 
 public:
-  PTI_singlerow_subselect(const POS &pos, PT_subselect *subselect_arg)
+  PTI_singlerow_subselect(const POS &pos, PT_subquery *subselect_arg)
   : super(pos), subselect(subselect_arg)
   {}
 
@@ -850,10 +752,10 @@ class PTI_exists_subselect : public Parse_tree_item
 {
   typedef Parse_tree_item super;
 
-  PT_subselect *subselect;
+  PT_subquery *subselect;
 
 public:
-  PTI_exists_subselect(const POS &pos, PT_subselect *subselect_arg)
+  PTI_exists_subselect(const POS &pos, PT_subquery *subselect_arg)
   : super(pos), subselect(subselect_arg)
   {}
 
@@ -878,7 +780,6 @@ public:
     if (super::itemize(pc, res) || expr->itemize(pc, &expr))
       return true;
 
-    Item_string *item;
     *res= NULL;
     /*
       If "expr" is reasonably short pure ASCII string literal,
@@ -889,12 +790,11 @@ public:
       SELECT {ts'2001-01-01 10:20:30'};
     */
     if (expr->type() == Item::STRING_ITEM &&
-       (item= (Item_string *) expr) &&
-        item->collation.repertoire == MY_REPERTOIRE_ASCII &&
-        item->str_value.length() < MAX_DATE_STRING_REP_LENGTH * 4)
+        expr->collation.repertoire == MY_REPERTOIRE_ASCII &&
+        expr->str_value.length() < MAX_DATE_STRING_REP_LENGTH * 4)
     {
       enum_field_types type= MYSQL_TYPE_STRING;
-      ErrConvString str(&item->str_value);
+      ErrConvString str(&expr->str_value);
       LEX_STRING *ls= &ident;
       if (ls->length == 1)
       {

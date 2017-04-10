@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -25,7 +25,15 @@
 extern "C" {
 #endif
 
-#define UNDEFINED_PROCESSOR_SET 0xFFFF
+/* Error codes for Locking to CPUs and CPU sets */
+#define BIND_CPU_NOT_SUPPORTED_ERROR 31999
+#define CPU_SET_MIX_EXCLUSIVE_ERROR 31998
+#define EXCLUSIVE_CPU_SET_NOT_SUPPORTED_ERROR 31997
+#define NON_EXCLUSIVE_CPU_SET_NOT_SUPPORTED_ERROR 31996
+#define CPU_ID_OUT_OF_RANGE_ERROR 31995
+#define CPU_ID_MISSING_ERROR 31994
+#define SET_THREAD_PRIO_NOT_SUPPORTED_ERROR 31993
+#define SET_THREAD_PRIO_OUT_OF_RANGE_ERROR 31992
 
 typedef enum NDB_THREAD_PRIO_ENUM {
   NDB_THREAD_PRIO_HIGHEST,
@@ -39,6 +47,7 @@ typedef enum NDB_THREAD_TLS_ENUM {
   NDB_THREAD_TLS_JAM,           /* Jam buffer pointer. */
   NDB_THREAD_TLS_THREAD,        /* Thread self pointer. */
   NDB_THREAD_TLS_NDB_THREAD,    /* NDB thread pointer */
+  NDB_THREAD_TLS_RES_OWNER,     /* (Debug only) Shared resource owner */
   NDB_THREAD_TLS_MAX
 } NDB_THREAD_TLS;
 
@@ -53,7 +62,7 @@ struct NdbThread;
   signum set in g_ndb_shm_signum in a portable manner.
 */
 #ifdef NDB_SHM_TRANSPORTER
-void NdbThread_set_shm_sigmask(my_bool block);
+void NdbThread_set_shm_sigmask(bool block);
 #endif
 
 /**
@@ -77,6 +86,12 @@ struct NdbThread* NdbThread_Create(NDB_THREAD_FUNC *p_thread_func,
  *   other NdbThread_*-functions
  */
 struct NdbThread* NdbThread_CreateObject(const char * name);
+
+/**
+ * Create a thread object handled by other portability system
+ * where we want to use Ndb for CPU locking.
+ */
+struct NdbThread* NdbThread_CreateLockObject(int tid);
 
 /**
  * Destroy a thread
@@ -105,14 +120,15 @@ void NdbThread_Exit(void *status);
 
 /**
  * Set thread concurrency level
- *   
+ * Deprecated function and no longer used other than in old
+ * program parts.
  * *  
  */
 int NdbThread_SetConcurrencyLevel(int level);
 
 /**
  * Get "Tid" for thread
- *   should only be used for printing etc...
+ * This is used in many OS interfaces and also used for printing.
  *   return -1, if not supported on platform
  */
 int NdbThread_GetTid(struct NdbThread*);
@@ -121,30 +137,111 @@ int NdbThread_GetTid(struct NdbThread*);
  * Yield to normal time-share prio and back to real-time prio for
  * real-time threads
  */
-int NdbThread_yield_rt(struct NdbThread*, my_bool high_prio);
+int NdbThread_yield_rt(struct NdbThread*, bool high_prio);
 
 /**
  * Set Scheduler for thread
+ * This sets real-time priority of the thread.
  */
-int NdbThread_SetScheduler(struct NdbThread*, my_bool rt_prio, my_bool high_prio);
+int NdbThread_SetScheduler(struct NdbThread*, bool rt_prio, bool high_prio);
+
+/**
+ * Set Thread priority for thread
+ *
+ * SetThreadPrioNormal is equal to SetThreadPrio(thread, 5);
+ *
+ * Currently we support 11 levels from 0 to 10. 10 is a bit special level
+ * on Solaris which indicates to Solaris that we want to own a CPU core.
+ * On Windows, prio 10 indicates a special real-time priority. 
+ */
+#define NO_THREAD_PRIO_USED 11
+#define MAX_THREAD_PRIO_NUMBER 10
+int NdbThread_SetThreadPrio(struct NdbThread*, unsigned int prio);
+int NdbThread_SetThreadPrioNormal(struct NdbThread*);
 
 /**
  * Lock/Unlock Thread to CPU
+ * These calls are support routines to the calls defined in
+ * NdbLockCpuUtil.c. These calls handle all the portability
+ * aspects.
+ */
+
+/**
+ * Both of the below structs are defined on higher layers in the
+ * API. They are however stored on the thread object in this
+ * layer, so we need to be able to store pointers to those.
  */
 struct NdbCpuSet;
 struct processor_set_handler;
 
+/**
+ * Create a CPU set for later use in locking call.
+ * The CPU set is a non-exclusive CPU set.
+ */
 int NdbThread_LockCreateCPUSet(const Uint32 *cpu_ids,
                                Uint32 num_cpus,
                                struct NdbCpuSet **cpu_set);
+
+/**
+ * Create a CPU set for later use in locking call.
+ * The CPU set is an exclusive CPU set. This means that
+ * no other threads can use this set of CPUs for any
+ * activity. This is currently only supported on Solaris.
+ */
+int NdbThread_LockCreateCPUSetExclusive(const Uint32 *cpu_ids,
+                                        Uint32 num_cpus,
+                                        struct NdbCpuSet **cpu_set);
+
+/**
+ * Destroy a CPU set previously used to lock CPUs, this is destruction
+ * of a non-exclusive CPU set.
+ */
 void NdbThread_LockDestroyCPUSet(struct NdbCpuSet *cpu_set);
+
+/**
+ * Destroy a CPU set previously used to lock CPUs, this is destruction
+ * of an exclusive CPU set.
+ */
+void NdbThread_LockDestroyCPUSetExclusive(struct NdbCpuSet *cpu_set);
+
+/**
+ * Make the locking call for this particular thread to a previously set
+ * up CPU set which is non-exclusive.
+ */
 int NdbThread_LockCPUSet(struct NdbThread*,
                          struct NdbCpuSet *cpu_set,
                          const struct processor_set_handler *cpu_set_key);
+
+/**
+ * Make the locking call for this particular thread to a previously set
+ * up CPU set which is exclusive.
+ */
+int NdbThread_LockCPUSetExclusive(struct NdbThread*,
+                                  struct NdbCpuSet *cpu_set,
+                                  const struct processor_set_handler *cpu_set_key);
+
+/**
+ * Lock a thread to a specific CPU in an non-exclusive manner.
+ */
 int NdbThread_LockCPU(struct NdbThread*,
                       Uint32 cpu,
                       const struct processor_set_handler *cpu_set_key);
+
+/**
+ * Restore the old locking (if any) that was in place before the first call
+ * to lock to CPU sets.
+ */
 int NdbThread_UnlockCPU(struct NdbThread*);
+
+/**
+ * Unassign thread from CPU set (only needed on Windows)
+ */
+void NdbThread_UnassignFromCPUSet(struct NdbThread*,
+                                  struct NdbCpuSet *cpu_set);
+
+/**
+ * Retrieve CPU set key from portability layer.
+ */
 const struct processor_set_handler*
   NdbThread_LockGetCPUSetKey(struct NdbThread*);
 

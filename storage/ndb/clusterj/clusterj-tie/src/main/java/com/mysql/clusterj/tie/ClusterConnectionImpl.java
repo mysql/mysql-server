@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+ *  Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -23,6 +23,7 @@ import java.util.Map;
 
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.Collections;
 
 import com.mysql.ndbjtie.ndbapi.Ndb;
 import com.mysql.ndbjtie.ndbapi.Ndb_cluster_connection;
@@ -67,7 +68,7 @@ public class ClusterConnectionImpl
     final int connectTimeoutMgm;
 
     /** All regular dbs (not dbForNdbRecord) given out by this cluster connection */
-    private Map<DbImpl, Object> dbs = new IdentityHashMap<DbImpl, Object>();
+    private Map<DbImpl, Object> dbs = Collections.synchronizedMap(new IdentityHashMap<DbImpl, Object>());
 
     /** The DbImplForNdbRecord */
     DbImplForNdbRecord dbForNdbRecord;
@@ -79,7 +80,25 @@ public class ClusterConnectionImpl
     private int[] byteBufferPoolSizes;
 
     /** The byte buffer pool */
-    private VariableByteBufferPoolImpl byteBufferPool;
+    protected VariableByteBufferPoolImpl byteBufferPool;
+
+    /** A "big enough" size for error information */
+    private int errorBufferSize = 300;
+
+    /** The byte buffer pool for DbImpl error buffers */
+    protected FixedByteBufferPoolImpl byteBufferPoolForDBImplError;
+
+    /** The size of the coordinated transaction identifier buffer */
+    private final static int COORDINATED_TRANSACTION_ID_SIZE = 44;
+
+    /** The byte buffer pool for coordinated transaction id */
+    protected FixedByteBufferPoolImpl byteBufferPoolForCoordinatedTransactionId;
+
+    /** The size of the partition key scratch buffer */
+    private final static int PARTITION_KEY_BUFFER_SIZE = 10000;
+
+    /** The byte buffer pool for DbImpl error buffers */
+    protected FixedByteBufferPoolImpl byteBufferPoolForPartitionKey;
 
     /** The dictionary used to create NdbRecords */
     Dictionary dictionaryForNdbRecord = null;
@@ -91,6 +110,8 @@ public class ClusterConnectionImpl
     private static final boolean USE_SMART_VALUE_HANDLER =
             ClusterJHelper.getBooleanProperty(USE_SMART_VALUE_HANDLER_NAME, "true");
 
+    protected static boolean queryObjectsInitialized = false;
+
     /** Connect to the MySQL Cluster
      * 
      * @param connectString the connect string
@@ -100,6 +121,12 @@ public class ClusterConnectionImpl
         this.connectString = connectString;
         this.nodeId = nodeId;
         this.connectTimeoutMgm = connectTimeoutMgm;
+        byteBufferPoolForDBImplError =
+                new FixedByteBufferPoolImpl(errorBufferSize, "DBImplErrorBufferPool");
+        byteBufferPoolForCoordinatedTransactionId =
+                new FixedByteBufferPoolImpl(COORDINATED_TRANSACTION_ID_SIZE, "CoordinatedTransactionIdBufferPool");
+        byteBufferPoolForPartitionKey =
+                new FixedByteBufferPoolImpl(PARTITION_KEY_BUFFER_SIZE, "PartitionKeyBufferPool");
         clusterConnection = Ndb_cluster_connection.create(connectString, nodeId);
         handleError(clusterConnection, connectString, nodeId);
         int timeoutError = clusterConnection.set_timeout(connectTimeoutMgm);
@@ -126,6 +153,8 @@ public class ClusterConnectionImpl
                 Ndb ndbForNdbRecord = Ndb.create(clusterConnection, database, "def");
                 handleError(ndbForNdbRecord, clusterConnection, connectString, nodeId);
                 dbForNdbRecord = new DbImplForNdbRecord(this, ndbForNdbRecord);
+                // get an instance of stand-alone query objects to avoid synchronizing later
+                dbForNdbRecord.initializeQueryObjects();
                 dictionaryForNdbRecord = dbForNdbRecord.getNdbDictionary();
             }
         }
@@ -226,9 +255,8 @@ public class ClusterConnectionImpl
     }
 
     public int dbCount() {
-        // one of the dbs is for the NdbRecord dictionary if it is not null
-        int dbForNdbRecord = (dictionaryForNdbRecord == null)?0:1;
-        return dbs.size() - dbForNdbRecord;
+        // dbForNdbRecord is not included in the dbs list
+        return dbs.size();
     }
 
     /** 
@@ -246,7 +274,8 @@ public class ClusterConnectionImpl
      */
     protected NdbRecordImpl getCachedNdbRecordImpl(Table storeTable) {
         dbForNdbRecord.assertOpen("ClusterConnectionImpl.getCachedNdbRecordImpl for table");
-        String tableName = storeTable.getName();
+        // tableKey is table name plus projection indicator
+        String tableName = storeTable.getKey();
         // find the NdbRecordImpl in the global cache
         NdbRecordImpl result = ndbRecordImplMap.get(tableName);
         if (result != null) {
@@ -329,19 +358,38 @@ public class ClusterConnectionImpl
 
     /** Remove the cached NdbRecord(s) associated with this table. This allows schema change to work.
      * All NdbRecords including any index NdbRecords will be removed. Index NdbRecords are named
-     * tableName+indexName.
+     * tableName+indexName. Cached schema objects in NdbDictionary are also removed.
+     * This method should be called by the application after receiving an exception that indicates
+     * that the table definition has changed since the metadata was loaded. Such changes as
+     * truncate table or dropping indexes, columns, or tables may cause errors reported
+     * to the application, including code 241 "Invalid schema object version" and
+     * code 284 "Unknown table error in transaction coordinator".
      * @param tableName the name of the table
      */
     public void unloadSchema(String tableName) {
         // synchronize to avoid multiple threads unloading schema simultaneously
         // it is possible although unlikely that another thread is adding an entry while 
         // we are removing entries; if this occurs an error will be signaled here
+        boolean haveCachedTable = false;
         synchronized(ndbRecordImplMap) {
             Iterator<Map.Entry<String, NdbRecordImpl>> iterator = ndbRecordImplMap.entrySet().iterator();
             while (iterator.hasNext()) {
                 Map.Entry<String, NdbRecordImpl> entry = iterator.next();
                 String key = entry.getKey();
                 if (key.startsWith(tableName)) {
+                    haveCachedTable = true;
+                    // entries are of the form:
+                    //   tableName or
+                    //   tableName+indexName
+                    // split tableName[+indexName] into one or two parts
+                    // the "\" character is escaped once for Java and again for regular expression to escape +
+                    String[] tablePlusIndex = key.split("\\+");
+                    if (tablePlusIndex.length >1) {
+                        String indexName = tablePlusIndex[1];
+                        if (logger.isDebugEnabled())logger.debug("Removing dictionary entry for cached index " +
+                                tableName + " " + indexName);
+                        dictionaryForNdbRecord.invalidateIndex(indexName, tableName);
+                    }
                     // remove all records whose key begins with the table name; this will remove index records also
                     if (logger.isDebugEnabled())logger.debug("Removing cached NdbRecord for " + key);
                     NdbRecordImpl record = entry.getValue();
@@ -351,8 +399,11 @@ public class ClusterConnectionImpl
                     }
                 }
             }
-            if (logger.isDebugEnabled())logger.debug("Removing dictionary entry for cached table " + tableName);
-            dictionaryForNdbRecord.removeCachedTable(tableName);
+            // invalidate cached dictionary table after invalidate cached indexes
+            if (haveCachedTable) {
+                if (logger.isDebugEnabled())logger.debug("Removing dictionary entry for cached table " + tableName);
+                dictionaryForNdbRecord.invalidateTable(tableName);
+            }
         }
     }
 

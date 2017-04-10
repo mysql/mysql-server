@@ -17,22 +17,22 @@ innodb_replication_delay	0
 show session variables like 'innodb_replication_delay';
 Variable_name	Value
 innodb_replication_delay	0
-select * from information_schema.global_variables where variable_name='innodb_replication_delay';
+select * from performance_schema.global_variables where variable_name='innodb_replication_delay';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_REPLICATION_DELAY	0
-select * from information_schema.session_variables where variable_name='innodb_replication_delay';
+innodb_replication_delay	0
+select * from performance_schema.session_variables where variable_name='innodb_replication_delay';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_REPLICATION_DELAY	0
+innodb_replication_delay	0
 set global innodb_replication_delay=10;
 select @@global.innodb_replication_delay;
 @@global.innodb_replication_delay
 10
-select * from information_schema.global_variables where variable_name='innodb_replication_delay';
+select * from performance_schema.global_variables where variable_name='innodb_replication_delay';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_REPLICATION_DELAY	10
-select * from information_schema.session_variables where variable_name='innodb_replication_delay';
+innodb_replication_delay	10
+select * from performance_schema.session_variables where variable_name='innodb_replication_delay';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_REPLICATION_DELAY	10
+innodb_replication_delay	10
 set session innodb_replication_delay=1;
 ERROR HY000: Variable 'innodb_replication_delay' is a GLOBAL variable and should be set with SET GLOBAL
 set global innodb_replication_delay=DEFAULT;
@@ -79,9 +79,9 @@ Warning	1292	Truncated incorrect innodb_replication_delay value: '-1024'
 select @@global.innodb_replication_delay;
 @@global.innodb_replication_delay
 0
-select * from information_schema.global_variables where variable_name='innodb_replication_delay';
+select * from performance_schema.global_variables where variable_name='innodb_replication_delay';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_REPLICATION_DELAY	0
+innodb_replication_delay	0
 SET @@global.innodb_replication_delay = 4294967296;
 SELECT @@global.innodb_replication_delay IN (4294967296,4294967295);
 @@global.innodb_replication_delay IN (4294967296,4294967295)

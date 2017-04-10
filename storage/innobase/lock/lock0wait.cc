@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -25,15 +25,20 @@ Created 25/5/2010 Sunny Bains
 
 #define LOCK_MODULE_IMPLEMENTATION
 
-#include "ha_prototypes.h"
 #include <mysql/service_thd_wait.h>
+#include <sys/types.h>
+#include <time.h>
 
-#include "srv0mon.h"
-#include "que0que.h"
+#include "ha_prototypes.h"
 #include "lock0lock.h"
-#include "row0mysql.h"
-#include "srv0start.h"
 #include "lock0priv.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "os0thread-create.h"
+#include "que0que.h"
+#include "row0mysql.h"
+#include "srv0mon.h"
+#include "srv0start.h"
 
 /*********************************************************************//**
 Print the contents of the lock_sys_t::waiting_threads array. */
@@ -46,7 +51,7 @@ lock_wait_table_print(void)
 
 	const srv_slot_t*	slot = lock_sys->waiting_threads;
 
-	for (ulint i = 0; i < OS_THREAD_MAX_N; i++, ++slot) {
+	for (ulint i = 0; i < srv_max_n_threads; i++, ++slot) {
 
 		fprintf(stderr,
 			"Slot %lu: thread type %lu,"
@@ -70,7 +75,7 @@ lock_wait_table_release_slot(
 	srv_slot_t*	slot)		/*!< in: slot to release */
 {
 #ifdef UNIV_DEBUG
-	srv_slot_t*	upper = lock_sys->waiting_threads + OS_THREAD_MAX_N;
+	srv_slot_t*	upper = lock_sys->waiting_threads + srv_max_n_threads;
 #endif /* UNIV_DEBUG */
 
 	lock_wait_mutex_enter();
@@ -132,7 +137,6 @@ lock_wait_table_reserve_slot(
 					with the user OS thread */
 	ulong		wait_timeout)	/*!< in: lock wait timeout value */
 {
-	ulint		i;
 	srv_slot_t*	slot;
 
 	ut_ad(lock_wait_mutex_own());
@@ -140,7 +144,7 @@ lock_wait_table_reserve_slot(
 
 	slot = lock_sys->waiting_threads;
 
-	for (i = OS_THREAD_MAX_N; i--; ++slot) {
+	for (ulint i = srv_max_n_threads; i--; ++slot) {
 		if (!slot->in_use) {
 			slot->in_use = TRUE;
 			slot->thr = thr;
@@ -161,13 +165,13 @@ lock_wait_table_reserve_slot(
 			}
 
 			ut_ad(lock_sys->last_slot
-			      <= lock_sys->waiting_threads + OS_THREAD_MAX_N);
+			      <= lock_sys->waiting_threads + srv_max_n_threads);
 
 			return(slot);
 		}
 	}
 
-	ib::error() << "There appear to be " << OS_THREAD_MAX_N << " user"
+	ib::error() << "There appear to be " << srv_max_n_threads << " user"
 		" threads currently waiting inside InnoDB, which is the upper"
 		" limit. Cannot continue operation. Before aborting, we print"
 		" a list of waiting threads.";
@@ -243,7 +247,7 @@ lock_wait_suspend_thread(
 		srv_stats.n_lock_wait_count.inc();
 		srv_stats.n_lock_wait_current_count.inc();
 
-		if (ut_usectime(&sec, &ms) == -1) {
+		if (ut_high_res_usectime(&sec, &ms) == -1) {
 			start_time = -1;
 		} else {
 			start_time = static_cast<int64_t>(sec) * 1000000 + ms;
@@ -338,7 +342,7 @@ lock_wait_suspend_thread(
 	if (thr->lock_state == QUE_THR_LOCK_ROW) {
 		ulint	diff_time;
 
-		if (ut_usectime(&sec, &ms) == -1) {
+		if (ut_high_res_usectime(&sec, &ms) == -1) {
 			finish_time = -1;
 		} else {
 			finish_time = static_cast<int64_t>(sec) * 1000000 + ms;
@@ -470,25 +474,14 @@ lock_wait_check_and_cancel(
 
 }
 
-/*********************************************************************//**
-A thread which wakes up threads whose lock wait may have lasted too long.
-@return a dummy parameter */
-extern "C"
-os_thread_ret_t
-DECLARE_THREAD(lock_wait_timeout_thread)(
-/*=====================================*/
-	void*	arg MY_ATTRIBUTE((unused)))
-			/* in: a dummy parameter required by
-			os_thread_create */
+/** A thread which wakes up threads whose lock wait may have lasted too long. */
+void
+lock_wait_timeout_thread()
 {
 	int64_t		sig_count = 0;
 	os_event_t	event = lock_sys->timeout_event;
 
 	ut_ad(!srv_read_only_mode);
-
-#ifdef UNIV_PFS_THREAD
-	pfs_register_thread(srv_lock_timeout_thread_key);
-#endif /* UNIV_PFS_THREAD */
 
 	lock_sys->timeout_thread_active = true;
 
@@ -531,12 +524,5 @@ DECLARE_THREAD(lock_wait_timeout_thread)(
 	} while (srv_shutdown_state < SRV_SHUTDOWN_CLEANUP);
 
 	lock_sys->timeout_thread_active = false;
-
-	/* We count the number of threads in os_thread_exit(). A created
-	thread should always use that to exit and not use return() to exit. */
-
-	os_thread_exit();
-
-	OS_THREAD_DUMMY_RETURN;
 }
 

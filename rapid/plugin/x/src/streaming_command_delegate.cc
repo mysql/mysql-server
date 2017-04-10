@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -19,14 +19,16 @@
 
 #include "streaming_command_delegate.h"
 
-#include "xpl_log.h"
-#include "ngs/protocol/row_builder.h"
-#include "ngs_common/protocol_protobuf.h"
-#include "ngs_common/protocol_const.h"
-
-#include "decimal.h"
+#include <stddef.h>
 #include <iostream>
 #include <string>
+
+#include "decimal.h"
+#include "my_dbug.h"
+#include "ngs/protocol/row_builder.h"
+#include "ngs_common/protocol_const.h"
+#include "ngs_common/protocol_protobuf.h"
+#include "xpl_log.h"
 
 using namespace xpl;
 
@@ -262,7 +264,7 @@ int Streaming_command_delegate::get_null()
 
 int Streaming_command_delegate::get_integer(longlong value)
 {
-  my_bool unsigned_flag = (m_field_types[m_proto->row_builder().get_num_fields()].flags & UNSIGNED_FLAG) != 0;
+  bool unsigned_flag = (m_field_types[m_proto->row_builder().get_num_fields()].flags & UNSIGNED_FLAG) != 0;
 
   return get_longlong(value, unsigned_flag);
 }
@@ -297,7 +299,7 @@ int Streaming_command_delegate::get_decimal(const decimal_t * value)
   return false;
 }
 
-int Streaming_command_delegate::get_double(double value, uint32 decimals)
+int Streaming_command_delegate::get_double(double value, uint32)
 {
   if (m_field_types[m_proto->row_builder().get_num_fields()].type == MYSQL_TYPE_FLOAT)
     m_proto->row_builder().add_float_field(static_cast<float>(value));

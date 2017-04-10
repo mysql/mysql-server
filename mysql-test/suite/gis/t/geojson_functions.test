@@ -110,10 +110,14 @@ SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10 11)", 13), 100, 4);
 SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10 11)", 4326), 100, 6);
 SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10 11)", 0), 100, 5);
 SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10 11)", 0), 100, 2);
+--error ER_DATA_OUT_OF_RANGE
 SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10 11)", -1), 100, 4);
+--error ER_DATA_OUT_OF_RANGE
 SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10 11)", -1000), 100, 6);
 SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10 11)", 4294967295), 100, 6);
+--error ER_DATA_OUT_OF_RANGE
 SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10 11)", 4294967296), 100, 6);
+--error ER_DATA_OUT_OF_RANGE
 SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10 11)", 4294967295123), 100, 7);
 
 SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10.123456789 11.123456789)", 12), 0, 0);
@@ -137,10 +141,14 @@ SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10.1234567890123456789 11.12345678901
 SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10.1234567890123456789 11.1234567890123456789)", 1), 10, 7);
 
 SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10 11)", "0"), 100, 1);
+--error ER_DATA_OUT_OF_RANGE
 SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10 11)", "-1"), 100, 2);
+--error ER_DATA_OUT_OF_RANGE
 SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10 11)", "-1000"), 100, 3);
 SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10 11)", "4294967295"), 100, 4);
+--error ER_DATA_OUT_OF_RANGE
 SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10 11)", "4294967296"), 100, 5);
+--error ER_DATA_OUT_OF_RANGE
 SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10 11)", "4294967295123"), 100, 6);
 SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10 11)", (CAST(10 AS CHAR))), 100, 7);
 
@@ -1979,13 +1987,13 @@ SELECT ST_GEOMFROMGEOJSON("", 9223372036854775807);
 --error ER_WRONG_VALUE_FOR_TYPE
 SELECT ST_GEOMFROMGEOJSON("", 9223372036854775808);
 
---error ER_WRONG_VALUE_FOR_TYPE
+--error ER_DATA_OUT_OF_RANGE
 SELECT ST_GEOMFROMGEOJSON("", 1, -9223372036854775808);
 
---error ER_WRONG_VALUE_FOR_TYPE
+--error ER_DATA_OUT_OF_RANGE
 SELECT ST_GEOMFROMGEOJSON("", 1, 9223372036854775807);
 
---error ER_WRONG_VALUE_FOR_TYPE
+--error ER_DATA_OUT_OF_RANGE
 SELECT ST_GEOMFROMGEOJSON("", 1, 9223372036854775808);
 
 --echo # Checking invalid/incorrect option parameter input
@@ -2054,35 +2062,35 @@ SELECT ST_ASTEXT(ST_GEOMFROMGEOJSON(
   "{ \"type\": \"Point\", \"coordinates\": [10, 15] }", a));
 
 --echo # Checking invalid/incorrect ST_SRID parameter input
---error ER_WRONG_VALUE_FOR_TYPE
+--error ER_DATA_OUT_OF_RANGE
 SELECT ST_ASTEXT(ST_GEOMFROMGEOJSON(
   "{ \"type\": \"Point\", \"coordinates\": [10, 15] }", 1, -1));
 
---error ER_WRONG_VALUE_FOR_TYPE
+--error ER_DATA_OUT_OF_RANGE
 SELECT ST_ASTEXT(ST_GEOMFROMGEOJSON(
   "{ \"type\": \"Point\", \"coordinates\": [10, 15] }", 1, -1000));
 
---error ER_WRONG_VALUE_FOR_TYPE
+--error ER_DATA_OUT_OF_RANGE
 SELECT ST_ASTEXT(ST_GEOMFROMGEOJSON(
   "{ \"type\": \"Point\", \"coordinates\": [10, 15] }", 1, 4294967296));
 
---error ER_WRONG_VALUE_FOR_TYPE
+--error ER_DATA_OUT_OF_RANGE
 SELECT ST_ASTEXT(ST_GEOMFROMGEOJSON(
   "{ \"type\": \"Point\", \"coordinates\": [10, 15] }", 1, 4294967295000));
 
---error ER_WRONG_VALUE_FOR_TYPE
+--error ER_DATA_OUT_OF_RANGE
 SELECT ST_ASTEXT(ST_GEOMFROMGEOJSON(
   "{ \"type\": \"Point\", \"coordinates\": [10, 15] }", 1, "-1"));
 
---error ER_WRONG_VALUE_FOR_TYPE
+--error ER_DATA_OUT_OF_RANGE
 SELECT ST_ASTEXT(ST_GEOMFROMGEOJSON(
   "{ \"type\": \"Point\", \"coordinates\": [10, 15] }", 1, "-1000"));
 
---error ER_WRONG_VALUE_FOR_TYPE
+--error ER_DATA_OUT_OF_RANGE
 SELECT ST_ASTEXT(ST_GEOMFROMGEOJSON(
   "{ \"type\": \"Point\", \"coordinates\": [10, 15] }", 1, "4294967296"));
 
---error ER_WRONG_VALUE_FOR_TYPE
+--error ER_DATA_OUT_OF_RANGE
 SELECT ST_ASTEXT(ST_GEOMFROMGEOJSON(
   "{ \"type\": \"Point\", \"coordinates\": [10, 15] }", 1, "4294967295000"));
 
@@ -2461,6 +2469,9 @@ SELECT ST_GEOMFROMGEOJSON("{ \"\\uFFFF\" }");
 SELECT ST_ASTEXT(ST_GEOMFROMGEOJSON("{ \"type\": \"Point\", \"coordinates\": [4294967295, 9223372036854775807] }"));
 
 SELECT ST_ASTEXT(ST_GEOMFROMGEOJSON("{ \"type\": \"Point\", \"coordinates\": [18446744073709551615, 9223372036854775807] }"));
+
+--error ER_INVALID_JSON_TEXT_IN_PARAM
+SELECT ST_AsGeoJSON(ST_GeomFromGeoJSON('{"type":"Point","coordinates":[2e308,-0]}'));
 
 #####################################################################
 # BUG#19341961
@@ -3779,13 +3790,13 @@ SELECT ST_ASGEOJSON(POINT(1, 1), 18446744073709551615);
 --error ER_WRONG_VALUE_FOR_TYPE
 SELECT ST_ASGEOJSON(POINT(1, 1), 10, 18446744073709551615);
 
---error ER_WRONG_VALUE_FOR_TYPE
+--error ER_DATA_OUT_OF_RANGE
 SELECT ST_GEOMFROMGEOJSON('{"type":"Point", "coordinates":[10, 20]}', 1, -9223372036854775808);
 
 --error ER_WRONG_VALUE_FOR_TYPE
 SELECT ST_GEOMFROMGEOJSON('{"type":"Point", "coordinates":[10, 20]}', -9223372036854775808);
 
---error ER_WRONG_VALUE_FOR_TYPE
+--error ER_DATA_OUT_OF_RANGE
 SELECT ST_GEOMFROMGEOJSON('{"type":"Point", "coordinates":[10, 20]}', 1, 18446744073709551615);
 
 --error ER_WRONG_VALUE_FOR_TYPE
@@ -3875,6 +3886,23 @@ SELECT 1 FROM t GROUP BY ST_AsGeoJSON(NULL, 5, 0);
 DROP TABLE t;
 
 --echo #
+--echo # Bug#22804853 ST_GEOMFROMGEOJSON: ASSERTION FAILED: 0, FILE FILESORT.CC
+--echo #
+
+CREATE TABLE t (a INT) ENGINE=InnoDB;
+INSERT INTO t VALUES (1), (2);
+--error ER_GIS_INVALID_DATA
+SELECT DISTINCT SQL_BIG_RESULT ST_GeomFromGeoJSON('1', 1, ST_SRID(a)) FROM t;
+DROP TABLE t;
+
+--echo #
+--echo # Bug#22912800 ST_ASGEOJSON() DOESN'T WORK WITH SESSION VARIABLES
+--echo #
+
+SET @geometry := ST_GeomFromText("POINT(4.9 52.366667)");
+SELECT ST_AsGeoJSON(@geometry);
+
+--echo #
 --echo # Bug#22930020 INVALID DATA FOR ST_GEOMFROMGEOJSON() IS HARD TO DIAGNOSE
 --echo #
 
@@ -3894,3 +3922,64 @@ SELECT ST_GeomFromGeoJSON('null');
 SELECT ST_GeomFromGeoJSON('Null');
 
 DROP TABLE t1;
+
+--echo #
+--echo # WL#8579 Spatial Reference Systems
+--echo #
+
+--echo # SRID 0 (should pass)
+SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT('POINT(0 0)', 0));
+SELECT ST_SRID(ST_GEOMFROMGEOJSON(
+"  { \"type\": \"Point\", \"coordinates\": [10, 20],               "
+"      \"crs\":                                                    "
+"        { \"type\": \"name\", \"properties\":                     "
+"          { \"name\": \"urn:ogc:def:crs:OGC:1.3:crs84\" }         "
+"        }                                                         "
+"  }", 1, 0));
+
+--echo # Projected SRS (should pass)
+SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT('POINT(0 0)', 2000));
+SELECT ST_SRID(ST_GEOMFROMGEOJSON(
+"  { \"type\": \"Point\", \"coordinates\": [10, 20],               "
+"      \"crs\":                                                    "
+"        { \"type\": \"name\", \"properties\":                     "
+"          { \"name\": \"urn:ogc:def:crs:OGC:1.3:crs84\" }         "
+"        }                                                         "
+"  }", 1, 2000));
+
+--echo # Geographic SRS (should pass)
+SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT('POINT(0 0)', 4326));
+SELECT ST_SRID(ST_GEOMFROMGEOJSON(
+"  { \"type\": \"Point\", \"coordinates\": [10, 20],               "
+"      \"crs\":                                                    "
+"        { \"type\": \"name\", \"properties\":                     "
+"          { \"name\": \"urn:ogc:def:crs:OGC:1.3:crs84\" }         "
+"        }                                                         "
+"  }", 1, 4326));
+
+--echo # Undefined SRS (should pass)
+# Assume SRID 19000000 is undefined
+SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT('POINT(0 0)', 19000000));
+SELECT ST_SRID(ST_GEOMFROMGEOJSON(
+"  { \"type\": \"Point\", \"coordinates\": [10, 20],               "
+"      \"crs\":                                                    "
+"        { \"type\": \"name\", \"properties\":                     "
+"          { \"name\": \"urn:ogc:def:crs:OGC:1.3:crs84\" }         "
+"        }                                                         "
+"  }", 1, 19000000));
+
+--echo # Unparseable SRS definition (should pass)
+# Assume SRID 22222222 is undefined
+INSERT INTO mysql.st_spatial_reference_systems(id, catalog_id, name,
+organization, organization_coordsys_id, definition, description)
+VALUES (22222222, 1, 'TEST22222222', 'Foo', 22222222, 'FOOBAR', '');
+--error ER_SRS_PARSE_ERROR
+SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT('POINT(0 0)', 22222222));
+SELECT ST_SRID(ST_GEOMFROMGEOJSON(
+"  { \"type\": \"Point\", \"coordinates\": [10, 20],               "
+"      \"crs\":                                                    "
+"        { \"type\": \"name\", \"properties\":                     "
+"          { \"name\": \"urn:ogc:def:crs:OGC:1.3:crs84\" }         "
+"        }                                                         "
+"  }", 1, 22222222));
+DELETE FROM mysql.st_spatial_reference_systems WHERE id = 22222222;

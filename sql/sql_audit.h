@@ -1,7 +1,7 @@
 #ifndef SQL_AUDIT_INCLUDED
 #define SQL_AUDIT_INCLUDED
 
-/* Copyright (c) 2007, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,9 +16,16 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "my_global.h"
+#include <string.h>
+
+#include "m_string.h"
+#include "my_command.h"
 #include "mysql/plugin_audit.h"
+#include "sql_plugin.h"
 #include "sql_security_ctx.h"       // Security_context
+
+class THD;
+struct TABLE_LIST;
 
 static const size_t MAX_USER_HOST_SIZE= 512;
 
@@ -47,7 +54,6 @@ static inline size_t make_user_name(Security_context *sctx, char *buf)
                              - buf);
 }
 
-#ifndef EMBEDDED_LIBRARY
 struct st_plugin_int;
 
 int initialize_audit_plugin(st_plugin_int *plugin);
@@ -72,7 +78,7 @@ void mysql_audit_release(THD *thd);
   @param[in] msg              Message
   @param[in] msg_len          Message length.
 
-  @result Value returned is not taken into consideration by the server.
+  @return Value returned is not taken into consideration by the server.
 */
 int mysql_audit_notify(THD *thd, mysql_event_general_subclass_t subclass,
                        const char* subclass_name,
@@ -84,7 +90,7 @@ int mysql_audit_notify(THD *thd, mysql_event_general_subclass_t subclass,
   @param[in] cmd    Command text.
   @param[in] cmdlen Command text length.
 
-  @result Value returned is not taken into consideration by the server.
+  @return Value returned is not taken into consideration by the server.
 */
 inline static
 int mysql_audit_general_log(THD *thd, const char *cmd, size_t cmdlen)
@@ -101,7 +107,7 @@ int mysql_audit_general_log(THD *thd, const char *cmd, size_t cmdlen)
   @param[in] subclass_name    Name of the subclass.
   @param[in] errcode          Error code.
 
-  @result 0 - continue server flow, otherwise abort.
+  @return 0 continue server flow, otherwise abort.
 */
 int mysql_audit_notify(THD *thd, mysql_event_connection_subclass_t subclass,
                        const char *subclass_name, int errcode);
@@ -115,7 +121,7 @@ int mysql_audit_notify(THD *thd, mysql_event_connection_subclass_t subclass,
   @param[out] flags           Rewritten query flags.
   @param[out] rewritten_query Rewritten query
 
-  @result 0 - continue server flow, otherwise abort.
+  @return 0 continue server flow, otherwise abort.
 */
 int mysql_audit_notify(THD *thd, mysql_event_parse_subclass_t subclass,
                        const char* subclass_name,
@@ -125,7 +131,7 @@ int mysql_audit_notify(THD *thd, mysql_event_parse_subclass_t subclass,
 /**
   Call audit plugins of AUTHORIZATION audit class.
 
-  @param[in] thd
+  @param[in] thd              Thread data.
   @param[in] subclass         Type of the connection audit event.
   @param[in] subclass_name    Name of the subclass.
   @param[in] database         object database
@@ -133,7 +139,7 @@ int mysql_audit_notify(THD *thd, mysql_event_parse_subclass_t subclass,
   @param[in] name             object name
   @param[in] name_length      object name length
 
-  @result 0 - continue server flow, otherwise abort.
+  @return 0 continue server flow, otherwise abort.
 */
 int mysql_audit_notify(THD *thd, mysql_event_authorization_subclass_t subclass,
                        const char *subclass_name,
@@ -150,7 +156,7 @@ int mysql_audit_notify(THD *thd, mysql_event_authorization_subclass_t subclass,
   @param[in] thd    Current thread data.
   @param[in] table  Connected list of tables, for which event is generated.
 
-  @result 0 - continue server flow, otherwise abort.
+  @return 0 - continue server flow, otherwise abort.
 */
 int mysql_audit_table_access_notify(THD *thd, TABLE_LIST *table);
 
@@ -164,7 +170,7 @@ int mysql_audit_table_access_notify(THD *thd, TABLE_LIST *table);
   @param[in] value         Textual value of the variable.
   @param[in] value_length  Textual value length.
 
-  @result 0 - continue server flow, otherwise abort.
+  @return 0 continue server flow, otherwise abort.
 */
 int mysql_audit_notify(THD *thd, mysql_event_global_variable_subclass_t subclass,
                        const char *subclass_name,
@@ -176,9 +182,9 @@ int mysql_audit_notify(THD *thd, mysql_event_global_variable_subclass_t subclass
   @param[in] subclass Type of the server startup audit event.
   @param[in] subclass_name Name of the subclass.
   @param[in] argv     Array of program arguments.
-  @parma[in] argc     Program arguments array length.
+  @param[in] argc     Program arguments array length.
 
-  @result 0 - continue server start, otherwise abort.
+  @return 0 continue server start, otherwise abort.
 */
 int mysql_audit_notify(mysql_event_server_startup_subclass_t subclass,
                        const char *subclass_name,
@@ -192,11 +198,12 @@ int mysql_audit_notify(mysql_event_server_startup_subclass_t subclass,
   @param[in] reason    Reason code of the shutdown.
   @param[in] exit_code Abort exit code.
 
-  @result Value returned is not taken into consideration by the server.
+  @return Value returned is not taken into consideration by the server.
 */
 int mysql_audit_notify(mysql_event_server_shutdown_subclass_t subclass,
                        mysql_server_shutdown_reason_t reason, int exit_code);
 
+#if 0 /* Function commented out. No Audit API calls yet. */
 /**
   Call audit plugins of AUTHORIZATION audit class.
 
@@ -207,10 +214,8 @@ int mysql_audit_notify(mysql_event_server_shutdown_subclass_t subclass,
   @param[in] table         Table name.
   @param[in] object        Object name associated with the authorization event.
 
-  @result 0 - continue server flow, otherwise abort.
+  @return 0 continue server flow, otherwise abort.
 */
-/*
-  Function commented out. No Audit API calls yet.
 
 int mysql_audit_notify(THD *thd,
                        mysql_event_authorization_subclass_t subclass,
@@ -218,7 +223,8 @@ int mysql_audit_notify(THD *thd,
                        const char *database,
                        const char *table,
                        const char *object);
-*/
+#endif
+
 /**
   Call audit plugins of CONNECTION audit class.
 
@@ -228,7 +234,7 @@ int mysql_audit_notify(THD *thd,
   @param[in] subclass      Type of the connection audit event.
   @param[in] subclass_name Name of the subclass.
 
-  @result 0 - continue server flow, otherwise abort.
+  @return 0 continue server flow, otherwise abort.
 */
 int mysql_audit_notify(THD *thd, mysql_event_connection_subclass_t subclass,
                        const char *subclass_name);
@@ -244,7 +250,7 @@ int mysql_audit_notify(THD *thd, mysql_event_connection_subclass_t subclass,
   @param[in] command       Command id value.
   @param[in] command_text  Command string value.
 
-  @result 0 - continue server flow, otherwise abort.
+  @return 0 continue server flow, otherwise abort.
 */
 int mysql_audit_notify(THD *thd, mysql_event_command_subclass_t subclass,
                        const char *subclass_name,
@@ -259,7 +265,7 @@ int mysql_audit_notify(THD *thd, mysql_event_command_subclass_t subclass,
   @param[in] subclass      Type of the query audit event.
   @param[in] subclass_name Name of the subclass.
 
-  @result 0 - continue server flow, otherwise abort.
+  @return 0 continue server flow, otherwise abort.
 */
 int mysql_audit_notify(THD *thd, mysql_event_query_subclass_t subclass,
                        const char *subclass_name);
@@ -274,7 +280,7 @@ int mysql_audit_notify(THD *thd, mysql_event_query_subclass_t subclass,
   @param[in] name          Name of the stored program.
   @param[in] parameters    Parameters of the stored program execution.
 
-  @result 0 - continue server flow, otherwise abort.
+  @return 0 continue server flow, otherwise abort.
 */
 int mysql_audit_notify(THD *thd,
                        mysql_event_stored_program_subclass_t subclass,
@@ -283,5 +289,4 @@ int mysql_audit_notify(THD *thd,
                        const char *name,
                        void *parameters);
 
-#endif /* !EMBEDDED_LIBRARY */
 #endif /* SQL_AUDIT_INCLUDED */

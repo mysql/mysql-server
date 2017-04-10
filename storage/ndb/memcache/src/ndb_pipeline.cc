@@ -1,29 +1,25 @@
 /*
- Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights
- reserved.
+  Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
  
- This program is free software; you can redistribute it and/or
- modify it under the terms of the GNU General Public License
- as published by the Free Software Foundation; version 2 of
- the License.
+  This program is free software; you can redistribute it and/or
+  modify it under the terms of the GNU General Public License
+  as published by the Free Software Foundation; version 2 of
+  the License.
  
- This program is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- GNU General Public License for more details.
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+  GNU General Public License for more details.
  
- You should have received a copy of the GNU General Public License
- along with this program; if not, write to the Free Software
- Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
- 02110-1301  USA
- */
+  You should have received a copy of the GNU General Public License
+  along with this program; if not, write to the Free Software
+  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 #include <my_config.h>
 #include <stdlib.h>
 #include <pthread.h>
 #include <stdio.h>
 
-/* C++ files must define __STDC_FORMAT_MACROS in order to get PRIu64 */
-#define __STDC_FORMAT_MACROS 
 #include <inttypes.h>
 
 #include "config.h"
@@ -278,7 +274,7 @@ void * pipeline_alloc(ndb_pipeline *self, int class_id) {
   if(! pthread_mutex_lock(& c->lock)) {
     if(c->free_idx || malloc_new_slab(c)) 
       ptr = c->list[-- c->free_idx];   // pop
-      pthread_mutex_unlock(& c->lock);
+    pthread_mutex_unlock(& c->lock);
   }
 
   return ptr;

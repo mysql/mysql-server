@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,6 +15,10 @@
 
 #ifndef _my_icp_h
 #define _my_icp_h
+
+/**
+  @file include/my_icp.h
+*/
 
 #ifdef	__cplusplus
 extern "C" {

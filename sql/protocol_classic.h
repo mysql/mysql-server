@@ -1,7 +1,7 @@
 #ifndef PROTOCOL_CLASSIC_INCLUDED
 #define PROTOCOL_CLASSIC_INCLUDED
 
-/* Copyright (c) 2002, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,13 +15,36 @@
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
-#include "sql_error.h"
-#include "my_decimal.h"                         /* my_decimal */
-#include "field.h"                              /* Send_field */
-#include "protocol.h"                           /* Protocol */
+
+#include <stddef.h>
+#include <sys/types.h>
+
+#include "binary_log_types.h"
+#include "my_command.h"
+#include "my_decimal.h"
+#include "my_inttypes.h"
+#include "my_io.h"
+#include "mysql_com.h"
+#include "protocol.h"            // Protocol
+#include "sql_string.h"
+#include "violite.h"
+
+class Proto_field;
+class Send_field;
+union COM_DATA;
 
 typedef struct st_mysql_field MYSQL_FIELD;
 class Item_param;
+class i_string;
+template <class T> class I_List;
+
+#ifdef __cplusplus
+class THD;
+
+#define MYSQL_THD THD*
+#else
+#define MYSQL_THD void*
+#endif
 
 class Protocol_classic : public Protocol
 {
@@ -40,19 +63,10 @@ protected:
 #endif
   uint field_count;
   uint sending_flags;
-  ulong packet_length;
-  uchar *raw_packet;
+  ulong input_packet_length;
+  uchar *input_raw_packet;
   CHARSET_INFO *result_cs;
-#ifndef EMBEDDED_LIBRARY
   bool net_store_data(const uchar *from, size_t length);
-#else
-  char **next_field;
-  MYSQL_FIELD *next_mysql_field;
-  MEM_ROOT *alloc;
-  MYSQL_FIELD  *client_field;
-  MEM_ROOT     *field_alloc;
-  virtual bool net_store_data(const uchar *from, size_t length);
-#endif
   virtual bool net_store_data(const uchar *from, size_t length,
                               const CHARSET_INFO *fromcs,
                               const CHARSET_INFO *tocs);
@@ -67,13 +81,15 @@ protected:
 
   virtual bool send_error(uint sql_errno, const char *err_msg,
                           const char *sql_state);
+  virtual bool store_ps_status(ulong stmt_id, uint column_count,
+                               uint param_count, ulong cond_count);
 public:
   bool bad_packet;
   Protocol_classic(): send_metadata(false), bad_packet(true) {}
   Protocol_classic(THD *thd):
         send_metadata(false),
-        packet_length(0),
-        raw_packet(NULL),
+        input_packet_length(0),
+        input_raw_packet(nullptr),
         bad_packet(true)
   {
     init(thd);
@@ -97,11 +113,9 @@ public:
   virtual bool create_command(COM_DATA *com_data,
                               enum_server_command cmd,
                               uchar *pkt, size_t length);
-  String *storage_packet() { return packet; }
   virtual bool flush();
   virtual void end_partial_result_set();
 
-  virtual bool send_out_parameters(List<Item_param> *sp_params)=0;
   virtual void start_row()=0;
   virtual bool end_row();
   virtual uint get_rw_status();
@@ -112,10 +126,6 @@ public:
   virtual bool end_result_metadata();
   virtual bool send_field_metadata(Send_field *field,
                                    const CHARSET_INFO *item_charset);
-#ifdef EMBEDDED_LIBRARY
-  int begin_dataset();
-  virtual void send_string_metadata(String* item_str);
-#endif
   virtual void abort_row() {}
   virtual enum enum_protocol_type type()= 0;
 
@@ -138,18 +148,10 @@ public:
   void claim_memory_ownership();
   /* Deinitialize NET */
   void end_net();
-  /* Flush NET buffer */
-  bool flush_net();
   /* Write data to NET buffer */
   bool write(const uchar *ptr, size_t len);
   /* Return last error from NET */
   uchar get_error();
-  /* Return last errno from NET */
-  uint get_last_errno();
-  /* Set NET errno to handled by caller */
-  void set_last_errno(uint err);
-  /* Return last error string */
-  char *get_last_error();
   /* Set max allowed packet size */
   void set_max_packet_size(ulong max_packet_size);
   /* Return SSL descriptor, if any */
@@ -191,15 +193,15 @@ public:
   /* Set VIO */
   void set_vio(Vio *vio);
   /* Set packet number */
-  void set_pkt_nr(uint pkt_nr);
+  void set_output_pkt_nr(uint pkt_nr);
   /* Return packet number */
-  uint get_pkt_nr();
+  uint get_output_pkt_nr();
   /* Return packet string */
-  String *get_packet();
+  String *get_output_packet();
   /* return packet length */
-  uint get_packet_length() { return packet_length; }
+  uint get_packet_length() { return input_packet_length; }
   /* Return raw packet buffer */
-  uchar *get_raw_packet() { return raw_packet; }
+  uchar *get_raw_packet() { return input_raw_packet; }
   /* Set read timeout */
   virtual void set_read_timeout(ulong read_timeout);
   /* Set write timeout */
@@ -229,11 +231,8 @@ public:
   virtual bool store_time(MYSQL_TIME *time, uint precision);
   virtual bool store(Proto_field *field);
   virtual void start_row();
+  virtual bool send_parameters(List<Item_param> *parameters, bool);
 
-  virtual bool send_out_parameters(List<Item_param> *sp_params);
-#ifdef EMBEDDED_LIBRARY
-  virtual void abort_row();
-#endif
   virtual enum enum_protocol_type type() { return PROTOCOL_TEXT; };
 protected:
   virtual bool store(const char *from, size_t length,
@@ -250,13 +249,6 @@ public:
   Protocol_binary() {}
   Protocol_binary(THD *thd_arg) :Protocol_text(thd_arg) {}
   virtual void start_row();
-#ifdef EMBEDDED_LIBRARY
-  virtual bool end_row();
-  bool net_store_data(const uchar *from, size_t length);
-  bool net_store_data(const uchar *from, size_t length,
-                      const CHARSET_INFO *fromcs,
-                      const CHARSET_INFO *tocs);
-#endif
   virtual bool store_null();
   virtual bool store_tiny(longlong from);
   virtual bool store_short(longlong from);
@@ -272,9 +264,10 @@ public:
   virtual bool store(const char *from, size_t length, const CHARSET_INFO *cs)
   { return store(from, length, cs, result_cs); }
 
-  virtual bool send_out_parameters(List<Item_param> *sp_params);
   virtual bool start_result_metadata(uint num_cols, uint flags,
                                      const CHARSET_INFO *resultcs);
+  virtual bool send_parameters(List<Item_param> *parameters,
+                               bool is_sql_prepare);
 
   virtual enum enum_protocol_type type() { return PROTOCOL_BINARY; };
 protected:
@@ -289,4 +282,7 @@ uchar *net_store_data(uchar *to,const uchar *from, size_t length);
 uchar *net_store_data(uchar *to,int32 from);
 uchar *net_store_data(uchar *to,longlong from);
 bool store(Protocol *prot, I_List<i_string> *str_list);
+bool net_send_ok(THD *, uint, uint, ulonglong, ulonglong, const char *, bool);
+bool net_send_eof(THD *thd, uint server_status, uint statement_warn_count);
+bool net_send_error_packet(THD *, uint, const char *, const char *);
 #endif /* PROTOCOL_CLASSIC_INCLUDED */

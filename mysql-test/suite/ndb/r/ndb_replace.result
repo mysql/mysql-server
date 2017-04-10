@@ -97,6 +97,8 @@ pk	apk	data
 4	1	NULL
 drop table t1;
 End of 5.0 tests.
+Warnings:
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
 CREATE TABLE t1(c1 INT NOT NULL PRIMARY KEY,
 c2 INT NOT NULL DEFAULT 3,
 c3 INT NULL DEFAULT 7,

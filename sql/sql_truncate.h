@@ -1,6 +1,7 @@
 #ifndef SQL_TRUNCATE_INCLUDED
 #define SQL_TRUNCATE_INCLUDED
-/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+
+/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,17 +16,18 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "my_global.h"
-#include "sql_cmd_dml.h"          // Sql_cmd_dml
+#include "my_sqlcommand.h"
+#include "sql_cmd.h"
 
 class MDL_ticket;
 class THD;
 struct TABLE_LIST;
+struct handlerton;
 
 /**
   Sql_cmd_truncate_table represents the TRUNCATE statement.
 */
-class Sql_cmd_truncate_table : public Sql_cmd_dml
+class Sql_cmd_truncate_table : public Sql_cmd
 {
 private:
   /* Set if a lock must be downgraded after truncate is done. */
@@ -53,10 +55,6 @@ public:
     return SQLCOM_TRUNCATE;
   }
 
-  virtual bool prepared_statement_test(THD *) { return false; }
-  virtual bool prepare(THD *) { return false; }
-  virtual void cleanup(THD *) {}
-
 protected:
   enum truncate_result{
     TRUNCATE_OK=0,
@@ -65,7 +63,7 @@ protected:
   };
 
   /** Handle locking a base table for truncate. */
-  bool lock_table(THD *, TABLE_LIST *, bool *);
+  bool lock_table(THD *, TABLE_LIST *, handlerton **);
 
   /** Truncate table via the handler method. */
   enum truncate_result handler_truncate(THD *, TABLE_LIST *, bool);

@@ -11,6 +11,7 @@ DESC sys.schema_tables_with_full_table_scans;
 SELECT * FROM sys.schema_tables_with_full_table_scans;
 --enable_result_log
 
+
 # Ensure structure changes don't slip in
 DESC sys.x$schema_tables_with_full_table_scans;
 

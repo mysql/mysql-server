@@ -1,17 +1,16 @@
 # The block size influence cost estimates in JSON EXPLAIN.
 # To produce the same cost estimates this test can only run with 16K pages.
---source include/have_innodb_16k.inc 
 
 #
 # Default values for cost constants (from the source code)
 #
-let $row_evaluate_cost= 0.2;
-let $key_compare_cost= 0.1;
-let $memory_temptable_create_cost= 2.0;
-let $memory_temptable_row_cost= 0.2;
-let $disk_temptable_create_cost= 40;
-let $disk_temptable_row_cost= 1.0;
-let $memory_block_read_cost= 1.0;
+let $row_evaluate_cost= 0.1;
+let $key_compare_cost= 0.05;
+let $memory_temptable_create_cost= 1.0;
+let $memory_temptable_row_cost= 0.1;
+let $disk_temptable_create_cost= 20;
+let $disk_temptable_row_cost= 0.5;
+let $memory_block_read_cost= 0.25;
 let $io_block_read_cost= 1.0;
 
 --echo #
@@ -51,13 +50,13 @@ let query_2= SELECT i3 FROM t1 WHERE i1 = 1 AND i3 = 1;
 
 # Create a user connection
 connect (con1,localhost,root,,);
-connection con1;
 
 # Get cost estimates with default values
 eval EXPLAIN FORMAT=JSON $query_1;
 eval EXPLAIN FORMAT=JSON $query_2;
 
 disconnect con1;
+--source include/wait_until_disconnected.inc
 connection default;
 
 # Double the value that the cost constants have:
@@ -114,7 +113,6 @@ FLUSH OPTIMIZER_COSTS;
 
 # Create a user connection
 connect (con1,localhost,root,,);
-connection con1;
 
 # The new cost estimates should be approximately the double compared to the
 # first run
@@ -122,6 +120,7 @@ eval EXPLAIN FORMAT=JSON $query_1;
 eval EXPLAIN FORMAT=JSON $query_2;
 
 disconnect con1;
+--source include/wait_until_disconnected.inc
 connection default;
 
 # Reset cost constants
@@ -177,7 +176,6 @@ let query= SELECT * FROM t1 JOIN t2 ON b=d ORDER BY a LIMIT 4;
 
 # Create a user connection
 connect (con1,localhost,root,,);
-connection con1;
 
 # Get cost estimates with default values
 --echo # Query should be optimized for the LIMIT. Query plan should
@@ -185,6 +183,7 @@ connection con1;
 eval EXPLAIN FORMAT=JSON $query;
 
 disconnect con1;
+--source include/wait_until_disconnected.inc
 connection default;
 
 # Halve the value of the cost constants:
@@ -241,7 +240,6 @@ FLUSH OPTIMIZER_COSTS;
 
 # Create a user connection
 connect (con1,localhost,root,,);
-connection con1;
 
 # The new cost estimates should be approximately half compared to the
 # first run. The query plan should still be the same.
@@ -250,6 +248,7 @@ connection con1;
 eval EXPLAIN FORMAT=JSON $query;
 
 disconnect con1;
+--source include/wait_until_disconnected.inc
 connection default;
 
 # Reset cost constants
@@ -262,3 +261,60 @@ SET cost_value=DEFAULT;
 FLUSH OPTIMIZER_COSTS;
 
 DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug#23508576 FILL_INDEXES_FROM_DD() DOES NOT INITIALIZE
+--echo #              ST_KEY::M_IN_MEMORY_ESTIMATE
+--echo #
+
+# Adjust cost constants to be different for reading pages from a memory
+# buffer compared to reading from disk.
+# Cost for reading pages from memory to 0.5
+UPDATE mysql.engine_cost
+SET cost_value=0.5
+WHERE cost_name="memory_block_read_cost";
+
+# Cost for reading pages from disk to 2.0
+UPDATE mysql.engine_cost
+SET cost_value=2
+WHERE cost_name="io_block_read_cost";
+
+FLUSH OPTIMIZER_COSTS;
+
+# Validate that the cost constants have been updated
+SELECT engine_name, device_type, cost_name, cost_value
+FROM mysql.engine_cost
+WHERE cost_name="memory_block_read_cost"
+   OR cost_name="io_block_read_cost";
+
+# Table must be stored in a storage engine that does not provide
+# estimates for how much of the index pages that are in a buffer
+CREATE TABLE t1 (
+  i1 INTEGER,
+  c1 CHAR(200),
+  INDEX idx (i1)
+) ENGINE=MyISAM;
+
+INSERT INTO t1 VALUES (1, "Ullensvang"), (2, "Odda"), (3, "Jondal");
+
+# Create a user connection
+connect (con1,localhost,root,,);
+
+--echo # Pass criteria for the query plan:
+--echo # 1. Should be executed as an index-only range scan
+--echo # 2. Cost estimate: "read_cost" - "eval_cost" should be approximately
+--echo #    the cost of reading one page from memory, ie. about 0.5.
+EXPLAIN FORMAT=JSON
+SELECT i1 FROM t1 WHERE i1 > 1;
+
+disconnect con1;
+--source include/wait_until_disconnected.inc
+connection default;
+
+DROP TABLE t1;
+
+# Reset cost constants for storage engines to default values
+UPDATE mysql.engine_cost
+SET cost_value=DEFAULT;
+
+FLUSH OPTIMIZER_COSTS;

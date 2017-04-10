@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2007, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2007, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -96,6 +96,11 @@ setup_directories(atrt_config& config, int setup)
   }
   return true;
 }
+
+static
+void
+printfile(FILE* out, Properties& props, const char * section, ...)
+  ATTRIBUTE_FORMAT(printf, 3, 4);
 
 static
 void
@@ -198,7 +203,7 @@ setup_files(atrt_config& config, int setup, int sshx)
 	  require(proc.m_options.m_loaded.get("--datadir=", &val));
 	  BaseString tmp;
 	  tmp.assfmt("%s --defaults-file=%s/my.cnf --basedir=%s --datadir=%s > %s/mysql_install_db.log 2>&1",
-		     g_mysql_install_db_bin_path, g_basedir, g_prefix, val, proc.m_proc.m_cwd.c_str());
+		     g_mysql_install_db_bin_path, g_basedir, g_prefix0, val, proc.m_proc.m_cwd.c_str());
 
           to_fwd_slashes(tmp);
 	  if (sh(tmp.c_str()) != 0)
@@ -327,7 +332,7 @@ setup_files(atrt_config& config, int setup, int sshx)
         fprintf(fenv, "PATH=");
         for (int i = 0; g_search_path[i] != 0; i++)
         {
-          fprintf(fenv, "%s/%s:", g_prefix, g_search_path[i]);
+          fprintf(fenv, "%s/%s:", g_prefix0, g_search_path[i]);
         }
         fprintf(fenv, "$PATH\n");
 	keys.push_back("PATH");

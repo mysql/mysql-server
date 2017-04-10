@@ -145,7 +145,7 @@ SELECT @@session.log_output;
 
 --disable_warnings
 SELECT @@log_output = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='log_output';
 --enable_warnings
 

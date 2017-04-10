@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,8 +16,11 @@
 #ifndef MUTEX_LOCK_INCLUDED
 #define MUTEX_LOCK_INCLUDED
 
-#include <my_global.h>
-#include <mysql/psi/mysql_thread.h>
+/**
+  @file include/mutex_lock.h
+*/
+
+#include <mysql/psi/mysql_mutex.h>
 
 /**
   A simple wrapper around a mutex:

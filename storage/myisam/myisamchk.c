@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,13 +15,31 @@
 
 /* Describe, check and repair of MyISAM tables */
 
-#include "fulltext.h"
-#include "my_default.h"
+#include "my_config.h"
 
+#include <assert.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <limits.h>
 #include <m_ctype.h>
-#include <stdarg.h>
-#include <my_getopt.h>
 #include <my_bit.h>
+#include <my_getopt.h>
+#include <stdarg.h>
+#include <stdlib.h>
+#include <sys/types.h>
+#include <time.h>
+
+#include "fulltext.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_default.h"
+#include "my_inttypes.h"
+#include "my_io.h"
+#include "my_macros.h"
+#include "myisam_sys.h"
+#include "print_version.h"
+#include "typelib.h"
+#include "welcome_copyright_notice.h" // ORACLE_WELCOME_COPYRIGHT_NOTICE
 #ifdef HAVE_SYS_MMAN_H
 #include <sys/mman.h>
 #endif
@@ -58,17 +76,16 @@ static const char *field_pack[]=
 static const char *myisam_stats_method_str="nulls_unequal";
 
 static void get_options(int *argc,char * * *argv);
-static void print_version(void);
 static void usage(void);
 static int myisamchk(MI_CHECK *param, char *filename);
 static void descript(MI_CHECK *param, MI_INFO *info, char * name);
 static int mi_sort_records(MI_CHECK *param, MI_INFO *info,
                            char * name, uint sort_key,
-			   my_bool write_info, my_bool update_index);
+			   bool write_info, bool update_index);
 static int sort_record_index(MI_SORT_PARAM *sort_param, MI_INFO *info,
                              MI_KEYDEF *keyinfo,
 			     my_off_t page,uchar *buff,uint sortkey,
-			     File new_file, my_bool update_index);
+			     File new_file, bool update_index);
 
 MI_CHECK check_param;
 
@@ -95,7 +112,6 @@ int main(int argc, char **argv)
   my_progname_short= my_progname+dirname_length(my_progname);
 
   myisamchk_init(&check_param);
-  check_param.opt_lock_memory=1;		/* Lock memory if possible */
   check_param.using_global_keycache = 0;
   get_options(&argc,(char***) &argv);
   myisam_quick_table_bits=decode_bits;
@@ -144,7 +160,6 @@ int main(int argc, char **argv)
   mysql_cond_destroy(&main_thread_keycache_var.suspend);
   my_delete_thread_local_key(keycache_tls_key);
   exit(error);
-  return 0;				/* No compiler warning */
 } /* main */
 
 enum options_mc {
@@ -290,7 +305,7 @@ static struct my_option my_long_options[] =
   { "key_buffer_size", OPT_KEY_BUFFER_SIZE, "",
     &check_param.use_buffers, &check_param.use_buffers, 0,
     GET_ULL, REQUIRED_ARG, USE_BUFFER_INIT, MALLOC_OVERHEAD,
-    SIZE_T_MAX, MALLOC_OVERHEAD,  IO_SIZE, 0},
+    SIZE_T_MAX, 0,  IO_SIZE, 0},
   { "key_cache_block_size", OPT_KEY_CACHE_BLOCK_SIZE,  "",
     &opt_key_cache_block_size,
     &opt_key_cache_block_size, 0,
@@ -304,30 +319,30 @@ static struct my_option my_long_options[] =
     &check_param.read_buffer_length,
     &check_param.read_buffer_length, 0, GET_ULONG, REQUIRED_ARG,
     (long) READ_BUFFER_INIT, (long) MALLOC_OVERHEAD,
-    INT_MAX32, (long) MALLOC_OVERHEAD, (long) 1L, 0},
+    INT_MAX32, 0, (long) 1L, 0},
   { "write_buffer_size", OPT_WRITE_BUFFER_SIZE, "",
     &check_param.write_buffer_length,
     &check_param.write_buffer_length, 0, GET_ULONG, REQUIRED_ARG,
     (long) READ_BUFFER_INIT, (long) MALLOC_OVERHEAD,
-    INT_MAX32, (long) MALLOC_OVERHEAD, (long) 1L, 0},
+    INT_MAX32, 0, (long) 1L, 0},
   { "sort_buffer_size", OPT_SORT_BUFFER_SIZE,
     "Deprecated. myisam_sort_buffer_size alias is being used",
     &check_param.sort_buffer_length,
     &check_param.sort_buffer_length, 0, GET_ULL, REQUIRED_ARG,
     (long) SORT_BUFFER_INIT, (long) (MIN_SORT_BUFFER + MALLOC_OVERHEAD),
-    SIZE_T_MAX, (long) MALLOC_OVERHEAD, (long) 1L, 0},
+    SIZE_T_MAX, 0, (long) 1L, 0},
   { "myisam_sort_buffer_size", OPT_SORT_BUFFER_SIZE, 
     "Alias of sort_buffer_size parameter",
     &check_param.sort_buffer_length,
     &check_param.sort_buffer_length, 0, GET_ULL, REQUIRED_ARG,
     (long) SORT_BUFFER_INIT, (long) (MIN_SORT_BUFFER + MALLOC_OVERHEAD),
-    SIZE_T_MAX, (long) MALLOC_OVERHEAD, (long) 1L, 0},
+    SIZE_T_MAX, 0, (long) 1L, 0},
   { "sort_key_blocks", OPT_SORT_KEY_BLOCKS, "",
     &check_param.sort_key_blocks,
     &check_param.sort_key_blocks, 0, GET_ULONG, REQUIRED_ARG,
-    BUFFERS_WHEN_SORTING, 4L, 100L, 0L, 1L, 0},
+    BUFFERS_WHEN_SORTING, 4L, 100L, 0, 1L, 0},
   { "decode_bits", OPT_DECODE_BITS, "", &decode_bits,
-    &decode_bits, 0, GET_UINT, REQUIRED_ARG, 9L, 4L, 17L, 0L, 1L, 0},
+    &decode_bits, 0, GET_UINT, REQUIRED_ARG, 9L, 4L, 17L, 0, 1L, 0},
   { "ft_min_word_len", OPT_FT_MIN_WORD_LEN, "", &ft_min_word_len,
     &ft_min_word_len, 0, GET_ULONG, REQUIRED_ARG, 4, 1, HA_FT_MAXCHARLEN,
     0, 1, 0},
@@ -348,18 +363,11 @@ static struct my_option my_long_options[] =
 };
 
 
-static void print_version(void)
-{
-  printf("%s  Ver 2.7 for %s at %s\n", my_progname, SYSTEM_TYPE,
-	 MACHINE_TYPE);
-}
-
-
 static void usage(void)
 {
   print_version();
-  puts("By Monty, for your professional use");
-  puts("This software comes with NO WARRANTY: see the PUBLIC for details.\n");
+  puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000"));
+
   puts("Description, check and repair of MyISAM tables.");
   puts("Used without options all tables on the command will be checked for errors");
   printf("Usage: %s [OPTIONS] tables[.MYI]\n", my_progname_short);
@@ -478,7 +486,7 @@ TYPELIB myisam_stats_method_typelib= {
 
 	 /* Read options */
 
-static my_bool
+static bool
 get_one_option(int optid,
 	       const struct my_option *opt MY_ATTRIBUTE((unused)),
 	       char *argument)
@@ -800,7 +808,7 @@ static int myisamchk(MI_CHECK *param, char * filename)
   MI_INFO *info;
   File datafile;
   char llbuff[22],llbuff2[22];
-  my_bool state_updated=0;
+  bool state_updated=0;
   MYISAM_SHARE *share;
   DBUG_ENTER("myisamchk");
 
@@ -866,7 +874,7 @@ static int myisamchk(MI_CHECK *param, char * filename)
   */
   if (param->testflag & (T_FAST | T_CHECK_ONLY_CHANGED))
   {
-    my_bool need_to_check= mi_is_crashed(info) || share->state.open_count != 0;
+    bool need_to_check= mi_is_crashed(info) || share->state.open_count != 0;
 
     if ((param->testflag & (T_REP_ANY | T_SORT_RECORDS)) &&
 	((share->state.changed & (STATE_CHANGED | STATE_CRASHED |
@@ -1042,7 +1050,7 @@ static int myisamchk(MI_CHECK *param, char * filename)
 	    We can't update the index in mi_sort_records if we have a
 	    prefix compressed or fulltext index
 	  */
-	  my_bool update_index=1;
+	  bool update_index=1;
 	  for (key=0 ; key < share->base.keys; key++)
 	    if (share->keyinfo[key].flag & (HA_BINARY_PACK_KEY|HA_FULLTEXT))
             {
@@ -1052,7 +1060,7 @@ static int myisamchk(MI_CHECK *param, char * filename)
 
 	  error=mi_sort_records(param,info,filename,param->opt_sort_key,
                              /* what is the following parameter for ? */
-				(my_bool) !(param->testflag & T_REP),
+				(bool) !(param->testflag & T_REP),
 				update_index);
 	  datafile=info->dfile;	/* This is now locked */
 	  if (!error && !update_index)
@@ -1109,7 +1117,6 @@ static int myisamchk(MI_CHECK *param, char * filename)
 			    share->pack.header_length),
 			   1,
 			   MYF(MY_WME));
-	lock_memory(param);
 	if ((info->s->options & (HA_OPTION_PACK_RECORD |
 				 HA_OPTION_COMPRESS_RECORD)) ||
 	    (param->testflag & (T_EXTEND | T_MEDIUM)))
@@ -1136,7 +1143,7 @@ static int myisamchk(MI_CHECK *param, char * filename)
   if ((param->testflag & T_AUTO_INC) ||
       ((param->testflag & T_REP_ANY) && info->s->base.auto_key))
     update_auto_increment_key(param, info,
-			      (my_bool) !MY_TEST(param->testflag & T_AUTO_INC));
+			      (bool) !MY_TEST(param->testflag & T_AUTO_INC));
 
   if (!(param->testflag & T_DESCRIPT))
   {
@@ -1376,8 +1383,8 @@ static void descript(MI_CHECK *param, MI_INFO *info, char * name)
     for (key=0,uniqueinfo= &share->uniqueinfo[0] ;
 	 key < share->state.header.uniques; key++, uniqueinfo++)
     {
-      my_bool new_row=0;
-      char null_bit[8],null_pos[8];
+      bool new_row=0;
+      char null_bit[8],null_pos[16];
       printf("%-8d%-5d",key+1,uniqueinfo->key+1);
       for (keyseg=uniqueinfo->seg ; keyseg->type != HA_KEYTYPE_END ; keyseg++)
       {
@@ -1386,8 +1393,8 @@ static void descript(MI_CHECK *param, MI_INFO *info, char * name)
 	null_bit[0]=null_pos[0]=0;
 	if (keyseg->null_bit)
 	{
-	  sprintf(null_bit,"%d",keyseg->null_bit);
-	  sprintf(null_pos,"%ld",(long) keyseg->null_pos+1);
+	  snprintf(null_bit, sizeof(null_bit), "%d", keyseg->null_bit);
+	  snprintf(null_pos, sizeof(null_pos), "%ld", (long) keyseg->null_pos+1);
 	}
 	printf("%-7ld%-5d%-9s%-10s%-30s\n",
 	       (long) keyseg->start+1,keyseg->length,
@@ -1455,8 +1462,8 @@ static void descript(MI_CHECK *param, MI_INFO *info, char * name)
 static int mi_sort_records(MI_CHECK *param,
 			   MI_INFO *info, char * name,
 			   uint sort_key,
-			   my_bool write_info,
-			   my_bool update_index)
+			   bool write_info,
+			   bool update_index)
 {
   int got_error;
   uint key;
@@ -1548,7 +1555,6 @@ static int mi_sort_records(MI_CHECK *param,
       goto err;
   info->rec_cache.file=new_file;		/* Use this file for cacheing*/
 
-  lock_memory(param);
   for (key=0 ; key < share->base.keys ; key++)
     share->keyinfo[key].flag|= HA_SORT_ALLOWS_SAME;
 
@@ -1557,7 +1563,7 @@ static int mi_sort_records(MI_CHECK *param,
 	       share->state.key_root[sort_key],
 	       MYF(MY_NABP+MY_WME)))
   {
-    mi_check_print_error(param,"Can't read indexpage from filepos: %s",
+    mi_check_print_error(param,"Can't read indexpage from filepos: %lu",
 		(ulong) share->state.key_root[sort_key]);
     goto err;
   }
@@ -1628,7 +1634,7 @@ err:
 static int sort_record_index(MI_SORT_PARAM *sort_param,MI_INFO *info,
                              MI_KEYDEF *keyinfo,
 			     my_off_t page, uchar *buff, uint sort_key,
-			     File new_file,my_bool update_index)
+			     File new_file,bool update_index)
 {
   uint	nod_flag,used_length,key_length;
   uchar *temp_buff,*keypos,*endpos;

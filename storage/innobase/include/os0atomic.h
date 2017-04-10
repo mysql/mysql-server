@@ -60,7 +60,7 @@ typedef ulint	lock_word_t;
 Atomic compare-and-swap and increment for InnoDB. */
 
 /** Do an atomic test and set.
-@param[in/out]	ptr	Memory location to set
+@param[in,out]	ptr	Memory location to set
 @param[in]	new_val	new value
 @return	old value of memory location. */
 UNIV_INLINE
@@ -71,7 +71,7 @@ os_atomic_test_and_set(
 
 
 /** Do an atomic compare and set
-@param[in/out]	ptr	Memory location to set
+@param[in,out]	ptr	Memory location to set
 @param[in]	old_val	old value to compare
 @param[in]	new_val	new value to set
 @return the value of ptr before the operation. */
@@ -141,11 +141,21 @@ compare to, new_val is the value to swap in. */
 	(win_cmp_and_xchg_ulint(ptr, new_val, old_val) == old_val)
 
 # define os_compare_and_swap_uint32(ptr, old_val, new_val) \
-	(InterlockedCompareExchange(ptr, new_val, old_val) == old_val)
+	(InterlockedCompareExchange(reinterpret_cast<volatile LONG*>(ptr), \
+				    static_cast<LONG>(new_val), \
+				    static_cast<LONG>(old_val)) \
+	 == static_cast<LONG>(old_val))
 
-/* windows thread objects can always be passed to windows atomic functions */
-# define os_compare_and_swap_thread_id(ptr, old_val, new_val) \
-	(win_cmp_and_xchg_dword(ptr, new_val, old_val) == old_val)
+# define os_compare_and_swap_uint64(ptr, old_val, new_val) \
+	(InterlockedCompareExchange64( \
+			reinterpret_cast<volatile LONGLONG*>(ptr), \
+			static_cast<LONGLONG>(new_val), \
+			static_cast<LONGLONG>(old_val)) \
+	 == static_cast<LONGLONG>(old_val))
+
+/* Windows thread HANDLEs are of type PVOID */
+# define os_compare_and_swap_thread_id(ptr, old_val, new_val)	\
+	(InterlockedCompareExchangePointer(ptr, new_val,old_val) == old_val)
 
 # define INNODB_RW_LOCKS_USE_ATOMICS
 # define IB_ATOMICS_STARTUP_MSG \
@@ -222,6 +232,9 @@ compare to, new_val is the value to swap in. */
 # define os_compare_and_swap_uint32(ptr, old_val, new_val) \
 	os_compare_and_swap(ptr, old_val, new_val)
 
+#  define os_compare_and_swap_uint64(ptr, old_val, new_val) \
+	os_compare_and_swap(ptr, old_val, new_val)
+
 #else
 
 UNIV_INLINE
@@ -243,6 +256,14 @@ os_compare_and_swap_lint(volatile lint* ptr, lint old_val, lint new_val)
 UNIV_INLINE
 bool
 os_compare_and_swap_uint32(volatile ib_uint32_t* ptr, ib_uint32_t old_val, ib_uint32_t new_val)
+{
+  return __atomic_compare_exchange_n(ptr, &old_val, new_val, 0,
+                                     __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST);
+}
+
+UNIV_INLINE
+bool
+os_compare_and_swap_uint64(volatile ib_uint64_t* ptr, ib_uint64_t old_val, ib_uint64_t new_val)
 {
   return __atomic_compare_exchange_n(ptr, &old_val, new_val, 0,
                                      __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST);
@@ -363,8 +384,6 @@ amount to decrement. */
 	"Memory barrier is not used"
 #endif
 
-#ifndef UNIV_NONINL
 #include "os0atomic.ic"
-#endif /* UNIV_NOINL */
 
 #endif /* !os0atomic_h */

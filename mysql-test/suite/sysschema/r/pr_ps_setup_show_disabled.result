@@ -136,6 +136,10 @@ innodb/srv_lock_timeout_thread	BACKGROUND
 innodb/srv_master_thread	BACKGROUND
 innodb/srv_monitor_thread	BACKGROUND
 innodb/srv_purge_thread	BACKGROUND
+innodb/srv_purge_thread	BACKGROUND
+innodb/srv_worker_thread	BACKGROUND
+innodb/srv_worker_thread	BACKGROUND
+innodb/srv_worker_thread	BACKGROUND
 innodb/srv_worker_thread	BACKGROUND
 innodb/srv_worker_thread	BACKGROUND
 innodb/srv_worker_thread	BACKGROUND
@@ -171,6 +175,10 @@ innodb/srv_lock_timeout_thread	BACKGROUND
 innodb/srv_master_thread	BACKGROUND
 innodb/srv_monitor_thread	BACKGROUND
 innodb/srv_purge_thread	BACKGROUND
+innodb/srv_purge_thread	BACKGROUND
+innodb/srv_worker_thread	BACKGROUND
+innodb/srv_worker_thread	BACKGROUND
+innodb/srv_worker_thread	BACKGROUND
 innodb/srv_worker_thread	BACKGROUND
 innodb/srv_worker_thread	BACKGROUND
 innodb/srv_worker_thread	BACKGROUND

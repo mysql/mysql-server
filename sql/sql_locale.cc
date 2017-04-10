@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,10 +20,18 @@
   !! This file is built from my_locale.pl !!
 */
 
-#include "sql_locale.h"
-#include "sql_class.h"                          // THD
-#include "my_sys.h"                             // MY_*, NullS, NULL
+#include "sql/sql_locale.h"
+
+#include <stddef.h>
+
+#include "derror.h"                             // MY_LOCALE_ERRMSGS
 #include "log.h"
+#include "m_ctype.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "mysqld_error.h"
+#include "sql_error.h"
+#include "typelib.h"
 
 
 enum err_msgs_index
@@ -3470,7 +3478,7 @@ my_locale_by_name(MY_LOCALE** locales, const char *name)
 }
 
 
-MY_LOCALE *my_locale_by_name(const char *name)
+MY_LOCALE *my_locale_by_name(THD *thd, const char *name)
 {
   MY_LOCALE *locale;
   
@@ -3482,7 +3490,6 @@ MY_LOCALE *my_locale_by_name(const char *name)
   }
   else if ((locale= my_locale_by_name(my_locales_deprecated, name)))
   {
-    THD *thd= current_thd;
     /*
       Replace the deprecated locale to the corresponding
       'fresh' locale with the same ID.
@@ -3492,7 +3499,8 @@ MY_LOCALE *my_locale_by_name(const char *name)
     {
       // Send a warning to the client
       push_warning_printf(thd, Sql_condition::SL_WARNING,
-                          ER_WARN_DEPRECATED_SYNTAX, ER(ER_WARN_DEPRECATED_SYNTAX),
+                          ER_WARN_DEPRECATED_SYNTAX,
+                          ER_THD(thd, ER_WARN_DEPRECATED_SYNTAX),
                           name, locale->name);
     }
     else

@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,12 +19,14 @@
 /**
   @file include/mysql/service_security_context.h
 
-  This service provides functions for plugins and storage engines to
-  manipulate the thread's security context.
+  Definitions for the password validation service.
+
+  @sa security_context_service_st
 */
 
 #ifdef __cplusplus
 class Security_context;
+/** an opaque class reference hiding the actual security context object. */
 #define MYSQL_SECURITY_CONTEXT Security_context*
 #else
 #define MYSQL_SECURITY_CONTEXT void*
@@ -35,19 +37,77 @@ typedef char my_svc_bool;
 extern "C" {
 #endif
 
+/**
+  @ingroup group_ext_plugin_services
+
+  This service provides functions for plugins and storage engines to
+  manipulate the thread's security context.
+
+  The service allows creation, copying, filling in by user accout and
+  destruction of security context objects.
+  It also allows getting and setting the security context for a thread.
+  And it also allows reading and setting security context properties.
+
+  The range of the above services allows plugins to inspect the security
+  context they're running it, impersonate a user account of their choice
+  (a.k.a. sudo in Unix) and craft a security context not related to an
+  existing user account.
+
+  No authentication is done in any of the above services. Authentication
+  is specific to the media and does not belong to the security context,
+  that's used mostly for authorization.
+
+  Make sure you keep the original security context of a thread or restore
+  it when done, as leaving a different security context active may lead to
+  various kinds of problems.
+
+  @sa Security_context, THD, MYSQL_SECURITY_CONTEXT
+*/
 extern struct security_context_service_st {
+  /**
+    Retrieves a handle to the current security context for a thread.
+    @sa ::thd_get_security_context
+  */
   my_svc_bool (*thd_get_security_context)(MYSQL_THD, MYSQL_SECURITY_CONTEXT *out_ctx);
+  /**
+    Sets a new security context for a thread
+    @sa ::thd_set_security_context
+  */
   my_svc_bool (*thd_set_security_context)(MYSQL_THD, MYSQL_SECURITY_CONTEXT in_ctx);
 
+  /**
+    Creates a new security context
+    @sa ::security_context_create
+  */
   my_svc_bool (*security_context_create)(MYSQL_SECURITY_CONTEXT *out_ctx);
+  /**
+    Creates a new security context
+    @sa ::security_context_create
+  */
   my_svc_bool (*security_context_destroy)(MYSQL_SECURITY_CONTEXT);
+  /**
+    Creates a copy of a security context
+    @sa ::security_context_copy
+  */
   my_svc_bool (*security_context_copy)(MYSQL_SECURITY_CONTEXT in_ctx, MYSQL_SECURITY_CONTEXT *out_ctx);
 
+  /**
+    Fills in a security context with the attributes of a user account
+    @sa ::security_context_lookup
+  */
   my_svc_bool (*security_context_lookup)(MYSQL_SECURITY_CONTEXT ctx,
                                          const char *user, const char *host,
                                          const char *ip, const char *db);
 
+  /**
+    Retrieves the value for a named attribute of a security context
+    @sa ::security_context_get_option
+  */
   my_svc_bool (*security_context_get_option)(MYSQL_SECURITY_CONTEXT, const char *name, void *inout_pvalue);
+  /**
+    Sets a new value for a named attribute of a security context
+    @sa ::security_context_set_option
+  */
   my_svc_bool (*security_context_set_option)(MYSQL_SECURITY_CONTEXT, const char *name, void *pvalue);
 } *security_context_service;
 

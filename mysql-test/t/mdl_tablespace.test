@@ -1,6 +1,18 @@
+#
 --source include/have_debug.inc
 --source include/have_debug_sync.inc
---source include/have_perfschema.inc
+# test uses performance_schema.metadata_locks
+--source include/not_embedded.inc
+
+########################################
+##### WL#7554 Force schema `test` to character set latin1
+##### This test should be migrated to utf8mb4
+--disable_query_log
+let $testdbcs65=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
+alter schema test default character set latin1;
+--enable_query_log
+########################################
+
 --enable_connect_log
 
 --echo ###########################################################
@@ -65,9 +77,7 @@
 --echo #     handled correctly, both with and without source
 --echo #     tables in general tablespaces.
 --echo # 15. Verify that explicit invalid tablespace names make
---echo #     table related DDL be rejected. Verify that implicit
---echo #     invalid tablespace names (e.g., present in an .FRM
---echo #     file from a previous MySQL version) are ignored.
+--echo #     table related DDL be rejected.
 --echo # 16. Verify correct P_S information.
 --echo ###########################################################
 --echo #
@@ -715,7 +725,7 @@ CREATE TABLE t1 (pk INTEGER PRIMARY KEY) TABLESPACE ts1;
 
 --echo #
 --echo # Dropping ts1 should fail.
---error ER_DROP_FILEGROUP_FAILED
+--error ER_TABLESPACE_IS_NOT_EMPTY
 DROP TABLESPACE ts1;
 
 --echo #
@@ -767,7 +777,7 @@ LET $wait_condition=
 --connection con2
 --reap
 --connection default
---error ER_DROP_FILEGROUP_FAILED
+--error ER_TABLESPACE_MISSING_WITH_NAME
 DROP TABLESPACE ts1;
 SET DEBUG_SYNC= 'RESET';
 
@@ -969,9 +979,7 @@ SET DEBUG_SYNC= 'RESET';
 
 --echo ###########################################################
 --echo # TC15. Verify that explicit invalid tablespace names make
---echo #       table related DDL be rejected. Verify that implicit
---echo #       invalid tablespace names (e.g., present in an .FRM
---echo #       file from a previous MySQL version) are ignored.
+--echo #       table related DDL be rejected.
 
 --echo #
 --echo # First, create a tablespace ts1 with one table.
@@ -1002,45 +1010,11 @@ CREATE TABLE t2 (pk INTEGER PRIMARY KEY) TABLESPACE ``;
 CREATE TABLE t2 (pk INTEGER PRIMARY KEY) TABLESPACE `xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx`;
 
 --echo #
---echo # Copy files for a table with an invalid name.
-let $MYSQLD_DATADIR= `SELECT @@datadir`;
---copy_file std_data/wl7957_1.frm $MYSQLD_DATADIR/test/table_with_invalid_tablespace_name.frm
---copy_file std_data/wl7957_1.MYD $MYSQLD_DATADIR/test/table_with_invalid_tablespace_name.MYD
---copy_file std_data/wl7957_1.MYI $MYSQLD_DATADIR/test/table_with_invalid_tablespace_name.MYI
-
---echo #
---echo # A SHOW CREATE TABLE will omit the tablespace name in
---echo # the output.
-SHOW CREATE TABLE table_with_invalid_tablespace_name;
-FLUSH TABLES;
-
---echo #
---echo # A normal SELECT will behave as usual.
-SELECT * FROM table_with_invalid_tablespace_name;
-FLUSH TABLES;
-
---echo #
---echo # CREATE TABLE LIKE will omit the invalid tablespace name
---echo # when creating the new table.
-CREATE TABLE table_like LIKE table_with_invalid_tablespace_name;
-FLUSH TABLES;
-SHOW CREATE TABLE table_like;
-
---echo #
---echo # ALTER TABLE will ignore the invalid tablespace name.
-ALTER TABLE table_with_invalid_tablespace_name ENGINE=InnoDB;
-FLUSH TABLES;
-SHOW CREATE TABLE table_with_invalid_tablespace_name;
-
---echo #
---echo # Reset DEBUG_SYNC and drop objects.
+--echo # Drop objects.
 
 --connection default
 DROP TABLE t1;
-DROP TABLE table_with_invalid_tablespace_name;
-DROP TABLE table_like;
 DROP TABLESPACE ts1;
-SET DEBUG_SYNC= 'RESET';
 
 
 --echo ###########################################################
@@ -1116,12 +1090,12 @@ LET $wait_condition=
 --source include/wait_condition.inc
 
 LET $wait_condition=
-  SELECT COUNT(*) = 1 FROM performance_schema.events_waits_history
+  SELECT COUNT(*) = 1 FROM performance_schema.events_waits_history_long
     WHERE object_type LIKE 'TABLESPACE' AND object_name LIKE 'ts1';
 --source include/wait_condition.inc
 
 SELECT event_name, object_name, object_type, operation
-  FROM performance_schema.events_waits_history
+  FROM performance_schema.events_waits_history_long
   WHERE object_type LIKE 'TABLESPACE' AND object_name LIKE 'ts1';
 
 --echo #
@@ -1376,3 +1350,10 @@ DROP TABLE t3;
 DROP TABLE t4;
 DROP TABLESPACE ts1;
 DROP TABLESPACE ts2;
+
+########################################
+##### WL#7554 set schema `test` back to what it was
+--disable_query_log
+--eval alter schema test default character set $testdbcs65;
+--enable_query_log
+########################################

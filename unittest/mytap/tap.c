@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2010, Oracle and/or its affiliates. All rights reserved. 
+/* Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved. 
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,14 +19,15 @@
 
 #include "tap.h"
 
-#include "my_global.h"
-#include "my_stacktrace.h"
+#include "my_config.h"
 
-#include <stdlib.h>
+#include <signal.h>
 #include <stdarg.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
-#include <signal.h>
+
+#include "my_stacktrace.h"
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif
@@ -40,6 +41,10 @@
 #if defined(_MSC_VER) && ( _MSC_VER == 1310 )
 #define vsnprintf _vsnprintf
 #endif
+
+static void handle_core_signal(int signo) MY_ATTRIBUTE((noreturn));
+static void vemit_tap(int pass, char const *fmt, va_list ap)
+  MY_ATTRIBUTE((format(printf, 2, 0)));
 
 /**
    @defgroup MyTAP_Internal MyTAP Internals
@@ -88,6 +93,17 @@ vemit_tap(int pass, char const *fmt, va_list ap)
           (fmt && *fmt) ? " - " : "");
   if (fmt && *fmt)
     vfprintf(tapout, fmt, ap);
+  fflush(tapout);
+}
+
+
+static void
+vemit_tap1(int pass)
+{
+  fprintf(tapout, "%sok %d%s",
+          pass ? "" : "not ",
+          ++g_test.last,
+          "");
   fflush(tapout);
 }
 
@@ -268,7 +284,7 @@ ok1(int const pass)
   if (!pass && *g_test.todo == '\0')
     ++g_test.failed;
 
-  vemit_tap(pass, NULL, ap);
+  vemit_tap1(pass);
 
   if (*g_test.todo != '\0')
     emit_dir("todo", g_test.todo);
@@ -294,7 +310,7 @@ skip(int how_many, char const *fmt, ...)
   {
     va_list ap;
     memset((char*) &ap, 0, sizeof(ap));         /* Keep compiler happy */
-    vemit_tap(1, NULL, ap);
+    vemit_tap1(1);
     emit_dir("skip", reason);
     emit_endl();
   }

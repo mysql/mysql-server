@@ -13,7 +13,7 @@ COUNT(@@GLOBAL.license)
 1 Expected
 '#---------------------BS_STVARS_040_03----------------------#'
 SELECT @@GLOBAL.license = VARIABLE_VALUE
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='license';
 @@GLOBAL.license = VARIABLE_VALUE
 1
@@ -23,7 +23,7 @@ COUNT(@@GLOBAL.license)
 1
 1 Expected
 SELECT COUNT(VARIABLE_VALUE)
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='license';
 COUNT(VARIABLE_VALUE)
 1

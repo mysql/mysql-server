@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -15,10 +15,14 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "mysql_object_reader.h"
+#include "client/dump/mysql_object_reader.h"
+
 #include <boost/algorithm/string.hpp>
+#include <sys/types.h>
+#include <functional>
 
 using namespace Mysql::Tools::Dump;
+using std::placeholders::_1;
 
 void Mysql_object_reader::Rows_fetching_context::acquire_fields_information(
   MYSQL_RES* mysql_result)
@@ -90,7 +94,8 @@ void Mysql_object_reader::read_table_rows_task(
     "SELECT `COLUMN_NAME`, `EXTRA` FROM " +
     this->get_quoted_object_full_name("INFORMATION_SCHEMA", "COLUMNS") +
     "WHERE TABLE_SCHEMA ='" + runner->escape_string(table->get_schema()) +
-    "' AND TABLE_NAME ='" + runner->escape_string(table->get_name()) + "'",
+    "' AND TABLE_NAME ='" + runner->escape_string(table->get_name()) + "'" +
+    " ORDER BY ORDINAL_POSITION ",
     &columns);
 
   std::string column_names;
@@ -115,10 +120,9 @@ void Mysql_object_reader::read_table_rows_task(
   runner->run_query(
     "SELECT SQL_NO_CACHE " + column_names + "  FROM " +
     this->get_quoted_object_full_name(table),
-    new Mysql::Instance_callback<
-      int64, const Mysql::Tools::Base::Mysql_query_runner::Row&,
-        Rows_fetching_context>(
-          row_fetching_context, &Rows_fetching_context::result_callback));
+    new std::function<int64(const Mysql::Tools::Base::Mysql_query_runner::Row&)>(
+      std::bind(&Rows_fetching_context::result_callback,
+                row_fetching_context, _1)));
 
   row_fetching_context->process_buffer();
   if (row_fetching_context->is_all_rows_processed())
@@ -148,7 +152,7 @@ void Mysql_object_reader::read_object(Item_processing_data* item_to_process)
 
 Mysql_object_reader::Mysql_object_reader(
   I_connection_provider* connection_provider,
-  Mysql::I_callable<bool, const Mysql::Tools::Base::Message_data&>*
+  std::function<bool(const Mysql::Tools::Base::Message_data&)>*
     message_handler, Simple_id_generator* object_id_generator,
   const Mysql_object_reader_options* options)
   : Abstract_data_formatter_wrapper(message_handler, object_id_generator),

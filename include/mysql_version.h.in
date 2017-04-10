@@ -12,12 +12,12 @@
 #define MYSQL_SERVER_VERSION       "@VERSION@"
 #define MYSQL_BASE_VERSION         "mysqld-@MYSQL_BASE_VERSION@"
 #define MYSQL_SERVER_SUFFIX_DEF    "@MYSQL_SERVER_SUFFIX@"
-#define FRM_VER                     @DOT_FRM_VERSION@
 #define MYSQL_VERSION_ID            @MYSQL_VERSION_ID@
 #define MYSQL_PORT                  @MYSQL_TCP_PORT@
 #define MYSQL_PORT_DEFAULT          @MYSQL_TCP_PORT_DEFAULT@
 #define MYSQL_UNIX_ADDR            "@MYSQL_UNIX_ADDR@"
 #define MYSQL_CONFIG_NAME          "my"
+#define MYSQL_PERSIST_CONFIG_NAME  "mysqld-auto"
 #define MYSQL_COMPILATION_COMMENT  "@COMPILATION_COMMENT@"
 #define LIBMYSQL_VERSION           "@VERSION@"
 #define LIBMYSQL_VERSION_ID         @MYSQL_VERSION_ID@

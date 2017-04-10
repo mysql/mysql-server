@@ -21,7 +21,7 @@
 --echo ================================================================================
 ## Preamble
 --replace_regex /\.dll/.so/
---source ../include/xplugin_preamble.inc
+--source include/xplugin_preamble.inc
 create user updateitemremove@localhost identified by 'updateitemremove';
 grant all on *.* to updateitemremove@localhost;
 

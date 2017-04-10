@@ -1,0 +1,70 @@
+--source include/have_binlog_format_mixed.inc
+--source include/have_debug.inc
+
+# BUG#19667258: WL#6972 - SERVER CRASH ON SET SESSION SESSION_TRACK_GTIDS='OFF'
+
+# This test file is configured to start the server with:
+#
+#  --session_track_gtids='ALL_GTIDS'
+#
+# Then we are looking to assert the following:
+# - Verify that the following statements include
+#   GTID data in the OK packet immediately after start
+#   the server starts up.
+# - Verify that every transition includes the expected
+#   GTID data in the OK packet.
+
+--enable_session_track_info
+
+--echo # ALL_GTIDS at startup: this must return GTID:1
+CREATE TABLE t1 (c1 INT) Engine=InnoDB;
+
+--echo # ALL_GTIDS at startup: this must return GTID:1-2
+DROP TABLE t1;
+
+--disable_session_track_info
+
+--let $i=3
+while($i)
+{
+  if ($i==3)
+  {
+    --let $from=ALL_GTIDS
+  }
+
+  if ($i==2)
+  {
+    --let $from=OWN_GTID
+  }
+
+  if ($i==1)
+  {
+    --let $from=OFF
+  }
+  
+  --let $text= this must return ''
+  if (`SELECT '$from' = 'ALL_GTIDS'`)
+  {
+    --let $text= this must return GTID:1-2
+  }
+
+  --echo ## $from -> ALL_GTIDS : $text ##
+  --eval SET SESSION session_track_gtids='$from'
+  --enable_session_track_info
+  SET SESSION session_track_gtids='ALL_GTIDS';
+  --disable_session_track_info
+
+  --echo ## $from -> OWN_GTID: $text ##
+  --eval SET SESSION session_track_gtids='$from'
+  --enable_session_track_info
+  SET SESSION session_track_gtids='OWN_GTID';
+  --disable_session_track_info
+
+  --echo ## $from -> OFF : $text ##
+  --eval SET SESSION session_track_gtids='$from'
+  --enable_session_track_info
+  SET SESSION session_track_gtids='OFF';
+  --disable_session_track_info
+
+  --dec $i
+}

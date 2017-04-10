@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2013, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2013, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -24,25 +24,23 @@ Created 2012-11-16 by Sunny Bains as srv/srv0space.cc
 Refactored 2013-7-26 by Kevin Lewis
 *******************************************************/
 
-#include "ha_prototypes.h"
+#include <stdlib.h>
+#include <sys/types.h>
 
-#include "fsp0sysspace.h"
-#include "srv0start.h"
-#include "trx0sys.h"
-#ifndef UNIV_HOTBACKUP
 #include "dict0load.h"
+#include "fsp0sysspace.h"
+#include "ha_prototypes.h"
 #include "mem0mem.h"
-#include "os0file.h"
-#include "row0mysql.h"
-#include "ut0new.h"
-
+#include "my_inttypes.h"
 /** The server header file is included to access opt_initialize global variable.
 If server passes the option for create/open DB to SE, we should remove such
 direct reference to server header and global variable */
 #include "mysqld.h"
-#else
-my_bool opt_initialize = 0;
-#endif /* !UNIV_HOTBACKUP */
+#include "os0file.h"
+#include "row0mysql.h"
+#include "srv0start.h"
+#include "trx0sys.h"
+#include "ut0new.h"
 
 /** The control info of the system tablespace. */
 SysTablespace srv_sys_space;
@@ -62,43 +60,75 @@ developer to enable it during debug. */
 bool srv_skip_temp_table_checks_debug = true;
 #endif /* UNIV_DEBUG */
 
-/** Convert a numeric string that optionally ends in G or M or K,
-    to a number containing megabytes.
-@param[in]	str	String with a quantity in bytes
-@param[out]	megs	The number in megabytes
-@return next character in string */
+/** TRUE if we don't have DDTableBuffer in the system tablespace,
+this should be due to we run the server against old data files.
+Please do NOT change this when server is running.
+FIXME: This should be removed away once we can upgrade for new DD. */
+extern bool	srv_missing_dd_table_buffer;
+
+/** Put the pointer to the next byte after a valid file name. Note that we must
+step over the ':' in a Windows filepath.
+A Windows path normally looks like "C:\ibdata\ibdata1:1G", but a Windows raw
+partition may have a specification like "\\.\C::1Gnewraw" or
+"\\.\PHYSICALDRIVE2:1Gnewraw".
+@param[in]	ptr		system tablespace file path spec
+@return next character in string after the file name */
 char*
-SysTablespace::parse_units(
-	char*	ptr,
-	ulint*	megs)
+SysTablespace::parse_file_name(char* ptr)
 {
-	char*		endp;
+	const char*	start = ptr;
 
-	*megs = strtoul(ptr, &endp, 10);
-
-	ptr = endp;
-
-	switch (*ptr) {
-	case 'G': case 'g':
-		*megs *= 1024;
-		/* fall through */
-	case 'M': case 'm':
-		++ptr;
-		break;
-	case 'K': case 'k':
-		*megs /= 1024;
-		++ptr;
-		break;
-	default:
-		*megs /= 1024 * 1024;
-		break;
+	while ((*ptr != ':' && *ptr != '\0')
+	       || (ptr != start
+	           && *ptr == ':'
+	           && (*(ptr + 1) == '\\'
+	               || *(ptr + 1) == '/'
+	               || *(ptr + 1) == ':'))) {
+		ptr++;
 	}
 
 	return(ptr);
 }
 
+/** Convert a numeric string representing a number of bytes
+optionally ending in upper or lower case G, M, or K,
+to a number of megabytes, rounding down to the nearest megabyte.
+Then return the number of pages in the file.
+@param[in,out]	ptr	Pointer to a numeric string
+@return the number of pages in the file. */
+page_no_t
+SysTablespace::parse_units(char*& ptr)
+{
+	char*	endp;
+	ulint	num = strtoul(ptr, &endp, 10);
+	ulint	megs;
+
+	ptr = endp;
+
+	switch (*ptr) {
+	case 'G': case 'g':
+		megs = num * 1024;
+		++ptr;
+		break;
+
+	case 'M': case 'm':
+		megs = num;
+		++ptr;
+		break;
+	case 'K': case 'k':
+		megs = num / 1024;
+		++ptr;
+		break;
+	default:
+		megs = num / (1024 * 1024);
+		break;
+	}
+
+	return(static_cast<page_no_t>(megs * (1024 * 1024 / UNIV_PAGE_SIZE)));
+}
+
 /** Parse the input params and populate member variables.
-@param[in]	filepath	path to data files
+@param[in]	filepath_spec	path to data files
 @param[in]	supports_raw	true if the tablespace supports raw devices
 @return true on success parse */
 bool
@@ -106,185 +136,163 @@ SysTablespace::parse_params(
 	const char*	filepath_spec,
 	bool		supports_raw)
 {
-	char*	filepath;
-	ulint	size;
-	char*	input_str;
-	ulint	n_files = 0;
+	char*		filepath;
+	page_no_t	size;
+	ulint		n_files = 0;
 
 	ut_ad(m_last_file_size_max == 0);
 	ut_ad(!m_auto_extend_last_file);
 
-	char*	new_str = mem_strdup(filepath_spec);
-	char*	str = new_str;
-
-	input_str = str;
+	char*	input_str = mem_strdup(filepath_spec);
+	char*	ptr = input_str;
 
 	/*---------------------- PASS 1 ---------------------------*/
-	/* First calculate the number of data files and check syntax:
-	filepath:size[K |M | G];filepath:size[K |M | G]... .
-	Note that a Windows path may contain a drive name and a ':'. */
-	while (*str != '\0') {
-		filepath = str;
+	/* First calculate the number of data files and check syntax. */
+	while (*ptr != '\0') {
+		filepath = ptr;
 
-		while ((*str != ':' && *str != '\0')
-		       || (*str == ':'
-			   && (*(str + 1) == '\\' || *(str + 1) == '/'
-			       || *(str + 1) == ':'))) {
-			str++;
-		}
+		ptr = parse_file_name(ptr);
 
-		if (*str == '\0') {
-			ut_free(new_str);
-
+		if (ptr == filepath) {
 			ib::error()
-				<< "syntax error in file path or size"
-				" specified is less than 1 megabyte";
+				<< "File Path Specification '"
+				<< filepath_spec
+				<< "' is missing a file name.";
+
+			ut_free(input_str);
 			return(false);
 		}
 
-		str++;
+		if (*ptr == '\0') {
+			ib::error()
+				<< "File Path Specification '"
+				<< filepath_spec
+				<< "' is missing a file size.";
 
-		str = parse_units(str, &size);
-
-		if (0 == strncmp(str, ":autoextend",
-				 (sizeof ":autoextend") - 1)) {
-
-			str += (sizeof ":autoextend") - 1;
-
-			if (0 == strncmp(str, ":max:",
-					 (sizeof ":max:") - 1)) {
-
-				str += (sizeof ":max:") - 1;
-
-				str = parse_units(str, &size);
-			}
-
-			if (*str != '\0') {
-				ut_free(new_str);
-				ib::error()
-					<< "syntax error in file path or"
-					<< " size specified is less than"
-					<< " 1 megabyte";
-				return(false);
-			}
+			ut_free(input_str);
+			return(false);
 		}
 
-		if (::strlen(str) >= 6
-		    && *str == 'n'
-		    && *(str + 1) == 'e'
-		    && *(str + 2) == 'w') {
+		ptr++;
 
-			if (!supports_raw) {
-				ib::error()
-					<< "Tablespace doesn't support raw"
-					" devices";
-				ut_free(new_str);
-				return(false);
-			}
-
-			str += 3;
-		}
-
-		if (*str == 'r' && *(str + 1) == 'a' && *(str + 2) == 'w') {
-			str += 3;
-
-			if (!supports_raw) {
-				ib::error()
-					<< "Tablespace doesn't support raw"
-					" devices";
-				ut_free(new_str);
-				return(false);
-			}
-		}
+		size = parse_units(ptr);
 
 		if (size == 0) {
-
-			ut_free(new_str);
-
+invalid_size:
 			ib::error()
-				<< "syntax error in file path or size"
-				" specified is less than 1 megabyte";
+				<< "Invalid File Path Specification: '"
+				<< filepath_spec
+				<< "'. An invalid file size was specified.";
 
+			ut_free(input_str);
 			return(false);
+		}
+
+		if (0 == strncmp(ptr, ":autoextend",
+				 (sizeof ":autoextend") - 1)) {
+
+			ptr += (sizeof ":autoextend") - 1;
+
+			if (0 == strncmp(ptr, ":max:",
+					 (sizeof ":max:") - 1)) {
+
+				ptr += (sizeof ":max:") - 1;
+
+				page_no_t max = parse_units(ptr);
+
+				if (max < size) {
+					goto invalid_size;
+				}
+			}
+
+			if (*ptr == ';') {
+				ib::error()
+					<< "Invalid File Path Specification: '"
+					<< filepath_spec << "'. Only the last"
+					" file defined can be 'autoextend'.";
+
+				ut_free(input_str);
+				return(false);
+			}
+		}
+
+		if (0 == strncmp(ptr, "new", (sizeof "new") - 1)) {
+			ptr += (sizeof "new") - 1;
+		}
+
+		if (0 == strncmp(ptr, "raw", (sizeof "raw") - 1)) {
+			if (!supports_raw) {
+				ib::error()
+					<< "Invalid File Path Specification: '"
+					<< filepath_spec << "' Tablespace"
+					" doesn't support raw devices";
+
+				ut_free(input_str);
+				return(false);
+			}
+
+			ptr += (sizeof "raw") - 1;
 		}
 
 		++n_files;
 
-		if (*str == ';') {
-			str++;
-		} else if (*str != '\0') {
-			ut_free(new_str);
-
+		if (*ptr == ';') {
+			ptr++;
+		} else if (*ptr != '\0') {
+			ptr[0] = '\0';
 			ib::error()
-				<< "syntax error in file path or size"
-				" specified is less than 1 megabyte";
+				<< "File Path Specification: '"
+				<< filepath_spec
+				<< "' has unrecognized characters after '"
+				<< input_str << "'";
+
+			ut_free(input_str);
 			return(false);
 		}
 	}
 
 	if (n_files == 0) {
-
-		/* filepath_spec must contain at least one data file
-		definition */
-
-		ut_free(new_str);
-
 		ib::error()
-			<< "syntax error in file path or size specified"
-			" is less than 1 megabyte";
+			<< "File Path Specification: '"
+			<< filepath_spec << "' must contain"
+			" at least one data file definition";
 
+		ut_free(input_str);
 		return(false);
 	}
 
 	/*---------------------- PASS 2 ---------------------------*/
 	/* Then store the actual values to our arrays */
-	str = input_str;
+	ptr = input_str;
 	ulint order = 0;
 
-	while (*str != '\0') {
-		filepath = str;
+	while (*ptr != '\0') {
+		filepath = ptr;
 
-		/* Note that we must step over the ':' in a Windows filepath;
-		a Windows path normally looks like C:\ibdata\ibdata1:1G, but
-		a Windows raw partition may have a specification like
-		\\.\C::1Gnewraw or \\.\PHYSICALDRIVE2:1Gnewraw */
+		ptr = parse_file_name(ptr);
 
-		while ((*str != ':' && *str != '\0')
-		       || (*str == ':'
-			   && (*(str + 1) == '\\' || *(str + 1) == '/'
-			       || *(str + 1) == ':'))) {
-			str++;
-		}
-
-		if (*str == ':') {
+		if (*ptr == ':') {
 			/* Make filepath a null-terminated string */
-			*str = '\0';
-			str++;
+			*ptr = '\0';
+			ptr++;
 		}
 
-		str = parse_units(str, &size);
+		size = parse_units(ptr);
+		ut_ad(size > 0);
 
-		if (0 == strncmp(str, ":autoextend",
+		if (0 == strncmp(ptr, ":autoextend",
 				 (sizeof ":autoextend") - 1)) {
 
 			m_auto_extend_last_file = true;
 
-			str += (sizeof ":autoextend") - 1;
+			ptr += (sizeof ":autoextend") - 1;
 
-			if (0 == strncmp(str, ":max:",
+			if (0 == strncmp(ptr, ":max:",
 					 (sizeof ":max:") - 1)) {
 
-				str += (sizeof ":max:") - 1;
+				ptr += (sizeof ":max:") - 1;
 
-				str = parse_units(str, &m_last_file_size_max);
-			}
-
-			if (*str != '\0') {
-				ut_free(new_str);
-				ib::error() << "syntax error in file path or"
-					" size specified is less than 1"
-					" megabyte";
-				return(false);
+				m_last_file_size_max = parse_units(ptr);
 			}
 		}
 
@@ -292,42 +300,29 @@ SysTablespace::parse_params(
 		Datafile* datafile = &m_files.back();
 		datafile->make_filepath(path(), filepath, NO_EXT);
 
-		if (::strlen(str) >= 6
-		    && *str == 'n'
-		    && *(str + 1) == 'e'
-		    && *(str + 2) == 'w') {
+		if (0 == strncmp(ptr, "new", (sizeof "new") - 1)) {
+			ptr += (sizeof "new") - 1;
+		}
 
+		if (0 == strncmp(ptr, "raw", (sizeof "raw") - 1)) {
 			ut_a(supports_raw);
 
-			str += 3;
+			ptr += (sizeof "raw") - 1;
 
 			/* Initialize new raw device only during initialize */
 			m_files.back().m_type =
-			opt_initialize ? SRV_NEW_RAW : SRV_OLD_RAW;
-		}
-
-		if (*str == 'r' && *(str + 1) == 'a' && *(str + 2) == 'w') {
-
-			ut_a(supports_raw);
-
-			str += 3;
-
-			/* Initialize new raw device only during initialize */
-			if (m_files.back().m_type == SRV_NOT_RAW) {
-				m_files.back().m_type =
 				opt_initialize ? SRV_NEW_RAW : SRV_OLD_RAW;
-			}
 		}
 
-		if (*str == ';') {
-			++str;
+		if (*ptr == ';') {
+			++ptr;
 		}
 		order++;
 	}
 
 	ut_ad(n_files == ulint(m_files.size()));
 
-	ut_free(new_str);
+	ut_free(input_str);
 
 	return(true);
 }
@@ -360,9 +355,9 @@ SysTablespace::check_size(
 	could contain an incomplete extent at the end. When we
 	extend a data file and if some failure happens, then
 	also the data file could contain an incomplete extent.
-	So we need to round the size downward to a  megabyte.*/
+	So we need to round the size downward to a megabyte. */
 
-	ulint	rounded_size_pages = get_pages_from_size(size);
+	page_no_t	rounded_size_pages = get_pages_from_size(size);
 
 	/* If last file */
 	if (&file == &m_files.back() && m_auto_extend_last_file) {
@@ -535,7 +530,76 @@ SysTablespace::open_file(
 	return(err);
 }
 
-#ifndef UNIV_HOTBACKUP
+/** Check if the DDTableBuffer exists in this tablespace.
+FIXME: This should be removed away once we can upgrade for new DD
+@return DB_SUCCESS or error code */
+dberr_t
+SysTablespace::check_dd_table_buffer()
+{
+	dberr_t		err;
+
+	ut_ad(space_id() == TRX_SYS_SPACE);
+
+	files_t::iterator it = m_files.begin();
+	ut_a(it->m_exists);
+
+	if (it->m_handle.m_file == OS_FILE_CLOSED) {
+
+		err = it->open_or_create(true);
+
+		if (err != DB_SUCCESS) {
+			return(err);
+		}
+	}
+
+	byte*		unaligned_read_buf;
+	byte*		read_buf;
+
+	unaligned_read_buf = static_cast<byte*>(
+		ut_malloc_nokey(2 * UNIV_PAGE_SIZE));
+
+	read_buf = static_cast<byte*>(
+		ut_align(unaligned_read_buf, UNIV_PAGE_SIZE));
+
+	IORequest	read_request(IORequest::READ);
+
+	read_request.disable_compression();
+
+	err = os_file_read(
+		read_request,
+		it->handle(), read_buf,
+		FSP_TBL_BUFFER_TREE_ROOT_PAGE_NO * UNIV_PAGE_SIZE,
+		UNIV_PAGE_SIZE);
+
+	if (err != DB_SUCCESS) {
+
+		srv_missing_dd_table_buffer = true;
+
+		ib::error()
+			<< "Failed to read the system tablespace page for"
+			<< " the root page of DDTableBuffer.";
+
+		ut_free(unaligned_read_buf);
+
+		return(err);
+	}
+
+	if (mach_read_from_8(read_buf + PAGE_HEADER + PAGE_INDEX_ID)
+	    == DICT_TBL_BUFFER_ID) {
+
+		srv_missing_dd_table_buffer = false;
+	} else {
+
+		srv_missing_dd_table_buffer = true;
+	}
+
+	ut_free(unaligned_read_buf);
+
+	it->close();
+
+	return(DB_SUCCESS);
+}
+
 /** Check the tablespace header for this tablespace.
 @param[out]	flushed_lsn	the value of FIL_PAGE_FILE_FLUSH_LSN
 @return DB_SUCCESS or error code */
@@ -550,16 +614,7 @@ SysTablespace::read_lsn_and_check_flags(lsn_t* flushed_lsn)
 	files_t::iterator it = m_files.begin();
 
 	ut_a(it->m_exists);
-
-	if (it->m_handle == OS_FILE_CLOSED) {
-
-		err = it->open_or_create(
-			m_ignore_read_only ?  false : srv_read_only_mode);
-
-		if (err != DB_SUCCESS) {
-			return(err);
-		}
-	}
+	ut_ad(it->m_handle.m_file != OS_FILE_CLOSED);
 
 	err = it->read_first_page(
 		m_ignore_read_only ?  false : srv_read_only_mode);
@@ -604,11 +659,16 @@ SysTablespace::read_lsn_and_check_flags(lsn_t* flushed_lsn)
 		return(err);
 	}
 
+	/* The flags of srv_sys_space do not have SDI Flag set.
+	Update the flags of system tablespace to indicate the presence
+	of SDI */
+	set_flags(it->flags());
+
 	it->close();
 
 	return(DB_SUCCESS);
 }
-#endif /* !UNIV_HOTBACKUP */
+
 /** Check if a file can be opened in the correct mode.
 @param[in]	file	data file object
 @param[out]	reason	exact reason if file_status check failed.
@@ -680,12 +740,12 @@ SysTablespace::check_file_status(
 
 /** Note that the data file was not found.
 @param[in]	file		data file object
-@param[out]	create_new_db	true if a new instance to be created
-@return DB_SUCESS or error code */
+@param[in]	create_new_db	true if a new instance to be created
+@return DB_SUCCESS or error code */
 dberr_t
 SysTablespace::file_not_found(
 	Datafile&	file,
-	bool*	create_new_db)
+	bool	create_new_db)
 {
 	file.m_exists = false;
 
@@ -698,10 +758,8 @@ SysTablespace::file_not_found(
 	} else if (&file == &m_files.front()) {
 
 		/* First data file. */
-		ut_a(!*create_new_db);
-		*create_new_db = TRUE;
 
-		if (space_id() == TRX_SYS_SPACE) {
+		if (space_id() == TRX_SYS_SPACE && create_new_db) {
 			ib::info() << "The first " << name() << " data file '"
 				<< file.name() << "' did not exist."
 				" A new tablespace will be created!";
@@ -710,6 +768,12 @@ SysTablespace::file_not_found(
 	} else {
 		ib::info() << "Need to create a new " << name()
 			<< " data file '" << file.name() << "'.";
+	}
+
+	/* We allow add new files at end even if dict_init_mode is
+	not creating files. */
+	if (!create_new_db && (&file == &m_files.front())) {
+		return(DB_SUCCESS);
 	}
 
 	/* Set the file create mode. */
@@ -728,9 +792,8 @@ SysTablespace::file_not_found(
 }
 
 /** Note that the data file was found.
-@param[in,out]	file	data file object
-@return true if a new instance to be created */
-bool
+@param[in,out]	file	data file object */
+void
 SysTablespace::file_found(
 	Datafile&	file)
 {
@@ -751,21 +814,17 @@ SysTablespace::file_found(
 		file.set_open_flags(OS_FILE_OPEN_RAW);
 		break;
 	}
-
-	/* Need to create the system tablespace for new raw device. */
-	return(file.m_type == SRV_NEW_RAW);
 }
-#ifndef UNIV_HOTBACKUP
+
 /** Check the data file specification.
 @param[out] create_new_db	true if a new database is to be created
 @param[in] min_expected_size	Minimum expected tablespace size in bytes
 @return DB_SUCCESS if all OK else error code */
 dberr_t
 SysTablespace::check_file_spec(
-	bool*	create_new_db,
+	bool	create_new_db,
 	ulint	min_expected_size)
 {
-	*create_new_db = FALSE;
 
 	if (m_files.size() >= 1000) {
 		ib::error() << "There must be < 1000 data files in "
@@ -819,7 +878,7 @@ SysTablespace::check_file_spec(
 			ut_a(err != DB_FAIL);
 			break;
 
-		} else if (*create_new_db) {
+		} else if (create_new_db) {
 			ib::error() << "The " << name() << " data file '"
 				<< begin->m_name << "' was not found but"
 				" one of the other data files '" << it->m_name
@@ -829,12 +888,12 @@ SysTablespace::check_file_spec(
 			break;
 
 		} else {
-			*create_new_db = file_found(*it);
+			file_found(*it);
 		}
 	}
 
 	/* We assume doublewirte blocks in the first data file. */
-	if (err == DB_SUCCESS && *create_new_db
+	if (err == DB_SUCCESS
 	    && begin->m_size < TRX_SYS_DOUBLEWRITE_BLOCK_SIZE * 3) {
 		ib::error() << "The " << name() << " data file "
 			<< "'" << begin->name() << "' must be at least "
@@ -855,10 +914,10 @@ SysTablespace::check_file_spec(
 @return DB_SUCCESS or error code */
 dberr_t
 SysTablespace::open_or_create(
-	bool	is_temp,
-	bool	create_new_db,
-	ulint*	sum_new_sizes,
-	lsn_t*	flush_lsn)
+	bool		is_temp,
+	bool		create_new_db,
+	page_no_t*	sum_new_sizes,
+	lsn_t*		flush_lsn)
 {
 	dberr_t		err	= DB_SUCCESS;
 	fil_space_t*	space	= NULL;
@@ -938,6 +997,18 @@ SysTablespace::open_or_create(
 		}
 	}
 
+	/* Check if we have DDTableBuffer in the system tablespace. */
+	if (!is_temp) {
+
+		if (create_new_db) {
+
+			srv_missing_dd_table_buffer = false;
+		} else {
+
+			check_dd_table_buffer();
+		}
+	}
+
 	/* Close the curent handles, add space and file info to the
 	fil_system cache and the Data Dictionary, and re-open them
 	in file_system cache so that they stay open until shutdown. */
@@ -958,9 +1029,9 @@ SysTablespace::open_or_create(
 
 		ut_a(fil_validate());
 
-		ulint	max_size = (++node_counter == m_files.size()
+		page_no_t	max_size = (++node_counter == m_files.size()
 				    ? (m_last_file_size_max == 0
-				       ? ULINT_MAX
+				       ? PAGE_NO_MAX
 				       : m_last_file_size_max)
 				    : it->m_size);
 
@@ -977,39 +1048,17 @@ SysTablespace::open_or_create(
 
 	return(err);
 }
-#endif /* UNIV_HOTBACKUP */
-/** Normalize the file size, convert from megabytes to number of pages. */
-void
-SysTablespace::normalize()
-{
-	files_t::iterator	end = m_files.end();
-
-	for (files_t::iterator it = m_files.begin(); it != end; ++it) {
-
-		it->m_size *= (1024 * 1024) / UNIV_PAGE_SIZE;
-	}
-
-	m_last_file_size_max *= (1024 * 1024) / UNIV_PAGE_SIZE;
-}
-
 
 /**
 @return next increment size */
-ulint
+page_no_t
 SysTablespace::get_increment() const
 {
-	ulint	increment;
+	page_no_t	increment;
 
 	if (m_last_file_size_max == 0) {
 		increment = get_autoextend_increment();
 	} else {
-
-		if (!is_valid_size()) {
-			ib::error() << "The last data file in " << name()
-				<< " has a size of " << last_file_size()
-				<< " but the max size allowed is "
-				<< m_last_file_size_max;
-		}
 
 		increment = m_last_file_size_max - last_file_size();
 	}
@@ -1019,22 +1068,4 @@ SysTablespace::get_increment() const
 	}
 
 	return(increment);
-}
-
-
-/**
-@return true if configured to use raw devices */
-bool
-SysTablespace::has_raw_device()
-{
-	files_t::iterator	end = m_files.end();
-
-	for (files_t::iterator it = m_files.begin(); it != end; ++it) {
-
-		if (it->is_raw_device()) {
-			return(true);
-		}
-	}
-
-	return(false);
 }

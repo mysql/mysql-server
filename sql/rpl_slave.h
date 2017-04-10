@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,15 +16,22 @@
 #ifndef RPL_SLAVE_H
 #define RPL_SLAVE_H
 
-#include "my_global.h"
+#include <limits.h>
+#include <sys/types.h>
+
+#include "my_bitmap.h"
+#include "my_inttypes.h"
+#include "my_psi_config.h"
 #include "my_thread.h"                     // my_start_routine
-#include "mysql/psi/mysql_thread.h"        // mysql_mutex_t
+#include "mysql/psi/mysql_cond.h"          // mysql_cond_t
+#include "mysql/psi/mysql_mutex.h"
+#include "mysql/psi/psi_base.h"
 #include "rpl_channel_service_interface.h" // enum_channel_type
 
-class Log_event;
 class Master_info;
 class Relay_log_info;
 class THD;
+
 typedef struct st_bitmap MY_BITMAP;
 typedef struct st_lex_master_info LEX_MASTER_INFO;
 typedef struct st_list LIST;
@@ -59,8 +66,6 @@ typedef enum { SLAVE_THD_IO, SLAVE_THD_SQL, SLAVE_THD_WORKER } SLAVE_THD_TYPE;
 */
 #define SLAVE_MAX_HEARTBEAT_PERIOD 4294967
 
-#ifdef HAVE_REPLICATION
-
 #define SLAVE_NET_TIMEOUT  60
 
 #define MAX_SLAVE_ERROR    2000
@@ -78,6 +83,22 @@ typedef enum { SLAVE_THD_IO, SLAVE_THD_SQL, SLAVE_THD_WORKER } SLAVE_THD_TYPE;
 #define MTS_MAX_BITS_IN_GROUP ((1L << 19) - 8) /* 524280 */
 
 extern bool server_id_supplied;
+
+/**
+  This macro simplifies when a DBUG_EXECUTE_IF will generate a given
+  signal and then will wait for another signal to continue.
+*/
+#define DBUG_SIGNAL_WAIT_FOR(A,B,C) \
+  DBUG_EXECUTE_IF(A,\
+                  {\
+                    const char act[]= "now SIGNAL "\
+                                      B\
+                                      " WAIT_FOR "\
+                                      C;\
+                    DBUG_ASSERT(\
+                      !debug_sync_set_action(current_thd,\
+                                             STRING_WITH_LEN(act)));\
+                  };)
 
 /*****************************************************************************
 
@@ -247,8 +268,8 @@ extern char *slave_load_tmpdir;
 extern char *master_info_file, *relay_log_info_file;
 extern char *opt_relay_logname, *opt_relaylog_index_name;
 extern char *opt_binlog_index_name;
-extern my_bool opt_skip_slave_start, opt_reckless_slave;
-extern my_bool opt_log_slave_updates;
+extern bool opt_skip_slave_start, opt_reckless_slave;
+extern bool opt_log_slave_updates;
 extern char *opt_slave_skip_errors;
 extern ulonglong relay_log_space_limit;
 
@@ -285,14 +306,12 @@ int change_master(THD* thd, Master_info* mi, LEX_MASTER_INFO* lex_mi,
 bool reset_slave_cmd(THD *thd);
 bool show_slave_status_cmd(THD *thd);
 bool flush_relay_logs_cmd(THD *thd);
-bool is_any_slave_channel_running(int thread_mask,
-                                  Master_info* already_locked_mi=NULL);
 
 bool flush_relay_logs(Master_info *mi);
 int reset_slave(THD *thd, Master_info* mi, bool reset_all);
 int reset_slave(THD *thd);
 int init_slave();
-int init_recovery(Master_info* mi, const char** errmsg);
+int init_recovery(Master_info* mi);
 /**
   Call mi->init_info() and/or mi->rli->init_info(), which will read
   the replication configuration from repositories.
@@ -313,15 +332,17 @@ int init_recovery(Master_info* mi, const char** errmsg);
   @retval 0 Success
   @retval nonzero Error
 */
-int global_init_info(Master_info* mi, bool ignore_if_no_info, int thread_mask);
+int load_mi_and_rli_from_repositories(Master_info* mi,
+                                      bool ignore_if_no_info,
+                                      int thread_mask);
 void end_info(Master_info* mi);
 int remove_info(Master_info* mi);
-int flush_master_info(Master_info* mi, bool force);
+int flush_master_info(Master_info* mi, bool force,
+                      bool need_lock= true,
+                      bool flush_relay_log= true);
 void add_slave_skip_errors(const char* arg);
 void set_slave_skip_errors(char** slave_skip_errors_ptr);
-int register_slave_on_master(MYSQL* mysql);
-int add_new_channel(Master_info** mi, const char* channel,
-                    enum_channel_type channel_type= SLAVE_REPLICATION_CHANNEL);
+int add_new_channel(Master_info** mi, const char* channel);
 /**
   Terminates the slave threads according to the given mask.
 
@@ -378,10 +399,6 @@ bool start_slave_thread(
                         volatile ulong *slave_run_id,
                         Master_info *mi);
 
-/* retrieve table from master and copy to slave*/
-int fetch_master_table(THD* thd, const char* db_name, const char* table_name,
-		       Master_info* mi, MYSQL* mysql, bool overwrite);
-
 bool show_slave_status(THD* thd, Master_info* mi);
 bool show_slave_status(THD* thd);
 bool rpl_master_has_bug(const Relay_log_info *rli, uint bug_id, bool report,
@@ -389,46 +406,43 @@ bool rpl_master_has_bug(const Relay_log_info *rli, uint bug_id, bool report,
 bool rpl_master_erroneous_autoinc(THD* thd);
 
 const char *print_slave_db_safe(const char *db);
-void skip_load_data_infile(NET* net);
 
 void end_slave(); /* release slave threads */
 void delete_slave_info_objects(); /* clean up slave threads data */
-void clear_until_condition(Relay_log_info* rli);
-void clear_slave_error(Relay_log_info* rli);
 void lock_slave_threads(Master_info* mi);
 void unlock_slave_threads(Master_info* mi);
 void init_thread_mask(int* mask,Master_info* mi,bool inverse);
 void set_slave_thread_options(THD* thd);
 void set_slave_thread_default_charset(THD *thd, Relay_log_info const *rli);
-int apply_event_and_update_pos(Log_event* ev, THD* thd, Relay_log_info* rli);
 int rotate_relay_log(Master_info* mi);
-bool queue_event(Master_info* mi,const char* buf, ulong event_len);
+typedef enum
+{
+  QUEUE_EVENT_OK= 0,
+  QUEUE_EVENT_ERROR_QUEUING,
+  QUEUE_EVENT_ERROR_FLUSHING_INFO
+} QUEUE_EVENT_RESULT;
+QUEUE_EVENT_RESULT queue_event(Master_info* mi,
+                               const char* buf,
+                               ulong event_len,
+                               bool flush_mi= true);
 
 extern "C" void *handle_slave_io(void *arg);
 extern "C" void *handle_slave_sql(void *arg);
 bool net_request_file(NET* net, const char* fname);
 
-extern bool volatile abort_loop;
-extern LIST master_list;
-extern my_bool replicate_same_server_id;
+extern bool replicate_same_server_id;
 
 extern int disconnect_slave_event_count, abort_slave_event_count ;
 
 /* the master variables are defaults read from my.cnf or command line */
-extern uint master_port, master_connect_retry, report_port;
-extern char * master_user, *master_password, *master_host;
+extern uint report_port;
 extern char *master_info_file, *relay_log_info_file, *report_user;
 extern char *report_host, *report_password;
 
-extern my_bool master_ssl;
-extern char *master_ssl_ca, *master_ssl_capath, *master_ssl_cert, *master_tls_version;
-extern char *master_ssl_cipher, *master_ssl_key;
-       
 bool mts_recovery_groups(Relay_log_info *rli);
 bool mts_checkpoint_routine(Relay_log_info *rli, ulonglong period,
                             bool force, bool need_data_lock);
 bool sql_slave_killed(THD* thd, Relay_log_info* rli);
-#endif /* HAVE_REPLICATION */
 
 /* masks for start/stop operations on io and sql slave threads */
 #define SLAVE_IO  1

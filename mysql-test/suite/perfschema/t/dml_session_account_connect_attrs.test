@@ -1,6 +1,3 @@
---source include/not_embedded.inc
---source include/have_perfschema.inc
-
 --disable_result_log
 SELECT * FROM performance_schema.session_account_connect_attrs
   LIMIT 1;

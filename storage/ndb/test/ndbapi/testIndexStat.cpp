@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -41,8 +41,8 @@ struct Opts {
   uint rpkvar;
   uint scanpct;
   uint eqscans;
-  my_bool keeptable;
-  my_bool abort;
+  bool keeptable;
+  bool abort;
   const char* dump;
   Opts() :
     loglevel(0),
@@ -116,7 +116,6 @@ static const Uint32 g_ndbrec_c_offset=offsetof(my_record, m_c);
 static const Uint32 g_ndbrec_c_nb_offset=2;
 static const Uint32 g_ndbrec_d_offset=offsetof(my_record, m_d);
 static const Uint32 g_ndbrec_d_nb_offset=3;
-static const Uint32 g_ndbrecord_bytes=sizeof(my_record);
 
 static NdbTransaction* g_con = 0;
 static NdbOperation* g_op = 0;
@@ -514,7 +513,7 @@ Val::cmp(const Val& val2, uint numattrs, uint* num_eq) const
       const uint l1 = (uint)c[0];
       const uint l2 = (uint)val2.c[0];
       require(l1 <= g_charlen && l2 <= g_charlen);
-      k = g_cs->coll->strnncollsp(g_cs, s1, l1, s2, l2, 0);
+      k = g_cs->coll->strnncollsp(g_cs, s1, l1, s2, l2);
     } else if (! c_null) {
       k = +1;
     } else if (! val2.c_null) {

@@ -10,6 +10,11 @@ idle	YES
 memory/performance_schema/accounts	NO
 memory/performance_schema/cond_class	NO
 memory/performance_schema/cond_instances	NO
+memory/performance_schema/events_errors_summary_by_account_by_error	NO
+memory/performance_schema/events_errors_summary_by_host_by_error	NO
+memory/performance_schema/events_errors_summary_by_thread_by_error	NO
+memory/performance_schema/events_errors_summary_by_user_by_error	NO
+memory/performance_schema/events_errors_summary_global_by_error	NO
 memory/performance_schema/events_stages_history	NO
 memory/performance_schema/events_stages_history_long	NO
 memory/performance_schema/events_stages_summary_by_account_by_event_name	NO

@@ -108,7 +108,7 @@ SELECT @@session.table_definition_cache;
 
 --disable_warnings
 SELECT @@global.table_definition_cache = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='table_definition_cache';
 --enable_warnings
 

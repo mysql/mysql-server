@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1130,7 +1130,7 @@ NdbPack::Bound::validate() const
   return 0;
 }
 
-#ifdef TEST_NDB_PACK
+#ifdef TEST_NDBPACK
 #include <util/NdbTap.hpp>
 
 #define chk1(x) do { if (x) break; ndbout << "line " << __LINE__ << ": " << #x << endl; require(false); } while (0)
@@ -1521,7 +1521,7 @@ Tdata::xcmp(const Tdata& tdata2, int* num_eq) const
             const char* s2 = (const char*)t2;
             chk1(n1 == strlen(s1));
             chk1(n2 == strlen(s2));
-            res = (*cs->coll->strnncollsp)(cs, t1, n1, t2, n2, false);
+            res = (*cs->coll->strnncollsp)(cs, t1, n1, t2, n2);
             ll3("cmp res:" << res <<" s1:" << s1 << " s2:" << s2);
           }
           break;
@@ -1536,7 +1536,7 @@ Tdata::xcmp(const Tdata& tdata2, int* num_eq) const
             const char* s2 = (const char*)t2;
             chk1(n1 == strlen(s1));
             chk1(n2 == strlen(s2));
-            res = (*cs->coll->strnncollsp)(cs, t1, n1, t2, n2, false);
+            res = (*cs->coll->strnncollsp)(cs, t1, n1, t2, n2);
             ll3("cmp res:" << res <<" s1:" << s1 << " s2:" << s2);
           }
           break;
@@ -1551,7 +1551,7 @@ Tdata::xcmp(const Tdata& tdata2, int* num_eq) const
             const char* s2 = (const char*)t2;
             chk1(n1 == strlen(s1));
             chk1(n2 == strlen(s2));
-            res = (*cs->coll->strnncollsp)(cs, t1, n1, t2, n2, false);
+            res = (*cs->coll->strnncollsp)(cs, t1, n1, t2, n2);
             ll3("cmp res:" << res <<" s1:" << s1 << " s2:" << s2);
           }
           break;

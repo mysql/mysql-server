@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,6 +15,16 @@
 
 #ifndef _list_h_
 #define _list_h_
+
+/**
+  @file include/my_list.h
+*/
+
+/*
+  NOTE: This file should really include mysql/service_mysql_alloc.h
+  (due to the my_free() call in list_pop), but that is not acceptable
+  in client code, so it has been kept out.
+*/
 
 #ifdef	__cplusplus
 extern "C" {

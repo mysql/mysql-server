@@ -1,7 +1,7 @@
 #ifndef GEOFUNC_INTERNAL_INCLUDED
 #define GEOFUNC_INTERNAL_INCLUDED
 
-/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,29 +16,35 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-
 /**
   @file
 
   @brief
   This file defines common build blocks of GIS functions.
 */
-#include "my_config.h"
 
-#include <vector>
-#include <algorithm>
-#include <stdexcept>
-#include <memory>
-
-#include <m_ctype.h>
-#include "item_geofunc.h"
-#include "gis_bg_traits.h"
-
-// Boost.Geometry
-#include <boost/geometry/geometry.hpp>
+#include <boost/concept/usage.hpp>
+#include <boost/geometry/core/cs.hpp>
+#include <boost/geometry/core/tags.hpp>
 #include <boost/geometry/index/rtree.hpp>
-// Boost.Range
-#include <boost/range.hpp>
+#include <stddef.h>
+#include <cmath>
+#include <utility>
+#include <vector>
+
+#include "gis/srid.h"
+#include "gis_bg_traits.h"
+#include "item_geofunc.h"
+#include "my_inttypes.h"
+#include "spatial.h"
+#include "sql_exception_handler.h" // handle_gis_exception
+#include "srs_fetcher.h"
+
+class String;
+class THD;
+namespace dd {
+class Spatial_reference_system;
+}  // namespace dd
 
 
 // GCC requires typename whenever needing to access a type inside a template,
@@ -53,36 +59,6 @@
 #define GIS_ZERO 0.00000000001
 
 extern bool simplify_multi_geometry(String *str, String *result_buffer);
-
-using std::auto_ptr;
-
-
-/**
-  Handle a GIS exception of any type.
-
-  This function constitutes the exception handling barrier between
-  Boost.Geometry and MySQL code. It handles all exceptions thrown in
-  GIS code and raises the corresponding error in MySQL.
-
-  Pattern for use in other functions:
-
-  @code
-  try
-  {
-    something_that_throws();
-  }
-  catch (...)
-  {
-    handle_gis_exception("st_foo");
-  }
-  @endcode
-
-  Other exception handling code put into the catch block, before or
-  after the call to handle_gis_exception(), must not throw exceptions.
-
-  @param funcname Function name for use in error message
- */
-void handle_gis_exception(const char *funcname);
 
 
 /// A wrapper and interface for all geometry types used here. Make these
@@ -155,10 +131,10 @@ inline void make_bg_box(const Geometry *g, BG_box *box)
 inline bool is_box_valid(const BG_box &box)
 {
   return
-    !(!my_isfinite(box.min_corner().get<0>()) ||
-      !my_isfinite(box.min_corner().get<1>()) ||
-      !my_isfinite(box.max_corner().get<0>()) ||
-      !my_isfinite(box.max_corner().get<1>()) ||
+    !(!std::isfinite(box.min_corner().get<0>()) ||
+      !std::isfinite(box.min_corner().get<1>()) ||
+      !std::isfinite(box.max_corner().get<0>()) ||
+      !std::isfinite(box.max_corner().get<1>()) ||
       box.max_corner().get<0>() < box.min_corner().get<0>() ||
       box.max_corner().get<1>() < box.min_corner().get<1>());
 }
@@ -187,7 +163,7 @@ make_rtree_bggeom(const MultiGeometry &mg,
 
 
 inline Gis_geometry_collection *
-empty_collection(String *str, uint32 srid)
+empty_collection(String *str, gis::srid_t srid)
 {
   return new Gis_geometry_collection(srid, Geometry::wkb_invalid_type,
                                      NULL, str);
@@ -291,7 +267,10 @@ public:
   those passed as out parameter into set operation functions, call this
   function before using the result object's data.
 
-  @param resbuf_mgr tracks the result buffer
+  @param          resbuf_mgr   Tracks the result buffer
+  @param [in,out] geout        Geometry object
+  @param [in,out] res          GEOMETRY string.
+
   @return true if an error occurred or if the geometry is an empty
           collection; false if no error occurred.
 */

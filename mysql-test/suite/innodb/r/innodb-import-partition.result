@@ -722,6 +722,8 @@ NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	15000
 NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	16000
 ALTER TABLE t1 ADD INDEX idx1 (col_1);
 ALTER TABLE t1 ADD INDEX idx6 (col_1(255));
+Warnings:
+Warning	1831	Duplicate index 'idx6' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
 ALTER TABLE t1 ADD INDEX idx10 (col_10(255));
 SELECT
 col_1 = REPEAT("col1_00001",10),

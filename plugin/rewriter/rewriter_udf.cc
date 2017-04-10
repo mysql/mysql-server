@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,18 +18,18 @@
 
 */
 
-#include "my_config.h"
-#include "rewriter_plugin.h"
-
-#include <my_global.h>
-#include <my_sys.h>
-
-#include <mysql.h>
 #include <ctype.h>
+#include <my_sys.h>
+#include <mysql.h>
+
+#include "my_config.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "rewriter_plugin.h"
 
 extern "C" {
 
-my_bool load_rewrite_rules_init(UDF_INIT *initid, UDF_ARGS *args, char *message)
+bool load_rewrite_rules_init(UDF_INIT*, UDF_ARGS*, char *message)
 {
   if (get_rewriter_plugin_info() != NULL)
     return 0;
@@ -37,8 +37,8 @@ my_bool load_rewrite_rules_init(UDF_INIT *initid, UDF_ARGS *args, char *message)
   return 1;
 }
 
-char *load_rewrite_rules(UDF_INIT *initid, UDF_ARGS *args, char *result,
-                         unsigned long *length, char *is_null, char *error)
+char *load_rewrite_rules(UDF_INIT*, UDF_ARGS*, char*,
+                         unsigned long *length, char *is_null, char*)
 {
   DBUG_ASSERT(get_rewriter_plugin_info() != NULL);
   const char *message= NULL;
@@ -53,6 +53,6 @@ char *load_rewrite_rules(UDF_INIT *initid, UDF_ARGS *args, char *result,
   return const_cast<char*>(message);
 }
 
-void load_rewrite_rules_deinit(UDF_INIT *initid) {}
+void load_rewrite_rules_deinit(UDF_INIT*) {}
 
 }

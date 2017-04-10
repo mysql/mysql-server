@@ -4,10 +4,9 @@ call mtr.add_suppression("Plugin mysqlx reported: .SSL_CTX_load_verify_locations
 call mtr.add_suppression("Plugin 'mysqlx' will be forced to shutdown");
 call mtr.add_suppression("Unsuccessful login attempt: Invalid user or password");
 call mtr.add_suppression("Internal account mysqlxsys@localhost can't be removed because server is running without user privileges ..skip-grant-tables. switch");
-SELECT PLUGIN_NAME,PLUGIN_VERSION,PLUGIN_STATUS,PLUGIN_TYPE,PLUGIN_TYPE_VERSION,PLUGIN_LIBRARY,PLUGIN_LIBRARY_VERSION,PLUGIN_AUTHOR,PLUGIN_DESCRIPTION,PLUGIN_LICENSE,LOAD_OPTION from information_schema.plugins where PLUGIN_NAME LIKE '%xplugin%';
-PLUGIN_NAME	PLUGIN_VERSION	PLUGIN_STATUS	PLUGIN_TYPE	PLUGIN_TYPE_VERSION	PLUGIN_LIBRARY	PLUGIN_LIBRARY_VERSION	PLUGIN_AUTHOR	PLUGIN_DESCRIPTION	PLUGIN_LICENSE	LOAD_OPTION
-create user nonblank@localhost identified by 'nonblank';
-Test starts here 
+CREATE USER nonblank@localhost
+IDENTIFIED WITH 'mysql_native_password' BY 'nonblank';
+Test starts here
 RUN select user(),current_user(),@@bind_address
 user()	current_user()	@@bind_address
 nonblank@localhost	nonblank@localhost	*
@@ -37,17 +36,14 @@ Mysqlx.Ok {
 }
 ok
 FLUSH PRIVILEGES;
-in main, line 0:ERROR: Invalid user or password (code 1045)
+Application terminated with expected error: Invalid user or password (code 1045)
 not ok
-# restart: --skip-grant-tables --plugin-load=mysqlx.so
 RUN uninstall plugin mysqlx
 While executing uninstall plugin mysqlx:
-in main, line 3:ERROR: Command not supported by pluggable protocols (code 3130)
+Got expected error: Command not supported by pluggable protocols (code 3130)
 Mysqlx.Ok {
   msg: "bye!"
 }
 ok
-UNINSTALL PLUGIN mysqlx;
-# restart: --plugin-load=mysqlx.so
-drop user nonblank@localhost;
+DROP USER nonblank@localhost;
 UNINSTALL PLUGIN mysqlx;

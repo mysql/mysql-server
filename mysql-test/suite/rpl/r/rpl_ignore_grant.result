@@ -22,8 +22,8 @@ Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be r
 grant drop on test.* to rpl_ignore_grant@localhost;
 show grants for rpl_ignore_grant@localhost;
 Grants for rpl_ignore_grant@localhost
-GRANT SELECT ON *.* TO 'rpl_ignore_grant'@'localhost'
-GRANT DROP ON `test`.* TO 'rpl_ignore_grant'@'localhost'
+GRANT SELECT ON *.* TO `rpl_ignore_grant`@`localhost`
+GRANT DROP ON `test`.* TO `rpl_ignore_grant`@`localhost`
 show grants for rpl_ignore_grant@localhost;
 ERROR 42000: There is no such grant defined for user 'rpl_ignore_grant' on host 'localhost'
 select count(*) from mysql.user where user=_binary'rpl_ignore_grant';

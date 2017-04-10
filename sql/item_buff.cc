@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,9 +21,21 @@
   Buffers to save and compare item values
 */
 
-#include "sql_class.h"          // THD
+#include <stddef.h>
+#include <algorithm>
+
+#include "binary_log_types.h"
+#include "current_thd.h"        // current_thd
+#include "field.h"
 #include "item.h"               // Cached_item, Cached_item_field, ...
 #include "json_dom.h"           // Json_wrapper
+#include "my_dbug.h"
+#include "my_decimal.h"
+#include "my_inttypes.h"
+#include "mysql_com.h"
+#include "sql_class.h"          // THD
+#include "sql_string.h"
+#include "system_variables.h"
 
 using std::min;
 using std::max;
@@ -45,12 +57,12 @@ Cached_item *new_Cached_item(THD *thd, Item *item, bool use_result_field)
   switch (item->result_type()) {
   case STRING_RESULT:
     if (item->is_temporal())
-      return new Cached_item_temporal((Item_field *) item);
-    if (item->field_type() == MYSQL_TYPE_JSON)
+      return new Cached_item_temporal(item);
+    if (item->data_type() == MYSQL_TYPE_JSON)
       return new Cached_item_json(item);
-    return new Cached_item_str(thd, (Item_field *) item);
+    return new Cached_item_str(thd, item);
   case INT_RESULT:
-    return new Cached_item_int((Item_field *) item);
+    return new Cached_item_int(item);
   case REAL_RESULT:
     return new Cached_item_real(item);
   case DECIMAL_RESULT:
@@ -84,7 +96,7 @@ bool Cached_item_str::cmp(void)
 
   DBUG_ENTER("Cached_item_str::cmp");
   DBUG_ASSERT(!item->is_temporal());
-  DBUG_ASSERT(item->field_type() != MYSQL_TYPE_JSON);
+  DBUG_ASSERT(item->data_type() != MYSQL_TYPE_JSON);
   if ((res=item->val_str(&tmp_value)))
     res->length(min(res->length(), static_cast<size_t>(value_max_length)));
   DBUG_PRINT("info", ("old: %s, new: %s",
@@ -154,14 +166,14 @@ bool Cached_item_json::cmp()
     Otherwise, old and new are not equal, and new is not null.
     Remember the current value till the next time we're called.
   */
-  m_value->steal(&wr);
+  *m_value= std::move(wr);
 
   /*
     The row buffer may change, which would garble the JSON binary
     representation pointed to by m_value. Convert to DOM so that we
     own the copy.
   */
-  m_value->to_dom();
+  m_value->to_dom(current_thd);
 
   return true;
 }

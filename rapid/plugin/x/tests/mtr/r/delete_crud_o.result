@@ -872,9 +872,9 @@ send Mysqlx.Crud.Delete {
 
 Mysqlx.Error {
   severity: ERROR
-  code: 1146
-  msg: "Table \'noavailableschema.extracategoryinfo\' doesn\'t exist"
-  sql_state: "42S02"
+  code: 1049
+  msg: "Unknown database \'noavailableschema\'"
+  sql_state: "42000"
 }
 
 Delete with wrong Table
@@ -1246,9 +1246,9 @@ send Mysqlx.Crud.Delete {
 
 Mysqlx.Error {
   severity: ERROR
-  code: 1146
-  msg: "Table \'not_available_schema.main_collection\' doesn\'t exist"
-  sql_state: "42S02"
+  code: 1049
+  msg: "Unknown database \'not_available_schema\'"
+  sql_state: "42000"
 }
 
 Delete collection wrong collection

@@ -199,6 +199,8 @@ insert into t2 select 'bazbazbaz', 'no' from t1 A, t1 B;
 insert into t2 values ('fon', '1'), ('fop','1'), ('barbaq','1'), 
   ('barbas','1'), ('bazbazbay', '1'),('zz','1');
 
+# Ignore possible changes in key_len for different character sets
+--replace_column 8 13
 explain select * from t2 where a not in('foo','barbar', 'bazbazbaz');
 
 drop table t2;
@@ -393,10 +395,16 @@ select f1 from t1 where f1 in ('a',1);
 select f1, case f1 when 'a' then '+' when 1 then '-' end from t1;
 create index t1f1_idx on t1(f1);
 select f1 from t1 where f1 in ('a',1);
+# Ignore possible changes in key_len for different character sets
+--replace_column 8 2
 explain select f1 from t1 where f1 in ('a',1);
 select f1 from t1 where f1 in ('a','b');
+# Ignore possible changes in key_len for different character sets
+--replace_column 8 2
 explain select f1 from t1 where f1 in ('a','b');
 select f1 from t1 where f1 in (2,1);
+# Ignore possible changes in key_len for different character sets
+--replace_column 8 2
 explain select f1 from t1 where f1 in (2,1);
 create table t2(f2 int, index t2f2(f2));
 insert into t2 values(0),(1),(2);
@@ -474,7 +482,7 @@ CREATE TABLE t1 (
   c_timestamp TIMESTAMP NOT NULL,
   c_time TIME NOT NULL,
   c_year YEAR NOT NULL,
-  c_char CHAR(10) NOT NULL,
+  c_char CHAR(10) character set utf8mb4 NOT NULL,
   INDEX(c_int), INDEX(c_decimal), INDEX(c_float), INDEX(c_bit), INDEX(c_date),
   INDEX(c_datetime), INDEX(c_timestamp), INDEX(c_time), INDEX(c_year),
   INDEX(c_char));

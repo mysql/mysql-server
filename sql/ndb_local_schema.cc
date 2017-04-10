@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,9 +17,7 @@
 
 #include "ndb_local_schema.h"
 
-#ifndef MYSQL_SERVER
-#define MYSQL_SERVER
-#endif
+#include <errno.h>
 
 #include "sql_class.h"
 #include "sql_table.h"
@@ -27,6 +25,10 @@
 #include "log.h"
 #include "table_trigger_dispatcher.h"
 #include "sql_trigger.h"
+#include "mysqld.h"                             // reg_ext
+#include "dd/dd_table.h"  // dd::table_legacy_db_type
+#include "dd/dd_trigger.h"  // dd::table_has_triggers
+#include "sql_trigger.h"  // reload_triggers_for_table
 
 static const char *ndb_ext=".ndb";
 
@@ -179,19 +181,20 @@ Ndb_local_schema::Table::rename_file(const char* new_db, const char* new_name,
 }
 
 
-// Read the engine type from .frm and return true if it says NDB
+// Read the engine type from the DD and return true if it says NDB
+// TODO: Change function name to "engine_is_ndb"
 bool
 Ndb_local_schema::Table::frm_engine_is_ndb(void) const
 {
-  char buf[FN_REFLEN + 1];
-  build_table_filename(buf, sizeof(buf)-1,
-                       m_db, m_name, reg_ext, 0);
-
   legacy_db_type engine_type;
-  (void)dd_frm_type(m_thd, buf, &engine_type);
-  DBUG_PRINT("info", ("engine_type: %d", engine_type));
+  if (!dd::table_legacy_db_type(m_thd, m_db, m_name, &engine_type))
+  {
+    DBUG_PRINT("info", ("engine_type: %d", engine_type));
+    return (engine_type == DB_TYPE_NDBCLUSTER);
+  }
 
-  return (engine_type == DB_TYPE_NDBCLUSTER);
+  DBUG_PRINT("info", ("engine_type: Not found for table %s.%s", m_db, m_name));
+  return false;
 }
 
 
@@ -217,7 +220,9 @@ Ndb_local_schema::Table::Table(THD* thd,
   m_ndb_file_exist = file_exists(ndb_ext);
 
   // Check if there are trigger files
-  m_has_triggers = file_exists(TRG_EXT);
+  // Ignore possible error from dd::table_has_triggers since
+  // Caller has to check Diagnostics_area to detect whether error happened.
+  (void)dd::table_has_triggers(thd, db, name, &m_has_triggers);
 
   DBUG_VOID_RETURN;
 }
@@ -277,7 +282,7 @@ Ndb_local_schema::Table::rename_table(const char* new_db,
     }
     else
     {
-      if (change_trigger_table_name(m_thd,
+      if (reload_triggers_for_table(m_thd,
                                     m_db, m_name, m_name,
                                     new_db, new_name))
       {

@@ -15,5 +15,5 @@ Warning	138	InnoDB: Page Compression is not supported for the system tablespace
 Error	1031	Table storage engine for 't1' doesn't have this option
 SET DEBUG ='+d, simulate_max_char_col';
 create table t1(f1 varchar(1000))engine=innodb;
-ERROR HY000: Got error 1005 from storage engine
+Got one of the listed errors
 SET DEBUG ='-d, simulate_max_char_col';

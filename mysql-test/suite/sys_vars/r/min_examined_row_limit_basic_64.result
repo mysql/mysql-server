@@ -51,6 +51,10 @@ SET @@global.min_examined_row_limit = 4294967294;
 SELECT @@global.min_examined_row_limit;
 @@global.min_examined_row_limit
 4294967294
+SET @@global.min_examined_row_limit = 18446744073709551615;
+SELECT @@global.min_examined_row_limit;
+@@global.min_examined_row_limit
+18446744073709551615
 '#--------------------FN_DYNVARS_089_04-------------------------#'
 SET @@session.min_examined_row_limit = 0;
 SELECT @@session.min_examined_row_limit;
@@ -76,35 +80,32 @@ SET @@session.min_examined_row_limit = 4294967294;
 SELECT @@session.min_examined_row_limit;
 @@session.min_examined_row_limit
 4294967294
+SET @@session.min_examined_row_limit = 18446744073709551615;
+SELECT @@session.min_examined_row_limit;
+@@session.min_examined_row_limit
+18446744073709551615
 '#------------------FN_DYNVARS_089_05-----------------------#'
-SET @@global.min_examined_row_limit = 429496726;
-SELECT @@global.min_examined_row_limit;
-@@global.min_examined_row_limit
-429496726
 SET @@global.min_examined_row_limit = -1024;
 Warnings:
 Warning	1292	Truncated incorrect min_examined_row_limit value: '-1024'
 SELECT @@global.min_examined_row_limit;
 @@global.min_examined_row_limit
 0
-SET @@global.min_examined_row_limit = 429496729500;
-SELECT @@global.min_examined_row_limit;
-@@global.min_examined_row_limit
-429496729500
 SET @@global.min_examined_row_limit = 65530.34;
 ERROR 42000: Incorrect argument type to variable 'min_examined_row_limit'
 SELECT @@global.min_examined_row_limit;
 @@global.min_examined_row_limit
-429496729500
+0
 SET @@global.min_examined_row_limit = test;
 ERROR 42000: Incorrect argument type to variable 'min_examined_row_limit'
 SELECT @@global.min_examined_row_limit;
 @@global.min_examined_row_limit
-429496729500
-SET @@session.min_examined_row_limit = 4294967296;
-SELECT @@session.min_examined_row_limit;
-@@session.min_examined_row_limit
-4294967296
+0
+SET @@global.min_examined_row_limit = 18446744073709551616;
+ERROR 42000: Incorrect argument type to variable 'min_examined_row_limit'
+SELECT @@global.min_examined_row_limit;
+@@global.min_examined_row_limit
+0
 SET @@session.min_examined_row_limit = -1;
 Warnings:
 Warning	1292	Truncated incorrect min_examined_row_limit value: '-1'
@@ -113,24 +114,25 @@ SELECT @@session.min_examined_row_limit;
 0
 SET @@session.min_examined_row_limit = 65530.34;
 ERROR 42000: Incorrect argument type to variable 'min_examined_row_limit'
-SET @@session.min_examined_row_limit = 4294967295021;
-SELECT @@session.min_examined_row_limit;
-@@session.min_examined_row_limit
-4294967295021
 SET @@session.min_examined_row_limit = test;
 ERROR 42000: Incorrect argument type to variable 'min_examined_row_limit'
 SELECT @@session.min_examined_row_limit;
 @@session.min_examined_row_limit
-4294967295021
+0
+SET @@session.min_examined_row_limit = 18446744073709551616;
+ERROR 42000: Incorrect argument type to variable 'min_examined_row_limit'
+SELECT @@session.min_examined_row_limit;
+@@session.min_examined_row_limit
+0
 '#------------------FN_DYNVARS_089_06-----------------------#'
 SELECT @@global.min_examined_row_limit = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='min_examined_row_limit';
 @@global.min_examined_row_limit = VARIABLE_VALUE
 1
 '#------------------FN_DYNVARS_089_07-----------------------#'
 SELECT @@session.min_examined_row_limit = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+FROM performance_schema.session_variables 
 WHERE VARIABLE_NAME='min_examined_row_limit';
 @@session.min_examined_row_limit = VARIABLE_VALUE
 1

@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -17,19 +17,20 @@
 #define MYSQL_MEMORY_H
 
 /**
-  @file mysql/psi/mysql_memory.h
+  @file include/mysql/psi/mysql_memory.h
   Instrumentation helpers for memory allocation.
 */
 
-#include "mysql/psi/psi.h"
+#include "my_compiler.h"
+#include "mysql/psi/psi_memory.h"
 
 #ifndef PSI_MEMORY_CALL
-#define PSI_MEMORY_CALL(M) PSI_DYNAMIC_CALL(M)
+#define PSI_MEMORY_CALL(M) psi_memory_service->M
 #endif
 
 /**
-  @defgroup Memory_instrumentation Memory Instrumentation
-  @ingroup Instrumentation_interface
+  @defgroup psi_api_memory Memory Instrumentation (API)
+  @ingroup psi_api
   @{
 */
 
@@ -40,11 +41,10 @@
 #define mysql_memory_register(P1, P2, P3) \
   inline_mysql_memory_register(P1, P2, P3)
 
-static inline void inline_mysql_memory_register(
+static inline void
+inline_mysql_memory_register(
 #ifdef HAVE_PSI_MEMORY_INTERFACE
-  const char *category,
-  PSI_memory_info *info,
-  int count)
+  const char *category, PSI_memory_info *info, int count)
 #else
   const char *category MY_ATTRIBUTE((unused)),
   void *info MY_ATTRIBUTE((unused)),
@@ -56,7 +56,6 @@ static inline void inline_mysql_memory_register(
 #endif
 }
 
-/** @} (end of group Memory_instrumentation) */
+/** @} (end of group psi_api_memory) */
 
 #endif
-

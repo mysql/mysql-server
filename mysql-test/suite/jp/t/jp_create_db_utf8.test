@@ -1,4 +1,3 @@
---source include/have_utf8.inc
 --disable_warnings
 drop database if exists `ﾆﾎﾝｺﾞ`;
 drop database if exists `日本語`;
@@ -16,7 +15,8 @@ CREATE DATABASE `ﾆﾎﾝｺﾞ`;
 CREATE DATABASE `日本語`;
 CREATE DATABASE `龔龖龗`;
 
-SELECT schema_name from information_schema.schemata where schema_name <> 'mtr';
+SELECT schema_name from information_schema.schemata
+  where schema_name <> 'mtr' order by schema_name;
 
 USE `ﾆﾎﾝｺﾞ`;
 USE `日本語`;

@@ -1,7 +1,7 @@
 ## generated
 ## Rel: Find a valid row with projection
 
---source ../include/xplugin_preamble.inc
+--source include/xplugin_preamble.inc
 ## Test starts here
 --write_file $MYSQL_TMP_DIR/find_table_find_rows_proj.tmp
 ## Test data

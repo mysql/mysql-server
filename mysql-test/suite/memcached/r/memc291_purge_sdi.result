@@ -1,0 +1,29 @@
+INSERT INTO cache_policies VALUES('cache_policy', 'innodb_only',
+'innodb_only', 'innodb_only', 'innodb_only');
+INSERT INTO config_options VALUES('separator', '|');
+INSERT INTO containers VALUES ('desc_t1', 'test', 't1',
+'c1', 'c2', '0', '0', '0', 'PRIMARY');
+USE test;
+CREATE TABLE t1(c1 VARCHAR(32),
+c2 VARCHAR(1024),
+primary key(c1))
+ENGINE = INNODB;
+INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
+1. Insert Small data
+2. Insert Large data. Will be stored in external pages
+3. Move off-page to in-page
+4. Move in-page to off-page
+5. Insert 1000 rows and delete
+SET GLOBAL innodb_fast_shutdown=0;
+# restart
+1. Insert Small data
+2. Insert Large data. Will be stored in external pages
+3. Move off-page to in-page
+4. Move in-page to off-page
+5. Insert 1000 rows and delete
+# Kill and restart
+SET GLOBAL innodb_fast_shutdown=0;
+# restart
+DROP TABLE t1;
+UNINSTALL PLUGIN daemon_memcached;
+DROP DATABASE innodb_memcache;

@@ -1,10 +1,4 @@
 # Session connect attributes test
---source include/have_perfschema.inc
-
-# although the connection attributes transfer code works
-# with embedded P_S is not active, so the test won't run.
-# TODO: remove this when P_S works with embedded.
---source include/not_embedded.inc
 
 # make sure we're alone
 let $count_sessions= 1;

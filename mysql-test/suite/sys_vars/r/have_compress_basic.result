@@ -13,7 +13,7 @@ COUNT(@@GLOBAL.have_compress)
 1 Expected
 '#---------------------BS_STVARS_006_03----------------------#'
 SELECT @@GLOBAL.have_compress = VARIABLE_VALUE
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='have_compress';
 @@GLOBAL.have_compress = VARIABLE_VALUE
 1
@@ -23,7 +23,7 @@ COUNT(@@GLOBAL.have_compress)
 1
 1 Expected
 SELECT COUNT(VARIABLE_VALUE)
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='have_compress';
 COUNT(VARIABLE_VALUE)
 1

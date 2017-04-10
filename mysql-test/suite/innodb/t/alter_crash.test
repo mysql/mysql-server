@@ -2,7 +2,6 @@
 
 --source include/not_valgrind.inc
 --source include/not_embedded.inc
---source include/have_innodb.inc
 --source include/have_debug.inc
 --source include/not_crashrep.inc
 
@@ -89,8 +88,6 @@ rename($frm_file[0], $t1_frm);
 EOF
 
 --echo # Manual recovery end
-
-FLUSH TABLES;
 
 --echo # Drop the orphaned original table.
 --disable_query_log
@@ -207,8 +204,6 @@ rename($frm_file[0], $t1_frm);
 EOF
 
 --echo # Manual recovery end
-
-FLUSH TABLES;
 
 --echo # Drop the orphaned original table.
 --disable_query_log

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,14 +14,15 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-// First include (the generated) my_config.h, to get correct platform defines.
-#include "my_config.h"
-#include "handler.h"                            // handlerton
-#include "m_ctype.h"                            // my_charset_utf8_general_ci
-#include "my_dbug.h"
 #include "opt_costconstants.h"
-#include "sql_plugin.h"                         // plugin_ref
-#include "table.h"                              // TABLE
+
+#include "handler.h"
+#include "key.h"
+#include "m_ctype.h"
+#include "my_dbug.h"
+#include "mysql/psi/psi_base.h"
+#include "sql_plugin_ref.h"
+#include "table.h"              // TABLE
 
 /**
   The default value for storage device type. If device type information
@@ -36,30 +37,35 @@ const unsigned int DEFAULT_STORAGE_CLASS= 0;
   These are the default cost constant values that will be use if
   the server administrator has not added new values in the server_cost
   table.
+
+  Note: The default cost constants are displayed in the default_value
+        column of the cost tables.  If any default value is changed,
+        make sure to update the column definitions in
+        mysql_system_tables.sql and mysql_system_tables_fix.sql
 */
 
 // Default cost for evaluation of the query condition for a row.
-const double Server_cost_constants::ROW_EVALUATE_COST= 0.2;
+const double Server_cost_constants::ROW_EVALUATE_COST= 0.1;
 
 // Default cost for comparing row ids.
-const double Server_cost_constants::KEY_COMPARE_COST= 0.1;
+const double Server_cost_constants::KEY_COMPARE_COST= 0.05;
   
 /*
   Creating a Memory temporary table is by benchmark found to be as
   costly as writing 10 rows into the table.
 */
-const double Server_cost_constants::MEMORY_TEMPTABLE_CREATE_COST= 2.0;
+const double Server_cost_constants::MEMORY_TEMPTABLE_CREATE_COST= 1.0;
 
 /*
   Writing a row to or reading a row from a Memory temporary table is
   equivalent to evaluating a row in the join engine.
 */
-const double Server_cost_constants::MEMORY_TEMPTABLE_ROW_COST= 0.2;
+const double Server_cost_constants::MEMORY_TEMPTABLE_ROW_COST= 0.1;
 
 /*
   Creating a MyISAM table is 20 times slower than creating a Memory table.
 */
-const double Server_cost_constants::DISK_TEMPTABLE_CREATE_COST= 40.0;
+const double Server_cost_constants::DISK_TEMPTABLE_CREATE_COST= 20.0;
 
 /*
   Generating MyISAM rows sequentially is 2 times slower than
@@ -68,7 +74,7 @@ const double Server_cost_constants::DISK_TEMPTABLE_CREATE_COST= 40.0;
   setting this factor conservatively to be 5 times slower (ie the cost
   is 1.0).
 */
-const double Server_cost_constants::DISK_TEMPTABLE_ROW_COST= 1.0;
+const double Server_cost_constants::DISK_TEMPTABLE_ROW_COST= 0.5;
 
 
 cost_constant_error Server_cost_constants::set(const LEX_CSTRING &name,
@@ -142,7 +148,7 @@ cost_constant_error Server_cost_constants::set(const LEX_CSTRING &name,
 */
 
 // The cost of reading a block from a main memory buffer pool
-const double SE_cost_constants::MEMORY_BLOCK_READ_COST= 1.0;
+const double SE_cost_constants::MEMORY_BLOCK_READ_COST= 0.25;
 
 // The cost of reading a block from an IO device (disk)
 const double SE_cost_constants::IO_BLOCK_READ_COST= 1.0;
@@ -240,20 +246,21 @@ Cost_model_se_info::~Cost_model_se_info()
 
 
 Cost_model_constants::Cost_model_constants()
-  : m_ref_counter(0)
+  : m_engines(PSI_NOT_INSTRUMENTED, num_hton2plugins()),
+    m_ref_counter(0)
 {
   /**
     Create default cost constants for each storage engine.
   */
-  for (uint engine= 0; engine < MAX_HA; ++engine)
+  for (size_t engine= 0; engine < m_engines.size(); ++engine)
   {
     const handlerton *ht= NULL;
 
     // Check if the storage engine has been installed
-    if (hton2plugin[engine])
+    if (hton2plugin(engine))
     {
       // Find the handlerton for the storage engine
-      ht= static_cast<handlerton*>(hton2plugin[engine]->data);
+      ht= static_cast<handlerton*>(hton2plugin(engine)->data);
     }
 
     for (uint storage= 0; storage < MAX_STORAGE_CLASSES; ++storage)
@@ -293,8 +300,16 @@ const SE_cost_constants
   DBUG_ASSERT(table->file != NULL);
   DBUG_ASSERT(table->file->ht != NULL);
 
+  static SE_cost_constants default_cost;
+
+  /*
+    We do not see data for new htons loaded by the current session,
+    use default statistics.
+  */
+  const uint slot= table->file->ht->slot;
   const SE_cost_constants *se_cc=
-    m_engines[table->file->ht->slot].get_cost_constants(DEFAULT_STORAGE_CLASS);
+    slot < m_engines.size() ?
+    m_engines[slot].get_cost_constants(DEFAULT_STORAGE_CLASS) : &default_cost;
   DBUG_ASSERT(se_cc != NULL);
 
   return se_cc;
@@ -387,7 +402,7 @@ Cost_model_constants::update_engine_default_cost(const LEX_CSTRING &name,
   /*
     Update all constants for engines that have their own cost constants
   */
-  for (size_t i= 0; i < MAX_HA; ++i)
+  for (size_t i= 0; i < m_engines.size(); ++i)
   {
     SE_cost_constants *se_cc= m_engines[i].get_cost_constants(storage_category);
     if (se_cc)

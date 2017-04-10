@@ -1,6 +1,6 @@
 #ifndef LITTLE_ENDIAN_INCLUDED
 #define LITTLE_ENDIAN_INCLUDED
-/* Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,11 +15,15 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
-/*
+/**
+  @file include/little_endian.h
   Data in little-endian format.
 */
 
 #include <string.h>
+
+#include "my_byteorder.h"
+#include "my_inttypes.h"
 
 static inline void float4get  (float  *V, const uchar *M) 
 {
@@ -44,35 +48,8 @@ static inline void float8store(uchar  *V, double M)
 static inline void floatget   (float  *V, const uchar *M) { float4get(V, M); }
 static inline void floatstore (uchar  *V, float M)        { float4store(V, M); }
 
-/* Bi-endian hardware.... */
-#if defined(__FLOAT_WORD_ORDER) && (__FLOAT_WORD_ORDER == __BIG_ENDIAN)
-static inline void doublestore(uchar *T, double V)
-{ *(((char*)T)+0)=(char) ((uchar *) &V)[4];
-  *(((char*)T)+1)=(char) ((uchar *) &V)[5];
-  *(((char*)T)+2)=(char) ((uchar *) &V)[6];
-  *(((char*)T)+3)=(char) ((uchar *) &V)[7];
-  *(((char*)T)+4)=(char) ((uchar *) &V)[0];
-  *(((char*)T)+5)=(char) ((uchar *) &V)[1];
-  *(((char*)T)+6)=(char) ((uchar *) &V)[2];
-  *(((char*)T)+7)=(char) ((uchar *) &V)[3]; }
-static inline void doubleget(double *V, const uchar *M)
-{ double def_temp;
-  ((uchar*) &def_temp)[0]=(M)[4];
-  ((uchar*) &def_temp)[1]=(M)[5];
-  ((uchar*) &def_temp)[2]=(M)[6];
-  ((uchar*) &def_temp)[3]=(M)[7];
-  ((uchar*) &def_temp)[4]=(M)[0];
-  ((uchar*) &def_temp)[5]=(M)[1];
-  ((uchar*) &def_temp)[6]=(M)[2];
-  ((uchar*) &def_temp)[7]=(M)[3];
-  (*V) = def_temp; }
-
-#else /* Bi-endian hardware.... */
-
 static inline void doublestore(uchar  *T, double V)       { memcpy(T, &V, sizeof(double)); }
 static inline void doubleget  (double *V, const uchar *M) { memcpy(V, M, sizeof(double)); }
-
-#endif /* Bi-endian hardware.... */
 
 static inline void ushortget(uint16 *V, const uchar *pM) { *V= uint2korr(pM); }
 static inline void shortget (int16  *V, const uchar *pM) { *V= sint2korr(pM); }

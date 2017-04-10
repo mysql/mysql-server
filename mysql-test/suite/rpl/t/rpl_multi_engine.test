@@ -8,10 +8,8 @@
 -- source include/master-slave.inc
 
 connection slave;
--- source include/have_innodb.inc
 
 connection master;
--- source include/have_innodb.inc
 --disable_warnings
 drop table if exists t1;
 --enable_warnings

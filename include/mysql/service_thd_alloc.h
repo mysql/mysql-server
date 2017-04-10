@@ -15,8 +15,8 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**
-  @file
-  This service provdes functions to allocate memory in a connection local
+  @file include/mysql/service_thd_alloc.h
+  This service provides functions to allocate memory in a connection local
   memory pool. The memory allocated there will be automatically freed at the
   end of the statement, don't use it for allocations that should live longer
   than that. For short living allocations this is more efficient than

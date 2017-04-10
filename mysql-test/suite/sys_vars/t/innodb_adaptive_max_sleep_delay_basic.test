@@ -17,10 +17,9 @@
 #                                                                             #
 ###############################################################################
 
---source include/have_innodb.inc
 
 # Check if builtins are enabled
-if (`SELECT LOWER(VARIABLE_VALUE)='off' FROM INFORMATION_SCHEMA.GLOBAL_STATUS
+if (`SELECT LOWER(VARIABLE_VALUE)='off' FROM performance_schema.global_status
     WHERE LOWER(variable_name) = 'innodb_have_atomic_builtins'`) {
 	--skip Test requires InnoDB atomic builtins
 }
@@ -63,7 +62,7 @@ SELECT COUNT(@@GLOBAL.innodb_adaptive_max_sleep_delay);
 # Check if the value in GLOBAL table matches value in variable
 --disable_warnings
 SELECT VARIABLE_VALUE
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='innodb_adaptive_max_sleep_delay';
 --enable_warnings
 --echo 100 Expected

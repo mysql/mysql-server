@@ -37,7 +37,7 @@ CHANGE MASTER TO MASTER_USER='manish', MASTER_PASSWORD='unique_password' FOR CHA
 SELECT password FROM performance_schema.replication_connection_configuration;
 
 --echo server1
---let $change_count= `SELECT COUNT(*) FROM mysql.general_log WHERE argument LIKE 'CHANGE MASTER TO MASTER_USER = \'manish\' MASTER_PASSWORD = <secret>'`
+--let $change_count= `SELECT COUNT(*) FROM mysql.general_log WHERE argument LIKE 'CHANGE MASTER TO MASTER_USER = \'manish\', MASTER_PASSWORD = <secret> FOR CHANNEL \'group_replication_recovery\''`
 --let $assert_cond= "$change_count" = 1
 --let $assert_text= The CHANGE MASTER is logged with the password value replaced with the keyword <secret>.
 --source include/assert.inc

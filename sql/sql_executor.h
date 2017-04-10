@@ -1,7 +1,7 @@
 #ifndef SQL_EXECUTOR_INCLUDED
 #define SQL_EXECUTOR_INCLUDED
 
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights
  * reserved.
 
    This program is free software; you can redistribute it and/or modify
@@ -17,14 +17,39 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-/** @file Classes for query execution */
+/**
+  @file sql/sql_executor.h
+  Classes for query execution.
+*/
 
+#include <string.h>
+#include <sys/types.h>
+
+#include "item.h"
+#include "my_base.h"
+#include "my_compiler.h"
+#include "my_inttypes.h"
 #include "records.h"               // READ_RECORD
+#include "sql_alloc.h"
+#include "sql_class.h"             // THD
+#include "sql_lex.h"
 #include "sql_opt_exec_shared.h"   // QEP_shared_owner
+#include "sql_select.h"
+#include "table.h"
+#include "temp_table_param.h"      // Temp_table_param
 
+class Field;
+class Field_longlong;
+class Filesort;
+class Item_sum;
 class JOIN;
-class JOIN_TAB;
 class QEP_TAB;
+class QUICK_SELECT_I;
+struct st_cache_field;
+struct st_join_table;
+template <class T> class List;
+
+typedef struct st_columndef MI_COLUMNDEF;
 typedef struct st_table_ref TABLE_REF;
 typedef struct st_position POSITION;
 
@@ -287,18 +312,28 @@ MY_ATTRIBUTE((warn_unused_result))
 bool copy_fields(Temp_table_param *param, const THD *thd);
 
 bool copy_funcs(Func_ptr_array*, const THD *thd);
+
+/**
+  Copy the lookup key into the table ref's key buffer.
+
+  @param thd   pointer to the THD object
+  @param table the table to read
+  @param ref   information about the index lookup key
+
+  @retval false ref key copied successfully
+  @retval true  error dectected during copying of key
+*/
 bool cp_buffer_from_ref(THD *thd, TABLE *table, TABLE_REF *ref);
 
 /** Help function when we get some an error from the table handler. */
 int report_handler_error(TABLE *table, int error);
 
 int safe_index_read(QEP_TAB *tab);
-st_sort_field * make_unireg_sortorder(ORDER *order, uint *length,
-                                      st_sort_field *sortorder);
 
 int join_read_const_table(JOIN_TAB *tab, POSITION *pos);
 void join_read_key_unlock_row(st_join_table *tab);
 int join_init_quick_read_record(QEP_TAB *tab);
+int read_first_record_seq(QEP_TAB *tab);
 int join_init_read_record(QEP_TAB *tab);
 int join_read_first(QEP_TAB *tab);
 int join_read_last(QEP_TAB *tab);
@@ -311,21 +346,20 @@ int do_sj_dups_weedout(THD *thd, SJ_TMP_TABLE *sjtbl);
 int test_if_item_cache_changed(List<Cached_item> &list);
 
 // Create list for using with tempory table
-bool change_to_use_tmp_fields(THD *thd, Ref_ptr_array ref_pointer_array,
+bool change_to_use_tmp_fields(THD *thd, Ref_item_array ref_item_array,
 				     List<Item> &new_list1,
 				     List<Item> &new_list2,
 				     uint elements, List<Item> &items);
 // Create list for using with tempory table
-bool change_refs_to_tmp_fields(THD *thd, Ref_ptr_array ref_pointer_array,
+bool change_refs_to_tmp_fields(THD *thd, Ref_item_array ref_item_array,
 				      List<Item> &new_list1,
 				      List<Item> &new_list2,
 				      uint elements, List<Item> &items);
-bool alloc_group_fields(JOIN *join, ORDER *group);
 bool prepare_sum_aggregators(Item_sum **func_ptr, bool need_distinct);
 bool setup_sum_funcs(THD *thd, Item_sum **func_ptr);
 bool make_group_fields(JOIN *main_join, JOIN *curr_join);
 bool setup_copy_fields(THD *thd, Temp_table_param *param,
-		  Ref_ptr_array ref_pointer_array,
+		  Ref_item_array ref_item_array,
 		  List<Item> &res_selected_fields, List<Item> &res_all_fields,
 		  uint elements, List<Item> &all_fields);
 bool check_unique_constraint(TABLE *table);
@@ -349,7 +383,6 @@ public:
     found(false),
     not_null_compl(false),
     first_unmatched(NO_PLAN_IDX),
-    materialized(false),
     materialize_table(NULL),
     read_first_record(NULL),
     next_select(NULL),
@@ -369,12 +402,14 @@ public:
     filesort(NULL),
     fields(NULL),
     all_fields(NULL),
-    ref_array(NULL),
+    ref_item_slice(0),
     send_records(0),
     quick_traced_before(false),
     m_condition_optim(NULL),
     m_quick_optim(NULL),
-    m_keyread_optim(false)
+    m_keyread_optim(false),
+    m_reversed_access(false),
+    m_fetched_rows(0)
   {
     /**
        @todo Add constructor to READ_RECORD.
@@ -401,6 +436,8 @@ public:
     if (table())
       m_keyread_optim= table()->key_read;
   }
+  bool reversed_access() const { return m_reversed_access; }
+  void set_reversed_access(bool arg) { m_reversed_access= arg; }
 
   void set_table(TABLE *t)
   {
@@ -541,9 +578,6 @@ public:
 
   plan_idx first_unmatched; /**< used for optimization purposes only   */
 
-  /// For a materializable derived or SJ table: true if has been materialized
-  bool materialized;
-
   READ_RECORD::Setup_func materialize_table;
   /**
      Initialize table for reading and fetch the first row from the table. If
@@ -604,11 +638,11 @@ public:
   List<Item> *fields;
   /** List of all expressions in the select list */
   List<Item> *all_fields;
-  /*
-    Pointer to the ref array slice which to switch to before sending
-    records. Valid only for tmp tables.
+  /**
+    Slice number of the ref items array to switch to before sending rows.
+    Valid only for tmp tables.
   */
-  Ref_ptr_array *ref_array;
+  uint ref_item_slice;
 
   /** Number of records saved in tmp table */
   ha_rows send_records;
@@ -624,7 +658,7 @@ public:
   */
   bool quick_traced_before;
 
-  /// @See m_quick_optim
+  /// @see m_quick_optim
   Item          *m_condition_optim;
 
   /**
@@ -650,6 +684,17 @@ public:
      optimizer's decision.
   */
   bool m_keyread_optim;
+
+  /**
+    True if reversed scan is used. This is the optimizer's decision.
+  */
+  bool m_reversed_access;
+
+  /**
+    Count of rows fetched from this table; maintained by sub_select() and
+    reset to 0 by JOIN::reset().
+  */
+  ha_rows m_fetched_rows;
 
   QEP_TAB(const QEP_TAB&);                      // not defined
   QEP_TAB& operator=(const QEP_TAB&);           // not defined

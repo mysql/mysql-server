@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,7 +14,17 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
 #include "table_cache.h"
+
+#include <stdio.h>
+#include <string.h>
+
+#include "m_ctype.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
 #include "sql_test.h" // lock_descriptions[]
+#include "template_utils.h"
+#include "thr_lock.h"
+#include "thr_mutex.h"
 
 
 /**
@@ -26,14 +36,13 @@ Table_cache_manager table_cache_manager;
 #ifdef HAVE_PSI_INTERFACE
 PSI_mutex_key Table_cache::m_lock_key;
 PSI_mutex_info Table_cache::m_mutex_keys[]= {
-  { &m_lock_key, "LOCK_table_cache", 0}
+  { &m_lock_key, "LOCK_table_cache", 0, 0}
 };
 #endif
 
 
-extern "C" uchar *table_cache_key(const uchar *record,
-                                  size_t *length,
-                                  my_bool not_used MY_ATTRIBUTE((unused)))
+static const uchar *table_cache_key(const uchar *record,
+                                    size_t *length)
 {
   TABLE_SHARE *share= ((Table_cache_element*)record)->get_share();
   *length= share->table_cache_key.length;
@@ -41,8 +50,9 @@ extern "C" uchar *table_cache_key(const uchar *record,
 }
 
 
-extern "C" void table_cache_free_entry(Table_cache_element *element)
+static void table_cache_free_entry(void *arg)
 {
+  Table_cache_element *element= pointer_cast<Table_cache_element*>(arg);
   delete element;
 }
 
@@ -61,8 +71,8 @@ bool Table_cache::init()
   m_table_count= 0;
 
   if (my_hash_init(&m_cache, &my_charset_bin,
-                   table_cache_size_per_instance, 0, 0,
-                   table_cache_key, (my_hash_free_key) table_cache_free_entry,
+                   table_cache_size_per_instance, 0,
+                   table_cache_key, table_cache_free_entry,
                    0,
                    PSI_INSTRUMENT_ME))
   {
@@ -87,7 +97,8 @@ void Table_cache::destroy()
 void Table_cache::init_psi_keys()
 {
 #ifdef HAVE_PSI_INTERFACE
-  mysql_mutex_register("sql", m_mutex_keys, array_elements(m_mutex_keys));
+  mysql_mutex_register("sql", m_mutex_keys,
+                       static_cast<int>(array_elements(m_mutex_keys)));
 #endif
 }
 
@@ -172,7 +183,7 @@ void Table_cache::print_tables()
   uint unused= 0;
   uint count=0;
 
-  compile_time_assert(TL_WRITE_ONLY+1 == array_elements(lock_descriptions));
+  static_assert(TL_WRITE_ONLY+1 == array_elements(lock_descriptions), "");
 
   for (uint idx= 0; idx < m_cache.records; idx++)
   {

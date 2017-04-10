@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2014, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2014, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -28,6 +28,7 @@ Created 03/11/2014 Shaohua Wang
 #include "btr0cur.h"
 #include "btr0pcur.h"
 #include "ibuf0ibuf.h"
+#include "lob0lob.h"
 
 /** Innodb B-tree index fill factor for bulk load. */
 long	innobase_fill_factor;
@@ -42,7 +43,7 @@ PageBulk::init()
 	buf_block_t*	new_block;
 	page_t*		new_page;
 	page_zip_des_t*	new_page_zip;
-	ulint		new_page_no;
+	page_no_t	new_page_no;
 
 	ut_ad(m_heap == NULL);
 	m_heap = mem_heap_create(1000);
@@ -89,14 +90,17 @@ PageBulk::init()
 		new_page_zip = buf_block_get_page_zip(new_block);
 		new_page_no = page_get_page_no(new_page);
 
+		ut_ad(!dict_index_is_spatial(m_index));
+		ut_ad(!dict_index_is_sdi(m_index));
+ 
 		if (new_page_zip) {
 			page_create_zip(new_block, m_index, m_level, 0,
-					NULL, mtr);
+					mtr, FIL_PAGE_INDEX);
 		} else {
 			ut_ad(!dict_index_is_spatial(m_index));
 			page_create(new_block, mtr,
 				    dict_table_is_comp(m_index->table),
-				    false);
+				    FIL_PAGE_INDEX);
 			btr_page_set_level(new_page, NULL, m_level, mtr);
 		}
 
@@ -122,7 +126,7 @@ PageBulk::init()
 	}
 
 	if (dict_index_is_sec_or_ibuf(m_index)
-	    && !dict_table_is_temporary(m_index->table)
+	    && !m_index->table->is_temporary()
 	    && page_is_leaf(new_page)) {
 		page_update_max_trx_id(new_block, NULL, m_trx_id, mtr);
 	}
@@ -137,7 +141,7 @@ PageBulk::init()
 	ut_ad(m_is_comp == !!page_is_comp(new_page));
 	m_free_space = page_get_free_space_of_empty(m_is_comp);
 
-	if (innobase_fill_factor == 100 && dict_index_is_clust(m_index)) {
+	if (innobase_fill_factor == 100 && m_index->is_clustered()) {
 		/* Keep default behavior compatible with 5.6 */
 		m_reserved_space = dict_index_get_space_reserve();
 	} else {
@@ -308,8 +312,8 @@ PageBulk::commit(
 		ut_ad(page_validate(m_page, m_index));
 
 		/* Set no free space left and no buffered changes in ibuf. */
-		if (!dict_index_is_clust(m_index)
-		    && !dict_table_is_temporary(m_index->table)
+		if (!m_index->is_clustered()
+		    && !m_index->table->is_temporary()
 		    && page_is_leaf(m_page)) {
 			ibuf_set_bitmap_for_bulk_load(
 				m_block, innobase_fill_factor == 100);
@@ -328,7 +332,7 @@ PageBulk::compress()
 	ut_ad(m_page_zip != NULL);
 
 	return(page_zip_compress(m_page_zip, m_page, m_index,
-				 page_zip_level, NULL, m_mtr));
+				 page_zip_level, m_mtr));
 }
 
 /** Get node pointer
@@ -394,7 +398,7 @@ PageBulk::getSplitRec()
 }
 
 /** Copy all records after split rec including itself.
-@param[in]	rec	split rec */
+@param[in]	split_rec	split rec */
 void
 PageBulk::copyIn(
 	rec_t*		split_rec)
@@ -419,7 +423,7 @@ PageBulk::copyIn(
 }
 
 /** Remove all records after split rec including itself.
-@param[in]	rec	split rec	*/
+@param[in]	split_rec	split rec	*/
 void
 PageBulk::copyOut(
 	rec_t*		split_rec)
@@ -476,8 +480,7 @@ PageBulk::copyOut(
 /** Set next page
 @param[in]	next_page_no	next page no */
 void
-PageBulk::setNext(
-	ulint		next_page_no)
+PageBulk::setNext(page_no_t next_page_no)
 {
 	btr_page_set_next(m_page, NULL, next_page_no, m_mtr);
 }
@@ -485,15 +488,14 @@ PageBulk::setNext(
 /** Set previous page
 @param[in]	prev_page_no	previous page no */
 void
-PageBulk::setPrev(
-	ulint		prev_page_no)
+PageBulk::setPrev(page_no_t prev_page_no)
 {
 	btr_page_set_prev(m_page, NULL, prev_page_no, m_mtr);
 }
 
 /** Check if required space is available in the page for the rec to be inserted.
 We check fill factor & padding here.
-@param[in]	length		required length
+@param[in]	rec_size	required length
 @return true	if space is available */
 bool
 PageBulk::isSpaceAvailable(
@@ -560,9 +562,9 @@ PageBulk::storeExt(
 	page_cur->offsets = offsets;
 	page_cur->block = m_block;
 
-	dberr_t	err = btr_store_big_rec_extern_fields(
+	dberr_t	err = lob::btr_store_big_rec_extern_fields(
 		&btr_pcur, NULL, offsets, big_rec, m_mtr,
-		BTR_STORE_INSERT_BULK);
+		lob::OPCODE_INSERT_BULK);
 
 	ut_ad(page_offset(m_cur_rec) == page_offset(page_cur->rec));
 
@@ -874,7 +876,7 @@ BtrBulk::insert(
 	page_bulk->insert(rec, offsets);
 
 	if (big_rec != NULL) {
-		ut_ad(dict_index_is_clust(m_index));
+		ut_ad(m_index->is_clustered());
 		ut_ad(page_bulk->getLevel() == 0);
 		ut_ad(page_bulk == m_page_bulks->at(0));
 
@@ -910,9 +912,9 @@ if no error occurs.
 dberr_t
 BtrBulk::finish(dberr_t	err)
 {
-	ulint		last_page_no = FIL_NULL;
+	page_no_t	last_page_no = FIL_NULL;
 
-	ut_ad(!dict_table_is_temporary(m_index->table));
+	ut_ad(!m_index->table->is_temporary());
 
 	if (m_page_bulks->size() == 0) {
 		/* The table is empty. The root page of the index tree
@@ -948,7 +950,7 @@ BtrBulk::finish(dberr_t	err)
 		page_id_t	page_id(dict_index_get_space(m_index),
 					last_page_no);
 		page_size_t	page_size(dict_table_page_size(m_index->table));
-		ulint		root_page_no = dict_index_get_page(m_index);
+		page_no_t	root_page_no = dict_index_get_page(m_index);
 		PageBulk	root_page_bulk(m_index, m_trx_id,
 					       root_page_no, m_root_level,
 					       m_flush_observer);

@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -13,15 +13,19 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include <my_global.h>
+/**
+  @file mysys_ssl/my_aes_openssl.cc
+*/
+
 #include <m_string.h>
 #include <my_aes.h>
-#include "my_aes_impl.h"
-
 #include <openssl/aes.h>
-#include <openssl/evp.h>
-#include <openssl/err.h>
 #include <openssl/bio.h>
+#include <openssl/err.h>
+#include <openssl/evp.h>
+
+#include "my_aes_impl.h"
+#include "my_dbug.h"
 
 /*
   xplugin needs BIO_new_bio_pair, but the server does not.
@@ -152,6 +156,7 @@ aes_error:
   return MY_AES_BAD_DATA;
 }
 
+
 int my_aes_decrypt(const unsigned char *source, uint32 source_length,
                    unsigned char *dest,
                    const unsigned char *key, uint32 key_length,
@@ -191,6 +196,7 @@ aes_error:
   return MY_AES_BAD_DATA;
 }
 
+
 int my_aes_get_size(uint32 source_length, my_aes_opmode opmode)
 {
   const EVP_CIPHER *cipher= aes_evp_type(opmode);
@@ -208,13 +214,13 @@ int my_aes_get_size(uint32 source_length, my_aes_opmode opmode)
 
   SYNOPSIS
   my_aes_needs_iv()
-  @param mode           encryption mode
+  @param opmode           encryption mode
 
   @retval TRUE   IV needed
   @retval FALSE  IV not needed
 */
 
-my_bool my_aes_needs_iv(my_aes_opmode opmode)
+bool my_aes_needs_iv(my_aes_opmode opmode)
 {
   const EVP_CIPHER *cipher= aes_evp_type(opmode);
   int iv_length;

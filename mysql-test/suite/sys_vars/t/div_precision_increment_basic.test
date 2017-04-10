@@ -144,7 +144,7 @@ SELECT @@session.div_precision_increment;
 
 --disable_warnings
 SELECT @@global.div_precision_increment = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='div_precision_increment';
 --enable_warnings
 
@@ -154,7 +154,7 @@ WHERE VARIABLE_NAME='div_precision_increment';
 ####################################################################
 
 --disable_warnings
-SELECT @@session.div_precision_increment = VARIABLE_VALUE FROM INFORMATION_SCHEMA.SESSION_VARIABLES WHERE VARIABLE_NAME='div_precision_increment';
+SELECT @@session.div_precision_increment = VARIABLE_VALUE FROM performance_schema.session_variables WHERE VARIABLE_NAME='div_precision_increment';
 --enable_warnings
 
 

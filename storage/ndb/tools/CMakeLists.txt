@@ -1,4 +1,4 @@
-# Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -91,10 +91,6 @@ MYSQL_ADD_EXECUTABLE(ndb_index_stat
   COMPONENT ClusterTools)
 TARGET_LINK_LIBRARIES(ndb_index_stat ndbclient_static ndbNDBT)
 
-ADD_EXECUTABLE(ndb_dump_frm_data
-  ndb_dump_frm_data.cpp)
-TARGET_LINK_LIBRARIES(ndb_dump_frm_data ndbclient_static ndbNDBT)
-
 MYSQL_ADD_EXECUTABLE(ndbinfo_select_all
   ndbinfo_select_all.cpp
   COMPONENT ClusterTools)
@@ -110,11 +106,6 @@ MYSQL_ADD_EXECUTABLE(ndb_move_data
   ndb_lib_move_data.cpp
   COMPONENT ClusterTools)
 TARGET_LINK_LIBRARIES(ndb_move_data ndbclient_static ndbNDBT)
-
-IF (MYSQL_VERSION_ID LESS "50501")
-  # Don't build or install this program anymore in 5.5+
-  ADD_EXECUTABLE(ndb_test_platform ndb_test_platform.cpp)
-ENDIF()
 
 # Install the ndb_dist_priv.sql script
 INSTALL(FILES ${CMAKE_CURRENT_SOURCE_DIR}/ndb_dist_priv.sql

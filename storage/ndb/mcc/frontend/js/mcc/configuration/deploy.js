@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -102,6 +102,8 @@ var processes = [];         // All processes        --- " ---
 var processTypes = [];      // All process types    --- " ---
 var processTypeMap = {};    // All process types indexed by name
 var processFamilyMap = {};  // All process types indexed by family
+var fileExists = [];        // All mysqlds - Nodeid and a boolean telling if datadir files exists  
+
 
 /****************************** Implementation ********************************/
 
@@ -624,7 +626,7 @@ function getConfigurationFile(process) {
         addln(configFile, "#");
         addln(configFile, "[mysqld]");
         addln(configFile, "log-error=mysqld."+process.getValue("NodeId")+".err")
-        addln(configFile, "datadir=\""+configFile.path+"\"");
+        addln(configFile, "datadir=\""+configFile.path+"data"+"\"");
         addln(configFile, "tmpdir=\""+configFile.path+"tmp"+"\"");
         addln(configFile, "basedir=\""+mcc.util.unixPath(getEffectiveInstalldir(hostItem))+"\"");
         addln(configFile, "port="+getEffectiveInstanceValue(process, "Port"));
@@ -740,6 +742,58 @@ function removeProgressDialog() {
 
 /****************** Directory and startup command handling ********************/
 
+function isFirstStart(nodeid) {
+//Mysqld shall be started for the first time if the file does not exist in datadir
+   for (i = 0; i < fileExists.length; i++) { 
+      if (fileExists[i].nodeid == nodeid) {
+         mcc.util.dbg("IsFirstStart ("+nodeid+") returns " + fileExists[i].fileExist);
+         return !fileExists[i].fileExist;
+      }
+   }
+   mcc.util.dbg("isFirstStart failed - should never happen");
+   return false;
+}
+
+function getCheckCommands() {
+
+    // Array to return
+    var checkDirCommands = [];
+
+    var processes = processTypeInstances("mysqld");
+
+    // Loop over all mysqld processes
+    for (var i in processes) {
+        var process = processes[i];
+
+        // Get process type, nodeid and host
+        var ptype = clusterItems[process.getValue("processtype")];
+        var nodeid = process.getValue("NodeId");
+        var host = clusterItems[process.getValue("host")];
+
+         // Get datadir and dir separator
+         var datadir = mcc.util.unixPath(
+                            mcc.util.terminatePath(
+                            getEffectiveInstanceValue(process, "DataDir")));
+         var dirSep = mcc.util.dirSep(datadir);
+
+         // Initialize fileExist for the check command
+         // The info will be updated by the result from checkFile in sendFileOps
+         fileExists.push({
+                          nodeid: nodeid,
+                          fileExist: false
+                       });
+          // Push check file command
+         checkDirCommands.push({
+                        cmd: "checkFileReq",
+                        host: host.getValue("name"),
+                        path: datadir+"data"+dirSep,
+                        name: "auto.cnf",  
+                        msg: "File checked"               
+                    });
+    }
+    return checkDirCommands;
+}
+
 // Generate the (array of) directory creation commands for all processes
 function getCreateCommands() {
 
@@ -794,63 +848,11 @@ function getCreateCommands() {
                     path: datadir + "mysql" + dirSep,
                     name: null
                 });
-
-                // Mysqlds on Windows need a tmpdir and an install.sql
-                if (mcc.util.isWin(host.getValue("uname"))) {
-
-                    var installDir = mcc.util.unixPath(
-                            getEffectiveInstalldir(host));
-                    var installSep = mcc.util.dirSep(installDir);
-
-                    createDirCommands.push({
-                        host: host.getValue("name"),
-                        path: datadir + "tmp" + dirSep,
-                        name: "install.sql",
-                        msg: "use mysql;\n",
-                        overwrite: true
-                    });
-                    createDirCommands.push({
-                        cmd: "appendFileReq",
-                        host: host.getValue("name"),
-                        sourcePath: installDir + "share" + installSep,
-                        sourceName: "mysql_system_tables.sql",
-                        destinationPath: datadir + "tmp" + dirSep,
-                        destinationName: "install.sql"
-                    });
-                    createDirCommands.push({
-                        cmd: "appendFileReq",
-                        host: host.getValue("name"),
-                        sourcePath: installDir + "share" + installSep,
-                        sourceName: "mysql_system_tables_data.sql",
-                        destinationPath: datadir + "tmp" + dirSep,
-                        destinationName: "install.sql"
-                    });
-                    createDirCommands.push({
-                        cmd: "appendFileReq",
-                        host: host.getValue("name"),
-                        sourcePath: installDir + "share" + installSep,
-                        sourceName: "fill_help_tables.sql",
-                        destinationPath: datadir + "tmp" + dirSep,
-                        destinationName: "install.sql"
-                    });
-					createDirCommands.push({
-                        host: host.getValue("name"),
-                        path: datadir + "tmp" + dirSep,
-                        name: "mysql_install_db.bat",
-                        msg: "\""+installDir+installSep+"bin"+installSep+"mysqld.exe\" --lc-messages-dir=\""+installDir+installSep+"share\" --bootstrap --basedir=\""+
-                            installDir+"\" --datadir=\""+datadir+
-                            "\" --loose-skip-ndbcluster --max_allowed_packet=8M --default-storage-engine=myisam --net_buffer_length=16K < \""+
-                            datadir+dirSep+"tmp"+dirSep+"install.sql\"\n",
-                        overwrite: true
-                    });
-                } else {
-                    // Non-win mysqlds also need data/tmp
-                    createDirCommands.push({
-                        host: host.getValue("name"),
-                        path: datadir + "tmp" + dirSep,
-                        name: null
-                    });
-                }
+                createDirCommands.push({
+                    host: host.getValue("name"),
+                    path: datadir + "tmp" + dirSep,
+                    name: null
+                });
             }
         }
     }
@@ -1012,38 +1014,22 @@ function getStartProcessCommands(process) {
         };
 
         var isDoneFunction = function () { return mcc.gui.getStatii(nodeid) == "CONNECTED"; };
+
+        if (isFirstStart(nodeid)) { 
+        // First start of mysqld
+           var fsc = new ProcessCommand(
+                     host, 
+                     basedir,
+                     "mysqld"+(isWin?".exe":""));
+           fsc.addopt("--defaults-file", datadir+"my.cnf");
+           fsc.addopt("--initialize-insecure");
+           fsc.progTitle = "Initializing (insecure) node "+ nodeid +" ("+ptype+")";
+           scmds.unshift(fsc);
+        }
       
-        // With FreeSSHd (native windows) we need to run install_db command
         // inside cmd.exe for redirect of stdin (FIXME: not sure if that 
         // will work on Cygwin
-        if (isWin) {
-            var langdir = basedir + "share";
-            var tmpdir = datadir_ + "tmp";
-			var midb = new ProcessCommand(host, tmpdir, "mysql_install_db.bat");
-			midb.progTitle = "Running mysql_install_db.bat for node "+nodeid;
-			scmds.unshift(midb);
-			
-            var ic = new ProcessCommand(host, "C:\\Windows\\System32", "cmd.exe");
-            delete ic.msg.file.autoComplete; // Don't want ac for cmd.exe
-            ic.addopt("/C");
-            ic.addopt(basedir+"bin\\mysqld.exe");
-
-            ic.addopt("--lc-messages-dir", mcc.util.unixPath(langdir));
-            ic.addopt("--bootstrap");
-            ic.addopt("--basedir", mcc.util.unixPath(basedir));
-            ic.addopt("--datadir", datadir);
-            ic.addopt("--tmpdir", mcc.util.unixPath(tmpdir));
-            ic.addopt("--log-warnings", "0");
-            ic.addopt("--loose-skip-ndbcluster");
-            ic.addopt("--max_allowed_packet","8M");
-            ic.addopt("--default-storage-engine","myisam");
-            ic.addopt("--net_buffer_length","16K");
-
-            ic.addopt("<");
-            ic.addopt(tmpdir + "\\install.sql");
-            ic.progTitle = "Running mysqld --bootstrap for node "+nodeid;
-            //scmds.unshift(ic);
-
+        if (isWin) {		
             sc.addopt("--install");
             sc.addopt("N"+nodeid);
             sc.addopt("--defaults-file", datadir+"my.cnf");
@@ -1060,14 +1046,6 @@ function getStartProcessCommands(process) {
             scmds.push(ss);
         } 
         else {
-            // Non-windows uses install_db script
-            var ic = new ProcessCommand(host, basedir, "mysql_install_db");
-            ic.addopt("--no-defaults");
-            ic.addopt("--datadir", datadir);
-            ic.addopt("--basedir", basedir);
-            ic.progTitle = "Running mysql_install_db for node "+nodeid;
-            scmds.unshift(ic);
-
             sc.addopt("--defaults-file", datadir+"my.cnf");
             // Invoking mysqld does not return
             sc.msg.procCtrl.waitForCompletion = false;
@@ -1101,7 +1079,8 @@ function getStopProcessCommands(process) {
 
     var stopCommands = [];
     if (ptype == "ndb_mgmd") {
-        var sc = new ProcessCommand(host, basedir, "ndb_mgm"+(isWin?".exe":""));
+        var sc = new ProcessCommand(host, basedir, "ndb_mgm"+(isWin?".exe":"")); 
+
         sc.addopt("--ndb-connectstring", getConnectstring());
         sc.addopt("--execute", "shutdown");
         sc.progTitle = "Running ndb_mgm -e shutdown to take down cluster";
@@ -1178,11 +1157,40 @@ function _getClusterCommands(procCommandFunc, families) {
     return commands;
 }
 
-
 // Send a create- or append command to the back end
 function sendFileOp(createCmds, curr, waitCondition) {
     var createCmd = createCmds[curr];
-    if (createCmd.cmd == "appendFileReq") {
+ 
+    if (createCmd.cmd == "checkFileReq") {
+    // Assert if the file exists
+            mcc.server.checkFileReq(
+            createCmd.host,
+            createCmd.path,
+            createCmd.name,
+            createCmd.msg,
+            createCmd.overwrite,
+            function () {
+                fileExists[curr].fileExist=true; 
+                curr++;
+                if (curr == createCmds.length) {
+                    waitCondition.resolve();
+                } else {
+                    sendFileOp(createCmds, curr, waitCondition);
+                }
+            },  
+            function (errMsg) {
+                mcc.util.dbg("File does not exits for "+curr);              
+                fileExists[curr].fileExist=false; 
+                curr++;
+                if (curr == createCmds.length) {
+                    waitCondition.resolve();
+                } else {
+                    sendFileOp(createCmds, curr, waitCondition);
+                }    
+            }
+        );
+
+    } else if (createCmd.cmd == "appendFileReq") {
         mcc.server.appendFileReq(
             createCmd.host,
             createCmd.sourcePath,
@@ -1304,6 +1312,7 @@ function deployCluster(silent, fraction) {
     return waitCondition;
 }
 
+
 // Start cluster: Deploy configuration, start processes
 function startCluster() {
   // External wait condition
@@ -1316,6 +1325,11 @@ function startCluster() {
 	  mcc.util.dbg("Not starting cluster due to previous error");
 	  return;
 	}
+
+        //Check for files. If file exists, initialization will be skipped
+        var checkCmds = getCheckCommands();
+
+        sendFileOps(checkCmds).then(function () {        
 	
 	mcc.util.dbg("Starting cluster...");
 	var commands = _getClusterCommands(getStartProcessCommands, 
@@ -1334,7 +1348,7 @@ function startCluster() {
 	}
 	  
 	function onError(errMsg) {
-	  alert(errMsg);
+          alert(errMsg);
 	  removeProgressDialog();
 	  waitCondition.resolve();
 	}
@@ -1348,7 +1362,7 @@ function startCluster() {
 	  onTimeout();
 	}
         
-	function updateProgressAndStartNext() {
+        function updateProgressAndStartNext() {
 	  if (currseq >= commands.length) {
 	    mcc.util.dbg("Cluster started");
 	    updateProgressDialog("Starting cluster", 
@@ -1372,8 +1386,9 @@ function startCluster() {
 	  
 	} 
 	// Initiate startup sequence by calling onReply
-	updateProgressAndStartNext();            
+	updateProgressAndStartNext();
       });
+});
   
   return waitCondition;
 }
@@ -1469,4 +1484,3 @@ function stopCluster() {
 dojo.ready(function () {
     mcc.util.dbg("Configuration deployment module initialized");
 });
-

@@ -14,12 +14,12 @@ lc_messages	en_US
 show session variables like 'lc_messages';
 Variable_name	Value
 lc_messages	en_US
-select * from information_schema.global_variables where variable_name='lc_messages';
+select * from performance_schema.global_variables where variable_name='lc_messages';
 VARIABLE_NAME	VARIABLE_VALUE
-LC_MESSAGES	en_US
-select * from information_schema.session_variables where variable_name='lc_messages';
+lc_messages	en_US
+select * from performance_schema.session_variables where variable_name='lc_messages';
 VARIABLE_NAME	VARIABLE_VALUE
-LC_MESSAGES	en_US
+lc_messages	en_US
 set global lc_messages=1;
 select @@global.lc_messages;
 @@global.lc_messages
@@ -36,12 +36,12 @@ en_US
 select @@session.lc_messages;
 @@session.lc_messages
 en_GB
-select * from information_schema.global_variables where variable_name='lc_messages';
+select * from performance_schema.global_variables where variable_name='lc_messages';
 VARIABLE_NAME	VARIABLE_VALUE
-LC_MESSAGES	en_US
-select * from information_schema.session_variables where variable_name='lc_messages';
+lc_messages	en_US
+select * from performance_schema.session_variables where variable_name='lc_messages';
 VARIABLE_NAME	VARIABLE_VALUE
-LC_MESSAGES	en_GB
+lc_messages	en_GB
 set global lc_messages=1.1;
 ERROR 42000: Incorrect argument type to variable 'lc_messages'
 set global lc_messages=1e1;

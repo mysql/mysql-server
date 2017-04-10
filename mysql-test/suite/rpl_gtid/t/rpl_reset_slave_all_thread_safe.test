@@ -1,0 +1,46 @@
+################################################################################
+# BUG# reset slave all is not thread-safe
+#
+# RESET SLAVE ALL could delete a channel, even master_pos_wait and
+# wait_until_sql_thread_after_gtid were still waiting for binlog to be applied.
+# It caused server crash when the functions tried to access the channel which
+# had been deleted.
+#
+# A channel reference counter is added. It should be increased if the channel
+# should not be deleted when the code is running. RESET SLAVE ALL will wait
+# for no reference and then delete the channel.
+################################################################################
+--source include/not_group_replication_plugin.inc
+--source include/have_debug_sync.inc
+--source include/have_binlog_format_row.inc
+--source include/master-slave.inc
+
+--echo #
+--echo # Case 1: Verify master_pos_wait can block RESET SLAVE ALL
+--echo #
+
+--source include/rpl_connection_slave.inc
+
+# Just wait immediately after entering the function. RESET SLAVE ALL
+# should be blocked by it.
+SET debug_sync = "begin_master_pos_wait SIGNAL wait_func_begin WAIT_FOR wait_func_continue";
+--send SELECT master_pos_wait("master-bin.000001", 10000);
+
+--source extra/rpl_tests/rpl_reset_slave_all_thread_safe.inc
+
+--echo #
+--echo # Case 2: Verify wait_for_gtid_set can block RESET SLAVE ALL
+--echo #
+--source include/rpl_connection_slave.inc
+--source include/start_slave.inc
+
+# Just wait immediately after entering the function. RESET SLAVE ALL
+# should be blocked by it.
+SET debug_sync = "begin_wait_for_gtid_set SIGNAL wait_func_begin WAIT_FOR wait_func_continue";
+--send SELECT wait_until_sql_thread_after_gtids(CONCAT(@@GLOBAL.server_uuid, ":100"))
+
+--source extra/rpl_tests/rpl_reset_slave_all_thread_safe.inc
+
+# Cleanup
+--let $rpl_only_running_threads= 1
+--source include/rpl_end.inc

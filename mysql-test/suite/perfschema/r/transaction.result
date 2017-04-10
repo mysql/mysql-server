@@ -22,6 +22,9 @@ DROP TABLE IF EXISTS nt1;
 CREATE TABLE t1 (s1 int, s2 varchar(64)) ENGINE=INNODB;
 CREATE TABLE nt1 (s1 int, s2 varchar(64)) ENGINE=MYISAM;
 
+# Get tables loaded in data-dictionary cache
+
+
 # Disable all events from the control thread
 
 
@@ -39,18 +42,12 @@ REPEATABLE-READ
 SELECT @@global.autocommit;
 @@global.autocommit
 1
-SELECT @@global.binlog_format;
-@@global.binlog_format
-ROW
 SELECT @@tx_isolation;
 @@tx_isolation
 REPEATABLE-READ
 SELECT @@autocommit;
 @@autocommit
 0
-SELECT @@binlog_format;
-@@binlog_format
-ROW
 
 # STEP 2.1 - START/COMMIT
 
@@ -244,7 +241,10 @@ ACTUAL	EXPECTED
      0	       0
 INSERT INTO t1 VALUES (602, 'IMPLICIT COMMIT');
 ## Issue a DDL statement to force a commmit
-CREATE TABLE t2 (s1 INT, s2 VARCHAR(64)) ENGINE=INNODB;
+## This DDL needs to fail early, to avoid starting its own transaction
+## which will disturb the state.
+ALTER TABLE t1 ADD KEY (s3);
+ERROR 42000: Key column 's3' doesn't exist in table
 
 ## Expect 0 active transactions, 1 committed transaction
 CALL transaction_verifier(0, @con1_thread_id, 'transaction', 'ACTIVE',    0, '', '', '', '', 'READ WRITE', '', 'NO', 0, 0, 0, 0);
@@ -257,7 +257,6 @@ CALL transaction_verifier(1, @con1_thread_id, 'transaction', 'COMMITTED', 0, '',
 ACTUAL	EXPECTED
      1	       1
 CALL clear_transaction_tables();
-DROP TABLE test.t2;
 
 ========================================================================
 STEP 7 - XA TRANSACTIONS

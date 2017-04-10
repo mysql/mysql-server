@@ -26,7 +26,7 @@ include/assert.inc ['The group replication applier channel is still OFF']
 include/assert.inc ['The created slave channel is ON']
 # restart
 include/rpl_reconnect.inc
-include/wait_for_slave_to_start.inc
+include/wait_for_slave_to_start.inc [FOR CHANNEL 'channel_1']
 include/assert.inc ['The group replication applier channel is still OFF']
 include/assert.inc ['The created slave channel is ON']
 include/stop_slave.inc

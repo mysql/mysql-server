@@ -1,0 +1,107 @@
+#
+# Test case for BUG#74089 scenario
+#
+--source include/force_restart.inc
+--source include/have_binlog_format_statement.inc
+--source include/master-slave.inc
+--source include/rpl_connection_slave.inc
+
+# Test starts here
+--source include/rpl_reset.inc
+--source include/rpl_connection_master.inc
+--let $prefix= `SELECT UUID()`
+--let $slave_error_log= $MYSQLTEST_VARDIR/tmp/$prefix.err
+
+CREATE TABLE t1 (c1 INT);
+
+--source include/sync_slave_sql_with_master.inc
+CALL mtr.add_suppression("Recovery from master pos");
+
+# stop the slave applier thread
+--source include/stop_slave_sql.inc
+
+--let $relay_log= query_get_value(SHOW SLAVE STATUS, Relay_Log_File, 1)
+
+--source include/rpl_connection_master.inc
+
+INSERT INTO t1 VALUES (1);
+
+--let $binlog_file= query_get_value(SHOW MASTER STATUS, File, 1)
+
+# make sure that the slave copies everything, but does not apply
+# this last insert statement
+--source include/sync_slave_io_with_master.inc
+
+# Verify that the positions are the ones we expect at this
+# point in time (read all the binary log, applied just the
+# create table).
+
+--let $begin_of_insert_trx_pos_in_rl= query_get_value(SHOW RELAYLOG EVENTS in '$relay_log', Pos, 8)
+--let $create_tbl_stmt_trx_pos_in_bl= query_get_value(SHOW RELAYLOG EVENTS in '$relay_log', End_log_pos, 7)
+--let $end_of_insert_trx_log_pos_in_rl= query_get_value(SHOW RELAYLOG EVENTS in '$relay_log', End_log_pos, 11)
+
+--let $exec_master_log_pos= query_get_value(SHOW SLAVE STATUS, Exec_Master_Log_Pos, 1)
+--let $read_master_log_pos= query_get_value(SHOW SLAVE STATUS, Read_Master_Log_Pos, 1)
+--let $relay_log_pos= query_get_value(SHOW SLAVE STATUS, Relay_Log_Pos, 1)
+
+--let $assert_cond= $begin_of_insert_trx_pos_in_rl = $relay_log_pos
+--let $assert_text= "Relay_log_pos points at the beginning of the INSERT trx."
+--source include/assert.inc
+
+--let $assert_cond= $create_tbl_stmt_trx_pos_in_bl = $exec_master_log_pos
+--let $assert_text= "Exec_master_log_pos points at the CREATE TABLE statement."
+--source include/assert.inc
+
+--let $assert_cond= $end_of_insert_trx_log_pos_in_rl = $read_master_log_pos
+--let $assert_text= "Read_master_log_pos points at the end of the INSERT trx."
+--source include/assert.inc
+
+#
+# Restart the server with relay-log-recovery set - this will reset the positions
+--let $rpl_server_parameters= --relay-log-recovery=1 --skip-slave-start --log_error=$slave_error_log --no-console
+--let $rpl_omit_print_server_parameters= 1
+--echo Omitting server parameters, since there is a path in one of them.
+--source include/rpl_restart_server.inc
+
+--let $exec_master_log_pos_restart= query_get_value(SHOW SLAVE STATUS, Exec_Master_Log_Pos, 1)
+--let $read_master_log_pos_restart= query_get_value(SHOW SLAVE STATUS, Read_Master_Log_Pos, 1)
+--let $relay_log_pos_restart= query_get_value(SHOW SLAVE STATUS, Relay_Log_Pos, 1)
+
+# Assert that the entry in the log contains the old relay log positions as well
+--let $assert_text= Assert that the expected entry is in the error log
+--let $assert_file= $slave_error_log
+--let $assert_select= Recovery from master pos $exec_master_log_pos and file $binlog_file for channel ''. Previous relay log pos and relay log file had been set to $relay_log_pos, .*$relay_log respectively.
+--let $assert_count= 1
+--source include/assert_grep.inc
+
+--let $assert_cond=$relay_log_pos_restart = 4
+--let $assert_text= "Relay_log_pos points at the beginning of the new relay log file now."
+--source include/assert.inc
+
+--let $assert_cond= $read_master_log_pos_restart = $create_tbl_stmt_trx_pos_in_bl
+--let $assert_text= "Read_master_log_pos after restart points at the CREATE TABLE position."
+--source include/assert.inc
+
+#
+# Show that even though the positions have changed, the
+# relay logs have not yet been purged. Lets assume that
+# the master is crashed and thus the slave cannot connect
+# to it. This means that we could try to apply the existing
+# relay logs (maybe they are indeed corrupt, maybe they are
+# not).
+#
+
+--replace_result $relay_log_pos RELAY_LOG_POS $relay_log SLAVE_RELAY_LOG_FILE_NAME
+--eval CHANGE MASTER TO Relay_log_pos= $relay_log_pos, Relay_log_file='$relay_log'
+--source include/start_slave_sql.inc
+--let $wait_condition= SELECT COUNT(*)=1 FROM t1
+--source include/wait_condition.inc
+
+--source include/start_slave_io.inc
+--source include/rpl_connection_master.inc
+
+DROP TABLE t1;
+
+--source include/sync_slave_sql_with_master.inc
+
+--source include/rpl_end.inc

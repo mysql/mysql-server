@@ -46,6 +46,9 @@ enum dberr_t {
 	DB_MISSING_HISTORY,		/*!< required history data has been
 					deleted due to lack of space in
 					rollback segment */
+	DB_SKIP_LOCKED,			/*!< skip lock */
+	DB_LOCK_NOWAIT,			/*!< don't wait lock */
+
 	DB_CLUSTER_NOT_FOUND = 30,
 	DB_TABLE_NOT_FOUND,
 	DB_MUST_GET_MORE_FILE_SPACE,	/*!< the database has to be stopped
@@ -75,7 +78,7 @@ enum dberr_t {
 					name already exists */
 	DB_TABLESPACE_DELETED,		/*!< tablespace was deleted or is
 					being dropped right now */
-	DB_TABLESPACE_NOT_FOUND,	/*<! Attempt to delete a tablespace
+	DB_TABLESPACE_NOT_FOUND,	/*!< Attempt to delete a tablespace
 					instance that was not found in the
 					tablespace hash table */
 	DB_LOCK_TABLE_FULL,		/*!< lock structs have exhausted the
@@ -133,9 +136,7 @@ enum dberr_t {
 					data object */
 	DB_CANNOT_OPEN_FILE,		/*!< Cannot open a file */
 	DB_FTS_TOO_MANY_WORDS_IN_PHRASE,
-					/*< Too many words in a phrase */
-
-	DB_TABLESPACE_TRUNCATED,	/*!< tablespace was truncated */
+					/*!< Too many words in a phrase */
 
 	DB_IO_ERROR = 100,		/*!< Generic IO error */
 
@@ -186,12 +187,6 @@ enum dberr_t {
 	/* The following are API only error codes. */
 	DB_DATA_MISMATCH = 2000,	/*!< Column update or read failed
 					because the types mismatch */
-
-	DB_SCHEMA_NOT_LOCKED		/*!< If an API function expects the
-					schema to be locked in exclusive mode
-					and if it's not then that API function
-					will return this error code */
-
 };
 
 #endif

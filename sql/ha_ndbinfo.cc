@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2009, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2009, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,11 +15,18 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "ha_ndbcluster_glue.h"
-#include "ha_ndbinfo.h"
-#include "ndb_tdc.h"
 #include "../storage/ndb/src/ndbapi/NdbInfo.hpp"
+#include "ha_ndbinfo.h"
+#include "my_dbug.h"
+#include "ndb_tdc.h"
+#include "ndb_log.h"
 
+#include "sql_table.h"      // build_table_filename
+#include "sql_class.h"
+#include "current_thd.h"
+#include "derror.h"         // ER_THD
+
+#include <mysql/plugin.h>
 
 static MYSQL_THDVAR_UINT(
   max_rows,                          /* name */
@@ -90,7 +97,7 @@ static MYSQL_SYSVAR_UINT(
   0                                 /* block */
 );
 
-static my_bool opt_ndbinfo_offline;
+static bool opt_ndbinfo_offline;
 
 static
 void
@@ -99,8 +106,8 @@ offline_update(THD* thd, struct st_mysql_sys_var* var,
 {
   DBUG_ENTER("offline_update");
 
-  const my_bool new_offline =
-    (*(static_cast<const my_bool*>(save)) != 0);
+  const bool new_offline =
+    (*(static_cast<const bool*>(save)) != 0);
   if (new_offline == opt_ndbinfo_offline)
   {
     // No change
@@ -149,7 +156,7 @@ ndbcluster_is_disabled(void)
 }
 
 static handler*
-create_handler(handlerton *hton, TABLE_SHARE *table, MEM_ROOT *mem_root)
+create_handler(handlerton *hton, TABLE_SHARE *table, bool, MEM_ROOT *mem_root)
 {
   return new (mem_root) ha_ndbinfo(hton, table);
 }
@@ -231,8 +238,12 @@ static int err2mysql(int error)
   default:
     break;
   }
-  push_warning_printf(current_thd, Sql_condition::SL_WARNING,
-                      ER_GET_ERRNO, ER(ER_GET_ERRNO), error);
+  {
+    char errbuf[MYSQL_ERRMSG_SIZE];
+    push_warning_printf(current_thd, Sql_condition::SL_WARNING, ER_GET_ERRNO,
+                        ER_THD(current_thd, ER_GET_ERRNO), error,
+                        my_strerror(errbuf, MYSQL_ERRMSG_SIZE, error));
+  }
   DBUG_RETURN(HA_ERR_INTERNAL_ERROR);
 }
 
@@ -319,7 +330,8 @@ warn_incompatible(const NdbInfo::Table* ndb_tab, bool fatal,
 }
 
 int ha_ndbinfo::create(const char *name, TABLE *form,
-                       HA_CREATE_INFO *create_info)
+                       HA_CREATE_INFO *create_info,
+                       dd::Table *)
 {
   DBUG_ENTER("ha_ndbinfo::create");
   DBUG_PRINT("enter", ("name: %s", name));
@@ -337,7 +349,8 @@ bool ha_ndbinfo::is_offline(void) const
   return m_impl.m_offline;
 }
 
-int ha_ndbinfo::open(const char *name, int mode, uint test_if_locked)
+int ha_ndbinfo::open(const char *name, int mode, uint test_if_locked,
+                     const dd::Table *)
 {
   DBUG_ENTER("ha_ndbinfo::open");
   DBUG_PRINT("enter", ("name: %s, mode: %d", name, mode));
@@ -713,7 +726,7 @@ ha_ndbinfo::unpack_record(uchar *dst_row)
       }
 
       default:
-        sql_print_error("Found unexpected field type %u", field->type());
+        ndb_log_error("Found unexpected field type %u", field->type());
         break;
       }
 
@@ -813,13 +826,13 @@ ndbinfo_init(void *plugin)
                           opt_ndbinfo_dbname, opt_ndbinfo_table_prefix);
   if (!g_ndbinfo)
   {
-    sql_print_error("Failed to create NdbInfo");
+    ndb_log_error("Failed to create NdbInfo");
     DBUG_RETURN(1);
   }
 
   if (!g_ndbinfo->init())
   {
-    sql_print_error("Failed to init NdbInfo");
+    ndb_log_error("Failed to init NdbInfo");
 
     delete g_ndbinfo;
     g_ndbinfo = NULL;

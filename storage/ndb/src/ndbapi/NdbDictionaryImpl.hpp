@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -160,9 +160,14 @@ public:
   const char * getName() const;
   void setFragmentCount(Uint32 count);
   Uint32 getFragmentCount() const;
+  Uint32 getPartitionCount() const;
   int setFrm(const void* data, Uint32 len);
   const void * getFrmData() const;
   Uint32 getFrmLength() const;
+  int setExtraMetadata(Uint32 version,
+                       const void* data, Uint32 data_length);
+  int getExtraMetadata(Uint32& extra_metadata_version,
+                       void** data, Uint32* data_length) const;
 
   int setFragmentData(const Uint32* data, Uint32 cnt);
   const Uint32 * getFragmentData() const;
@@ -231,11 +236,15 @@ public:
   bool m_row_checksum;
   bool m_force_var_part;
   bool m_has_default_values; 
+  bool m_read_backup;
+  bool m_fully_replicated;
   int m_kvalue;
   int m_minLoadFactor;
   int m_maxLoadFactor;
   Uint16 m_keyLenInWords;
+  Uint16 m_partitionCount;
   Uint16 m_fragmentCount;
+  NdbDictionary::Object::PartitionBalance m_partitionBalance;
   Uint8 m_single_user_mode;
   Uint8 m_storageType;  // NDB_STORAGETYPE_MEMORY or _DISK or DEFAULT
   Uint8 m_extra_row_gci_bits;
@@ -621,11 +630,13 @@ public:
     NdbError m_error;
     Uint32 m_transId;   // API
     Uint32 m_transKey;  // DICT
+    Uint32 m_requestId;
     Vector<Op> m_op;
     Tx() :
       m_state(NotStarted),
       m_transId(0),
-      m_transKey(0)
+      m_transKey(0),
+      m_requestId(0)
     {
       m_error.code = 0;
     }
@@ -634,6 +645,21 @@ public:
     }
     Uint32 transKey() const {
       return (m_state == Started) ? m_transKey : 0;
+    }
+    Uint32 nextRequestId() {
+      return ++m_requestId;
+    }
+    bool checkRequestId(Uint32 requestId, const char *signalName) {
+      /* NdbDictInterface protocols are synchronous/serial, so each
+       * NdbDictInterface object will have only one outstanding
+       * request at a time */
+      if(m_requestId != 0 && m_requestId != requestId)
+      {
+        // signal from different (possibly timed-out) transaction
+        DBUG_PRINT("info", ("Discarding %s with bad request ID, expected: %u, received: %u", signalName, m_requestId, requestId));
+        return false;
+      }
+      return true;
     }
     Uint32 requestFlags() const {
       Uint32 flags = 0;
@@ -693,7 +719,8 @@ public:
   int dropEvent(NdbApiSignal* signal, LinearSectionPtr ptr[3], int noLSP);
 
   int executeSubscribeEvent(class Ndb & ndb, NdbEventOperationImpl &);
-  int stopSubscribeEvent(class Ndb & ndb, NdbEventOperationImpl &);
+  int stopSubscribeEvent(class Ndb & ndb, NdbEventOperationImpl &,
+                         Uint64& stop_gci);
   
   int listObjects(NdbDictionary::Dictionary::List& list,
                   ListTablesReq& ltreq, bool fullyQualifiedNames);
@@ -745,7 +772,10 @@ public:
 					 NdbTableImpl* index_table,
 					 const NdbTableImpl* primary_table);
 
-  int create_hashmap(const NdbHashMapImpl&, NdbDictObjectImpl*, Uint32 flags);
+  int create_hashmap(const NdbHashMapImpl&,
+                     NdbDictObjectImpl*,
+                     Uint32 flags,
+                     Uint32 partitionBalance_Count);
   int get_hashmap(NdbHashMapImpl&, Uint32 id);
   int get_hashmap(NdbHashMapImpl&, const char * name);
 
@@ -928,7 +958,7 @@ public:
   int listEvents(List& list);
 
   int executeSubscribeEvent(NdbEventOperationImpl &);
-  int stopSubscribeEvent(NdbEventOperationImpl &);
+  int stopSubscribeEvent(NdbEventOperationImpl &, Uint64& stop_gci);
 
   int forceGCPWait(int type);
   int getRestartGCI(Uint32*);
@@ -1511,7 +1541,11 @@ NdbDictionaryImpl::getIndexGlobal(const char * index_name,
       break;
     }
   }
-  m_error.code= 4243;
+  // Indexes are treated as tables while fetching them from the
+  // NdbDictionary. So if an index is not found, the error 723
+  // "table not found" is returned. Map 723 to 4243 "index not found"
+  if(m_error.code == 0 || m_error.code == 723)
+    m_error.code= 4243;
   DBUG_RETURN(0);
 }
 
@@ -1557,7 +1591,11 @@ NdbDictionaryImpl::getIndex(const char * index_name,
   if (table_name == 0)
   {
     assert(0);
-    m_error.code= 4243;
+    // Indexes are treated as tables while fetching them from the
+    // NdbDictionary. So if an index is not found, the error 723
+    // "table not found" is returned. Map 723 to 4243 "index not found"
+    if(m_error.code == 0 || m_error.code == 723)
+      m_error.code= 4243;
     return 0;
   }
   
@@ -1565,7 +1603,11 @@ NdbDictionaryImpl::getIndex(const char * index_name,
   NdbTableImpl* prim = getTable(table_name);
   if (prim == 0)
   {
-    m_error.code= 4243;
+    // Indexes are treated as tables while fetching them from the
+    // NdbDictionary. So if an index is not found, the error 723
+    // "table not found" is returned. Map 723 to 4243 "index not found"
+    if(m_error.code == 0 || m_error.code == 723)
+      m_error.code= 4243;
     return 0;
   }
 
@@ -1626,7 +1668,11 @@ retry:
   return tab->m_index;
   
 err:
-  m_error.code= 4243;
+  // Indexes are treated as tables while fetching them from the
+  // NdbDictionary. So if an index is not found, the error 723
+  // "table not found" is returned. Map 723 to 4243 "index not found"
+  if(m_error.code == 0 || m_error.code == 723)
+    m_error.code= 4243;
   return 0;
 }
 

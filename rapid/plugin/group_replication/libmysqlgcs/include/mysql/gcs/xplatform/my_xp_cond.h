@@ -16,8 +16,9 @@
 #ifndef MY_XP_COND_INCLUDED
 #define MY_XP_COND_INCLUDED
 
-#include <xplatform/my_xp_mutex.h>
-#include <xplatform/my_xp_util.h>
+#include "mysql/gcs/xplatform/my_xp_mutex.h"
+#include "mysql/gcs/xplatform/my_xp_util.h"
+
 #include <time.h>
 #include <errno.h>
 #include <stdlib.h>
@@ -71,8 +72,8 @@ public:
   /**
     Wait for cond to be signaled during some time before unlocking mutex.
 
-    @param mutex to unlock
-    @param time to wait
+    @param mutex mutex to unlock
+    @param abstime time to wait
     @return success status
   */
 
@@ -83,7 +84,7 @@ public:
   /**
     Wait for cond to be signaled to unlock mutex.
 
-    @param mutex to unlock
+    @param mutex mutex to unlock
     @return success status
   */
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,9 +17,13 @@
   This files defines some MySQL C API functions that are server specific
 */
 
-#include "sql_class.h"                          // system_variables
-
+#include <stddef.h>
+#include <sys/types.h>
 #include <algorithm>
+
+#include "mysql_com.h"
+#include "mysqld.h"                             // global_system_variables
+#include "system_variables.h"
 
 using std::min;
 using std::max;
@@ -31,7 +35,6 @@ using std::max;
 extern "C" {
 void my_net_local_init(NET *net)
 {
-#ifndef EMBEDDED_LIBRARY
   net->max_packet=   (uint) global_system_variables.net_buffer_length;
 
   my_net_set_read_timeout(net, (uint)global_system_variables.net_read_timeout);
@@ -41,6 +44,5 @@ void my_net_local_init(NET *net)
   net->retry_count=  (uint) global_system_variables.net_retry_count;
   net->max_packet_size= max<size_t>(global_system_variables.net_buffer_length,
                                     global_system_variables.max_allowed_packet);
-#endif
 }
 }

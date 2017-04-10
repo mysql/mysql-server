@@ -1,0 +1,82 @@
+#
+# Tests of foreign keys that need a debug build.
+#
+
+--source include/have_debug.inc
+
+########################################
+##### WL#7554 Force schema `test` to character set latin1
+##### This test should be migrated to utf8mb4
+--disable_query_log
+let $testdbcs63=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
+alter schema test default character set latin1;
+--enable_query_log
+########################################
+
+SET SESSION debug= '+d,skip_dd_table_access_check';
+SET @@foreign_key_checks= DEFAULT;
+
+--echo #
+--echo # WL#6929: Move FOREIGN KEY constraints to the global data dictionary
+--echo #
+
+--echo # Test coverage for foreign key name generation. Should be removed
+--echo # or rewritten when WL#7141 is pushed.
+
+CREATE TABLE t1(a INT PRIMARY KEY);
+CREATE TABLE t2(a INT PRIMARY KEY);
+CREATE TABLE t3(a INT PRIMARY KEY, b INT, c INT);
+
+ALTER TABLE t3 ADD FOREIGN KEY (b) REFERENCES t1(a);
+# InnoDB generated name (until after WL#6599)
+SHOW CREATE TABLE t3;
+# Server generated name (until after WL#6599)
+SELECT fk.name FROM mysql.foreign_keys AS fk, mysql.tables AS t
+WHERE fk.table_id = t.id AND t.name = 't3';
+
+ALTER TABLE t3 ADD FOREIGN KEY (c) REFERENCES t1(a);
+# InnoDB generated name (until after WL#6599)
+SHOW CREATE TABLE t3;
+# Server generated name (until after WL#6599)
+SELECT fk.name FROM mysql.foreign_keys AS fk, mysql.tables AS t
+WHERE fk.table_id = t.id AND t.name = 't3';
+
+ALTER TABLE t3 ADD FOREIGN KEY (b) REFERENCES t1(a);
+# InnoDB generated name (until after WL#6599)
+SHOW CREATE TABLE t3;
+# Server generated name (until after WL#6599)
+SELECT fk.name FROM mysql.foreign_keys AS fk, mysql.tables AS t
+WHERE fk.table_id = t.id AND t.name = 't3';
+
+ALTER TABLE t3 DROP FOREIGN KEY t3_ibfk_1;
+# InnoDB generated name (until after WL#6599)
+SHOW CREATE TABLE t3;
+# Server generated name (until after WL#6599)
+SELECT fk.name FROM mysql.foreign_keys AS fk, mysql.tables AS t
+WHERE fk.table_id = t.id AND t.name = 't3';
+
+ALTER TABLE t3 ADD FOREIGN KEY (b) REFERENCES t1(a);
+# InnoDB generated name (until after WL#6599)
+SHOW CREATE TABLE t3;
+# Server generated name (until after WL#6599)
+SELECT fk.name FROM mysql.foreign_keys AS fk, mysql.tables AS t
+WHERE fk.table_id = t.id AND t.name = 't3';
+
+DROP TABLE t3, t2, t1;
+SET SESSION debug= '-d,skip_dd_table_access_check';
+
+CREATE TABLE t1(a INT PRIMARY KEY);
+CREATE TABLE name567890123456789012345678901234567890123456789012345678901234(a INT PRIMARY KEY, b INT);
+
+--error ER_TOO_LONG_IDENT
+ALTER TABLE name567890123456789012345678901234567890123456789012345678901234
+ADD FOREIGN KEY(b) REFERENCES t1(a);
+
+DROP TABLE name567890123456789012345678901234567890123456789012345678901234, t1;
+
+########################################
+##### WL#7554 set schema `test` back to what it was
+--disable_query_log
+--eval alter schema test default character set $testdbcs63;
+--enable_query_log
+########################################

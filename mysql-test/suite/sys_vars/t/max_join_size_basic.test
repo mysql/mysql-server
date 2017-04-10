@@ -5,7 +5,6 @@
 #                    after variable value change
 #
 
-
 SET @start_global_value = @@global.max_join_size;
 SELECT @start_global_value;
 
@@ -17,8 +16,8 @@ select @@session.max_join_size;
 show global variables like 'max_join_size';
 show session variables like 'max_join_size';
 --disable_warnings
-select * from information_schema.global_variables where variable_name='max_join_size';
-select * from information_schema.session_variables where variable_name='max_join_size';
+select * from performance_schema.global_variables where variable_name='max_join_size';
+select * from performance_schema.session_variables where variable_name='max_join_size';
 --enable_warnings
 
 #
@@ -28,11 +27,15 @@ set global max_join_size=10;
 set session max_join_size=20;
 select @@global.max_join_size;
 select @@session.max_join_size;
+# Using SQL_BIG_SELECT to ignore MAX_JOIN_SIZE.
+SET SQL_BIG_SELECTS=1;
 show global variables like 'max_join_size';
 show session variables like 'max_join_size';
 --disable_warnings
-select * from information_schema.global_variables where variable_name='max_join_size';
-select * from information_schema.session_variables where variable_name='max_join_size';
+# Using SQL_BIG_SELECT to ignore MAX_JOIN_SIZE.
+SET SQL_BIG_SELECTS=1;
+select * from performance_schema.global_variables where variable_name='max_join_size';
+select * from performance_schema.session_variables where variable_name='max_join_size';
 --enable_warnings
 
 #

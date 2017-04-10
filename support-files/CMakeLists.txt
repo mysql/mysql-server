@@ -15,8 +15,6 @@
 
 IF(WIN32)
   SET(localstatedir "C:\\\\mysql\\\\data\\\\")
-  SET(ini_file_extension "ini")
-  SET(CNF_SOCKET_LINE "")
 ELSE()
   SET(localstatedir "${MYSQL_DATADIR}")
   SET(prefix "${CMAKE_INSTALL_PREFIX}")
@@ -29,9 +27,7 @@ ELSE()
   SET(CFLAGS ${CMAKE_C_FLAGS})
   SET(CXXFLAGS ${CMAKE_CXX_FLAGS})
   SET(MYSQLD_USER "mysql")
-  SET(ini_file_extension "cnf")
   SET(HOSTNAME "hostname")
-  SET(CNF_SOCKET_LINE "# socket = .....")
 ENDIF()
 
   SET(dictionary "${CMAKE_INSTALL_PREFIX}/${INSTALL_SHAREDIR}/dictionary.txt" )
@@ -44,23 +40,18 @@ ELSE()
   SET(inst_location ${INSTALL_SUPPORTFILESDIR})
 ENDIF()
 
-SET(inifile my-default)
-CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/${inifile}.cnf.sh 
-               ${CMAKE_CURRENT_BINARY_DIR}/${inifile}.${ini_file_extension} @ONLY)
-INSTALL(FILES ${CMAKE_CURRENT_BINARY_DIR}/${inifile}.${ini_file_extension}
-        DESTINATION ${inst_location} COMPONENT IniFiles)
-
 IF(UNIX)
+  IF(CMAKE_SYSTEM_NAME MATCHES "Linux")
+    SET (PIDOF "pidof")
+  ELSE()
+    SET (PIDOF "pgrep -d' ' -f")
+  ENDIF()
   SET(prefix ${CMAKE_INSTALL_PREFIX})
   FOREACH(script  mysqld_multi.server mysql-log-rotate)
     CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/${script}.sh 
                    ${CMAKE_CURRENT_BINARY_DIR}/${script} @ONLY )
 
-    IF(script MATCHES ".ini")
-      SET(comp IniFiles)
-    ELSE()
-      SET(comp Server_Scripts)
-    ENDIF()
+    SET(comp Server_Scripts)
     INSTALL(FILES ${CMAKE_CURRENT_BINARY_DIR}/${script} 
        DESTINATION ${inst_location} COMPONENT ${comp}
        PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE)
@@ -73,7 +64,6 @@ IF(UNIX)
   
   SET(bindir ${prefix}/${INSTALL_BINDIR})
   SET(sbindir ${prefix}/${INSTALL_SBINDIR})
-  SET(scriptdir ${prefix}/${INSTALL_SCRIPTDIR})
   SET(libexecdir ${prefix}/${INSTALL_SBINDIR})
   SET(pkgdatadir ${prefix}/${INSTALL_MYSQLSHAREDIR})
   CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/mysql.server.sh 

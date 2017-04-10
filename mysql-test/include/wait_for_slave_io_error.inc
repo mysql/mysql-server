@@ -11,7 +11,7 @@
 # [--let $show_slave_io_error= 1]
 # [--let $slave_io_error_is_nonfatal= 1]
 # [--let $slave_io_error_replace= REGEX]
-# [--let $rpl_channel_name= NAME]
+# [--let $rpl_channel_name= 'NAME']
 # [--let $rpl_debug= 1]
 # [--let $slave_timeout= NUMBER]
 # --source include/wait_for_slave_io_error.inc
@@ -53,6 +53,10 @@
 
 
 --let $include_filename= wait_for_slave_io_error.inc [errno=$slave_io_errno]
+if ($rpl_channel_name)
+{
+  --let $include_filename= wait_for_slave_io_error.inc [errno=$slave_io_errno FOR CHANNEL $rpl_channel_name]
+}
 --source include/begin_include_file.inc
 
 

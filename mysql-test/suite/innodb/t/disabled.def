@@ -1,4 +1,4 @@
-##############################################################################
+
 #
 #  List the test cases that are to be disabled temporarily.
 #
@@ -9,3 +9,15 @@
 #  Do not use any TAB characters for whitespace.
 #
 ##############################################################################
+innodb.alter_crash        : WL#7016 2015-05-11 jhauglid Uses functionality removed by WL#8186. To be enabled when WL#7016 is impemented
+# For more details on tags WL6378_* refer sql/dd/mtr_readme.txt
+innodb_wl6501_crash_1     : WL#6795 2015-11-06 jhauglid WL6795_WL7016_RECOVERY
+innodb_wl6501_crash_2     : WL#6795 2015-11-06 jhauglid WL6795_WL7016_RECOVERY
+innodb_wl6501_crash_6     : WL#6795 2015-11-06 jhauglid WL6795_WL7016_RECOVERY
+innodb_wl6501_crash_7     : WL#6795 2015-11-06 jhauglid WL6795_WL7016_RECOVERY
+innodb_wl6501_crash_8     : WL#6795 2015-11-06 jhauglid WL6795_WL7016_RECOVERY
+alter_foreign_crash       : WL#6378 2015-11-06 jhauglid WL6378_TEMPORARY_FILES
+innodb.bootstrap        @windows  : Bug#22680868 2016-02-08 Erlend Failing too often on PB2
+innodb.log_corruption   @windows  : Bug#22680868 2016-02-08 Erlend Failing too often on PB2
+innodb.log_corruption_1 @windows  : Bug#22680868 2016-02-08 Erlend Failing too often on PB2
+analyze_table           @solaris  : Bug#22607584 2016-03-01 Shaohua Failing too often on PB2 due to timeout

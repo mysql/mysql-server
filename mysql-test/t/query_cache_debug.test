@@ -1,15 +1,10 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 --source include/not_embedded.inc
---source include/have_query_cache.inc
 --source include/have_debug_sync.inc
 
 #
 # Bug #30887 Server crashes on SET GLOBAL query_cache_size=0
 #
+SET @save_query_cache_size = @@query_cache_size;
 flush status;
 set query_cache_type=DEMAND;
 set global query_cache_size= 1024*768;
@@ -331,4 +326,4 @@ connection default;
 SET DEBUG_SYNC= 'RESET';
 RESET QUERY CACHE;
 DROP TABLE t1;
-SET GLOBAL query_cache_size= DEFAULT;
+SET GLOBAL query_cache_size= @save_query_cache_size;

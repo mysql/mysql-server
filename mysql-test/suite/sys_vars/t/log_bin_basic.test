@@ -1,3 +1,5 @@
+# Need log_bin off initially to check the default value.
+--source include/not_log_bin.inc
 #
 # only global
 #
@@ -7,8 +9,8 @@ select @@session.log_bin;
 show global variables like 'log_bin';
 show session variables like 'log_bin';
 --disable_warnings
-select * from information_schema.global_variables where variable_name='log_bin';
-select * from information_schema.session_variables where variable_name='log_bin';
+select * from performance_schema.global_variables where variable_name='log_bin';
+select * from performance_schema.session_variables where variable_name='log_bin';
 --enable_warnings
 
 #

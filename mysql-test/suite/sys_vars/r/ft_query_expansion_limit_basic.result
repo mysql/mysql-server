@@ -9,12 +9,12 @@ ft_query_expansion_limit	20
 show session variables like 'ft_query_expansion_limit';
 Variable_name	Value
 ft_query_expansion_limit	20
-select * from information_schema.global_variables where variable_name='ft_query_expansion_limit';
+select * from performance_schema.global_variables where variable_name='ft_query_expansion_limit';
 VARIABLE_NAME	VARIABLE_VALUE
-FT_QUERY_EXPANSION_LIMIT	20
-select * from information_schema.session_variables where variable_name='ft_query_expansion_limit';
+ft_query_expansion_limit	20
+select * from performance_schema.session_variables where variable_name='ft_query_expansion_limit';
 VARIABLE_NAME	VARIABLE_VALUE
-FT_QUERY_EXPANSION_LIMIT	20
+ft_query_expansion_limit	20
 set global ft_query_expansion_limit=1;
 ERROR HY000: Variable 'ft_query_expansion_limit' is a read only variable
 set session ft_query_expansion_limit=1;

@@ -4,9 +4,9 @@ default-language eng
 
 start-error-number 1000
 
-ER_HASHCHK  
+OBSOLETE_ER_HASHCHK  
         eng "hashchk"
-ER_NISAMCHK  
+OBSOLETE_ER_NISAMCHK  
         eng "isamchk"
 ER_NO  
         cze "NE"
@@ -75,53 +75,53 @@ ER_CANT_CREATE_FILE
         swe "Kan inte skapa filen '%-.200s' (Felkod: %d - %s)"
         ukr "Не можу створити файл '%-.200s' (помилка: %d - %s)"
 ER_CANT_CREATE_TABLE  
-        cze "Nemohu vytvořit tabulku '%-.200s' (chybový kód: %d)"
-        dan "Kan ikke oprette tabellen '%-.200s' (Fejlkode: %d)"
-        nla "Kan tabel '%-.200s' niet aanmaken (Errcode: %d)"
-        eng "Can't create table '%-.200s' (errno: %d)"
-        est "Ei suuda luua tabelit '%-.200s' (veakood: %d)"
-        fre "Ne peut créer la table '%-.200s' (Errcode: %d)"
-        ger "Kann Tabelle '%-.200s' nicht erzeugen (Fehler: %d)"
-        greek "Αδύνατη η δημιουργία του πίνακα '%-.200s' (κωδικός λάθους: %d)"
-        hun "A '%-.200s' tabla nem hozhato letre (hibakod: %d)"
-        ita "Impossibile creare la tabella '%-.200s' (errno: %d)"
-        jpn "表 '%-.200s' を作成できません。(エラー番号: %d)"
-        kor "테이블 '%-.200s'를 만들지 못했습니다. (에러번호: %d)"
-        nor "Kan ikke opprette tabellen '%-.200s' (Feilkode: %d)"
-        norwegian-ny "Kan ikkje opprette tabellen '%-.200s' (Feilkode: %d)"
-        pol "Nie można stworzyć tabeli '%-.200s' (Kod błędu: %d)"
-        por "Não pode criar a tabela '%-.200s' (erro no. %d)"
-        rum "Nu pot sa creez tabla '%-.200s' (Eroare: %d)"
-        rus "Невозможно создать таблицу '%-.200s' (ошибка: %d)"
-        serbian "Ne mogu da kreiram tabelu '%-.200s' (errno: %d)"
-        slo "Nemôžem vytvoriť tabuľku '%-.200s' (chybový kód: %d)"
-        spa "No puedo crear tabla '%-.200s' (Error: %d)"
-        swe "Kan inte skapa tabellen '%-.200s' (Felkod: %d)"
-        ukr "Не можу створити таблицю '%-.200s' (помилка: %d)"
+        cze "Nemohu vytvořit tabulku '%-.200s' (chybový kód: %d - %s)"
+        dan "Kan ikke oprette tabellen '%-.200s' (Fejlkode: %d - %s)"
+        nla "Kan tabel '%-.200s' niet aanmaken (Errcode: %d - %s)"
+        eng "Can't create table '%-.200s' (errno: %d - %s)"
+        est "Ei suuda luua tabelit '%-.200s' (veakood: %d - %s)"
+        fre "Ne peut créer la table '%-.200s' (Errcode: %d - %s)"
+        ger "Kann Tabelle '%-.200s' nicht erzeugen (Fehler: %d - %s)"
+        greek "Αδύνατη η δημιουργία του πίνακα '%-.200s' (κωδικός λάθους: %d - %s)"
+        hun "A '%-.200s' tabla nem hozhato letre (hibakod: %d - %s)"
+        ita "Impossibile creare la tabella '%-.200s' (errno: %d - %s)"
+        jpn "表 '%-.200s' を作成できません。(エラー番号: %d - %s)"
+        kor "테이블 '%-.200s'를 만들지 못했습니다. (에러번호: %d - %s)"
+        nor "Kan ikke opprette tabellen '%-.200s' (Feilkode: %d - %s)"
+        norwegian-ny "Kan ikkje opprette tabellen '%-.200s' (Feilkode: %d - %s)"
+        pol "Nie można stworzyć tabeli '%-.200s' (Kod błędu: %d - %s)"
+        por "Não pode criar a tabela '%-.200s' (erro no. %d - %s)"
+        rum "Nu pot sa creez tabla '%-.200s' (Eroare: %d - %s)"
+        rus "Невозможно создать таблицу '%-.200s' (ошибка: %d - %s)"
+        serbian "Ne mogu da kreiram tabelu '%-.200s' (errno: %d - %s)"
+        slo "Nemôžem vytvoriť tabuľku '%-.200s' (chybový kód: %d - %s)"
+        spa "No puedo crear tabla '%-.200s' (Error: %d - %s)"
+        swe "Kan inte skapa tabellen '%-.200s' (Felkod: %d - %s)"
+        ukr "Не можу створити таблицю '%-.200s' (помилка: %d - %s)"
 ER_CANT_CREATE_DB  
-        cze "Nemohu vytvořit databázi '%-.192s' (chybový kód: %d)"
-        dan "Kan ikke oprette databasen '%-.192s' (Fejlkode: %d)"
-        nla "Kan database '%-.192s' niet aanmaken (Errcode: %d)"
-        eng "Can't create database '%-.192s' (errno: %d)"
-        est "Ei suuda luua andmebaasi '%-.192s' (veakood: %d)"
-        fre "Ne peut créer la base '%-.192s' (Erreur %d)"
-        ger "Kann Datenbank '%-.192s' nicht erzeugen (Fehler: %d)"
-        greek "Αδύνατη η δημιουργία της βάσης δεδομένων '%-.192s' (κωδικός λάθους: %d)"
-        hun "Az '%-.192s' adatbazis nem hozhato letre (hibakod: %d)"
-        ita "Impossibile creare il database '%-.192s' (errno: %d)"
-        jpn "データベース '%-.192s' を作成できません。(エラー番号: %d)"
-        kor "데이타베이스 '%-.192s'를 만들지 못했습니다.. (에러번호: %d)"
-        nor "Kan ikke opprette databasen '%-.192s' (Feilkode: %d)"
-        norwegian-ny "Kan ikkje opprette databasen '%-.192s' (Feilkode: %d)"
-        pol "Nie można stworzyć bazy danych '%-.192s' (Kod błędu: %d)"
-        por "Não pode criar o banco de dados '%-.192s' (erro no. %d)"
-        rum "Nu pot sa creez baza de date '%-.192s' (Eroare: %d)"
-        rus "Невозможно создать базу данных '%-.192s' (ошибка: %d)"
-        serbian "Ne mogu da kreiram bazu '%-.192s' (errno: %d)"
-        slo "Nemôžem vytvoriť databázu '%-.192s' (chybový kód: %d)"
-        spa "No puedo crear base de datos '%-.192s' (Error: %d)"
-        swe "Kan inte skapa databasen '%-.192s' (Felkod: %d)"
-        ukr "Не можу створити базу данних '%-.192s' (помилка: %d)"
+        cze "Nemohu vytvořit databázi '%-.192s' (chybový kód: %d - %s)"
+        dan "Kan ikke oprette databasen '%-.192s' (Fejlkode: %d - %s)"
+        nla "Kan database '%-.192s' niet aanmaken (Errcode: %d - %s)"
+        eng "Can't create database '%-.192s' (errno: %d - %s)"
+        est "Ei suuda luua andmebaasi '%-.192s' (veakood: %d - %s)"
+        fre "Ne peut créer la base '%-.192s' (Erreur %d - %s)"
+        ger "Kann Datenbank '%-.192s' nicht erzeugen (Fehler: %d - %s)"
+        greek "Αδύνατη η δημιουργία της βάσης δεδομένων '%-.192s' (κωδικός λάθους: %d - %s)"
+        hun "Az '%-.192s' adatbazis nem hozhato letre (hibakod: %d - %s)"
+        ita "Impossibile creare il database '%-.192s' (errno: %d - %s)"
+        jpn "データベース '%-.192s' を作成できません。(エラー番号: %d - %s)"
+        kor "데이타베이스 '%-.192s'를 만들지 못했습니다.. (에러번호: %d - %s)"
+        nor "Kan ikke opprette databasen '%-.192s' (Feilkode: %d - %s)"
+        norwegian-ny "Kan ikkje opprette databasen '%-.192s' (Feilkode: %d - %s)"
+        pol "Nie można stworzyć bazy danych '%-.192s' (Kod błędu: %d - %s)"
+        por "Não pode criar o banco de dados '%-.192s' (erro no. %d - %s)"
+        rum "Nu pot sa creez baza de date '%-.192s' (Eroare: %d - %s)"
+        rus "Невозможно создать базу данных '%-.192s' (ошибка: %d - %s)"
+        serbian "Ne mogu da kreiram bazu '%-.192s' (errno: %d - %s)"
+        slo "Nemôžem vytvoriť databázu '%-.192s' (chybový kód: %d - %s)"
+        spa "No puedo crear base de datos '%-.192s' (Error: %d - %s)"
+        swe "Kan inte skapa databasen '%-.192s' (Felkod: %d - %s)"
+        ukr "Не можу створити базу данних '%-.192s' (помилка: %d - %s)"
 ER_DB_CREATE_EXISTS  
         cze "Nemohu vytvořit databázi '%-.192s'; databáze již existuje"
         dan "Kan ikke oprette databasen '%-.192s'; databasen eksisterer"
@@ -170,55 +170,55 @@ ER_DB_DROP_EXISTS
         spa "No puedo eliminar base de datos '%-.192s'; la base de datos no existe"
         swe "Kan inte radera databasen '%-.192s'; databasen finns inte"
         ukr "Не можу видалити базу данних '%-.192s'. База данних не існує"
-ER_DB_DROP_DELETE  
-        cze "Chyba při rušení databáze (nemohu vymazat '%-.192s', chyba %d)"
-        dan "Fejl ved sletning (drop) af databasen (kan ikke slette '%-.192s', Fejlkode %d)"
-        nla "Fout bij verwijderen database (kan '%-.192s' niet verwijderen, Errcode: %d)"
-        eng "Error dropping database (can't delete '%-.192s', errno: %d)"
-        est "Viga andmebaasi kustutamisel (ei suuda kustutada faili '%-.192s', veakood: %d)"
-        fre "Ne peut effacer la base '%-.192s' (erreur %d)"
-        ger "Fehler beim Löschen der Datenbank ('%-.192s' kann nicht gelöscht werden, Fehler: %d)"
-        greek "Παρουσιάστηκε πρόβλημα κατά τη διαγραφή της βάσης δεδομένων (αδύνατη η διαγραφή '%-.192s', κωδικός λάθους: %d)"
-        hun "Adatbazis megszuntetesi hiba ('%-.192s' nem torolheto, hibakod: %d)"
-        ita "Errore durante la cancellazione del database (impossibile cancellare '%-.192s', errno: %d)"
-        jpn "データベース削除エラー ('%-.192s' を削除できません。エラー番号: %d)"
-        kor "데이타베이스 제거 에러('%-.192s'를 삭제할 수 없읍니다, 에러번호: %d)"
-        nor "Feil ved fjerning (drop) av databasen (kan ikke slette '%-.192s', feil %d)"
-        norwegian-ny "Feil ved fjerning (drop) av databasen (kan ikkje slette '%-.192s', feil %d)"
-        pol "Bł?d podczas usuwania bazy danych (nie można usun?ć '%-.192s', bł?d %d)"
-        por "Erro ao eliminar banco de dados (não pode eliminar '%-.192s' - erro no. %d)"
-        rum "Eroare dropuind baza de date (nu pot sa sterg '%-.192s', Eroare: %d)"
-        rus "Ошибка при удалении базы данных (невозможно удалить '%-.192s', ошибка: %d)"
-        serbian "Ne mogu da izbrišem bazu (ne mogu da izbrišem '%-.192s', errno: %d)"
-        slo "Chyba pri mazaní databázy (nemôžem zmazať '%-.192s', chybový kód: %d)"
-        spa "Error eliminando la base de datos(no puedo borrar '%-.192s', error %d)"
-        swe "Fel vid radering av databasen (Kan inte radera '%-.192s'. Felkod: %d)"
-        ukr "Не можу видалити базу данних (Не можу видалити '%-.192s', помилка: %d)"
+OBSOLETE_ER_DB_DROP_DELETE  
+        cze "Chyba při rušení databáze (nemohu vymazat '%-.192s', chyba %d - %s)"
+        dan "Fejl ved sletning (drop) af databasen (kan ikke slette '%-.192s', Fejlkode %d - %s)"
+        nla "Fout bij verwijderen database (kan '%-.192s' niet verwijderen, Errcode: %d - %s)"
+        eng "Error dropping database (can't delete '%-.192s', errno: %d - %s)"
+        est "Viga andmebaasi kustutamisel (ei suuda kustutada faili '%-.192s', veakood: %d - %s)"
+        fre "Ne peut effacer la base '%-.192s' (erreur %d - %s)"
+        ger "Fehler beim Löschen der Datenbank ('%-.192s' kann nicht gelöscht werden, Fehler: %d - %s)"
+        greek "Παρουσιάστηκε πρόβλημα κατά τη διαγραφή της βάσης δεδομένων (αδύνατη η διαγραφή '%-.192s', κωδικός λάθους: %d - %s)"
+        hun "Adatbazis megszuntetesi hiba ('%-.192s' nem torolheto, hibakod: %d - %s)"
+        ita "Errore durante la cancellazione del database (impossibile cancellare '%-.192s', errno: %d - %s)"
+        jpn "データベース削除エラー ('%-.192s' を削除できません。エラー番号: %d - %s)"
+        kor "데이타베이스 제거 에러('%-.192s'를 삭제할 수 없읍니다, 에러번호: %d - %s)"
+        nor "Feil ved fjerning (drop) av databasen (kan ikke slette '%-.192s', feil %d - %s)"
+        norwegian-ny "Feil ved fjerning (drop) av databasen (kan ikkje slette '%-.192s', feil %d - %s)"
+        pol "Bł?d podczas usuwania bazy danych (nie można usun?ć '%-.192s', bł?d %d - %s)"
+        por "Erro ao eliminar banco de dados (não pode eliminar '%-.192s' - erro no. %d - %s)"
+        rum "Eroare dropuind baza de date (nu pot sa sterg '%-.192s', Eroare: %d - %s)"
+        rus "Ошибка при удалении базы данных (невозможно удалить '%-.192s', ошибка: %d - %s)"
+        serbian "Ne mogu da izbrišem bazu (ne mogu da izbrišem '%-.192s', errno: %d - %s)"
+        slo "Chyba pri mazaní databázy (nemôžem zmazať '%-.192s', chybový kód: %d - %s)"
+        spa "Error eliminando la base de datos(no puedo borrar '%-.192s', error %d - %s)"
+        swe "Fel vid radering av databasen (Kan inte radera '%-.192s'. Felkod: %d - %s)"
+        ukr "Не можу видалити базу данних (Не можу видалити '%-.192s', помилка: %d - %s)"
 ER_DB_DROP_RMDIR  
-        cze "Chyba při rušení databáze (nemohu vymazat adresář '%-.192s', chyba %d)"
-        dan "Fejl ved sletting af database (kan ikke slette folderen '%-.192s', Fejlkode %d)"
-        nla "Fout bij verwijderen database (kan rmdir '%-.192s' niet uitvoeren, Errcode: %d)"
-        eng "Error dropping database (can't rmdir '%-.192s', errno: %d)"
-        est "Viga andmebaasi kustutamisel (ei suuda kustutada kataloogi '%-.192s', veakood: %d)"
-        fre "Erreur en effaçant la base (rmdir '%-.192s', erreur %d)"
-        ger "Fehler beim Löschen der Datenbank (Verzeichnis '%-.192s' kann nicht gelöscht werden, Fehler: %d)"
-        greek "Παρουσιάστηκε πρόβλημα κατά τη διαγραφή της βάσης δεδομένων (αδύνατη η διαγραφή του φακέλλου '%-.192s', κωδικός λάθους: %d)"
-        hun "Adatbazis megszuntetesi hiba ('%-.192s' nem szuntetheto meg, hibakod: %d)"
-        ita "Errore durante la cancellazione del database (impossibile rmdir '%-.192s', errno: %d)"
-        jpn "データベース削除エラー (ディレクトリ '%-.192s' を削除できません。エラー番号: %d)"
-        kor "데이타베이스 제거 에러(rmdir '%-.192s'를 할 수 없읍니다, 에러번호: %d)"
-        nor "Feil ved sletting av database (kan ikke slette katalogen '%-.192s', feil %d)"
-        norwegian-ny "Feil ved sletting av database (kan ikkje slette katalogen '%-.192s', feil %d)"
-        pol "Bł?d podczas usuwania bazy danych (nie można wykonać rmdir '%-.192s', bł?d %d)"
-        por "Erro ao eliminar banco de dados (não pode remover diretório '%-.192s' - erro no. %d)"
-        rum "Eroare dropuind baza de date (nu pot sa rmdir '%-.192s', Eroare: %d)"
-        rus "Невозможно удалить базу данных (невозможно удалить каталог '%-.192s', ошибка: %d)"
-        serbian "Ne mogu da izbrišem bazu (ne mogu da izbrišem direktorijum '%-.192s', errno: %d)"
-        slo "Chyba pri mazaní databázy (nemôžem vymazať adresár '%-.192s', chybový kód: %d)"
-        spa "Error eliminando la base de datos (No puedo borrar directorio '%-.192s', error %d)"
-        swe "Fel vid radering av databasen (Kan inte radera biblioteket '%-.192s'. Felkod: %d)"
-        ukr "Не можу видалити базу данних (Не можу видалити теку '%-.192s', помилка: %d)"
-ER_CANT_DELETE_FILE  
+        cze "Chyba při rušení databáze (nemohu vymazat adresář '%-.192s', chyba %d - %s)"
+        dan "Fejl ved sletting af database (kan ikke slette folderen '%-.192s', Fejlkode %d - %s)"
+        nla "Fout bij verwijderen database (kan rmdir '%-.192s' niet uitvoeren, Errcode: %d - %s)"
+        eng "Error dropping database (can't rmdir '%-.192s', errno: %d - %s)"
+        est "Viga andmebaasi kustutamisel (ei suuda kustutada kataloogi '%-.192s', veakood: %d - %s)"
+        fre "Erreur en effaçant la base (rmdir '%-.192s', erreur %d - %s)"
+        ger "Fehler beim Löschen der Datenbank (Verzeichnis '%-.192s' kann nicht gelöscht werden, Fehler: %d - %s)"
+        greek "Παρουσιάστηκε πρόβλημα κατά τη διαγραφή της βάσης δεδομένων (αδύνατη η διαγραφή του φακέλλου '%-.192s', κωδικός λάθους: %d - %s)"
+        hun "Adatbazis megszuntetesi hiba ('%-.192s' nem szuntetheto meg, hibakod: %d - %s)"
+        ita "Errore durante la cancellazione del database (impossibile rmdir '%-.192s', errno: %d - %s)"
+        jpn "データベース削除エラー (ディレクトリ '%-.192s' を削除できません。エラー番号: %d - %s)"
+        kor "데이타베이스 제거 에러(rmdir '%-.192s'를 할 수 없읍니다, 에러번호: %d - %s)"
+        nor "Feil ved sletting av database (kan ikke slette katalogen '%-.192s', feil %d - %s)"
+        norwegian-ny "Feil ved sletting av database (kan ikkje slette katalogen '%-.192s', feil %d - %s)"
+        pol "Bł?d podczas usuwania bazy danych (nie można wykonać rmdir '%-.192s', bł?d %d - %s)"
+        por "Erro ao eliminar banco de dados (não pode remover diretório '%-.192s' - erro no. %d - %s)"
+        rum "Eroare dropuind baza de date (nu pot sa rmdir '%-.192s', Eroare: %d - %s)"
+        rus "Невозможно удалить базу данных (невозможно удалить каталог '%-.192s', ошибка: %d - %s)"
+        serbian "Ne mogu da izbrišem bazu (ne mogu da izbrišem direktorijum '%-.192s', errno: %d - %s)"
+        slo "Chyba pri mazaní databázy (nemôžem vymazať adresár '%-.192s', chybový kód: %d - %s)"
+        spa "Error eliminando la base de datos (No puedo borrar directorio '%-.192s', error %d - %s)"
+        swe "Fel vid radering av databasen (Kan inte radera biblioteket '%-.192s'. Felkod: %d - %s)"
+        ukr "Не можу видалити базу данних (Не можу видалити теку '%-.192s', помилка: %d - %s)"
+OBSOLETE_ER_CANT_DELETE_FILE  
         cze "Chyba při výmazu '%-.192s' (chybový kód: %d - %s)"
         dan "Fejl ved sletning af '%-.192s' (Fejlkode: %d - %s)"
         nla "Fout bij het verwijderen van '%-.192s' (Errcode: %d - %s)"
@@ -290,7 +290,7 @@ ER_CANT_GET_STAT
         spa "No puedo obtener el estado de '%-.200s' (Error: %d - %s)"
         swe "Kan inte läsa filinformationen (stat) från '%-.200s' (Felkod: %d - %s)"
         ukr "Не можу отримати статус '%-.200s' (помилка: %d - %s)"
-ER_CANT_GET_WD  
+OBSOLETE_ER_CANT_GET_WD  
         cze "Chyba při zjišťování pracovní adresář (chybový kód: %d - %s)"
         dan "Kan ikke læse aktive folder (Fejlkode: %d - %s)"
         nla "Kan de werkdirectory niet krijgen (Errcode: %d - %s)"
@@ -410,7 +410,7 @@ ER_CANT_READ_DIR
         spa "No puedo leer el directorio de '%-.192s' (Error: %d - %s)"
         swe "Kan inte läsa från bibliotek '%-.192s' (Felkod: %d - %s)"
         ukr "Не можу прочитати теку '%-.192s' (помилка: %d - %s)"
-ER_CANT_SET_WD  
+OBSOLETE_ER_CANT_SET_WD  
         cze "Nemohu změnit adresář na '%-.192s' (chybový kód: %d - %s)"
         dan "Kan ikke skifte folder til '%-.192s' (Fejlkode: %d - %s)"
         nla "Kan de directory niet veranderen naar '%-.192s' (Errcode: %d - %s)"
@@ -458,7 +458,7 @@ ER_CHECKREAD
         spa "El registro ha cambiado desde la ultima lectura de la tabla '%-.192s'"
         swe "Posten har förändrats sedan den lästes i register '%-.192s'"
         ukr "Запис було змінено з часу останнього читання з таблиці '%-.192s'"
-ER_DISK_FULL  
+OBSOLETE_ER_DISK_FULL  
         cze "Disk je plný (%s), čekám na uvolnění nějakého místa ... (chybový kód: %d - %s)"
         dan "Ikke mere diskplads (%s). Venter på at få frigjort plads... (Fejlkode: %d - %s)"
         nla "Schijf vol (%s). Aan het wachten totdat er ruimte vrij wordt gemaakt... (Errcode: %d - %s)"
@@ -506,7 +506,7 @@ ER_DUP_KEY 23000
         spa "No puedo escribir, clave duplicada en la tabla '%-.192s'"
         swe "Kan inte skriva, dubbel söknyckel i register '%-.192s'"
         ukr "Не можу записати, дублюючийся ключ в таблиці '%-.192s'"
-ER_ERROR_ON_CLOSE  
+OBSOLETE_ER_ERROR_ON_CLOSE  
         cze "Chyba při zavírání '%-.192s' (chybový kód: %d - %s)"
         dan "Fejl ved lukning af '%-.192s' (Fejlkode: %d - %s)"
         nla "Fout bij het sluiten van '%-.192s' (Errcode: %d - %s)"
@@ -650,7 +650,7 @@ ER_FILSORT_ABORT
         spa "Ordeancion cancelada"
         swe "Sorteringen avbruten"
         ukr "Сортування перервано"
-ER_FORM_NOT_FOUND  
+OBSOLETE_ER_FORM_NOT_FOUND  
         cze "Pohled '%-.192s' pro '%-.192s' neexistuje"
         dan "View '%-.192s' eksisterer ikke for '%-.192s'"
         nla "View '%-.192s' bestaat niet voor '%-.192s'"
@@ -675,29 +675,29 @@ ER_FORM_NOT_FOUND
         swe "Formulär '%-.192s' finns inte i '%-.192s'"
         ukr "Вигляд '%-.192s' не існує для '%-.192s'"
 ER_GET_ERRNO  
-        cze "Obsluha tabulky vrátila chybu %d"
-        dan "Modtog fejl %d fra tabel håndteringen"
-        nla "Fout %d van tabel handler"
-        eng "Got error %d from storage engine"
-        est "Tabeli handler tagastas vea %d"
-        fre "Reçu l'erreur %d du handler de la table"
-        ger "Fehler %d (Speicher-Engine)"
-        greek "Ελήφθη μήνυμα λάθους %d από τον χειριστή πίνακα (table handler)"
-        hun "%d hibajelzes a tablakezelotol"
-        ita "Rilevato l'errore %d dal gestore delle tabelle"
-        jpn "ストレージエンジンがエラー %d を返しました。"
-        kor "테이블 handler에서 %d 에러가 발생 하였습니다."
-        nor "Mottok feil %d fra tabell håndterer"
-        norwegian-ny "Mottok feil %d fra tabell handterar"
-        pol "Otrzymano bł?d %d z obsługi tabeli"
-        por "Obteve erro %d no manipulador de tabelas"
-        rum "Eroarea %d obtinuta din handlerul tabelei"
-        rus "Получена ошибка %d от обработчика таблиц"
-        serbian "Handler tabela je vratio grešku %d"
-        slo "Obsluha tabuľky vrátila chybu %d"
-        spa "Error %d desde el manejador de la tabla"
-        swe "Fick felkod %d från databashanteraren"
-        ukr "Отримано помилку %d від дескриптора таблиці"
+        cze "Obsluha tabulky vrátila chybu %d - '%-.192s'"
+        dan "Modtog fejl %d - '%-.192s' fra tabel håndteringen"
+        nla "Fout %d - '%-.192s' van tabel handler"
+        eng "Got error %d - '%-.192s' from storage engine"
+        est "Tabeli handler tagastas vea %d - '%-.192s'"
+        fre "Reçu l'erreur %d - '%-.192s' du handler de la table"
+        ger "Fehler %d - '%-.192s' (Speicher-Engine)"
+        greek "Ελήφθη μήνυμα λάθους %d - '%-.192s' από τον χειριστή πίνακα (table handler)"
+        hun "%d - '%-.192s' hibajelzes a tablakezelotol"
+        ita "Rilevato l'errore %d - '%-.192s' dal gestore delle tabelle"
+        jpn "ストレージエンジンがエラー %d - '%-.192s' を返しました。"
+        kor "테이블 handler에서 %d - '%-.192s' 에러가 발생 하였습니다."
+        nor "Mottok feil %d - '%-.192s' fra tabell håndterer"
+        norwegian-ny "Mottok feil %d - '%-.192s' fra tabell handterar"
+        pol "Otrzymano bł?d %d - '%-.192s' z obsługi tabeli"
+        por "Obteve erro %d - '%-.192s' no manipulador de tabelas"
+        rum "Eroarea %d - '%-.192s' obtinuta din handlerul tabelei"
+        rus "Получена ошибка %d - '%-.192s' от обработчика таблиц"
+        serbian "Handler tabela je vratio grešku %d - '%-.192s'"
+        slo "Obsluha tabuľky vrátila chybu %d - '%-.192s'"
+        spa "Error %d - '%-.192s' desde el manejador de la tabla"
+        swe "Fick felkod %d - '%-.192s' från databashanteraren"
+        ukr "Отримано помилку %d - '%-.192s' від дескриптора таблиці"
 ER_ILLEGAL_HA  
         cze "Obsluha tabulky '%-.192s' nemá tento parametr"
         dan "Denne mulighed eksisterer ikke for tabeltypen '%-.192s'"
@@ -890,7 +890,7 @@ ER_OUT_OF_SORTMEMORY HY001 S1001
         spa "Memoria de ordenacion insuficiente. Incremente el tamano del buffer de ordenacion"
         swe "Sorteringsbufferten räcker inte till. Kontrollera startparametrarna"
         ukr "Брак пам'яті для сортування. Треба збільшити розмір буфера сортування у сервера"
-ER_UNEXPECTED_EOF  
+OBSOLETE_ER_UNEXPECTED_EOF  
         cze "Neočekávaný konec souboru při čtení '%-.192s' (chybový kód: %d - %s)"
         dan "Uventet afslutning på fil (eof) ved læsning af filen '%-.192s' (Fejlkode: %d - %s)"
         nla "Onverwachte eof gevonden tijdens het lezen van file '%-.192s' (Errcode: %d - %s)"
@@ -1176,29 +1176,29 @@ ER_TABLE_EXISTS_ERROR 42S01
         swe "Tabellen '%-.192s' finns redan"
         ukr "Таблиця '%-.192s' вже існує"
 ER_BAD_TABLE_ERROR 42S02 
-        cze "Neznámá tabulka '%-.100s'"
-        dan "Ukendt tabel '%-.100s'"
-        nla "Onbekende tabel '%-.100s'"
-        eng "Unknown table '%-.100s'"
-        est "Tundmatu tabel '%-.100s'"
-        fre "Table '%-.100s' inconnue"
-        ger "Unbekannte Tabelle '%-.100s'"
-        greek "Αγνωστος πίνακας '%-.100s'"
-        hun "Ervenytelen tabla: '%-.100s'"
-        ita "Tabella '%-.100s' sconosciuta"
-        jpn "'%-.100s' は不明な表です。"
-        kor "테이블 '%-.100s'는 알수 없음"
-        nor "Ukjent tabell '%-.100s'"
-        norwegian-ny "Ukjent tabell '%-.100s'"
-        pol "Nieznana tabela '%-.100s'"
-        por "Tabela '%-.100s' desconhecida"
-        rum "Tabela '%-.100s' este invalida"
-        rus "Неизвестная таблица '%-.100s'"
-        serbian "Nepoznata tabela '%-.100s'"
-        slo "Neznáma tabuľka '%-.100s'"
-        spa "Tabla '%-.100s' desconocida"
-        swe "Okänd tabell '%-.100s'"
-        ukr "Невідома таблиця '%-.100s'"
+        cze "Neznámá tabulka '%-.129s'"
+        dan "Ukendt tabel '%-.129s'"
+        nla "Onbekende tabel '%-.129s'"
+        eng "Unknown table '%-.129s'"
+        est "Tundmatu tabel '%-.129s'"
+        fre "Table '%-.129s' inconnue"
+        ger "Unbekannte Tabelle '%-.129s'"
+        greek "Αγνωστος πίνακας '%-.129s'"
+        hun "Ervenytelen tabla: '%-.129s'"
+        ita "Tabella '%-.129s' sconosciuta"
+        jpn "'%-.129s' は不明な表です。"
+        kor "테이블 '%-.129s'는 알수 없음"
+        nor "Ukjent tabell '%-.129s'"
+        norwegian-ny "Ukjent tabell '%-.129s'"
+        pol "Nieznana tabela '%-.129s'"
+        por "Tabela '%-.129s' desconhecida"
+        rum "Tabela '%-.129s' este invalida"
+        rus "Неизвестная таблица '%-.129s'"
+        serbian "Nepoznata tabela '%-.129s'"
+        slo "Neznáma tabuľka '%-.129s'"
+        spa "Tabla '%-.129s' desconocida"
+        swe "Okänd tabell '%-.129s'"
+        ukr "Невідома таблиця '%-.129s'"
 ER_NON_UNIQ_ERROR 23000 
         cze "Sloupec '%-.192s' v %-.192s není zcela jasný"
         dan "Felt: '%-.192s' i tabel %-.192s er ikke entydigt"
@@ -1779,29 +1779,29 @@ ER_WRONG_AUTO_KEY 42000 S1009
         swe "Det får finnas endast ett AUTO_INCREMENT-fält och detta måste vara en nyckel"
         ukr "Невірне визначення таблиці; Може бути лише один автоматичний стовбець, що повинен бути визначений як ключ"
 ER_READY  
-        cze "%s: připraven na spojení\nVersion: '%s'  socket: '%s'  port: %d""
-        dan "%s: klar til tilslutninger\nVersion: '%s'  socket: '%s'  port: %d""
-        nla "%s: klaar voor verbindingen\nVersion: '%s'  socket: '%s'  port: %d""
+        cze "%s: připraven na spojení\nVersion: '%s'  socket: '%s'  port: %d"
+        dan "%s: klar til tilslutninger\nVersion: '%s'  socket: '%s'  port: %d"
+        nla "%s: klaar voor verbindingen\nVersion: '%s'  socket: '%s'  port: %d"
         eng "%s: ready for connections.\nVersion: '%s'  socket: '%s'  port: %d"
-        est "%s: ootab ühendusi\nVersion: '%s'  socket: '%s'  port: %d""
-        fre "%s: Prêt pour des connexions\nVersion: '%s'  socket: '%s'  port: %d""
+        est "%s: ootab ühendusi\nVersion: '%s'  socket: '%s'  port: %d"
+        fre "%s: Prêt pour des connexions\nVersion: '%s'  socket: '%s'  port: %d"
         ger "%s: Bereit für Verbindungen.\nVersion: '%s'  Socket: '%s'  Port: %d"
-        greek "%s: σε αναμονή συνδέσεων\nVersion: '%s'  socket: '%s'  port: %d""
-        hun "%s: kapcsolatra kesz\nVersion: '%s'  socket: '%s'  port: %d""
-        ita "%s: Pronto per le connessioni\nVersion: '%s'  socket: '%s'  port: %d""
-        jpn "%s: 接続準備完了。\nバージョン: '%s'  socket: '%s'  port: %d""
-        kor "%s: 연결 준비중입니다\nVersion: '%s'  socket: '%s'  port: %d""
-        nor "%s: klar for tilkoblinger\nVersion: '%s'  socket: '%s'  port: %d""
-        norwegian-ny "%s: klar for tilkoblingar\nVersion: '%s'  socket: '%s'  port: %d""
-        pol "%s: gotowe do poł?czenia\nVersion: '%s'  socket: '%s'  port: %d""
-        por "%s: Pronto para conexões\nVersion: '%s'  socket: '%s'  port: %d""
-        rum "%s: sint gata pentru conectii\nVersion: '%s'  socket: '%s'  port: %d""
+        greek "%s: σε αναμονή συνδέσεων\nVersion: '%s'  socket: '%s'  port: %d"
+        hun "%s: kapcsolatra kesz\nVersion: '%s'  socket: '%s'  port: %d"
+        ita "%s: Pronto per le connessioni\nVersion: '%s'  socket: '%s'  port: %d"
+        jpn "%s: 接続準備完了。\nバージョン: '%s'  socket: '%s'  port: %d"
+        kor "%s: 연결 준비중입니다\nVersion: '%s'  socket: '%s'  port: %d"
+        nor "%s: klar for tilkoblinger\nVersion: '%s'  socket: '%s'  port: %d"
+        norwegian-ny "%s: klar for tilkoblingar\nVersion: '%s'  socket: '%s'  port: %d"
+        pol "%s: gotowe do poł?czenia\nVersion: '%s'  socket: '%s'  port: %d"
+        por "%s: Pronto para conexões\nVersion: '%s'  socket: '%s'  port: %d"
+        rum "%s: sint gata pentru conectii\nVersion: '%s'  socket: '%s'  port: %d"
         rus "%s: Готов принимать соединения.\nВерсия: '%s'  сокет: '%s'  порт: %d"
-        serbian "%s: Spreman za konekcije\nVersion: '%s'  socket: '%s'  port: %d""
-        slo "%s: pripravený na spojenie\nVersion: '%s'  socket: '%s'  port: %d""
-        spa "%s: preparado para conexiones\nVersion: '%s'  socket: '%s'  port: %d""
-        swe "%s: klar att ta emot klienter\nVersion: '%s'  socket: '%s'  port: %d""
-        ukr "%s: Готовий для з'єднань!\nVersion: '%s'  socket: '%s'  port: %d""
+        serbian "%s: Spreman za konekcije\nVersion: '%s'  socket: '%s'  port: %d"
+        slo "%s: pripravený na spojenie\nVersion: '%s'  socket: '%s'  port: %d"
+        spa "%s: preparado para conexiones\nVersion: '%s'  socket: '%s'  port: %d"
+        swe "%s: klar att ta emot klienter\nVersion: '%s'  socket: '%s'  port: %d"
+        ukr "%s: Готовий для з'єднань!\nVersion: '%s'  socket: '%s'  port: %d"
 ER_NORMAL_SHUTDOWN  
         cze "%s: normální ukončení\n"
         dan "%s: Normal nedlukning\n"
@@ -1826,7 +1826,7 @@ ER_NORMAL_SHUTDOWN
         spa "%s: Apagado normal\n"
         swe "%s: Normal avslutning\n"
         ukr "%s: Нормальне завершення\n"
-ER_GOT_SIGNAL  
+OBSOLETE_ER_GOT_SIGNAL  
         cze "%s: přijat signal %d, končím\n"
         dan "%s: Fangede signal %d. Afslutter!!\n"
         nla "%s: Signaal %d. Systeem breekt af!\n"
@@ -2791,7 +2791,8 @@ ER_STACK_OVERRUN
         spa "Sobrecarga de la pila de thread:  Usada: %ld de una %ld pila.  Use 'mysqld --thread_stack=#' para especificar una mayor pila si necesario"
         swe "Trådstacken tog slut:  Har använt %ld av %ld bytes.  Använd 'mysqld --thread_stack=#' ifall du behöver en större stack"
         ukr "Стек гілок переповнено:  Використано: %ld з %ld. Використовуйте 'mysqld --thread_stack=#' аби зазначити більший стек, якщо необхідно"
-ER_WRONG_OUTER_JOIN 42000 
+# Not used since 5.8 and probably earlier.
+ER_WRONG_OUTER_JOIN_UNUSED 42000
         cze "V OUTER JOIN byl nalezen křížový odkaz. Prověřte ON podmínky"
         dan "Krydsreferencer fundet i OUTER JOIN; check dine ON conditions"
         nla "Gekruiste afhankelijkheid gevonden in OUTER JOIN. Controleer uw ON-conditions"
@@ -3391,9 +3392,9 @@ ER_SYNTAX_ERROR 42000
         spa "Algo está equivocado en su sintax"
         swe "Du har något fel i din syntax"
         ukr "У вас помилка у синтаксисі SQL"
-ER_UNUSED1
+OBSOLETE_ER_UNUSED1
         eng "Delayed insert thread couldn't get requested lock for table %-.192s"
-ER_UNUSED2
+OBSOLETE_ER_UNUSED2
         eng "Too many delayed threads in use"
 ER_ABORTING_CONNECTION 08S01 
         cze "Zrušeno spojení %ld do databáze: '%-.192s' uživatel: '%-.48s' (%-.64s)"
@@ -3643,7 +3644,7 @@ ER_TABLE_CANT_HANDLE_AUTO_INCREMENT 42000
         spa "El tipo de tabla usada no permite soporte para columnas AUTO_INCREMENT"
         swe "Den använda tabelltypen kan inte hantera AUTO_INCREMENT-kolumner"
         ukr "Використаний тип таблиці не підтримує AUTO_INCREMENT стовбці"
-ER_UNUSED3
+OBSOLETE_ER_UNUSED3
         eng "INSERT DELAYED can't be used with table '%-.192s' because it is locked with LOCK TABLES"
 ER_WRONG_COLUMN_NAME 42000 
         cze "Nesprávné jméno sloupce '%-.100s'"
@@ -3806,7 +3807,7 @@ ER_REQUIRES_PRIMARY_KEY 42000
         spa "Este tipo de tabla necesita de una primary key"
         swe "Denna tabelltyp kräver en PRIMARY KEY"
         ukr "Цей тип таблиці потребує первинного ключа"
-ER_NO_RAID_COMPILED  
+OBSOLETE_ER_NO_RAID_COMPILED  
         cze "Tato verze MySQL není zkompilována s podporou RAID"
         dan "Denne udgave af MySQL er ikke oversat med understøttelse af RAID"
         nla "Deze versie van MySQL is niet gecompileerd met RAID ondersteuning"
@@ -3917,39 +3918,39 @@ ER_CANT_DO_THIS_DURING_AN_TRANSACTION 25000
         swe "Du får inte utföra detta kommando i en transaktion"
         ukr "Вам не дозволено виконувати цю команду в транзакції"
 ER_ERROR_DURING_COMMIT  
-        cze "Chyba %d při COMMIT"
-        dan "Modtog fejl %d mens kommandoen COMMIT blev udført"
-        nla "Kreeg fout %d tijdens COMMIT"
-        eng "Got error %d during COMMIT"
-        est "Viga %d käsu COMMIT täitmisel"
-        fre "Erreur %d lors du COMMIT"
-        ger "Fehler %d beim COMMIT"
-        hun "%d hiba a COMMIT vegrehajtasa soran"
-        ita "Rilevato l'errore %d durante il COMMIT"
-        jpn "COMMIT中にエラー %d が発生しました。"
-        por "Obteve erro %d durante COMMIT"
-        rus "Получена ошибка %d в процессе COMMIT"
-        serbian "Greška %d za vreme izvršavanja komande 'COMMIT'"
-        spa "Obtenido error %d durante COMMIT"
-        swe "Fick fel %d vid COMMIT"
-        ukr "Отримано помилку %d під час COMMIT"
+        cze "Chyba %d - '%-.192s' při COMMIT"
+        dan "Modtog fejl %d - '%-.192s' mens kommandoen COMMIT blev udført"
+        nla "Kreeg fout %d - '%-.192s' tijdens COMMIT"
+        eng "Got error %d - '%-.192s' during COMMIT"
+        est "Viga %d - '%-.192s' käsu COMMIT täitmisel"
+        fre "Erreur %d - '%-.192s' lors du COMMIT"
+        ger "Fehler %d - '%-.192s' beim COMMIT"
+        hun "%d - '%-.192s' hiba a COMMIT vegrehajtasa soran"
+        ita "Rilevato l'errore %d - '%-.192s' durante il COMMIT"
+        jpn "COMMIT中にエラー %d - '%-.192s' が発生しました。"
+        por "Obteve erro %d - '%-.192s' durante COMMIT"
+        rus "Получена ошибка %d - '%-.192s' в процессе COMMIT"
+        serbian "Greška %d - '%-.192s' za vreme izvršavanja komande 'COMMIT'"
+        spa "Obtenido error %d - '%-.192s' durante COMMIT"
+        swe "Fick fel %d - '%-.192s' vid COMMIT"
+        ukr "Отримано помилку %d - '%-.192s' під час COMMIT"
 ER_ERROR_DURING_ROLLBACK  
-        cze "Chyba %d při ROLLBACK"
-        dan "Modtog fejl %d mens kommandoen ROLLBACK blev udført"
-        nla "Kreeg fout %d tijdens ROLLBACK"
-        eng "Got error %d during ROLLBACK"
-        est "Viga %d käsu ROLLBACK täitmisel"
-        fre "Erreur %d lors du ROLLBACK"
-        ger "Fehler %d beim ROLLBACK"
-        hun "%d hiba a ROLLBACK vegrehajtasa soran"
-        ita "Rilevato l'errore %d durante il ROLLBACK"
-        jpn "ROLLBACK中にエラー %d が発生しました。"
-        por "Obteve erro %d durante ROLLBACK"
-        rus "Получена ошибка %d в процессе ROLLBACK"
-        serbian "Greška %d za vreme izvršavanja komande 'ROLLBACK'"
-        spa "Obtenido error %d durante ROLLBACK"
-        swe "Fick fel %d vid ROLLBACK"
-        ukr "Отримано помилку %d під час ROLLBACK"
+        cze "Chyba %d - '%-.192s' při ROLLBACK"
+        dan "Modtog fejl %d - '%-.192s' mens kommandoen ROLLBACK blev udført"
+        nla "Kreeg fout %d - '%-.192s' tijdens ROLLBACK"
+        eng "Got error %d - '%-.192s' during ROLLBACK"
+        est "Viga %d - '%-.192s' käsu ROLLBACK täitmisel"
+        fre "Erreur %d - '%-.192s' lors du ROLLBACK"
+        ger "Fehler %d - '%-.192s' beim ROLLBACK"
+        hun "%d - '%-.192s' hiba a ROLLBACK vegrehajtasa soran"
+        ita "Rilevato l'errore %d - '%-.192s' durante il ROLLBACK"
+        jpn "ROLLBACK中にエラー %d - '%-.192s' が発生しました。"
+        por "Obteve erro %d - '%-.192s' durante ROLLBACK"
+        rus "Получена ошибка %d - '%-.192s' в процессе ROLLBACK"
+        serbian "Greška %d - '%-.192s' za vreme izvršavanja komande 'ROLLBACK'"
+        spa "Obtenido error %d - '%-.192s' durante ROLLBACK"
+        swe "Fick fel %d - '%-.192s' vid ROLLBACK"
+        ukr "Отримано помилку %d - '%-.192s' під час ROLLBACK"
 ER_ERROR_DURING_FLUSH_LOGS  
         cze "Chyba %d při FLUSH_LOGS"
         dan "Modtog fejl %d mens kommandoen FLUSH_LOGS blev udført"
@@ -3967,7 +3968,7 @@ ER_ERROR_DURING_FLUSH_LOGS
         spa "Obtenido error %d durante FLUSH_LOGS"
         swe "Fick fel %d vid FLUSH_LOGS"
         ukr "Отримано помилку %d під час FLUSH_LOGS"
-ER_ERROR_DURING_CHECKPOINT  
+OBSOLETE_ER_ERROR_DURING_CHECKPOINT  
         cze "Chyba %d při CHECKPOINT"
         dan "Modtog fejl %d mens kommandoen CHECKPOINT blev udført"
         nla "Kreeg fout %d tijdens CHECKPOINT"
@@ -4000,7 +4001,7 @@ ER_NEW_ABORTING_CONNECTION 08S01
         spa "Abortada conexión %u para db: '%-.192s' usuario: '%-.48s' servidor: '%-.64s' (%-.64s)"
         swe "Avbröt länken för tråd %u till db '%-.192s', användare '%-.48s', host '%-.64s' (%-.64s)"
         ukr "Перервано з'єднання %u до бази данних: '%-.192s' користувач: '%-.48s' хост: '%-.64s' (%-.64s)"
-ER_DUMP_NOT_IMPLEMENTED  
+OBSOLETE_ER_DUMP_NOT_IMPLEMENTED  
         cze "Handler tabulky nepodporuje binární dump"
         dan "Denne tabeltype unserstøtter ikke binært tabeldump"
         nla "De 'handler' voor de tabel ondersteund geen binaire tabel dump"
@@ -4016,7 +4017,7 @@ ER_DUMP_NOT_IMPLEMENTED
         spa "El manipulador de tabla no soporta dump para tabla binaria"
         swe "Tabellhanteraren klarar inte en binär kopiering av tabellen"
         ukr "Цей тип таблиці не підтримує бінарну передачу таблиці"
-ER_FLUSH_MASTER_BINLOG_CLOSED  
+OBSOLETE_ER_FLUSH_MASTER_BINLOG_CLOSED  
         eng "Binlog closed, cannot RESET MASTER"
         ger "Binlog geschlossen. Kann RESET MASTER nicht ausführen"
         jpn "バイナリログがクローズされています。RESET MASTER を実行できません。"
@@ -4024,7 +4025,7 @@ ER_FLUSH_MASTER_BINLOG_CLOSED
         rus "Двоичный журнал обновления закрыт, невозможно выполнить RESET MASTER"
         serbian "Binarni log file zatvoren, ne mogu da izvršim komandu 'RESET MASTER'"
         ukr "Реплікаційний лог закрито, не можу виконати RESET MASTER"
-ER_INDEX_REBUILD  
+OBSOLETE_ER_INDEX_REBUILD  
         cze "Přebudování indexu dumpnuté tabulky '%-.192s' nebylo úspěšné"
         dan "Kunne ikke genopbygge indekset for den dumpede tabel '%-.192s'"
         nla "Gefaald tijdens heropbouw index van gedumpte tabel '%-.192s'"
@@ -4194,7 +4195,7 @@ ER_TRANS_CACHE_FULL
         spa "Multipla transición necesita mas que 'max_binlog_cache_size' bytes de almacenamiento. Aumente esta variable mysqld y tente de nuevo"
         swe "Transaktionen krävde mera än 'max_binlog_cache_size' minne. Öka denna mysqld-variabel och försök på nytt"
         ukr "Транзакція з багатьма виразами вимагає більше ніж 'max_binlog_cache_size' байтів для зберігання. Збільште цю змінну mysqld та спробуйте знову"
-ER_SLAVE_MUST_STOP  
+OBSOLETE_ER_SLAVE_MUST_STOP  
         dan "Denne handling kunne ikke udføres med kørende slave, brug først kommandoen STOP SLAVE"
         nla "Deze operatie kan niet worden uitgevoerd met een actieve slave, doe eerst STOP SLAVE"
         eng "This operation cannot be performed with a running slave; run STOP SLAVE first"
@@ -4332,7 +4333,7 @@ ER_READ_ONLY_TRANSACTION 25000
         spa "Bloqueos de actualización no pueden ser adqueridos durante una transición READ UNCOMMITTED"
         swe "Updateringslås kan inte göras när man använder READ UNCOMMITTED"
         ukr "Оновити блокування не можливо на протязі транзакції READ UNCOMMITTED"
-ER_DROP_DB_WITH_READ_LOCK  
+OBSOLETE_ER_DROP_DB_WITH_READ_LOCK  
         dan "DROP DATABASE er ikke tilladt mens en tråd holder på globalt read lock"
         nla "DROP DATABASE niet toegestaan terwijl thread een globale 'read lock' bezit"
         eng "DROP DATABASE not allowed while thread is holding global read lock"
@@ -4347,7 +4348,7 @@ ER_DROP_DB_WITH_READ_LOCK
         spa "DROP DATABASE no permitido mientras un thread está ejerciendo un bloqueo de lectura global"
         swe "DROP DATABASE är inte tillåtet när man har ett globalt läslås"
         ukr "DROP DATABASE не дозволено доки гілка перебуває під загальним блокуванням читання"
-ER_CREATE_DB_WITH_READ_LOCK  
+OBSOLETE_ER_CREATE_DB_WITH_READ_LOCK  
         dan "CREATE DATABASE er ikke tilladt mens en tråd holder på globalt read lock"
         nla "CREATE DATABASE niet toegestaan terwijl thread een globale 'read lock' bezit"
         eng "CREATE DATABASE not allowed while thread is holding global read lock"
@@ -4390,7 +4391,7 @@ ER_NO_PERMISSION_TO_CREATE_USER 42000
         spa "'%-.48s`@`%-.64s` no es permitido para crear nuevos usuarios"
         swe "'%-.48s'@'%-.64s' har inte rättighet att skapa nya användare"
         ukr "Користувачу '%-.48s'@'%-.64s' не дозволено створювати нових користувачів"
-ER_UNION_TABLES_IN_DIFFERENT_DIR  
+OBSOLETE_ER_UNION_TABLES_IN_DIFFERENT_DIR  
         nla "Incorrecte tabel definitie; alle MERGE tabellen moeten tot dezelfde database behoren"
         eng "Incorrect table definition; all MERGE tables must be in the same database"
         est "Vigane tabelimääratlus; kõik MERGE tabeli liikmed peavad asuma samas andmebaasis"
@@ -4479,7 +4480,7 @@ ER_CONNECT_TO_MASTER 08S01
         rus "Ошибка соединения с головным сервером: %-.128s"
         spa "Error de coneccion a master: %-.128s"
         swe "Fick fel vid anslutning till master: %-.128s"
-ER_QUERY_ON_MASTER  
+OBSOLETE_ER_QUERY_ON_MASTER  
         nla "Fout bij uitvoeren query op master: %-.128s"
         eng "Error running query on master: %-.128s"
         ger "Beim Ausführen einer Abfrage auf dem Master trat ein Fehler auf: %-.128s"
@@ -4740,7 +4741,7 @@ ER_CORRUPT_HELP_DB
         por "Banco de dado de ajuda corrupto ou não existente"
         spa "Base de datos Help está corrupto o no existe"
         swe "Hjälpdatabasen finns inte eller är skadad"
-ER_CYCLIC_REFERENCE  
+OBSOLETE_ER_CYCLIC_REFERENCE  
         eng "Cyclic reference on subqueries"
         ger "Zyklischer Verweis in Unterabfragen"
         jpn "サブクエリの参照がループしています。"
@@ -4820,7 +4821,7 @@ ER_COLLATION_CHARSET_MISMATCH 42000
         por "COLLATION '%s' não é válida para CHARACTER SET '%s'"
         spa "COLLATION '%s' no es válido para CHARACTER SET '%s'"
         swe "COLLATION '%s' är inte tillåtet för CHARACTER SET '%s'"
-ER_SLAVE_WAS_RUNNING  
+OBSOLETE_ER_SLAVE_WAS_RUNNING  
         eng "Slave is already running"
         ger "Slave läuft bereits"
         jpn "スレーブはすでに稼働中です。"
@@ -4828,7 +4829,7 @@ ER_SLAVE_WAS_RUNNING
         por "O slave já está rodando"
         spa "Slave ya está funcionando"
         swe "Slaven har redan startat"
-ER_SLAVE_WAS_NOT_RUNNING  
+OBSOLETE_ER_SLAVE_WAS_NOT_RUNNING  
         eng "Slave already has been stopped"
         ger "Slave wurde bereits angehalten"
         jpn "スレーブはすでに停止しています。"
@@ -4907,7 +4908,7 @@ ER_CANT_AGGREGATE_2COLLATIONS
         jpn "照合順序 (%s,%s) と (%s,%s) の混在は操作 '%s' では不正です。"
         por "Combinação ilegal de collations (%s,%s) e (%s,%s) para operação '%s'"
         spa "Ilegal mezcla de collations (%s,%s) y (%s,%s) para operación '%s'"
-ER_DROP_USER  
+OBSOLETE_ER_DROP_USER  
         eng "Cannot drop one or more of the requested users"
         ger "Kann einen oder mehrere der angegebenen Benutzer nicht löschen"
 ER_REVOKE_GRANTS  
@@ -5069,7 +5070,7 @@ ER_TRUNCATED_WRONG_VALUE 22007
         jpn "不正な %-.32s の値が切り捨てられました。: '%-.128s'"
         por "Truncado errado %-.32s valor: '%-.128s'"
         spa "Equivocado truncado %-.32s valor: '%-.128s'"
-ER_TOO_MUCH_AUTO_TIMESTAMP_COLS  
+OBSOLETE_ER_TOO_MUCH_AUTO_TIMESTAMP_COLS  
         eng "Incorrect table definition; there can be only one TIMESTAMP column with CURRENT_TIMESTAMP in DEFAULT or ON UPDATE clause"
         ger "Fehlerhafte Tabellendefinition. Es kann nur eine einzige TIMESTAMP-Spalte mit CURRENT_TIMESTAMP als DEFAULT oder in einer ON-UPDATE-Klausel geben"
         jpn "不正な表定義です。DEFAULT句またはON UPDATE句に CURRENT_TIMESTAMP をともなうTIMESTAMP型の列は1つまでです。"
@@ -5254,7 +5255,7 @@ ER_VIEW_NO_EXPLAIN
         ger "EXPLAIN/SHOW kann nicht verlangt werden. Rechte für zugrunde liegende Tabelle fehlen"
         rus "EXPLAIN/SHOW не может быть выполненно; недостаточно прав на такблицы запроса"
         ukr "EXPLAIN/SHOW не може бути віконано; немає прав на тиблиці запиту"
-ER_FRM_UNKNOWN_TYPE  
+OBSOLETE_ER_FRM_UNKNOWN_TYPE  
         eng "File '%-.192s' has unknown type '%-.64s' in its header"
         ger "Datei '%-.192s' hat unbekannten Typ '%-.64s' im Header"
         rus "Файл '%-.192s' содержит неизвестный тип '%-.64s' в заголовке"
@@ -5269,8 +5270,8 @@ ER_NONUPDATEABLE_COLUMN
         ger "Feld '%-.192s' ist nicht aktualisierbar"
         rus "Столбец '%-.192s' не обновляемый"
         ukr "Стовбець '%-.192s' не може бути зминений"
-# Unused since MySQL 5.8.0
-ER_VIEW_SELECT_DERIVED_UNUSED
+# Unused since MySQL 8.0.0
+OBSOLETE_ER_VIEW_SELECT_DERIVED_UNUSED
         eng "View's SELECT contains a subquery in the FROM clause"
         ger "SELECT der View enthält eine Subquery in der FROM-Klausel"
         rus "View SELECT содержит подзапрос в конструкции FROM"
@@ -5310,7 +5311,7 @@ ER_VIEW_INVALID
 ER_SP_NO_DROP_SP  
         eng "Can't drop or alter a %s from within another stored routine"
         ger "Kann eine %s nicht von innerhalb einer anderen gespeicherten Routine löschen oder ändern"
-ER_SP_GOTO_IN_HNDLR  
+OBSOLETE_ER_SP_GOTO_IN_HNDLR  
         eng "GOTO is not allowed in a stored procedure handler"
         ger "GOTO ist im Handler einer gespeicherten Prozedur nicht erlaubt"
 ER_TRG_ALREADY_EXISTS  
@@ -5356,7 +5357,7 @@ ER_PROCACCESS_DENIED_ERROR 42000
 ER_RELAY_LOG_FAIL  
         eng "Failed purging old relay logs: %s"
         ger "Bereinigen alter Relais-Logs fehlgeschlagen: %s"
-ER_PASSWD_LENGTH  
+OBSOLETE_ER_PASSWD_LENGTH  
         eng "Password hash should be a %d-digit hexadecimal number"
         ger "Passwort-Hash sollte eine Hexdaezimalzahl mit %d Stellen sein"
 ER_UNKNOWN_TARGET_BINLOG  
@@ -5389,25 +5390,25 @@ ER_NO_BINARY_LOGGING
 ER_RESERVED_SYNTAX  
         eng "The '%-.64s' syntax is reserved for purposes internal to the MySQL server"
         ger "Die Schreibweise '%-.64s' ist für interne Zwecke des MySQL-Servers reserviert"
-ER_WSAS_FAILED  
+OBSOLETE_ER_WSAS_FAILED  
         eng "WSAStartup Failed"
         ger "WSAStartup fehlgeschlagen"
-ER_DIFF_GROUPS_PROC  
+OBSOLETE_ER_DIFF_GROUPS_PROC  
         eng "Can't handle procedures with different groups yet"
         ger "Kann Prozeduren mit unterschiedlichen Gruppen noch nicht verarbeiten"
-ER_NO_GROUP_FOR_PROC  
+OBSOLETE_ER_NO_GROUP_FOR_PROC  
         eng "Select must have a group with this procedure"
         ger "SELECT muss bei dieser Prozedur ein GROUP BY haben"
-ER_ORDER_WITH_PROC  
+OBSOLETE_ER_ORDER_WITH_PROC  
         eng "Can't use ORDER clause with this procedure"
         ger "Kann bei dieser Prozedur keine ORDER-BY-Klausel verwenden"
-ER_LOGGING_PROHIBIT_CHANGING_OF  
+OBSOLETE_ER_LOGGING_PROHIBIT_CHANGING_OF  
         eng "Binary logging and replication forbid changing the global server %s"
         ger "Binärlogs und Replikation verhindern Wechsel des globalen Servers %s"
-ER_NO_FILE_MAPPING  
+OBSOLETE_ER_NO_FILE_MAPPING  
         eng "Can't map file: %-.200s, errno: %d"
         ger "Kann Datei nicht abbilden: %-.200s, Fehler: %d"
-ER_WRONG_MAGIC  
+OBSOLETE_ER_WRONG_MAGIC  
         eng "Wrong magic in %-.64s"
         ger "Falsche magische Zahlen in %-.64s"
 ER_PS_MANY_PARAM  
@@ -5501,7 +5502,7 @@ ER_SP_NO_RETSET 0A000
 ER_CANT_CREATE_GEOMETRY_OBJECT 22003 
         eng "Cannot get geometry object from data you send to the GEOMETRY field"
         ger "Kann kein Geometrieobjekt aus den Daten machen, die Sie dem GEOMETRY-Feld übergeben haben"
-ER_FAILED_ROUTINE_BREAK_BINLOG
+OBSOLETE_ER_FAILED_ROUTINE_BREAK_BINLOG
         eng "A routine failed and has neither NO SQL nor READS SQL DATA in its declaration and binary logging is enabled; if non-transactional tables were updated, the binary log will miss their changes"
         ger "Eine Routine, die weder NO SQL noch READS SQL DATA in der Deklaration hat, schlug fehl und Binärlogging ist aktiv. Wenn Nicht-Transaktions-Tabellen aktualisiert wurden, enthält das Binärlog ihre Änderungen nicht"
 ER_BINLOG_UNSAFE_ROUTINE
@@ -5510,7 +5511,7 @@ ER_BINLOG_UNSAFE_ROUTINE
 ER_BINLOG_CREATE_ROUTINE_NEED_SUPER
         eng "You do not have the SUPER privilege and binary logging is enabled (you *might* want to use the less safe log_bin_trust_function_creators variable)"
         ger "Sie haben keine SUPER-Berechtigung und Binärlogging ist aktiv (*vielleicht* sollten Sie die weniger sichere Variable log_bin_trust_function_creators verwenden)"
-ER_EXEC_STMT_WITH_OPEN_CURSOR
+OBSOLETE_ER_EXEC_STMT_WITH_OPEN_CURSOR
         eng "You can't execute a prepared statement which has an open cursor associated with it. Reset the statement to re-execute it."
         ger "Sie können keine vorbereitete Anweisung ausführen, die mit einem geöffneten Cursor verknüpft ist. Setzen Sie die Anweisung zurück, um sie neu auszuführen"
 ER_STMT_HAS_NO_OPEN_CURSOR
@@ -5552,7 +5553,7 @@ ER_FOREIGN_DATA_STRING_INVALID_CANT_CREATE
 ER_FOREIGN_DATA_STRING_INVALID
         eng "The data source connection string '%-.64s' is not in the correct format"
         ger "Der Datenquellen-Verbindungsstring '%-.64s' hat kein korrektes Format"
-ER_CANT_CREATE_FEDERATED_TABLE  
+OBSOLETE_ER_CANT_CREATE_FEDERATED_TABLE  
         eng "Can't create federated table. Foreign data src error:  %-.64s"
         ger "Kann föderierte Tabelle nicht erzeugen. Fremddatenquellenfehlermeldung:  %-.64s"
 ER_TRG_IN_WRONG_SCHEMA  
@@ -5589,7 +5590,7 @@ ER_PS_NO_RECURSION
 ER_SP_CANT_SET_AUTOCOMMIT
         eng "Not allowed to set autocommit from a stored function or trigger"
         ger "Es ist nicht erlaubt, innerhalb einer gespeicherten Funktion oder eines Triggers AUTOCOMMIT zu setzen"
-ER_MALFORMED_DEFINER
+OBSOLETE_ER_MALFORMED_DEFINER
         eng "Definer is not fully qualified"
         ger "Definierer des View ist nicht vollständig spezifiziert"
 ER_VIEW_FRM_NO_USER
@@ -5614,17 +5615,16 @@ ER_SP_BAD_VAR_SHADOW 42000
         eng "Variable '%-.64s' must be quoted with `...`, or renamed"
         ger "Variable '%-.64s' muss mit `...` geschützt oder aber umbenannt werden"
 ER_TRG_NO_DEFINER
-        eng "No definer attribute for trigger '%-.192s'.'%-.192s'. The trigger will be activated under the authorization of the invoker, which may have insufficient privileges. Please recreate the trigger."
-        ger "Kein Definierer-Attribut für Trigger '%-.192s'.'%-.192s'. Der Trigger wird mit der Autorisierung des Aufrufers aktiviert, der möglicherweise keine zureichenden Berechtigungen hat. Bitte legen Sie den Trigger neu an."
+        eng "No definer attribute for trigger '%-.192s'.'%-.192s'. It's disallowed to create trigger without definer."
 ER_OLD_FILE_FORMAT
         eng "'%-.192s' has an old format, you should re-create the '%s' object(s)"
         ger "'%-.192s' hat altes Format, Sie sollten die '%s'-Objekt(e) neu erzeugen"
 ER_SP_RECURSION_LIMIT
         eng "Recursive limit %d (as set by the max_sp_recursion_depth variable) was exceeded for routine %.192s"
         ger "Rekursionsgrenze %d (durch Variable max_sp_recursion_depth gegeben) wurde für Routine %.192s überschritten"
-ER_SP_PROC_TABLE_CORRUPT
-        eng "Failed to load routine %-.192s. The table mysql.proc is missing, corrupt, or contains bad data (internal code %d)"
-        ger "Routine %-.192s konnte nicht geladen werden. Die Tabelle mysql.proc fehlt, ist beschädigt, oder enthält fehlerhaften Daten (interner Code: %d)"
+OBSOLETE_ER_SP_PROC_TABLE_CORRUPT
+        eng "Failed to load routine %-.192s. The data dictionary table missing, corrupt, or contains bad data (internal code %d)"
+        ger "Routine %-.192s konnte nicht geladen werden. Die data dictionary Tabelle fehlt, ist beschädigt, oder enthält fehlerhaften Daten (interner Code: %d)"
 ER_SP_WRONG_NAME 42000
         eng "Incorrect routine name '%-.192s'"
         ger "Ungültiger Routinenname '%-.192s'"
@@ -5703,11 +5703,11 @@ ER_PARTITION_MAXVALUE_ERROR
         eng "MAXVALUE can only be used in last partition definition"
         ger "MAXVALUE kann nur für die Definition der letzten Partition verwendet werden"
         swe "MAXVALUE kan bara användas i definitionen av den sista partitionen"
-ER_PARTITION_SUBPARTITION_ERROR
+OBSOLETE_ER_PARTITION_SUBPARTITION_ERROR
         eng "Subpartitions can only be hash partitions and by key"
         ger "Unterpartitionen dürfen nur HASH- oder KEY-Partitionen sein"
         swe "Subpartitioner kan bara vara hash och key partitioner"
-ER_PARTITION_SUBPART_MIX_ERROR
+OBSOLETE_ER_PARTITION_SUBPART_MIX_ERROR
         eng "Must define subpartitions on all partitions if on one partition"
         ger "Wenn Sie Unterpartitionen auf einer Partition definieren, müssen Sie das für alle Partitionen tun"
         swe "Subpartitioner måste definieras på alla partitioner om på en"
@@ -5723,7 +5723,7 @@ ER_WRONG_EXPR_IN_PARTITION_FUNC_ERROR
         eng "Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed"
         ger "Konstante oder Random-Ausdrücke in (Unter-)Partitionsfunktionen sind nicht erlaubt"
         swe "Konstanta uttryck eller slumpmässiga uttryck är inte tillåtna (sub)partitioneringsfunktioner"
-ER_NO_CONST_EXPR_IN_RANGE_OR_LIST_ERROR
+OBSOLETE_ER_NO_CONST_EXPR_IN_RANGE_OR_LIST_ERROR
         eng "Expression in RANGE/LIST VALUES must be constant"
         ger "Ausdrücke in RANGE/LIST VALUES müssen konstant sein"
         swe "Uttryck i RANGE/LIST VALUES måste vara ett konstant uttryck"
@@ -5731,7 +5731,7 @@ ER_FIELD_NOT_FOUND_PART_ERROR
         eng "Field in list of fields for partition function not found in table"
         ger "Felder in der Feldliste der Partitionierungsfunktion wurden in der Tabelle nicht gefunden"
         swe "Fält i listan av fält för partitionering med key inte funnen i tabellen"
-ER_LIST_OF_FIELDS_ONLY_IN_HASH_ERROR
+OBSOLETE_ER_LIST_OF_FIELDS_ONLY_IN_HASH_ERROR
         eng "List of fields is only allowed in KEY partitions"
         ger "Eine Feldliste ist nur in KEY-Partitionen erlaubt"
         swe "En lista av fält är endast tillåtet för KEY partitioner"
@@ -5860,7 +5860,7 @@ ER_REORG_OUTSIDE_RANGE
 ER_PARTITION_FUNCTION_FAILURE
         eng "Partition function not supported in this version for this handler"
         ger "Partitionsfunktion in dieser Version dieses Handlers nicht unterstützt"
-ER_PART_STATE_ERROR
+OBSOLETE_ER_PART_STATE_ERROR
         eng "Partition state cannot be defined from CREATE/ALTER TABLE"
         ger "Partitionszustand kann nicht von CREATE oder ALTER TABLE aus definiert werden"
         swe "Partition state kan inte definieras från CREATE/ALTER TABLE"
@@ -5901,25 +5901,25 @@ ER_ALTER_FILEGROUP_FAILED
 ER_BINLOG_ROW_LOGGING_FAILED
         eng "Writing one row to the row-based binary log failed"
         ger "Schreiben einer Zeilen ins zeilenbasierte Binärlog fehlgeschlagen"
-ER_BINLOG_ROW_WRONG_TABLE_DEF
+OBSOLETE_ER_BINLOG_ROW_WRONG_TABLE_DEF
         eng "Table definition on master and slave does not match: %s"
         ger "Tabellendefinition auf Master und Slave stimmt nicht überein: %s"
-ER_BINLOG_ROW_RBR_TO_SBR
+OBSOLETE_ER_BINLOG_ROW_RBR_TO_SBR
         eng "Slave running with --log-slave-updates must use row-based binary logging to be able to replicate row-based binary log events"
         ger "Slave, die mit --log-slave-updates laufen, müssen zeilenbasiertes Loggen verwenden, um zeilenbasierte Binärlog-Ereignisse loggen zu können"
 ER_EVENT_ALREADY_EXISTS
         eng "Event '%-.192s' already exists"
         ger "Event '%-.192s' existiert bereits"
-ER_EVENT_STORE_FAILED
+OBSOLETE_ER_EVENT_STORE_FAILED
         eng "Failed to store event %s. Error code %d from storage engine."
         ger "Speichern von Event %s fehlgeschlagen. Fehlercode der Speicher-Engine: %d"
 ER_EVENT_DOES_NOT_EXIST
         eng "Unknown event '%-.192s'"
         ger "Unbekanntes Event '%-.192s'"
-ER_EVENT_CANT_ALTER
+OBSOLETE_ER_EVENT_CANT_ALTER
         eng "Failed to alter event '%-.192s'"
         ger "Ändern des Events '%-.192s' fehlgeschlagen"
-ER_EVENT_DROP_FAILED
+OBSOLETE_ER_EVENT_DROP_FAILED
         eng "Failed to drop %s"
         ger "Löschen von %s fehlgeschlagen"
 ER_EVENT_INTERVAL_NOT_POSITIVE_OR_TOO_BIG
@@ -5931,33 +5931,33 @@ ER_EVENT_ENDS_BEFORE_STARTS
 ER_EVENT_EXEC_TIME_IN_THE_PAST
   eng "Event execution time is in the past. Event has been disabled"
   ger "Ausführungszeit des Events liegt in der Vergangenheit. Event wurde deaktiviert"
-ER_EVENT_OPEN_TABLE_FAILED
+OBSOLETE_ER_EVENT_OPEN_TABLE_FAILED
         eng "Failed to open mysql.event"
         ger "Öffnen von mysql.event fehlgeschlagen"
-ER_EVENT_NEITHER_M_EXPR_NOR_M_AT
+OBSOLETE_ER_EVENT_NEITHER_M_EXPR_NOR_M_AT
         eng "No datetime expression provided"
         ger "Kein DATETIME-Ausdruck angegeben"
 
 # OBSOLETE, USE ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2
-ER_OBSOLETE_COL_COUNT_DOESNT_MATCH_CORRUPTED
+OBSOLETE_ER_COL_COUNT_DOESNT_MATCH_CORRUPTED
         eng "Column count of mysql.%s is wrong. Expected %d, found %d. The table is probably corrupted"
         ger "Spaltenanzahl von mysql.%s falsch. %d erwartet, aber %d gefunden. Tabelle ist wahrscheinlich beschädigt"
 
 # OBSOLETE, USE ER_CANNOT_LOAD_FROM_TABLE_V2
-ER_OBSOLETE_CANNOT_LOAD_FROM_TABLE
+OBSOLETE_ER_CANNOT_LOAD_FROM_TABLE
         eng "Cannot load from mysql.%s. The table is probably corrupted"
         ger "Kann mysql.%s nicht einlesen. Tabelle ist wahrscheinlich beschädigt"
 
-ER_EVENT_CANNOT_DELETE
+OBSOLETE_ER_EVENT_CANNOT_DELETE
         eng "Failed to delete the event from mysql.event"
         ger "Löschen des Events aus mysql.event fehlgeschlagen"
-ER_EVENT_COMPILE_ERROR
+OBSOLETE_ER_EVENT_COMPILE_ERROR
         eng "Error during compilation of event's body"
         ger "Fehler beim Kompilieren des Event-Bodys"
 ER_EVENT_SAME_NAME
         eng "Same old and new event name"
         ger "Alter und neuer Event-Name sind gleich"
-ER_EVENT_DATA_TOO_LONG
+OBSOLETE_ER_EVENT_DATA_TOO_LONG
         eng "Data for column '%s' too long"
         ger "Daten der Spalte '%s' zu lang"
 ER_DROP_INDEX_FK
@@ -5968,7 +5968,7 @@ ER_DROP_INDEX_FK
 ER_WARN_DEPRECATED_SYNTAX_WITH_VER  
         eng  "The syntax '%s' is deprecated and will be removed in MySQL %s. Please use %s instead"
         ger "Die Syntax '%s' ist veraltet und wird in MySQL %s entfernt. Bitte benutzen Sie statt dessen %s"
-ER_CANT_WRITE_LOCK_LOG_TABLE
+OBSOLETE_ER_CANT_WRITE_LOCK_LOG_TABLE
         eng "You can't write-lock a log table. Only read access is possible"
         ger "Eine Log-Tabelle kann nicht schreibgesperrt werden. Es ist ohnehin nur Lesezugriff möglich"
 ER_CANT_LOCK_LOG_TABLE
@@ -5986,7 +5986,7 @@ ER_TEMP_TABLE_PREVENTS_SWITCH_OUT_OF_RBR
 ER_STORED_FUNCTION_PREVENTS_SWITCH_BINLOG_FORMAT
         eng "Cannot change the binary logging format inside a stored function or trigger"
         ger "Das Binärlog-Format kann innerhalb einer gespeicherten Funktion oder eines Triggers nicht geändert werden"
-ER_NDB_CANT_SWITCH_BINLOG_FORMAT
+OBSOLETE_ER_NDB_CANT_SWITCH_BINLOG_FORMAT
         eng "The NDB cluster engine does not support changing the binlog format on the fly yet"
         ger "Die Speicher-Engine NDB Cluster unterstützt das Ändern des Binärlog-Formats zur Laufzeit noch nicht"
 ER_PARTITION_NO_TEMPORARY
@@ -6016,7 +6016,7 @@ ER_CANT_CHANGE_TX_CHARACTERISTICS 25001
 ER_DUP_ENTRY_AUTOINCREMENT_CASE
         eng "ALTER TABLE causes auto_increment resequencing, resulting in duplicate entry '%-.192s' for key '%-.192s'"
         ger "ALTER TABLE führt zur Neusequenzierung von auto_increment, wodurch der doppelte Eintrag '%-.192s' für Schlüssel '%-.192s' auftritt"
-ER_EVENT_MODIFY_QUEUE_ERROR
+OBSOLETE_ER_EVENT_MODIFY_QUEUE_ERROR
         eng "Internal scheduler error %d"
         ger "Interner Scheduler-Fehler %d"
 ER_EVENT_SET_VAR_ERROR
@@ -6026,10 +6026,10 @@ ER_PARTITION_MERGE_ERROR
         eng "Engine cannot be used in partitioned tables"
         ger "Engine kann in partitionierten Tabellen nicht verwendet werden"
         swe "Engine inte användas i en partitionerad tabell"
-ER_CANT_ACTIVATE_LOG
+OBSOLETE_ER_CANT_ACTIVATE_LOG
         eng "Cannot activate '%-.64s' log"
         ger "Kann Logdatei '%-.64s' nicht aktivieren"
-ER_RBR_NOT_AVAILABLE
+OBSOLETE_ER_RBR_NOT_AVAILABLE
         eng "The server was not built with row-based replication"
         ger "Der Server wurde nicht mit zeilenbasierter Replikation gebaut"
 ER_BASE64_DECODE_ERROR
@@ -6039,14 +6039,14 @@ ER_BASE64_DECODE_ERROR
 ER_EVENT_RECURSION_FORBIDDEN
         eng "Recursion of EVENT DDL statements is forbidden when body is present"
         ger "Rekursivität von EVENT-DDL-Anweisungen ist unzulässig wenn ein Hauptteil (Body) existiert"
-ER_EVENTS_DB_ERROR
+OBSOLETE_ER_EVENTS_DB_ERROR
         eng "Cannot proceed because system tables used by Event Scheduler were found damaged at server start"
         ger "Kann nicht weitermachen, weil die Tabellen, die von Events verwendet werden, beim Serverstart als beschädigt markiert wurden"
 ER_ONLY_INTEGERS_ALLOWED
         eng "Only integers allowed as number here"
         ger "An dieser Stelle sind nur Ganzzahlen zulässig"
 ER_UNSUPORTED_LOG_ENGINE
-        eng "This storage engine cannot be used for log tables""
+        eng "This storage engine cannot be used for log tables"
         ger "Diese Speicher-Engine kann für Logtabellen nicht verwendet werden"
 ER_BAD_LOG_STATEMENT
         eng "You cannot '%s' a log table if logging is enabled"
@@ -6135,7 +6135,7 @@ ER_VIEW_NO_CREATION_CTX
 ER_VIEW_INVALID_CREATION_CTX
   eng "Creation context of view `%-.64s`.`%-.64s' is invalid"
   ger "Erzeugungskontext des Views`%-.64s`.`%-.64s' ist ungültig"
-ER_SR_INVALID_CREATION_CTX
+OBSOLETE_ER_SR_INVALID_CREATION_CTX
   eng "Creation context of stored routine `%-.64s`.`%-.64s` is invalid"
   ger "Erzeugungskontext der gespeicherten Routine`%-.64s`.`%-.64s` ist ungültig"
 ER_TRG_CORRUPTED_FILE
@@ -6153,10 +6153,10 @@ ER_EVENT_INVALID_CREATION_CTX
 ER_TRG_CANT_OPEN_TABLE
   eng "Cannot open table for trigger `%-.64s`.`%-.64s`"
   ger "Kann Tabelle für den Trigger `%-.64s`.`%-.64s` nicht öffnen"
-ER_CANT_CREATE_SROUTINE
+OBSOLETE_ER_CANT_CREATE_SROUTINE
   eng "Cannot create stored routine `%-.64s`. Check warnings"
   ger "Kann gespeicherte Routine `%-.64s` nicht erzeugen. Beachten Sie die Warnungen"
-ER_NEVER_USED
+OBSOLETE_ER_NEVER_USED
   eng "Ambiguous slave modes combination. %s"
   ger "Mehrdeutige Kombination von Slave-Modi. %s"
 ER_NO_FORMAT_DESCRIPTION_EVENT_BEFORE_BINLOG_STATEMENT
@@ -6165,7 +6165,7 @@ ER_NO_FORMAT_DESCRIPTION_EVENT_BEFORE_BINLOG_STATEMENT
 ER_SLAVE_CORRUPT_EVENT
   eng "Corrupted replication event was detected"
   ger "Beschädigtes Replikationsereignis entdeckt"
-ER_LOAD_DATA_INVALID_COLUMN_UNUSED
+OBSOLETE_ER_LOAD_DATA_INVALID_COLUMN_UNUSED
   eng "Invalid column reference (%-.64s) in LOAD DATA"
   ger "Ungültige Spaltenreferenz (%-.64s) bei LOAD DATA"
 ER_LOG_PURGE_NO_FILE
@@ -6180,7 +6180,7 @@ ER_XA_RBDEADLOCK XA102
 ER_NEED_REPREPARE
   eng "Prepared statement needs to be re-prepared"
   ger "Vorbereitete Anweisungen müssen noch einmal vorbereitet werden"
-ER_DELAYED_NOT_SUPPORTED
+OBSOLETE_ER_DELAYED_NOT_SUPPORTED
   eng "DELAYED option not supported for table '%-.192s'"
   ger "Die DELAYED-Option wird für Tabelle '%-.192s' nicht unterstützt"
 WARN_NO_MASTER_INFO  
@@ -6213,8 +6213,8 @@ ER_CONFLICT_FN_PARSE_ERROR
   eng "Error in parsing conflict function. Message: %-.64s"
   ger "Fehler beim Parsen einer Konflikt-Funktion. Meldung: %-.64s"
 ER_EXCEPTIONS_WRITE_ERROR
-  eng "Write to exceptions table failed. Message: %-.128s""
-  ger "Schreiben in Ausnahme-Tabelle fehlgeschlagen. Meldung: %-.128s""
+  eng "Write to exceptions table failed. Message: %-.128s"
+  ger "Schreiben in Ausnahme-Tabelle fehlgeschlagen. Meldung: %-.128s"
 ER_TOO_LONG_TABLE_COMMENT
   eng "Comment for table '%-.64s' is too long (max = %lu)"
   por "Comentário para a tabela '%-.64s' é longo demais (max = %lu)"
@@ -6226,8 +6226,6 @@ ER_TOO_LONG_FIELD_COMMENT
 ER_FUNC_INEXISTENT_NAME_COLLISION 42000 
   eng "FUNCTION %s does not exist. Check the 'Function Name Parsing and Resolution' section in the Reference Manual"
   ger "FUNCTION %s existiert nicht. Erläuterungen im Abschnitt 'Function Name Parsing and Resolution' im Referenzhandbuch"
-# When updating these, please update EXPLAIN_FILENAME_MAX_EXTRA_LENGTH in
-# sql_table.h with the new maximal additional length for explain_filename.
 ER_DATABASE_NAME
   eng "Database"
   swe "Databas"
@@ -6344,7 +6342,7 @@ ER_BINLOG_MULTIPLE_ENGINES_AND_SELF_LOGGING_ENGINE
 
 ER_BINLOG_UNSAFE_LIMIT
   eng "The statement is unsafe because it uses a LIMIT clause. This is unsafe because the set of rows included cannot be predicted."
-ER_UNUSED4
+OBSOLETE_ER_UNUSED4
   eng "The statement is unsafe because it uses INSERT DELAYED. This is unsafe because the times when rows are inserted cannot be predicted."
 ER_BINLOG_UNSAFE_SYSTEM_TABLE
   eng "The statement is unsafe because it uses the general log, slow query log, or performance_schema table(s). This is unsafe because system tables may differ on slaves."
@@ -6448,7 +6446,7 @@ ER_ACCESS_DENIED_NO_PASSWORD_ERROR 28000
 ER_SET_PASSWORD_AUTH_PLUGIN
         eng "SET PASSWORD has no significance for users authenticating via plugins"
 
-ER_GRANT_PLUGIN_USER_EXISTS
+OBSOLETE_ER_GRANT_PLUGIN_USER_EXISTS
         eng "GRANT with IDENTIFIED WITH is illegal because the user %-.*s already exists"
 
 ER_TRUNCATE_ILLEGAL_FK 42000
@@ -6576,13 +6574,13 @@ ER_WARN_INDEX_NOT_APPLICABLE
 ER_PARTITION_EXCHANGE_FOREIGN_KEY
   eng "Table to exchange with partition has foreign key references: '%-.64s'"
   swe "Tabellen att byta ut mot partition har foreign key referenser: '%-.64s'"
-ER_NO_SUCH_KEY_VALUE
+OBSOLETE_ER_NO_SUCH_KEY_VALUE
   eng "Key value '%-.192s' was not found in table '%-.192s.%-.192s'"
 ER_RPL_INFO_DATA_TOO_LONG
   eng "Data for column '%s' too long"
 ER_NETWORK_READ_EVENT_CHECKSUM_FAILURE
   eng "Replication event checksum verification failed while reading from network."
-ER_BINLOG_READ_EVENT_CHECKSUM_FAILURE
+OBSOLETE_ER_BINLOG_READ_EVENT_CHECKSUM_FAILURE
   eng "Replication event checksum verification failed while reading from a log file."
 
 ER_BINLOG_STMT_CACHE_SIZE_GREATER_THAN_MAX
@@ -6599,7 +6597,7 @@ ER_ROW_DOES_NOT_MATCH_GIVEN_PARTITION_SET
 
 # Not used any longer, use ER_UNKNOWN_PARTITION which includes the tablename.
 # was ER_NO_SUCH_PARTITION
-ER_NO_SUCH_PARTITION__UNUSED
+OBSOLETE_ER_NO_SUCH_PARTITION__UNUSED
   cze "partion '%-.64s' neexistuje"
   dan "partition '%-.64s' eksisterer ikke"
   nla "partition '%-.64s' bestaat niet"
@@ -6673,10 +6671,10 @@ ER_VARIABLE_NOT_SETTABLE_IN_SF_OR_TRIGGER
 ER_VARIABLE_NOT_SETTABLE_IN_TRANSACTION
   eng "The system variable %.200s cannot be set when there is an ongoing transaction."
 
-ER_GTID_NEXT_IS_NOT_IN_GTID_NEXT_LIST
+OBSOLETE_ER_GTID_NEXT_IS_NOT_IN_GTID_NEXT_LIST
   eng "The system variable @@SESSION.GTID_NEXT has the value %.200s, which is not listed in @@SESSION.GTID_NEXT_LIST."
 
-ER_CANT_CHANGE_GTID_NEXT_IN_TRANSACTION
+OBSOLETE_ER_CANT_CHANGE_GTID_NEXT_IN_TRANSACTION
   eng "The system variable @@SESSION.GTID_NEXT cannot change inside a transaction."
 
 ER_SET_STATEMENT_CANNOT_INVOKE_FUNCTION
@@ -6685,7 +6683,7 @@ ER_SET_STATEMENT_CANNOT_INVOKE_FUNCTION
 ER_GTID_NEXT_CANT_BE_AUTOMATIC_IF_GTID_NEXT_LIST_IS_NON_NULL
   eng "The system variable @@SESSION.GTID_NEXT cannot be 'AUTOMATIC' when @@SESSION.GTID_NEXT_LIST is non-NULL."
 
-ER_SKIPPING_LOGGED_TRANSACTION
+OBSOLETE_ER_SKIPPING_LOGGED_TRANSACTION
   eng "Skipping transaction %.200s because it has already been executed and logged."
 
 ER_MALFORMED_GTID_SET_SPECIFICATION
@@ -6712,7 +6710,7 @@ ER_CANT_DO_IMPLICIT_COMMIT_IN_TRX_WHEN_GTID_NEXT_IS_SET
 ER_GTID_MODE_ON_REQUIRES_ENFORCE_GTID_CONSISTENCY_ON
   eng "GTID_MODE = ON requires ENFORCE_GTID_CONSISTENCY = ON."
 
-ER_GTID_MODE_REQUIRES_BINLOG
+OBSOLETE_ER_GTID_MODE_REQUIRES_BINLOG
   eng "@@GLOBAL.GTID_MODE = ON or ON_PERMISSIVE or OFF_PERMISSIVE requires --log-bin and --log-slave-updates."
 
 ER_CANT_SET_GTID_NEXT_TO_GTID_WHEN_GTID_MODE_IS_OFF
@@ -6724,7 +6722,7 @@ ER_CANT_SET_GTID_NEXT_TO_ANONYMOUS_WHEN_GTID_MODE_IS_ON
 ER_CANT_SET_GTID_NEXT_LIST_TO_NON_NULL_WHEN_GTID_MODE_IS_OFF
   eng "@@SESSION.GTID_NEXT_LIST cannot be set to a non-NULL value when @@GLOBAL.GTID_MODE = OFF."
 
-ER_FOUND_GTID_EVENT_WHEN_GTID_MODE_IS_OFF__UNUSED
+OBSOLETE_ER_FOUND_GTID_EVENT_WHEN_GTID_MODE_IS_OFF__UNUSED
   eng "Found a Gtid_log_event when @@GLOBAL.GTID_MODE = OFF."
 
 ER_GTID_UNSAFE_NON_TRANSACTIONAL_TABLE
@@ -6882,7 +6880,7 @@ ER_FK_COLUMN_CANNOT_CHANGE_CHILD
   eng "Cannot change column '%-.192s': used in a foreign key constraint '%-.192s' of table '%-.192s'"
 
 # No longer used as IGNORE support for ALTER TABLE was removed.
-ER_UNUSED5
+OBSOLETE_ER_UNUSED5
   eng "Cannot delete rows from table which is parent in a foreign key constraint '%-.192s' of table '%-.192s'"
 
 ER_MALFORMED_PACKET
@@ -6897,7 +6895,7 @@ ER_GTID_NEXT_TYPE_UNDEFINED_GROUP
 ER_VARIABLE_NOT_SETTABLE_IN_SP
   eng "The system variable %.200s cannot be set in stored procedures."
 
-ER_CANT_SET_GTID_PURGED_WHEN_GTID_MODE_IS_OFF
+OBSOLETE_ER_CANT_SET_GTID_PURGED_WHEN_GTID_MODE_IS_OFF
   eng "@@GLOBAL.GTID_PURGED can only be set when @@GLOBAL.GTID_MODE = ON."
 
 ER_CANT_SET_GTID_PURGED_WHEN_GTID_EXECUTED_IS_NOT_EMPTY
@@ -6937,7 +6935,7 @@ ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_FK_CHECK
   eng "Adding foreign keys needs foreign_key_checks=OFF"
 
 # No longer used as IGNORE support for ALTER TABLE was removed.
-ER_UNUSED6
+OBSOLETE_ER_UNUSED6
   eng "Creating unique indexes with IGNORE requires COPY algorithm to remove duplicate rows"
 
 ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_NOPK
@@ -7000,7 +6998,7 @@ ER_ROW_IN_WRONG_PARTITION
 ER_MTS_EVENT_BIGGER_PENDING_JOBS_SIZE_MAX
   eng "Cannot schedule event %s, relay-log name %s, position %s to Worker thread because its size %lu exceeds %lu of slave_pending_jobs_size_max."
 
-ER_INNODB_NO_FT_USES_PARSER
+OBSOLETE_ER_INNODB_NO_FT_USES_PARSER
   eng "Cannot CREATE FULLTEXT INDEX WITH PARSER on InnoDB table"
 
 ER_BINLOG_LOGICAL_CORRUPTION
@@ -7151,7 +7149,7 @@ ER_NON_RO_SELECT_DISABLE_TIMER
 ER_DUP_LIST_ENTRY
   eng "Duplicate entry '%-.192s'."
 
-ER_SQL_MODE_NO_EFFECT
+OBSOLETE_ER_SQL_MODE_NO_EFFECT
   eng "'%s' mode no longer has any effect. Use STRICT_ALL_TABLES or STRICT_TRANS_TABLES instead."
 
 ER_AGGREGATE_ORDER_FOR_UNION
@@ -7261,7 +7259,7 @@ ER_ILLEGAL_USER_VAR 42000 S1009
 ER_GTID_MODE_OFF
   eng "Cannot %s when GTID_MODE = OFF."
 
-ER_UNSUPPORTED_BY_REPLICATION_THREAD
+OBSOLETE_ER_UNSUPPORTED_BY_REPLICATION_THREAD
   eng "Cannot %s from a replication slave thread."
 
 ER_INCORRECT_TYPE
@@ -7297,7 +7295,7 @@ ER_DIMENSION_UNSUPPORTED
 ER_SLAVE_CHANNEL_DOES_NOT_EXIST
   eng "Slave channel '%s' does not exist."
 
-ER_SLAVE_MULTIPLE_CHANNELS_HOST_PORT
+OBSOLETE_ER_SLAVE_MULTIPLE_CHANNELS_HOST_PORT
   eng "A slave channel '%s' already exists for the given host and port combination."
 
 ER_SLAVE_CHANNEL_NAME_INVALID_OR_TOO_LONG
@@ -7306,7 +7304,7 @@ ER_SLAVE_CHANNEL_NAME_INVALID_OR_TOO_LONG
 ER_SLAVE_NEW_CHANNEL_WRONG_REPOSITORY
   eng "To have multiple channels, repository cannot be of type FILE; Please check the repository configuration and convert them to TABLE."
 
-ER_SLAVE_CHANNEL_DELETE
+OBSOLETE_ER_SLAVE_CHANNEL_DELETE
    eng "Cannot delete slave info objects for channel '%s'."
 
 ER_SLAVE_MULTIPLE_CHANNELS_CMD
@@ -7403,7 +7401,7 @@ ER_GENERATED_COLUMN_NON_PRIOR
 ER_DEPENDENT_BY_GENERATED_COLUMN
   eng "Column '%s' has a generated column dependency."
 
-ER_GENERATED_COLUMN_REF_AUTO_INC,
+ER_GENERATED_COLUMN_REF_AUTO_INC
   eng "Generated column '%s' cannot refer to auto-increment column."
 
 ER_FEATURE_NOT_AVAILABLE
@@ -7424,10 +7422,10 @@ ER_CANT_REPLICATE_ANONYMOUS_WITH_GTID_MODE_ON
 ER_CANT_REPLICATE_GTID_WITH_GTID_MODE_OFF
   eng "Cannot replicate GTID-transaction when @@GLOBAL.GTID_MODE = OFF, at file %.512s, position %lld."
 
-ER_CANT_SET_ENFORCE_GTID_CONSISTENCY_ON_WITH_ONGOING_GTID_VIOLATING_TRANSACTIONS
+ER_CANT_ENFORCE_GTID_CONSISTENCY_WITH_ONGOING_GTID_VIOLATING_TX
   eng "Cannot set ENFORCE_GTID_CONSISTENCY = ON because there are ongoing transactions that violate GTID consistency."
 
-ER_SET_ENFORCE_GTID_CONSISTENCY_WARN_WITH_ONGOING_GTID_VIOLATING_TRANSACTIONS
+ER_ENFORCE_GTID_CONSISTENCY_WARN_WITH_ONGOING_GTID_VIOLATING_TX
   eng "There are ongoing transactions that violate GTID consistency."
 
 ER_ACCOUNT_HAS_BEEN_LOCKED
@@ -7539,7 +7537,7 @@ ER_JSON_KEY_TOO_BIG 22032
   eng "The JSON object contains a key name that is too long."
 
 ER_JSON_USED_AS_KEY 42000
-  eng "JSON column '%-.192s' cannot be used in key specification."
+  eng "JSON column '%-.192s' supports indexing only via generated columns on a specified JSON path."
 
 ER_JSON_VACUOUS_PATH 42000
   eng "The path expression '$' is not allowed in this context."
@@ -7571,10 +7569,10 @@ ER_DISABLED_STORAGE_ENGINE
   eng "Storage engine %s is disabled (Table creation is disallowed)."
 
 ER_USER_DOES_NOT_EXIST
-  eng "User %s does not exist."
+  eng "Authorization ID %s does not exist."
 
 ER_USER_ALREADY_EXISTS
-  eng "User %s already exists."
+  eng "Authorization ID %s already exists."
 
 ER_AUDIT_API_ABORT
   eng "Aborted by Audit API ('%-.48s';%d)."
@@ -7600,7 +7598,8 @@ ER_CAPACITY_EXCEEDED
 ER_CAPACITY_EXCEEDED_IN_RANGE_OPTIMIZER
   eng "Range optimization was not done for this query."
 
-ER_TABLE_NEEDS_UPG_PART
+# This error code is needed only for 5.7, not used in 8.0+
+OBSOLETE_ER_TABLE_NEEDS_UPG_PART
   eng "Partitioning upgrade required. Please dump/reload to fix it or do: ALTER TABLE `%-.192s`.`%-.192s` UPGRADE PARTITIONING"
 
 ER_CANT_WAIT_FOR_EXECUTED_GTID_SET_WHILE_OWNING_A_GTID
@@ -7624,7 +7623,7 @@ ER_UNSUPPORTED_ALTER_ONLINE_ON_VIRTUAL_COLUMN
 ER_MASTER_KEY_ROTATION_NOT_SUPPORTED_BY_SE
   eng "Master key rotation is not supported by storage engine."
 
-ER_MASTER_KEY_ROTATION_ERROR_BY_SE
+OBSOLETE_ER_MASTER_KEY_ROTATION_ERROR_BY_SE
   eng "Encryption key rotation error reported by SE: %s"
 
 ER_MASTER_KEY_ROTATION_BINLOG_FAILED
@@ -7666,9 +7665,321 @@ ER_CANNOT_ADD_FOREIGN_BASE_COL_STORED
 ER_TABLE_REFERENCED
   eng "Cannot complete the operation because table is referenced by another connection."
 
-ER_PARTITION_ENGINE_DEPRECATED_FOR_TABLE
-  eng "The partition engine, used by table '%-.192s.%-.192s', is deprecated and will be removed in a future release. Please use native partitioning instead."
-
 #
 #  End of 5.7 error messages.
+#
+
+start-error-number 3500
+
+ER_UNSUPPORT_COMPRESSED_TEMPORARY_TABLE
+  eng "CREATE TEMPORARY TABLE is not allowed with ROW_FORMAT=COMPRESSED or KEY_BLOCK_SIZE."
+
+ER_ACL_OPERATION_FAILED
+  eng "The ACL operation failed due to the following error from SE: errcode %d - %.256s"
+
+ER_UNSUPPORTED_INDEX_ALGORITHM
+  eng "This storage engine does not support the %s index algorithm, storage engine default was used instead."
+
+ER_NO_SUCH_DB 42Y07
+  eng "Database '%-.192s' doesn't exist"
+
+ER_TOO_BIG_ENUM
+  eng "Too many enumeration values for column %.192s."
+
+ER_TOO_LONG_SET_ENUM_VALUE
+  eng "Too long enumeration/set value for column %.192s."
+
+ER_INVALID_DD_OBJECT
+  eng "%s dictionary object is invalid. (%.192s)"
+
+ER_UPDATING_DD_TABLE
+  eng "Failed to update %.192s dictionary object."
+
+ER_INVALID_DD_OBJECT_ID
+  eng "Dictionary object id (%lu) does not exist."
+
+ER_INVALID_DD_OBJECT_NAME
+  eng "Dictionary object name '%s' is invalid. (%.192s)"
+
+ER_TABLESPACE_MISSING_WITH_NAME
+   eng "Tablespace %-.192s doesn't exist."
+
+ER_TOO_LONG_ROUTINE_COMMENT
+  eng "Comment for routine '%-.64s' is too long (max = %lu)"
+
+ER_SP_LOAD_FAILED
+  eng "Failed to load routine '%-.64s'."
+
+ER_INVALID_BITWISE_OPERANDS_SIZE
+  eng "Binary operands of bitwise operators must be of equal length"
+
+ER_INVALID_BITWISE_AGGREGATE_OPERANDS_SIZE
+  eng "Aggregate bitwise functions cannot accept arguments longer than 511 bytes; consider using the SUBSTRING() function"
+
+ER_WARN_UNSUPPORTED_HINT
+  eng "Hints aren't supported in %s"
+
+ER_UNEXPECTED_GEOMETRY_TYPE 22S01
+  eng "%.64s value is a geometry of unexpected type %.64s in %.64s."
+
+ER_SRS_PARSE_ERROR SR002
+  eng "Can't parse the spatial reference system definition of SRID %u."
+
+ER_SRS_PROJ_PARAMETER_MISSING SR003
+  eng "The spatial reference system definition for SRID %u does not specify the mandatory %s (EPSG %u) projection parameter."
+
+ER_WARN_SRS_NOT_FOUND 01000
+  eng "There's no spatial reference system with SRID %u. Calculations in function %s will be done in SRID 0."
+
+ER_SRS_NOT_CARTESIAN 22S00
+  eng "Function %s is only defined for Cartesian spatial reference systems, but one of its arguments is in SRID %u, which is not Cartesian."
+
+ER_SRS_NOT_CARTESIAN_UNDEFINED SR001
+  eng "Function %s is only defined for Cartesian spatial reference systems, but one of its arguments is in SRID %u, which has not been defined."
+
+ER_PK_INDEX_CANT_BE_INVISIBLE
+  eng "A primary key index cannot be invisible"
+
+ER_UNKNOWN_AUTHID
+  eng "Unknown authorization ID `%.64s`@`%.64s`"
+
+ER_FAILED_ROLE_GRANT
+  eng "Failed to grant %.90s` to %.90s"
+
+ER_OPEN_ROLE_TABLES
+  eng "Failed to open the security system tables"
+
+ER_FAILED_DEFAULT_ROLES
+  eng "Failed to set default roles"
+
+ER_COMPONENTS_NO_SCHEME
+  eng "Cannot find schema in specified URN: '%.192s'."
+  pol "Nie można znaleźć rodzaju zasobu w podanym URN: '%.192s'."
+
+ER_COMPONENTS_NO_SCHEME_SERVICE
+  eng "Cannot acquire scheme load service implementation for schema '%.192s' in specified URN: '%.192s'."
+  pol "Nie można znaleźć implementacji usługi ładującej rodzaj zasobu dla zasobu '%.192s' w podanym URN: '%.192s'."
+
+ER_COMPONENTS_CANT_LOAD
+  eng "Cannot load component from specified URN: '%.192s'."
+  pol "Nie można wczytać komponentu pod podanym URN: '%.192s'."
+
+ER_ROLE_NOT_GRANTED
+  eng "`%.64s`@`%.64s` is not granted to `%.64s`@`%.64s`"
+
+ER_FAILED_REVOKE_ROLE
+  eng "Could not revoke role from `%.64s`@`%.64s`"
+
+ER_RENAME_ROLE
+  eng  "Renaming of a role identifier is forbidden"
+
+ER_COMPONENTS_CANT_ACQUIRE_SERVICE_IMPLEMENTATION
+  eng "Cannot acquire specified service implementation: '%.192s'."
+  pol "Nie można pozyskać podanej implementacji usługi: '%.192s'."
+
+ER_COMPONENTS_CANT_SATISFY_DEPENDENCY
+  eng "Cannot satisfy dependency for service '%.192s' required by component '%.192s'."
+  pol "Nie można spełnić zależności w postaci usługi '%.192s' wymaganej przez komponent '%.192s'."
+
+ER_COMPONENTS_LOAD_CANT_REGISTER_SERVICE_IMPLEMENTATION
+  eng "Cannot register service implementation '%.192s' provided by component '%.192s'."
+  pol "Nie można wpisać implementacji usługi '%.192s' dostarczanej przez komponent '%.192s'."
+
+ER_COMPONENTS_LOAD_CANT_INITIALIZE
+  eng "Initialization method provided by component '%.192s' failed."
+  pol "Metoda inicjalizująca dostarczona przez komponent '%.192s' nie zakończyła się z powodzeniem."
+
+ER_COMPONENTS_UNLOAD_NOT_LOADED
+  eng "Component specified by URN '%.192s' to unload has not been loaded before."
+  pol "Komponent podany do odłączenia przez URN '%.192s' nie był wcześniej załadowany."
+
+ER_COMPONENTS_UNLOAD_CANT_DEINITIALIZE
+  eng "De-initialization method provided by component '%.192s' failed."
+  pol "Metoda de-inicjalizująca dostarczona przez komponent '%.192s' nie zakończyła się z powodzeniem."
+
+ER_COMPONENTS_CANT_RELEASE_SERVICE
+  eng "Release of previously acquired service implementation failed."
+  pol "Zwolnienie wcześniej pozyskanej implementacji usługi nie powiodło się."
+
+ER_COMPONENTS_UNLOAD_CANT_UNREGISTER_SERVICE
+  eng "Unregistration of service implementation '%.192s' provided by component '%.192s' failed during unloading of the component."
+  pol "Wyrejstrowanie implementacji usługi '%.192s' dostarczonej przez komponent '%.192s' wykonywane podczas odłączania komponentu nie zakończyła się z powodzeniem."
+
+ER_COMPONENTS_CANT_UNLOAD
+  eng "Cannot unload component from specified URN: '%.192s'."
+  pol "Nie można odłączyć komponentu pod podanym URN: '%.192s'."
+
+ER_WARN_UNLOAD_THE_NOT_PERSISTED
+  eng "The Persistent Dynamic Loader was used to unload a component '%.192s', but it was not used to load that component before."
+  pol "Persistent Dynamic Loader został użyty do odłączenia komponentu '%.192s', który nie był przez niego wcześniej wczytany."
+
+ER_COMPONENT_TABLE_INCORRECT
+  eng "The mysql.component table is missing or has an incorrect definition."
+  pol "Tabela mysql.component nie istnieje lub ma nieodpowiednią definicję."
+
+ER_COMPONENT_MANIPULATE_ROW_FAILED
+  eng "Failed to manipulate component '%.192s' persistence data. Error code %d from storage engine."
+
+ER_COMPONENTS_UNLOAD_DUPLICATE_IN_GROUP
+  eng "The component with specified URN: '%.192s' was specified in group more than once."
+  pol "Komponent z podanym URN: '%.192s' został podany w grupie więcej niż raz."
+
+ER_CANT_SET_GTID_PURGED_DUE_SETS_CONSTRAINTS
+  eng "@@GLOBAL.GTID_PURGED cannot be changed: %s"
+
+ER_CANNOT_LOCK_USER_MANAGEMENT_CACHES
+  eng "Can not lock user management caches for processing."
+
+ER_SRS_NOT_FOUND SR001
+  eng "There's no spatial reference system with SRID %u."
+
+ER_VARIABLE_NOT_PERSISTED
+  eng "Variables cannot be persisted. Please retry."
+
+ER_IS_QUERY_INVALID_CLAUSE
+  eng "Information schema queries do not support the '%s' clause."
+
+ER_UNABLE_TO_STORE_STATISTICS
+  eng "Unable to store dynamic %s statistics into data dictionary."
+
+ER_NO_SYSTEM_SCHEMA_ACCESS
+  eng "Access to system schema '%.64s' is rejected."
+
+ER_NO_SYSTEM_TABLESPACE_ACCESS
+  eng "Access to system tablespace '%.64s' is rejected."
+
+ER_NO_SYSTEM_TABLE_ACCESS
+  eng "Access to %.64s '%.64s.%.64s' is rejected."
+
+ER_NO_SYSTEM_TABLE_ACCESS_FOR_DICTIONARY_TABLE
+  eng "data dictionary table"
+
+ER_NO_SYSTEM_TABLE_ACCESS_FOR_SYSTEM_TABLE
+  eng "system table"
+
+ER_NO_SYSTEM_TABLE_ACCESS_FOR_TABLE
+  eng "table"
+
+ER_INVALID_OPTION_KEY 22023
+  eng "Invalid option key '%.192s' in function %.192s."
+
+ER_INVALID_OPTION_VALUE 22023
+  eng "Invalid value '%.192s' for option '%.192s' in function '%.192s'."
+
+ER_INVALID_OPTION_KEY_VALUE_PAIR 22023
+  eng "The string '%.192s' is not a valid key %c value pair in function %.192s."
+
+ER_INVALID_OPTION_START_CHARACTER 22023
+  eng "The options argument in function %.192s starts with the invalid character '%c'."
+
+ER_INVALID_OPTION_END_CHARACTER 22023
+  eng "The options argument in function %.192s ends with the invalid character '%c'."
+
+ER_INVALID_OPTION_CHARACTERS 22023
+  eng "The options argument in function %.192s contains the invalid character sequence '%.192s'."
+
+ER_DUPLICATE_OPTION_KEY 22023
+  eng "Duplicate option key '%.192s' in funtion '%.192s'."
+
+ER_WARN_SRS_NOT_FOUND_AXIS_ORDER 01000
+  eng "There's no spatial reference system with SRID %u. The axis order is unknown."
+
+ER_NO_ACCESS_TO_NATIVE_FCT
+  eng "Access to native function '%.64s' is rejected."
+
+ER_RESET_MASTER_TO_VALUE_OUT_OF_RANGE
+  eng "The requested value '%lu' for the next binary log index is out of range. Please use a value between '1' and '%lu'."
+
+ER_UNRESOLVED_TABLE_LOCK
+  eng "Unresolved table name %s in locking clause."
+
+ER_DUPLICATE_TABLE_LOCK
+  eng "Table %s appears in multiple locking clauses."
+
+ER_BINLOG_UNSAFE_SKIP_LOCKED
+  eng "Statement is unsafe because it uses SKIP LOCKED. The set of inserted values is non-deterministic."
+
+ER_BINLOG_UNSAFE_NOWAIT
+  eng "Statement is unsafe because it uses NOWAIT. Whether the command will succeed or fail is not deterministic."
+
+ER_LOCK_NOWAIT
+  eng "Do not wait for lock."
+
+ER_CTE_RECURSIVE_REQUIRES_UNION
+  eng "Recursive Common Table Expression '%s' should contain a UNION"
+
+ER_CTE_RECURSIVE_REQUIRES_NONRECURSIVE_FIRST
+  eng "Recursive Common Table Expression '%s' should have one or more non-recursive query blocks followed by one or more recursive ones"
+
+ER_CTE_RECURSIVE_FORBIDS_AGGREGATION
+  eng "Recursive Common Table Expression '%s' cannot contain aggregation in recursive query block"
+
+ER_CTE_RECURSIVE_FORBIDDEN_JOIN_ORDER
+  eng "In recursive query block of Recursive Common Table Expression '%s', the recursive table must neither be in the right argument of a LEFT JOIN, nor be forced to be non-first with join order hints"
+
+ER_CTE_RECURSIVE_REQUIRES_SINGLE_REFERENCE
+  eng "In recursive query block of Recursive Common Table Expression '%s', the recursive table must be referenced only once, and not in any subquery"
+
+ER_SWITCH_TMP_ENGINE
+  eng "'%s' requires @@internal_tmp_disk_storage_engine=InnoDB"
+
+ER_INVALID_NO_OF_ARGS
+  eng "Too many arguments for function %s: %lu; maximum allowed is %s."
+
+ER_FIELD_IN_GROUPING_NOT_GROUP_BY
+  eng "Argument #%u of GROUPING function is not in GROUP BY"
+
+ER_TOO_LONG_TABLESPACE_COMMENT
+  eng "Comment for tablespace '%-.64s' is too long (max = %lu)"
+
+ER_ENGINE_CANT_DROP_TABLE
+  eng "Storage engine can't drop table '%-.129s'"
+
+ER_ENGINE_CANT_DROP_MISSING_TABLE
+  eng "Storage engine can't drop table '%-.129s' because it is missing. Use DROP TABLE IF EXISTS to remove it from data-dictionary."
+
+ER_TABLESPACE_DUP_FILENAME
+  eng "Duplicate file name for tablespace '%-.64s'"
+
+ER_DB_DROP_RMDIR2
+  eng "Problem while dropping database. Can't remove database directory (%s). Please remove it manually."
+
+ER_IMP_NO_FILES_MATCHED
+  eng "No SDI files matched the pattern '%s'"
+
+ER_IMP_SCHEMA_DOES_NOT_EXIST
+  eng "Schema '%.256s', referenced in SDI, does not exist."
+
+ER_IMP_TABLE_ALREADY_EXISTS
+  eng "Table '%.256s.%.256s', referenced in SDI, already exists."
+
+ER_IMP_INCOMPATIBLE_MYSQLD_VERSION
+  eng "Imported mysqld_version (%llu) is not compatible with current (%llu)"
+
+ER_IMP_INCOMPATIBLE_DD_VERSION
+  eng "Imported dd version (%u) is not compatible with current (%u)"
+
+ER_IMP_INCOMPATIBLE_SDI_VERSION
+  eng "Imported sdi version (%llu) is not compatible with current (%llu)"
+
+ER_WARN_INVALID_HINT
+  eng "Invalid number of arguments for hint %s"
+
+ER_VAR_DOES_NOT_EXIST
+  eng "Variable %s does not exist in persisted config file"
+
+ER_LONGITUDE_OUT_OF_RANGE 22S02
+  eng "Longitude %f is out of range in function %.192s. It must be within (%f, %f]."
+
+ER_LATITUDE_OUT_OF_RANGE 22S03
+  eng "Latitude %f is out of range in function %.192s. It must be within [%f, %f]."
+
+ER_NOT_IMPLEMENTED_FOR_GEOGRAPHIC_SRS 22S00
+  eng "%.192s(%.40s, %.40s) has not been implemented for geographic spatial reference systems."
+
+ER_ILLEGAL_PRIVILEGE_LEVEL
+  eng "Illegal privilege level specified for %s"
+
+#
+#  End of 8.0 error messages.
 #

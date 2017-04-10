@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,15 +13,17 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-/// @file Common types of the Optimizer, used by optimization and execution
+/**
+  @file sql/sql_opt_exec_shared.h
+  Common types of the Optimizer, used by optimization and execution.
+*/
 
 #ifndef SQL_OPT_EXEC_SHARED_INCLUDED
 #define SQL_OPT_EXEC_SHARED_INCLUDED
 
 #include "my_base.h"
-#include "item.h"        // Item
-#include "sql_alloc.h"   // Sql_alloc
-#include "sql_class.h"   // Temp_table_param
+#include "my_dbug.h"
+#include "sql_alloc.h"          // Sql_alloc
 
 class JOIN;
 class Item_func_match;
@@ -81,7 +83,7 @@ typedef struct st_table_ref : public Sql_alloc
   */
   bool          **cond_guards;
   /**
-    (null_rejecting & (1<<i)) means the condition is '=' and no matching
+    @code (null_rejecting & (1<<i)) @endcode means the condition is '=' and no matching
     rows will be produced if items[i] IS NULL (see add_not_null_conds())
   */
   key_part_map  null_rejecting;
@@ -102,7 +104,6 @@ typedef struct st_table_ref : public Sql_alloc
 
   st_table_ref()
     : key_err(TRUE),
-      has_record(FALSE),
       key_parts(0),
       key_length(0),
       key(-1),
@@ -212,15 +213,6 @@ enum join_type { /*
                   */
                  JT_REF_OR_NULL,
                  /*
-                   Like eq_ref for subqueries: Replaces subquery with
-                   index lookup in unique index
-                  */
-                 JT_UNIQUE_SUBQUERY,
-                 /*
-                   Like unique_subquery but for non-unique index
-                 */
-                 JT_INDEX_SUBQUERY,
-                 /*
                    Do multiple range scans over one table and combine
                    the results into one. The merge can be used to
                    produce unions and intersections
@@ -296,7 +288,7 @@ public:
   void set_type(enum join_type t) { m_type= t; }
   Item *condition() const { return m_condition; }
   void set_condition(Item *c) { m_condition= c; }
-  key_map &keys() { return m_keys; }
+  Key_map &keys() { return m_keys; }
   ha_rows records() const { return m_records; }
   void set_records(ha_rows r) { m_records= r; }
   QUICK_SELECT_I *quick() const { return m_quick; }
@@ -311,9 +303,9 @@ public:
   /**
     Set available tables for a table in a join plan.
 
-    @param prefix_tables_arg: Set of tables available for this plan
-    @param prev_tables_arg: Set of tables available for previous table, used to
-                            calculate set of tables added for this table.
+    @param prefix_tables_arg Set of tables available for this plan
+    @param prev_tables_arg   Set of tables available for previous table, used to
+                             calculate set of tables added for this table.
   */
   void set_prefix_tables(table_map prefix_tables_arg, table_map prev_tables_arg)
   {
@@ -324,7 +316,7 @@ public:
   /**
     Add an available set of tables for a table in a join plan.
 
-    @param tables: Set of tables added for this table in plan.
+    @param tables Set of tables added for this table in plan.
   */
   void add_prefix_tables(table_map tables)
   { prefix_tables_map|= tables; added_tables_map|= tables; }
@@ -416,10 +408,10 @@ private:
      Used by add_key_field() (optimization time) and execution of dynamic
      range (join_init_quick_record()), and EXPLAIN.
   */
-  key_map       m_keys;
+  Key_map       m_keys;
 
   /**
-     Either #rows in the table or 1 for const table.
+     Either number of rows in the table or 1 for const table.
      Used in optimization, and also in execution for FOUND_ROWS().
   */
   ha_rows	m_records;
@@ -489,7 +481,7 @@ public:
   void set_type(enum join_type t) { return m_qs->set_type(t); }
   Item *condition() const { return m_qs->condition(); }
   void set_condition(Item *to) { return m_qs->set_condition(to); }
-  key_map &keys() { return m_qs->keys(); }
+  Key_map &keys() { return m_qs->keys(); }
   ha_rows records() const { return m_qs->records(); }
   void set_records(ha_rows r) { return m_qs->set_records(r); }
   QUICK_SELECT_I *quick() const { return m_qs->quick(); }

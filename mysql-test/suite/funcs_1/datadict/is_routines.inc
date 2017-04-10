@@ -117,7 +117,7 @@ DROP DATABASE IF EXISTS db_datadict;
 DROP DATABASE IF EXISTS db_datadict_2;
 --enable_warnings
 
-CREATE DATABASE db_datadict;
+CREATE DATABASE db_datadict charset latin1;
 USE db_datadict;
 --replace_result $other_engine_type <other_engine_type>
 eval
@@ -135,7 +135,7 @@ BEGIN
 END//
 delimiter ;//
 
-CREATE DATABASE db_datadict_2;
+CREATE DATABASE db_datadict_2 charset latin1;
 USE db_datadict_2;
 --replace_result $other_engine_type <other_engine_type>
 eval
@@ -179,19 +179,19 @@ FLUSH PRIVILEGES;
 --replace_result $MASTER_MYPORT MYSQL_PORT $MASTER_MYSOCK MYSQL_SOCK
 connect (testuser1, localhost, testuser1, , db_datadict);
 --replace_column 24 "YYYY-MM-DD hh:mm:ss" 25 "YYYY-MM-DD hh:mm:ss"
-SELECT * FROM information_schema.routines;
+SELECT * FROM information_schema.routines where routine_schema like 'db_datadict%';
 
 --echo # Establish connection testuser2 (user=testuser2)
 --replace_result $MASTER_MYPORT MYSQL_PORT $MASTER_MYSOCK MYSQL_SOCK
 connect (testuser2, localhost, testuser2, , db_datadict);
 --replace_column 24 "YYYY-MM-DD hh:mm:ss" 25 "YYYY-MM-DD hh:mm:ss"
-SELECT * FROM information_schema.routines;
+SELECT * FROM information_schema.routines where routine_schema like 'db_datadict%';
 
 --echo # Establish connection testuser3 (user=testuser3)
 --replace_result $MASTER_MYPORT MYSQL_PORT $MASTER_MYSOCK MYSQL_SOCK
 connect (testuser3, localhost, testuser3, , test);
 --replace_column 24 "YYYY-MM-DD hh:mm:ss" 25 "YYYY-MM-DD hh:mm:ss"
-SELECT * FROM information_schema.routines;
+SELECT * FROM information_schema.routines where routine_schema like 'db_datadict%';
 
 # Cleanup
 --echo # Switch to connection default and close connections testuser1,testuser2,testuser3
@@ -228,7 +228,7 @@ DROP DATABASE db_datadict_2;
 --disable_warnings
 DROP DATABASE IF EXISTS db_datadict;
 --enable_warnings
-CREATE DATABASE db_datadict;
+CREATE DATABASE db_datadict charset latin1;
 
 SELECT * FROM information_schema.routines WHERE routine_schema = 'db_datadict';
 USE db_datadict;
@@ -275,7 +275,7 @@ SELECT * FROM information_schema.routines WHERE routine_schema = 'db_datadict';
 --disable_warnings
 DROP DATABASE IF EXISTS db_datadict;
 --enable_warnings
-CREATE DATABASE db_datadict;
+CREATE DATABASE db_datadict charset latin1;
 USE db_datadict;
 #
 --replace_result $other_engine_type <other_engine_type>
@@ -432,7 +432,7 @@ DROP DATABASE db_datadict;
 --disable_warnings
 DROP DATABASE IF EXISTS db_datadict;
 --enable_warnings
-CREATE DATABASE db_datadict;
+CREATE DATABASE db_datadict charset latin1;
 USE db_datadict;
 CREATE PROCEDURE sp_for_routines() SELECT 'db_datadict';
 USE test;

@@ -15,15 +15,15 @@ show session variables like 'eq_range_index_dive_limit';
 Variable_name	Value
 eq_range_index_dive_limit	200
 select * 
-from information_schema.global_variables 
+from performance_schema.global_variables 
 where variable_name='eq_range_index_dive_limit';
 VARIABLE_NAME	VARIABLE_VALUE
-EQ_RANGE_INDEX_DIVE_LIMIT	200
+eq_range_index_dive_limit	200
 select * 
-from information_schema.session_variables 
+from performance_schema.session_variables 
 where variable_name='eq_range_index_dive_limit';
 VARIABLE_NAME	VARIABLE_VALUE
-EQ_RANGE_INDEX_DIVE_LIMIT	200
+eq_range_index_dive_limit	200
 set global eq_range_index_dive_limit=10;
 select @@global.eq_range_index_dive_limit;
 @@global.eq_range_index_dive_limit

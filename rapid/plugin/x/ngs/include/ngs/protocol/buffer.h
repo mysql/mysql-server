@@ -67,8 +67,8 @@ namespace ngs
     Page_list m_pages;
 
   private:
-    Buffer(const Buffer &);
-    Buffer &operator=(const Buffer &);
+    Buffer(const Buffer &) = delete;
+    Buffer &operator=(const Buffer &) = delete;
   };
 
 } // namespace ngs

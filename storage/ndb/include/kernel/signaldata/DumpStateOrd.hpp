@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -76,6 +76,10 @@ public:
     LQHLogFileInitStatus = 102000,
     _LQHMax = 102999,
 
+    _CMVMIMin = 103000,
+    SetSchedulerResponsiveness = 103000,
+    _CMVMIMax = 103099,
+
     // 1 QMGR Dump information about phase 1 variables
     // 13 CMVMI Dump signal counter
     // 13 NDBCNTR Dump start phase information
@@ -105,6 +109,7 @@ public:
     CmvmiSchedulerSpinTimer = 506,
     // 1222-1225 DICT
     DictDumpLockQueue = 1228,
+    DictDumpGetTabInfoQueue = 1229,
     LqhDumpAllDefinedTabs = 1332,
     LqhDumpNoLogPages = 1333,
     LqhDumpOneScanRec = 2300,
@@ -152,6 +157,9 @@ public:
     CmvmiLongSignalMemorySnapshot = 2608,
     CmvmiLongSignalMemorySnapshotCheck = 2609,
     CmvmiSetKillerWatchdog = 2610,
+    CmvmiLongSignalMemorySnapshotCheck2 = 2611,
+
+    CmvmiShowLongSignalOwnership = 2612, /* Show owners of LSM */
 
     LCPContinue = 5900,
     // 7000 DIH

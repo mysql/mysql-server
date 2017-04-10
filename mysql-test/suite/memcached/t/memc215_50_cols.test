@@ -1,7 +1,6 @@
 source include/not_valgrind.inc;
 source include/have_memcached_plugin.inc;
 source include/not_windows.inc;
-source include/have_innodb.inc;
 
 call mtr.add_suppression("InnoDB: Cannot add field ");
 

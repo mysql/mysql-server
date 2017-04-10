@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,8 +16,13 @@
 #ifndef RPL_INFO_DUMMY_H
 #define RPL_INFO_DUMMY_H
 
-#include "my_global.h"
+#include <stddef.h>
+#include <sys/types.h>
+
+#include "my_inttypes.h"
 #include "rpl_info_handler.h"      // Rpl_info_handler
+
+class Server_ids;
 
 /**
   Defines a dummy handler that should only be internally accessed.
@@ -41,7 +46,6 @@ private:
   int do_flush_info(const bool force);
   int do_remove_info();
   int do_clean_info();
-  static int do_reset_info(const int nparam);
 
   int do_prepare_info_for_read();
   int do_prepare_info_for_write();

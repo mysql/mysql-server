@@ -1,22 +1,16 @@
-// Copyright (C) 2011 Milo Yip
+// Tencent is pleased to support the open source community by making RapidJSON available.
+// 
+// Copyright (C) 2015 THL A29 Limited, a Tencent company, and Milo Yip. All rights reserved.
 //
-// Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software and associated documentation files (the "Software"), to deal
-// in the Software without restriction, including without limitation the rights
-// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-// copies of the Software, and to permit persons to whom the Software is
-// furnished to do so, subject to the following conditions:
+// Licensed under the MIT License (the "License"); you may not use this file except
+// in compliance with the License. You may obtain a copy of the License at
 //
-// The above copyright notice and this permission notice shall be included in
-// all copies or substantial portions of the Software.
+// http://opensource.org/licenses/MIT
 //
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-// THE SOFTWARE.
+// Unless required by applicable law or agreed to in writing, software distributed 
+// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR 
+// CONDITIONS OF ANY KIND, either express or implied. See the License for the 
+// specific language governing permissions and limitations under the License.
 
 #ifndef RAPIDJSON_ALLOCATORS_H_
 #define RAPIDJSON_ALLOCATORS_H_
@@ -68,8 +62,20 @@ concept Allocator {
 class CrtAllocator {
 public:
     static const bool kNeedFree = true;
-    void* Malloc(size_t size) { return std::malloc(size); }
-    void* Realloc(void* originalPtr, size_t originalSize, size_t newSize) { (void)originalSize; return std::realloc(originalPtr, newSize); }
+    void* Malloc(size_t size) { 
+        if (size) //  behavior of malloc(0) is implementation defined.
+            return std::malloc(size);
+        else
+            return NULL; // standardize to returning NULL.
+    }
+    void* Realloc(void* originalPtr, size_t originalSize, size_t newSize) {
+        (void)originalSize;
+        if (newSize == 0) {
+            std::free(originalPtr);
+            return NULL;
+        }
+        return std::realloc(originalPtr, newSize);
+    }
     static void Free(void *ptr) { std::free(ptr); }
 };
 
@@ -137,11 +143,13 @@ public:
 
     //! Deallocates all memory chunks, excluding the user-supplied buffer.
     void Clear() {
-        while(chunkHead_ != 0 && chunkHead_ != userBuffer_) {
+        while (chunkHead_ && chunkHead_ != userBuffer_) {
             ChunkHeader* next = chunkHead_->next;
             baseAllocator_->Free(chunkHead_);
             chunkHead_ = next;
         }
+        if (chunkHead_ && chunkHead_ == userBuffer_)
+            chunkHead_->size = 0; // Clear user buffer
     }
 
     //! Computes the total capacity of allocated memory chunks.
@@ -166,11 +174,15 @@ public:
 
     //! Allocates a memory block. (concept Allocator)
     void* Malloc(size_t size) {
+        if (!size)
+            return NULL;
+
         size = RAPIDJSON_ALIGN(size);
         if (chunkHead_ == 0 || chunkHead_->size + size > chunkHead_->capacity)
-            AddChunk(chunk_capacity_ > size ? chunk_capacity_ : size);
+            if (!AddChunk(chunk_capacity_ > size ? chunk_capacity_ : size))
+                return NULL;
 
-        void *buffer = reinterpret_cast<char *>(chunkHead_ + 1) + chunkHead_->size;
+        void *buffer = reinterpret_cast<char *>(chunkHead_) + RAPIDJSON_ALIGN(sizeof(ChunkHeader)) + chunkHead_->size;
         chunkHead_->size += size;
         return buffer;
     }
@@ -180,14 +192,19 @@ public:
         if (originalPtr == 0)
             return Malloc(newSize);
 
+        if (newSize == 0)
+            return NULL;
+
+        originalSize = RAPIDJSON_ALIGN(originalSize);
+        newSize = RAPIDJSON_ALIGN(newSize);
+
         // Do not shrink if new size is smaller than original
         if (originalSize >= newSize)
             return originalPtr;
 
         // Simply expand it if it is the last allocation and there is sufficient space
-        if (originalPtr == (char *)(chunkHead_ + 1) + chunkHead_->size - originalSize) {
+        if (originalPtr == reinterpret_cast<char *>(chunkHead_) + RAPIDJSON_ALIGN(sizeof(ChunkHeader)) + chunkHead_->size - originalSize) {
             size_t increment = static_cast<size_t>(newSize - originalSize);
-            increment = RAPIDJSON_ALIGN(increment);
             if (chunkHead_->size + increment <= chunkHead_->capacity) {
                 chunkHead_->size += increment;
                 return originalPtr;
@@ -195,9 +212,13 @@ public:
         }
 
         // Realloc process: allocate and copy memory, do not free original buffer.
-        void* newBuffer = Malloc(newSize);
-        RAPIDJSON_ASSERT(newBuffer != 0);   // Do not handle out-of-memory explicitly.
-        return std::memcpy(newBuffer, originalPtr, originalSize);
+        if (void* newBuffer = Malloc(newSize)) {
+            if (originalSize)
+                std::memcpy(newBuffer, originalPtr, originalSize);
+            return newBuffer;
+        }
+        else
+            return NULL;
     }
 
     //! Frees a memory block (concept Allocator)
@@ -211,15 +232,20 @@ private:
 
     //! Creates a new chunk.
     /*! \param capacity Capacity of the chunk in bytes.
+        \return true if success.
     */
-    void AddChunk(size_t capacity) {
+    bool AddChunk(size_t capacity) {
         if (!baseAllocator_)
             ownBaseAllocator_ = baseAllocator_ = RAPIDJSON_NEW(BaseAllocator());
-        ChunkHeader* chunk = reinterpret_cast<ChunkHeader*>(baseAllocator_->Malloc(sizeof(ChunkHeader) + capacity));
-        chunk->capacity = capacity;
-        chunk->size = 0;
-        chunk->next = chunkHead_;
-        chunkHead_ =  chunk;
+        if (ChunkHeader* chunk = reinterpret_cast<ChunkHeader*>(baseAllocator_->Malloc(RAPIDJSON_ALIGN(sizeof(ChunkHeader)) + capacity))) {
+            chunk->capacity = capacity;
+            chunk->size = 0;
+            chunk->next = chunkHead_;
+            chunkHead_ =  chunk;
+            return true;
+        }
+        else
+            return false;
     }
 
     static const int kDefaultChunkCapacity = 64 * 1024; //!< Default chunk capacity.

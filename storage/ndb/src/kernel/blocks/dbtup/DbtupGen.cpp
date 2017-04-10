@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -413,7 +413,7 @@ void Dbtup::execREAD_CONFIG_REQ(Signal* signal)
   Uint32 noOfStoredProc;
   ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_TUP_STORED_PROC, 
 					&noOfStoredProc));
-  ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_DB_NO_TRIGGERS, 
+  ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_TUP_NO_TRIGGERS, 
 					&noOfTriggers));
 
 
@@ -451,7 +451,7 @@ void Dbtup::execREAD_CONFIG_REQ(Signal* signal)
   allocCopyProcedure();
 
   c_buildIndexPool.setSize(c_noOfBuildIndexRec);
-  c_triggerPool.setSize(noOfTriggers, false, true, true, CFG_DB_NO_TRIGGERS);
+  c_triggerPool.setSize(noOfTriggers, false, true, true, CFG_TUP_NO_TRIGGERS);
 
   c_extent_hash.setSize(1024); // 4k
   
@@ -514,7 +514,6 @@ void Dbtup::execREAD_CONFIG_REQ(Signal* signal)
                               &val);
     c_crashOnCorruptedTuple = val ? true : false;
   }
-
 }
 
 void Dbtup::initRecords() 
@@ -683,7 +682,7 @@ void Dbtup::initializeDefaultValuesFrag()
    */
   seizeFragrecord(DefaultValuesFragment);
   DefaultValuesFragment.p->fragStatus = Fragrecord::FS_ONLINE;
-  DefaultValuesFragment.p->m_undo_complete= false;
+  DefaultValuesFragment.p->m_undo_complete= 0;
   DefaultValuesFragment.p->m_lcp_scan_op = RNIL;
   DefaultValuesFragment.p->noOfPages = 0;
   DefaultValuesFragment.p->noOfVarPages = 0;

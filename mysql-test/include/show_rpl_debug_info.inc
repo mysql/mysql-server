@@ -68,6 +68,10 @@ if ($_rpl_server == '')
 --echo DO_NOT_CHECK_IN_THIS_LINE: include/show_rpl_debug_info.inc should only be used for debugging. Never check in a test that calls it on success.
 
 --echo CURRENT_CONNECTION = '$_rpl_old_con'
+if($rpl_group_replication)
+{
+  --echo group_replication_group_name= "$group_replication_group_name"
+}
 
 while ($_rpl_server)
 {
@@ -88,7 +92,7 @@ while ($_rpl_server)
   --echo
   --echo **** GTID_* on $CURRENT_CONNECTION ****
   query_vertical
-  SELECT @@GLOBAL.GTID_MODE, @@GLOBAL.GTID_EXECUTED, @@GLOBAL.GTID_PURGED, @@GLOBAL.GTID_OWNED, @@SESSION.GTID_EXECUTED, @@SESSION.GTID_OWNED;
+  SELECT @@GLOBAL.GTID_MODE, @@GLOBAL.GTID_EXECUTED, @@GLOBAL.GTID_PURGED, @@GLOBAL.GTID_OWNED, @@SESSION.GTID_OWNED;
   --echo
   --echo **** SHOW SLAVE STATUS on $CURRENT_CONNECTION ****
   query_vertical
@@ -97,6 +101,21 @@ while ($_rpl_server)
   --echo **** replication_connection_status on $CURRENT_CONNECTION ****
   query_vertical
   SELECT * FROM performance_schema.replication_connection_status;
+  if($rpl_group_replication)
+  {
+    --echo
+    --echo **** replication_group_members on $CURRENT_CONNECTION ****
+    query_vertical
+    SELECT * FROM performance_schema.replication_group_members;
+    --echo
+    --echo **** replication_group_member_stats on $CURRENT_CONNECTION ****
+    query_vertical
+    SELECT * FROM performance_schema.replication_group_member_stats;
+  }
+  --echo
+  --echo **** replication_applier_status on $CURRENT_CONNECTION ****
+  query_vertical
+  SELECT * FROM performance_schema.replication_applier_status;
   --echo
   --echo **** replication_applier_status_by_worker on $CURRENT_CONNECTION ****
   query_vertical

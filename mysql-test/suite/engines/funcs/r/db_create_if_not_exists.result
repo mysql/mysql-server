@@ -5,8 +5,8 @@ Warnings:
 Note	1007	Can't create database 'd2'; database exists
 SHOW DATABASES;
 Database
-information_schema
 d2
+information_schema
 mtr
 mysql
 performance_schema
@@ -23,8 +23,8 @@ Warnings:
 Note	1007	Can't create database 'd2'; database exists
 SHOW DATABASES;
 Database
-information_schema
 d2
+information_schema
 mtr
 mysql
 performance_schema

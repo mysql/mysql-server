@@ -2,7 +2,6 @@
 # Test TRIM() function with Japanese characters sjis encoding
 #
 
---source include/have_innodb.inc
 let $engine = innodb;
 --source suite/jp/include/trim_sjis.inc
 

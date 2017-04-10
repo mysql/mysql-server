@@ -1,0 +1,8 @@
+-- source include/no_valgrind_without_big.inc
+-- source include/have_binlog_format_row.inc
+-- source include/master-slave.inc
+-- source include/have_myisam.inc
+
+let $engine_type = 'MyISAM';
+-- source extra/rpl_tests/rpl_extra_col_slave.test
+--source include/rpl_end.inc

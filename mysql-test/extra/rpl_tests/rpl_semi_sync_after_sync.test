@@ -16,7 +16,7 @@ SET DEBUG_SYNC= "now WAIT_FOR after_sync_done";
 show status like "rpl_semi_sync_master_yes_tx";
 --let $assert_text= rpl_semi_sync_master_yes_tx increased 1
 --disable_warnings
---let $assert_cond= VARIABLE_VALUE = $yes_tx+1 FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME = "rpl_semi_sync_master_yes_tx"
+--let $assert_cond= VARIABLE_VALUE = $yes_tx+1 FROM performance_schema.global_status WHERE VARIABLE_NAME = "rpl_semi_sync_master_yes_tx"
 --enable_warnings
 --source include/assert.inc
 
@@ -40,7 +40,7 @@ SET DEBUG_SYNC= "now SIGNAL end";
 # Varify that after_commit hook is not executed.
 --let $assert_text= rpl_semi_sync_master_yes_tx increased only 1
 --disable_warnings
---let $assert_cond= VARIABLE_VALUE = $yes_tx+1 FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME = "rpl_semi_sync_master_yes_tx"
+--let $assert_cond= VARIABLE_VALUE = $yes_tx+1 FROM performance_schema.global_status WHERE VARIABLE_NAME = "rpl_semi_sync_master_yes_tx"
 --enable_warnings
 --source include/assert.inc
 
@@ -67,7 +67,7 @@ SET DEBUG_SYNC= "now WAIT_FOR after_sync_done";
 
 --let $assert_text= rpl_semi_sync_master_yes_tx increased 1
 --disable_warnings
---let $assert_cond= VARIABLE_VALUE = $yes_tx+1 FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME = "rpl_semi_sync_master_yes_tx"
+--let $assert_cond= VARIABLE_VALUE = $yes_tx+1 FROM performance_schema.global_status WHERE VARIABLE_NAME = "rpl_semi_sync_master_yes_tx"
 --enable_warnings
 --source include/assert.inc
 
@@ -91,7 +91,7 @@ SET DEBUG_SYNC= "now SIGNAL end";
 # Varify that after_commit hook is not executed.
 --let $assert_text= rpl_semi_sync_master_yes_tx increased only 1
 --disable_warnings
---let $assert_cond= VARIABLE_VALUE = $yes_tx+1 FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME = "rpl_semi_sync_master_yes_tx"
+--let $assert_cond= VARIABLE_VALUE = $yes_tx+1 FROM performance_schema.global_status WHERE VARIABLE_NAME = "rpl_semi_sync_master_yes_tx"
 --enable_warnings
 --source include/assert.inc
 
@@ -119,13 +119,13 @@ SET DEBUG_SYNC= "now WAIT_FOR engine_commit_done";
 
 --let $assert_text= rpl_semi_sync_master_yes_tx was not increased
 --disable_warnings
---let $assert_cond= VARIABLE_VALUE = $yes_tx FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME = "rpl_semi_sync_master_yes_tx"
+--let $assert_cond= VARIABLE_VALUE = $yes_tx FROM performance_schema.global_status WHERE VARIABLE_NAME = "rpl_semi_sync_master_yes_tx"
 --enable_warnings
 --source include/assert.inc
 
 --let $assert_text= rpl_semi_sync_master_no_tx was not increased
 --disable_warnings
---let $assert_cond= VARIABLE_VALUE = $no_tx FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME = "rpl_semi_sync_master_no_tx"
+--let $assert_cond= VARIABLE_VALUE = $no_tx FROM performance_schema.global_status WHERE VARIABLE_NAME = "rpl_semi_sync_master_no_tx"
 --enable_warnings
 --source include/assert.inc
 

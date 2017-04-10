@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,14 +15,11 @@
 
 
 /**
-  @file
-
-  @brief
+  @file mysys_ssl/my_md5.cc
   Wrapper functions for OpenSSL and YaSSL. Also provides a Compatibility layer
   to make available YaSSL's MD5 implementation.
 */
 
-#include <my_global.h>
 #include <my_md5.h>
 
 #if defined(HAVE_YASSL)
@@ -52,11 +49,9 @@ static void my_md5_hash(unsigned char* digest, unsigned const char *buf, int len
 /**
     Wrapper function to compute MD5 message digest.
 
-    @param digest [out]  Computed MD5 digest
-    @param buf    [in]   Message to be computed
-    @param len    [in]   Length of the message
-
-    @return              void
+    @param [out] digest Computed MD5 digest
+    @param [in] buf     Message to be computed
+    @param [in] len     Length of the message
 */
 void compute_md5_hash(char *digest, const char *buf, int len)
 {

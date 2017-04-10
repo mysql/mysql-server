@@ -2,6 +2,15 @@
 --source include/have_debug.inc
 --source include/have_profiling.inc
 
+########################################
+##### WL#7554 Force schema `test` to character set latin1
+##### This test should be migrated to utf8mb4
+--disable_query_log
+let $testdbcs68=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
+alter schema test default character set latin1;
+--enable_query_log
+########################################
+
 --echo #
 --echo # WL#6797 Method for clearing session state
 --echo #
@@ -62,11 +71,16 @@ set autocommit=0;
 set tx_isolation='SERIALIZABLE';
 set names 'big5';
 set max_join_size=100;
+# Setting max_join_size value to 1000 to fetch the below session variables as the 
+# rows returned are > 100
+set max_join_size=1000;
 SHOW SESSION VARIABLES like 'autocommit';
 SHOW SESSION VARIABLES like 'tx_isolation';
 SHOW SESSION VARIABLES like 'character_set_client';
 SHOW SESSION VARIABLES like 'character_set_connection';
 SHOW SESSION VARIABLES like 'max_join_size';
+# Restoring max_join_size value back to 100.
+set max_join_size=100;
 --reset_connection
 --echo resetconnection;
 SHOW SESSION VARIABLES like 'autocommit';
@@ -93,7 +107,9 @@ INSERT INTO newt VALUES (1),(2);
 SELECT * FROM newt ORDER BY 1;
 DELETE FROM newt;
 DROP TABLE newt;
+--replace_regex /[1-9][0-9]*/>0/
 SHOW STATUS like 'Table_open_cache_hits';
+--replace_regex /0/=0/ /[1-9][0-9]*/>0/
 SHOW STATUS like 'Opened_tables';
 --reset_connection
 --echo resetconnection;
@@ -217,3 +233,10 @@ SHOW PROFILES;
 
 --echo
 --echo End of tests
+
+########################################
+##### WL#7554 set schema `test` back to what it was
+--disable_query_log
+--eval alter schema test default character set $testdbcs68;
+--enable_query_log
+########################################

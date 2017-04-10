@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,18 +15,24 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include <mysys_err.h>
+#include <stdlib.h>
+#include <functional>
 #include <sstream>
 #include <vector>
-#include "abstract_options_provider.h"
-#include "mysql_connection_options.h"
-#include "abstract_program.h"
-#include <mysys_err.h>
 
+#include "abstract_options_provider.h"
+#include "abstract_program.h"
+#include "mysys_err.h"
+#include "mysql_connection_options.h"
+#include "typelib.h"
+
+using Mysql::Nullable;
 using Mysql::Tools::Base::Abstract_program;
 using namespace Mysql::Tools::Base::Options;
-using Mysql::Nullable;
-using std::vector;
+using std::placeholders::_1;
 using std::string;
+using std::vector;
 
 bool Mysql_connection_options::mysql_inited;
 
@@ -83,17 +89,17 @@ void Mysql_connection_options::create_options()
 #ifdef _WIN32
   this->create_new_option("pipe", "Use named pipes to connect to server.")
     ->set_short_character('W')
-    ->add_callback(new Instance_callback<void, char*, Mysql_connection_options>
-      (this, &Mysql_connection_options::pipe_protocol_callback));
+    ->add_callback(new std::function<void(char*)>(
+      std::bind(&Mysql_connection_options::pipe_protocol_callback, this, _1)));
 #endif
   this->create_new_option(&this->m_mysql_port, "port",
       "Port number to use for connection.")
     ->set_short_character('P');
   this->create_new_option(&this->m_protocol_string, "protocol",
       "The protocol to use for connection (tcp, socket, pipe, memory).")
-    ->add_callback(new Instance_callback<void, char*, Mysql_connection_options>
-    (this, &Mysql_connection_options::protocol_callback));
-#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
+    ->add_callback(new std::function<void(char*)>(
+      std::bind(&Mysql_connection_options::protocol_callback, this, _1)));
+#if defined (_WIN32)
   this->create_new_option(&this->m_shared_memory_base_name,
     "shared-memory-base-name", "Base name of shared memory.");
 #endif
@@ -103,8 +109,8 @@ void Mysql_connection_options::create_options()
   this->create_new_option(&this->m_secure_auth, "secure-auth",
       "Refuse client connecting to server if it uses old (pre-4.1.1) "
       "protocol. Deprecated. Always TRUE")
-    ->add_callback(new Instance_callback<void, char*, Mysql_connection_options>
-      (this, &Mysql_connection_options::secure_auth_callback));
+    ->add_callback(new std::function<void(char*)>(
+      std::bind(&Mysql_connection_options::secure_auth_callback, this, _1)));
   this->create_new_option(&this->m_user, "user",
     "User for login if not current user.")
     ->set_short_character('u');
@@ -131,7 +137,7 @@ MYSQL* Mysql_connection_options::create_connection()
   if (!this->m_secure_auth)
     mysql_options(connection,MYSQL_SECURE_AUTH,
       (char*)&this->m_secure_auth);
-#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
+#if defined (_WIN32)
   if (this->m_shared_memory_base_name.has_value())
     mysql_options(connection,MYSQL_SHARED_MEMORY_BASE_NAME,
       this->m_shared_memory_base_name.value().c_str());

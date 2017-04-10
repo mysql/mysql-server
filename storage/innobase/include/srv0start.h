@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -33,7 +33,7 @@ Created 10/10/1995 Heikki Tuuri
 // Forward declaration
 struct dict_table_t;
 
-#ifdef DBUG_OFF
+#ifndef UNIV_DEBUG
 # define RECOVERY_CRASH(x) do {} while(0)
 #else
 # define RECOVERY_CRASH(x) do {						\
@@ -44,7 +44,7 @@ struct dict_table_t;
 		_exit(3);						\
 	}								\
 } while (0)
-#endif /* DBUG_OFF */
+#endif /* UNIV_DEBUG */
 
 /** Log 'spaces' have id's >= this */
 #define SRV_LOG_SPACE_FIRST_ID		0xFFFFFFF0UL
@@ -75,25 +75,30 @@ srv_add_path_separator_if_needed(
 /*=============================*/
 	char*	str);	/*!< in: null-terminated character string */
 #ifndef UNIV_HOTBACKUP
-/****************************************************************//**
-Starts Innobase and creates a new database if database files
-are not found and the user wants.
+/** Start InnoDB.
+@param[in]	create_new_db	whether to create a new database
 @return DB_SUCCESS or error code */
 dberr_t
-innobase_start_or_create_for_mysql(void);
-/*====================================*/
-/****************************************************************//**
-Shuts down the Innobase database.
-@return DB_SUCCESS or error code */
-dberr_t
-innobase_shutdown_for_mysql(void);
+srv_start(
+	bool	create_new_db);
 
-/********************************************************************
-Signal all per-table background threads to shutdown, and wait for them to do
-so. */
+/** On a restart, initialize the remaining InnoDB subsystems so that
+any tables (including data dictionary tables) can be accessed. */
 void
-srv_shutdown_table_bg_threads(void);
-/*=============================*/
+srv_dict_recover_on_restart();
+
+/** Start up the remaining InnoDB service threads. */
+void
+srv_start_threads();
+
+/** Shut down all InnoDB background tasks that may look up objects in
+the data dictionary. */
+void
+srv_pre_dd_shutdown();
+
+/** Shut down the InnoDB database. */
+void
+srv_shutdown();
 
 /*************************************************************//**
 Copy the file path component of the physical file to parameter. It will
@@ -107,12 +112,7 @@ srv_path_copy(
 	ulint		dest_len,	/*!< in: max bytes to copy */
 	const char*	basedir,	/*!< in: base directory */
 	const char*	table_name)	/*!< in: source table name */
-	MY_ATTRIBUTE((nonnull, warn_unused_result));
-
-/**
-Shutdown all background threads created by InnoDB. */
-void
-srv_shutdown_all_bg_threads();
+	MY_ATTRIBUTE((warn_unused_result));
 
 /** Get the meta-data filename from the table name for a
 single-table tablespace.
@@ -141,19 +141,20 @@ extern	lsn_t	srv_shutdown_lsn;
 /** Log sequence number immediately after startup */
 extern	lsn_t	srv_start_lsn;
 
-/** TRUE if the server is being started */
+/** true if the server is being started */
 extern	bool	srv_is_being_started;
-/** TRUE if SYS_TABLESPACES is available for lookups */
+/** true if SYS_TABLESPACES is available for lookups */
 extern	bool	srv_sys_tablespaces_open;
-/** TRUE if the server was successfully started */
-extern	ibool	srv_was_started;
-/** TRUE if the server is being started, before rolling back any
+/** true if the server is being started, before rolling back any
 incomplete transactions */
 extern	bool	srv_startup_is_before_trx_rollback_phase;
+#ifdef UNIV_DEBUG
+/** true if srv_pre_dd_shutdown() has been completed */
+extern	bool	srv_is_being_shutdown;
+#endif /* UNIV_DEBUG */
 
 /** TRUE if a raw partition is in use */
 extern	ibool	srv_start_raw_disk_in_use;
-
 
 /** Shutdown state */
 enum srv_shutdown_t {
@@ -174,6 +175,12 @@ enum srv_shutdown_t {
 /** At a shutdown this value climbs from SRV_SHUTDOWN_NONE to
 SRV_SHUTDOWN_CLEANUP and then to SRV_SHUTDOWN_LAST_PHASE, and so on */
 extern	enum srv_shutdown_t	srv_shutdown_state;
+
 #endif /* !UNIV_HOTBACKUP */
+
+/** Call exit(3) */
+void
+srv_fatal_error()
+	MY_ATTRIBUTE((noreturn));
 
 #endif

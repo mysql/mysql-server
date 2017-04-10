@@ -587,6 +587,26 @@ DROP TABLE t;
 set sql_mode= @save_old_sql_mode;
 Warnings:
 Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+#
+# Bug#22157531 WITH NO MORE .FRM 64K LIMIT WE CAN CREATE MASSIVE TABLES,
+#              BUT TOO SLOWLY..
+#
+set @s:=concat("CREATE TABLE t(a LONGBLOB GENERATED ALWAYS AS
+('",REPEAT("a",1024*1024),"') STORED) ENGINE=INNODB;");
+PREPARE r FROM @s;
+EXECUTE r;
+DEALLOCATE PREPARE r;
+DROP TABLE t;
+#
+# Bug#22239803 WITH NO MORE .FRM 64K LIMIT WE CAN CREATE MASSIVE TABLES,
+#              BUT TOO SLOW (II)
+#
+set @s:=concat("CREATE TABLE t(w INT, A INT GENERATED ALWAYS
+AS('",REPEAT("\\0",1024*1024),"') STORED) ENGINE=INNODB;");
+PREPARE r FROM @s;
+EXECUTE r;
+DEALLOCATE PREPARE r;
+DROP TABLE t;
 # Bug#21875520 Problems with virtual column indexes
 CREATE TABLE t(
 a TIMESTAMP,
@@ -626,3 +646,137 @@ SELECT 1 FROM t WHERE c GROUP BY b;
 1
 COMMIT;
 DROP TABLE t;
+#
+# bug#21982792: TOO MUCH SPAM: 'GOT ERROR 1 WHEN READING TABLE'
+#
+CREATE TABLE t (
+a INT GENERATED ALWAYS AS (1) VIRTUAL NOT NULL,
+b DATE GENERATED ALWAYS AS (1) VIRTUAL NOT NULL,
+KEY(b)
+);
+SET @old_sql_mode=@@sql_mode;
+SET sql_mode='';
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+INSERT INTO t VALUES();
+Warnings:
+Warning	1265	Data truncated for column 'b' at row 1
+SET sql_mode= STRICT_ALL_TABLES;
+Warnings:
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
+DELETE d2 FROM t AS d1, t AS d2 WHERE d1.a = d2.b;
+ERROR 22007: Incorrect date value: '1' for column 'b' at row 1
+DROP TABLE t;
+SET sql_mode=@old_sql_mode;
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+CREATE TABLE t (
+a INT,
+b INT GENERATED ALWAYS AS (1),
+KEY i(a,b)
+);
+INSERT INTO t (a) VALUES(1), (2);
+SELECT 1 FROM t a RIGHT JOIN t USING(b)
+WHERE 1 NOT LIKE(SELECT a FROM t WHERE a.b);
+ERROR 21000: Subquery returns more than 1 row
+DROP TABLE t;
+# Bug#22748217 gcols: assert in Item_func_in::resolve_type
+SET @old_sql_mode= @@sql_mode;
+SET sql_mode="";
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+CREATE TABLE t (a TIMESTAMP AS (0) VIRTUAL) engine=innodb;
+ALTER TABLE t ADD COLUMN b JSON AS (a NOT IN (1,1)) STORED;
+ERROR 22007: Incorrect datetime value: '1' for column 'a' at row 1
+DROP TABLE t;
+SET sql_mode= @old_sql_mode;
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+#
+# Bug#22987899: ALTER TABLE MODIFY COLUMN DOES NOT SET
+#               ALTER_CHANGE_COLUMN_DEFAULT FLAG
+#
+CREATE TABLE t1(
+a INTEGER DEFAULT 5,
+b INTEGER NOT NULL,
+gc1 INTEGER AS (a + DEFAULT(a)) VIRTUAL,
+gc2 INTEGER AS (a + DEFAULT(a)) STORED,
+KEY k1(gc1)
+);
+INSERT INTO t1(a, b) VALUES (1 ,1);
+SELECT * FROM t1;
+a	b	gc1	gc2
+1	1	6	6
+SELECT gc1 FROM t1;
+gc1
+6
+ALTER TABLE t1 MODIFY COLUMN a INT DEFAULT 6;
+affected rows: 1
+info: Records: 1  Duplicates: 0  Warnings: 0
+SELECT * FROM t1;
+a	b	gc1	gc2
+1	1	7	7
+SELECT gc1 FROM t1;
+gc1
+7
+ALTER TABLE t1 MODIFY COLUMN b INTEGER NULL;
+affected rows: 0
+info: Records: 0  Duplicates: 0  Warnings: 0
+SELECT * FROM t1;
+a	b	gc1	gc2
+1	1	7	7
+SELECT gc1 FROM t1;
+gc1
+7
+DROP TABLE t1;
+#
+# Bug#22991924 GCOLS: UTF16 STRING OPERATIONS GIVE DOUBLED \0\0 STRINGS
+# ON EACH TABLE REBUILD
+#
+CREATE TABLE t1 (
+a TEXT CHARSET utf16,
+b BLOB GENERATED ALWAYS AS ( concat( 'ABC', a ) ) VIRTUAL
+);
+# Results change due to bug fix.
+INSERT INTO t1 ( a ) VALUES ( 'abc' );
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` text CHARACTER SET utf16,
+  `b` blob GENERATED ALWAYS AS (concat(_utf16'\0A\0B\0C',`a`)) VIRTUAL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+SELECT HEX(b) FROM t1;
+HEX(b)
+004100420043006100620063
+OPTIMIZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
+test.t1	optimize	status	OK
+SELECT HEX(b) FROM t1;
+HEX(b)
+004100420043006100620063
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` text CHARACTER SET utf16,
+  `b` blob GENERATED ALWAYS AS (concat(_utf16'\0A\0B\0C',`a`)) VIRTUAL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+SELECT
+length( convert( b USING utf8 ) ),
+char_length ( convert( b USING utf8 ) )
+FROM t1;
+length( convert( b USING utf8 ) )	char_length ( convert( b USING utf8 ) )
+12	12
+SELECT
+length( convert( b USING utf16 ) ),
+char_length ( convert( b USING utf16 ) )
+FROM t1;
+length( convert( b USING utf16 ) )	char_length ( convert( b USING utf16 ) )
+12	6
+SELECT
+length( convert( b USING latin1 ) ),
+char_length ( convert( b USING latin1 ) )
+FROM t1;
+length( convert( b USING latin1 ) )	char_length ( convert( b USING latin1 ) )
+12	12
+DROP TABLE t1;

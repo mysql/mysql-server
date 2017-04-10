@@ -1,8 +1,8 @@
 #************************************************************
 # WL6045:Improve Innochecksum
 #************************************************************
---source include/have_innodb.inc
---source include/have_innodb_zip.inc
+--source include/have_innodb_max_16k.inc
+--source include/have_no_undo_tablespaces.inc
 
 # Valgrind would complain about memory leaks when we crash on purpose.
 --source include/not_valgrind.inc
@@ -78,7 +78,7 @@ foreach (glob("$ENV{MYSQLD_DATADIR}/*/*.ibd")) {
 EOF
 
 --echo : start the server with innodb_checksum_algorithm=strict_innodb
---let restart_options= : --innodb_checksum_algorithm=strict_innodb --default_storage_engine=InnoDB
+--let restart_parameters=restart: --innodb_checksum_algorithm=strict_innodb --default_storage_engine=InnoDB
 --source include/start_mysqld.inc
 
 INSERT INTO tab1 (pk, linestring_key, linestring_nokey)
@@ -118,7 +118,7 @@ foreach (glob("$ENV{MYSQLD_DATADIR}/*/*.ibd")) {
 EOF
 
 --echo # start the server with innodb_checksum_algorithm=strict_crc32
---let restart_options= : --innodb_checksum_algorithm=strict_crc32 --default_storage_engine=InnoDB
+--let restart_parameters=restart: --innodb_checksum_algorithm=strict_crc32 --default_storage_engine=InnoDB
 --source include/start_mysqld.inc
 
 # check the table status is GOOD with DML
@@ -206,13 +206,16 @@ SELECT * FROM tab2 ORDER BY col_7;
 --remove_file $MYSQLTEST_VARDIR/tmp/page_summary_short.txt
 --remove_file $MYSQLTEST_VARDIR/tmp/page_summary_long.txt
 --echo [4]: Page type dump for  with longform for tab1.ibd
+--replace_result $MYSQLD_DATADIR MYSQL_DATADIR
 --exec $INNOCHECKSUM --page-type-dump $MYSQLTEST_VARDIR/tmp/dump.txt $MYSQLD_DATADIR/test/tab1.ibd
 
 perl;
 use strict;
 use warnings;
 use File::Copy;
-my $dir = $ENV{'MYSQLTEST_VARDIR'};
+my $dir = $ENV{'MYSQLTEST_VARDIR'} or die $!;
+my $datadir=$ENV{'MYSQLD_DATADIR'};
+$datadir =~ s/\\/\//g;
 opendir(DIR, $dir) or die $!;
 my $file= 'dump.txt';
 # open file in write mode
@@ -220,10 +223,16 @@ open IN_FILE,"<", "$dir/tmp/$file" or die $!;
 open OUT_FILE, ">", "$dir/tmp/tmpfile" or die $!;
 while(<IN_FILE>)
 {
- # Replace the intergers to # and complete file patht to file name only.
- $_=~ s/Filename.+/Filename::tab1.ibd/g;
- $_=~ s/\d+/#/g;
- print OUT_FILE $_;
+ # Replace the integers to # and complete file path to file name only.
+ # We exclude Inode Page here because this will cause result content
+ # mismatch on 4k page size
+  unless (/Inode page/) {
+   s/\\/\//g;
+   s/$datadir/MYSQLD_DATADIR/g;
+   s/\s*[1-9][0-9]*\s*/#/g;
+   s/\s+0\s+/0/g;
+   print OUT_FILE;
+ }
 }
 close(IN_FILE);
 close(OUT_FILE);
@@ -249,6 +258,8 @@ use strict;
 use warnings;
 use File::Copy;
 my $dir = $ENV{'MYSQLTEST_VARDIR'};
+my $datadir=$ENV{'MYSQLD_DATADIR'};
+$datadir =~ s/\\/\//g;
 opendir(DIR, $dir) or die $!;
 my $file= 'dump.txt';
 # open file in write mode
@@ -256,10 +267,16 @@ open IN_FILE,"<", "$dir/tmp/$file" or die $!;
 open OUT_FILE, ">", "$dir/tmp/tmpfile" or die $!;
 while(<IN_FILE>)
 {
- # Replace teh intergers to # and complete file patht to file name only.
- $_=~ s/Filename.+/Filename::tab1.ibd/g;
- $_=~ s/\d+/#/g;
- print OUT_FILE $_;
+ # Replace the integers to # and complete file path to file name only.
+ # We exclude Inode Page here because this will cause result content
+ # mismatch on 4k page size
+ unless (/Inode page/) {
+   s/\\/\//g;
+   s/$datadir/MYSQLD_DATADIR/g;
+   s/\s*[1-9][0-9]*\s*/#/g;
+   s/\s+0\s+/0/g;
+   print OUT_FILE;
+ }
 }
 close(IN_FILE);
 close(OUT_FILE);

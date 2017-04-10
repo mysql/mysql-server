@@ -47,5 +47,5 @@ i
 3
 show status like 'Slow_queries'||||
 Variable_name	Value
-Slow_queries	2
+Slow_queries	3
 drop table t1||||

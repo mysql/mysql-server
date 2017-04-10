@@ -73,9 +73,9 @@ Mysqlx.Resultset.ColumnMetaData {
   original_table: "actor"
   schema: "minisakila"
   catalog: "def"
-  collation: 8
+  collation: 255
   fractional_digits: 0
-  length: 45
+  length: 180
   flags: 16
 }
 
@@ -87,9 +87,9 @@ Mysqlx.Resultset.ColumnMetaData {
   original_table: "actor"
   schema: "minisakila"
   catalog: "def"
-  collation: 8
+  collation: 255
   fractional_digits: 0
-  length: 45
+  length: 180
   flags: 16
 }
 
@@ -759,7 +759,7 @@ send Mysqlx.Crud.Find {
   }
 }
 
-Got expected error: Table 'noavailableschema.actor' doesn't exist (code 1146)
+Got expected error: Unknown database 'noavailableschema' (code 1049)
 Find using not available table name
 send Mysqlx.Crud.Find {
   collection {
@@ -1405,7 +1405,7 @@ send Mysqlx.Crud.Find {
   }
 }
 
-Got expected error: Table 'notavailableschema.maincoll' doesn't exist (code 1146)
+Got expected error: Unknown database 'notavailableschema' (code 1049)
 Find with not available table name
 send Mysqlx.Crud.Find {
   collection {

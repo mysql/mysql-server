@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2011, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2011, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -23,26 +23,29 @@ Implements a buffer pool dump/load.
 Created April 08, 2011 Vasil Dimov
 *******************************************************/
 
-#include "my_global.h"
-#include "my_sys.h"
-#include "my_thread.h"
-
-#include "mysql/psi/mysql_stage.h"
-#include "mysql/psi/psi.h"
-
-#include "univ.i"
+#include <errno.h>
+#include <stdarg.h>
+#include <stdio.h>
+#include <algorithm>
 
 #include "buf0buf.h"
 #include "buf0dump.h"
 #include "dict0dict.h"
+#include "my_compiler.h"
+#include "my_inttypes.h"
+#include "my_io.h"
+#include "my_psi_config.h"
+#include "my_sys.h"
+#include "my_thread.h"
+#include "mysql/psi/mysql_stage.h"
 #include "os0file.h"
+#include "os0thread-create.h"
 #include "os0thread.h"
 #include "srv0srv.h"
 #include "srv0start.h"
 #include "sync0rw.h"
+#include "univ.i"
 #include "ut0byte.h"
-
-#include <algorithm>
 
 enum status_severity {
 	STATUS_VERBOSE,
@@ -60,15 +63,15 @@ static ibool	buf_load_should_start = FALSE;
 static ibool	buf_load_abort_flag = FALSE;
 
 /* Used to temporary store dump info in order to avoid IO while holding
-buffer pool mutex during dump and also to sort the contents of the dump
-before reading the pages from disk during load.
+buffer pool LRU list mutex during dump and also to sort the contents of the
+dump before reading the pages from disk during load.
 We store the space id in the high 32 bits and page no in low 32 bits. */
 typedef ib_uint64_t	buf_dump_t;
 
 /* Aux macros to create buf_dump_t and to extract space and page from it */
 #define BUF_DUMP_CREATE(space, page)	ut_ull_create(space, page)
-#define BUF_DUMP_SPACE(a)		((ulint) ((a) >> 32))
-#define BUF_DUMP_PAGE(a)		((ulint) ((a) & 0xFFFFFFFFUL))
+#define BUF_DUMP_SPACE(a)	static_cast<space_id_t>((a) >> 32)
+#define BUF_DUMP_PAGE(a)	static_cast<page_no_t>((a) & 0xFFFFFFFFUL)
 
 /*****************************************************************//**
 Wakes up the buffer pool dump/load thread and instructs it to start
@@ -101,11 +104,11 @@ Sets the global variable that feeds MySQL's innodb_buffer_pool_dump_status
 to the specified string. The format and the following parameters are the
 same as the ones used for printf(3). The value of this variable can be
 retrieved by:
-SELECT variable_value FROM information_schema.global_status WHERE
+SELECT variable_value FROM performance_schema.global_status WHERE
 variable_name = 'INNODB_BUFFER_POOL_DUMP_STATUS';
 or by:
 SHOW STATUS LIKE 'innodb_buffer_pool_dump_status'; */
-static MY_ATTRIBUTE((nonnull, format(printf, 2, 3)))
+static MY_ATTRIBUTE((format(printf, 2, 3)))
 void
 buf_dump_status(
 /*============*/
@@ -144,11 +147,11 @@ Sets the global variable that feeds MySQL's innodb_buffer_pool_load_status
 to the specified string. The format and the following parameters are the
 same as the ones used for printf(3). The value of this variable can be
 retrieved by:
-SELECT variable_value FROM information_schema.global_status WHERE
+SELECT variable_value FROM performance_schema.global_status WHERE
 variable_name = 'INNODB_BUFFER_POOL_LOAD_STATUS';
 or by:
 SHOW STATUS LIKE 'innodb_buffer_pool_load_status'; */
-static MY_ATTRIBUTE((nonnull, format(printf, 2, 3)))
+static MY_ATTRIBUTE((format(printf, 2, 3)))
 void
 buf_load_status(
 /*============*/
@@ -211,7 +214,7 @@ buf_dump_generate_path(
 {
 	char	buf[FN_REFLEN];
 
-	ut_snprintf(buf, sizeof(buf), "%s%c%s", get_buf_dump_dir(),
+	snprintf(buf, sizeof(buf), "%s%c%s", get_buf_dump_dir(),
 		    OS_PATH_SEPARATOR, srv_buf_dump_filename);
 
 	os_file_type_t	type;
@@ -238,11 +241,11 @@ buf_dump_generate_path(
 		if (srv_data_home_full[strlen(srv_data_home_full) - 1]
 		    == OS_PATH_SEPARATOR) {
 
-			ut_snprintf(path, path_size, "%s%s",
+			snprintf(path, path_size, "%s%s",
 				    srv_data_home_full,
 				    srv_buf_dump_filename);
 		} else {
-			ut_snprintf(path, path_size, "%s%c%s",
+			snprintf(path, path_size, "%s%c%s",
 				    srv_data_home_full,
 				    OS_PATH_SEPARATOR,
 				    srv_buf_dump_filename);
@@ -250,18 +253,16 @@ buf_dump_generate_path(
 	}
 }
 
-/*****************************************************************//**
-Perform a buffer pool dump into the file specified by
+/** Perform a buffer pool dump into the file specified by
 innodb_buffer_pool_filename. If any errors occur then the value of
 innodb_buffer_pool_dump_status will be set accordingly, see buf_dump_status().
 The dump filename can be specified by (relative to srv_data_home):
-SET GLOBAL innodb_buffer_pool_filename='filename'; */
+SET GLOBAL innodb_buffer_pool_filename='filename';
+@param[in]	obey_shutdown	quit if we are in a shutting down state */
 static
 void
 buf_dump(
-/*=====*/
-	ibool	obey_shutdown)	/*!< in: quit if we are in a shutting down
-				state */
+	ibool	obey_shutdown)
 {
 #define SHOULD_QUIT()	(SHUTTING_DOWN() && obey_shutdown)
 
@@ -274,7 +275,7 @@ buf_dump(
 
 	buf_dump_generate_path(full_filename, sizeof(full_filename));
 
-	ut_snprintf(tmp_filename, sizeof(tmp_filename),
+	snprintf(tmp_filename, sizeof(tmp_filename),
 		    "%s.incomplete", full_filename);
 
 	buf_dump_status(STATUS_INFO, "Dumping buffer pool(s) to %s",
@@ -299,15 +300,15 @@ buf_dump(
 
 		buf_pool = buf_pool_from_array(i);
 
-		/* obtain buf_pool mutex before allocate, since
+		/* obtain buf_pool LRU list mutex before allocate, since
 		UT_LIST_GET_LEN(buf_pool->LRU) could change */
-		buf_pool_mutex_enter(buf_pool);
+		mutex_enter(&buf_pool->LRU_list_mutex);
 
 		n_pages = UT_LIST_GET_LEN(buf_pool->LRU);
 
 		/* skip empty buffer pools */
 		if (n_pages == 0) {
-			buf_pool_mutex_exit(buf_pool);
+			mutex_exit(&buf_pool->LRU_list_mutex);
 			continue;
 		}
 
@@ -325,7 +326,7 @@ buf_dump(
 				n_pages * sizeof(*dump)));
 
 		if (dump == NULL) {
-			buf_pool_mutex_exit(buf_pool);
+			mutex_exit(&buf_pool->LRU_list_mutex);
 			fclose(f);
 			buf_dump_status(STATUS_ERR,
 					"Cannot allocate " ULINTPF " bytes: %s",
@@ -347,10 +348,10 @@ buf_dump(
 
 		ut_a(j == n_pages);
 
-		buf_pool_mutex_exit(buf_pool);
+		mutex_exit(&buf_pool->LRU_list_mutex);
 
 		for (j = 0; j < n_pages && !SHOULD_QUIT(); j++) {
-			ret = fprintf(f, ULINTPF "," ULINTPF "\n",
+			ret = fprintf(f, SPACE_ID_PF "," PAGE_NO_PF "\n",
 				      BUF_DUMP_SPACE(dump[j]),
 				      BUF_DUMP_PAGE(dump[j]));
 			if (ret < 0) {
@@ -415,21 +416,22 @@ buf_dump(
 			"Buffer pool(s) dump completed at %s", now);
 }
 
-/*****************************************************************//**
-Artificially delay the buffer pool loading if necessary. The idea of
-this function is to prevent hogging the server with IO and slowing down
-too much normal client queries. */
+/** Artificially delay the buffer pool loading if necessary. The idea of this
+function is to prevent hogging the server with IO and slowing down too much
+normal client queries.
+@param[in,out]	last_check_time		milliseconds since epoch of the last
+					time we did check if throttling is
+					needed, we do the check every
+					srv_io_capacity IO ops.
+@param[in]	last_activity_count	activity count
+@param[in]	n_io			number of IO ops done since buffer
+					pool load has started */
 UNIV_INLINE
 void
 buf_load_throttle_if_needed(
-/*========================*/
-	ulint*	last_check_time,	/*!< in/out: milliseconds since epoch
-					of the last time we did check if
-					throttling is needed, we do the check
-					every srv_io_capacity IO ops. */
+	ulint*	last_check_time,
 	ulint*	last_activity_count,
-	ulint	n_io)			/*!< in: number of IO ops done since
-					buffer pool load has started */
+	ulint	n_io)
 {
 	if (n_io % srv_io_capacity < srv_io_capacity - 1) {
 		return;
@@ -638,7 +640,7 @@ buf_load()
 	/* Avoid calling the expensive fil_space_acquire_silent() for each
 	page within the same tablespace. dump[] is sorted by (space, page),
 	so all pages from a given tablespace are consecutive. */
-	ulint		cur_space_id = BUF_DUMP_SPACE(dump[0]);
+	space_id_t	cur_space_id = BUF_DUMP_SPACE(dump[0]);
 	fil_space_t*	space = fil_space_acquire_silent(cur_space_id);
 	page_size_t	page_size(space ? space->flags : 0);
 
@@ -653,7 +655,7 @@ buf_load()
 	for (i = 0; i < dump_n && !SHUTTING_DOWN(); i++) {
 
 		/* space_id for this iteration of the loop */
-		const ulint	this_space_id = BUF_DUMP_SPACE(dump[i]);
+		const space_id_t this_space_id = BUF_DUMP_SPACE(dump[i]);
 
 		if (this_space_id != cur_space_id) {
 			if (space != NULL) {
@@ -749,23 +751,15 @@ buf_load_abort()
 	buf_load_abort_flag = TRUE;
 }
 
-/*****************************************************************//**
-This is the main thread for buffer pool dump/load. It waits for an
+/** This is the main thread for buffer pool dump/load. It waits for an
 event and when waked up either performs a dump or load and sleeps
-again.
-@return this function does not return, it calls os_thread_exit() */
-extern "C"
-os_thread_ret_t
-DECLARE_THREAD(buf_dump_thread)(
-/*============================*/
-	void*	arg MY_ATTRIBUTE((unused)))	/*!< in: a dummy parameter
-						required by os_thread_create */
+again. */
+void
+buf_dump_thread()
 {
 	ut_ad(!srv_read_only_mode);
 
-#ifdef UNIV_PFS_THREAD
-	pfs_register_thread(buf_dump_thread_key);
-#endif /* UNIV_PFS_THREAD */
+	my_thread_init();
 
 	srv_buf_dump_thread_active = TRUE;
 
@@ -800,9 +794,5 @@ DECLARE_THREAD(buf_dump_thread)(
 
 	srv_buf_dump_thread_active = FALSE;
 
-	/* We count the number of threads in os_thread_exit(). A created
-	thread should always use that to exit and not use return() to exit. */
-	os_thread_exit();
-
-	OS_THREAD_DUMMY_RETURN;
+	my_thread_end();
 }

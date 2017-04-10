@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -21,13 +21,17 @@
   Table HOST_CACHE (declarations).
 */
 
+#include <sys/types.h>
+
+#include "my_inttypes.h"
 #include "pfs_column_types.h"
 #include "pfs_engine_table.h"
+#include "table_helper.h"
 
 class Host_entry;
 
 /**
-  @addtogroup Performance_schema_tables
+  @addtogroup performance_schema_tables
   @{
 */
 
@@ -96,35 +100,87 @@ struct row_host_cache
   ulonglong m_last_error_seen;
 };
 
+class PFS_index_host_cache : public PFS_engine_index
+{
+public:
+  PFS_index_host_cache(PFS_engine_key *key_1) : PFS_engine_index(key_1)
+  {
+  }
+
+  ~PFS_index_host_cache()
+  {
+  }
+
+  virtual bool match(const row_host_cache *row) = 0;
+};
+
+class PFS_index_host_cache_by_ip : public PFS_index_host_cache
+{
+public:
+  PFS_index_host_cache_by_ip() : PFS_index_host_cache(&m_key), m_key("IP")
+  {
+  }
+
+  ~PFS_index_host_cache_by_ip()
+  {
+  }
+
+  bool match(const row_host_cache *row);
+
+private:
+  PFS_key_ip m_key;
+};
+
+class PFS_index_host_cache_by_host : public PFS_index_host_cache
+{
+public:
+  PFS_index_host_cache_by_host() : PFS_index_host_cache(&m_key), m_key("HOST")
+  {
+  }
+
+  ~PFS_index_host_cache_by_host()
+  {
+  }
+
+  bool match(const row_host_cache *row);
+
+private:
+  PFS_key_host m_key;
+};
+
 /** Table PERFORMANCE_SCHEMA.HOST_CACHE. */
 class table_host_cache : public PFS_engine_table
 {
 public:
   /** Table share. */
   static PFS_engine_table_share m_share;
-  static PFS_engine_table* create();
+  static PFS_engine_table *create();
   static int delete_all_rows();
   static ha_rows get_row_count();
 
+  virtual void reset_position(void);
+
   virtual int rnd_next();
   virtual int rnd_pos(const void *pos);
-  virtual void reset_position(void);
+
+  virtual int index_init(uint idx, bool sorted);
+  virtual int index_next();
 
 protected:
   virtual int read_row_values(TABLE *table,
                               unsigned char *buf,
                               Field **fields,
                               bool read_all);
-
   table_host_cache();
 
 public:
   ~table_host_cache()
-  {}
+  {
+  }
 
 private:
   void materialize(THD *thd);
-  static void make_row(Host_entry *entry, row_host_cache *row);
+  static int make_row(Host_entry *entry, row_host_cache *row);
 
   /** Table share lock. */
   static THR_LOCK m_table_lock;
@@ -139,6 +195,8 @@ private:
   PFS_simple_index m_pos;
   /** Next position. */
   PFS_simple_index m_next_pos;
+
+  PFS_index_host_cache *m_opened_index;
 };
 
 /** @} */

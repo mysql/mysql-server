@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,10 +14,12 @@
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #include "sql_service_context.h"
+
+#include "my_dbug.h"
 #include "plugin_log.h"
 
 
-int Sql_service_context::start_result_metadata(uint ncols, uint flags,
+int Sql_service_context::start_result_metadata(uint ncols, uint,
                                            const CHARSET_INFO *resultcs)
 {
   DBUG_ENTER("Sql_service_context::start_result_metadata");
@@ -31,7 +33,7 @@ int Sql_service_context::start_result_metadata(uint ncols, uint flags,
 }
 
 int Sql_service_context::field_metadata(struct st_send_field *field,
-                                    const CHARSET_INFO *charset)
+                                        const CHARSET_INFO*)
 {
   DBUG_ENTER("Sql_service_context::field_metadata");
   DBUG_PRINT("info",("field->flags: %d", (int)field->flags));
@@ -51,8 +53,7 @@ int Sql_service_context::field_metadata(struct st_send_field *field,
   DBUG_RETURN(0);
 }
 
-int Sql_service_context::end_result_metadata(uint server_status,
-                                         uint warn_count)
+int Sql_service_context::end_result_metadata(uint, uint)
 {
   DBUG_ENTER("Sql_service_context::end_result_metadata");
   DBUG_RETURN(0);
@@ -119,8 +120,7 @@ int Sql_service_context::get_decimal(const decimal_t * value)
   DBUG_RETURN(0);
 }
 
-int Sql_service_context::get_double(double value,
-                                uint32 decimals)
+int Sql_service_context::get_double(double value, uint32)
 {
   DBUG_ENTER("Sql_service_context::get_double");
   if (resultset)
@@ -136,8 +136,7 @@ int Sql_service_context::get_date(const MYSQL_TIME * value)
   DBUG_RETURN(0);
 }
 
-int Sql_service_context::get_time(const MYSQL_TIME * value,
-                              uint decimals)
+int Sql_service_context::get_time(const MYSQL_TIME * value, uint)
 {
   DBUG_ENTER("Sql_service_context::get_time");
   if (resultset)
@@ -145,8 +144,7 @@ int Sql_service_context::get_time(const MYSQL_TIME * value,
   DBUG_RETURN(0);
 }
 
-int Sql_service_context::get_datetime(const MYSQL_TIME * value,
-                                  uint decimals)
+int Sql_service_context::get_datetime(const MYSQL_TIME * value, uint)
 {
   DBUG_ENTER("Sql_service_context::get_datetime");
   if (resultset)
@@ -156,8 +154,8 @@ int Sql_service_context::get_datetime(const MYSQL_TIME * value,
 
 
 int Sql_service_context::get_string(const char * const value,
-                                size_t length,
-                                const CHARSET_INFO * const valuecs)
+                                    size_t length,
+                                    const CHARSET_INFO * const)
 {
   DBUG_ENTER("Sql_service_context::get_string");
   DBUG_PRINT("info",("value: %s", value));
@@ -204,7 +202,7 @@ void Sql_service_context::handle_error(uint sql_errno,
 }
 
 
-void Sql_service_context::shutdown(int flag)
+void Sql_service_context::shutdown(int)
 {
   DBUG_ENTER("Sql_service_context::shutdown");
   if (resultset)

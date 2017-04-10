@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2012, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -24,7 +24,7 @@
 #include <AttributeHeader.hpp>
 #include <IntrusiveList.hpp>
 #include <ArenaPool.hpp>
-#include <DataBuffer2.hpp>
+#include <DataBuffer.hpp>
 #include <Bitmask.hpp>
 #include <signaldata/DbspjErr.hpp>
 #include "../dbtup/tuppage.hpp"
@@ -43,6 +43,8 @@ public:
   Dbspj(Block_context& ctx, Uint32 instanceNumber = 0);
   virtual ~Dbspj();
 
+  struct Request;
+  struct TreeNode;
 private:
   BLOCK_DEFINES(Dbspj);
 
@@ -64,8 +66,6 @@ private:
 
   void execDIH_SCAN_TAB_REF(Signal*);
   void execDIH_SCAN_TAB_CONF(Signal*);
-  void execDIH_SCAN_GET_NODES_REF(Signal*);
-  void execDIH_SCAN_GET_NODES_CONF(Signal*);
 
   void execSIGNAL_DROPPED_REP(Signal*);
 
@@ -98,15 +98,13 @@ protected:
   //virtual bool getParam(const char* name, Uint32* count);
 
 public:
-  struct Request;
-  struct TreeNode;
   struct ScanFragHandle;
-  typedef DataBuffer2<14, LocalArenaPoolImpl> Correlation_list;
-  typedef LocalDataBuffer2<14, LocalArenaPoolImpl> Local_correlation_list;
-  typedef DataBuffer2<14, LocalArenaPoolImpl> Dependency_map;
-  typedef LocalDataBuffer2<14, LocalArenaPoolImpl> Local_dependency_map;
-  typedef DataBuffer2<14, LocalArenaPoolImpl> PatternStore;
-  typedef LocalDataBuffer2<14, LocalArenaPoolImpl> Local_pattern_store;
+  typedef DataBuffer<14, LocalArenaPool<DataBufferSegment<14> > > Correlation_list;
+  typedef LocalDataBuffer<14, LocalArenaPool<DataBufferSegment<14> > > Local_correlation_list;
+  typedef DataBuffer<14, LocalArenaPool<DataBufferSegment<14> > > Dependency_map;
+  typedef LocalDataBuffer<14, LocalArenaPool<DataBufferSegment<14> > > Local_dependency_map;
+  typedef DataBuffer<14, LocalArenaPool<DataBufferSegment<14> > > PatternStore;
+  typedef LocalDataBuffer<14, LocalArenaPool<DataBufferSegment<14> > > Local_pattern_store;
   typedef Bitmask<(NDB_SPJ_MAX_TREE_NODES+31)/32> TreeNodeBitMask;
 
   /* *********** TABLE RECORD ********************************************* */
@@ -131,6 +129,8 @@ public:
       TR_ENABLED      = 1 << 0,
       TR_DROPPING     = 1 << 1,
       TR_PREPARED     = 1 << 2
+      ,TR_READ_BACKUP = (1 << 5)
+      ,TR_FULLY_REPLICATED = (1 << 6)
     };
     Uint8 get_enabled()     const { return (m_flags & TR_ENABLED)      != 0; }
     Uint8 get_dropping()    const { return (m_flags & TR_DROPPING)     != 0; }
@@ -473,6 +473,11 @@ public:
     Uint32 m_data[GLOBAL_PAGE_SIZE_WORDS - 7];
     STATIC_CONST( SIZE = GLOBAL_PAGE_SIZE_WORDS - 7 );
   };
+  typedef ArrayPool<RowPage> RowPage_pool;
+  typedef SLList<RowPage, RowPage_pool> RowPage_list;
+  typedef LocalSLList<RowPage, RowPage_pool> Local_RowPage_list;
+  typedef DLFifoList<RowPage, RowPage_pool> RowPage_fifo;
+  typedef LocalDLFifoList<RowPage, RowPage_pool> Local_RowPage_fifo;
 
   typedef Tup_varsize_page Var_page;
 
@@ -481,11 +486,11 @@ public:
     enum Buffer_type m_type;
 
     RowBuffer() : m_type(BUFFER_VOID) {}
-    DLFifoList<RowPage>::Head m_page_list;
+    RowPage_fifo::Head m_page_list;
 
     void init(enum Buffer_type type)
     {
-      new (&m_page_list) DLFifoList<RowPage>::Head();
+      new (&m_page_list) RowPage_fifo::Head();
       m_type = type;
       reset();
     }
@@ -548,10 +553,10 @@ public:
     void (Dbspj::*m_start)(Signal*, Ptr<Request>, Ptr<TreeNode>);
 
     /**
-     * This function is used when getting a TRANSID_AI
+     * This function is called when a waited for signal arrives.
+     * Return 'true' if this completes the wait for this treeNode
      */
-    void (Dbspj::*m_execTRANSID_AI)(Signal*,Ptr<Request>,Ptr<TreeNode>,
-				    const RowPtr&);
+    bool (Dbspj::*m_countSignal)(const Signal*,Ptr<Request>,Ptr<TreeNode>);
 
     /**
      * This function is used when getting a LQHKEYREF
@@ -624,6 +629,20 @@ public:
      *  should only do local cleanup(s)
      */
     void (Dbspj::*m_cleanup)(Ptr<Request>, Ptr<TreeNode>);
+
+    /**
+     * This function is called to check the node validity within
+     * the request during debug execution
+     */
+    bool (Dbspj::*m_checkNode)(const Ptr<Request>, const Ptr<TreeNode>);
+
+    /**
+     * This function is called to dump request info to the node
+     * log for debugging purposes.  It should be used for
+     * treenode type-specific data, the generic treenode info
+     * is handled by dumpNodeCommon()
+     */
+    void (Dbspj::*m_dumpNode)(const Ptr<Request>, const Ptr<TreeNode>);
   };  //struct OpInfo
 
   struct LookupData
@@ -658,18 +677,21 @@ public:
       SFH_WAIT_CLOSE   = 4
     };
 
-    void init(Uint32 fid) {
+    void init(Uint32 fid, bool readBackup)
+    {
       m_ref = 0;
       m_fragId = fid;
       m_state = SFH_NOT_STARTED;
       m_rangePtrI = RNIL;
+      m_readBackup = readBackup;
       reset_ranges();
     }
 
     Uint32 m_magic;
     Uint32 m_treeNodePtrI;
     Uint16 m_fragId;
-    Uint16 m_state;
+    Uint8 m_state;
+    Uint8 m_readBackup;
     Uint32 m_ref;
 
     void reset_ranges() {
@@ -688,9 +710,9 @@ public:
     };
   };
 
-  typedef RecordPool<ScanFragHandle, ArenaPool> ScanFragHandle_pool;
-  typedef SLFifoListImpl<ScanFragHandle_pool, ScanFragHandle> ScanFragHandle_list;
-  typedef LocalSLFifoListImpl<ScanFragHandle_pool, ScanFragHandle> Local_ScanFragHandle_list;
+  typedef RecordPool<ScanFragHandle, ArenaPool<ScanFragHandle> > ScanFragHandle_pool;
+  typedef SLFifoList<ScanFragHandle, ScanFragHandle_pool> ScanFragHandle_list;
+  typedef LocalSLFifoList<ScanFragHandle, ScanFragHandle_pool> Local_ScanFragHandle_list;
 
   /**
    * This class computes mean and standard deviation incrementally for a series
@@ -1044,13 +1066,13 @@ public:
 
   static const Ptr<TreeNode> NullTreeNodePtr;
 
-  typedef RecordPool<TreeNode, ArenaPool> TreeNode_pool;
-  typedef DLFifoListImpl<TreeNode_pool, TreeNode> TreeNode_list;
-  typedef LocalDLFifoListImpl<TreeNode_pool, TreeNode> Local_TreeNode_list;
+  typedef RecordPool<TreeNode, ArenaPool<TreeNode> > TreeNode_pool;
+  typedef DLFifoList<TreeNode, TreeNode_pool> TreeNode_list;
+  typedef LocalDLFifoList<TreeNode, TreeNode_pool> Local_TreeNode_list;
 
-  typedef SLListImpl<TreeNode_pool, TreeNode, TreeNode_cursor_ptr>
+  typedef SLList<TreeNode, TreeNode_pool, TreeNode_cursor_ptr>
   TreeNodeCursor_list;
-  typedef LocalSLListImpl<TreeNode_pool, TreeNode, TreeNode_cursor_ptr>
+  typedef LocalSLList<TreeNode, TreeNode_pool, TreeNode_cursor_ptr>
   Local_TreeNodeCursor_list;
 
   /**
@@ -1081,7 +1103,7 @@ public:
 
       RS_ABORTED    = 0x2008, // Aborted and waiting for SCAN_NEXTREQ
       RS_END = 0
-    };  //struct Request
+    };
 
     Request() {}
     Request(const ArenaHead & arena) : m_arena(arena) {}
@@ -1135,7 +1157,7 @@ public:
       Uint32 nextPool;
     };
     Uint32 prevHash;
-  };
+  }; //struct Request
 
 private:
   /**
@@ -1253,17 +1275,17 @@ private:
 
   } c_Counters;
 
-  typedef RecordPool<Request, ArenaPool> Request_pool;
-  typedef DLListImpl<Request_pool, Request> Request_list;
-  typedef LocalDLListImpl<Request_pool, Request> Local_Request_list;
-  typedef DLHashTableImpl<Request_pool, Request> Request_hash;
-  typedef DLHashTableImpl<Request_pool, Request>::Iterator Request_iterator;
+  typedef RecordPool<Request, ArenaPool<Request> > Request_pool;
+  typedef DLList<Request, Request_pool> Request_list;
+  typedef LocalDLList<Request, Request_pool> Local_Request_list;
+  typedef DLHashTable<Request_pool, Request> Request_hash;
+  typedef DLHashTable<Request_pool, Request>::Iterator Request_iterator;
 
   ArenaAllocator m_arenaAllocator;
   Request_pool m_request_pool;
   Request_hash m_scan_request_hash;
   Request_hash m_lookup_request_hash;
-  ArenaPool m_dependency_map_pool;
+  ArenaPool<DataBufferSegment<14> > m_dependency_map_pool;
   TreeNode_pool m_treenode_pool;
   ScanFragHandle_pool m_scanfraghandle_pool;
 
@@ -1282,6 +1304,8 @@ private:
   void store_scan(Ptr<Request>);
   void handle_early_scanfrag_ref(Signal*, const ScanFragReq *, Uint32 err);
 
+  bool checkRequest(const Ptr<Request>);
+
   struct BuildKeyReq
   {
     Uint32 hashInfo[4]; // Used for hashing
@@ -1297,9 +1321,9 @@ private:
   Uint32 build(Build_context&,Ptr<Request>,SectionReader&,SectionReader&);
   Uint32 initRowBuffers(Ptr<Request>);
   void buildExecPlan(Ptr<Request>, Ptr<TreeNode> node, Ptr<TreeNode> next);
-  void checkPrepareComplete(Signal*, Ptr<Request>, Uint32 cnt);
-  void start(Signal*, Ptr<Request>);
-  void checkBatchComplete(Signal*, Ptr<Request>, Uint32 cnt);
+  void prepare(Signal*, Ptr<Request>);
+  void checkPrepareComplete(Signal*, Ptr<Request>);
+  void checkBatchComplete(Signal*, Ptr<Request>);
   void batchComplete(Signal*, Ptr<Request>);
   void prepareNextBatch(Signal*, Ptr<Request>);
   void sendConf(Signal*, Ptr<Request>, bool is_complete);
@@ -1410,6 +1434,11 @@ private:
   void common_execTRANSID_AI(Signal*, Ptr<Request>, Ptr<TreeNode>,
 			     const RowPtr&);
 
+  void dumpScanFragHandle(const Ptr<ScanFragHandle> fragPtr) const;
+  void dumpNodeCommon(const Ptr<TreeNode>) const;
+  void dumpRequest(const char* reason,
+                   const Ptr<Request> requestPtr);
+
   /**
    * Lookup
    */
@@ -1419,8 +1448,7 @@ private:
   void lookup_start(Signal*, Ptr<Request>, Ptr<TreeNode>);
   void lookup_resume(Signal*, Ptr<Request>, Ptr<TreeNode>);
   void lookup_send(Signal*, Ptr<Request>, Ptr<TreeNode>);
-  void lookup_execTRANSID_AI(Signal*, Ptr<Request>, Ptr<TreeNode>,
-			     const RowPtr&);
+  bool lookup_countSignal(const Signal*, Ptr<Request>, Ptr<TreeNode>);
   void lookup_execLQHKEYREF(Signal*, Ptr<Request>, Ptr<TreeNode>);
   void lookup_execLQHKEYCONF(Signal*, Ptr<Request>, Ptr<TreeNode>);
   void lookup_stop_branch(Signal*, Ptr<Request>, Ptr<TreeNode>, Uint32 err);
@@ -1441,6 +1469,10 @@ private:
 
   Uint32 computeHash(Signal*, BuildKeyReq&, Uint32 table, Uint32 keyInfoPtrI);
   Uint32 computePartitionHash(Signal*, BuildKeyReq&, Uint32 table, Uint32 keyInfoPtrI);
+  bool lookup_checkNode(const Ptr<Request> requestPtr, 
+                        const Ptr<TreeNode> treeNodePtr);
+  void lookup_dumpNode(const Ptr<Request> requestPtr,
+                       const Ptr<TreeNode> treeNodePtr);
 
   /**
    * ScanFrag
@@ -1450,13 +1482,16 @@ private:
                         const QueryNode*, const QueryNodeParameters*);
   void scanFrag_start(Signal*, Ptr<Request>,Ptr<TreeNode>);
   void scanFrag_send(Signal*, Ptr<Request>, Ptr<TreeNode>);
-  void scanFrag_execTRANSID_AI(Signal*, Ptr<Request>, Ptr<TreeNode>,
-			       const RowPtr &);
+  bool scanFrag_countSignal(const Signal*, Ptr<Request>, Ptr<TreeNode>);
   void scanFrag_execSCAN_FRAGREF(Signal*, Ptr<Request>, Ptr<TreeNode>, Ptr<ScanFragHandle>);
   void scanFrag_execSCAN_FRAGCONF(Signal*, Ptr<Request>, Ptr<TreeNode>, Ptr<ScanFragHandle>);
   void scanFrag_execSCAN_NEXTREQ(Signal*, Ptr<Request>,Ptr<TreeNode>);
   void scanFrag_abort(Signal*, Ptr<Request>, Ptr<TreeNode>);
   void scanFrag_cleanup(Ptr<Request>, Ptr<TreeNode>);
+  bool scanFrag_checkNode(const Ptr<Request> requestPtr, 
+                          const Ptr<TreeNode> treeNodePtr);
+  void scanFrag_dumpNode(const Ptr<Request> requestPtr,
+                         const Ptr<TreeNode> treeNodePtr);
 
   /**
    * ScanIndex
@@ -1468,8 +1503,7 @@ private:
                         DABuffer tree, Uint32 treeBits,
                         DABuffer param, Uint32 paramBits);
   void scanIndex_prepare(Signal*, Ptr<Request>, Ptr<TreeNode>);
-  void scanIndex_execTRANSID_AI(Signal*, Ptr<Request>, Ptr<TreeNode>,
-                                const RowPtr &);
+  bool scanIndex_countSignal(const Signal*, Ptr<Request>, Ptr<TreeNode>);
   void scanIndex_execSCAN_FRAGREF(Signal*, Ptr<Request>, Ptr<TreeNode>, Ptr<ScanFragHandle>);
   void scanIndex_execSCAN_FRAGCONF(Signal*, Ptr<Request>, Ptr<TreeNode>, Ptr<ScanFragHandle>);
   void scanIndex_parent_row(Signal*,Ptr<Request>,Ptr<TreeNode>, const RowPtr&);
@@ -1500,6 +1534,12 @@ private:
                                       Ptr<Request> requestPtr,
                                       Ptr<TreeNode> treeNodePtr);
 
+  bool scanIndex_checkNode(const Ptr<Request> requestPtr,
+                           const Ptr<TreeNode> treeNodePtr);
+
+  void scanIndex_dumpNode(const Ptr<Request> requestPtr,
+                          const Ptr<TreeNode> treeNodePtr);
+
   /**
    * Page manager
    */
@@ -1507,8 +1547,8 @@ private:
   void releasePage(Ptr<RowPage>);
   void releasePages(Uint32 first, Ptr<RowPage> last);
   void releaseGlobal(Signal*);
-  SLList<RowPage>::Head m_free_page_list;
-  ArrayPool<RowPage> m_page_pool;
+  RowPage_list::Head m_free_page_list;
+  RowPage_pool m_page_pool;
 
   /* Random fault injection */
 

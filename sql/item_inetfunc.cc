@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,7 +14,23 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "item_inetfunc.h"
-#include "derror.h"    //THD
+
+#include <stdio.h>
+#include <string.h>
+#include <sys/types.h>
+
+#include "current_thd.h"    //current_thd
+#include "derror.h"         //THD
+#include "enum_query_type.h"
+#include "item.h"
+#include "my_byteorder.h"
+#include "my_config.h"
+#include "my_dbug.h"
+#include "mysql_com.h"
+#include "mysqld_error.h"
+#include "sql_error.h"
+#include "sql_string.h"
+#include "table.h"
 
 #ifdef HAVE_NETINET_IN_H
 #include <netinet/in.h>
@@ -246,7 +262,7 @@ err:
   This is a portable alternative to inet_pton(AF_INET).
 
   @param      str          String to convert.
-  @param      str_len      String length.
+  @param      str_length   String length.
   @param[out] ipv4_address Buffer to store IPv4-address.
 
   @return Completion status.
@@ -371,7 +387,7 @@ static bool str_to_ipv4(const char *str, int str_length, in_addr *ipv4_address)
   This is a portable alternative to inet_pton(AF_INET6).
 
   @param      str          String to convert.
-  @param      str_len      String length.
+  @param      str_length   String length.
   @param[out] ipv6_address Buffer to store IPv6-address.
 
   @return Completion status.
@@ -810,7 +826,7 @@ bool Item_func_inet6_ntoa::calc_value(String *arg, String *buffer)
   @retval true  The passed string represents an IPv4-address.
 */
 
-bool Item_func_is_ipv4::calc_value(const String *arg)
+bool Item_func_is_ipv4::calc_value(const String *arg) const
 {
   in_addr ipv4_address;
 
@@ -829,7 +845,7 @@ bool Item_func_is_ipv4::calc_value(const String *arg)
   @retval true  The passed string represents an IPv6-address.
 */
 
-bool Item_func_is_ipv6::calc_value(const String *arg)
+bool Item_func_is_ipv6::calc_value(const String *arg) const
 {
   in6_addr ipv6_address;
 
@@ -848,7 +864,7 @@ bool Item_func_is_ipv6::calc_value(const String *arg)
   @retval true  The passed IPv6-address is an IPv4-compatible IPv6-address.
 */
 
-bool Item_func_is_ipv4_compat::calc_value(const String *arg)
+bool Item_func_is_ipv4_compat::calc_value(const String *arg) const
 {
   if ((int) arg->length() != IN6_ADDR_SIZE || arg->charset() != &my_charset_bin)
     return false;
@@ -868,7 +884,7 @@ bool Item_func_is_ipv4_compat::calc_value(const String *arg)
   @retval true  The passed IPv6-address is an IPv4-mapped IPv6-address.
 */
 
-bool Item_func_is_ipv4_mapped::calc_value(const String *arg)
+bool Item_func_is_ipv4_mapped::calc_value(const String *arg) const
 {
   if ((int) arg->length() != IN6_ADDR_SIZE || arg->charset() != &my_charset_bin)
     return false;

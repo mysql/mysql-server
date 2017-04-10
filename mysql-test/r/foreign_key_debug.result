@@ -1,0 +1,109 @@
+SET SESSION debug= '+d,skip_dd_table_access_check';
+SET @@foreign_key_checks= DEFAULT;
+#
+# WL#6929: Move FOREIGN KEY constraints to the global data dictionary
+#
+# Test coverage for foreign key name generation. Should be removed
+# or rewritten when WL#7141 is pushed.
+CREATE TABLE t1(a INT PRIMARY KEY);
+CREATE TABLE t2(a INT PRIMARY KEY);
+CREATE TABLE t3(a INT PRIMARY KEY, b INT, c INT);
+ALTER TABLE t3 ADD FOREIGN KEY (b) REFERENCES t1(a);
+SHOW CREATE TABLE t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `a` int(11) NOT NULL,
+  `b` int(11) DEFAULT NULL,
+  `c` int(11) DEFAULT NULL,
+  PRIMARY KEY (`a`),
+  KEY `b` (`b`),
+  CONSTRAINT `t3_ibfk_1` FOREIGN KEY (`b`) REFERENCES `t1` (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+SELECT fk.name FROM mysql.foreign_keys AS fk, mysql.tables AS t
+WHERE fk.table_id = t.id AND t.name = 't3';
+name
+t3_ibfk_1
+ALTER TABLE t3 ADD FOREIGN KEY (c) REFERENCES t1(a);
+SHOW CREATE TABLE t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `a` int(11) NOT NULL,
+  `b` int(11) DEFAULT NULL,
+  `c` int(11) DEFAULT NULL,
+  PRIMARY KEY (`a`),
+  KEY `b` (`b`),
+  KEY `c` (`c`),
+  CONSTRAINT `t3_ibfk_1` FOREIGN KEY (`b`) REFERENCES `t1` (`a`),
+  CONSTRAINT `t3_ibfk_2` FOREIGN KEY (`c`) REFERENCES `t1` (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+SELECT fk.name FROM mysql.foreign_keys AS fk, mysql.tables AS t
+WHERE fk.table_id = t.id AND t.name = 't3';
+name
+t3_ibfk_1
+t3_ibfk_2
+ALTER TABLE t3 ADD FOREIGN KEY (b) REFERENCES t1(a);
+SHOW CREATE TABLE t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `a` int(11) NOT NULL,
+  `b` int(11) DEFAULT NULL,
+  `c` int(11) DEFAULT NULL,
+  PRIMARY KEY (`a`),
+  KEY `c` (`c`),
+  KEY `b` (`b`),
+  CONSTRAINT `t3_ibfk_1` FOREIGN KEY (`b`) REFERENCES `t1` (`a`),
+  CONSTRAINT `t3_ibfk_2` FOREIGN KEY (`c`) REFERENCES `t1` (`a`),
+  CONSTRAINT `t3_ibfk_3` FOREIGN KEY (`b`) REFERENCES `t1` (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+SELECT fk.name FROM mysql.foreign_keys AS fk, mysql.tables AS t
+WHERE fk.table_id = t.id AND t.name = 't3';
+name
+t3_ibfk_1
+t3_ibfk_2
+t3_ibfk_3
+ALTER TABLE t3 DROP FOREIGN KEY t3_ibfk_1;
+SHOW CREATE TABLE t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `a` int(11) NOT NULL,
+  `b` int(11) DEFAULT NULL,
+  `c` int(11) DEFAULT NULL,
+  PRIMARY KEY (`a`),
+  KEY `c` (`c`),
+  KEY `b` (`b`),
+  CONSTRAINT `t3_ibfk_2` FOREIGN KEY (`c`) REFERENCES `t1` (`a`),
+  CONSTRAINT `t3_ibfk_3` FOREIGN KEY (`b`) REFERENCES `t1` (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+SELECT fk.name FROM mysql.foreign_keys AS fk, mysql.tables AS t
+WHERE fk.table_id = t.id AND t.name = 't3';
+name
+t3_ibfk_2
+t3_ibfk_3
+ALTER TABLE t3 ADD FOREIGN KEY (b) REFERENCES t1(a);
+SHOW CREATE TABLE t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `a` int(11) NOT NULL,
+  `b` int(11) DEFAULT NULL,
+  `c` int(11) DEFAULT NULL,
+  PRIMARY KEY (`a`),
+  KEY `c` (`c`),
+  KEY `b` (`b`),
+  CONSTRAINT `t3_ibfk_2` FOREIGN KEY (`c`) REFERENCES `t1` (`a`),
+  CONSTRAINT `t3_ibfk_3` FOREIGN KEY (`b`) REFERENCES `t1` (`a`),
+  CONSTRAINT `t3_ibfk_4` FOREIGN KEY (`b`) REFERENCES `t1` (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+SELECT fk.name FROM mysql.foreign_keys AS fk, mysql.tables AS t
+WHERE fk.table_id = t.id AND t.name = 't3';
+name
+t3_ibfk_2
+t3_ibfk_3
+t3_ibfk_4
+DROP TABLE t3, t2, t1;
+SET SESSION debug= '-d,skip_dd_table_access_check';
+CREATE TABLE t1(a INT PRIMARY KEY);
+CREATE TABLE name567890123456789012345678901234567890123456789012345678901234(a INT PRIMARY KEY, b INT);
+ALTER TABLE name567890123456789012345678901234567890123456789012345678901234
+ADD FOREIGN KEY(b) REFERENCES t1(a);
+ERROR 42000: Identifier name 'name567890123456789012345678901234567890123456789012345678901234_ibfk_1' is too long
+DROP TABLE name567890123456789012345678901234567890123456789012345678901234, t1;

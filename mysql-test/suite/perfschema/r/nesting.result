@@ -46,7 +46,7 @@ where sql_text like "%MARKER_END%" and thread_id = @con1_tid);
 select (@marker_end is not null) as expected;
 expected
 1
-show global status like "performance_schema%";
+show global status like "performance_schema%_lost";
 Variable_name	Value
 Performance_schema_accounts_lost	0
 Performance_schema_cond_classes_lost	0

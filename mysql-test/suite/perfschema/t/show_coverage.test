@@ -4,46 +4,9 @@
 # implementation in the Performance Schema.                                    #
 #                                                                              #
 ################################################################################
---source include/have_perfschema.inc
---source include/not_embedded.inc
+# Test requires: sp-protocol/ps-protocol/view-protocol/cursor-protocol disabled
 --source include/no_protocol.inc
 
-select @@global.show_compatibility_56 into @show_compatibility_56_save;
---echo
---echo ================================================================================
---echo SHOW_COMPATIBILITY_56 = ON
---echo ================================================================================
-set global show_compatibility_56 = ON;
-
---echo
---echo # TEST 1
---echo # Handling of SHOW STATUS/VARIABLES ... WHERE
---echo #
-SHOW STATUS WHERE VARIABLE_NAME LIKE "foo";
---echo
-SHOW GLOBAL STATUS WHERE VARIABLE_NAME LIKE "foo";
---echo
-SHOW SESSION STATUS WHERE VARIABLE_NAME LIKE "foo";
---echo
-SHOW VARIABLES WHERE VARIABLE_NAME LIKE "foo";
---echo
-SHOW GLOBAL VARIABLES WHERE VARIABLE_NAME LIKE "foo";
---echo
-SHOW SESSION VARIABLES WHERE VARIABLE_NAME LIKE "foo";
-
---echo
---echo # TEST 2
---echo # CREATE..SELECT -- Expect correct ER_WARN_DEPRECATED_SYNTAX
---echo #
-USE test;
-CREATE TABLE t0 SELECT * FROM information_schema.global_status WHERE variable_name = 'COM_SELECT';
-DROP TABLE t0;
-
---echo
---echo ================================================================================
---echo SHOW_COMPATIBILITY_56 = OFF
---echo ================================================================================
-set global show_compatibility_56 = OFF;
 --echo
 --echo # TEST 3
 --echo # Select status and system variable tables using ORDER BY to exercise the
@@ -117,8 +80,4 @@ SELECT @bytes_before > @bytes_after;
 SELECT @bytes_after;
 
 disconnect con1;
-
---echo
---echo # CLEANUP
-set @@global.show_compatibility_56 = @show_compatibility_56_save;
 

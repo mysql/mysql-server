@@ -1,11 +1,8 @@
 #
 # MRR/InnoDB tests.
-# (Turns off all other 6.0 optimizer switches than MRR)
 #
 
 --source include/no_valgrind_without_big.inc
---source include/have_innodb.inc
---source include/have_mrr.inc
 
 set optimizer_switch='mrr=on,mrr_cost_based=on';
 

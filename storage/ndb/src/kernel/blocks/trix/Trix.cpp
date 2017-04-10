@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -151,7 +151,7 @@ Trix::execREAD_CONFIG_REQ(Signal* signal)
   c_theSubscriptionRecPool.setSize(100);
   c_statOpPool.setSize(5);
 
-  DLList<SubscriptionRecord> subscriptions(c_theSubscriptionRecPool);
+  SubscriptionRecord_list subscriptions(c_theSubscriptionRecPool);
   SubscriptionRecPtr subptr;
   while (subscriptions.seizeFirst(subptr) == true) {
     new (subptr.p) SubscriptionRecord(c_theAttrOrderBufferPool);
@@ -712,6 +712,20 @@ void Trix::execUTIL_PREPARE_REF(Signal* signal)
   }
   subRecPtr.p = subRec;
   subRec->errorCode = (BuildIndxRef::ErrorCode)utilPrepareRef->errorCode;
+  switch (utilPrepareRef->errorCode) {
+  case UtilPrepareRef::PREPARE_SEIZE_ERROR:
+  case UtilPrepareRef::PREPARE_PAGES_SEIZE_ERROR:
+  case UtilPrepareRef::PREPARED_OPERATION_SEIZE_ERROR:
+  case UtilPrepareRef::DICT_TAB_INFO_ERROR:
+    subRec->errorCode = BuildIndxRef::UtilBusy;
+    break;
+  case UtilPrepareRef::MISSING_PROPERTIES_SECTION:
+    subRec->errorCode = BuildIndxRef::BadRequestType;
+    break;
+  default:
+    ndbrequire(false);
+    break;
+  }
 
   UtilReleaseConf* conf = (UtilReleaseConf*)signal->getDataPtrSend();
   conf->senderData = subRecPtr.i;
@@ -989,6 +1003,8 @@ void Trix::setupSubscription(Signal* signal, SubscriptionRecPtr subRecPtr)
 		     subRecPtr.i, subCreateReq->subscriptionId,
 		     subCreateReq->subscriptionKey));
 
+  D("SUB_CREATE_REQ tableId: " << subRec->sourceTableId);
+
   sendSignal(SUMA_REF, GSN_SUB_CREATE_REQ, 
 	     signal, SubCreateReq::SignalLength, JBB);
 
@@ -1018,7 +1034,7 @@ void Trix::startTableScan(Signal* signal, SubscriptionRecPtr subRecPtr)
   }
 
   // Merge index and key column segments
-  struct LinearSectionPtr orderPtr[3];
+  LinearSectionPtr orderPtr[3];
   Uint32 noOfSections;
   orderPtr[0].p = attributeList;
   orderPtr[0].sz = cnt;
@@ -1055,13 +1071,13 @@ void Trix::startTableScan(Signal* signal, SubscriptionRecPtr subRecPtr)
   {
     jam();
     subSyncReq->requestInfo |= SubSyncReq::LM_Exclusive;
-    subSyncReq->requestInfo |= SubSyncReq::Reorg;
+    subSyncReq->requestInfo |= SubSyncReq::ReorgDelete;
   }
   else if (subRec->requestType == STAT_CLEAN)
   {
     jam();
     StatOp& stat = statOpGetPtr(subRecPtr.p->m_statPtrI);
-    StatOp::Clean clean = stat.m_clean;
+    StatOp::Clean& clean = stat.m_clean;
     orderPtr[1].p = clean.m_bound;
     orderPtr[1].sz = clean.m_boundSize;
     noOfSections = 2;
@@ -1083,6 +1099,10 @@ void Trix::startTableScan(Signal* signal, SubscriptionRecPtr subRecPtr)
   DBUG_PRINT("info",("i: %u subscriptionId: %u, subscriptionKey: %u",
 		     subRecPtr.i, subSyncReq->subscriptionId,
 		     subSyncReq->subscriptionKey));
+
+  D("SUB_SYNC_REQ fragId: " << subRec->fragId <<
+    " fragCount: " << subRec->fragCount <<
+    " requestInfo: " << hex << subSyncReq->requestInfo);
 
   sendSignal(SUMA_REF, GSN_SUB_SYNC_REQ,
 	     signal, SubSyncReq::SignalLength, JBB, orderPtr, noOfSections);
@@ -1589,6 +1609,12 @@ Trix::execCOPY_DATA_IMPL_REQ(Signal* signal)
     subRec->noOfKeyColumns = ptr.sz;
   }
 
+  D("COPY_DATA_IMPL_REQ srctableId: " << subRec->sourceTableId <<
+    " targetTableId: " << subRec->targetTableId <<
+    " fragCount: " << subRec->fragCount <<
+    " requestType: " << subRec->requestType <<
+    " flags: " << hex << subRec->m_flags);
+
   releaseSections(handle);
   {
     UtilPrepareReq * utilPrepareReq =
@@ -1611,7 +1637,10 @@ Trix::execCOPY_DATA_IMPL_REQ(Signal* signal)
     {
       w.add(UtilPrepareReq::OperationType, UtilPrepareReq::Delete);
     }
-    w.add(UtilPrepareReq::ScanTakeOverInd, 1);
+    if (!(req->requestInfo & CopyDataReq::NoScanTakeOver))
+    {
+      w.add(UtilPrepareReq::ScanTakeOverInd, 1);
+    }
     w.add(UtilPrepareReq::ReorgInd, 1);
     w.add(UtilPrepareReq::TableId, subRec->targetTableId);
 
@@ -2630,30 +2659,32 @@ Trix::statCleanPrepare(Signal* signal, StatOp& stat)
   clean.m_bound[3] = TuxBoundInfo::BoundEQ;
   clean.m_bound[4] = AttributeHeader(1, 4).m_value;
   clean.m_bound[5] = data.m_indexVersion;
+  Uint32 boundCount;
   switch (stat.m_requestType) {
   case IndexStatReq::RT_CLEAN_NEW:
     D("statCleanPrepare delete sample versions > " << data.m_sampleVersion);
     clean.m_bound[6] = TuxBoundInfo::BoundLT;
     clean.m_bound[7] = AttributeHeader(2, 4).m_value;
     clean.m_bound[8] = data.m_sampleVersion;
-    clean.m_boundCount = 3;
+    boundCount = 3;
     break;
   case IndexStatReq::RT_CLEAN_OLD:
     D("statCleanPrepare delete sample versions < " << data.m_sampleVersion);
     clean.m_bound[6] = TuxBoundInfo::BoundGT;
     clean.m_bound[7] = AttributeHeader(2, 4).m_value;
     clean.m_bound[8] = data.m_sampleVersion;
-    clean.m_boundCount = 3;
+    boundCount = 3;
     break;
   case IndexStatReq::RT_CLEAN_ALL:
     D("statCleanPrepare delete all sample versions");
-    clean.m_boundCount = 2;
+    boundCount = 2;
     break;
   default:
+    boundCount = 0; /* Silence compiler warning */
     ndbrequire(false);
     break;
   }
-  clean.m_boundSize = 3 * clean.m_boundCount;
+  clean.m_boundSize = 3 * boundCount;
 
   // TRIX traps the CONF
   send.m_sysTable = &g_statMetaSample;
@@ -2955,7 +2986,7 @@ Trix::statScanEnd(Signal* signal, StatOp& stat)
    * we prefer DbtuxProxy to avoid introducing MT-LQH into TRIX.
    */
 
-#if trix_index_stat_rep_to_tux_instance
+#ifdef trix_index_stat_rep_to_tux_instance
   Uint32 instanceKey = getInstanceKey(req->indexId, req->fragId);
   BlockReference tuxRef = numberToRef(DBTUX, instanceKey, getOwnNodeId());
 #else
@@ -3423,5 +3454,3 @@ operator<<(NdbOut& out, const Trix::StatOp& stat)
 
 
 BLOCK_FUNCTIONS(Trix)
-
-template void append(DataBuffer<15>&,SegmentedSectionPtr,SectionSegmentPool&);

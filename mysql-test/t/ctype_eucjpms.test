@@ -4,9 +4,6 @@
  #Get deafult engine value
 --let $DEFAULT_ENGINE = `select @@global.default_storage_engine`
 
--- source include/have_eucjpms.inc
-
-
 --disable_warnings
 drop table if exists t1;
 drop table if exists t2;
@@ -514,14 +511,12 @@ DROP TABLE t1;
 
 set names eucjpms;
 --source include/weight_string.inc
---source include/weight_string_l1.inc
 --source include/weight_string_A1A1.inc
 --source include/weight_string_8EA1.inc
 --source include/weight_string_8FA2C3.inc
 
 set collation_connection=eucjpms_bin;
 --source include/weight_string.inc
---source include/weight_string_l1.inc
 --source include/weight_string_A1A1.inc
 --source include/weight_string_8EA1.inc
 --source include/weight_string_8FA2C3.inc

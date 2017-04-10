@@ -2,7 +2,6 @@
 # WL#6965: Truncate UNDO logs.
 #
 
---source include/have_innodb.inc
 # This test is restarting the server.
 --source include/not_embedded.inc
 --source include/have_undo_tablespaces.inc

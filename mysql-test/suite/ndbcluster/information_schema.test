@@ -1,0 +1,14 @@
+--source include/have_ndb.inc
+
+--echo #
+--echo # WL#6599: New Data Dictionary and I_S Integration.
+--echo #
+--echo # Test case to check if ndbinfo schema is listed by I_S when ndbcluster
+--echo # is running.
+--echo #
+#'ndbinfo' schema should be listed when ndbcluster is running.
+SELECT schema_name FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = 'ndbinfo';
+# tables of ndbinfo schema should be listed.
+SELECT
+  IF(count(table_name) > 10, 'Yes', 'No') as 'Have more than 10 ndbinfo tables'
+  FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = 'ndbinfo';

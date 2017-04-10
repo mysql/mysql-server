@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,9 +13,14 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "rpl_msr.h"
+#include <string.h>
 
+#include "current_thd.h"
+#include "my_dbug.h"
+#include "rpl_mi.h"
+#include "rpl_msr.h"
 #include "rpl_rli.h"     // Relay_log_info
+#include "log.h"         // sql_print_error
 
 const char* Multisource_info::default_channel= "";
 const char* Multisource_info::group_replication_channel_names[] = {
@@ -23,8 +28,7 @@ const char* Multisource_info::group_replication_channel_names[] = {
   "group_replication_recovery"
 };
 
-bool Multisource_info::add_mi(const char* channel_name, Master_info* mi,
-                              enum_channel_type type)
+bool Multisource_info::add_mi(const char* channel_name, Master_info* mi)
 {
   DBUG_ENTER("Multisource_info::add_mi");
 
@@ -38,6 +42,8 @@ bool Multisource_info::add_mi(const char* channel_name, Master_info* mi,
   DBUG_ASSERT(current_mi_count < MAX_CHANNELS);
 
   replication_channel_map::iterator map_it;
+  enum_channel_type type= is_group_replication_channel_name(channel_name)
+    ? GROUP_REPLICATION_CHANNEL: SLAVE_REPLICATION_CHANNEL;
 
   map_it= rep_channel_map.find(type);
 
@@ -236,7 +242,210 @@ Master_info*  Multisource_info::get_mi_at_pos(uint pos)
 
   DBUG_RETURN(0);
 }
+
+
+Rpl_filter* Multisource_filter_info::create_filter(const char* channel_name)
+{
+  DBUG_ENTER("Multisource_filter_info::create_filter");
+
+  Rpl_filter *rpl_filter;
+  filter_map::iterator it;
+  std::pair<filter_map::iterator, bool> ret;
+
+  rpl_filter= new Rpl_filter;
+
+  m_channel_to_filter_lock->wrlock();
+  it = channel_to_filter.find(channel_name);
+  DBUG_ASSERT(it == channel_to_filter.end());
+  ret= channel_to_filter.insert(
+         std::pair<std::string, Rpl_filter*>(channel_name, rpl_filter));
+  m_channel_to_filter_lock->unlock();
+
+  if (DBUG_EVALUATE_IF("simulate_out_of_memory_on_create_filter", 1, 0) ||
+      !ret.second)
+  {
+    sql_print_error("Failed to add a replication filter into filter map "
+                    "for channel '%.192s'.", channel_name);
+    my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR), 0);
+    DBUG_RETURN(NULL);
+  }
+
+  DBUG_RETURN(rpl_filter);
+}
+
+
+void Multisource_filter_info::delete_filter(Rpl_filter* rpl_filter)
+{
+  DBUG_ENTER("Multisource_filter_info::delete_filter");
+
+  /* Traverse the filter map. */
+  m_channel_to_filter_lock->wrlock();
+  for (filter_map::iterator it= channel_to_filter.begin();
+       it != channel_to_filter.end(); it++)
+  {
+    if (it->second == rpl_filter)
+    {
+      /* Find the replication filter and delete it. */
+      delete it->second;
+      channel_to_filter.erase(it);
+      m_channel_to_filter_lock->unlock();
+      DBUG_VOID_RETURN;
+    }
+  }
+  m_channel_to_filter_lock->unlock();
+
+  DBUG_VOID_RETURN;
+}
+
+
+void Multisource_filter_info::discard_all_unattached_filters()
+{
+  DBUG_ENTER("Multisource_filter_info::delete_all_unattached_filters");
+
+  /* Traverse the filter map. */
+  m_channel_to_filter_lock->wrlock();
+  filter_map::iterator it= channel_to_filter.begin();
+  while (it != channel_to_filter.end())
+  {
+    if (it->second->is_attached())
+    {
+      /*
+        Do not discard the replication filter if it is attached to a channel.
+      */
+      it++;
+      continue;
+    }
+    /*
+      Discard the replication filter with a warning if it is not attached
+      to a channel.
+    */
+    delete it->second;
+    it->second= NULL;
+    if (channel_map.is_group_replication_channel_name(it->first.c_str()))
+    {
+      sql_print_warning("There are per-channel replication filter(s) "
+                        "configured for group replication channel '%.192s' "
+                        "which is disallowed. The filter(s) have been "
+                        "discarded.", it->first.c_str());
+    }
+    else
+      sql_print_warning("There are per-channel replication filter(s) "
+                        "configured for channel '%.192s' which does not "
+                        "exist. The filter(s) have been discarded.",
+                        it->first.c_str());
+    it= channel_to_filter.erase(it);
+  }
+  m_channel_to_filter_lock->unlock();
+
+  DBUG_VOID_RETURN;
+}
+
+
+Rpl_filter* Multisource_filter_info::get_channel_filter(const char* channel_name)
+{
+  DBUG_ENTER("Multisource_filter_info::get_channel_filter");
+  filter_map::iterator it;
+  Rpl_filter *rpl_filter= NULL;
+
+  DBUG_ASSERT(channel_name != 0);
+
+  m_channel_to_filter_lock->rdlock();
+  it= channel_to_filter.find(channel_name);
+
+  if (it == channel_to_filter.end())
+  {
+    m_channel_to_filter_lock->unlock();
+    rpl_filter= create_filter(channel_name);
+  }
+  else
+  {
+    rpl_filter= it->second;
+    m_channel_to_filter_lock->unlock();
+  }
+
+  DBUG_RETURN(rpl_filter);
+}
+
+
+#ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
+
+void Multisource_filter_info::reset_pfs_view()
+{
+  DBUG_ENTER("Multisource_filter_info::reset_pfs_view");
+  m_channel_to_filter_lock->assert_some_lock();
+
+  if (!rpl_pfs_filter_vec.empty())
+    cleanup_rpl_pfs_filter_vec();
+
+  // Traverse the filter map.
+  for (filter_map::iterator it= channel_to_filter.begin();
+    it != channel_to_filter.end(); it++)
+  {
+    it->second->rdlock();
+    it->second->put_filters_into_vector(rpl_pfs_filter_vec,
+                                        it->first.c_str());
+    it->second->unlock();
+  }
+
+  DBUG_VOID_RETURN;
+}
+
+Rpl_pfs_filter* Multisource_filter_info::get_filter_at_pos(uint pos)
+{
+  DBUG_ENTER("Multisource_filter_info::get_filter_at_pos");
+  m_channel_to_filter_lock->assert_some_lock();
+  Rpl_pfs_filter* res= NULL;
+
+  reset_pfs_view();
+
+  if (pos < rpl_pfs_filter_vec.size())
+    res= rpl_pfs_filter_vec[pos];
+
+  DBUG_RETURN(res);
+}
+
+
+uint Multisource_filter_info::get_filter_count()
+{
+  DBUG_ENTER("Multisource_filter_info::get_filter_count");
+  m_channel_to_filter_lock->assert_some_lock();
+
+  reset_pfs_view();
+
+  DBUG_RETURN(rpl_pfs_filter_vec.size());
+}
+
+
+#endif /*WITH_PERFSCHEMA_STORAGE_ENGINE */
+
+
+bool Multisource_filter_info::build_do_and_ignore_table_hashes()
+{
+  DBUG_ENTER("Multisource_filter_info::build_do_and_ignore_table_hashes()");
+
+  /* Traverse the filter map. */
+  m_channel_to_filter_lock->rdlock();
+  for (filter_map::iterator it= channel_to_filter.begin();
+       it != channel_to_filter.end(); it++)
+  {
+    if (it->second->build_do_table_hash() ||
+        it->second->build_ignore_table_hash())
+    {
+      sql_print_error("An error occurred while building do_table"
+                      "and ignore_table rules to hashes for "
+                      "per-channel filter.");
+      DBUG_RETURN(-1);
+    }
+  }
+  m_channel_to_filter_lock->unlock();
+
+  DBUG_RETURN(0);
+}
+
+
 #endif /*WITH_PERFSCHEMA_STORAGE_ENGINE */
 
 /* There is only one channel_map for the whole server */
 Multisource_info channel_map;
+/* There is only one rpl_filter_map for the whole server */
+Multisource_filter_info rpl_filter_map;

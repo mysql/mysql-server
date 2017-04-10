@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,7 +19,6 @@
 #include <ndb_global.h>
 
 #include <NdbMutex.h>
-#include <NdbMem.h>
 
 #ifdef NDB_MUTEX_DEADLOCK_DETECTOR
 #include "NdbMutex_DeadlockDetector.h"
@@ -59,8 +58,7 @@ NdbMutex* NdbMutex_CreateWithName(const char * name)
   NdbMutex* pNdbMutex;
   int result;
 
-  pNdbMutex = (NdbMutex*)NdbMem_Allocate(sizeof(NdbMutex));
-
+  pNdbMutex = (NdbMutex*)malloc(sizeof(NdbMutex));
   if (pNdbMutex == NULL)
     return NULL;
 
@@ -69,7 +67,7 @@ NdbMutex* NdbMutex_CreateWithName(const char * name)
   {
     return pNdbMutex;
   }
-  NdbMem_Free(pNdbMutex);
+  free(pNdbMutex);
   return 0;
 }
 
@@ -165,7 +163,7 @@ int NdbMutex_Destroy(NdbMutex* p_mutex)
     return -1;
   result = NdbMutex_Deinit(p_mutex);
   memset(p_mutex, 0xff, sizeof(NdbMutex));
-  NdbMem_Free(p_mutex);
+  free(p_mutex);
   return result;
 }
 

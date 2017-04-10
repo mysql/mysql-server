@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -16,7 +16,11 @@
 #ifndef MY_DEFAULT_PRIV_INCLUDED
 #define MY_DEFAULT_PRIV_INCLUDED
 
-#include "my_global.h"                          /* C_MODE_START, C_MODE_END */
+/**
+  @file mysys_ssl/my_default_priv.h
+*/
+
+#include "my_macros.h"
 
 /*
   Number of byte used to store the length of
@@ -30,8 +34,8 @@ C_MODE_START
 /**
   Place the login file name in the specified buffer.
 
-  @param file_name     [out]  Buffer to hold login file name
-  @param file_name_size [in]  Length of the buffer
+  @param [out] file_name       Buffer to hold login file name
+  @param [in] file_name_size   Length of the buffer
 
   @return 1 - Success
           0 - Failure

@@ -295,15 +295,6 @@ sleep(1)
 command ok
 
 command ok
-
-0 rows affected
-1
-1
-0 rows affected
-SCHEMA_NAME	DIGEST	DIGEST_TEXT	COUNT_STAR
-null	21b6affb55f3e69c598b47257f4d0ec6	TRUNCATE TABLE `performance_schema` . `events_statements_summary_by_digest` 	1
-null	f29eded39dd5fa102f18987679dd0c14	SELECT ? 	1
-0 rows affected
 Mysqlx.Ok {
   msg: "bye!"
 }
@@ -317,3 +308,8 @@ EVENT_NAME
 UNINSTALL PLUGIN mysqlx;
 update performance_schema.setup_instruments set ENABLED='YES'
 where NAME rlike '^wait/synch/(cond|mutex)/mysqlx/(lock_list_access|scheduler_dynamic_worker_pending)$';
+# Check if any classes are not lost, this may happen if they are already
+# just on the limit
+SELECT * FROM performance_schema.global_status
+WHERE variable_name LIKE '%_LOST' AND variable_value > 0;
+VARIABLE_NAME	VARIABLE_VALUE

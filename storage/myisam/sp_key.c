@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
    
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,6 +13,12 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include <math.h>
+#include <sys/types.h>
+
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
 #include "myisamdef.h"
 #include "sp_defs.h"
 
@@ -63,7 +69,7 @@ uint sp_make_key(MI_INFO *info, uint keynr, uchar *key,
     DBUG_ASSERT(keyseg->type == HA_KEYTYPE_DOUBLE);
     
     val= mbr[start / sizeof (double)];
-    if (my_isnan(val))
+    if (isnan(val))
     {
       memset(key, 0, length);
       key+= length;

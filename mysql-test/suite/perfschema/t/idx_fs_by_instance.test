@@ -1,0 +1,42 @@
+# Tests for PERFORMANCE_SCHEMA
+
+#setup
+let $select_column = COUNT(*);
+let $table = performance_schema.file_summary_by_instance;
+
+select OBJECT_INSTANCE_BEGIN from performance_schema.file_summary_by_instance limit 1
+  into @oib;
+select FILE_NAME from performance_schema.file_summary_by_instance limit 1
+  into @fname;
+select EVENT_NAME from performance_schema.file_summary_by_instance limit 1
+  into @ename;
+
+###########################################################################
+# Test index on OBJECT_INSTANCE_BEGIN
+###########################################################################
+
+let $column_count = 1;
+let $col1 = OBJECT_INSTANCE_BEGIN;
+let $col1_act = @oib;
+
+--source ../include/idx_explain_test.inc
+
+###########################################################################
+# Test index on FILE_NAME
+###########################################################################
+
+let $column_count = 1;
+let $col1 = FILE_NAME;
+let $col1_act = @fname;
+
+--source ../include/idx_explain_test.inc
+
+###########################################################################
+# Test index on EVENT_NAME
+###########################################################################
+
+let $column_count = 1;
+let $col1 = EVENT_NAME;
+let $col1_act = @ename;
+
+--source ../include/idx_explain_test.inc

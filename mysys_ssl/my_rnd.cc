@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2012, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,6 +13,10 @@
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
+
+/**
+  @file mysys_ssl/my_rnd.cc
+*/
 
 #include <my_rnd.h>
 
@@ -41,7 +45,7 @@ extern "C" {
 /**
   Generate random number.
 
-  @param rand_st [INOUT] Structure used for number generation.
+  @param [in,out] rand_st Structure used for number generation.
 
   @retval                Generated pseudo random number.
 */
@@ -58,10 +62,10 @@ double my_rnd(struct rand_struct *rand_st)
 /**
 Fill a buffer with random bytes using the SSL library routines
 
-@param buffer       [OUT]   Buffer to receive the random data
-@param buffer_size  [IN]    sizeof the the buffer
+@param [out] buffer          Buffer to receive the random data
+@param [in] buffer_size      sizeof the the buffer
 
-@retval      1  error ocurred.
+@retval      1  error occurred.
 @retval      0  OK
 */
 int
@@ -92,7 +96,7 @@ my_rand_buffer(unsigned char *buffer, size_t buffer_size)
   Generate a random number using the OpenSSL/yaSSL supplied
   random number generator if available.
 
-  @param rand_st [INOUT] Structure used for number generation
+  @param [in,out] rand_st Structure used for number generation
                          only if none of the SSL libraries are
                          available.
 

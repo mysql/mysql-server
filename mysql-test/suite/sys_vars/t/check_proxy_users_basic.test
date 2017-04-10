@@ -112,11 +112,11 @@ SELECT @@check_proxy_users;
 
 --disable_warnings
 SELECT IF(@@global.check_proxy_users, "ON", "OFF") = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='check_proxy_users';
 
 SELECT IF(@@check_proxy_users, "ON", "OFF") = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+FROM performance_schema.session_variables 
 WHERE VARIABLE_NAME='check_proxy_users';
 --enable_warnings
 

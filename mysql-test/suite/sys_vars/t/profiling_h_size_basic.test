@@ -16,8 +16,8 @@ select @@session.profiling_history_size;
 show global variables like 'profiling_history_size';
 show session variables like 'profiling_history_size';
 --disable_warnings
-select * from information_schema.global_variables where variable_name='profiling_history_size';
-select * from information_schema.session_variables where variable_name='profiling_history_size';
+select * from performance_schema.global_variables where variable_name='profiling_history_size';
+select * from performance_schema.session_variables where variable_name='profiling_history_size';
 --enable_warnings
 
 #
@@ -30,8 +30,8 @@ select @@session.profiling_history_size;
 show global variables like 'profiling_history_size';
 show session variables like 'profiling_history_size';
 --disable_warnings
-select * from information_schema.global_variables where variable_name='profiling_history_size';
-select * from information_schema.session_variables where variable_name='profiling_history_size';
+select * from performance_schema.global_variables where variable_name='profiling_history_size';
+select * from performance_schema.session_variables where variable_name='profiling_history_size';
 --enable_warnings
 
 #

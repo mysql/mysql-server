@@ -56,7 +56,7 @@ SELECT COUNT(@@SESSION.error_count);
 
 --disable_warnings
 SELECT @@SESSION.error_count = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+FROM performance_schema.session_variables 
 WHERE VARIABLE_NAME='error_count';
 --enable_warnings
 --echo 1 Expected
@@ -66,7 +66,7 @@ SELECT COUNT(@@SESSION.error_count);
 
 --disable_warnings
 SELECT COUNT(VARIABLE_VALUE)
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+FROM performance_schema.session_variables 
 WHERE VARIABLE_NAME='error_count';
 --enable_warnings
 --echo 1 Expected

@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -13,19 +13,18 @@
   along with this program; if not, write to the Free Software Foundation,
   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include <my_global.h>
 #include <my_thread.h>
-#include <pfs_instr_class.h>
-#include <pfs_instr.h>
-#include <pfs_global.h>
-#include <tap.h>
-#include <sql_class.h>
 #include <pfs_buffer_container.h>
+#include <pfs_global.h>
+#include <pfs_instr.h>
+#include <pfs_instr_class.h>
+#include <sql_class.h>
+#include <tap.h>
 
+#include "lex_string.h"
 #include "stub_pfs_global.h"
-#include "stub_global_status_var.h"
 
-void test_oom()
+static void test_oom()
 {
   int rc;
   PFS_global_param param;
@@ -91,7 +90,7 @@ void test_oom()
   cleanup_setup_object_hash();
 }
 
-void do_all_tests()
+static void do_all_tests()
 {
   test_oom();
 }
@@ -101,6 +100,6 @@ int main(int, char **)
   plan(11);
   MY_INIT("pfs_instr_info-oom-t");
   do_all_tests();
-  return 0;
+  return (exit_status());
 }
 

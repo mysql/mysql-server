@@ -1,5 +1,16 @@
 --source include/have_myisam.inc
 --source include/force_myisam_default.inc
+
+########################################
+##### WL#7554 Force schema `test` to character set latin1
+##### This test should be migrated to utf8mb4
+--disable_query_log
+let $testdbcs2=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
+alter schema default character set latin1;
+use test;
+--enable_query_log
+########################################
+
 # This test checks Full Text Search in a MyISAM table, the results for which are different with an innodb table.
 
 # This is a wrapper for binlog.test so that the same test case can be used 
@@ -8,3 +19,10 @@
 -- source include/not_embedded.inc
 -- source include/have_binlog_format_statement.inc
 -- source extra/binlog_tests/blackhole.test
+
+########################################
+##### WL#7554 set schema `test` back to what it was
+--disable_query_log
+--eval alter schema test default character set $testdbcs2;
+--enable_query_log
+########################################

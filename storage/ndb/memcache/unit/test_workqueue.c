@@ -73,47 +73,55 @@ int main() {
   struct workqueue *queue=
       (struct workqueue *) calloc(1, sizeof(struct workqueue));
 
-  struct threadinfo test0 = { queue, 32768, 1, 0, 0, 0, 10000000, 1000000 };
-  struct threadinfo test1 = { queue, 32768, 2, 0, 0, 0, 10000000, 1000000 };
-  struct threadinfo test2 = { queue, 8192, 2, 10, 800, 200, 100000, 25000 };
-  struct threadinfo test3 = { queue, 8192, 2, 1, 850, 50, 125000, 25000 };
-  struct threadinfo test4 = { queue, 8192, 2, 20, 50, 500, 100000, 25000 };
-  struct threadinfo test5 = { queue, 8192, 2, 1, 50, 0, 150000, 50000 };
+  struct threadinfo test0 = { queue, 32768, 1, 0, 0, 0, 50000, 1000000 };
+  struct threadinfo test1 = { queue, 32768, 2, 0, 0, 0, 50000, 1000000 };
+  struct threadinfo test2 = { queue, 8192, 2, 10, 400, 100, 10000, 25000 };
+  struct threadinfo test3 = { queue, 8192, 2, 1, 425, 25, 15000, 25000 };
+  struct threadinfo test4 = { queue, 8192, 2, 20, 25, 250, 10000, 25000 };
+  struct threadinfo test5 = { queue, 8192, 2, 1, 50, 0, 10000, 50000 };
   struct threadinfo test6 = { queue, 16384, 8, 1, 20, 160, 200000, 50000 };
   
   seed_randomizer(1);
 
   /* Note! Note! For TAP, tests are numbered 1 to 7 */
   printf("1..7\n");
+  fflush(stdout);
 
   /* Test 0: no-sleep with 1 consumer */
   status = run_test(& test0) ? "ok" : "not ok";
   printf("%s 1 No-sleep test with 1 consumer\n", status);
+  fflush(stdout);
 
   /* Test 1: the no-sleep test */
   status = run_test(& test1) ? "ok" : "not ok";
   printf("%s 2 No-sleep wham!bam! test with %d iterations\n", status,
          test1.iterations);
+  fflush(stdout);
   
   /* Test 2: fast producer, slow consumer */
   status = run_test(& test2) ? "ok" : "not ok";
   printf("%s 3 Fast producer / slow consumer test\n", status);
+  fflush(stdout);
 
   /* Test 3: slow producer, fast consumer */
   status = run_test(& test3) ? "ok" : "not ok";
   printf("%s 4 Slow producer / fast consumer test\n", status);
+  fflush(stdout);
 
   /* Test 4: very slow consumer */  
   status = run_test(& test4) ? "ok" : "not ok";
   printf("%s 5 very slow consumer test\n", status);
+  fflush(stdout);
 
   /* Test 5: whambam! consumer */  
   status = run_test(& test5) ? "ok" : "not ok";
   printf("%s 6 Sluggish producer, whambam! consumer test\n", status);
+  fflush(stdout);
 
   /* Test 6: simulation */
   status = run_test(& test6) ? "ok" : "not ok";
   printf("%s 7 Memcached simluation test\n", status);
+  fflush(stdout);
 }
 
 int run_test(struct threadinfo *params) {

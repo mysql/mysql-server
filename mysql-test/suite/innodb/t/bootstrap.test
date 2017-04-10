@@ -1,0 +1,200 @@
+# Embedded mode doesn't support restarting
+--source include/not_embedded.inc
+
+--echo # Testcase for the following bugs
+--echo # Bug#16691130 - ASSERT WHEN INNODB_LOG_GROUP_HOME_DIR DOES NOT EXIST
+--echo # Bug#16418661 - CHANGING NAME IN FOR INNODB_DATA_FILE_PATH SHOULD NOT SUCCEED WITH LOG FILES
+
+let bugdir= $MYSQLTEST_VARDIR/tmp/log_file;
+--mkdir $bugdir
+
+--source include/shutdown_mysqld.inc
+let SEARCH_FILE = $bugdir/my_restart.err;
+let $args=--defaults-file=$bugdir/my.cnf --innodb_fast_shutdown=0 --datadir=$bugdir/data --loose-console --core-file --loose-skip-auto_generate_certs --loose-skip-sha256_password_auto_generate_rsa_keys --secure-file-priv="" > $SEARCH_FILE 2>&1 ;
+
+--echo # Write tmp/log_file/my.cnf
+--write_file $bugdir/my.cnf
+[mysqld]
+EOF
+
+--exec echo "innodb_data_home_dir = $bugdir/data" >> $bugdir/my.cnf
+
+--append_file $bugdir/my.cnf
+innodb_data_file_path = ibdata1:16M;ibdata2:16M
+innodb_undo_logs = 20
+innodb_undo_tablespaces = 3
+innodb_log_files_in_group = 3
+innodb_log_file_size=5M
+EOF
+
+--echo # Start mysqld without the possibility to create innodb_undo_tablespaces
+--mkdir $bugdir/data
+--mkdir $bugdir/data/undo002
+--error 1,3
+--exec $MYSQLD $args
+let SEARCH_PATTERN=\[ERROR\] InnoDB: File .*ibdata1: 'open' returned OS error 71. Cannot continue operation;
+--source include/search_pattern_in_file.inc
+
+--list_files $bugdir/data
+--rmdir $bugdir/data/undo002
+
+--echo # Start mysqld to create tablespaces according to my.cnf
+--exec $MYSQLD $args --initialize-insecure
+
+--echo # Backup datadir
+--force-cpdir $bugdir/data $bugdir/data_backup
+
+--echo # Start mysqld with non existent innodb_log_group_home_dir
+--error 1,3
+--exec $MYSQLD $args --innodb_log_group_home_dir=/path/to/non-existent/
+let SEARCH_PATTERN=File .path.to.non-existent.*ib_logfile101: 'create' returned OS error \d+;
+--source include/search_pattern_in_file.inc
+let SEARCH_PATTERN=\[ERROR\] Aborting;
+--source include/search_pattern_in_file.inc
+
+
+--echo # 1. With ibdata2, Without ibdata1
+--remove_file $bugdir/data/ibdata1
+--error 1,3
+--exec $MYSQLD $args
+let SEARCH_PATTERN=\[ERROR\] InnoDB: File .*ibdata1: 'open' returned OS error 71. Cannot continue operation;
+--source include/search_pattern_in_file.inc
+
+# clean up & Restore
+--source ../include/bootstrap_cleanup.inc
+
+--echo # 2. With ibdata1, without ibdata2
+--remove_file $bugdir/data/ibdata2
+--error 1,3
+--exec $MYSQLD $args
+let SEARCH_PATTERN=Tablespace size stored in header is \d+ pages, but;
+--source include/search_pattern_in_file.inc
+let SEARCH_PATTERN=\[ERROR\] Aborting;
+--source include/search_pattern_in_file.inc
+
+# clean up & Restore
+--source ../include/bootstrap_cleanup.inc
+
+--echo # 3. Without ibdata1 & ibdata2
+--remove_file $bugdir/data/ibdata1
+--remove_file $bugdir/data/ibdata2
+--error 1,3
+--exec $MYSQLD $args
+let SEARCH_PATTERN=\[ERROR\] InnoDB: File .*ibdata1: 'open' returned OS error 71. Cannot continue operation;
+--source include/search_pattern_in_file.inc
+
+# clean up & Restore
+--source ../include/bootstrap_cleanup.inc
+
+--echo # 4. Without ibdata*, ib_logfile* and with undo00*
+--remove_files_wildcard $bugdir/data ibdata*
+--remove_files_wildcard $bugdir/data ib_logfile*
+--error 1,3
+--exec $MYSQLD $args
+let SEARCH_PATTERN=\[ERROR\] InnoDB: File .*ibdata1: 'open' returned OS error 71. Cannot continue operation;
+--source include/search_pattern_in_file.inc
+
+# clean up & Restore
+--source ../include/bootstrap_cleanup.inc
+
+--echo # 5. Without ibdata*,ib_logfile* files & Without undo002
+--remove_files_wildcard $bugdir/data ibdata*
+--remove_files_wildcard $bugdir/data ib_logfile*
+--remove_file $bugdir/data/undo002
+--error 1,3
+--exec $MYSQLD $args
+let SEARCH_PATTERN=\[ERROR\] InnoDB: File .*ibdata1: 'open' returned OS error 71. Cannot continue operation;
+--source include/search_pattern_in_file.inc
+
+# clean up & Restore
+--source ../include/bootstrap_cleanup.inc
+
+--echo # 6. Without ibdata*,ib_logfile* files & Without undo001, undo002
+# and with undo003
+--remove_files_wildcard $bugdir/data ibdata*
+--remove_files_wildcard $bugdir/data ib_logfile*
+--remove_file $bugdir/data/undo001
+--remove_file $bugdir/data/undo002
+--error 1,3
+--exec $MYSQLD $args
+let SEARCH_PATTERN=\[ERROR\] InnoDB: File .*ibdata1: 'open' returned OS error 71. Cannot continue operation;
+--source include/search_pattern_in_file.inc
+
+# clean up & Restore
+--source ../include/bootstrap_cleanup.inc
+
+--echo # 7. With ibdata files & Without undo002
+--remove_file $bugdir/data/undo002
+--error 1,3
+--exec $MYSQLD $args
+let SEARCH_PATTERN=Unable to open undo tablespace number 2;
+--source include/search_pattern_in_file.inc
+# clean up & Restore
+--source ../include/bootstrap_cleanup.inc
+
+--echo # 8. With ibdata files & Without undo001, undo002
+--remove_file $bugdir/data/undo001
+--remove_file $bugdir/data/undo002
+--error 1,3
+--exec $MYSQLD $args
+let SEARCH_PATTERN=Unable to open undo tablespace number 1;
+--source include/search_pattern_in_file.inc
+
+# clean up & Restore
+--source ../include/bootstrap_cleanup.inc
+
+--echo # 9. Without ibdata*, without undo*, Without ib_logfile1 and with ib_logfile2
+--remove_files_wildcard $bugdir/data ibdata*
+--remove_files_wildcard $bugdir/data undo00*
+--remove_file $bugdir/data/ib_logfile1
+--error 1,3
+--exec $MYSQLD $args
+let SEARCH_PATTERN=\[ERROR\] InnoDB: File .*ibdata1: 'open' returned OS error 71. Cannot continue operation;
+--source include/search_pattern_in_file.inc
+
+# clean up & Restore
+--source ../include/bootstrap_cleanup.inc
+
+# 10. With ibdata*, without ib_logfile0
+#--remove_file $bugdir/ib_logfile0
+# The below would start the server. Since we cannot start a parallel
+# server, do not test the below case
+#--error 1,3
+#--exec $MYSQLD $args
+
+# clean up & Restore
+#--source ../include/bootstrap_cleanup.inc
+
+--echo # 11. With ibdata*, without ib_logfile1
+--remove_file $bugdir/data/ib_logfile1
+--error 1,3
+--exec $MYSQLD $args
+let SEARCH_PATTERN=Only one log file found;
+--source include/search_pattern_in_file.inc
+let SEARCH_PATTERN=\[ERROR\] Aborting;
+--source include/search_pattern_in_file.inc
+
+# clean up & Restore
+--source ../include/bootstrap_cleanup.inc
+
+--echo # 12. With ibdata*, without ib_logfile2
+--remove_file $bugdir/data/ib_logfile2
+--error 1,3
+--exec $MYSQLD $args --innodb-unknown-parameter
+let SEARCH_PATTERN=Resizing redo log from \d+\*\d+ to \d+\*\d+ pages, LSN=\d+;
+--source include/search_pattern_in_file.inc
+
+# clean up & Restore
+--source ../include/bootstrap_cleanup.inc
+
+--echo # 13. Add new datafile at the end
+let $args=--defaults-file=$bugdir/my.cnf --datadir=$bugdir/data --loose-console --core-file --loose-skip-auto_generate_certs --loose-skip-sha256_password_auto_generate_rsa_keys --secure-file-priv="" --innodb-data_file_path="ibdata1:16M;ibdata2:16M;ibdata3:20M:autoextend" > $SEARCH_FILE 2>&1 ;
+--error 1,3
+--exec $MYSQLD $args  --innodb-unkown-parameter
+let SEARCH_PATTERN=\[Note\] InnoDB: File.*ibdata3. size is now 20 MB;
+--source include/search_pattern_in_file.inc
+
+--echo # Cleanup
+--force-rmdir $bugdir
+
+--source include/start_mysqld.inc

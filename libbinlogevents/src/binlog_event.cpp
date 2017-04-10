@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -80,8 +80,7 @@ Log_event_footer::get_checksum_alg(const char* buf, unsigned long len)
   @param buf                  the buffer containing the complete information
                               including the event and the header data
 
-  @param description_event    first constructor of Format_description_event,
-                              used to extract the binlog_version
+  @param binlog_version       the binlog_version
 */
 Log_event_header::
 Log_event_header(const char* buf, uint16_t binlog_version)
@@ -153,7 +152,7 @@ Log_event_header(const char* buf, uint16_t binlog_version)
       log_pos+= data_written; /* purecov: inspected */
     }
 
-  /* 4.0 or newer */
+  /* 4.0 or newer; fall through. */
   /**
     @verbatim
     Additional header fields include:
@@ -247,7 +246,7 @@ bool Log_event_footer::event_checksum_test(unsigned char *event_buf,
       /*
         Complile time guard to watch over  the max number of alg
       */
-      do_compile_time_assert(BINLOG_CHECKSUM_ALG_ENUM_END <= 0x80);
+      static_assert(BINLOG_CHECKSUM_ALG_ENUM_END <= 0x80, "");
     }
     memcpy(&incoming,
            event_buf + event_len - BINLOG_CHECKSUM_LEN, sizeof(incoming));
@@ -284,8 +283,7 @@ bool Log_event_footer::event_checksum_test(unsigned char *event_buf,
   the constructor of Log_event_header) and
   will be pointing to the start of event data
 */
-Binary_log_event::Binary_log_event(const char **buf, uint16_t binlog_version,
-                                   const char *server_version)
+Binary_log_event::Binary_log_event(const char **buf, uint16_t binlog_version)
 : m_header(*buf, binlog_version)
 {
   m_footer= Log_event_footer();
@@ -318,8 +316,7 @@ Binary_log_event::~Binary_log_event()
 Unknown_event::Unknown_event(const char* buf,
                 const Format_description_event *description_event)
   : Binary_log_event(&buf,
-                     description_event->binlog_version,
-                     description_event->server_version)
+                     description_event->binlog_version)
   {
   }
 #ifndef HAVE_MYSYS

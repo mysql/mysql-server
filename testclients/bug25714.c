@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,16 +13,18 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include <my_global.h>
+#include <assert.h>
+#include <m_string.h>
 #include <my_sys.h>
 #include <mysql.h>
-#include <m_string.h>
-#include <assert.h>
+#include <sys/types.h>
+
+#include "my_compiler.h"
 
 int main (int argc, char **argv)
 {
   MYSQL conn;
-  int OK;
+  int OK MY_ATTRIBUTE((unused));
 
   const char* query4= "INSERT INTO federated.t1 SET Value=54";
   const char* query5= "INSERT INTO federated.t1 SET Value=55";

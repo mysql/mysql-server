@@ -97,7 +97,7 @@ SELECT ST_ISVALID(g) FROM gis_geometrycollection WHERE fid=110;
 ST_ISVALID(g)
 1
 SELECT ST_ISVALID(ST_GEOMFROMTEXT('LINESTRING(0 0)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ISVALID(ST_GEOMFROMTEXT('LINESTRING(0 0,-0.00 0,0.0 0)'));
 ST_ISVALID(ST_GEOMFROMTEXT('LINESTRING(0 0,-0.00 0,0.0 0)'))
 0
@@ -120,11 +120,11 @@ SELECT ST_ISVALID(g) FROM gis_geometrycollection WHERE fid=114;
 ST_ISVALID(g)
 1
 SELECT ST_ISVALID(ST_GEOMFROMTEXT('MULTILINESTRING((0 0))'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ISVALID(ST_GEOMFROMTEXT('MULTILINESTRING((0 0,1 1,2 2),(3 3))'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ISVALID(ST_GEOMFROMTEXT('MULTILINESTRING((0 0,-0.00 0),(0.0 0))'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ISVALID(ST_GEOMFROMTEXT('MULTILINESTRING((0 0,0 5,5 5,5 0,0 0))'));
 ST_ISVALID(ST_GEOMFROMTEXT('MULTILINESTRING((0 0,0 5,5 5,5 0,0 0))'))
 1
@@ -147,7 +147,7 @@ SELECT ST_ISVALID(g) FROM gis_geometrycollection WHERE fid=100;
 ST_ISVALID(g)
 1
 SELECT ST_ISVALID(ST_GEOMFROMTEXT('POLYGON((0 0))'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ISVALID(ST_GEOMFROMTEXT('POLYGON((0 0,0 5,5 5,0 0))'));
 ST_ISVALID(ST_GEOMFROMTEXT('POLYGON((0 0,0 5,5 5,0 0))'))
 1
@@ -239,7 +239,7 @@ SELECT ST_ISVALID(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION()'));
 ST_ISVALID(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION()'))
 1
 SELECT ST_ISVALID(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(LINESTRING(0 0))'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ISVALID(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(GEOMETRYCOLLECTION()))'));
 ST_ISVALID(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(GEOMETRYCOLLECTION()))'))
 1
@@ -250,9 +250,9 @@ SELECT ST_ISVALID(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(1
 ST_ISVALID(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(10 10),MULTIPOINT(0 0,10 10)))'))
 1
 SELECT ST_ISVALID(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(LINESTRING(0 0),POINT(10 10))'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ISVALID(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(LINESTRING(0 0),GEOMETRYCOLLECTION())'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ISVALID(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POLYGON((0 0,1 1,2 2,0 0)),GEOMETRYCOLLECTION())'));
 ST_ISVALID(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POLYGON((0 0,1 1,2 2,0 0)),GEOMETRYCOLLECTION())'))
 0
@@ -260,7 +260,7 @@ SELECT ST_ISVALID(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(LINESTRING(0 0,10 10,20 20
 ST_ISVALID(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(LINESTRING(0 0,10 10,20 20),POLYGON((0 0,10 10,100 100,0 0)))'))
 0
 SELECT ST_ISVALID(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(LINESTRING(0 0),POLYGON((0 0,0 10,10 10,10 0,0 0,0 0),(4 4,4 6,6 6,6 4,4 4)))'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ISVALID(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(LINESTRING(1 1,2 2,3 3),'
                                                      'MULTILINESTRING((0 0,0 10,10 10,10 0),(10 10,10 15,15 15,10 10)))'));
 ST_ISVALID(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(LINESTRING(1 1,2 2,3 3),'
@@ -340,55 +340,55 @@ SELECT ST_ISVALID(NULL);
 ST_ISVALID(NULL)
 NULL
 SELECT ST_ISVALID(ST_GEOMFROMTEXT('POINT()'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ISVALID(ST_GEOMFROMTEXT('LINESTRING()'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ISVALID(ST_GEOMFROMTEXT('POLYGON(())'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ISVALID(ST_GEOMFROMTEXT('MULTIPOINT()'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ISVALID(ST_GEOMFROMTEXT('MULTILINESTRING(())'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ISVALID(ST_GEOMFROMTEXT('MULTIPOLYGON((()))'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ISVALID(ST_GEOMFROMTEXT('POINT(a 0)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ISVALID(ST_GEOMFROMTEXT('POINT(! 0)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ISVALID(ST_GEOMFROMTEXT('POINT('!' 0)'));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0)'))' at line 1
 SELECT ST_ISVALID(ST_GEOMFROMTEXT('POINT(12,34 0)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ISVALID(ST_GEOMFROMTEXT('LINESTRING(a 0,10 10)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ISVALID(ST_GEOMFROMTEXT('LINESTRING(0 0,! 10)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ISVALID(ST_GEOMFROMTEXT('LINESTRING('!' 0,10 10)'));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0,10 10)'))' at line 1
 SELECT ST_ISVALID(ST_GEOMFROMTEXT('LINESTRING(12,34 0,10 10)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ISVALID(ST_GEOMFROMTEXT('POLYGON((a 0,10 10,10 0,0 0))'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ISVALID(ST_GEOMFROMTEXT('POLYGON((0 0,! 10,10 0,0 0))'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ISVALID(ST_GEOMFROMTEXT('POLYGON(('!' 0,10 10,10 0,0 0))'));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0,10 10,10 0,0 0))'))' at line 1
 SELECT ST_ISVALID(ST_GEOMFROMTEXT('POLYGON((12,34 0,10 10,10 0,0 0))'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ISVALID(ST_GEOMFROMTEXT(@star_center,-1024));
-ERROR HY000: Incorrect arguments to st_isvalid
+ERROR 22003: SRID value is out of range in 'st_geomfromtext'
 SELECT ST_ISVALID(ST_GEOMFROMTEXT(@star_all_points,-1));
-ERROR HY000: Incorrect arguments to st_isvalid
+ERROR 22003: SRID value is out of range in 'st_geomfromtext'
 SELECT ST_ISVALID(ST_GEOMFROMTEXT(@star_lines_near_vertical,4236));
-ERROR HY000: Incorrect arguments to st_isvalid
+ERROR 22S00: Function st_isvalid is only defined for Cartesian spatial reference systems, but one of its arguments is in SRID 4236, which is not Cartesian.
 SELECT ST_ISVALID(ST_GEOMFROMTEXT(@star,123456789));
-ERROR HY000: Incorrect arguments to st_isvalid
+ERROR SR001: Function st_isvalid is only defined for Cartesian spatial reference systems, but one of its arguments is in SRID 123456789, which has not been defined.
 SELECT ST_ISVALID(ST_GEOMFROMTEXT(@star_elem_vertical,4294967295));
-ERROR HY000: Incorrect arguments to st_isvalid
+ERROR SR001: Function st_isvalid is only defined for Cartesian spatial reference systems, but one of its arguments is in SRID 4294967295, which has not been defined.
 SELECT ST_ISVALID(ST_GEOMFROMTEXT(@star_of_elems,4294967297));
-ERROR HY000: Incorrect arguments to st_isvalid
+ERROR 22003: SRID value is out of range in 'st_geomfromtext'
 SELECT ST_ISVALID(ST_GEOMFROMTEXT(@star_collection_elems,4294967295000));
-ERROR HY000: Incorrect arguments to st_isvalid
+ERROR 22003: SRID value is out of range in 'st_geomfromtext'
 SELECT ST_ISVALID(0x000000000200000000000000000000000000000000);
 ERROR HY000: Geometry byte string must be little endian.
 SELECT ST_ISVALID(0x010100000001000000010100000000000000000000);
@@ -423,3 +423,27 @@ SELECT ST_ISVALID(ST_GEOMFROMTEXT('POLYGON((-200 0,-207.99999999999997
 ST_ISVALID(ST_GEOMFROMTEXT('POLYGON((-200 0,-207.99999999999997
 135.36742435621204,-208 1,-208 0,-208 -276.9111154485375,-200 0))'))
 1
+#
+# WL#8579 Spatial Reference Systems
+#
+# SRID 0 (should pass)
+SELECT ST_ISVALID(ST_GEOMFROMTEXT('POINT(0 0)', 0));
+ST_ISVALID(ST_GEOMFROMTEXT('POINT(0 0)', 0))
+1
+# Projected SRS (should pass)
+SELECT ST_ISVALID(ST_GEOMFROMTEXT('POINT(0 0)', 2000));
+ST_ISVALID(ST_GEOMFROMTEXT('POINT(0 0)', 2000))
+1
+# Geographic SRS (should fail)
+SELECT ST_ISVALID(ST_GEOMFROMTEXT('POINT(0 0)', 4326));
+ERROR 22S00: Function st_isvalid is only defined for Cartesian spatial reference systems, but one of its arguments is in SRID 4326, which is not Cartesian.
+# Undefined SRS (should fail)
+SELECT ST_ISVALID(ST_GEOMFROMTEXT('POINT(0 0)', 2000000));
+ERROR SR001: Function st_isvalid is only defined for Cartesian spatial reference systems, but one of its arguments is in SRID 2000000, which has not been defined.
+# Unparseable SRS definition (should fail)
+INSERT INTO mysql.st_spatial_reference_systems(id, catalog_id, name,
+organization, organization_coordsys_id, definition, description)
+VALUES (2000001, 1, 'TEST2000001', 'Foo', 2000001, 'FOOBAR', '');
+SELECT ST_ISVALID(ST_GEOMFROMTEXT('POINT(0 0)', 2000001));
+ERROR SR002: Can't parse the spatial reference system definition of SRID 2000001.
+DELETE FROM mysql.st_spatial_reference_systems WHERE id = 2000001;

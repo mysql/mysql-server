@@ -1,3 +1,4 @@
+call mtr.add_suppression("Plugin \'InnoDB\'");
 DROP TABLE IF EXISTS t1;
 set names utf8;
 set collation_connection=utf8_unicode_ci;
@@ -5900,7 +5901,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `s1` varchar(64) CHARACTER SET ucs2 COLLATE ucs2_unicode_ci DEFAULT NULL,
   `s2` varchar(64) CHARACTER SET ucs2 COLLATE ucs2_unicode_ci DEFAULT NULL
-) ENGINE=default_engine DEFAULT CHARSET=latin1
+) ENGINE=default_engine DEFAULT CHARSET=utf8mb4
 delete from t1;
 insert into t1 values('aaa','aaa');
 insert into t1 values('aaa|qqq','qqq');
@@ -6205,36 +6206,6 @@ hex(weight_string(cast(_latin1 0x808080 as char), 5, 4, 0xC0))
 select hex(weight_string(cast(_latin1 0x808080 as char),25, 4, 0xC0));
 hex(weight_string(cast(_latin1 0x808080 as char),25, 4, 0xC0))
 0E230E230E2302090209020902090209020902090209020902
-select @@collation_connection;
-@@collation_connection
-ucs2_unicode_ci
-select hex(weight_string('a' LEVEL 1));
-hex(weight_string('a' LEVEL 1))
-0E33
-select hex(weight_string('A' LEVEL 1));
-hex(weight_string('A' LEVEL 1))
-0E33
-select hex(weight_string('abc' LEVEL 1));
-hex(weight_string('abc' LEVEL 1))
-0E330E4A0E60
-select hex(weight_string('abc' as char(2) LEVEL 1));
-hex(weight_string('abc' as char(2) LEVEL 1))
-0E330E4A
-select hex(weight_string('abc' as char(3) LEVEL 1));
-hex(weight_string('abc' as char(3) LEVEL 1))
-0E330E4A0E60
-select hex(weight_string('abc' as char(5) LEVEL 1));
-hex(weight_string('abc' as char(5) LEVEL 1))
-0E330E4A0E6002090209
-select hex(weight_string('abc' as char(5) LEVEL 1 REVERSE));
-hex(weight_string('abc' as char(5) LEVEL 1 REVERSE))
-09020902600E4A0E330E
-select hex(weight_string('abc' as char(5) LEVEL 1 DESC));
-hex(weight_string('abc' as char(5) LEVEL 1 DESC))
-F1CCF1B5F19FFDF6FDF6
-select hex(weight_string('abc' as char(5) LEVEL 1 DESC REVERSE));
-hex(weight_string('abc' as char(5) LEVEL 1 DESC REVERSE))
-F6FDF6FD9FF1B5F1CCF1
 set @@collation_connection=utf8_unicode_ci;
 select @@collation_connection;
 @@collation_connection
@@ -6383,36 +6354,6 @@ hex(weight_string(cast(_latin1 0x808080 as char), 5, 4, 0xC0))
 select hex(weight_string(cast(_latin1 0x808080 as char),25, 4, 0xC0));
 hex(weight_string(cast(_latin1 0x808080 as char),25, 4, 0xC0))
 0E230E230E2302090209020902090209020902090209020902
-select @@collation_connection;
-@@collation_connection
-utf8_unicode_ci
-select hex(weight_string('a' LEVEL 1));
-hex(weight_string('a' LEVEL 1))
-0E33
-select hex(weight_string('A' LEVEL 1));
-hex(weight_string('A' LEVEL 1))
-0E33
-select hex(weight_string('abc' LEVEL 1));
-hex(weight_string('abc' LEVEL 1))
-0E330E4A0E60
-select hex(weight_string('abc' as char(2) LEVEL 1));
-hex(weight_string('abc' as char(2) LEVEL 1))
-0E330E4A
-select hex(weight_string('abc' as char(3) LEVEL 1));
-hex(weight_string('abc' as char(3) LEVEL 1))
-0E330E4A0E60
-select hex(weight_string('abc' as char(5) LEVEL 1));
-hex(weight_string('abc' as char(5) LEVEL 1))
-0E330E4A0E6002090209
-select hex(weight_string('abc' as char(5) LEVEL 1 REVERSE));
-hex(weight_string('abc' as char(5) LEVEL 1 REVERSE))
-09020902600E4A0E330E
-select hex(weight_string('abc' as char(5) LEVEL 1 DESC));
-hex(weight_string('abc' as char(5) LEVEL 1 DESC))
-F1CCF1B5F19FFDF6FDF6
-select hex(weight_string('abc' as char(5) LEVEL 1 DESC REVERSE));
-hex(weight_string('abc' as char(5) LEVEL 1 DESC REVERSE))
-F6FDF6FD9FF1B5F1CCF1
 set @@collation_connection=utf8_czech_ci;
 select @@collation_connection;
 @@collation_connection
@@ -6428,7 +6369,7 @@ hex(weight_string(cast(_latin1 0xDF as char)))
 0FEA0FEA
 select hex(weight_string(cast(_latin1 0xDF as char) as char(1)));
 hex(weight_string(cast(_latin1 0xDF as char) as char(1)))
-0FEA
+0FEA0FEA
 select hex(weight_string('c'));
 hex(weight_string('c'))
 0E60
@@ -6446,10 +6387,10 @@ hex(weight_string(cast(_latin1 0x6368DF as char)))
 0EE20FEA0FEA
 select hex(weight_string(cast(_latin1 0x6368DF as char) as char(1)));
 hex(weight_string(cast(_latin1 0x6368DF as char) as char(1)))
-0EE2
+0E60
 select hex(weight_string(cast(_latin1 0x6368DF as char) as char(2)));
 hex(weight_string(cast(_latin1 0x6368DF as char) as char(2)))
-0EE20FEA
+0EE2
 select hex(weight_string(cast(_latin1 0x6368DF as char) as char(3)));
 hex(weight_string(cast(_latin1 0x6368DF as char) as char(3)))
 0EE20FEA0FEA
@@ -6461,10 +6402,10 @@ hex(weight_string(cast(_latin1 0xDF6368 as char)))
 0FEA0FEA0EE2
 select hex(weight_string(cast(_latin1 0xDF6368 as char) as char(1)));
 hex(weight_string(cast(_latin1 0xDF6368 as char) as char(1)))
-0FEA
+0FEA0FEA
 select hex(weight_string(cast(_latin1 0xDF6368 as char) as char(2)));
 hex(weight_string(cast(_latin1 0xDF6368 as char) as char(2)))
-0FEA0FEA
+0FEA0FEA0E60
 select hex(weight_string(cast(_latin1 0xDF6368 as char) as char(3)));
 hex(weight_string(cast(_latin1 0xDF6368 as char) as char(3)))
 0FEA0FEA0EE2
@@ -6479,13 +6420,13 @@ hex(weight_string(cast(_latin1 0x6368DF as char), 2, 2, 0xC0))
 0EE2
 select hex(weight_string(cast(_latin1 0x6368DF as char), 3, 2, 0xC0));
 hex(weight_string(cast(_latin1 0x6368DF as char), 3, 2, 0xC0))
-0EE20F
+0EE202
 select hex(weight_string(cast(_latin1 0x6368DF as char), 4, 2, 0xC0));
 hex(weight_string(cast(_latin1 0x6368DF as char), 4, 2, 0xC0))
-0EE20FEA
+0EE20209
 select hex(weight_string(cast(_latin1 0x6368DF as char),25, 2, 0xC0));
 hex(weight_string(cast(_latin1 0x6368DF as char),25, 2, 0xC0))
-0EE20FEA020902090209020902090209020902090209020902
+0EE20209020902090209020902090209020902090209020902
 select hex(weight_string(cast(_latin1 0x6368DF as char), 1, 3, 0xC0));
 hex(weight_string(cast(_latin1 0x6368DF as char), 1, 3, 0xC0))
 0E
@@ -6530,7 +6471,7 @@ hex(weight_string(cast(_latin1 0xDF6368 as char), 4, 2,0xC0))
 0FEA0FEA
 select hex(weight_string(cast(_latin1 0xDF6368 as char),25, 2,0xC0));
 hex(weight_string(cast(_latin1 0xDF6368 as char),25, 2,0xC0))
-0FEA0FEA020902090209020902090209020902090209020902
+0FEA0FEA0E6002090209020902090209020902090209020902
 select hex(weight_string(cast(_latin1 0xDF6368 as char), 1, 3,0xC0));
 hex(weight_string(cast(_latin1 0xDF6368 as char), 1, 3,0xC0))
 0F
@@ -6576,7 +6517,7 @@ hex(weight_string(cast(_latin1 0xDF as char)))
 0FEA0FEA
 select hex(weight_string(cast(_latin1 0xDF as char) as char(1)));
 hex(weight_string(cast(_latin1 0xDF as char) as char(1)))
-0FEA
+0FEA0FEA
 select hex(weight_string('c'));
 hex(weight_string('c'))
 0E60
@@ -6594,10 +6535,10 @@ hex(weight_string(cast(_latin1 0x6368DF as char)))
 0EE20FEA0FEA
 select hex(weight_string(cast(_latin1 0x6368DF as char) as char(1)));
 hex(weight_string(cast(_latin1 0x6368DF as char) as char(1)))
-0EE2
+0E60
 select hex(weight_string(cast(_latin1 0x6368DF as char) as char(2)));
 hex(weight_string(cast(_latin1 0x6368DF as char) as char(2)))
-0EE20FEA
+0EE2
 select hex(weight_string(cast(_latin1 0x6368DF as char) as char(3)));
 hex(weight_string(cast(_latin1 0x6368DF as char) as char(3)))
 0EE20FEA0FEA
@@ -6609,10 +6550,10 @@ hex(weight_string(cast(_latin1 0xDF6368 as char)))
 0FEA0FEA0EE2
 select hex(weight_string(cast(_latin1 0xDF6368 as char) as char(1)));
 hex(weight_string(cast(_latin1 0xDF6368 as char) as char(1)))
-0FEA
+0FEA0FEA
 select hex(weight_string(cast(_latin1 0xDF6368 as char) as char(2)));
 hex(weight_string(cast(_latin1 0xDF6368 as char) as char(2)))
-0FEA0FEA
+0FEA0FEA0E60
 select hex(weight_string(cast(_latin1 0xDF6368 as char) as char(3)));
 hex(weight_string(cast(_latin1 0xDF6368 as char) as char(3)))
 0FEA0FEA0EE2
@@ -6627,13 +6568,13 @@ hex(weight_string(cast(_latin1 0x6368DF as char), 2, 2, 0xC0))
 0EE2
 select hex(weight_string(cast(_latin1 0x6368DF as char), 3, 2, 0xC0));
 hex(weight_string(cast(_latin1 0x6368DF as char), 3, 2, 0xC0))
-0EE20F
+0EE202
 select hex(weight_string(cast(_latin1 0x6368DF as char), 4, 2, 0xC0));
 hex(weight_string(cast(_latin1 0x6368DF as char), 4, 2, 0xC0))
-0EE20FEA
+0EE20209
 select hex(weight_string(cast(_latin1 0x6368DF as char),25, 2, 0xC0));
 hex(weight_string(cast(_latin1 0x6368DF as char),25, 2, 0xC0))
-0EE20FEA020902090209020902090209020902090209020902
+0EE20209020902090209020902090209020902090209020902
 select hex(weight_string(cast(_latin1 0x6368DF as char), 1, 3, 0xC0));
 hex(weight_string(cast(_latin1 0x6368DF as char), 1, 3, 0xC0))
 0E
@@ -6678,7 +6619,7 @@ hex(weight_string(cast(_latin1 0xDF6368 as char), 4, 2,0xC0))
 0FEA0FEA
 select hex(weight_string(cast(_latin1 0xDF6368 as char),25, 2,0xC0));
 hex(weight_string(cast(_latin1 0xDF6368 as char),25, 2,0xC0))
-0FEA0FEA020902090209020902090209020902090209020902
+0FEA0FEA0E6002090209020902090209020902090209020902
 select hex(weight_string(cast(_latin1 0xDF6368 as char), 1, 3,0xC0));
 hex(weight_string(cast(_latin1 0xDF6368 as char), 1, 3,0xC0))
 0F
@@ -6831,7 +6772,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c` varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_520_ci DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 INSERT INTO t1 VALUES (_utf32 0x0180),(_utf32 0x023A);
 INSERT INTO t1 VALUES (_utf32 0x023B),(_utf32 0x023C);
 INSERT INTO t1 VALUES (_utf32 0x023D),(_utf32 0x023E);
@@ -7128,8 +7069,8 @@ DROP TABLE t1;
 # restart
 # Check whether the new collation is loaded after restart
 SHOW COLLATION LIKE 'utf8_test';
-Collation	Charset	Id	Default	Compiled	Sortlen
-utf8_test	utf8	999			8
+Collation	Charset	Id	Default	Compiled	Sortlen	Pad_attribute
+utf8_test	utf8	999			8	PAD SPACE
 # Create a table with the unknown collation.
 CREATE TABLE t1(id INT PRIMARY KEY, c CHAR(1) COLLATE utf8_test);
 ERROR HY000: Unknown collation: 'utf8_test'
@@ -7140,3 +7081,17 @@ call mtr.add_suppression("Shift expected at '' for COLLATION : utf8_test");
 #
 # End of 5.6 tests
 #
+SET NAMES utf8mb4;
+CREATE TABLE t1 (
+f1 CHAR(4) NOT NULL
+);
+INSERT INTO t1 VALUES ('é');
+INSERT INTO t1 VALUES (_utf16 0x00650301);
+SELECT DISTINCT f1 FROM t1;
+f1
+é
+SELECT SQL_BIG_RESULT DISTINCT f1 FROM t1;
+f1
+é
+DROP TABLE t1;
+SET NAMES DEFAULT;

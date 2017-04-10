@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -22,6 +22,8 @@
 
 #ifndef SQL_CONST_INCLUDED
 #define SQL_CONST_INCLUDED
+
+#include "my_inttypes.h"
 
 #define LIBLEN FN_REFLEN-FN_LEN			/* Max l{ngd p} dev */
 /* extra 4+4 bytes for slave tmp tables */
@@ -73,8 +75,11 @@
 #define RAND_TABLE_BIT	(((table_map) 1) << (sizeof(table_map)*8-1))
 #define PSEUDO_TABLE_BITS (PARAM_TABLE_BIT | OUTER_REF_TABLE_BIT | \
                            RAND_TABLE_BIT)
-#define MAX_FIELDS	4096			/* Limit in the .frm file */
+#define MAX_FIELDS	4096			/* Maximum number of columns */
 #define MAX_PARTITIONS  8192
+
+#define MAX_ENUM_VALUES 65535            /* Max number of enumeration values */
+#define MAX_INTERVAL_VALUE_LENGTH 255       /* Max length of enum/set values */
 
 #define MAX_SELECT_NESTING (sizeof(nesting_map)*8-1)
 
@@ -94,9 +99,6 @@
 #define DEFAULT_ERROR_COUNT	64
 #define EXTRA_RECORDS	10			/* Extra records in sort */
 #define SCROLL_EXTRA	5			/* Extra scroll-rows. */
-#define FIELD_NAME_USED ((uint) 32768)		/* Bit set if fieldname used */
-#define FORM_NAME_USED	((uint) 16384)		/* Bit set if formname used */
-#define FIELD_NR_MASK	16383			/* To get fieldnumber */
 #define FERR		-1			/* Error from my_functions */
 #define CREATE_MODE	0			/* Default mode on new files */
 #define NAMES_SEP_CHAR	'\377'			/* Char to sep. names */
@@ -116,7 +118,12 @@
 #define USER_VARS_HASH_SIZE     16
 #define TABLE_OPEN_CACHE_MIN    400
 #define TABLE_OPEN_CACHE_DEFAULT 2000
-#define TABLE_DEF_CACHE_DEFAULT 400
+static const ulong TABLE_DEF_CACHE_DEFAULT=          400;
+static const ulong SCHEMA_DEF_CACHE_DEFAULT=         256;
+static const ulong STORED_PROGRAM_DEF_CACHE_DEFAULT= 256;
+static const ulong TABLESPACE_DEF_CACHE_DEFAULT=     256;
+static const ulong EVENT_DEF_CACHE_DEFAULT=          256;
+
 /**
   Maximum number of connections default value.
   151 is larger than Apache's default max children,
@@ -136,7 +143,11 @@
   for now the only solution is to ensure that the table definition
   cache can contain at least all tables of a given statement.
 */
-#define TABLE_DEF_CACHE_MIN     400
+static const ulong TABLE_DEF_CACHE_MIN=          400;
+static const ulong SCHEMA_DEF_CACHE_MIN=         256;
+static const ulong STORED_PROGRAM_DEF_CACHE_MIN= 256;
+static const ulong TABLESPACE_DEF_CACHE_MIN=     256;
+static const ulong EVENT_DEF_CACHE_MIN=          256;
 
 /*
   Stack reservation.
@@ -346,5 +357,7 @@ enum enum_mark_columns
   init systems like systemd.
 */
 #define MYSQLD_FAILURE_EXIT 2
+
+#define UUID_LENGTH (8+1+4+1+4+1+4+1+12)
 
 #endif /* SQL_CONST_INCLUDED */

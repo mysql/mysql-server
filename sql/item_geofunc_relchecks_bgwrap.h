@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -27,7 +27,21 @@
   @tparam Geom_types Geometry types definitions.
 */
 
+#include <boost/geometry/algorithms/crosses.hpp>
+#include <boost/geometry/algorithms/intersects.hpp>
+#include <boost/geometry/algorithms/touches.hpp>
+#include <boost/geometry/algorithms/within.hpp>
+#include <stddef.h>
 #include <set>
+#include <vector>
+
+#include "item_geofunc.h"
+#include "my_inttypes.h"
+#include "my_sys.h"
+#include "mysqld_error.h"
+
+class Geometry;
+struct bgpt_lt;
 
 template<typename Geom_types>
 class BG_wrap {
@@ -48,70 +62,69 @@ public:
   typedef std::vector<Point> Point_vector;
 
   static int point_within_geometry(Geometry *g1, Geometry *g2,
-                                   my_bool *pnull_value);
+                                   bool *pnull_value);
 
   static int multipoint_within_geometry(Geometry *g1, Geometry *g2,
-                                        my_bool *pnull_value);
+                                        bool *pnull_value);
 
   static int linestring_within_geometry(Geometry *g1, Geometry *g2,
-                                        my_bool *pnull_value);
+                                        bool *pnull_value);
   static int multilinestring_within_geometry(Geometry *g1, Geometry *g2,
-                                             my_bool *pnull_value);
+                                             bool *pnull_value);
   static int polygon_within_geometry(Geometry *g1, Geometry *g2,
-                                     my_bool *pnull_value);
+                                     bool *pnull_value);
   static int multipolygon_within_geometry(Geometry *g1, Geometry *g2,
-                                          my_bool *pnull_value);
+                                          bool *pnull_value);
 
   static int multipoint_equals_geometry(Geometry *g1, Geometry *g2,
-                                        my_bool *pnull_value);
+                                        bool *pnull_value);
 
   static int point_disjoint_geometry(Geometry *g1, Geometry *g2,
-                                     my_bool *pnull_value);
+                                     bool *pnull_value);
   static int multipoint_disjoint_geometry(Geometry *g1, Geometry *g2,
-                                          my_bool *pnull_value);
+                                          bool *pnull_value);
 
   static int linestring_disjoint_geometry(Geometry *g1, Geometry *g2,
-                                          my_bool *pnull_value);
+                                          bool *pnull_value);
   static int multilinestring_disjoint_geometry(Geometry *g1, Geometry *g2,
-                                               my_bool *pnull_value);
+                                               bool *pnull_value);
   static int polygon_disjoint_geometry(Geometry *g1, Geometry *g2,
-                                       my_bool *pnull_value);
+                                       bool *pnull_value);
   static int multipolygon_disjoint_geometry(Geometry *g1, Geometry *g2,
-                                            my_bool *pnull_value);
+                                            bool *pnull_value);
   static int point_intersects_geometry(Geometry *g1, Geometry *g2,
-                                       my_bool *pnull_value);
+                                       bool *pnull_value);
   static int multipoint_intersects_geometry(Geometry *g1, Geometry *g2,
-                                            my_bool *pnull_value);
+                                            bool *pnull_value);
   static int linestring_intersects_geometry(Geometry *g1, Geometry *g2,
-                                            my_bool *pnull_value);
+                                            bool *pnull_value);
   static int multilinestring_intersects_geometry(Geometry *g1, Geometry *g2,
-                                                 my_bool *pnull_value);
+                                                 bool *pnull_value);
   static int polygon_intersects_geometry(Geometry *g1, Geometry *g2,
-                                         my_bool *pnull_value);
+                                         bool *pnull_value);
   static int multipolygon_intersects_geometry(Geometry *g1, Geometry *g2,
-                                              my_bool *pnull_value);
+                                              bool *pnull_value);
   static int linestring_crosses_geometry(Geometry *g1, Geometry *g2,
-                                         my_bool *pnull_value);
+                                         bool *pnull_value);
   static int multipoint_crosses_geometry(Geometry *g1, Geometry *g2,
-                                         my_bool *pnull_value);
+                                         bool *pnull_value);
   static int multilinestring_crosses_geometry(Geometry *g1, Geometry *g2,
-                                              my_bool *pnull_value);
-  static int multipoint_overlaps_multipoint(Geometry *g1, Geometry *g2,
-                                            my_bool *pnull_value);
+                                              bool *pnull_value);
+  static int multipoint_overlaps_multipoint(Geometry *g1, Geometry *g2);
   static int point_touches_geometry(Geometry *g1, Geometry *g2,
-                                    my_bool *pnull_value);
+                                    bool *pnull_value);
   static int multipoint_touches_geometry(Geometry *g1, Geometry *g2,
-                                         my_bool *pnull_value);
+                                         bool *pnull_value);
   static int linestring_touches_geometry(Geometry *g1, Geometry *g2,
-                                         my_bool *pnull_value);
+                                         bool *pnull_value);
   static int multilinestring_touches_polygon(Geometry *g1, Geometry *g2,
-                                             my_bool *pnull_value);
+                                             bool *pnull_value);
   static int multilinestring_touches_geometry(Geometry *g1, Geometry *g2,
-                                              my_bool *pnull_value);
+                                              bool *pnull_value);
   static int polygon_touches_geometry(Geometry *g1, Geometry *g2,
-                                      my_bool *pnull_value);
+                                      bool *pnull_value);
   static int multipolygon_touches_geometry(Geometry *g1, Geometry *g2,
-                                           my_bool *pnull_value);
+                                           bool *pnull_value);
 
 private:
   template<typename Geom_type>

@@ -1,0 +1,36 @@
+#Test for Shared, GAP locks
+drop table if exists t1_s_gap;
+drop table if exists t2_s_gap;
+use test;
+create table t1_s_gap (col1 int primary key);
+create table t2_s_gap (col1 int primary key, col2 int not null, foreign key(col2) references t1_s_gap(col1));
+insert into t1_s_gap values (10),(20),(30),(40);
+start transaction;
+insert into t2_s_gap values (1, 25);
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`t2_s_gap`, CONSTRAINT `t2_s_gap_ibfk_1` FOREIGN KEY (`col2`) REFERENCES `t1_s_gap` (`col1`))
+use performance_schema;
+select object_schema, object_name, lock_type, lock_mode, lock_status, lock_data
+from data_locks
+where object_name in ('t1_s_gap', 't2_s_gap')
+order by object_name, lock_type, lock_mode, lock_status, lock_data;
+object_schema	object_name	lock_type	lock_mode	lock_status	lock_data
+test	t1_s_gap	RECORD	S,GAP	GRANTED	30
+test	t1_s_gap	TABLE	IS	GRANTED	NULL
+test	t2_s_gap	TABLE	IX	GRANTED	NULL
+start transaction;
+insert into t1_s_gap values (25);
+use performance_schema;
+select object_schema, object_name, lock_type, lock_mode, lock_status, lock_data
+from data_locks
+where object_name in ('t1_s_gap', 't2_s_gap')
+order by object_name, lock_type, lock_mode, lock_status, lock_data;
+object_schema	object_name	lock_type	lock_mode	lock_status	lock_data
+test	t1_s_gap	RECORD	S,GAP	GRANTED	30
+test	t1_s_gap	RECORD	X,GAP	WAITING	30
+test	t1_s_gap	TABLE	IS	GRANTED	NULL
+test	t1_s_gap	TABLE	IX	GRANTED	NULL
+test	t2_s_gap	TABLE	IX	GRANTED	NULL
+commit;
+commit;
+drop table t2_s_gap;
+drop table t1_s_gap;

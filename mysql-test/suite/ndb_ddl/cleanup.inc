@@ -5,6 +5,9 @@
 DROP DATABASE ndb_ddl_test;
 DROP DATABASE ndb_ddl_test2;
 
+# Drop utilities
+DROP VIEW test.ndbinfo_dict_obj_info;
+
 --enable_query_log
 
 

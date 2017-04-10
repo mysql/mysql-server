@@ -1,4 +1,4 @@
-# Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -18,6 +18,7 @@ SET(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH}
     ${CMAKE_SOURCE_DIR}/cmake
     ${CMAKE_SOURCE_DIR}/storage/ndb/cmake)
 INCLUDE(ndb_add_target_property)
+INCLUDE(ndb_add_test)
 
 MESSAGE(STATUS "Using cmake version ${CMAKE_VERSION}")
 
@@ -50,31 +51,6 @@ MACRO(NDB_CHECK_MYSQL_CLUSTER version_string)
 ENDMACRO()
 
 NDB_CHECK_MYSQL_CLUSTER(${VERSION})
-
-# Temporarily remove -Werror from compiler flags until
-# storage/ndb/ can be built with it
-IF(CMAKE_C_FLAGS)
-  STRING(REGEX REPLACE "-Werror( |$)" "" CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
-ENDIF()
-IF(CMAKE_CXX_FLAGS)
-  STRING(REGEX REPLACE "-Werror( |$)" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
-ENDIF()
-
-# Disable specific types of warnings for storage/ndb
-# if the compiler supports the flag
-IF(CMAKE_COMPILER_IS_GNUCXX)
-  INCLUDE(CheckCXXCompilerFlag)
-  FOREACH(warning "unused-but-set-variable" "strict-aliasing")
-    STRING(REPLACE "-" "_" warning_ ${warning})
-    STRING(TOUPPER ${warning_} WARNING)
-    CHECK_CXX_COMPILER_FLAG("-Wno-${warning}" HAVE_${WARNING})
-    IF(HAVE_${WARNING})
-      MESSAGE(STATUS "Disabling -W${warning} warning for building NDB")
-      SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-${warning}")
-      SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-${warning}")
-    ENDIF()
-  ENDFOREACH()
-ENDIF()
 
 #
 # Add the ndbcluster plugin
@@ -110,19 +86,15 @@ SET(NDBCLUSTER_SOURCES
   ../../sql/ndb_binlog_thread.cc
   ../../sql/ndb_find_files_list.cc
   ../../sql/ndb_name_util.cc
+  ../../sql/ndb_bitmap.cc
+  ../../sql/ndb_table_map.cc
 )
 
 # Include directories used when building ha_ndbcluster
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/storage/ndb/include)
 
 IF(NOT MYSQL_CLUSTER_VERSION)
- # Global schema lock not supported in non
- # MySQL Cluster version yet, compile ndbcluster without it
- ADD_DEFINITIONS(-DNDB_WITHOUT_GLOBAL_SCHEMA_LOCK)
 ENDIF()
-
-# NDB needs replication
-ADD_DEFINITIONS(-DHAVE_REPLICATION)
 
 # NDB is DEFAULT plugin in MySQL Cluster
 SET(is_default_plugin "")
@@ -138,7 +110,7 @@ ENDIF()
 
 IF(NOT WITHOUT_SERVER)
   MYSQL_ADD_PLUGIN(ndbcluster ${NDBCLUSTER_SOURCES} STORAGE_ENGINE
-    ${is_default_plugin} STATIC_ONLY RECOMPILE_FOR_EMBEDDED
+    ${is_default_plugin} STATIC_ONLY
     LINK_LIBRARIES ndbclient_static)
 ENDIF()
 
@@ -151,11 +123,28 @@ IF (NOT WITH_NDBCLUSTER)
   RETURN()
 ENDIF()
 
-# Add HAVE_NDB_BINLOG to the list of compile definitions used when compiling
-# the ndbcluster plugin library(NOTE! there is also ndbcluster_embedded which
-# is compiled without this define)
-IF(NOT WITHOUT_SERVER)
-  NDB_ADD_TARGET_PROPERTY(ndbcluster COMPILE_DEFINITIONS "HAVE_NDB_BINLOG")
+# Disable specific types of warnings for storage/ndb
+# if the compiler supports the flag
+IF(CMAKE_COMPILER_IS_GNUCXX)
+  INCLUDE(CheckCXXCompilerFlag)
+  FOREACH(warning
+          "unused-but-set-variable"
+          "strict-aliasing"
+          # Downgrade -Werror to warning for "may be used uninitialized"
+          # and "is used uninitialized in this function"
+          "error=maybe-uninitialized"
+          "error=uninitialized"
+          # Downgrade placement-new as part of Bug #24822203
+          "error=placement-new")
+    STRING(REPLACE "-" "_" warning_ ${warning})
+    STRING(TOUPPER ${warning_} WARNING)
+    CHECK_CXX_COMPILER_FLAG("-Wno-${warning}" HAVE_${WARNING})
+    IF(HAVE_${WARNING})
+      MESSAGE(STATUS "Disabling -W${warning} warning for building NDB")
+      SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-${warning}")
+      SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-${warning}")
+    ENDIF()
+  ENDFOREACH()
 ENDIF()
 
 IF(CMAKE_SIZEOF_VOID_P EQUAL 4)
@@ -195,6 +184,28 @@ OPTION(WITH_NDB_TEST
   "Include the NDB Cluster ndbapi test programs" OFF)
 IF(WITH_NDB_TEST)
   MESSAGE(STATUS "Building NDB test programs")
+ELSE()
+  # Turn on NDB tests automatically for gcov builds
+  IF(ENABLE_GCOV AND NOT WIN32 AND NOT APPLE)
+    MESSAGE(STATUS "Building NDB test programs for improved gcov coverage")
+    SET(WITH_NDB_TEST ON)
+  ENDIF()
+  # Turn on NDB tests automatically for valgrind builds
+  IF(WITH_VALGRIND)
+    MESSAGE(STATUS "Building NDB test programs for improved valgrind coverage")
+    SET(WITH_NDB_TEST ON)
+    MESSAGE(STATUS "Building NdbApi examples for improved valgrind coverage")
+    SET(WITH_NDBAPI_EXAMPLES ON)
+  ENDIF()
+  # Turn on NDB tests automatically for "-devbld" debug builds
+  # to increase test coverage
+  IF(PACKAGE_SUFFIX STREQUAL "-devbld" AND
+     CMAKE_BUILD_TYPE MATCHES "Debug")
+    MESSAGE(STATUS "Building NDB test programs for \"-devbld\" debug build")
+    SET(WITH_NDB_TEST ON)
+    MESSAGE(STATUS "Building NdbApi examples for \"-devbld\" debug build")
+    SET(WITH_NDBAPI_EXAMPLES ON)
+  ENDIF()
 ENDIF()
 
 OPTION(WITH_NDB_BINLOG
@@ -268,8 +279,69 @@ ENDIF()
 OPTION(WITH_NDB_JAVA
   "Include NDB Cluster Java components" ${WITH_NDB_JAVA_DEFAULT})
 IF(WITH_NDB_JAVA)
+  #
   # Check for Java and JDK needed by ndbjtie and clusterj
-  FIND_PACKAGE(Java 1.6 REQUIRED COMPONENTS Development)
+  #
+
+  # Print value of JAVA_HOME if set
+  IF(DEFINED ENV{JAVA_HOME})
+    MESSAGE(STATUS "Looking for Java in JAVA_HOME=" $ENV{JAVA_HOME} " "
+                   "and standard locations")
+  ELSE()
+    MESSAGE(STATUS "Looking for Java in standard locations")
+  ENDIF()
+
+  FIND_PACKAGE(Java 1.6 COMPONENTS Development)
+  IF(NOT JAVA_FOUND)
+    IF(DEFINED ENV{JAVA_HOME})
+      # Could not find Java in the specific location set by JAVA_HOME
+      # or in standard paths, don't search further
+      MESSAGE(FATAL_ERROR "Could NOT find Java: neither in specified "
+                          "JAVA_HOME=" $ENV{JAVA_HOME} " or standard location")
+    ENDIF()
+
+    #
+    # Continue looking for Java in some additional
+    # well known locations
+    #
+
+    # Prefer Java with same bit size as current build
+    SET(_bit_suffix)
+    IF(CMAKE_SIZEOF_VOID_P EQUAL 8)
+      SET(_bit_suffix "-64")
+    ENDIF()
+
+    # Use well known standard base
+    SET(_base_path /usr/local/java/)
+    IF(WINDOWS)
+      SET(_base_path C:\\java\\)
+    ENDIF()
+
+    # Search for version in specified order
+    SET(_preferred_versions
+       1.8
+       1.7
+       1.6)
+
+    FOREACH(_version ${_preferred_versions})
+      SET(_path ${_base_path}jdk${_version}${_bit_suffix})
+      MESSAGE(STATUS "Looking for Java in ${_path}...")
+      SET(ENV{JAVA_HOME} ${_path})
+      FIND_PACKAGE(Java ${_version} COMPONENTS Development)
+      IF(JAVA_FOUND)
+        # Found java, no need to search further
+        MESSAGE(STATUS "Found Java in ${_path}")
+        BREAK()
+      ENDIF()
+    ENDFOREACH()
+
+    IF(NOT JAVA_FOUND)
+      # Could not find Java in well known locations either
+      MESSAGE(FATAL_ERROR "Could NOT find suitable version of Java")
+    ENDIF()
+
+  ENDIF()
+
   MESSAGE(STATUS "Java_VERSION: ${Java_VERSION}")
   MESSAGE(STATUS "Java_VERSION_STRING: ${Java_VERSION_STRING}")
   MESSAGE(STATUS "JAVA_RUNTIME: ${JAVA_RUNTIME}")
@@ -341,3 +413,11 @@ IF(WITH_NDBAPI_EXAMPLES)
 ENDIF()
 
 ADD_SUBDIRECTORY(wix)
+
+IF(WITH_UNIT_TESTS)
+  FILE(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/unittest/ndb)
+ENDIF()
+
+# Show any MySQL Server patches
+#INCLUDE(ndb_show_patches)
+#NDB_SHOW_PATCHES()

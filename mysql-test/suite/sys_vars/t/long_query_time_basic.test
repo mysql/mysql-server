@@ -144,7 +144,7 @@ SELECT @@session.long_query_time;
 
 --disable_warnings
 SELECT @@global.long_query_time = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='long_query_time';
 --enable_warnings
 
@@ -155,7 +155,7 @@ WHERE VARIABLE_NAME='long_query_time';
 
 --disable_warnings
 SELECT @@session.long_query_time = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+FROM performance_schema.session_variables 
 WHERE VARIABLE_NAME='long_query_time';
 --enable_warnings
 

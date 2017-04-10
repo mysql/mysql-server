@@ -8,7 +8,7 @@
 # --source include/not_lowercase1.inc
 
 --disable_warnings
-if (`SELECT VARIABLE_VALUE=1 FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME = 'LOWER_CASE_TABLE_NAMES'`)
+if (`SELECT VARIABLE_VALUE=1 FROM performance_schema.global_variables WHERE VARIABLE_NAME = 'LOWER_CASE_TABLE_NAMES'`)
 {
   --skip --lower_case_table_names=1 is not valid for this test.
 }

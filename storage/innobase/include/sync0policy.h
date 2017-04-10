@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2013, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2013, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -32,6 +32,7 @@ Created 2012-08-21 Sunny Bains.
 #include "sync0types.h"
 #include "srv0mon.h"
 
+#ifndef UNIV_LIBRARY
 #ifdef UNIV_DEBUG
 
 # define MUTEX_MAGIC_N 979585UL
@@ -104,7 +105,7 @@ public:
 
 			msg << m_mutex->policy().to_string();
 
-			if (os_thread_pf(m_thread_id) != ULINT_UNDEFINED) {
+			if (m_thread_id != os_thread_id_t(ULINT_UNDEFINED)) {
 
 				msg << " addr: " << m_mutex
 				    << " acquired: " << locked_from().c_str();
@@ -190,7 +191,7 @@ public:
 		UNIV_NOTHROW;
 
 	/** Called when the mutex is released
-	@param[in]	mutx		Mutex that was released */
+	@param[in]	mutex		Mutex that was released */
 	void release(const Mutex* mutex)
 		UNIV_NOTHROW;
 
@@ -543,8 +544,7 @@ private:
 	latch_id_t		m_id;
 };
 
-#ifndef UNIV_NONINL
 #include "sync0policy.ic"
-#endif /* UNIV_NOINL */
 
+#endif /* !UNIV_LIBRARY */
 #endif /* sync0policy_h */

@@ -12,6 +12,7 @@ Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 # MYSQLD_DATADIR/
 DROP TABLESPACE s_def;
+ERROR HY000: Tablespace s_def doesn't exist.
 #
 # Assigning general tablespace to myisam,memory is igonred
 #

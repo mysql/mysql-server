@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,8 +13,15 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "sp_pcontext.h"
-#include "sp_head.h"
+#include "sql/sp_pcontext.h"
+
+#include "m_ctype.h"
+#include "m_string.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "sql_class.h"
+#include "sql_security_ctx.h"
+#include "sql_string.h"
 
 
 bool sp_condition_value::equals(const sp_condition_value *cv) const

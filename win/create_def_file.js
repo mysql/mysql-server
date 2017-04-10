@@ -1,7 +1,6 @@
 // create_def_file.js
 //
-// Copyright (c) 2009 Sun Microsystems, Inc.
-// Use is subject to license terms.
+// Copyright (c) 2009, 2016, Oracle and/or its affiliates. All rights reserved.
 // 
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -14,7 +13,7 @@
 // 
 // You should have received a copy of the GNU General Public License
 // along with this program; if not, write to the Free Software
-// Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+// Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 /*
   This script extracts names and types of globally defined symbols from
@@ -176,12 +175,14 @@ function IsCompilerDefinedSymbol(symbol)
     (symbol.indexOf("_CTA5?") != -1) ||        // std::ios_base::failure
     (symbol.indexOf("_CTA6?") != -1) ||        // boost::exception_detail::clone_impl<boost::exception_detail::error_info_injector<boost::bad_get>>
     (symbol.indexOf("_CTA7?") != -1) ||        // boost::exception_detail::clone_impl<boost::exception_detail::error_info_injector<boost::bad_lexical_cast>>
+    (symbol.indexOf("_CTA8?AV?") != -1) ||     //         bad_rational
     (symbol.indexOf("_TI2?") != -1) ||         // std::bad_alloc
     (symbol.indexOf("_TI3?") != -1) ||         // std::length_error
     (symbol.indexOf("_TI4?") != -1) ||         // std::ios_base::failure
     (symbol.indexOf("_TI5?") != -1) ||         // std::ios_base::failure
     (symbol.indexOf("_TI6?") != -1) ||         // boost::exception_detail::clone_impl<boost::exception_detail::error_info_injector<boost::bad_get>>
     (symbol.indexOf("_TI7?") != -1) ||         // boost::exception_detail::clone_impl<boost::exception_detail::error_info_injector<boost::bad_lexical_cast>>
+    (symbol.indexOf("_TI8?AV?") != -1) ||      //         bad_rational
     (symbol.indexOf("_RTC_") != -1) || 
     (symbol.indexOf("??_C@_") != -1) ||
     (symbol.indexOf("??_R") != -1) ||

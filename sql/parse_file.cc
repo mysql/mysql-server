@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,339 +13,29 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-/**
-  @file
-
-  @brief
-  Text .frm files management routines
-*/
 
 #include "parse_file.h"
-#include "sql_table.h"                        // build_table_filename
-#include <errno.h>
-#include <m_ctype.h>
-#include <my_sys.h>
-#include <my_dir.h>
-#include "mysqld.h"                           // reg_ext
-#include "mysqld_error.h"                     // ER_*
-#include "sql_const.h"                        // CREATE_MODE
-#include "sql_list.h"                         // List_iterator_fast
 
-#include "pfs_file_provider.h"
+#include <fcntl.h>
+#include <limits.h>
+#include <string.h>
+#include <sys/stat.h>
+#include <time.h>
+
+#include "m_ctype.h"
+#include "m_string.h"
+#include "my_dbug.h"
+#include "my_dir.h"
+#include "my_io.h"
+#include "my_sys.h"
 #include "mysql/psi/mysql_file.h"
+#include "mysqld.h"        // key_file_fileparser
+#include "mysqld_error.h"  // ER_*
+#include "sql_list.h"      // List_iterator_fast
 
-/* from sql_db.cc */
-extern long mysql_rm_arc_files(THD *thd, MY_DIR *dirp, const char *org_path);
+// Dummy unknown key hook.
+File_parser_dummy_hook file_parser_dummy_hook;
 
-
-/**
-  Write string with escaping.
-
-  @param file	  IO_CACHE for record
-  @param val_s	  string for writing
-
-  @retval
-    FALSE   OK
-  @retval
-    TRUE    error
-*/
-
-static my_bool
-write_escaped_string(IO_CACHE *file, LEX_STRING *val_s)
-{
-  char *eos= val_s->str + val_s->length;
-  char *ptr= val_s->str;
-
-  for (; ptr < eos; ptr++)
-  {
-    /*
-      Should be in sync with read_escaped_string() and
-      parse_quoted_escaped_string()
-    */
-    switch(*ptr) {
-    case '\\': // escape character
-      if (my_b_append(file, (const uchar *)STRING_WITH_LEN("\\\\")))
-	return TRUE;
-      break;
-    case '\n': // parameter value delimiter
-      if (my_b_append(file, (const uchar *)STRING_WITH_LEN("\\n")))
-	return TRUE;
-      break;
-    case '\0': // problem for some string processing utilities
-      if (my_b_append(file, (const uchar *)STRING_WITH_LEN("\\0")))
-	return TRUE;
-      break;
-    case 26: // problem for windows utilities (Ctrl-Z)
-      if (my_b_append(file, (const uchar *)STRING_WITH_LEN("\\z")))
-	return TRUE;
-      break;
-    case '\'': // list of string delimiter
-      if (my_b_append(file, (const uchar *)STRING_WITH_LEN("\\\'")))
-	return TRUE;
-      break;
-    default:
-      if (my_b_append(file, (const uchar *)ptr, 1))
-	return TRUE;
-    }
-  }
-  return FALSE;
-}
-
-
-/**
-  Write parameter value to IO_CACHE.
-
-  @param file          pointer to IO_CACHE structure for writing
-  @param base          pointer to data structure
-  @param parameter     pointer to parameter descriptor
-
-  @retval
-    FALSE   OK
-  @retval
-    TRUE    error
-*/
-
-
-static my_bool
-write_parameter(IO_CACHE *file, uchar* base, File_option *parameter)
-{
-  char num_buf[20];			// buffer for numeric operations
-  // string for numeric operations
-  String num(num_buf, sizeof(num_buf), &my_charset_bin);
-  DBUG_ENTER("write_parameter");
-
-  switch (parameter->type) {
-  case FILE_OPTIONS_STRING:
-  {
-    LEX_STRING *val_s= (LEX_STRING *)(base + parameter->offset);
-    if (my_b_append(file, (const uchar *)val_s->str, val_s->length))
-      DBUG_RETURN(TRUE);
-    break;
-  }
-  case FILE_OPTIONS_ESTRING:
-  {
-    if (write_escaped_string(file, (LEX_STRING *)(base + parameter->offset)))
-      DBUG_RETURN(TRUE);
-    break;
-  }
-  case FILE_OPTIONS_ULONGLONG:
-  {
-    num.set(*((ulonglong *)(base + parameter->offset)), &my_charset_bin);
-    if (my_b_append(file, (const uchar *)num.ptr(), num.length()))
-      DBUG_RETURN(TRUE);
-    break;
-  }
-  case FILE_OPTIONS_TIMESTAMP:
-  {
-    /* string have to be allocated already */
-    LEX_STRING *val_s= (LEX_STRING *)(base + parameter->offset);
-    time_t tm= my_time(0);
-
-    get_date(val_s->str, GETDATE_DATE_TIME|GETDATE_GMT|GETDATE_FIXEDLENGTH,
-	     tm);
-    val_s->length= PARSE_FILE_TIMESTAMPLENGTH;
-    if (my_b_append(file, (const uchar *)val_s->str,
-                    PARSE_FILE_TIMESTAMPLENGTH))
-      DBUG_RETURN(TRUE);
-    break;
-  }
-  case FILE_OPTIONS_STRLIST:
-  {
-    List_iterator_fast<LEX_STRING> it(*((List<LEX_STRING>*)
-					(base + parameter->offset)));
-    bool first= 1;
-    LEX_STRING *str;
-    while ((str= it++))
-    {
-      // We need ' ' after string to detect list continuation
-      if ((!first && my_b_append(file, (const uchar *)STRING_WITH_LEN(" "))) ||
-	  my_b_append(file, (const uchar *)STRING_WITH_LEN("\'")) ||
-          write_escaped_string(file, str) ||
-	  my_b_append(file, (const uchar *)STRING_WITH_LEN("\'")))
-      {
-	DBUG_RETURN(TRUE);
-      }
-      first= 0;
-    }
-    break;
-  }
-  case FILE_OPTIONS_ULLLIST:
-  {
-    List_iterator_fast<ulonglong> it(*((List<ulonglong>*)
-                                       (base + parameter->offset)));
-    bool first= 1;
-    ulonglong *val;
-    while ((val= it++))
-    {
-      num.set(*val, &my_charset_bin);
-      // We need ' ' after string to detect list continuation
-      if ((!first && my_b_append(file, (const uchar *)STRING_WITH_LEN(" "))) ||
-          my_b_append(file, (const uchar *)num.ptr(), num.length()))
-      {
-        DBUG_RETURN(TRUE);
-      }
-      first= 0;
-    }
-    break;
-  }
-  default:
-    DBUG_ASSERT(0); // never should happened
-  }
-  DBUG_RETURN(FALSE);
-}
-
-
-/**
-  Write new .frm.
-
-  @param dir           directory where put .frm
-  @param file_name     .frm file name
-  @param type          .frm type string (VIEW, TABLE)
-  @param base          base address for parameter reading (structure like
-                       TABLE)
-  @param parameters    parameters description
-
-  @retval
-    FALSE   OK
-  @retval
-    TRUE    error
-*/
-
-
-my_bool
-sql_create_definition_file(const LEX_STRING *dir, const LEX_STRING *file_name,
-			   const LEX_STRING *type,
-			   uchar* base, File_option *parameters)
-{
-  File handler;
-  IO_CACHE file;
-  char path[FN_REFLEN+1];	// +1 to put temporary file name for sure
-  size_t path_end;
-  File_option *param;
-  DBUG_ENTER("sql_create_definition_file");
-  DBUG_PRINT("enter", ("Dir: %s, file: %s, base 0x%lx",
-		       dir ? dir->str : "(null)",
-                       file_name->str, (ulong) base));
-
-  if (dir)
-  {
-    fn_format(path, file_name->str, dir->str, "", MY_UNPACK_FILENAME);
-    path_end= strlen(path);
-  }
-  else
-  {
-    /*
-      if not dir is passed, it means file_name is a full path,
-      including dir name, file name itself, and an extension,
-      and with unpack_filename() executed over it.
-    */    
-    path_end= strxnmov(path, sizeof(path) - 1, file_name->str, NullS) - path;
-  }
-
-  // temporary file name
-  path[path_end]='~';
-  path[path_end+1]= '\0';
-  if ((handler= mysql_file_create(key_file_fileparser,
-                                  path, CREATE_MODE, O_RDWR | O_TRUNC,
-                                  MYF(MY_WME))) <= 0)
-  {
-    DBUG_RETURN(TRUE);
-  }
-
-  if (init_io_cache(&file, handler, 0, SEQ_READ_APPEND, 0L, 0, MYF(MY_WME)))
-    goto err_w_file;
-
-  // write header (file signature)
-  if (my_b_append(&file, (const uchar *)STRING_WITH_LEN("TYPE=")) ||
-      my_b_append(&file, (const uchar *)type->str, type->length) ||
-      my_b_append(&file, (const uchar *)STRING_WITH_LEN("\n")))
-    goto err_w_file;
-
-  // write parameters to temporary file
-  for (param= parameters; param->name.str; param++)
-  {
-    if (my_b_append(&file, (const uchar *)param->name.str,
-                    param->name.length) ||
-	my_b_append(&file, (const uchar *)STRING_WITH_LEN("=")) ||
-	write_parameter(&file, base, param) ||
-	my_b_append(&file, (const uchar *)STRING_WITH_LEN("\n")))
-      goto err_w_cache;
-  }
-
-  if (end_io_cache(&file))
-    goto err_w_file;
-
-  if (opt_sync_frm) {
-    if (mysql_file_sync(handler, MYF(MY_WME)))
-      goto err_w_file;
-  }
-
-  if (mysql_file_close(handler, MYF(MY_WME)))
-  {
-    DBUG_RETURN(TRUE);
-  }
-
-  path[path_end]='\0';
-
-  {
-    // rename temporary file
-    char path_to[FN_REFLEN];
-    memcpy(path_to, path, path_end+1);
-    path[path_end]='~';
-    if (mysql_file_rename(key_file_fileparser, path, path_to, MYF(MY_WME)))
-    {
-      DBUG_RETURN(TRUE);
-    }
-  }
-  DBUG_RETURN(FALSE);
-err_w_cache:
-  end_io_cache(&file);
-err_w_file:
-  mysql_file_close(handler, MYF(MY_WME));
-  DBUG_RETURN(TRUE);
-}
-
-/**
-  Renames a frm file (including backups) in same schema.
-
-  @thd                     thread handler
-  @param schema            name of given schema
-  @param old_name          original file name
-  @param new_db            new schema
-  @param new_name          new file name
-
-  @retval
-    0   OK
-  @retval
-    1   Error (only if renaming of frm failed)
-*/
-my_bool rename_in_schema_file(THD *thd,
-                              const char *schema, const char *old_name, 
-                              const char *new_db, const char *new_name)
-{
-  char old_path[FN_REFLEN + 1], new_path[FN_REFLEN + 1], arc_path[FN_REFLEN + 1];
-
-  build_table_filename(old_path, sizeof(old_path) - 1,
-                       schema, old_name, reg_ext, 0);
-  build_table_filename(new_path, sizeof(new_path) - 1,
-                       new_db, new_name, reg_ext, 0);
-
-  if (mysql_file_rename(key_file_frm, old_path, new_path, MYF(MY_WME)))
-    return 1;
-
-  /* check if arc_dir exists: disabled unused feature (see bug #17823). */
-  build_table_filename(arc_path, sizeof(arc_path) - 1, schema, "arc", "", 0);
-  
-  { // remove obsolete 'arc' directory and files if any
-    MY_DIR *new_dirp;
-    if ((new_dirp = my_dir(arc_path, MYF(MY_DONT_SORT))))
-    {
-      DBUG_PRINT("my",("Archive subdir found: %s", arc_path));
-      (void) mysql_rm_arc_files(thd, new_dirp, arc_path);
-    }
-  }
-  return 0;
-}
 
 /**
   Prepare frm to parse (read to memory).
@@ -398,7 +88,7 @@ sql_parse_prepare(const LEX_STRING *file_name, MEM_ROOT *mem_root,
   }
 
   if ((file= mysql_file_open(key_file_fileparser, file_name->str,
-                             O_RDONLY | O_SHARE, MYF(MY_WME))) < 0)
+                             O_RDONLY, MYF(MY_WME))) < 0)
   {
     DBUG_RETURN(0);
   }
@@ -464,10 +154,8 @@ frm_error:
   @param mem_root	  MEM_ROOT for parameter allocation
   @param str		  pointer on string, where results should be stored
 
-  @retval
-    0	  error
-  @retval
-    \#	  pointer on symbol after string
+  @return Pointer on symbol after string
+  @retval 0	  error
 */
 
 
@@ -502,7 +190,7 @@ parse_string(const char *ptr, const char *end, MEM_ROOT *mem_root,
     TRUE    error
 */
 
-my_bool
+static bool
 read_escaped_string(const char *ptr, const char *eol, LEX_STRING *str)
 {
   char *write_pos= str->str;
@@ -548,7 +236,7 @@ read_escaped_string(const char *ptr, const char *eol, LEX_STRING *str)
 
 
 /**
-  parse \\n delimited escaped string.
+  parse @\n delimited escaped string.
 
   @param ptr		  pointer on string beginning
   @param end		  pointer on symbol after parsed string end (still owned
@@ -556,13 +244,12 @@ read_escaped_string(const char *ptr, const char *eol, LEX_STRING *str)
   @param mem_root	  MEM_ROOT for parameter allocation
   @param str		  pointer on string, where results should be stored
 
+  @return Pointer on symbol after string
   @retval
     0	  error
-  @retval
-    \#	  pointer on symbol after string
 */
 
-
+static
 const char *
 parse_escaped_string(const char *ptr, const char *end, MEM_ROOT *mem_root,
                      LEX_STRING *str)
@@ -587,10 +274,9 @@ parse_escaped_string(const char *ptr, const char *end, MEM_ROOT *mem_root,
   @param mem_root	  MEM_ROOT for parameter allocation
   @param str		  pointer on string, where results should be stored
 
+  @return Pointer on symbol after string
   @retval
     0	  error
-  @retval
-    \#	  pointer on symbol after string
 */
 
 static const char *
@@ -688,7 +374,6 @@ nlist_err:
                              then "required", non-existing parameters will
                              remain their values.
   @param hook                hook called for unknown keys
-  @param hook_data           some data specific for the hook
 
   @retval
     FALSE   OK
@@ -697,7 +382,7 @@ nlist_err:
 */
 
 
-my_bool
+bool
 File_parser::parse(uchar* base, MEM_ROOT *mem_root,
                    struct File_option *parameters, uint required,
                    Unknown_key_hook *hook) const
@@ -880,16 +565,11 @@ list_err:
   DBUG_RETURN(FALSE);
 }
 
-
 /**
   Dummy unknown key hook.
 
   @param[in,out] unknown_key       reference on the line with unknown
-    parameter and the parsing point
-  @param[in] base                  base address for parameter writing
-    (structure like TABLE)
-  @param[in] mem_root              MEM_ROOT for parameters allocation
-  @param[in] end                   the end of the configuration
+                                   parameter and the parsing point
 
   @note
     This hook used to catch no longer supported keys and process them for
@@ -905,8 +585,8 @@ list_err:
 
 bool
 File_parser_dummy_hook::process_unknown_string(const char *&unknown_key,
-                                               uchar* base, MEM_ROOT *mem_root,
-                                               const char *end)
+                                               uchar*, MEM_ROOT*,
+                                               const char*)
 {
   DBUG_ENTER("file_parser_dummy_hook::process_unknown_string");
   DBUG_PRINT("info", ("Unknown key: '%60s'", unknown_key));

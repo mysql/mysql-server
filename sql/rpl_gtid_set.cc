@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License as
@@ -15,18 +15,46 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
    02110-1301 USA */
 
+#include "my_config.h"
+
+#include <limits.h>
+#include <string.h>
+#include <sys/types.h>
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
+#endif
+#include <algorithm>
+#include <list>
+
+#include "control_events.h"
+#include "m_string.h"                  // my_strtoll
+#include "my_byteorder.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_stacktrace.h"             // my_safe_printf_stderr
+#include "my_sys.h"
+#include "mysql/psi/mysql_mutex.h"
+#include "mysql/service_my_snprintf.h" // my_snprintf
+#include "mysql/service_mysql_alloc.h"
+#include "prealloced_array.h"
 #include "rpl_gtid.h"
-
-#include "my_stacktrace.h"       // my_safe_printf_stderr
-#include "mysqld_error.h"        // ER_*
 #include "sql_const.h"
+#include "thr_malloc.h"
 
-#ifndef MYSQL_CLIENT
+#ifdef MYSQL_SERVER
 #include "log.h"                 // sql_print_warning
+#include "mysql/psi/psi_memory.h"
+#include "mysqld_error.h"              // ER_*
 #endif
 
+#ifndef MYSQL_SERVER
+#include "mysqlbinlog.h"
+#endif
+
+extern "C" {
 PSI_memory_key key_memory_Gtid_set_to_string;
 PSI_memory_key key_memory_Gtid_set_Interval_chunk;
+}
 
 using std::min;
 using std::max;
@@ -66,7 +94,7 @@ Gtid_set::Gtid_set(Sid_map *_sid_map, Checkable_rwlock *_sid_lock)
 Gtid_set::Gtid_set(Sid_map *_sid_map, const char *text,
                    enum_return_status *status, Checkable_rwlock *_sid_lock)
   : sid_lock(_sid_lock), sid_map(_sid_map),
-    m_intervals(key_memory_Gtid_set_Interval_chunk)
+    m_intervals(key_memory_Gtid_set_Interval_chunk), m_appendable(false)
 {
   DBUG_ASSERT(_sid_map != NULL);
   init();
@@ -150,8 +178,6 @@ enum_return_status Gtid_set::ensure_sidno(rpl_sidno sidno)
         }
       }
     }
-    if (m_intervals.reserve(sid_map == NULL ? sidno : sid_map->get_max_sidno()))
-      goto error;
     Interval *null_p= NULL;
     for (rpl_sidno i= max_sidno; i < sidno; i++)
       if (m_intervals.push_back(null_p))
@@ -210,7 +236,7 @@ void Gtid_set::create_new_chunk(int size)
                                            MYF(MY_WME));
     if (new_chunk != NULL)
     {
-#ifndef MYSQL_CLIENT
+#ifdef MYSQL_SERVER
       if (i > 0)
         sql_print_warning("Server overcomes the temporary 'out of memory' "
                           "in '%d' tries while allocating a new chunk of "
@@ -303,6 +329,22 @@ void Gtid_set::clear()
       ivit.set(NULL);
     }
   }
+  DBUG_VOID_RETURN;
+}
+
+
+void Gtid_set::clear_set_and_sid_map()
+{
+  DBUG_ENTER("Gtid_set::clear_set_and_sid_map");
+  clear();
+  /*
+    Cleaning the SID map without cleaning up the Gtid_set intervals may lead
+    to a condition were the Gtid_set->get_max_sidno() will be greater than the
+    Sid_map->get_max_sidno().
+  */
+  m_intervals.clear();
+  sid_map->clear();
+  DBUG_ASSERT(get_max_sidno() == sid_map->get_max_sidno());
   DBUG_VOID_RETURN;
 }
 
@@ -472,6 +514,12 @@ enum_return_status Gtid_set::add_gtid_text(const char *text, bool *anonymous)
     *anonymous= false;
 
   SKIP_WHITESPACE();
+  if (*s == '+')
+  {
+    m_appendable= true;
+    s++;
+  }
+  SKIP_WHITESPACE();
   if (*s == 0)
   {
     DBUG_PRINT("info", ("'%s' is empty", text));
@@ -523,7 +571,7 @@ enum_return_status Gtid_set::add_gtid_text(const char *text, bool *anonymous)
     else
     {
       rpl_sid sid;
-      if (sid.parse(s) != 0)
+      if (sid.parse(s, binary_log::Uuid::TEXT_LENGTH) != 0)
       {
         DBUG_PRINT("info", ("expected UUID; found garbage '%.80s' at char %d in '%s'", s, (int)(s - text), text));
         goto parse_error;
@@ -610,6 +658,9 @@ bool Gtid_set::is_valid(const char *text)
   const char *s= text;
 
   SKIP_WHITESPACE();
+  if (*s == '+')
+    s++;
+  SKIP_WHITESPACE();
   do
   {
     // Skip commas (we allow empty SID:GNO specifications).
@@ -622,7 +673,7 @@ bool Gtid_set::is_valid(const char *text)
       DBUG_RETURN(true);
 
     // Parse SID.
-    if (!rpl_sid::is_valid(s))
+    if (!rpl_sid::is_valid(s, binary_log::Uuid::TEXT_LENGTH))
       DBUG_RETURN(false);
     s += binary_log::Uuid::TEXT_LENGTH;
     SKIP_WHITESPACE();

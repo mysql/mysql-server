@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,7 +15,14 @@
 
 /* Write a record to heap-databas */
 
+#include <errno.h>
+#include <fcntl.h>
+#include <stddef.h>
+#include <sys/types.h>
+
 #include "heapdef.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
 #ifdef _WIN32
 #include <fcntl.h>
 #endif
@@ -143,7 +150,7 @@ static uchar *next_free_record_pos(HP_SHARE *info)
     pos=info->del_link;
     info->del_link= *((uchar**) pos);
     info->deleted--;
-    DBUG_PRINT("exit",("Used old position: 0x%lx",(long) pos));
+    DBUG_PRINT("exit",("Used old position: %p", pos));
     DBUG_RETURN(pos);
   }
   if (!(block_pos=(info->records % info->block.records_in_block)))
@@ -158,8 +165,8 @@ static uchar *next_free_record_pos(HP_SHARE *info)
       DBUG_RETURN(NULL);
     info->data_length+=length;
   }
-  DBUG_PRINT("exit",("Used new position: 0x%lx",
-		     (long) ((uchar*) info->block.level_info[0].last_blocks+
+  DBUG_PRINT("exit",("Used new position: %p",
+		     ((uchar*) info->block.level_info[0].last_blocks+
                              block_pos * info->block.recbuffer)));
   DBUG_RETURN((uchar*) info->block.level_info[0].last_blocks+
 	      block_pos*info->block.recbuffer);
@@ -385,7 +392,8 @@ int hp_write_key(HP_INFO *info, HP_KEYDEF *keyinfo,
       pos=empty;
       do
       {
-	if (! hp_rec_key_cmp(keyinfo, record, pos->ptr_to_rec, 1))
+	if (hash1 == pos->hash &&
+            ! hp_rec_key_cmp(keyinfo, record, pos->ptr_to_rec))
 	{
           set_my_errno(HA_ERR_FOUND_DUPP_KEY);
 	  DBUG_RETURN(HA_ERR_FOUND_DUPP_KEY);

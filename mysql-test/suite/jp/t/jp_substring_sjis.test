@@ -1,5 +1,3 @@
---source include/have_sjis.inc
---source include/have_innodb.inc
 
 --character_set sjis
 --disable_warnings

@@ -1,0 +1,41 @@
+# Bug #22284224: REWRITE REPOPULATION OF CHARACTER SETS AND COLLATIONS DURING STARTUP
+#
+# Verify that new collations become available in the server
+# after a restart. Verify that previously existing
+# collations are deleted if they are not present in the
+# character sets dir when restarting.
+#
+# New character sets dir:
+SHOW VARIABLES LIKE 'character_sets_dir%';
+Variable_name	Value
+character_sets_dir	MYSQL_TEST_DIR/std_data/
+#
+# Show new collation available in the new character sets dir:
+SHOW COLLATION LIKE 'utf8_phone_ci';
+Collation	Charset	Id	Default	Compiled	Sortlen	Pad_attribute
+utf8_phone_ci	utf8	352			8	PAD SPACE
+#
+# Create and drop a table using the new collation:
+CREATE TABLE t1 (pk INTEGER) COLLATE utf8_phone_ci;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `pk` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_phone_ci
+DROP TABLE t1;
+#
+# Restart server with original character sets dir:
+# restart:--character-sets-dir=MYSQL_CHARSETSDIR
+#
+# Reverted to old character sets dir:
+SHOW VARIABLES LIKE 'character_sets_dir%';
+Variable_name	Value
+character_sets_dir	MYSQL_CHARSETSDIR/
+#
+# The newly added collation has been deleted:
+SHOW COLLATION LIKE 'utf8_phone_ci';
+Collation	Charset	Id	Default	Compiled	Sortlen	Pad_attribute
+#
+# Create a table using the deleted collation, expected to fail:
+CREATE TABLE t1 (pk INTEGER) COLLATE utf8_phone_ci;
+ERROR HY000: Unknown collation: 'utf8_phone_ci'

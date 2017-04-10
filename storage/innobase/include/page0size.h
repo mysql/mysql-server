@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2013, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2013, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -113,7 +113,7 @@ public:
 
 	/** Retrieve the physical page size (on-disk).
 	@return physical page size in bytes */
-	inline ulint physical() const
+	inline uint physical() const
 	{
 		ut_ad(m_physical > 0);
 
@@ -122,10 +122,36 @@ public:
 
 	/** Retrieve the logical page size (in-memory).
 	@return logical page size in bytes */
-	inline ulint logical() const
+	inline uint logical() const
 	{
 		ut_ad(m_logical > 0);
 		return(m_logical);
+	}
+
+	page_no_t extent_size() const
+	{
+		page_no_t size = 0;
+		switch(m_physical) {
+		case 4096:
+			size = 256;
+			break;
+		case 8192:
+			size = 128;
+			break;
+		case 16384:
+		case 32768:
+		case 65536:
+			size = 64;
+			break;
+		default:
+			ut_ad(0);
+		}
+		return(size);
+	}
+
+	ulint	extents_per_xdes() const
+	{
+		return(m_physical / extent_size());
 	}
 
 	/** Check whether the page is compressed on disk.

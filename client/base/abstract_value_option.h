@@ -47,7 +47,7 @@ protected:
     @param var_type my_getopt internal option type.
     @param name Name of option. It is used in command line option name as
       --name.
-    @param desription Description of option to be printed in --help.
+    @param description Description of option to be printed in --help.
     @param default_value default value to be supplied to internal option
       data structure.
    */

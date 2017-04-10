@@ -1,4 +1,4 @@
-/* Copyright (c) 2001, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2001, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,11 +16,22 @@
 #ifndef UNIQUES_INCLUDED
 #define UNIQUES_INCLUDED
 
+#include <stddef.h>
+#include <sys/types.h>
+
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_pointer_arithmetic.h"
+#include "my_sys.h"
 #include "my_tree.h"            // TREE
 #include "prealloced_array.h"   // Prealloced_array
 #include "sql_alloc.h"          // Sql_alloc
+#include "sql_array.h"
+#include "sql_sort.h"           // Merge_chunk, IWYU pragma: keep
 
 class Cost_model_table;
+struct Merge_chunk;
+struct TABLE;
 
 /*
    Unique -- class for unique (removing of duplicates). 
@@ -32,7 +43,7 @@ class Cost_model_table;
 
 class Unique :public Sql_alloc
 {
-  Prealloced_array<Merge_chunk, 16, true> file_ptrs;
+  Prealloced_array<Merge_chunk, 16> file_ptrs;
   ulong max_elements;
   ulonglong max_in_memory_size;
   IO_CACHE file;
@@ -43,7 +54,7 @@ class Unique :public Sql_alloc
 
 public:
   ulong elements;
-  Unique(qsort_cmp2 comp_func, void *comp_func_fixed_arg,
+  Unique(qsort2_cmp comp_func, void *comp_func_fixed_arg,
 	 uint size_arg, ulonglong max_in_memory_size_arg);
   ~Unique();
   ulong elements_in_tree() { return tree.elements_in_tree; }

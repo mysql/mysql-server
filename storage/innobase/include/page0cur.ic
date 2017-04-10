@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -280,7 +280,7 @@ page_cur_tuple_insert(
 					      index, rec, *offsets, mtr);
 	}
 
-	ut_ad(!rec || !cmp_dtuple_rec(tuple, rec, *offsets));
+	ut_ad(!rec || !cmp_dtuple_rec(tuple, rec, index, *offsets));
 	return(rec);
 }
 
@@ -305,7 +305,7 @@ page_cur_tuple_direct_insert(
 {
 	rec_t*		rec;
 
-	ut_ad(dict_table_is_intrinsic(index->table));
+	ut_ad(index->table->is_intrinsic());
 
 	rec = page_cur_direct_insert_rec_low(
 		cursor->rec, index, tuple, n_ext, mtr);

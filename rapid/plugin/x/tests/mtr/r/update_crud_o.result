@@ -612,9 +612,9 @@ send Mysqlx.Crud.Update {
 
 Mysqlx.Error {
   severity: ERROR
-  code: 1146
-  msg: "Table \'noschemalikethis.categories\' doesn\'t exist"
-  sql_state: "42S02"
+  code: 1049
+  msg: "Unknown database \'noschemalikethis\'"
+  sql_state: "42000"
 }
 
 Update with wrong table name

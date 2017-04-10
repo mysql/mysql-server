@@ -1,4 +1,13 @@
---source include/have_innodb.inc
+########################################
+##### WL#7554 Force schema `test` to character set latin1
+##### This test should be migrated to utf8mb4
+--disable_query_log
+let $testdbcs77=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
+alter schema default character set latin1;
+use test;
+--enable_query_log
+########################################
+
 
 --echo #
 --echo # Test of optimizer estimates
@@ -54,10 +63,19 @@ DROP TABLE t0;
 
 ANALYZE TABLE t1;
 EXPLAIN SELECT * FROM t1 WHERE a BETWEEN 1 AND 450 AND b BETWEEN 1 AND 10;
+
+--disable_warnings
+# Access session_status, so that the session_status metadata is accessed and
+# kept in DD cache. Else the HANDLER_READ_KEY would increment more than
+# required.
+SELECT * FROM performance_schema.session_status
+WHERE VARIABLE_NAME LIKE 'dummy';
+--enable_warnings
+
 FLUSH STATUS;
 --sorted_result
 SELECT * FROM t1 WHERE a BETWEEN 1 AND 450 AND b BETWEEN 1 AND 10;
-let $get_handler_status_counts= SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
+let $get_handler_status_counts= SELECT * FROM performance_schema.session_status
 WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
 --source include/get_handler_status_counts.inc
 
@@ -301,18 +319,6 @@ DROP TABLE t1;
 DROP TABLE t2;
 
 --echo #
---echo # Bug#20819189: Assert if .frm exists but no partitioned InnoDB table
---echo #
-CREATE TABLE t1 (a int) ENGINE=InnoDB PARTITION BY HASH (a) PARTITIONS 2;
---copy_file $MYSQLD_DATADIR/test/t1.frm $MYSQLD_DATADIR/test/t2.frm
---error ER_GET_ERRNO
-SELECT * FROM t2;
---remove_file $MYSQLD_DATADIR/test/t2.frm
-# Flush table is needed to remove the 'orphan' t2 definition.
-FLUSH TABLE t2;
-DROP TABLE t1;
-
---echo #
 --echo # Bug#21211524: CRASH IN ACTUAL_KEY_PARTS WITH PARTITIONED TABLES
 --echo #
 CREATE TABLE t1(
@@ -375,23 +381,31 @@ SELECT * from t1 WHERE col1 BETWEEN '2000-01-01 01:02:00' AND '2000-01-01 01:03:
 
 DROP TABLE t1;
 
---echo #
---echo # Bug#21755994 ALTER INPLACE CRASHES ON A INNODB TABLE WITH PARTITION ON SEPARATE TABLESPACE
---echo #
-
-CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd';
-
-CREATE TABLE t1 ( a INT NOT NULL, PRIMARY KEY (a))
-ENGINE=InnoDB
-PARTITION BY RANGE (a) PARTITIONS 3
-( PARTITION P1 VALUES LESS THAN (2) TABLESPACE ts1,
-  PARTITION P2 VALUES LESS THAN (4) TABLESPACE `innodb_system`,
-  PARTITION P3 VALUES LESS THAN (6));
-
-ALTER TABLE t1 ADD COLUMN f int;
-
-DROP TABLE t1;
-DROP TABLESPACE ts1;
+# WL6378_ALTER_PARTITION_TABLESPACE
+# Reason for disabling the test is that, the following fix does
+# not completely fix the behaviour of ALTER TABLE on a table with
+# partitions using separate tablespace. A new bug Bug#21914047
+# is filed on trunk/5.7, which with slight modification to below test
+# case causes server to dump. After talking to Deb (InnoDB) it
+# seem that the behavior of such a ALTER is not documented yet.
+# So, we are disabling this case until the above bug is fixed.
+#--echo #
+#--echo # Bug#21755994 ALTER INPLACE CRASHES ON A INNODB TABLE WITH PARTITION ON SEPARATE TABLESPACE
+#--echo #
+#
+#CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd';
+#
+#CREATE TABLE t1 ( a INT NOT NULL, PRIMARY KEY (a))
+#ENGINE=InnoDB
+#PARTITION BY RANGE (a) PARTITIONS 3
+#( PARTITION P1 VALUES LESS THAN (2) TABLESPACE ts1,
+#  PARTITION P2 VALUES LESS THAN (4) TABLESPACE `innodb_system`,
+#  PARTITION P3 VALUES LESS THAN (6));
+#
+#ALTER TABLE t1 ADD COLUMN f int;
+#
+#DROP TABLE t1;
+#DROP TABLESPACE ts1;
 
 --echo #
 --echo # Bug#21796845 ASSERT ERR == DB_SUCCESS, ROW_QUIESCE_TABLE_START(), FLUSH TABLES FOR EXPORT
@@ -416,19 +430,24 @@ DROP TABLESPACE ts1;
 --echo #
 call mtr.add_suppression("\\[Warning\\] InnoDB: Trying to access missing tablespace .*");
 call mtr.add_suppression("\\[Warning\\] InnoDB: Missing .ibd file for table `test`\.`t1` .* ");
+call mtr.add_suppression("\\[Warning\\] InnoDB: Cannot calculate statistics for table .*");
 
 CREATE TABLE t1(c1 INT,c2 CHAR(1)) PARTITION BY KEY(c1) PARTITIONS 4;
 
 ALTER TABLE t1 DISCARD PARTITION p3 TABLESPACE;
+ANALYZE TABLE t1;
 SELECT TABLE_ROWS FROM information_schema.tables where table_name = 't1';
 
 ALTER TABLE t1 DISCARD PARTITION p1 TABLESPACE;
+ANALYZE TABLE t1;
 SELECT TABLE_ROWS FROM information_schema.tables where table_name = 't1';
 
 ALTER TABLE t1 DISCARD PARTITION p2 TABLESPACE;
+ANALYZE TABLE t1;
 SELECT TABLE_ROWS FROM information_schema.tables where table_name = 't1';
 
 ALTER TABLE t1 DISCARD PARTITION p0 TABLESPACE;
+ANALYZE TABLE t1;
 SELECT TABLE_ROWS FROM information_schema.tables where table_name = 't1';
 
 DROP TABLE t1;
@@ -436,6 +455,7 @@ DROP TABLE t1;
 CREATE TABLE t1(c1 INT,c2 CHAR(1)) PARTITION BY KEY(c1) PARTITIONS 4;
 
 ALTER TABLE t1 DISCARD TABLESPACE;
+ANALYZE TABLE t1;
 SELECT TABLE_ROWS FROM information_schema.tables where table_name = 't1';
 
 DROP TABLE t1;
@@ -657,6 +677,57 @@ DROP TABLESPACE ts1;
 DROP TABLESPACE ts2;
 
 --echo #
+--echo # Bug#22245554 OUTPUT OF SHOW CREATE TABLE INVOLVING PARTITION TABLESPACE
+--echo # LEADS TO CONFUSION
+--echo #
+
+CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd';
+
+--let $innodb_file_per_table=`select @@innodb_file_per_table`
+
+--let $TABLESPACE1=
+--let $TABLESPACE2=TABLESPACE innodb_system
+--let $TABLESPACE3=TABLESPACE innodb_file_per_table
+--let $TABLESPACE4=
+
+--let $INNODB_FILE_PER_TABLE_FOR_CREATE=OFF
+--let $INNODB_FILE_PER_TABLE_FOR_ALTER=ON
+--echo # CASE A
+--echo # file_per_table OFF for CREATE, ON for ALTER
+--source suite/innodb/include/create_alter_partition.inc
+
+--let $INNODB_FILE_PER_TABLE_FOR_CREATE=ON
+--let $INNODB_FILE_PER_TABLE_FOR_ALTER=OFF
+--echo # CASE B
+--echo # file_per_table ON for CREATE, OFF for ALTER
+--source suite/innodb/include/create_alter_partition.inc
+
+--let $TABLESPACE1=
+--let $TABLESPACE2=
+--let $TABLESPACE3=
+--let $TABLESPACE4=
+
+--let $INNODB_FILE_PER_TABLE_FOR_CREATE=OFF
+--let $INNODB_FILE_PER_TABLE_FOR_ALTER=OFF
+--echo # CASE C
+--echo # file_per_table OFF for CREATE, OFF for ALTER
+--source suite/innodb/include/create_alter_partition.inc
+
+--let $INNODB_FILE_PER_TABLE_FOR_CREATE=ON
+--let $INNODB_FILE_PER_TABLE_FOR_ALTER=ON
+--echo # CASE D
+--echo # file_per_table ON for CREATE, ON for ALTER
+--source suite/innodb/include/create_alter_partition.inc
+
+--let $INNODB_FILE_PER_TABLE_FOR_CREATE=ON
+--let $INNODB_FILE_PER_TABLE_FOR_ALTER=OFF
+--echo # CASE E
+--echo # file_per_table ON for CREATE, OFF for ALTER
+--source suite/innodb/include/create_alter_partition.inc
+
+--eval SET GLOBAL innodb_file_per_table=$innodb_file_per_table
+
+DROP TABLESPACE ts1;
 --echo # Bug#22444530 - GCOLS + PARTITIONED TABLE, CRASH IN
 --echo #
 set sql_mode='';
@@ -724,3 +795,10 @@ PARTITION BY KEY(col1) PARTITIONS 2;
 SELECT * FROM t1 WHERE sha(uuid_short());
 
 DROP TABLE t1;
+
+########################################
+##### WL#7554 set schema `test` back to what it was
+--disable_query_log
+--eval alter schema test default character set $testdbcs77;
+--enable_query_log
+########################################

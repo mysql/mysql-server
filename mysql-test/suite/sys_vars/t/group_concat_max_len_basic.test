@@ -132,7 +132,7 @@ SELECT @@session.group_concat_max_len;
 
 --disable_warnings
 SELECT @@global.group_concat_max_len = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='group_concat_max_len';
 --enable_warnings
 
@@ -143,7 +143,7 @@ WHERE VARIABLE_NAME='group_concat_max_len';
 
 --disable_warnings
 SELECT @@session.group_concat_max_len = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+FROM performance_schema.session_variables 
 WHERE VARIABLE_NAME='group_concat_max_len';
 --enable_warnings
 

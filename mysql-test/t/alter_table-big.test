@@ -1,18 +1,27 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 #
 # Tests for various concurrency-related aspects of ALTER TABLE implemetation
 #
+# Test need MyISAM to support disable key feature
+--source include/have_myisam.inc
 # This test takes rather long time so let us run it only in --big-test mode
 --source include/big_test.inc
 # We are using some debug-only features in this test
 --source include/have_debug.inc
+
+########################################
+##### WL#7554 Force schema `test` to character set latin1
+##### This test should be migrated to utf8mb4
+--disable_query_log
+let $testdbcs58=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
+alter schema test default character set latin1;
+--enable_query_log
+########################################
+
 # Also we are using SBR to check that statements are executed
 # in proper order.
 --source include/force_binlog_format_statement.inc
+
+--source include/count_sessions.inc
 
 #
 # Test for Bug#25044 ALTER TABLE ... ENABLE KEYS acquires global
@@ -31,7 +40,7 @@ connection default;
 create table t1 (n1 int, n2 int, n3 int,
                 key (n1, n2, n3),
                 key (n2, n3, n1),
-                key (n3, n1, n2));
+                key (n3, n1, n2)) engine=myisam;
 create table t2 (i int);
 
 alter table t1 disable keys;
@@ -177,3 +186,33 @@ source include/show_binlog_events.inc;
 
 --echo End of 5.1 tests
 --source include/restore_default_binlog_format.inc
+
+
+--echo #
+--echo # Additional coverage for WL#7743 "New data dictionary: changes
+--echo # to DDL-related parts of SE API".
+--echo #
+--echo # Killed ALTER TABLE on temporary table sometimes led to assertion
+--echo # failure on connection close.
+--enable_connect_log
+--connect (con1, localhost, root,,)
+create temporary table t1 (i int) engine=innodb;
+set debug= "+d,mysql_lock_tables_kill_query";
+--error ER_QUERY_INTERRUPTED
+alter table t1 add index (i);
+set debug= "-d,mysql_lock_tables_kill_query";
+--echo # The below disconnect should drop temporary table automagically.
+--disconnect con1
+--source include/wait_until_disconnected.inc
+connection default;
+--disable_connect_log
+
+# Wait till all disconnects are completed
+--source include/wait_until_count_sessions.inc
+
+########################################
+##### WL#7554 set schema `test` back to what it was
+--disable_query_log
+--eval alter schema test default character set $testdbcs58;
+--enable_query_log
+########################################

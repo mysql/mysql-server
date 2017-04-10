@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,16 +15,18 @@
 
 // First include (the generated) my_config.h, to get correct platform defines.
 #include "my_config.h"
-#include <gtest/gtest.h>
 
+#include <gtest/gtest.h>
+#include <sys/types.h>
+
+#include "item.h"
+#include "item_timefunc.h"
 #include "mock_field_datetime.h"
 #include "mock_field_timestamp.h"
 #include "mock_field_timestampf.h"
-#include "test_utils.h"
-#include "item.h"
-#include "item_timefunc.h"
-#include "sql_class.h"
 #include "rpl_handler.h"                        // delegates_init()
+#include "sql_class.h"
+#include "test_utils.h"
 #include "tztime.h"
 
 namespace item_func_now_local_unittest {
@@ -68,11 +70,11 @@ TEST_F(ItemFuncNowLocalTest, saveInField)
   Item_func_now_local *item= new Item_func_now_local(0);
   Mock_field_timestamp f;
 
-  item->fix_length_and_dec();
+  EXPECT_FALSE(item->resolve_type(get_thd()));
   f.make_writable();
   item->save_in_field(&f, true);
 
-  EXPECT_EQ(get_thd()->query_start_timeval().tv_sec, f.to_timeval().tv_sec);
+  EXPECT_EQ(get_thd()->query_start_timeval_trunc(0).tv_sec, f.to_timeval().tv_sec);
   // CURRENT_TIMESTAMP should truncate.
   EXPECT_EQ(0, f.to_timeval().tv_usec);
 }
@@ -87,7 +89,7 @@ TEST_F(ItemFuncNowLocalTest, storeInTimestamp)
   Mock_field_timestamp f;
   Item_func_now_local::store_in(&f);
 
-  EXPECT_EQ(get_thd()->query_start_timeval().tv_sec, f.to_timeval().tv_sec);
+  EXPECT_EQ(get_thd()->query_start_timeval_trunc(0).tv_sec, f.to_timeval().tv_sec);
   // CURRENT_TIMESTAMP should truncate.
   EXPECT_EQ(0, f.to_timeval().tv_usec);
   EXPECT_TRUE(f.store_timestamp_called);
@@ -122,7 +124,7 @@ TEST_F(ItemFuncNowLocalTest, storeInTimestampf)
     f.make_writable();
     Item_func_now_local::store_in(&f);
 
-    EXPECT_EQ(get_thd()->query_start_timeval().tv_sec, f.to_timeval().tv_sec);
+    EXPECT_EQ(get_thd()->query_start_timeval_trunc(0).tv_sec, f.to_timeval().tv_sec);
     // CURRENT_TIMESTAMP should truncate.
     EXPECT_EQ(truncate(CURRENT_TIMESTAMP_FRACTIONAL_SECONDS, scale),
               f.to_timeval().tv_usec);

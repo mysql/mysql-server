@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2017, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -24,22 +24,19 @@ The page cursor
 Created 10/4/1994 Heikki Tuuri
 *************************************************************************/
 
-#include "ha_prototypes.h"
-
 #include "page0cur.h"
-#ifdef UNIV_NONINL
-#include "page0cur.ic"
-#endif
 
-#include "page0zip.h"
 #include "btr0btr.h"
-#include "mtr0log.h"
+#include "ha_prototypes.h"
 #include "log0recv.h"
+#include "mtr0log.h"
+#include "my_inttypes.h"
+#include "page0zip.h"
 #ifndef UNIV_HOTBACKUP
-#include "rem0cmp.h"
-#include "gis0rtree.h"
-
 #include <algorithm>
+
+#include "gis0rtree.h"
+#include "rem0cmp.h"
 
 #ifdef PAGE_CUR_ADAPT
 # ifdef UNIV_SEARCH_PERF_STAT
@@ -123,7 +120,8 @@ page_cur_try_search_shortcut(
 	low_match = up_match = std::min(*ilow_matched_fields,
 					*iup_matched_fields);
 
-	if (cmp_dtuple_rec_with_match(tuple, rec, offsets, &low_match) < 0) {
+	if (cmp_dtuple_rec_with_match(tuple, rec, index, offsets,
+				      &low_match) < 0) {
 		goto exit_func;
 	}
 
@@ -132,7 +130,7 @@ page_cur_try_search_shortcut(
 		offsets = rec_get_offsets(next_rec, index, offsets,
 					  dtuple_get_n_fields(tuple), &heap);
 
-		if (cmp_dtuple_rec_with_match(tuple, next_rec, offsets,
+		if (cmp_dtuple_rec_with_match(tuple, next_rec, index, offsets,
 					      &up_match) >= 0) {
 			goto exit_func;
 		}
@@ -288,7 +286,11 @@ page_cur_rec_field_extends(
 		if (dfield_get_len(dfield) != UNIV_SQL_NULL
 		    && rec_f_len != UNIV_SQL_NULL
 		    && rec_f_len >= dfield_get_len(dfield)
-		    && !cmp_data_data(type->mtype, type->prtype,
+		    /* is_ascending parameter in the below call is passed as a
+		    constant as we are only testing for equality and we are
+		    not interested in what the nonzero return value actually
+		    is. */
+		    && !cmp_data_data(type->mtype, type->prtype, true,
 				      dfield_get_data(dfield),
 				      dfield_get_len(dfield),
 				      rec_f, dfield_get_len(dfield))) {
@@ -319,7 +321,7 @@ populate_offsets(
 	ulint*			offsets,
 	mem_heap_t**		heap)
 {
-	ut_ad(dict_table_is_intrinsic(index->table));
+	ut_ad(index->table->is_intrinsic());
 
 	bool rec_has_null_values	= false;
 
@@ -535,7 +537,7 @@ page_cur_search_with_match(
 		}
 
 		cmp = cmp_dtuple_rec_with_match(
-			tuple, mid_rec, offsets, &cur_matched_fields);
+			tuple, mid_rec, index, offsets, &cur_matched_fields);
 
 		if (cmp > 0) {
 low_slot_match:
@@ -597,7 +599,7 @@ up_slot_match:
 		}
 
 		cmp = cmp_dtuple_rec_with_match(
-			tuple, mid_rec, offsets, &cur_matched_fields);
+			tuple, mid_rec, index, offsets, &cur_matched_fields);
 
 		if (cmp > 0) {
 low_rec_match:
@@ -961,7 +963,7 @@ page_cur_insert_rec_write_log(
 
 	/* Avoid REDO logging to save on costly IO because
 	temporary tables are not recovered during crash recovery. */
-	if (dict_table_is_temporary(index->table)) {
+	if (index->table->is_temporary()) {
 		byte*	log_ptr = mlog_open(mtr, 0);
 		if (log_ptr == NULL) {
 			return;
@@ -1819,7 +1821,7 @@ page_cur_insert_rec_zip(
 			page, 1);
 
 	/* 2. Try to find suitable space from page memory management */
-	if (!page_zip_available(page_zip, dict_index_is_clust(index),
+	if (!page_zip_available(page_zip, index->is_clustered(),
 				rec_size, 1)
 	    || reorg_before_insert) {
 		/* The values can change dynamically. */
@@ -1844,11 +1846,11 @@ page_cur_insert_rec_zip(
 			get rid of the modification log. */
 			page_create_zip(page_cur_get_block(cursor), index,
 					page_header_get_field(page, PAGE_LEVEL),
-					0, NULL, mtr);
+					0, mtr, fil_page_get_type(page));
 			ut_ad(!page_header_get_ptr(page, PAGE_FREE));
 
 			if (page_zip_available(
-				    page_zip, dict_index_is_clust(index),
+				    page_zip, index->is_clustered(),
 				    rec_size, 1)) {
 				goto use_heap;
 			}
@@ -1867,7 +1869,7 @@ page_cur_insert_rec_zip(
 			ut_ad(!page_header_get_ptr(page, PAGE_FREE));
 
 			if (page_zip_available(
-				    page_zip, dict_index_is_clust(index),
+				    page_zip, index->is_clustered(),
 				    rec_size, 1)) {
 				/* After reorganizing, there is space
 				available. */
@@ -1917,7 +1919,7 @@ page_cur_insert_rec_zip(
 			if (!log_compressed) {
 				if (page_zip_compress(
 					    page_zip, page, index,
-					    level, NULL, NULL)) {
+					    level, NULL)) {
 					page_cur_insert_rec_write_log(
 						insert_rec, rec_size,
 						cursor->rec, index, mtr);
@@ -2041,7 +2043,7 @@ too_small:
 				       - REC_NODE_PTR_SIZE, 0,
 				       REC_NODE_PTR_SIZE);
 			}
-		} else if (dict_index_is_clust(index)) {
+		} else if (index->is_clustered()) {
 			/* Zero out the DB_TRX_ID and DB_ROLL_PTR
 			columns of free_rec, in case it will not be
 			overwritten by insert_rec. */
@@ -2050,8 +2052,7 @@ too_small:
 			ulint	trx_id_offs;
 			ulint	len;
 
-			trx_id_col = dict_index_get_sys_col_pos(index,
-								DATA_TRX_ID);
+			trx_id_col = index->get_sys_col_pos(DATA_TRX_ID);
 			ut_ad(trx_id_col > 0);
 			ut_ad(trx_id_col != ULINT_UNDEFINED);
 
@@ -2089,7 +2090,7 @@ use_heap:
 			return(NULL);
 		}
 
-		page_zip_dir_add_slot(page_zip, dict_index_is_clust(index));
+		page_zip_dir_add_slot(page_zip, index->is_clustered());
 	}
 
 	/* 3. Create the record */
@@ -2349,7 +2350,7 @@ page_copy_rec_list_end_to_created_page(
 
 	mtr_log_t	log_mode;
 
-	if (dict_table_is_temporary(index->table)
+	if (index->table->is_temporary()
 	    || index->table->ibd_file_missing /* IMPORT TABLESPACE */) {
 		log_mode = mtr_get_log_mode(mtr);
 	} else {

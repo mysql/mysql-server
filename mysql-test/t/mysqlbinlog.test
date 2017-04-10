@@ -197,7 +197,7 @@ drop procedure p1;
 
 flush logs;
 create table t1 (a varchar(64) character set utf8);
-load data infile '../../std_data/loaddata6.dat' into table t1;
+load data infile '../../std_data/loaddata6.dat' into table t1 CHARACTER SET latin1;
 set character_set_database=koi8r;
 load data infile '../../std_data/loaddata6.dat' into table t1;
 set character_set_database=latin1;
@@ -284,7 +284,7 @@ set timestamp= default;
 FLUSH LOGS;
 let $master_binlog_file= query_get_value(SHOW MASTER STATUS, File, 1);
 --error 1
---exec $MYSQL_BINLOG $MYSQLD_DATADIR/$master_binlog_file >/dev/null 2>/dev/null
+--exec $MYSQL_BINLOG --disable-force-if-open $MYSQLD_DATADIR/$master_binlog_file >/dev/null 2>/dev/null
 --exec $MYSQL_BINLOG --force-if-open $MYSQLD_DATADIR/$master_binlog_file >/dev/null 2>/dev/null
 
 --echo Bug#31611 Security risk with BINLOG statement

@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,12 +16,19 @@
 #ifndef RPL_INFO_H
 #define RPL_INFO_H
 
-#include "my_global.h"
+#include <sys/types.h>
+#include <atomic>
+
+#include "my_inttypes.h"
+#include "my_psi_config.h"
+#include "mysql/psi/mysql_cond.h"
+#include "mysql/psi/mysql_mutex.h"
+#include "mysql/psi/psi_base.h"
 #include "mysql_com.h"            // NAME_LEN
 #include "rpl_info_handler.h"     // Rpl_info_handler
 #include "rpl_reporting.h"        // Slave_reporting_capability
-#include "atomic_class.h"         // Atomic_int32
 
+class THD;
 
 #define  CHANNEL_NAME_LENGTH NAME_LEN
 
@@ -75,8 +82,8 @@ public:
   /**
     Sets the persistency component/handler.
 
-    @param[in] hanlder Pointer to the handler.
-  */ 
+    @param[in] param_handler Pointer to the handler.
+  */
   void set_rpl_info_handler(Rpl_info_handler * param_handler)
   {
     handler= param_handler;
@@ -86,7 +93,7 @@ public:
     Gets the persistency component/handler.
 
     @return the handler if there is one.
-  */ 
+  */
   Rpl_info_handler *get_rpl_info_handler()
   {
     return (handler);
@@ -203,6 +210,6 @@ private:
 
 public:
   /* True when the thread is still running, but started the stop procedure */
-  Atomic_int32 is_stopping;
+  std::atomic<bool> atomic_is_stopping{false};
 };
 #endif /* RPL_INFO_H */

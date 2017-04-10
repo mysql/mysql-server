@@ -1,8 +1,4 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
+--source include/have_myisam.inc
 --source include/not_embedded.inc
 
 #
@@ -111,14 +107,12 @@ GRANT UPDATE (s2) ON t6 to mysqltest_u1@localhost;
 GRANT UPDATE (s2) ON v6 to mysqltest_u1@localhost;
 GRANT SHOW VIEW ON v2 to mysqltest_u1@localhost;
 GRANT SHOW VIEW, SELECT ON v3 to mysqltest_u1@localhost;
+ANALYZE TABLE t6;
 
 connection con1;
 use mysqltest_db1;
 --echo ** Connect as restricted user mysqltest_u1.
 --echo ** SELECT FROM INFORMATION_SCHEMA.STATISTICS will succeed because any privileges will do (authentication is enough).
-#
-# this result is wrong. reported as bug#34104
-#
 SELECT * FROM INFORMATION_SCHEMA.STATISTICS WHERE table_name='t5';
 #
 # Bug27145 EXTRA_ACL trouble

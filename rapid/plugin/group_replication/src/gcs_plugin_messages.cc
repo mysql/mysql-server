@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,6 +14,9 @@
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #include "gcs_plugin_messages.h"
+
+#include "my_byteorder.h"
+#include "my_dbug.h"
 
 const int Plugin_gcs_message::PLUGIN_GCS_MESSAGE_VERSION= 1;
 
@@ -75,6 +78,7 @@ void Plugin_gcs_message::decode(const unsigned char* buffer,
 {
   DBUG_ENTER("Plugin_gcs_message::decode");
   const unsigned char *slider= buffer;
+  const unsigned char *end= buffer + length;
 
   m_version= uint4korr(slider);
   slider += WIRE_VERSION_SIZE;
@@ -92,7 +96,7 @@ void Plugin_gcs_message::decode(const unsigned char* buffer,
       s_cargo_type;
   slider += WIRE_CARGO_TYPE_SIZE;
 
-  decode_payload(slider, length);
+  decode_payload(slider, end);
 
   DBUG_VOID_RETURN;
 }

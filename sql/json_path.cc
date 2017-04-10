@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,34 +21,41 @@
   attached to WL#7909.
  */
 
-#include "json_path.h"
+#include "sql/json_path.h"
+
+#include <stddef.h>
+#include <algorithm>                            // any_of
+#include <memory>                               // unique_ptr
+#include <string>
 
 #include "json_dom.h"
-#include "mysqld.h"                             // key_memory_JSON
-#include "rapidjson/rapidjson.h"                // rapidjson::UTF8<char>::Decode
-#include "rapidjson/memorystream.h"             // rapidjson::MemoryStream
-#include "sql_const.h"                          // STRING_BUFFER_USUAL_SIZE
-#include "sql_string.h"                         // String
-#include "template_utils.h"                     // down_cast
-
-#include <m_ctype.h>
-
-#include <cwctype>
-#include <memory>                               // auto_ptr
-#include <string>
+#include "m_ctype.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "psi_memory_key.h"           // key_memory_JSON
+#include "rapidjson/encodings.h"
+#include "rapidjson/memorystream.h"   // rapidjson::MemoryStream
+#include "sql_const.h"                // STRING_BUFFER_USUAL_SIZE
+#include "sql_string.h"               // String
+#include "template_utils.h"           // down_cast
 
 // For use in Json_path::parse_path
 #define PARSER_RETURN(retval) { *status= retval; return charptr; }
-#define SCOPE '$'
-#define BEGIN_MEMBER '.'
-#define BEGIN_ARRAY '['
-#define END_ARRAY ']'
-#define DOUBLE_QUOTE '\"'
-#define WILDCARD '*'
-#define PRINTABLE_SPACE ' '
 
-bool is_ecmascript_identifier(const char *name, size_t name_length);
-bool is_digit(unsigned codepoint);
+namespace
+{
+
+constexpr char SCOPE=           '$';
+constexpr char BEGIN_MEMBER=    '.';
+constexpr char BEGIN_ARRAY=     '[';
+constexpr char END_ARRAY=       ']';
+constexpr char DOUBLE_QUOTE=    '"';
+constexpr char WILDCARD=        '*';
+
+} // namespace
+
+static bool is_ecmascript_identifier(const char *name, size_t name_length);
+static bool is_digit(unsigned codepoint);
 
 // Json_path_leg
 
@@ -140,7 +147,7 @@ bool Json_path_clone::set(Json_seekable_path *source)
   size_t legcount= source->leg_count();
   for (size_t idx= 0; idx < legcount; idx++)
   {
-    Json_path_leg *path_leg= (Json_path_leg *) source->get_leg_at(idx);
+    const Json_path_leg *path_leg= source->get_leg_at(idx);
     if (append(path_leg))
     {
       return true;
@@ -163,20 +170,6 @@ const Json_path_leg *Json_path_clone::pop()
 void Json_path_clone::clear()
 {
   m_path_legs.clear();
-}
-
-
-bool Json_path_clone::contains_ellipsis() const
-{
-  for (Path_leg_pointers::const_iterator iter= m_path_legs.begin();
-       iter != m_path_legs.end(); ++iter)
-  {
-    const Json_path_leg *path_leg= *iter;
-    if (path_leg->get_type() == jpl_ellipsis)
-      return true;
-  }
-
-  return false;
 }
 
 
@@ -268,21 +261,8 @@ static inline bool is_wildcard_or_ellipsis(const Json_path_leg &leg)
 
 bool Json_path::contains_wildcard_or_ellipsis() const
 {
-  return std::find_if(m_path_legs.begin(), m_path_legs.end(),
-                      is_wildcard_or_ellipsis) != m_path_legs.end();
-}
-
-
-static inline bool is_ellipsis(const Json_path_leg &leg)
-{
-  return leg.get_type() == jpl_ellipsis;
-}
-
-
-bool Json_path::contains_ellipsis() const
-{
-  return std::find_if(m_path_legs.begin(), m_path_legs.end(),
-                      is_ellipsis) != m_path_legs.end();
+  return std::any_of(m_path_legs.begin(), m_path_legs.end(),
+                     is_wildcard_or_ellipsis);
 }
 
 
@@ -322,9 +302,10 @@ bool parse_path(const bool begins_with_column_id, const size_t path_length,
 */
 static inline const char *purge_whitespace(const char *str, const char *end)
 {
-  while (str < end && my_isspace(&my_charset_utf8mb4_bin, *str))
-    ++str;
-  return str;
+  const auto is_space= [] (char c) {
+    return my_isspace(&my_charset_utf8mb4_bin, c);
+  };
+  return std::find_if_not(str, end, is_space);
 }
 
 
@@ -374,7 +355,7 @@ const char *Json_path::parse_path(const bool begins_with_column_id,
   }
 
   // a path may not end with an ellipsis
-  if (m_path_legs.size() > 0 && is_ellipsis(m_path_legs.back()))
+  if (m_path_legs.size() > 0 && m_path_legs.back().get_type() == jpl_ellipsis)
   {
     *status= false;
   }
@@ -459,10 +440,7 @@ const char *Json_path::parse_array_leg(const char *charptr,
     // Not a WILDCARD. Must be an array index.
     const char *number_start= charptr;
 
-    while ((charptr < endptr) && is_digit(*charptr))
-    {
-      charptr++;
-    }
+    charptr= std::find_if_not(charptr, endptr, is_digit);
     if (charptr == number_start)
     {
       PARSER_RETURN(false);
@@ -546,16 +524,13 @@ static const char *find_end_of_member_name(const char *start, const char *end)
     If we have an unquoted name, the name is terminated by whitespace
     or [ or . or * or end-of-string.
   */
-  while (str < end &&
-         !my_isspace(&my_charset_utf8mb4_bin, *str) &&
-         *str != BEGIN_ARRAY &&
-         *str != BEGIN_MEMBER &&
-         *str != WILDCARD)
-  {
-    str++;
-  }
-
-  return str;
+  const auto is_terminator= [] (const char c) {
+    return my_isspace(&my_charset_utf8mb4_bin, c) ||
+           c == BEGIN_ARRAY ||
+           c == BEGIN_MEMBER ||
+           c == WILDCARD;
+  };
+  return std::find_if(str, end, is_terminator);
 }
 
 
@@ -576,7 +551,7 @@ static const Json_string *parse_name_with_rapidjson(const char *str, size_t len)
 {
   const Json_dom *dom= Json_dom::parse(str, len, NULL, NULL);
 
-  if (dom != NULL && dom->json_type() == Json_dom::J_STRING)
+  if (dom != NULL && dom->json_type() == enum_json_type::J_STRING)
     return down_cast<const Json_string *>(dom);
 
   delete dom;
@@ -610,7 +585,7 @@ const char *Json_path::parse_member_leg(const char *charptr,
 
     charptr= key_end;
 
-    std::auto_ptr<const Json_string> jstr;
+    std::unique_ptr<const Json_string> jstr;
 
     if (was_quoted)
     {
@@ -640,10 +615,6 @@ const char *Json_path::parse_member_leg(const char *charptr,
     if (jstr.get() == NULL)
       PARSER_RETURN(false);
 
-    // empty key names are illegal
-    if (jstr->size() == 0)
-      PARSER_RETURN(false);
-
     // unquoted names must be valid ECMAScript identifiers
     if (!was_quoted &&
         !is_ecmascript_identifier(jstr->value().data(), jstr->size()))
@@ -661,11 +632,11 @@ const char *Json_path::parse_member_leg(const char *charptr,
 /**
    Return true if the character is a unicode combining mark.
 
-   @param codepoint [in] A unicode codepoint.
+   @param codepoint A unicode codepoint.
 
    @return True if the codepoint is a unicode combining mark.
 */
-inline bool unicode_combining_mark(unsigned codepoint)
+static inline bool unicode_combining_mark(unsigned codepoint)
 {
   return ((0x300 <= codepoint) && (codepoint <= 0x36F));
 }
@@ -680,7 +651,7 @@ inline bool unicode_combining_mark(unsigned codepoint)
 
    FIXME
 */
-bool is_letter(unsigned codepoint)
+static bool is_letter(unsigned codepoint)
 {
   /*
     The Unicode combining mark \u036F passes the my_isalpha() test.
@@ -701,7 +672,7 @@ bool is_letter(unsigned codepoint)
    This was the best
    recommendation from the old-times about how to answer this question.
 */
-bool is_digit(unsigned codepoint)
+static bool is_digit(unsigned codepoint)
 {
   return my_isdigit(&my_charset_utf8mb4_bin, codepoint);
 }
@@ -710,7 +681,7 @@ bool is_digit(unsigned codepoint)
 /**
    Return true if the codepoint is Unicode connector punctuation.
 */
-bool is_connector_punctuation(unsigned codepoint)
+static bool is_connector_punctuation(unsigned codepoint)
 {
   switch(codepoint)
   {
@@ -747,8 +718,12 @@ bool is_connector_punctuation(unsigned codepoint)
 
    @return True if the name is a valid ECMAScript identifier. False otherwise.
 */
-bool is_ecmascript_identifier(const char *name, size_t name_length)
+static bool is_ecmascript_identifier(const char *name, size_t name_length)
 {
+  // An empty string is not a valid identifier.
+  if (name_length == 0)
+    return false;
+
   /*
     At this point, The unicode escape sequences have already
     been replaced with the corresponding UTF-8 bytes. Now we apply

@@ -713,3 +713,12 @@ count(*)
 0
 #clearup
 drop database db1;
+# ndb_restore with unique index, check behaviour of --restore-epoch
+use test;
+create table t1(id int primary key, val int unique) engine=ndb;
+drop table t1;
+delete from mysql.ndb_apply_status;
+select count(1) from mysql.ndb_apply_status where server_id=0;
+count(1)
+1
+drop table t1;

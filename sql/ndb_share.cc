@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,16 +15,18 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "ndb_share.h"
-#include "ndb_event_data.h"
-#include "ndb_dist_priv_util.h"
 #include "ha_ndbcluster_tables.h"
+#include "m_string.h"
+#include "my_sys.h"
+#include "ndbapi/NdbEventOperation.hpp"
 #include "ndb_conflict.h"
+#include "ndb_dist_priv_util.h"
+#include "ndb_event_data.h"
 #include "ndb_name_util.h"
-
-#include <ndbapi/NdbEventOperation.hpp>
-
-#include <my_sys.h>
+#include "ndb_share.h"
+#include "ndb_table_map.h"
+#include "table.h"
+#include "field.h"
 
 extern Ndb* g_ndb;
 
@@ -32,11 +34,16 @@ void
 NDB_SHARE::destroy(NDB_SHARE* share)
 {
   thr_lock_delete(&share->lock);
-  native_mutex_destroy(&share->mutex);
+  mysql_mutex_destroy(&share->mutex);
 
-#ifdef HAVE_NDB_BINLOG
+  // ndb_index_stat_free() should have cleaned up:
+  assert(share->index_stat_list == NULL);
+
+  // ndb_index_stat_free() should have cleaned up:
+  assert(share->index_stat_list == NULL);
+
   teardown_conflict_fn(g_ndb, share->m_cfn_share);
-#endif
+
   share->new_op= 0;
   Ndb_event_data* event_data = share->event_data;
   if (event_data)
@@ -44,6 +51,9 @@ NDB_SHARE::destroy(NDB_SHARE* share)
     delete event_data;
     event_data= 0;
   }
+
+  bitmap_free(& (share->stored_columns));
+
   // Release memory for the variable length strings held by
   // key but also referenced by db, table_name and shadow_table->db etc.
   free_key(share->key);
@@ -111,11 +121,13 @@ NDB_SHARE::create_key(const char *new_key)
   // Check that writing has not occured beyond end of allocated memory
   assert(buf_ptr < reinterpret_cast<char*>(allocated_key) + size);
 
-  DBUG_PRINT("info", ("size: %lu, sizeof(NDB_SHARE_KEY): %lu",
-                      size, sizeof(NDB_SHARE_KEY)));
-  DBUG_PRINT("info", ("new_key: '%s', %lu", new_key, new_key_length));
-  DBUG_PRINT("info", ("db_name: '%s', %lu", db_name_buf, db_name_len));
-  DBUG_PRINT("info", ("table_name: '%s', %lu", table_name_buf, table_name_len));
+  DBUG_PRINT("info", ("size: %lu", (unsigned long)size));
+  DBUG_PRINT("info", ("new_key: '%s', %lu",
+                      new_key, (unsigned long)new_key_length));
+  DBUG_PRINT("info", ("db_name: '%s', %lu",
+                      db_name_buf, (unsigned long)db_name_len));
+  DBUG_PRINT("info", ("table_name: '%s', %lu", table_name_buf,
+                      (unsigned long)table_name_len));
   DBUG_DUMP("NDB_SHARE_KEY: ", (const uchar*)allocated_key->m_buffer, size);
 
   return allocated_key;
@@ -250,12 +262,47 @@ Ndb_event_data* NDB_SHARE::get_event_data_ptr() const
 }
 
 
+void NDB_SHARE::set_binlog_flags_for_table(TABLE* table)
+{
+  if (! table)
+  {
+    flags |= NSF_NO_BINLOG;
+    return;
+  }
+
+  const int n_fields = table->s->fields;
+  bitmap_init(&stored_columns, 0, n_fields, FALSE);
+  if (table->s->primary_key == MAX_KEY)
+    flags |= NSF_HIDDEN_PK;
+
+  if (Ndb_table_map::has_virtual_gcol(table))
+  {
+    for(int i = 0 ; i < n_fields; i++)
+    {
+      Field * field = table->field[i];
+      if (field->stored_in_db)
+      {
+        bitmap_set_bit(&stored_columns, i);
+        if (field->flags & BLOB_FLAG)
+          flags|= NSF_BLOB_FLAG;
+      }
+    }
+  }
+  else
+  {
+    bitmap_set_all(&stored_columns);  // all columns are stored
+    if (table->s->blob_fields != 0)
+      flags|= NSF_BLOB_FLAG;
+  }
+}
+
+
 void NDB_SHARE::print(const char* where, FILE* file) const
 {
   fprintf(file, "%s %s.%s: use_count: %u\n",
           where, db, table_name, use_count);
   fprintf(file, "  - key: '%s', key_length: %lu\n",
-          key_string(), key_length());
+          key_string(), (unsigned long)key_length());
   fprintf(file, "  - commit_count: %llu\n", commit_count);
   if (event_data)
     fprintf(file, "  - event_data: %p\n", event_data);

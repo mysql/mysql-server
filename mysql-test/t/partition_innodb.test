@@ -1,12 +1,96 @@
+########################################
+##### WL#7554 Force schema `test` to character set latin1
+##### This test should be migrated to utf8mb4
+--disable_query_log
+let $testdbcs240=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
+alter schema default character set latin1;
+use test;
+--enable_query_log
+########################################
+
 --source include/not_embedded.inc
---source include/have_partition.inc
---source include/have_innodb.inc
 
 --disable_warnings
 drop table if exists t1, t2;
 --enable_warnings
 
 let $MYSQLD_DATADIR= `SELECT @@datadir`;
+
+--echo #
+--echo #BUG 18618561: FAILED ALTER TABLE ENGINE CHANGE WITH PARTITIONS
+--echo #              CORRUPTS FRM
+--echo # After WL#8971, the test case was rewritten to use InnoDB.
+CREATE TABLE t1 (fld1 INT PRIMARY KEY) ENGINE= INNODB PARTITION BY HASH(fld1)
+PARTITIONS 5;
+SHOW CREATE TABLE t1;
+
+--error ER_CHECK_NOT_IMPLEMENTED
+ALTER TABLE t1 ENGINE= ARCHIVE;
+
+--echo #After the patch, the ENGINE is correctly displayed as InnoDB
+SHOW CREATE TABLE t1;
+
+--echo #Cleanup.
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#11763825/56590: PARTITIONS: FULLTEXT SEARCHES FAIL
+--echo # (bad/confusing error message)
+--echo # After WL#8971, the test case was rewritten to use InnoDB.
+--echo # The errors returned are  different.
+--echo #
+CREATE TABLE t1
+(a INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+ b VARCHAR(200),
+ c TEXT)
+ENGINE=InnoDB
+PARTITION BY HASH(a) PARTITIONS 1;
+
+--error ER_TABLE_CANT_HANDLE_FT
+CREATE FULLTEXT INDEX msg ON t1 (b, c);
+DROP TABLE t1;
+
+--error ER_TABLE_CANT_HANDLE_FT
+CREATE TABLE t1
+(a INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+ b VARCHAR(200),
+ c TEXT,
+ FULLTEXT (b, c))
+ENGINE=InnoDB
+PARTITION BY HASH(a) PARTITIONS 1;
+
+--echo #
+--echo # BUG#11933226 - 60681: CHECKSUM TABLE RETURNS 0 FOR PARTITIONED TABLE
+--echo # After WL#8971, the test case was rewritten to use InnoDB.
+--echo #
+CREATE TABLE t1 (
+  i INT
+)
+ENGINE=InnoDB
+PARTITION BY RANGE (i)
+(PARTITION p3 VALUES LESS THAN (3),
+ PARTITION p5 VALUES LESS THAN (5),
+ PARTITION pMax VALUES LESS THAN MAXVALUE);
+INSERT INTO t1 VALUES (1), (2), (3), (4), (5), (6);
+CHECKSUM TABLE t1;
+ALTER TABLE t1 CHECKSUM = 1;
+CHECKSUM TABLE t1 EXTENDED;
+CHECKSUM TABLE t1;
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+
+--echo # Same test without partitioning
+CREATE TABLE t1 (
+  i INT
+) ENGINE=InnoDB;
+SHOW CREATE TABLE t1;
+INSERT INTO t1 VALUES (1), (2), (3), (4), (5), (6);
+CHECKSUM TABLE t1;
+ALTER TABLE t1 CHECKSUM = 1;
+CHECKSUM TABLE t1 EXTENDED;
+CHECKSUM TABLE t1;
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
 
 --echo #
 --echo # Bug#13694811: THE OPTIMIZER WRONGLY USES THE FIRST
@@ -258,23 +342,7 @@ drop table t1;
 #
 # BUG#47776, Failed to update for MEMORY engine, crash for InnoDB and success for MyISAM
 #
-create table t1 (a varchar(5))
-engine=memory
-partition by range columns(a)
-( partition p0 values less than ('m'),
-  partition p1 values less than ('za'));
-insert into t1 values  ('j');
-update t1 set a = 'z' where (a >= 'j');
-drop table t1;
-
-create table t1 (a varchar(5))
-engine=myisam
-partition by range columns(a)
-( partition p0 values less than ('m'),
-  partition p1 values less than ('za'));
-insert into t1 values  ('j');
-update t1 set a = 'z' where (a >= 'j');
-drop table t1;
+# Removed test cases for MyISAM and Memory when removing the Partition engine.
 
 create table t1 (a varchar(5))
 engine=innodb
@@ -403,10 +471,11 @@ DROP TABLE t1;
 # Bug #14673: Wrong InnoDB default row format
 #
 create table t1 (a int) engine=innodb partition by hash(a) ;
+analyze table t1;
 # Avg_row_length (col 6) and Data_length (col 7) vary depending
 # on the page size.  Data_free for InnoDB tablespace varies
 # depending on which tests have been run before this one.
---replace_column 6 # 7 # 10 # 12 #
+--replace_column 6 # 7 # 10 # 12 # 13 #
 show table status like 't1';
 drop table t1;
 
@@ -416,10 +485,11 @@ drop table t1;
 create table t1 (a int)
 engine = innodb
 partition by key (a);
+analyze table t1;
 # Avg_row_length (col 6) and Data_length (col 7) vary depending
 # on the page size.  Data_free for InnoDB tablespace varies
 # depending on which tests have been run before this one.
---replace_column 6 # 7 # 10 # 12 #
+--replace_column 6 # 7 # 10 # 12 # 13 #
 show table status;
 insert into t1 values (0), (1), (2), (3);
 analyze table t1;
@@ -433,10 +503,11 @@ drop table t1;
 create table t1 (a int auto_increment primary key)
 engine = innodb
 partition by key (a);
+analyze table t1;
 # Avg_row_length (col 6) and Data_length (col 7) vary depending
 # on the page size.  Data_free for InnoDB tablespace varies
 # depending on which tests have been run before this one.
---replace_column 6 # 7 # 10 # 12 #
+--replace_column 6 # 7 # 10 # 12 # 13 #
 show table status;
 insert into t1 values (NULL), (NULL), (NULL), (NULL);
 analyze table t1;
@@ -574,6 +645,7 @@ DROP TABLE t1;
 create table t1 (int_column int, char_column char(5))
   PARTITION BY RANGE (int_column) subpartition by key (char_column) subpartitions 2
   (PARTITION p1 VALUES LESS THAN (5) ENGINE = InnoDB);
+--error ER_CHECK_NOT_IMPLEMENTED
 alter table t1
 ENGINE = MyISAM
 PARTITION BY RANGE (int_column)
@@ -976,6 +1048,8 @@ DROP TABLE t1;
 CREATE TABLE t1 (a int, PRIMARY KEY (a)) ENGINE=InnoDB
 PARTITION BY HASH (a) PARTITIONS 2;
 
+ANALYZE TABLE t1;
+
 SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE
 CREATE_TIME IS NOT NULL AND TABLE_NAME='t1';
 
@@ -1154,3 +1228,10 @@ DROP TABLESPACE ts1;
 --rmdir $MYSQL_TMP_DIR/temp_dir/test
 --rmdir $MYSQL_TMP_DIR/temp_dir
 
+
+########################################
+##### WL#7554 set schema `test` back to what it was
+--disable_query_log
+--eval alter schema test default character set $testdbcs240;
+--enable_query_log
+########################################

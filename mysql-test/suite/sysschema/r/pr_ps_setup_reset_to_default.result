@@ -1,7 +1,7 @@
 CALL sys.ps_setup_reset_to_default(TRUE);
 status
 Resetting: setup_actors
-DELETE FROM performance_schema.setup_actors WHERE NOT (HOST = '%' AND USER = '%' AND ROLE = '%')
+DELETE FROM performance_schema.setup_actors WHERE NOT (HOST = '%' AND USER = '%' AND `ROLE` = '%')
 status
 Resetting: setup_actors
 INSERT IGNORE INTO performance_schema.setup_actors VALUES ('%', '%', '%', 'YES', 'YES')

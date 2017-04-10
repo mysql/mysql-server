@@ -15,7 +15,6 @@
 
 
 --source include/have_binlog_format_row.inc
---source include/not_gtid_enabled.inc
 --source include/have_debug.inc
 --source include/have_debug_sync.inc
 

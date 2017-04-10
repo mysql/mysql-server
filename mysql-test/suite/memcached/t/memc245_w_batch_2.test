@@ -1,11 +1,6 @@
-#
-# Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
-#
-
 source include/not_valgrind.inc;
 source include/have_memcached_plugin.inc;
 source include/not_windows.inc;
-source include/have_innodb.inc;
 
 --disable_query_log
 CALL mtr.add_suppression("daemon-memcached-w-batch-size': value");

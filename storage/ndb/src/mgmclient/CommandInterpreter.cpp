@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -34,9 +34,12 @@ class CommandInterpreter {
 public:
   /**
    *   Constructor
-   *   @param mgmtSrvr: Management server to use when executing commands
+   *   @param host: Management server to use when executing commands
    */
-  CommandInterpreter(const char *, int verbose);
+  CommandInterpreter(const char* host,
+                     const char* default_prompt,
+                     int verbose,
+                     int connect_retry_delay);
   ~CommandInterpreter();
   
   /**
@@ -95,6 +98,7 @@ private:
   int  executePurge(char* parameters);
   int  executeConnect(char* parameters, bool interactive);
   int  executeShutdown(char* parameters);
+  int  executePrompt(char* parameters);
   void executeClusterLog(char* parameters);
 
 public:
@@ -122,6 +126,11 @@ public:
                     int *node_ids, int no_of_nodes);
   int executeCreateNodeGroup(char* parameters);
   int executeDropNodeGroup(char* parameters);
+  const char* get_current_prompt() const
+  {
+    // return the current prompt
+    return m_prompt;
+  }
 public:
   bool connect(bool interactive);
   void disconnect(void);
@@ -155,6 +164,10 @@ private:
   int m_error;
   struct NdbThread* m_event_thread;
   NdbMutex *m_print_mutex;
+  int m_connect_retry_delay;
+  const char* m_default_prompt;
+  const char* m_prompt;
+  BaseString m_prompt_copy;
 };
 
 NdbMutex* print_mutex;
@@ -165,9 +178,11 @@ NdbMutex* print_mutex;
 
 #include "ndb_mgmclient.hpp"
 
-Ndb_mgmclient::Ndb_mgmclient(const char *host,int verbose)
+Ndb_mgmclient::Ndb_mgmclient(const char *host, const char* default_prompt,
+                             int verbose, int connect_retry_delay)
 {
-  m_cmd= new CommandInterpreter(host,verbose);
+  m_cmd= new CommandInterpreter(host, default_prompt,
+                                verbose, connect_retry_delay);
 }
 Ndb_mgmclient::~Ndb_mgmclient()
 {
@@ -177,6 +192,11 @@ bool Ndb_mgmclient::execute(const char *line, int try_reconnect,
                             bool interactive, int *error)
 {
   return m_cmd->execute(line, try_reconnect, interactive, error);
+}
+const char*Ndb_mgmclient::get_current_prompt() const
+{
+  // return the current prompt
+  return m_cmd->get_current_prompt();
 }
 
 /*
@@ -216,6 +236,8 @@ static const char* helpText =
 "                                       Start backup (default WAIT COMPLETED,SNAPSHOTEND)\n"
 "ABORT BACKUP <backup id>               Abort backup\n"
 "SHUTDOWN                               Shutdown all processes in cluster\n"
+"PROMPT [<prompt-string>]               Toggle the prompt between string specified\n"
+"                                       or default prompt if no string specified\n"
 "CLUSTERLOG ON [<severity>] ...         Enable Cluster logging\n"
 "CLUSTERLOG OFF [<severity>] ...        Disable Cluster logging\n"
 "CLUSTERLOG TOGGLE [<severity>] ...     Toggle severity filter on/off\n"
@@ -548,6 +570,17 @@ static const char* helpTextQuit =
 ;
 
 
+static const char* helpTextPrompt =
+"---------------------------------------------------------------------------\n"
+" NDB Cluster -- Management Client -- Help for PROMPT command\n"
+"---------------------------------------------------------------------------\n"
+"PROMPT  Toggle the prompt between string specified\n"
+"        or default prompt if no string specified\n\n"
+"PROMPT [<prompt-string>]       Changes the prompt to <prompt-string>\n"
+"                               No string resets the prompt to default\n\n"
+;
+
+
 #ifdef VM_TRACE // DEBUG ONLY
 static const char* helpTextDebug =
 "---------------------------------------------------------------------------\n"
@@ -597,6 +630,7 @@ struct st_cmd_help {
   {"CONNECT", helpTextConnect, NULL},
   {"REPORT", helpTextReport, helpTextReportFn},
   {"QUIT", helpTextQuit, NULL},
+  {"PROMPT", helpTextPrompt, NULL},
 #ifdef VM_TRACE // DEBUG ONLY
   {"DEBUG", helpTextDebug, NULL},
 #endif //VM_TRACE
@@ -628,13 +662,18 @@ convert(const char* s, int& val) {
 /*
  * Constructor
  */
-CommandInterpreter::CommandInterpreter(const char *host,int verbose) :
+CommandInterpreter::CommandInterpreter(const char *host,
+                                       const char* default_prompt,
+                                       int verbose, int connect_retry_delay) :
   m_constr(host),
   m_connected(false),
   m_verbose(verbose),
   m_try_reconnect(0),
   m_error(-1),
-  m_event_thread(NULL)
+  m_event_thread(NULL),
+  m_connect_retry_delay(connect_retry_delay),
+  m_default_prompt(default_prompt),
+  m_prompt(default_prompt)
 {
   m_print_mutex= NdbMutex_Create();
 }
@@ -924,7 +963,7 @@ CommandInterpreter::connect(bool interactive)
     exit(-1);
   }
 
-  if(ndb_mgm_connect(m_mgmsrv, m_try_reconnect-1, 5, 1))
+  if(ndb_mgm_connect(m_mgmsrv, m_try_reconnect-1, m_connect_retry_delay, 1))
     DBUG_RETURN(m_connected); // couldn't connect, always false
 
   const char *host= ndb_mgm_get_connected_host(m_mgmsrv);
@@ -933,7 +972,7 @@ CommandInterpreter::connect(bool interactive)
     BaseString constr;
     constr.assfmt("%s:%d",host,port);
     if(!ndb_mgm_set_connectstring(m_mgmsrv2, constr.c_str()) &&
-       !ndb_mgm_connect(m_mgmsrv2, m_try_reconnect-1, 5, 1))
+       !ndb_mgm_connect(m_mgmsrv2, m_try_reconnect-1, m_connect_retry_delay, 1))
     {
       DBUG_PRINT("info",("2:ndb connected to Management Server ok at: %s:%d",
                          host, port));
@@ -1267,6 +1306,10 @@ CommandInterpreter::execute_impl(const char *_line, bool interactive)
 	  native_strncasecmp(allAfterFirstToken, "NODEGROUP",
                       sizeof("NODEGROUP") - 1) == 0){
     m_error = executeDropNodeGroup(allAfterFirstToken);
+    DBUG_RETURN(true);
+  }
+  else if (native_strcasecmp(firstToken, "PROMPT") == 0) {
+    m_error = executePrompt(allAfterFirstToken);
     DBUG_RETURN(true);
   }
   else if (native_strcasecmp(firstToken, "ALL") == 0) {
@@ -1635,6 +1678,32 @@ CommandInterpreter::executeShutdown(char* parameters)
   }
   return 0;
 }
+
+/*****************************************************************************
+ * PROMPT
+ *****************************************************************************/
+
+int
+CommandInterpreter::executePrompt(char* parameters)
+{
+  if( parameters != NULL )
+  {
+    /* Assign parameter passed to the prompt */
+    m_prompt_copy.assign(parameters);
+    m_prompt_copy.append(" ");
+    m_prompt= m_prompt_copy.c_str();
+    ndbout << "Prompt set to " << m_prompt
+           << endl;
+    return 0;
+  }
+
+  /* Restore prompt to default */
+  m_prompt= m_default_prompt;
+  ndbout << "Returning to default prompt of "
+         << m_prompt << endl;
+  return 0;
+}
+
 
 /*****************************************************************************
  * SHOW

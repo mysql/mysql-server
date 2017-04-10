@@ -12,7 +12,7 @@ INSERT INTO t2 VALUES(1);
 COMMIT;
 # On connection 1
 COMMIT;
-ERROR HY000: Got error 149 during COMMIT
+ERROR HY000: Got error 149 - 'Lock deadlock; Retry transaction' during COMMIT
 DROP TABLE t2, t1;
 CREATE TABLE t1 (c1 INT PRIMARY KEY)ENGINE=INNODB;
 CREATE TABLE t2 (c2 INT PRIMARY KEY,
@@ -30,5 +30,5 @@ COMMIT;
 
 # On connection 1
 COMMIT;
-ERROR HY000: Got error 149 during COMMIT
+ERROR HY000: Got error 149 - 'Lock deadlock; Retry transaction' during COMMIT
 DROP TABLE t2, t1;

@@ -200,7 +200,7 @@ col_varchar_key VARCHAR(1),
 col_varchar_nokey VARCHAR(1),
 PRIMARY KEY (pk),
 KEY (col_varchar_key,col_int_key)
-) ENGINE=MYISAM;
+) ENGINE=MYISAM, CHARSET utf8mb4;
 INSERT INTO t1 (
 col_int_key,col_int_nokey,
 col_date_key,col_date_nokey,
@@ -230,7 +230,7 @@ drop table t1,t2;
 
 create table t0 (a int);
 insert into t0 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
-create table t1 (a int, b int, filler char(100), key(a,b));
+create table t1 (a int, b int, filler char(100), key(a,b)) charset utf8mb4;
 insert into t1 select A.a, B.a, 'filler' from t0 A, t0 B;
 create table t2 as select * from t1;
 set @old_opt_switch=@@optimizer_switch;
@@ -283,7 +283,7 @@ CREATE TABLE t1 (
   b varchar(100) DEFAULT NULL,
   c int(11) DEFAULT NULL,
   KEY b_c_a (b,c,a)
-) ENGINE=InnoDB;
+) ENGINE=InnoDB, CHARSET utf8mb4;
 
 explain select *
 from t1 left join t1 as t2
@@ -348,10 +348,10 @@ DROP TABLE t1,t2;
 CREATE TABLE ot1 (a INTEGER);
 INSERT INTO ot1 VALUES (0),(1),(3),(7);
 
-CREATE TABLE it1 (a VARCHAR(1), b INTEGER, KEY (a,b));
+CREATE TABLE it1 (a VARCHAR(1), b INTEGER, KEY (a,b)) CHARSET utf8mb4;
 INSERT INTO it1 VALUES ('a',7), ('b',7);
 
-CREATE TABLE it2 (a VARCHAR(1), b INTEGER, KEY (a,b));
+CREATE TABLE it2 (a VARCHAR(1), b INTEGER, KEY (a,b)) CHARSET utf8mb4;
 INSERT INTO it2 VALUES ('a',7), ('b',7);
 
 let $query=
@@ -373,7 +373,7 @@ DROP TABLE ot1, it1, it2;
 --echo # Show that handled keyparts cannot be on prefix
 --echo #
 
-create table t1 (a int, b varchar(100), key a_b (a,b));
+create table t1 (a int, b varchar(100), key a_b (a,b)) charset utf8mb4;
 insert into t1 values(25,'111111'),(25,'1111112');
 let $query=
 select * from t1 as t2 where t2.b in (select b from t1 where a=25);
@@ -391,4 +391,27 @@ drop table t1;
 
 set optimizer_switch=@old_opt_switch;
 set optimizer_prune_level=@old_opt_prune_level;
+
+--echo # Tracing of CTEs using the same tmp table: observe
+--echo # "reusing_tmp_table" and only one "creating_tmp_table".
+with q(a) as (select 1 union all select 2)
+select * from q, q q1 where q.a=1 and q1.a=2;
+select TRACE from information_schema.optimizer_trace;
+
+--echo # Tracing of repetitions of the recursive member
+--echo # can be silenced with repeated_subselect=off
+
+let $query=
+with recursive qn(n) as
+  (select 1 union all select n+1 from qn where n<4)
+select count(*) from qn;
+eval $query;
+SELECT show_json_object('"join_execution": {', TRACE)
+FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+SET @@optimizer_trace_features="repeated_subselect=off";
+eval $query;
+SELECT show_json_object('"join_execution": {', TRACE)
+FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+SET @@optimizer_trace_features=default;
+
 drop function show_json_object;

@@ -1,10 +1,17 @@
+########################################
+##### WL#7554 Force schema `test` to character set latin1
+##### This test should be migrated to utf8mb4
+--disable_query_log
+let $testdbcs365=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
+alter schema default character set latin1;
+use test;
+--enable_query_log
+########################################
+
 # Tests for PERFORMANCE_SCHEMA table io
 #       Show the impact of an index
 
 # Setup
-
---source include/not_embedded.inc
---source include/have_perfschema.inc
 
 let $engine_type= MyISAM;
 
@@ -104,9 +111,16 @@ update performance_schema.setup_consumers set enabled='NO';
 eval $table_io_select 'index_tab';
 
 # In case of failures, this will tell if table io are lost.
-show global status like 'performance_schema_%';
+show global status like 'performance_schema_%_lost';
 
 # Cleanup
 drop table test.no_index_tab;
 drop table test.index_tab;
 --source ../include/table_io_cleanup_helper.inc
+
+########################################
+##### WL#7554 set schema `test` back to what it was
+--disable_query_log
+--eval alter schema test default character set $testdbcs365;
+--enable_query_log
+########################################

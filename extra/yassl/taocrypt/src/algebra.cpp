@@ -229,6 +229,18 @@ struct WindowSlider
             negateNext = false;
     }
 
+    // negateNext may be uninitialized
+    WindowSlider(const WindowSlider& rhs) SUPPRESS_UBSAN
+      : exp(rhs.exp),
+        windowModulus(rhs.windowModulus),
+        windowSize(rhs.windowSize),
+        windowBegin(rhs.windowBegin),
+        expWindow(rhs.expWindow),
+        fastNegate(rhs.fastNegate),
+        negateNext(rhs.negateNext),
+        firstTime(rhs.firstTime),
+        finished(rhs.finished)
+    {}
     Integer exp, windowModulus;
     unsigned int windowSize, windowBegin, expWindow;
     bool fastNegate, negateNext, firstTime, finished;

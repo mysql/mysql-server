@@ -1,6 +1,4 @@
---source include/have_partition.inc
 --source include/force_binlog_format_statement.inc
---source include/have_innodb.inc
 
 --echo # connection default
 SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ;

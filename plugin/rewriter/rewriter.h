@@ -1,6 +1,6 @@
 #ifndef REWRITER_INCLUDED
 #define REWRITER_INCLUDED
-/*  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+/*  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
     This program is free software; you can redistribute it and/or modify it
     under the terms of the GNU General Public License as published by the
@@ -17,7 +17,10 @@
     02110-1301  USA */
 
 #include "my_config.h"
+
 #include <hash.h>
+
+#include "my_inttypes.h"
 #include "rule.h"
 
 /**
@@ -75,7 +78,7 @@ public:
     table in this function, intended to be run in a new thread. The main
     thread will do join().
 
-    @param sessions_thd The session to be used for loading rules.
+    @param session_thd The session to be used for loading rules.
   */
   void do_refresh(MYSQL_THD session_thd);
 

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -18,10 +18,11 @@
 #ifndef ITEM_PROCESSING_DATA_INCLUDED
 #define ITEM_PROCESSING_DATA_INCLUDED
 
+#include <functional>
+
 #include "chain_data.h"
 #include "i_dump_task.h"
 #include "i_chain_element.h"
-#include "i_callable.h"
 #include "base/atomic.h"
 
 namespace Mysql{
@@ -37,7 +38,7 @@ public:
   Item_processing_data(Chain_data* chain_data,
     I_dump_task* process_task_object,
     I_chain_element* chain_element,
-    const Mysql::I_callable<void, Item_processing_data*>* completion_callback,
+    const std::function<void(Item_processing_data*)>* completion_callback,
     Item_processing_data* parent_item_data);
 
   ~Item_processing_data();
@@ -84,7 +85,7 @@ private:
     Callback to call after element is fully processed to the output. Can be
     NULL.
    */
-  const Mysql::I_callable<void, Item_processing_data*>* m_completion_callback;
+  const std::function<void(Item_processing_data*)>* m_completion_callback;
   /**
     Link to item process information of parent module execution, if exists.
    */

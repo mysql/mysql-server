@@ -1,7 +1,7 @@
 #ifndef PARTITIONED_RWLOCK_INCLUDED
 #define PARTITIONED_RWLOCK_INCLUDED
 
-/* Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,7 +16,10 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "mysql/psi/mysql_thread.h"
+#include <new>
+
+#include "my_psi_config.h"
+#include "mysql/psi/mysql_rwlock.h"
 
 /**
   Implementation of read-write lock partitioned by thread id.

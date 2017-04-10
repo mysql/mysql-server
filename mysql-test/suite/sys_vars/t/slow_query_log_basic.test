@@ -106,7 +106,7 @@ SELECT @@session.slow_query_log;
 
 --disable_warnings
 SELECT IF(@@global.slow_query_log, "ON", "OFF") = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='slow_query_log';
 --enable_warnings
 

@@ -3,10 +3,6 @@
 #
 # Show InnoDB related content in performance_schema.threads
 
---source include/not_embedded.inc
---source include/have_innodb.inc
---source include/have_perfschema.inc
-
 --source include/turn_off_only_full_group_by.inc
 
 # There are several InnoDB io_handler_threads servicing for read IO, write IO etc.
@@ -14,8 +10,8 @@
 # We suppress here duplicates rows with the goal to avoid that the test fails
 # in case some defaults are changed.
 SELECT name, type, processlist_user, processlist_host, processlist_db,
-       processlist_command, processlist_time, processlist_state, processlist_info,
-       parent_thread_id, role, instrumented
+       processlist_command, processlist_state, processlist_info,
+       parent_thread_id, `role`, instrumented
 FROM performance_schema.threads
 WHERE name LIKE 'thread/innodb/%'
 GROUP BY name;

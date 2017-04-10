@@ -113,19 +113,25 @@ Ndb_sorted_scan_count	#
 SHOW GLOBAL VARIABLES WHERE Variable_name LIKE 'ndb\_%' and 
 Variable_name NOT LIKE 'ndb_dbg\_%';
 Variable_name	Value
+ndb_allow_copying_alter_table	#
 ndb_autoincrement_prefetch_sz	#
 ndb_batch_size	#
 ndb_blob_read_batch_bytes	#
 ndb_blob_write_batch_bytes	#
 ndb_cache_check_time	#
+ndb_clear_apply_status	#
 ndb_cluster_connection_pool	#
+ndb_cluster_connection_pool_nodeids	#
 ndb_connectstring	#
+ndb_data_node_neighbour	#
+ndb_default_column_format	#
 ndb_deferred_constraints	#
 ndb_distribution	#
 ndb_eventbuffer_free_percent	#
 ndb_eventbuffer_max_alloc	#
 ndb_extra_logging	#
 ndb_force_send	#
+ndb_fully_replicated	#
 ndb_index_stat_enable	#
 ndb_index_stat_option	#
 ndb_join_pushdown	#
@@ -143,6 +149,7 @@ ndb_mgmd_host	#
 ndb_nodeid	#
 ndb_optimization_delay	#
 ndb_optimized_node_selection	#
+ndb_read_backup	#
 ndb_recv_thread_activation_threshold	#
 ndb_recv_thread_cpu_mask	#
 ndb_report_thresh_binlog_epoch_slip	#
@@ -598,6 +605,20 @@ c1	length(c512)
 3	10000
 delete from t1;
 drop table t1;
+create table t1 ( c511 int column_format dynamic, c510 int column_format dynamic, c509 int column_format dynamic, c508 int column_format dynamic, c507 int column_format dynamic, c506 int column_format dynamic, c505 int column_format dynamic, c504 int column_format dynamic, c503 int column_format dynamic, c502 int column_format dynamic, c501 int column_format dynamic, c500 int column_format dynamic, c499 int column_format dynamic, c498 int column_format dynamic, c497 int column_format dynamic, c496 int column_format dynamic, c495 int column_format dynamic, c494 int column_format dynamic, c493 int column_format dynamic, c492 int column_format dynamic, c491 int column_format dynamic, c490 int column_format dynamic, c489 int column_format dynamic, c488 int column_format dynamic, c487 int column_format dynamic, c486 int column_format dynamic, c485 int column_format dynamic, c484 int column_format dynamic, c483 int column_format dynamic, c482 int column_format dynamic, c481 int column_format dynamic, c480 int column_format dynamic, c479 int column_format dynamic, c478 int column_format dynamic, c477 int column_format dynamic, c476 int column_format dynamic, c475 int column_format dynamic, c474 int column_format dynamic, c473 int column_format dynamic, c472 int column_format dynamic, c471 int column_format dynamic, c470 int column_format dynamic, c469 int column_format dynamic, c468 int column_format dynamic, c467 int column_format dynamic, c466 int column_format dynamic, c465 int column_format dynamic, c464 int column_format dynamic, c463 int column_format dynamic, c462 int column_format dynamic, c461 int column_format dynamic, c460 int column_format dynamic, c459 int column_format dynamic, c458 int column_format dynamic, c457 int column_format dynamic, c456 int column_format dynamic, c455 int column_format dynamic, c454 int column_format dynamic, c453 int column_format dynamic, c452 int column_format dynamic, c451 int column_format dynamic, c450 int column_format dynamic, c449 int column_format dynamic, c448 int column_format dynamic, c447 int column_format dynamic, c446 int column_format dynamic, c445 int column_format dynamic, c444 int column_format dynamic, c443 int column_format dynamic, c442 int column_format dynamic, c441 int column_format dynamic, c440 int column_format dynamic, c439 int column_format dynamic, c438 int column_format dynamic, c437 int column_format dynamic, c436 int column_format dynamic, c435 int column_format dynamic, c434 int column_format dynamic, c433 int column_format dynamic, c432 int column_format dynamic, c431 int column_format dynamic, c430 int column_format dynamic, c429 int column_format dynamic, c428 int column_format dynamic, c427 int column_format dynamic, c426 int column_format dynamic, c425 int column_format dynamic, c424 int column_format dynamic, c423 int column_format dynamic, c422 int column_format dynamic, c421 int column_format dynamic, c420 int column_format dynamic, c419 int column_format dynamic, c418 int column_format dynamic, c417 int column_format dynamic, c416 int column_format dynamic, c415 int column_format dynamic, c414 int column_format dynamic, c413 int column_format dynamic, c412 int column_format dynamic, c411 int column_format dynamic, c410 int column_format dynamic, c409 int column_format dynamic, c408 int column_format dynamic, c407 int column_format dynamic, c406 int column_format dynamic, c405 int column_format dynamic, c404 int column_format dynamic, c403 int column_format dynamic, c402 int column_format dynamic, c401 int column_format dynamic, c400 int column_format dynamic, c399 int column_format dynamic, c398 int column_format dynamic, c397 int column_format dynamic, c396 int column_format dynamic, c395 int column_format dynamic, c394 int column_format dynamic, c393 int column_format dynamic, c392 int column_format dynamic, c391 int column_format dynamic, c390 int column_format dynamic, c389 int column_format dynamic, c388 int column_format dynamic, c387 int column_format dynamic, c386 int column_format dynamic, c385 int column_format dynamic, c384 int column_format dynamic, c383 int column_format dynamic, c382 int column_format dynamic, c381 int column_format dynamic, c380 int column_format dynamic, c379 int column_format dynamic, c378 int column_format dynamic, c377 int column_format dynamic, c376 int column_format dynamic, c375 int column_format dynamic, c374 int column_format dynamic, c373 int column_format dynamic, c372 int column_format dynamic, c371 int column_format dynamic, c370 int column_format dynamic, c369 int column_format dynamic, c368 int column_format dynamic, c367 int column_format dynamic, c366 int column_format dynamic, c365 int column_format dynamic, c364 int column_format dynamic, c363 int column_format dynamic, c362 int column_format dynamic, c361 int column_format dynamic, c360 int column_format dynamic, c359 int column_format dynamic, c358 int column_format dynamic, c357 int column_format dynamic, c356 int column_format dynamic, c355 int column_format dynamic, c354 int column_format dynamic, c353 int column_format dynamic, c352 int column_format dynamic, c351 int column_format dynamic, c350 int column_format dynamic, c349 int column_format dynamic, c348 int column_format dynamic, c347 int column_format dynamic, c346 int column_format dynamic, c345 int column_format dynamic, c344 int column_format dynamic, c343 int column_format dynamic, c342 int column_format dynamic, c341 int column_format dynamic, c340 int column_format dynamic, c339 int column_format dynamic, c338 int column_format dynamic, c337 int column_format dynamic, c336 int column_format dynamic, c335 int column_format dynamic, c334 int column_format dynamic, c333 int column_format dynamic, c332 int column_format dynamic, c331 int column_format dynamic, c330 int column_format dynamic, c329 int column_format dynamic, c328 int column_format dynamic, c327 int column_format dynamic, c326 int column_format dynamic, c325 int column_format dynamic, c324 int column_format dynamic, c323 int column_format dynamic, c322 int column_format dynamic, c321 int column_format dynamic, c320 int column_format dynamic, c319 int column_format dynamic, c318 int column_format dynamic, c317 int column_format dynamic, c316 int column_format dynamic, c315 int column_format dynamic, c314 int column_format dynamic, c313 int column_format dynamic, c312 int column_format dynamic, c311 int column_format dynamic, c310 int column_format dynamic, c309 int column_format dynamic, c308 int column_format dynamic, c307 int column_format dynamic, c306 int column_format dynamic, c305 int column_format dynamic, c304 int column_format dynamic, c303 int column_format dynamic, c302 int column_format dynamic, c301 int column_format dynamic, c300 int column_format dynamic, c299 int column_format dynamic, c298 int column_format dynamic, c297 int column_format dynamic, c296 int column_format dynamic, c295 int column_format dynamic, c294 int column_format dynamic, c293 int column_format dynamic, c292 int column_format dynamic, c291 int column_format dynamic, c290 int column_format dynamic, c289 int column_format dynamic, c288 int column_format dynamic, c287 int column_format dynamic, c286 int column_format dynamic, c285 int column_format dynamic, c284 int column_format dynamic, c283 int column_format dynamic, c282 int column_format dynamic, c281 int column_format dynamic, c280 int column_format dynamic, c279 int column_format dynamic, c278 int column_format dynamic, c277 int column_format dynamic, c276 int column_format dynamic, c275 int column_format dynamic, c274 int column_format dynamic, c273 int column_format dynamic, c272 int column_format dynamic, c271 int column_format dynamic, c270 int column_format dynamic, c269 int column_format dynamic, c268 int column_format dynamic, c267 int column_format dynamic, c266 int column_format dynamic, c265 int column_format dynamic, c264 int column_format dynamic, c263 int column_format dynamic, c262 int column_format dynamic, c261 int column_format dynamic, c260 int column_format dynamic, c259 int column_format dynamic, c258 int column_format dynamic, c257 int column_format dynamic, c256 int column_format dynamic, c255 int column_format dynamic, c254 int column_format dynamic, c253 int column_format dynamic, c252 int column_format dynamic, c251 int column_format dynamic, c250 int column_format dynamic, c249 int column_format dynamic, c248 int column_format dynamic, c247 int column_format dynamic, c246 int column_format dynamic, c245 int column_format dynamic, c244 int column_format dynamic, c243 int column_format dynamic, c242 int column_format dynamic, c241 int column_format dynamic, c240 int column_format dynamic, c239 int column_format dynamic, c238 int column_format dynamic, c237 int column_format dynamic, c236 int column_format dynamic, c235 int column_format dynamic, c234 int column_format dynamic, c233 int column_format dynamic, c232 int column_format dynamic, c231 int column_format dynamic, c230 int column_format dynamic, c229 int column_format dynamic, c228 int column_format dynamic, c227 int column_format dynamic, c226 int column_format dynamic, c225 int column_format dynamic, c224 int column_format dynamic, c223 int column_format dynamic, c222 int column_format dynamic, c221 int column_format dynamic, c220 int column_format dynamic, c219 int column_format dynamic, c218 int column_format dynamic, c217 int column_format dynamic, c216 int column_format dynamic, c215 int column_format dynamic, c214 int column_format dynamic, c213 int column_format dynamic, c212 int column_format dynamic, c211 int column_format dynamic, c210 int column_format dynamic, c209 int column_format dynamic, c208 int column_format dynamic, c207 int column_format dynamic, c206 int column_format dynamic, c205 int column_format dynamic, c204 int column_format dynamic, c203 int column_format dynamic, c202 int column_format dynamic, c201 int column_format dynamic, c200 int column_format dynamic, c199 int column_format dynamic, c198 int column_format dynamic, c197 int column_format dynamic, c196 int column_format dynamic, c195 int column_format dynamic, c194 int column_format dynamic, c193 int column_format dynamic, c192 int column_format dynamic, c191 int column_format dynamic, c190 int column_format dynamic, c189 int column_format dynamic, c188 int column_format dynamic, c187 int column_format dynamic, c186 int column_format dynamic, c185 int column_format dynamic, c184 int column_format dynamic, c183 int column_format dynamic, c182 int column_format dynamic, c181 int column_format dynamic, c180 int column_format dynamic, c179 int column_format dynamic, c178 int column_format dynamic, c177 int column_format dynamic, c176 int column_format dynamic, c175 int column_format dynamic, c174 int column_format dynamic, c173 int column_format dynamic, c172 int column_format dynamic, c171 int column_format dynamic, c170 int column_format dynamic, c169 int column_format dynamic, c168 int column_format dynamic, c167 int column_format dynamic, c166 int column_format dynamic, c165 int column_format dynamic, c164 int column_format dynamic, c163 int column_format dynamic, c162 int column_format dynamic, c161 int column_format dynamic, c160 int column_format dynamic, c159 int column_format dynamic, c158 int column_format dynamic, c157 int column_format dynamic, c156 int column_format dynamic, c155 int column_format dynamic, c154 int column_format dynamic, c153 int column_format dynamic, c152 int column_format dynamic, c151 int column_format dynamic, c150 int column_format dynamic, c149 int column_format dynamic, c148 int column_format dynamic, c147 int column_format dynamic, c146 int column_format dynamic, c145 int column_format dynamic, c144 int column_format dynamic, c143 int column_format dynamic, c142 int column_format dynamic, c141 int column_format dynamic, c140 int column_format dynamic, c139 int column_format dynamic, c138 int column_format dynamic, c137 int column_format dynamic, c136 int column_format dynamic, c135 int column_format dynamic, c134 int column_format dynamic, c133 int column_format dynamic, c132 int column_format dynamic, c131 int column_format dynamic, c130 int column_format dynamic, c129 int column_format dynamic, c128 int column_format dynamic, c127 int column_format dynamic, c126 int column_format dynamic, c125 int column_format dynamic, c124 int column_format dynamic, c123 int column_format dynamic, c122 int column_format dynamic, c121 int column_format dynamic, c120 int column_format dynamic, c119 int column_format dynamic, c118 int column_format dynamic, c117 int column_format dynamic, c116 int column_format dynamic, c115 int column_format dynamic, c114 int column_format dynamic, c113 int column_format dynamic, c112 int column_format dynamic, c111 int column_format dynamic, c110 int column_format dynamic, c109 int column_format dynamic, c108 int column_format dynamic, c107 int column_format dynamic, c106 int column_format dynamic, c105 int column_format dynamic, c104 int column_format dynamic, c103 int column_format dynamic, c102 int column_format dynamic, c101 int column_format dynamic, c100 int column_format dynamic, c99 int column_format dynamic, c98 int column_format dynamic, c97 int column_format dynamic, c96 int column_format dynamic, c95 int column_format dynamic, c94 int column_format dynamic, c93 int column_format dynamic, c92 int column_format dynamic, c91 int column_format dynamic, c90 int column_format dynamic, c89 int column_format dynamic, c88 int column_format dynamic, c87 int column_format dynamic, c86 int column_format dynamic, c85 int column_format dynamic, c84 int column_format dynamic, c83 int column_format dynamic, c82 int column_format dynamic, c81 int column_format dynamic, c80 int column_format dynamic, c79 int column_format dynamic, c78 int column_format dynamic, c77 int column_format dynamic, c76 int column_format dynamic, c75 int column_format dynamic, c74 int column_format dynamic, c73 int column_format dynamic, c72 int column_format dynamic, c71 int column_format dynamic, c70 int column_format dynamic, c69 int column_format dynamic, c68 int column_format dynamic, c67 int column_format dynamic, c66 int column_format dynamic, c65 int column_format dynamic, c64 int column_format dynamic, c63 int column_format dynamic, c62 int column_format dynamic, c61 int column_format dynamic, c60 int column_format dynamic, c59 int column_format dynamic, c58 int column_format dynamic, c57 int column_format dynamic, c56 int column_format dynamic, c55 int column_format dynamic, c54 int column_format dynamic, c53 int column_format dynamic, c52 int column_format dynamic, c51 int column_format dynamic, c50 int column_format dynamic, c49 int column_format dynamic, c48 int column_format dynamic, c47 int column_format dynamic, c46 int column_format dynamic, c45 int column_format dynamic, c44 int column_format dynamic, c43 int column_format dynamic, c42 int column_format dynamic, c41 int column_format dynamic, c40 int column_format dynamic, c39 int column_format dynamic, c38 int column_format dynamic, c37 int column_format dynamic, c36 int column_format dynamic, c35 int column_format dynamic, c34 int column_format dynamic, c33 int column_format dynamic, c32 int column_format dynamic, c31 int column_format dynamic, c30 int column_format dynamic, c29 int column_format dynamic, c28 int column_format dynamic, c27 int column_format dynamic, c26 int column_format dynamic, c25 int column_format dynamic, c24 int column_format dynamic, c23 int column_format dynamic, c22 int column_format dynamic, c21 int column_format dynamic, c20 int column_format dynamic, c19 int column_format dynamic, c18 int column_format dynamic, c17 int column_format dynamic, c16 int column_format dynamic, c15 int column_format dynamic, c14 int column_format dynamic, c13 int column_format dynamic, c12 int column_format dynamic, c11 int column_format dynamic, c10 int column_format dynamic, c9 int column_format dynamic, c8 int column_format dynamic, c7 int column_format dynamic, c6 int column_format dynamic, c5 int column_format dynamic, c4 int column_format dynamic, c3 int column_format dynamic, c2 int column_format dynamic, c1 int column_format dynamic, c512 varchar(10000), primary key using hash(c1)) engine=ndb partition by key(c1);
+set @v10 = '0123456789';
+set @v100 = concat(@v10,@v10,@v10,@v10,@v10,@v10,@v10,@v10,@v10,@v10);
+set @v1000 = concat(@v100,@v100,@v100,@v100,@v100,@v100,@v100,@v100,@v100,@v100);
+set @v10000 = concat(@v1000,@v1000,@v1000,@v1000,@v1000,@v1000,@v1000,@v1000,@v1000,@v1000);
+set @v13000 = concat(@v10000, @v1000,@v1000,@v1000);
+insert into t1 (c1,c512) values (1,@v10000), (2,@v10000), (3,@v10000);
+select c1, length(c512) from t1 order by 1;
+c1	length(c512)
+1	10000
+2	10000
+3	10000
+delete from t1;
+drop table t1;
 create table t1 (a int primary key, b varchar(13000)) engine = ndb;
 insert into t1 values (1,@v13000), (2,@v13000);
 select length(b) from t1 order by 1;
@@ -605,7 +626,7 @@ length(b)
 13000
 13000
 drop table t1;
-create table t1 ( c50 char(255), c49 char(255), c48 char(255), c47 char(255), c46 char(255), c45 char(255), c44 char(255), c43 char(255), c42 char(255), c41 char(255), c40 char(255), c39 char(255), c38 char(255), c37 char(255), c36 char(255), c35 char(255), c34 char(255), c33 char(255), c32 char(255), c31 char(255), c30 char(255), c29 char(255), c28 char(255), c27 char(255), c26 char(255), c25 char(255), c24 char(255), c23 char(255), c22 char(255), c21 char(255), c20 char(255), c19 char(255), c18 char(255), c17 char(255), c16 char(255), c15 char(255), c14 char(255), c13 char(255), c12 char(255), c11 char(255), c10 char(255), c9 char(255), c8 char(255), c7 char(255), c6 char(255), c5 char(255), c4 char(255), c3 char(255), c2 char(255), c1 char(255), primary key using hash(c1)) engine=ndb;
+create table t1 ( c50 char(255) column_format fixed, c49 char(255) column_format fixed, c48 char(255) column_format fixed, c47 char(255) column_format fixed, c46 char(255) column_format fixed, c45 char(255) column_format fixed, c44 char(255) column_format fixed, c43 char(255) column_format fixed, c42 char(255) column_format fixed, c41 char(255) column_format fixed, c40 char(255) column_format fixed, c39 char(255) column_format fixed, c38 char(255) column_format fixed, c37 char(255) column_format fixed, c36 char(255) column_format fixed, c35 char(255) column_format fixed, c34 char(255) column_format fixed, c33 char(255) column_format fixed, c32 char(255) column_format fixed, c31 char(255) column_format fixed, c30 char(255) column_format fixed, c29 char(255) column_format fixed, c28 char(255) column_format fixed, c27 char(255) column_format fixed, c26 char(255) column_format fixed, c25 char(255) column_format fixed, c24 char(255) column_format fixed, c23 char(255) column_format fixed, c22 char(255) column_format fixed, c21 char(255) column_format fixed, c20 char(255) column_format fixed, c19 char(255) column_format fixed, c18 char(255) column_format fixed, c17 char(255) column_format fixed, c16 char(255) column_format fixed, c15 char(255) column_format fixed, c14 char(255) column_format fixed, c13 char(255) column_format fixed, c12 char(255) column_format fixed, c11 char(255) column_format fixed, c10 char(255) column_format fixed, c9 char(255) column_format fixed, c8 char(255) column_format fixed, c7 char(255) column_format fixed, c6 char(255) column_format fixed, c5 char(255) column_format fixed, c4 char(255) column_format fixed, c3 char(255) column_format fixed, c2 char(255) column_format fixed, c1 char(255) column_format fixed, primary key using hash(c1)) engine=ndb;
 ERROR HY000: Got error 851 'Maximum 8052 bytes of FIXED columns supported, use varchar or COLUMN_FORMAT DYNAMIC instead' from NDBCLUSTER
 show warnings;
 Level	Code	Message
@@ -617,7 +638,8 @@ create table t1 (
 a1234567890123456789012345678901234567890 int primary key,
 a12345678901234567890123456789a1234567890 int,
 index(a12345678901234567890123456789a1234567890)
-) engine=ndb;
+) engine=ndb
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 show tables;
 Tables_in_test
 t1
@@ -658,13 +680,39 @@ insert into t1 values
 select count(*) from t1;
 count(*)
 48
+select count(*) into @cnt_big
+from information_schema.partitions
+where table_schema = 'test' and table_name = 't1';
 drop table t1;
 create table t1
 (a bigint, b bigint, c bigint, d bigint, 
-primary key (a)) 
+primary key (a,b,c,d))
 engine=ndb
 max_rows=1;
+insert into t1 values
+(1,2,3,4),(2,3,4,5),(3,4,5,6),
+(3,2,3,4),(1,3,4,5),(2,4,5,6),
+(1,2,3,5),(2,3,4,8),(3,4,5,9),
+(3,2,3,5),(1,3,4,8),(2,4,5,9),
+(1,2,3,6),(2,3,4,6),(3,4,5,7),
+(3,2,3,6),(1,3,4,6),(2,4,5,7),
+(1,2,3,7),(2,3,4,7),(3,4,5,8),
+(3,2,3,7),(1,3,4,7),(2,4,5,8),
+(1,3,3,4),(2,4,4,5),(3,5,5,6),
+(3,3,3,4),(1,4,4,5),(2,5,5,6),
+(1,3,3,5),(2,4,4,8),(3,5,5,9),
+(3,3,3,5),(1,4,4,8),(2,5,5,9),
+(1,3,3,6),(2,4,4,6),(3,5,5,7),
+(3,3,3,6),(1,4,4,6),(2,5,5,7),
+(1,3,3,7),(2,4,4,7),(3,5,5,8),
+(3,3,3,7),(1,4,4,7),(2,5,5,8);
+select count(*) into @cnt_small
+from information_schema.partitions
+where table_schema = 'test' and table_name = 't1';
 drop table t1;
+select @cnt_big > @cnt_small;
+@cnt_big > @cnt_small
+1
 create table t1
 (counter int(64) NOT NULL auto_increment,
 datavalue char(40) default 'XXXX',
@@ -965,13 +1013,15 @@ drop table t10,t20;
 CREATE TABLE `t1` (
 `id` int(11) NOT NULL AUTO_INCREMENT,
 PRIMARY KEY (`id`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8;
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 CREATE TABLE `t2` (
 `id` int(11) NOT NULL,
 `obj_id` int(11) DEFAULT NULL,
 UNIQUE KEY `id` (`id`),
 KEY `obj_id` (`obj_id`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8;
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 # here we used to segv
 explain SELECT t1.id FROM t1 INNER JOIN t2 ON t1.id = t2.id WHERE t2.obj_id=1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra

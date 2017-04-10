@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,10 +16,12 @@
 #ifndef SINGLE_PRIMARY_MESSAGE_INCLUDED
 #define SINGLE_PRIMARY_MESSAGE INCLUDED
 
-#include <string>
 #include <set>
+#include <string>
 #include <vector>
+
 #include "gcs_plugin_messages.h"
+#include "my_inttypes.h"
 
 class Single_primary_message : public Plugin_gcs_message
 {
@@ -89,9 +91,9 @@ protected:
     Message decoding method
 
     @param[in] buffer the received data
-    @param[in] length the received data size
   */
-  void decode_payload(const unsigned char* buffer, size_t length);
+  void decode_payload(const unsigned char* buffer,
+                      const unsigned char*);
 
 private:
   /**The message type*/

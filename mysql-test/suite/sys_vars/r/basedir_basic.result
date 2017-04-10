@@ -13,7 +13,7 @@ COUNT(@@GLOBAL.basedir)
 1 Expected
 '#---------------------BS_STVARS_001_03----------------------#'
 SELECT @@GLOBAL.basedir = VARIABLE_VALUE
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='basedir';
 @@GLOBAL.basedir = VARIABLE_VALUE
 1
@@ -23,7 +23,7 @@ COUNT(@@GLOBAL.basedir)
 1
 1 Expected
 SELECT COUNT(VARIABLE_VALUE)
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='basedir';
 COUNT(VARIABLE_VALUE)
 1

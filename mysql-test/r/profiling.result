@@ -56,13 +56,13 @@ sum(a)
 6144
 select sum(a) from t1 group by b;
 sum(a)
-2048
 1536
+2048
 2560
 select sum(a) + sum(b) from t1 group by b;
 sum(a) + sum(b)
-NULL
 2048
+NULL
 4608
 select max(x) from (select sum(a) as x from t1 group by b) as teeone;
 max(x)
@@ -412,7 +412,7 @@ commit;
 select @@profiling;
 @@profiling
 1
-drop table if exists t1, t2, t3;
+drop table if exists t2, t1, t3;
 drop view if exists v1;
 Warnings:
 Note	1051	Unknown table 'test.v1'

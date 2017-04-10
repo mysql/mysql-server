@@ -1,0 +1,11 @@
+ALTER TABLE t1 ALGORITHM=INPLACE,
+partition by key(b) partitions 6;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'partition by key(b) partitions 6' at line 2
+ALTER TABLE t1 ALGORITHM=INPLACE
+partition by key(b) partitions 6;
+ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Detected unsupported change. Try ALGORITHM=COPY.
+ALTER TABLE t1 ALGORITHM=COPY
+partition by key(b) partitions 6;
+ALTER TABLE t1
+partition by key(b) partitions 6;
+== verify_mysql_dd.inc ==

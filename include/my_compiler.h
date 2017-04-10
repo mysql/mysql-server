@@ -17,6 +17,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**
+  @file include/my_compiler.h
   Header for compiler-dependent features.
 
   Intended to contain a set of reusable wrappers for preprocessor
@@ -24,21 +25,12 @@
   specific to a target compiler.
 */
 
+#ifndef MYSQL_ABI_CHECK
+#include <assert.h>
 #include <stddef.h> /* size_t */
-
-#if defined __GNUC__
-/*
-  Convenience macro to test the minimum required GCC version.
-  These should be used with care as Clang also sets __GNUC__ and
-  __GNUC_MINOR__ (currently to 4.2). Prefer using feature specific
-  CMake checks in configure.cmake instead.
-*/
-#  define MY_GNUC_PREREQ(maj, min) \
-    ((__GNUC__ << 16) + __GNUC_MINOR__ >= ((maj) << 16) + (min))
-#  define GCC_VERSION (__GNUC__ * 1000 + __GNUC_MINOR__)
-#else
-#  define MY_GNUC_PREREQ(maj, min) (0)
 #endif
+
+#include "my_config.h"
 
 /*
   The macros below are borrowed from include/linux/compiler.h in the
@@ -124,6 +116,7 @@ inline bool unlikely(bool expr)
   Partial specialization used due to MSVC++.
 */
 template<size_t alignment> struct my_alignment_imp;
+
 template<> struct MY_ALIGNED(1) my_alignment_imp<1> {};
 template<> struct MY_ALIGNED(2) my_alignment_imp<2> {};
 template<> struct MY_ALIGNED(4) my_alignment_imp<4> {};
@@ -165,14 +158,28 @@ struct my_aligned_storage
 #endif
 #endif
 
+#if defined(_MSC_VER)
+#define ALWAYS_INLINE __forceinline
+#else
+#define ALWAYS_INLINE  __attribute__((always_inline)) inline
+#endif
+
 #ifndef __has_attribute
 # define __has_attribute(x) 0
 #endif
 
+#ifndef SUPPRESS_UBSAN
 #if __has_attribute(no_sanitize_undefined)
-# define SUPPRESS_UBSAN __attribute__((no_sanitize_undefined))
+# define SUPPRESS_UBSAN MY_ATTRIBUTE((no_sanitize_undefined))
 #else
 # define SUPPRESS_UBSAN
+#endif
+#endif  /* SUPPRESS_UBSAN */
+
+#ifdef _WIN32
+#define STDCALL __stdcall
+#else
+#define STDCALL
 #endif
 
 #endif /* MY_COMPILER_INCLUDED */

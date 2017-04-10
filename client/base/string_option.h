@@ -39,7 +39,7 @@ public:
     @param value Pointer to string object to receive option value.
     @param name Name of option. It is used in command line option name as
       --name.
-    @param desription Description of option to be printed in --help.
+    @param description Description of option to be printed in --help.
    */
   String_option(
     Nullable<std::string>* value, std::string name, std::string description);

@@ -39,7 +39,6 @@ let $test_debug= 0;
 --echo # 0. Check and generate prerequites
 #-----------------------------------------
 --source include/not_embedded.inc
---source include/have_innodb.inc
 
 # InnoDb page size values in 2011-11
 # - supported: 4k, 8k, 16k
@@ -50,7 +49,7 @@ let $default_page_size= 16384;
 let $maximal_page_size= 65536;
 let $legal_page_size_list= $minimal_page_size,8192,16384,32768,$maximal_page_size;
 let $start_page_size=
-`SELECT variable_value FROM INFORMATION_SCHEMA.GLOBAL_STATUS
+`SELECT variable_value FROM performance_schema.global_status
 WHERE LOWER(variable_name) = 'innodb_page_size'`;
 --enable_warnings
 if(`SELECT $start_page_size NOT IN ($legal_page_size_list)`)

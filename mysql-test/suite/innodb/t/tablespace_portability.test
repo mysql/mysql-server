@@ -11,7 +11,6 @@
 # On other systems, '\' is left unchanged.
 # So this output file is different from the Windows version.
 
---source include/have_innodb_16k.inc
 --source include/not_embedded.inc
 --source include/not_windows.inc
 
@@ -38,5 +37,8 @@ call mtr.add_suppression("\\[Warning\\] InnoDB: Converting backslash to forward 
 --enable_query_log
 
 --source suite/innodb/include/tablespace_filenames.inc
---source suite/innodb/include/tablespace_portability.inc
+
+# There is no tablespace portabilility in mysql-trunk at the moment since ISL
+# files have been disabled and fil_ibd_open() only looks for a file in one place.
+# --source suite/innodb/include/tablespace_portability.inc
 

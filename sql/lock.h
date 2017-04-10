@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,23 +16,31 @@
 #ifndef LOCK_INCLUDED
 #define LOCK_INCLUDED
 
-#include "thr_lock.h"                           /* thr_lock_type */
+#include <stddef.h>
+#include <sys/types.h>
+
 #include "mdl.h"
+#include "my_inttypes.h"
 #include "sql_hset.h"        // Hash_set
 
+class THD;
 // Forward declarations
 struct TABLE;
-struct TABLE_LIST;
-class THD;
-typedef struct st_mysql_lock MYSQL_LOCK;
 
+typedef struct st_thr_lock_data THR_LOCK_DATA;
+
+typedef struct st_mysql_lock
+{
+  TABLE **table;
+  uint table_count,lock_count;
+  THR_LOCK_DATA **locks;
+} MYSQL_LOCK;
 
 MYSQL_LOCK *mysql_lock_tables(THD *thd, TABLE **table, size_t count, uint flags);
 void mysql_unlock_tables(THD *thd, MYSQL_LOCK *sql_lock);
 void mysql_unlock_read_tables(THD *thd, MYSQL_LOCK *sql_lock);
 void mysql_unlock_some_tables(THD *thd, TABLE **table,uint count);
 void mysql_lock_remove(THD *thd, MYSQL_LOCK *locked,TABLE *table);
-void mysql_lock_abort(THD *thd, TABLE *table, bool upgrade_lock);
 void mysql_lock_abort_for_thread(THD *thd, TABLE *table);
 MYSQL_LOCK *mysql_lock_merge(MYSQL_LOCK *a,MYSQL_LOCK *b);
 /* Lock based on name */
@@ -42,10 +50,7 @@ bool lock_schema_name(THD *thd, const char *db);
 bool lock_tablespace_name(THD *thd, const char *tablespace);
 
 // Function generating hash key for Tablespace_hash_set.
-extern "C" uchar *tablespace_set_get_key(
-                    const uchar *record,
-                    size_t *length,
-                    my_bool not_used);
+const uchar *tablespace_set_get_key(const uchar *record, size_t *length);
 
 // Hash_set to hold set of tablespace names.
 typedef Hash_set<char, tablespace_set_get_key> Tablespace_hash_set;

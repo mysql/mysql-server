@@ -46,6 +46,7 @@ File::tab#.ibd
 #PAGE_COUNT	PAGE_TYPE
 ===============================================
   #	Index page
+       #	SDI Index page
        #	Undo log page
        #	Inode page
        #	Insert buffer free list page
@@ -57,6 +58,9 @@ File::tab#.ibd
       #	Extent descriptor page
        #	BLOB page
        #	Compressed BLOB page
+       #	Subsequent Compressed BLOB page
+       #	SDI BLOB page
+       #	Compressed SDI BLOB page
        #	Other type of page
 ===============================================
 Additional information:

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -22,7 +22,9 @@
 #ifndef SQL_LEX_CHARS_INCLUDED
 #define SQL_LEX_CHARS_INCLUDED
 
-#include "my_global.h"
+#include "my_compiler.h"
+#include "my_inttypes.h"
+#include "my_macros.h"
 
 enum MY_ATTRIBUTE((__packed__)) my_lex_states
 {
@@ -30,8 +32,8 @@ enum MY_ATTRIBUTE((__packed__)) my_lex_states
   MY_LEX_IDENT_SEP, MY_LEX_IDENT_START,
   MY_LEX_REAL, MY_LEX_HEX_NUMBER, MY_LEX_BIN_NUMBER,
   MY_LEX_CMP_OP, MY_LEX_LONG_CMP_OP, MY_LEX_STRING, MY_LEX_COMMENT, MY_LEX_END,
-  MY_LEX_OPERATOR_OR_IDENT, MY_LEX_NUMBER_IDENT, MY_LEX_INT_OR_REAL,
-  MY_LEX_REAL_OR_POINT, MY_LEX_BOOL, MY_LEX_EOL, MY_LEX_ESCAPE,
+  MY_LEX_NUMBER_IDENT, MY_LEX_INT_OR_REAL,
+  MY_LEX_REAL_OR_POINT, MY_LEX_BOOL, MY_LEX_EOL,
   MY_LEX_LONG_COMMENT, MY_LEX_END_LONG_COMMENT, MY_LEX_SEMICOLON,
   MY_LEX_SET_VAR, MY_LEX_USER_END, MY_LEX_HOSTNAME, MY_LEX_SKIP,
   MY_LEX_USER_VARIABLE_DELIMITER, MY_LEX_SYSTEM_VAR,
@@ -68,7 +70,7 @@ C_MODE_START
 typedef struct lex_state_maps_st lex_state_maps_st;
 typedef struct charset_info_st charset_info_st;
 
-my_bool init_state_maps(struct charset_info_st *cs);
+bool init_state_maps(struct charset_info_st *cs);
 C_MODE_END
 
 #endif /* SQL_LEX_CHARS_INCLUDED */

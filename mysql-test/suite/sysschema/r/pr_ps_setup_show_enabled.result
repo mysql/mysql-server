@@ -68,6 +68,11 @@ idle	YES
 memory/performance_schema/accounts	NO
 memory/performance_schema/cond_class	NO
 memory/performance_schema/cond_instances	NO
+memory/performance_schema/events_errors_summary_by_account_by_error	NO
+memory/performance_schema/events_errors_summary_by_host_by_error	NO
+memory/performance_schema/events_errors_summary_by_thread_by_error	NO
+memory/performance_schema/events_errors_summary_by_user_by_error	NO
+memory/performance_schema/events_errors_summary_global_by_error	NO
 memory/performance_schema/events_stages_history	NO
 memory/performance_schema/events_stages_history_long	NO
 memory/performance_schema/events_stages_summary_by_account_by_event_name	NO
@@ -201,18 +206,24 @@ statements_digest
 thread_instrumentation
 enabled_threads	thread_type
 innodb/buf_dump_thread	BACKGROUND
+innodb/buf_resize_thread	BACKGROUND
 innodb/dict_stats_thread	BACKGROUND
+innodb/fts_optimize_thread	BACKGROUND
 innodb/io_ibuf_thread	BACKGROUND
 innodb/io_log_thread	BACKGROUND
 innodb/io_read_thread	BACKGROUND
 innodb/io_read_thread	BACKGROUND
+innodb/io_read_thread	BACKGROUND
+innodb/io_read_thread	BACKGROUND
 innodb/io_write_thread	BACKGROUND
 innodb/io_write_thread	BACKGROUND
-innodb/page_cleaner_thread	BACKGROUND
+innodb/io_write_thread	BACKGROUND
+innodb/io_write_thread	BACKGROUND
+innodb/page_flush_coordinator_thread	BACKGROUND
+mysys/thread_timer_notifier	BACKGROUND
 root@localhost	FOREGROUND
 sql/compress_gtid_table	FOREGROUND
 sql/main	BACKGROUND
-sql/thread_timer_notifier	BACKGROUND
 CALL sys.ps_setup_show_enabled(TRUE, TRUE);
 performance_schema_enabled
 1
@@ -239,23 +250,34 @@ statements_digest
 thread_instrumentation
 enabled_threads	thread_type
 innodb/buf_dump_thread	BACKGROUND
+innodb/buf_resize_thread	BACKGROUND
 innodb/dict_stats_thread	BACKGROUND
+innodb/fts_optimize_thread	BACKGROUND
 innodb/io_ibuf_thread	BACKGROUND
 innodb/io_log_thread	BACKGROUND
 innodb/io_read_thread	BACKGROUND
 innodb/io_read_thread	BACKGROUND
+innodb/io_read_thread	BACKGROUND
+innodb/io_read_thread	BACKGROUND
 innodb/io_write_thread	BACKGROUND
 innodb/io_write_thread	BACKGROUND
-innodb/page_cleaner_thread	BACKGROUND
+innodb/io_write_thread	BACKGROUND
+innodb/io_write_thread	BACKGROUND
+innodb/page_flush_coordinator_thread	BACKGROUND
+mysys/thread_timer_notifier	BACKGROUND
 root@localhost	FOREGROUND
 sql/compress_gtid_table	FOREGROUND
 sql/main	BACKGROUND
-sql/thread_timer_notifier	BACKGROUND
 enabled_instruments	timed
 idle	YES
 memory/performance_schema/accounts	NO
 memory/performance_schema/cond_class	NO
 memory/performance_schema/cond_instances	NO
+memory/performance_schema/events_errors_summary_by_account_by_error	NO
+memory/performance_schema/events_errors_summary_by_host_by_error	NO
+memory/performance_schema/events_errors_summary_by_thread_by_error	NO
+memory/performance_schema/events_errors_summary_by_user_by_error	NO
+memory/performance_schema/events_errors_summary_global_by_error	NO
 memory/performance_schema/events_stages_history	NO
 memory/performance_schema/events_stages_history_long	NO
 memory/performance_schema/events_stages_summary_by_account_by_event_name	NO

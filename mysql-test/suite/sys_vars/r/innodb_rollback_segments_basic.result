@@ -20,26 +20,26 @@ innodb_rollback_segments	128
 SHOW session variables LIKE 'innodb_rollback_segments';
 Variable_name	Value
 innodb_rollback_segments	128
-SELECT * FROM information_schema.global_variables 
+SELECT * FROM performance_schema.global_variables 
 WHERE variable_name='innodb_rollback_segments';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_ROLLBACK_SEGMENTS	128
-SELECT * FROM information_schema.session_variables 
+innodb_rollback_segments	128
+SELECT * FROM performance_schema.session_variables 
 WHERE variable_name='innodb_rollback_segments';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_ROLLBACK_SEGMENTS	128
+innodb_rollback_segments	128
 SET global innodb_rollback_segments=100;
 SELECT @@global.innodb_rollback_segments;
 @@global.innodb_rollback_segments
 100
-SELECT * FROM information_schema.global_variables 
+SELECT * FROM performance_schema.global_variables 
 WHERE variable_name='innodb_rollback_segments';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_ROLLBACK_SEGMENTS	100
-SELECT * FROM information_schema.session_variables 
+innodb_rollback_segments	100
+SELECT * FROM performance_schema.session_variables 
 WHERE variable_name='innodb_rollback_segments';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_ROLLBACK_SEGMENTS	100
+innodb_rollback_segments	100
 SET session innodb_rollback_segments=1;
 ERROR HY000: Variable 'innodb_rollback_segments' is a GLOBAL variable and should be set with SET GLOBAL
 SET global innodb_rollback_segments=1.1;
@@ -54,10 +54,10 @@ Warning	1292	Truncated incorrect innodb_rollback_segments value: '-7'
 SELECT @@global.innodb_rollback_segments;
 @@global.innodb_rollback_segments
 1
-SELECT * FROM information_schema.global_variables 
+SELECT * FROM performance_schema.global_variables 
 WHERE variable_name='innodb_rollback_segments';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_ROLLBACK_SEGMENTS	1
+innodb_rollback_segments	1
 SET @@global.innodb_rollback_segments = @start_global_value;
 SELECT @@global.innodb_rollback_segments;
 @@global.innodb_rollback_segments

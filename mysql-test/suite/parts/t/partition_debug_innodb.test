@@ -4,12 +4,19 @@
 # This test takes long time, so only run it with the --big-test mtr-flag.
 --source include/big_test.inc
 --source include/have_debug.inc
---source include/have_innodb.inc
---source include/have_partition.inc
 # Don't test this under valgrind, memory leaks will occur
 --source include/not_valgrind.inc
 # Crash tests don't work with embedded
 --source include/not_embedded.inc
+
+########################################
+##### WL#7554 Force schema `test` to character set latin1
+##### This test should be migrated to utf8mb4
+--disable_query_log
+let $testdbcs76=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
+alter schema test default character set latin1;
+--enable_query_log
+########################################
 
 --disable_warnings
 DROP TABLE IF EXISTS t1;
@@ -78,19 +85,23 @@ call mtr.add_suppression("InnoDB: Warning: allocated tablespace .*, old maximum 
 call mtr.add_suppression("Attempting backtrace. You can use the following information to find out");
 call mtr.add_suppression("table .* does not exist in the InnoDB internal");
 
-let $create_statement= CREATE TABLE t1 (a INT, b VARCHAR(64))
+let $create_statement= CREATE TABLE `t1/a\b#2` (a INT, b VARCHAR(64))
 ENGINE = InnoDB
 PARTITION BY RANGE (a)
 (PARTITION p0 VALUES LESS THAN (10),
  PARTITION p1 VALUES LESS THAN MAXVALUE);
-let $insert_statement= INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from partition p0"), (3, "Original from partition p0"), (4, "Original from partition p0"), (11, "Original from partition p1"), (12, "Original from partition p1"), (13, "Original from partition p1"), (14, "Original from partition p1"), (21, "Original from partition p1"), (22, "Original from partition p1"), (23, "Original from partition p1"), (24, "Original from partition p1");
+let $insert_statement= INSERT INTO `t1/a\b#2` VALUES (1, "Original from partition p0"), (2, "Original from partition p0"), (3, "Original from partition p0"), (4, "Original from partition p0"), (11, "Original from partition p1"), (12, "Original from partition p1"), (13, "Original from partition p1"), (14, "Original from partition p1"), (21, "Original from partition p1"), (22, "Original from partition p1"), (23, "Original from partition p1"), (24, "Original from partition p1");
 
 let $create_statement2= CREATE TABLE t2 (a INT, b VARCHAR(64)) ENGINE = InnoDB;
 let $insert_statement2= INSERT INTO t2 VALUES (5, "Original from table t2"), (6, "Original from table t2"), (7, "Original from table t2"), (8, "Original from table t2");
-let $crash_statement= ALTER TABLE t1 EXCHANGE PARTITION p0 WITH TABLE t2;
+let $crash_statement= ALTER TABLE `t1/a\b#2` EXCHANGE PARTITION p0 WITH TABLE t2;
 --source suite/parts/inc/partition_crash_exchange.inc
 let $fail_statement= $crash_statement;
 --source suite/parts/inc/partition_fail_exchange.inc
 
---source suite/parts/inc/partition_crash_upgrade.inc
---source suite/parts/inc/partition_fail_upgrade.inc
+########################################
+##### WL#7554 set schema `test` back to what it was
+--disable_query_log
+--eval alter schema test default character set $testdbcs76;
+--enable_query_log
+########################################

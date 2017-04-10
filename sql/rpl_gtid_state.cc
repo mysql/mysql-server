@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License as
@@ -15,11 +15,31 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
    02110-1301 USA */
 
-#include "rpl_gtid.h"
+#include <time.h>
 
+#include "control_events.h"
+#include "current_thd.h"
+#include "debug_sync.h"            // DEBUG_SYNC
+#include "lex_string.h"
+#include "mdl.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_sys.h"
+#include "my_systime.h"
+#include "mysql/psi/mysql_mutex.h"
+#include "mysql/psi/psi_stage.h"
+#include "mysqld.h"                // opt_bin_log
+#include "mysqld_error.h"
+#include "rpl_context.h"
+#include "rpl_gtid.h"
 #include "rpl_gtid_persist.h"      // gtid_table_persistor
 #include "sql_class.h"             // THD
-#include "debug_sync.h"            // DEBUG_SYNC
+#include "sql_error.h"
+#include "sql_plugin.h"
+#include "system_variables.h"
+
+struct TABLE_LIST;
 
 PSI_memory_key key_memory_Gtid_state_group_commit_sidno;
 
@@ -312,20 +332,20 @@ bool Gtid_state::wait_for_gtid(THD *thd, const Gtid &gtid,
 
 
 bool Gtid_state::wait_for_gtid_set(THD *thd, Gtid_set* wait_for,
-                                   longlong timeout)
+                                   double timeout)
 {
   struct timespec abstime;
   DBUG_ENTER("Gtid_state::wait_for_gtid_set");
   DEBUG_SYNC(thd, "begin_wait_for_executed_gtid_set");
   wait_for->dbug_print("Waiting for");
-  DBUG_PRINT("info", ("Timeout %lld", timeout));
+  DBUG_PRINT("info", ("Timeout %f", timeout));
 
   global_sid_lock->assert_some_rdlock();
 
   DBUG_ASSERT(wait_for->get_sid_map() == global_sid_map);
 
   if (timeout > 0)
-    set_timespec(&abstime, timeout);
+    set_timespec_nsec(&abstime, (ulonglong) timeout * 1000000000ULL);
 
   /*
     Algorithm:
@@ -654,21 +674,25 @@ enum_return_status Gtid_state::add_lost_gtids(const Gtid_set *gtid_set)
 
   gtid_set->dbug_print("add_lost_gtids");
 
-  if (!executed_gtids.is_empty())
+  if (executed_gtids.is_intersection_nonempty(gtid_set))
   {
-    BINLOG_ERROR((ER(ER_CANT_SET_GTID_PURGED_WHEN_GTID_EXECUTED_IS_NOT_EMPTY)),
-                 (ER_CANT_SET_GTID_PURGED_WHEN_GTID_EXECUTED_IS_NOT_EMPTY,
-                 MYF(0)));
+    my_error(ER_CANT_SET_GTID_PURGED_DUE_SETS_CONSTRAINTS, MYF(0),
+             gtid_set->is_appendable() ?
+             "the being assigned value must not overlap with the current "
+             "executed gtids in incremental assignment" :
+             "the being assigned value must not overlap with the current "
+             "executed not purged gtids in plain assignment");
     RETURN_REPORTED_ERROR;
   }
-  if (!owned_gtids.is_empty())
+  DBUG_ASSERT(!lost_gtids.is_intersection_nonempty(gtid_set));
+
+  if (owned_gtids.is_intersection_nonempty(gtid_set))
   {
-    BINLOG_ERROR((ER(ER_CANT_SET_GTID_PURGED_WHEN_OWNED_GTIDS_IS_NOT_EMPTY)),
-                 (ER_CANT_SET_GTID_PURGED_WHEN_OWNED_GTIDS_IS_NOT_EMPTY,
-                 MYF(0)));
+    my_error(ER_CANT_SET_GTID_PURGED_DUE_SETS_CONSTRAINTS, MYF(0),
+             "the being assigned value must not overlap with GTIDS of "
+             "transactions in progress");
     RETURN_REPORTED_ERROR;
   }
-  DBUG_ASSERT(lost_gtids.is_empty());
 
   if (save(gtid_set))
     RETURN_REPORTED_ERROR;
@@ -690,7 +714,7 @@ int Gtid_state::init()
   global_sid_lock->assert_some_wrlock();
 
   rpl_sid server_sid;
-  if (server_sid.parse(server_uuid) != 0)
+  if (server_sid.parse(server_uuid, binary_log::Uuid::TEXT_LENGTH) != 0)
     DBUG_RETURN(1);
   rpl_sidno sidno= sid_map->add_sid(server_sid);
   if (sidno <= 0)
@@ -792,15 +816,14 @@ int Gtid_state::compress(THD *thd)
 }
 
 
-#ifdef MYSQL_SERVER
-bool Gtid_state::warn_or_err_on_modify_gtid_table(THD *thd, TABLE_LIST *table)
+int Gtid_state::warn_or_err_on_modify_gtid_table(THD *thd, TABLE_LIST *table)
 {
   DBUG_ENTER("Gtid_state::warn_or_err_on_modify_gtid_table");
-  bool ret=
+  int ret=
     gtid_table_persistor->warn_or_err_on_explicit_modification(thd, table);
   DBUG_RETURN(ret);
 }
-#endif
+
 
 bool Gtid_state::update_gtids_impl_check_skip_gtid_rollback(THD *thd)
 {
@@ -842,7 +865,9 @@ bool Gtid_state::update_gtids_impl_begin(THD *thd)
   return thd->is_commit_in_middle_of_statement;
 }
 
-void Gtid_state::update_gtids_impl_own_gtid_set(THD *thd, bool is_commit)
+void Gtid_state
+  ::update_gtids_impl_own_gtid_set(THD *thd MY_ATTRIBUTE((unused)),
+                                   bool is_commit MY_ATTRIBUTE((unused)))
 {
 #ifdef HAVE_GTID_NEXT_LIST
   rpl_sidno prev_sidno= 0;

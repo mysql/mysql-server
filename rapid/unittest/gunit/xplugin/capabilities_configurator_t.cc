@@ -19,7 +19,7 @@
 #include "ngs/memory.h"
 #include "ngs/ngs_error.h"
 #include "mock/capabilities.h"
-
+#include "my_config.h"
 
 const int   NUMBER_OF_HANDLERS = 4;
 const char* NAMES[NUMBER_OF_HANDLERS] = {
@@ -98,8 +98,8 @@ public:
     std::for_each(supported_handlers.begin(), supported_handlers.end(), expect_get_capability);
 
     ngs::Memory_instrumented<Capabilities>::Unique_ptr cap(sut->get());
-    const Capabilities *null_cap = NULL;
-    ASSERT_NE(null_cap, cap.get());
+
+    ASSERT_TRUE(NULL != cap.get());
     ASSERT_EQ(static_cast<int>(supported_handlers.size()), cap->capabilities_size());
 
     for(std::size_t i = 0; i < supported_handlers.size();i ++)
@@ -188,11 +188,15 @@ TEST_F(CapabilitiesConfiguratorTestSuite, get_doesNothing_whenEmpty)
 }
 
 
+/*
+  HAVE_UBSAN: undefined behaviour in gmock.
+  runtime error: member call on null pointer of type 'const struct ResultHolder'
+ */
+#if !defined(HAVE_UBSAN)
 TEST_F(CapabilitiesConfiguratorTestSuite, get_returnsAllCapabilities)
 {
   assert_get(mock_handlers);
 }
-
 
 TEST_F(CapabilitiesConfiguratorTestSuite, get_returnsOnlySupportedCaps)
 {
@@ -203,6 +207,7 @@ TEST_F(CapabilitiesConfiguratorTestSuite, get_returnsOnlySupportedCaps)
 
   assert_get(supported_handlers);
 }
+#endif  // HAVE_UBSAN
 
 
 TEST_F(CapabilitiesConfiguratorTestSuite, prepareSet_errorErrorAndCommitDoesNothing_whenOneUnknownCapability)
@@ -221,7 +226,9 @@ TEST_F(CapabilitiesConfiguratorTestSuite, prepareSet_errorErrorAndCommitDoesNoth
 }
 
 
-TEST_F(CapabilitiesConfiguratorTestSuite, prepareSet_success_whenAllRequestedCapsSucceded)
+#if !defined(HAVE_UBSAN)
+TEST_F(CapabilitiesConfiguratorTestSuite,
+       prepareSet_success_whenAllRequestedCapsSucceded)
 {
   ngs::unique_ptr<Capabilities> caps(new Capabilities());
   std::vector<Mock_ptr>           supported_handlers;
@@ -239,6 +246,7 @@ TEST_F(CapabilitiesConfiguratorTestSuite, prepareSet_success_whenAllRequestedCap
   std::for_each(supported_handlers.begin(), supported_handlers.end(), expect_commit);
   sut->commit();
 }
+#endif
 
 TEST_F(CapabilitiesConfiguratorTestSuite, prepareSet_FailsAndCommitDoesNothing_whenAnyCapsFailsLast)
 {

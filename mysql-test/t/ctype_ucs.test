@@ -2,8 +2,6 @@
 --source include/no_valgrind_without_big.inc
 # Some bugs have MyISAM specific tests
 
--- source include/have_ucs2.inc
-
 --disable_warnings
 DROP TABLE IF EXISTS t1;
 --enable_warnings
@@ -12,11 +10,12 @@ SET @test_character_set= 'ucs2';
 SET @test_collation= 'ucs2_general_ci';
 -- source include/ctype_common.inc
 
+# Ordering below is important, since 'SET CHARACTER SET' implicitly sets
+# character_set_connection to character_set_database.
 SET NAMES latin1;
+SET CHARACTER SET koi8r;
 SET character_set_connection=ucs2;
 -- source include/endspace.inc
-
-SET CHARACTER SET koi8r;
 
 #
 # BUG#49028, error in LIKE with ucs2
@@ -782,12 +781,10 @@ SET sql_mode = default;
 set collation_connection=ucs2_general_ci;
 --source include/weight_string.inc
 --source include/weight_string_euro.inc
---source include/weight_string_l1.inc
 
 set collation_connection=ucs2_bin;
 --source include/weight_string.inc
 --source include/weight_string_euro.inc
---source include/weight_string_l1.inc
 
 --echo #
 --echo # Bug #36418 Character sets: crash if char(256 using utf32)

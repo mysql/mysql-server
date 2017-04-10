@@ -3,7 +3,6 @@
 
 SET NAMES utf8;
 CREATE TABLE t1 (pk int  NOT NULL PRIMARY KEY AUTO_INCREMENT, i INT, j JSON);
-SHOW CREATE TABLE t1;
 INSERT INTO t1(i, j) VALUES (0, NULL);
 INSERT INTO t1(i, j) VALUES (1, '{"a": 2}');
 INSERT INTO t1(i, j) VALUES (2, '[1,2]');
@@ -313,9 +312,17 @@ INSERT INTO t(j) VALUES
 (CAST(ST_GeomFromText('POINT(0 1)') AS JSON)),
 (CAST(CAST('1234abcd' AS BINARY) AS JSON));
 
+--disable_query_log
+# Minimal buffer size, to test merging as well
+set @@sort_buffer_size=32 * 1024;
+--enable_query_log
+
 # Now order the table on the JSON column.
 SELECT j, JSON_TYPE(j) AS tp FROM t ORDER BY j, id;
+SELECT j, JSON_TYPE(j) AS tp FROM t ORDER BY j, id limit 2 offset 2;
+
 SELECT j, JSON_TYPE(j) AS tp FROM t ORDER BY j DESC, id;
+SELECT j, JSON_TYPE(j) AS tp FROM t ORDER BY j DESC, id limit 2 offset 2;
 
 # Ordering on a JSON expression should give the same result.
 SELECT JSON_EXTRACT(j, '$') AS je, JSON_TYPE(j) AS tp FROM t ORDER BY je, id;
@@ -323,9 +330,14 @@ SELECT JSON_EXTRACT(j, '$') AS je, JSON_TYPE(j) AS tp FROM t ORDER BY je, id;
 # Set max_sort_length as small as possible and order again. Since we'll now just
 # look at a prefix of the values, distinct values with a common prefix may order
 # as equal.
-SET @@max_sort_length=4;
+SET @@max_sort_length=8;
 SELECT j, JSON_TYPE(j) AS tp FROM t ORDER BY j, id;
+SELECT j, JSON_TYPE(j) AS tp FROM t ORDER BY j, id limit 2 offset 2;
 SET @@max_sort_length=default;
+
+--disable_query_log
+set @@sort_buffer_size=default;
+--enable_query_log
 
 # GROUP BY uses a temporary for grouping, GROUP BY WITH ROLLUP uses filesort to
 # do the grouping.
@@ -1894,12 +1906,18 @@ drop table jtable;
 --echo # ----------------------------------------------------------------------
 
 select coalesce(cast(1 as json), cast(2 as json));
-select coalesce(j, cast(3 as json)) from t order by c;
-select coalesce(j, 666) from t order by c;
-select json_type(coalesce(j, '[1,2,3]')) from t order by c;
-select json_type(coalesce(j, 'abc')) from t order by c;
-select json_type(coalesce(j, cast('"arg2"' as json))) from t order by c;
-select json_type(coalesce(j, j)) from t order by c;
+--sorted_result
+select j, coalesce(j, cast(3 as json)) from t;
+--sorted_result
+select j, coalesce(j, 666) from t;
+--sorted_result
+select j, json_type(coalesce(j, '[1,2,3]')) from t;
+--sorted_result
+select j, json_type(coalesce(j, 'abc')) from t;
+--sorted_result
+select j, json_type(coalesce(j, cast('"arg2"' as json))) from t;
+--sorted_result
+select j, json_type(coalesce(j, j)) from t;
 --echo inconsistent result: error message depends on the order of evaluation of rows
 --echo --error ER_INVALID_JSON_TEXT_IN_PARAM
 --echo select json_type(coalesce(json_extract(concat(j, 'abc'), '\$'), j)) from t;
@@ -1967,7 +1985,8 @@ JSON_DEPTH(j),
 JSON_ARRAY(j, j),
 JSON_OBJECT('k', j),
 JSON_UNQUOTE(CAST(j AS CHAR)),
-JSON_QUOTE(CAST(j AS CHAR))
+JSON_QUOTE(CAST(j AS CHAR)),
+JSON_PRETTY(j)
 FROM T_WITH_NULLS
 ORDER BY i;
 eval $query;
@@ -2962,19 +2981,42 @@ drop table t_varchar;
 --echo # IN TRUNCATED DATA
 --echo #
 
+set names latin1;
+
 SELECT JSON_QUOTE('table') AS field1;
 CREATE TABLE t SELECT JSON_QUOTE('table') AS field1;
-SHOW WARNINGS;
 SELECT * FROM t;
 DESCRIBE t;
-drop table t;
+DROP TABLE t;
 
-select json_unquote( '"table"' ) as field1;
-create table t1 select json_unquote( '"table"' ) as field1;
-SHOW WARNINGS;
+SELECT JSON_UNQUOTE( '"table"' ) AS field1;
+CREATE TABLE t1 SELECT JSON_unquote( '"table"' ) AS field1;
 SELECT * FROM t1;
 DESCRIBE t1;
-drop table t1;
+DROP TABLE t1;
+
+set names default;
+
+--echo #
+--echo # Bug#25455065 JSON_QUOTE AND JSON_UNQUOTE
+--echo #              ARE WRONG FOR MULTIBYTE CHARSETS
+--echo #
+
+set names utf8mb4;
+
+SELECT JSON_QUOTE('table') AS field1;
+CREATE TABLE t SELECT JSON_QUOTE('table') AS field1;
+SELECT * FROM t;
+DESCRIBE t;
+DROP TABLE t;
+
+SELECT JSON_UNQUOTE( '"table"' ) AS field1;
+CREATE TABLE t1 SELECT JSON_unquote( '"table"' ) AS field1;
+SELECT * FROM t1;
+DESCRIBE t1;
+DROP TABLE t1;
+
+set names default;
 
 --echo #
 --echo # Bug#21230644 JSON_MERGE MEMORY USAGE
@@ -3349,6 +3391,165 @@ DELETE FROM t WHERE j IN (SELECT CAST('not json' AS JSON) FROM DUAL WHERE 1);
 SELECT * FROM t;
 DROP TABLE t;
 
+--echo #
+--echo # Bug#22366102: EMPTY STRINGS AS KEYS PROBABLY NOT HANDLED CORRECTLY
+--echo #               BY JSON_EXTRACT()
+--echo #
+CREATE TABLE t(j JSON);
+INSERT INTO t VALUES ('{"":"a"}'), ('{"":{"":"a"}}'), ('{"a":{"":{"b":"a"}}}');
+SELECT JSON_UNQUOTE(JSON_SEARCH(j, 'one', 'a')) AS path FROM t;
+SELECT j->'$.""' AS c1, j->'$."".""' AS c2, j->'$.a."".b' AS c3 FROM t;
+DROP TABLE t;
+--error ER_INVALID_JSON_PATH
+SELECT JSON_EXTRACT('[1]', '$.');
+--error ER_INVALID_JSON_PATH
+SELECT JSON_EXTRACT('[1]', '$..');
+--error ER_INVALID_JSON_PATH
+SELECT JSON_EXTRACT('[1]', '$.a..b');
+
+--echo #
+--echo # Bug#22477046: HANDLE_FATAL_SIGNAL (SIG=6) IN ITEM_FUNC_SP::VAL_JSON
+--echo #
+CREATE TABLE t1(j JSON);
+CREATE TABLE t2(vc VARCHAR(10));
+CREATE FUNCTION f1(i INT) RETURNS INT RETURN i;
+--error ER_INVALID_JSON_TEXT
+INSERT INTO t1 SELECT f1(3);
+INSERT INTO t2 SELECT f1(3);
+CREATE FUNCTION f2(vc VARCHAR(10)) RETURNS VARCHAR(10) RETURN vc;
+INSERT INTO t1 SELECT f2('[1,2,3]');
+INSERT INTO t2 SELECT f2('[1,2,3]');
+CREATE FUNCTION f3(j JSON) RETURNS JSON RETURN j;
+INSERT INTO t1 SELECT f3('[4,5,6]');
+INSERT INTO t2 SELECT f3('[4,5,6]');
+SELECT * FROM t1;
+SELECT * FROM t2;
+DROP TABLE t1, t2;
+DROP FUNCTION f1;
+DROP FUNCTION f2;
+DROP FUNCTION f3;
+
+--echo # Bug#22522073: Assertion failed: !thd->is_error() in optimize_cond()
+
+CREATE TABLE s(a INTEGER, b CHAR(1));
+INSERT INTO s VALUES (1,0), (1,0), (1,0);
+
+CREATE TABLE t(c JSON);
+INSERT INTO t VALUES (), (), ();
+
+--error ER_SUBQUERY_NO_1_ROW
+SELECT 1
+FROM s WHERE a NOT IN (SELECT 1
+                       FROM s WHERE (SELECT c FROM t) = b);
+
+DROP TABLE s, t;
+
+--echo #
+--echo # Bug#22546013: REMOVE DEPENDENCY ON BOOST IN ITEM_JSON_FUNC.CC
+--echo #
+# This test case does not show a bug, it just exercises a code path that was
+# changed by the fix. The point of the test case is to verify that memory is
+# freed when a Json_scalar_holder is reused over multiple rows. The test case
+# must use a scalar type that actually allocates some memory on the heap.
+# Json_string does that, in its std::string member. Additionally, the string
+# must be relatively long, so that std::string cannot avoid heap allocation with
+# Small String Optimization. And the test must run under Valgrind or a similar
+# tool to detect memory leaks.
+CREATE TABLE t(j JSON, vc VARCHAR(99));
+INSERT INTO t VALUES ('"abc"', REPEAT('abc', 33)), ('"abc"', 'abc');
+INSERT INTO t SELECT * FROM t;
+SELECT * FROM t WHERE j = vc;
+DROP TABLE t;
+
+--echo #
+--echo # Bug#22816576: ASSERTION FAILED: !THD->IS_ERROR() IN OPTIMIZE_COND()
+--echo #
+CREATE TABLE t(a DATE);
+--error ER_INVALID_JSON_PATH
+SELECT 1 FROM t WHERE 1 <>
+(
+ SELECT 1 FROM
+ (
+  SELECT 1 FROM t e
+  JOIN t ON t.a <=> JSON_REPLACE(JSON_OBJECT('', ''), '', '')
+  WHERE e.a
+ ) w
+);
+DROP TABLE t;
+
+--echo #
+--echo # Bug#23209914: ASSERTION FAILED: THIS_TYPE != ENUM_JSON_TYPE::J_ERROR
+--echo #
+CREATE PROCEDURE p(a JSON) SELECT 1 WHERE a = 1;
+CALL p(NULL);
+DROP PROCEDURE p;
+
+#
+# Bug#21573154: ASSERTION `(KP1 + KP1_LEN) < (S1 + M_SIZE)
+#
+CREATE TABLE t1 (pk INT AUTO_INCREMENT KEY, f1 INT, fj JSON);
+INSERT INTO t1 VALUES(1, NULL, JSON_OBJECT('aaa','bbb'));
+INSERT INTO t1 VALUES(2, NULL, JSON_OBJECT('bbb','aaa'));
+SELECT * FROM t1 ORDER BY f1, pk, fj;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#25461627: VALGRIND WARNING WHEN UPDATING A JSON COLUMN
+--echo #
+CREATE TABLE t (j JSON);
+INSERT INTO t VALUES (NULL);
+UPDATE t SET j = JSON_ARRAY(REPEAT('a', 32)),
+             j = JSON_EXTRACT(j, '$[0]');
+SELECT * FROM t;
+UPDATE t SET j = JSON_ARRAY(CAST(REPEAT('b', 32) AS BINARY)),
+             j = JSON_EXTRACT(j, '$[0]');
+SELECT * FROM t;
+UPDATE t SET j = JSON_ARRAY(JSON_ARRAY(REPEAT('c', 32))),
+             j = JSON_EXTRACT(j, '$[0]');
+SELECT * FROM t;
+UPDATE t SET j = JSON_ARRAY(JSON_OBJECT(REPEAT('d', 16), REPEAT('e', 16))),
+             j = JSON_EXTRACT(j, '$[0]');
+SELECT * FROM t;
+DROP TABLE t;
+
+--echo #
+--echo # WL#9191: JSON_PRETTY function
+--echo #
+CREATE TABLE t(id INT PRIMARY KEY AUTO_INCREMENT,
+               uc VARCHAR(128) CHARACTER SET utf8mb4,
+               lc VARCHAR(128) CHARACTER SET latin1,
+               j JSON);
+INSERT INTO t(uc) VALUES
+(NULL),
+('{}'),
+('[]'),
+('[1,2,3]'),
+('{"a":1,"b":2}'),
+('{"a":[1,{}],"b":[]}'),
+('{"a":{"b":{"c":{"d":{"e":{"f":null}}}}}}'),
+('true'),
+('false'),
+('null'),
+('1'),
+('1.1'),
+('"hello"'),
+(JSON_ARRAY('abc
+def', '"abc"'));
+UPDATE t SET lc = uc, j = uc;
+SELECT JSON_PRETTY(uc) AS c1 FROM t ORDER BY id;
+SELECT JSON_PRETTY(lc) AS c1 FROM t ORDER BY id;
+SELECT JSON_PRETTY(j) AS c1 FROM t ORDER BY id;
+SELECT DISTINCT CHARSET(JSON_PRETTY(uc)) AS c1,
+                CHARSET(JSON_PRETTY(lc)) AS c2,
+                CHARSET(JSON_PRETTY(j)) AS c3 FROM t;
+DROP TABLE t;
+--error ER_INVALID_JSON_TEXT_IN_PARAM
+SELECT JSON_PRETTY('this is not JSON') AS j;
+--error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+SELECT JSON_PRETTY();
+--error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+SELECT JSON_PRETTY('{}', 2);
 
 # Local Variables:
 # mode: sql

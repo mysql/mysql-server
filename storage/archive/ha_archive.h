@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -13,8 +13,20 @@
   along with this program; if not, write to the Free Software
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include <sys/types.h>
 #include <zlib.h>
+
 #include "azlib.h"
+#include "handler.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_io.h"
+#include "sql_string.h"
+
+/**
+  @file storage/archive/ha_archive.h
+  Archive storage engine.
+*/
 
 /*
   Please read ha_archive.cc first. If you are looking for more general
@@ -88,8 +100,6 @@ class ha_archive: public handler
 
   archive_record_buffer *create_record_buffer(unsigned int length);
   void destroy_record_buffer(archive_record_buffer *r);
-  int frm_copy(azio_stream *src, azio_stream *dst);
-  void frm_load(const char *name, azio_stream *dst);
   unsigned int pack_row_v1(uchar *record);
 
 public:
@@ -98,8 +108,6 @@ public:
   {
   }
   const char *table_type() const { return "ARCHIVE"; }
-  const char *index_type(uint inx) { return "NONE"; }
-  const char **bas_ext() const;
   ulonglong table_flags() const
   {
     return (HA_NO_TRANSACTIONS | HA_REC_NOT_IN_SEQ | HA_CAN_BIT_FIELD |
@@ -108,7 +116,7 @@ public:
             HA_HAS_RECORDS | HA_CAN_REPAIR |
             HA_FILE_BASED | HA_CAN_GEOMETRY);
   }
-  ulong index_flags(uint idx, uint part, bool all_parts) const
+  ulong index_flags(uint, uint, bool) const
   {
     return HA_ONLY_WHOLE_INDEX;
   }
@@ -130,11 +138,12 @@ public:
   virtual int index_read_idx(uchar * buf, uint index, const uchar * key,
 			     uint key_len, enum ha_rkey_function find_flag);
   int index_next(uchar * buf);
-  int open(const char *name, int mode, uint test_if_locked);
+  int open(const char *name, int mode, uint test_if_locked,
+           const dd::Table *table_def);
   int close(void);
   int write_row(uchar * buf);
   int real_write_row(uchar *buf, azio_stream *writer);
-  int truncate();
+  int truncate(dd::Table *table_def);
   int rnd_init(bool scan=1);
   int rnd_next(uchar *buf);
   int rnd_pos(uchar * buf, uchar *pos);
@@ -149,13 +158,14 @@ public:
   int info(uint);
   int extra(enum ha_extra_function operation);
   void update_create_info(HA_CREATE_INFO *create_info);
-  int create(const char *name, TABLE *form, HA_CREATE_INFO *create_info);
+  int create(const char *name, TABLE *form, HA_CREATE_INFO *create_info,
+             dd::Table *table_def);
   int optimize(THD* thd, HA_CHECK_OPT* check_opt);
   int repair(THD* thd, HA_CHECK_OPT* check_opt);
   void start_bulk_insert(ha_rows rows);
   int end_bulk_insert();
-  enum row_type get_row_type() const 
-  { 
+  enum row_type get_real_row_type(const HA_CREATE_INFO*) const
+  {
     return ROW_TYPE_COMPRESSED;
   }
   THR_LOCK_DATA **store_lock(THD *thd, THR_LOCK_DATA **to,

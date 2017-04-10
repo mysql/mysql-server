@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,19 +15,40 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "connection_handler_impl.h"
+#include <stddef.h>
+#include <sys/types.h>
+#include <list>
+#include <new>
 
 #include "channel_info.h"                // Channel_info
+#include "connection_handler_impl.h"
 #include "connection_handler_manager.h"  // Connection_handler_manager
+#include "log.h"                         // Error_log_throttle
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_psi_config.h"
+#include "my_thread.h"
+#include "mysql/psi/mysql_cond.h"
+#include "mysql/psi/mysql_mutex.h"
+#include "mysql/psi/mysql_socket.h"
+#include "mysql/psi/mysql_thread.h"
+#include "mysql/psi/psi_base.h"
+#include "mysql/psi/psi_cond.h"
+#include "mysql/psi/psi_mutex.h"
+#include "mysql/psi/psi_thread.h"
+#include "mysql_com.h"
 #include "mysqld.h"                      // max_connections
 #include "mysqld_error.h"                // ER_*
 #include "mysqld_thd_manager.h"          // Global_THD_manager
-#include "sql_audit.h"                   // mysql_audit_release
+#include "protocol_classic.h"
 #include "sql_class.h"                   // THD
 #include "sql_connect.h"                 // close_connection
+#include "sql_error.h"
 #include "sql_parse.h"                   // do_command
 #include "sql_thd_internal_api.h"        // thd_set_thread_stack
-#include "log.h"                         // Error_log_throttle
+#include "thr_mutex.h"
+#include "violite.h"
 
 
 // Initialize static members
@@ -67,7 +88,7 @@ static PSI_mutex_key key_LOCK_thread_cache;
 
 static PSI_mutex_info all_per_thread_mutexes[]=
 {
-  { &key_LOCK_thread_cache, "LOCK_thread_cache", PSI_FLAG_GLOBAL}
+  { &key_LOCK_thread_cache, "LOCK_thread_cache", PSI_FLAG_GLOBAL, 0}
 };
 
 static PSI_cond_key key_COND_thread_cache;
@@ -84,10 +105,10 @@ static PSI_cond_info all_per_thread_conds[]=
 void Per_thread_connection_handler::init()
 {
 #ifdef HAVE_PSI_INTERFACE
-  int count= array_elements(all_per_thread_mutexes);
+  int count= static_cast<int>(array_elements(all_per_thread_mutexes));
   mysql_mutex_register("sql", all_per_thread_mutexes, count);
 
-  count= array_elements(all_per_thread_conds);
+  count= static_cast<int>(array_elements(all_per_thread_conds));
   mysql_cond_register("sql", all_per_thread_conds, count);
 #endif
 
@@ -141,13 +162,14 @@ Channel_info* Per_thread_connection_handler::block_until_new_connection()
 
     // Block pthread
     blocked_pthread_count++;
-    while (!abort_loop && !wake_pthread && !kill_blocked_pthreads_flag)
+    while (!connection_events_loop_aborted() && !wake_pthread &&
+           !kill_blocked_pthreads_flag)
       mysql_cond_wait(&COND_thread_cache, &LOCK_thread_cache);
     blocked_pthread_count--;
 
     if (kill_blocked_pthreads_flag)
       mysql_cond_signal(&COND_flush_thread_cache);
-    else if (!abort_loop && wake_pthread)
+    else if (!connection_events_loop_aborted() && wake_pthread)
     {
       wake_pthread--;
       DBUG_ASSERT(!waiting_channel_info_list->empty());
@@ -183,7 +205,6 @@ static THD* init_new_thd(Channel_info *channel_info)
 
   thd->set_new_thread_id();
 
-  thd->start_utime= thd->thr_create_utime= my_micro_time();
   if (channel_info->get_prior_thr_create_utime() != 0)
   {
     /*
@@ -191,9 +212,9 @@ static THD* init_new_thd(Channel_info *channel_info)
       increment slow_launch_threads counter if it took more than
       slow_launch_time seconds to create the pthread.
     */
-    ulong launch_time= (ulong) (thd->thr_create_utime -
-                                channel_info->get_prior_thr_create_utime());
-    if (launch_time >= slow_launch_time * 1000000L)
+    ulonglong launch_time= thd->start_utime -
+      channel_info->get_prior_thr_create_utime();
+    if (launch_time >= slow_launch_time * 1000000ULL)
       Per_thread_connection_handler::slow_launch_threads++;
   }
   delete channel_info;
@@ -233,7 +254,8 @@ static THD* init_new_thd(Channel_info *channel_info)
   - End thread  / Handle next connection using thread from thread cache
 */
 
-extern "C" void *handle_connection(void *arg)
+extern "C" {
+static void *handle_connection(void *arg)
 {
   Global_THD_manager *thd_manager= Global_THD_manager::get_instance();
   Connection_handler_manager *handler_manager=
@@ -323,7 +345,8 @@ extern "C" void *handle_connection(void *arg)
 
     delete thd;
 
-    if (abort_loop) // Server is shutting down so end the pthread.
+    // Server is shutting down so end the pthread.
+    if (connection_events_loop_aborted())
       break;
 
     channel_info= Per_thread_connection_handler::block_until_new_connection();
@@ -336,6 +359,7 @@ extern "C" void *handle_connection(void *arg)
   my_thread_exit(0);
   return NULL;
 }
+} // extern "C"
 
 
 void Per_thread_connection_handler::kill_blocked_pthreads()

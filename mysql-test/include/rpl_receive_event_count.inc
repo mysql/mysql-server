@@ -16,6 +16,7 @@
 # [--let $slave_timeout= N]
 # [--let $rpl_debug= 1]
 # [--let $rpl_continue_event_count_after_hanging= 1]
+# [--let $rpl_skip_event_count_print_in_result_log= 1]
 # --source include/rpl_receive_event_count.inc
 #
 # Parameters:
@@ -54,6 +55,12 @@
 # $rpl_continue_event_count_after_hanging
 #   The include should not start the I/O Thread because it is already
 #   started.
+#
+# $rpl_skip_event_count_print_in_result_log
+#   Set if you do not want to print sensible info (action and
+#   event count) in the result log. This is useful if action or event
+#   count varies for different configurations. For eg: event count
+#   can be different for STS and MTS.
 
 # Sanity check.
 if (!$rpl_event_count)
@@ -102,7 +109,14 @@ if ($rpl_count_only_event_type)
 {
   --let $_rrec_event_type_text= $rpl_count_only_event_type $_rrec_ev
 }
+if (!$rpl_skip_event_count_print_in_result_log)
+{
 --let $include_filename= rpl_receive_event_count.inc [$rpl_after_received_events_action after $rpl_event_count $_rrec_event_type_text]
+}
+if ($rpl_skip_event_count_print_in_result_log)
+{
+--let $include_filename= rpl_receive_event_count.inc
+}
 --source include/begin_include_file.inc
 
 if (!$rpl_debug)
@@ -168,8 +182,19 @@ while ($_rrec_counted_events < $rpl_event_count)
     # Get the position of the event.
     if ($_rrec_file != '')
     {
+      --let $result= No such row
       # In non-first iteration, read the position of the next event.
-      --let $_rrec_pos= query_get_value("SHOW RELAYLOG EVENTS IN '$_rrec_file' FROM $_rrec_pos LIMIT 1, 1", Pos, 1)
+      while ($result == No such row)
+      {
+        --let $result= query_get_value("SHOW RELAYLOG EVENTS IN '$_rrec_file' FROM $_rrec_pos LIMIT 1, 1", Pos, 1)
+        if ($result == No such row)
+        {
+          # Unpause the receiver thread
+          SET DEBUG_SYNC= 'now SIGNAL continue_after_queue_event';
+          eval SET DEBUG_SYNC= 'now WAIT_FOR reached_after_queue_event $_rrec_timeout_clause';
+        }
+      }
+      --let $_rrec_pos= $result
     }
     if ($_rrec_file == '')
     {

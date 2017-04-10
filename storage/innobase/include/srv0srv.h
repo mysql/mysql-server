@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2016, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 1995, 2017, Oracle and/or its affiliates. All rights reserved.
 Copyright (c) 2008, 2009, Google Inc.
 Copyright (c) 2009, Percona Inc.
 
@@ -41,23 +41,18 @@ Created 10/10/1995 Heikki Tuuri
 #ifndef srv0srv_h
 #define srv0srv_h
 
-#include "my_global.h"
 
 #include "mysql/psi/mysql_stage.h"
-#include "mysql/psi/psi.h"
-
 #include "univ.i"
 #ifndef UNIV_HOTBACKUP
+#include "buf0checksum.h"
+#include "fil0fil.h"
 #include "log0log.h"
 #include "os0event.h"
 #include "que0types.h"
-#include "trx0types.h"
 #include "srv0conc.h"
-#include "buf0checksum.h"
+#include "trx0types.h"
 #include "ut0counter.h"
-#include "fil0fil.h"
-
-struct fil_space_t;
 
 /* Global counters used inside InnoDB. */
 struct srv_stats_t {
@@ -139,9 +134,6 @@ struct srv_stats_t {
 
 extern const char*	srv_main_thread_op_info;
 
-/** Prefix used by MySQL to indicate pre-5.1 table name encoding */
-extern const char	srv_mysql50_table_name_prefix[10];
-
 /* The monitor thread waits on this event. */
 extern os_event_t	srv_monitor_event;
 
@@ -160,11 +152,11 @@ extern char*		srv_buf_dump_filename;
 
 /** Boolean config knobs that tell InnoDB to dump the buffer pool at shutdown
 and/or load it during startup. */
-extern char		srv_buffer_pool_dump_at_shutdown;
-extern char		srv_buffer_pool_load_at_startup;
+extern bool		srv_buffer_pool_dump_at_shutdown;
+extern bool		srv_buffer_pool_load_at_startup;
 
 /* Whether to disable file system cache if it is defined */
-extern char		srv_disable_sort_file_cache;
+extern bool		srv_disable_sort_file_cache;
 
 /* If the last data file is auto-extended, we add this many pages to it
 at a time */
@@ -196,27 +188,17 @@ extern char*	srv_data_home;
 /** Set if InnoDB must operate in read-only mode. We don't do any
 recovery and open all tables in RO mode instead of RW mode. We don't
 sync the max trx id to disk either. */
-extern my_bool	srv_read_only_mode;
+extern bool	srv_read_only_mode;
 /** Set if InnoDB operates in read-only mode or innodb-force-recovery
 is greater than SRV_FORCE_NO_TRX_UNDO. */
-extern my_bool	high_level_read_only;
+extern bool high_level_read_only;
 /** store to its own file each table created by an user; data
 dictionary tables are in the system tablespace 0 */
-extern my_bool	srv_file_per_table;
+extern bool	srv_file_per_table;
 /** Sleep delay for threads waiting to enter InnoDB. In micro-seconds. */
 extern	ulong	srv_thread_sleep_delay;
 /** Maximum sleep delay (in micro-seconds), value of 0 disables it.*/
 extern	ulong	srv_adaptive_max_sleep_delay;
-
-/** The file format to use on new *.ibd files. */
-extern ulint	srv_file_format;
-/** Whether to check file format during startup.  A value of
-UNIV_FORMAT_MAX + 1 means no checking ie. FALSE.  The default is to
-set it to the highest format we support. */
-extern ulint	srv_max_file_format_at_startup;
-/** Place locks to records only i.e. do not use next-key locking except
-on duplicate key checking and foreign key checking */
-extern ibool	srv_locks_unsafe_for_binlog;
 
 /** Sort buffer size in index creation */
 extern ulong	srv_sort_buf_size;
@@ -227,8 +209,8 @@ extern unsigned long long	srv_online_max_size;
 OS (provided we compiled Innobase with it in), otherwise we will
 use simulated aio we build below with threads.
 Currently we support native aio on windows and linux */
-extern my_bool	srv_use_native_aio;
-extern my_bool	srv_numa_interleave;
+extern bool	srv_use_native_aio;
+extern bool	srv_numa_interleave;
 #endif /* !UNIV_HOTBACKUP */
 
 /** Server undo tablespaces directory, can be absolute path. */
@@ -237,33 +219,34 @@ extern char*	srv_undo_dir;
 /** Number of undo tablespaces to use. */
 extern ulong	srv_undo_tablespaces;
 
-/** The number of UNDO tablespaces that are open and ready to use. */
-extern ulint	srv_undo_tablespaces_open;
+/** The number of rollback segments to use for durable,
+redo-logged, non-temporary transactions. */
+extern ulong	srv_rollback_segments;
 
-/** The number of UNDO tablespaces that are active (hosting some rollback
-segment). It is quite possible that some of the tablespaces doesn't host
-any of the rollback-segment based on configuration used. */
-extern ulint	srv_undo_tablespaces_active;
-
-/** The number of undo segments to use */
-extern ulong	srv_undo_logs;
+/** The number of rollback segments to use for non-durable,
+non-redo-logged, temporary transactions. These logs reside in
+the temp tablespace. */
+extern ulong	srv_tmp_rollback_segments;
 
 /** Maximum size of undo tablespace. */
-extern unsigned long long	srv_max_undo_log_size;
+extern unsigned long long	srv_max_undo_tablespace_size;
 
 /** Rate at which UNDO records should be purged. */
 extern ulong	srv_purge_rseg_truncate_frequency;
 
 /** Enable or Disable Truncate of UNDO tablespace. */
-extern my_bool	srv_undo_log_truncate;
+extern bool	srv_undo_log_truncate;
 
-/** UNDO logs not redo logged, these logs reside in the temp tablespace.*/
-extern const ulong	srv_tmp_undo_logs;
+/** Enable or disable Encrypt of UNDO tablespace. */
+extern bool	srv_undo_log_encrypt;
 
 /** Default size of UNDO tablespace while it is created new. */
-extern const ulint	SRV_UNDO_TABLESPACE_SIZE_IN_PAGES;
+extern const page_no_t	SRV_UNDO_TABLESPACE_SIZE_IN_PAGES;
 
 extern char*	srv_log_group_home_dir;
+
+/** Enable or Disable Encrypt of REDO tablespace. */
+extern bool	srv_redo_log_encrypt;
 
 #ifndef UNIV_HOTBACKUP
 /** Maximum number of srv_n_log_files, or innodb_log_files_in_group */
@@ -277,20 +260,20 @@ When upgrading from a previous redo log format, this will be set to 0,
 and writing to the redo log is not allowed.
 
 During startup, this is in bytes, and later converted to pages. */
-extern ib_uint64_t	srv_log_file_size;
+extern ulonglong	srv_log_file_size;
 /** The value of the startup parameter innodb_log_file_size */
-extern ib_uint64_t	srv_log_file_size_requested;
-extern ulint	srv_log_buffer_size;
+extern ulonglong	srv_log_file_size_requested;
+extern ulong	srv_log_buffer_size;
 extern ulong	srv_flush_log_at_trx_commit;
 extern uint	srv_flush_log_at_timeout;
 extern ulong	srv_log_write_ahead_size;
-extern char	srv_adaptive_flushing;
-extern my_bool	srv_flush_sync;
+extern bool	srv_adaptive_flushing;
+extern bool	srv_flush_sync;
 
 /* If this flag is TRUE, then we will load the indexes' (and tables') metadata
 even if they are marked as "corrupted". Mostly it is for DBA to process
 corrupted index and table */
-extern my_bool	srv_load_corrupted;
+extern bool	srv_load_corrupted;
 
 /** Requested size in bytes */
 extern ulint		srv_buf_pool_size;
@@ -311,22 +294,22 @@ extern ulong	srv_n_page_hash_locks;
 extern ulong	srv_LRU_scan_depth;
 /** Whether or not to flush neighbors of a block */
 extern ulong	srv_flush_neighbors;
-/** Previously requested size */
+/** Previously requested size. Accesses protected by memory barriers. */
 extern ulint	srv_buf_pool_old_size;
 /** Current size as scaling factor for the other components */
 extern ulint	srv_buf_pool_base_size;
 /** Current size in bytes */
-extern ulint	srv_buf_pool_curr_size;
+extern long long	srv_buf_pool_curr_size;
 /** Dump this % of each buffer pool during BP dump */
 extern ulong	srv_buf_pool_dump_pct;
 /** Lock table size in bytes */
 extern ulint	srv_lock_table_size;
 
 extern ulint	srv_n_file_io_threads;
-extern my_bool	srv_random_read_ahead;
+extern bool	srv_random_read_ahead;
 extern ulong	srv_read_ahead_threshold;
-extern ulint	srv_n_read_io_threads;
-extern ulint	srv_n_write_io_threads;
+extern ulong	srv_n_read_io_threads;
+extern ulong	srv_n_write_io_threads;
 
 extern uint	srv_change_buffer_max_size;
 
@@ -343,12 +326,13 @@ capacity. PCT_IO(5) -> returns the number of IO operations that
 is 5% of the max where max is srv_io_capacity.  */
 #define PCT_IO(p) ((ulong) (srv_io_capacity * ((double) (p) / 100.0)))
 
+/** Maximum number of purge threads, including the purge coordinator */
+#define MAX_PURGE_THREADS	32
+
 /* The "innodb_stats_method" setting, decides how InnoDB is going
 to treat NULL value when collecting statistics. It is not defined
 as enum type because the configure option takes unsigned integer type. */
 extern ulong	srv_innodb_stats_method;
-
-extern char*	srv_file_flush_method_str;
 
 extern ulint	srv_max_n_open_files;
 
@@ -361,24 +345,30 @@ extern ulong	srv_adaptive_flushing_lwm;
 extern ulong	srv_flushing_avg_loops;
 
 extern ulong	srv_force_recovery;
-#ifndef DBUG_OFF
+#ifdef UNIV_DEBUG
 extern ulong	srv_force_recovery_crash;
-#endif /* !DBUG_OFF */
+#endif /* UNIV_DEBUG */
 
-extern ulint	srv_fast_shutdown;	/*!< If this is 1, do not do a
-					purge and index buffer merge.
-					If this 2, do not even flush the
-					buffer pool to data files at the
-					shutdown: we effectively 'crash'
-					InnoDB (but lose no committed
-					transactions). */
+/** The value of the configuration parameter innodb_fast_shutdown,
+controlling the InnoDB shutdown.
+
+If innodb_fast_shutdown=0, InnoDB shutdown will purge all undo log
+records (except XA PREPARE transactions) and complete the merge of the
+entire change buffer, and then shut down the redo log.
+
+If innodb_fast_shutdown=1, InnoDB shutdown will only flush the buffer
+pool to data files, cleanly shutting down the redo log.
+
+If innodb_fast_shutdown=2, shutdown will effectively 'crash' InnoDB
+(but lose no committed transactions). */
+extern ulong	srv_fast_shutdown;
 extern ibool	srv_innodb_status;
 
 extern unsigned long long	srv_stats_transient_sample_pages;
-extern my_bool			srv_stats_persistent;
+extern bool			srv_stats_persistent;
 extern unsigned long long	srv_stats_persistent_sample_pages;
-extern my_bool			srv_stats_auto_recalc;
-extern my_bool			srv_stats_include_delete_marked;
+extern bool			srv_stats_auto_recalc;
+extern bool			srv_stats_include_delete_marked;
 
 extern ibool	srv_use_doublewrite_buf;
 extern ulong	srv_doublewrite_batch_size;
@@ -391,8 +381,8 @@ extern ulong	srv_max_purge_lag_delay;
 extern ulong	srv_replication_delay;
 /*-------------------------------------------*/
 
-extern my_bool	srv_print_innodb_monitor;
-extern my_bool	srv_print_innodb_lock_monitor;
+extern bool	srv_print_innodb_monitor;
+extern bool	srv_print_innodb_lock_monitor;
 extern ibool	srv_print_verbose_log;
 
 extern ibool	srv_monitor_active;
@@ -404,8 +394,8 @@ extern ibool	srv_buf_dump_thread_active;
 /* true during the lifetime of the buffer pool resize thread */
 extern bool	srv_buf_resize_thread_active;
 
-/* TRUE during the lifetime of the stats thread */
-extern ibool	srv_dict_stats_thread_active;
+/* true during the lifetime of the stats thread */
+extern bool	srv_dict_stats_thread_active;
 
 extern ulong	srv_n_spin_wait_rounds;
 extern ulong	srv_n_free_tickets_to_enter;
@@ -414,18 +404,19 @@ extern ulong	srv_spin_wait_delay;
 extern ibool	srv_priority_boost;
 
 extern ulint	srv_truncated_status_writes;
-extern ulint	srv_available_undo_logs;
+extern ulint	srv_available_rollback_segments;
 
 #if defined UNIV_DEBUG || defined UNIV_IBUF_DEBUG
-extern my_bool	srv_ibuf_disable_background_merge;
+extern bool	srv_ibuf_disable_background_merge;
 #endif /* UNIV_DEBUG || UNIV_IBUF_DEBUG */
 
 #ifdef UNIV_DEBUG
-extern my_bool	srv_sync_debug;
-extern my_bool	srv_purge_view_update_only_debug;
+extern bool	srv_buf_pool_debug;
+extern bool	srv_sync_debug;
+extern bool	srv_purge_view_update_only_debug;
 
 /** Value of MySQL global used to disable master thread. */
-extern my_bool	srv_master_thread_disabled_debug;
+extern bool	srv_master_thread_disabled_debug;
 #endif /* UNIV_DEBUG */
 
 extern ulint	srv_fatal_semaphore_wait_threshold;
@@ -449,9 +440,9 @@ extern ulong srv_purge_batch_size;
 extern ulong srv_sync_array_size;
 
 /* print all user-level transactions deadlocks to mysqld stderr */
-extern my_bool srv_print_all_deadlocks;
+extern bool srv_print_all_deadlocks;
 
-extern my_bool	srv_cmp_per_index_enabled;
+extern bool	srv_cmp_per_index_enabled;
 
 /** Status variables to be passed to MySQL */
 extern struct export_var_t export_vars;
@@ -459,16 +450,22 @@ extern struct export_var_t export_vars;
 /** Global counters */
 extern srv_stats_t	srv_stats;
 
-# ifdef UNIV_PFS_THREAD
 /* Keys to register InnoDB threads with performance schema */
+
+# ifdef UNIV_PFS_THREAD
 extern mysql_pfs_key_t	buf_dump_thread_key;
+extern mysql_pfs_key_t	buf_resize_thread_key;
 extern mysql_pfs_key_t	dict_stats_thread_key;
+extern mysql_pfs_key_t	fts_optimize_thread_key;
+extern mysql_pfs_key_t	fts_parallel_merge_thread_key;
+extern mysql_pfs_key_t	fts_parallel_tokenization_thread_key;
 extern mysql_pfs_key_t	io_handler_thread_key;
 extern mysql_pfs_key_t	io_ibuf_thread_key;
 extern mysql_pfs_key_t	io_log_thread_key;
 extern mysql_pfs_key_t	io_read_thread_key;
 extern mysql_pfs_key_t	io_write_thread_key;
-extern mysql_pfs_key_t	page_cleaner_thread_key;
+extern mysql_pfs_key_t	page_flush_coordinator_thread_key;
+extern mysql_pfs_key_t	page_flush_thread_key;
 extern mysql_pfs_key_t	recv_writer_thread_key;
 extern mysql_pfs_key_t	srv_error_monitor_thread_key;
 extern mysql_pfs_key_t	srv_lock_timeout_thread_key;
@@ -476,23 +473,8 @@ extern mysql_pfs_key_t	srv_master_thread_key;
 extern mysql_pfs_key_t	srv_monitor_thread_key;
 extern mysql_pfs_key_t	srv_purge_thread_key;
 extern mysql_pfs_key_t	srv_worker_thread_key;
-extern mysql_pfs_key_t	trx_rollback_clean_thread_key;
-
-/* This macro register the current thread and its key with performance
-schema */
-#  define pfs_register_thread(key)			\
-do {								\
-	struct PSI_thread* psi = PSI_THREAD_CALL(new_thread)(key, NULL, 0);\
-	PSI_THREAD_CALL(set_thread_os_id)(psi);			\
-	PSI_THREAD_CALL(set_thread)(psi);			\
-} while (0)
-
-/* This macro delist the current thread from performance schema */
-#  define pfs_delete_thread()				\
-do {								\
-	PSI_THREAD_CALL(delete_current_thread)();		\
-} while (0)
-# endif /* UNIV_PFS_THREAD */
+extern mysql_pfs_key_t	trx_recovery_rollback_thread_key;
+#endif /* UNIV_PFS_THREAD */
 
 #ifdef HAVE_PSI_STAGE_INTERFACE
 /** Performance schema stage event for monitoring ALTER TABLE progress
@@ -530,10 +512,10 @@ extern PSI_stage_info	srv_stage_buffer_pool_load;
 #endif /* !UNIV_HOTBACKUP */
 
 #ifndef _WIN32
-/** Alternatives for the file flush option in Unix; see the InnoDB manual
-about what these mean */
+/** Alternatives for the file flush option in Unix.
+@see innodb_flush_method_names */
 enum srv_unix_flush_t {
-	SRV_UNIX_FSYNC = 1,	/*!< fsync, the default */
+	SRV_UNIX_FSYNC = 0,	/*!< fsync, the default */
 	SRV_UNIX_O_DSYNC,	/*!< open log files in O_SYNC mode */
 	SRV_UNIX_LITTLESYNC,	/*!< do not call os_file_flush()
 				when writing data files, but do flush
@@ -555,10 +537,12 @@ enum srv_unix_flush_t {
 };
 extern enum srv_unix_flush_t	srv_unix_file_flush_method;
 #else
-/** Alternatives for file i/o in Windows */
+/** Alternatives for file i/o in Windows. @see innodb_flush_method_names. */
 enum srv_win_flush_t {
-	SRV_WIN_IO_NORMAL = 1,	/*!< buffered I/O */
-	SRV_WIN_IO_UNBUFFERED	/*!< unbuffered I/O; this is the default */
+	/** unbuffered I/O; this is the default */
+	SRV_WIN_IO_UNBUFFERED = 0,
+	/** buffered I/O */
+	SRV_WIN_IO_NORMAL,
 };
 extern enum srv_win_flush_t	srv_win_file_flush_method;
 #endif /* _WIN32 */
@@ -623,21 +607,10 @@ void
 srv_boot(void);
 /*==========*/
 /*********************************************************************//**
-Initializes the server. */
-void
-srv_init(void);
-/*==========*/
-/*********************************************************************//**
 Frees the data structures created in srv_init(). */
 void
 srv_free(void);
 /*==========*/
-/*********************************************************************//**
-Initializes the synchronization primitives, memory system, and the thread
-local storage. */
-void
-srv_general_init(void);
-/*==================*/
 /*********************************************************************//**
 Sets the info describing an i/o thread current state. */
 void
@@ -728,63 +701,26 @@ srv_que_task_enqueue_low(
 /*=====================*/
 	que_thr_t*	thr);	/*!< in: query thread */
 
-/**********************************************************************//**
-Check whether any background thread is active. If so, return the thread
-type.
-@return SRV_NONE if all are are suspended or have exited, thread
-type if any are still active. */
-enum srv_thread_type
-srv_get_active_thread_type(void);
-/*============================*/
+/** A thread which prints the info output by various InnoDB monitors. */
+void
+srv_monitor_thread();
 
-extern "C" {
+/** A thread which prints warnings about semaphore waits which have lasted
+too long. These can be used to track bugs which cause hangs. */
+void
+srv_error_monitor_thread();
 
-/*********************************************************************//**
-A thread which prints the info output by various InnoDB monitors.
-@return a dummy parameter */
-os_thread_ret_t
-DECLARE_THREAD(srv_monitor_thread)(
-/*===============================*/
-	void*	arg);	/*!< in: a dummy parameter required by
-			os_thread_create */
+/** The master thread controlling the server. */
+void
+srv_master_thread();
 
-/*********************************************************************//**
-The master thread controlling the server.
-@return a dummy parameter */
-os_thread_ret_t
-DECLARE_THREAD(srv_master_thread)(
-/*==============================*/
-	void*	arg);	/*!< in: a dummy parameter required by
-			os_thread_create */
+/** Purge coordinator thread that schedules the purge tasks. */
+void
+srv_purge_coordinator_thread();
 
-/*************************************************************************
-A thread which prints warnings about semaphore waits which have lasted
-too long. These can be used to track bugs which cause hangs.
-@return a dummy parameter */
-os_thread_ret_t
-DECLARE_THREAD(srv_error_monitor_thread)(
-/*=====================================*/
-	void*	arg);	/*!< in: a dummy parameter required by
-			os_thread_create */
-
-/*********************************************************************//**
-Purge coordinator thread that schedules the purge tasks.
-@return a dummy parameter */
-os_thread_ret_t
-DECLARE_THREAD(srv_purge_coordinator_thread)(
-/*=========================================*/
-	void*	arg MY_ATTRIBUTE((unused)));	/*!< in: a dummy parameter
-						required by os_thread_create */
-
-/*********************************************************************//**
-Worker thread that reads tasks from the work queue and executes them.
-@return a dummy parameter */
-os_thread_ret_t
-DECLARE_THREAD(srv_worker_thread)(
-/*==============================*/
-	void*	arg MY_ATTRIBUTE((unused)));	/*!< in: a dummy parameter
-						required by os_thread_create */
-} /* extern "C" */
+/** Worker thread that reads tasks from the work queue and executes them. */
+void
+srv_worker_thread();
 
 /**********************************************************************//**
 Get count of tasks in the queue.
@@ -804,13 +740,28 @@ srv_release_threads(
 	enum srv_thread_type	type,	/*!< in: thread type */
 	ulint			n);	/*!< in: number of threads to release */
 
-/**********************************************************************//**
-Check whether any background thread are active. If so print which thread
-is active. Send the threads wakeup signal.
-@return name of thread that is active or NULL */
+/** Check whether any background thread (except the master thread) is active.
+Send the threads wakeup signal.
+
+NOTE: this check is part of the final shutdown, when the first phase of
+shutdown has already been completed.
+@see srv_pre_dd_shutdown()
+@see srv_master_thread_active()
+@return name of thread that is active
+@retval NULL if no thread is active */
 const char*
-srv_any_background_threads_are_active(void);
-/*=======================================*/
+srv_any_background_threads_are_active();
+
+/** Check whether the master thread is active.
+This is polled during the final phase of shutdown.
+The first phase of server shutdown must have already been executed
+(or the server must not have been fully started up).
+@see srv_pre_dd_shutdown()
+@see srv_any_background_threads_are_active()
+@retval true	if any thread is active
+@retval false	if no thread is active */
+bool
+srv_master_thread_active();
 
 /**********************************************************************//**
 Wakeup the purge threads. */
@@ -818,26 +769,10 @@ void
 srv_purge_wakeup(void);
 /*==================*/
 
-/** Call exit(3) */
-void
-srv_fatal_error();
-
-/** Check if tablespace is being truncated.
-(Ignore system-tablespace as we don't re-create the tablespace
-and so some of the action that are suppressed by this function
-for independent tablespace are not applicable to system-tablespace).
-@param	space_id	space_id to check for truncate action
-@return true		if being truncated, false if not being
-			truncated or tablespace is system-tablespace. */
+/** Check if the purge threads are active, both coordinator and worker threads
+@return true if any thread is active, false if no thread is active */
 bool
-srv_is_tablespace_truncated(ulint space_id);
-
-/** Check if tablespace was truncated.
-@param[in]	space	space object to check for truncate action
-@return true if tablespace was truncated and we still have an active
-MLOG_TRUNCATE REDO log record. */
-bool
-srv_was_tablespace_truncated(const fil_space_t* space);
+srv_purge_threads_active();
 
 #ifdef UNIV_DEBUG
 /** Disables master thread. It's used by:
@@ -913,7 +848,8 @@ struct export_var_t{
 	ulint innodb_rows_deleted;		/*!< srv_n_rows_deleted */
 	ulint innodb_num_open_files;		/*!< fil_n_file_opened */
 	ulint innodb_truncated_status_writes;	/*!< srv_truncated_status_writes */
-	ulint innodb_available_undo_logs;       /*!< srv_available_undo_logs */
+	ulint innodb_available_rollback_segments; /*!< srv_available_rollback_segments */
+	ulint innodb_available_undo_logs;	/*!< srv_available_undo_logs */
 #ifdef UNIV_DEBUG
 	ulint innodb_purge_trx_id_age;		/*!< rw_max_trx_id - purged trx_id */
 	ulint innodb_purge_view_trx_id_age;	/*!< rw_max_trx_id

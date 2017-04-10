@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,17 +15,130 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "ha_ndbcluster_glue.h"
-#include <ndbapi/NdbApi.hpp>
-#include <portlib/NdbTick.h>
 #include "ha_ndbcluster_connection.h"
+
+#include <mysql/psi/mysql_thread.h>
+
+#include "sql_class.h"
+#include "kernel/ndb_limits.h"
+#include "my_dbug.h"
+#include "ndbapi/NdbApi.hpp"
+#include "portlib/NdbTick.h"
+#include "util/BaseString.hpp"
+#include "util/Vector.hpp"
+#include "mysqld.h"         // server_id, connection_events_loop_aborted 
+
+#include "ndb_sleep.h"
+
+#include "log.h"            // sql_print_*
 
 Ndb* g_ndb= NULL;
 Ndb_cluster_connection* g_ndb_cluster_connection= NULL;
 static Ndb_cluster_connection **g_pool= NULL;
 static uint g_pool_alloc= 0;
 static uint g_pool_pos= 0;
-static native_mutex_t g_pool_mutex;
+static mysql_mutex_t g_pool_mutex;
+
+
+/**
+   @brief Parse the --ndb-cluster-connection-pool-nodeids=nodeid[,nodeidN]
+          comma separated list of nodeids to use for the pool
+
+   @param opt_str      string containing list of nodeids to parse.
+   @param pool_size    size used for the connection pool
+   @param force_nodeid nodeid requested with --ndb-nodeid
+   @param nodeids      the parsed list of nodeids
+   @return             true or false when option parsing failed. Error message
+                       describing the problem has been printed to error log.
+ */
+static
+bool parse_pool_nodeids(const char* opt_str,
+                        uint pool_size,
+                        uint force_nodeid,
+                        Vector<uint>& nodeids)
+{
+  if (!opt_str)
+  {
+    // The option was not specified.
+    return true;
+  }
+
+  BaseString tmp(opt_str);
+  Vector<BaseString> list(pool_size);
+  tmp.split(list, ",");
+
+  for (unsigned i = 0; i<list.size(); i++)
+  {
+    list[i].trim();
+
+    // Don't allow empty string
+    if (list[i].empty())
+    {
+      sql_print_error("NDB: Found empty nodeid specified in "
+                      "--ndb-cluster-connection-pool-nodeids='%s'.",
+                      opt_str);
+      return false;
+    }
+
+    // Convert string to number
+    uint nodeid = 0;
+    if (sscanf(list[i].c_str(), "%u", &nodeid) != 1)
+    {
+      sql_print_error("NDB: Could not parse '%s' in "
+                      "--ndb-cluster-connection-pool-nodeids='%s'.",
+                      list[i].c_str(),
+                      opt_str);
+      return false;
+    }
+
+    // Check that number is a valid nodeid
+    if (nodeid <= 0 || nodeid > MAX_NODES_ID)
+    {
+      sql_print_error("NDB: Invalid nodeid %d in "
+                      "--ndb-cluster-connection-pool-nodeids='%s'.",
+                      nodeid, opt_str);
+      return false;
+    }
+
+    // Check that nodeid is unique(not already in the list)
+    for(unsigned j = 0; j<nodeids.size(); j++)
+    {
+      if (nodeid == nodeids[j])
+      {
+        sql_print_error("NDB: Found duplicate nodeid %d in "
+                        "--ndb-cluster-connection-pool-nodeids='%s'.",
+                        nodeid, opt_str);
+        return false;
+      }
+    }
+
+    nodeids.push_back(nodeid);
+  }
+
+  // Check that size of nodeids match the pool size
+  if (nodeids.size() != pool_size)
+  {
+    sql_print_error("NDB: The size of the cluster connection pool must be "
+                    "equal to the number of nodeids in "
+                    "--ndb-cluster-connection-pool-nodeids='%s'.",
+                    opt_str);
+    return false;
+  }
+
+  // Check that --ndb-nodeid(if given) is first in the list
+  if (force_nodeid != 0 &&
+      force_nodeid != nodeids[0])
+  {
+    sql_print_error("NDB: The nodeid specified by --ndb-nodeid must be equal "
+                    "to the first nodeid in "
+                    "--ndb-cluster-connection-pool-nodeids='%s'.",
+                    opt_str);
+    return false;
+  }
+
+  return true;
+}
+
 
 /*
   Global flag in ndbapi to specify if api should wait to connect
@@ -40,20 +153,37 @@ int
 ndbcluster_connect(int (*connect_callback)(void),
                    ulong wait_connected, // Timeout in seconds
                    uint connection_pool_size,
+                   const char* connection_pool_nodeids_str,
                    bool optimized_node_select,
                    const char* connect_string,
                    uint force_nodeid,
-                   uint recv_thread_activation_threshold)
+                   uint recv_thread_activation_threshold,
+                   uint data_node_neighbour)
 {
-#ifndef EMBEDDED_LIBRARY
   const char mysqld_name[]= "mysqld";
-#else
-  const char mysqld_name[]= "libmysqld";
-#endif
   int res;
   DBUG_ENTER("ndbcluster_connect");
   DBUG_PRINT("enter", ("connect_string: %s, force_nodeid: %d",
                        connect_string, force_nodeid));
+
+  // Parse the --ndb-cluster-connection-pool-nodeids=nodeid[,nodeidN]
+  // comma separated list of nodeids to use for the pool
+  Vector<uint> nodeids;
+  if (!parse_pool_nodeids(connection_pool_nodeids_str, connection_pool_size,
+                          force_nodeid, nodeids))
+  {
+    // Error message already printed
+    DBUG_RETURN(-1);
+  }
+
+  // Find specified nodeid for first connection and let it override
+  // force_nodeid(if both has been specified they are equal).
+  if (nodeids.size())
+  {
+    assert(force_nodeid == 0 || force_nodeid == nodeids[0]);
+    force_nodeid = nodeids[0];
+    sql_print_information("NDB: using nodeid %u", force_nodeid);
+  }
 
   global_flag_skip_waiting_for_clean_cache= 1;
 
@@ -75,6 +205,7 @@ ndbcluster_connect(int (*connect_callback)(void),
   g_ndb_cluster_connection->set_optimized_node_selection(optimized_node_select);
   g_ndb_cluster_connection->set_recv_thread_activation_threshold(
                                       recv_thread_activation_threshold);
+  g_ndb_cluster_connection->set_data_node_neighbour(data_node_neighbour);
 
   // Create a Ndb object to open the connection  to NDB
   if ( (g_ndb= new Ndb(g_ndb_cluster_connection, "sys")) == 0 )
@@ -101,8 +232,8 @@ ndbcluster_connect(int (*connect_callback)(void),
     const NDB_TICKS now = NdbTick_getCurrentTicks();
     if (NdbTick_Elapsed(start,now).seconds() > wait_connected)
       break;
-    do_retry_sleep(100);
-    if (abort_loop)
+    ndb_retry_sleep(100);
+    if (connection_events_loop_aborted())
       DBUG_RETURN(-1);
   }
 
@@ -112,14 +243,24 @@ ndbcluster_connect(int (*connect_callback)(void),
       my_malloc(PSI_INSTRUMENT_ME,
                 g_pool_alloc * sizeof(Ndb_cluster_connection*),
                 MYF(MY_WME | MY_ZEROFILL));
-    native_mutex_init(&g_pool_mutex,
-                       MY_MUTEX_INIT_FAST);
+    mysql_mutex_init(PSI_INSTRUMENT_ME,
+                     &g_pool_mutex,
+                     MY_MUTEX_INIT_FAST);
     g_pool[0]= g_ndb_cluster_connection;
     for (uint i= 1; i < g_pool_alloc; i++)
     {
+      // Find specified nodeid for this connection or use default zero
+      uint nodeid = 0;
+      if (i < nodeids.size())
+      {
+        nodeid = nodeids[i];
+        sql_print_information("NDB[%u]: using nodeid %u", i, nodeid);
+      }
+
       if ((g_pool[i]=
            new Ndb_cluster_connection(connect_string,
-                                      g_ndb_cluster_connection)) == 0)
+                                      g_ndb_cluster_connection,
+                                      nodeid)) == 0)
       {
         sql_print_error("NDB[%u]: failed to allocate cluster connect object",
                         i);
@@ -135,6 +276,7 @@ ndbcluster_connect(int (*connect_callback)(void),
       }
       g_pool[i]->set_optimized_node_selection(optimized_node_select);
       g_pool[i]->set_recv_thread_activation_threshold(recv_thread_activation_threshold);
+      g_pool[i]->set_data_node_neighbour(data_node_neighbour);
     }
   }
 
@@ -236,8 +378,8 @@ void ndbcluster_disconnect(void)
         if (g_pool[i])
           delete g_pool[i];
       }
-      my_free((uchar*) g_pool, MYF(MY_ALLOW_ZERO_PTR));
-      native_mutex_destroy(&g_pool_mutex);
+      my_free(g_pool);
+      mysql_mutex_destroy(&g_pool_mutex);
       g_pool= 0;
     }
     g_pool_alloc= 0;
@@ -251,12 +393,12 @@ void ndbcluster_disconnect(void)
 
 Ndb_cluster_connection *ndb_get_cluster_connection()
 {
-  native_mutex_lock(&g_pool_mutex);
+  mysql_mutex_lock(&g_pool_mutex);
   Ndb_cluster_connection *connection= g_pool[g_pool_pos];
   g_pool_pos++;
   if (g_pool_pos == g_pool_alloc)
     g_pool_pos= 0;
-  native_mutex_unlock(&g_pool_mutex);
+  mysql_mutex_unlock(&g_pool_mutex);
   return connection;
 }
 
@@ -303,15 +445,16 @@ int
 ndb_set_recv_thread_cpu(Uint16 *cpuid_array,
                         Uint32 cpuid_array_size)
 {
+  int ret_code = 0;
   Uint32 num_cpu_needed = g_pool_alloc;
 
   if (cpuid_array_size == 0)
   {
     for (Uint32 i = 0; i < g_pool_alloc; i++)
     {
-      g_pool[i]->unset_recv_thread_cpu(0);
+      ret_code = g_pool[i]->unset_recv_thread_cpu(0);
     }
-    return 0;
+    return ret_code;
   }
 
   if (cpuid_array_size < num_cpu_needed)
@@ -321,15 +464,22 @@ ndb_set_recv_thread_cpu(Uint16 *cpuid_array,
       "Ignored receive thread CPU mask, mask too short,"
       " %u CPUs needed in mask, only %u CPUs provided",
       num_cpu_needed, cpuid_array_size);
-    return 0;
+    return 1;
   }
   for (Uint32 i = 0; i < g_pool_alloc; i++)
   {
-    g_pool[i]->set_recv_thread_cpu(&cpuid_array[i],
+    ret_code = g_pool[i]->set_recv_thread_cpu(&cpuid_array[i],
                                    (Uint32)1,
                                    0);
   }
-  return 0;
+  return ret_code;
+}
+
+void
+ndb_set_data_node_neighbour(ulong data_node_neighbour)
+{
+  for (uint i= 0; i < g_pool_alloc; i++)
+    g_pool[i]->set_data_node_neighbour(data_node_neighbour);
 }
 
 void ndb_get_connection_stats(Uint64* statsArr)
@@ -441,6 +591,7 @@ ndb_transid_mysql_connection_map_deinit(void *p)
 }
 
 #include <mysql/plugin.h>
+
 static struct st_mysql_information_schema i_s_info =
 {
   MYSQL_INFORMATION_SCHEMA_INTERFACE_VERSION

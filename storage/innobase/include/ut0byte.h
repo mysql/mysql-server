@@ -41,35 +41,36 @@ ut_ull_create(
 	ulint	low)	/*!< in: low-order 32 bits */
 	MY_ATTRIBUTE((const));
 
-/********************************************************//**
-Rounds a 64-bit integer downward to a multiple of a power of 2.
+/** Rounds a 64-bit integer downward to a multiple of a power of 2.
+@param[in]	n		number to be rounded
+@param[in]	align_no	align by this number
 @return rounded value */
 UNIV_INLINE
 ib_uint64_t
 ut_uint64_align_down(
-/*=================*/
-	ib_uint64_t	 n,		/*!< in: number to be rounded */
-	ulint		 align_no);	/*!< in: align by this number
-					which must be a power of 2 */
-/********************************************************//**
-Rounds ib_uint64_t upward to a multiple of a power of 2.
+	ib_uint64_t	 n,
+	ulint		 align_no);
+
+/** Rounds ib_uint64_t upward to a multiple of a power of 2.
+@param[in]	n		number to be rounded
+@param[in]	align_no	align by this number
 @return rounded value */
 UNIV_INLINE
 ib_uint64_t
 ut_uint64_align_up(
-/*===============*/
-	ib_uint64_t	 n,		/*!< in: number to be rounded */
-	ulint		 align_no);	/*!< in: align by this number
-					which must be a power of 2 */
-/*********************************************************//**
-The following function rounds up a pointer to the nearest aligned address.
+	ib_uint64_t	 n,
+	ulint		 align_no);
+
+/** The following function rounds up a pointer to the nearest aligned address.
+@param[in]	ptr		pointer
+@param[in]	align_no	align by this number
 @return aligned pointer */
 UNIV_INLINE
 void*
 ut_align(
-/*=====*/
-	const void*	ptr,		/*!< in: pointer */
-	ulint		align_no);	/*!< in: align by this number */
+	const void*	ptr,
+	ulint		align_no);
+
 /*********************************************************//**
 The following function rounds down a pointer to the nearest
 aligned address.
@@ -92,28 +93,29 @@ ut_align_offset(
 	const void*	ptr,		/*!< in: pointer */
 	ulint		align_no)	/*!< in: align by this number */
 			MY_ATTRIBUTE((const));
-/*****************************************************************//**
-Gets the nth bit of a ulint.
+
+/** Gets the nth bit of a ulint.
+@param[in]	a	ulint
+@param[in]	n	nth bit requested
 @return TRUE if nth bit is 1; 0th bit is defined to be the least significant */
 UNIV_INLINE
 ibool
 ut_bit_get_nth(
-/*===========*/
-	ulint	a,	/*!< in: ulint */
-	ulint	n);	/*!< in: nth bit requested */
-/*****************************************************************//**
-Sets the nth bit of a ulint.
+	ulint	a,
+	ulint	n);
+
+/** Sets the nth bit of a ulint.
+@param[in]	a	ulint
+@param[in]	n	nth bit requested
+@param[in]	val	value for the bit to set
 @return the ulint with the bit set as requested */
 UNIV_INLINE
 ulint
 ut_bit_set_nth(
-/*===========*/
-	ulint	a,	/*!< in: ulint */
-	ulint	n,	/*!< in: nth bit requested */
-	ibool	val);	/*!< in: value for the bit to set */
+	ulint	a,
+	ulint	n,
+	ibool	val);
 
-#ifndef UNIV_NONINL
 #include "ut0byte.ic"
-#endif
 
 #endif

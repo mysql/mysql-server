@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,12 +16,13 @@
 #ifndef PIPELINE_HANDLERS_INCLUDED
 #define	PIPELINE_HANDLERS_INCLUDED
 
-#include "member_info.h"
-#include "pipeline_interfaces.h"
-
 #include <mysql/gcs/gcs_communication_interface.h>
 #include <mysql/gcs/gcs_control_interface.h>
 #include <mysql/group_replication_priv.h>
+
+#include "member_info.h"
+#include "my_dbug.h"
+#include "pipeline_interfaces.h"
 
 /*
   @enum Event modifier

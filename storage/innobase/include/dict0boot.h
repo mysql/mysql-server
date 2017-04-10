@@ -51,9 +51,9 @@ dict_hdr_get_new_id(
 /*================*/
 	table_id_t*		table_id,	/*!< out: table id
 						(not assigned if NULL) */
-	index_id_t*		index_id,	/*!< out: index id
+	space_index_t*		index_id,	/*!< out: index id
 						(not assigned if NULL) */
-	ulint*			space_id,	/*!< out: space id
+	space_id_t*		space_id,	/*!< out: space id
 						(not assigned if NULL) */
 	const dict_table_t*	table,		/*!< in: table */
 	bool			disable_redo);	/*!< in: if true and table
@@ -80,14 +80,16 @@ row_id_t
 dict_sys_read_row_id(
 /*=================*/
 	const byte*	field);	/*!< in: record field */
-/**********************************************************************//**
-Writes a row id to a record or other 6-byte stored form. */
+
+/** Writes a row id to a record or other 6-byte stored form.
+@param[in]	field	record field
+@param[in]	row_id	row id */
 UNIV_INLINE
 void
 dict_sys_write_row_id(
-/*==================*/
-	byte*		field,	/*!< in: record field */
-	row_id_t	row_id);/*!< in: row id */
+	byte*		field,
+	row_id_t	row_id);
+
 /*****************************************************************//**
 Initializes the data dictionary memory structures when the database is
 started. This function is also called when the data dictionary is created.
@@ -353,8 +355,6 @@ two) is assigned, the field DICT_HDR_ROW_ID on the dictionary header page is
 updated */
 #define DICT_HDR_ROW_ID_WRITE_MARGIN	256
 
-#ifndef UNIV_NONINL
 #include "dict0boot.ic"
-#endif
 
 #endif

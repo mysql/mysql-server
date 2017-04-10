@@ -1,6 +1,4 @@
 # Test of partitioning features with replication for InnoDB
---source include/have_innodb.inc
---source include/have_partition.inc
 --source include/master-slave.inc
 
 # Set the default connection to 'master'

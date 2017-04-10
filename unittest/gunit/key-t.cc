@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,7 +18,7 @@
 #include "my_config.h"
 #include <gtest/gtest.h>
 
-#include "key.h"                                // st_key
+#include "key.h"                                // KEY
 
 namespace key_unittest {
 
@@ -28,7 +28,7 @@ namespace key_unittest {
 
 TEST(KeyInMemoryEstimate, InMemoryEstimateAPI)
 { 
-  st_key key;
+  KEY key;
 
   /*
     Test setting to not initialized.

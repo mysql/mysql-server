@@ -1,4 +1,4 @@
-// JSON condenser exmaple
+// JSON condenser example
 
 // This example parses JSON from stdin with validation, 
 // and re-output the JSON content to stdout with all string capitalized, and without whitespace.
@@ -24,10 +24,11 @@ struct CapitalizeFilter {
     bool Int64(int64_t i) { return out_.Int64(i); }
     bool Uint64(uint64_t u) { return out_.Uint64(u); }
     bool Double(double d) { return out_.Double(d); }
-    bool String(const char* str, SizeType length, bool) { 
+    bool RawNumber(const char* str, SizeType length, bool copy) { return out_.RawNumber(str, length, copy); }
+    bool String(const char* str, SizeType length, bool) {
         buffer_.clear();
         for (SizeType i = 0; i < length; i++)
-            buffer_.push_back(std::toupper(str[i]));
+            buffer_.push_back(static_cast<char>(std::toupper(str[i])));
         return out_.String(&buffer_.front(), length, true); // true = output handler need to copy the string
     }
     bool StartObject() { return out_.StartObject(); }
@@ -58,7 +59,7 @@ int main(int, char*[]) {
     // JSON reader parse from the input stream and let writer generate the output.
     CapitalizeFilter<Writer<FileWriteStream> > filter(writer);
     if (!reader.Parse(is, filter)) {
-        fprintf(stderr, "\nError(%u): %s\n", (unsigned)reader.GetErrorOffset(), GetParseError_En(reader.GetParseErrorCode()));
+        fprintf(stderr, "\nError(%u): %s\n", static_cast<unsigned>(reader.GetErrorOffset()), GetParseError_En(reader.GetParseErrorCode()));
         return 1;
     }
 

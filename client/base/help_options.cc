@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,15 +15,19 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "client_priv.h"
-#include "my_default.h"
-#include <sstream>
-#include "help_options.h"
-#include "abstract_program.h"
-
+#include <stdlib.h>
 #include <welcome_copyright_notice.h> /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
+#include <functional>
+#include <sstream>
+
+#include "abstract_program.h"
+#include "client_priv.h"
+#include "help_options.h"
+#include "my_default.h"
+#include "print_version.h"
 
 using namespace Mysql::Tools::Base::Options;
+using std::placeholders::_1;
 using Mysql::Tools::Base::Abstract_program;
 using std::string;
 
@@ -37,13 +41,13 @@ void Help_options::create_options()
 {
   this->create_new_option("help", "Display this help message and exit.")
     ->set_short_character('?')
-    ->add_callback(new Instance_callback<void, char*, Help_options>(
-    this, &Help_options::help_callback));
+    ->add_callback(new std::function<void(char*)>(
+     std::bind(&Help_options::help_callback, this, _1)));
 
   this->create_new_option("version", "Output version information and exit.")
     ->set_short_character('V')
-    ->add_callback(new Instance_callback<void, char*, Help_options>(
-    this, &Help_options::version_callback));
+    ->add_callback(new std::function<void(char*)>(
+    std::bind(&Help_options::version_callback, this, _1)));
 }
 
 void Help_options::help_callback(char* argument MY_ATTRIBUTE((unused)))
@@ -62,10 +66,7 @@ void Help_options::version_callback(char* argument MY_ATTRIBUTE((unused)))
 /** A helper function. Prints the program version line. */
 void Help_options::print_version_line()
 {
-  printf("%s  Ver %s Distrib %s, for %s (%s)\n",
-         this->m_program->get_name().c_str(),
-         this->m_program->get_version().c_str(),
-         MYSQL_SERVER_VERSION, SYSTEM_TYPE, MACHINE_TYPE);
+  print_version();
 }
 
 
@@ -74,10 +75,9 @@ void Mysql::Tools::Base::Options::Help_options::print_usage()
 
   this->print_version_line();
 
-  std::string first_year_str=
-    (static_cast<std::ostringstream*>(&(
-    std::ostringstream() << this->m_program->get_first_release_year()))
-    ->str());
+  std::ostringstream s;
+  s << m_program->get_first_release_year();
+  string first_year_str(s.str());
   string copyright;
 
   if (first_year_str == COPYRIGHT_NOTICE_CURRENT_YEAR)

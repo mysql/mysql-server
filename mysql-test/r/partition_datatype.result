@@ -320,23 +320,19 @@ create table t1 (a varchar(65534) not null) partition by key (a);
 ERROR 42000: Row size too large. The maximum row size for the used table type, not counting BLOBs, is 65535. This includes storage overhead, check the manual. You have to change some columns to TEXT or BLOBs
 create table t1 (a varchar(65535)) partition by key (a);
 ERROR 42000: Row size too large. The maximum row size for the used table type, not counting BLOBs, is 65535. This includes storage overhead, check the manual. You have to change some columns to TEXT or BLOBs
-create table t1 (a bit(27), primary key (a)) engine=myisam
+create table t1 (a bit(27), primary key (a))
 partition by hash (a)
 (partition p0, partition p1, partition p2);
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` bit(27) NOT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY HASH (a)
-(PARTITION p0 ENGINE = MyISAM,
- PARTITION p1 ENGINE = MyISAM,
- PARTITION p2 ENGINE = MyISAM) */
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+(PARTITION p0 ENGINE = InnoDB,
+ PARTITION p1 ENGINE = InnoDB,
+ PARTITION p2 ENGINE = InnoDB) */
 insert into t1 values (1),(4),(7),(10),(13),(16),(19),(22),(25),(28),(31),(34);
 select hex(a) from t1 where a = 7;
 hex(a)
@@ -347,11 +343,9 @@ drop table t1;
 #            by partition pruning
 SET @old_time_zone= @@session.time_zone;
 SET @@session.time_zone = 'UTC';
-# Using MyISAM to get stable values on TABLE_ROWS in I_S.PARTITIONS
 CREATE TABLE t1
 (a TIMESTAMP NULL,
-tz varchar(16))
-ENGINE = MyISAM;
+tz varchar(16));
 CREATE TABLE t2 LIKE t1;
 ALTER TABLE t2 PARTITION BY RANGE (UNIX_TIMESTAMP(a))
 (PARTITION `p0` VALUES LESS THAN (0),
@@ -363,8 +357,6 @@ PARTITION `p-2012-MSK-1` VALUES LESS THAN (UNIX_TIMESTAMP('2011-10-30 00:00:00')
 PARTITION `p-2012-MSK-2` VALUES LESS THAN (UNIX_TIMESTAMP('2012-03-24 23:00:00')),
 PARTITION `pEnd` VALUES LESS THAN (UNIX_TIMESTAMP('2038-01-19 03:14:07')),
 PARTITION `pMax` VALUES LESS THAN MAXVALUE);
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t2', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 Warnings:
 Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
@@ -455,8 +447,6 @@ INSERT INTO t1 VALUES ('2011-10-30 03:00:00', 'Moscow');
 INSERT INTO t1 VALUES ('2011-10-30 03:00:01', 'Moscow');
 SET @@session.time_zone = 'UTC';
 INSERT INTO t2 SELECT * FROM t1;
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t2', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT PARTITION_NAME, TABLE_ROWS FROM INFORMATION_SCHEMA.PARTITIONS
 WHERE TABLE_NAME = 't2';
 PARTITION_NAME	TABLE_ROWS
@@ -879,22 +869,18 @@ Table	Create Table
 t2	CREATE TABLE `t2` (
   `a` timestamp NULL DEFAULT NULL,
   `tz` varchar(16) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY RANGE (UNIX_TIMESTAMP(a))
-(PARTITION p0 VALUES LESS THAN (0) ENGINE = MyISAM,
- PARTITION `p-2000` VALUES LESS THAN (946684800) ENGINE = MyISAM,
- PARTITION `p-2011-MSK` VALUES LESS THAN (1301180400) ENGINE = MyISAM,
- PARTITION `p-2011-MSD-1` VALUES LESS THAN (1319925600) ENGINE = MyISAM,
- PARTITION `p-2011-MSD-2` VALUES LESS THAN (1319929200) ENGINE = MyISAM,
- PARTITION `p-2012-MSK-1` VALUES LESS THAN (1319932800) ENGINE = MyISAM,
- PARTITION `p-2012-MSK-2` VALUES LESS THAN (1332630000) ENGINE = MyISAM,
- PARTITION pEnd VALUES LESS THAN (2147483647) ENGINE = MyISAM,
- PARTITION pMax VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t2', is deprecated and will be removed in a future release. Please use native partitioning instead.
+(PARTITION p0 VALUES LESS THAN (0) ENGINE = InnoDB,
+ PARTITION `p-2000` VALUES LESS THAN (946684800) ENGINE = InnoDB,
+ PARTITION `p-2011-MSK` VALUES LESS THAN (1301180400) ENGINE = InnoDB,
+ PARTITION `p-2011-MSD-1` VALUES LESS THAN (1319925600) ENGINE = InnoDB,
+ PARTITION `p-2011-MSD-2` VALUES LESS THAN (1319929200) ENGINE = InnoDB,
+ PARTITION `p-2012-MSK-1` VALUES LESS THAN (1319932800) ENGINE = InnoDB,
+ PARTITION `p-2012-MSK-2` VALUES LESS THAN (1332630000) ENGINE = InnoDB,
+ PARTITION pEnd VALUES LESS THAN (2147483647) ENGINE = InnoDB,
+ PARTITION pMax VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
 TRUNCATE TABLE t2;
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t2', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SET @@session.time_zone = 'Europe/Moscow';
 INSERT INTO t2 SELECT * FROM t1;
 SELECT PARTITION_NAME, TABLE_ROWS FROM INFORMATION_SCHEMA.PARTITIONS
@@ -1399,22 +1385,18 @@ Table	Create Table
 t2	CREATE TABLE `t2` (
   `a` timestamp NULL DEFAULT NULL,
   `tz` varchar(16) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY RANGE (UNIX_TIMESTAMP(a))
-(PARTITION p0 VALUES LESS THAN (0) ENGINE = MyISAM,
- PARTITION `p-2000` VALUES LESS THAN (946684800) ENGINE = MyISAM,
- PARTITION `p-2011-MSK` VALUES LESS THAN (1301180400) ENGINE = MyISAM,
- PARTITION `p-2011-MSD-1` VALUES LESS THAN (1319925600) ENGINE = MyISAM,
- PARTITION `p-2011-MSD-2` VALUES LESS THAN (1319929200) ENGINE = MyISAM,
- PARTITION `p-2012-MSK-1` VALUES LESS THAN (1319932800) ENGINE = MyISAM,
- PARTITION `p-2012-MSK-2` VALUES LESS THAN (1332630000) ENGINE = MyISAM,
- PARTITION pEnd VALUES LESS THAN (2147483647) ENGINE = MyISAM,
- PARTITION pMax VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t2', is deprecated and will be removed in a future release. Please use native partitioning instead.
+(PARTITION p0 VALUES LESS THAN (0) ENGINE = InnoDB,
+ PARTITION `p-2000` VALUES LESS THAN (946684800) ENGINE = InnoDB,
+ PARTITION `p-2011-MSK` VALUES LESS THAN (1301180400) ENGINE = InnoDB,
+ PARTITION `p-2011-MSD-1` VALUES LESS THAN (1319925600) ENGINE = InnoDB,
+ PARTITION `p-2011-MSD-2` VALUES LESS THAN (1319929200) ENGINE = InnoDB,
+ PARTITION `p-2012-MSK-1` VALUES LESS THAN (1319932800) ENGINE = InnoDB,
+ PARTITION `p-2012-MSK-2` VALUES LESS THAN (1332630000) ENGINE = InnoDB,
+ PARTITION pEnd VALUES LESS THAN (2147483647) ENGINE = InnoDB,
+ PARTITION pMax VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
 TRUNCATE TABLE t2;
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t2', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SET sql_mode = default;
 DROP TABLE t1, t2;
 SET @@session.time_zone= @old_time_zone;

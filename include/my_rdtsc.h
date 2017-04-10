@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -13,14 +13,16 @@
   along with this program; if not, write to the Free Software
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-/*
-  rdtsc3 -- multi-platform timer code
-  pgulutzan@mysql.com, 2005-08-29
-  modified 2008-11-02
+/**
+  @file include/my_rdtsc.h
+  Multi-platform timer code.
 */
 
 #ifndef MY_RDTSC_H
 #define MY_RDTSC_H
+
+#include "my_macros.h"
+#include "my_inttypes.h"
 
 /**
   Characteristics of a timer.
@@ -100,7 +102,7 @@ C_MODE_END
 #define MY_TIMER_ROUTINE_ASM_X86                  1
 #define MY_TIMER_ROUTINE_ASM_X86_64               2
 /* #define MY_TIMER_ROUTINE_RDTSCLL                  3 - No longer used */
-#define MY_TIMER_ROUTINE_ASM_X86_WIN              4
+/* #define MY_TIMER_ROUTINE_ASM_X86_WIN              4 - No longer used */
 #define MY_TIMER_ROUTINE_RDTSC                    5
 #define MY_TIMER_ROUTINE_ASM_IA64                 6
 #define MY_TIMER_ROUTINE_ASM_PPC                  7

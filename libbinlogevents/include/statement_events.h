@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,7 +19,7 @@
 
   @file statement_events.h
 
-  @brief Contains the classes representing statement events occuring in the
+  @brief Contains the classes representing statement events occurring in the
   replication stream. Each event is represented as a byte sequence with logical
   divisions as event header, event specific data and event footer. The header
   and footer are common to all the events and are represented as two different
@@ -33,6 +33,11 @@
 
 namespace binary_log
 {
+/**
+  The following constant represents the maximum of MYSQL_XID domain.
+  The maximum XID value practically is never supposed to grow beyond UINT64 range.
+*/
+const uint64_t INVALID_XID= -1ULL;
 
 /**
   @class Query_event
@@ -212,7 +217,8 @@ namespace binary_log
     MODE_NO_AUTO_CREATE_USER==0x20000000
     MODE_HIGH_NOT_PRECEDENCE==0x40000000
     MODE_PAD_CHAR_TO_FULL_LENGTH==0x80000000
-    </pre>
+    MODE_TIME_TRUNCATE_FRACTIONAL==0x100000000
+   </pre>
     All these flags are replicated from the server.  However, all
     flags except @c MODE_NO_DIR_IN_CREATE are honored by the slave;
     the slave always preserves its old value of @c
@@ -390,12 +396,18 @@ namespace binary_log
     </td>
   </tr>
   <tr>
-    <td>commit_seq_no</td>
-    <td>Q_COMMIT_TS</td>
+    <td>explicit_defaults_ts</td>
+    <td>Q_EXPLICIT_DEFAULTS_FOR_TIMESTAMP</td>
+    <td>1 byte boolean</td>
+    <td>Stores master connection @@session.explicit_defaults_for_timestamp when
+        CREATE and ALTER operate on a table with a TIMESTAMP column. </td>
+  </tr>
+  <tr>
+    <td>ddl_xid</td>
+    <td>Q_DDL_LOGGED_WITH_XID</td>
     <td>8 byte integer</td>
-    <td>Stores the logical timestamp when the transaction
-        entered the commit phase. This wll be used to apply transactions
-        in parallel on the slave.  </td>
+    <td>Stores variable carrying xid info of 2pc-aware (recoverable) DDL
+        queries. </td>
   </tr>
   </table>
 
@@ -471,7 +483,8 @@ public:
    */
     Q_COMMIT_TS,
     /*
-     A code for Query_log_event status, similar to G_COMMIT_TS2.
+     An old (unused after migration to Gtid_event) code for
+     Query_log_event status, similar to G_COMMIT_TS2.
    */
     Q_COMMIT_TS2,
     /*
@@ -480,7 +493,11 @@ public:
       a TIMESTAMP column, that are dependent on that feature.
       For pre-WL6292 master's the associated with this code value is zero.
     */
-    Q_EXPLICIT_DEFAULTS_FOR_TIMESTAMP
+    Q_EXPLICIT_DEFAULTS_FOR_TIMESTAMP,
+    /*
+      The variable carries xid info of 2pc-aware (recoverable) DDL queries.
+    */
+    Q_DDL_LOGGED_WITH_XID
   };
   const char* query;
   const char* db;
@@ -601,7 +618,8 @@ public:
   */
   unsigned char mts_accessed_dbs;
   char mts_accessed_db_names[MAX_DBS_IN_EVENT_MTS][NAME_LEN];
-
+  /* XID value when the event is a 2pc-capable DDL */
+  uint64_t ddl_xid;
   /**
     The constructor will be used while creating a Query_event, to be
     written to the binary log.
@@ -614,8 +632,7 @@ public:
               unsigned long auto_increment_offset_arg,
               unsigned int number,
               unsigned long long table_map_for_update_arg,
-              int errcode,
-              unsigned int db_arg_len, unsigned int catalog_arg_len);
+              int errcode);
 
   /**
     The constructor receives a buffer and instantiates a Query_event filled in
@@ -636,7 +653,7 @@ public:
     </pre>
 
     @param buf                Containing the event header and data
-    @param even_len           The length upto which buf contains Query event data
+    @param event_len          The length upto which buf contains Query event data
     @param description_event  FDE specific to the binlog version
 
     @param event_type         Required to determine whether the event type is
@@ -790,7 +807,7 @@ public:
   };
 
   /**
-    This constructor will initialize the instance variablesi and the type_code,
+    This constructor will initialize the instance variables and the type_code,
     it will be used only by the server code.
   */
   User_var_event(const char *name_arg, unsigned int name_len_arg, char *val_arg,
@@ -824,7 +841,7 @@ public:
     </pre>
 
     @param buf                Contains the serialized event.
-    @param length             Length of the serialized event.
+    @param event_len          Length of the serialized event.
     @param description_event  An FDE event, used to get the
                               following information
                               -binlog_version
@@ -847,9 +864,9 @@ public:
 #ifndef HAVE_MYSYS
   void print_event_info(std::ostream& info);
   void print_long_info(std::ostream& info);
-  const char* get_value_type_string(enum Value_type type) const
+  const char* get_value_type_string(enum Value_type type_arg) const
   {
-    switch(type)
+    switch(type_arg)
     {
       case STRING_TYPE:return "String";
       case REAL_TYPE:return "Real";

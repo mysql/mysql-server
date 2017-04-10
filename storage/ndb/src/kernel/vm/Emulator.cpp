@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -31,7 +31,6 @@
 #include <NodeState.hpp>
 #include "ndbd_malloc_impl.hpp"
 
-#include <NdbMem.h>
 #include <NdbMutex.h>
 
 #include <EventLogger.hpp>
@@ -395,7 +394,7 @@ static const char* const jamFileNames[] =
    "SafeMutex.cpp",                      // 265
    "SafeCounter.cpp",                    // 266
    "bench_pool.cpp",                     // 267
-   "DataBuffer2.hpp",                    // 268
+   "DataBuffer2.hpp",                    // 268 DELETED FILE
    "Mutex.hpp",                          // 269
    "testSuperPool.cpp",                  // 270
    "CArray.hpp",                         // 271
@@ -429,7 +428,7 @@ static const char* const jamFileNames[] =
    "DynArr256.hpp",                      // 299
    "LongSignal_mt.cpp",                  // 300
    "Configuration.cpp",                  // 301
-   "WaitQueue.hpp",                      // 302
+   "WaitQueue.hpp",                      // 302 DELETED FILE
    "WOPool.hpp",                         // 303
    "CountingPool.cpp",                   // 304
    "TransporterCallbackKernel.hpp",      // 305
@@ -444,7 +443,7 @@ static const char* const jamFileNames[] =
    "VMSignal.hpp",                       // 314
    "Pool.hpp",                           // 315
    "Rope.hpp",                           // 316
-   "KeyTable2Ref.hpp",                   // 317
+   "KeyTable2Ref.hpp",                   // 317 DELETED FILE
    "LockQueue.cpp",                      // 318
    "arrayListTest.cpp",                  // 319
    "main.cpp",                           // 320
@@ -700,8 +699,6 @@ EmulatorData::create(){
 #endif
   NdbThread_SetTlsKey(NDB_THREAD_TLS_JAM, jamBuffer);
 
-  NdbMem_Create();
-
   theConfiguration = new Configuration();
   theWatchDog      = new WatchDog();
   theThreadConfig  = new ThreadConfig();
@@ -731,18 +728,22 @@ EmulatorData::create(){
 void
 EmulatorData::destroy(){
   if(theConfiguration)
-    delete theConfiguration; theConfiguration = 0;
+    delete theConfiguration;
+  theConfiguration = 0;
   if(theWatchDog)
-    delete theWatchDog; theWatchDog = 0;
+    delete theWatchDog;
+  theWatchDog = 0;
   if(theThreadConfig)
-    delete theThreadConfig; theThreadConfig = 0;
+    delete theThreadConfig;
+  theThreadConfig = 0;
   if(theSimBlockList)
-    delete theSimBlockList; theSimBlockList = 0;
+    delete theSimBlockList;
+  theSimBlockList = 0;
   if(m_socket_server)
-    delete m_socket_server; m_socket_server = 0;
+    delete m_socket_server;
+  m_socket_server = 0;
   NdbMutex_Destroy(theShutdownMutex);
   if (m_mem_manager)
-    delete m_mem_manager; m_mem_manager = 0;
-  
-  NdbMem_Destroy();
+    delete m_mem_manager;
+  m_mem_manager = 0;
 }

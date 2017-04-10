@@ -16,7 +16,21 @@
 #ifndef _my_stacktrace_h_
 #define _my_stacktrace_h_
 
-#include <my_global.h>
+/**
+  @file include/my_stacktrace.h
+*/
+
+#include <stddef.h>
+#include <sys/types.h>
+
+#ifdef _WIN32
+#include <windows.h>
+#endif
+
+#include "my_compiler.h"
+#include "my_config.h"
+#include "my_inttypes.h"
+#include "my_macros.h"
 
 C_MODE_START
 
@@ -30,9 +44,7 @@ C_MODE_START
 void my_init_stacktrace();
 void my_print_stacktrace(uchar* stack_bottom, ulong thread_stack);
 void my_safe_puts_stderr(const char* val, size_t max_len);
-#if HAVE_BACKTRACE && HAVE_ABI_CXA_DEMANGLE
-char *my_demangle(const char *mangled_name, int *status);
-#endif
+
 #ifdef _WIN32
 void my_set_exception_pointers(EXCEPTION_POINTERS *ep);
 void my_create_minidump(const char *name, HANDLE process, DWORD pid);

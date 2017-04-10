@@ -17,52 +17,52 @@ innodb_random_read_ahead	OFF
 show session variables like 'innodb_random_read_ahead';
 Variable_name	Value
 innodb_random_read_ahead	OFF
-select * from information_schema.global_variables where variable_name='innodb_random_read_ahead';
+select * from performance_schema.global_variables where variable_name='innodb_random_read_ahead';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_RANDOM_READ_AHEAD	OFF
-select * from information_schema.session_variables where variable_name='innodb_random_read_ahead';
+innodb_random_read_ahead	OFF
+select * from performance_schema.session_variables where variable_name='innodb_random_read_ahead';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_RANDOM_READ_AHEAD	OFF
+innodb_random_read_ahead	OFF
 set global innodb_random_read_ahead='ON';
 select @@global.innodb_random_read_ahead;
 @@global.innodb_random_read_ahead
 1
-select * from information_schema.global_variables where variable_name='innodb_random_read_ahead';
+select * from performance_schema.global_variables where variable_name='innodb_random_read_ahead';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_RANDOM_READ_AHEAD	ON
-select * from information_schema.session_variables where variable_name='innodb_random_read_ahead';
+innodb_random_read_ahead	ON
+select * from performance_schema.session_variables where variable_name='innodb_random_read_ahead';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_RANDOM_READ_AHEAD	ON
+innodb_random_read_ahead	ON
 set @@global.innodb_random_read_ahead=0;
 select @@global.innodb_random_read_ahead;
 @@global.innodb_random_read_ahead
 0
-select * from information_schema.global_variables where variable_name='innodb_random_read_ahead';
+select * from performance_schema.global_variables where variable_name='innodb_random_read_ahead';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_RANDOM_READ_AHEAD	OFF
-select * from information_schema.session_variables where variable_name='innodb_random_read_ahead';
+innodb_random_read_ahead	OFF
+select * from performance_schema.session_variables where variable_name='innodb_random_read_ahead';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_RANDOM_READ_AHEAD	OFF
+innodb_random_read_ahead	OFF
 set global innodb_random_read_ahead=1;
 select @@global.innodb_random_read_ahead;
 @@global.innodb_random_read_ahead
 1
-select * from information_schema.global_variables where variable_name='innodb_random_read_ahead';
+select * from performance_schema.global_variables where variable_name='innodb_random_read_ahead';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_RANDOM_READ_AHEAD	ON
-select * from information_schema.session_variables where variable_name='innodb_random_read_ahead';
+innodb_random_read_ahead	ON
+select * from performance_schema.session_variables where variable_name='innodb_random_read_ahead';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_RANDOM_READ_AHEAD	ON
+innodb_random_read_ahead	ON
 set @@global.innodb_random_read_ahead='OFF';
 select @@global.innodb_random_read_ahead;
 @@global.innodb_random_read_ahead
 0
-select * from information_schema.global_variables where variable_name='innodb_random_read_ahead';
+select * from performance_schema.global_variables where variable_name='innodb_random_read_ahead';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_RANDOM_READ_AHEAD	OFF
-select * from information_schema.session_variables where variable_name='innodb_random_read_ahead';
+innodb_random_read_ahead	OFF
+select * from performance_schema.session_variables where variable_name='innodb_random_read_ahead';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_RANDOM_READ_AHEAD	OFF
+innodb_random_read_ahead	OFF
 set session innodb_random_read_ahead='OFF';
 ERROR HY000: Variable 'innodb_random_read_ahead' is a GLOBAL variable and should be set with SET GLOBAL
 set @@session.innodb_random_read_ahead='ON';
@@ -78,12 +78,12 @@ set global innodb_random_read_ahead=-3;
 select @@global.innodb_random_read_ahead;
 @@global.innodb_random_read_ahead
 1
-select * from information_schema.global_variables where variable_name='innodb_random_read_ahead';
+select * from performance_schema.global_variables where variable_name='innodb_random_read_ahead';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_RANDOM_READ_AHEAD	ON
-select * from information_schema.session_variables where variable_name='innodb_random_read_ahead';
+innodb_random_read_ahead	ON
+select * from performance_schema.session_variables where variable_name='innodb_random_read_ahead';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_RANDOM_READ_AHEAD	ON
+innodb_random_read_ahead	ON
 set global innodb_random_read_ahead='AUTO';
 ERROR 42000: Variable 'innodb_random_read_ahead' can't be set to the value of 'AUTO'
 SET @@global.innodb_random_read_ahead = @start_global_value;

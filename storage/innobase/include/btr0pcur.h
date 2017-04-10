@@ -57,7 +57,7 @@ btr_pcur_create_for_mysql(void);
 /*============================*/
 
 /**************************************************************//**
-Resets a persistent cursor object, freeing ::old_rec_buf if it is
+Resets a persistent cursor object, freeing "::old_rec_buf" if it is
 allocated and resetting the other members to their initial values. */
 void
 btr_pcur_reset(
@@ -114,7 +114,8 @@ btr_pcur_open_low(
 	btr_pcur_t*	cursor, /*!< in: memory buffer for persistent cursor */
 	const char*	file,	/*!< in: file name */
 	ulint		line,	/*!< in: line where called */
-	mtr_t*		mtr);	/*!< in: mtr */
+	mtr_t*		mtr)	/*!< in: mtr */
+  ;
 #define btr_pcur_open(i,t,md,l,c,m)				\
 	btr_pcur_open_low(i,0,t,md,l,c,__FILE__,__LINE__,m)
 /**************************************************************//**
@@ -144,7 +145,8 @@ btr_pcur_open_with_no_init_func(
 				RW_S_LATCH, or 0 */
 	const char*	file,	/*!< in: file name */
 	ulint		line,	/*!< in: line where called */
-	mtr_t*		mtr);	/*!< in: mtr */
+	mtr_t*		mtr)	/*!< in: mtr */
+  ;
 #define btr_pcur_open_with_no_init(ix,t,md,l,cur,has,m)			\
 	btr_pcur_open_with_no_init_func(ix,t,md,l,cur,has,__FILE__,__LINE__,m)
 
@@ -163,7 +165,7 @@ btr_pcur_open_at_index_side(
 	ulint		level,		/*!< in: level to search for
 					(0=leaf) */
 	mtr_t*		mtr)		/*!< in/out: mini-transaction */
-	MY_ATTRIBUTE((nonnull));
+  ;
 /**************************************************************//**
 Gets the up_match value for a pcur after a search.
 @return number of matched fields at the cursor or to the right if
@@ -217,7 +219,8 @@ btr_pcur_open_at_rnd_pos_func(
 	btr_pcur_t*	cursor,		/*!< in/out: B-tree pcur */
 	const char*	file,		/*!< in: file name */
 	ulint		line,		/*!< in: line where called */
-	mtr_t*		mtr);		/*!< in: mtr */
+	mtr_t*		mtr)		/*!< in: mtr */
+  ;
 #define btr_pcur_open_at_rnd_pos(i,l,c,m)				\
 	btr_pcur_open_at_rnd_pos_func(i,l,c,__FILE__,__LINE__,m)
 /**************************************************************//**
@@ -292,7 +295,8 @@ void
 btr_pcur_commit_specify_mtr(
 /*========================*/
 	btr_pcur_t*	pcur,	/*!< in: persistent cursor */
-	mtr_t*		mtr);	/*!< in: mtr to commit */
+	mtr_t*		mtr)	/*!< in: mtr to commit */
+  ;
 /*********************************************************//**
 Moves the persistent cursor to the next record in the tree. If no records are
 left, the cursor stays 'after last in tree'.
@@ -303,7 +307,8 @@ btr_pcur_move_to_next(
 /*==================*/
 	btr_pcur_t*	cursor,	/*!< in: persistent cursor; NOTE that the
 				function may release the page latch */
-	mtr_t*		mtr);	/*!< in: mtr */
+	mtr_t*		mtr)	/*!< in: mtr */
+  ;
 /*********************************************************//**
 Moves the persistent cursor to the previous record in the tree. If no records
 are left, the cursor stays 'before first in tree'.
@@ -321,7 +326,8 @@ void
 btr_pcur_move_to_last_on_page(
 /*==========================*/
 	btr_pcur_t*	cursor,	/*!< in: persistent cursor */
-	mtr_t*		mtr);	/*!< in: mtr */
+	mtr_t*		mtr)	/*!< in: mtr */
+  ;
 /*********************************************************//**
 Moves the persistent cursor to the next user record in the tree. If no user
 records are left, the cursor ends up 'after last in tree'.
@@ -332,7 +338,8 @@ btr_pcur_move_to_next_user_rec(
 /*===========================*/
 	btr_pcur_t*	cursor,	/*!< in: persistent cursor; NOTE that the
 				function may release the page latch */
-	mtr_t*		mtr);	/*!< in: mtr */
+	mtr_t*		mtr)	/*!< in: mtr */
+  ;
 /*********************************************************//**
 Moves the persistent cursor to the first record on the next page.
 Releases the latch on the current page, and bufferunfixes it.
@@ -343,22 +350,6 @@ btr_pcur_move_to_next_page(
 /*=======================*/
 	btr_pcur_t*	cursor,	/*!< in: persistent cursor; must be on the
 				last record of the current page */
-	mtr_t*		mtr);	/*!< in: mtr */
-/*********************************************************//**
-Moves the persistent cursor backward if it is on the first record
-of the page. Releases the latch on the current page, and bufferunfixes
-it. Note that to prevent a possible deadlock, the operation first
-stores the position of the cursor, releases the leaf latch, acquires
-necessary latches and restores the cursor position again before returning.
-The alphabetical position of the cursor is guaranteed to be sensible
-on return, but it may happen that the cursor is not positioned on the
-last record of any page, because the structure of the tree may have
-changed while the cursor had no latches. */
-void
-btr_pcur_move_backward_from_page(
-/*=============================*/
-	btr_pcur_t*	cursor,	/*!< in: persistent cursor, must be on the
-				first record of the current page */
 	mtr_t*		mtr);	/*!< in: mtr */
 #ifdef UNIV_DEBUG
 /*********************************************************//**
@@ -439,7 +430,8 @@ ibool
 btr_pcur_is_before_first_in_tree(
 /*=============================*/
 	btr_pcur_t*	cursor,	/*!< in: persistent cursor */
-	mtr_t*		mtr);	/*!< in: mtr */
+	mtr_t*		mtr)	/*!< in: mtr */
+  ;
 /*********************************************************//**
 Checks if the persistent cursor is after the last user record in
 the index tree. */
@@ -448,7 +440,8 @@ ibool
 btr_pcur_is_after_last_in_tree(
 /*===========================*/
 	btr_pcur_t*	cursor,	/*!< in: persistent cursor */
-	mtr_t*		mtr);	/*!< in: mtr */
+	mtr_t*		mtr)	/*!< in: mtr */
+  ;
 /*********************************************************//**
 Moves the persistent cursor to the next record on the same page. */
 UNIV_INLINE
@@ -545,8 +538,6 @@ struct btr_pcur_t{
 	dict_index_t*	index() const { return(btr_cur.index); }
 };
 
-#ifndef UNIV_NONINL
 #include "btr0pcur.ic"
-#endif
 
 #endif

@@ -31,25 +31,7 @@ EOF
 
 --echo #
 --echo # Clean-up
---perl
-  use File::Path 'rmtree';
-  $DDIR=$ENV{"DDIR"};
-  rmtree([ "$DDIR" ]);
-EOF
---echo #
-
---echo #-------------------------------------------------------------------------
-
---echo #
---echo # Initialize the server with mysql_install_db
-let midparam= --insecure;
---source include/m_i_db_startsvr.inc
-
---echo # Check data directory permission. Expected value : 0750
---perl
-  my $ddir_perms= (stat($ENV{'DDIR'}))[2];
-  printf "# Data directory permission with mysql_install_db : %04o\n", $ddir_perms &0777
-EOF
+--force-rmdir $DDIR
 --echo #
 
 --echo #-------------------------------------------------------------------------
@@ -61,15 +43,7 @@ EOF
 --shutdown_server
 --source include/wait_until_disconnected.inc
 
---perl
-  use File::Path 'rmtree';
-  $DDIR=$ENV{"MYSQL_TMP_DIR"}."/installdb_test";
-  rmtree([ "$DDIR" ]);
-  $filename1=$ENV{"MYSQL_TMP_DIR"}."/readpwd.inc";
-  $filename2=$ENV{"MYSQL_TMP_DIR"}."/readpwdfilepath.txt";
-  unlink $filename1;
-  unlink $filename2;
-EOF
+--remove_file $MYSQL_TMP_DIR/readpwdfilepath.txt
 
 --echo #-------------------------------------------------------------------------
 

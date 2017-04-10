@@ -3,12 +3,6 @@
 #but needs to be kept for tests that would need MyISAM in future.
 --source include/force_myisam_default.inc
 
-# 
-# Run null_key.inc with index_condition_pushdown
-#
-
---source include/have_index_condition_pushdown.inc
-
 set optimizer_switch='index_condition_pushdown=on';
 
 --disable_query_log

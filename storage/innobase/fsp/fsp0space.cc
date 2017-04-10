@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2013, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2013, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -27,10 +27,8 @@ Created 2012-11-16 by Sunny Bains as srv/srv0space.cc
 
 #include "fsp0space.h"
 #include "fsp0sysspace.h"
-#ifndef UNIV_HOTBACKUP
 #include "fsp0fsp.h"
 #include "os0file.h"
-#endif /* !UNIV_HOTBACKUP */
 
 #include "my_sys.h"
 
@@ -69,7 +67,7 @@ Tablespace::shutdown()
 
 	m_files.clear();
 
-	m_space_id = ULINT_UNDEFINED;
+	m_space_id = SPACE_UNKNOWN;
 }
 
 /** Note that the data file was found.
@@ -207,17 +205,6 @@ Tablespace::delete_files()
 	}
 }
 
-/** Check if undo tablespace.
-@return true if undo tablespace */
-bool
-Tablespace::is_undo_tablespace(
-	ulint	id)
-{
-	return(id <= srv_undo_tablespaces_open
-	       && id != srv_sys_space.space_id()
-	       && id != srv_tmp_space.space_id());
-}
-
 /** Use the ADD DATAFILE path to create a Datafile object and add it to the
 front of m_files.
 Parse the datafile path into a path and a filename with extension 'ibd'.
@@ -225,7 +212,7 @@ This datafile_path provided may or may not be an absolute path, but it
 must end with the extension .ibd and have a basename of at least 1 byte.
 
 Set tablespace m_path member and add a Datafile with the filename.
-@param[in]	datafile_path	full path of the tablespace file. */
+@param[in]	datafile_added	full path of the tablespace file. */
 dberr_t
 Tablespace::add_datafile(
 	const char*	datafile_added)
@@ -236,6 +223,9 @@ Tablespace::add_datafile(
 	ut_ad(dot != NULL && 0 == strcmp(dot, DOT_IBD));
 
 	char* filepath = mem_strdup(datafile_added);
+	if (filepath == NULL) {
+		return(DB_OUT_OF_MEMORY);
+	}
 	os_normalize_path(filepath);
 
 	/* If the path is an absolute path, separate it onto m_path and a

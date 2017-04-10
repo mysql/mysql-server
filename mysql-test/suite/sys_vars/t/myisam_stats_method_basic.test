@@ -125,7 +125,7 @@ SET @@global.myisam_stats_method = ' ';
 
 --disable_warnings
 SELECT @@session.myisam_stats_method = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+FROM performance_schema.session_variables 
 WHERE VARIABLE_NAME='myisam_stats_method';
 --enable_warnings
 
@@ -136,7 +136,7 @@ WHERE VARIABLE_NAME='myisam_stats_method';
 
 --disable_warnings
 SELECT @@global.myisam_stats_method = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='myisam_stats_method';
 --enable_warnings
 

@@ -1,0 +1,13 @@
+# ==== Purpose ====
+#
+# Test the --[start|stop]-[position|datetime] options to mysqlbinlog,
+# with/without --read-from-remote-server, with one or two binary logs
+# as input.
+#
+# ==== Implementation ====
+
+# TODO: Need to look at making row based version once new binlog client is complete.
+-- source include/have_binlog_format_mixed_or_statement.inc
+
+--source extra/binlog_tests/binlog_mysqlbinlog_start_stop.inc
+

@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -17,8 +17,13 @@
 #define SQL_DIGEST_H
 
 #include <string.h>
-#include "sql_string.h"
-#include "my_md5.h"
+#include <sys/types.h>
+
+#include "my_inttypes.h"
+#include "my_md5_size.h"       // MD5_HASH_SIZE
+
+class String;
+
 
 #define MAX_DIGEST_STORAGE_SIZE (1024*1024)
 
@@ -120,9 +125,7 @@ void compute_digest_md5(const sql_digest_storage *digest_storage, unsigned char 
   - literal values are replaced with a special '?' marker,
   - lists of values are collapsed using a shorter notation
   @param digest_storage The digest
-  @param [out] digest_text
-  @param digest_text_length Size of @c digest_text.
-  @param [out] truncated true if the text representation was truncated
+  @param [out] digest_text The digest text
 */
 void compute_digest_text(const sql_digest_storage *digest_storage,
                          String *digest_text);

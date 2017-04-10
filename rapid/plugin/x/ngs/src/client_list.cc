@@ -19,6 +19,7 @@
 
 #include <iterator>
 #include "ngs/client_list.h"
+#include <iterator>
 
 using namespace ngs;
 

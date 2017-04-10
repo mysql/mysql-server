@@ -13,12 +13,11 @@ include/assert.inc [On slave, the group_name should be set NULL]
 include/assert.inc [Value returned by SSS and PS table for Source_UUID should be same.]
 include/assert.inc [thread_name should should indicate io thread.]
 include/assert.inc [SSS shows Slave_IO_Running as "Yes". So, Service_State from this PS table should be "ON".]
-include/assert.inc [IS and PS tables should both show that no heartbeats have been received.]
-include/assert.inc [IS table should give an empty output and PS table should output 0000-00-00 00:00:00 both indicating no heartbeats have been received]
+include/assert.inc [PS table should output 0000-00-00 00:00:00.000000 indicating no heartbeats have been received]
 include/assert.inc [Value returned by SSS and PS table for Received_Transaction_Set should be same.]
 include/assert.inc [Value returned by SSS and PS table for Last_Error_Number should be same.]
 include/assert.inc [Value returned by SSS and PS table for Last_Error_Message should be same.]
-include/assert.inc [Value returned by PS table for Last_Error_Timestamp should be 0000-00-00 00:00:00.]
+include/assert.inc [Value returned by PS table for Last_Error_Timestamp should be 0000-00-00 00:00:00.000000.]
 include/stop_slave.inc
 
 # heartbeat count and last heartbeat timestamp are indeterministic so we

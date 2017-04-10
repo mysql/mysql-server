@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2009, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -25,6 +25,9 @@ Created 7/29/1997 Heikki Tuuri
 
 #ifndef ibuf0types_h
 #define ibuf0types_h
+
+/* The insert buffer tree itself is always located in space 0. */
+#define IBUF_SPACE_ID		static_cast<space_id_t>(0)
 
 struct ibuf_t;
 

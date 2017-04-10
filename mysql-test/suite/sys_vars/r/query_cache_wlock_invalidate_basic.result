@@ -67,7 +67,7 @@ ERROR 42000: Variable 'query_cache_wlock_invalidate' can't be set to the value o
 SET @@session.query_cache_wlock_invalidate = ÕN;
 ERROR 42000: Variable 'query_cache_wlock_invalidate' can't be set to the value of 'ÕN'
 SET @@session.query_cache_wlock_invalidate = OF;
-ERROR 42000: Variable 'query_cache_wlock_invalidate' can't be set to the value of 'OF'
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'OF' at line 1
 SET @@session.query_cache_wlock_invalidate = ÓFF;
 ERROR 42000: Variable 'query_cache_wlock_invalidate' can't be set to the value of 'ÓFF'
 SET @@global.query_cache_wlock_invalidate = -1;
@@ -83,7 +83,7 @@ ERROR 42000: Variable 'query_cache_wlock_invalidate' can't be set to the value o
 SET @@global.query_cache_wlock_invalidate = ÕN;
 ERROR 42000: Variable 'query_cache_wlock_invalidate' can't be set to the value of 'ÕN'
 SET @@global.query_cache_wlock_invalidate = OF;
-ERROR 42000: Variable 'query_cache_wlock_invalidate' can't be set to the value of 'OF'
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'OF' at line 1
 SET @@global.query_cache_wlock_invalidate = ÓFF;
 ERROR 42000: Variable 'query_cache_wlock_invalidate' can't be set to the value of 'ÓFF'
 '#-------------------FN_DYNVARS_135_05----------------------------#'
@@ -98,7 +98,7 @@ res_is_1
 1
 '#----------------------FN_DYNVARS_135_06------------------------#'
 SELECT IF(@@global.query_cache_wlock_invalidate, "ON", "OFF") = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='query_cache_wlock_invalidate';
 IF(@@global.query_cache_wlock_invalidate, "ON", "OFF") = VARIABLE_VALUE
 1
@@ -106,13 +106,13 @@ SELECT @@global.query_cache_wlock_invalidate;
 @@global.query_cache_wlock_invalidate
 0
 SELECT VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='query_cache_wlock_invalidate';
 VARIABLE_VALUE
 OFF
 '#----------------------FN_DYNVARS_135_07------------------------#'
 SELECT IF(@@session.query_cache_wlock_invalidate, "ON", "OFF") = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+FROM performance_schema.session_variables 
 WHERE VARIABLE_NAME='query_cache_wlock_invalidate';
 IF(@@session.query_cache_wlock_invalidate, "ON", "OFF") = VARIABLE_VALUE
 1
@@ -120,7 +120,7 @@ SELECT @@session.query_cache_wlock_invalidate;
 @@session.query_cache_wlock_invalidate
 1
 SELECT VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+FROM performance_schema.session_variables 
 WHERE VARIABLE_NAME='query_cache_wlock_invalidate';
 VARIABLE_VALUE
 ON

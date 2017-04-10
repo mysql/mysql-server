@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2014, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2014, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -23,8 +23,8 @@ Instrumented memory allocator.
 Created May 26, 2014 Vasil Dimov
 *******************************************************/
 
+#include "my_compiler.h"
 #include "univ.i"
-
 #include "ut0new.h"
 
 /** Maximum number of retries to allocate memory. */
@@ -34,15 +34,19 @@ const size_t	alloc_max_retries = 60;
 Keep this list alphabetically sorted. */
 PSI_memory_key	mem_key_ahi;
 PSI_memory_key	mem_key_buf_buf_pool;
+PSI_memory_key	mem_key_buf_stat_per_index_t;
 PSI_memory_key	mem_key_dict_stats_bg_recalc_pool_t;
 PSI_memory_key	mem_key_dict_stats_index_map_t;
 PSI_memory_key	mem_key_dict_stats_n_diff_on_level;
 PSI_memory_key	mem_key_other;
+PSI_memory_key	mem_key_partitioning;
 PSI_memory_key	mem_key_row_log_buf;
 PSI_memory_key	mem_key_row_merge_sort;
 PSI_memory_key	mem_key_std;
 PSI_memory_key	mem_key_trx_sys_t_rw_trx_ids;
-PSI_memory_key	mem_key_partitioning;
+PSI_memory_key	mem_key_trx_sys_t_rsegs;
+PSI_memory_key	mem_key_ut_lock_free_hash_t;
+/* Please obey alphabetical order in the definitions above. */
 
 #ifdef UNIV_PFS_MEMORY
 
@@ -61,15 +65,19 @@ Keep this list alphabetically sorted. */
 static PSI_memory_info	pfs_info[] = {
 	{&mem_key_ahi, "adaptive hash index", 0},
 	{&mem_key_buf_buf_pool, "buf_buf_pool", 0},
+	{&mem_key_buf_stat_per_index_t, "buf_stat_per_index_t", 0},
 	{&mem_key_dict_stats_bg_recalc_pool_t, "dict_stats_bg_recalc_pool_t", 0},
 	{&mem_key_dict_stats_index_map_t, "dict_stats_index_map_t", 0},
 	{&mem_key_dict_stats_n_diff_on_level, "dict_stats_n_diff_on_level", 0},
 	{&mem_key_other, "other", 0},
+	{&mem_key_partitioning, "partitioning", 0},
 	{&mem_key_row_log_buf, "row_log_buf", 0},
 	{&mem_key_row_merge_sort, "row_merge_sort", 0},
 	{&mem_key_std, "std", 0},
 	{&mem_key_trx_sys_t_rw_trx_ids, "trx_sys_t::rw_trx_ids", 0},
-	{&mem_key_partitioning, "partitioning", 0},
+	{&mem_key_trx_sys_t_rsegs, "trx_sys_t::rsegs", 0},
+	{&mem_key_ut_lock_free_hash_t, "ut_lock_free_hash_t", 0},
+	/* Please obey alphabetical order in the definitions above. */
 };
 
 /** Map used for default performance schema keys, based on file name of the
@@ -98,79 +106,189 @@ ut_new_boot()
 	static const char*	auto_event_names[] = {
 		/* Keep this list alphabetically sorted. */
 		"api0api",
+		"api0misc",
 		"btr0btr",
 		"btr0bulk",
 		"btr0cur",
 		"btr0pcur",
 		"btr0sea",
+		"btr0types",
+		"buf",
+		"buf0buddy",
 		"buf0buf",
+		"buf0checksum",
 		"buf0dblwr",
 		"buf0dump",
 		"buf0flu",
 		"buf0lru",
+		"buf0rea",
+		"buf0stats",
+		"buf0types",
+		"checksum",
+		"crc32",
+		"create",
+		"data0data",
+		"data0type",
+		"data0types",
+		"db0err",
+		"dict",
+		"dict0boot",
+		"dict0crea",
 		"dict0dict",
+		"dict0load",
 		"dict0mem",
+		"dict0priv",
 		"dict0stats",
 		"dict0stats_bg",
+		"dict0types",
+		"dyn0buf",
+		"dyn0types",
 		"eval0eval",
+		"eval0proc",
 		"fil0fil",
+		"fil0types",
+		"file",
 		"fsp0file",
+		"fsp0fsp",
 		"fsp0space",
 		"fsp0sysspace",
+		"fsp0types",
 		"fts0ast",
+		"fts0blex",
 		"fts0config",
 		"fts0fts",
 		"fts0opt",
 		"fts0pars",
+		"fts0plugin",
+		"fts0priv",
 		"fts0que",
 		"fts0sql",
+		"fts0tlex",
+		"fts0tokenize",
+		"fts0types",
+		"fts0vlc",
+		"fut0fut",
+		"fut0lst",
+		"gis0geo",
+		"gis0rtree",
 		"gis0sea",
+		"gis0type",
 		"ha0ha",
+		"ha0storage",
 		"ha_innodb",
+		"ha_innopart",
+		"ha_prototypes",
 		"handler0alter",
 		"hash0hash",
 		"i_s",
+		"ib0mutex",
 		"ibuf0ibuf",
+		"ibuf0types",
 		"lexyy",
+		"lob0lob",
+		"lock0iter",
 		"lock0lock",
+		"lock0prdt",
+		"lock0priv",
+		"lock0types",
+		"lock0wait",
 		"log0log",
 		"log0recv",
+		"log0types",
+		"mach0data",
+		"mem",
 		"mem0mem",
+		"memory",
+		"mtr0log",
+		"mtr0mtr",
+		"mtr0types",
+		"os0atomic",
 		"os0event",
 		"os0file",
+		"os0numa",
+		"os0once",
+		"os0proc",
+		"os0thread",
+		"page",
 		"page0cur",
+		"page0page",
+		"page0size",
+		"page0types",
 		"page0zip",
+		"pars0grm",
 		"pars0lex",
+		"pars0opt",
+		"pars0pars",
+		"pars0sym",
+		"pars0types",
+		"que0que",
+		"que0types",
 		"read0read",
+		"read0types",
+		"rec",
+		"rem0cmp",
 		"rem0rec",
+		"rem0types",
+		"row0ext",
 		"row0ftsort",
 		"row0import",
+		"row0ins",
 		"row0log",
 		"row0merge",
 		"row0mysql",
+		"row0purge",
+		"row0quiesce",
+		"row0row",
 		"row0sel",
-		"row0trunc",
+		"row0types",
+		"row0uins",
+		"row0umod",
+		"row0undo",
+		"row0upd",
+		"row0vers",
+		"sess0sess",
 		"srv0conc",
+		"srv0mon",
 		"srv0srv",
 		"srv0start",
 		"sync0arr",
 		"sync0debug",
+		"sync0policy",
 		"sync0rw",
+		"sync0sync",
 		"sync0types",
 		"trx0i_s",
 		"trx0purge",
+		"trx0rec",
 		"trx0roll",
 		"trx0rseg",
 		"trx0sys",
 		"trx0trx",
+		"trx0types",
 		"trx0undo",
+		"trx0xa",
 		"usr0sess",
+		"usr0types",
+		"ut",
+		"ut0byte",
+		"ut0counter",
+		"ut0crc32",
+		"ut0dbg",
 		"ut0list",
+		"ut0lock_free_hash",
+		"ut0lst",
 		"ut0mem",
 		"ut0mutex",
+		"ut0new",
 		"ut0pool",
 		"ut0rbt",
+		"ut0rnd",
+		"ut0sort",
+		"ut0stage",
+		"ut0ut",
+		"ut0vec",
 		"ut0wqueue",
+		"zipdecompress",
 	};
 	static const size_t	n_auto = UT_ARR_SIZE(auto_event_names);
 	static PSI_memory_key	auto_event_keys[n_auto];

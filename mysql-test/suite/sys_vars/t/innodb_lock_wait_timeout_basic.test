@@ -22,7 +22,6 @@
 #                                                                             #
 ###############################################################################
 
---source include/have_innodb.inc
 
 SET @start_global_value=@@global.innodb_lock_wait_timeout;
 SELECT @start_global_value;
@@ -52,7 +51,7 @@ SELECT @@session.innodb_lock_wait_timeout;
 
 --disable_warnings
 SELECT @@GLOBAL.innodb_lock_wait_timeout = VARIABLE_VALUE
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='innodb_lock_wait_timeout';
 --enable_warnings
 --echo 1 Expected
@@ -62,7 +61,7 @@ SELECT COUNT(@@GLOBAL.innodb_lock_wait_timeout);
 
 --disable_warnings
 SELECT COUNT(VARIABLE_VALUE)
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='innodb_lock_wait_timeout';
 --enable_warnings
 --echo 1 Expected

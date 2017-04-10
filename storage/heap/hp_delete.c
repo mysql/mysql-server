@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,7 +15,12 @@
 
 /* remove current record in heap-database */
 
+#include <stddef.h>
+#include <sys/types.h>
+
 #include "heapdef.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
 
 int heap_delete(HP_INFO *info, const uchar *record)
 {
@@ -23,7 +28,7 @@ int heap_delete(HP_INFO *info, const uchar *record)
   HP_SHARE *share=info->s;
   HP_KEYDEF *keydef, *end, *p_lastinx;
   DBUG_ENTER("heap_delete");
-  DBUG_PRINT("enter",("info: 0x%lx  record: 0x%lx", (long) info, (long) record));
+  DBUG_PRINT("enter",("info: %p  record: %p", info, record));
 
   test_active(info);
 
@@ -123,7 +128,7 @@ int hp_delete_key(HP_INFO *info, HP_KEYDEF *keyinfo,
 
   while (pos->ptr_to_rec != recpos)
   {
-    if (flag && !hp_rec_key_cmp(keyinfo, record, pos->ptr_to_rec, 0))
+    if (flag && !hp_rec_key_cmp(keyinfo, record, pos->ptr_to_rec))
       last_ptr=pos;				/* Previous same key */
     gpos=pos;
     if (!(pos=pos->next_key))
@@ -140,8 +145,8 @@ int hp_delete_key(HP_INFO *info, HP_KEYDEF *keyinfo,
     /* Save for heap_rnext/heap_rprev */
     info->current_hash_ptr=last_ptr;
     info->current_ptr = last_ptr ? last_ptr->ptr_to_rec : 0;
-    DBUG_PRINT("info",("Corrected current_ptr to point at: 0x%lx",
-		       (long) info->current_ptr));
+    DBUG_PRINT("info",("Corrected current_ptr to point at: %p",
+		       info->current_ptr));
   }
   empty=pos;
   if (gpos)

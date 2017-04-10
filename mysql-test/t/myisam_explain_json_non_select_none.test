@@ -1,6 +1,8 @@
 # 
 # Run explain_non_select.inc on MyISAM without any of the socalled 6.0 features.
-#
+# Skipping the test with log-bin enabled due to Bug#22508362
+--source include/not_log_bin.inc
+
 --source include/force_myisam_default.inc
 --source include/have_myisam.inc
 --source include/have_64bit.inc

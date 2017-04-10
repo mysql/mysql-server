@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2014 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2016 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,6 +14,7 @@
    Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
 
 #include <NdbGetRUsage.h>
+#include <NdbMutex.h>
 
 #ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
@@ -47,15 +48,8 @@ micros(struct timeval val)
 #endif
 #endif
 
-/**
- * On Mac OS X we use the mach_task_self call to be able to
- * access thread info, this allocates memory, we only need
- * one global instance per process since a mach task is
- * representing the process, but we need to deallocate at end
- * of process, so we need an End call as well.
- */
 extern "C"
-void Ndb_GetRUsage_Init(void)
+void NdbGetRUsage_Init(void)
 {
 #ifdef HAVE_MAC_OS_X_THREAD_INFO
   our_mach_task = mach_task_self();
@@ -63,7 +57,7 @@ void Ndb_GetRUsage_Init(void)
 }
 
 extern "C"
-void Ndb_GetRUsage_End(void)
+void NdbGetRUsage_End(void)
 {
 #ifdef HAVE_MAC_OS_X_THREAD_INFO
   if (our_mach_task != MACH_PORT_NULL)
@@ -126,7 +120,7 @@ Ndb_GetRUsage(ndb_rusage* dst)
 #elif defined(HAVE_MAC_OS_X_THREAD_INFO)
   mach_port_t thread_port;
   kern_return_t ret_code;
-  mach_msg_type_number_t basic_info_count;
+  mach_msg_type_number_t basic_info_count = THREAD_BASIC_INFO_COUNT;
   thread_basic_info_data_t basic_info;
 
   /**
@@ -135,7 +129,8 @@ Ndb_GetRUsage(ndb_rusage* dst)
    * the code with keeping track of this value.
    */
   thread_port = mach_thread_self();
-  if (thread_port != MACH_PORT_NULL)
+  if (thread_port != MACH_PORT_NULL &&
+      thread_port != MACH_PORT_DEAD)
   {
     ret_code = thread_info(thread_port,
                            THREAD_BASIC_INFO,
@@ -166,6 +161,11 @@ Ndb_GetRUsage(ndb_rusage* dst)
     {
       res = -1;
     }
+  }
+  else if (thread_port == MACH_PORT_DEAD)
+  {
+    mach_port_deallocate(our_mach_task, thread_port);
+    res = -3;
   }
   else
   {

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2006, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2006, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -31,30 +31,13 @@ simple headers.
 
 #include "univ.i"
 
-#if !defined UNIV_HOTBACKUP && !defined UNIV_INNOCHECKSUM
+#if !defined UNIV_HOTBACKUP
 
 /* Forward declarations */
+class ha_innobase;
 class THD;
-class Field;
-struct fts_string_t;
 typedef struct charset_info_st CHARSET_INFO;
-
-/*********************************************************************//**
-Wrapper around MySQL's copy_and_convert function.
-@return number of bytes copied to 'to' */
-ulint
-innobase_convert_string(
-/*====================*/
-	void*		to,		/*!< out: converted string */
-	ulint		to_length,	/*!< in: number of bytes reserved
-					for the converted string */
-	CHARSET_INFO*	to_cs,		/*!< in: character set to convert to */
-	const void*	from,		/*!< in: string to convert */
-	ulint		from_length,	/*!< in: number of bytes to convert */
-	CHARSET_INFO*	from_cs,	/*!< in: character set to convert
-					from */
-	uint*		errors);	/*!< out: number of errors encountered
-					during the conversion */
+struct dict_table_t;
 
 /*******************************************************************//**
 Formats the raw data in "data" (in InnoDB on-disk format) that is of
@@ -166,7 +149,7 @@ at least ENUM and SET, and unsigned integer types are 'unsigned types'
 ulint
 get_innobase_type_from_mysql_type(
 	ulint*			unsigned_flag,
-	const void*		field);
+	const void*		f);
 
 /******************************************************************//**
 Get the variable length bounds of the given character set. */
@@ -179,22 +162,12 @@ innobase_get_cset_width(
 
 /******************************************************************//**
 Compares NUL-terminated UTF-8 strings case insensitively.
-@return 0 if a=b, <0 if a<b, >1 if a>b */
+@return 0 if a=b, < 0 if a < b, > 1 if a > b */
 int
 innobase_strcasecmp(
 /*================*/
 	const char*	a,	/*!< in: first string to compare */
 	const char*	b);	/*!< in: second string to compare */
-
-/******************************************************************//**
-Compares NUL-terminated UTF-8 strings case insensitively. The
-second string contains wildcards.
-@return 0 if a match is found, 1 if not */
-int
-innobase_wildcasecmp(
-/*=================*/
-	const char*	a,	/*!< in: string to compare */
-	const char*	b);	/*!< in: wildcard string to compare */
 
 /** Strip dir name from a full path name and return only the file name
 @param[in]	path_name	full path name
@@ -216,21 +189,21 @@ Converts an identifier to a table name. */
 void
 innobase_convert_from_table_id(
 /*===========================*/
-	CHARSET_INFO*	cs,	/*!< in: the 'from' character set */
-	char*		to,	/*!< out: converted identifier */
-	const char*	from,	/*!< in: identifier to convert */
-	ulint		len);	/*!< in: length of 'to', in bytes; should
-				be at least 5 * strlen(to) + 1 */
+	const CHARSET_INFO*	cs,	/*!< in: the 'from' character set */
+	char*			to,	/*!< out: converted identifier */
+	const char*		from,	/*!< in: identifier to convert */
+	ulint			len);	/*!< in: length of 'to', in bytes; should
+					be at least 5 * strlen(to) + 1 */
 /******************************************************************//**
 Converts an identifier to UTF-8. */
 void
 innobase_convert_from_id(
 /*=====================*/
-	CHARSET_INFO*	cs,	/*!< in: the 'from' character set */
-	char*		to,	/*!< out: converted identifier */
-	const char*	from,	/*!< in: identifier to convert */
-	ulint		len);	/*!< in: length of 'to', in bytes;
-				should be at least 3 * strlen(to) + 1 */
+	const CHARSET_INFO*	cs,	/*!< in: the 'from' character set */
+	char*			to,	/*!< out: converted identifier */
+	const char*		from,	/*!< in: identifier to convert */
+	ulint			len);	/*!< in: length of 'to', in bytes;
+					should be at least 3 * strlen(to) + 1 */
 /******************************************************************//**
 Makes all characters in a NUL-terminated UTF-8 string lower case. */
 void
@@ -241,7 +214,7 @@ innobase_casedn_str(
 /**********************************************************************//**
 Determines the connection character set.
 @return connection character set */
-CHARSET_INFO*
+const CHARSET_INFO*
 innobase_get_charset(
 /*=================*/
 	THD*	thd);	/*!< in: MySQL thread handle */
@@ -380,8 +353,7 @@ thd_start_time_in_secs(
 
 /*****************************************************************//**
 A wrapper function of innobase_convert_name(), convert a table name
-to the MySQL system_charset_info (UTF-8) and quote it if needed.
-@return pointer to the end of buf */
+to the MySQL system_charset_info (UTF-8) and quote it if needed. */
 void
 innobase_format_name(
 /*==================*/
@@ -436,15 +408,14 @@ ib_senderrf(
 	ib_uint32_t	code,		/*!< MySQL error code */
 	...);				/*!< Args */
 
-extern const char* 	TROUBLESHOOTING_MSG;
-extern const char* 	TROUBLESHOOT_DATADICT_MSG;
-extern const char* 	BUG_REPORT_MSG;
-extern const char* 	FORCE_RECOVERY_MSG;
-extern const char*      ERROR_CREATING_MSG;
-extern const char*      OPERATING_SYSTEM_ERROR_MSG;
-extern const char*      FOREIGN_KEY_CONSTRAINTS_MSG;
-extern const char*      SET_TRANSACTION_MSG;
-extern const char*      INNODB_PARAMETERS_MSG;
+extern const char*	TROUBLESHOOTING_MSG;
+extern const char*	TROUBLESHOOT_DATADICT_MSG;
+extern const char*	BUG_REPORT_MSG;
+extern const char*	FORCE_RECOVERY_MSG;
+extern const char*	ERROR_CREATING_MSG;
+extern const char*	OPERATING_SYSTEM_ERROR_MSG;
+extern const char*	FOREIGN_KEY_CONSTRAINTS_MSG;
+extern const char*	INNODB_PARAMETERS_MSG;
 
 /******************************************************************//**
 Returns the NUL terminated value of glob_hostname.
@@ -493,7 +464,7 @@ innobase_next_autoinc(
 Check if the length of the identifier exceeds the maximum allowed.
 The input to this function is an identifier in charset my_charset_filename.
 return true when length of identifier is too long. */
-my_bool
+bool
 innobase_check_identifier_length(
 /*=============================*/
 	const char*	id);	/* in: identifier to check.  it must belong
@@ -518,6 +489,12 @@ innobase_convert_to_filename_charset(
 	const char*	from,	/* in: identifier to convert */
 	ulint		len);	/* in: length of 'to', in bytes */
 
+
+/**********************************************************************
+Issue a warning that the row is too big. */
+void
+ib_warn_row_too_big(const dict_table_t*	table);
+
 /*************************************************************//**
 InnoDB index push-down condition check defined in ha_innodb.cc
 @return ICP_NO_MATCH, ICP_MATCH, or ICP_OUT_OF_RANGE */
@@ -527,7 +504,7 @@ InnoDB index push-down condition check defined in ha_innodb.cc
 ICP_RESULT
 innobase_index_cond(
 /*================*/
-	void*	file)	/*!< in/out: pointer to ha_innobase */
+	ha_innobase*	h)	/*!< in/out: pointer to ha_innobase */
 	MY_ATTRIBUTE((warn_unused_result));
 
 /******************************************************************//**
@@ -548,8 +525,7 @@ thd_requested_durability(
 buffer pool size.
 @param[in]	buf_pool_size	given value of buffer pool size.*/
 void
-innodb_set_buf_pool_size(ulonglong buf_pool_size);
+innodb_set_buf_pool_size(long long buf_pool_size);
 
-#endif /* !UNIV_HOTBACKUP && !UNIV_INNOCHECKSUM */
-
+#endif /* !UNIV_HOTBACKUP */
 #endif /* HA_INNODB_PROTOTYPES_H */

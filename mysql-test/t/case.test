@@ -1,9 +1,3 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
-
 # Testing of CASE
 #
 
@@ -38,6 +32,7 @@ select case when 1<0 then "TRUE" else "FALSE" END;
 create table t1 (a int);
 insert into t1 values(1),(2),(3),(4);
 select case a when 1 then 2 when 2 then 3 else 0 end as fcase, count(*) from t1 group by fcase;
+analyze table t1;
 explain extended select case a when 1 then 2 when 2 then 3 else 0 end as fcase, count(*) from t1 group by fcase;
 select case a when 1 then "one" when 2 then "two" else "nothing" end as fcase, count(*) from t1 group by fcase;
 drop table t1;
@@ -203,3 +198,86 @@ INSERT INTO t1 VALUES(990101.102);
 SELECT COALESCE(c1)FROM t1 ORDER BY 1;
 DROP TABLE t1;
 set @@sql_mode=default;
+
+--echo # Bug#24733658: IF and friends give wrong type for signed and unsigned
+
+CREATE TABLE source(bt INTEGER, bf INTEGER, i8u BIGINT UNSIGNED, i8s BIGINT);
+INSERT INTO source VALUES
+(1,0,0,-9223372036854775808), (1,0,18446744073709551615,9223372036854775807);
+
+CREATE TABLE target
+SELECT IF(bt,i8u,i8s) AS u, IF(bf,i8u,i8s) AS s
+FROM source;
+
+SHOW CREATE TABLE target;
+
+SELECT IF(bt,i8u,i8s) AS u, IF(bf,i8u,i8s) AS s
+FROM source;
+
+SELECT * FROM target;
+
+DROP TABLE target;
+
+CREATE TABLE target
+SELECT CASE WHEN bt THEN i8u ELSE i8s END AS u,
+       CASE WHEN bf THEN i8u ELSE i8s END AS s
+FROM source;
+
+SHOW CREATE TABLE target;
+
+SELECT CASE WHEN bt THEN i8u ELSE i8s END AS u,
+       CASE WHEN bf THEN i8u ELSE i8s END AS s
+FROM source;
+
+SELECT * FROM target;
+
+DROP TABLE target;
+
+CREATE TABLE target
+SELECT CASE bt WHEN TRUE THEN i8u WHEN FALSE THEN i8s END AS u,
+       CASE bf WHEN TRUE THEN i8u WHEN FALSE THEN i8s END AS s
+FROM source;
+
+SHOW CREATE TABLE target;
+
+SELECT CASE bt WHEN TRUE THEN i8u WHEN FALSE THEN i8s END AS u,
+       CASE bf WHEN TRUE THEN i8u WHEN FALSE THEN i8s END AS s
+FROM source;
+
+SELECT * FROM target;
+
+DROP TABLE target;
+
+CREATE TABLE target
+SELECT COALESCE(i8u, i8s) AS u, COALESCE(i8s, i8u) AS s
+FROM source;
+
+SHOW CREATE TABLE target;
+
+SELECT COALESCE(i8u, i8s) AS u, COALESCE(i8s, i8u) AS s
+FROM source;
+
+SELECT * FROM target;
+
+DROP TABLE source, target;
+
+--echo # Bug#25139420: BIT(n) data type confused when used with IF, IFNULL
+
+CREATE TABLE t (a bit(5));
+INSERT INTO t VALUES
+ (0),(1),(2),(3),(4),(5),(6),(7),(8),(9),
+ (10),(11),(12),(19),(20),(21),(29),(30),(31);
+
+let $query=
+SELECT HEX(a),
+       IFNULL(a,a) AS b,
+       IFNULL(a,a)+0 AS c,
+       IFNULL(a+0,a+0) AS d,
+       IFNULL(a+0,a) AS e,
+       IFNULL(a,a+0) AS f
+FROM t;
+
+eval $query;
+eval CREATE TABLE u AS $query;
+SHOW CREATE TABLE u;
+DROP TABLE t, u;

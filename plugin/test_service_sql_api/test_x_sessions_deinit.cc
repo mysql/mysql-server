@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,10 +13,14 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
-#include <stdlib.h>
-#include <my_global.h>
-#include "my_sys.h"                             // my_write, my_malloc
+#include <fcntl.h>
 #include <mysql/plugin.h>
+#include <stdlib.h>
+
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_io.h"
+#include "my_sys.h"                             // my_write, my_malloc
 
 static const char *log_filename= "test_x_sessions_deinit";
 
@@ -49,7 +53,7 @@ static struct st_mysql_sys_var *test_services_sysvars[]= {
 static File outfile;
 
 
-static void test_session_open(void *p)
+static void test_session_open(void*)
 {
   char buffer[STRING_BUFFER_SIZE];
   DBUG_ENTER("test_session_open");
@@ -77,7 +81,7 @@ static void test_session_open(void *p)
 }
 
 
-static void test_session(void *p)
+static void test_session(void*)
 {
   char buffer[STRING_BUFFER_SIZE];
   DBUG_ENTER("test_session");

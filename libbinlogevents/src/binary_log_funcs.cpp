@@ -207,15 +207,6 @@ int decimal_binary_size(int precision, int scale)
  }
 
 
-/**
- This helper function calculates the size in bytes of a particular field in a
- row type event as defined by the field_ptr and metadata_ptr arguments.
- @param col Field type code
- @param master_data The field data
- @param metadata The field metadata
-
- @return The size in bytes of a particular field
-*/
 uint32_t calc_field_size(unsigned char col, const unsigned char *master_data,
                          unsigned int metadata)
 {

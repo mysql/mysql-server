@@ -1,0 +1,29 @@
+# Tests for PERFORMANCE_SCHEMA
+
+#setup
+let $select_column = count(*);
+let $table = performance_schema.file_instances;
+
+select FILE_NAME, EVENT_NAME from performance_schema.file_instances
+  limit 1
+  into @fname, @ename;
+
+###########################################################################
+# Test index on FILE_NAME
+###########################################################################
+
+let $column_count = 1;
+let $col1 = FILE_NAME;
+let $col1_act = @fname;
+
+--source ../include/idx_explain_test.inc
+
+###########################################################################
+# Test index on EVENT_NAME
+###########################################################################
+
+let $column_count = 1;
+let $col1 = EVENT_NAME;
+let $col1_act = @ename;
+
+--source ../include/idx_explain_test.inc

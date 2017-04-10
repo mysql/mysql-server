@@ -1,6 +1,6 @@
 #ifndef SQL_PLIST_H
 #define SQL_PLIST_H
-/* Copyright (c) 2009, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,7 +16,9 @@
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 
-#include <my_global.h>
+#include <algorithm>
+
+#include "my_inttypes.h"
 
 template <typename T, typename L>
 class I_P_List_iterator;
@@ -34,31 +36,31 @@ template <typename T> class I_P_List_no_push_back;
    Unlike List is doubly-linked list and thus supports efficient deletion
    of element without iterator.
 
-   @param T  Type of elements which will belong to list.
-   @param B  Class which via its methods specifies which members
-             of T should be used for participating in this list.
-             Here is typical layout of such class:
+   @tparam T  Type of elements which will belong to list.
+   @tparam B  Class which via its methods specifies which members
+              of T should be used for participating in this list.
+              Here is typical layout of such class:
 
-             struct B
-             {
-               static inline T **next_ptr(T *el)
-               {
-                 return &el->next;
-               }
-               static inline T ***prev_ptr(T *el)
-               {
-                 return &el->prev;
-               }
-             };
-   @param C  Policy class specifying how counting of elements in the list
-             should be done. Instance of this class is also used as a place
-             where information about number of list elements is stored.
-             @sa I_P_List_null_counter, I_P_List_counter
-   @param I  Policy class specifying whether I_P_List should support
-             efficient push_back() operation. Instance of this class
-             is used as place where we store information to support
-             this operation.
-             @sa I_P_List_no_push_back, I_P_List_fast_push_back.
+              struct B
+              {
+                static inline T **next_ptr(T *el)
+                {
+                  return &el->next;
+                }
+                static inline T ***prev_ptr(T *el)
+                {
+                  return &el->prev;
+                }
+              };
+   @tparam C  Policy class specifying how counting of elements in the list
+              should be done. Instance of this class is also used as a place
+              where information about number of list elements is stored.
+              @sa I_P_List_null_counter, I_P_List_counter
+   @tparam I  Policy class specifying whether I_P_List should support
+              efficient push_back() operation. Instance of this class
+              is used as place where we store information to support
+              this operation.
+              @sa I_P_List_no_push_back, I_P_List_fast_push_back.
 */
 
 template <typename T, typename B,
@@ -139,7 +141,7 @@ public:
   }
   void swap(I_P_List<T, B, C> &rhs)
   {
-    swap_variables(T *, m_first, rhs.m_first);
+    std::swap(m_first, rhs.m_first);
     I::swap(rhs);
     if (m_first)
       *B::prev_ptr(m_first)= &m_first;
@@ -223,7 +225,7 @@ protected:
   void reset() {}
   void inc() {}
   void dec() {}
-  void swap(I_P_List_null_counter &rhs) {}
+  void swap(I_P_List_null_counter&) {}
 };
 
 
@@ -241,7 +243,7 @@ protected:
   void inc() {m_counter++;}
   void dec() {m_counter--;}
   void swap(I_P_List_counter &rhs)
-  { swap_variables(uint, m_counter, rhs.m_counter); }
+  { std::swap(m_counter, rhs.m_counter); }
 public:
   uint elements() const { return m_counter; }
 };
@@ -255,14 +257,14 @@ public:
 template <typename T> class I_P_List_no_push_back
 {
 protected:
-  I_P_List_no_push_back(T **a) {};
-  void set_last(T **a) {}
+  I_P_List_no_push_back(T**) {};
+  void set_last(T**) {}
   /*
     T** get_last() const method is intentionally left unimplemented
     in order to prohibit usage of push_back() method in lists which
     use this policy.
   */
-  void swap(I_P_List_no_push_back<T> &rhs) {}
+  void swap(I_P_List_no_push_back<T>&) {}
 };
 
 
@@ -279,7 +281,7 @@ protected:
   void set_last(T **a) { m_last= a; }
   T** get_last() const { return m_last; }
   void swap(I_P_List_fast_push_back<T> &rhs)
-  { swap_variables(T**, m_last, rhs.m_last); }
+  { std::swap(m_last, rhs.m_last); }
 };
 
 #endif

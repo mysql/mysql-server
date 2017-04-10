@@ -7,7 +7,6 @@
 # create test-bed
 #
 let $per_table = `select @@innodb_file_per_table`;
-let $format = `select @@innodb_file_format`;
 
 let $WL6501_TMP_DIR = `select @@tmpdir`;
 let $WL6501_DATA_DIR = `select @@datadir`;
@@ -45,7 +44,6 @@ delimiter ;|
 # create and load the tables.
 #
 eval set global innodb_file_per_table = $wl6501_file_per_table;
-eval set global innodb_file_format = $wl6501_file_format;
 --replace_regex /[0-9]+/NUMBER/
 eval create table t1
 	(i int, c1 char(100), c2 char(100),
@@ -84,6 +82,7 @@ select count(*) from t2;
 select count(*) from t3;
 #
 truncate table t2;
+--echo # WL#7811/WL#7743/WL#7141 TODO: Remove the warnings!
 truncate table t3;
 select count(*) from t1;
 select count(*) from t2;
@@ -109,5 +108,4 @@ drop procedure populate_small;
 #
 # remove test-bed
 #
-eval set global innodb_file_format = $format;
 eval set global innodb_file_per_table = $per_table;

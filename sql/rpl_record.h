@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,18 +16,20 @@
 #ifndef RPL_RECORD_H
 #define RPL_RECORD_H
 
-#include "my_global.h"
+#include <stddef.h>
+#include <sys/types.h>
+
+#include "my_inttypes.h"
 
 class Relay_log_info;
 struct TABLE;
+
 typedef struct st_bitmap MY_BITMAP;
 
-#if !defined(MYSQL_CLIENT)
+#if defined(MYSQL_SERVER)
 size_t pack_row(TABLE* table, MY_BITMAP const* cols,
                 uchar *row_data, const uchar *data);
-#endif
 
-#if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
 int unpack_row(Relay_log_info const *rli,
                TABLE *table, uint const colcnt,
                uchar const *const row_data, MY_BITMAP const *cols,

@@ -1,45 +1,40 @@
 include/master-slave.inc
 [connection master]
+[connection slave]
 set @restore_slave_net_timeout= @@global.slave_net_timeout;
 set @@global.slave_net_timeout= 10;
-SHOW STATUS LIKE "Slave_last_heartbeat";
-Variable_name	Slave_last_heartbeat
-Value	
+SELECT LAST_HEARTBEAT_TIMESTAMP FROM performance_schema.replication_connection_status;
 change master to master_host='127.0.0.1',master_port=MASTER_PORT, master_user='root';
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
-show status like 'Slave_heartbeat_period';;
-Variable_name	Slave_heartbeat_period
-Value	5.000
+SELECT HEARTBEAT_INTERVAL FROM performance_schema.replication_connection_configuration;
+HEARTBEAT_INTERVAL	5.000
 change master to master_host='127.0.0.1',master_port=MASTER_PORT, master_user='root', master_heartbeat_period= 4294968;
 ERROR HY000: The requested value for the heartbeat period is either negative or exceeds the maximum allowed (4294967 seconds).
-show status like 'Slave_heartbeat_period';;
-Variable_name	Slave_heartbeat_period
-Value	5.000
+SELECT HEARTBEAT_INTERVAL FROM performance_schema.replication_connection_configuration;
+HEARTBEAT_INTERVAL	5.000
+[connection slave]
 change master to master_host='127.0.0.1',master_port=MASTER_PORT, master_user='root', master_heartbeat_period= 0.0009999;
 Warnings:
 Warning	####	The requested value for the heartbeat period is less than 1 millisecond. The value is reset to 0, meaning that heartbeating will effectively be disabled.
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
-show status like 'Slave_heartbeat_period';;
-Variable_name	Slave_heartbeat_period
-Value	0.000
+SELECT HEARTBEAT_INTERVAL FROM performance_schema.replication_connection_configuration;
+HEARTBEAT_INTERVAL	0.000
 change master to master_host='127.0.0.1',master_port=MASTER_PORT, master_user='root', master_heartbeat_period= 4294967;
 Warnings:
 Warning	####	The requested value for the heartbeat period exceeds the value of `slave_net_timeout' seconds. A sensible value for the period should be less than the timeout.
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
-show status like 'Slave_heartbeat_period';;
-Variable_name	Slave_heartbeat_period
-Value	4294967.000
+SELECT HEARTBEAT_INTERVAL FROM performance_schema.replication_connection_configuration;
+HEARTBEAT_INTERVAL	4294967.000
 change master to master_host='127.0.0.1',master_port=MASTER_PORT, master_user='root', master_heartbeat_period= 0.001;
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
-show status like 'Slave_heartbeat_period';;
-Variable_name	Slave_heartbeat_period
-Value	0.001
+SELECT HEARTBEAT_INTERVAL FROM performance_schema.replication_connection_configuration;
+HEARTBEAT_INTERVAL	0.001
 reset slave;
 set @@global.slave_net_timeout= 5;
 change master to master_host='127.0.0.1',master_port=MASTER_PORT, master_user='root', master_heartbeat_period= 5.001;
@@ -47,9 +42,8 @@ Warnings:
 Warning	####	The requested value for the heartbeat period exceeds the value of `slave_net_timeout' seconds. A sensible value for the period should be less than the timeout.
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
-show status like 'Slave_heartbeat_period';;
-Variable_name	Slave_heartbeat_period
-Value	5.001
+SELECT HEARTBEAT_INTERVAL FROM performance_schema.replication_connection_configuration;
+HEARTBEAT_INTERVAL	5.001
 reset slave;
 set @@global.slave_net_timeout= 5;
 Warnings:
@@ -58,56 +52,58 @@ change master to master_host='127.0.0.1',master_port=MASTER_PORT, master_user='r
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
-show status like 'Slave_heartbeat_period';;
-Variable_name	Slave_heartbeat_period
-Value	4.000
+SELECT HEARTBEAT_INTERVAL FROM performance_schema.replication_connection_configuration;
+HEARTBEAT_INTERVAL	4.000
 set @@global.slave_net_timeout= 3 /* must be a warning */;
 Warnings:
 Warning	1704	The requested value for the heartbeat period exceeds the value of `slave_net_timeout' seconds. A sensible value for the period should be less than the timeout.
 reset slave;
+[connection master]
 drop table if exists t1;
+[connection slave]
 set @@global.slave_net_timeout= 10;
 change master to master_host='127.0.0.1',master_port=MASTER_PORT, master_user='root', master_heartbeat_period= 0.5;
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
-show status like 'Slave_heartbeat_period';;
-Variable_name	Slave_heartbeat_period
-Value	0.500
+SELECT HEARTBEAT_INTERVAL FROM performance_schema.replication_connection_configuration;
+HEARTBEAT_INTERVAL	0.500
 start slave;
+[connection master]
 create table t1 (f1 int);
 include/sync_slave_sql_with_master.inc
 include/check_slave_param.inc [Relay_Log_File]
-show status like 'Slave_heartbeat_period';;
-Variable_name	Slave_heartbeat_period
-Value	0.500
+SELECT HEARTBEAT_INTERVAL FROM performance_schema.replication_connection_configuration;
+HEARTBEAT_INTERVAL	0.500
 A heartbeat has been received by the slave
-include/assert.inc [Slave_last_heartbeat should not be empty]
+include/assert.inc [last_heartbeat_timestamp should not be empty]
+[connection master]
 drop table t1;
 include/sync_slave_sql_with_master.inc
 set @@global.slave_net_timeout= @restore_slave_net_timeout;
+[connection slave]
 include/stop_slave.inc
 CHANGE MASTER TO MASTER_HEARTBEAT_PERIOD= 10;
-include/assert.inc [Slave_heartbeat_period should be 10.000]
+include/assert.inc [HEARTBEAT_INTERVAL should be 10.000]
 
 # Verify that heartbeat period is not reset to default implicitly and
 # received_heartbeat is not set to 0 by this.
 
 CHANGE MASTER TO MASTER_RETRY_COUNT= 3;
-include/assert.inc [Slave_heartbeat_period should be 10.000]
-include/assert.inc [Slave_received_heartbeat should NOT be set to 0]
+include/assert.inc [HEARTBEAT_INTERVAL should be 10.000]
+include/assert.inc [COUNT_RECEIVED_HEARTBEATS should NOT be set to 0]
 include/stop_slave.inc
 Warnings:
 Note	3084	Replication thread(s) for channel '' are already stopped.
 RESET SLAVE;
 include/start_slave.inc
-include/assert.inc [heartbeat period should still be 10.000 after RESET SLAVE.]
+include/assert.inc [HEARTBEAT_INTERVAL should still be 10.000 after RESET SLAVE.]
 include/stop_slave_io.inc
 CHANGE MASTER TO MASTER_HOST= 'localhost', MASTER_PORT= MASTER_PORT;
 include/start_slave.inc
-include/assert.inc [heartbeat period should reset to default.]
+include/assert.inc [HEARTBEAT_INTERVAL should reset to default.]
 #
-# Change from default to make sure changing HOST resets heartbeat_period
+# Change from default to make sure changing HOST resets heartbeat_interval
 # to default.
 #
 include/stop_slave_io.inc
@@ -116,9 +112,9 @@ include/start_slave.inc
 include/stop_slave.inc
 CHANGE MASTER TO MASTER_HOST= '127.0.0.1';
 include/start_slave.inc
-include/assert.inc [heartbeat period should reset to default on changing host.]
+include/assert.inc [heartbeat_interval should reset to default on changing host.]
 #
-# Change from default to make sure changing PORT resets heartbeat_period
+# Change from default to make sure changing PORT resets heartbeat_interval
 # to default.
 #
 include/stop_slave.inc
@@ -127,7 +123,7 @@ include/start_slave.inc
 include/stop_slave.inc
 CHANGE MASTER TO MASTER_PORT= MASTER_PORT;
 include/start_slave.inc
-include/assert.inc [heartbeat period should reset to default on changing port.]
+include/assert.inc [heartbeat_interval should reset to default on changing port.]
 #
 # Change from default to make sure changing HOST and PORT resets
 # heartbeat_period to default.
@@ -135,10 +131,10 @@ include/assert.inc [heartbeat period should reset to default on changing port.]
 include/stop_slave.inc
 CHANGE MASTER TO MASTER_HOST= '127.0.0.1', MASTER_PORT= MASTER_PORT;
 include/start_slave.inc
-include/assert.inc [heartbeat period should reset to default on changing host and port.]
+include/assert.inc [heartbeat_interval should reset to default on changing host and port.]
 include/stop_slave.inc
 RESET SLAVE ALL;
-include/assert.inc [heartbeat period should reset to zero by RESET SLAVE ALL.]
+include/assert.inc [heartbeat_interval should reset to zero by RESET SLAVE ALL.]
 change master to master_host= '127.0.0.1', master_port= MASTER_PORT, master_user= 'root';
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.

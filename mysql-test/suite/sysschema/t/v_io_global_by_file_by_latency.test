@@ -12,7 +12,7 @@ SELECT * FROM sys.io_global_by_file_by_latency;
 --enable_result_log
 
 
-# Ensure structure changes don't slip in
+## Ensure structure changes don't slip in
 DESC sys.x$io_global_by_file_by_latency;
 
 # Make sure view select does not error, but ignore results

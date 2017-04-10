@@ -2,7 +2,6 @@
 # Test TRIM() function with Japanese characters sjis encoding
 #
 
---source include/have_sjis.inc
 --character_set sjis
 SET NAMES sjis;
 SET character_set_database = sjis;

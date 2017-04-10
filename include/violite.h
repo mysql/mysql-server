@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,20 +13,44 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-/*
- * Vio Lite.
- * Purpose: include file for Vio that will work with C and C++
- */
+/**
+  @file include/violite.h
+  Vio Lite.
+  Purpose: include file for Vio that will work with C and C++.
+*/
 
 #ifndef vio_violite_h_
 #define	vio_violite_h_
 
+#include "my_config.h"
+
 #include <my_thread.h> /* my_thread_handle */
-#include <mysql/psi/psi.h>
-#include <pfs_socket_provider.h>
 #include <mysql/psi/mysql_socket.h>
+#include <stddef.h>
+#ifdef HAVE_SYS_SOCKET_H
+#include <sys/socket.h>
+#endif
+#include <sys/types.h>
+
+#include "my_inttypes.h"
+#include "my_io.h"
+#include "my_psi_config.h"  // IWYU pragma: keep
+
+struct st_vio;
 
 /* Simple vio interface in C;  The functions are implemented in violite.c */
+
+#if !defined(_WIN32) && !defined(HAVE_KQUEUE) && !defined(__SUNPRO_CC)
+#define USE_PPOLL_IN_VIO
+#endif
+
+#if defined(__cplusplus) && defined(USE_PPOLL_IN_VIO)
+#include <signal.h>
+#include <atomic>
+#elif defined(__cplusplus) && defined(HAVE_KQUEUE)
+#include <sys/event.h>
+#include <atomic>
+#endif
 
 #ifdef	__cplusplus
 extern "C" {
@@ -38,6 +62,9 @@ void init_vio_psi_keys();
 
 #ifdef __cplusplus
 typedef struct st_vio Vio;
+#define MYSQL_VIO Vio*
+#else
+#define MYSQL_VIO void*
 #endif /* __cplusplus */
 
 enum enum_vio_type
@@ -104,13 +131,13 @@ enum enum_vio_io_event
 #define VIO_LOCALHOST 1                         /* a localhost connection */
 #define VIO_BUFFERED_READ 2                     /* use buffered read */
 #define VIO_READ_BUFFER_SIZE 16384              /* size of read buffer */
-#define VIO_DESCRIPTION_SIZE 30                 /* size of description */
 
-Vio* vio_new(my_socket sd, enum enum_vio_type type, uint flags);
-Vio*  mysql_socket_vio_new(MYSQL_SOCKET mysql_socket, enum enum_vio_type type, uint flags);
+MYSQL_VIO vio_new(my_socket sd, enum enum_vio_type type, uint flags);
+MYSQL_VIO  mysql_socket_vio_new(MYSQL_SOCKET mysql_socket, enum enum_vio_type type, uint flags);
+
 #ifdef _WIN32
-Vio* vio_new_win32pipe(HANDLE hPipe);
-Vio* vio_new_win32shared_memory(HANDLE handle_file_map,
+MYSQL_VIO vio_new_win32pipe(HANDLE hPipe);
+MYSQL_VIO vio_new_win32shared_memory(HANDLE handle_file_map,
                                 HANDLE handle_map,
                                 HANDLE event_server_wrote,
                                 HANDLE event_server_read,
@@ -121,47 +148,48 @@ Vio* vio_new_win32shared_memory(HANDLE handle_file_map,
 #define HANDLE void *
 #endif /* _WIN32 */
 
-void    vio_delete(Vio* vio);
-int vio_shutdown(Vio* vio);
-my_bool vio_reset(Vio* vio, enum enum_vio_type type,
-                  my_socket sd, void *ssl, uint flags);
-size_t  vio_read(Vio *vio, uchar *	buf, size_t size);
-size_t  vio_read_buff(Vio *vio, uchar * buf, size_t size);
-size_t  vio_write(Vio *vio, const uchar * buf, size_t size);
+void    vio_delete(MYSQL_VIO vio);
+int vio_shutdown(MYSQL_VIO vio);
+bool vio_reset(MYSQL_VIO vio, enum enum_vio_type type,
+               my_socket sd, void *ssl, uint flags);
+size_t  vio_read(MYSQL_VIO vio, uchar *	buf, size_t size);
+size_t  vio_read_buff(MYSQL_VIO vio, uchar * buf, size_t size);
+size_t  vio_write(MYSQL_VIO vio, const uchar * buf, size_t size);
 /* setsockopt TCP_NODELAY at IPPROTO_TCP level, when possible */
-int vio_fastsend(Vio *vio);
+int vio_fastsend(MYSQL_VIO vio);
 /* setsockopt SO_KEEPALIVE at SOL_SOCKET level, when possible */
-int vio_keepalive(Vio *vio, my_bool	onoff);
+int vio_keepalive(MYSQL_VIO vio, bool	onoff);
 /* Whenever we should retry the last read/write operation. */
-my_bool vio_should_retry(Vio *vio);
+bool vio_should_retry(MYSQL_VIO vio);
 /* Check that operation was timed out */
-my_bool vio_was_timeout(Vio *vio);
+bool vio_was_timeout(MYSQL_VIO vio);
 /* Short text description of the socket for those, who are curious.. */
-const char* vio_description(Vio *vio);
+#define VIO_DESCRIPTION_SIZE 30                 /* size of description */
+void vio_description(MYSQL_VIO vio, char *buf);
 /* Return the type of the connection */
-enum enum_vio_type vio_type(Vio* vio);
+enum enum_vio_type vio_type(MYSQL_VIO vio);
 /* Return last error number */
-int	vio_errno(Vio*vio);
+int	vio_errno(MYSQL_VIO vio);
 /* Get socket number */
-my_socket vio_fd(Vio*vio);
+my_socket vio_fd(MYSQL_VIO vio);
 /* Remote peer's address and name in text form */
-my_bool vio_peer_addr(Vio *vio, char *buf, uint16 *port, size_t buflen);
+bool vio_peer_addr(MYSQL_VIO vio, char *buf, uint16 *port, size_t buflen);
 /* Wait for an I/O event notification. */
-int vio_io_wait(Vio *vio, enum enum_vio_io_event event, int timeout);
-my_bool vio_is_connected(Vio *vio);
+int vio_io_wait(MYSQL_VIO vio, enum enum_vio_io_event event, int timeout);
+bool vio_is_connected(MYSQL_VIO vio);
 #ifndef DBUG_OFF
-ssize_t vio_pending(Vio *vio);
+ssize_t vio_pending(MYSQL_VIO vio);
 #endif
 /* Set timeout for a network operation. */
-int vio_timeout(Vio *vio, uint which, int timeout_sec);
+int vio_timeout(MYSQL_VIO vio, uint which, int timeout_sec);
 /* Connect to a peer. */
-my_bool vio_socket_connect(Vio *vio, struct sockaddr *addr, socklen_t len,
-                           int timeout);
+bool vio_socket_connect(MYSQL_VIO vio, struct sockaddr *addr, socklen_t len,
+                        int timeout);
 
-my_bool vio_get_normalized_ip_string(const struct sockaddr *addr, size_t addr_length,
-                                     char *ip_string, size_t ip_string_size);
+bool vio_get_normalized_ip_string(const struct sockaddr *addr, size_t addr_length,
+                                  char *ip_string, size_t ip_string_size);
 
-my_bool vio_is_no_name_error(int err_code);
+bool vio_is_no_name_error(int err_code);
 
 int vio_getnameinfo(const struct sockaddr *sa,
                     char *hostname, size_t hostname_size,
@@ -189,10 +217,9 @@ int vio_getnameinfo(const struct sockaddr *sa,
 /* Set yaSSL to use same type as MySQL do for socket handles */
 typedef my_socket YASSL_SOCKET_T;
 #define YASSL_SOCKET_T_DEFINED
-#include <openssl/ssl.h>
 #include <openssl/err.h>
+#include <openssl/ssl.h>
 
-#ifndef EMBEDDED_LIBRARY
 enum enum_ssl_init_error
 {
   SSL_INITERR_NOERROR= 0, SSL_INITERR_CERT, SSL_INITERR_KEY, 
@@ -207,8 +234,8 @@ struct st_VioSSLFd
   SSL_CTX *ssl_context;
 };
 
-int sslaccept(struct st_VioSSLFd*, Vio *, long timeout, unsigned long *errptr);
-int sslconnect(struct st_VioSSLFd*, Vio *, long timeout, unsigned long *errptr);
+int sslaccept(struct st_VioSSLFd*, MYSQL_VIO, long timeout, unsigned long *errptr);
+int sslconnect(struct st_VioSSLFd*, MYSQL_VIO, long timeout, unsigned long *errptr);
 
 struct st_VioSSLFd
 *new_VioSSLConnectorFd(const char *key_file, const char *cert_file,
@@ -227,15 +254,10 @@ void free_vio_ssl_acceptor_fd(struct st_VioSSLFd *fd);
 
 void vio_ssl_end();
 
-#endif /* ! EMBEDDED_LIBRARY */
 #endif /* HAVE_OPENSSL */
 
 void ssl_start(void);
 void vio_end(void);
-
-#ifdef  __cplusplus
-}
-#endif
 
 #if !defined(DONT_MAP_VIO)
 #define vio_delete(vio)                         (vio)->viodelete(vio)
@@ -262,31 +284,52 @@ enum SSL_type
   SSL_TYPE_SPECIFIED
 };
 
-
+#ifdef __cplusplus
 /* HFTODO - hide this if we don't want client in embedded server */
 /* This structure is for every connection on both sides */
 struct st_vio
 {
   MYSQL_SOCKET  mysql_socket;           /* Instrumented socket */
-  my_bool       localhost;              /* Are we from localhost? */
+  bool          localhost= { false };   /* Are we from localhost? */
+  enum_vio_type type= { NO_VIO_TYPE };  /* Type of connection */
+
+  int           read_timeout= { -1 };   /* Timeout value (ms) for read ops. */
+  int           write_timeout= { -1 };  /* Timeout value (ms) for write ops. */
+  int           retry_count= { 1 };     /* Retry count */
+  bool          inactive= { false };    /* Connection has been shutdown */
+
   struct sockaddr_storage   local;      /* Local internet address */
   struct sockaddr_storage   remote;     /* Remote internet address */
-  size_t addrLen;                       /* Length of remote address */
-  enum enum_vio_type    type;           /* Type of connection */
-  my_bool               inactive; /* Connection inactive (has been shutdown) */
-  char                  desc[VIO_DESCRIPTION_SIZE]; /* Description string. This
-                                                      member MUST NOT be
-                                                      used directly, but only
-                                                      via function
-                                                      "vio_description" */
-  char                  *read_buffer;   /* buffer for vio_read_buff */
-  char                  *read_pos;      /* start of unfetched data in the
-                                           read buffer */
-  char                  *read_end;      /* end of unfetched data */
-  int                   read_timeout;   /* Timeout value (ms) for read ops. */
-  int                   write_timeout;  /* Timeout value (ms) for write ops. */
-  
-  /* 
+  size_t        addrLen= { 0 };         /* Length of remote address */
+  char *read_buffer= { nullptr };   /* buffer for vio_read_buff */
+  char *read_pos= { nullptr };      /* start of unfetched data in the
+                                       read buffer */
+  char *read_end= { nullptr };      /* end of unfetched data */
+
+#ifdef USE_PPOLL_IN_VIO
+  my_thread_t           thread_id= { 0 }; // Thread PID
+  sigset_t              signal_mask;      // Signal mask
+  /*
+    Flag to indicate whether we are in poll or shutdown.
+    A true value of flag indicates either the socket
+    has called  shutdown or it is sleeping on a poll call.
+    False value of this flag means that the socket is
+    not sleeping on a poll call.
+    This flag provides synchronization between two threads
+    one entering vio_io_wait and another entering vio_shutdown
+    for the same socket. If the other thread is waiting on poll
+    sleep, it wakes up the thread by sending a signal via
+    pthread_kill. Also it ensures that no other thread enters in
+    to a poll call if it's socket has undergone shutdown.
+
+  */
+  std::atomic_flag      poll_shutdown_flag= ATOMIC_FLAG_INIT;
+#elif defined HAVE_KQUEUE
+  int                   kq_fd= { -1 };
+  std::atomic_flag      kevent_wakeup_flag= ATOMIC_FLAG_INIT;
+#endif
+
+  /*
      VIO vtable interface to be implemented by VIO's like SSL, Socket,
      Named Pipe, etc.
   */
@@ -295,44 +338,61 @@ struct st_vio
      viodelete is responsible for cleaning up the VIO object by freeing 
      internal buffers, closing descriptors, handles. 
   */
-  void    (*viodelete)(Vio*);
-  int     (*vioerrno)(Vio*);
-  size_t  (*read)(Vio*, uchar *, size_t);
-  size_t  (*write)(Vio*, const uchar *, size_t);
-  int     (*timeout)(Vio*, uint, my_bool);
-  int     (*viokeepalive)(Vio*, my_bool);
-  int     (*fastsend)(Vio*);
-  my_bool (*peer_addr)(Vio*, char *, uint16*, size_t);
-  void    (*in_addr)(Vio*, struct sockaddr_storage*);
-  my_bool (*should_retry)(Vio*);
-  my_bool (*was_timeout)(Vio*);
+  void    (*viodelete)(MYSQL_VIO)= { nullptr };
+  int     (*vioerrno)(MYSQL_VIO)= { nullptr };
+  size_t  (*read)(MYSQL_VIO, uchar *, size_t)= { nullptr };
+  size_t  (*write)(MYSQL_VIO, const uchar *, size_t)= { nullptr };
+  int     (*timeout)(MYSQL_VIO, uint, bool)= { nullptr };
+  int     (*viokeepalive)(MYSQL_VIO, bool)= { nullptr };
+  int     (*fastsend)(MYSQL_VIO)= { nullptr };
+  bool (*peer_addr)(MYSQL_VIO, char *, uint16*, size_t)= { nullptr };
+  void    (*in_addr)(MYSQL_VIO, struct sockaddr_storage*)= { nullptr };
+  bool (*should_retry)(MYSQL_VIO)= { nullptr };
+  bool (*was_timeout)(MYSQL_VIO)= { nullptr };
   /* 
      vioshutdown is resposnible to shutdown/close the channel, so that no 
      further communications can take place, however any related buffers,
      descriptors, handles can remain valid after a shutdown.
   */
-  int     (*vioshutdown)(Vio*);
-  my_bool (*is_connected)(Vio*);
-  my_bool (*has_data) (Vio*);
-  int (*io_wait)(Vio*, enum enum_vio_io_event, int);
-  my_bool (*connect)(Vio*, struct sockaddr *, socklen_t, int);
+  int     (*vioshutdown)(MYSQL_VIO)= { nullptr };
+  bool (*is_connected)(MYSQL_VIO)= { nullptr };
+  bool (*has_data) (MYSQL_VIO)= { nullptr };
+  int (*io_wait)(MYSQL_VIO, enum enum_vio_io_event, int)= { nullptr };
+  bool (*connect)(MYSQL_VIO, struct sockaddr *, socklen_t, int)= { nullptr };
 #ifdef _WIN32
-  OVERLAPPED overlapped;
-  HANDLE hPipe;
+  OVERLAPPED overlapped = { 0 };
+  HANDLE hPipe { nullptr };
 #endif
 #ifdef HAVE_OPENSSL
-  void    *ssl_arg;
+  void    *ssl_arg= { nullptr };
 #endif
-#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
-  HANDLE  handle_file_map;
-  char    *handle_map;
-  HANDLE  event_server_wrote;
-  HANDLE  event_server_read;
-  HANDLE  event_client_wrote;
-  HANDLE  event_client_read;
-  HANDLE  event_conn_closed;
-  size_t  shared_memory_remain;
-  char    *shared_memory_pos;
-#endif /* _WIN32 && !EMBEDDED_LIBRARY */
+#if defined (_WIN32)
+  HANDLE  handle_file_map= { nullptr };
+  char    *handle_map= { nullptr };
+  HANDLE  event_server_wrote= { nullptr };
+  HANDLE  event_server_read= { nullptr };
+  HANDLE  event_client_wrote= { nullptr };
+  HANDLE  event_client_read= { nullptr };
+  HANDLE  event_conn_closed= { nullptr };
+  size_t  shared_memory_remain= { 0 };
+  char    *shared_memory_pos= { nullptr };
+#endif /* _WIN32 */
+
+private:
+  friend st_vio *internal_vio_create(uint flags);
+  friend void internal_vio_delete(st_vio *vio);
+  friend bool vio_reset(Vio* vio, enum_vio_type type,
+                        my_socket sd, void *ssl, uint flags);
+
+  explicit st_vio(uint flags);
+  ~st_vio();
+
+public:
+  st_vio(const st_vio&) = delete;
+  st_vio &operator=(const st_vio&) = delete;
 };
+
+}
+#endif /* __cpluscplus */
+
 #endif /* vio_violite_h_ */

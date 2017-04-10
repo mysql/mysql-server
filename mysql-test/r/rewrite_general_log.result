@@ -27,6 +27,9 @@ MAX_QUERIES_PER_HOUR 1 MAX_UPDATES_PER_HOUR 2
 MAX_CONNECTIONS_PER_HOUR 3 MAX_USER_CONNECTIONS 4;
 GRANT USAGE ON test.* TO test_user3@localhost WITH GRANT OPTION;
 ALTER USER test_user3@localhost REQUIRE NONE;
+GRANT ROLE_ADMIN, SYSTEM_VARIABLES_ADMIN, SELECT ON *.* TO test_user3@localhost IDENTIFIED BY 'meow';
+Warnings:
+Warning	1287	Using GRANT statement to modify existing user's properties other than privileges is deprecated and will be removed in future release. Use ALTER USER statement for this operation.
 DROP PROCEDURE proc_rewrite_1;
 DROP FUNCTION  func_rewrite_1;
 DROP TABLE     t1;
@@ -49,19 +52,22 @@ SELECT argument FROM mysql.general_log WHERE argument LIKE CONCAT('%azun','dris%
 argument
 Show that we logged stuff at all:
 ------ from file ------
-SELECT TRIM(LEADING '\t' FROM MID(argument,LOCATE('Query',argument)+5)) FROM test_log WHERE argument LIKE '%AS %';
+SELECT TRIM(LEADING '\t' FROM MID(argument,LOCATE('Query',argument)+5)) FROM test_log WHERE argument LIKE '%AS %' AND
+argument NOT LIKE '%Prepare%';
 TRIM(LEADING '\t' FROM MID(argument,LOCATE('Query',argument)+5))
 CREATE USER 'test_user1'@'%' IDENTIFIED WITH 'mysql_native_password' AS '<secret>'
 CREATE USER 'test_user3'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '<secret>' REQUIRE SSL
 ALTER USER 'test_user3'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '<secret>' REQUIRE X509 WITH MAX_QUERIES_PER_HOUR 1 MAX_UPDATES_PER_HOUR 2 MAX_CONNECTIONS_PER_HOUR 3 MAX_USER_CONNECTIONS 4
+GRANT SELECT, ROLE_ADMIN, SYSTEM_VARIABLES_ADMIN ON *.* TO 'test_user3'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '<secret>'
 CREATE USER 'test_user2'@'%' IDENTIFIED WITH 'mysql_native_password' AS '<secret>'
 ALTER USER 'test_user4'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '<secret>'
 ------ from table ------
-SELECT argument FROM mysql.general_log WHERE argument LIKE '%AS %';
+SELECT argument FROM mysql.general_log WHERE argument LIKE '%AS %' AND command_type NOT LIKE 'Prepare';
 argument
 CREATE USER 'test_user1'@'%' IDENTIFIED WITH 'mysql_native_password' AS '<secret>'
 CREATE USER 'test_user3'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '<secret>' REQUIRE SSL
 ALTER USER 'test_user3'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '<secret>' REQUIRE X509 WITH MAX_QUERIES_PER_HOUR 1 MAX_UPDATES_PER_HOUR 2 MAX_CONNECTIONS_PER_HOUR 3 MAX_USER_CONNECTIONS 4
+GRANT SELECT, ROLE_ADMIN, SYSTEM_VARIABLES_ADMIN ON *.* TO 'test_user3'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '<secret>'
 CREATE USER 'test_user2'@'%' IDENTIFIED WITH 'mysql_native_password' AS '<secret>'
 ALTER USER 'test_user4'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '<secret>'
 ------ done ------
@@ -74,7 +80,7 @@ argument
 set names 'latin1',@dummy='B'
 set names 'latin1' collate 'latin1_german2_ci'
 set names default,@dummy='c'
-SELECT argument FROM mysql.general_log WHERE argument LIKE 'GRANT %';
+SELECT argument FROM mysql.general_log WHERE argument LIKE 'GRANT %' AND command_type NOT LIKE 'Prepare';
 argument
 GRANT SELECT(f2), INSERT(f3), INDEX, UPDATE(f1,f3, f2, f4), ALTER on
 test.t1 TO test_user1
@@ -82,9 +88,11 @@ GRANT ALL ON PROCEDURE test.proc_rewrite_1 TO test_user1
 GRANT EXECUTE ON FUNCTION test.func_rewrite_1 TO test_user1
 GRANT SELECT,USAGE ON test.* TO test_user3@localhost
 GRANT USAGE ON test.* TO test_user3@localhost WITH GRANT OPTION
+GRANT SELECT, ROLE_ADMIN, SYSTEM_VARIABLES_ADMIN ON *.* TO 'test_user3'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '<secret>'
 ------ done ------ see log_tables.test for more proof! :)
-SELECT argument FROM mysql.general_log WHERE argument LIKE 'GRANT SELECT%' AND argument LIKE CONCAT('%AS %');
-argument
+SELECT COUNT(*)>=1 FROM mysql.general_log WHERE argument LIKE 'GRANT SELECT%' AND argument LIKE CONCAT('%AS %');
+COUNT(*)>=1
+1
 Bug#13958454 -- show we print SET @a:=5, but SELECT (@a:=5)
 EXPLAIN EXTENDED SELECT @a=5,@b:=10,@c:=20,@d:=40+5,(@e:=80)+5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra

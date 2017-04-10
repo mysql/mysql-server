@@ -1,0 +1,37 @@
+# Tests for PERFORMANCE_SCHEMA
+
+#setup
+let $select_column = ENABLED;
+let $table = performance_schema.setup_objects;
+
+let $olddb = `select database()`;
+create database explain_test_db;
+use explain_test_db;
+create table explain_test_table(c int);
+delimiter //;
+create procedure explain_test_proc()
+BEGIN
+	select * from explain_test_table;
+END //
+delimiter ;//
+call explain_test_proc();
+
+insert into performance_schema.setup_objects values ('PROCEDURE',
+   'explain_test_db', 'explain_test_proc', 'YES', 'YES');
+
+# Test index on OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME
+
+let $column_count = 3;
+let $col1 = OBJECT_TYPE;
+let $col2 = OBJECT_SCHEMA;
+let $col3 = OBJECT_NAME;
+let $col1_act = "PROCEDURE";
+let $col2_act = "explain_test_db";
+let $col3_act = "explain_test_proc";
+
+--source ../include/idx_explain_test.inc
+
+# Cleanup
+delete from performance_schema.setup_objects where object_schema = 'explain_test_db';
+drop table explain_test_db.explain_test_table;
+drop database explain_test_db;

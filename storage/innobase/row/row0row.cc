@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -23,33 +23,31 @@ General row routines
 Created 4/20/1996 Heikki Tuuri
 *******************************************************/
 
-#include "ha_prototypes.h"
-
 #include "row0row.h"
 
-#ifdef UNIV_NONINL
-#include "row0row.ic"
-#endif
+#include <sys/types.h>
 
-#include "data0type.h"
-#include "dict0dict.h"
-#include "dict0boot.h"
 #include "btr0btr.h"
+#include "data0type.h"
+#include "dict0boot.h"
+#include "dict0dict.h"
+#include "ha_prototypes.h"
+#include "lob0lob.h"
 #include "mach0data.h"
-#include "trx0rseg.h"
-#include "trx0trx.h"
-#include "trx0roll.h"
-#include "trx0undo.h"
+#include "my_inttypes.h"
+#include "que0que.h"
+#include "read0read.h"
+#include "rem0cmp.h"
+#include "row0ext.h"
+#include "row0mysql.h"
+#include "row0upd.h"
 #include "trx0purge.h"
 #include "trx0rec.h"
-#include "que0que.h"
-#include "row0ext.h"
-#include "row0upd.h"
-#include "rem0cmp.h"
-#include "read0read.h"
+#include "trx0roll.h"
+#include "trx0rseg.h"
+#include "trx0trx.h"
+#include "trx0undo.h"
 #include "ut0mem.h"
-#include "gis0geo.h"
-#include "row0mysql.h"
 
 /*****************************************************************//**
 When an insert or purge to a table is performed, this function builds
@@ -79,7 +77,7 @@ row_build_index_entry_low(
 
 	entry_len = dict_index_get_n_fields(index);
 
-	if (flag == ROW_BUILD_FOR_INSERT && dict_index_is_clust(index)) {
+	if (flag == ROW_BUILD_FOR_INSERT && index->is_clustered()) {
 		num_v = dict_table_get_n_v_cols(index->table);
 		entry = dtuple_create_with_vcol(heap, entry_len, num_v);
 	} else {
@@ -106,14 +104,14 @@ row_build_index_entry_low(
 
 		if (i >= entry_len) {
 			/* This is to insert new rows to cluster index */
-			ut_ad(dict_index_is_clust(index)
+			ut_ad(index->is_clustered()
 			      && flag == ROW_BUILD_FOR_INSERT);
 			dfield = dtuple_get_nth_v_field(entry, i - entry_len);
 			col = &dict_table_get_nth_v_col(
 				index->table, i - entry_len)->m_col;
 
 		} else {
-			ind_field = dict_index_get_nth_field(index, i);
+			ind_field = index->get_field(i);
 			col = ind_field->col;
 			col_no = dict_col_get_no(col);
 			dfield = dtuple_get_nth_field(entry, i);
@@ -122,7 +120,7 @@ row_build_index_entry_low(
 # error "DATA_MISSING != 0"
 #endif
 
-		if (dict_col_is_virtual(col)) {
+		if (col->is_virtual()) {
 			const dict_v_col_t*	v_col
 				= reinterpret_cast<const dict_v_col_t*>(col);
 
@@ -146,7 +144,7 @@ row_build_index_entry_low(
 
 #ifdef UNIV_DEBUG
 		if (dfield_get_type(dfield2)->prtype & DATA_VIRTUAL
-		    && dict_index_is_clust(index)) {
+		    && index->is_clustered()) {
 			ut_ad(flag == ROW_BUILD_FOR_INSERT);
 		}
 #endif /* UNIV_DEBUG */
@@ -213,8 +211,8 @@ row_build_index_entry_low(
 					}
 
 					if (flag == ROW_BUILD_FOR_UNDO
-					    && dict_table_get_format(index->table)
-						>= UNIV_FORMAT_B) {
+                                            && dict_table_has_atomic_blobs(
+						    index->table)) {
 						/* For build entry for undo, and
 						the table is Barrcuda, we need
 						to skip the prefix data. */
@@ -239,10 +237,11 @@ row_build_index_entry_low(
 						: dict_table_page_size(
 							index->table);
 
-					dptr = btr_copy_externally_stored_field(
+					dptr = lob::btr_copy_externally_stored_field(
 						&dlen, dptr,
 						page_size,
 						flen,
+						false,
 						temp_heap);
 				} else {
 					dptr = static_cast<uchar*>(
@@ -257,10 +256,9 @@ row_build_index_entry_low(
 						tmp_mbr[i * 2 + 1] = -DBL_MAX;
 					}
 				} else {
-					rtree_mbr_from_wkb(dptr + GEO_DATA_HEADER_SIZE,
-							   static_cast<uint>(dlen
-							   - GEO_DATA_HEADER_SIZE),
-							   SPDIMS, tmp_mbr);
+					get_mbr_from_store(
+						dptr, static_cast<uint>(dlen),
+						SPDIMS, tmp_mbr);
 				}
 				dfield_write_mbr(dfield, tmp_mbr);
 				if (temp_heap) {
@@ -280,7 +278,7 @@ row_build_index_entry_low(
 
 		if ((!ind_field || ind_field->prefix_len == 0)
 		    && (!dfield_is_ext(dfield)
-			|| dict_index_is_clust(index))) {
+			|| index->is_clustered())) {
 			/* The dfield_copy() above suffices for
 			columns that are stored in-page, or for
 			clustered index record columns that are not
@@ -291,11 +289,11 @@ row_build_index_entry_low(
 
 		/* If the column is stored externally (off-page) in
 		the clustered index, it must be an ordering field in
-		the secondary index.  In the Antelope format, only
-		prefix-indexed columns may be stored off-page in the
-		clustered index record. In the Barracuda format, also
-		fully indexed long CHAR or VARCHAR columns may be
-		stored off-page. */
+		the secondary index. If !atomic_blobs, the only way
+		we may have a secondary index pointing to a clustered
+		index record with an off-page column is when it is a
+		column prefix index. If atomic_blobs, also fully
+		indexed long columns may be stored off-page. */
 		ut_ad(col->ord_part);
 
 		if (ext) {
@@ -310,9 +308,8 @@ row_build_index_entry_low(
 			}
 
 			if (ind_field->prefix_len == 0) {
-				/* In the Barracuda format
-				(ROW_FORMAT=DYNAMIC or
-				ROW_FORMAT=COMPRESSED), we can have a
+				/* If ROW_FORMAT=DYNAMIC or
+				ROW_FORMAT=COMPRESSED, we can have a
 				secondary index on an entire column
 				that is stored off-page in the
 				clustered index. As this is not a
@@ -322,11 +319,12 @@ row_build_index_entry_low(
 				continue;
 			}
 		} else if (dfield_is_ext(dfield)) {
-			/* This table is either in Antelope format
+			/* This table is either in
 			(ROW_FORMAT=REDUNDANT or ROW_FORMAT=COMPACT)
 			or a purge record where the ordered part of
 			the field is not external.
-			In Antelope, the maximum column prefix
+			In ROW_FORMAT=REDUNDANT and ROW_FORMAT=COMPACT,
+			the maximum column prefix
 			index length is 767 bytes, and the clustered
 			index record contains a 768-byte prefix of
 			each off-page column. */
@@ -399,7 +397,7 @@ row_build_low(
 	ut_ad(index != NULL);
 	ut_ad(rec != NULL);
 	ut_ad(heap != NULL);
-	ut_ad(dict_index_is_clust(index));
+	ut_ad(index->is_clustered());
 	ut_ad(!trx_sys_mutex_own());
 	ut_ad(!col_map || col_table);
 
@@ -452,26 +450,24 @@ row_build_low(
 		ut_ad(col_map);
 		row = dtuple_copy(add_cols, heap);
 		/* dict_table_copy_types() would set the fields to NULL */
-		for (ulint i = 0; i < dict_table_get_n_cols(col_table); i++) {
-			dict_col_copy_type(
-				dict_table_get_nth_col(col_table, i),
+		for (ulint i = 0; i < col_table->get_n_cols(); i++) {
+			col_table->get_col(i)->copy_type(
 				dfield_get_type(dtuple_get_nth_field(row, i)));
 		}
 	} else if (add_v != NULL) {
 		row = dtuple_create_with_vcol(
-			heap, dict_table_get_n_cols(col_table),
+			heap, col_table->get_n_cols(),
 			dict_table_get_n_v_cols(col_table) + add_v->n_v_col);
 		dict_table_copy_types(row, col_table);
 
 		for (ulint i = 0; i < add_v->n_v_col; i++) {
-			dict_col_copy_type(
-				&add_v->v_col[i].m_col,
+			add_v->v_col[i].m_col.copy_type(
 				dfield_get_type(dtuple_get_nth_v_field(
 					row, i + col_table->n_v_def)));
 		}
 	} else {
 		row = dtuple_create_with_vcol(
-			heap, dict_table_get_n_cols(col_table),
+			heap, col_table->get_n_cols(),
 			dict_table_get_n_v_cols(col_table));
 		dict_table_copy_types(row, col_table);
 	}
@@ -483,7 +479,7 @@ row_build_low(
 
 	for (ulint i = 0; i < rec_offs_n_fields(offsets); i++) {
 		const dict_field_t*	ind_field
-			= dict_index_get_nth_field(index, i);
+			= index->get_field(i);
 
 		if (ind_field->prefix_len) {
 			/* Column prefixes can only occur in key
@@ -495,8 +491,7 @@ row_build_low(
 			continue;
 		}
 
-		const dict_col_t*	col
-			= dict_field_get_col(ind_field);
+		const dict_col_t*	col = ind_field->col;
 		ulint			col_no
 			= dict_col_get_no(col);
 
@@ -519,7 +514,7 @@ row_build_low(
 		if (rec_offs_nth_extern(offsets, i)) {
 			dfield_set_ext(dfield);
 
-			col = dict_table_get_nth_col(col_table, col_no);
+			col = col_table->get_col(col_no);
 
 			if (col->ord_part) {
 				/* We will have to fetch prefixes of
@@ -546,7 +541,7 @@ row_build_low(
 
 	} else if (j) {
 		*ext = row_ext_create(j, ext_cols, index->table->flags, row,
-				      heap);
+				      dict_index_is_sdi(index), heap);
 	} else {
 		*ext = NULL;
 	}
@@ -794,7 +789,7 @@ row_build_row_ref(
 	ut_ad(index != NULL);
 	ut_ad(rec != NULL);
 	ut_ad(heap != NULL);
-	ut_ad(!dict_index_is_clust(index));
+	ut_ad(!index->is_clustered());
 
 	offsets = rec_get_offsets(rec, index, offsets,
 				  ULINT_UNDEFINED, &tmp_heap);
@@ -814,7 +809,7 @@ row_build_row_ref(
 
 	table = index->table;
 
-	clust_index = dict_table_get_first_index(table);
+	clust_index = table->first_index();
 
 	ref_len = dict_index_get_n_unique(clust_index);
 
@@ -838,8 +833,7 @@ row_build_row_ref(
 		column, or the full column, and we must adjust the length
 		accordingly. */
 
-		clust_col_prefix_len = dict_index_get_nth_field(
-			clust_index, i)->prefix_len;
+		clust_col_prefix_len = clust_index->get_field(i)->prefix_len;
 
 		if (clust_col_prefix_len > 0) {
 			if (len != UNIV_SQL_NULL) {
@@ -901,10 +895,10 @@ row_build_row_ref_in_tuple(
 	ut_a(ref);
 	ut_a(index);
 	ut_a(rec);
-	ut_ad(!dict_index_is_clust(index));
+	ut_ad(!index->is_clustered());
 	ut_a(index->table);
 
-	clust_index = dict_table_get_first_index(index->table);
+	clust_index = index->table->first_index();
 	ut_ad(clust_index);
 
 	if (!offsets) {
@@ -938,8 +932,7 @@ row_build_row_ref_in_tuple(
 		column, or the full column, and we must adjust the length
 		accordingly. */
 
-		clust_col_prefix_len = dict_index_get_nth_field(
-			clust_index, i)->prefix_len;
+		clust_col_prefix_len = clust_index->get_field(i)->prefix_len;
 
 		if (clust_col_prefix_len > 0) {
 			if (len != UNIV_SQL_NULL) {
@@ -972,7 +965,7 @@ row_search_on_row_ref(
 	btr_pcur_t*		pcur,	/*!< out: persistent cursor, which must
 					be closed by the caller */
 	ulint			mode,	/*!< in: BTR_MODIFY_LEAF, ... */
-	const dict_table_t*	table,	/*!< in: table */
+	dict_table_t*		table,	/*!< in: table */
 	const dtuple_t*		ref,	/*!< in: row reference */
 	mtr_t*			mtr)	/*!< in/out: mtr */
 {
@@ -982,7 +975,7 @@ row_search_on_row_ref(
 
 	ut_ad(dtuple_check_typed(ref));
 
-	index = dict_table_get_first_index(table);
+	index = table->first_index();
 
 	ut_a(dtuple_get_n_fields(ref) == dict_index_get_n_unique(index));
 
@@ -1025,7 +1018,7 @@ row_get_clust_rec(
 	ibool		found;
 	rec_t*		clust_rec;
 
-	ut_ad(!dict_index_is_clust(index));
+	ut_ad(!index->is_clustered());
 
 	table = index->table;
 
@@ -1041,9 +1034,47 @@ row_get_clust_rec(
 
 	btr_pcur_close(&pcur);
 
-	*clust_index = dict_table_get_first_index(table);
+	*clust_index = table->first_index();
 
 	return(clust_rec);
+}
+
+/** Parse the integer data from specified field, which could be
+DATA_INT, DATA_FLOAT or DATA_DOUBLE. We could return 0 if
+1) the value is less than 0 and the type is not unsigned
+or 2) the field is null.
+@param[in]	field		field to read the int value
+@return the integer value read from the field, 0 for negative signed
+int or NULL field */
+ib_uint64_t
+row_parse_int_from_field(
+	const dfield_t*	field)
+{
+	const dtype_t*	dtype = dfield_get_type(field);
+	ulint		len = dfield_get_len(field);
+	const byte*	data = static_cast<const byte*>(dfield_get_data(field));
+	ulint		mtype = dtype_get_mtype(dtype);
+	bool		unsigned_type = dtype->prtype & DATA_UNSIGNED;
+
+	if (dfield_is_null(field)) {
+		return(0);
+	} else {
+		return(row_parse_int(data, len, mtype, unsigned_type));
+	}
+}
+
+/** Read the autoinc counter from the clustered index row.
+@param[in]	row	row to read the autoinc counter
+@param[in]	n	autoinc counter is in the nth field
+@return the autoinc counter read */
+ib_uint64_t
+row_get_autoinc_counter(
+	const dtuple_t*		row,
+	ulint			n)
+{
+	const dfield_t*	field = dtuple_get_nth_field(row, n);
+
+	return(row_parse_int_from_field(field));
 }
 
 /***************************************************************//**
@@ -1141,7 +1172,7 @@ row_raw_format_int(
 		value = mach_read_int_type(
 			(const byte*) data, data_len, unsigned_type);
 
-		ret = ut_snprintf(
+		ret = snprintf(
 			buf, buf_size,
 			unsigned_type ? UINT64PF : "%" PRId64, value) + 1;
 	} else {
@@ -1238,7 +1269,7 @@ row_raw_format(
 
 	if (data_len == UNIV_SQL_NULL) {
 
-		ret = ut_snprintf((char*) buf, buf_size, "NULL") + 1;
+		ret = snprintf((char*) buf, buf_size, "NULL") + 1;
 
 		return(ut_min(ret, buf_size));
 	}

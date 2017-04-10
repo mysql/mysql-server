@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -28,16 +28,16 @@ Created 12/7/1995 Heikki Tuuri
 #include "mach0data.h"
 #include "trx0types.h"
 
-/********************************************************//**
-Opens a buffer to mlog. It must be closed with mlog_close.
+/** Opens a buffer to mlog. It must be closed with mlog_close.
+@param[in,out]	mtr	mtr
+@param[in]	size	buffer size in bytes; MUST be smaller than
+			DYN_ARRAY_DATA_SIZE!
 @return buffer, NULL if log mode MTR_LOG_NONE or MTR_LOG_NO_REDO */
 UNIV_INLINE
 byte*
 mlog_open(
-/*======*/
-	mtr_t*	mtr,	/*!< in: mtr */
-	ulint	size)	/*!< in: buffer size in bytes; MUST be
-			smaller than mtr_t::buf_t::MAX_DATA_SIZE! */
+	mtr_t*	mtr,
+	ulint	size)
 {
 	mtr->set_modified();
 
@@ -47,6 +47,21 @@ mlog_open(
 		return(NULL);
 	}
 
+	return(mtr->get_log()->open(size));
+}
+
+/** Opens a buffer to mlog. It must be closed with mlog_close.
+This is used for writing log for metadata changes
+@param[in,out]	mtr	mtr
+@param[in]	size	buffer size in bytes; MUST be smaller than
+			DYN_ARRAY_DATA_SIZE!
+@return buffer */
+UNIV_INLINE
+byte*
+mlog_open_metadata(
+	mtr_t*	mtr,
+	ulint	size)
+{
 	return(mtr->get_log()->open(size));
 }
 
@@ -165,6 +180,32 @@ mlog_catenate_ull_compressed(
 	mlog_close(mtr, log_ptr);
 }
 
+/** Writes a log record about a dictionary operation.
+@param[in]	type		redo log record type
+@param[in]	id		table id
+@param[in,out]	log_ptr		current end of mini-transaction log
+@param[in,out]	mtr		mini-transaction
+@return end of mini-transaction log */
+UNIV_INLINE
+byte*
+mlog_write_initial_dict_log_record(
+	mlog_id_t	type,
+	table_id_t	id,
+	byte*		log_ptr,
+	mtr_t*		mtr)
+{
+	ut_ad(type <= MLOG_BIGGEST_TYPE);
+	ut_ad(type == MLOG_TABLE_DYNAMIC_META);
+
+	mach_write_to_1(log_ptr, type);
+	log_ptr++;
+
+	log_ptr += mach_u64_write_much_compressed(log_ptr, id);
+
+	mtr->added_rec();
+	return(log_ptr);
+}
+
 /** Writes a log record about an operation.
 @param[in]	type		redo log record type
 @param[in]	space_id	tablespace identifier
@@ -176,8 +217,8 @@ UNIV_INLINE
 byte*
 mlog_write_initial_log_record_low(
 	mlog_id_t	type,
-	ulint		space_id,
-	ulint		page_no,
+	space_id_t	space_id,
+	page_no_t	page_no,
 	byte*		log_ptr,
 	mtr_t*		mtr)
 {
@@ -187,7 +228,6 @@ mlog_write_initial_log_record_low(
 	      || type == MLOG_FILE_CREATE2
 	      || type == MLOG_FILE_RENAME2
 	      || type == MLOG_INDEX_LOAD
-	      || type == MLOG_TRUNCATE
 	      || mtr->is_named_space(space_id));
 
 	mach_write_to_1(log_ptr, type);
@@ -218,8 +258,8 @@ mlog_write_initial_log_record_fast(
 	mtr_t*		mtr)	/*!< in/out: mtr */
 {
 	const byte*	page;
-	ulint		space;
-	ulint		offset;
+	space_id_t	space;
+	page_no_t	offset;
 
 	ut_ad(log_ptr);
 	ut_d(mtr->memo_modify_page(ptr));

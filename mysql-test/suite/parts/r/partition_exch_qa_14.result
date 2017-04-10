@@ -1,6 +1,6 @@
 use test;
 ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t_10;
-ERROR HY000: Tables have different definitions
+ERROR HY000: Non matching attribute 'DATA DIRECTORY' between partition and table
 DROP TABLE IF EXISTS t_10;
 DROP TABLE IF EXISTS t_100;
 DROP TABLE IF EXISTS t_1000;
@@ -15,7 +15,7 @@ DROP TABLE IF EXISTS t_empty;
 DROP TABLE IF EXISTS t_null;
 use test;
 ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t_10;
-ERROR HY000: Tables have different definitions
+ERROR HY000: Non matching attribute 'DATA DIRECTORY' between partition and table
 DROP TABLE IF EXISTS t_10;
 DROP TABLE IF EXISTS t_100;
 DROP TABLE IF EXISTS t_1000;
@@ -30,7 +30,7 @@ DROP TABLE IF EXISTS t_empty;
 DROP TABLE IF EXISTS t_null;
 use test;
 ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t_10;
-ERROR HY000: Tables have different definitions
+ERROR HY000: Non matching attribute 'DATA DIRECTORY' between partition and table
 DROP TABLE IF EXISTS t_10;
 DROP TABLE IF EXISTS t_100;
 DROP TABLE IF EXISTS t_1000;

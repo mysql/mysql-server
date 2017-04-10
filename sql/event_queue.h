@@ -1,6 +1,6 @@
 #ifndef _EVENT_QUEUE_H_
 #define _EVENT_QUEUE_H_
-/* Copyright (c) 2004, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -25,26 +25,28 @@
   Queue of events awaiting execution.
 */
 
-#include "my_global.h"                          // uint
-#include "mysql/mysql_lex_string.h"             // LEX_STRING
-#include "my_time.h"                    /* my_time_t, interval_type */
+#include <sys/types.h>
+#include <time.h>
+#include <vector>
 
-#include "event_data_objects.h"
-#include "event_parse_data.h"
-#include "priority_queue.h"
-#include "malloc_allocator.h"
+#include "event_data_objects.h"                 // Event_queue_element
+#include "event_parse_data.h"                   // Event_parse_data
+#include "lex_string.h"
+#include "malloc_allocator.h"                   // Malloc_allocator, IWYU pragma: keep
+#include "my_psi_config.h"
+#include "my_time.h"
+#include "mysql/psi/mysql_cond.h"
+#include "mysql/psi/mysql_mutex.h"
+#include "mysql/psi/psi_base.h"
+#include "mysql/psi/psi_stage.h"
+#include "priority_queue.h"                     // Priority_queue
+
+class THD;
 
 #ifdef HAVE_PSI_INTERFACE
 extern PSI_mutex_key key_LOCK_event_queue;
 extern PSI_cond_key key_COND_queue_state;
 #endif /* HAVE_PSI_INTERFACE */
-
-class Event_basic;
-class Event_queue_element;
-class Event_queue_element_for_exec;
-
-class THD;
-
 
 /**
   Compares the execute_at members of two Event_queue_element instances.
@@ -75,14 +77,14 @@ struct Event_queue_less
   int event_queue_element_compare_q(Event_queue_element *left,
                                     Event_queue_element *right)
   {
-    if (left->status == Event_parse_data::DISABLED)
-      return right->status != Event_parse_data::DISABLED;
+    if (left->m_status == Event_parse_data::DISABLED)
+      return right->m_status != Event_parse_data::DISABLED;
 
-    if (right->status == Event_parse_data::DISABLED)
+    if (right->m_status == Event_parse_data::DISABLED)
       return 1;
 
-    my_time_t lhs = left->execute_at;
-    my_time_t rhs = right->execute_at;
+    my_time_t lhs = left->m_execute_at;
+    my_time_t rhs = right->m_execute_at;
     return (lhs < rhs ? -1 : (lhs > rhs ? 1 : 0));
   }
 };
@@ -99,7 +101,7 @@ public:
   ~Event_queue();
 
   bool
-  init_queue(THD *thd);
+  init_queue();
 
   /* Methods for queue management follow */
 
@@ -115,7 +117,7 @@ public:
   drop_event(THD *thd, LEX_STRING dbname, LEX_STRING name);
 
   void
-  drop_schema_events(THD *thd, LEX_STRING schema);
+  drop_schema_events(LEX_STRING schema);
 
   void
   recalculate_activation_times(THD *thd);
@@ -150,7 +152,7 @@ private:
 
 
   void
-  drop_matching_events(THD *thd, LEX_STRING pattern,
+  drop_matching_events(LEX_STRING pattern,
                        bool (*)(LEX_STRING, Event_basic *));
 
 

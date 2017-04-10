@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -17,11 +17,14 @@
 
 #include "thread_specific_connection_provider.h"
 
+#include <stddef.h>
+#include <functional>
+
 using namespace Mysql::Tools::Dump;
 
 Mysql::Tools::Base::Mysql_query_runner*
   Thread_specific_connection_provider::get_runner(
-    Mysql::I_callable<bool, const Mysql::Tools::Base::Message_data&>*
+    std::function<bool(const Mysql::Tools::Base::Message_data&)>*
       message_handler)
 {
   Mysql::Tools::Base::Mysql_query_runner* runner= m_runner.get();

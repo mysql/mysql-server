@@ -27,19 +27,23 @@
 #    - Connects                   in 4.5
 #
 
-# Embedded server does not support the performance_schema.
---source include/not_embedded.inc
-
 # Windows platforms only
 --source include/windows.inc
---source include/have_perfschema.inc
 
 # The values in the performance_schema tables depend on how much communication
 # happens per SQL statement within our MTR tests. And there is a significant
 # difference between standard statement execution and execution via
 # prepared statement.
+# Test requires: sp-protocol/ps-protocol/view-protocol/cursor-protocol disabled
 --source include/no_protocol.inc
 
+# Since within the WL#7158 a transport used for initial(default) conneciton in mt
+# has been changed from TCP/IP to Named Pipe we disconnect the default connection
+# and establish new default one using TCP/IP. We do it in order to support
+# original behaviour of the test.
+--disconnect default
+--source include/wait_until_disconnected.inc
+--connect (default,localhost,root,,,,)
 
 #===================================
 # Set IP address defaults with respect to IPV6 support

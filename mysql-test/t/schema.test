@@ -1,9 +1,20 @@
-
 #
 # Just a couple of tests to make sure that schema works.
 #
 # Drop mysqltest1 database, as it can left from the previous tests.
 #
+
+--source include/have_debug_sync.inc
+
+########################################
+##### WL#7554 Force schema `test` to character set latin1
+##### This test should be migrated to utf8mb4
+--disable_query_log
+let $testdbcs69=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
+alter schema test default character set latin1;
+--enable_query_log
+########################################
+
 
 # Save the initial number of concurrent sessions.
 --source include/count_sessions.inc
@@ -47,9 +58,7 @@ let $wait_condition= SELECT COUNT(*)= 1 FROM information_schema.processlist
                      WHERE state= 'Waiting for table metadata lock' 
                      AND info='DROP SCHEMA schema1';
 --source include/wait_condition.inc
-# Error 1 is from ALTER DATABASE when the database does not exist.
-# Listing the error twice to prevent result diffences based on filename.
---error 1,1
+--error ER_NO_SUCH_DB
 ALTER SCHEMA schema1 DEFAULT CHARACTER SET utf8;
 SET autocommit= TRUE;
 
@@ -195,7 +204,108 @@ connection default;
 disconnect con2;
 disconnect con3;
 
+--enable_connect_log
+
+--echo #
+--echo # Bug#21305766: DML ON A NON EXISTING TABLE DOES NOT ACQUIRE MDL ON THE SCHEMA NAME
+--echo #
+
+--echo # Set lock_wait_timeout, create a schema and a connection con1.
+SET @start_session_value= @@session.lock_wait_timeout;
+SET @@session.lock_wait_timeout= 1;
+CREATE SCHEMA testdb;
+
+--connect(con1, localhost, root)
+--echo # Access a non-existing table in the created schema, and park it after
+--echo # acquiring the schema while acquiring the dd::Table object.
+SET DEBUG_SYNC= 'acquired_schema_while_acquiring_table SIGNAL acquired WAIT_FOR cont';
+--send SELECT * from testdb.no_such_table
+
+--connection default
+--echo # From the default connection, drop the schema, then resume
+--echo # con1. Without the patch in the server code, DROP SCHEMA
+--echo # will fail with an assert due to the schema object being
+--echo # acquired by more than one thread. With the patch, we get
+--echo # a lock wait timeout for DROP since the other thread has an
+--echo # IX-lock on the schema name.
+SET DEBUG_SYNC= 'now WAIT_FOR acquired';
+--error ER_LOCK_WAIT_TIMEOUT
+DROP SCHEMA testdb;
+SET DEBUG_SYNC= 'now SIGNAL cont';
+
+--connection con1
+--echo # Reaping SELECT * from testdb.no_such_table
+--error ER_NO_SUCH_TABLE
+--reap
+--disconnect con1
+--source include/wait_until_disconnected.inc
+
+--connection default
+--echo # Drop testdb and reset
+DROP SCHEMA testdb;
+SET @@session.lock_wait_timeout= @start_session_value;
+SET DEBUG_SYNC= 'RESET';
+--disable_connect_log
+
+--echo #
+--echo # Bug #21837759: SYNCHRONIZE USAGE OF SCHEMA DD OBJECTS BY MDL ACQUISITION
+--echo #
+--echo # Do a 'USE <schema>' and park it after retrieving the schema for
+--echo # finding the default db collation. Then, from a different
+--echo # connection, drop the same schema. Without the bugfix, this
+--echo # will fail due to improper concurrent usage of the DD cache
+--echo # elements. With the bugfix, the DROP will fail with a lock
+--echo # wait timeout due to the operations now being properly synchronized
+--echo # by meta data locking.
+
+--enable_connect_log
+
+--echo #
+--echo # Create the schema to be used in the test.
+SET @start_session_value= @@session.lock_wait_timeout;
+SET @@session.lock_wait_timeout= 1;
+CREATE SCHEMA testdb;
+
+--echo #
+--echo # Create a new connection, change schema, and stop after
+--echo # retrieving the schema object for finding the default
+--echo # collation.
+--connect (con1, localhost, root)
+SET DEBUG_SYNC= 'acquired_schema_while_getting_collation SIGNAL acquired WAIT_FOR cont';
+--send USE testdb
+
+--echo #
+--echo # On the default connection, do a DROP schema while the
+--echo # other connection is holding the same schema object.
+--echo # This will fail with a lock wait timeout when the operations
+--echo # are properly synched by MDL. Without the synchronization,
+--echo # this will trigger an assert in the shared DD cache.
+--connection default
+SET DEBUG_SYNC= 'now WAIT_FOR acquired';
+--error ER_LOCK_WAIT_TIMEOUT
+DROP SCHEMA testdb;
+SET DEBUG_SYNC= 'now SIGNAL cont';
+
+--echo #
+--echo # Reap, reset, and delete connection.
+--connection con1
+--reap
+--disconnect con1
+--source include/wait_until_disconnected.inc
+
+--connection default
+SET DEBUG_SYNC= 'RESET';
+DROP SCHEMA testdb;
+SET @@session.lock_wait_timeout= @start_session_value;
+--disable_connect_log
 
 # Check that all connections opened by test cases in this file are really
 # gone so execution of other tests won't be affected by their presence.
 --source include/wait_until_count_sessions.inc
+
+########################################
+##### WL#7554 set schema `test` back to what it was
+--disable_query_log
+--eval alter schema test default character set $testdbcs69;
+--enable_query_log
+########################################

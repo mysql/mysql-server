@@ -16,8 +16,8 @@
 #ifndef GCS_XCOM_VIEW_IDENTIFIER_INCLUDED
 #define GCS_XCOM_VIEW_IDENTIFIER_INCLUDED
 
-#include "gcs_view_identifier.h"
-#include "gcs_types.h"
+#include "mysql/gcs/gcs_view_identifier.h"
+#include "mysql/gcs/gcs_types.h"
 
 #include <string>
 #include <stdint.h>
@@ -26,7 +26,7 @@ class Gcs_xcom_view_identifier: public Gcs_view_identifier
 {
 public:
   explicit Gcs_xcom_view_identifier(uint64_t fixed_part_arg,
-                                    int monotonic_part_arg);
+                                    uint32_t monotonic_part_arg);
 
   virtual ~Gcs_xcom_view_identifier();
 
@@ -37,7 +37,7 @@ public:
   }
 
 
-  int get_monotonic_part() const
+  uint32_t get_monotonic_part() const
   {
     return monotonic_part;
   }
@@ -52,10 +52,10 @@ public:
   Gcs_view_identifier *clone() const;
 
 private:
-  void init(uint64_t fixed_part_arg, int monotonic_part_arg);
+  void init(uint64_t fixed_part_arg, uint32_t monotonic_part_arg);
 
   uint64_t fixed_part;
-  int               monotonic_part;
+  uint32_t monotonic_part;
   std::string       representation;
 };
 

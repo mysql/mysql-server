@@ -15,11 +15,36 @@
 
 #include "rpl_info_table.h"
 
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
 #include "dynamic_ids.h"            // Server_ids
+#include "field.h"
+#include "handler.h"
+#include "key.h"
 #include "log.h"                    // sql_print_error
+#include "m_ctype.h"
+#include "m_string.h"
+#include "my_base.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_sys.h"
+#include "mysql/service_mysql_alloc.h"
+#include "mysql/thread_type.h"
+#include "mysql_com.h"
+#include "psi_memory_key.h"
 #include "rpl_info_table_access.h"  // Rpl_info_table_access
 #include "rpl_info_values.h"        // Rpl_info_values
+#ifndef DBUG_OFF
+#include "rpl_rli.h"                // rli_slave
+#endif
+#include "set_var.h"
 #include "sql_class.h"              // THD
+#include "sql_string.h"
+#include "system_variables.h"
+#include "table.h"
+#include "thr_lock.h"
 
 
 Rpl_info_table::Rpl_info_table(uint nparam,
@@ -324,7 +349,6 @@ end:
    @param param_schema       schema name
    @param param_table        table name
    @param channel_name       channel name
-   @param channel_field_idx  channel name field index
 
    @return 0   on success
            1   when a failure happens
@@ -332,8 +356,7 @@ end:
 int Rpl_info_table::do_reset_info(uint nparam,
                                   const char* param_schema,
                                   const char *param_table,
-                                  const char *channel_name,
-                                  uint  channel_field_idx)
+                                  const char *channel_name)
 {
   int error= 0;
   TABLE *table= NULL;
@@ -669,7 +692,7 @@ bool Rpl_info_table::do_set_info(const int pos, const Server_ids *value)
   return FALSE;
 }
 
-bool Rpl_info_table::do_get_info(const int pos, char *value, const size_t size,
+bool Rpl_info_table::do_get_info(const int pos, char *value, const size_t,
                                  const char *default_value)
 {
   if (field_values->value[pos].length())

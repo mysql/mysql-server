@@ -18,7 +18,7 @@
 --echo ================================================================================
 --echo PREAMBLE
 --echo ================================================================================
---source ../include/xplugin_preamble.inc
+--source include/xplugin_preamble.inc
 create user crudfindgroupuser@localhost identified by 'crudfindgroupuser';
 grant all on *.* to crudfindgroupuser@localhost;
 
@@ -879,7 +879,7 @@ Mysqlx.Crud.Find {
     }
   }
 }
--->recvresult
+-->recverror ER_WRONG_FIELD_WITH_GROUP
 
 ## Cleanup
 -->echo ================================================================================

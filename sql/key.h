@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,14 +16,40 @@
 #ifndef KEY_INCLUDED
 #define KEY_INCLUDED
 
-#include "my_global.h"                          /* uchar */
+#include <stddef.h>
+#include <sys/types.h>
+
+#include "key_spec.h"                  /* fk_option */
 #include "my_base.h"                   /* ha_rows, ha_key_alg */
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "mysql/mysql_lex_string.h"    /* LEX_CSTRING */
 #include "sql_plugin_ref.h"            /* plugin_ref */
 
 class Field;
 class String;
 struct TABLE;
+
 typedef struct st_bitmap MY_BITMAP;
+typedef struct st_mysql_const_lex_string LEX_CSTRING;
+
+
+class FOREIGN_KEY
+{
+public:
+  const char *name;
+  const char *orig_name; // Holds the original name during ALTER TABLE
+  const char *unique_index_name;
+  uint key_parts;
+  LEX_CSTRING *key_part;
+  LEX_CSTRING *fk_key_part;
+  LEX_CSTRING ref_db;
+  LEX_CSTRING ref_table;
+  fk_option delete_opt;
+  fk_option update_opt;
+  fk_match_opt match_opt;
+};
+
 
 class KEY_PART_INFO {	/* Info about a key part */
 public:
@@ -39,11 +65,23 @@ public:
      - possible HA_KEY_BLOB_LENGTH bytes needed to store actual value length.
   */
   uint16 store_length;
-  uint16 key_type;
   uint16 fieldnr;			/* Fieldnum in UNIREG */
   uint16 key_part_flag;			/* 0 or HA_REVERSE_SORT */
   uint8 type;
   uint8 null_bit;			/* Position to null_bit */
+  /**
+    True - if key part allows trivial binary comparison,
+    False - if charset collation function needs to be involved.
+
+    @note Not set for KEY_PART_INFO which are used for creating tables,
+          only set when table is opened or for internal temporary tables.
+
+    This value is set a bit too optimistically and disregards the way
+    in which value is stored in record (e.g. it is true for BLOB types).
+    So in practice key_cmp_if_same() also has to check key_part_flag for
+    presence of HA_BLOB_PART, HA_VAR_LENGTH_PART and HA_BIT_PART flags.
+  */
+  bool bin_cmp;
   void init_from_field(Field *fld);     /** Fill data from given field */
   void init_flags();                    /** Set key_part_flag from field */
 };
@@ -64,12 +102,14 @@ typedef float rec_per_key_t;
 /**
   If the "in memory estimate" for a table (in
   ha_statistics.table_in_mem_estimate) or index (in
-  st_key::m_in_memory_estimate) is not known or not set by the storage
+  KEY::m_in_memory_estimate) is not known or not set by the storage
   engine, then it should have the following value.
 */
 #define IN_MEMORY_ESTIMATE_UNKNOWN -1.0
 
-typedef struct st_key {
+class KEY
+{
+public:
   /** Tot length of key */
   uint	key_length;
   /** dupp key and pack flags */
@@ -90,22 +130,26 @@ typedef struct st_key {
   uint  block_size;
   enum  ha_key_alg algorithm;
   /**
+    A flag which indicates that index algorithm for this key was explicitly
+    specified by user. So, for example, it should be mentioned in SHOW CREATE
+    TABLE output.
+  */
+  bool is_algorithm_explicit;
+  /**
     Note that parser is used when the table is opened for use, and
     parser_name is used when the table is being created.
   */
-  union
-  {
-    /** Fulltext [pre]parser */
-    plugin_ref parser;
-    /** Fulltext [pre]parser name */
-    LEX_STRING *parser_name;
-  };
+  /** Fulltext [pre]parser */
+  plugin_ref parser;
+  /** Fulltext [pre]parser name */
+  LEX_CSTRING parser_name;
+
   KEY_PART_INFO *key_part;
   /** Name of key */
-  char	*name;
+  const char *name;
 
   /**
-    Array of AVG(#records with the same field value) for 1st ... Nth key part.
+    Array of AVG(number of records with the same field value) for 1st ... Nth key part.
     0 means 'not known'.
     For internally created temporary tables this member is NULL.
   */
@@ -122,7 +166,7 @@ private:
   double m_in_memory_estimate;
 
   /**
-    Array of AVG(#records with the same field value) for 1st ... Nth
+    Array of AVG(number of records with the same field value) for 1st ... Nth
     key part. For internally created temporary tables this member is
     NULL. This is the same information as stored in the above
     rec_per_key array but using float values instead of integer
@@ -132,12 +176,17 @@ private:
     should be removed and only this should be used.
   */
   rec_per_key_t *rec_per_key_float;
+
 public:
-  union {
-    int  bdb_return_if_eq;
-  } handler;
+
+  /**
+    True if this index is visible to the query optimizer. The optimizer may
+    only use visible indexes.
+  */
+  bool is_visible;
+
   TABLE *table;
-  LEX_STRING comment;
+  LEX_CSTRING comment;
 
   /** 
     Check if records per key estimate is available for given key part.
@@ -277,7 +326,7 @@ public:
 
     m_in_memory_estimate= in_memory_estimate;
   }
-} KEY;
+};
 
 
 int find_ref_key(KEY *key, uint key_count, uchar *record, Field *field,
@@ -287,8 +336,7 @@ void key_restore(uchar *to_record, uchar *from_key, KEY *key_info,
                  uint key_length);
 bool key_cmp_if_same(TABLE *form,const uchar *key,uint index,uint key_length);
 void key_unpack(String *to, TABLE *table, KEY *key);
-void field_unpack(String *to, Field *field, const uchar *rec, uint max_length,
-                  bool prefix_key);
+void field_unpack(String *to, Field *field, uint max_length, bool prefix_key);
 bool is_key_used(TABLE *table, uint idx, const MY_BITMAP *fields);
 int key_cmp(KEY_PART_INFO *key_part, const uchar *key, uint key_length);
 int key_cmp2(KEY_PART_INFO *key_part,

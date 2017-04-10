@@ -10,18 +10,10 @@
 # Save the initial number of concurrent sessions
 --source include/count_sessions.inc
 
---source include/have_innodb_zip.inc
+--source include/have_innodb_max_16k.inc
 
 disable_query_log;
 call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
-call mtr.add_suppression("\\[ERROR\\] InnoDB: Table .*innodb_(table|index)_stats.* not found");
-call mtr.add_suppression("\\[ERROR\\] InnoDB: Fetch of persistent statistics "
-                         "requested for table .* but the required system "
-                         "tables mysql.innodb_table_stats and "
-                         "mysql.innodb_index_stats are not present or have "
-                         "unexpected structure. Using transient stats "
-                         "instead.");
-
 enable_query_log;
 
 --echo # Bug#37938 Test "mysqldump" lacks various insert statements
@@ -836,10 +828,11 @@ use test;
 # dump of view
 #
 
-create table t1(a int);
+create table t1(a int, b int);
 create view v1 as select * from t1;
+create view v2 (c, d) as select * from t1;
 --exec $MYSQL_DUMP --skip-comments test
-drop view v1;
+drop view v1, v2;
 drop table t1;
 
 
@@ -1477,14 +1470,6 @@ disconnect root;
 use test;
 
 --echo #
---echo # Bug #21527 mysqldump incorrectly tries to LOCK TABLES on the 
---echo # information_schema database.
---echo #
---echo # Bug #33762: mysqldump can not dump INFORMATION_SCHEMA
---echo #
---exec $MYSQL_DUMP --compact --opt -d information_schema TABLES
-
---echo #
 --echo # Bug#19745 mysqldump --xml produces invalid xml
 --echo #
 
@@ -1493,7 +1478,7 @@ DROP TABLE IF EXISTS t1;
 --enable_warnings
 
 CREATE TABLE t1 (f1 int(10), data MEDIUMBLOB);
-INSERT INTO t1 VALUES(1,0xff00fef0);
+INSERT INTO t1 VALUES(1, 0xff00fef0);
 
 --exec $MYSQL_DUMP --xml --hex-blob --skip-create-options test t1
 
@@ -1577,7 +1562,7 @@ use test;
 --echo #           defined by a different user
 --echo #
 --echo # Bug#22761 mysqldump reports no errors when using
---echo #           --routines without mysql.proc privileges
+--echo #           --routines without proper privileges
 --echo #
 
 create database mysqldump_test_db;
@@ -1822,8 +1807,7 @@ drop database mysqldump_test_db;
 # Bug#26121 mysqldump includes LOCK TABLES general_log WRITE
 #
 --exec $MYSQL_DUMP --all-databases > $MYSQLTEST_VARDIR/tmp/bug26121.sql
-# take a backup of mysql.proc table
---exec $MYSQL_DUMP mysql proc > $MYSQLTEST_VARDIR/tmp/mysql.proc.sql
+# take a backup of sys db.
 --exec $MYSQL < $MYSQLTEST_VARDIR/tmp/bug26121.sql
 --remove_file $MYSQLTEST_VARDIR/tmp/bug26121.sql
 
@@ -1890,14 +1874,11 @@ DROP DATABASE mysqldump_test_db;
 --echo #           with --all-databases
 --echo #
 
-TRUNCATE mysql.event;
-
 USE test;
 CREATE event e29938 ON SCHEDULE AT '2035-12-31 20:01:23' DO SET @bug29938=29938;
 SHOW EVENTS;
 --exec $MYSQL_DUMP --skip-events --all-databases > $MYSQLTEST_VARDIR/tmp/bug29938.sql
 
-TRUNCATE mysql.event;
 --exec $MYSQL < $MYSQLTEST_VARDIR/tmp/bug29938.sql
 SHOW EVENTS;
 --remove_file $MYSQLTEST_VARDIR/tmp/bug29938.sql
@@ -2020,7 +2001,7 @@ SET @@GLOBAL.CONCURRENT_INSERT = @OLD_CONCURRENT_INSERT;
 ###########################################################################
 
 --echo
---echo Bug #34861 - mysqldump with --tab gives weird output for triggers.
+--echo Bug#34861 - mysqldump with --tab gives weird output for triggers.
 --echo
 
 CREATE TABLE t1 (f1 INT);
@@ -2032,7 +2013,8 @@ CREATE EVENT ev1 ON SCHEDULE AT '2030-01-01 00:00:00' DO SELECT "Meow";
 --replace_column 6 #
 SHOW TRIGGERS;
 SHOW EVENTS;
-SELECT name,body FROM mysql.proc WHERE NAME = 'pr1';
+SELECT routine_name, routine_definition FROM INFORMATION_SCHEMA.routines
+WHERE routine_name = 'pr1';
 
 --echo
 --echo dump table; if anything goes to stdout, it ends up here: ---------------
@@ -2051,7 +2033,8 @@ DROP PROCEDURE pr1;
 --replace_column 6 #
 SHOW TRIGGERS;
 SHOW EVENTS;
-SELECT name,body FROM mysql.proc WHERE NAME = 'pr1';
+SELECT routine_name, routine_definition FROM INFORMATION_SCHEMA.routines
+WHERE routine_name = 'pr1';
 
 --echo
 --echo reload db; this should restore routines and events
@@ -2059,7 +2042,8 @@ SELECT name,body FROM mysql.proc WHERE NAME = 'pr1';
 --replace_column 6 #
 SHOW TRIGGERS;
 SHOW EVENTS;
-SELECT name,body FROM mysql.proc WHERE NAME = 'pr1';
+SELECT routine_name, routine_definition FROM INFORMATION_SCHEMA.routines
+WHERE routine_name = 'pr1';
 
 --echo
 --echo cleanup
@@ -2094,11 +2078,9 @@ INSERT INTO t1 VALUES (1, 'ABC-АБВ', 'DEF-ÂÃÄ'), (2, NULL, NULL);
 
 --error 2
 --exec $MYSQL_DUMP --tab=$MYSQLTEST_VARDIR/tmp/ --fields-enclosed-by='12345' test t1
---remove_file $file
 
 --error 2
 --exec $MYSQL_DUMP --tab=$MYSQLTEST_VARDIR/tmp/ --fields-escaped-by='12345' test t1
---remove_file $file
 
 --echo # default '--default-charset' (binary):
 
@@ -2453,25 +2435,26 @@ DROP DATABASE b12688860_db;
 --echo #
 --echo # Bug#45740 MYSQLDUMP DOESN'T DUMP GENERAL_LOG AND SLOW_QUERY CAUSES RESTORE PROBLEM
 --echo #
-SET @old_log_output_state=       @@global.log_output;
-SET @old_general_log_state=      @@global.general_log;
-SET @old_slow_query_log_state=   @@global.slow_query_log;
-
-call mtr.add_suppression("Failed to write to mysql.general_log");
---exec $MYSQL_DUMP -uroot --all-databases > $MYSQLTEST_VARDIR/tmp/bug45740.sql
-# Make log_output as table and disabling general_log and slow_log
-SET @@global.log_output="TABLE";
-SET @@global.general_log='OFF';
-SET @@global.slow_query_log='OFF';
-DROP DATABASE mysql; 
---exec $MYSQL < $MYSQLTEST_VARDIR/tmp/bug45740.sql
-SHOW CREATE TABLE mysql.general_log;
-SHOW CREATE TABLE mysql.slow_log;
---remove_file $MYSQLTEST_VARDIR/tmp/bug45740.sql
-
-SET @@global.log_output=       @old_log_output_state;
-SET @@global.slow_query_log=   @old_slow_query_log_state;
-SET @@global.general_log=      @old_general_log_state;
+# Cannot DROP 'mysql' as dictionary tables reside there.
+#SET @old_log_output_state=       @@global.log_output;
+#SET @old_general_log_state=      @@global.general_log;
+#SET @old_slow_query_log_state=   @@global.slow_query_log;
+#
+#call mtr.add_suppression("Failed to write to mysql.general_log");
+#--exec $MYSQL_DUMP -uroot --all-databases > $MYSQLTEST_VARDIR/tmp/bug45740.sql
+## Make log_output as table and disabling general_log and slow_log
+#SET @@global.log_output="TABLE";
+#SET @@global.general_log='OFF';
+#SET @@global.slow_query_log='OFF';
+#DROP DATABASE mysql; 
+#--exec $MYSQL < $MYSQLTEST_VARDIR/tmp/bug45740.sql
+#SHOW CREATE TABLE mysql.general_log;
+#SHOW CREATE TABLE mysql.slow_log;
+#--remove_file $MYSQLTEST_VARDIR/tmp/bug45740.sql
+#
+#SET @@global.log_output=       @old_log_output_state;
+#SET @@global.slow_query_log=   @old_slow_query_log_state;
+#SET @@global.general_log=      @old_general_log_state;
  
 --echo #
 --echo # End of 5.1 tests
@@ -2626,22 +2609,38 @@ DROP DATABASE dump_generated;
 --echo #               EVEN IF SKIPPING SCHEMA
 --echo #
 
-# restore mysql.proc table
---exec $MYSQL mysql < $MYSQLTEST_VARDIR/tmp/mysql.proc.sql
 # take backup of sys schema
---exec $MYSQL_DUMP --databases sys > $MYSQLTEST_VARDIR/tmp/sys.sql
-# this will not dump sys schema and
-# sys schema routines present in mysql.proc table
+--exec $MYSQL_DUMP --databases sys --routines > $MYSQLTEST_VARDIR/tmp/sys.sql
+# this will not dump sys schema and sys schema routines.
 --exec $MYSQL_DUMP --all-databases > $MYSQLTEST_VARDIR/tmp/bug21549860.sql
-SELECT COUNT(*) FROM mysql.proc WHERE db = 'sys';
+SELECT COUNT(*) FROM INFORMATION_SCHEMA.routines WHERE routine_schema = 'sys';
 DROP DATABASE sys;
-SELECT COUNT(*) FROM mysql.proc WHERE db = 'sys';
+SELECT COUNT(*) FROM INFORMATION_SCHEMA.routines WHERE routine_schema = 'sys';
 --exec $MYSQL < $MYSQLTEST_VARDIR/tmp/bug21549860.sql
-SELECT COUNT(*) FROM mysql.proc WHERE db = 'sys';
-# restore mysql.proc table and sys schema
---exec $MYSQL mysql < $MYSQLTEST_VARDIR/tmp/mysql.proc.sql
+SELECT COUNT(*) FROM INFORMATION_SCHEMA.routines WHERE routine_schema = 'sys';
+# restore and sys schema
 --exec $MYSQL < $MYSQLTEST_VARDIR/tmp/sys.sql
-SELECT COUNT(*) FROM mysql.proc WHERE db = 'sys';
+SELECT COUNT(*) FROM INFORMATION_SCHEMA.routines WHERE routine_schema = 'sys';
 --remove_file $MYSQLTEST_VARDIR/tmp/bug21549860.sql
---remove_file $MYSQLTEST_VARDIR/tmp/mysql.proc.sql
 --remove_file $MYSQLTEST_VARDIR/tmp/sys.sql
+
+--echo #
+--echo # WL#8697: Invisible Indexes
+--echo # Test of mysqldump.
+--echo #
+
+CREATE TABLE test.t1 (
+  a INT,
+  b INT,
+  c INT,
+  INDEX (a) VISIBLE,
+  INDEX (b) INVISIBLE,
+  INDEX (c)
+);
+
+--exec $MYSQL_DUMP --compact test t1
+
+DROP TABLE test.t1;
+
+# Needs to be removed after Bug#24619634 is fixed.
+--source include/force_restart.inc

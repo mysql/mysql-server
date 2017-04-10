@@ -2,8 +2,6 @@
 # WL#6205 - A series of tests to show the correct behavior for
 # CREATE TABLESPACE and associated SQL statements for 16k page size.
 #
---source include/have_innodb.inc
---source include/have_innodb_16k.inc
 --source include/not_embedded.inc
 
 --echo #
@@ -199,21 +197,16 @@ INSERT INTO t_dyn_in_16k VALUES (1,'a'),(2,'b'),(3,'c');
 --echo #
 --echo # Try to drop these tablespaces which are not empty
 --echo #
---error ER_DROP_FILEGROUP_FAILED
+--error ER_TABLESPACE_IS_NOT_EMPTY
 DROP TABLESPACE s_1k; 
-SHOW WARNINGS;
---error ER_DROP_FILEGROUP_FAILED
+--error ER_TABLESPACE_IS_NOT_EMPTY
 DROP TABLESPACE s_2k; 
-SHOW WARNINGS;
---error ER_DROP_FILEGROUP_FAILED
+--error ER_TABLESPACE_IS_NOT_EMPTY
 DROP TABLESPACE s_4k; 
-SHOW WARNINGS;
---error ER_DROP_FILEGROUP_FAILED
+--error ER_TABLESPACE_IS_NOT_EMPTY
 DROP TABLESPACE s_8k; 
-SHOW WARNINGS;
---error ER_DROP_FILEGROUP_FAILED
+--error ER_TABLESPACE_IS_NOT_EMPTY
 DROP TABLESPACE s_16k; 
-SHOW WARNINGS;
 
 --echo #
 --echo # Add more data to the existing Tables
@@ -296,9 +289,8 @@ CREATE TABLE t_missing (a int) TABLESPACE=s_missing;
 --echo # Clean-up tables we no longer need
 --echo #
 
---error ER_DROP_FILEGROUP_FAILED
+--error ER_TABLESPACE_IS_NOT_EMPTY
 DROP TABLESPACE s_missing;
-SHOW WARNINGS;
 DROP TABLE t_missing;
 DROP TABLESPACE s_missing;
 
@@ -650,6 +642,4 @@ call mtr.add_suppression("\\[ERROR\\] InnoDB: Cannot open datafile for read-only
 call mtr.add_suppression("\\[ERROR\\] InnoDB: Cannot delete tablespace .* because it is not found in the tablespace memory cache");
 call mtr.add_suppression("\\[ERROR\\] InnoDB: Failed to find tablespace for table `test`.`t_missing` in the cache. Attempting to load the tablespace with space id .*");
 call mtr.add_suppression("\\[Warning\\] InnoDB: Ignoring tablespace `s_missing` because it could not be opened");
-call mtr.add_suppression("\\[ERROR\\] InnoDB: If you are installing InnoDB, remember that you must create directories yourself, InnoDB does not create them.");
-call mtr.add_suppression("\\[ERROR\\] InnoDB: Could not find a valid tablespace file for `s_missing`. Please refer to .* for how to resolve the issue.");
 --enable_query_log

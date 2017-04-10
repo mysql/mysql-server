@@ -22,7 +22,11 @@ VALUES ( 'SELECT * FROM test.t1 JOIN test.t2 ON ' ||
          'JOIN ( SELECT * FROM test.t2 WHERE c1 > ? ) a ' ||
          'ON ( test.t1.c1 = test.t2.c1 AND test.t1.c2 <> ? )',
          'SELECT * FROM test.t1 JOIN test.t2 ' ||
-         'ON ( test.t1.c1 = test.t2.c1 AND test.t2.c1 > ? AND test.t1.c2 <> ? )'
+         'ON ( test.t1.c1 = test.t2.c1 AND test.t2.c1 > ? AND test.t1.c2 <> ? )'),
+       ( 'WITH qn AS ( SELECT c1 FROM test.t2 WHERE c2 = ? ) SELECT c1 FROM qn',
+         'SELECT c1, c2+1 FROM test.t1 WHERE c2=?' ),
+       ( 'WITH qn AS ( SELECT c1 FROM test.t2 WHERE c2 = ? ) SELECT * FROM qn, qn AS qn1',
+         'WITH qn(a,b) AS ( SELECT c1,c2+1 FROM test.t1 WHERE c2 = ? ) SELECT * FROM qn, qn AS qn1'
        );
 
 CALL query_rewrite.flush_rewrite_rules();
@@ -38,6 +42,10 @@ SELECT ( SELECT c1 FROM test.t2 WHERE c2 = 1 ) c1;
 SELECT *
 FROM test.t1 JOIN ( SELECT * FROM test.t2 WHERE c1 > 1 ) a
 ON ( test.t1.c1 = test.t2.c1 AND test.t1.c2 <> 3 );
+
+WITH qn AS ( SELECT c1 FROM test.t2 WHERE c2 = 1 ) SELECT c1 FROM qn;
+
+WITH qn AS ( SELECT c1 FROM test.t2 WHERE c2 = 1 ) SELECT * FROM qn, qn AS qn1;
 
 DROP TABLE t1;
 DROP TABLE t2;

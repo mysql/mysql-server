@@ -1,4 +1,7 @@
 
+# Skipping the test when binlog format is mix/statement due to Bug#22173401
+--source include/have_binlog_format_row.inc
+
 # Test of the READ_ONLY global variable:
 # check that it blocks updates unless they are only on temporary tables.
 

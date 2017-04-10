@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,17 +18,16 @@
 #ifndef NDB_GLOBAL_SCHEMA_LOCK_GUARD_H
 #define NDB_GLOBAL_SCHEMA_LOCK_GUARD_H
 
-#include <mysql/plugin.h>
+#include "mysql/plugin.h"
 
 class Ndb_global_schema_lock_guard
 {
 public:
   Ndb_global_schema_lock_guard(THD *thd);
   ~Ndb_global_schema_lock_guard();
-  int lock(bool no_lock_queue=false,
-           bool report_cluster_disconnected=true);
+  int lock(bool report_cluster_disconnected=true);
 private:
-  THD* m_thd;
+  THD* const m_thd;
   bool m_locked;
 };
 

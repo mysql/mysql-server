@@ -3,7 +3,6 @@
 #   NDB$EPOCH_TRANS() function
 #
 #
---source include/have_utf8.inc
 --source include/have_ndb.inc
 --source include/have_binlog_format_mixed_or_row.inc
 --source suite/ndb_rpl/ndb_master-slave.inc
@@ -361,7 +360,6 @@ flush logs;
 
 # Cleanup
 --connection master
-drop table mysql.ndb_replication;
 drop table test.t1$EX, test.t1, test.t2$ex, test.t2;
 SET NAMES utf8;
 drop table test.`ｱｱｱ`, test.`ｱｱｱ$ex`;
@@ -371,6 +369,8 @@ SET NAMES latin1;
 --connection slave
 flush logs;
 --sync_slave_with_master master
+
+drop table mysql.ndb_replication;
 stop slave;
 reset slave;
 #change master to master_host='';

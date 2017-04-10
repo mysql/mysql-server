@@ -11,8 +11,8 @@ select @@session.optimizer_trace;
 show global variables like 'optimizer_trace';
 show session variables like 'optimizer_trace';
 --disable_warnings
-select * from information_schema.global_variables where variable_name='optimizer_trace';
-select * from information_schema.session_variables where variable_name='optimizer_trace';
+select * from performance_schema.global_variables where variable_name='optimizer_trace';
+select * from performance_schema.session_variables where variable_name='optimizer_trace';
 --enable_warnings
 
 #

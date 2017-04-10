@@ -50,20 +50,6 @@ trx_savept_t
 trx_savept_take(
 /*============*/
 	trx_t*	trx);	/*!< in: transaction */
-/********************************************************************//**
-Pops the topmost record when the two undo logs of a transaction are seen
-as a single stack of records ordered by their undo numbers.
-@return undo log record copied to heap, NULL if none left, or if the
-undo number of the top record would be less than the limit */
-trx_undo_rec_t*
-trx_roll_pop_top_rec_of_trx_low(
-/*============================*/
-	trx_t*		trx,		/*!< in/out: transaction */
-	trx_undo_ptr_t*	undo_ptr,	/*!< in: rollback segment to look
-					for next undo log record. */
-	undo_no_t	limit,		/*!< in: least undo number we need */
-	roll_ptr_t*	roll_ptr,	/*!< out: roll pointer to undo record */
-	mem_heap_t*	heap);		/*!< in/out: memory heap where copied */
 
 /********************************************************************//**
 Get next undo log record from redo and noredo rollback segments.
@@ -87,20 +73,15 @@ trx_rollback_or_clean_recovered(
 /*============================*/
 	ibool	all);	/*!< in: FALSE=roll back dictionary transactions;
 			TRUE=roll back all non-PREPARED transactions */
-/*******************************************************************//**
-Rollback or clean up any incomplete transactions which were
+
+/** Rollback or clean up any incomplete transactions which were
 encountered in crash recovery.  If the transaction already was
 committed, then we clean up a possible insert undo log. If the
 transaction was not yet committed, then we roll it back.
-Note: this is done in a background thread.
-@return a dummy parameter */
-extern "C"
-os_thread_ret_t
-DECLARE_THREAD(trx_rollback_or_clean_all_recovered)(
-/*================================================*/
-	void*	arg MY_ATTRIBUTE((unused)));
-			/*!< in: a dummy parameter required by
-			os_thread_create */
+Note: this is done in a background thread. */
+void
+trx_recovery_rollback_thread();
+
 /*********************************************************************//**
 Creates a rollback command node struct.
 @return own: rollback node struct */
@@ -121,16 +102,14 @@ Rollback a transaction used in MySQL.
 dberr_t
 trx_rollback_for_mysql(
 /*===================*/
-	trx_t*	trx)	/*!< in/out: transaction */
-	MY_ATTRIBUTE((nonnull));
+	trx_t*	trx);	/*!< in/out: transaction */
 /*******************************************************************//**
 Rollback the latest SQL statement for MySQL.
 @return error code or DB_SUCCESS */
 dberr_t
 trx_rollback_last_sql_stat_for_mysql(
 /*=================================*/
-	trx_t*	trx)	/*!< in/out: transaction */
-	MY_ATTRIBUTE((nonnull));
+	trx_t*	trx);	/*!< in/out: transaction */
 /*******************************************************************//**
 Rollback a transaction to a given savepoint or do a complete rollback.
 @return error code or DB_SUCCESS */
@@ -138,10 +117,9 @@ dberr_t
 trx_rollback_to_savepoint(
 /*======================*/
 	trx_t*		trx,	/*!< in: transaction handle */
-	trx_savept_t*	savept)	/*!< in: pointer to savepoint undo number, if
+	trx_savept_t*	savept);	/*!< in: pointer to savepoint undo number, if
 				partial rollback requested, or NULL for
 				complete rollback */
-	MY_ATTRIBUTE((nonnull(1)));
 /*******************************************************************//**
 Rolls back a transaction back to a named savepoint. Modifications after the
 savepoint are undone but InnoDB does NOT release the corresponding locks
@@ -162,7 +140,7 @@ trx_rollback_to_savepoint_for_mysql(
 						information to remove the
 						binlog entries of the queries
 						executed after the savepoint */
-	MY_ATTRIBUTE((nonnull, warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 /*******************************************************************//**
 Creates a named savepoint. If the transaction is not yet started, starts it.
 If there is already a savepoint of the same name, this call erases that old
@@ -174,11 +152,10 @@ trx_savepoint_for_mysql(
 /*====================*/
 	trx_t*		trx,			/*!< in: transaction handle */
 	const char*	savepoint_name,		/*!< in: savepoint name */
-	int64_t		binlog_cache_pos)	/*!< in: MySQL binlog cache
+	int64_t		binlog_cache_pos);	/*!< in: MySQL binlog cache
 						position corresponding to this
 						connection at the time of the
 						savepoint */
-	MY_ATTRIBUTE((nonnull));
 /*******************************************************************//**
 Releases a named savepoint. Savepoints which
 were set after this savepoint are deleted.
@@ -189,7 +166,7 @@ trx_release_savepoint_for_mysql(
 /*============================*/
 	trx_t*		trx,			/*!< in: transaction handle */
 	const char*	savepoint_name)		/*!< in: savepoint name */
-	MY_ATTRIBUTE((nonnull, warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 /*******************************************************************//**
 Frees savepoint structs starting from savep. */
 void
@@ -235,8 +212,6 @@ struct trx_named_savept_t{
 					transaction */
 };
 
-#ifndef UNIV_NONINL
 #include "trx0roll.ic"
-#endif
 
 #endif

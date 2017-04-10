@@ -1,7 +1,12 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
+########################################
+##### WL#7554 Force schema `test` to character set latin1
+##### This test should be migrated to utf8mb4
+--disable_query_log
+let $testdbcs286=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
+alter schema default character set latin1;
+use test;
+--enable_query_log
+########################################
 
 # mysqltest should be fixed
 -- source include/not_embedded.inc
@@ -158,8 +163,7 @@ CREATE TEMPORARY TABLE t2 (i INT);
 --error 1051
 DROP TEMPORARY TABLE t2, t1;
 
-# Table t2 should have been dropped.
---error 1146
+# Table t2 should be still there too.
 SELECT * FROM t2;
 # But table t1 should still be there.
 SELECT * FROM t1;
@@ -300,6 +304,23 @@ REPAIR TABLE t1, t2, t3;
 
 DROP TABLES t1, t2, t3;
 
+# Test for admin statements supported only by MyISAM
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+CREATE TEMPORARY TABLE t1(a INT) ENGINE=MyISAM;
+
+INSERT INTO t1 VALUES (1), (2), (3);
+
+OPTIMIZE TABLE t1;
+
+INSERT INTO t1 VALUES (1), (2), (3);
+
+REPAIR TABLE t1;
+
+DROP TABLES t1;
+
 --echo #
 --echo # Bug#19497209 SEGMENTATION FAULT IN FILL_RECORD FOR MULTI_UPDATE
 --echo # Bug#19628808 MULTI-UPDATE CRASH WITH LONG PRIMARY KEY
@@ -327,3 +348,22 @@ SELECT * FROM (SELECT COUNT(DISTINCT t1.a), t1.b FROM t1 RIGHT JOIN t2 ON
 t1.a=t2.a GROUP BY t1.b) as tt;
 
 DROP TABLE t1,t2;
+
+--echo #
+--echo # Bug24713918: ASSERTION `MDL_CHECKER::IS_READ_LOCKED(M_THD, *OBJECT)'
+--echo #              FAILED.
+--echo #
+
+CREATE DATABASE db1;
+CREATE TABLE t1(a INT);
+CREATE TEMPORARY TABLE t1(c1 INT);
+ALTER TABLE t1 RENAME TO db1.t1;
+DROP DATABASE db1;
+DROP TABLE t1;
+
+########################################
+##### WL#7554 set schema `test` back to what it was
+--disable_query_log
+--eval alter schema test default character set $testdbcs286;
+--enable_query_log
+########################################

@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,15 +14,14 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #undef HAVE_PSI_INTERFACE
-#include <my_global.h>
 #include <iostream>
 #include <sql_plugin_ref.h>
 #include <time.h>
 #include "../keyring.cc"
 
-my_bool random_keys= FALSE;
-my_bool verbose;
-my_bool generate_random_keys_data= FALSE;
+bool random_keys= FALSE;
+bool verbose;
+bool generate_random_keys_data= FALSE;
 int number_of_keys_added= 0;
 int number_of_keys_fetched= 0;
 int number_of_keys_removed= 0;
@@ -49,7 +48,7 @@ void* generate(void *arg)
     strcpy(key_type, "AES");
     sprintf(user, "User#%d", key_nr);
 
-    my_bool result= FALSE;
+    bool result= FALSE;
 
     if((result= mysql_key_generate(reinterpret_cast<const char*>(key_id),
                                    reinterpret_cast<const char*>(key_type),
@@ -102,7 +101,7 @@ void* store(void *arg)
     strcpy(key_type, "AES");
     sprintf(user, "User#%d", key_nr);
 
-    my_bool result= FALSE;
+    bool result= FALSE;
 
     if((result= mysql_key_store(reinterpret_cast<const char*>(key_id),
                                 reinterpret_cast<const char*>(key_type),
@@ -146,7 +145,7 @@ void* fetch(void *arg)
     void *key_data= NULL;
     size_t key_len= 0;
 
-    my_bool result= TRUE;
+    bool result= TRUE;
 
     if((result= mysql_key_fetch(reinterpret_cast<const char*>(key_id), &key_type,
                                 reinterpret_cast<const char*>(user), &key_data,
@@ -196,7 +195,7 @@ void* remove(void *arg)
     sprintf(key_id, "Key#%d", key_nr);
     sprintf(user, "User#%d", key_nr);
 
-    my_bool result= TRUE;
+    bool result= TRUE;
 
     if((result= mysql_key_remove(reinterpret_cast<const char*>(key_id),
                                  reinterpret_cast<const char*>(user))) == FALSE)

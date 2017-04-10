@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,17 +15,28 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "connection_handler_manager.h"
+#include "sql/conn_handler/connection_handler_manager.h"
 
-#include "mysql/thread_pool_priv.h"    // create_thd
-#include "mysql/service_thd_wait.h"
-#include "mysqld_error.h"              // ER_*
+#include <new>
+
 #include "channel_info.h"              // Channel_info
 #include "connection_handler_impl.h"   // Per_thread_connection_handler
+#include "current_thd.h"
+#include "my_dbug.h"
+#include "my_psi_config.h"
+#include "my_sys.h"
+#include "mysql/psi/psi_base.h"
+#include "mysql/psi/psi_cond.h"
+#include "mysql/psi/psi_mutex.h"
+#include "mysql/service_thd_wait.h"
 #include "mysqld.h"                    // max_connections
+#include "mysqld_error.h"              // ER_*
 #include "plugin_connection_handler.h" // Plugin_connection_handler
 #include "sql_callback.h"              // MYSQL_CALLBACK
-#include "sql_class.h"                 // THD
+#include "thr_lock.h"
+#include "thr_mutex.h"
+
+struct Connection_handler_functions;
 
 
 // Initialize static members
@@ -36,7 +47,6 @@ THD_event_functions* Connection_handler_manager::event_functions= NULL;
 THD_event_functions* Connection_handler_manager::saved_event_functions= NULL;
 mysql_mutex_t Connection_handler_manager::LOCK_connection_count;
 mysql_cond_t Connection_handler_manager::COND_connection_count;
-#ifndef EMBEDDED_LIBRARY
 Connection_handler_manager* Connection_handler_manager::m_instance= NULL;
 ulong Connection_handler_manager::thread_handling=
   SCHEDULER_ONE_THREAD_PER_CONNECTION;
@@ -123,7 +133,7 @@ static PSI_mutex_key key_LOCK_connection_count;
 
 static PSI_mutex_info all_conn_manager_mutexes[]=
 {
-  { &key_LOCK_connection_count, "LOCK_connection_count", PSI_FLAG_GLOBAL}
+  { &key_LOCK_connection_count, "LOCK_connection_count", PSI_FLAG_GLOBAL, 0}
 };
 
 static PSI_cond_key key_COND_connection_count;
@@ -174,10 +184,10 @@ bool Connection_handler_manager::init()
   }
 
 #ifdef HAVE_PSI_INTERFACE
-  int count= array_elements(all_conn_manager_mutexes);
+  int count= static_cast<int>(array_elements(all_conn_manager_mutexes));
   mysql_mutex_register("sql", all_conn_manager_mutexes, count);
 
-  count= array_elements(all_conn_manager_conds);
+  count= static_cast<int>(array_elements(all_conn_manager_conds));
   mysql_cond_register("sql", all_conn_manager_conds, count);
 #endif
 
@@ -185,6 +195,7 @@ bool Connection_handler_manager::init()
                    &LOCK_connection_count, MY_MUTEX_INIT_FAST);
 
   mysql_cond_init(key_COND_connection_count, &COND_connection_count);
+
   max_threads= connection_handler->get_max_threads();
 
   // Init common callback functions.
@@ -258,7 +269,7 @@ bool Connection_handler_manager::unload_connection_handler()
 void
 Connection_handler_manager::process_new_connection(Channel_info* channel_info)
 {
-  if (abort_loop || !check_and_incr_conn_count())
+  if (connection_events_loop_aborted() || !check_and_incr_conn_count())
   {
     channel_info->send_error_and_close_channel(ER_CON_COUNT_ERROR, 0, true);
     delete channel_info;
@@ -293,7 +304,6 @@ void dec_connection_count()
 {
   Connection_handler_manager::dec_connection_count();
 }
-#endif // !EMBEDDED_LIBRARY
 
 
 extern "C"
@@ -310,10 +320,8 @@ int my_connection_handler_set(Connection_handler_functions *chf,
   if (conn_handler == NULL)
     return 1;
 
-#ifndef EMBEDDED_LIBRARY
   Connection_handler_manager::get_instance()->
     load_connection_handler(conn_handler);
-#endif
   Connection_handler_manager::saved_event_functions=
     Connection_handler_manager::event_functions;
   Connection_handler_manager::event_functions= tef;
@@ -325,11 +333,7 @@ int my_connection_handler_reset()
 {
   Connection_handler_manager::event_functions=
     Connection_handler_manager::saved_event_functions;
-#ifndef EMBEDDED_LIBRARY
   return Connection_handler_manager::get_instance()->
     unload_connection_handler();
-#else
-  return 0;
-#endif
 }
-};
+}

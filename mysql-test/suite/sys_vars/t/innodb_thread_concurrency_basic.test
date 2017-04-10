@@ -23,7 +23,6 @@
 #                                                                             #
 ###############################################################################
 
---source include/have_innodb.inc
 --source include/load_sysvars.inc
 
 ######################################################################## 
@@ -38,6 +37,7 @@
 
 SET @global_start_value = @@global.innodb_thread_concurrency;
 SELECT @global_start_value;
+SET @default_innodb_thread_sleep_delay = @@global.innodb_thread_sleep_delay;
 
 
 
@@ -120,12 +120,12 @@ SELECT @@global.innodb_thread_concurrency;
 
 --disable_warnings
 SELECT @@global.innodb_thread_concurrency =
- VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+ VARIABLE_VALUE FROM performance_schema.global_variables
   WHERE VARIABLE_NAME='innodb_thread_concurrency';
 --enable_warnings
 SELECT @@global.innodb_thread_concurrency;
 --disable_warnings
-SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+SELECT VARIABLE_VALUE FROM performance_schema.global_variables
  WHERE VARIABLE_NAME='innodb_thread_concurrency';
 --enable_warnings
 
@@ -158,6 +158,11 @@ SELECT @@global.innodb_thread_concurrency;
 
 SET @@global.innodb_thread_concurrency = @global_start_value;
 SELECT @@global.innodb_thread_concurrency;
+
+# Set innodb_thread_sleep_delay back to the default value
+# because it gets halved when slots are free and there
+# are no waiting threads sleeping.
+SET @@global.innodb_thread_sleep_delay = @default_innodb_thread_sleep_delay;
 
 ###############################################################
 #                    END OF innodb_thread_concurrency TESTS   #

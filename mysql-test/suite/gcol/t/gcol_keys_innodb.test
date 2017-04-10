@@ -1,3 +1,18 @@
+# General not engine specific settings and requirements
+--source suite/gcol/inc/gcol_init_vars.pre
+# Skipping the test when log-bin is enabled due to Bug#22508362
+--source include/not_log_bin.inc
+
+########################################
+##### WL#7554 Force schema `test` to character set latin1
+##### This test should be migrated to utf8mb4
+--disable_query_log
+let $testdbcs11=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
+alter schema default character set latin1;
+use test;
+--enable_query_log
+########################################
+
 ################################################################################
 # t/gcol_keys_innodb.test                                                      #
 #                                                                              #
@@ -21,15 +36,12 @@
 #
 
 #------------------------------------------------------------------------------#
-# General not engine specific settings and requirements
---source suite/gcol/inc/gcol_init_vars.pre
 
 #------------------------------------------------------------------------------#
 # Engine specific settings and requirements
 
 ##### Storage engine to be tested
 # Set the session storage engine
---source include/have_innodb.inc
 eval SET @@session.default_storage_engine = 'InnoDB';
 
 ##### Workarounds for known open engine specific bugs
@@ -92,3 +104,10 @@ DROP TABLE t1,t2;
 #------------------------------------------------------------------------------#
 # Cleanup
 --source suite/gcol/inc/gcol_cleanup.inc
+
+########################################
+##### WL#7554 set schema `test` back to what it was
+--disable_query_log
+--eval alter schema test default character set $testdbcs11;
+--enable_query_log
+########################################

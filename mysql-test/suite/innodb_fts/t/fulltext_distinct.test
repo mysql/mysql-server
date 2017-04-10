@@ -1,4 +1,3 @@
---source include/have_innodb.inc
 
 #
 # Test of fulltext index

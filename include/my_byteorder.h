@@ -1,7 +1,7 @@
 #ifndef MY_BYTEORDER_INCLUDED
 #define MY_BYTEORDER_INCLUDED
 
-/* Copyright (c) 2001, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2001, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,15 +17,40 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 
-/*
-  Functions for reading and storing in machine independent
-  format (low byte first). There are 'korr' (assume 'corrector') variants
+/**
+  @file include/my_byteorder.h
+  Functions for reading and storing in machine-independent format.
+  The little-endian variants are 'korr' (assume 'corrector') variants
   for integer types, but 'get' (assume 'getter') for floating point types.
 */
+
+#include "my_config.h"
+
+#include <string.h>
+#include <sys/types.h>
+
+#ifdef HAVE_ARPA_INET_H
+#include <arpa/inet.h>
+#endif
+
+#if defined(_MSC_VER)
+#include <stdlib.h>
+#endif
+
+#if defined(_WIN32) && defined(WIN32_LEAN_AND_MEAN)
+#include <winsock2.h>
+#endif
+
 #if defined(__i386__) || defined(_WIN32) || defined(__x86_64__)
-#include "byte_order_generic_x86.h"
+#include "byte_order_generic_x86.h"  // IWYU pragma: export
 #else
-#include "byte_order_generic.h"
+#include "byte_order_generic.h"  // IWYU pragma: export
+#endif
+
+#include "my_inttypes.h"
+
+#ifdef __cplusplus
+#include "template_utils.h"
 #endif
 
 static inline int32 sint3korr(const uchar *A)
@@ -74,6 +99,20 @@ static inline ulonglong uint6korr(const uchar *A)
     ;
 }
 
+/**
+  int3store
+
+  Stores an unsinged integer in a platform independent way
+
+  @param T  The destination buffer. Must be at least 3 bytes long
+  @param A  The integer to store.
+
+  _Example:_
+  A @ref a_protocol_type_int3 "int \<3\>" with the value 1 is stored as:
+  ~~~~~~~~~~~~~~~~~~~~~
+  01 00 00
+  ~~~~~~~~~~~~~~~~~~~~~
+*/
 static inline void int3store(uchar *T, uint A)
 {
   *(T)=   (uchar) (A);
@@ -186,9 +225,9 @@ static inline void int8store(char *pT, ulonglong A)
   and M a pointer to byte.
 */
 #ifdef WORDS_BIGENDIAN
-#include "big_endian.h"
+#include "big_endian.h"  // IWYU pragma: export
 #else
-#include "little_endian.h"
+#include "little_endian.h"  // IWYU pragma: export
 #endif
 
 #ifdef __cplusplus
@@ -206,6 +245,72 @@ static inline void float8get(double *V, const char *M)
 static inline void float8store(char *V, double M)
 {
   float8store(static_cast<uchar*>(static_cast<void*>(V)), M);
+}
+
+#endif /* __cplusplus */
+
+#ifdef __cplusplus
+
+/*
+ Functions for big-endian loads and stores. These are safe to use
+ no matter what the compiler, CPU or alignment, and also with -fstrict-aliasing.
+
+ The stores return a pointer just past the value that was written.
+*/
+
+static inline uint16 load16be(const char *ptr)
+{
+  uint16 val;
+  memcpy(&val, ptr, sizeof(val));
+  return ntohs(val);
+}
+
+static inline uint32 load32be(const char *ptr)
+{
+  uint32 val;
+  memcpy(&val, ptr, sizeof(val));
+  return ntohl(val);
+}
+
+static inline char *store16be(char *ptr, uint16 val)
+{
+#if defined(_MSC_VER)
+  // _byteswap_ushort is an intrinsic on MSVC, but htons is not.
+  val= _byteswap_ushort(val);
+#else
+  val= htons(val);
+#endif
+  memcpy(ptr, &val, sizeof(val));
+  return ptr + sizeof(val);
+}
+
+static inline char *store32be(char *ptr, uint32 val)
+{
+  val= htonl(val);
+  memcpy(ptr, &val, sizeof(val));
+  return ptr + sizeof(val);
+}
+
+// Adapters for using uchar * instead of char *.
+
+static inline uint16 load16be(const uchar *ptr)
+{
+  return load16be(pointer_cast<const char *>(ptr));
+}
+
+static inline uint32 load32be(const uchar *ptr)
+{
+  return load32be(pointer_cast<const char *>(ptr));
+}
+
+static inline uchar *store16be(uchar *ptr, uint16 val)
+{
+  return pointer_cast<uchar *>(store16be(pointer_cast<char *>(ptr), val));
+}
+
+static inline uchar *store32be(uchar *ptr, uint32 val)
+{
+  return pointer_cast<uchar *>(store32be(pointer_cast<char *>(ptr), val));
 }
 
 #endif /* __cplusplus */

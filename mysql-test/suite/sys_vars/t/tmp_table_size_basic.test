@@ -160,7 +160,7 @@ SELECT @@session.tmp_table_size IN (12345678901,4294967295);
 
 --disable_warnings
 SELECT @@global.tmp_table_size = VARIABLE_VALUE
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='tmp_table_size';
 --enable_warnings
 
@@ -171,7 +171,7 @@ WHERE VARIABLE_NAME='tmp_table_size';
 
 --disable_warnings
 SELECT @@session.tmp_table_size = VARIABLE_VALUE
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES
+FROM performance_schema.session_variables
 WHERE VARIABLE_NAME='tmp_table_size';
 --enable_warnings
 

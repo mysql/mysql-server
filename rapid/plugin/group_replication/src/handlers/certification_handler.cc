@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,7 +14,10 @@
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #include "handlers/certification_handler.h"
+
 #include "handlers/pipeline_handlers.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
 #include "plugin.h"
 #include "plugin_log.h"
 #include "sql_service_gr_user.h"
@@ -400,6 +403,8 @@ Certification_handler::handle_transaction_id(Pipeline_event *pevent,
                                                 gle->is_using_trans_cache(),
                                                 gle->last_committed,
                                                 gle->sequence_number,
+                                                gle->original_commit_timestamp,
+                                                gle->immediate_commit_timestamp,
                                                 gtid_specification);
 
         pevent->reset_pipeline_event();
@@ -587,8 +592,19 @@ int Certification_handler::inject_transactional_events(Pipeline_event *pevent,
     DBUG_RETURN(1);
   }
   Gtid_specification gtid_specification= { GTID_GROUP, gtid };
+  /**
+   The original_commit_timestamp of this Gtid_log_event will be zero
+   because the transaction corresponds to a View_change_event, which is
+   generated and committed locally by all members. Consequently, there is no
+   'original master'. So, instead of each member generating a GTID with
+   its own unique original_commit_timestamp (and violating the property that
+   the original_commit_timestamp is the same for a given GTID), this timestamp
+   will not be defined.
+  */
   Gtid_log_event *gtid_log_event= new Gtid_log_event(event->server_id,
                                                      true,
+                                                     0,
+                                                     0,
                                                      0,
                                                      0,
                                                      gtid_specification);

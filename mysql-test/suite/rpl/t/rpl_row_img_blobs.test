@@ -10,11 +10,8 @@
 -- source include/have_binlog_format_row.inc
 
 -- connection server_1
--- source include/have_innodb.inc
 -- connection server_2
--- source include/have_innodb.inc
 -- connection server_3
--- source include/have_innodb.inc
 -- connection server_1
 
 #

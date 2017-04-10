@@ -1,3 +1,8 @@
+# Preparation: Shut server down.
+# 1 First start the server with --initialize and --lower-case-table-names=1.
+#   We need to make sure l-c-t-n is set during database initialization.
+#   Otherwise the mysql.tables.name do not pick right collation.
+# 2 Restart the server against DDIR
 drop table if exists t1Aa,t2Aa,v1Aa,v2Aa;
 drop view if exists t1Aa,t2Aa,v1Aa,v2Aa;
 drop database if exists MySQLTest;
@@ -165,3 +170,6 @@ count(*)
 1
 DROP TABLE `ttt`;
 End of 5.0 tests.
+# Shut server down.
+#
+# Cleanup: Restarting the server against default datadir.

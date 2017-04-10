@@ -1,8 +1,3 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 -- source include/have_debug.inc
 
 #
@@ -33,6 +28,17 @@ set session debug="d,raise_error";
 --replace_regex /in table '[^']+'/in table 'tmp_table'/
 --error ER_DUP_KEY
 SELECT MAX(a) FROM t1 GROUP BY a,b;
+
+# Same with a CTE, referenced multiple times; subquery is evaluated
+# first, so qn1 is materialized before qn0, even though qn1 was
+# resolved last; error happens during materialization of qn1.
+--replace_regex /in table '[^']+'/in table 'tmp_table'/
+--error ER_DUP_KEY
+WITH qn (z) AS
+(
+  SELECT 1 FROM t1, t1 t2, t1 t3, t1 t4 LIMIT 100000000
+)
+SELECT * FROM qn qn0 WHERE z = (SELECT z FROM qn qn1 LIMIT 1);
 
 set tmp_table_size=default;
 DROP TABLE t1;

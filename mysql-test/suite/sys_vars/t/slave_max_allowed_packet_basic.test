@@ -117,11 +117,11 @@ SELECT @@session.slave_max_allowed_packet;
 
 --disable_warnings
 SELECT @@global.slave_max_allowed_packet = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='slave_max_allowed_packet';
 
 SELECT @@slave_max_allowed_packet = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+FROM performance_schema.session_variables 
 WHERE VARIABLE_NAME='slave_max_allowed_packet';
 --enable_warnings
 

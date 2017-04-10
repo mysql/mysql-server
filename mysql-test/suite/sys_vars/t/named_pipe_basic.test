@@ -1,4 +1,5 @@
 --source include/windows.inc
+--source include/not_embedded.inc
 #
 # only global
 #
@@ -8,8 +9,8 @@ select @@session.named_pipe;
 show global variables like 'named_pipe';
 show session variables like 'named_pipe';
 --disable_warnings
-select * from information_schema.global_variables where variable_name='named_pipe';
-select * from information_schema.session_variables where variable_name='named_pipe';
+select * from performance_schema.global_variables where variable_name='named_pipe';
+select * from performance_schema.session_variables where variable_name='named_pipe';
 --enable_warnings
 
 #

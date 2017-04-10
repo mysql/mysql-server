@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -25,27 +25,24 @@ Created 2/25/1997 Heikki Tuuri
 
 #include "row0uins.h"
 
-#ifdef UNIV_NONINL
-#include "row0uins.ic"
-#endif
-
-#include "dict0dict.h"
+#include "btr0btr.h"
 #include "dict0boot.h"
 #include "dict0crea.h"
-#include "trx0undo.h"
-#include "trx0roll.h"
-#include "btr0btr.h"
-#include "mach0data.h"
-#include "row0undo.h"
-#include "row0vers.h"
-#include "row0log.h"
-#include "trx0trx.h"
-#include "trx0rec.h"
-#include "row0row.h"
-#include "row0upd.h"
-#include "que0que.h"
+#include "dict0dict.h"
 #include "ibuf0ibuf.h"
 #include "log0log.h"
+#include "mach0data.h"
+#include "my_inttypes.h"
+#include "que0que.h"
+#include "row0log.h"
+#include "row0row.h"
+#include "row0undo.h"
+#include "row0upd.h"
+#include "row0vers.h"
+#include "trx0rec.h"
+#include "trx0roll.h"
+#include "trx0trx.h"
+#include "trx0undo.h"
 
 /*************************************************************************
 IMPORTANT NOTE: Any operation that generates redo MUST check that there
@@ -61,7 +58,7 @@ introduced where a call to log_free_check() is bypassed. */
 Removes a clustered index record. The pcur in node was positioned on the
 record, now it is detached.
 @return DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
-static  MY_ATTRIBUTE((nonnull, warn_unused_result))
+static  MY_ATTRIBUTE((warn_unused_result))
 dberr_t
 row_undo_ins_remove_clust_rec(
 /*==========================*/
@@ -75,7 +72,7 @@ row_undo_ins_remove_clust_rec(
 	dict_index_t*	index	= node->pcur.btr_cur.index;
 	bool		online;
 
-	ut_ad(dict_index_is_clust(index));
+	ut_ad(index->is_clustered());
 	ut_ad(node->trx->in_rollback);
 
 	mtr_start(&mtr);
@@ -130,6 +127,7 @@ row_undo_ins_remove_clust_rec(
 		mtr_commit(&mtr);
 
 		mtr_start(&mtr);
+		mtr.set_sys_modified();
 
 		success = btr_pcur_restore_position(
 			BTR_MODIFY_LEAF, &node->pcur, &mtr);
@@ -174,13 +172,19 @@ retry:
 func_exit:
 	btr_pcur_commit_specify_mtr(&node->pcur, &mtr);
 
+	/* If table is SDI table, we will try to flush as early
+	as possible. */
+	if (dict_table_is_sdi(node->table->id)) {
+		buf_flush_sync_all_buf_pools();
+	}
+
 	return(err);
 }
 
 /***************************************************************//**
 Removes a secondary index entry if found.
 @return DB_SUCCESS, DB_FAIL, or DB_OUT_OF_FILE_SPACE */
-static MY_ATTRIBUTE((nonnull, warn_unused_result))
+static MY_ATTRIBUTE((warn_unused_result))
 dberr_t
 row_undo_ins_remove_sec_low(
 /*========================*/
@@ -262,7 +266,7 @@ row_undo_ins_remove_sec_low(
 		deleting a secondary index record: the distinction
 		only matters when deleting a record that contains
 		externally stored columns. */
-		ut_ad(!dict_index_is_clust(index));
+		ut_ad(!index->is_clustered());
 		btr_cur_pessimistic_delete(&err, FALSE, btr_cur, 0,
 					   false, &mtr);
 	}
@@ -278,7 +282,7 @@ func_exit_no_pcur:
 Removes a secondary index entry from the index if found. Tries first
 optimistic, then pessimistic descent down the tree.
 @return DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
-static MY_ATTRIBUTE((nonnull, warn_unused_result))
+static MY_ATTRIBUTE((warn_unused_result))
 dberr_t
 row_undo_ins_remove_sec(
 /*====================*/
@@ -355,7 +359,9 @@ close_table:
 		dict_table_close(node->table, dict_locked, FALSE);
 		node->table = NULL;
 	} else {
-		clust_index = dict_table_get_first_index(node->table);
+		ut_ad(!node->table->skip_alter_undo);
+
+		clust_index = node->table->first_index();
 
 		if (clust_index != NULL) {
 			ptr = trx_undo_rec_get_row_ref(
@@ -381,7 +387,7 @@ close_table:
 /***************************************************************//**
 Removes secondary index records.
 @return DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
-static MY_ATTRIBUTE((nonnull, warn_unused_result))
+static MY_ATTRIBUTE((warn_unused_result))
 dberr_t
 row_undo_ins_remove_sec_rec(
 /*========================*/
@@ -468,10 +474,10 @@ row_undo_ins(
 
 	/* Iterate over all the indexes and undo the insert.*/
 
-	node->index = dict_table_get_first_index(node->table);
-	ut_ad(dict_index_is_clust(node->index));
+	node->index = node->table->first_index();
+	ut_ad(node->index->is_clustered());
 	/* Skip the clustered index (the first index) */
-	node->index = dict_table_get_next_index(node->index);
+	node->index = node->index->next();
 
 	dict_table_skip_corrupt_index(node->index);
 

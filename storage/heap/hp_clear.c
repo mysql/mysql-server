@@ -1,4 +1,4 @@
-/* Copyright (c) 2000-2002, 2004-2007 MySQL AB, 2009 Sun Microsystems, Inc.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
    Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
@@ -20,7 +20,11 @@
   database remains open.
 */
 
+#include <sys/types.h>
+
 #include "heapdef.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
 
 void heap_clear(HP_INFO *info)
 {

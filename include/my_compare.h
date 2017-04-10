@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,13 +16,19 @@
 #ifndef _my_compare_h
 #define _my_compare_h
 
+/**
+  @file include/my_compare.h
+*/
+
+#include <sys/types.h>
+
+#include "m_ctype.h"                            /* CHARSET_INFO */
+#include "my_inttypes.h"
 #include "myisampack.h"
+
 #ifdef	__cplusplus
 extern "C" {
 #endif
-
-#include "m_ctype.h"                            /* CHARSET_INFO */
-#include "my_icp.h"                             /* ICP_RESULT */
 
 /*
   There is a hard limit for the maximum number of keys as there are only
@@ -108,7 +114,7 @@ typedef struct st_HA_KEYSEG		/* Key-portion */
   set_rec_bits(0, bit_ptr, bit_ofs, bit_len)
 
 extern int ha_compare_text(const CHARSET_INFO *, uchar *, uint, uchar *, uint ,
-			   my_bool, my_bool);
+			   bool);
 extern int ha_key_cmp(HA_KEYSEG *keyseg, uchar *a,
 		      uchar *b, uint key_length, uint nextflag,
 		      uint *diff_pos);

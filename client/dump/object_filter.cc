@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -17,18 +17,21 @@
 
 #ifndef UNITTEST_OBJECT_FILTER_PARSER
 #include "object_filter.h"
-#include "pattern_matcher.h"
+
 #include "database.h"
 #include "event_scheduler_event.h"
-#include "table.h"
-#include "stored_procedure.h"
 #include "mysql_function.h"
-#include "trigger.h"
+#include "pattern_matcher.h"
 #include "privilege.h"
+#include "stored_procedure.h"
+#include "table.h"
+#include "trigger.h"
 #endif
 #include <boost/algorithm/string.hpp>
 #include <boost/tokenizer.hpp>
+#include <stddef.h>
 
+using std::placeholders::_1;
 
 std::string parse_inclusion_string(
   std::string val,
@@ -305,67 +308,57 @@ void Object_filter::create_options()
     "include. If there are no exclusions then only included objects will be "
     "dumped. Otherwise all objects that are not on exclusion lists or are "
     "on inclusion list will be dumped.")
-    ->add_callback(new Mysql::Instance_callback
-    <void, char*, Object_filter>(this,
-    &Object_filter::include_databases_callback));
+    ->add_callback(new std::function<void(char*)>(
+      std::bind(&Object_filter::include_databases_callback, this, _1)));
   this->create_new_option(&m_include_tmp_string, "exclude-databases",
     "Specifies comma-separated list of databases to exclude.")
-    ->add_callback(new Mysql::Instance_callback
-    <void, char*, Object_filter>(this,
-    &Object_filter::exclude_databases_callback));
+    ->add_callback(new std::function<void(char*)>(
+      std::bind(&Object_filter::exclude_databases_callback, this, _1)));
   this->create_new_option(&m_include_tmp_string, "include-tables",
     "Specifies comma-separated list of tables to "
     "include. If there is no exclusions then only included objects will be "
     "dumped. Otherwise all objects that are not on exclusion lists or are "
     "on inclusion list will be dumped.")
-    ->add_callback(new Mysql::Instance_callback
-    <void, char*, Object_filter>(this,
-    &Object_filter::include_tables_callback));
+    ->add_callback(new std::function<void(char*)>(
+      std::bind(&Object_filter::include_tables_callback, this, _1)));
   this->create_new_option(&m_include_tmp_string, "exclude-tables",
     "Specifies comma-separated list of tables to exclude.")
-    ->add_callback(new Mysql::Instance_callback
-    <void, char*, Object_filter>(this,
-    &Object_filter::exclude_tables_callback));
+    ->add_callback(new std::function<void(char*)>(
+      std::bind(&Object_filter::exclude_tables_callback, this, _1)));
   this->create_new_option(&m_include_tmp_string, "include-routines",
     "Specifies comma-separated list of stored procedures or functions to "
     "include. If there is no exclusions then only included objects will be "
     "dumped. Otherwise all objects that are not on exclusion lists or are "
     "on inclusion list will be dumped.")
-    ->add_callback(new Mysql::Instance_callback
-    <void, char*, Object_filter>(this,
-    &Object_filter::include_routines_callback));
+    ->add_callback(new std::function<void(char*)>(
+      std::bind(&Object_filter::include_routines_callback, this, _1)));
   this->create_new_option(&m_include_tmp_string, "exclude-routines",
     "Specifies comma-separated list of stored procedures or functions to "
     "exclude.")
-    ->add_callback(new Mysql::Instance_callback
-    <void, char*, Object_filter>(this,
-    &Object_filter::exclude_routines_callback));
+    ->add_callback(new std::function<void(char*)>(
+      std::bind(&Object_filter::exclude_routines_callback, this, _1)));
   this->create_new_option(&m_include_tmp_string, "include-triggers",
     "Specifies comma-separated list of triggers to "
     "include. If there is no exclusions then only included objects will be "
     "dumped. Otherwise all objects that are not on exclusion lists or are "
     "on inclusion list will be dumped.")
-    ->add_callback(new Mysql::Instance_callback
-    <void, char*, Object_filter>(this,
-    &Object_filter::include_triggers_callback));
+    ->add_callback(new std::function<void(char*)>(
+      std::bind(&Object_filter::include_triggers_callback, this, _1)));
   this->create_new_option(&m_include_tmp_string, "exclude-triggers",
     "Specifies comma-separated list of triggers to exclude.")
-    ->add_callback(new Mysql::Instance_callback
-    <void, char*, Object_filter>(this,
-    &Object_filter::exclude_triggers_callback));
+    ->add_callback(new std::function<void(char*)>(
+      std::bind(&Object_filter::exclude_triggers_callback, this, _1)));
   this->create_new_option(&m_include_tmp_string, "include-events",
     "Specifies comma-separated list of events to "
     "include. If there is no exclusions then only included objects will be "
     "dumped. Otherwise all objects that are not on exclusion lists or are "
     "on inclusion list will be dumped.")
-    ->add_callback(new Mysql::Instance_callback
-    <void, char*, Object_filter>(this,
-    &Object_filter::include_events_callback));
+    ->add_callback(new std::function<void(char*)>(
+      std::bind(&Object_filter::include_events_callback, this, _1)));
   this->create_new_option(&m_include_tmp_string, "exclude-events",
     "Specifies comma-separated list of events to exclude.")
-    ->add_callback(new Mysql::Instance_callback
-    <void, char*, Object_filter>(this,
-    &Object_filter::exclude_events_callback));
+    ->add_callback(new std::function<void(char*)>(
+      std::bind(&Object_filter::exclude_events_callback, this, _1)));
   this->create_new_option(&m_dump_routines, "routines",
     "Dump stored procedures and functions.")
     ->set_value(true);
@@ -383,14 +376,12 @@ void Object_filter::create_options()
     "include. If there is no exclusions then only included objects will be "
     "dumped. Otherwise all objects that are not on exclusion lists or are "
     "on inclusion list will be dumped.")
-    ->add_callback(new Mysql::Instance_callback
-    <void, char*, Object_filter>(this,
-    &Object_filter::include_users_callback));
+    ->add_callback(new std::function<void(char*)>(
+      std::bind(&Object_filter::include_users_callback, this, _1)));
   this->create_new_option(&m_include_tmp_string, "exclude-users",
     "Specifies comma-separated list of users to exclude. ")
-    ->add_callback(new Mysql::Instance_callback
-    <void, char*, Object_filter>(this,
-    &Object_filter::exclude_users_callback));
+    ->add_callback(new std::function<void(char*)>(
+      std::bind(&Object_filter::exclude_users_callback, this, _1)));
 }
 
 Object_filter::Object_filter(Mysql::Tools::Base::Abstract_program* program)

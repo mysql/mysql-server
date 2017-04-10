@@ -28,12 +28,12 @@ Table	Create Table
 t3	CREATE TABLE `t3` (
   `a` mediumtext,
   `b` mediumblob
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 show create TABLE t4;
 Table	Create Table
 t4	CREATE TABLE `t4` (
   `c` mediumtext CHARACTER SET utf8 NOT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1,t2,t3,t4;
 CREATE TABLE t1 (a char(257) default "hello");
 ERROR 42000: Column length too big for column 'a' (max = 255); use BLOB or TEXT instead
@@ -223,18 +223,18 @@ select t from t1 group by t;
 t
 NULL
 
-1
-a
 hello
 HELLO MY
+a
+1
 select b from t1 group by b;
 b
 NULL
 
+hello
 HELLO
 HELLO MY
 a
-hello
 set big_tables=1;
 select distinct t from t1;
 t
@@ -328,40 +328,40 @@ a	a	a	a
 1		NULL	1
 select t,count(*) from t1 group by t;
 t	count(*)
-NULL	2
 	1
-1	1
-a	1
 hello	2
 HELLO MY	1
+a	1
+1	1
+NULL	2
 select b,count(*) from t1 group by b;
 b	count(*)
-NULL	3
 	1
+hello	1
 HELLO	1
 HELLO MY	1
 a	1
-hello	1
+NULL	3
 select c,count(*) from t1 group by c;
 c	count(*)
 NULL	2
 	2
-a	1
 hello	2
 HELLO MY	1
+a	1
 select d,count(*) from t1 group by d;
 d	count(*)
 NULL	2
 	1
-1	1
+hello	1
 HELLO	1
 HELLO MY	1
 a	1
-hello	1
+1	1
 drop table t1;
-create table t1 (a text, unique (a(2100)));
+create table t1 (a text, unique (a(2100))) engine=myisam;
 ERROR 42000: Specified key was too long; max key length is 1000 bytes
-create table t1 (a text, key (a(2100)));
+create table t1 (a text, key (a(2100))) engine=myisam;
 Warnings:
 Warning	1071	Specified key was too long; max key length is 1000 bytes
 show create table t1;
@@ -538,77 +538,61 @@ create table t1 (id integer primary key auto_increment, txt text not null, uniqu
 insert into t1 (txt) values ('Chevy'), ('Chevy ');
 ERROR 23000: Duplicate entry 'Chevy ' for key 'txt_index'
 insert into t1 (txt) values ('Chevy'), ('CHEVY');
-ERROR 23000: Duplicate entry 'Chevy' for key 'txt_index'
+ERROR 23000: Duplicate entry 'CHEVY' for key 'txt_index'
 alter table t1 drop index txt_index, add index txt_index (txt(20));
 insert into t1 (txt) values ('Chevy ');
 select * from t1 where txt='Chevy';
 id	txt
-1	Chevy
-2	Chevy 
+5	Chevy 
 select * from t1 where txt='Chevy ';
 id	txt
-1	Chevy
-2	Chevy 
+5	Chevy 
 select * from t1 where txt='Chevy ' or txt='Chevy';
 id	txt
-1	Chevy
-2	Chevy 
+5	Chevy 
 select * from t1 where txt='Chevy' or txt='Chevy ';
 id	txt
-1	Chevy
-2	Chevy 
+5	Chevy 
 select * from t1 where id='1' or id='2';
 id	txt
-1	Chevy
-2	Chevy 
 insert into t1 (txt) values('Ford');
 select * from t1 where txt='Chevy' or txt='Chevy ' or txt='Ford';
 id	txt
-1	Chevy
-2	Chevy 
-3	Ford
+5	Chevy 
+6	Ford
 select * from t1 where txt='Chevy' or txt='Chevy ';
 id	txt
-1	Chevy
-2	Chevy 
+5	Chevy 
 select * from t1 where txt='Chevy' or txt='Chevy ' or txt=' Chevy';
 id	txt
-1	Chevy
-2	Chevy 
+5	Chevy 
 select * from t1 where txt in ('Chevy ','Chevy');
 id	txt
-1	Chevy
-2	Chevy 
+5	Chevy 
 select * from t1 where txt in ('Chevy');
 id	txt
-1	Chevy
-2	Chevy 
+5	Chevy 
 select * from t1 where txt between 'Chevy' and 'Chevy';
 id	txt
-1	Chevy
-2	Chevy 
+5	Chevy 
 select * from t1 where txt between 'Chevy' and 'Chevy' or txt='Chevy ';
 id	txt
-1	Chevy
-2	Chevy 
+5	Chevy 
 select * from t1 where txt between 'Chevy' and 'Chevy ';
 id	txt
-1	Chevy
-2	Chevy 
+5	Chevy 
 select * from t1 where txt < 'Chevy ';
 id	txt
 select * from t1 where txt <= 'Chevy';
 id	txt
-1	Chevy
-2	Chevy 
+5	Chevy 
 select * from t1 where txt > 'Chevy';
 id	txt
-3	Ford
+6	Ford
 select * from t1 where txt >= 'Chevy';
 id	txt
-1	Chevy
-2	Chevy 
-3	Ford
+5	Chevy 
+6	Ford
 drop table t1;
 create table t1 (id integer primary key auto_increment, txt text, index txt_index (txt (20)));
 insert into t1 (txt) values ('Chevy'), ('Chevy '), (NULL);
@@ -617,9 +601,12 @@ id	txt
 1	Chevy
 2	Chevy 
 3	NULL
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 explain select * from t1 where txt='Chevy' or txt is NULL;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ref_or_null	txt_index	txt_index	23	const	2	100.00	Using where
+1	SIMPLE	t1	NULL	ref_or_null	txt_index	txt_index	23	const	3	100.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`txt` AS `txt` from `test`.`t1` where ((`test`.`t1`.`txt` = 'Chevy') or isnull(`test`.`t1`.`txt`))
 select * from t1 where txt='Chevy ';
@@ -690,6 +677,9 @@ id	txt
 2	Chevy 
 4	Ford
 alter table t1 modify column txt blob;
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 explain select * from t1 where txt='Chevy' or txt is NULL;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref_or_null	txt_index	txt_index	23	const	2	100.00	Using where
@@ -728,7 +718,7 @@ t1	CREATE TABLE `t1` (
   `e` int(11) DEFAULT NULL,
   PRIMARY KEY (`a`,`b`,`c`(255),`d`),
   KEY `a` (`a`,`b`,`d`,`e`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
 CREATE table t1 (a blob);
 insert into t1 values ('b'),('a\0'),('a'),('a '),('aa'),(NULL);
@@ -807,7 +797,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` text
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 insert into t1 values (default);
 select * from t1;
 a
@@ -912,35 +902,41 @@ ERROR 42000: Display width out of range for column 'a' (max = 4294967295)
 CREATE TABLE b15776 (a year(999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999));
 ERROR HY000: Supports only YEAR or YEAR(4) column.
 CREATE TABLE b15776 select cast(null as char(4294967295));
+Warnings:
+Warning	1301	Result of cast_as_char() was larger than max_allowed_packet (4194304) - truncated
 show columns from b15776;
 Field	Type	Null	Key	Default	Extra
-cast(null as char(4294967295))	char(0)	YES		NULL	
+cast(null as char(4294967295))	longtext	YES		NULL	
 drop table b15776;
 CREATE TABLE b15776 select cast(null as nchar(4294967295));
+Warnings:
+Warning	1301	Result of cast_as_char() was larger than max_allowed_packet (4194304) - truncated
 show columns from b15776;
 Field	Type	Null	Key	Default	Extra
-cast(null as nchar(4294967295))	char(0)	YES		NULL	
+cast(null as nchar(4294967295))	longtext	YES		NULL	
 drop table b15776;
 CREATE TABLE b15776 select cast(null as binary(4294967295));
+Warnings:
+Warning	1301	Result of cast_as_binary() was larger than max_allowed_packet (4194304) - truncated
 show columns from b15776;
 Field	Type	Null	Key	Default	Extra
-cast(null as binary(4294967295))	binary(0)	YES		NULL	
+cast(null as binary(4294967295))	longblob	YES		NULL	
 drop table b15776;
 explain select cast(1 as char(4294967295));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Note	1003	/* select#1 */ select cast(1 as char charset latin1) AS `cast(1 as char(4294967295))`
+Note	1003	/* select#1 */ select cast(1 as char(4294967295) charset latin1) AS `cast(1 as char(4294967295))`
 explain select cast(1 as nchar(4294967295));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Note	1003	/* select#1 */ select cast(1 as char charset utf8) AS `cast(1 as nchar(4294967295))`
+Note	1003	/* select#1 */ select cast(1 as char(4294967295) charset utf8) AS `cast(1 as nchar(4294967295))`
 explain select cast(1 as binary(4294967295));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Note	1003	/* select#1 */ select cast(1 as char charset binary) AS `cast(1 as binary(4294967295))`
+Note	1003	/* select#1 */ select cast(1 as char(4294967295) charset binary) AS `cast(1 as binary(4294967295))`
 explain select cast(1 as char(4294967296));
 ERROR 42000: Display width out of range for column 'cast as char' (max = 4294967295)
 explain select cast(1 as nchar(4294967296));
@@ -964,7 +960,7 @@ explain select convert(1, char(4294967295));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Note	1003	/* select#1 */ select cast(1 as char charset latin1) AS `convert(1, char(4294967295))`
+Note	1003	/* select#1 */ select cast(1 as char(4294967295) charset latin1) AS `convert(1, char(4294967295))`
 explain select convert(1, char(4294967296));
 ERROR 42000: Display width out of range for column 'cast as char' (max = 4294967295)
 explain select convert(1, char(999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999));
@@ -973,7 +969,7 @@ explain select convert(1, nchar(4294967295));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Note	1003	/* select#1 */ select cast(1 as char charset utf8) AS `convert(1, nchar(4294967295))`
+Note	1003	/* select#1 */ select cast(1 as char(4294967295) charset utf8) AS `convert(1, nchar(4294967295))`
 explain select convert(1, nchar(4294967296));
 ERROR 42000: Display width out of range for column 'cast as char' (max = 4294967295)
 explain select convert(1, nchar(999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999));
@@ -982,7 +978,7 @@ explain select convert(1, binary(4294967295));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Note	1003	/* select#1 */ select cast(1 as char charset binary) AS `convert(1, binary(4294967295))`
+Note	1003	/* select#1 */ select cast(1 as char(4294967295) charset binary) AS `convert(1, binary(4294967295))`
 explain select convert(1, binary(4294967296));
 ERROR 42000: Display width out of range for column 'cast as char' (max = 4294967295)
 explain select convert(1, binary(999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999));

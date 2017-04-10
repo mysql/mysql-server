@@ -1,0 +1,27 @@
+
+#------------------------------------------------------------------------------#
+# General not engine specific settings and requirements
+--source suite/gcol/inc/gcol_init_vars.pre
+
+#------------------------------------------------------------------------------#
+# Engine specific settings and requirements
+--source suite/gcol_ndb/inc/mtr_conditionals.inc
+
+##### Storage engine to be tested
+# Set the session storage engine
+eval SET @@session.default_storage_engine = 'ndbcluster';
+
+#------------------------------------------------------------------------------#
+# Execute the tests to be applied to all storage engines
+eval SET optimizer_switch='derived_merge=off';
+--source suite/gcol/inc/gcol_select.inc
+eval SET optimizer_switch='derived_merge=default';
+
+#------------------------------------------------------------------------------#
+# Execute storage engine specific tests
+--source suite/gcol_ndb/inc/gcol_select_ndb_extra_tests.inc
+
+#------------------------------------------------------------------------------#
+# Cleanup
+--source suite/gcol/inc/gcol_cleanup.inc
+

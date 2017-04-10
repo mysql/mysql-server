@@ -12,10 +12,10 @@ COUNT(*)
 {checked_valid}
 # restart
 SELECT variable_value
-FROM information_schema.global_status
+FROM performance_schema.global_status
 WHERE LOWER(variable_name) = 'innodb_buffer_pool_load_status';
 variable_value
-Buffer pool(s) load completed at TIMESTAMP_NOW
+Buffer pool load completed or still running
 SELECT COUNT(*) FROM information_schema.innodb_buffer_page_lru
 WHERE table_name LIKE '%ib_bp_test%';
 COUNT(*)
@@ -26,10 +26,10 @@ call mtr.add_suppression("InnoDB: Error parsing");
 # should be valid but all the page no should be out of bound of the file
 # restart
 SELECT variable_value
-FROM information_schema.global_status
+FROM performance_schema.global_status
 WHERE LOWER(variable_name) = 'innodb_buffer_pool_load_status';
 variable_value
-Buffer pool(s) load completed at TIMESTAMP_NOW
+Buffer pool load completed or still running
 DROP TABLE ib_bp_test;
 SET GLOBAL innodb_buffer_pool_dump_pct=default;
 #
@@ -41,16 +41,16 @@ CREATE TABLE t1 (a int) ENGINE=innodb;
 INSERT INTO t1 VALUES (1), (2), (3);
 SET GLOBAL innodb_buffer_pool_dump_now=ON;
 SELECT variable_value
-FROM information_schema.global_status
+FROM performance_schema.global_status
 WHERE LOWER(variable_name) = 'innodb_buffer_pool_dump_status';
 variable_value
 Buffer pool(s) dump completed at TIMESTAMP_NOW
 SET GLOBAL innodb_buffer_pool_load_now = ON;
 SELECT variable_value
-FROM information_schema.global_status
+FROM performance_schema.global_status
 WHERE LOWER(variable_name) = 'innodb_buffer_pool_load_status';
 variable_value
-Buffer pool(s) load completed at TIMESTAMP_NOW
+Buffer pool load completed or still running
 DROP TABLE t1;
 DROP DATABASE test;
 # restart

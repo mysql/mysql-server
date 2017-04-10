@@ -18,6 +18,8 @@
 --echo # Section 1. Wrong column definition options
 --echo #            - DEFAULT <value>
 --echo #            - AUTO_INCREMENT
+--echo #            - SERIAL DEFAULT VALUE
+--echo #            - ON UPDATE NOW ...
 
 --echo # NOT NULL
 create table t1 (a int, b int generated always as (a+1) virtual not null);
@@ -55,19 +57,35 @@ alter table t1 add column (h int generated always as (a+1) virtual, i int as(5) 
 drop table t1;
 
 --echo # DEFAULT
---error 1064
+--error ER_WRONG_USAGE
 create table t1 (a int, b int generated always as (a+1) virtual default 0);
 create table t1 (a int);
---error 1064
+--error ER_WRONG_USAGE
 alter table t1 add column b int generated always as (a+1) virtual default 0;
 drop table t1;
 
 --echo # AUTO_INCREMENT
---error 1064
+--error ER_WRONG_USAGE
 create table t1 (a int, b int generated always as (a+1) virtual AUTO_INCREMENT);
 create table t1 (a int);
---error 1064
+--error ER_WRONG_USAGE
 alter table t1 add column b int generated always as (a+1) virtual AUTO_INCREMENT;
+drop table t1;
+
+--echo # SERIAL DEFAULT VALUE
+--error ER_WRONG_USAGE
+create table t1 (a int, b int generated always as (a+1) virtual SERIAL DEFAULT VALUE);
+create table t1 (a int);
+--error ER_WRONG_USAGE
+alter table t1 add column b int generated always as (a+1) virtual SERIAL DEFAULT VALUE;
+drop table t1;
+
+--echo # ON UPDATE
+--error ER_WRONG_USAGE
+create table t1 (a int, b int generated always as (a+1) virtual ON UPDATE NOW());
+create table t1 (a int);
+--error ER_WRONG_USAGE
+alter table t1 add column b int generated always as (a+1) virtual ON UPDATE NOW();
 drop table t1;
 
 --echo # [PRIMARY] KEY
@@ -99,11 +117,11 @@ alter table t1 add column b int generated always as (a+1) virtual key;
 alter table t1 add column b int generated always as (a+1) stored key;
 if ($support_virtual_index)
 {
---error ER_UNSUPPORTED_ACTION_ON_GENERATED_COLUMN
+--error ER_MULTIPLE_PRI_KEY
 alter table t1 add column c int generated always as (a+2) virtual primary key;
 }
 show create table t1;
---error 1068
+--error ER_MULTIPLE_PRI_KEY
 alter table t1 add column c int generated always as (a+2) stored primary key;
 drop table t1;
 
@@ -337,18 +355,25 @@ CREATE TABLE t2(a int, b int as (1 NOT IN (SELECT 1 FROM dual)));
 DROP TABLE t1;
 
 if(! $testing_ndb) {
---echo # Bug#21142905: PARTITIONED GENERATED COLS -
---echo #  !TABLE || (!TABLE->WRITE_SET || BITMAP_IS_SET
---echo # 
-CREATE TABLE t1 (
-a int,
-b int generated always as (a) virtual,
-c int generated always as (b+a) virtual,
-d int generated always as (b+a) virtual
-) PARTITION BY LINEAR HASH (b);
-INSERT INTO t1(a) VALUES(0);
-DELETE FROM t1 WHERE c=1;
-DROP TABLE t1;
+  --echo # Bug#21142905: PARTITIONED GENERATED COLS -
+  --echo #  !TABLE || (!TABLE->WRITE_SET || BITMAP_IS_SET
+  --echo # 
+  if ($support_native_partitioning)
+  {
+    CREATE TABLE t1 (
+    a int,
+    b int generated always as (a) virtual,
+    c int generated always as (b+a) virtual,
+    d int generated always as (b+a) virtual
+    ) PARTITION BY LINEAR HASH (b);
+    INSERT INTO t1(a) VALUES(0);
+    DELETE FROM t1 WHERE c=1;
+    DROP TABLE t1;
+  }
+  if (!$support_native_partitioning)
+  {
+   --echo "Skipped since this engine does not support native partitioning.
+  }
 }
 
 --echo # Bug #20709487: COLLATE OPTION NOT ACCEPTED IN GENERATED COLUMN
@@ -394,23 +419,30 @@ SELECT c, c_ci REGEXP 'A', c_cs REGEXP 'A' FROM t1;
 DROP TABLE t1;
 
 if(! $testing_ndb) {
---echo # Bug #21469535: VALGRIND ERROR (CONDITIONAL JUMP) WHEN INSERT
---echo #                ROWS INTO A PARTITIONED TABLE
---echo #
-CREATE TABLE t1 (
-    id INT NOT NULL,
-    store_id INT NOT NULL,
-    x INT GENERATED ALWAYS AS (id + store_id)
-)
-PARTITION BY RANGE (store_id) (
-    PARTITION p0 VALUES LESS THAN (6),
-    PARTITION p1 VALUES LESS THAN (11),
-    PARTITION p2 VALUES LESS THAN (16),
-    PARTITION p3 VALUES LESS THAN (21)
-);
+  --echo # Bug #21469535: VALGRIND ERROR (CONDITIONAL JUMP) WHEN INSERT
+  --echo #                ROWS INTO A PARTITIONED TABLE
+  --echo #
+  if ($support_native_partitioning)
+  {
+    CREATE TABLE t1 (
+        id INT NOT NULL,
+        store_id INT NOT NULL,
+        x INT GENERATED ALWAYS AS (id + store_id)
+    )
+    PARTITION BY RANGE (store_id) (
+        PARTITION p0 VALUES LESS THAN (6),
+        PARTITION p1 VALUES LESS THAN (11),
+        PARTITION p2 VALUES LESS THAN (16),
+        PARTITION p3 VALUES LESS THAN (21)
+    );
 
-INSERT INTO t1 VALUES(1, 2, default);
-DROP TABLE t1;
+    INSERT INTO t1 VALUES(1, 2, default);
+    DROP TABLE t1;
+  }
+  if (!$support_native_partitioning)
+  {
+    --echo "Skipped since this engine does not support native partitioning.
+  }
 }
 
 --echo # Bug#21465626:ASSERT/CRASH ON DROPPING/ADDING VIRTUAL COLUMN
@@ -460,6 +492,7 @@ CREATE TABLE t1 (
 SHOW FULL COLUMNS FROM t1;
 
 INSERT INTO t1 (a) VALUES (NULL), (1);
+--sorted_result
 SELECT * FROM t1;
 
 DROP TABLE t1;
@@ -588,7 +621,6 @@ DROP TABLE t1;
 --enable_warnings
 }
 
-
 --echo #
 --echo # Bug#22680839: DEFAULT IS NOT DETERMINISTIC AND SHOULD NOT BE
 --echo #               ALLOWED IN GENERATED COLUMNS
@@ -630,7 +662,7 @@ DROP TABLE t1;
 --echo #
 CREATE TABLE t1(a INT PRIMARY KEY DEFAULT 5);
 INSERT INTO t1 VALUES();
---error ER_ALTER_OPERATION_NOT_SUPPORTED
+--error ER_ALTER_OPERATION_NOT_SUPPORTED, ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
 ALTER TABLE t1 ALTER COLUMN a SET DEFAULT 7,
                ADD COLUMN b INT AS (1 + DEFAULT(a)) STORED,
                ALGORITHM = INPLACE;

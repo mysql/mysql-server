@@ -24,10 +24,9 @@ id
 1
 2
 3
+SET GLOBAL innodb_fast_shutdown = 0;
 # restart: --innodb-read-only
 SET GLOBAL innodb_file_per_table = 1;
-CREATE USER 'test3'@'localhost' IDENTIFIED BY '123';
-GRANT ALL ON testdb_wl6445.* TO 'test3'@'localhost';
 USE testdb_wl6445;
 SELECT i FROM t1 ORDER BY i;
 i
@@ -41,6 +40,8 @@ i	LEFT(j,20)
 1	aaaaaaaaaaaaaaaaaaaa
 2	bbbbbbbbbbbbbbbbbbbb
 3	cccccccccccccccccccc
+CREATE USER 'test3'@'localhost' IDENTIFIED BY '123';
+ERROR HY000: The ACL operation failed due to the following error from SE: errcode 165 - Table is read only
 # connection con_test1_user try to modify
 SELECT user();
 user()
@@ -54,7 +55,7 @@ i	LEFT(j,20)
 2	bbbbbbbbbbbbbbbbbbbb
 3	cccccccccccccccccccc
 CREATE TABLE t2 ( i int ,j blob) ENGINE = Innodb;
-ERROR HY000: InnoDB is in read only mode.
+ERROR HY000: Table 'tables' is read only
 UPDATE t1 SET i = i+1;
 ERROR HY000: Can't lock file (errno: 165 - Table is read only)
 # disconnect con_test1_user
@@ -71,7 +72,7 @@ i	LEFT(j,20)
 2	bbbbbbbbbbbbbbbbbbbb
 3	cccccccccccccccccccc
 CREATE TABLE t2 ( i int , j blob) ENGINE = Innodb;
-ERROR HY000: InnoDB is in read only mode.
+ERROR HY000: Table 'tables' is read only
 UPDATE t1 SET i = i+1;
 ERROR HY000: Can't lock file (errno: 165 - Table is read only)
 FLUSH STATUS;
@@ -90,7 +91,7 @@ i	LEFT(j,20)
 2	bbbbbbbbbbbbbbbbbbbb
 3	cccccccccccccccccccc
 CREATE TABLE t2 ( i int , j blob) ENGINE = Innodb;
-ERROR HY000: InnoDB is in read only mode.
+ERROR HY000: Table 'tables' is read only
 UPDATE t1 SET i = i+1;
 ERROR HY000: Can't lock file (errno: 165 - Table is read only)
 INSERT INTO otherlocation VALUES (1),(2),(3);
@@ -108,7 +109,6 @@ UNLOCK TABLES;
 # restart
 DROP USER 'test1'@'localhost';
 DROP USER 'test2'@'localhost';
-DROP USER 'test3'@'localhost';
 DROP DATABASE testdb_wl6445;
 case # 2
 CREATE DATABASE testdb_wl6445;
@@ -130,6 +130,7 @@ COMMIT;
 SELECT COUNT(*) FROM testdb_wl6445.t1;
 COUNT(*)
 50
+SET GLOBAL innodb_fast_shutdown = 0;
 # restart: --innodb-read-only
 USE testdb_wl6445;
 INSERT INTO t1 VALUES (211,repeat('a',200)),(212,repeat('b',200)),(213,repeat('c',200));
@@ -142,7 +143,7 @@ i	LEFT(j,20)
 40	a40a40a40a40a40a40a4
 50	a50a50a50a50a50a50a5
 CREATE TABLE t2 ( i int , j blob) ENGINE = Innodb;
-ERROR HY000: InnoDB is in read only mode.
+ERROR HY000: Table 'tables' is read only
 UPDATE t1 SET i = i+1;
 ERROR HY000: Can't lock file (errno: 165 - Table is read only)
 SELECT i,LEFT(j,20) FROM t1  WHERE i%10=0  ORDER BY i;
@@ -1143,6 +1144,7 @@ CALL proc2(1,'test1');
 SELECT * FROM t3;
 i	j
 1	test1
+SET GLOBAL innodb_fast_shutdown = 0;
 # restart: --innodb-read-only
 SET GLOBAL innodb_file_per_table = 1;
 USE testdb_wl6445;
@@ -1205,6 +1207,7 @@ SELECT * FROM t1 WHERE MATCH (j) AGAINST ('mysql (+database -innodb)' IN BOOLEAN
 i	j
 4	mysql database
 5	mysql database innodb support
+SET GLOBAL innodb_fast_shutdown = 0;
 # restart: --innodb-read-only --innodb_purge_threads=5 --innodb_buffer_pool_size=16M
 SET GLOBAL innodb_max_purge_lag = 10;
 SET GLOBAL innodb_max_purge_lag_delay = 10;
@@ -1258,6 +1261,7 @@ SELECT * FROM t1 WHERE MATCH (j) AGAINST ('innodb') ;
 i	j
 5	mysql database innodb support
 6	innodb engine
+SET GLOBAL innodb_fast_shutdown = 0;
 # restart: --innodb-read-only --read-only
 USE testdb_wl6445;
 show tables;
@@ -1273,9 +1277,9 @@ ERROR HY000: Can't lock file (errno: 165 - Table is read only)
 DELETE FROM t1;
 ERROR HY000: Can't lock file (errno: 165 - Table is read only)
 CREATE TABLE t2 ( i INT ) ENGINE = Innodb;
-ERROR HY000: InnoDB is in read only mode.
+ERROR HY000: Table 'tables' is read only
 CREATE USER 'test5'@'localhost' IDENTIFIED BY '123';
-GRANT ALL ON testdb_wl6445.* TO 'test5'@'localhost';
+ERROR HY000: The ACL operation failed due to the following error from SE: errcode 165 - Table is read only
 # restart: --read-only
 USE testdb_wl6445;
 INSERT INTO t1 VALUES (11,repeat('a',200)),(12,repeat('b',200)),(13,repeat('c',200));
@@ -1310,7 +1314,6 @@ CREATE USER 'test5_2'@'localhost' IDENTIFIED BY '123';
 GRANT ALL ON testdb_wl6445.* TO 'test5_2'@'localhost';
 # restart
 DROP USER 'test5_2'@'localhost';
-DROP USER 'test5'@'localhost';
 DROP DATABASE testdb_wl6445;
 case # 6
 CREATE DATABASE testdb_wl6445;
@@ -1324,6 +1327,7 @@ i
 2
 3
 # Creating a temp sql file to be loaded.
+SET GLOBAL innodb_fast_shutdown = 0;
 # restart: --innodb-read-only
 USE testdb_wl6445;
 : 1036, Table 't1' is read only, when using table: t1
@@ -1359,6 +1363,7 @@ commit;
 check table t1 extended;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
+SET GLOBAL innodb_fast_shutdown = 0;
 # restart: --innodb-read-only
 check table t1 extended;
 Table	Op	Msg_type	Msg_text

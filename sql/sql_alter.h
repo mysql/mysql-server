@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights
+/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights
    reserved.
 
    This program is free software; you can redistribute it and/or modify
@@ -17,36 +17,52 @@
 #ifndef SQL_ALTER_TABLE_H
 #define SQL_ALTER_TABLE_H
 
+#include <assert.h>
+#include <stddef.h>
+#include <sys/types.h>
+
+#include "binary_log_types.h" // enum_field_types
+#include "lex_string.h"
+#include "my_dbug.h"
+#include "my_io.h"
+#include "my_sqlcommand.h"
+#include "mysql/mysql_lex_string.h"
+#include "mysql/psi/psi_base.h"
+#include "prealloced_array.h" // Prealloced_array
+#include "sql_alloc.h"
 #include "sql_cmd.h"  // Sql_cmd
 #include "sql_list.h" // List
+#include "thr_malloc.h"
 
 class Create_field;
+class FOREIGN_KEY;
 class Item;
-class Key;
+class Key_spec;
 class String;
+class THD;
 struct TABLE_LIST;
+
+namespace dd {
+  class Trigger;
+}
 
 /**
   Class representing DROP COLUMN, DROP KEY and DROP FOREIGN KEY
   clauses in ALTER TABLE statement.
 */
 
-class Alter_drop :public Sql_alloc {
+class Alter_drop : public Sql_alloc
+{
 public:
   enum drop_type {KEY, COLUMN, FOREIGN_KEY };
   const char *name;
-  enum drop_type type;
-  Alter_drop(enum drop_type par_type,const char *par_name)
+  drop_type type;
+
+  Alter_drop(drop_type par_type, const char *par_name)
     :name(par_name), type(par_type)
   {
     DBUG_ASSERT(par_name != NULL);
   }
-  /**
-    Used to make a clone of this object for ALTER/CREATE TABLE
-    @sa comment for Key_part_spec::clone
-  */
-  Alter_drop *clone(MEM_ROOT *mem_root) const
-    { return new (mem_root) Alter_drop(*this); }
 };
 
 
@@ -55,18 +71,35 @@ public:
   ALTER TABLE statement.
 */
 
-class Alter_column :public Sql_alloc {
+class Alter_column : public Sql_alloc
+{
 public:
   const char *name;
   Item *def;
-  Alter_column(const char *par_name,Item *literal)
-    :name(par_name), def(literal) {}
-  /**
-    Used to make a clone of this object for ALTER/CREATE TABLE
-    @sa comment for Key_part_spec::clone
-  */
-  Alter_column *clone(MEM_ROOT *mem_root) const
-    { return new (mem_root) Alter_column(*this); }
+
+  Alter_column(const char *par_name, Item *literal)
+    :name(par_name), def(literal)
+  { }
+};
+
+
+/// An ALTER INDEX operation that changes the visibility of an index.
+class Alter_index_visibility: public Sql_alloc {
+public:
+  Alter_index_visibility(const char *name, bool is_visible) :
+    m_name(name), m_is_visible(is_visible)
+  {
+    assert(name != NULL);
+  }
+
+  const char *name() const { return m_name; }
+
+  /// The visibility after the operation is performed.
+  bool is_visible() const { return m_is_visible; }
+
+private:
+  const char *m_name;
+  bool m_is_visible;
 };
 
 
@@ -75,7 +108,8 @@ public:
   ALTER TABLE statement.
 */
 
-class Alter_rename_key :public Sql_alloc {
+class Alter_rename_key : public Sql_alloc
+{
 public:
   const char *old_name;
   const char *new_name;
@@ -83,13 +117,6 @@ public:
   Alter_rename_key(const char *old_name_arg, const char *new_name_arg)
     : old_name(old_name_arg), new_name(new_name_arg)
   { }
-
-  /**
-    Used to make a clone of this object for ALTER/CREATE TABLE
-    @sa comment for Key_part_spec::clone
-  */
-  Alter_rename_key *clone(MEM_ROOT *mem_root) const
-  { return new (mem_root) Alter_rename_key(*this); }
 };
 
 
@@ -196,8 +223,14 @@ public:
   // Set for RENAME INDEX
   static const uint ALTER_RENAME_INDEX          = 1L << 26;
 
-  // Set for UPGRADE PARTITIONING
-  static const uint ALTER_UPGRADE_PARTITIONING  = 1L << 27;
+  // Set for discarding the tablespace
+  static const uint ALTER_DISCARD_TABLESPACE    = 1L << 27;
+
+  // Set for importing the tablespace
+  static const uint ALTER_IMPORT_TABLESPACE     = 1L << 28;
+
+  /// Means that the visibility of an index is changed.
+  static const uint ALTER_INDEX_VISIBILITY      = 1L << 29;
 
   enum enum_enable_or_disable { LEAVE_AS_IS, ENABLE, DISABLE };
 
@@ -261,13 +294,19 @@ public:
      virtual generated columns to be dropped. This information is necessary
      for the storage engine to do in-place alter.
   */
-  List<Alter_drop>              drop_list;
+  Prealloced_array<const Alter_drop*, 1>       drop_list;
   // Columns for ALTER_COLUMN_CHANGE_DEFAULT.
-  List<Alter_column>            alter_list;
+  Prealloced_array<const Alter_column*, 1>     alter_list;
   // List of keys, used by both CREATE and ALTER TABLE.
-  List<Key>                     key_list;
+
+  Prealloced_array<const Key_spec*, 1>         key_list;
   // Keys to be renamed.
-  List<Alter_rename_key>        alter_rename_key_list;
+  Prealloced_array<const Alter_rename_key*, 1> alter_rename_key_list;
+
+  /// Indexes whose visibilities are to be changed.
+  Prealloced_array<const Alter_index_visibility*, 1>
+  alter_index_visibility_list;
+
   // List of columns, used by both CREATE and ALTER TABLE.
   List<Create_field>            create_list;
   // Type of ALTER TABLE operation.
@@ -289,6 +328,11 @@ public:
   enum_with_validation          with_validation;
 
   Alter_info() :
+    drop_list(PSI_INSTRUMENT_ME),
+    alter_list(PSI_INSTRUMENT_ME),
+    key_list(PSI_INSTRUMENT_ME),
+    alter_rename_key_list(PSI_INSTRUMENT_ME),
+    alter_index_visibility_list(PSI_INSTRUMENT_ME),
     flags(0),
     keys_onoff(LEAVE_AS_IS),
     num_parts(0),
@@ -299,10 +343,11 @@ public:
 
   void reset()
   {
-    drop_list.empty();
-    alter_list.empty();
-    key_list.empty();
-    alter_rename_key_list.empty();
+    drop_list.clear();
+    alter_list.clear();
+    key_list.clear();
+    alter_rename_key_list.clear();
+    alter_index_visibility_list.clear();
     create_list.empty();
     flags= 0;
     keys_onoff= LEAVE_AS_IS;
@@ -356,6 +401,21 @@ public:
 
   bool set_requested_lock(const LEX_STRING *str);
 
+  bool add_field(THD *thd,
+                 const LEX_STRING *field_name,
+                 enum enum_field_types type,
+                 const char *length,
+                 const char *decimal,
+                 uint type_modifier,
+                 Item *default_value,
+                 Item *on_update_value,
+                 LEX_STRING *comment,
+                 const char *change,
+                 List<String> *interval_list,
+                 const CHARSET_INFO *cs,
+                 uint uint_geom_type,
+                 class Generated_column *gcol_info,
+                 const char *opt_after);
 private:
   Alter_info &operator=(const Alter_info &rhs); // not implemented
   Alter_info(const Alter_info &rhs);            // not implemented
@@ -371,6 +431,8 @@ public:
   Alter_table_ctx(THD *thd, TABLE_LIST *table_list, uint tables_opened_arg,
                   const char *new_db_arg, const char *new_name_arg);
 
+  ~Alter_table_ctx();
+
   /**
      @return true if the table is moved to another database, false otherwise.
   */
@@ -384,30 +446,12 @@ public:
   { return (is_database_changed() || new_name != table_name); };
 
   /**
-     @return filename (including .frm) for the new table.
-  */
-  const char *get_new_filename() const
-  {
-    DBUG_ASSERT(!tmp_table);
-    return new_filename;
-  }
-
-  /**
      @return path to the original table.
   */
   const char *get_path() const
   {
     DBUG_ASSERT(!tmp_table);
     return path;
-  }
-
-  /**
-     @return path to the new table.
-  */
-  const char *get_new_path() const
-  {
-    DBUG_ASSERT(!tmp_table);
-    return new_path;
   }
 
   /**
@@ -431,6 +475,22 @@ public:
   const char   *new_name;
   const char   *new_alias;
   char         tmp_name[80];
+
+  /*
+    Used to remember which foreign keys already existed in the table.
+    These foreign keys must be temporary renamed in order to not
+    have conficting name with the foreign keys in the old table.
+  */
+  FOREIGN_KEY  *fk_info;
+  uint         fk_count;
+
+  /*
+    Used to temporarily store pre-existing triggeres during ALTER TABLE
+    These triggers can't be part of the temporary table as they will then cause
+    the unique name constraint to be violated. The triggers will be added back
+    to the table at the end of ALTER TABLE.
+  */
+  Prealloced_array<dd::Trigger*, 1>  trg_info;
 
 private:
   char new_filename[FN_REFLEN + 1];
@@ -499,19 +559,10 @@ public:
 class Sql_cmd_discard_import_tablespace : public Sql_cmd_common_alter_table
 {
 public:
-  enum enum_tablespace_op_type
-  {
-    DISCARD_TABLESPACE, IMPORT_TABLESPACE
-  };
-
-  Sql_cmd_discard_import_tablespace(enum_tablespace_op_type tablespace_op_arg)
-    : m_tablespace_op(tablespace_op_arg)
+  Sql_cmd_discard_import_tablespace()
   {}
 
   bool execute(THD *thd);
-
-private:
-  const enum_tablespace_op_type m_tablespace_op;
 };
 
 #endif

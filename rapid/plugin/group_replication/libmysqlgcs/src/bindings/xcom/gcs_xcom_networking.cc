@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,12 +13,22 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "gcs_xcom_networking.h"
-#include "gcs_xcom_utils.h"
-#include "gcs_group_identifier.h"
-#include "gcs_logging.h"
 #include <algorithm>
+#include <bitset>
+#include <set>
+
+#include "gcs_xcom_networking.h"
+
+#ifndef _WIN32
+#include <netdb.h>
+#endif
+#include <algorithm>
+
+#include "mysql/gcs/gcs_group_identifier.h"
+#include "mysql/gcs/gcs_logging.h"
+#include "gcs_xcom_utils.h"
 #include "sock_probe.h"
+
 #include<bitset>
 #include<set>
 
@@ -57,7 +67,13 @@ static bool_t refresh_addr(sock_probe *s, int count, unsigned long request)
   if(s->tmp_socket == INVALID_SOCKET)
     return 0;
 
-  return (ioctl(s->tmp_socket, request, (char *)ifrecc) >= 0);
+#ifdef IOCTL_INT_REQUEST  // On sunos ioctl's second argument is defined as int
+  return static_cast<bool_t>(ioctl(s->tmp_socket, static_cast<int>(request),
+                                   (char *)ifrecc) >= 0);
+#else
+  return static_cast<bool_t>(ioctl(s->tmp_socket, request,
+                                   (char *)ifrecc) >= 0);
+#endif
 }
 
 /* Return the sockaddr with netmask of interface #count. */
@@ -147,8 +163,10 @@ get_ipv4_local_addresses(std::map<std::string, int>& addr_to_cidr_bits,
 
         sname[0]= smask[0]= '\0';
 
-        if (!inet_ntop(AF_INET, inaddr, sname, sizeof(sname)) ||
-            !inet_ntop(AF_INET, inmask, smask, sizeof(smask)))
+        if (!inet_ntop(AF_INET, inaddr, sname,
+                       static_cast<socklen_t>(sizeof(sname))) ||
+            !inet_ntop(AF_INET, inmask, smask,
+                       static_cast<socklen_t>(sizeof(smask))))
         {
           int error= 0;
           std::string if_name= get_if_name(s, j, &error);
@@ -216,7 +234,7 @@ get_ipv4_addr_from_hostname(const std::string& host, std::string& ip)
 
   checked_getaddrinfo(host.c_str(), 0, NULL, &addrinf);
   if (!inet_ntop(AF_INET,  &((struct sockaddr_in *)addrinf->ai_addr)->sin_addr,
-                 cip, sizeof(cip)))
+                 cip, static_cast<socklen_t>(sizeof(cip))))
   {
     if (addrinf)
       freeaddrinfo(addrinf);
@@ -257,7 +275,7 @@ sock_descriptor_to_sockaddr(int fd, struct sockaddr_storage *sa)
 {
   int res= 0;
   memset(sa, 0, sizeof (struct sockaddr_storage));
-  socklen_t addr_size= sizeof(struct sockaddr_storage);
+  socklen_t addr_size= static_cast<socklen_t>(sizeof(struct sockaddr_storage));
   if (!(res= getpeername(fd, (struct sockaddr *) sa, &addr_size)))
   {
     if (sa->ss_family != AF_INET && sa->ss_family != AF_INET6)
@@ -282,7 +300,7 @@ static bool
 sock_descriptor_to_string(int fd, std::string &out)
 {
   struct sockaddr_storage sa;
-  socklen_t addr_size= sizeof(struct sockaddr_storage);
+  socklen_t addr_size= static_cast<socklen_t>(sizeof(struct sockaddr_storage));
   char saddr[INET6_ADDRSTRLEN];
 
   // get the sockaddr struct
@@ -333,9 +351,11 @@ Gcs_ip_whitelist::to_string() const
 
     // try IPv6 first
     if (vip.size() > 4)
-      ret= inet_ntop(AF_INET6, (struct in6_addr *) ip, saddr, sizeof(saddr));
+      ret= inet_ntop(AF_INET6, (struct in6_addr *) ip, saddr,
+                     static_cast<socklen_t>(sizeof(saddr)));
     else
-      ret= inet_ntop(AF_INET, (struct in_addr *) ip, saddr, sizeof(saddr));
+      ret= inet_ntop(AF_INET, (struct in_addr *) ip, saddr,
+                     static_cast<socklen_t>(sizeof(saddr)));
 
     if (!ret)
       continue;
@@ -454,15 +474,12 @@ Gcs_ip_whitelist::add_address(std::string addr, std::string mask)
 {
   struct sockaddr_storage sa;
   unsigned char *sock;
-  int netmask_len= 0;
+  size_t netmask_len= 0;
   int netbits= 0;
   std::vector<unsigned char> ssock;
-  std::vector<unsigned char> smask;
 
   // zero the memory area
   memset(&sa, 0, sizeof(struct sockaddr_storage));
-  smask.insert(smask.begin(), smask.size(), 0);
-  ssock.insert(ssock.begin(), ssock.size(), 0);
 
   // fill in the struct sockaddr
   if (string_to_sockaddr(addr, &sa))
@@ -491,13 +508,17 @@ Gcs_ip_whitelist::add_address(std::string addr, std::string mask)
 
   if (m_ip_whitelist.find(ssock) == m_ip_whitelist.end())
   {
-    smask.resize(netmask_len, 0);
-    for(int octet= 0, bits= netbits; octet < netmask_len && bits > 0; octet++, bits -= 8)
+    std::vector<unsigned char> smask;
+
+    // Set the first netbits/8 BYTEs to 255.
+    smask.resize(static_cast<size_t>(netbits/8), 0xff);
+
+    if (smask.size() < netmask_len)
     {
-      if (bits > 0)
-        smask[octet]= static_cast<char>(0xff << (bits > 8 ? 0 : (8-bits)));
-      else
-        smask[octet]= 0x00;
+      // Set the following netbits%8 BITs to 1.
+      smask.push_back(static_cast<unsigned char>(0xff << (8-netbits%8)));
+      // Set non-net part to 0
+      smask.resize(netmask_len, 0);
     }
 
     m_ip_whitelist.insert(std::make_pair (ssock, smask));

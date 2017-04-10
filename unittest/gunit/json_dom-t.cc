@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,21 +13,19 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA */
 
-// First include (the generated) my_config.h, to get correct platform defines.
-#include "my_config.h"
-#include "my_decimal.h"
-#include "sql_string.h"
-#include "sql_time.h"
+#include <gtest/gtest.h>
+#include <cstring>
+#include <memory>
+
+#include "base64.h"
 #include "json_binary.h"
 #include "json_dom.h"
-#include "base64.h"
+#include "my_decimal.h"
+#include "my_inttypes.h"
+#include "sql_string.h"
+#include "sql_time.h"
 #include "template_utils.h"     // down_cast
-
-#include <gtest/gtest.h>
 #include "test_utils.h"
-
-#include <memory>
-#include <cstring>
 
 /**
  Test Json_dom class hierarchy API, cf. json_dom.h
@@ -40,6 +38,7 @@ protected:
   virtual void SetUp() { initializer.SetUp(); }
   virtual void TearDown() { initializer.TearDown(); }
   my_testing::Server_initializer initializer;
+  THD *thd() const { return initializer.thd(); }
 };
 
 /**
@@ -69,7 +68,7 @@ TEST_F(JsonDomTest, BasicTest)
   const std::string std_s("abc");
   Json_string s(std_s);
   EXPECT_EQ(std_s, s.value());
-  EXPECT_EQ(Json_dom::J_STRING, s.json_type());
+  EXPECT_EQ(enum_json_type::J_STRING, s.json_type());
   EXPECT_TRUE(s.is_scalar());
   EXPECT_EQ(1U, s.depth());
   EXPECT_FALSE(s.is_number());
@@ -99,13 +98,13 @@ TEST_F(JsonDomTest, BasicTest)
 
   /* boolean scalar */
   const Json_boolean jb(true);
-  EXPECT_EQ(Json_dom::J_BOOLEAN, jb.json_type());
+  EXPECT_EQ(enum_json_type::J_BOOLEAN, jb.json_type());
   EXPECT_EQ(true, jb.value());
   EXPECT_EQ(std::string("true"), format(jb));
 
   /* Integer scalar */
   const Json_int ji(-123);
-  EXPECT_EQ(Json_dom::J_INT, ji.json_type());
+  EXPECT_EQ(enum_json_type::J_INT, ji.json_type());
   EXPECT_EQ(-123, ji.value());
   EXPECT_EQ(std::string("-123"), format(ji));
 
@@ -116,18 +115,18 @@ TEST_F(JsonDomTest, BasicTest)
   EXPECT_EQ(std::string("9223372036854775807"), format(max_64_int));
 
   const Json_uint max_64_uint(18446744073709551615ULL);
-  EXPECT_EQ(Json_dom::J_UINT, max_64_uint.json_type());
+  EXPECT_EQ(enum_json_type::J_UINT, max_64_uint.json_type());
   EXPECT_EQ(std::string("18446744073709551615"), format(max_64_uint));
 
   /* Double scalar */
   const Json_double jdb(-123.45);
-  EXPECT_EQ(Json_dom::J_DOUBLE, jdb.json_type());
+  EXPECT_EQ(enum_json_type::J_DOUBLE, jdb.json_type());
   EXPECT_EQ(-123.45, jdb.value());
   EXPECT_EQ(std::string("-123.45"), format(jdb));
 
   /* Simple array with strings */
   a.clear();
-  EXPECT_EQ(Json_dom::J_ARRAY, a.json_type());
+  EXPECT_EQ(enum_json_type::J_ARRAY, a.json_type());
   EXPECT_FALSE(a.is_scalar());
   EXPECT_EQ(0U, a.size());
   Json_string js4(std::string("val1"));
@@ -144,11 +143,11 @@ TEST_F(JsonDomTest, BasicTest)
 
   /* Simple object with string values, iterator and array cloning */
   Json_object o;
-  EXPECT_EQ(Json_dom::J_OBJECT, o.json_type());
+  EXPECT_EQ(enum_json_type::J_OBJECT, o.json_type());
   EXPECT_FALSE(a.is_scalar());
   EXPECT_EQ(0U, o.cardinality());
   Json_null null;
-  EXPECT_EQ(Json_dom::J_NULL, null.json_type());
+  EXPECT_EQ(enum_json_type::J_NULL, null.json_type());
   o.add_clone(std::string("key1"), &null);
   o.add_clone(std::string("key2"), &a);
 
@@ -193,7 +192,7 @@ TEST_F(JsonDomTest, BasicTest)
             format(elt));
 
   /* Object access: key look-up */
-  EXPECT_EQ(Json_dom::J_OBJECT, elt->json_type());
+  EXPECT_EQ(enum_json_type::J_OBJECT, elt->json_type());
   Json_object * const object_elt= down_cast<Json_object *>(elt);
   EXPECT_TRUE(object_elt != NULL);
   const Json_dom * const elt2= object_elt->get(std::string("key1"));
@@ -214,7 +213,7 @@ TEST_F(JsonDomTest, BasicTest)
   EXPECT_FALSE(double2my_decimal(0, 3.14, &m));
 
   const Json_decimal jd(m);
-  EXPECT_EQ(Json_dom::J_DECIMAL, jd.json_type());
+  EXPECT_EQ(enum_json_type::J_DECIMAL, jd.json_type());
   EXPECT_TRUE(jd.is_number());
   EXPECT_TRUE(jd.is_scalar());
   const my_decimal m_out= *jd.value();
@@ -226,7 +225,7 @@ TEST_F(JsonDomTest, BasicTest)
   EXPECT_EQ(m_d, m_out_d);
 
   a.append_clone(&jd);
-  std::auto_ptr<Json_array> b(static_cast<Json_array *>(a.clone()));
+  std::unique_ptr<Json_array> b(static_cast<Json_array *>(a.clone()));
   EXPECT_EQ(std::string("[\"val1\", \"val2\", 3.14]"), format(a));
   EXPECT_EQ(std::string("[\"val1\", \"val2\", 3.14]"), format(b.get()));
 
@@ -248,7 +247,7 @@ TEST_F(JsonDomTest, BasicTest)
   a.append_clone(&jn);
   a.append_clone(&jbf);
   a.append_clone(&jbt);
-  std::auto_ptr<const Json_dom> c(a.clone());
+  std::unique_ptr<const Json_dom> c(a.clone());
   EXPECT_EQ(std::string("[null, false, true]"), format(a));
   EXPECT_EQ(std::string("[null, false, true]"), format(c.get()));
 
@@ -263,7 +262,7 @@ TEST_F(JsonDomTest, BasicTest)
                                (my_time_flags_t)0,
                                &status));
   const Json_datetime scalar(dt, MYSQL_TYPE_DATETIME);
-  EXPECT_EQ(Json_dom::J_DATETIME, scalar.json_type());
+  EXPECT_EQ(enum_json_type::J_DATETIME, scalar.json_type());
 
   const MYSQL_TIME *dt_out= scalar.value();
 
@@ -289,7 +288,7 @@ TEST_F(JsonDomTest, BasicTest)
   char i_as_char[4];
   int4store(i_as_char, i);
   Json_opaque opaque(MYSQL_TYPE_TINY_BLOB, i_as_char, sizeof(i_as_char));
-  EXPECT_EQ(Json_dom::J_OPAQUE, opaque.json_type());
+  EXPECT_EQ(enum_json_type::J_OPAQUE, opaque.json_type());
   EXPECT_EQ(i, uint4korr(opaque.value()));
   EXPECT_EQ(MYSQL_TYPE_TINY_BLOB, opaque.type());
   EXPECT_EQ(sizeof(i_as_char), opaque.size());
@@ -309,9 +308,9 @@ TEST_F(JsonDomTest, BasicTest)
   size_t msg_offset;
   const char *sample_doc=
     "{\"abc\": 3, \"foo\": [1, 2, {\"foo\": 3.24}, null]}";
-  std::auto_ptr<Json_dom> dom(Json_dom::parse(sample_doc,
-                                              std::strlen(sample_doc),
-                                              &msg, &msg_offset));
+  std::unique_ptr<Json_dom> dom(Json_dom::parse(sample_doc,
+                                                std::strlen(sample_doc),
+                                                &msg, &msg_offset));
   EXPECT_TRUE(dom.get() != NULL);
   EXPECT_EQ(4U, dom->depth());
   EXPECT_EQ(std::string(sample_doc), format(dom.get()));
@@ -385,7 +384,8 @@ TEST_F(JsonDomTest, BasicTest)
   EXPECT_EQ(null_dom, dom.get());
 }
 
-void vet_wrapper_length(char * text, size_t expected_length )
+void vet_wrapper_length(const THD *thd, const char *text,
+                        size_t expected_length)
 {
   const char *msg;
   size_t msg_offset;
@@ -396,7 +396,7 @@ void vet_wrapper_length(char * text, size_t expected_length )
     << "Wrapped DOM: " << text << "\n";
 
   String  serialized_form;
-  EXPECT_FALSE(json_binary::serialize(dom, &serialized_form));
+  EXPECT_FALSE(json_binary::serialize(thd, dom, &serialized_form));
   json_binary::Value binary=
     json_binary::parse_binary(serialized_form.ptr(),
                               serialized_form.length());
@@ -419,57 +419,58 @@ TEST_F(JsonDomTest, WrapperTest)
   // Constructors, assignment, copy constructors, aliasing
   Json_dom *d= new (std::nothrow) Json_null();
   Json_wrapper w(d);
-  EXPECT_EQ(w.to_dom(), d);
+  const THD *thd= this->thd();
+  EXPECT_EQ(w.to_dom(thd), d);
   Json_wrapper w_2(w);
-  EXPECT_NE(w.to_dom(), w_2.to_dom()); // deep copy
+  EXPECT_NE(w.to_dom(thd), w_2.to_dom(thd)); // deep copy
 
   Json_wrapper w_2b;
   EXPECT_TRUE(w_2b.empty());
   w_2b= w;
-  EXPECT_NE(w.to_dom(), w_2b.to_dom()); // deep copy
+  EXPECT_NE(w.to_dom(thd), w_2b.to_dom(thd)); // deep copy
 
   w.set_alias(); // d is now "free" again
   Json_wrapper w_3(w);
-  EXPECT_EQ(w.to_dom(), w_3.to_dom()); // alias copy
+  EXPECT_EQ(w.to_dom(thd), w_3.to_dom(thd)); // alias copy
   w_3= w;
-  EXPECT_EQ(w.to_dom(), w_3.to_dom()); // alias copy
+  EXPECT_EQ(w.to_dom(thd), w_3.to_dom(thd)); // alias copy
 
   Json_wrapper w_4(d); // give d a new owner
   Json_wrapper w_5;
-  w_5.steal(&w_4); // takes over d
-  EXPECT_EQ(w_4.to_dom(), w_5.to_dom());
+  w_5= std::move(w_4); // takes over d
+  EXPECT_EQ(w_4.to_dom(thd), w_5.to_dom(thd));
 
   Json_wrapper w_6;
-  EXPECT_EQ(Json_dom::J_ERROR, w_6.type());
+  EXPECT_EQ(enum_json_type::J_ERROR, w_6.type());
   EXPECT_EQ(0U, w_6.length());
-  EXPECT_EQ(0U, w_6.depth());
+  EXPECT_EQ(0U, w_6.depth(thd));
 
   Json_dom *i= new (std::nothrow) Json_int(1);
   Json_wrapper w_7(i);
-  w_5.steal(&w_7); // should deallocate w_5's original
+  w_5= std::move(w_7); // should deallocate w_5's original
 
   // scalars
-  vet_wrapper_length((char *) "false", 1);
-  vet_wrapper_length((char *) "true", 1);
-  vet_wrapper_length((char *) "null", 1);
-  vet_wrapper_length((char *) "1.1", 1);
-  vet_wrapper_length((char *) "\"hello world\"", 1);
+  vet_wrapper_length(thd, "false", 1);
+  vet_wrapper_length(thd, "true", 1);
+  vet_wrapper_length(thd, "null", 1);
+  vet_wrapper_length(thd, "1.1", 1);
+  vet_wrapper_length(thd, "\"hello world\"", 1);
 
   // objects
-  vet_wrapper_length((char *) "{}", 0);
-  vet_wrapper_length((char *) "{ \"a\" : 100 }", 1);
-  vet_wrapper_length((char *) "{ \"a\" : 100, \"b\" : 200 }", 2);
+  vet_wrapper_length(thd, "{}", 0);
+  vet_wrapper_length(thd, "{ \"a\" : 100 }", 1);
+  vet_wrapper_length(thd, "{ \"a\" : 100, \"b\" : 200 }", 2);
 
   // arrays
-  vet_wrapper_length((char *) "[]", 0);
-  vet_wrapper_length((char *) "[ 100 ]", 1);
-  vet_wrapper_length((char *) "[ 100, 200 ]", 2);
+  vet_wrapper_length(thd, "[]", 0);
+  vet_wrapper_length(thd, "[ 100 ]", 1);
+  vet_wrapper_length(thd, "[ 100, 200 ]", 2);
 
   // nested objects
-  vet_wrapper_length((char *) "{ \"a\" : 100, \"b\" : { \"c\" : 300 } }", 2);
+  vet_wrapper_length(thd, "{ \"a\" : 100, \"b\" : { \"c\" : 300 } }", 2);
 
   // nested arrays
-  vet_wrapper_length((char *) "[ 100, [ 200, 300 ] ]", 2);
+  vet_wrapper_length(thd, "[ 100, [ 200, 300 ] ]", 2);
 }
 
 void vet_merge(char * left_text, char * right_text, std::string expected )

@@ -48,7 +48,7 @@ SELECT @@SESSION.binlog_direct_non_transactional_updates;
 --disable_warnings
 SELECT
 IF(@@GLOBAL.binlog_direct_non_transactional_updates, "ON", "OFF") = VARIABLE_VALUE
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='binlog_direct_non_transactional_updates';
 --enable_warnings
 --echo 1 Expected
@@ -58,7 +58,7 @@ SELECT COUNT(@@GLOBAL.binlog_direct_non_transactional_updates);
 
 --disable_warnings
 SELECT COUNT(VARIABLE_VALUE)
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='binlog_direct_non_transactional_updates';
 --enable_warnings
 --echo 1 Expected
@@ -72,7 +72,7 @@ WHERE VARIABLE_NAME='binlog_direct_non_transactional_updates';
 --disable_warnings
 SELECT
 IF(@@SESSION.binlog_direct_non_transactional_updates, "ON", "OFF") = VARIABLE_VALUE
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES
+FROM performance_schema.session_variables
 WHERE VARIABLE_NAME='binlog_direct_non_transactional_updates';
 --enable_warnings
 --echo 1 Expected
@@ -82,7 +82,7 @@ SELECT COUNT(@@SESSION.binlog_direct_non_transactional_updates);
 
 --disable_warnings
 SELECT COUNT(VARIABLE_VALUE)
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES
+FROM performance_schema.session_variables
 WHERE VARIABLE_NAME='binlog_direct_non_transactional_updates';
 --enable_warnings
 --echo 1 Expected

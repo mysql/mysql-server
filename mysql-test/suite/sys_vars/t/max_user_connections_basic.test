@@ -117,7 +117,7 @@ SELECT @@global.max_user_connections;
 
 --disable_warnings
 SELECT @@global.max_user_connections = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='max_user_connections';
 --enable_warnings
 

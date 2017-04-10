@@ -32,10 +32,10 @@ CHECK TABLE tab;
 Table	Op	Msg_type	Msg_text
 test.tab	check	status	OK
 ALTER TABLE tab ROW_FORMAT=COMPRESSED;
-SELECT NAME,FILE_FORMAT,ROW_FORMAT FROM INFORMATION_SCHEMA.INNODB_SYS_TABLES
+SELECT NAME,ROW_FORMAT FROM INFORMATION_SCHEMA.INNODB_SYS_TABLES
 WHERE NAME='test/tab';
-NAME	FILE_FORMAT	ROW_FORMAT
-test/tab	Barracuda	Compressed
+NAME	ROW_FORMAT
+test/tab	Compressed
 CHECK TABLE tab;
 Table	Op	Msg_type	Msg_text
 test.tab	check	status	OK
@@ -94,10 +94,10 @@ ALTER TABLE tab ROW_FORMAT=COMPRESSED;
 ERROR HY000: InnoDB: Tablespace `$tablespace` cannot contain a COMPRESSED table
 ALTER TABLE tab1 ROW_FORMAT=DYNAMIC;
 ERROR HY000: Table storage engine 'InnoDB' does not support the create option 'KEY_BLOCK_SIZE'
-SELECT NAME,FILE_FORMAT,ROW_FORMAT FROM INFORMATION_SCHEMA.INNODB_SYS_TABLES
+SELECT NAME,ROW_FORMAT FROM INFORMATION_SCHEMA.INNODB_SYS_TABLES
 WHERE NAME='test/tab';
-NAME	FILE_FORMAT	ROW_FORMAT
-test/tab	Antelope	Redundant
+NAME	ROW_FORMAT
+test/tab	Redundant
 CHECK TABLE tab;
 Table	Op	Msg_type	Msg_text
 test.tab	check	status	OK
@@ -148,10 +148,10 @@ test/tab	innodb_system	128	5	Redundant	0	System
 CHECK TABLE tab;
 Table	Op	Msg_type	Msg_text
 test.tab	check	status	OK
-SELECT NAME,FILE_FORMAT,ROW_FORMAT FROM INFORMATION_SCHEMA.INNODB_SYS_TABLES
+SELECT NAME,ROW_FORMAT FROM INFORMATION_SCHEMA.INNODB_SYS_TABLES
 WHERE NAME='test/tab';
-NAME	FILE_FORMAT	ROW_FORMAT
-test/tab	Antelope	Redundant
+NAME	ROW_FORMAT
+test/tab	Redundant
 CHECK TABLE tab;
 Table	Op	Msg_type	Msg_text
 test.tab	check	status	OK
@@ -200,10 +200,10 @@ Table	Op	Msg_type	Msg_text
 test.tab	check	status	OK
 ALTER TABLE tab ROW_FORMAT=COMPRESSED;
 ERROR HY000: Table storage engine 'InnoDB' does not support the create option 'ROW_FORMAT'
-SELECT NAME,FILE_FORMAT,ROW_FORMAT FROM INFORMATION_SCHEMA.INNODB_SYS_TABLES
+SELECT NAME,ROW_FORMAT FROM INFORMATION_SCHEMA.INNODB_SYS_TABLES
 WHERE NAME='test/tab';
-NAME	FILE_FORMAT	ROW_FORMAT
-test/tab	Antelope	Redundant
+NAME	ROW_FORMAT
+test/tab	Redundant
 CHECK TABLE tab;
 Table	Op	Msg_type	Msg_text
 test.tab	check	status	OK

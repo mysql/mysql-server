@@ -22,8 +22,8 @@ Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be r
 rollback;
 show grants for x@y;
 Grants for x@y
-GRANT USAGE ON *.* TO 'x'@'y'
-GRANT SELECT ON `d1`.`t` TO 'x'@'y'
+GRANT USAGE ON *.* TO `x`@`y`
+GRANT SELECT ON `d1`.`t` TO `x`@`y`
 start transaction;
 insert into t values (2);
 revoke select on t from x@y;
@@ -34,7 +34,7 @@ s1
 2
 show grants for x@y;
 Grants for x@y
-GRANT USAGE ON *.* TO 'x'@'y'
+GRANT USAGE ON *.* TO `x`@`y`
 drop user x@y;
 drop database d1;
 include/rpl_end.inc

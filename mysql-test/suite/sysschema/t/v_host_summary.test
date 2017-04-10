@@ -19,4 +19,3 @@ DESC sys.x$host_summary;
 --disable_result_log
 SELECT * FROM sys.x$host_summary;
 --enable_result_log
-

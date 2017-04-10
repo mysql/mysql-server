@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -13,14 +13,19 @@
   along with this program; if not, write to the Free Software Foundation,
   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "table_session_connect_attrs.h"
+/**
+  @file storage/perfschema/table_session_connect_attrs.cc
+  TABLE SESSION_CONNECT_ATTRS.
+*/
+
+#include "storage/perfschema/table_session_connect_attrs.h"
+
+#include <stddef.h>
 
 THR_LOCK table_session_connect_attrs::m_table_lock;
 
-PFS_engine_table_share
-table_session_connect_attrs::m_share=
-{
-  { C_STRING_WITH_LEN("session_connect_attrs") },
+PFS_engine_table_share table_session_connect_attrs::m_share = {
+  {C_STRING_WITH_LEN("session_connect_attrs")},
   &pfs_readonly_acl,
   table_session_connect_attrs::create,
   NULL, /* write_row */
@@ -33,11 +38,13 @@ table_session_connect_attrs::m_share=
   false  /* perpetual */
 };
 
-PFS_engine_table* table_session_connect_attrs::create()
+PFS_engine_table*
+table_session_connect_attrs::create()
 {
   return new table_session_connect_attrs();
 }
 
 table_session_connect_attrs::table_session_connect_attrs()
   : table_session_connect(&m_share)
-{}
+{
+}

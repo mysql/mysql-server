@@ -13,6 +13,7 @@ call mtr.add_suppression("Error calling group communication interfaces while try
 call mtr.add_suppression("\\[GCS\\] Unable to join the group: peers not configured. ");
 call mtr.add_suppression("\\[GCS\\] Timeout while waiting for the group communication engine to exit!");
 call mtr.add_suppression("\\[GCS\\] The member has failed to gracefully leave the group.");
+call mtr.add_suppression("\\[GCS\\] None of the provided peer address is valid.");
 call mtr.add_suppression("\\[GCS\\] read failed");
 SET SESSION sql_log_bin= 1;
 [connection server2]
@@ -24,6 +25,7 @@ call mtr.add_suppression("Error calling group communication interfaces while try
 call mtr.add_suppression("\\[GCS\\] The group_name, peer_nodes, local_node or bootstrap_group parameters were not specified.");
 call mtr.add_suppression("\\[GCS\\] Timeout while waiting for the group communication engine to exit!");
 call mtr.add_suppression("\\[GCS\\] The member has failed to gracefully leave the group.");
+call mtr.add_suppression("\\[GCS\\] None of the provided peer address is valid.");
 call mtr.add_suppression("\\[GCS\\] read failed");
 SET SESSION sql_log_bin= 1;
 [connection server1]
@@ -90,7 +92,6 @@ SET GLOBAL group_replication_bootstrap_group= 1;
 SET GLOBAL group_replication_local_address= @local_address;
 SET GLOBAL group_replication_group_seeds= "";
 CHANGE MASTER TO MASTER_USER='root', MASTER_PASSWORD='' FOR CHANNEL 'group_replication_recovery';
-START GROUP_REPLICATION;
 #######################################################
 #  8. Try start Group Replication on server2 with invalid
 #     invalid group_seeds, start must fail.
@@ -118,16 +119,15 @@ START GROUP_REPLICATION;
 ERROR HY000: The START GROUP_REPLICATION command failed as there was an error when initializing the group communication layer.
 #######################################################
 #  11. Try start Group Replication on server2 with valid
-#      local_address and group_seeds, start must
+#      local_address and some invalid group_seeds, start must
 #      succeed.
 SET GLOBAL group_replication_bootstrap_group= 0;
 SET GLOBAL group_replication_local_address= @local_address;
-SET GLOBAL group_replication_group_seeds= @group_seeds;
 CHANGE MASTER TO MASTER_USER='root', MASTER_PASSWORD='' FOR CHANNEL 'group_replication_recovery';
-START GROUP_REPLICATION;
 #######################################################
 #  12. We must have a group with two members.
 [connection server1]
 [connection server2]
 #######################################################
 #  13. Cleanup.
+SET GLOBAL group_replication_group_seeds= @group_seeds;

@@ -16,12 +16,13 @@
 #ifndef GCS_XCOM_COMMUNICATION_INTERFACE_INCLUDED
 #define GCS_XCOM_COMMUNICATION_INTERFACE_INCLUDED
 
-#include "gcs_communication_interface.h"
+#include "mysql/gcs/gcs_communication_interface.h"
+
+#include "gcs_message_stages.h"
 #include "gcs_xcom_statistics_interface.h"
 #include "gcs_xcom_utils.h"
 #include "gcs_xcom_group_member_information.h"
 #include "gcs_xcom_interface.h"
-#include "gcs_message_stages.h"
 #include "gcs_internal_message.h"
 #include "gcs_xcom_state_exchange.h"
 
@@ -48,24 +49,24 @@ class Gcs_xcom_communication_interface: public Gcs_communication_interface
 public:
   /**
     Sends a message that is internal to the binding implementation.
-    This message will not be subject to the same restricions of send_message.
+    This message will not be subject to the same restrictions of send_message.
     As such, it will not observe view safety nor will count for the statistics
     of messages sent.
 
     @param[in]  message_to_send the message to send
     @param[out] message_length  the length of message which was send
+    @param[in] cargo internal message header cargo type
     @return the xcom broadcast message error
-      @retval GCS_OK, when message is transmitted successfully
-      @retval GCS_NOK, when error occurred while transmitting message
-      @retval GCS_MESSAGE_TOO_BIG, when message is bigger then
-                                   xcom can handle
+      @retval GCS_OK message is transmitted successfully
+      @retval GCS_NOK error occurred while transmitting message
+      @retval GCS_MESSAGE_TOO_BIG message is bigger then xcom can handle
 
   */
 
   virtual enum_gcs_error
   send_binding_message(const Gcs_message &message_to_send,
                        unsigned long long *message_length,
-                       Gcs_internal_message_header::enum_cargo_type type)= 0;
+                       Gcs_internal_message_header::enum_cargo_type cargo)= 0;
 
   /**
     The purpose of this method is to be called when in Gcs_xcom_interface
@@ -157,7 +158,6 @@ public:
   /**
     Gcs_xcom_communication_interface constructor.
 
-    @param[in] handle xcom communication handle
     @param[in] stats a reference to the statistics interface
     @param[in] proxy a reference to an implementation of
                  Gcs_xcom_communication_proxy
@@ -206,7 +206,7 @@ public:
   // Implementation of the Gcs_xcom_communication_interface
   enum_gcs_error send_binding_message(const Gcs_message &message_to_send,
                                       unsigned long long *message_length,
-                                      Gcs_internal_message_header::enum_cargo_type ct);
+                                      Gcs_internal_message_header::enum_cargo_type cargo);
 
   // For unit testing purposes
   std::map<int, const Gcs_communication_event_listener &> *get_event_listeners();

@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -31,10 +31,13 @@
   /sql/handler.h and /storage/example/ha_example.cc
 */
 
-#include "my_global.h"                   /* ulonglong */
-#include "thr_lock.h"                    /* THR_LOCK, THR_LOCK_DATA */
+#include <sys/types.h>
+
 #include "handler.h"                     /* handler */
 #include "my_base.h"                     /* ha_rows */
+#include "my_compiler.h"
+#include "my_inttypes.h"
+#include "thr_lock.h"                    /* THR_LOCK, THR_LOCK_DATA */
 
 /** @brief
   Example_share is a class that will be shared among all open handlers.
@@ -70,16 +73,16 @@ public:
    */
   const char *table_type() const { return "EXAMPLE"; }
 
-  /** @brief
-    The name of the index type that will be used for display.
-    Don't implement this method unless you really have indexes.
-   */
-  const char *index_type(uint inx) { return "HASH"; }
+  /**
+    Replace key algorithm with one supported by SE, return the default key
+    algorithm for SE if explicit key algorithm was not provided.
 
-  /** @brief
-    The file extensions.
-   */
-  const char **bas_ext() const;
+    @sa handler::adjust_index_algorithm().
+  */
+  virtual enum ha_key_alg get_default_index_algorithm() const
+  { return HA_KEY_ALG_HASH; }
+  virtual bool is_index_algorithm_supported(enum ha_key_alg key_alg) const
+  { return key_alg == HA_KEY_ALG_HASH; }
 
   /** @brief
     This is a list of flags that indicate what functionality the storage engine
@@ -105,7 +108,9 @@ public:
     If all_parts is set, MySQL wants to know the flags for the combined
     index, up to and including 'part'.
   */
-  ulong index_flags(uint inx, uint part, bool all_parts) const
+  ulong index_flags(uint inx MY_ATTRIBUTE((unused)),
+                    uint part MY_ATTRIBUTE((unused)),
+                    bool all_parts MY_ATTRIBUTE((unused))) const
   {
     return 0;
   }
@@ -172,7 +177,8 @@ public:
   /** @brief
     We implement this in ha_example.cc; it's a required method.
   */
-  int open(const char *name, int mode, uint test_if_locked);    // required
+  int open(const char *name, int mode, uint test_if_locked,
+           const dd::Table *table_def);                         // required
 
   /** @brief
     We implement this in ha_example.cc; it's a required method.
@@ -245,13 +251,15 @@ public:
   int extra(enum ha_extra_function operation);
   int external_lock(THD *thd, int lock_type);                   ///< required
   int delete_all_rows(void);
-  int truncate();
   ha_rows records_in_range(uint inx, key_range *min_key,
                            key_range *max_key);
-  int delete_table(const char *from);
-  int rename_table(const char * from, const char * to);
+  int delete_table(const char *from, const dd::Table *table_def);
+  int rename_table(const char * from, const char * to,
+                   const dd::Table *from_table_def,
+                   dd::Table *to_table_def);
   int create(const char *name, TABLE *form,
-             HA_CREATE_INFO *create_info);                      ///< required
+             HA_CREATE_INFO *create_info,
+             dd::Table *table_def);                             ///< required
 
   THR_LOCK_DATA **store_lock(THD *thd, THR_LOCK_DATA **to,
                              enum thr_lock_type lock_type);     ///< required

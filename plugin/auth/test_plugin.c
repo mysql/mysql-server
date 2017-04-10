@@ -1,4 +1,4 @@
-/*  Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
+/*  Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
     
     This program is free software; you can redistribute it and/or
     modify it under the terms of the GNU General Public License as
@@ -25,13 +25,12 @@
   This test plugin is based on the dialog plugin example.
 */
 
-#include <my_global.h>
-#include <mysql/plugin_auth.h>
 #include <mysql/client_plugin.h>
+#include <mysql/plugin_auth.h>
 #include <mysql/service_my_plugin_log.h>
-#include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 /**
   first byte of the question string is the question "type".
@@ -97,8 +96,8 @@ static int auth_test_plugin(MYSQL_PLUGIN_VIO *vio, MYSQL_SERVER_AUTH_INFO *info)
   return CR_OK;
 }
 
-int generate_auth_string_hash(char *outbuf, unsigned int *buflen,
-                              const char *inbuf, unsigned int inbuflen)
+static int generate_auth_string_hash(char *outbuf, unsigned int *buflen,
+                                     const char *inbuf, unsigned int inbuflen)
 {
   /*
     if buffer specified by server is smaller than the buffer given
@@ -111,16 +110,16 @@ int generate_auth_string_hash(char *outbuf, unsigned int *buflen,
   return 0;
 }
 
-int validate_auth_string_hash(char* const inbuf  MY_ATTRIBUTE((unused)),
-                              unsigned int buflen  MY_ATTRIBUTE((unused)))
+static int validate_auth_string_hash(char* const inbuf  MY_ATTRIBUTE((unused)),
+                                     unsigned int buflen  MY_ATTRIBUTE((unused)))
 {
   return 0;
 }
 
-int set_salt(const char* password MY_ATTRIBUTE((unused)),
-             unsigned int password_len MY_ATTRIBUTE((unused)),
-             unsigned char* salt MY_ATTRIBUTE((unused)),
-             unsigned char* salt_len)
+static int set_salt(const char* password MY_ATTRIBUTE((unused)),
+                    unsigned int password_len MY_ATTRIBUTE((unused)),
+                    unsigned char* salt MY_ATTRIBUTE((unused)),
+                    unsigned char* salt_len)
 {
   *salt_len= 0;
   return 0;
@@ -210,6 +209,8 @@ mysql_declare_plugin_end;
   client plugin used for testing the plugin API
 */
 #include <mysql.h>
+
+#include "my_compiler.h"
 
 /**
   The main function of the test plugin.

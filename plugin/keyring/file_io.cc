@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,19 +13,26 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include <my_global.h>
+#include "my_config.h"
+
+#include <errno.h>
 #include <mysql/psi/mysql_file.h>
+#include <stdarg.h>
+#include <sys/types.h>
+#include <sstream>
+#include <utility>
+
+#include "current_thd.h"
+#include "file_io.h"
+#include "my_dbug.h"
+#include "mysqld.h"
 #include "mysys_err.h"
 #include "sql_error.h"
-#include "mysqld.h"
-#include "file_io.h"
-#include <utility>
-#include <sstream>
 
 namespace keyring
 {
 
-my_bool is_super_user()
+bool is_super_user()
 {
   THD *thd = current_thd;
   MYSQL_SECURITY_CONTEXT sec_ctx;
@@ -96,7 +103,7 @@ size_t File_io::write(File file, const uchar *buffer, size_t count, myf myFlags)
 
 my_off_t File_io::seek(File file, my_off_t pos, int whence, myf myFlags)
 {
-  my_off_t moved_to_position=  mysql_file_seek(file, pos, whence, MYF(0));
+  my_off_t moved_to_position= mysql_file_seek(file, pos, whence, MYF(0));
 
   if (moved_to_position == MY_FILEPOS_ERROR && (myFlags & MY_WME))
   {
@@ -136,7 +143,7 @@ int File_io::sync(File file, myf myFlags)
 
 int File_io::fstat(File file, MY_STAT *stat_area, myf myFlags)
 {
-  int result= my_fstat(file, stat_area, MYF(0));
+  int result= my_fstat(file, stat_area);
 
   if (result && (myFlags & MY_WME))
   {
@@ -153,7 +160,7 @@ int File_io::fstat(File file, MY_STAT *stat_area, myf myFlags)
   return result;
 }
 
-my_bool File_io::remove(const char *filename, myf myFlags)
+bool File_io::remove(const char *filename, myf myFlags)
 {
   if (::remove(filename) != 0 && (myFlags & MY_WME))
   {
@@ -169,27 +176,30 @@ my_bool File_io::remove(const char *filename, myf myFlags)
   return FALSE;
 }
 
-my_bool File_io::truncate(File file, myf myFlags)
+bool File_io::truncate(File file, myf myFlags)
 {
 #ifdef _WIN32
-  HANDLE hFile;
   LARGE_INTEGER length;
   length.QuadPart= 0;
-
+  HANDLE hFile;
   hFile= (HANDLE) my_get_osfhandle(file);
+  
   if ((!SetFilePointerEx(hFile, length, NULL, FILE_BEGIN) || !SetEndOfFile(hFile)) &&
       (myFlags & MY_WME))
   {
     my_osmaperr(GetLastError());
     set_my_errno(errno);
-    char error_buffer[MYSYS_STRERROR_SIZE];
-    my_warning(EE_CANT_SEEK, my_filename(file), my_errno(),
-               my_strerror(error_buffer, sizeof(error_buffer), my_errno()));
-    return TRUE;
-  }
+//    char error_buffer[MYSYS_STRERROR_SIZE];
+//    my_warning(EE_CANT_SEEK, my_filename(file), my_errno(),
+//               my_strerror(error_buffer, sizeof(error_buffer), my_errno()));
+//    return TRUE;
+//  }
 #elif defined(HAVE_FTRUNCATE)
   if (ftruncate(file, (off_t) 0) && (myFlags & MY_WME))
   {
+#else
+  DBUG_ASSERT(0);
+#endif
     std::stringstream error_message;
     error_message << "Could not truncate file " << my_filename(file)
                   << ". OS retuned this error: " << strerror(errno);
@@ -199,9 +209,9 @@ my_bool File_io::truncate(File file, myf myFlags)
                    error_message.str().c_str());
     return TRUE;
   }
-#else
-  DBUG_ASSERT(0);
-#endif
+//#else
+//  DBUG_ASSERT(0);
+//#endif
   return FALSE;
 }
 

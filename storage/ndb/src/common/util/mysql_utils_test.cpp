@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
+ Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -15,12 +15,14 @@
  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "my_global.h"
+#ifdef TEST_MYSQL_UTILS_TEST
+
 #include <string.h> // not using namespaces yet
 #include <stdio.h> // not using namespaces yet
 #include <stdlib.h> // not using namespaces yet
 
 #include <util/NdbTap.hpp>
+#include <util/BaseString.hpp>
 
 #include "dbug_utils.hpp"
 #include "decimal_utils.hpp"
@@ -74,7 +76,17 @@ int test_dbug_utils()
     s = dbugExplain(buffer, DBUG_BUF_SIZE);
     CHECK(!s || !strcmp(s, s1));
 
-    const char * const s2 = "d,somename:o,/tmp/somepath";
+    /* Build dbug string honoring setting of TMPDIR
+       using the format "d,somename:o,<TMPDIR>/somepath"
+     */
+    BaseString tmp("d,somename:o,");
+    const char* tmpd = getenv("TMPDIR");
+    if(tmpd)
+      tmp.append(tmpd);
+    else
+      tmp.append("/tmp");
+    tmp.append("/somepath");
+    const char * const s2 = tmp.c_str();
     dbugPush(s2);
     s = dbugExplain(buffer, DBUG_BUF_SIZE);
     CHECK(!s || !strcmp(s, s2));
@@ -308,3 +320,5 @@ int main(int argc, const char** argv)
     // TAP: print summary report and return exit status
     return exit_status();
 }
+
+#endif

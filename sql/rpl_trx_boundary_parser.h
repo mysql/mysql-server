@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -28,7 +28,9 @@
 #ifndef RPL_TRX_BOUNDARY_PARSER_H
 #define RPL_TRX_BOUNDARY_PARSER_H
 
-#include "my_global.h"
+#include <stddef.h>
+
+#include "my_dbug.h"
 
 class Format_description_log_event;
 
@@ -123,7 +125,7 @@ public:
               true if the transaction boundary parser didn't accepted the event.
   */
   bool feed_event(const char *buf, size_t length,
-                  const Format_description_log_event *description_event,
+                  const Format_description_log_event *fd_event,
                   bool throw_warnings);
 
 private:

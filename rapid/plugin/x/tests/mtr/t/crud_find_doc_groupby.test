@@ -2,7 +2,7 @@
 ## BUG#22950240
 ## BUG#23738896
 
---source ../include/xplugin_preamble.inc
+--source include/xplugin_preamble.inc
 
 DROP SCHEMA IF EXISTS xtest;
 CREATE SCHEMA xtest DEFAULT CHARSET 'utf8mb4';

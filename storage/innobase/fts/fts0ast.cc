@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -23,11 +23,13 @@ Full Text Search parser helper file.
 Created 2007/3/16 Sunny Bains.
 ***********************************************************************/
 
-#include "ha_prototypes.h"
+#include <stdlib.h>
 
 #include "fts0ast.h"
-#include "fts0pars.h"
 #include "fts0fts.h"
+#include "fts0pars.h"
+#include "ha_prototypes.h"
+#include "my_inttypes.h"
 
 /* The FTS ast visit pass. */
 enum fts_ast_visit_pass_t {
@@ -53,6 +55,23 @@ fts_ast_node_create(void)
 	node = (fts_ast_node_t*) ut_zalloc_nokey(sizeof(*node));
 
 	return(node);
+}
+
+/** Track node allocations, in case there is an error during parsing. */
+static
+void
+fts_ast_state_add_node(
+	fts_ast_state_t*state,			/*!< in: ast instance */
+	fts_ast_node_t*	node)			/*!< in: node to add to ast */
+{
+	if (!state->list.head) {
+		ut_a(!state->list.tail);
+
+		state->list.head = state->list.tail = node;
+	} else {
+		state->list.tail->next_alloc = node;
+		state->list.tail = node;
+	}
 }
 
 /******************************************************************//**
@@ -380,25 +399,6 @@ fts_ast_add_node(
 }
 
 /******************************************************************//**
-For tracking node allocations, in case there is an error during
-parsing. */
-void
-fts_ast_state_add_node(
-/*===================*/
-	fts_ast_state_t*state,			/*!< in: ast instance */
-	fts_ast_node_t*	node)			/*!< in: node to add to ast */
-{
-	if (!state->list.head) {
-		ut_a(!state->list.tail);
-
-		state->list.head = state->list.tail = node;
-	} else {
-		state->list.tail->next_alloc = node;
-		state->list.tail = node;
-	}
-}
-
-/******************************************************************//**
 Set the wildcard attribute of a term. */
 void
 fts_ast_term_set_wildcard(
@@ -467,6 +467,20 @@ fts_ast_state_free(
 	}
 
 	state->root = state->list.head = state->list.tail = NULL;
+}
+
+/** Print the ast string
+@param[in]	ast_str	string to print */
+static
+void
+fts_ast_string_print(
+	const fts_ast_string_t*	ast_str)
+{
+	for (ulint i = 0; i < ast_str->len; ++i) {
+		printf("%c", ast_str->str[i]);
+	}
+
+	printf("\n");
 }
 
 /******************************************************************//**
@@ -758,8 +772,8 @@ fts_ast_string_free(
 
 /**
 Translate ast string of type FTS_AST_NUMB to unsigned long by strtoul
-@param[in] str		string to translate
-@param[in] base		the base
+@param[in]	ast_str	string to translate
+@param[in]	base	the base
 @return translated number */
 ulint
 fts_ast_string_to_ul(
@@ -770,48 +784,7 @@ fts_ast_string_to_ul(
 		       NULL, base));
 }
 
-/**
-Print the ast string
-@param[in] str		string to print */
-void
-fts_ast_string_print(
-	const fts_ast_string_t*	ast_str)
-{
-	for (ulint i = 0; i < ast_str->len; ++i) {
-		printf("%c", ast_str->str[i]);
-	}
-
-	printf("\n");
-}
-
 #ifdef UNIV_DEBUG
-const char*
-fts_ast_oper_name_get(fts_ast_oper_t	oper)
-{
-	switch(oper) {
-	case FTS_NONE:
-		return("FTS_NONE");
-	case FTS_IGNORE:
-		return("FTS_IGNORE");
-	case FTS_EXIST:
-		return("FTS_EXIST");
-	case FTS_NEGATE:
-		return("FTS_NEGATE");
-	case FTS_INCR_RATING:
-		return("FTS_INCR_RATING");
-	case FTS_DECR_RATING:
-		return("FTS_DECR_RATING");
-	case FTS_DISTANCE:
-		return("FTS_DISTANCE");
-	case FTS_IGNORE_SKIP:
-		return("FTS_IGNORE_SKIP");
-	case FTS_EXIST_SKIP:
-		return("FTS_EXIST_SKIP");
-	}
-	ut_ad(0);
-	return("FTS_UNKNOWN");
-}
-
 const char*
 fts_ast_node_type_get(fts_ast_type_t	type)
 {

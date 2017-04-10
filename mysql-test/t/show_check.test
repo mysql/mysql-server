@@ -1,8 +1,3 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 ################################################################################
 #
 # NOTICE:
@@ -14,6 +9,14 @@
 #
 ################################################################################
 
+# Result differences depending on FS case sensitivity.
+if (!$require_case_insensitive_file_system)
+{
+  --source include/have_case_sensitive_file_system.inc
+}
+
+# Test need MyISAM to execute repair
+--source include/have_myisam.inc
 
 # Uses GRANT commands that usually disabled in embedded server
 -- source include/not_embedded.inc
@@ -48,6 +51,8 @@ insert into t1 values (5,5,5);
 check table t1 changed;
 check table t1 medium;
 check table t1 extended;
+analyze table t1;
+--replace_result 4225 # 4097 #
 show index from t1;
 --disable_metadata
 --error ER_DUP_ENTRY
@@ -73,15 +78,18 @@ drop table t1;
 show variables like "wait_timeout%";
 show variables like "WAIT_timeout%";
 show variables like "this_doesn't_exists%";
+--replace_result 4225 # 4097 #
 show table status from test like "this_doesn't_exists%";
+--replace_result 4225 # 4097 #
 show databases;
+--replace_result 4225 # 4097 #
 show databases like "test%";
 --disable_metadata
 
 #
 # Check of show index
-#
-create table t1 (f1 int not null, f2 int not null, f3 int not null, f4 int not null, primary key(f1,f2,f3,f4));
+# Added engine=myisam for table t1, as repair is supported by MyISAM only
+create table t1 (f1 int not null, f2 int not null, f3 int not null, f4 int not null, primary key(f1,f2,f3,f4)) engine=myisam;
 insert into t1 values (1,1,1,0),(1,1,2,0),(1,1,3,0),(1,2,1,0),(1,2,2,0),(1,2,3,0),(1,3,1,0),(1,3,2,0),(1,3,3,0),(1,1,1,1),(1,1,2,1),(1,1,3,1),(1,2,1,1),(1,2,2,1),(1,2,3,1),(1,3,1,1),(1,3,2,1),(1,3,3,1);
 
 --echo -- Here we enable metadata just to check that the collation of the
@@ -136,6 +144,11 @@ show create table t1;
 drop table t1;
 
 flush tables;
+#
+# We will see some of new DD tables being opened
+# after flush tables. These tables were open when we write to
+# mysql.general_log.
+#
 show open tables;
 create table t1(n int);
 insert into t1 values (1);
@@ -280,36 +293,43 @@ CREATE TABLE t3 (
 insert into t1 values (1),(2);
 insert into t2 values (1),(2);
 insert into t3 values (1,1),(2,2);
+analyze table t1, t2, t3;
 --replace_column 6 # 7 # 8 # 9 # 12 #
 show table status;
 insert into t1 values (3),(4);
 insert into t2 values (3),(4);
 insert into t3 values (3,3),(4,4);
+analyze table t1, t2, t3;
 --replace_column 6 # 7 # 8 # 9 # 12 #
 show table status;
 insert into t1 values (5);
 insert into t2 values (5);
 insert into t3 values (5,5);
+analyze table t1, t2, t3;
 --replace_column 6 # 7 # 8 # 9 # 12 #
 show table status;
 delete from t1 where a=3;
 delete from t2 where b=3;
 delete from t3 where a=3;
+analyze table t1, t2, t3;
 --replace_column 6 # 7 # 8 # 9 # 10 # 12 #
 show table status;
 truncate table t1;
 truncate table t2;
 truncate table t3;
+analyze table t1, t2, t3;
 --replace_column 6 # 7 # 8 # 9 # 12 #
 show table status;
 insert into t1 values (5);
 insert into t2 values (5);
 insert into t3 values (5,5);
+analyze table t1, t2, t3;
 --replace_column 6 # 7 # 8 # 9 # 12 #
 show table status;
 delete from t1 where a=5;
 delete from t2 where b=5;
 delete from t3 where a=5;
+analyze table t1, t2, t3;
 --replace_column 6 # 7 # 8 # 9 # 10 # 12 #
 show table status;
 
@@ -407,9 +427,10 @@ DROP TABLE t1;
 # Test for Bug#9439 Reporting wrong datatype for sub_part on show index
 CREATE TABLE t1(
   field1 text NOT NULL,
-  PRIMARY KEY(field1(1000))
+  PRIMARY KEY(field1(750))
 );
 --enable_metadata
+--replace_result 4225 # 4097 #
 show index from t1;
 --disable_metadata
 drop table t1;
@@ -423,21 +444,6 @@ create table t1 (
 );
 SHOW CREATE TABLE t1;
 DROP TABLE t1;
-
-# Test for Bug#93 4.1 protocl crash on corupted frm and SHOW TABLE STATUS
-
-flush tables;
-
-# Create a junk frm file on disk
-let $MYSQLD_DATADIR= `select @@datadir`;
-exec echo "this is a junk file for test" >> $MYSQLD_DATADIR/test/t1.frm ;
---replace_column 6 # 7 # 8 # 9 # 12 #
-SHOW TABLE STATUS like 't1';
---error ER_NOT_FORM_FILE
-show create table t1;
-drop table if exists t1;
---error 1,0
---remove_file $MYSQLD_DATADIR/test/t1.frm
 
 #
 # Bug#12183 SHOW OPEN TABLES behavior doesn't match grammar
@@ -590,14 +596,17 @@ SHOW COLUMNS FROM no_such_table;
 #
 # Bug#19764 SHOW commands end up in the slow log as table scans
 #
+CREATE TABLE t1 (f1 INT, f2 INT);
+INSERT INTO t1 VALUES(10, 20);
 flush status;
 show status like 'slow_queries';
 show tables;
 show status like 'slow_queries';
 # Table scan query, to ensure that slow_queries does still get incremented
 # (mysqld is started with --log-queries-not-using-indexes)
-select 1 from information_schema.tables limit 1;
+select 1 from t1 limit 1;
 show status like 'slow_queries';
+DROP TABLE t1;
 
 create table t1 (a int);
 create trigger tr1 before insert on t1 for each row
@@ -715,6 +724,7 @@ SHOW CREATE DATABASE mysqltest1;
 
 --echo ----------------------------------------------------------------
 
+--replace_result 4225 # 4097 #
 SHOW DATABASES LIKE 'mysqltest1';
 
 --echo ----------------------------------------------------------------
@@ -723,10 +733,12 @@ SHOW CREATE TABLE t1;
 
 --echo ----------------------------------------------------------------
 
+--replace_result 4225 # 4097 #
 SHOW INDEX FROM t1;
 
 --echo ----------------------------------------------------------------
 
+--replace_result 20613 # 20609 # 20485 # 20481 #
 SELECT
   TABLE_CATALOG,
   TABLE_SCHEMA,
@@ -742,6 +754,7 @@ WHERE table_name = 't1';
 
 --echo ----------------------------------------------------------------
 
+--replace_result 20613 # 20609 # 20485 # 20481 #
 SELECT
   TABLE_CATALOG,
   TABLE_SCHEMA,
@@ -762,6 +775,7 @@ WHERE table_name = 't1';
 
 --echo ----------------------------------------------------------------
 
+--replace_result 4225 # 4097 #
 SHOW TABLES LIKE 't1';
 
 --echo ----------------------------------------------------------------
@@ -802,6 +816,7 @@ SHOW CREATE VIEW v1;
 
 --echo ----------------------------------------------------------------
 
+--replace_result 20613 # 20485 # 20609 # 20481 #
 SELECT *
 FROM INFORMATION_SCHEMA.VIEWS
 WHERE table_name = 'v1';
@@ -940,16 +955,29 @@ use test;
 #
 flush status;
 show variables like "log_queries_not_using_indexes";
-select 1 from information_schema.tables limit 1;
+
+CREATE TABLE `tab1` (
+  `c1` int(11) default NULL,
+  `c2` char(20) default NULL,
+  `c3` char(20) default NULL,
+  KEY `k1` (`c2`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+INSERT INTO tab1 values(1, "hello", "world");
+INSERT INTO tab1 values(2, "hello2", "world2");
+INSERT INTO tab1 values(3, "hello3", "world3");
+
+select SQL_NO_CACHE * from tab1;
 show status like 'slow_queries';
 set global log_queries_not_using_indexes=OFF;
 show variables like "log_queries_not_using_indexes";
-select 1 from information_schema.tables limit 1;
+select SQL_NO_CACHE * from tab1;
 show status like 'slow_queries';
 set global log_queries_not_using_indexes=ON;
 show variables like "log_queries_not_using_indexes";
-select 1 from information_schema.tables limit 1;
+select SQL_NO_CACHE * from tab1;
 show status like 'slow_queries';
+
+drop table tab1;
 
 #
 # Bug#30088 Can't disable myisam-recover by a value of ""
@@ -1060,6 +1088,7 @@ set names latin1;
 SET NAMES latin1;
 CREATE DATABASE `ä`;
 CREATE TABLE `ä`.`ä` (a int) ENGINE=Memory;
+ANALYZE TABLE `ä`.`ä`;
 --replace_column 6 # 7 # 8 # 9 # 12 #
 SHOW TABLE STATUS FROM `ä` LIKE 'ä';
 DROP DATABASE `ä`;
@@ -1464,6 +1493,29 @@ CREATE TABLE `t1` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 
 DROP TABLE t1;
+
+
+--echo #
+--echo # Bug#24800048 - SHOW TABLES FROM DATABASE HANGS ON WINDOWS PLATFORM
+--echo #
+
+CREATE DATABASE unknown;
+
+--echo # On case sensitive file system following statement fails as DB name
+--echo # is in different case. Following statement works fine on case insensitive
+--echo # file systems.
+--error 0,ER_BAD_DB_ERROR
+SHOW TABLES FROM UNKNOWN;
+
+--echo # On case sensitive file system following statement fails as DB name
+--echo # is in different case. Following statement works fine on case insensitive
+--echo # file systems.
+--echo # Without fix following SHOW TABLES statements hangs in Windows (with
+--echo # lower_case_table_names=1).
+--error 0,ER_BAD_DB_ERROR
+SHOW TABLES FROM UNKNOWN;
+
+DROP DATABASE unknown;
 
 # Wait till all disconnects are completed
 --source include/wait_until_count_sessions.inc

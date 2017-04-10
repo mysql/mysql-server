@@ -1,0 +1,47 @@
+# Tests for PERFORMANCE_SCHEMA
+
+#setup
+let $select_column = DESIRED_DELAY;
+let $table = performance_schema.replication_applier_configuration;
+
+--disable_warnings
+--source include/master-slave.inc
+
+--connection slave
+--let $save_master_info_repository= `SELECT @@GLOBAL.master_info_repository`
+--let $save_relay_log_info_repository= `SELECT @@GLOBAL.relay_log_info_repository`
+
+source include/stop_slave.inc;
+RESET SLAVE ALL;
+SET GLOBAL master_info_repository='TABLE';
+SET GLOBAL relay_log_info_repository='TABLE';
+--disable_query_log
+eval CHANGE MASTER TO MASTER_HOST='localhost', MASTER_USER='root', MASTER_PORT=$MASTER_MYPORT, MASTER_DELAY=2 FOR CHANNEL 'channel_1';
+--enable_query_log
+source include/start_slave.inc;
+--enable_warnings
+
+###########################################################################
+# Test index on CHANNEL_NAME
+###########################################################################
+
+let $column_count = 1;
+let $col1 = CHANNEL_NAME;
+let $col1_act = "channel_1";
+
+--source ../include/idx_explain_test.inc
+
+# Cleanup
+source include/stop_slave.inc;
+RESET SLAVE ALL;
+eval SET GLOBAL master_info_repository= "$save_master_info_repository";
+eval SET GLOBAL relay_log_info_repository= "$save_relay_log_info_repository";
+--disable_warnings
+--disable_query_log
+eval change master to master_host='127.0.0.1', master_port=$MASTER_MYPORT, master_user='root';
+--enable_query_log
+--enable_warnings
+source include/start_slave.inc;
+--connection master
+
+--source include/rpl_end.inc

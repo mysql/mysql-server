@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -35,7 +35,7 @@ Name:          Ndb.cpp
 #include <NdbTick.h>
 
 /****************************************************************************
-void connect();
+void doConnect();
 
 Connect to any node which has no connection at the moment.
 ****************************************************************************/
@@ -294,7 +294,7 @@ found_middle:
 }//Ndb::getConnectedNdbTransaction()
 
 /*****************************************************************************
-disconnect();
+void doDisconnect();
 
 Remark:        Disconnect all connections to the database. 
 *****************************************************************************/
@@ -305,6 +305,36 @@ Ndb::doDisconnect()
   NdbTransaction* tNdbCon;
   CHECK_STATUS_MACRO_VOID;
 
+  /**
+   * Clean up active NdbTransactions by releasing all NdbOperations,
+   * ScanOperations, and NdbQuery owned by it. Release of
+   * Scan- and QueryOperations will also close any open cursors
+   * still remaining. Thus, any 'buddy transactions' connected to
+   * such scan operations, will also be closed, *and removed* from
+   * theTransactionList.
+   */
+  tNdbCon = theTransactionList;
+  while (tNdbCon != NULL) {
+    tNdbCon->releaseOperations();
+    tNdbCon->releaseLockHandles();
+    tNdbCon = tNdbCon->theNext;
+  }//while
+
+  /**
+   * Disconnect and release all NdbTransactions in,
+   * the now cleaned up, theTransactionList.
+   */
+  tNdbCon = theTransactionList;
+  while (tNdbCon != NULL) {
+    NdbTransaction* tmpNdbCon = tNdbCon;
+    tNdbCon = tNdbCon->theNext;
+    releaseConnectToNdb(tmpNdbCon);
+  }//while
+
+  /**
+   * Transactions in theConnectionArray[] are idle, and thus in a 
+   * known 'clean' state already. Disconnect and release right away.
+   */
   Uint32 tNoOfDbNodes = theImpl->theNoOfDBnodes;
   Uint8 *theDBnodes= theImpl->theDBnodes;
   DBUG_PRINT("info", ("theNoOfDBnodes=%d", tNoOfDbNodes));
@@ -318,14 +348,8 @@ Ndb::doDisconnect()
       releaseConnectToNdb(tmpNdbCon);
     }//while
   }//for
-  tNdbCon = theTransactionList;
-  while (tNdbCon != NULL) {
-    NdbTransaction* tmpNdbCon = tNdbCon;
-    tNdbCon = tNdbCon->theNext;
-    releaseConnectToNdb(tmpNdbCon);
-  }//while
   DBUG_VOID_RETURN;
-}//Ndb::disconnect()
+}//Ndb::doDisconnect()
 
 /*****************************************************************************
 int waitUntilReady(int timeout);
@@ -753,6 +777,57 @@ Ndb::startTransaction(const NdbDictionary::Table *table,
   return 0;
 }
 
+Uint32
+NdbImpl::select_node(NdbTableImpl *table_impl,
+                     const Uint16 *nodes,
+                     Uint32 cnt)
+{
+  if (table_impl == NULL)
+  {
+    /**
+     * No table hint given, let caller select node.
+     */
+    return 0;
+  }
+
+  Uint32 nodeId;
+  bool readBackup = table_impl->m_read_backup;
+  bool fullyReplicated = table_impl->m_fully_replicated;
+
+  if (cnt && !readBackup && !fullyReplicated)
+  {
+    nodeId = nodes[0]; // Choose primary replica
+  }
+  else if (fullyReplicated)
+  {
+    /**
+     * Consider any fragment and any replica.
+     * Both for hinted and not hinted (cnt==0) select.
+     */
+    cnt = table_impl->m_fragments.size();
+    nodes = table_impl->m_fragments.getBase();
+    nodeId = m_ndb_cluster_connection.select_node(nodes, cnt);
+  }
+  else if (cnt == 0)
+  {
+    /**
+     * For unhinted select, let caller select node.
+     * Except for fully replicated tables, see above.
+     */
+    nodeId = 0;
+  }
+  else
+  {
+    /**
+     * Read backup tables.
+     * Consider one fragment and any replica for readBackup
+     */
+    require(readBackup);
+    nodeId = m_ndb_cluster_connection.select_node(nodes, cnt);
+  }
+  return nodeId;
+}
+
 NdbTransaction*
 Ndb::startTransaction(const NdbDictionary::Table* table,
                       Uint32 partitionId)
@@ -767,13 +842,10 @@ Ndb::startTransaction(const NdbDictionary::Table* table,
 
     Uint32 nodeId;
     const Uint16 *nodes;
-    Uint32 cnt = NdbTableImpl::getImpl(* table).get_nodes(partitionId, 
-                                                          &nodes);
-    if(cnt)
-      nodeId= nodes[0];
-    else
-      nodeId= 0;
-    
+    NdbTableImpl *impl =  & NdbTableImpl::getImpl(*table);
+    Uint32 cnt = impl->get_nodes(partitionId,
+                                 &nodes);
+    nodeId = theImpl->select_node(impl, nodes, cnt);
     theImpl->incClientStat(TransStartCount, 1);
 
     NdbTransaction *trans= startTransactionLocal(0, nodeId, 0);
@@ -856,10 +928,17 @@ Ndb::startTransaction(const NdbDictionary::Table *table,
       
       const Uint16 *nodes;
       Uint32 cnt= impl->get_nodes(table->getPartitionId(hashValue),  &nodes);
-      if(cnt)
+      nodeId = theImpl->select_node(impl, nodes, cnt);
+    }
+    else
+    {
+      /* No hint available, calling select_node with zero count */
+      NdbTableImpl* impl = NULL;
+      if (table != NULL)
       {
-        nodeId= nodes[0];
+        impl = &NdbTableImpl::getImpl(*table);
       }
+      nodeId = theImpl->select_node(impl, NULL, 0);
     }
 
     /* TODO : Should call method above rather than duplicate call to
@@ -1888,9 +1967,15 @@ Ndb::externalizeTableName(const char * internalTableName, bool fullyQualifiedNam
     register const char *ptr = internalTableName;
    
     // Skip database name
-    while (*ptr && *ptr++ != table_name_separator);
+    while (*ptr && *ptr++ != table_name_separator)
+    {
+      ;
+    }
     // Skip schema name
-    while (*ptr && *ptr++ != table_name_separator);
+    while (*ptr && *ptr++ != table_name_separator)
+    {
+      ;
+    }
     return ptr;
   }
   else
@@ -2163,7 +2248,30 @@ NdbEventOperation *Ndb::getEventOperation(NdbEventOperation* tOp)
 int
 Ndb::pollEvents2(int aMillisecondNumber, Uint64 *highestQueuedEpoch)
 {
-  return theEventBuffer->pollEvents(aMillisecondNumber, highestQueuedEpoch);
+  if (unlikely(aMillisecondNumber < 0))
+  {
+    g_eventLogger->error("Ndb::pollEvents2: negative aMillisecondNumber %d 0x%x %s",
+                         aMillisecondNumber,
+                         getReference(),
+                         getNdbObjectName());
+    return -1;
+  }
+
+  /* Look for already available events without polling transporter. */
+  const int found = theEventBuffer->pollEvents(highestQueuedEpoch);
+  if (found)
+    return found;
+
+  /**
+   * We need to poll the transporter, and possibly wait, to make sure
+   * that arrived events are delivered to their clients as soon as possible.
+   * ::trp_deliver_signal() will wakeup the client when event arrives.
+   */
+  PollGuard poll_guard(* theImpl);
+  poll_guard.wait_n_unlock(aMillisecondNumber, 0, WAIT_EVENT);
+  // PollGuard ends here
+
+  return theEventBuffer->pollEvents(highestQueuedEpoch);
 }
 
 bool
@@ -2190,76 +2298,35 @@ Ndb::printOverflowErrorAndExit()
 }
 
 int
-Ndb::pollEvents(int aMillisecondNumber, Uint64 *latestGCI)
+Ndb::pollEvents(int aMillisecondNumber, Uint64 *highestQueuedEpoch)
 {
-  /**
-   * aMillisecondNumber = 0 : one poll call
-   * else divide aMillisecondNumber into a 1-hour time slot
-   * and call poll with this time slot until it expires.
-   * Note: The else-part: it will cover aMillisecondNumber < 0,
-   * which is converted to unsigned and become large,
-   * as well as aMillisecondNumber > 0.
+  /* Look for already available events without polling transporter */
+  /** Note: pollEvents() does not call pollEvents2() as the other backward
+   * compatibility methods do, but directly call theEventBuffer->pollEvents.
+   * This is to simplify the code by avoiding the
+   * handling of negative aMillisecondNumber rejected by pollEvents2(),
+   * but accepted by pollEvents() as an *infinite* maxwait.
    */
-  const Uint32 waitSlot = 3600*1000; // in millisecs
-  const Uint32 totalWaitTime = (Uint32)aMillisecondNumber;
-  const NDB_TICKS startTime = NdbTick_getCurrentTicks();
-  Uint32 remaining = totalWaitTime;
-  Uint32 waited = 0;
-
-  do
+  int found = theEventBuffer->pollEvents(highestQueuedEpoch);
+  if (!found)
   {
-    const Uint32 pollTimeout = (remaining > waitSlot) ? waitSlot :
-      remaining;
-    const int res = pollEvents2((int)pollTimeout, latestGCI);
+    /**
+     * We need to poll the transporter, and possibly wait, to make sure
+     * that arrived events are delivered to their clients as soon as possible.
+     * ::trp_deliver_signal() will wakeup the client when event arrives,
+     * or a new (empty) epoch is completed
+     */
+    PollGuard poll_guard(* theImpl);
+    poll_guard.wait_n_unlock(aMillisecondNumber, 0, WAIT_EVENT);
+    // PollGuard ends here
 
-    if ((latestGCI) && (isExpectingHigherQueuedEpochs() == false))
-      *latestGCI= NDB_FAILURE_GCI;
+    found = theEventBuffer->pollEvents(highestQueuedEpoch);
+  }
 
-    if (res < 0)
-    {
-      return res;
-    }
+  if ((highestQueuedEpoch) && (isExpectingHigherQueuedEpochs() == false))
+    *highestQueuedEpoch= NDB_FAILURE_GCI;
 
-    if (res > 0)
-    {
-      EventBufData *data = theEventBuffer->m_available_data.m_head;
-      while (data)
-      {
-        // All including exceptional event data must have an associated buffer
-        assert(data->sdata);
-
-        const Uint32 type =
-          SubTableData::getOperation(data->sdata->requestInfo);
-
-        if ((type != NdbDictionary::Event::_TE_EMPTY))
-        {
-          /* res >0  will be returned here, making the consumer
-           * to call nextEvent().
-           * nextEvent() call will handle the new types:
-           * _TE_INCONSISTENT and _TE_OUT_OF_MEMORY:
-           *
-           * Consumer handles other types as usual.
-           */
-          return res;
-	}
-
-        // Consumer cannot handle the new type TE_EMPTY, filter it.
-        (void)nextEvent2();
-        data = theEventBuffer->m_available_data.m_head;
-      }
-      // Event queue is scanned and no regular event data is found
-      assert(data==NULL);
-      return 0;
-    }
-
-    waited =
-      (Uint32)NdbTick_Elapsed(startTime, NdbTick_getCurrentTicks()).milliSec();
-
-    remaining = totalWaitTime - waited;
-
-  } while (totalWaitTime > waited);
-
-  return 0;
+  return found;
 }
 
 int
@@ -2281,23 +2348,26 @@ NdbEventOperation *Ndb::nextEvent()
   NdbDictionary::Event::TableEvent errType;
 
   // Remove the event data from the head
-  NdbEventOperation *op = nextEvent2();
+  NdbEventOperation *op = theEventBuffer->nextEvent2();
+  if (op == NULL)
+    return NULL;
 
-  while (op)
+  if (unlikely(op->isErrorEpoch(&errType)))
   {
-    if (op->isErrorEpoch(&errType))
-    {
-      if (errType ==  NdbDictionary::Event::TE_INCONSISTENT)
-        return NULL;
+    if (errType ==  NdbDictionary::Event::TE_INCONSISTENT)
+      return NULL;
 
-      if (errType ==  NdbDictionary::Event::TE_OUT_OF_MEMORY)
-        printOverflowErrorAndExit();
-    }
+    if (errType ==  NdbDictionary::Event::TE_OUT_OF_MEMORY)
+      printOverflowErrorAndExit();
+  }
 
-    if (!op->isEmptyEpoch())
-      break; // return non-empty epoch
-
-    op = nextEvent2(); // remove empty epoch and check the next one
+  if (unlikely(op->isEmptyEpoch()))
+  {
+    g_eventLogger->error("Ndb::nextEvent: Found exceptional event type "
+                         "TE_EMPTY when using old event API. "
+                         "Turn off empty epoch queuing by "
+                         "setEventBufferQueueEmptyEpoch(false).");
+    exit(-1);
   }
   return op;
 }
@@ -2360,6 +2430,11 @@ void Ndb::setReportThreshEventFreeMem(unsigned thresh)
     theEventBuffer->m_min_free_thresh= thresh;
     theEventBuffer->m_max_free_thresh= 100;
   }
+}
+
+void Ndb::setEventBufferQueueEmptyEpoch(bool queue_empty_epoch)
+{
+  theEventBuffer->setEventBufferQueueEmptyEpoch(queue_empty_epoch);
 }
 
 Uint64 Ndb::allocate_transaction_id()

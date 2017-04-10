@@ -11,11 +11,9 @@ DROP TABLE IF EXISTS `龗龗龗`;
 # Test altering table with Japanese characters in utf8 encoding
 #
 
---source include/have_utf8.inc
 SET NAMES utf8;
 SET character_set_database = utf8;
 
---source include/have_innodb.inc
 
 #
 # Test InnoDB

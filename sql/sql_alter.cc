@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,18 +15,46 @@
 
 #include "sql_alter.h"
 
-#include "auth_common.h"                     // check_access
-#include "sql_table.h"                       // mysql_alter_table,
-                                             // mysql_exchange_partition
-#include "sql_base.h"                        // open_temporary_tables
-#include "log.h"
+#include <limits.h>
+#include <string.h>
 
+#include "auth_acls.h"
+#include "auth_common.h"                     // check_access
+#include "dd/types/trigger.h"                // dd::Trigger
+#include "derror.h"                          // ER_THD
+#include "error_handler.h"                   // Strict_error_handler
+#include "field.h"
+#include "handler.h"
+                                             // mysql_exchange_partition
+#include "log.h"
+#include "m_ctype.h"
+#include "m_string.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_macros.h"
+#include "my_sys.h"
+#include "mysql/plugin.h"
+#include "mysql/service_my_snprintf.h"
+#include "mysqld.h"                          // lower_case_table_names
+#include "mysqld_error.h"
+#include "sql_class.h"                       // THD
+#include "sql_error.h"
+#include "sql_lex.h"
+#include "sql_servers.h"
+#include "sql_table.h"                       // mysql_alter_table,
+#include "sql_udf.h"
+#include "table.h"
+#include "template_utils.h"                  // delete_container_pointers
 
 Alter_info::Alter_info(const Alter_info &rhs, MEM_ROOT *mem_root)
-  :drop_list(rhs.drop_list, mem_root),
-  alter_list(rhs.alter_list, mem_root),
-  key_list(rhs.key_list, mem_root),
-  alter_rename_key_list(rhs.alter_rename_key_list, mem_root),
+ :drop_list(PSI_INSTRUMENT_ME, rhs.drop_list.begin(), rhs.drop_list.end()),
+  alter_list(PSI_INSTRUMENT_ME, rhs.alter_list.begin(), rhs.alter_list.end()),
+  key_list(PSI_INSTRUMENT_ME, rhs.key_list.begin(), rhs.key_list.end()),
+  alter_rename_key_list(PSI_INSTRUMENT_ME, rhs.alter_rename_key_list.begin(),
+                        rhs.alter_rename_key_list.end()),
+  alter_index_visibility_list(PSI_INSTRUMENT_ME,
+                              rhs.alter_index_visibility_list.begin(),
+                              rhs.alter_index_visibility_list.end()),
   create_list(rhs.create_list, mem_root),
   flags(rhs.flags),
   keys_onoff(rhs.keys_onoff),
@@ -39,17 +67,16 @@ Alter_info::Alter_info(const Alter_info &rhs, MEM_ROOT *mem_root)
   /*
     Make deep copies of used objects.
     This is not a fully deep copy - clone() implementations
-    of Alter_drop, Alter_column, Key, foreign_key, Key_part_spec
-    do not copy string constants. At the same length the only
+    of Create_list do not copy string constants. At the same length the only
     reason we make a copy currently is that ALTER/CREATE TABLE
     code changes input Alter_info definitions, but string
     constants never change.
   */
-  list_copy_and_replace_each_value(drop_list, mem_root);
-  list_copy_and_replace_each_value(alter_list, mem_root);
-  list_copy_and_replace_each_value(key_list, mem_root);
-  list_copy_and_replace_each_value(alter_rename_key_list, mem_root);
-  list_copy_and_replace_each_value(create_list, mem_root);
+  List_iterator<Create_field> it(create_list);
+  Create_field *el;
+  while ((el= it++))
+    it.replace(el->clone(mem_root));
+
   /* partition_names are not deeply copied currently */
 }
 
@@ -90,7 +117,8 @@ Alter_table_ctx::Alter_table_ctx()
   : datetime_field(NULL), error_if_not_empty(false),
     tables_opened(0),
     db(NULL), table_name(NULL), alias(NULL),
-    new_db(NULL), new_name(NULL), new_alias(NULL)
+    new_db(NULL), new_name(NULL), new_alias(NULL),
+    fk_info(NULL), fk_count(0), trg_info(PSI_INSTRUMENT_ME)
 #ifndef DBUG_OFF
     , tmp_table(false)
 #endif
@@ -104,7 +132,8 @@ Alter_table_ctx::Alter_table_ctx(THD *thd, TABLE_LIST *table_list,
                                  const char *new_name_arg)
   : datetime_field(NULL), error_if_not_empty(false),
     tables_opened(tables_opened_arg),
-    new_db(new_db_arg), new_name(new_name_arg)
+    new_db(new_db_arg), new_name(new_name_arg),
+    fk_info(NULL), fk_count(0), trg_info(PSI_INSTRUMENT_ME)
 #ifndef DBUG_OFF
     , tmp_table(false)
 #endif
@@ -188,9 +217,18 @@ Alter_table_ctx::Alter_table_ctx(THD *thd, TABLE_LIST *table_list,
   }
 }
 
+Alter_table_ctx::~Alter_table_ctx()
+{
+  // If there was a failure after the triggers were cloned, and before they
+  // were moved into the destination table, they must be deleted.
+  delete_container_pointers(trg_info);
+}
 
 bool Sql_cmd_alter_table::execute(THD *thd)
 {
+  /* Verify that none one of the DISCARD and IMPORT flags are set. */
+  DBUG_ASSERT(!thd_tablespace_op(thd));
+
   LEX *lex= thd->lex;
   /* first SELECT_LEX (have special meaning for many of non-SELECTcommands) */
   SELECT_LEX *select_lex= lex->select_lex;
@@ -203,7 +241,7 @@ bool Sql_cmd_alter_table::execute(THD *thd)
     referenced from this structure will be modified.
     @todo move these into constructor...
   */
-  HA_CREATE_INFO create_info(lex->create_info);
+  HA_CREATE_INFO create_info(*lex->create_info);
   Alter_info alter_info(lex->alter_info, thd->mem_root);
   ulong priv=0;
   ulong priv_needed= ALTER_ACL;
@@ -297,11 +335,13 @@ bool Sql_cmd_alter_table::execute(THD *thd)
   /* Don't yet allow changing of symlinks with ALTER TABLE */
   if (create_info.data_file_name)
     push_warning_printf(thd, Sql_condition::SL_WARNING,
-                        WARN_OPTION_IGNORED, ER(WARN_OPTION_IGNORED),
+                        WARN_OPTION_IGNORED,
+                        ER_THD(thd, WARN_OPTION_IGNORED),
                         "DATA DIRECTORY");
   if (create_info.index_file_name)
     push_warning_printf(thd, Sql_condition::SL_WARNING,
-                        WARN_OPTION_IGNORED, ER(WARN_OPTION_IGNORED),
+                        WARN_OPTION_IGNORED,
+                        ER_THD(thd, WARN_OPTION_IGNORED),
                         "INDEX DIRECTORY");
   create_info.data_file_name= create_info.index_file_name= NULL;
 
@@ -323,6 +363,22 @@ bool Sql_cmd_alter_table::execute(THD *thd)
 
 bool Sql_cmd_discard_import_tablespace::execute(THD *thd)
 {
+  /* Verify that exactly one of the DISCARD and IMPORT flags are set. */
+  DBUG_ASSERT((thd->lex->alter_info.flags &
+               Alter_info::ALTER_DISCARD_TABLESPACE) ^
+              (thd->lex->alter_info.flags &
+               Alter_info::ALTER_IMPORT_TABLESPACE));
+
+  /*
+    Verify that none of the other flags are set, except for
+    ALTER_ALL_PARTITION, which may be set or not, and is
+    therefore masked away along with the DISCARD/IMPORT flags.
+  */
+  DBUG_ASSERT(!(thd->lex->alter_info.flags &
+                ~(Alter_info::ALTER_DISCARD_TABLESPACE |
+                  Alter_info::ALTER_IMPORT_TABLESPACE |
+                  Alter_info::ALTER_ALL_PARTITION)));
+
   /* first SELECT_LEX (have special meaning for many of non-SELECTcommands) */
   SELECT_LEX *select_lex= thd->lex->select_lex;
   /* first table of first SELECT_LEX */
@@ -365,6 +421,5 @@ bool Sql_cmd_discard_import_tablespace::execute(THD *thd)
   thd->add_to_binlog_accessed_dbs(table_list->db);
 
   return
-    mysql_discard_or_import_tablespace(thd, table_list,
-                                       m_tablespace_op == DISCARD_TABLESPACE);
+    mysql_discard_or_import_tablespace(thd, table_list);
 }

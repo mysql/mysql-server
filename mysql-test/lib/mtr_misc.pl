@@ -1,5 +1,5 @@
 # -*- cperl -*-
-# Copyright (c) 2004, 2011, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2004, 2016 Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU Library General Public
@@ -253,15 +253,7 @@ sub has_expired ($) { return $_[0] && time gt $_[0]; }
 
 use Time::HiRes qw(gettimeofday);
 
-my %time_used= (
-  'collect' => 0,
-  'restart' => 0,
-  'check'   => 0,
-  'ch-warn' => 0,
-  'test'    => 0,
-  'init'    => 0,
-  'admin'   => 0,
-);
+my %time_used;
 
 my %time_text= (
  'collect' => "Collecting test cases",
@@ -281,6 +273,17 @@ my $last_timer_set;
 
 sub init_timers() {
   $last_timer_set= gettimeofday();
+
+  # Initialize the 'time_used' hash for each worker
+  %time_used= (
+    'collect' => 0,
+    'restart' => 0,
+    'check'   => 0,
+    'ch-warn' => 0,
+    'test'    => 0,
+    'init'    => 0,
+    'admin'   => 0,
+  );
 }
 
 sub mark_time_used($) {

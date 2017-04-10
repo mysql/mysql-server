@@ -1,0 +1,13 @@
+# Tests for PERFORMANCE_SCHEMA
+
+#setup
+let $select_column = VARIABLE_VALUE;
+let $table = performance_schema.session_variables;
+
+# Test index on VARIABLE_NAME
+
+let $column_count = 1;
+let $col1 = VARIABLE_NAME;
+let $col1_act = "have_ssl";
+
+--source ../include/idx_explain_test.inc

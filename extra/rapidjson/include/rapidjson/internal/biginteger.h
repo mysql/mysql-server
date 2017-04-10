@@ -1,22 +1,16 @@
-// Copyright (C) 2011 Milo Yip
+// Tencent is pleased to support the open source community by making RapidJSON available.
+// 
+// Copyright (C) 2015 THL A29 Limited, a Tencent company, and Milo Yip. All rights reserved.
 //
-// Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software and associated documentation files (the "Software"), to deal
-// in the Software without restriction, including without limitation the rights
-// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-// copies of the Software, and to permit persons to whom the Software is
-// furnished to do so, subject to the following conditions:
+// Licensed under the MIT License (the "License"); you may not use this file except
+// in compliance with the License. You may obtain a copy of the License at
 //
-// The above copyright notice and this permission notice shall be included in
-// all copies or substantial portions of the Software.
+// http://opensource.org/licenses/MIT
 //
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-// THE SOFTWARE.
+// Unless required by applicable law or agreed to in writing, software distributed 
+// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR 
+// CONDITIONS OF ANY KIND, either express or implied. See the License for the 
+// specific language governing permissions and limitations under the License.
 
 #ifndef RAPIDJSON_BIGINTEGER_H_
 #define RAPIDJSON_BIGINTEGER_H_
@@ -25,6 +19,7 @@
 
 #if defined(_MSC_VER) && defined(_M_AMD64)
 #include <intrin.h> // for _umul128
+#pragma intrinsic(_umul128)
 #endif
 
 RAPIDJSON_NAMESPACE_BEGIN
@@ -56,7 +51,16 @@ public:
         if (length > 0)
             AppendDecimal64(decimals + i, decimals + i + length);
     }
-
+    
+    BigInteger& operator=(const BigInteger &rhs)
+    {
+        if (this != &rhs) {
+            count_ = rhs.count_;
+            std::memcpy(digits_, rhs.digits_, count_ * sizeof(Type));
+        }
+        return *this;
+    }
+    
     BigInteger& operator=(uint64_t u) {
         digits_[0] = u;            
         count_ = 1;
@@ -103,7 +107,7 @@ public:
         if (u == 1) return *this;
         if (*this == 1) return *this = u;
 
-        uint32_t k = 0;
+        uint64_t k = 0;
         for (size_t i = 0; i < count_; i++) {
             const uint64_t c = digits_[i] >> 32;
             const uint64_t d = digits_[i] & 0xFFFFFFFF;
@@ -178,13 +182,10 @@ public:
     }
 
     // Compute absolute difference of this and rhs.
-    // Return false if this < rhs
+    // Assume this != rhs
     bool Difference(const BigInteger& rhs, BigInteger* out) const {
         int cmp = Compare(rhs);
-        if (cmp == 0) {
-            *out = BigInteger(0);
-            return false;
-        }
+        RAPIDJSON_ASSERT(cmp != 0);
         const BigInteger *a, *b;  // Makes a > b
         bool ret;
         if (cmp < 0) { a = &rhs; b = this; ret = true; }
@@ -239,7 +240,7 @@ private:
         uint64_t r = 0;
         for (const char* p = begin; p != end; ++p) {
             RAPIDJSON_ASSERT(*p >= '0' && *p <= '9');
-            r = r * 10 + (*p - '0');
+            r = r * 10u + static_cast<unsigned>(*p - '0');
         }
         return r;
     }
@@ -252,9 +253,10 @@ private:
             (*outHigh)++;
         return low;
 #elif (__GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 6)) && defined(__x86_64__)
-        unsigned __int128 p = static_cast<unsigned __int128>(a) * static_cast<unsigned __int128>(b);
+        __extension__ typedef unsigned __int128 uint128;
+        uint128 p = static_cast<uint128>(a) * static_cast<uint128>(b);
         p += k;
-        *outHigh = p >> 64;
+        *outHigh = static_cast<uint64_t>(p >> 64);
         return static_cast<uint64_t>(p);
 #else
         const uint64_t a0 = a & 0xFFFFFFFF, a1 = a >> 32, b0 = b & 0xFFFFFFFF, b1 = b >> 32;
@@ -272,12 +274,6 @@ private:
         *outHigh = hi;
         return lo;
 #endif
-    }
-
-    static Type FullAdd(Type a, Type b, bool inCarry, bool* outCarry) {
-        Type c = a + b + (inCarry ? 1 : 0);
-        *outCarry = c < a;
-        return c;
     }
 
     static const size_t kBitCount = 3328;  // 64bit * 54 > 10^1000

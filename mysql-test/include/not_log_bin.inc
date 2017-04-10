@@ -9,6 +9,6 @@
 --let $_not_log_bin= query_get_value(SHOW GLOBAL VARIABLES LIKE 'log_bin', Value, 1)
 if ($_not_log_bin != OFF)
 {
-  --skip Test requires binloggin to be off.
+  --skip Test requires binlogging to be off.
 }
 --let $show_rpl_debug_info= 1

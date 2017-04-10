@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2015 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2016 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,31 +17,40 @@
 #define MYSQL_SERVICE_MYSQL_PLUGIN_AUTH_INCLUDED
 
 /**
-  @file include/mysql/service_mysql_plugin_auth.h
-  This service provides functions to validatete password, check for strength
-  of password based on common policy.
+  @file include/mysql/service_mysql_password_policy.h
 
-  SYNOPSIS
-  my_validate_password_policy()    - function to validate password
-                                     based on defined policy
-  const char*                        buffer holding the password value
-  unsigned int                       buffer length
-
-  my_calculate_password_strength() - function to calculate strength
-                                     of the password based on the policies defined.
-  const char*                        buffer holding the password value
-  unsigned int                       buffer length
-
-  Both the service function returns 0 on SUCCESS and 1 incase input password does not
-  match against the policy rules defined.
+  Definitions for the password validation service
 */
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
+/**
+  @ingroup group_ext_plugin_services
+
+  This service allows plugins to validate passwords based on a common policy.
+
+  This is a "bridge service", i.e. facade with no
+  real functionality that just calls the actual password validation plugin
+  APIs. This serive is needed by other plugins to call into the password
+  validation plugins and thus overcome the limitation that only the server
+  can call plugins.
+
+  @sa st_mysql_validate_password
+*/
 extern struct mysql_password_policy_service_st {
+  /**
+    Validates a password.
+
+    @sa my_validate_password_policy, st_mysql_validate_password::validate_password
+  */
   int (*my_validate_password_policy_func)(const char *, unsigned int);
+  /**
+    Evaluates the strength of a password in a scale 0-100
+
+    @sa my_calculate_password_strength, st_mysql_validate_password::get_password_strength
+  */
   int (*my_calculate_password_strength_func)(const char *, unsigned int);
 } *mysql_password_policy_service;
 

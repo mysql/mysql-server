@@ -1,3 +1,4 @@
+
 # The include statement below is a temp one for tests that are yet to
 #be ported to run with InnoDB,
 #but needs to be kept for tests that would need MyISAM in future.
@@ -5,8 +6,8 @@
 
 #Want to skip this test from daily Valgrind execution
 --source include/no_valgrind_without_big.inc
--- source include/have_query_cache.inc
 
+SET @query_cache_size.saved = @@query_cache_size;
 #
 # Tests with query cache
 #
@@ -177,16 +178,13 @@ reset query cache;
 #
 # Query bigger then query_cache_limit
 #
-insert into t2 select * from t1;
-insert into t1 select * from t2;
-insert into t2 select * from t1;
-insert into t1 select * from t2;
-insert into t2 select * from t1;
-insert into t1 select * from t2;
-insert into t2 select * from t1;
-insert into t1 select * from t2;
-insert into t2 select * from t1;
-insert into t1 select * from t2;
+insert into t2 select * from t1; #4181
+insert into t1 select * from t2; #8362
+insert into t2 select * from t1; #12543
+insert into t1 select * from t2; #20905
+insert into t2 select * from t1; #33448
+insert into t1 select * from t2; #54353
+# The above query results in the query cache getting filled.
 disable_result_log;
 select * from t1;
 enable_result_log;
@@ -1304,22 +1302,22 @@ SET GLOBAL query_cache_size= default;
 #
 CREATE TABLE t1( a INT );
 
---error ER_PARSE_ERROR
+--error ER_CANT_USE_OPTION_HERE
 SET @v = ( SELECT SQL_CACHE    1 );
---error ER_PARSE_ERROR
+--error ER_CANT_USE_OPTION_HERE
 SET @v = ( SELECT SQL_NO_CACHE 1 );
 
 #
 # Keywords 'SQL_CACHE' and 'SQL_NO_CACHE' are allowed as column names.
 # Hence the error messages are not intuitive.
 #
---error ER_BAD_FIELD_ERROR 
+--error ER_CANT_USE_OPTION_HERE
 SELECT a FROM t1 WHERE a IN ( SELECT SQL_CACHE    a FROM t1 );
---error ER_BAD_FIELD_ERROR 
+--error ER_CANT_USE_OPTION_HERE
 SELECT a FROM t1 WHERE a IN ( SELECT SQL_NO_CACHE a FROM t1 );
---error ER_BAD_FIELD_ERROR
+--error ER_CANT_USE_OPTION_HERE
 SELECT ( SELECT SQL_CACHE a FROM t1 );
---error ER_BAD_FIELD_ERROR
+--error ER_CANT_USE_OPTION_HERE
 SELECT ( SELECT SQL_NO_CACHE a FROM t1 );
 
 SELECT SQL_CACHE * FROM t1;
@@ -1330,16 +1328,16 @@ SELECT SQL_NO_CACHE * FROM t1;
 SELECT * FROM t1 UNION SELECT SQL_CACHE * FROM t1;
 --error ER_CANT_USE_OPTION_HERE
 SELECT * FROM t1 UNION SELECT SQL_NO_CACHE * FROM t1;
---error ER_BAD_FIELD_ERROR
+--error ER_CANT_USE_OPTION_HERE
 SELECT * FROM t1 WHERE a IN (SELECT SQL_CACHE a FROM t1);
---error ER_BAD_FIELD_ERROR
+--error ER_CANT_USE_OPTION_HERE
 SELECT * FROM t1 WHERE a IN (SELECT a FROM t1 UNION SELECT SQL_CACHE a FROM t1);
 
 --error ER_CANT_USE_OPTION_HERE
 SELECT * FROM t1 UNION SELECT SQL_NO_CACHE * FROM t1;
---error ER_BAD_FIELD_ERROR
+--error ER_CANT_USE_OPTION_HERE
 SELECT * FROM t1 WHERE a IN (SELECT SQL_NO_CACHE a FROM t1);
---error ER_BAD_FIELD_ERROR
+--error ER_CANT_USE_OPTION_HERE
 SELECT * FROM t1 WHERE a IN 
   (SELECT a FROM t1 UNION SELECT SQL_NO_CACHE a FROM t1);
 --error ER_WRONG_USAGE
@@ -1354,10 +1352,10 @@ SELECT SQL_CACHE * FROM t1 UNION SELECT SQL_NO_CACHE * FROM t1;
 SELECT SQL_NO_CACHE * FROM t1 UNION SELECT SQL_CACHE * FROM t1;
 --error ER_CANT_USE_OPTION_HERE
 SELECT SQL_NO_CACHE * FROM t1 UNION SELECT SQL_NO_CACHE * FROM t1;
---error ER_BAD_FIELD_ERROR
+--error ER_CANT_USE_OPTION_HERE
 SELECT SQL_CACHE * FROM t1 WHERE a IN 
   (SELECT SQL_NO_CACHE a FROM t1);
---error ER_BAD_FIELD_ERROR
+--error ER_CANT_USE_OPTION_HERE
 SELECT SQL_CACHE * FROM t1 WHERE a IN 
   (SELECT a FROM t1 UNION SELECT SQL_NO_CACHE a FROM t1);
 
@@ -1428,6 +1426,7 @@ SET SESSION query_cache_type=@qc_type;
 --echo # Bug#18383169: QUERIES WITH RANDOM_BYTES() ENTER QUERY CACHE
 --echo #
 
+SET GLOBAL query_cache_size = 1048576;
 CREATE TABLE t1(a INT);
 FLUSH STATUS;
 
@@ -1440,6 +1439,7 @@ SELECT * FROM t1 WHERE AES_ENCRYPT('a','a');
 SHOW STATUS LIKE 'Qcache_not_cached';
 
 DROP TABLE t1;
+SET GLOBAL query_cache_size = default;
 FLUSH STATUS;
 
 
@@ -1447,7 +1447,6 @@ FLUSH STATUS;
 --echo #BUG 18710853: QUERY CACHE NOT INVALIDATED ON CASCADE DELETE IF DB NAME HAS
 --echo #              SPECIAL SYMBOLS
 
-SET @query_cache_size.saved = @@query_cache_size;
 SET GLOBAL query_cache_size = 1024*1024;
 
 CREATE DATABASE `db-db`;
@@ -1510,5 +1509,109 @@ INSERT INTO parent VALUES(1),(2),(3);
 INSERT INTO spoiled_child VALUES (1),(2);
 DELETE FROM parent WHERE a>1;
 DROP DATABASE `tttttttttttttttttttttttttttttttttttttttttt`;
+
+--echo #
+--echo # Bug#25573143 SELECT USING CTE NEVER USES THE QUERY CACHE
+--echo #
+
+CREATE DATABASE mysqltest;
+USE mysqltest;
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES(1),(2),(3);
+
+--echo # Simple CTE
+FLUSH STATUS;
+WITH cte AS (SELECT * FROM t1 LIMIT 2) SELECT * FROM cte;
+SHOW STATUS LIKE "Qcache_hits";
+SHOW STATUS LIKE "Qcache_queries_in_cache";
+--echo # Hits in query cache:
+WITH cte AS (SELECT * FROM t1 LIMIT 2) SELECT * FROM cte;
+SHOW STATUS LIKE "Qcache_hits";
+SHOW STATUS LIKE "Qcache_queries_in_cache";
+--echo # If requested, no cache
+FLUSH STATUS;
+WITH cte AS (SELECT * FROM t1 LIMIT 2) SELECT SQL_NO_CACHE * FROM cte;
+SHOW STATUS LIKE "Qcache_hits";
+SHOW STATUS LIKE "Qcache_queries_in_cache";
+WITH cte AS (SELECT * FROM t1 LIMIT 2) SELECT SQL_NO_CACHE * FROM cte;
+SHOW STATUS LIKE "Qcache_hits";
+SHOW STATUS LIKE "Qcache_queries_in_cache";
+
+--echo Recursive CTE, referenced twice, with PS parameters
+PREPARE s FROM
+ 'WITH RECURSIVE cte AS (
+   SELECT * FROM t1 WHERE a=1 UNION ALL
+   SELECT a+1 FROM cte WHERE a<?)
+  SELECT * FROM cte AS cte1, cte AS cte2';
+SET @par=3;
+FLUSH STATUS;
+EXECUTE s USING @par;
+SHOW STATUS LIKE "Qcache_hits";
+SHOW STATUS LIKE "Qcache_queries_in_cache";
+EXECUTE s USING @par;
+--echo # Hits in query cache:
+SHOW STATUS LIKE "Qcache_hits";
+SHOW STATUS LIKE "Qcache_queries_in_cache";
+--echo # Change parameter's value, doesn't hit in cache:
+SET @par=4;
+FLUSH STATUS;
+EXECUTE s USING @par;
+SHOW STATUS LIKE "Qcache_hits";
+SHOW STATUS LIKE "Qcache_queries_in_cache";
+EXECUTE s USING @par;
+--echo # Hits in query cache:
+SHOW STATUS LIKE "Qcache_hits";
+SHOW STATUS LIKE "Qcache_queries_in_cache";
+SET @par=3;
+FLUSH STATUS;
+--echo # Hits in query cache:
+EXECUTE s USING @par;
+SHOW STATUS LIKE "Qcache_hits";
+SHOW STATUS LIKE "Qcache_queries_in_cache";
+
+--echo Same CTE but with UNION DISTINCT
+PREPARE s FROM
+ 'WITH RECURSIVE cte AS (
+   SELECT * FROM t1 WHERE a=1 UNION DISTINCT
+   SELECT a+1 FROM cte WHERE a<?)
+  SELECT * FROM cte AS cte1, cte AS cte2';
+SET @par=3;
+FLUSH STATUS;
+EXECUTE s USING @par;
+SHOW STATUS LIKE "Qcache_hits";
+SHOW STATUS LIKE "Qcache_queries_in_cache";
+EXECUTE s USING @par;
+--echo # Hits in query cache:
+SHOW STATUS LIKE "Qcache_hits";
+SHOW STATUS LIKE "Qcache_queries_in_cache";
+--echo # Change parameter's value, doesn't hit in cache:
+SET @par=4;
+FLUSH STATUS;
+EXECUTE s USING @par;
+SHOW STATUS LIKE "Qcache_hits";
+SHOW STATUS LIKE "Qcache_queries_in_cache";
+EXECUTE s USING @par;
+--echo # Hits in query cache:
+SHOW STATUS LIKE "Qcache_hits";
+SHOW STATUS LIKE "Qcache_queries_in_cache";
+SET @par=3;
+FLUSH STATUS;
+--echo # Hits in query cache:
+EXECUTE s USING @par;
+SHOW STATUS LIKE "Qcache_hits";
+SHOW STATUS LIKE "Qcache_queries_in_cache";
+
+--echo # Data-modifying statement with CTE isn't cached:
+FLUSH STATUS;
+WITH cte AS (SELECT * FROM t1 LIMIT 2) UPDATE t1, cte
+ SET t1.a=cte.a+1 WHERE t1.a=cte.a;
+SHOW STATUS LIKE "Qcache_hits";
+SHOW STATUS LIKE "Qcache_queries_in_cache";
+WITH cte AS (SELECT * FROM t1 LIMIT 2) UPDATE t1, cte
+ SET t1.a=cte.a+1 WHERE t1.a=cte.a;
+SHOW STATUS LIKE "Qcache_hits";
+SHOW STATUS LIKE "Qcache_queries_in_cache";
+
+DROP DATABASE mysqltest;
 
 SET GLOBAL query_cache_size = @query_cache_size.saved;

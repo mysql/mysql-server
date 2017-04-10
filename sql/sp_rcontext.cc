@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,15 +13,27 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "my_global.h"
-#include "mysql.h"
-#include "sp.h"                                // sp_eval_expr
-#include "sql_cursor.h"
 #include "sp_rcontext.h"
-#include "sp_pcontext.h"
-#include "sql_tmp_table.h"                     // create_virtual_tmp_table
-#include "sp_instr.h"
-#include "template_utils.h"
+
+#include <new>
+
+#include "derror.h"            // ER_THD
+#include "field.h"
+#include "my_dbug.h"
+#include "my_sys.h"
+#include "mysql/psi/psi_base.h"
+#include "mysqld_error.h"
+#include "protocol.h"
+#include "sp.h"                // sp_eval_instr
+#include "sp_instr.h"          // sp_instr
+#include "sp_pcontext.h"       // sp_pcontext
+#include "sql_class.h"         // THD
+#include "sql_cursor.h"        // mysql_open_cursor
+#include "sql_list.h"
+#include "sql_tmp_table.h"     // create_virtual_tmp_table
+#include "template_utils.h"    // delete_container_pointers
+
+class SELECT_LEX_UNIT;
 
 extern "C" void sql_alloc_error_handler(void);
 
@@ -158,7 +170,7 @@ bool sp_rcontext::set_return_value(THD *thd, Item **return_value_item)
 }
 
 
-bool sp_rcontext::push_cursor(sp_instr_cpush *i)
+bool sp_rcontext::push_cursor(THD *thd, sp_instr_cpush *i)
 {
   /*
     We should create cursors on the system heap because:
@@ -167,7 +179,7 @@ bool sp_rcontext::push_cursor(sp_instr_cpush *i)
      - a cursor can be pushed/popped many times in a loop, having these objects
        on callers' mem-root would lead to a memory leak in every iteration.
   */
-  sp_cursor *c= new (std::nothrow) sp_cursor(i);
+  sp_cursor *c= new (std::nothrow) sp_cursor(thd, i);
 
   if (!c)
   {
@@ -514,8 +526,7 @@ bool sp_cursor::open(THD *thd)
 {
   if (m_server_side_cursor)
   {
-    my_message(ER_SP_CURSOR_ALREADY_OPEN, ER(ER_SP_CURSOR_ALREADY_OPEN),
-               MYF(0));
+    my_error(ER_SP_CURSOR_ALREADY_OPEN, MYF(0));
     return true;
   }
 
@@ -523,11 +534,11 @@ bool sp_cursor::open(THD *thd)
 }
 
 
-bool sp_cursor::close(THD *thd)
+bool sp_cursor::close()
 {
   if (! m_server_side_cursor)
   {
-    my_message(ER_SP_CURSOR_NOT_OPEN, ER(ER_SP_CURSOR_NOT_OPEN), MYF(0));
+    my_error(ER_SP_CURSOR_NOT_OPEN, MYF(0));
     return true;
   }
 
@@ -547,21 +558,20 @@ bool sp_cursor::fetch(THD *thd, List<sp_variable> *vars)
 {
   if (! m_server_side_cursor)
   {
-    my_message(ER_SP_CURSOR_NOT_OPEN, ER(ER_SP_CURSOR_NOT_OPEN), MYF(0));
+    my_error(ER_SP_CURSOR_NOT_OPEN, MYF(0));
     return true;
   }
 
   if (vars->elements != m_result.get_field_count())
   {
-    my_message(ER_SP_WRONG_NO_OF_FETCH_ARGS,
-               ER(ER_SP_WRONG_NO_OF_FETCH_ARGS), MYF(0));
+    my_error(ER_SP_WRONG_NO_OF_FETCH_ARGS, MYF(0));
     return true;
   }
 
   DBUG_EXECUTE_IF("bug23032_emit_warning",
                   push_warning(thd, Sql_condition::SL_WARNING,
                                ER_UNKNOWN_ERROR,
-                               ER(ER_UNKNOWN_ERROR)););
+                               ER_THD(thd, ER_UNKNOWN_ERROR)););
 
   m_result.set_spvar_list(vars);
 
@@ -578,7 +588,7 @@ bool sp_cursor::fetch(THD *thd, List<sp_variable> *vars)
   */
   if (! m_server_side_cursor->is_open())
   {
-    my_message(ER_SP_FETCH_NO_DATA, ER(ER_SP_FETCH_NO_DATA), MYF(0));
+    my_error(ER_SP_FETCH_NO_DATA, MYF(0));
     return true;
   }
 
@@ -591,7 +601,7 @@ bool sp_cursor::fetch(THD *thd, List<sp_variable> *vars)
 ///////////////////////////////////////////////////////////////////////////
 
 
-int sp_cursor::Query_fetch_into_spvars::prepare(List<Item> &fields,
+bool sp_cursor::Query_fetch_into_spvars::prepare(List<Item> &fields,
                                                 SELECT_LEX_UNIT *u)
 {
   /*

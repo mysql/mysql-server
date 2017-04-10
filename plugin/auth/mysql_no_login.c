@@ -1,4 +1,4 @@
-/*  Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/*  Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
     This program is free software; you can redistribute it and/or
     modify it under the terms of the GNU General Public License as
@@ -25,11 +25,12 @@
   with DEFINER = [sys account] SQL SECURITY DEFINER.
 */
 
-#include <my_global.h>
 #include <mysql/plugin_auth.h>
-#include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+
+#include "my_compiler.h"
 
 static int mysql_no_login(
     MYSQL_PLUGIN_VIO *vio MY_ATTRIBUTE((unused)),
@@ -38,25 +39,25 @@ static int mysql_no_login(
   return CR_ERROR;
 }
 
-int generate_auth_string_hash(char *outbuf MY_ATTRIBUTE((unused)),
-                              unsigned int *buflen,
-                              const char *inbuf MY_ATTRIBUTE((unused)),
-                              unsigned int inbuflen MY_ATTRIBUTE((unused)))
+static int generate_auth_string_hash(char *outbuf MY_ATTRIBUTE((unused)),
+                                     unsigned int *buflen,
+                                     const char *inbuf MY_ATTRIBUTE((unused)),
+                                     unsigned int inbuflen MY_ATTRIBUTE((unused)))
 {
   *buflen= 0;
   return 0;
 }
 
-int validate_auth_string_hash(char* const inbuf  MY_ATTRIBUTE((unused)),
-                              unsigned int buflen  MY_ATTRIBUTE((unused)))
+static int validate_auth_string_hash(char* const inbuf  MY_ATTRIBUTE((unused)),
+                                     unsigned int buflen  MY_ATTRIBUTE((unused)))
 {
   return 0;
 }
 
-int set_salt(const char* password MY_ATTRIBUTE((unused)),
-             unsigned int password_len MY_ATTRIBUTE((unused)),
-             unsigned char* salt MY_ATTRIBUTE((unused)),
-             unsigned char* salt_len)
+static int set_salt(const char* password MY_ATTRIBUTE((unused)),
+                    unsigned int password_len MY_ATTRIBUTE((unused)),
+                    unsigned char* salt MY_ATTRIBUTE((unused)),
+                    unsigned char* salt_len)
 {
   *salt_len= 0;
   return 0;

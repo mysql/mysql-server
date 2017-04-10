@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -20,11 +20,13 @@
 #ifndef NGS_SERVER_ACCEPTORS_
 #define NGS_SERVER_ACCEPTORS_
 
-#include "ngs/interface/listener_interface.h"
-#include "ngs/interface/listener_factory_interface.h"
-#include "ngs/interface/server_task_interface.h"
 #include <string>
 #include <vector>
+
+#include "my_inttypes.h"
+#include "ngs/interface/listener_factory_interface.h"
+#include "ngs/interface/listener_interface.h"
+#include "ngs/interface/server_task_interface.h"
 #include "ngs_common/smart_ptr.h"
 #include "socket_events.h"
 

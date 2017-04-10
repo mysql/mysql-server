@@ -242,9 +242,6 @@ ENDIF()
 
 ENDIF(NOT MSVC)
 
-CHECK_FUNCTION_EXISTS(asprintf  HAVE_ASPRINTF)
-CHECK_FUNCTION_EXISTS(vasprintf  HAVE_VASPRINTF)
-
 # Solaris atomics
 IF(CMAKE_SYSTEM_NAME STREQUAL "SunOS")
   IF(NOT CMAKE_CROSSCOMPILING)
@@ -275,7 +272,7 @@ ELSE()
 ENDIF()
 
 # Include directories under innobase
-INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/storage/innobase/include
+INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/storage/innobase/
+		    ${CMAKE_SOURCE_DIR}/storage/innobase/include
 		    ${CMAKE_SOURCE_DIR}/storage/innobase/handler
-                    ${CMAKE_SOURCE_DIR}/libbinlogevents/include )
-
+		    ${CMAKE_SOURCE_DIR}/libbinlogevents/include)

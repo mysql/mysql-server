@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2014, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -19,6 +19,7 @@ MYSQL_ADD_PLUGIN(ftexample ./example/plugin_example.c
 
 # Ngram parser
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/storage/innobase/include
+                    ${CMAKE_SOURCE_DIR}/storage/innobase/
                     ${CMAKE_SOURCE_DIR}/include)
 
 MYSQL_ADD_PLUGIN(ngram_parser ./ngram_parser/plugin_ngram.cc

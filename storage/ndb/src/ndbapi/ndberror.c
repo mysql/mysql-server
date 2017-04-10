@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -323,6 +323,8 @@ ErrorBundle ErrorCodes[] = {
   { 296,  HA_ERR_LOCK_WAIT_TIMEOUT, TO, "Time-out in NDB, probably caused by deadlock" }, /* Scan trans timeout */
   { 297,  HA_ERR_LOCK_WAIT_TIMEOUT, TO, "Time-out in NDB, probably caused by deadlock" }, /* Scan trans timeout, temporary!! */
   { 237,  HA_ERR_LOCK_WAIT_TIMEOUT, TO, "Transaction had timed out when trying to commit it" },
+  { 5024, DMEC, TO, "Time-out due to node shutdown not starting in time" },
+  { 5025, DMEC, TO, "Time-out due to node shutdown not completing in time" },
   
   /**
    * OverloadError
@@ -438,6 +440,7 @@ ErrorBundle ErrorCodes[] = {
   { 322,  DMEC, AE, "Invalid node(s) specified for new nodegroup, node already in nodegroup" },
   { 323,  DMEC, AE, "Invalid nodegroup id, nodegroup already existing" },
   { 324,  DMEC, AE, "Invalid node(s) specified for new nodegroup, no node in nodegroup is started" },
+  { 325,  DMEC, AE, "Invalid node(s) specified for new nodegroup, node ID invalid or undefined" },
   { 417,  DMEC, AE, "Bad operation reference - double unlock" },
 
   /** 
@@ -589,11 +592,14 @@ ErrorBundle ErrorCodes[] = {
   { 792,  DMEC, SE, "Default value for primary key column not supported" },
   { 794,  DMEC, AE, "Schema feature requires data node upgrade" },
   { 796,  DMEC, SE, "Out of schema transaction memory" },
+  { 798,  DMEC, AE, "A disk table must not be specified as no logging" },
+  { 799,  HA_WRONG_CREATE_OPTION, SE, "Non default partitioning without partitions" },
 
   /**
    * FunctionNotImplemented
    */
   { 4003, DMEC, NI, "Function not implemented yet" },
+  { 797,  DMEC, NI, "Wrong fragment count for fully replicated table" },
 
   /**
    * Backup error codes

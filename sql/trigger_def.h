@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -70,17 +70,5 @@ enum enum_trigger_variable_type
   TRG_OLD_ROW,
   TRG_NEW_ROW
 };
-
-///////////////////////////////////////////////////////////////////////////
-
-/*
-  The following constants are defined in trigger_loader.cc.
-  They would be private to Trigger_loader if we didn't have handler.
-*/
-
-extern const char * const TRG_EXT;
-extern const char * const TRN_EXT;
-
-///////////////////////////////////////////////////////////////////////////
 
 #endif // TRIGGER_DEF_H_INCLUDED

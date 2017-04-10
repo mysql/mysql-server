@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,6 +15,8 @@
 
 /* Read through all rows sequntially */
 
+#include "my_dbug.h"
+#include "my_inttypes.h"
 #include "myisamdef.h"
 
 int mi_scan_init(MI_INFO *info)

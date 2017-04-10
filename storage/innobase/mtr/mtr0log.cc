@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -25,15 +25,12 @@ Created 12/7/1995 Heikki Tuuri
 
 #include "mtr0log.h"
 
-#ifdef UNIV_NONINL
-#include "mtr0log.ic"
-#endif /* UNIV_NOINL */
-
 #include "buf0buf.h"
+#include "buf0dblwr.h"
 #include "dict0dict.h"
 #include "log0recv.h"
+#include "my_inttypes.h"
 #include "page0page.h"
-#include "buf0dblwr.h"
 
 #ifndef UNIV_HOTBACKUP
 # include "dict0boot.h"
@@ -87,6 +84,40 @@ mlog_write_initial_log_record(
 }
 #endif /* !UNIV_HOTBACKUP */
 
+/** Parse an initial log record written by mlog_write_initial_dict_log_record.
+@param[in]	ptr		buffer
+@param[in]	end_ptr		buffer end
+@param[out]	type		log record type, should be
+				MLOG_TABLE_DYNAMIC_META
+@param[out]	id		table id
+@return parsed record end, NULL if not a complete record */
+byte*
+mlog_parse_initial_dict_log_record(
+	const byte*	ptr,
+	const byte*	end_ptr,
+	mlog_id_t*	type,
+	table_id_t*	id)
+{
+	if (end_ptr < ptr + 1) {
+
+		return(NULL);
+	}
+
+	*type = (mlog_id_t)((ulint)*ptr & ~MLOG_SINGLE_REC_FLAG);
+	ut_ad(*type == MLOG_TABLE_DYNAMIC_META);
+
+	ptr++;
+
+	if (end_ptr < ptr + 1) {
+
+		return(NULL);
+	}
+
+	*id = mach_parse_u64_much_compressed(&ptr, end_ptr);
+
+	return(const_cast<byte*>(ptr));
+}
+
 /********************************************************//**
 Parses an initial log record written by mlog_write_initial_log_record.
 @return parsed record end, NULL if not a complete record */
@@ -96,8 +127,8 @@ mlog_parse_initial_log_record(
 	const byte*	ptr,	/*!< in: buffer */
 	const byte*	end_ptr,/*!< in: buffer end */
 	mlog_id_t*	type,	/*!< out: log record type: MLOG_1BYTE, ... */
-	ulint*		space,	/*!< out: space id */
-	ulint*		page_no)/*!< out: page number */
+	space_id_t*	space,	/*!< out: space id */
+	page_no_t*	page_no)/*!< out: page number */
 {
 	if (end_ptr < ptr + 1) {
 
@@ -491,8 +522,8 @@ mlog_open_and_write_index(
 			const dict_col_t*	col;
 			ulint			len;
 
-			field = dict_index_get_nth_field(index, i);
-			col = dict_field_get_col(field);
+			field = index->get_field(i);
+			col = field->col;
 			len = field->fixed_len;
 			ut_ad(len < 0x7fff);
 			if (len == 0
@@ -592,19 +623,19 @@ mlog_parse_index(
 				len & 0x8000 ? DATA_NOT_NULL : 0,
 				len & 0x7fff);
 
-			dict_index_add_col(ind, table,
-					   dict_table_get_nth_col(table, i),
-					   0);
+			/* The is_ascending flag does not matter during
+			redo log apply, because we do not compare for
+			"less than" or "greater than". */
+			dict_index_add_col(ind, table, table->get_col(i), 0,
+					   true);
 		}
 		dict_table_add_system_columns(table, table->heap);
 		if (n_uniq != n) {
 			/* Identify DB_TRX_ID and DB_ROLL_PTR in the index. */
 			ut_a(DATA_TRX_ID_LEN
-			     == dict_index_get_nth_col(ind, DATA_TRX_ID - 1
-						       + n_uniq)->len);
+			     == ind->get_col(DATA_TRX_ID - 1 + n_uniq)->len);
 			ut_a(DATA_ROLL_PTR_LEN
-			     == dict_index_get_nth_col(ind, DATA_ROLL_PTR - 1
-						       + n_uniq)->len);
+			     == ind->get_col(DATA_ROLL_PTR - 1 + n_uniq)->len);
 			ind->fields[DATA_TRX_ID - 1 + n_uniq].col
 				= &table->cols[n + DATA_TRX_ID];
 			ind->fields[DATA_ROLL_PTR - 1 + n_uniq].col

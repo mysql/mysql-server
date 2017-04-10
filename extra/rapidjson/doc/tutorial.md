@@ -133,6 +133,15 @@ And other familiar query functions:
 * `SizeType Capacity() const`
 * `bool Empty() const`
 
+### Range-based For Loop (New in v1.1.0)
+
+When C++11 is enabled, you can use range-based for loop to access all elements in an array.
+
+~~~~~~~~~~cpp
+for (auto& v : a.GetArray())
+    printf("%d ", v.GetInt());
+~~~~~~~~~~
+
 ## Query Object {#QueryObject}
 
 Similar to array, we can access all object members by iterator:
@@ -166,7 +175,17 @@ If we are unsure whether a member exists, we need to call `HasMember()` before c
 ~~~~~~~~~~cpp
 Value::ConstMemberIterator itr = document.FindMember("hello");
 if (itr != document.MemberEnd())
-    printf("%s %s\n", itr->value.GetString());
+    printf("%s\n", itr->value.GetString());
+~~~~~~~~~~
+
+### Range-based For Loop (New in v1.1.0)
+
+When C++11 is enabled, you can use range-based for loop to access all members in an object.
+
+~~~~~~~~~~cpp
+for (auto& m : document.GetObject())
+    printf("Type of member %s is %s\n",
+        m.name.GetString(), kTypeNames[m.value.GetType()]);
 ~~~~~~~~~~
 
 ## Querying Number {#QueryNumber}
@@ -192,7 +211,7 @@ Checking          | Obtaining
 `bool IsNumber()` | N/A
 `bool IsUint()`   | `unsigned GetUint()`
 `bool IsInt()`    | `int GetInt()`
-`bool IsUint64()` | `uint64_t GetUint()`
+`bool IsUint64()` | `uint64_t GetUint64()`
 `bool IsInt64()`  | `int64_t GetInt64()`
 `bool IsDouble()` | `double GetDouble()`
 
@@ -292,12 +311,13 @@ The simple answer is performance. For fixed size JSON types (Number, True, False
 For example, if normal *copy* semantics was used:
 
 ~~~~~~~~~~cpp
+Document d;
 Value o(kObjectType);
 {
     Value contacts(kArrayType);
     // adding elements to contacts array.
     // ...
-    o.AddMember("contacts", contacts);  // deep clone contacts (may be with lots of allocations)
+    o.AddMember("contacts", contacts, d.GetAllocator());  // deep clone contacts (may be with lots of allocations)
     // destruct contacts.
 }
 ~~~~~~~~~~
@@ -313,11 +333,12 @@ To make RapidJSON simple and fast, we chose to use *move* semantics for assignme
 So, with move semantics, the above example becomes:
 
 ~~~~~~~~~~cpp
+Document d;
 Value o(kObjectType);
 {
     Value contacts(kArrayType);
     // adding elements to contacts array.
-    o.AddMember("contacts", contacts);  // just memcpy() of contacts itself to the value of new member (16 bytes)
+    o.AddMember("contacts", contacts, d.GetAllocator());  // just memcpy() of contacts itself to the value of new member (16 bytes)
     // contacts became Null here. Its destruction is trivial.
 }
 ~~~~~~~~~~

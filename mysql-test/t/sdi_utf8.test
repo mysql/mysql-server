@@ -1,0 +1,5 @@
+let $MYSQLD_DATADIR = `select @@datadir`;
+CREATE TABLE tזרו(i INT) ENGINE MYISAM;
+--replace_regex /_[0-9]+\.SDI/_XXX.SDI/
+--list_files $MYSQLD_DATADIR/test
+DROP TABLE tזרו;

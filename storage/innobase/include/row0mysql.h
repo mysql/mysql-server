@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2000, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2000, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -37,9 +37,7 @@ Created 9/17/2000 Heikki Tuuri
 #include "btr0pcur.h"
 #include "trx0types.h"
 #include "sess0sess.h"
-
-// Forward declaration
-struct SysIndexCallback;
+#include "sql_cmd.h"
 
 extern ibool row_rollback_on_timeout;
 
@@ -118,18 +116,6 @@ row_mysql_store_geometry(
 					is SQL NULL this should be 0; remember
 					also to set the NULL bit in the MySQL record
 					header! */
-/*******************************************************************//**
-Reads a reference to a geometry data in the MySQL format.
-@return pointer to geometry data */
-const byte*
-row_mysql_read_geometry(
-/*====================*/
-	ulint*		len,		/*!< out: geometry data length */
-	const byte*	ref,		/*!< in: reference in the
-					MySQL format */
-	ulint		col_len)	/*!< in: BLOB reference length
-					(not BLOB length) */
-	MY_ATTRIBUTE((warn_unused_result));
 /**************************************************************//**
 Pad a column with spaces. */
 void
@@ -227,21 +213,12 @@ row_lock_table_autoinc_for_mysql(
 	row_prebuilt_t*	prebuilt)	/*!< in: prebuilt struct in the MySQL
 					table handle */
 	MY_ATTRIBUTE((warn_unused_result));
-
-/*********************************************************************//**
-Sets a table lock on the table mentioned in prebuilt.
+/** Sets a table lock on the table mentioned in prebuilt.
+@param[in,out]	prebuilt	table handle
 @return error code or DB_SUCCESS */
 dberr_t
-row_lock_table_for_mysql(
-/*=====================*/
-	row_prebuilt_t*	prebuilt,	/*!< in: prebuilt struct in the MySQL
-					table handle */
-	dict_table_t*	table,		/*!< in: table to lock, or NULL
-					if prebuilt->table should be
-					locked as
-					prebuilt->select_lock_type */
-	ulint		mode);		/*!< in: lock mode of table
-					(ignored if table==NULL) */
+row_lock_table(
+	row_prebuilt_t*	prebuilt);
 
 /** Does an insert for MySQL.
 @param[in]	mysql_rec	row in the MySQL format
@@ -290,21 +267,19 @@ row_update_for_mysql(
 	MY_ATTRIBUTE((warn_unused_result));
 
 /** Delete all rows for the given table by freeing/truncating indexes.
-@param[in,out]	table	table handler
-@return error code or DB_SUCCESS */
-dberr_t
+@param[in,out]	table	table handler */
+void
 row_delete_all_rows(
-	dict_table_t*	table)
-	MY_ATTRIBUTE((warn_unused_result));
+	dict_table_t*	table);
 
-/** This can only be used when srv_locks_unsafe_for_binlog is TRUE or this
-session is using a READ COMMITTED or READ UNCOMMITTED isolation level.
-Before calling this function row_search_for_mysql() must have
-initialized prebuilt->new_rec_locks to store the information which new
-record locks really were set. This function removes a newly set
-clustered index record lock under prebuilt->pcur or
-prebuilt->clust_pcur.  Thus, this implements a 'mini-rollback' that
-releases the latest clustered index record lock we set.
+/** This can only be used when this session is using a READ COMMITTED or READ
+UNCOMMITTED isolation level.  Before calling this function
+row_search_for_mysql() must have initialized prebuilt->new_rec_locks to store
+the information which new record locks really were set. This function removes
+a newly set clustered index record lock under prebuilt->pcur or
+prebuilt->clust_pcur.  Thus, this implements a 'mini-rollback' that releases
+the latest clustered index record lock we set.
+
 @param[in,out]	prebuilt		prebuilt struct in MySQL handle
 @param[in]	has_latches_on_recs	TRUE if called so that we have the
 					latches on the records under pcur
@@ -421,8 +396,6 @@ fields than mentioned in the constraint.
 				database id the database of parameter name
 @param[in]	sql_length	length of sql_string
 @param[in]	name		table full name in normalized form
-@param[in]	is_temp_table	true if table is temporary
-@param[in,out]	handler		table handler if table is intrinsic
 @param[in]	reject_fks	if TRUE, fail with error code
 				DB_CANNOT_ADD_CONSTRAINT if any
 				foreign keys are found.
@@ -464,36 +437,44 @@ row_mysql_lock_table(
 	const char*	op_info)	/*!< in: string for trx->op_info */
 	MY_ATTRIBUTE((warn_unused_result));
 
-/*********************************************************************//**
-Truncates a table for MySQL.
-@return error code or DB_SUCCESS */
-dberr_t
-row_truncate_table_for_mysql(
-/*=========================*/
-	dict_table_t*	table,	/*!< in: table handle */
-	trx_t*		trx)	/*!< in: transaction handle */
-	MY_ATTRIBUTE((warn_unused_result));
-/*********************************************************************//**
-Drops a table for MySQL.  If the data dictionary was not already locked
+/** Drop a table for MySQL. If the data dictionary was not already locked
 by the transaction, the transaction will be committed.  Otherwise, the
 data dictionary will remain locked.
+@param[in]	name		table name
+@param[in,out]	trx		data dictionary transaction
+@param[in]	sqlcom		SQL command
+@param[in]	nonatomic	whether it is permitted
+to release and reacquire dict_operation_lock
+@param[in,out]	handler		intrinsic temporary table handle, or NULL
 @return error code or DB_SUCCESS */
 dberr_t
 row_drop_table_for_mysql(
-/*=====================*/
-	const char*	name,	/*!< in: table name */
-	trx_t*		trx,	/*!< in: dictionary transaction handle */
-	bool		drop_db,/*!< in: true=dropping whole database */
-	bool		nonatomic = true,
-				/*!< in: whether it is permitted
-				to release and reacquire dict_operation_lock */
-	dict_table_t*	handler = NULL);
-				/*!< in/out: table handler. */
-/*********************************************************************//**
-Drop all temporary tables during crash recovery. */
-void
-row_mysql_drop_temp_tables(void);
-/*============================*/
+	const char*		name,
+	trx_t*			trx,
+	enum enum_sql_command	sqlcom,
+	bool			nonatomic,
+	dict_table_t*		handler = NULL);
+/** Drop a table for MySQL. If the data dictionary was not already locked
+by the transaction, the transaction will be committed.  Otherwise, the
+data dictionary will remain locked.
+@param[in]	name		table name
+@param[in,out]	trx		data dictionary transaction
+@param[in]	drop_db		whether the database is being dropped
+(ignore certain foreign key constraints)
+@return error code or DB_SUCCESS */
+inline
+dberr_t
+row_drop_table_for_mysql(
+	const char*	name,
+	trx_t*		trx,
+	bool		drop_db)
+{
+	return(row_drop_table_for_mysql(name, trx,
+					drop_db
+					? SQLCOM_DROP_DB
+					: SQLCOM_DROP_TABLE,
+					true, NULL));
+}
 
 /*********************************************************************//**
 Discards the tablespace of a table which stored in an .ibd file. Discarding
@@ -582,17 +563,6 @@ void
 row_mysql_close(void);
 /*=================*/
 
-/*********************************************************************//**
-Reassigns the table identifier of a table.
-@return error code or DB_SUCCESS */
-dberr_t
-row_mysql_table_id_reassign(
-/*========================*/
-	dict_table_t*	table,	/*!< in/out: table */
-	trx_t*		trx,	/*!< in/out: transaction */
-	table_id_t*	new_id) /*!< out: new table id */
-        MY_ATTRIBUTE((warn_unused_result));
-
 /* A struct describing a place for an individual column in the MySQL
 row format which is presented to the table handler in ha_innobase.
 This template struct is used to speed up row transformations between
@@ -675,7 +645,7 @@ struct row_prebuilt_t {
 					the row id: in this case this flag
 					is set to TRUE */
 	unsigned	index_usable:1;	/*!< caches the value of
-					row_merge_is_index_usable(trx,index) */
+					index->is_usable(trx) */
 	unsigned	read_just_key:1;/*!< set to 1 when MySQL calls
 					ha_innobase::extra with the
 					argument HA_EXTRA_KEYREAD; it is enough
@@ -770,16 +740,14 @@ struct row_prebuilt_t {
 	dtuple_t*	clust_ref;	/*!< prebuilt dtuple used in
 					sel/upd/del */
 	ulint		select_lock_type;/*!< LOCK_NONE, LOCK_S, or LOCK_X */
-	ulint		stored_select_lock_type;/*!< this field is used to
-					remember the original select_lock_type
-					that was decided in ha_innodb.cc,
-					::store_lock(), ::external_lock(),
-					etc. */
+	enum select_mode
+			select_mode;	/*!< SELECT_ORDINARY,
+					SELECT_SKIP_LOKCED, or SELECT_NO_WAIT */
 	ulint		row_read_type;	/*!< ROW_READ_WITH_LOCKS if row locks
 					should be the obtained for records
 					under an UPDATE or DELETE cursor.
-					If innodb_locks_unsafe_for_binlog
-					is TRUE, this can be set to
+					If trx_t::allow_semi_consistent()
+					returns true, this can be set to
 					ROW_READ_TRY_SEMI_CONSISTENT, so that
 					if the row under an UPDATE or DELETE
 					cursor was locked by another
@@ -800,10 +768,8 @@ struct row_prebuilt_t {
 					This eliminates lock waits in some
 					cases; note that this breaks
 					serializability. */
-	ulint		new_rec_locks;	/*!< normally 0; if
-					srv_locks_unsafe_for_binlog is
-					TRUE or session is using READ
-					COMMITTED or READ UNCOMMITTED
+	ulint		new_rec_locks;	/*!< normally 0; if session is using
+					READ COMMITTED or READ UNCOMMITTED
 					isolation level, set in
 					row_search_for_mysql() if we set a new
 					record lock on the secondary
@@ -862,12 +828,10 @@ struct row_prebuilt_t {
 					store it here so that we can return
 					it to MySQL */
 	/*----------------------*/
-	void*		idx_cond;	/*!< In ICP, pointer to a ha_innobase,
-					passed to innobase_index_cond().
-					NULL if index condition pushdown is
-					not used. */
+	bool		idx_cond;	/*!< True if index condition pushdown
+					is used, false otherwise. */
 	ulint		idx_cond_n_cols;/*!< Number of fields in idx_cond_cols.
-					0 if and only if idx_cond == NULL. */
+					0 if and only if idx_cond == false. */
 	/*----------------------*/
 	unsigned	innodb_api:1;	/*!< whether this is a InnoDB API
 					query */
@@ -895,14 +859,41 @@ struct row_prebuilt_t {
 	/** Disable prefetch. */
 	bool		m_no_prefetch;
 
+	bool		skip_serializable_dd_view;
+					/* true, if we want skip serializable
+					isolation level on views on DD tables */
+	bool		no_autoinc_locking;
+					/* true, if we were asked to skip
+					AUTOINC locking for the table. */
 	/** Return materialized key for secondary index scan */
 	bool		m_read_virtual_key;
+
+	/** Whether this is a temporary(intrinsic) table read to keep the position
+	for this MySQL TABLE object */
+	bool		m_temp_read_shared;
+
+	/** Whether there is tree modifying operation happened on a
+	temprorary(intrinsic) table index tree. In this case, it could be split,
+	but no shrink. */
+	bool		m_temp_tree_modified;
 
 	/** The MySQL table object */
 	TABLE*		m_mysql_table;
 
+	/** The MySQL handler object. */
+	ha_innobase*	m_mysql_handler;
+
 	/** limit value to avoid fts result overflow */
 	ulonglong	m_fts_limit;
+
+	/** True if exceeded the end_range while filling the prefetch cache. */
+	bool		m_end_range;
+
+	/** Can a record buffer or a prefetch cache be utilized for prefetching
+	records in this scan?
+	@retval true   if records can be prefetched
+	@retval false  if records cannot be prefetched */
+	bool can_prefetch_records() const;
 };
 
 /** Callback for row_mysql_sys_index_iterate() */
@@ -973,9 +964,7 @@ innobase_rename_vc_templ(
 #define ROW_READ_TRY_SEMI_CONSISTENT	1
 #define ROW_READ_DID_SEMI_CONSISTENT	2
 
-#ifndef UNIV_NONINL
 #include "row0mysql.ic"
-#endif
 
 #ifdef UNIV_DEBUG
 /** Wait for the background drop list to become empty. */

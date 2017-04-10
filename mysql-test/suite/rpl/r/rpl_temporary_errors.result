@@ -9,9 +9,9 @@ CREATE TABLE t1 (a INT PRIMARY KEY, b INT);
 INSERT INTO t1 VALUES (1,1), (2,2), (3,3), (4,4);
 **** On Slave ****
 include/sync_slave_sql_with_master.inc
-SHOW STATUS LIKE 'Slave_retried_transactions';
-Variable_name	Value
-Slave_retried_transactions	0
+SELECT count_transactions_retries FROM performance_schema.replication_applier_status;
+count_transactions_retries
+0
 set @@global.slave_exec_mode= 'IDEMPOTENT';
 UPDATE t1 SET a = 5, b = 47 WHERE a = 1;
 SELECT * FROM t1 order by a;
@@ -31,9 +31,9 @@ a	b
 **** On Slave ****
 include/sync_slave_sql_with_master.inc
 set @@global.slave_exec_mode= default;
-SHOW STATUS LIKE 'Slave_retried_transactions';
-Variable_name	Value
-Slave_retried_transactions	0
+SELECT count_transactions_retries FROM performance_schema.replication_applier_status;
+count_transactions_retries
+0
 SELECT * FROM t1 order by a;
 a	b
 2	2

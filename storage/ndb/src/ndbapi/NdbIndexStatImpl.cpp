@@ -1,4 +1,5 @@
-/* Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
+/*
+   Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -131,6 +132,8 @@ NdbIndexStatImpl::make_headtable(NdbDictionary::Table& tab)
   tab.setName(g_headtable_name);
   tab.setLogging(true);
   int ret;
+  // Creating a table in NDB using a compiled in frm blob
+  // which is already compressed and has got proper version 1 header
   ret = tab.setFrm(g_ndb_index_stat_head_frm_data,
                    g_ndb_index_stat_head_frm_len);
   if (ret != 0)
@@ -209,6 +212,8 @@ NdbIndexStatImpl::make_sampletable(NdbDictionary::Table& tab)
   tab.setName(g_sampletable_name);
   tab.setLogging(true);
   int ret;
+  // Creating a table in NDB using a compiled in frm blob
+  // which is already compressed and has got proper version 1 header
   ret = tab.setFrm(g_ndb_index_stat_sample_frm_data,
                    g_ndb_index_stat_sample_frm_len);
   if (ret != 0)
@@ -2575,18 +2580,15 @@ NdbIndexStatImpl::next_listener(Ndb* ndb)
 int
 NdbIndexStatImpl::drop_listener(Ndb* ndb)
 {
-  if (m_eventOp == 0)
-  {
-    setError(UsageError, __LINE__);
-    return -1;
-  }
-  if (ndb->dropEventOperation(m_eventOp) != 0)
+  if (m_eventOp != 0)
   {
     // NOTE! dropEventoperation always return 0
-    setError(ndb->getNdbError().code, __LINE__);
-    return -1;
+    int ret;
+    (void)ret; //USED
+    ret = ndb->dropEventOperation(m_eventOp);
+    assert(ret == 0);
+    m_eventOp = 0;
   }
-  m_eventOp = 0;
   return 0;
 }
 

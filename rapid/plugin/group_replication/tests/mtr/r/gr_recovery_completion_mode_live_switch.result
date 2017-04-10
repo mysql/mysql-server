@@ -27,9 +27,7 @@ LOCK TABLE t1 WRITE;
 LOCK TABLE t2 WRITE;
 [connection server2]
 SET GLOBAL debug= '+d,group_replication_skip_read_mode';
-SET GLOBAL group_replication_group_name= "93150a70-b30b-11e5-a837-0800200c9a66";
-START GROUP_REPLICATION;
-include/gr_wait_for_member_state.inc
+include/start_group_replication.inc
 #
 # Insert a row on table t2 in server 1.
 # This row is a cached row to be executed when the state transfer ends.

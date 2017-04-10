@@ -1,5 +1,5 @@
 --source include/have_case_insensitive_file_system.inc
---source include/have_innodb.inc
+--source include/have_lowercase2.inc
 
 --echo #
 --echo # Bug#46941 crash with lower_case_table_names=2 and
@@ -72,7 +72,8 @@ CREATE TABLE `Table1`(c1 INT PRIMARY KEY) ENGINE=InnoDB;
 CREATE TABLE `Table2`(c1 INT PRIMARY KEY, c2 INT) ENGINE=InnoDB;
 ALTER TABLE `Table2` ADD CONSTRAINT fk1 FOREIGN KEY(c2) REFERENCES `Table1`(c1);
 query_vertical SHOW CREATE TABLE `Table2`;
-query_vertical SELECT * FROM INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS;
+query_vertical SELECT * FROM INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS
+WHERE CONSTRAINT_SCHEMA != 'PERFORMANCE_SCHEMA';
 DROP TABLE `Table2`;
 DROP TABLE `Table1`;
 
@@ -101,7 +102,8 @@ CREATE TABLE Product_Order (No INT NOT NULL AUTO_INCREMENT,
 query_vertical SHOW CREATE TABLE Product_Order;
 query_vertical SHOW CREATE TABLE Product;
 query_vertical SHOW CREATE TABLE Customer;
-query_vertical SELECT * FROM INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS;
+query_vertical SELECT * FROM INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS
+WHERE CONSTRAINT_SCHEMA != 'PERFORMANCE_SCHEMA';
 DROP TABLE Product_Order;
 DROP TABLE Product;
 DROP TABLE Customer;

@@ -13,7 +13,7 @@ COUNT(@@GLOBAL.have_geometry)
 1 Expected
 '#---------------------BS_STVARS_010_03----------------------#'
 SELECT @@GLOBAL.have_geometry = VARIABLE_VALUE
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='have_geometry';
 @@GLOBAL.have_geometry = VARIABLE_VALUE
 1
@@ -23,7 +23,7 @@ COUNT(@@GLOBAL.have_geometry)
 1
 1 Expected
 SELECT COUNT(VARIABLE_VALUE)
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='have_geometry';
 COUNT(VARIABLE_VALUE)
 1

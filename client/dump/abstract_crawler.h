@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -18,11 +18,14 @@
 #ifndef ABSTRACT_CRAWLER_INCLUDED
 #define ABSTRACT_CRAWLER_INCLUDED
 
-#include "i_crawler.h"
+#include <functional>
+
 #include "abstract_chain_element.h"
-#include "i_chain_maker.h"
-#include "i_dump_task.h"
 #include "base/abstract_program.h"
+#include "i_chain_maker.h"
+#include "i_crawler.h"
+#include "i_dump_task.h"
+#include "my_inttypes.h"
 
 namespace Mysql{
 namespace Tools{
@@ -37,10 +40,21 @@ public:
    */
   virtual void register_chain_maker(I_chain_maker* new_chain_maker);
 
+
+  // Fix "inherits ... via dominance" warnings
+  void register_progress_watcher(I_progress_watcher* new_progress_watcher)
+  { Abstract_chain_element::register_progress_watcher(new_progress_watcher); }
+
+  // Fix "inherits ... via dominance" warnings
+  uint64 get_id() const
+  { return Abstract_chain_element::get_id(); }
+
+
   ~Abstract_crawler();
+
 protected:
   Abstract_crawler(
-    Mysql::I_callable<bool, const Mysql::Tools::Base::Message_data&>*
+    std::function<bool(const Mysql::Tools::Base::Message_data&)>*
       message_handler, Simple_id_generator* object_id_generator,
       Mysql::Tools::Base::Abstract_program* program);
   /**
@@ -52,7 +66,12 @@ protected:
 
   bool need_callbacks_in_child();
 
+  // Fix "inherits ... via dominance" warnings
+  void item_completion_in_child_callback(Item_processing_data* item_processed)
+  { Abstract_chain_element::item_completion_in_child_callback(item_processed); }
+
   Mysql::Tools::Base::Abstract_program* get_program();
+
 private:
   std::vector<I_chain_maker*> m_chain_makers;
   std::vector<I_dump_task*> m_dump_tasks_created;

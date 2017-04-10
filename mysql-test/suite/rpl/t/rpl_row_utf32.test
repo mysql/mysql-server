@@ -1,11 +1,9 @@
 --source include/not_group_replication_plugin.inc
 -- source include/have_binlog_format_row.inc
--- source include/have_utf32.inc
 -- source include/master-slave.inc
 
-# Max key length in InnoDB is 767, whereas, in MyISAM it is 1000     # WL#6921
---let $key_length_innodb=767
-SET GLOBAL innodb_large_prefix=OFF;
+# Max key length in InnoDB is 3072, whereas, in MyISAM it is 1000     # WL#6921
+--let $key_length_innodb=3072
 
 #
 # BUG#51787 Assertion `(n % 4) == 0' on slave upon INSERT into a table with UTF32
@@ -14,7 +12,8 @@ SET GLOBAL innodb_large_prefix=OFF;
 SET SQL_LOG_BIN=0;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 --replace_result $key_length_innodb 1000
-CREATE TABLE t1 (c1 char(255) DEFAULT NULL, KEY c1 (c1)) DEFAULT CHARSET=utf32;
+CREATE TABLE t1 (c1 char(255) DEFAULT NULL, KEY c1 (c1))
+ROW_FORMAT=DYNAMIC DEFAULT CHARSET=utf32;
 SET sql_mode = default;
 SET SQL_LOG_BIN=1;
 
@@ -31,18 +30,16 @@ SET @saved_slave_type_conversions= @@global.slave_type_conversions;
 SET GLOBAL SLAVE_TYPE_CONVERSIONS='ALL_NON_LOSSY';
 -- source include/start_slave.inc
 
-SET GLOBAL innodb_large_prefix=OFF;
 SET SQL_LOG_BIN=0;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 --replace_result $key_length_innodb 1000
-CREATE TABLE t1 ( c1 varchar(255) DEFAULT NULL, KEY c1 (c1)) DEFAULT CHARSET=utf32;
+CREATE TABLE t1 ( c1 varchar(255) DEFAULT NULL, KEY c1 (c1))
+ROW_FORMAT=DYNAMIC DEFAULT CHARSET=utf32;
 SET sql_mode = default;
 SET SQL_LOG_BIN=1;
-SET GLOBAL innodb_large_prefix=default;
 
 -- connection master
 
-SET GLOBAL innodb_large_prefix=default;
 INSERT INTO t1(c1) VALUES ('insert into t1');
 DROP TABLE t1;
 

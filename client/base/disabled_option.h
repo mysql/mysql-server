@@ -37,7 +37,7 @@ public:
     Constructs new disabled option.
     @param name Name of option. It is used in command-line option name as
       --name.
-    @param desription Description of option to be printed in --help.
+    @param description Description of option to be printed in --help.
    */
   Disabled_option(std::string name, std::string description);
 };

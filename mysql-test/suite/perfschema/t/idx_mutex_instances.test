@@ -1,0 +1,67 @@
+# Tests for PERFORMANCE_SCHEMA
+
+#setup
+let $select_column = count(*);
+let $table = performance_schema.mutex_instances;
+
+create database explain_test_db;
+create table explain_test_db.explain_test_table (c int);
+lock table explain_test_db.explain_test_table write;
+
+connect(con1, 127.0.0.1, root,,);
+--echo # Connection con1
+--connection con1
+# Following sql will hang
+--send
+insert into explain_test_db.explain_test_table values ('1');
+
+--echo # Connection default
+--connection default
+
+select OBJECT_INSTANCE_BEGIN, NAME, LOCKED_BY_THREAD_ID
+  from performance_schema.mutex_instances
+  where LOCKED_BY_THREAD_ID is not NULL
+  limit 1
+  into @oib, @name, @lbtid;
+
+###########################################################################
+# Test index on OBJECT_INSTANCE_BEGIN
+###########################################################################
+
+let $column_count = 1;
+let $col1 = OBJECT_INSTANCE_BEGIN;
+let $col1_act = @oib;
+
+--source ../include/idx_explain_test.inc
+
+###########################################################################
+# Test index on NAME
+###########################################################################
+
+let $column_count = 1;
+let $col1 = NAME;
+let $col1_act = @name;
+
+--source ../include/idx_explain_test.inc
+
+###########################################################################
+# Test index on LOCKED_BY_THREAD_ID
+###########################################################################
+
+let $column_count = 1;
+let $col1 = LOCKED_BY_THREAD_ID;
+let $col1_act = @lbtid;
+
+--source ../include/idx_explain_test.inc
+
+# Cleanup
+unlock tables;
+--echo # connection con1
+--connection con1
+--reap
+
+--echo # connection default
+--connection default
+--disconnect con1
+drop table explain_test_db.explain_test_table;
+drop database explain_test_db;

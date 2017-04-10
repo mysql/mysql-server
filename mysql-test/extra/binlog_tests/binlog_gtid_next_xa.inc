@@ -65,7 +65,6 @@ if (!$rpl_skip_log_bin)
   # --log-bin ON specific error simulation
   call mtr.add_suppression("The transaction owned GTID is already in the gtid_executed table");
 }
---source include/not_gtid_enabled.inc
 
 --let $rpl_gtid_utils= 1
 --let $rpl_topology= none

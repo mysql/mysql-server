@@ -1,6 +1,6 @@
 /***********************************************************************
 
-Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify it
 under the terms of the GNU General Public License as published by the
@@ -28,6 +28,7 @@ Created 04/12/2011 Jimmy Yang
 #include <stdlib.h>
 #include <ctype.h>
 #include <mysql_version.h>
+#include "plugin.h"
 #include "sql_plugin.h"
 
 /** Configuration info passed to memcached, including
@@ -45,7 +46,7 @@ static char*	mci_eng_lib_path = NULL;
 static char*	mci_memcached_option = NULL;
 static unsigned int mci_r_batch_size = 1048576;
 static unsigned int mci_w_batch_size = 32;
-static my_bool	mci_enable_binlog = false;
+static bool	mci_enable_binlog = false;
 
 static MYSQL_SYSVAR_STR(engine_lib_name, mci_engine_library,
 			PLUGIN_VAR_READONLY | PLUGIN_VAR_MEMALLOC,

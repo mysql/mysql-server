@@ -13,15 +13,18 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "gcs_internal_message.h"
-#include "gcs_message_stage_lz4.h"
-#include <lz4.h>
-#include <mysql/gcs/xplatform/byteorder.h>
-#include "gcs_logging.h"
 #include <string.h>
 #include <map>
 #include <limits>
 #include <cassert>
+
+#include <lz4.h>
+
+#include "mysql/gcs/xplatform/byteorder.h"
+#include "mysql/gcs/gcs_logging.h"
+
+#include "gcs_internal_message.h"
+#include "gcs_message_stage_lz4.h"
 
 const unsigned short Gcs_message_stage_lz4::WIRE_HD_UNCOMPRESSED_OFFSET=
   static_cast<unsigned short>(Gcs_message_stage::WIRE_HD_LEN_SIZE +
@@ -65,7 +68,8 @@ Gcs_message_stage_lz4::apply(Gcs_packet &packet)
     }
 
 
-    unsigned long long new_packet_len= fixed_header_len + hd_len + compress_bound;
+    unsigned long long new_packet_len= fixed_header_len + hd_len +
+      static_cast<unsigned int>(compress_bound);
     int compressed_len= 0;
     // align to Gcs_packet::BLOCK_SIZE
     unsigned long long new_capacity= ((new_packet_len / Gcs_packet::BLOCK_SIZE) + 1) *
@@ -79,7 +83,8 @@ Gcs_message_stage_lz4::apply(Gcs_packet &packet)
                                          static_cast<int>(old_payload_len),
                                          compress_bound);
 
-    new_packet_len= fixed_header_len + hd_len + compressed_len;
+    new_packet_len= fixed_header_len + hd_len +
+      static_cast<unsigned int>(compressed_len);
 
     // swap buffers
     old_buffer= packet.swap_buffer(new_buffer, new_capacity);
@@ -155,7 +160,7 @@ Gcs_message_stage_lz4::revert(Gcs_packet &packet)
     }
 
     // effective length of the packet
-    new_length= fixed_header_size + uncompressed_len;
+    new_length= fixed_header_size + static_cast<unsigned int>(uncompressed_len);
 
     // swap buffers
     old_buffer= packet.swap_buffer(new_buffer, new_capacity);

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,11 +17,20 @@
 #ifndef _typelib_h
 #define _typelib_h
 
-#include "my_alloc.h"
+/**
+  @file include/typelib.h
+*/
 
-typedef struct st_typelib {	/* Different types saved here */
-  unsigned int count;		/* How many types */
-  const char *name;		/* Name of typelib */
+#include "mem_root_fwd.h"
+#include "my_inttypes.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+typedef struct st_typelib {     /* Different types saved here */
+  size_t count;                 /* How many types */
+  const char *name;             /* Name of typelib */
   const char **type_names;
   unsigned int *type_lengths;
 } TYPELIB;
@@ -50,5 +59,9 @@ my_ulonglong find_set_from_flags(const TYPELIB *lib, unsigned int default_name,
                               my_ulonglong cur_set, my_ulonglong default_set,
                               const char *str, unsigned int length,
                               char **err_pos, unsigned int *err_len);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* _typelib_h */

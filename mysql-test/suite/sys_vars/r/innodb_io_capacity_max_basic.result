@@ -21,22 +21,22 @@ innodb_io_capacity_max	2000
 show session variables like 'innodb_io_capacity_max';
 Variable_name	Value
 innodb_io_capacity_max	2000
-select * from information_schema.global_variables where variable_name='innodb_io_capacity_max';
+select * from performance_schema.global_variables where variable_name='innodb_io_capacity_max';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_IO_CAPACITY_MAX	2000
-select * from information_schema.session_variables where variable_name='innodb_io_capacity_max';
+innodb_io_capacity_max	2000
+select * from performance_schema.session_variables where variable_name='innodb_io_capacity_max';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_IO_CAPACITY_MAX	2000
+innodb_io_capacity_max	2000
 set global innodb_io_capacity_max=@start_innodb_capacity + 1;
 select @@global.innodb_io_capacity_max;
 @@global.innodb_io_capacity_max
 201
-select * from information_schema.global_variables where variable_name='innodb_io_capacity_max';
+select * from performance_schema.global_variables where variable_name='innodb_io_capacity_max';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_IO_CAPACITY_MAX	201
-select * from information_schema.session_variables where variable_name='innodb_io_capacity_max';
+innodb_io_capacity_max	201
+select * from performance_schema.session_variables where variable_name='innodb_io_capacity_max';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_IO_CAPACITY_MAX	201
+innodb_io_capacity_max	201
 set session innodb_io_capacity_max=444;
 ERROR HY000: Variable 'innodb_io_capacity_max' is a GLOBAL variable and should be set with SET GLOBAL
 set global innodb_io_capacity_max=1.1;
@@ -58,9 +58,9 @@ Warning	1210	Setting innodb_io_capacity_max to 200
 select @@global.innodb_io_capacity_max;
 @@global.innodb_io_capacity_max
 200
-select * from information_schema.global_variables where variable_name='innodb_io_capacity_max';
+select * from performance_schema.global_variables where variable_name='innodb_io_capacity_max';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_IO_CAPACITY_MAX	200
+innodb_io_capacity_max	200
 set global innodb_io_capacity_max=-7;
 Warnings:
 Warning	1292	Truncated incorrect innodb_io_capacity_max value: '-7'
@@ -69,9 +69,9 @@ Warning	1210	Setting innodb_io_capacity_max to 200
 select @@global.innodb_io_capacity_max;
 @@global.innodb_io_capacity_max
 200
-select * from information_schema.global_variables where variable_name='innodb_io_capacity_max';
+select * from performance_schema.global_variables where variable_name='innodb_io_capacity_max';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_IO_CAPACITY_MAX	200
+innodb_io_capacity_max	200
 set global innodb_io_capacity=100;
 set global innodb_io_capacity_max=100;
 select @@global.innodb_io_capacity_max;

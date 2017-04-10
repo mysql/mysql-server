@@ -31,34 +31,30 @@ Created December 2006 by Marko Makela
 #include "buf0buf.h"
 #include "buf0buddy.h"
 
-/**********************************************************************//**
-Allocate a block.  The thread calling this function must hold
-buf_pool->mutex and must not hold buf_pool->zip_mutex or any block->mutex.
-The buf_pool_mutex may be released and reacquired.
+/** Allocate a block.
+@param[in,out]	buf_pool	buffer pool instance
+@param[in]	i		index of buf_pool->zip_free[]
+				or BUF_BUDDY_SIZES
 @return allocated block, never NULL */
 void*
 buf_buddy_alloc_low(
-/*================*/
-	buf_pool_t*	buf_pool,	/*!< in/out: buffer pool instance */
-	ulint		i,		/*!< in: index of buf_pool->zip_free[],
-					or BUF_BUDDY_SIZES */
-	ibool*		lru)		/*!< in: pointer to a variable that
-					will be assigned TRUE if storage was
-					allocated from the LRU list and
-					buf_pool->mutex was temporarily
-					released */
+	buf_pool_t*	buf_pool,
+	ulint		i)
 	MY_ATTRIBUTE((malloc));
 
-/**********************************************************************//**
-Deallocate a block. */
+/** Deallocate a block.
+@param[in]	buf_pool	buffer pool instance
+@param[in]	buf		block to be freed, must not be pointed to
+				by the buffer pool
+@param[in]	i		index of buf_pool->zip_free[],
+				or BUF_BUDDY_SIZES
+@param[in]	has_zip_free	whether has zip_free_mutex */
 void
 buf_buddy_free_low(
-/*===============*/
-	buf_pool_t*	buf_pool,	/*!< in: buffer pool instance */
-	void*		buf,		/*!< in: block to be freed, must not be
-					pointed to by the buffer pool */
-	ulint		i);		/*!< in: index of buf_pool->zip_free[],
-					or BUF_BUDDY_SIZES */
+	buf_pool_t*	buf_pool,
+	void*		buf,
+	ulint		i,
+	bool		has_zip_free);
 
 /**********************************************************************//**
 Get the index of buf_pool->zip_free[] for a given block size.
@@ -81,55 +77,45 @@ buf_buddy_get_slot(
 	return(i);
 }
 
-/**********************************************************************//**
-Allocate a block.  The thread calling this function must hold
-buf_pool->mutex and must not hold buf_pool->zip_mutex or any
-block->mutex.  The buf_pool->mutex may be released and reacquired.
-This function should only be used for allocating compressed page frames.
+/** Allocate a block. This function should only be used for allocating
+compressed page frames. The thread calling this function must hold
+buf_pool->LRU_list_mutex and must not hold buf_pool->zip_mutex or any
+block->mutex.
+@param[in,out]	buf_pool	buffer pool in which the page resides
+@param[in]	size		compressed page size, between
+				UNIV_ZIP_SIZE_MIN and UNIV_PAGE_SIZE
 @return allocated block, never NULL */
 UNIV_INLINE
 byte*
 buf_buddy_alloc(
-/*============*/
-	buf_pool_t*	buf_pool,	/*!< in/out: buffer pool in which
-					the page resides */
-	ulint		size,		/*!< in: compressed page size
-					(between UNIV_ZIP_SIZE_MIN and
-					UNIV_PAGE_SIZE) */
-	ibool*		lru)		/*!< in: pointer to a variable
-					that will be assigned TRUE if
-				       	storage was allocated from the
-				       	LRU list and buf_pool->mutex was
-				       	temporarily released */
+	buf_pool_t*	buf_pool,
+	ulint		size)
 {
-	ut_ad(buf_pool_mutex_own(buf_pool));
 	ut_ad(ut_is_2pow(size));
 	ut_ad(size >= UNIV_ZIP_SIZE_MIN);
 	ut_ad(size <= UNIV_PAGE_SIZE);
 
-	return((byte*) buf_buddy_alloc_low(buf_pool, buf_buddy_get_slot(size),
-					   lru));
+	return(static_cast<byte*>
+		(buf_buddy_alloc_low(buf_pool,buf_buddy_get_slot(size))));
 }
 
-/**********************************************************************//**
-Deallocate a block. */
+/** Deallocate a block.
+@param[in,out]	buf_pool	buffer pool in which the block resides
+@param[in]	buf		block to be freed, must not be pointed to
+				by the buffer pool
+@param[in]	size		block size, up to UNIV_PAGE_SIZE */
 UNIV_INLINE
 void
 buf_buddy_free(
-/*===========*/
-	buf_pool_t*	buf_pool,	/*!< in/out: buffer pool in which
-					the block resides */
-	void*		buf,		/*!< in: block to be freed, must not
-					be pointed to by the buffer pool */
-	ulint		size)		/*!< in: block size,
-					up to UNIV_PAGE_SIZE */
+	buf_pool_t*	buf_pool,
+	void*		buf,
+	ulint		size)
 {
-	ut_ad(buf_pool_mutex_own(buf_pool));
 	ut_ad(ut_is_2pow(size));
 	ut_ad(size >= UNIV_ZIP_SIZE_MIN);
 	ut_ad(size <= UNIV_PAGE_SIZE);
 
-	buf_buddy_free_low(buf_pool, buf, buf_buddy_get_slot(size));
+	buf_buddy_free_low(buf_pool, buf, buf_buddy_get_slot(size), false);
 }
 
 #ifdef UNIV_MATERIALIZE

@@ -70,14 +70,32 @@ SELECT @@global.log_warnings;
 2
 Warnings:
 Warning	1287	'@@log_warnings' is deprecated and will be removed in a future release. Please use log_error_verbosity instead
-'#------------------FN_DYNVARS_067_04-----------------------#'
-SET @@global.log_warnings = 100000000000;
+SET @@global.log_warnings = 4294967295;
 Warnings:
 Warning	1287	'@@log_warnings' is deprecated and will be removed in a future release. Please use log_error_verbosity instead
-Warning	1292	Truncated incorrect log_warnings value: '100000000000'
+Warning	1292	Truncated incorrect log_warnings value: '4294967295'
 SELECT @@global.log_warnings;
 @@global.log_warnings
 2
+Warnings:
+Warning	1287	'@@log_warnings' is deprecated and will be removed in a future release. Please use log_error_verbosity instead
+SET @@global.log_warnings = 18446744073709551615;
+Warnings:
+Warning	1287	'@@log_warnings' is deprecated and will be removed in a future release. Please use log_error_verbosity instead
+Warning	1292	Truncated incorrect log_warnings value: '18446744073709551615'
+SELECT @@global.log_warnings;
+@@global.log_warnings
+2
+Warnings:
+Warning	1287	'@@log_warnings' is deprecated and will be removed in a future release. Please use log_error_verbosity instead
+'#------------------FN_DYNVARS_067_04-----------------------#'
+SET @@global.log_warnings = -1;
+Warnings:
+Warning	1287	'@@log_warnings' is deprecated and will be removed in a future release. Please use log_error_verbosity instead
+Warning	1292	Truncated incorrect log_warnings value: '-1'
+SELECT @@global.log_warnings;
+@@global.log_warnings
+0
 Warnings:
 Warning	1287	'@@log_warnings' is deprecated and will be removed in a future release. Please use log_error_verbosity instead
 SET @@global.log_warnings = -1024;
@@ -103,9 +121,16 @@ SELECT @@global.log_warnings;
 0
 Warnings:
 Warning	1287	'@@log_warnings' is deprecated and will be removed in a future release. Please use log_error_verbosity instead
+SET @@global.log_warnings = 18446744073709551616;
+ERROR 42000: Incorrect argument type to variable 'log_warnings'
+SELECT @@global.log_warnings;
+@@global.log_warnings
+0
+Warnings:
+Warning	1287	'@@log_warnings' is deprecated and will be removed in a future release. Please use log_error_verbosity instead
 '#------------------FN_DYNVARS_067_05-----------------------#'
 SELECT VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='log_warnings'
 into @tmp;
 SELECT @@global.log_warnings = @tmp;

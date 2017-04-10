@@ -37,8 +37,6 @@ a	b
 3	Three
 5	Five
 9	Nine
-Warning	1287	The partition engine, used by table 'test.tp', is deprecated and will be removed in a future release. Please use native partitioning instead.
-Warnings:
 DEALLOCATE PREPARE test_stmt1;
 SET @part_tab= 'tp';
 SET @s= CONCAT('ALTER TABLE ',@part_tab,' EXCHANGE PARTITION ? WITH TABLE ?');

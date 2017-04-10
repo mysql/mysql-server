@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,6 +17,9 @@
   Key cache assignments
 */
 
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
 #include "myisamdef.h"
 
 /*
@@ -53,8 +56,8 @@ int mi_assign_to_key_cache(MI_INFO *info,
   int error= 0;
   MYISAM_SHARE* share= info->s;
   DBUG_ENTER("mi_assign_to_key_cache");
-  DBUG_PRINT("enter",("old_key_cache_handle: 0x%lx  new_key_cache_handle: 0x%lx",
-		      (long) share->key_cache, (long) key_cache));
+  DBUG_PRINT("enter",("old_key_cache_handle: %p  new_key_cache_handle: %p",
+		      share->key_cache, key_cache));
 
   /*
     Skip operation if we didn't change key cache. This can happen if we

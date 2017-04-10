@@ -17,6 +17,8 @@
 %global mysql_vendor Oracle and/or its affiliates
 %global mysqldatadir /var/lib/mysql
 
+%global milestone    dmr
+
 # Pass path to mecab lib
 %{?with_mecab: %global mecab_option -DWITH_MECAB=%{with_mecab}}
 %{?with_mecab: %global mecab 1}
@@ -30,7 +32,7 @@
 %{!?compilation_comment_debug:   %global compilation_comment_debug MySQL Community Server - Debug (GPL)}
 %{!?src_base:                    %global src_base mysql}
 
-%global src_dir               %{src_base}-%{version}
+%global src_dir               %{src_base}-%{version}%{?milestone:-%{milestone}}
 
 %if 0%{?commercial}
 %global license_files_server  %{src_dir}/LICENSE.mysql
@@ -44,7 +46,7 @@ Name:           mysql-%{product_suffix}-minimal
 Summary:        A very fast and reliable SQL database server
 Group:          Applications/Databases
 Version:        @MYSQL_NO_DASH_VERSION@
-Release:        1%{?commercial:.1}%{?dist}
+Release:        0.1%{?milestone:.%{milestone}}%{?commercial:.1}%{?dist}
 License:        Copyright (c) 2000, @MYSQL_COPYRIGHT_YEAR@, %{mysql_vendor}. All rights reserved. Under %{?license_type} license as shown in the Description field.
 URL:            http://www.mysql.com/
 Packager:       MySQL Release Engineering <mysql-build@oss.oracle.com>
@@ -146,8 +148,6 @@ mkdir release
            -DMYSQL_UNIX_ADDR="%{mysqldatadir}/mysql.sock" \
            -DMYSQLX_UNIX_ADDR="/var/run/mysqld/mysqlx.sock" \
            -DFEATURE_SET="%{feature_set}" \
-           -DWITH_EMBEDDED_SERVER=0 \
-           -DWITH_EMBEDDED_SHARED_LIBRARY=0 \
            -DWITH_NUMA=ON \
            %{?mecab_option} \
            -DWITH_SSL=system \
@@ -181,19 +181,20 @@ done
 rm -rf %{buildroot}%{_libdir}/mysql/libmysql*
 
 # Removing some tools
-for f in innochecksum myisamchk myisam_ftdump myisamlog myisampack mysqladmin \
+for f in innochecksum ibd2sdi myisamchk myisam_ftdump myisamlog myisampack mysqladmin \
          mysqlbinlog mysqlcheck mysql_client_test mysql_config_editor \
-         mysqld_multi mysqld_safe mysqldumpslow mysql_embedded mysqlimport \
-         mysql_plugin mysql_secure_installation mysqlshow mysqlslap  mysqltest \
-         mysqlxtest perror replace resolveip resolve_stack_dump \
-         lz4_decompress zlib_decompress; do
+         mysqld_multi mysqld_safe mysqldumpslow mysqlimport \
+         mysql_secure_installation mysqlshow mysqlslap mysqltest mysqlxtest \
+         perror resolveip  resolve_stack_dump lz4_decompress \
+         zlib_decompress; do
     rm -f %{buildroot}%{_bindir}/$f
 done
 
 #  Remove test plugins
 for p in auth.so auth_test_plugin.so daemon_example.ini libdaemon_example.so qa_auth_client.so \
+    component_example_component1.so component_example_component2.so component_example_component3.so \
     qa_auth_interface.so qa_auth_server.so replication_observers_example_plugin.so ha_example.so \
-    test_udf_services.so test_security_context.so ; do
+    test_udf_services.so test_security_context.so test_services_plugin_registry.so ; do
     rm -f %{buildroot}%{_libdir}/mysql/plugin/$p
 done
 
@@ -201,7 +202,7 @@ rm -f %{buildroot}%{_libdir}/mysql/plugin/libtest_*.so
 rm -f %{buildroot}%{_libdir}/pkgconfig/mysqlclient.pc
 
 # No need for these scripts
-rm -f %{buildroot}%{_datadir}/mysql/{mysql.server,mysqld_multi.server,my-*.cnf,mysql-log-rotate}
+rm -f %{buildroot}%{_datadir}/mysql/{mysql.server,mysqld_multi.server,mysql-log-rotate}
 
 %check
 %if 0%{?runselftest}
@@ -232,7 +233,6 @@ rm -r $(readlink var) var
 %doc %{?license_files_server} %{src_dir}/Docs/ChangeLog
 %doc %{src_dir}/Docs/INFO_SRC*
 %doc release/Docs/INFO_BIN*
-%doc release/support-files/my-default.cnf
 %config(noreplace) %{_sysconfdir}/my.cnf
 %dir %{_sysconfdir}/my.cnf.d
 %attr(755, root, root) %{_sbindir}/mysqld
@@ -240,7 +240,6 @@ rm -r $(readlink var) var
 %attr(755, root, root) %{_bindir}/mysqldump
 %attr(755, root, root) %{_bindir}/mysqlpump
 %attr(755, root, root) %{_bindir}/mysql_config
-%attr(755, root, root) %{_bindir}/mysql_install_db
 %attr(755, root, root) %{_bindir}/mysql_ssl_rsa_setup
 %attr(755, root, root) %{_bindir}/mysql_tzinfo_to_sql
 %attr(755, root, root) %{_bindir}/mysql_upgrade
@@ -300,7 +299,6 @@ rm -r $(readlink var) var
 %attr(644, root, root) %{_datadir}/mysql/mysql_system_tables_data.sql
 %attr(644, root, root) %{_datadir}/mysql/mysql_sys_schema.sql
 %attr(644, root, root) %{_datadir}/mysql/mysql_test_data_timezone.sql
-%attr(644, root, root) %{_datadir}/mysql/mysql_security_commands.sql
 %attr(644, root, root) %{_datadir}/mysql/dictionary.txt
 %attr(644, root, root) %{_datadir}/mysql/innodb_memcached_config.sql
 %attr(644, root, root) %{_datadir}/mysql/install_rewriter.sql
@@ -312,8 +310,12 @@ rm -r $(readlink var) var
 %dir %attr(750, mysql, mysql) /var/lib/mysql-keyring
 
 %changelog
-* Tue Sep 13 2016 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 5.7.16-1
+* Tue Sep 13 2016 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 8.0.1-0.1
+- Add test_services_plugin_registry.so plugin
 - Add connection_control.so to server subpackage
+
+* Mon Jun 20 2016 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 8.0.0-0.1
+- Change the version number to 8.0.0
 
 * Mon Apr 04 2016 Georgi Kodinov <georgi.kodinov@oracle.com> - 5.7.13-1
 - Add test_udf_services.so plugin

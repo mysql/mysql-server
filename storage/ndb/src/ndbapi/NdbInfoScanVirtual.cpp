@@ -327,7 +327,7 @@ NdbInfoScanVirtual::~NdbInfoScanVirtual()
 }
 
 
-#include "../src/common/debugger/BlockNames.cpp"
+#include "kernel/BlockNames.hpp"
 class BlocksTable : public VirtualTable
 {
 public:
@@ -465,9 +465,118 @@ public:
       return false;
     }
 
-    const ConfigInfo::ParamInfo* param = m_config_params[row_number];
-    w.write_number(param->_paramId);
-    w.write_string(param->_fname);
+    char tmp_buf[256];
+    const ConfigInfo::ParamInfo* const param = m_config_params[row_number];
+    const char* const param_name = param->_fname;
+
+    w.write_number(param->_paramId); // param_number
+    w.write_string(param_name); // param_name
+    w.write_string(param->_description); // param_description
+
+     // param_type
+    const char* param_type;
+    switch (param->_type)
+    {
+      case ConfigInfo::CI_BOOL:
+        param_type = "bool";
+        break;
+      case ConfigInfo::CI_INT:
+      case ConfigInfo::CI_INT64:
+        param_type = "unsigned";
+        break;
+      case ConfigInfo::CI_ENUM:
+        param_type = "enum";
+        break;
+      case ConfigInfo::CI_BITMASK:
+        param_type = "bitmask";
+        break;
+      case ConfigInfo::CI_STRING:
+        param_type = "string";
+        break;
+      default:
+        DBUG_ASSERT(false);
+        param_type = "unknown";
+        break;
+    }
+    w.write_string(param_type);
+
+    const ConfigInfo& info = m_config_info;
+    const Properties* const section = info.getInfo(param->_section);
+    switch (param->_type)
+    {
+    case ConfigInfo::CI_BOOL:
+    {
+      // param_default
+      BaseString::snprintf(tmp_buf, sizeof(tmp_buf), "%s", "");
+      if (info.hasDefault(section, param_name))
+        BaseString::snprintf(tmp_buf, sizeof(tmp_buf), "%llu", info.getDefault(section, param_name));
+      w.write_string(tmp_buf);
+
+       // param_min
+      w.write_string("");
+
+      // param_max
+      w.write_string("");
+      break;
+    }
+
+    case ConfigInfo::CI_INT:
+    case ConfigInfo::CI_INT64:
+    {
+       // param_default
+      BaseString::snprintf(tmp_buf, sizeof(tmp_buf), "%s", "");
+      if (info.hasDefault(section, param_name))
+        BaseString::snprintf(tmp_buf, sizeof(tmp_buf), "%llu", info.getDefault(section, param_name));
+      w.write_string(tmp_buf);
+
+       // param_min
+      BaseString::snprintf(tmp_buf, sizeof(tmp_buf), "%llu", info.getMin(section, param_name));
+      w.write_string(tmp_buf);
+
+       // param_max
+      BaseString::snprintf(tmp_buf, sizeof(tmp_buf), "%llu", info.getMax(section, param_name));
+      w.write_string(tmp_buf);
+      break;
+    }
+
+    case ConfigInfo::CI_BITMASK:
+    case ConfigInfo::CI_ENUM:
+    case ConfigInfo::CI_STRING:
+    {
+       // param_default
+      const char* default_value = "";
+      if (info.hasDefault(section, param_name))
+        default_value = info.getDefaultString(section, param_name);
+      w.write_string(default_value);
+
+       // param_min
+      w.write_string("");
+
+       // param_max
+      w.write_string("");
+      break;
+    }
+
+    case ConfigInfo::CI_SECTION:
+      abort(); // No sections should appear here
+      break;
+    }
+
+     // param_mandatory
+    Uint32 mandatory = 0;
+    if (info.getMandatory(section, param_name))
+      mandatory = 1;
+    w.write_number(mandatory);
+
+     // param_status
+    const char* status_str = "";
+    Uint32 status = info.getStatus(section, param_name);
+    if (status & ConfigInfo::CI_EXPERIMENTAL)
+      status_str = "experimental";
+    if (status & ConfigInfo::CI_DEPRECATED)
+      status_str = "deprecated";
+    w.write_string(status_str);
+
     return true;
   }
 
@@ -482,7 +591,22 @@ public:
     if (!tab->addColumn(NdbInfo::Column("param_number", 0,
                                         NdbInfo::Column::Number)) ||
         !tab->addColumn(NdbInfo::Column("param_name", 1,
+                                        NdbInfo::Column::String)) ||
+        !tab->addColumn(NdbInfo::Column("param_description", 2,
+                                        NdbInfo::Column::String)) ||
+        !tab->addColumn(NdbInfo::Column("param_type", 3,
+                                        NdbInfo::Column::String)) ||
+        !tab->addColumn(NdbInfo::Column("param_default", 4,
+                                        NdbInfo::Column::String)) ||
+        !tab->addColumn(NdbInfo::Column("param_min", 5,
+                                        NdbInfo::Column::String)) ||
+        !tab->addColumn(NdbInfo::Column("param_max", 6,
+                                        NdbInfo::Column::String)) ||
+        !tab->addColumn(NdbInfo::Column("param_mandatory", 7,
+                                        NdbInfo::Column::Number)) ||
+        !tab->addColumn(NdbInfo::Column("param_status", 8,
                                         NdbInfo::Column::String)))
+
       return NULL;
     return tab;
   }

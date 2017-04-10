@@ -16,19 +16,31 @@
 #ifndef BOOTSTRAP_H
 #define BOOTSTRAP_H
 
-#include "my_global.h"
+#include "mysql/thread_type.h"              // enum_thread_type
 
 typedef struct st_mysql_file MYSQL_FILE;
 
-/**
-  Execute all commands from a file. Used by the mysql_install_db script to
-  create MySQL privilege tables without having to start a full MySQL server.
-*/
-int bootstrap(MYSQL_FILE *file);
+class THD;
+
+namespace bootstrap {
+
+/* Bootstrap handler functor */
+typedef bool (*bootstrap_functor)(THD *thd);
 
 /**
-  Execute a single SQL command.
+  Create a thread to execute all commands from the submitted file.
+  By providing an explicit bootstrap handler functor, the default
+  behavior of reading and executing SQL commands from the submitted
+  file may be customized.
+
+  @param file         File providing SQL statements, if non-NULL
+  @param boot_handler Optional functor for customized handling
+  @param thread_type  Bootstrap thread type.
+
+  @return             Operation outcome, 0 if no errors
 */
-int bootstrap_single_query(const char* query);
+bool run_bootstrap_thread(MYSQL_FILE *file, bootstrap_functor boot_handler,
+                          enum_thread_type thread_type);
+}
 
 #endif // BOOTSTRAP_H

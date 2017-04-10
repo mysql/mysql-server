@@ -24,6 +24,13 @@ create table t1 (a int);
 create table t2 (a int unique);
 create table t3 (a int);
 
+## Create a trigger so that the SHOW TRIGGERS command below
+## executes WHERE clause. This is required after WL#9494, as
+## SHOW TRIGGERS is nothing but execution of a SELECT query
+## over data dictionary tables. And a SELECT query does not
+## evaluate the WHERE clause unless there are rows.
+create trigger trg before insert on t1 for each row set @a:=1;
+
 # a workaround for Bug#32633: Can not create any routine if
 # SQL_MODE=no_engine_substitution
 
@@ -162,7 +169,7 @@ select * from t2;
 
 insert into t2 (a) values (1015);
 --error ER_DUP_ENTRY
-show columns in mysql.proc where (f2(15) = 15);
+show columns in information_schema.routines where (f2(15) = 15);
 select * from t2;
 rollback;
 select * from t2;
@@ -353,6 +360,13 @@ set @binlog_format=@@global.binlog_format;
 set sql_mode=no_engine_substitution;
 create table t1 (a int unique); 
 create table t2 (a int) engine=myisam;
+--echo # Warm-up data-dictionary cache.
+--disable_result_log
+--disable_query_log
+show create table t1;
+show create table t2;
+--enable_query_log
+--enable_result_log
 set sql_mode=default;
 --echo #
 --echo # An auxiliary procedure to track Handler_prepare and Handler_commit
@@ -372,7 +386,7 @@ begin
 # and amounts for over 90% of test CPU time
   declare c cursor for
      select variable_value
-     from information_schema.session_status
+     from performance_schema.session_status
      where variable_name='Handler_commit' or variable_name='Handler_prepare'
      order by variable_name;
 
@@ -411,7 +425,7 @@ flush status;
 --echo #
 select * from t1;
 --disable_warnings
-call p_verify_status_increment(1, 0, 1, 0);
+call p_verify_status_increment(1, 0, 2, 0);
 commit;
 call p_verify_status_increment(1, 0, 1, 0);
 --enable_warnings
@@ -600,7 +614,7 @@ begin
 end|
 delimiter ;|
 --disable_warnings
-call p_verify_status_increment(0, 0, 0, 0);
+call p_verify_status_increment(4, 0, 2, 0);
 --enable_warnings
 
 --echo # 16. A function changes non-trans-table.
@@ -611,9 +625,9 @@ call p_verify_status_increment(0, 0, 0, 0);
 --echo #
 select f1();
 --disable_warnings
-call p_verify_status_increment(1, 0, 1, 0);
+call p_verify_status_increment(1, 0, 2, 0);
 commit;
-call p_verify_status_increment(1, 0, 1, 0);
+call p_verify_status_increment(1, 0, 2, 0);
 --enable_warnings
 
 --echo # 17. Read-only statement, a function changes non-trans-table.
@@ -653,9 +667,22 @@ drop table t2;
 set sql_mode=no_engine_substitution;
 create temporary table t2 (a int);
 --disable_warnings
-call p_verify_status_increment(1, 0, 0, 0);
+
+let $have_debug = `SELECT VERSION() LIKE '%debug%'`;
+if (!$have_debug)
+{
+  --replace_regex /6/X/
+  call p_verify_status_increment(6, 0, 0, 0);
+}
+
+if ($have_debug)
+{
+  --replace_regex /7/X/
+  call p_verify_status_increment(7, 0, 0, 0);
+}
 --enable_warnings
 set sql_mode=default;
+
 --echo # 19. A function changes temp-trans-table.
 --echo #
 select f1();
@@ -692,7 +719,7 @@ call p_verify_status_increment(2, 0, 1, 0);
 alter table t2 add column b int default 5;
 --echo # A commit is done internally by ALTER. 
 --disable_warnings
-call p_verify_status_increment(2, 0, 2, 0);
+call p_verify_status_increment(2, 0, 3, 0);
 commit;
 --echo # There is nothing left to commit
 call p_verify_status_increment(0, 0, 0, 0);
@@ -787,9 +814,21 @@ call p_verify_status_increment(1, 0, 1, 0);
 --echo #
 create table t2 (a int);
 --disable_warnings
-call p_verify_status_increment(0, 0, 0, 0);
+# Under ps protocol commit count is increased because of extra commits during
+# COM_PREPARE.
+if (`SELECT $PS_PROTOCOL = 0`)
+{
+  --replace_regex /(call p_verify_status_increment.*)7(.*6)/\1<commit_count>\2/
+  call p_verify_status_increment(7, 4, 6, 0);
+}
+if (`SELECT $PS_PROTOCOL > 0`)
+{
+  --replace_regex /(call p_verify_status_increment.*)8(.*6)/\1<commit_count>\2/
+  call p_verify_status_increment(8, 4, 6, 0);
+}
+--echo # One extra transaction to load table 't2' into data-dictionary cache.
 do (select f1() from t1 where a=2);
-call p_verify_status_increment(2, 2, 2, 2);
+call p_verify_status_increment(2, 2, 3, 2);
 commit;
 call p_verify_status_increment(2, 2, 2, 2);
 --enable_warnings
@@ -835,17 +874,40 @@ create table if not exists t2 (a int) select 6 union select 7;
 --disable_warnings
 call p_verify_status_increment(0, 0, 0, 0);
 create table t3 select a from t2;
-call p_verify_status_increment(2, 0, 4, 4);
+# Under ps protocol commit count is increased because of extra commits during
+# COM_PREPARE.
+if (`SELECT $PS_PROTOCOL = 0`)
+{
+ --replace_regex /9/<commit_count>/
+  call p_verify_status_increment(9, 4, 4, 4);
+}
+if (`SELECT $PS_PROTOCOL > 0`)
+{
+  --replace_regex /10/<commit_count>/
+  call p_verify_status_increment(10, 4, 4, 4);
+}
 alter table t3 add column (b int);
-call p_verify_status_increment(2, 0, 2, 0);
+
+if (!$have_debug)
+{
+  --replace_regex /5/X/
+  call p_verify_status_increment(5, 4, 2, 0);
+}
+
+if ($have_debug)
+{
+  --replace_regex /6/X/
+  call p_verify_status_increment(6, 4, 2, 0);
+}
+
 alter table t3 rename t4;
-call p_verify_status_increment(0, 0, 0, 0);
+call p_verify_status_increment(7, 4, 3, 0);
 rename table t4 to t3;
-call p_verify_status_increment(0, 0, 0, 0);
+call p_verify_status_increment(9, 4, 5, 0);
 truncate table t3;
-call p_verify_status_increment(2, 0, 2, 0);
+call p_verify_status_increment(4, 4, 4, 0);
 create view v1 as select * from t2;
-call p_verify_status_increment(0, 0, 0, 0);
+call p_verify_status_increment(5, 0, 3, 0);
 check table t1;
 call p_verify_status_increment(2, 0, 2, 0);
 --echo # Sic: after this bug is fixed, CHECK leaves no pending transaction
@@ -856,7 +918,19 @@ call p_verify_status_increment(6, 0, 6, 0);
 commit;
 call p_verify_status_increment(0, 0, 0, 0);
 drop view v1;
-call p_verify_status_increment(0, 0, 0, 0);
+
+if (!$have_debug)
+{
+  --replace_regex /\(3/(X/
+  call p_verify_status_increment(3, 0, 3, 0);
+}
+
+if ($have_debug)
+{
+  --replace_regex /4/X/
+  call p_verify_status_increment(4, 0, 3, 0);
+}
+
 --enable_warnings
 
 --echo #

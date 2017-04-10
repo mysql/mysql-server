@@ -124,9 +124,9 @@ drop table t1, t2;
 --echo # 
 --echo # BUG#42742: crash in setup_sj_materialization, Copy_field::set
 --echo # 
-create table t3 ( c1 year) engine=innodb;
+create table t3 ( c1 year) charset latin1 engine=innodb;
 insert into t3 values (2135),(2142);
-create table t2 (c1 tinytext,c2 text,c6 timestamp) engine=innodb;
+create table t2 (c1 tinytext,c2 text,c6 timestamp) charset latin1 engine=innodb;
 -- echo # The following must not crash, EXPLAIN should show one SJ strategy, not a mix:
 explain select 1 from t2 where 
   c2 in (select 1 from t3, t2) and

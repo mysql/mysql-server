@@ -485,8 +485,8 @@ set sql_mode=16384+(65536*4);
 select @@sql_mode;
 @@sql_mode
 REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,ONLY_FULL_GROUP_BY,NO_TABLE_OPTIONS,ANSI
-set sql_mode=2147483648*2;
-ERROR 42000: Variable 'sql_mode' can't be set to the value of '4294967296'
+set sql_mode=4294967296*2;
+ERROR 42000: Variable 'sql_mode' can't be set to the value of '8589934592'
 select @@sql_mode;
 @@sql_mode
 REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,ONLY_FULL_GROUP_BY,NO_TABLE_OPTIONS,ANSI
@@ -781,32 +781,3 @@ ERROR_FOR_DIVISION_BY_ZERO
 # Restore sql mode
 #
 SET sql_mode= @org_mode;
-#
-# Check that NO_ZERO_DATE, NO_ZERO_IN_DATE and ERROR_FOR_DIVISION_BY_ZERO modes
-# are removed in triggers after upgrading to 5.7.
-#
-CREATE TABLE account (acct_num INT, amount DECIMAL(10,2));
-SHOW CREATE TRIGGER ins_sum;
-Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
-ins_sum	STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO	CREATE DEFINER=`root`@`localhost` TRIGGER ins_sum BEFORE INSERT ON account FOR EACH ROW SET @sum = @sum + NEW.amount	utf8	utf8_general_ci	latin1_swedish_ci	NULL
-# Clean-up
-DROP TABLE account;
-#
-# Check that Inserting NO_ZERO_DATE, NO_ZERO_IN_DATE and ERROR_FOR_DIVISION_BY_ZERO modes
-# manually into mysql.proc table do not show up in SHOW CREATE procs/funcs OUTPUT.
-#
-INSERT INTO mysql.proc VALUES ('test','p1','PROCEDURE','p1','SQL','CONTAINS_SQL','NO','DEFINER','','','begin end','root@localhost',now(), now(),'NO_ZERO_DATE,NO_ZERO_IN_DATE,ERROR_FOR_DIVISION_BY_ZERO,STRICT_ALL_TABLES','', 'utf8', 'utf8_general_ci', 'latin1_swedish_ci', 'begin end');
-# NO_ZERO_* modes should not show up in the output.
-SHOW CREATE PROCEDURE p1;
-Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
-p1	STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO	CREATE DEFINER=`root`@`localhost` PROCEDURE `p1`()
-begin end	utf8	utf8_general_ci	latin1_swedish_ci
-INSERT INTO mysql.proc VALUES ('test','f1','FUNCTION','f1','SQL','CONTAINS_SQL','NO','DEFINER','','int(11)','begin return 1; end','root@localhost',now(), now(),'NO_ZERO_DATE,NO_ZERO_IN_DATE,ERROR_FOR_DIVISION_BY_ZERO,STRICT_ALL_TABLES','', 'utf8', 'utf8_general_ci', 'latin1_swedish_ci', 'begin return 1; end');
-# NO_ZERO_* modes should not show up in the output.
-SHOW CREATE FUNCTION f1;
-Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
-f1	STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO	CREATE DEFINER=`root`@`localhost` FUNCTION `f1`() RETURNS int(11)
-begin return 1; end	utf8	utf8_general_ci	latin1_swedish_ci
-# Clean-up.
-DROP PROCEDURE p1;
-DROP FUNCTION f1;

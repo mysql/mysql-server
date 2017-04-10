@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,14 +13,54 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include "sql/rpl_rli_pdb.h"
+
+#include "my_config.h"
+
+#include <assert.h>
+#include <stdio.h>
+#include <string.h>
+#ifdef HAVE_SYS_TIME_H
+#include <sys/time.h>
+#endif
+
+#include <algorithm>
+
+#include "binlog.h"
+#include "current_thd.h"
 #include "debug_sync.h"
-#include "rpl_rli_pdb.h"
-
+#include "handler.h"
+#include "hash.h"
+#include "lex_string.h"
 #include "log.h"                            // sql_print_error
-#include "rpl_slave_commit_order_manager.h" // Commit_order_manager
-
-#include "pfs_file_provider.h"
+#include "m_ctype.h"
+#include "m_string.h"
+#include "mdl.h"
+#include "my_atomic.h"
+#include "my_bitmap.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_sys.h"
+#include "my_systime.h"
+#include "my_thread.h"
 #include "mysql/psi/mysql_file.h"
+#include "mysql/psi/psi_stage.h"
+#include "mysql/service_my_snprintf.h"
+#include "mysql/thread_type.h"
+#include "mysqld.h"                         // key_mutex_slave_parallel_worker
+#include "mysqld_error.h"
+#include "psi_memory_key.h"
+#include "rpl_info_handler.h"
+#include "rpl_reporting.h"
+#include "rpl_slave_commit_order_manager.h" // Commit_order_manager
+#include "sql_error.h"
+#include "sql_lex.h"
+#include "sql_plugin_ref.h"
+#include "sql_string.h"
+#include "table.h"
+#include "template_utils.h"
+#include "thr_mutex.h"
+#include "transaction_info.h"
 
 #ifndef DBUG_OFF
   ulong w_rr= 0;
@@ -516,13 +556,15 @@ void Slave_worker::copy_values_for_PFS(ulong worker_id,
                                        en_running_state thd_running_status,
                                        THD *worker_thd,
                                        const Error &last_error,
-                                       const Gtid_specification &gtid)
+                                       trx_monitoring_info *processing_trx_arg,
+                                       trx_monitoring_info *last_processed_trx_arg)
 {
   id= worker_id;
   running_status= thd_running_status;
   info_thd= worker_thd;
   m_last_error= last_error;
-  currently_executing_gtid= gtid;
+  get_processing_trx()->copy(processing_trx_arg);
+  get_last_processed_trx()->copy(last_processed_trx_arg);
 }
 
 bool Slave_worker::set_info_search_keys(Rpl_info_handler *to)
@@ -538,7 +580,7 @@ bool Slave_worker::set_info_search_keys(Rpl_info_handler *to)
 
 bool Slave_worker::write_info(Rpl_info_handler *to)
 {
-  DBUG_ENTER("Master_info::write_info");
+  DBUG_ENTER("Slave_worker::write_info");
 
   ulong nbytes= (ulong) no_bytes_in_map(&group_executed);
   uchar *buffer= (uchar*) group_executed.bitmap;
@@ -569,7 +611,7 @@ bool Slave_worker::write_info(Rpl_info_handler *to)
    This worker won't contribute to recovery bitmap at future
    slave restart (see @c mts_recovery_groups).
 
-   @retrun FALSE as success TRUE as failure
+   @return FALSE as success TRUE as failure
 */
 bool Slave_worker::reset_recovery_info()
 {
@@ -685,8 +727,7 @@ void Slave_worker::rollback_positions(Slave_job_group* ptr_g)
   }
 }
 
-extern "C" uchar *get_key(const uchar *record, size_t *length,
-                          my_bool not_used MY_ATTRIBUTE((unused)))
+static const uchar *get_key(const uchar *record, size_t *length)
 {
   DBUG_ENTER("get_key");
 
@@ -699,8 +740,9 @@ extern "C" uchar *get_key(const uchar *record, size_t *length,
 }
 
 
-static void free_entry(db_worker_hash_entry *entry)
+static void free_entry(void *arg)
 {
+  db_worker_hash_entry *entry= pointer_cast<db_worker_hash_entry*>(arg);
   THD *c_thd= current_thd;
 
   DBUG_ENTER("free_entry");
@@ -732,8 +774,8 @@ bool init_hash_workers(Relay_log_info *rli)
 
   rli->inited_hash_workers=
     (my_hash_init(&rli->mapping_db_to_worker, &my_charset_bin,
-                 0, 0, 0, get_key,
-                 (my_hash_free_key) free_entry, 0,
+                 0, 0, get_key,
+                 free_entry, 0,
                  key_memory_db_worker_hash_entry) == 0);
   if (rli->inited_hash_workers)
   {
@@ -973,7 +1015,7 @@ Slave_worker *map_db_to_worker(const char *dbname, Relay_log_info *rli,
       map the database to a worker my inserting an entry into the
       hash map.
     */
-    my_bool ret;
+    bool ret;
     char *db= NULL;
 
     mysql_mutex_unlock(&rli->slave_worker_hash_lock);
@@ -1157,7 +1199,10 @@ err:
 /**
    Get the least occupied worker.
 
+   @param rli pointer to Relay_log_info of Coordinator
    @param ws  dynarray of pointers to Slave_worker
+   @param ev event for which we are searching for a worker
+
    @return a pointer to chosen Slave_worker instance
 
 */
@@ -1202,7 +1247,10 @@ void Slave_worker::slave_worker_ends_group(Log_event* ev, int error)
                 ptr_g->group_relay_log_name != NULL);
     DBUG_ASSERT(ptr_g->worker_id == id);
 
-    if (ev->get_type_code() != binary_log::XID_EVENT)
+    /*
+      DDL that has not yet updated the slave info repository does it now.
+    */
+    if (ev->get_type_code() != binary_log::XID_EVENT && !is_committed_ddl(ev))
     {
       commit_positions(ev, ptr_g, false);
       DBUG_EXECUTE_IF("crash_after_commit_and_update_pos",
@@ -1468,6 +1516,26 @@ bool circular_buffer_queue<Element_type>::gt(ulong i, ulong k)
       return i > k;
 }
 
+Slave_committed_queue::Slave_committed_queue(ulong max, uint n)
+  : circular_buffer_queue<Slave_job_group>(max), inited(false),
+    last_done(key_memory_Slave_job_group_group_relay_log_name)
+{
+  if (max >= (ulong) -1 || !inited_queue)
+    return;
+  else
+    inited= TRUE;
+
+  last_done.resize(n);
+
+  lwm.group_relay_log_name=
+    (char *) my_malloc(key_memory_Slave_job_group_group_relay_log_name,
+                       FN_REFLEN + 1, MYF(0));
+  lwm.group_relay_log_name[0]= 0;
+  lwm.sequence_number= SEQ_UNINIT;
+}
+
+
+
 #ifndef DBUG_OFF
 bool Slave_committed_queue::count_done(Relay_log_info* rli)
 {
@@ -1544,7 +1612,7 @@ ulong Slave_committed_queue::move_queue_head(Slave_worker_array *ws)
       break; /* gap at i'th */
 
     /* Worker-id domain guard */
-    compile_time_assert(MTS_WORKER_UNDEF > MTS_MAX_WORKERS);
+    static_assert(MTS_WORKER_UNDEF > MTS_MAX_WORKERS, "");
 
     w_i= ws->at(ptr_g->worker_id);
 
@@ -1617,7 +1685,7 @@ ulong Slave_committed_queue::move_queue_head(Slave_worker_array *ws)
    A mutex protecting from concurrent LWM change by
    move_queue_head() (by Coordinator) should be taken by the caller.
 
-   @param arg_g [out]  a double pointer to Slave job descriptor item
+   @param [out] arg_g  a double pointer to Slave job descriptor item
                        last marked with done-as-true boolean.
    @param start_index  a GAQ index to start/resume searching.
                        Caller is to make sure the index points into
@@ -1713,14 +1781,16 @@ void Slave_worker::do_report(loglevel level, int err_code, const char *msg,
   {
     char coordinator_errmsg[MAX_SLAVE_ERRMSG];
 
-    sprintf(coordinator_errmsg,
-            "Coordinator stopped because there were error(s) in the worker(s). "
-            "The most recent failure being: Worker %lu failed executing "
-            "transaction '%s' at master log %s, end_log_pos %llu. "
-            "See error log and/or "
-            "performance_schema.replication_applier_status_by_worker table for "
-            "more details about this failure or others, if any.",
-            id, buff_gtid, log_name, log_pos);
+    my_snprintf(coordinator_errmsg, MAX_SLAVE_ERRMSG,
+                "Coordinator stopped because there were error(s) in the "
+                "worker(s). "
+                "The most recent failure being: Worker %u failed executing "
+                "transaction '%s' at master log %s, end_log_pos %llu. "
+                "See error log and/or "
+                "performance_schema.replication_applier_status_by_worker "
+                "table for "
+                "more details about this failure or others, if any.",
+                internal_id, buff_gtid, log_name, log_pos);
 
     /*
       We want to update the errors in coordinator as well as worker.
@@ -1734,9 +1804,9 @@ void Slave_worker::do_report(loglevel level, int err_code, const char *msg,
   }
 
   my_snprintf(buff_coord, sizeof(buff_coord),
-          "Worker %lu failed executing transaction '%s' at "
-          "master log %s, end_log_pos %llu",
-          id, buff_gtid, log_name, log_pos);
+              "Worker %u failed executing transaction '%s' at "
+              "master log %s, end_log_pos %llu",
+              internal_id, buff_gtid, log_name, log_pos);
 
   /*
     Error reporting by the worker. The worker updates its error fields as well
@@ -1807,12 +1877,8 @@ static int64 get_sequence_number(Log_event *ev)
   The worker thread loops in waiting for an event, executing it and
   fixing statistics counters.
 
-  @param worker    a pointer to the assigned Worker struct
-  @param rli       a pointer to Relay_log_info of Coordinator
-                   to update statistics.
-
   @return 0 success
-         -1 got killed or an error happened during appying
+         -1 got killed or an error happened during applying
 */
 int Slave_worker::slave_worker_exec_event(Log_event *ev)
 {
@@ -1930,7 +1996,7 @@ bool Slave_worker::worker_sleep(ulong seconds)
   while (!(ret= info_thd->killed || running_status != RUNNING))
   {
     int error= mysql_cond_timedwait(cond, lock, &abstime);
-    if (error == ETIMEDOUT || error == ETIME)
+    if (is_timeout(error))
       break;
   }
 
@@ -2066,8 +2132,7 @@ bool Slave_worker::read_and_apply_events(uint start_relay_number,
     if (ev != NULL)
     {
       /* It is a event belongs to the transaction */
-      if (!ev->is_mts_sequential_exec(rli->current_mts_submode->get_type() ==
-                                      MTS_PARALLEL_TYPE_DB_NAME))
+      if (!ev->is_mts_sequential_exec())
       {
         int ret= 0;
 
@@ -2168,7 +2233,7 @@ void Slave_worker::assign_partition_db(Log_event *ev)
   Mts_db_names mts_dbs;
   int i;
 
-  ev->get_mts_dbs(&mts_dbs);
+  ev->get_mts_dbs(&mts_dbs, c_rli->rpl_filter);
 
   if (mts_dbs.num == OVER_MAX_DBS_IN_EVENT_MTS)
     ev->mts_assigned_partitions[0]= find_entry_from_db_map("", c_rli);
@@ -2498,8 +2563,8 @@ static void remove_item_from_jobs(slave_job_item *job_item,
    @return NULL failure or
            a-pointer to an item.
 */
-struct slave_job_item* pop_jobs_item(Slave_worker *worker,
-                                     Slave_job_item *job_item)
+static struct slave_job_item* pop_jobs_item(Slave_worker *worker,
+                                            Slave_job_item *job_item)
 {
   THD *thd= worker->info_thd;
 
@@ -2536,6 +2601,66 @@ struct slave_job_item* pop_jobs_item(Slave_worker *worker,
 }
 
 /**
+  Report a not yet reported error to the coordinator if necessary.
+
+  All issues detected when applying binary log events are reported using
+  rli->report(), but when an issue is not reported by the log event being
+  applied, there is a workaround at handle_slave_sql() to report the issue
+  also using rli->report() for the STS applier (or the MTS coordinator).
+
+  This function implements the workaround for a MTS worker.
+
+  @param worker the worker to be evaluated.
+*/
+void report_error_to_coordinator(Slave_worker *worker)
+{
+  THD *thd= worker->info_thd;
+  /*
+    It is possible that the worker had failed to apply the event but
+    did not reported about the failure using rli->report(). An example
+    of such cases are failures caused by setting GTID_NEXT variable with
+    an unsupported GTID mode (GTID_SET when GTID_MODE = OFF, anonymous
+    GTID when GTID_MODE = ON).
+  */
+  if (thd->is_error())
+  {
+    char const *const errmsg= thd->get_stmt_da()->message_text();
+    DBUG_PRINT("info",
+               ("thd->get_stmt_da()->get_mysql_errno()=%d; "
+                "worker->last_error.number=%d",
+                thd->get_stmt_da()->mysql_errno(),
+                worker->last_error().number));
+
+    if (worker->last_error().number == 0 &&
+        /*
+          When another worker that should commit before the current worker
+          being evaluated has failed and the commit order should be preserved
+          the current worker was asked to roll back and would stop with the
+          ER_SLAVE_WORKER_STOPPED_PREVIOUS_THD_ERROR not yet reported to the
+          coordinator. Reporting this error to the coordinator would be a
+          mistake and would mask the real issue that lead to the MTS stop as
+          the coordinator reports only the last error reported to it as the
+          cause of the MTS failure.
+
+          So, we should skip reporting the error if it was reported because
+          the current transaction had to be rolled back by a failure in a
+          previous transaction in the commit order while the current
+          transaction was waiting to be committed.
+        */
+        thd->get_stmt_da()->mysql_errno() !=
+        ER_SLAVE_WORKER_STOPPED_PREVIOUS_THD_ERROR)
+    {
+      /*
+        This function is reporting an error which was not reported
+        while executing exec_relay_log_event().
+      */
+      worker->report(ERROR_LEVEL, thd->get_stmt_da()->mysql_errno(),
+                     "%s", errmsg);
+    }
+  }
+}
+
+/**
   apply one job group.
 
   @note the function maintains worker's CGEP and modifies APH, updates
@@ -2547,7 +2672,7 @@ struct slave_job_item* pop_jobs_item(Slave_worker *worker,
   return returns 0 if the group of jobs are applied successfully, otherwise
          returns an error code.
  */
-int slave_worker_exec_job_group(Slave_worker *worker, Relay_log_info *rli)
+int slave_worker_exec_job_group( Slave_worker *worker, Relay_log_info *rli)
 {
   struct slave_job_item item= {NULL, 0, 0};
   struct slave_job_item *job_item= &item;
@@ -2568,6 +2693,9 @@ int slave_worker_exec_job_group(Slave_worker *worker, Relay_log_info *rli)
   start_relay_number= job_item->relay_number;
   start_relay_pos= job_item->relay_pos;
 
+  /* Current event with Worker associator. */
+  RLI_current_event_raii worker_curr_ev(worker, ev);
+
   while (1)
   {
     Slave_job_group *ptr_g;
@@ -2584,6 +2712,15 @@ int slave_worker_exec_job_group(Slave_worker *worker, Relay_log_info *rli)
     DBUG_ASSERT(ev != NULL);
     DBUG_PRINT("info", ("W_%lu <- job item: %p data: %p thd: %p",
                         worker->id, job_item, ev, thd));
+    /*
+      Associate the freshly read event with worker.
+      The binding also remains when the loop breaks at the group end event
+      so a DDL Query_log_event as such a breaker would remain pinned to
+      the Worker by the slave info table update and commit time,
+      see slave_worker_ends_group().
+    */
+    worker_curr_ev.set_current_event(ev);
+
     if (is_gtid_event(ev))
       seen_gtid= true;
     if (!seen_begin && ev->starts_group())
@@ -2647,6 +2784,44 @@ int slave_worker_exec_job_group(Slave_worker *worker, Relay_log_info *rli)
   /* The group is applied successfully, so error should be 0 */
   worker->slave_worker_ends_group(ev, 0);
 
+  /*
+   check if the finished group started with a gtid_log_event to update the
+   monitoring information
+  */
+  if (current_thd->rli_slave->is_processing_trx())
+  {
+    DBUG_EXECUTE_IF("rpl_ps_tables",
+                    {
+                      const char act[]= "now SIGNAL signal.rpl_ps_tables_apply_before "
+                                        "WAIT_FOR signal.rpl_ps_tables_apply_finish";
+                      DBUG_ASSERT(opt_debug_sync_timeout > 0);
+                      DBUG_ASSERT(!debug_sync_set_action(current_thd,
+                                                         STRING_WITH_LEN(act)));
+                    };);
+    if (ev->get_type_code() == binary_log::QUERY_EVENT &&
+        ((Query_log_event*)ev)->rollback_injected_by_coord)
+    {
+      /*
+       If this was a rollback event injected by the coordinator because of a
+       partial transaction in the relay log, we must not consider this
+       transaction completed and, instead, clear the monitoring info.
+      */
+      current_thd->rli_slave->clear_processing_trx(true /*need_lock*/);
+    }
+    else
+    {
+      current_thd->rli_slave->finished_processing();
+    }
+    DBUG_EXECUTE_IF("rpl_ps_tables",
+                    {
+                      const char act[]= "now SIGNAL signal.rpl_ps_tables_apply_after_finish "
+                                        "WAIT_FOR signal.rpl_ps_tables_apply_continue";
+                      DBUG_ASSERT(opt_debug_sync_timeout > 0);
+                      DBUG_ASSERT(!debug_sync_set_action(current_thd,
+                                                         STRING_WITH_LEN(act)));
+                    };);
+  }
+
 #ifndef DBUG_OFF
   DBUG_PRINT("mts", ("Check_slave_debug_group worker %lu mts_checkpoint_group"
                      " %u processed %lu debug %d\n", worker->id, opt_mts_checkpoint_group,
@@ -2668,6 +2843,7 @@ int slave_worker_exec_job_group(Slave_worker *worker, Relay_log_info *rli)
 err:
   if (error)
   {
+    report_error_to_coordinator(worker);
     DBUG_PRINT("info", ("Worker %lu is exiting: killed %i, error %i, "
                         "running_status %d",
                         worker->id, thd->killed, thd->is_error(),

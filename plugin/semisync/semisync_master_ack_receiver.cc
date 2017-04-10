@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,6 +13,14 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include "my_config.h"
+
+#include <errno.h>
+
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_psi_config.h"
+#include "mysql/psi/mysql_stage.h"
 #include "semisync_master.h"
 #include "semisync_master_ack_receiver.h"
 #include "semisync_master_socket_listener.h"
@@ -29,7 +37,8 @@ extern PSI_thread_key key_ss_thread_Ack_receiver_thread;
 #endif
 
 /* Callback function of ack receive thread */
-extern "C" void *ack_receive_handler(void *arg)
+extern "C" {
+static void *ack_receive_handler(void *arg)
 {
   my_thread_init();
   reinterpret_cast<Ack_receiver *>(arg)->run();
@@ -37,6 +46,7 @@ extern "C" void *ack_receive_handler(void *arg)
   my_thread_exit(0);
   return NULL;
 }
+} // extern "C"
 
 Ack_receiver::Ack_receiver()
 {
@@ -129,9 +139,9 @@ bool Ack_receiver::add_slave(THD *thd)
   function_enter(kWho);
 
   slave.thd= thd;
-  slave.vio= *thd->get_protocol_classic()->get_vio();
-  slave.vio.mysql_socket.m_psi= NULL;
-  slave.vio.read_timeout= 1;
+  slave.vio= thd->get_protocol_classic()->get_vio();
+  slave.vio->mysql_socket.m_psi= NULL;
+  slave.vio->read_timeout= 1;
 
   /* push_back() may throw an exception */
   try
@@ -262,7 +272,7 @@ void Ack_receiver::run()
         ulong len;
 
         net_clear(&net, 0);
-        net.vio= &m_slaves[i].vio;
+        net.vio= m_slaves[i].vio;
 
         len= my_net_read(&net);
         if (likely(len != packet_error))

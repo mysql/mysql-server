@@ -13,15 +13,8 @@
 # 2008-06-06 mleich Create this this variant for the embedded server.
 #
 
-if (`SELECT VERSION() NOT LIKE '%embedded%'`)
-{
-   --skip Test requires: embedded server
-}
-if (`SELECT VERSION() LIKE '%embedded%'`)
-{
-   --skip Bug#37456 funcs_1: Several tests crash when used with embedded server
-}
+--source include/is_embedded.inc
+
 let $engine_type       = InnoDB;
 let $other_engine_type = InnoDB;
---source include/have_innodb.inc
 --source suite/funcs_1/datadict/is_triggers.inc

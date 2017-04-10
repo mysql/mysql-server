@@ -10,7 +10,6 @@
 #######################################################################
 
 --source include/not_windows.inc
---source include/have_innodb.inc
 --source include/master-slave.inc
 --source include/count_sessions.inc
 --source ../include/have_performance_schema_threads.inc
@@ -19,7 +18,7 @@
 # Use master connection
 --connection master
 
---source ../include/xplugin_preamble.inc
+--source include/xplugin_preamble.inc
 call mtr.add_suppression("Error parsing message of type 12: args");
 call mtr.add_suppression("Error handling message: args");
 

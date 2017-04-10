@@ -43,7 +43,7 @@ SELECT @@GLOBAL.table_open_cache_instances;
 
 --disable_warnings
 SELECT @@GLOBAL.table_open_cache_instances = VARIABLE_VALUE
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='table_open_cache_instances';
 --enable_warnings
 
@@ -51,7 +51,7 @@ SELECT @@GLOBAL.table_open_cache_instances;
 
 --disable_warnings
 SELECT VARIABLE_VALUE
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='table_open_cache_instances';
 --enable_warnings
 

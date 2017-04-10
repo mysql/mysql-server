@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -20,7 +20,10 @@
 #ifndef _XPL_STREAMING_COMMAND_DELEGATE_H_
 #define _XPL_STREAMING_COMMAND_DELEGATE_H_
 
-#include "command_delegate.h"
+#include <sys/types.h>
+
+#include "my_inttypes.h"
+#include "ngs/command_delegate.h"
 
 
 namespace ngs
@@ -33,7 +36,7 @@ namespace ngs
 namespace xpl
 {
 
-  class Streaming_command_delegate : public Command_delegate
+  class Streaming_command_delegate : public ngs::Command_delegate
   {
   public:
     Streaming_command_delegate(ngs::Protocol_encoder *proto);

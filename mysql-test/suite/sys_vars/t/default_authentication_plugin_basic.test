@@ -27,7 +27,7 @@ SELECT COUNT(@@GLOBAL.default_authentication_plugin);
 
 --disable_warnings
 SELECT @@GLOBAL.default_authentication_plugin = VARIABLE_VALUE
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='default_authentication_plugin';
 --enable_warnings
 --echo 1 Expected
@@ -37,7 +37,7 @@ SELECT COUNT(@@GLOBAL.default_authentication_plugin);
 
 --disable_warnings
 SELECT COUNT(VARIABLE_VALUE)
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='default_authentication_plugin';
 --enable_warnings
 --echo 1 Expected

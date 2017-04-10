@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,20 +13,19 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
 
-// First include (the generated) my_config.h, to get correct platform defines.
-#include "my_config.h"
 #include <gtest/gtest.h>
-
-#include <vector>
+#include <stddef.h>
 #include <sstream>
 #include <string>
+#include <vector>
 
-#include "my_global.h"
-#include "item_cmpfunc.h"
 #include "fake_table.h"
-#include "test_utils.h"
-
+#include "item_cmpfunc.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_table_map.h"
 #include "parse_tree_helpers.h"
+#include "test_utils.h"
 
 namespace item_filter_unittest {
 

@@ -1,3 +1,13 @@
+########################################
+##### WL#7554 Force schema `test` to character set latin1
+##### This test should be migrated to utf8mb4
+--disable_query_log
+let $testdbcs276=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
+alter schema default character set latin1;
+use test;
+--enable_query_log
+########################################
+
 
  #Get deafult engine value
 --let $DEFAULT_ENGINE = `select @@global.default_storage_engine`
@@ -319,7 +329,7 @@ select @@sql_mode;
 set sql_mode=16384+(65536*4);
 select @@sql_mode;
 --error 1231
-set sql_mode=2147483648*2; # that mode does not exist
+set sql_mode=4294967296*2; # that mode does not exist
 select @@sql_mode;
 
 #
@@ -593,45 +603,9 @@ SELECT @@sql_mode;
 --echo #
 SET sql_mode= @org_mode;
 
---echo #
---echo # Check that NO_ZERO_DATE, NO_ZERO_IN_DATE and ERROR_FOR_DIVISION_BY_ZERO modes
---echo # are removed in triggers after upgrading to 5.7.
---echo #
-CREATE TABLE account (acct_num INT, amount DECIMAL(10,2));
-
-# Commands executed on 5.6 to create the table and trigger.
-#set sql_mode="NO_ZERO_DATE,NO_ZERO_IN_DATE,ERROR_FOR_DIVISION_BY_ZERO,STRICT_ALL_TABLES";
-#
-#CREATE TABLE account (acct_num INT, amount DECIMAL(10,2));
-#CREATE TRIGGER ins_sum BEFORE INSERT ON account FOR EACH ROW SET @sum = @sum + NEW.amount;
-
-let $MYSQLD_DATADIR= `select @@datadir`;
-
-#Copy 5.6 Triggers to 5.7
---copy_file $MYSQL_TEST_DIR/std_data/bug18311187_account.TRG $MYSQLD_DATADIR/test/account.TRG
---copy_file $MYSQL_TEST_DIR/std_data/bug18311187_ins_sum.TRN $MYSQLD_DATADIR/test/ins_sum.TRN
-
-SHOW CREATE TRIGGER ins_sum;
-
---echo # Clean-up
---remove_file $MYSQLD_DATADIR/test/account.TRG
---remove_file $MYSQLD_DATADIR/test/ins_sum.TRN
-DROP TABLE account;
-
---echo #
---echo # Check that Inserting NO_ZERO_DATE, NO_ZERO_IN_DATE and ERROR_FOR_DIVISION_BY_ZERO modes
---echo # manually into mysql.proc table do not show up in SHOW CREATE procs/funcs OUTPUT.
---echo #
-INSERT INTO mysql.proc VALUES ('test','p1','PROCEDURE','p1','SQL','CONTAINS_SQL','NO','DEFINER','','','begin end','root@localhost',now(), now(),'NO_ZERO_DATE,NO_ZERO_IN_DATE,ERROR_FOR_DIVISION_BY_ZERO,STRICT_ALL_TABLES','', 'utf8', 'utf8_general_ci', 'latin1_swedish_ci', 'begin end');
-
---echo # NO_ZERO_* modes should not show up in the output.
-SHOW CREATE PROCEDURE p1;
-
-INSERT INTO mysql.proc VALUES ('test','f1','FUNCTION','f1','SQL','CONTAINS_SQL','NO','DEFINER','','int(11)','begin return 1; end','root@localhost',now(), now(),'NO_ZERO_DATE,NO_ZERO_IN_DATE,ERROR_FOR_DIVISION_BY_ZERO,STRICT_ALL_TABLES','', 'utf8', 'utf8_general_ci', 'latin1_swedish_ci', 'begin return 1; end');
-
---echo # NO_ZERO_* modes should not show up in the output.
-SHOW CREATE FUNCTION f1;
-
---echo # Clean-up.
-DROP PROCEDURE p1;
-DROP FUNCTION f1;
+########################################
+##### WL#7554 set schema `test` back to what it was
+--disable_query_log
+--eval alter schema test default character set $testdbcs276;
+--enable_query_log
+########################################

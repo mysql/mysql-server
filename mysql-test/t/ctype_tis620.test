@@ -1,6 +1,3 @@
-
--- source include/have_tis620.inc
-
 #
 # Tests with the big5 character set
 #
@@ -177,13 +174,11 @@ SET sql_mode = default;
 set names tis620;
 set collation_connection=tis620_thai_ci;
 --source include/weight_string.inc
---source include/weight_string_l1.inc
 select hex(weight_string(cast(0xE0A1 as char)));
 select hex(weight_string(cast(0xE0A1 as char) as char(1)));
 
 set collation_connection=tis620_bin;
 --source include/weight_string.inc
---source include/weight_string_l1.inc
 select hex(weight_string(cast(0xE0A1 as char)));
 select hex(weight_string(cast(0xE0A1 as char) as char(1)));
 

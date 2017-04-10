@@ -9,13 +9,21 @@
 # --source include/no_valgrind_without_big.inc
 # Disable in valgrind because of timeout, cf. Bug#22760145
 --source include/not_valgrind.inc
---source include/have_innodb.inc
 --source include/not_embedded.inc
 
 # Avoid CrashReporter popup on Mac
 --source include/not_crashrep.inc
 # # innodb-force-recovery-crash needs debug
 --source include/have_debug.inc
+
+########################################
+##### WL#7554 Force schema `test` to character set latin1
+##### This test should be migrated to utf8mb4. Added opt file too.
+--disable_query_log
+let $testdbcs48=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
+alter schema test default character set latin1;
+--enable_query_log
+########################################
 
 --disable_query_log
 call mtr.add_suppression("\\[ERROR\\] InnoDB: Encryption can't find master key, please check the keyring plugin is loaded.");
@@ -24,6 +32,7 @@ call mtr.add_suppression("Can't generate new master key for tablespace encryptio
 call mtr.add_suppression("does not exist in the InnoDB internal data dictionary though MySQL is trying to drop it");
 call mtr.add_suppression("Cannot open table tde_db/.* from the internal data dictionary of InnoDB");
 call mtr.add_suppression("\\[Warning\\] InnoDB: Tablespace for table `tde_db`.`t1` is set as discarded");
+call mtr.add_suppression("\\[Warning\\] InnoDB: Database page corruption or a failed file read of page");
 call mtr.add_suppression("\\[ERROR\\] InnoDB: The table .* doesn't have a corresponding tablespace, it was discarded.");
 call mtr.add_suppression("\\[Warning\\] InnoDB: Cannot calculate statistics for table .* because the \.ibd file is missing");
 --enable_query_log
@@ -143,3 +152,10 @@ DROP TABLE tde_db.t1;
 eval SET GLOBAL innodb_file_per_table=$innodb_file_per_table;
 --remove_file $MYSQL_TMP_DIR/mysecret_keyring
 
+
+########################################
+##### WL#7554 set schema `test` back to what it was
+--disable_query_log
+--eval alter schema test default character set $testdbcs48;
+--enable_query_log
+########################################

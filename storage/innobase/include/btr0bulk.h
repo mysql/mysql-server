@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2014, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2014, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -23,14 +23,16 @@ The B-tree bulk load
 Created 03/11/2014 Shaohua Wang
 *************************************************************************/
 
+#include <stddef.h>
+
 #ifndef btr0bulk_h
 #define btr0bulk_h
+
+#include <vector>
 
 #include "dict0dict.h"
 #include "page0cur.h"
 #include "ut0new.h"
-
-#include <vector>
 
 /** Innodb B-tree index fill factor for bulk load. */
 extern	long	innobase_fill_factor;
@@ -57,7 +59,7 @@ public:
 	PageBulk(
 		dict_index_t*	index,
 		trx_id_t	trx_id,
-		ulint		page_no,
+		page_no_t	page_no,
 		ulint		level,
 		FlushObserver*	observer)
 		:
@@ -135,20 +137,20 @@ public:
 	rec_t*	getSplitRec();
 
 	/** Copy all records after split rec including itself.
-	@param[in]	rec	split rec */
+	@param[in]	split_rec	split rec */
 	void copyIn(rec_t*	split_rec);
 
 	/** Remove all records after split rec including itself.
-	@param[in]	rec	split rec	*/
+	@param[in]	split_rec	split rec	*/
 	void copyOut(rec_t*	split_rec);
 
 	/** Set next page
 	@param[in]	next_page_no	next page no */
-	void setNext(ulint	next_page_no);
+	void setNext(page_no_t	next_page_no);
 
 	/** Set previous page
 	@param[in]	prev_page_no	previous page no */
-	void setPrev(ulint	prev_page_no);
+	void setPrev(page_no_t	prev_page_no);
 
 	/** Release block by commiting mtr */
 	inline void release();
@@ -158,12 +160,12 @@ public:
 
 	/** Check if required space is available in the page for the rec
 	to be inserted.	We check fill factor & padding here.
-	@param[in]	length		required length
+	@param[in]	rec_size	required space
 	@return true	if space is available */
 	inline bool isSpaceAvailable(ulint	rec_size);
 
 	/** Get page no */
-	ulint	getPageNo()
+	page_no_t getPageNo()
 	{
 		return(m_page_no);
 	}
@@ -218,7 +220,7 @@ private:
 	rec_t*		m_cur_rec;
 
 	/** The page no */
-	ulint		m_page_no;
+	page_no_t	m_page_no;
 
 	/** The page level in B-tree */
 	ulint		m_level;

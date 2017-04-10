@@ -24,7 +24,6 @@
 #                                                                             #
 ###############################################################################
 
---source include/have_innodb.inc
 --source include/load_sysvars.inc
 
 ########################################################################
@@ -147,7 +146,7 @@ SET @@local.innodb_fast_shutdown = 0;
 
 --disable_warnings
 SELECT count(VARIABLE_VALUE) AS res_is_0
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES
+FROM performance_schema.session_variables
 WHERE VARIABLE_NAME='innodb_fast_shutdown';
 --enable_warnings
 
@@ -159,7 +158,7 @@ WHERE VARIABLE_NAME='innodb_fast_shutdown';
 
 --disable_warnings
 SELECT @@global.innodb_fast_shutdown =
-VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+VARIABLE_VALUE FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='innodb_fast_shutdown';
 --enable_warnings
 

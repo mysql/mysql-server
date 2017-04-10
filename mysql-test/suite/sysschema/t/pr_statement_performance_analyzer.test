@@ -12,9 +12,13 @@
 # Performance schema tracks prepared statements separately, and does not
 # yet have a summary view that we can use for this view.
 # Until then, we disable this test with --ps-protocol
+# Test requires: sp-protocol/ps-protocol/view-protocol/cursor-protocol disabled
 -- source include/no_protocol.inc
 # Bug #23290879 - For reasons unknown to man this test fails randomly only on Windows
 -- source include/not_windows.inc
+
+# Thread stack overrun in debug mode on sparc
+--source include/not_sparc_debug.inc
 
 use test;
 --disable_warnings

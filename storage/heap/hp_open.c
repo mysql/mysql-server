@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,8 +15,14 @@
 
 /* open a heap-database */
 
+#include <errno.h>
+#include <sys/types.h>
+
 #include "heapdef.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
 #include "my_sys.h"
+#include "mysql/service_mysql_alloc.h"
 
 /*
   Open heap table based on HP_SHARE structure
@@ -54,8 +60,8 @@ HP_INFO *heap_open_from_share(HP_SHARE *share, int mode)
 #ifndef DBUG_OFF
   info->opt_flag= READ_CHECK_USED;		/* Check when changing */
 #endif
-  DBUG_PRINT("exit",("heap: 0x%lx  reclength: %d  records_in_block: %d",
-		     (long) info, share->reclength,
+  DBUG_PRINT("exit",("heap: %p  reclength: %d  records_in_block: %d",
+		     info, share->reclength,
                      share->block.records_in_block));
   DBUG_RETURN(info);
 }
@@ -85,13 +91,12 @@ HP_INFO *heap_open_from_share_and_register(HP_SHARE *share, int mode)
 
 /**
   Dereference a HEAP share and free it if it's not referenced.
-  We don't check open_count for internal tables since they
-  are always thread-local, i.e. referenced by a single thread.
+  We needn't check open_count for single instances.
 */
-void heap_release_share(HP_SHARE *share, my_bool internal_table)
+void heap_release_share(HP_SHARE *share, bool single_instance)
 {
   /* Couldn't open table; Remove the newly created table */
-  if (internal_table)
+  if (single_instance)
     hp_free(share);
   else
   {
@@ -147,7 +152,7 @@ HP_SHARE *hp_find_named_heap(const char *name)
     info= (HP_SHARE*) pos->data;
     if (!strcmp(name, info->name))
     {
-      DBUG_PRINT("exit", ("Old heap_database: 0x%lx", (long) info));
+      DBUG_PRINT("exit", ("Old heap_database: %p", info));
       DBUG_RETURN(info);
     }
   }

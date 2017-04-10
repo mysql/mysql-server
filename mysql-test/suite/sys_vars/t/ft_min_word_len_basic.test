@@ -7,8 +7,8 @@ select @@session.ft_min_word_len;
 show global variables like 'ft_min_word_len';
 show session variables like 'ft_min_word_len';
 --disable_warnings
-select * from information_schema.global_variables where variable_name='ft_min_word_len';
-select * from information_schema.session_variables where variable_name='ft_min_word_len';
+select * from performance_schema.global_variables where variable_name='ft_min_word_len';
+select * from performance_schema.session_variables where variable_name='ft_min_word_len';
 --enable_warnings
 
 #

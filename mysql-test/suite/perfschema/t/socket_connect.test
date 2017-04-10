@@ -4,9 +4,15 @@
 #
 #==============================================================================
 
---source include/not_embedded.inc
---source include/have_perfschema.inc
 --source ../include/wait_for_pfs_thread_count.inc
+
+# Since within the WL#7158 a transport used for initial(default) conneciton in mt
+# has been changed from TCP/IP to Named Pipe we disconnect the default connection
+# and establish new default one using TCP/IP. We do it in order to support
+# original behaviour of the test.
+--disconnect default
+--source include/wait_until_disconnected.inc
+--connect (default,localhost,root,,,,)
 
 # Set this to enable debugging output
 let $my_socket_debug=0;

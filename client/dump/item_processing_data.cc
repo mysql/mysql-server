@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -17,12 +17,15 @@
 
 #include "item_processing_data.h"
 
+#include <stddef.h>
+#include <functional>
+
 using namespace Mysql::Tools::Dump;
 
 Item_processing_data::Item_processing_data(
   Chain_data* chain_data, I_dump_task* process_task_object,
   I_chain_element* chain_element,
-  const Mysql::I_callable<void, Item_processing_data*>* completion_callback,
+  const std::function<void(Item_processing_data*)>* completion_callback,
   Item_processing_data* parent_item_data)
   : m_chain_data(chain_data),
   m_process_task_object(process_task_object),

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -101,6 +101,12 @@ Ndb::init(int aMaxNoOfTransactions)
   {
     connected(Uint32(tRef));
   }
+
+  /* Now that we have this block open, set the first transid for
+   * this block from ndb_cluster_connection
+   */
+  theFirstTransId |= theImpl->m_ndb_cluster_connection.
+    get_next_transid(theNdbBlockNumber);
 
   /* Init cached min node version */
   theFacade->lock_poll_mutex();
@@ -864,8 +870,6 @@ NdbImpl::trp_deliver_signal(const NdbApiSignal * aSignal,
       goto InvalidSignal;
     }
     tCon = void2con(tFirstDataPtr);
-    assert(tFirstDataPtr != 0 && 
-           void2con(tFirstDataPtr)->checkMagicNumber() == 0);
     if (tCon->checkMagicNumber() == 0)
     {
       tReturnCode = tCon->receiveSCAN_TABREF(aSignal);
@@ -1113,16 +1117,28 @@ NdbImpl::trp_deliver_signal(const NdbApiSignal * aSignal,
   case GSN_SUB_STOP_CONF:
   case GSN_SUB_STOP_REF:
   {
+    const Uint64 latestGCI = myNdb->getLatestGCI();
     NdbDictInterface::execSignal(&myNdb->theDictionary->m_receiver,
 				 aSignal,
                                  ptr);
+    if (tWaitState == WAIT_EVENT && myNdb->getLatestGCI() != latestGCI)
+    {
+      tNewState = NO_WAIT;
+      break;
+    }
     return;
   }
   case GSN_SUB_GCP_COMPLETE_REP:
   {
+    const Uint64 latestGCI = myNdb->getLatestGCI();
     const SubGcpCompleteRep * const rep=
       CAST_CONSTPTR(SubGcpCompleteRep, aSignal->getDataPtr());
     myNdb->theEventBuffer->execSUB_GCP_COMPLETE_REP(rep, tLen);
+    if (tWaitState == WAIT_EVENT && myNdb->getLatestGCI() != latestGCI)
+    {
+      tNewState = NO_WAIT;
+      break;
+    }
     return;
   }
   case GSN_SUB_TABLE_DATA:
@@ -1580,7 +1596,13 @@ Ndb::waitCompletedTransactions(int aMilliSecondsToWait,
   theMinNoOfEventsToWakeUp = noOfEventsToWaitFor;
   theImpl->incClientStat(Ndb::WaitExecCompleteCount, 1);
   do {
-    const int maxsleep = waitTime > 10 ? 10 : waitTime;
+    int maxsleep = waitTime;
+#ifndef DBUG_OFF
+    if(DBUG_EVALUATE_IF("early_trans_timeout", true, false))
+    {
+      maxsleep = waitTime > 10 ? 10 : waitTime;
+    }
+#endif
     poll_guard->wait_for_input(maxsleep);
     if (theNoOfCompletedTransactions >= (Uint32)noOfEventsToWaitFor) {
       break;

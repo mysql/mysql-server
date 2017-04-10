@@ -4,7 +4,7 @@ call mtr.add_suppression("This is an error from test plugin");
 INSTALL PLUGIN test_services_threaded SONAME 'TESTSERVICESTHREADED';
 ------ Wait until test execution in plugin is ready --------------
 let wait_timeout= 60
-let wait_condition=SELECT variable_value= 1 FROM information_schema.global_status
+let wait_condition=SELECT variable_value= 1 FROM performance_schema.global_status
 WHERE variable_name LIKE 'test_services_status';
 source include/wait_condition.inc;
 ------ Stop plugin -----------------------------------------------

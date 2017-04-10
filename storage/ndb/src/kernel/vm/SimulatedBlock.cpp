@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -76,6 +76,7 @@ SimulatedBlock::SimulatedBlock(BlockNumber blockNumber,
     theReference(numberToRef(blockNumber, instanceNumber, globalData.ownId)),
     theInstanceList(0),
     theMainInstance(0),
+    m_pHighResTimer(0),
     m_ctx(ctx),
     m_global_page_pool(globalData.m_global_page_pool),
     m_shared_page_pool(globalData.m_shared_page_pool),
@@ -130,6 +131,11 @@ SimulatedBlock::SimulatedBlock(BlockNumber blockNumber,
   m_global_variables = new Ptr<void> * [1];
   m_global_variables[0] = 0;
   m_global_variables_save = 0;
+#endif
+
+#ifndef NDBD_MULTITHREADED
+  /* Ndbd, init from GlobalScheduler */
+  m_pHighResTimer = globalScheduler.getHighResTimerPtr();
 #endif
 }
 
@@ -265,6 +271,15 @@ SimulatedBlock::assignToThread(ThreadContext ctx)
   m_jamBuffer = ctx.jamBuffer;
   m_watchDogCounter = ctx.watchDogCounter;
   m_sectionPoolCache = ctx.sectionPoolCache;
+  m_pHighResTimer = ctx.pHighResTimer;
+}
+
+Uint32
+SimulatedBlock::getInstanceKeyCanFail(Uint32 tabId, Uint32 fragId)
+{
+  Dbdih* dbdih = (Dbdih*)globalData.getBlock(DBDIH);
+  Uint32 instanceKey = dbdih->dihGetInstanceKeyCanFail(tabId, fragId);
+  return instanceKey;
 }
 
 Uint32
@@ -521,6 +536,149 @@ SimulatedBlock::getSignalsInJBB()
   num_signals = globalScheduler.getBOccupancy();
 #endif
   return num_signals;
+}
+
+void
+SimulatedBlock::setNeighbourNode(NodeId node)
+{
+  /* We only treat neighbour nodes in a special manner in ndbmtd. */
+#ifdef NDBD_MULTITHREADED
+  mt_setNeighbourNode(node);
+#endif
+}
+
+void
+SimulatedBlock::setWakeupThread(Uint32 wakeup_instance)
+{
+#ifdef NDBD_MULTITHREADED
+  mt_setWakeupThread(m_threadId, wakeup_instance);
+#endif
+}
+
+void
+SimulatedBlock::setOverloadStatus(OverloadStatus new_status)
+{
+#ifdef NDBD_MULTITHREADED
+  mt_setOverloadStatus(m_threadId, new_status);
+#endif
+}
+
+void
+SimulatedBlock::setNodeOverloadStatus(OverloadStatus new_status)
+{
+#ifdef NDBD_MULTITHREADED
+  mt_setNodeOverloadStatus(m_threadId, new_status);
+#endif
+}
+
+void
+SimulatedBlock::setSendNodeOverloadStatus(OverloadStatus new_status)
+{
+#ifdef NDBD_MULTITHREADED
+  mt_setSendNodeOverloadStatus(new_status);
+#endif
+}
+
+Uint32
+SimulatedBlock::getSpintime()
+{
+#ifdef NDBD_MULTITHREADED
+  return mt_getSpintime(m_threadId);
+#else
+  return 0;
+#endif
+}
+
+void
+SimulatedBlock::getPerformanceTimers(Uint64 & micros_sleep,
+                                     Uint64 & spin_time,
+                                     Uint64 & buffer_full_micros_sleep,
+                                     Uint64 & micros_send)
+{
+#ifdef NDBD_MULTITHREADED
+  mt_getPerformanceTimers(m_threadId,
+                          micros_sleep,
+                          spin_time,
+                          buffer_full_micros_sleep,
+                          micros_send);
+#else
+  micros_sleep = globalData.theMicrosSleep;
+  spin_time = globalData.theMicrosSpin;
+  buffer_full_micros_sleep = globalData.theBufferFullMicrosSleep;
+  micros_send = globalData.theMicrosSend;
+#endif
+}
+
+const char *
+SimulatedBlock::getThreadDescription()
+{
+  const char *desc;
+#ifdef NDBD_MULTITHREADED
+  desc = mt_getThreadDescription(m_threadId);
+#else
+  desc = "ndbd single thread";
+#endif
+  return desc;
+}
+
+const char *
+SimulatedBlock::getThreadName()
+{
+  const char *name;
+#ifdef NDBD_MULTITHREADED
+  name = mt_getThreadName(m_threadId);
+#else
+  name = "main";
+#endif
+  return name;
+}
+
+void
+SimulatedBlock::getSendPerformanceTimers(Uint32 send_instance,
+                                         Uint64 & exec_time,
+                                         Uint64 & sleep_time,
+                                         Uint64 & spin_time,
+                                         Uint64 & user_time_os,
+                                         Uint64 & kernel_time_os,
+                                         Uint64 & elapsed_time_os)
+{
+  /* No send thread in ndbd */
+#ifdef NDBD_MULTITHREADED
+  mt_getSendPerformanceTimers(send_instance,
+                              exec_time,
+                              sleep_time,
+                              spin_time,
+                              user_time_os,
+                              kernel_time_os,
+                              elapsed_time_os);
+#else
+  exec_time = 0;
+  sleep_time = 0;
+  spin_time = 0;
+  user_time_os = 0;
+  kernel_time_os = 0;
+  elapsed_time_os = 0;
+#endif
+}
+
+Uint32
+SimulatedBlock::getNumSendThreads()
+{
+#ifdef NDBD_MULTITHREADED
+  return mt_getNumSendThreads();
+#else
+  return 0;
+#endif
+}
+
+Uint32
+SimulatedBlock::getNumThreads()
+{
+#ifdef NDBD_MULTITHREADED
+  return mt_getNumThreads();
+#else
+  return 1;
+#endif
 }
 
 void 
@@ -1863,7 +2021,8 @@ SimulatedBlock::update_watch_dog_timer(Uint32 interval)
 }
 
 void
-SimulatedBlock::progError(int line, int err_code, const char* extra) const {
+SimulatedBlock::progError(int line, int err_code, const char* extra,
+                          const char* check) const {
   jamNoBlock();
 
   const char *aBlockName = getBlockName(number(), "VM Kernel");
@@ -1874,10 +2033,17 @@ SimulatedBlock::progError(int line, int err_code, const char* extra) const {
     (m_ctx.m_config.stopOnError()<<1) + 
     (m_ctx.m_config.getInitialStart()<<2);
 
-  /* Add line number to block name */
-  char buf[100];
-  BaseString::snprintf(&buf[0], 100, "%s (Line: %d) 0x%.8x", 
-	   aBlockName, line, magicStatus);
+  /* Add line number and failed expression to block name */
+  char buf[500];
+  /*Add the check to the log message only if default value of ""
+    is over-written. */
+  if(native_strcasecmp(check,"") == 0)
+    BaseString::snprintf(&buf[0], 100, "%s (Line: %d) 0x%.8x",
+        aBlockName, line, magicStatus);
+  else
+    BaseString::snprintf(&buf[0], sizeof(buf),
+        "%s (Line: %d) 0x%.8x Check %.400s failed", aBlockName,
+        line, magicStatus, check);
 
   ErrorReporter::handleError(err_code, extra, buf);
 
@@ -2603,7 +2769,7 @@ SimulatedBlock::doCleanupFragInfo(Uint32 failedNodeId,
                                   Uint32& elementsCleaned)
 {
   jam();
-  DLHashTable<FragmentInfo>::Iterator iter;
+  FragmentInfo_hash::Iterator iter;
   
   c_fragmentInfoHash.next(cursor, iter);
 
@@ -2663,11 +2829,11 @@ SimulatedBlock::doCleanupFragSend(Uint32 failedNodeId,
   const Uint32 NumSendLists = 2;
   ndbrequire(cursor < NumSendLists);
 
-  DLList<FragmentSendInfo>* fragSendLists[ NumSendLists ] =
+  FragmentSendInfo_list* fragSendLists[ NumSendLists ] =
     { &c_segmentedFragmentSendList,
       &c_linearFragmentSendList };
   
-  DLList<FragmentSendInfo>* list = fragSendLists[ cursor ];
+  FragmentSendInfo_list* list = fragSendLists[ cursor ];
   
   list->first(fragPtr);  
   for(; !fragPtr.isNull();){
@@ -2806,7 +2972,7 @@ Uint32
 SimulatedBlock::debugPrintFragmentCounts()
 {
   const char* blockName = getBlockName(theNumber);
-  DLHashTable<FragmentInfo>::Iterator iter;
+  FragmentInfo_hash::Iterator iter;
   Uint32 fragmentInfoCount = 0;
   c_fragmentInfoHash.first(iter);
   
@@ -4617,6 +4783,26 @@ SimulatedBlock::releaseSegmentList(Uint32 firstSegmentIVal)
 {
   ::releaseSection(SB_SP_ARG firstSegmentIVal);
 }
+
+#ifdef NDB_DEBUG_RES_OWNERSHIP
+void
+SimulatedBlock::lock_global_ssp()
+{
+#ifdef NDBD_MULTITHREADED
+  f_section_lock.lock();
+#endif
+}
+
+void
+SimulatedBlock::unlock_global_ssp()
+{
+#ifdef NDBD_MULTITHREADED
+  f_section_lock.unlock();
+#endif
+}
+
+#endif
+
 
 
 /** 

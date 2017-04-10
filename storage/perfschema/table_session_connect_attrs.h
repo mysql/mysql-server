@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -16,9 +16,16 @@
 #ifndef TABLE_SESSION_CONNECT_ATTRS_H
 #define TABLE_SESSION_CONNECT_ATTRS_H
 
-#include "table_session_connect.h"
 /**
-  \addtogroup Performance_schema_tables
+  @file storage/perfschema/table_session_connect_attrs.h
+  TABLE SESSION_CONNECT_ATTRS.
+*/
+
+#include "table_session_connect.h"
+#include "thr_lock.h"
+
+/**
+  @addtogroup performance_schema_tables
   @{
 */
 
@@ -36,7 +43,8 @@ protected:
 
 public:
   ~table_session_connect_attrs()
-  {}
+  {
+  }
 
 private:
   /** Table share lock. */

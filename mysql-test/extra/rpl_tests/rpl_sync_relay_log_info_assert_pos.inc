@@ -69,14 +69,14 @@ if ( $_rrli_expected == "N" )
 # If it was expected to be updated
 if ( $_rrli_expected == "U" )
 {
-  --let $assert_text= ($_rrli_subheader) SQL thread synced master binlog file
-  --let $assert_cond= [ SELECT Master_log_name = "$master_file" FROM mysql.slave_relay_log_info WHERE Channel_name = "" ]
-  --source include/assert.inc
+  --echo Wait until ($_rrli_subheader) SQL thread synced master binlog file
+  --let $wait_condition= SELECT Master_log_name = "$master_file" FROM mysql.slave_relay_log_info WHERE Channel_name = ""
+  --source include/wait_condition.inc
   --let $last_synced_master_file= $master_file
 
-  --let $assert_text= ($_rrli_subheader) SQL thread synced master binlog position
-  --let $assert_cond= [ SELECT Master_log_pos = "$master_pos" FROM mysql.slave_relay_log_info WHERE Channel_name = "" ]
-  --source include/assert.inc
+  --echo Wait until ($_rrli_subheader) SQL thread synced master binlog position
+  --let $wait_condition= SELECT Master_log_pos = "$master_pos" FROM mysql.slave_relay_log_info WHERE Channel_name = ""
+  --source include/wait_condition.inc
   --let $last_synced_master_pos= $master_pos
 }
 

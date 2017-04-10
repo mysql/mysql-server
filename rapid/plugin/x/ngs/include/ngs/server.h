@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -21,23 +21,21 @@
 #define _NGS_SERVER_H_
 
 #include <stdint.h>
-
 #include <list>
-#include <vector>
 #include <memory>
+#include <vector>
 
-#include "ngs_common/chrono.h"
-#include "my_global.h"
-
-#include "ngs_common/connection_vio.h"
-#include "ngs/interface/server_interface.h"
-#include "ngs/interface/server_delegate.h"
-#include "ngs/protocol/protocol_config.h"
-#include "ngs/protocol_encoder.h"
-#include "ngs/protocol_authentication.h"
-#include "ngs/client_list.h"
-#include "ngs/thread.h"
+#include "my_inttypes.h"
 #include "ngs_common/bind.h"
+#include "ngs_common/chrono.h"
+#include "ngs_common/connection_vio.h"
+#include "ngs/client_list.h"
+#include "ngs/interface/authentication_interface.h"
+#include "ngs/interface/server_delegate.h"
+#include "ngs/interface/server_interface.h"
+#include "ngs/protocol_encoder.h"
+#include "ngs/protocol/protocol_config.h"
+#include "ngs/thread.h"
 #include "socket_events.h"
 
 
@@ -88,10 +86,10 @@ public:
 
   void on_client_closed(const Client_interface &client);
 
-  Authentication_handler_ptr get_auth_handler(const std::string &name, Session_interface *session);
+  Authentication_interface_ptr get_auth_handler(const std::string &name, Session_interface *session);
   void get_authentication_mechanisms(std::vector<std::string> &auth_mech, Client_interface &client);
   void add_authentication_mechanism(const std::string &name,
-                                    Authentication_handler::create initiator,
+                                    Authentication_interface::Create initiator,
                                     const bool allowed_only_with_secure_connection);
 
   void add_timer(const std::size_t delay_ms, ngs::function<bool ()> callback);
@@ -104,7 +102,6 @@ private:
   void wait_for_clients_closure();
   void go_through_all_clients(ngs::function<void (Client_ptr)> callback);
   bool timeout_for_clients_validation();
-  void validate_client_state(chrono::time_point &oldest_object_time_of_life, const chrono::time_point& time_of_release, Client_ptr);
   void wait_for_next_client();
 
   // accept one connection, create a connection object for the client and tell it to
@@ -140,7 +137,7 @@ private:
     const bool should_be_tls_active;
   };
 
-  typedef std::map<Authentication_key, Authentication_handler::create> Auth_handler_map;
+  typedef std::map<Authentication_key, Authentication_interface::Create> Auth_handler_map;
 
   bool m_timer_running;
   bool m_skip_name_resolve;

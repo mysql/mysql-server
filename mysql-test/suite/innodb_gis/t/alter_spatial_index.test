@@ -1,3 +1,13 @@
+########################################
+##### WL#7554 Force schema `test` to character set latin1
+##### This test should be migrated to utf8mb4
+--disable_query_log
+let $testdbcs91=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
+alter schema default character set latin1;
+use test;
+--enable_query_log
+########################################
+
 # ******************************************************************
 # Test Alter table add spatial idex asc/desc comments
 # Test error Alter table modify column with No not null option
@@ -17,8 +27,6 @@
 
 CALL mtr.add_suppression("but MySQL is asking statistics for 2 columns. Have you mixed");
 
---source include/have_innodb.inc
---source include/have_geometry.inc
 
 let MYSQLD_DATADIR= `select @@datadir`;
 
@@ -86,13 +94,19 @@ ST_GeomFromText('POLYGON((5010 5010,5020 5020,5030 5030,5040 5030,5020 5010,5010
 ST_GeomFromText('POLYGON((5010 5010,5020 5020,5030 5030,5040 5030,5020 5010,5010 5010))'));
 
 
-ALTER TABLE tab ADD SPATIAL INDEX idx2(c2 ASC);
+ALTER TABLE tab ADD SPATIAL INDEX idx2(c2);
 
+--error ER_WRONG_USAGE
 ALTER TABLE tab ADD SPATIAL KEY idx3(c3 DESC);
 
-ALTER TABLE tab ADD SPATIAL INDEX idx4(c4 ASC) COMMENT 'testing spatial index on Polygon';
+--error ER_WRONG_USAGE
+ALTER TABLE tab ADD SPATIAL KEY idx3(c3 ASC);
 
-ALTER TABLE tab ADD SPATIAL KEY idx5(c5 ASC) COMMENT 'testing spatial index on Geometry';
+ALTER TABLE tab ADD SPATIAL KEY idx3(c3);
+
+ALTER TABLE tab ADD SPATIAL INDEX idx4(c4) COMMENT 'testing spatial index on Polygon';
+
+ALTER TABLE tab ADD SPATIAL KEY idx5(c5) COMMENT 'testing spatial index on Geometry';
 
 ALTER TABLE tab ADD INDEX idx6(c4(10)) USING BTREE;
 
@@ -164,10 +178,10 @@ ALTER TABLE tab CHANGE COLUMN c4 c44 POLYGON;
 ALTER TABLE tab add SPATIAL INDEX idx1(c1);
 
 --error ER_PARSE_ERROR
-ALTER TABLE tab ADD SPATIAL INDEX idx6(c2 ASC) USING BTREE;
+ALTER TABLE tab ADD SPATIAL INDEX idx6(c2) USING BTREE;
 
 --error ER_PARSE_ERROR
-ALTER TABLE tab ADD SPATIAL INDEX idx6(c2 ASC) USING HASH;
+ALTER TABLE tab ADD SPATIAL INDEX idx6(c2) USING HASH;
 
 --error ER_INVALID_USE_OF_NULL
 ALTER TABLE tab CHANGE c2 c2 MULTIPOINT NOT NULL FIRST, ALGORITHM=COPY;
@@ -343,7 +357,7 @@ DELETE FROM tab;
 
 ALTER TABLE tab ADD PRIMARY KEY(c2);
 
-CREATE SPATIAL INDEX idx2 ON tab(c2 ASC);
+CREATE SPATIAL INDEX idx2 ON tab(c2);
 
 ALTER TABLE tab ADD CONSTRAINT const_1 UNIQUE(c2);
 
@@ -444,13 +458,13 @@ ST_GeomFromText('POLYGON((5010 5010,5020 5020,5030 5030,5040 5030,5020 5010,5010
 
 ANALYZE TABLE tab;
 
-ALTER TABLE tab ADD SPATIAL INDEX idx2(c2 ASC);
+ALTER TABLE tab ADD SPATIAL INDEX idx2(c2);
 
-ALTER TABLE tab ADD SPATIAL KEY idx3(c3 DESC);
+ALTER TABLE tab ADD SPATIAL KEY idx3(c3);
 
-ALTER TABLE tab ADD SPATIAL INDEX idx4(c4 ASC) COMMENT 'testing spatial index on Polygon';
+ALTER TABLE tab ADD SPATIAL INDEX idx4(c4) COMMENT 'testing spatial index on Polygon';
 
-ALTER TABLE tab ADD SPATIAL KEY idx5(c5 ASC) COMMENT 'testing spatial index on Geometry';
+ALTER TABLE tab ADD SPATIAL KEY idx5(c5) COMMENT 'testing spatial index on Geometry';
 
 ALTER TABLE tab ADD INDEX idx6(c4(10)) USING BTREE;
 
@@ -612,9 +626,12 @@ CREATE TABLE parent (id POINT, PRIMARY KEY(id)) ENGINE=InnoDB;
 
 CREATE TABLE child (id GEOMETRY NOT NULL, parent_id POINT NOT NULL) ENGINE=InnoDB;
 
-ALTER TABLE parent ADD SPATIAL INDEX idx1(id ASC);
+ALTER TABLE parent ADD SPATIAL INDEX idx1(id);
 
-ALTER TABLE child ADD SPATIAL INDEX idx2(parent_id ASC);
+ALTER TABLE child ADD SPATIAL INDEX idx2(parent_id);
+
+ANALYZE TABLE parent;
+ANALYZE TABLE child;
 
 SHOW CREATE TABLE parent;
 
@@ -639,9 +656,12 @@ CREATE TABLE parent (id GEOMETRY, PRIMARY KEY(id(10))) ENGINE=InnoDB;
 
 CREATE TABLE child (id GEOMETRY NOT NULL, parent_id GEOMETRY NOT NULL) ENGINE=InnoDB;
 
-ALTER TABLE parent ADD SPATIAL INDEX idx1(id ASC) ;
+ALTER TABLE parent ADD SPATIAL INDEX idx1(id) ;
 
-ALTER TABLE child ADD SPATIAL INDEX idx2(parent_id ASC);
+ALTER TABLE child ADD SPATIAL INDEX idx2(parent_id);
+
+ANALYZE TABLE parent;
+ANALYZE TABLE child;
 
 SHOW CREATE TABLE parent;
 
@@ -740,3 +760,10 @@ ALTER TABLE t1 ADD SPATIAL INDEX(p);
 --error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
 ALTER TABLE t1 FORCE, LOCK=NONE;
 DROP TABLE t1;
+
+########################################
+##### WL#7554 set schema `test` back to what it was
+--disable_query_log
+--eval alter schema test default character set $testdbcs91;
+--enable_query_log
+########################################

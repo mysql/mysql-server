@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -193,6 +193,7 @@ int channel_stop(const char* channel,
 /**
   Purges the channel logs
 
+  @param channel    The channel name
   @param reset_all  If true, the method will purge logs and remove the channel
                     If false, only the channel information will be reset.
 
@@ -259,8 +260,9 @@ int channel_add_executed_gtids_to_received_gtids(const char* channel);
 /**
   Queues a event packet into the current active channel.
 
+  @param channel     the channel name
   @param buf         the event buffer
-  @param event_len  the event buffer length
+  @param len         the event buffer length
 
   @return the operation status
     @retval 0      OK
@@ -275,6 +277,7 @@ int channel_queue_packet(const char* channel, const char* buf, unsigned long len
         If it is still receiving, then the method should wait for execution of
         transactions that were present when this method was invoked.
 
+  @param channel  the channel name
   @param timeout  the time (seconds) after which the method returns if the
                   above condition was not satisfied
 
@@ -284,7 +287,7 @@ int channel_queue_packet(const char* channel, const char* buf, unsigned long len
     @retval REPLICATION_THREAD_WAIT_NO_INFO_ERROR     An error occurred
 */
 int channel_wait_until_apply_queue_applied(const char* channel,
-                                           long long timeout);
+                                           double timeout);
 
 /**
   Checks if the applier, and its workers when parallel applier is

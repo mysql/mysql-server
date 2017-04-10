@@ -4582,18 +4582,18 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t2` where (`test`.`t2`.`b` > 5)
-explain extended select * from t2 where b > 5 and b < 8;
+explain extended select * from t2 where b > 5 and b < 9;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	p0,p1,p2,p3,p4	ALL	b	NULL	NULL	NULL	#	21.98	Using where
+1	SIMPLE	t2	p0,p1,p2,p3,p4	ALL	b	NULL	NULL	NULL	#	32.97	Using where
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t2` where ((`test`.`t2`.`b` > 5) and (`test`.`t2`.`b` < 8))
-explain partitions select * from t2 where b > 5 and b < 8;
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t2` where ((`test`.`t2`.`b` > 5) and (`test`.`t2`.`b` < 9))
+explain partitions select * from t2 where b > 5 and b < 9;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	p0,p1,p2,p3,p4	ALL	b	NULL	NULL	NULL	#	21.98	Using where
+1	SIMPLE	t2	p0,p1,p2,p3,p4	ALL	b	NULL	NULL	NULL	#	32.97	Using where
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t2` where ((`test`.`t2`.`b` > 5) and (`test`.`t2`.`b` < 8))
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t2` where ((`test`.`t2`.`b` > 5) and (`test`.`t2`.`b` < 9))
 explain extended select * from t2 where b > 5 and b < 7;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	p0,p1,p2,p3,p4	range	b	b	5	NULL	#	100.00	Using index condition
@@ -4636,19 +4636,19 @@ Handler_read_rnd_next	0
 show status like 'Handler_read_key';
 Variable_name	Value
 Handler_read_key	5
-explain partitions update t2 set a = 111 where b in (5,6);
+explain partitions update t2 set a = 111 where b in (5,6,7);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t2	p0,p1,p2,p3,p4	ALL	b	NULL	NULL	NULL	#	100.00	Using where; Using temporary
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 flush status;
-update t2 set a = 111 where b in (5,6);
+update t2 set a = 111 where b in (5,6,7);
 show status like 'Handler_read_rnd_next';
 Variable_name	Value
 Handler_read_rnd_next	910
 show status like 'Handler_read_key';
 Variable_name	Value
-Handler_read_key	205
+Handler_read_key	305
 explain partitions update t2 set a = 222 where b = 7;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t2	p0,p1,p2,p3,p4	range	b	b	5	const	#	100.00	Using where; Using temporary
@@ -4854,6 +4854,9 @@ create table t1 (s1 varchar(15)) partition by key (s1);
 select * from t1 where s1 = 0 or s1 is null;
 s1
 insert into t1 values ('aa'),('bb'),('0');
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 explain partitions select * from t1 where s1 = 0 or s1 is null;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	p0	ALL	NULL	NULL	NULL	NULL	#	55.56	Using where

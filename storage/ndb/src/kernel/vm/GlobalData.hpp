@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -40,6 +40,9 @@ enum  restartStates {initial_state,
                      perform_start, 
                      system_started, 
                      perform_stop};
+
+typedef ArrayPool<GlobalPage> GlobalPage_pool;
+typedef SafeArrayPool<GlobalPage> GlobalPage_safepool;
 
 struct GlobalData {
   Uint32     m_hb_count[MAX_NODES];   // hb counters
@@ -82,6 +85,11 @@ struct GlobalData {
   Uint32     ndbMtReceiveThreads;
   Uint32     ndbLogParts;
   
+  Uint64     theMicrosSleep;
+  Uint64     theBufferFullMicrosSleep;
+  Uint64     theMicrosSend;
+  Uint64     theMicrosSpin;
+
   GlobalData(){ 
     theSignalId = 0; 
     theStartLevel = NodeState::SL_NOTHING;
@@ -94,6 +102,10 @@ struct GlobalData {
     ndbMtSendThreads = 0;
     ndbMtReceiveThreads = 0;
     ndbLogParts = 0;
+    theMicrosSleep = 0;
+    theBufferFullMicrosSleep = 0;
+    theMicrosSend = 0;
+    theMicrosSpin = 0;
     bzero(m_hb_count, sizeof(m_hb_count));
 #ifdef GCP_TIMER_HACK
     gcp_timer_limit = 0;
@@ -127,8 +139,8 @@ private:
   Uint32     watchDog;
   SimulatedBlock* blockTable[NO_OF_BLOCKS]; // Owned by Dispatcher::
 public:
-  SafeArrayPool<GlobalPage> m_global_page_pool;
-  ArrayPool<GlobalPage> m_shared_page_pool;
+  GlobalPage_safepool m_global_page_pool;
+  GlobalPage_pool m_shared_page_pool;
 
 #ifdef GCP_TIMER_HACK
   // timings are local to the node

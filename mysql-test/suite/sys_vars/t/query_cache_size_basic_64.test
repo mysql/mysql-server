@@ -6,4 +6,3 @@
 
 --source include/have_64bit.inc
 --source suite/sys_vars/inc/query_cache_size_basic.inc
-

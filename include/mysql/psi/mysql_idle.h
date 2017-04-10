@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -17,19 +17,21 @@
 #define MYSQL_IDLE_H
 
 /**
-  @file mysql/psi/mysql_idle.h
+  @file include/mysql/psi/mysql_idle.h
   Instrumentation helpers for idle waits.
 */
 
-#include "mysql/psi/psi.h"
+#include "mysql/psi/psi_idle.h"
+
+#include "pfs_idle_provider.h"
 
 #ifndef PSI_IDLE_CALL
-#define PSI_IDLE_CALL(M) PSI_DYNAMIC_CALL(M)
+#define PSI_IDLE_CALL(M) psi_idle_service->M
 #endif
 
 /**
-  @defgroup Idle_instrumentation Idle Instrumentation
-  @ingroup Instrumentation_interface
+  @defgroup psi_api_idle Idle Instrumentation (API)
+  @ingroup psi_api
   @{
 */
 
@@ -42,11 +44,13 @@
   @sa MYSQL_END_IDLE_WAIT.
 */
 #ifdef HAVE_PSI_IDLE_INTERFACE
-  #define MYSQL_START_IDLE_WAIT(LOCKER, STATE) \
-    LOCKER= inline_mysql_start_idle_wait(STATE, __FILE__, __LINE__)
+#define MYSQL_START_IDLE_WAIT(LOCKER, STATE) \
+  LOCKER = inline_mysql_start_idle_wait(STATE, __FILE__, __LINE__)
 #else
-  #define MYSQL_START_IDLE_WAIT(LOCKER, STATE) \
-    do {} while (0)
+#define MYSQL_START_IDLE_WAIT(LOCKER, STATE) \
+  do                                         \
+  {                                          \
+  } while (0)
 #endif
 
 /**
@@ -57,11 +61,12 @@
   @sa MYSQL_START_IDLE_WAIT.
 */
 #ifdef HAVE_PSI_IDLE_INTERFACE
-  #define MYSQL_END_IDLE_WAIT(LOCKER) \
-    inline_mysql_end_idle_wait(LOCKER)
+#define MYSQL_END_IDLE_WAIT(LOCKER) inline_mysql_end_idle_wait(LOCKER)
 #else
-  #define MYSQL_END_IDLE_WAIT(LOCKER) \
-    do {} while (0)
+#define MYSQL_END_IDLE_WAIT(LOCKER) \
+  do                                \
+  {                                 \
+  } while (0)
 #endif
 
 #ifdef HAVE_PSI_IDLE_INTERFACE
@@ -71,10 +76,11 @@
 */
 static inline struct PSI_idle_locker *
 inline_mysql_start_idle_wait(PSI_idle_locker_state *state,
-                             const char *src_file, int src_line)
+                             const char *src_file,
+                             int src_line)
 {
   struct PSI_idle_locker *locker;
-  locker= PSI_IDLE_CALL(start_idle_wait)(state, src_file, src_line);
+  locker = PSI_IDLE_CALL(start_idle_wait)(state, src_file, src_line);
   return locker;
 }
 
@@ -86,11 +92,12 @@ static inline void
 inline_mysql_end_idle_wait(struct PSI_idle_locker *locker)
 {
   if (likely(locker != NULL))
+  {
     PSI_IDLE_CALL(end_idle_wait)(locker);
+  }
 }
 #endif
 
-/** @} (end of group Idle_instrumentation) */
+/** @} (end of group psi_api_idle) */
 
 #endif
-

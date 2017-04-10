@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License as
@@ -14,6 +14,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
    02110-1301 USA */
+
+#include <stddef.h>
 
 #include "control_events.h"
 
@@ -48,58 +50,83 @@ const int Uuid::hex_to_byte[]=
   -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
 };
 
-int Uuid::parse(const char *s)
+
+int Uuid::parse(const char *string, size_t len)
 {
-  unsigned char *u= bytes;
-  unsigned char *ss= (unsigned char *)s;
-  for (int i= 0; i < NUMBER_OF_SECTIONS; i++)
+  return parse(string, len, bytes);
+}
+
+
+int Uuid::parse(const char *in_string, size_t len,
+                const unsigned char *out_str)
+{
+  const unsigned char **p_out_str= out_str ? &out_str : NULL;
+
+  switch (len)
   {
-    if (i > 0)
+  // UUID without dashes. ex 12345678123456781234567812345678
+  case TEXT_LENGTH - 4:
+    if(read_section((TEXT_LENGTH - 4) / 2, &in_string, p_out_str))
+      return 1;
+    break;
+  // UUID with braces ex {12345678-1234-5678-1234-567812345678}
+  case TEXT_LENGTH + 2:
+    if (*in_string != '{' || in_string[TEXT_LENGTH + 1] != '}')
+      return 1;
+    in_string++;
+    // intentionally fall through
+  // standard UUID ex 12345678-1234-5678-1234-567812345678
+  case TEXT_LENGTH:
+    for (int i= 0; i < NUMBER_OF_SECTIONS - 1; i++)
     {
-      if (*ss != '-')
+      if (read_section(bytes_per_section[i], &in_string, p_out_str))
         return 1;
-      ss++;
+      if (*in_string == '-')
+        in_string++;
+      else
+        return 1;
     }
-    for (int j= 0; j < bytes_per_section[i]; j++)
-    {
-      int hi= hex_to_byte[*ss];
-      if (hi == -1)
-        return 1;
-      ss++;
-      int lo= hex_to_byte[*ss];
-      if (lo == -1)
-        return 1;
-      ss++;
-      *u= (hi << 4) + lo;
-      u++;
-    }
+    if (read_section(bytes_per_section[NUMBER_OF_SECTIONS - 1], &in_string,
+                     p_out_str))
+      return 1;
+    break;
+  default:
+    return 1;
   }
   return 0;
 }
 
-bool Uuid::is_valid(const char *s)
+bool Uuid::read_section(int section_len, const char **section_str,
+                        const unsigned char **out_binary_str)
 {
-  const unsigned char *ss= (const unsigned char *)s;
-  for (int i= 0; i < NUMBER_OF_SECTIONS; i++)
+  const unsigned char **section_string=
+    reinterpret_cast<const unsigned char **> (section_str);
+  for (int j= 0; j < section_len; j++)
   {
-    if (i > 0)
+    int hi= hex_to_byte[**section_string];
+    if (hi == -1)
+      return true;
+    (*section_string)++;
+    int lo= hex_to_byte[**section_string];
+    if (lo == -1)
+      return true;
+    (*section_string)++;
+    if (out_binary_str)
     {
-      if (*ss != '-')
-        return (false);
-      ss++;
-    }
-    for (int j= 0; j < bytes_per_section[i]; j++)
-    {
-      if (hex_to_byte[*ss] == -1)
-        return (false);
-      ss++;
-      if (hex_to_byte[*ss] == -1)
-        return (false);
-      ss++;
+      unsigned char *u= const_cast<unsigned char *> (*out_binary_str);
+      *u= ((hi << 4)  + lo);
+      (*out_binary_str)++;
     }
   }
-  return (true);
+  return false;
 }
+
+bool Uuid::is_valid(const char *s, size_t len)
+{
+  return parse(s, len, NULL) == 0;
+}
+
+
 size_t Uuid::to_string(const unsigned char* bytes_arg, char *buf)
 {
   static const char byte_to_hex[]= "0123456789abcdef";

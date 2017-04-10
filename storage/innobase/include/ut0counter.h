@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2012, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2012, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -156,8 +156,8 @@ public:
 
 	/** Use this if you can use a unique identifier, saves a
 	call to get_rnd_index().
-	@param i index into a slot
-	@param n amount to increment */
+	@param	index	index into a slot
+	@param	n	amount to increment */
 	void add(size_t index, Type n) UNIV_NOTHROW {
 		size_t	i = m_policy.offset(index);
 
@@ -181,8 +181,8 @@ public:
 
 	/** Use this if you can use a unique identifier, saves a
 	call to get_rnd_index().
-	@param i index into a slot
-	@param n amount to decrement */
+	@param	index	index into a slot
+	@param	n	amount to decrement */
 	void sub(size_t index, Type n) UNIV_NOTHROW {
 		size_t	i = m_policy.offset(index);
 

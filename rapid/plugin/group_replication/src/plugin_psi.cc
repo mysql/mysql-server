@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,6 +15,8 @@
 
 
 #include "plugin_psi.h"
+
+#include <stddef.h>
 
 PSI_mutex_key  key_GR_LOCK_applier_module_run,
                key_GR_LOCK_applier_module_suspend,
@@ -70,29 +72,29 @@ PSI_rwlock_key key_GR_RWLOCK_cert_stable_gtid_set,
 #ifdef HAVE_PSI_INTERFACE
 static PSI_mutex_info all_group_replication_psi_mutex_keys[]=
 {
-  {&key_GR_LOCK_applier_module_run, "LOCK_applier_module_run", PSI_FLAG_GLOBAL},
-  {&key_GR_LOCK_applier_module_suspend, "LOCK_applier_module_suspend", PSI_FLAG_GLOBAL},
-  {&key_GR_LOCK_cert_broadcast_run, "LOCK_certifier_broadcast_run", PSI_FLAG_GLOBAL},
-  {&key_GR_LOCK_cert_broadcast_dispatcher_run, "LOCK_certifier_broadcast_dispatcher_run", PSI_FLAG_GLOBAL},
-  {&key_GR_LOCK_certification_info, "LOCK_certification_info", PSI_FLAG_GLOBAL},
-  {&key_GR_LOCK_cert_members, "LOCK_certification_members", PSI_FLAG_GLOBAL},
-  {&key_GR_LOCK_channel_observation_list, "LOCK_channel_observation_list", PSI_FLAG_GLOBAL},
-  {&key_GR_LOCK_delayed_init_run, "LOCK_delayed_init_run", PSI_FLAG_GLOBAL},
-  {&key_GR_LOCK_delayed_init_server_ready, "LOCK_delayed_init_server_ready", PSI_FLAG_GLOBAL},
-  {&key_GR_LOCK_view_modification_wait, "LOCK_view_modification_wait", PSI_FLAG_GLOBAL},
-  {&key_GR_LOCK_group_info_manager, "LOCK_group_info_manager", PSI_FLAG_GLOBAL},
-  {&key_GR_LOCK_pipeline_continuation, "LOCK_pipeline_continuation", PSI_FLAG_GLOBAL},
-  {&key_GR_LOCK_synchronized_queue, "LOCK_synchronized_queue", PSI_FLAG_GLOBAL},
-  {&key_GR_LOCK_count_down_latch, "LOCK_count_down_latch", PSI_FLAG_GLOBAL},
-  {&key_GR_LOCK_wait_ticket, "LOCK_wait_ticket", PSI_FLAG_GLOBAL},
-  {&key_GR_LOCK_read_mode, "LOCK_read_mode", PSI_FLAG_GLOBAL},
-  {&key_GR_LOCK_recovery_module_run, "LOCK_recovery_module_run", PSI_FLAG_GLOBAL},
-  {&key_GR_LOCK_recovery, "LOCK_recovery", PSI_FLAG_GLOBAL},
-  {&key_GR_LOCK_recovery_donor_selection, "LOCK_recovery_donor_selection", PSI_FLAG_GLOBAL},
-  {&key_GR_LOCK_plugin_running, "LOCK_plugin_running", PSI_FLAG_GLOBAL},
-  {&key_GR_LOCK_force_members_running, "LOCK_force_members_running", PSI_FLAG_GLOBAL},
-  {&key_GR_LOCK_write_lock_protection, "LOCK_write_lock_protection", PSI_FLAG_GLOBAL},
-  {&key_GR_LOCK_pipeline_stats_flow_control, "LOCK_pipeline_stats_flow_control", PSI_FLAG_GLOBAL}
+  {&key_GR_LOCK_applier_module_run, "LOCK_applier_module_run", PSI_FLAG_GLOBAL, 0},
+  {&key_GR_LOCK_applier_module_suspend, "LOCK_applier_module_suspend", PSI_FLAG_GLOBAL, 0},
+  {&key_GR_LOCK_cert_broadcast_run, "LOCK_certifier_broadcast_run", PSI_FLAG_GLOBAL, 0},
+  {&key_GR_LOCK_cert_broadcast_dispatcher_run, "LOCK_certifier_broadcast_dispatcher_run", PSI_FLAG_GLOBAL, 0},
+  {&key_GR_LOCK_certification_info, "LOCK_certification_info", PSI_FLAG_GLOBAL, 0},
+  {&key_GR_LOCK_cert_members, "LOCK_certification_members", PSI_FLAG_GLOBAL, 0},
+  {&key_GR_LOCK_channel_observation_list, "LOCK_channel_observation_list", PSI_FLAG_GLOBAL, 0},
+  {&key_GR_LOCK_delayed_init_run, "LOCK_delayed_init_run", PSI_FLAG_GLOBAL, 0},
+  {&key_GR_LOCK_delayed_init_server_ready, "LOCK_delayed_init_server_ready", PSI_FLAG_GLOBAL, 0},
+  {&key_GR_LOCK_view_modification_wait, "LOCK_view_modification_wait", PSI_FLAG_GLOBAL, 0},
+  {&key_GR_LOCK_group_info_manager, "LOCK_group_info_manager", PSI_FLAG_GLOBAL, 0},
+  {&key_GR_LOCK_pipeline_continuation, "LOCK_pipeline_continuation", PSI_FLAG_GLOBAL, 0},
+  {&key_GR_LOCK_synchronized_queue, "LOCK_synchronized_queue", PSI_FLAG_GLOBAL, 0},
+  {&key_GR_LOCK_count_down_latch, "LOCK_count_down_latch", PSI_FLAG_GLOBAL, 0},
+  {&key_GR_LOCK_wait_ticket, "LOCK_wait_ticket", PSI_FLAG_GLOBAL,  0},
+  {&key_GR_LOCK_read_mode, "LOCK_read_mode", PSI_FLAG_GLOBAL, 0},
+  {&key_GR_LOCK_recovery_module_run, "LOCK_recovery_module_run", PSI_FLAG_GLOBAL, 0},
+  {&key_GR_LOCK_recovery, "LOCK_recovery", PSI_FLAG_GLOBAL, 0},
+  {&key_GR_LOCK_recovery_donor_selection, "LOCK_recovery_donor_selection", PSI_FLAG_GLOBAL, 0},
+  {&key_GR_LOCK_plugin_running, "LOCK_plugin_running", PSI_FLAG_GLOBAL, 0},
+  {&key_GR_LOCK_force_members_running, "LOCK_force_members_running", PSI_FLAG_GLOBAL, 0},
+  {&key_GR_LOCK_write_lock_protection, "LOCK_write_lock_protection", PSI_FLAG_GLOBAL, 0},
+  {&key_GR_LOCK_pipeline_stats_flow_control, "LOCK_pipeline_stats_flow_control", PSI_FLAG_GLOBAL, 0}
 };
 
 static PSI_cond_info all_group_replication_psi_condition_keys[]=
@@ -132,40 +134,40 @@ static PSI_rwlock_info all_group_replication_psi_rwlock_keys[]=
 };
 
 void register_group_replication_mutex_psi_keys(PSI_mutex_info mutexes[],
-                                               int mutex_count)
+                                               size_t mutex_count)
 {
   const char* category= "group_rpl";
   if (mutexes != NULL)
   {
-    mysql_mutex_register(category, mutexes, mutex_count);
+    mysql_mutex_register(category, mutexes, static_cast<int>(mutex_count));
   }
 }
 
 void register_group_replication_cond_psi_keys(PSI_cond_info conds[],
-                                               int cond_count)
+                                               size_t cond_count)
 {
   const char* category= "group_rpl";
   if (conds != NULL)
   {
-    mysql_cond_register(category, conds, cond_count);
+    mysql_cond_register(category, conds, static_cast<int>(cond_count));
   }
 }
 
 void register_group_replication_thread_psi_keys(PSI_thread_info threads[],
-                                                int thread_count)
+                                                size_t thread_count)
 {
   const char* category= "group_rpl";
   if (threads != NULL)
   {
-    mysql_thread_register(category, threads, thread_count);
+    mysql_thread_register(category, threads, static_cast<int>(thread_count));
   }
 }
 
 void register_group_replication_rwlock_psi_keys(PSI_rwlock_info *keys,
-                                                int count)
+                                                size_t count)
 {
   const char *category= "group_rpl";
-  mysql_rwlock_register(category, keys, count);
+  mysql_rwlock_register(category, keys, static_cast<int>(count));
 }
 
 void register_all_group_replication_psi_keys()

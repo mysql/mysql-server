@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,17 +13,17 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include <my_global.h>
 #if defined(HAVE_OPENSSL)
-#include <my_sys.h>
-#include <m_string.h>
 #include <m_ctype.h>
-#include "mysql.h"
-#include "errmsg.h"
+#include <m_string.h>
 #include <my_dir.h>
 #include <my_getopt.h>
+#include <my_sys.h>
 #include <signal.h>
 #include <violite.h>
+
+#include "errmsg.h"
+#include "mysql.h"
 
 const char *VER="0.2";
 
@@ -55,7 +55,7 @@ main(int argc, char**	argv)
   char*	ca_file = 0,	*ca_path = 0;
   char*	cipher=0;
   int	child_pid,sv[2];
-  my_bool unused;
+  bool unused;
   struct st_VioSSLFd* ssl_acceptor= 0;
   struct st_VioSSLFd* ssl_connector= 0;
   Vio* client_vio=0, *server_vio=0;

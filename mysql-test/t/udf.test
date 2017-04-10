@@ -1,8 +1,3 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 --source include/have_udf.inc
 --source include/not_embedded.inc
 #
@@ -364,6 +359,7 @@ drop function myfunc_int;
 eval CREATE FUNCTION metaphon RETURNS STRING SONAME "$UDF_EXAMPLE_LIB";
 create table t1 (a char);
 
+SET @save_query_cache_size = @@query_cache_size;
 set GLOBAL query_cache_size=1355776;
 reset query cache;
 
@@ -377,7 +373,7 @@ show status like "Qcache_queries_in_cache";
 
 drop table t1;
 drop function metaphon;
-set GLOBAL query_cache_size=default;
+set GLOBAL query_cache_size=@save_query_cache_size;
 
 #
 # Bug#28318  CREATE FUNCTION (UDF) requires a schema
@@ -635,3 +631,173 @@ SELECT a, my_median(b) from t1 GROUP BY a;
 
 DROP FUNCTION my_median;
 DROP TABLE t1;
+
+
+--echo #
+--echo # Using C++ 11 Standard Library with MySQL code
+--echo #
+
+--replace_result $UDF_EXAMPLE_LIB UDF_EXAMPLE_LIB
+eval CREATE FUNCTION my_cpp11_re_match
+RETURNS INTEGER SONAME "$UDF_EXAMPLE_LIB";
+
+SELECT my_cpp11_re_match('foo.*', 'foobar');
+CREATE TABLE t1(a VARCHAR(32), b VARCHAR(64));
+INSERT INTO t1 VALUES
+('.*middle.*', 'a value in the middle of a string'),
+('missing', 'some string value');
+# ('^prefix.*', 'prefix of longer string'),       Not supported with GCC 4.8
+# ('.*suffix$', 'string with suffix'),            Not supported with GCC 4.8
+SELECT a, b FROM t1 WHERE my_cpp11_re_match(a, b) > 0;
+
+DROP FUNCTION my_cpp11_re_match;
+DROP TABLE t1;
+
+--echo #
+--echo # WL8980 - Move udf metatable table from MyISAM to InnoDB.
+--echo #
+
+SET autocommit= 0;
+SET innodb_lock_wait_timeout= 1;
+
+# Create an auxiliary connection.
+--echo
+--echo # Connection: con1
+--connect (con1, localhost, root,,)
+let $con1_id= `SELECT CONNECTION_ID()`;
+
+# Test Plan:
+# A. Check that UDF statements are not vulnerable to the lock-wait-timeout.
+# B. Check the implicit  transactional nature of UDF DDL.
+# C. Check it's possible to change the UDF meta table storage engine via
+#    ALTER TABLE.
+
+--echo
+--echo #######################################################
+--echo # A.1. Checking lock-wait-timeout with CREATE USER
+--echo #######################################################
+--connection default
+# Start a transaction and insert a new row into mysql.func.
+START TRANSACTION;
+--replace_result $UDF_EXAMPLE_LIB UDF_EXAMPLE_LIB
+eval INSERT INTO mysql.func(name, ret, dl, type) VALUES ('metaphon', 0, '$UDF_EXAMPLE_LIB', 'function');
+
+--echo
+--echo # Connection: con1
+--connection con1
+# CREATE FUNCTION is expected to wait for the transaction in the other connection.
+# to finish.
+--replace_result $UDF_EXAMPLE_LIB UDF_EXAMPLE_LIB
+let $is_windows = `select convert(@@version_compile_os using latin1) IN ("Win32","Win64","Windows")`;
+if ($is_windows)
+{
+--replace_result udf_example.dll UDF_EXAMPLE_LIB
+--send CREATE FUNCTION metaphon RETURNS STRING SONAME "udf_example.dll";
+}
+
+if (!$is_windows)
+{
+--replace_result udf_example.so UDF_EXAMPLE_LIB
+--send CREATE FUNCTION metaphon RETURNS STRING SONAME "udf_example.so";
+}
+
+--echo
+--echo # Connection: default
+--connection default
+let $wait_condition=
+    SELECT count(*) = 1 FROM INFORMATION_SCHEMA.PROCESSLIST
+    WHERE state = "Waiting for table metadata lock" AND id = $con1_id;
+--source include/wait_condition.inc
+ROLLBACK;
+
+--echo
+--echo # Connection: con1
+--connection con1
+
+--reap # CREATE FUNCTION
+
+--echo
+--echo # Connection: default
+--connection default
+
+# Drop the created function (cleanup).
+DROP FUNCTION metaphon;
+
+--echo
+--echo ###############################################################
+--echo # A.2. Checking lock-wait-timeout with DROP FUNCTION.
+--echo ###############################################################
+--replace_result $UDF_EXAMPLE_LIB UDF_EXAMPLE_LIB
+eval CREATE FUNCTION metaphon RETURNS STRING SONAME "$UDF_EXAMPLE_LIB";
+
+START TRANSACTION;
+SELECT name FROM mysql.func WHERE name ='metaphon' FOR UPDATE;
+
+--echo
+--echo # Connection: con1
+--connection con1
+# DROP FUNCTION is expected to wait for the transaction in the other connection.
+--send DROP FUNCTION metaphon
+
+--echo
+--echo # Connection: default
+--connection default
+
+let $wait_condition=
+  SELECT count(*) = 1 FROM INFORMATION_SCHEMA.PROCESSLIST
+  WHERE state = "Waiting for table metadata lock" AND id = $con1_id;
+--source include/wait_condition.inc
+
+ROLLBACK;
+
+--echo
+--echo # Connection: con1
+--connection con1
+
+--reap # DROP USER
+
+--echo
+--echo # Connection: default
+--connection default
+# Check the DROP FUNCTION was successful.
+SELECT name FROM mysql.func WHERE name = 'metaphon';
+
+
+--echo
+--echo ##############################################################
+--echo # B.1 Check that CREATE FUNCTION does implicit commit.
+--echo ##############################################################
+
+--connection default
+CREATE TABLE t1(a INT);
+START TRANSACTION;
+INSERT INTO t1 VALUES(1),(2),(3);
+--replace_result $UDF_EXAMPLE_LIB UDF_EXAMPLE_LIB
+eval CREATE FUNCTION metaphon RETURNS STRING SONAME "$UDF_EXAMPLE_LIB";
+
+--echo
+--echo # Connection: con1
+--connection con1
+SELECT * FROM t1;
+--replace_result $UDF_EXAMPLE_LIB UDF_EXAMPLE_LIB
+SELECT * FROM mysql.func;
+--echo
+--echo # Connection: default
+--connection default
+ROLLBACK;
+--replace_result $UDF_EXAMPLE_LIB UDF_EXAMPLE_LIB
+SELECT * FROM mysql.func;
+DROP FUNCTION metaphon;
+DROP TABLE t1;
+--echo
+--echo ######################################################################
+--echo # C. Check that it is possible to ALTER storage engine for
+--echo #    mysql.func to MyISAM.
+--echo #    This is necessary for mysql_system_tables_fix_for_downgrade.sql
+--echo #    to work.
+--echo ######################################################################
+
+ALTER TABLE mysql.func ENGINE = MYISAM;
+SELECT * FROM mysql.func;
+ALTER TABLE mysql.func ENGINE = INNODB;
+disconnect con1;

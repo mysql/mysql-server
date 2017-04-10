@@ -81,7 +81,7 @@ btr_page_set_index_id(
 	page_t*		page,	/*!< in: page to be created */
 	page_zip_des_t*	page_zip,/*!< in: compressed page whose uncompressed
 				part will be updated, or NULL */
-	index_id_t	id,	/*!< in: index id */
+	space_index_t	id,	/*!< in: index id */
 	mtr_t*		mtr)	/*!< in: mtr */
 {
 	if (page_zip) {
@@ -99,7 +99,7 @@ btr_page_set_index_id(
 Gets the index id field of a page.
 @return index id */
 UNIV_INLINE
-index_id_t
+space_index_t
 btr_page_get_index_id(
 /*==================*/
 	const page_t*	page)	/*!< in: index page */
@@ -159,7 +159,7 @@ btr_page_set_level(
 Gets the next index page number.
 @return next page number */
 UNIV_INLINE
-ulint
+page_no_t
 btr_page_get_next(
 /*==============*/
 	const page_t*	page,	/*!< in: index page */
@@ -181,7 +181,7 @@ btr_page_set_next(
 	page_t*		page,	/*!< in: index page */
 	page_zip_des_t*	page_zip,/*!< in: compressed page whose uncompressed
 				part will be updated, or NULL */
-	ulint		next,	/*!< in: next page number */
+	page_no_t	next,	/*!< in: next page number */
 	mtr_t*		mtr)	/*!< in: mini-transaction handle */
 {
 	ut_ad(page != NULL);
@@ -199,7 +199,7 @@ btr_page_set_next(
 Gets the previous index page number.
 @return prev page number */
 UNIV_INLINE
-ulint
+page_no_t
 btr_page_get_prev(
 /*==============*/
 	const page_t*	page,	/*!< in: index page */
@@ -220,7 +220,7 @@ btr_page_set_prev(
 	page_t*		page,	/*!< in: index page */
 	page_zip_des_t*	page_zip,/*!< in: compressed page whose uncompressed
 				part will be updated, or NULL */
-	ulint		prev,	/*!< in: previous page number */
+	page_no_t	prev,	/*!< in: previous page number */
 	mtr_t*		mtr)	/*!< in: mini-transaction handle */
 {
 	ut_ad(page != NULL);
@@ -242,7 +242,7 @@ the child page number. In other words offsets must have been retrieved
 with rec_get_offsets(n_fields=ULINT_UNDEFINED).
 @return child node address */
 UNIV_INLINE
-ulint
+page_no_t
 btr_node_ptr_get_child_page_no(
 /*===========================*/
 	const rec_t*	rec,	/*!< in: node pointer record */
@@ -250,7 +250,7 @@ btr_node_ptr_get_child_page_no(
 {
 	const byte*	field;
 	ulint		len;
-	ulint		page_no;
+	page_no_t	page_no;
 
 	ut_ad(!rec_offs_comp(offsets) || rec_get_node_ptr_flag(rec));
 

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -51,7 +51,6 @@ row_vers_impl_x_locked(
 	const rec_t*	rec,	/*!< in: record in a secondary index */
 	dict_index_t*	index,	/*!< in: the secondary index */
 	const ulint*	offsets);/*!< in: rec_get_offsets(rec, index) */
-
 /*****************************************************************//**
 Finds out if we must preserve a delete marked earlier version of a clustered
 index record, because it is >= the purge view.
@@ -118,7 +117,7 @@ row_vers_build_for_consistent_read(
 				if the history is missing or the record
 				does not exist in the view, that is,
 				it was freshly inserted afterwards */
-	const dtuple_t**vrow);	/*!< out: reports virtual column info if any */
+	const dtuple_t**vrow);  /*!< out: reports virtual column info if any */
 
 /*****************************************************************//**
 Constructs the last committed version of a clustered index record,
@@ -146,9 +145,6 @@ row_vers_build_for_semi_consistent_read(
 	const dtuple_t**vrow);	/*!< out: holds virtual column info if any
 				is updated in the view */
 
-
-#ifndef UNIV_NONINL
 #include "row0vers.ic"
-#endif
 
 #endif

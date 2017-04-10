@@ -10,10 +10,7 @@
 # 2008-06-06 mleich Create this this variant for the embedded server.
 #
 
-if (`SELECT VERSION() NOT LIKE '%embedded%'`)
-{
-   --skip Test requires: embedded server
-}
+--source include/is_embedded.inc
 --source include/have_myisam.inc
 let $engine_type= MyISAM;
 SET @@session.sql_mode = 'NO_ENGINE_SUBSTITUTION';

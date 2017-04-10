@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -20,12 +20,14 @@
 
 #include "xpl_log.h"
 
+#include <stddef.h>
+
 namespace xpl
 {
 
 MYSQL_PLUGIN plugin_handle = NULL;
 
-void plugin_log_message(MYSQL_PLUGIN *p, const plugin_log_level level, const char *message)
+void plugin_log_message(MYSQL_PLUGIN *p, const plugin_log_level, const char *message)
 {
   my_plugin_log_message(p, MY_WARNING_LEVEL, "%s", message);
 }

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2016 Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,10 +15,12 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "client_priv.h"
-#include "abstract_program.h"
-#include "my_default.h"
+#include <stdlib.h>
 #include <algorithm>
+
+#include "abstract_program.h"
+#include "client_priv.h"
+#include "my_default.h"
 
 using namespace Mysql::Tools::Base;
 using std::string;
@@ -26,7 +28,7 @@ using std::vector;
 
 extern const char *load_default_groups[];
 
-my_bool Abstract_program::callback_option_parsed(
+bool Abstract_program::callback_option_parsed(
   int optid,
   const struct my_option *opt MY_ATTRIBUTE((unused)),
   char *argument)
@@ -110,7 +112,7 @@ Abstract_program::~Abstract_program()
 
 void Abstract_program::init_name(char *name_from_cmd_line)
 {
-#if _WIN32
+#ifdef _WIN32
   char* name;
 
   char name_buf[FN_REFLEN];

@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,29 +13,70 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "sql_admin.h"
+#include "sql/sql_admin.h"
 
-#include "sql_class.h"                       // THD
-#include "keycaches.h"                       // get_key_cache
-#include "sql_base.h"                        // Open_table_context
-#include "lock.h"                            // MYSQL_OPEN_*
-#include "partition_element.h"               // PART_ADMIN
-#include "sql_partition.h"                   // set_part_state
-#include "transaction.h"                     // trans_rollback_stmt
-#include "sql_view.h"                        // view_checksum
-#include "sql_table.h"                       // mysql_recreate_table
-#include "debug_sync.h"                      // DEBUG_SYNC
+#include <limits.h>
+#include <string.h>
+#include <sys/types.h>
+#include <utility>
+
+#include "auth_acls.h"
 #include "auth_common.h"                     // *_ACL
+#include "dd/dd_table.h"                     // dd::recreate_table
+#include "dd/info_schema/stats.h"            // dd::info_schema::update_*
+#include "dd/types/abstract_table.h"         // dd::enum_table_type
+#include "debug_sync.h"                      // DEBUG_SYNC
+#include "derror.h"                          // ER_THD
+#include "handler.h"
+#include "hash.h"
+#include "item.h"
+#include "key.h"
+#include "keycache.h"
+#include "keycaches.h"                       // get_key_cache
+#include "log.h"
+#include "m_string.h"
+#include "mdl.h"
+#include "my_base.h"
+#include "my_dbug.h"
+#include "my_dir.h"
+#include "my_inttypes.h"
+#include "my_io.h"
+#include "my_macros.h"
+#include "my_sys.h"
+#include "myisam.h"                          // TT_USEFRM
+#include "mysql/psi/mysql_file.h"
+#include "mysql/psi/mysql_mutex.h"
+#include "mysql/service_my_snprintf.h"
+#include "mysql_com.h"
+#include "mysqld.h"                          // key_file_misc
+#include "mysqld_error.h"
+#include "partition_element.h"               // PART_ADMIN
+#include "protocol.h"
+#include "rpl_gtid.h"
 #include "sp.h"                              // Sroutine_hash_entry
 #include "sp_rcontext.h"                     // sp_rcontext
-#include "sql_parse.h"                       // check_table_access
-#include "table_trigger_dispatcher.h"        // Table_trigger_dispatcher
-#include "log.h"
-#include "myisam.h"                          // TT_USEFRM
+#include "sql_alter.h"
 #include "sql_alter_instance.h"              // Alter_instance
-
-#include "pfs_file_provider.h"
-#include "mysql/psi/mysql_file.h"
+#include "sql_base.h"                        // Open_table_context
+#include "sql_cache.h"                       // query_cache
+#include "sql_class.h"                       // THD
+#include "sql_error.h"
+#include "sql_lex.h"
+#include "sql_list.h"
+#include "sql_parse.h"                       // check_table_access
+#include "sql_partition.h"                   // set_part_state
+#include "sql_plugin.h"
+#include "sql_plugin_ref.h"
+#include "sql_prepare.h"                     // mysql_test_show
+#include "sql_security_ctx.h"
+#include "sql_string.h"
+#include "sql_table.h"                       // mysql_recreate_table
+#include "system_variables.h"
+#include "table.h"
+#include "table_trigger_dispatcher.h"        // Table_trigger_dispatcher
+#include "thr_lock.h"
+#include "transaction.h"                     // trans_rollback_stmt
+#include "violite.h"
 
 static int send_check_errmsg(THD *thd, TABLE_LIST* table,
 			     const char* operator_name, const char* errmsg)
@@ -78,7 +119,7 @@ static int prepare_for_repair(THD *thd, TABLE_LIST *table_list,
     size_t key_length;
     /*
       If the table didn't exist, we have a shared metadata lock
-      on it that is left from mysql_admin_table()'s attempt to 
+      on it that is left from mysql_admin_table()'s attempt to
       open it. Release the shared metadata lock before trying to
       acquire the exclusive lock to satisfy MDL asserts and avoid
       deadlocks.
@@ -104,13 +145,14 @@ static int prepare_for_repair(THD *thd, TABLE_LIST *table_list,
 
     hash_value= my_calc_hash(&table_def_cache, (uchar*) key, key_length);
     mysql_mutex_lock(&LOCK_open);
-    share= get_table_share(thd, table_list, key, key_length, 0,
-                           &error, hash_value);
+    share= get_table_share(thd, table_list, key, key_length, false,
+                           hash_value);
     mysql_mutex_unlock(&LOCK_open);
     if (share == NULL)
       DBUG_RETURN(0);				// Can't open frm file
 
-    if (open_table_from_share(thd, share, "", 0, 0, 0, &tmp_table, FALSE))
+    if (open_table_from_share(thd, share, "", 0, 0, 0, &tmp_table, FALSE,
+                              NULL))
     {
       mysql_mutex_lock(&LOCK_open);
       release_table_share(share);
@@ -131,34 +173,27 @@ static int prepare_for_repair(THD *thd, TABLE_LIST *table_list,
   }
 
   /*
-    User gave us USE_FRM which means that the header in the index file is
-    trashed.
-    In this case we will try to fix the table the following way:
-    - Rename the data file to a temporary name
-    - Truncate the table
-    - Replace the new data file with the old one
-    - Run a normal repair using the new index file and the old data file
-  */
-
-  if (table->s->frm_version != FRM_VER_TRUE_VARCHAR)
-  {
-    error= send_check_errmsg(thd, table_list, "repair",
-                             "Failed repairing incompatible .frm file");
-    goto end;
-  }
-
-  /*
     Check if this is a table type that stores index and data separately,
     like ISAM or MyISAM. We assume fixed order of engine file name
     extentions array. First element of engine file name extentions array
-    is meta/index file extention. Second element - data file extention. 
+    is meta/index file extention. Second element - data file extention.
   */
-  ext= table->file->bas_ext();
-  if (!ext[0] || !ext[1])
+  ext= table->file->ht->file_extensions;
+  if (!ext || !ext[0] || !ext[1])
     goto end;					// No data file
 
   /* A MERGE table must not come here. */
   DBUG_ASSERT(table->file->ht->db_type != DB_TYPE_MRG_MYISAM);
+
+  /*
+    Storage engines supporting atomic DDL do not come here either.
+
+    If we are to have storage engine which supports atomic DDL on one
+    hand and REPAIR ... USE_FRM on another then the below code related
+    to table re-creation in SE needs to be adjusted to at least
+    commit the transaction.
+  */
+  DBUG_ASSERT(!(table->file->ht->flags & HTON_SUPPORTS_ATOMIC_DDL));
 
   // Name of data file
   strxmov(from, table->s->normalized_path.str, ext[1], NullS);
@@ -191,7 +226,7 @@ static int prepare_for_repair(THD *thd, TABLE_LIST *table_list,
 			     "Failed renaming data file");
     goto end;
   }
-  if (dd_recreate_table(thd, table_list->db, table_list->table_name))
+  if (dd::recreate_table(thd, table_list->db, table_list->table_name))
   {
     error= send_check_errmsg(thd, table_list, "repair",
 			     "Failed generating table from .frm file");
@@ -265,7 +300,7 @@ static inline bool table_not_corrupt_error(uint sql_errno)
 /*
   RETURN VALUES
     FALSE Message sent to net (admin operation went ok)
-    TRUE  Message should be sent by caller 
+    TRUE  Message should be sent by caller
           (admin operation or network communication failed)
 */
 static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
@@ -279,8 +314,15 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
                                                   HA_CHECK_OPT *),
                               int (handler::*operator_func)(THD *,
                                                             HA_CHECK_OPT *),
-                              int (view_operator_func)(THD *, TABLE_LIST*))
+                              int check_view)
 {
+  /*
+    Prevent InnoDB from automatically committing InnoDB
+    transaction each time data-dictionary tables are closed after
+    being updated.
+  */
+  Disable_autocommit_guard autocommit_guard(thd);
+
   TABLE_LIST *table;
   SELECT_LEX *select= thd->lex->select_lex;
   List<Item> field_list;
@@ -292,6 +334,7 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
     ((thd->variables.gtid_next.type == GTID_GROUP ||
       thd->variables.gtid_next.type == ANONYMOUS_GROUP) &&
     (!thd->skip_gtid_rollback));
+  bool ignore_grl_on_analyze= operator_func == &handler::ha_analyze;
   DBUG_ENTER("mysql_admin_table");
 
   field_list.push_back(item = new Item_empty_string("Table", NAME_CHAR_LEN*2));
@@ -333,13 +376,12 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
     const char* db = table->db;
     bool fatal_error=0;
     bool open_error;
-    bool issue_deprecation_warning= false;
 
     DBUG_PRINT("admin", ("table: '%s'.'%s'", table->db, table->table_name));
     DBUG_PRINT("admin", ("extra_open_options: %u", extra_open_options));
     strxmov(table_name, db, ".", table->table_name, NullS);
     thd->open_options|= extra_open_options;
-    table->lock_type= lock_type;
+    table->set_lock({lock_type, THR_DEFAULT});
     /*
       To make code safe for re-execution we need to reset type of MDL
       request as code below may change it.
@@ -371,8 +413,8 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
         allowed.
       */
       if (lex->alter_info.flags & Alter_info::ALTER_ADMIN_PARTITION ||
-          view_operator_func == NULL)
-        table->required_type=FRMTYPE_TABLE;
+        check_view != 1)
+        table->required_type= dd::enum_table_type::BASE_TABLE;
 
       if (!thd->locked_tables_mode && repair_table_use_frm)
       {
@@ -405,31 +447,6 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
       else
       {
         /*
-          Filter out deprecation warnings caused by deprecation of
-          the partition engine. The presence of these depend on TDC
-          cache behavior. Instead, push a warning later to get
-          deterministic and repeatable behavior.
-        */
-        class Silence_deprecation_warnings:
-          public Internal_error_handler
-        {
-        public:
-          bool handle_condition(THD *thd,
-                                uint sql_errno,
-                                const char* sqlstate,
-                                Sql_condition::enum_severity_level *level,
-                                const char* msg)
-          {
-            if (sql_errno == ER_WARN_DEPRECATED_SYNTAX)
-              return true;
-
-            return false;
-          }
-        };
-        Silence_deprecation_warnings deprecation_silencer;
-        thd->push_internal_handler(&deprecation_silencer);
-
-        /*
           It's assumed that even if it is REPAIR TABLE USE_FRM, the table
           can be opened if we're under LOCK TABLES (otherwise LOCK TABLES
           would fail). Thus, the only errors we could have from
@@ -441,12 +458,6 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
 
         if (!open_error)
           open_error= open_and_lock_tables(thd, table, 0);
-
-        thd->pop_internal_handler();
-
-        issue_deprecation_warning= (!open_error && !table->is_view() &&
-                table->table->s->db_type() &&
-                is_ha_partition_handlerton(table->table->s->db_type()));
       }
 
       /*
@@ -510,7 +521,7 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
         }
       }
     }
-    DBUG_PRINT("admin", ("table: 0x%lx", (long) table->table));
+    DBUG_PRINT("admin", ("table: %p", table->table));
 
     if (prepare_func)
     {
@@ -550,12 +561,8 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
       DBUG_PRINT("admin", ("open table failed"));
       if (thd->get_stmt_da()->cond_count() == 0)
         push_warning(thd, Sql_condition::SL_WARNING,
-                     ER_CHECK_NO_SUCH_TABLE, ER(ER_CHECK_NO_SUCH_TABLE));
-      /* if it was a view will check md5 sum */
-      if (table->is_view() &&
-          view_checksum(thd, table) == HA_ADMIN_WRONG_CHECKSUM)
-        push_warning(thd, Sql_condition::SL_WARNING,
-                     ER_VIEW_CHECKSUM, ER(ER_VIEW_CHECKSUM));
+                     ER_CHECK_NO_SUCH_TABLE,
+                     ER_THD(thd, ER_CHECK_NO_SUCH_TABLE));
       if (thd->get_stmt_da()->is_error() &&
           table_not_corrupt_error(thd->get_stmt_da()->mysql_errno()))
         result_code= HA_ADMIN_FAILED;
@@ -567,8 +574,7 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
 
     if (table->is_view())
     {
-      DBUG_PRINT("admin", ("calling view_operator_func"));
-      result_code= (*view_operator_func)(thd, table);
+      result_code= HA_ADMIN_OK;
       goto send_result;
     }
 
@@ -589,11 +595,11 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
       protocol->store(table_name, system_charset_info);
       protocol->store(operator_name, system_charset_info);
       protocol->store(STRING_WITH_LEN("error"), system_charset_info);
-      length= my_snprintf(buff, sizeof(buff), ER(ER_OPEN_AS_READONLY),
+      length= my_snprintf(buff, sizeof(buff), ER_THD(thd, ER_OPEN_AS_READONLY),
                           table_name);
       protocol->store(buff, length, system_charset_info);
-      trans_commit_stmt(thd);
-      trans_commit(thd);
+      trans_commit_stmt(thd, ignore_grl_on_analyze);
+      trans_commit(thd, ignore_grl_on_analyze);
       /* Make sure this table instance is not reused after the operation. */
       if (table->table)
         table->table->m_needs_reopen= true;
@@ -636,7 +642,7 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
       query_cache.invalidate(thd, table->table, FALSE);
       /*
         XXX: hack: switch off open_for_modify to skip the
-        flush that is made later in the execution flow. 
+        flush that is made later in the execution flow.
       */
       open_for_modify= 0;
     }
@@ -659,7 +665,7 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
     if (operator_func == &handler::ha_repair &&
         !(check_opt->sql_flags & TT_USEFRM))
     {
-      if ((table->table->file->check_old_types() == HA_ADMIN_NEEDS_ALTER) ||
+      if ((check_table_for_old_types(table->table) == HA_ADMIN_NEEDS_ALTER) ||
           (table->table->file->ha_check_for_upgrade(check_opt) ==
            HA_ADMIN_NEEDS_ALTER))
       {
@@ -693,7 +699,7 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
         /*
           mysql_recreate_table() can push OK or ERROR.
           Clear 'OK' status. If there is an error, keep it:
-          we will store the error message in a result set row 
+          we will store the error message in a result set row
           and then clear.
         */
         if (thd->get_stmt_da()->is_ok())
@@ -707,6 +713,29 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
     DBUG_PRINT("admin", ("calling operator_func '%s'", operator_name));
     result_code = (table->table->file->*operator_func)(thd, check_opt);
     DBUG_PRINT("admin", ("operator_func returned: %d", result_code));
+
+    /*
+      ANALYZE statement calculates values for dynamic fields of
+      I_S.TABLES and I_S.STATISTICS table in table_stats and index_stats
+      table. This table is joined with new dd table to provide results
+      when I_S table is queried.
+      To get latest statistics of table or index, user should use analyze
+      table statement before querying I_S.TABLES or I_S.STATISTICS
+    */
+
+    if(!read_only && ignore_grl_on_analyze)
+    {
+      // Acquire the lock
+      if (dd::info_schema::update_table_stats(thd, table) ||
+          dd::info_schema::update_index_stats(thd, table))
+      {
+        // Play safe, rollback possible changes to the data-dictionary.
+        trans_rollback_stmt(thd);
+        trans_rollback_implicit(thd);
+        result_code= HA_ADMIN_STATS_UPD_ERR;
+        goto send_result;
+      }
+    }
 
     /*
       push_warning() if the table version is lesser than current
@@ -753,7 +782,8 @@ send_result_message:
       {
        char buf[MYSQL_ERRMSG_SIZE];
        size_t length=my_snprintf(buf, sizeof(buf),
-				ER(ER_CHECK_NOT_IMPLEMENTED), operator_name);
+                                 ER_THD(thd, ER_CHECK_NOT_IMPLEMENTED),
+                                 operator_name);
 	protocol->store(STRING_WITH_LEN("note"), system_charset_info);
 	protocol->store(buf, length, system_charset_info);
       }
@@ -769,7 +799,8 @@ send_result_message:
         tbl_name.append(String(table_name,system_charset_info));
 
         size_t length= my_snprintf(buf, sizeof(buf),
-                                   ER(ER_BAD_TABLE_ERROR), tbl_name.c_ptr());
+                                   ER_THD(thd, ER_BAD_TABLE_ERROR),
+                                   tbl_name.c_ptr());
         protocol->store(STRING_WITH_LEN("note"), system_charset_info);
         protocol->store(buf, length, system_charset_info);
       }
@@ -824,8 +855,8 @@ send_result_message:
         reopen the table and do ha_innobase::analyze() on it.
         We have to end the row, so analyze could return more rows.
       */
-      trans_commit_stmt(thd);
-      trans_commit(thd);
+      trans_commit_stmt(thd, ignore_grl_on_analyze);
+      trans_commit(thd, ignore_grl_on_analyze);
       close_thread_tables(thd);
       thd->mdl_context.release_transactional_locks();
 
@@ -865,13 +896,13 @@ send_result_message:
       /*
         mysql_recreate_table() can push OK or ERROR.
         Clear 'OK' status. If there is an error, keep it:
-        we will store the error message in a result set row 
+        we will store the error message in a result set row
         and then clear.
       */
       if (thd->get_stmt_da()->is_ok())
         thd->get_stmt_da()->reset_diagnostics_area();
-      trans_commit_stmt(thd);
-      trans_commit(thd);
+      trans_commit_stmt(thd, ignore_grl_on_analyze);
+      trans_commit(thd, ignore_grl_on_analyze);
       close_thread_tables(thd);
       thd->mdl_context.release_transactional_locks();
       /* Clear references to TABLE and MDL_ticket after releasing them. */
@@ -940,7 +971,8 @@ send_result_message:
     case HA_ADMIN_WRONG_CHECKSUM:
     {
       protocol->store(STRING_WITH_LEN("note"), system_charset_info);
-      protocol->store(ER(ER_VIEW_CHECKSUM), strlen(ER(ER_VIEW_CHECKSUM)),
+      protocol->store(ER_THD(thd, ER_VIEW_CHECKSUM),
+                      strlen(ER_THD(thd, ER_VIEW_CHECKSUM)),
                       system_charset_info);
       break;
     }
@@ -953,27 +985,23 @@ send_result_message:
 
       protocol->store(STRING_WITH_LEN("error"), system_charset_info);
       if (table->table->file->ha_table_flags() & HA_CAN_REPAIR)
-        length= my_snprintf(buf, sizeof(buf), ER(ER_TABLE_NEEDS_UPGRADE),
+        length= my_snprintf(buf, sizeof(buf),
+                            ER_THD(thd, ER_TABLE_NEEDS_UPGRADE),
                             table->table_name);
       else
-        length= my_snprintf(buf, sizeof(buf), ER(ER_TABLE_NEEDS_REBUILD),
+        length= my_snprintf(buf, sizeof(buf),
+                            ER_THD(thd, ER_TABLE_NEEDS_REBUILD),
                             table->table_name);
       protocol->store(buf, length, system_charset_info);
       fatal_error=1;
       break;
     }
 
-    case HA_ADMIN_NEEDS_UPG_PART:
-    {
-      char buf[MYSQL_ERRMSG_SIZE];
-      size_t length;
-
-      protocol->store(STRING_WITH_LEN("error"), system_charset_info);
-      length= my_snprintf(buf, sizeof(buf), ER(ER_TABLE_NEEDS_UPG_PART),
-                          table->db, table->table_name);
-      protocol->store(buf, length, system_charset_info);
+    case HA_ADMIN_STATS_UPD_ERR:
+      protocol->store(STRING_WITH_LEN("status"), system_charset_info);
+      protocol->store(STRING_WITH_LEN("Unable to write table statistics to DD tables"),
+                      system_charset_info);
       break;
-    }
 
     default:				// Probably HA_ADMIN_INTERNAL_ERROR
       {
@@ -987,31 +1015,6 @@ send_result_message:
         break;
       }
     }
-
-    /*
-      We must delay issuing the deprecation warning until afte the table
-      status has been issued for correct behavior on the client side in the
-      event that the command is issued by the upgrade client.
-    */
-    if (issue_deprecation_warning)
-    {
-      char buf[MYSQL_ERRMSG_SIZE];
-      size_t length;
-
-      // End the previous row before starting a new one.
-      if (protocol->end_row())
-        goto err;
-      protocol->start_row();
-      protocol->store(table_name, system_charset_info);
-      protocol->store(operator_name, system_charset_info);
-      protocol->store(STRING_WITH_LEN("warning"), system_charset_info);
-      length= my_snprintf(buf, sizeof(buf),
-                          ER(ER_PARTITION_ENGINE_DEPRECATED_FOR_TABLE),
-                          table->db, table->table_name);
-      protocol->store(buf, length, system_charset_info);
-      // Row is ended below.
-    }
-
     if (table->table)
     {
       if (table->table->s->tmp_table)
@@ -1060,7 +1063,8 @@ send_result_message:
     }
     else
     {
-      if (trans_commit_stmt(thd) || trans_commit_implicit(thd))
+      if (trans_commit_stmt(thd, ignore_grl_on_analyze) ||
+          trans_commit_implicit(thd, ignore_grl_on_analyze))
         goto err;
     }
     close_thread_tables(thd);
@@ -1189,6 +1193,13 @@ bool Sql_cmd_analyze_table::execute(THD *thd)
   if (check_table_access(thd, SELECT_ACL | INSERT_ACL, first_table,
                          FALSE, UINT_MAX, FALSE))
     goto error;
+
+  DBUG_EXECUTE_IF("simulate_analyze_table_lock_wait_timeout_error",
+                  {
+                    my_error(ER_LOCK_WAIT_TIMEOUT, MYF(0));
+                    DBUG_RETURN(true);
+                  });
+
   thd->enable_slow_log= opt_log_slow_admin_statements;
   res= mysql_admin_table(thd, first_table, &thd->lex->check_opt,
                          "analyze", lock_type, 1, 0, 0, 0,
@@ -1223,7 +1234,7 @@ bool Sql_cmd_check_table::execute(THD *thd)
 
   res= mysql_admin_table(thd, first_table, &thd->lex->check_opt, "check",
                          lock_type, 0, 0, HA_OPEN_FOR_REPAIR, 0,
-                         &handler::ha_check, &view_checksum);
+                         &handler::ha_check, 1);
 
   thd->lex->select_lex->table_list.first= first_table;
   thd->lex->query_tables= first_table;
@@ -1300,11 +1311,7 @@ bool Sql_cmd_shutdown::execute(THD *thd)
 {
   DBUG_ENTER("Sql_cmd_shutdown::execute");
   bool res= TRUE;
-#ifndef EMBEDDED_LIBRARY
-  res= !shutdown(thd, SHUTDOWN_DEFAULT, COM_QUERY);
-#else
-  my_message(ER_UNKNOWN_COM_ERROR, ER(ER_UNKNOWN_COM_ERROR), MYF(0));
-#endif
+  res= !shutdown(thd, SHUTDOWN_DEFAULT);
 
   DBUG_RETURN(res);
 }
@@ -1343,4 +1350,292 @@ bool Sql_cmd_alter_instance::execute(THD *thd)
   }
 
   DBUG_RETURN(res);
+}
+
+
+bool Sql_cmd_create_role::execute(THD *thd)
+{
+  DBUG_ENTER("Sql_cmd_set_create_role::execute");
+  // TODO: Execution-time processing of the CREATE ROLE statement
+  if (check_global_access(thd, CREATE_ROLE_ACL | CREATE_USER_ACL))
+    DBUG_RETURN(true);
+  /* Conditionally writes to binlog */
+  HA_CREATE_INFO create_info;
+  /*
+    Roles must be locked for authentication by default.
+    The below is a hack to make mysql_create_user() behave
+    correctly.
+  */
+  thd->lex->ssl_cipher= 0;
+  thd->lex->x509_issuer= 0;
+  thd->lex->x509_subject= 0;
+  thd->lex->ssl_type= SSL_TYPE_NOT_SPECIFIED;
+  thd->lex->alter_password.account_locked= true;
+  thd->lex->alter_password.update_account_locked_column= true;
+  thd->lex->alter_password.expire_after_days= 0;
+  thd->lex->alter_password.update_password_expired_column= true;
+  thd->lex->alter_password.use_default_password_lifetime= true;
+  thd->lex->alter_password.update_password_expired_fields= true;
+  
+  List_iterator<LEX_USER > it(*const_cast<List<LEX_USER > * >(roles));
+  LEX_USER *role;
+  while((role= it++))
+  {
+    role->uses_identified_by_clause= false;
+    role->uses_identified_by_password_clause= false;
+    role->uses_identified_with_clause= false;
+    role->uses_authentication_string_clause= false;
+    role->alter_status.expire_after_days= 0;
+    role->alter_status.account_locked= true;
+    role->alter_status.update_account_locked_column= true;
+    role->alter_status.update_password_expired_fields= true;
+    role->alter_status.use_default_password_lifetime= true;
+    role->alter_status.update_password_expired_column= true;
+    role->auth.str= 0;
+    role->auth.length= 0;
+  }
+  if (!(mysql_create_user(thd, *const_cast<List<LEX_USER > * >(roles),
+                          if_not_exists, true)))
+  {
+    my_ok(thd);
+    DBUG_RETURN(false);
+  }
+  DBUG_RETURN(true);
+}
+
+
+bool Sql_cmd_drop_role::execute(THD *thd)
+{
+  DBUG_ENTER("Sql_cmd_drop_role::execute");
+  if (check_global_access(thd, DROP_ROLE_ACL | CREATE_USER_ACL))
+    DBUG_RETURN(true);
+  if (mysql_drop_user(thd, const_cast<List<LEX_USER > &>(*roles),
+                      ignore_errors))
+    DBUG_RETURN(true);
+  my_ok(thd);
+  DBUG_RETURN(false);
+}
+
+bool Sql_cmd_set_role::execute(THD *thd)
+{
+  DBUG_ENTER("Sql_cmd_set_role::execute");
+  int ret= 0;
+  switch (role_type)
+  {
+    case ROLE_NONE:
+      ret= mysql_set_active_role_none(thd);
+    break;
+    case ROLE_DEFAULT:
+      ret= mysql_set_role_default(thd);
+    break;
+    case ROLE_ALL:
+      ret= mysql_set_active_role_all(thd, except_roles);
+    break;
+    case ROLE_NAME:
+      ret= mysql_set_active_role(thd, role_list);
+    break;
+  }
+  DBUG_RETURN(ret != 0);
+}
+
+
+bool Sql_cmd_grant_roles::execute(THD *thd)
+{
+  DBUG_ENTER("Sql_cmd_grant_roles::execute");
+  List_iterator<LEX_USER> it(*(const_cast<List<LEX_USER > *>(roles)));
+  while(LEX_USER *role= it++)
+  {
+    if (!has_grant_role_privilege(thd, role->user,role->host))
+    {
+      my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0),
+               "WITH ADMIN, ROLE_ADMIN, SUPER");
+      DBUG_RETURN(true);
+    }
+  }
+  DBUG_RETURN(mysql_grant_role(thd, users, roles, this->with_admin_option));
+}
+
+
+bool Sql_cmd_revoke_roles::execute(THD *thd)
+{
+  DBUG_ENTER("Sql_cmd_revoke_roles::execute");
+  List_iterator<LEX_USER> it(*(const_cast<List<LEX_USER > *>(roles)));
+  while(LEX_USER *role= it++)
+  {
+    if (!has_grant_role_privilege(thd, role->user,role->host))
+    {
+      my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0),
+               "WITH ADMIN, ROLE_ADMIN, SUPER");
+      DBUG_RETURN(true);
+    }
+  }
+  DBUG_RETURN(mysql_revoke_role(thd, users, roles));
+}
+
+
+bool Sql_cmd_alter_user_default_role::execute(THD *thd)
+{
+  DBUG_ENTER("Sql_cmd_alter_user_default_role::execute");
+  bool ret= false;
+  {
+    List<LEX_USER> *tmp_users= const_cast<List<LEX_USER > * >(users);
+    List_iterator<LEX_USER > it(*tmp_users);
+    LEX_USER *user;
+    while((user= it++))
+    {
+      /* Check for CURRENT_USER token */
+      user= get_current_user(thd, user);
+      if (strcmp(thd->security_context()->priv_user().str,
+                 user->user.str)  != 0)
+      {
+        TABLE_LIST table;
+        table.init_one_table("mysql", 5, "default_roles", 4, 0, TL_READ);
+        if (check_access(thd, UPDATE_ACL, "mysql", NULL, NULL, 1, 1) &&
+            check_global_access(thd, CREATE_USER_ACL))
+        {
+          my_error(ER_ACCESS_DENIED_ERROR,MYF(0),
+                   user->user.str,
+                   user->host.str,
+                   (thd->password ?
+                    ER_THD(thd, ER_YES) :
+                    ER_THD(thd, ER_NO)));
+          DBUG_RETURN(true);
+        }
+      }
+      else
+      {
+        // Verify that the user actually is granted the role before it is
+        // set as default.
+        if (roles != 0)
+        {
+          List<LEX_USER> *tmp_roles= const_cast<List<LEX_USER > * >(roles);
+          List_iterator<LEX_USER > roles_it(*tmp_roles);
+          LEX_USER *role;
+          while ((role= roles_it++))
+          {
+             if (!is_granted_role(thd->security_context()->priv_user(),
+                                  thd->security_context()->priv_host(),
+                                  role->user,
+                                  role->host))
+             {
+               my_error(ER_ACCESS_DENIED_ERROR,MYF(0),
+                        user->user.str,
+                        user->host.str,
+                        (thd->password ?
+                         ER_THD(thd, ER_YES) :
+                         ER_THD(thd, ER_NO)));
+               DBUG_RETURN(true);
+             }
+          }
+        }
+      } // end else
+    } // end while
+  } // end scope
+  List_of_auth_id_refs authids;
+  if (roles != 0)
+  {
+    List<LEX_USER> *tmp_roles= const_cast<List<LEX_USER > * >(roles);
+    List_iterator<LEX_USER > roles_it(*tmp_roles);
+    LEX_USER *role;
+    while ((role= roles_it++))
+    {
+      Auth_id_ref authid= std::make_pair(role->user, role->host);
+      authids.push_back(authid);
+    }
+  }
+  List<LEX_USER> *tmp_users= const_cast<List<LEX_USER > * >(users);
+  List_iterator<LEX_USER > it(*tmp_users);
+  LEX_USER *user;
+  while ((user= it++) && !ret)
+  {
+    user= get_current_user(thd, user);
+    if (role_type == ROLE_NONE)
+      ret= mysql_clear_default_roles(thd, user);
+    else if (role_type == ROLE_ALL)
+      ret= mysql_alter_user_set_default_roles_all(thd, user);
+    else if (role_type == ROLE_NAME)
+      ret= mysql_alter_user_set_default_roles(thd, user, authids);
+  }
+  if (!ret)
+    my_ok(thd);
+  DBUG_RETURN(ret);
+}
+
+
+bool Sql_cmd_show_privileges::execute(THD *thd)
+{
+  DBUG_ENTER("Sql_cmd_show_privileges::execute");
+  if (for_user == 0 || for_user->user.str == 0)
+  {
+	  /* SHOW PRIVILEGE FOR CURRENT_USER */
+	  LEX_USER current_user;
+	  get_default_definer(thd, &current_user);
+    if (using_users == 0 || using_users->elements == 0)
+    {
+      List_of_auth_id_refs *active_list=
+        thd->security_context()->get_active_roles();
+      DBUG_RETURN(mysql_show_grants(thd, &current_user, *active_list));
+    }
+  }
+  else if (strcmp(thd->security_context()->priv_user().str,
+           for_user->user.str)  != 0)
+  {
+    TABLE_LIST table;
+    table.init_one_table("mysql", 5, "user", 4, 0, TL_READ);
+    if (!is_granted_table_access(thd, SELECT_ACL, &table))
+    {
+      char command[128];
+      get_privilege_desc(command, sizeof(command), SELECT_ACL);
+      my_error(ER_TABLEACCESS_DENIED_ERROR, MYF(0),
+               command,
+               thd->security_context()->priv_user().str,
+               thd->security_context()->host_or_ip().str,
+               "user");
+      DBUG_RETURN(false);
+    }
+  }
+  List_of_auth_id_refs authid_list;
+  if (using_users != 0 && using_users->elements > 0)
+  {
+    /* We have a USING clause */
+    LEX_USER *user;
+    List<LEX_USER > *tmp_using_users=
+    const_cast<List<LEX_USER > *> (using_users);
+    List_iterator<LEX_USER> it(*tmp_using_users);
+    while ((user= it++))
+    {
+      Auth_id_ref authid= std::make_pair(user->user, user->host);
+      authid_list.push_back(authid);
+    }
+  }
+
+  LEX_USER *tmp_user= const_cast<LEX_USER *>(for_user);
+  tmp_user= get_current_user(thd, tmp_user);
+  DBUG_RETURN(mysql_show_grants(thd, tmp_user, authid_list));
+}
+
+
+bool Sql_cmd_show::execute(THD *thd)
+{
+  DBUG_ENTER("Sql_cmd_show::execute");
+
+  thd->clear_current_query_costs();
+  bool res= show_precheck(thd, thd->lex, true);
+  if (!res)
+    res= execute_show(thd, thd->lex->query_tables);
+  thd->save_current_query_costs();
+
+  DBUG_RETURN(res);
+}
+
+
+bool Sql_cmd_show::prepare(THD *thd)
+{
+  DBUG_ENTER("Sql_cmd_show::prepare");
+
+  if (Sql_cmd::prepare(thd))
+    DBUG_RETURN(true);
+
+  bool rc= mysql_test_show(get_owner(), thd->lex->query_tables);
+  DBUG_RETURN(rc);
 }

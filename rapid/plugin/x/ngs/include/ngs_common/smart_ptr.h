@@ -21,26 +21,22 @@
 #ifndef _NGS_SMART_PTR_H_
 #define _NGS_SMART_PTR_H_
 
-#include <boost/enable_shared_from_this.hpp>
-#include <boost/move/unique_ptr.hpp>
-#include <boost/make_shared.hpp>
-#include <boost/shared_ptr.hpp>
-#include <boost/weak_ptr.hpp>
+#include <memory>
 
 namespace ngs
 {
-using boost::dynamic_pointer_cast;
-using boost::enable_shared_from_this;
-using boost::make_shared;
-using boost::move;
-using boost::movelib::unique_ptr;
-using boost::shared_ptr;
-using boost::static_pointer_cast;
-using boost::weak_ptr;
+using std::dynamic_pointer_cast;
+using std::enable_shared_from_this;
+using std::make_shared;
+using std::move;
+using std::shared_ptr;
+using std::static_pointer_cast;
+using std::unique_ptr;
+using std::weak_ptr;
 
 namespace detail
 {
-using boost::allocate_shared;
+using std::allocate_shared;
 } // namespace detail
 } // namespace ngs
 

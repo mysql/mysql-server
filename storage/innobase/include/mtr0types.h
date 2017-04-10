@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -26,9 +26,7 @@ Created 11/26/1995 Heikki Tuuri
 #ifndef mtr0types_h
 #define mtr0types_h
 
-#ifndef UNIV_INNOCHECKSUM
 #include "sync0rw.h"
-#endif /* UNIV_INNOCHECKSUM */
 
 struct mtr_t;
 
@@ -108,8 +106,8 @@ enum mlog_id_t {
 	/** initialize a page in an undo log */
 	MLOG_UNDO_INIT = 22,
 
-	/** discard an update undo log header */
-	MLOG_UNDO_HDR_DISCARD = 23,
+	/* discard an update undo log header (unused already in 3.23.53) */
+	//MLOG_UNDO_HDR_DISCARD = 23,
 
 	/** reuse an insert undo log header */
 	MLOG_UNDO_HDR_REUSE = 24,
@@ -233,14 +231,23 @@ enum mlog_id_t {
 	MLOG_INIT_FILE_PAGE2 = 59,
 
 	/** Table is being truncated. (Marked only for file-per-table) */
-	MLOG_TRUNCATE = 60,
+	/* MLOG_TRUNCATE = 60,  Disabled for WL6378 */
 
 	/** notify that an index tree is being loaded without writing
 	redo log about individual pages */
 	MLOG_INDEX_LOAD = 61,
 
+	/** log for some persistent dynamic metadata change */
+	MLOG_TABLE_DYNAMIC_META = 62,
+
+	/** create a SDI index page */
+	MLOG_PAGE_CREATE_SDI = 63,
+
+	/** create a SDI compact page */
+	MLOG_COMP_PAGE_CREATE_SDI = 64,
+
 	/** biggest value (used in assertions) */
-	MLOG_BIGGEST_TYPE = MLOG_INDEX_LOAD
+	MLOG_BIGGEST_TYPE = MLOG_COMP_PAGE_CREATE_SDI
 };
 
 /* @} */
@@ -253,7 +260,6 @@ mach_write_to_8(checkpoint_lsn). */
 /** Types for the mlock objects to store in the mtr memo; NOTE that the
 first 3 values must be RW_S_LATCH, RW_X_LATCH, RW_NO_LATCH */
 enum mtr_memo_type_t {
-#ifndef UNIV_INNOCHECKSUM
 	MTR_MEMO_PAGE_S_FIX = RW_S_LATCH,
 
 	MTR_MEMO_PAGE_X_FIX = RW_X_LATCH,
@@ -261,7 +267,6 @@ enum mtr_memo_type_t {
 	MTR_MEMO_PAGE_SX_FIX = RW_SX_LATCH,
 
 	MTR_MEMO_BUF_FIX = RW_NO_LATCH,
-#endif /* !UNIV_CHECKSUM */
 
 #ifdef UNIV_DEBUG
 	MTR_MEMO_MODIFY = 32,

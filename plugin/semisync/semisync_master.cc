@@ -1,5 +1,5 @@
 /* Copyright (C) 2007 Google Inc.
-   Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,7 +16,15 @@
 
 
 #include "semisync_master.h"
+
+#include <assert.h>
+#include <time.h>
+
+#include "my_compiler.h"
+#include "my_systime.h"
+#include "mysqld.h"                             // max_connections
 #if defined(ENABLED_DEBUG_SYNC)
+#include "current_thd.h"
 #include "debug_sync.h"
 #include "sql_class.h"
 #endif
@@ -26,7 +34,7 @@
 #define TIME_BILLION  1000000000
 
 /* This indicates whether semi-synchronous replication is enabled. */
-char rpl_semi_sync_master_enabled;
+bool rpl_semi_sync_master_enabled;
 unsigned long rpl_semi_sync_master_timeout;
 unsigned long rpl_semi_sync_master_trace_level;
 char rpl_semi_sync_master_status                    = 0;
@@ -44,7 +52,7 @@ unsigned long long rpl_semi_sync_master_net_wait_num = 0;
 unsigned long rpl_semi_sync_master_clients          = 0;
 unsigned long long rpl_semi_sync_master_net_wait_time = 0;
 unsigned long long rpl_semi_sync_master_trx_wait_time = 0;
-char rpl_semi_sync_master_wait_no_slave = 1;
+bool rpl_semi_sync_master_wait_no_slave = 1;
 unsigned int rpl_semi_sync_master_wait_for_slave_count= 1;
 
 
@@ -52,11 +60,7 @@ static int getWaitTime(const struct timespec& start_ts);
 
 static unsigned long long timespec_to_usec(const struct timespec *ts)
 {
-#ifdef HAVE_STRUCT_TIMESPEC
   return (unsigned long long) ts->tv_sec * TIME_MILLION + ts->tv_nsec / TIME_THOUSAND;
-#else
-  return ts->tv.i64 / 10;
-#endif
 }
 
 /*******************************************************************************
@@ -200,7 +204,7 @@ int ActiveTranx::insert_tranx_node(const char *log_file_name,
 }
 
 bool ActiveTranx::is_tranx_end_pos(const char *log_file_name,
-				   my_off_t    log_file_pos)
+                                   my_off_t    log_file_pos)
 {
   const char *kWho = "ActiveTranx::is_tranx_end_pos";
   function_enter(kWho);
@@ -590,9 +594,10 @@ void ReplSemiSyncMaster::remove_slave()
     */
     if ((rpl_semi_sync_master_clients ==
          rpl_semi_sync_master_wait_for_slave_count - 1) &&
-        (!rpl_semi_sync_master_wait_no_slave || abort_loop))
+        (!rpl_semi_sync_master_wait_no_slave ||
+         connection_events_loop_aborted()))
     {
-      if (abort_loop)
+      if (connection_events_loop_aborted())
       {
         if (commit_file_name_inited_ && reply_file_name_inited_)
         {
@@ -753,19 +758,14 @@ int ReplSemiSyncMaster::commitTrx(const char* trx_wait_binlog_name,
     }
 
     /* Calcuate the waiting period. */
-#ifndef HAVE_STRUCT_TIMESPEC
-      abstime.tv.i64 = start_ts.tv.i64 + (__int64)wait_timeout_ * TIME_THOUSAND * 10;
-      abstime.max_timeout_msec= (long)wait_timeout_;
-#else
-      abstime.tv_sec = start_ts.tv_sec + wait_timeout_ / TIME_THOUSAND;
-      abstime.tv_nsec = start_ts.tv_nsec +
-        (wait_timeout_ % TIME_THOUSAND) * TIME_MILLION;
-      if (abstime.tv_nsec >= TIME_BILLION)
-      {
-        abstime.tv_sec++;
-        abstime.tv_nsec -= TIME_BILLION;
-      }
-#endif /* _WIN32 */
+    abstime.tv_sec = start_ts.tv_sec + wait_timeout_ / TIME_THOUSAND;
+    abstime.tv_nsec = start_ts.tv_nsec +
+      (wait_timeout_ % TIME_THOUSAND) * TIME_MILLION;
+    if (abstime.tv_nsec >= TIME_BILLION)
+    {
+      abstime.tv_sec++;
+      abstime.tv_nsec -= TIME_BILLION;
+    }
 
     while (is_on())
     {
@@ -844,7 +844,7 @@ int ReplSemiSyncMaster::commitTrx(const char* trx_wait_binlog_name,
        * when replication has progressed far enough, we will release
        * these waiting threads.
        */
-      if (abort_loop && (rpl_semi_sync_master_clients ==
+      if (connection_events_loop_aborted() && (rpl_semi_sync_master_clients ==
                          rpl_semi_sync_master_wait_for_slave_count - 1) && is_on())
       {
         sql_print_warning("SEMISYNC: Forced shutdown. Some updates might "
@@ -1230,7 +1230,7 @@ int ReplSemiSyncMaster::skipSlaveReply(const char *event_buf,
   return function_exit(kWho, 0);
 }
 
-int ReplSemiSyncMaster::readSlaveReply(NET *net, uint32 server_id,
+int ReplSemiSyncMaster::readSlaveReply(NET *net,
                                        const char *event_buf)
 {
   const char *kWho = "ReplSemiSyncMaster::readSlaveReply";

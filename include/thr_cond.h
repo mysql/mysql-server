@@ -17,6 +17,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**
+  @file include/thr_cond.h
   MySQL condition variable implementation.
 
   There are three "layers":
@@ -32,6 +33,14 @@
        See include/mysql/psi/mysql_thread.h
 */
 
+#include <stddef.h>
+#include <sys/types.h>
+#ifdef _WIN32
+#include <time.h>
+#include "my_systime.h"
+#endif
+
+#include "my_macros.h"
 #include "my_thread.h"
 #include "thr_mutex.h"
 
@@ -50,38 +59,6 @@ typedef pthread_cond_t native_cond_t;
 
 static DWORD get_milliseconds(const struct timespec *abstime)
 {
-#ifndef HAVE_STRUCT_TIMESPEC
-  long long millis;
-  union ft64 now;
-
-  if (abstime == NULL)
-   return INFINITE;
-
-  GetSystemTimeAsFileTime(&now.ft);
-
-  /*
-    Calculate time left to abstime
-    - subtract start time from current time(values are in 100ns units)
-    - convert to millisec by dividing with 10000
-  */
-  millis= (abstime->tv.i64 - now.i64) / 10000;
-
-  /* Don't allow the timeout to be negative */
-  if (millis < 0)
-    return 0;
-
-  /*
-    Make sure the calculated timeout does not exceed original timeout
-    value which could cause "wait for ever" if system time changes
-  */
-  if (millis > abstime->max_timeout_msec)
-    millis= abstime->max_timeout_msec;
-
-  if (millis > UINT_MAX)
-    millis= UINT_MAX;
-
-  return (DWORD)millis;
-#else
   /*
     Convert timespec to millis and subtract current time.
     my_getsystime() returns time in 100 ns units.
@@ -92,7 +69,6 @@ static DWORD get_milliseconds(const struct timespec *abstime)
   if (future < now)
     return 0;
   return (DWORD)(future - now);
-#endif
 }
 #endif /* _WIN32 */
 

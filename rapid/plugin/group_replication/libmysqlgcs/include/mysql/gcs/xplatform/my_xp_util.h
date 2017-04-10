@@ -16,7 +16,7 @@
 #ifndef MY_XP_UTIL_INCLUDED
 #define MY_XP_UTIL_INCLUDED
 
-#include <mysql/gcs/mysql_gcs.h>
+#include "mysql/gcs/mysql_gcs.h"
 
 #ifdef _WIN32
 #include <windows.h>
@@ -42,6 +42,7 @@
 #include <iostream>
 #include <errno.h>
 #include <stdint.h>
+#include <cassert>
 
 #define INT_MAX32     0x7FFFFFFFL
 #define MY_MIN(a, b)  ((a) < (b) ? (a) : (b))
@@ -52,30 +53,9 @@
 #define OFFSET_TO_EPOC ((__int64) 134774 * 24 * 60 * 60 * 1000 * 1000 * 10)
 #define MS 10000000
 
-#ifdef HAVE_STRUCT_TIMESPEC
 #include<time.h>
-#endif
 
 #endif
-
-#ifndef HAVE_STRUCT_TIMESPEC /* Windows before VS2015 */
-/*
-  Declare a union to make sure FILETIME is properly aligned
-  so it can be used directly as a 64 bit value. The value
-  stored is in 100ns units.
-*/
-union ft64 {
-  FILETIME ft;
-  __int64 i64;
- };
-
-struct timespec {
-  union ft64 tv;
-  /* The max timeout value in millisecond for native_cond_timedwait */
-  long max_timeout_msec;
-};
-
-#endif /* !HAVE_STRUCT_TIMESPEC */
 
 
 /**
@@ -123,7 +103,6 @@ public:
 
   static inline void set_timespec_nsec(struct timespec *abstime, uint64_t nsec)
   {
-  #ifdef HAVE_STRUCT_TIMESPEC
     uint64_t now= My_xp_util::getsystime() + (nsec / 100);
     uint64_t tv_sec= now / 10000000ULL;
   #if SIZEOF_TIME_T < SIZEOF_LONG_LONG
@@ -132,17 +111,6 @@ public:
   #endif
     abstime->tv_sec=  (time_t)tv_sec;
     abstime->tv_nsec= (now % 10000000ULL) * 100 + (nsec % 100);
-  #else /* !HAVE_STRUCT_TIMESPEC */
-    uint64_t max_timeout_msec= (nsec / 1000000);
-    union ft64 tv;
-    GetSystemTimeAsFileTime(&tv.ft);
-    abstime->tv.i64= tv.i64 + (__int64)(nsec / 100);
-  #if SIZEOF_LONG < SIZEOF_LONG_LONG
-    /* Ensure that the msec value doesn't overflow. */
-    max_timeout_msec= MY_MIN(max_timeout_msec, ((uint64_t)INT_MAX32));
-  #endif
-    abstime->max_timeout_msec= (long)max_timeout_msec;
-  #endif /* !HAVE_STRUCT_TIMESPEC */
   }
 
 
@@ -166,25 +134,19 @@ public:
 
   static inline int cmp_timespec(struct timespec *ts1, struct timespec *ts2)
   {
-#ifdef HAVE_STRUCT_TIMESPEC
     if (ts1->tv_sec > ts2->tv_sec ||
         (ts1->tv_sec == ts2->tv_sec && ts1->tv_nsec > ts2->tv_nsec))
       return 1;
     if (ts1->tv_sec < ts2->tv_sec ||
         (ts1->tv_sec == ts2->tv_sec && ts1->tv_nsec < ts2->tv_nsec))
       return -1;
-#else
-    if (ts1->tv.i64 > ts2->tv.i64)
-      return 1;
-    if (ts1->tv.i64 < ts2->tv.i64)
-      return -1;
-#endif
     return 0;
   }
 
 
   /**
     Diff two timespec structs.
+    ts1 has to be larger than ts2, otherwise it will return unexpected value.
 
     @return  difference between the two arguments.
   */
@@ -192,12 +154,8 @@ public:
   static inline uint64_t diff_timespec(struct timespec *ts1,
                                        struct timespec *ts2)
   {
-#ifdef HAVE_STRUCT_TIMESPEC
-    return (ts1->tv_sec - ts2->tv_sec) * 1000000000ULL +
-      ts1->tv_nsec - ts2->tv_nsec;
-#else
-    return (ts1->tv.i64 - ts2->tv.i64) * 100;
-#endif
+    return static_cast<uint64_t>(ts1->tv_sec - ts2->tv_sec) * 1000000000ULL +
+      static_cast<uint64_t>(ts1->tv_nsec) - static_cast<uint32_t>(ts2->tv_nsec);
   }
 };
 

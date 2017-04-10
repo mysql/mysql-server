@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -16,10 +16,15 @@
 */
 
 #include "abstract_progress_watcher.h"
+
+#include <stddef.h>
 #include <algorithm>
-#include "table_rows_dump_task.h"
-#include "table_definition_dump_task.h"
+#include <chrono>
+#include <functional>
+
 #include "row_group_dump_task.h"
+#include "table_definition_dump_task.h"
+#include "table_rows_dump_task.h"
 
 using namespace Mysql::Tools::Dump;
 
@@ -27,14 +32,14 @@ void Abstract_progress_watcher::progress_changed()
 {
   if (--m_step_countdown == 0)
   {
-    boost::chrono::system_clock::time_point now=
-      boost::chrono::system_clock::now();
+    std::chrono::system_clock::time_point now=
+      std::chrono::system_clock::now();
 
     double stages_past=
-      std::max(boost::chrono::duration_cast<
-      boost::chrono::duration<double> >(
+      std::max(std::chrono::duration_cast<
+      std::chrono::duration<double> >(
       now - m_last_stage_time) /
-      boost::chrono::milliseconds(REPORT_DELAY_MS / STAGES),
+      std::chrono::milliseconds(REPORT_DELAY_MS / STAGES),
       0.1); //  Do not expand stage by more than 10 times the steps.
 
     m_step_countdown= m_last_step_countdown= std::max(1LL,
@@ -58,7 +63,7 @@ void Abstract_progress_watcher::progress_changed()
 }
 
 Abstract_progress_watcher::Abstract_progress_watcher(
-  Mysql::I_callable <bool, const Mysql::Tools::Base::Message_data&>*
+  std::function<bool(const Mysql::Tools::Base::Message_data&)>*
     message_handler, Simple_id_generator* object_id_generator)
   : Abstract_chain_element(message_handler, object_id_generator),
   m_step_countdown(1),

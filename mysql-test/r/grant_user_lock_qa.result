@@ -266,7 +266,7 @@ SELECT USER();
 USER()
 u4@localhost
 
-CREATE USER user4@localhost IDENTIFIED WITH 'sha256_password' AS 'auth_string'
+CREATE USER user4@localhost IDENTIFIED WITH 'sha256_password' BY 'auth_string'
 ACCOUNT LOCK PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK PASSWORD EXPIRE INTERVAL 90 DAY;
 SELECT user,plugin,authentication_string,password_expired,
 password_lifetime,account_locked FROM mysql.user WHERE USER='user4';
@@ -425,7 +425,7 @@ plugin	mysql_native_password
 authentication_string	#
 ssl_type	X509
 password_expired	N
-password_lifetime	NULL
+password_lifetime	0
 account_locked	N
 
 SHOW CREATE USER u6@localhost;
@@ -543,7 +543,7 @@ ssl_cipher
 x509_issuer	
 x509_subject	/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client
 password_expired	N
-password_lifetime	NULL
+password_lifetime	0
 account_locked	N
 
 SHOW CREATE USER u9@localhost;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,10 +14,13 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
 #include "my_config.h"
+
 #include <gtest/gtest.h>
+#include <sys/types.h>
 #include <limits>
 
-#include "my_global.h"
+#include "my_byteorder.h"
+#include "my_inttypes.h"
 
 namespace byteorder_unittest {
 

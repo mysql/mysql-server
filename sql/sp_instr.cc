@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,29 +13,58 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "my_global.h"    // NO_EMBEDDED_ACCESS_CHECKS
 #include "sp_instr.h"
-#include "item.h"         // Item_splocal
-#include "log.h"          // query_logger
-#include "opt_trace.h"    // opt_trace_disable_etc
-#include "probes_mysql.h" // MYSQL_QUERY_EXEC_START
-#include "sp_head.h"      // sp_head
-#include "sp.h"           // sp_get_item_value
-#include "sp_rcontext.h"  // sp_rcontext
-#include "auth_common.h"  // SELECT_ACL
-#include "sql_base.h"     // open_temporary_tables
-#include "sql_parse.h"    // check_table_access
-#include "sql_prepare.h"  // reinit_stmt_before_use
-#include "transaction.h"  // trans_commit_stmt
-#include "prealloced_array.h"
-#include "binlog.h"
-#include "item_cmpfunc.h" // Item_func_eq
 
 #include <algorithm>
 #include <functional>
 
-#include "trigger.h"                  // Trigger
+#include "auth_acls.h"
+#include "auth_common.h"              // check_table_access
+#include "binlog.h"                   // mysql_bin_log
+#include "enum_query_type.h"
+#include "error_handler.h"            // Strict_error_handler
+#include "field.h"
+#include "item.h"                     // Item_splocal
+#include "item_cmpfunc.h"             // Item_func_eq
+#include "log.h"                      // Query_logger
+#include "m_ctype.h"
+#include "mdl.h"
+#include "my_command.h"
+#include "my_compiler.h"
+#include "my_config.h"
+#include "my_dbug.h"
+#include "my_sqlcommand.h"
+#include "mysql/psi/mysql_statement.h"
+#include "mysql/psi/psi_base.h"
+#include "mysql_com.h"
+#include "mysqld.h"                   // next_query_id
+#include "mysqld_error.h"
+#include "opt_trace.h"                // Opt_trace_start
+#include "prealloced_array.h"         // Prealloced_array
+#include "protocol.h"
+#include "query_options.h"
+#include "session_tracker.h"
+#include "sp.h"                       // sp_get_item_value
+#include "sp_head.h"                  // sp_head
+#include "sp_pcontext.h"              // sp_pcontext
+#include "sp_rcontext.h"              // sp_rcontext
+#include "sql_base.h"                 // open_temporary_tables
+#include "sql_cache.h"                // query_cache
+#include "sql_const.h"
+#include "sql_parse.h"                // parse_sql
+#include "sql_plugin.h"
+#include "sql_prepare.h"              // reinit_stmt_before_use
+#include "sql_profile.h"
+#include "system_variables.h"
 #include "table_trigger_dispatcher.h" // Table_trigger_dispatcher
+#include "thr_malloc.h"
+#include "transaction.h"              // trans_commit_stmt
+#include "transaction_info.h"
+#include "trigger.h"                  // Trigger
+#include "trigger_def.h"
+
+struct PSI_statement_locker;
+struct sql_digest_state;
 
 
 class Cmp_splocal_locations :
@@ -120,7 +149,7 @@ public:
 
   2) We need to empty thd->user_var_events after we have wrote a function
      call. This is currently done by making
-     reset_dynamic(&thd->user_var_events);
+     thd->user_var_events.clear()
      calls in several different places. (TODO consider moving this into
      mysql_bin_log.write() function)
 
@@ -277,7 +306,6 @@ bool sp_lex_instr::reset_lex_and_exec_core(THD *thd,
 
   /* Check pre-conditions. */
 
-  DBUG_ASSERT(!thd->derived_tables);
   DBUG_ASSERT(thd->change_list.is_empty());
 
   /*
@@ -325,17 +353,14 @@ bool sp_lex_instr::reset_lex_and_exec_core(THD *thd,
     is no change in session state, then result sets are picked from cache
     which is wrong as the result sets picked from cache have changed
     state information.
-    In case of embedded server since session state information is not
-    sent there is no need to turn off cache.
   */
 
-#ifndef EMBEDDED_LIBRARY
   if (thd->get_protocol()->has_client_capability(CLIENT_SESSION_TRACK) &&
       thd->session_tracker.enabled_any() &&
       thd->session_tracker.changed_any())
     thd->lex->safe_to_cache_query= 0;
-#endif
 
+  bool open_table_success= true;
   /* Open tables if needed. */
 
   if (!error)
@@ -367,6 +392,8 @@ bool sp_lex_instr::reset_lex_and_exec_core(THD *thd,
 
       if (!error)
         error= open_and_lock_tables(thd, m_lex->query_tables, 0);
+
+      open_table_success= !error;
 
       if (!error)
       {
@@ -435,15 +462,50 @@ bool sp_lex_instr::reset_lex_and_exec_core(THD *thd,
   thd->rollback_item_tree_changes();
 
   /*
-    Update the state of the active arena if no errors on
-    open_tables stage.
-  */
+    Change state of current arena according to outcome of execution.
 
-  if (!error || !thd->is_error() ||
-      (thd->get_stmt_da()->mysql_errno() != ER_CANT_REOPEN_TABLE &&
-       thd->get_stmt_da()->mysql_errno() != ER_NO_SUCH_TABLE &&
-       thd->get_stmt_da()->mysql_errno() != ER_UPDATE_TABLE_USED))
-    thd->stmt_arena->state= Query_arena::STMT_EXECUTED;
+    When entering this function, state is STMT_INITIALIZED_FOR_SP if this is
+    the first execution, otherwise it is STMT_EXECUTED.
+
+    When an error occurs during opening tables, no execution takes place and
+    no state change will take place.
+
+    When a re-prepare error is raised, the next execution will re-prepare the
+    statement. To make sure that items are created in the statement mem_root,
+    change state to STMT_INITIALIZED_FOR_SP.
+
+    In other cases, the state should become (or remain) STMT_EXECUTED.
+    See Query_arena->state definition for explanation.
+
+    Some special handling of CREATE TABLE .... SELECT in an SP is required. The
+    state is always set to STMT_INITIALIZED_FOR_SP in such a case.
+
+    Why is this necessary? A useful pointer would be to note how
+    PREPARE/EXECUTE uses functions like select_like_stmt_test to implement
+    CREATE TABLE .... SELECT. The SELECT part of the DDL is resolved first.
+    Then there is an attempt to create the table. So in the execution phase,
+    if "table exists" error occurs or flush table preceeds the execute, the
+    item tree of the select is re-created and followed by an attempt to create
+    the table.
+
+    But SP uses mysql_execute_command (which is used by the conventional
+    execute) after doing a parse. This creates a problem for SP since it
+    tries to preserve the item tree from the previous execution.
+  */
+  if (open_table_success)
+  {
+    bool reprepare_error=
+      error && thd->get_stmt_da()->mysql_errno() == ER_NEED_REPREPARE;
+    bool is_create_table_select=
+      thd->lex && thd->lex->m_sql_cmd &&
+      thd->lex->m_sql_cmd->sql_command_code() == SQLCOM_CREATE_TABLE &&
+      thd->lex->select_lex && thd->lex->select_lex->item_list.elements > 0;
+
+    if (reprepare_error || is_create_table_select)
+      thd->stmt_arena->state= Query_arena::STMT_INITIALIZED_FOR_SP;
+    else
+      thd->stmt_arena->state= Query_arena::STMT_EXECUTED;
+  }
 
   /*
     Merge here with the saved parent's values
@@ -516,7 +578,7 @@ LEX *sp_lex_instr::parse_expr(THD *thd, sp_head *sp)
     initiated. Also set the statement query arena to the lex mem_root.
   */
   MEM_ROOT *execution_mem_root= thd->mem_root;
-  Query_arena parse_arena(&m_lex_mem_root, STMT_INITIALIZED_FOR_SP);
+  Query_arena parse_arena(&m_lex_mem_root, thd->stmt_arena->state);
 
   thd->mem_root= &m_lex_mem_root;
   thd->stmt_arena->set_query_arena(&parse_arena);
@@ -561,7 +623,7 @@ LEX *sp_lex_instr::parse_expr(THD *thd, sp_head *sp)
     // Call after-parsing callback.
     parsing_failed= on_after_expr_parsing(thd);
 
-    if (sp->m_type == SP_TYPE_TRIGGER)
+    if (sp->m_type == enum_sp_type::TRIGGER)
     {
       /*
         Also let us bind these objects to Field objects in table being opened.
@@ -583,7 +645,7 @@ LEX *sp_lex_instr::parse_expr(THD *thd, sp_head *sp)
            trg_fld;
            trg_fld= trg_fld->next_trg_field)
       {
-        trg_fld->setup_field(thd, sp->m_trg_list->get_trigger_field_support(),
+        trg_fld->setup_field(sp->m_trg_list->get_trigger_field_support(),
                              t->get_subject_table_grant());
       }
 
@@ -752,7 +814,7 @@ void sp_lex_instr::cleanup_before_parsing(THD *thd)
   // Remove previously stored trigger-field items.
   sp_head *sp= thd->sp_runtime_ctx->sp;
 
-  if (sp->m_type == SP_TYPE_TRIGGER)
+  if (sp->m_type == enum_sp_type::TRIGGER)
     m_trig_field_list.empty();
 }
 
@@ -861,7 +923,7 @@ bool sp_instr_stmt::execute(THD *thd, uint *nextp)
     if (thd->get_stmt_da()->is_eof())
     {
       /* Finalize server status flags after executing a statement. */
-      thd->update_server_status();
+      thd->update_slow_query_status();
 
       thd->send_statement_status();
     }
@@ -933,13 +995,6 @@ void sp_instr_stmt::print(String *str)
 
 bool sp_instr_stmt::exec_core(THD *thd, uint *nextp)
 {
-  MYSQL_QUERY_EXEC_START(const_cast<char*>(thd->query().str),
-                         thd->thread_id(),
-                         (char *) (thd->db().str ? thd->db().str : ""),
-                         (char *) thd->security_context()->priv_user().str,
-                         (char *) thd->security_context()->host_or_ip().str,
-                         3);
-
   thd->lex->set_sp_current_parsing_ctx(get_parsing_ctx());
   thd->lex->sphead= thd->sp_runtime_ctx->sp;
 
@@ -950,8 +1005,6 @@ bool sp_instr_stmt::exec_core(THD *thd, uint *nextp)
   thd->lex->set_sp_current_parsing_ctx(NULL);
   thd->lex->sphead= NULL;
   thd->m_statement_psi= statement_psi_saved;
-
-  MYSQL_QUERY_EXEC_DONE(rc);
 
   *nextp= get_ip() + 1;
 
@@ -1022,7 +1075,7 @@ PSI_statement_info sp_instr_set_trigger_field::psi_info=
 bool sp_instr_set_trigger_field::exec_core(THD *thd, uint *nextp)
 {
   *nextp= get_ip() + 1;
-  thd->count_cuted_fields= CHECK_FIELD_ERROR_FOR_NULL;
+  thd->check_for_truncated_fields= CHECK_FIELD_ERROR_FOR_NULL;
   Strict_error_handler strict_handler(Strict_error_handler::
                                       ENABLE_SET_SELECT_STRICT_ERROR_HANDLER);
   /*
@@ -1103,7 +1156,7 @@ void sp_instr_jump::print(String *str)
 }
 
 
-uint sp_instr_jump::opt_mark(sp_head *sp, List<sp_instr> *leads)
+uint sp_instr_jump::opt_mark(sp_head *sp, List<sp_instr>*)
 {
   m_dest= opt_shortcut_jump(sp, this);
   if (m_dest != get_ip() + 1)   /* Jumping to following instruction? */
@@ -1277,7 +1330,7 @@ void sp_instr_jump_case_when::print(String *str)
 }
 
 
-bool sp_instr_jump_case_when::build_expr_items(THD *thd)
+bool sp_instr_jump_case_when::on_after_expr_parsing(THD *thd)
 {
   // Setup CASE-expression item (m_case_expr_item).
 
@@ -1371,6 +1424,32 @@ PSI_statement_info sp_instr_hpush_jump::psi_info=
 { 0, "hpush_jump", 0};
 #endif
 
+
+sp_instr_hpush_jump::sp_instr_hpush_jump(uint ip,
+                                         sp_pcontext *ctx,
+                                         sp_handler *handler)
+  :sp_instr_jump(ip, ctx),
+   m_handler(handler),
+   m_opt_hpop(0),
+   m_frame(ctx->current_var_count())
+{
+  DBUG_ASSERT(m_handler->condition_values.elements == 0);
+}
+
+
+sp_instr_hpush_jump::~sp_instr_hpush_jump()
+{
+  m_handler->condition_values.empty();
+  m_handler= NULL;
+}
+
+
+void sp_instr_hpush_jump::add_condition(sp_condition_value *condition_value)
+{
+  m_handler->condition_values.push_back(condition_value);
+}
+
+
 bool sp_instr_hpush_jump::execute(THD *thd, uint *nextp)
 {
   *nextp= m_dest;
@@ -1454,6 +1533,12 @@ PSI_statement_info sp_instr_hreturn::psi_info=
 { 0, "hreturn", 0};
 #endif
 
+
+sp_instr_hreturn::sp_instr_hreturn(uint ip, sp_pcontext *ctx)
+  :sp_instr_jump(ip, ctx),
+   m_frame(ctx->current_var_count())
+{ }
+
 bool sp_instr_hreturn::execute(THD *thd, uint *nextp)
 {
   /*
@@ -1497,7 +1582,7 @@ void sp_instr_hreturn::print(String *str)
 }
 
 
-uint sp_instr_hreturn::opt_mark(sp_head *sp, List<sp_instr> *leads)
+uint sp_instr_hreturn::opt_mark(sp_head*, List<sp_instr>*)
 {
   m_marked= true;
 
@@ -1532,11 +1617,11 @@ bool sp_instr_cpush::execute(THD *thd, uint *nextp)
 
   // sp_instr_cpush::execute() just registers the cursor in the runtime context.
 
-  return thd->sp_runtime_ctx->push_cursor(this);
+  return thd->sp_runtime_ctx->push_cursor(thd, this);
 }
 
 
-bool sp_instr_cpush::exec_core(THD *thd, uint *nextp)
+bool sp_instr_cpush::exec_core(THD *thd, uint*)
 {
   sp_cursor *c= thd->sp_runtime_ctx->get_cursor(m_cursor_idx);
 
@@ -1691,7 +1776,7 @@ bool sp_instr_cclose::execute(THD *thd, uint *nextp)
 
   sp_cursor *c= thd->sp_runtime_ctx->get_cursor(m_cursor_idx);
 
-  return c ? c->close(thd) : true;
+  return c ? c->close() : true;
 }
 
 

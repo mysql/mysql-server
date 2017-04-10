@@ -17,52 +17,52 @@ innodb_stats_on_metadata	OFF
 show session variables like 'innodb_stats_on_metadata';
 Variable_name	Value
 innodb_stats_on_metadata	OFF
-select * from information_schema.global_variables where variable_name='innodb_stats_on_metadata';
+select * from performance_schema.global_variables where variable_name='innodb_stats_on_metadata';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_STATS_ON_METADATA	OFF
-select * from information_schema.session_variables where variable_name='innodb_stats_on_metadata';
+innodb_stats_on_metadata	OFF
+select * from performance_schema.session_variables where variable_name='innodb_stats_on_metadata';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_STATS_ON_METADATA	OFF
+innodb_stats_on_metadata	OFF
 set global innodb_stats_on_metadata='OFF';
 select @@global.innodb_stats_on_metadata;
 @@global.innodb_stats_on_metadata
 0
-select * from information_schema.global_variables where variable_name='innodb_stats_on_metadata';
+select * from performance_schema.global_variables where variable_name='innodb_stats_on_metadata';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_STATS_ON_METADATA	OFF
-select * from information_schema.session_variables where variable_name='innodb_stats_on_metadata';
+innodb_stats_on_metadata	OFF
+select * from performance_schema.session_variables where variable_name='innodb_stats_on_metadata';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_STATS_ON_METADATA	OFF
+innodb_stats_on_metadata	OFF
 set @@global.innodb_stats_on_metadata=1;
 select @@global.innodb_stats_on_metadata;
 @@global.innodb_stats_on_metadata
 1
-select * from information_schema.global_variables where variable_name='innodb_stats_on_metadata';
+select * from performance_schema.global_variables where variable_name='innodb_stats_on_metadata';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_STATS_ON_METADATA	ON
-select * from information_schema.session_variables where variable_name='innodb_stats_on_metadata';
+innodb_stats_on_metadata	ON
+select * from performance_schema.session_variables where variable_name='innodb_stats_on_metadata';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_STATS_ON_METADATA	ON
+innodb_stats_on_metadata	ON
 set global innodb_stats_on_metadata=0;
 select @@global.innodb_stats_on_metadata;
 @@global.innodb_stats_on_metadata
 0
-select * from information_schema.global_variables where variable_name='innodb_stats_on_metadata';
+select * from performance_schema.global_variables where variable_name='innodb_stats_on_metadata';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_STATS_ON_METADATA	OFF
-select * from information_schema.session_variables where variable_name='innodb_stats_on_metadata';
+innodb_stats_on_metadata	OFF
+select * from performance_schema.session_variables where variable_name='innodb_stats_on_metadata';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_STATS_ON_METADATA	OFF
+innodb_stats_on_metadata	OFF
 set @@global.innodb_stats_on_metadata='ON';
 select @@global.innodb_stats_on_metadata;
 @@global.innodb_stats_on_metadata
 1
-select * from information_schema.global_variables where variable_name='innodb_stats_on_metadata';
+select * from performance_schema.global_variables where variable_name='innodb_stats_on_metadata';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_STATS_ON_METADATA	ON
-select * from information_schema.session_variables where variable_name='innodb_stats_on_metadata';
+innodb_stats_on_metadata	ON
+select * from performance_schema.session_variables where variable_name='innodb_stats_on_metadata';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_STATS_ON_METADATA	ON
+innodb_stats_on_metadata	ON
 set session innodb_stats_on_metadata='OFF';
 ERROR HY000: Variable 'innodb_stats_on_metadata' is a GLOBAL variable and should be set with SET GLOBAL
 set @@session.innodb_stats_on_metadata='ON';
@@ -78,12 +78,12 @@ set global innodb_stats_on_metadata=-3;
 select @@global.innodb_stats_on_metadata;
 @@global.innodb_stats_on_metadata
 1
-select * from information_schema.global_variables where variable_name='innodb_stats_on_metadata';
+select * from performance_schema.global_variables where variable_name='innodb_stats_on_metadata';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_STATS_ON_METADATA	ON
-select * from information_schema.session_variables where variable_name='innodb_stats_on_metadata';
+innodb_stats_on_metadata	ON
+select * from performance_schema.session_variables where variable_name='innodb_stats_on_metadata';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_STATS_ON_METADATA	ON
+innodb_stats_on_metadata	ON
 set global innodb_stats_on_metadata='AUTO';
 ERROR 42000: Variable 'innodb_stats_on_metadata' can't be set to the value of 'AUTO'
 SET @@global.innodb_stats_on_metadata = @start_global_value;

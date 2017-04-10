@@ -17,7 +17,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 *****************************************************************************/
 
 /******************************************************************//**
-@file fts/fts0tokenize.cc
+@file include/fts0tokenize.h
 Full Text Search plugin tokenizer refer to MyISAM
 
 Created 2014/11/17 Shaohua Wang

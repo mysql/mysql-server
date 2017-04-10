@@ -60,8 +60,11 @@ source include/binlog_inject_error.inc;
 let $query= CREATE TRIGGER tr1 AFTER INSERT ON t1 FOR EACH ROW INSERT INTO t1 VALUES (new.a + 100);
 source include/binlog_inject_error.inc;
 
-let $query= DROP TRIGGER tr1;
-source include/binlog_inject_error.inc;
+# The statements CREATE/DROP TRIGGER fails in case error happen during write to binlog.
+# Since the previous statement CREATE TRIGGER failed with error ER_ERROR_ON_WRITE
+# the trigger tr1 wasn't created so SHOW CREATE TRIGGER should return ER_TRG_DOES_NOT_EXIST. 
+--error ER_TRG_DOES_NOT_EXIST
+SHOW CREATE TRIGGER tr1;
 
 let $query= ALTER TABLE t1 ADD (b INT);
 source include/binlog_inject_error.inc;
@@ -90,11 +93,19 @@ source include/binlog_inject_error.inc;
 let $query= CREATE USER user1;
 source include/binlog_inject_error.inc;
 
+# Since the previous CREATE USER is failed due to an error while writing
+# to bilog and changes made by the statement has been rolled back
+# we have to create user1 to be able to test REVOKE ALL and DROP USER.
+CREATE USER user1;
+
 let $query= REVOKE ALL PRIVILEGES, GRANT OPTION FROM user1;
 source include/binlog_inject_error.inc;
 
 let $query= DROP USER user1;
 source include/binlog_inject_error.inc;
+
+# Since the previous DROP USER is failed we have to do a clean up explicitly.
+DROP USER user1;
 
 --echo #
 --echo # Cleanup

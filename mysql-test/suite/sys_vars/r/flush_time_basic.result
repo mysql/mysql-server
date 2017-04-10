@@ -10,12 +10,12 @@ flush_time	0
 show session variables like 'flush_time';
 Variable_name	Value
 flush_time	0
-select * from information_schema.global_variables where variable_name='flush_time';
+select * from performance_schema.global_variables where variable_name='flush_time';
 VARIABLE_NAME	VARIABLE_VALUE
-FLUSH_TIME	0
-select * from information_schema.session_variables where variable_name='flush_time';
+flush_time	0
+select * from performance_schema.session_variables where variable_name='flush_time';
 VARIABLE_NAME	VARIABLE_VALUE
-FLUSH_TIME	0
+flush_time	0
 set global flush_time=1;
 select @@global.flush_time;
 @@global.flush_time

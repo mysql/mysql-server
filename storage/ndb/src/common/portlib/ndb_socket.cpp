@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2009, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2009, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,7 +15,8 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "my_global.h"
+#include <stdio.h>
+
 #include "m_string.h"
 #include "ndb_socket.h"
 
@@ -58,7 +59,7 @@ int my_socket_close(ndb_socket_t s)
 int my_socketpair(ndb_socket_t s[2])
 {
   struct sockaddr_in addr;
-  SOCKET_SIZE_TYPE addrlen = sizeof(addr);
+  socket_len_t addrlen = sizeof(addr);
   ndb_socket_t listener;
 
   my_socket_invalidate(&listener);

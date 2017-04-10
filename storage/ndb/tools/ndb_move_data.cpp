@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -23,14 +23,14 @@
 #include <ndb_lib_move_data.hpp>
 
 static const char* opt_dbname = "TEST_DB";
-static my_bool opt_exclude_missing_columns = false;
-static my_bool opt_promote_attributes = false;
-static my_bool opt_lossy_conversions = false;
+static bool opt_exclude_missing_columns = false;
+static bool opt_promote_attributes = false;
+static bool opt_lossy_conversions = false;
 static const char* opt_staging_tries = 0;
-static my_bool opt_drop_source = false;
-static my_bool opt_verbose = false;
-static my_bool opt_error_insert = false;
-static my_bool opt_abort_on_error = false;
+static bool opt_drop_source = false;
+static bool opt_verbose = false;
+static bool opt_error_insert = false;
+static bool opt_abort_on_error = false;
 
 static char g_staging_tries_default[100];
 static Ndb_move_data::Opts::Tries g_opts_tries;
@@ -61,6 +61,12 @@ static const NdbDictionary::Table* g_targettab = 0;
     ret = -1; \
     break; \
   }
+
+inline void ndb_end_and_exit(int exitcode)
+{
+  ndb_end(0);
+  exit(exitcode);
+}
 
 static NdbError
 getNdbError(Ndb_cluster_connection* ncc)
@@ -354,12 +360,15 @@ main(int argc, char** argv)
   ndb_opt_set_usage_funcs(short_usage_sub, usage);
   ret = handle_options(&argc, &argv, my_long_options, ndb_std_get_one_option);
   if (ret != 0 || checkopts(argc, argv) != 0)
-    return NDBT_ProgramExit(NDBT_WRONGARGS);
-
+  {
+    ndb_end_and_exit(NDBT_ProgramExit(NDBT_WRONGARGS));
+  }
   setOutputLevel(opt_verbose ? 2 : 0);
 
   ret = doall();
   if (ret == -1)
-    return NDBT_ProgramExit(NDBT_FAILED);
-  return NDBT_ProgramExit(NDBT_OK);
+  {
+    ndb_end_and_exit(NDBT_ProgramExit(NDBT_FAILED));
+  }
+  ndb_end_and_exit(NDBT_ProgramExit(NDBT_OK));
 }

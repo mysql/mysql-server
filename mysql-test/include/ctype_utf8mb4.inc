@@ -194,8 +194,8 @@ if(!$is_heap)
 {
 if(!$is_ndb)
 {
---error ER_TOO_LONG_KEY
-eval create table t1 (a text character set utf8mb4, primary key(a(371))) engine $engine;
+--error ER_TOO_LONG_KEY,ER_INDEX_COLUMN_TOO_LONG
+eval create table t1 (a text character set utf8mb4, primary key(a(371))) engine $engine ROW_FORMAT=COMPACT;
 }
 if($is_ndb)
 {
@@ -966,7 +966,8 @@ SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 eval CREATE TABLE t1 (
   a varchar(255) NOT NULL default '',
   KEY a (a)
-) ENGINE=$engine DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_general_ci;
+) ENGINE=$engine ROW_FORMAT=DYNAMIC
+DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_general_ci;
 insert into t1 values (_utf8mb4 0xe880bd);
 insert into t1 values (_utf8mb4 0x5b);
 --sorted_result
@@ -1028,8 +1029,7 @@ DROP TABLE t1;
 #
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 SET NAMES utf8mb4;
-DROP TABLE IF EXISTS t1;
-eval CREATE TABLE t1(a VARCHAR(255), KEY(a)) ENGINE=$engine DEFAULT CHARSET=utf8mb4;
+eval CREATE TABLE t1(a VARCHAR(255), KEY(a)) ENGINE=$engine ROW_FORMAT=DYNAMIC DEFAULT CHARSET=utf8mb4;
 INSERT INTO t1 VALUES('uuABCDEFGHIGKLMNOPRSTUVWXYZ̈bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb');
 INSERT INTO t1 VALUES('uu');
 check table t1;
@@ -1297,7 +1297,6 @@ drop table t1;
 #
 
 SET CHARACTER SET utf8mb4;
-SHOW VARIABLES LIKE 'character\_set\_%';
 CREATE DATABASE crashtest DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
 USE crashtest;
 eval CREATE TABLE crashtest (crash char(10)) DEFAULT CHARSET=utf8mb4 ENGINE $engine;
@@ -1670,7 +1669,7 @@ eval CREATE TABLE t1 (
   Tape TINYTEXT,
   PRIMARY KEY (clipid),
   KEY tape(Tape(255))
-) CHARACTER SET=utf8mb4 ENGINE $engine;
+) CHARACTER SET=utf8mb4 ROW_FORMAT=DYNAMIC ENGINE=$engine;
 ALTER TABLE t1 ADD mos TINYINT DEFAULT 0 AFTER clipid;
 SHOW CREATE TABLE t1;
 DROP TABLE t1;

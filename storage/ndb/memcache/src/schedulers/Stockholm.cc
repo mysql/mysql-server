@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights
+ Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights
  reserved.
  
  This program is free software; you can redistribute it and/or
@@ -22,8 +22,6 @@
 #include <my_config.h>
 
 /* System headers */
-/* C++ files must define __STDC_FORMAT_MACROS in order to get PRIu64 */
-#define __STDC_FORMAT_MACROS 
 #include <inttypes.h>
 #include <stdio.h>
 
@@ -253,11 +251,11 @@ void Scheduler_stockholm::add_stats(const char *stat_key,
   
   for(unsigned int c = 0 ; c < conf.nclusters; c++) {
     klen = sprintf(key, "pipeline_%d_cluster_%d_commit_cycles", pipeline->id, c);
-    vlen = sprintf(val, "%"PRIu64, cluster[c].stats.cycles);
+    vlen = sprintf(val, "%" PRIu64, cluster[c].stats.cycles);
     add_stat(key, klen, val, vlen, cookie);
     
     klen = sprintf(key, "pipeline_%d_cluster_%d_commit_thread_time", pipeline->id, c);
-    vlen = sprintf(val, "%"PRIu64, cluster[c].stats.commit_thread_vtime);
+    vlen = sprintf(val, "%" PRIu64, cluster[c].stats.commit_thread_vtime);
     add_stat(key, klen, val, vlen, cookie);  
   }
 }

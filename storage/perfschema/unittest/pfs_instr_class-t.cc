@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -13,17 +13,14 @@
   along with this program; if not, write to the Free Software Foundation,
   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include <my_global.h>
 #include <my_thread.h>
-#include <string.h>                             // strncpy
-#include <pfs_instr_class.h>
-#include <pfs_instr.h>
 #include <pfs_global.h>
+#include <pfs_instr.h>
+#include <pfs_instr_class.h>
+#include <string.h>                             // strncpy
 #include <tap.h>
 
-#include "stub_global_status_var.h"
-
-void test_no_registration()
+static void test_no_registration()
 {
   int rc;
   PFS_sync_key key;
@@ -53,53 +50,74 @@ void test_no_registration()
   rc= init_memory_class(0);
   ok(rc == 0, "zero init (memory)");
 
-  key= register_mutex_class("FOO", 3, 0);
+  PSI_mutex_info_v1 mutex_info;
+  memset(&mutex_info, 0, sizeof(mutex_info));
+
+  PSI_rwlock_info_v1 rwlock_info;
+  memset(&rwlock_info, 0, sizeof(rwlock_info));
+
+  PSI_cond_info_v1 cond_info;
+  memset(&cond_info, 0, sizeof(cond_info));
+
+  PSI_thread_info_v1 thread_info;
+  memset(&thread_info, 0, sizeof(thread_info));
+
+  PSI_file_info_v1 file_info;
+  memset(&file_info, 0, sizeof(file_info));
+
+  PSI_socket_info_v1 socket_info;
+  memset(&socket_info, 0, sizeof(socket_info));
+
+  PSI_memory_info_v1 memory_info;
+  memset(&memory_info, 0, sizeof(memory_info));
+
+  key= register_mutex_class("FOO", 3, &mutex_info);
   ok(key == 0, "no mutex registered");
-  key= register_mutex_class("BAR", 3, 0);
+  key= register_mutex_class("BAR", 3, &mutex_info);
   ok(key == 0, "no mutex registered");
-  key= register_mutex_class("FOO", 3, 0);
+  key= register_mutex_class("FOO", 3, &mutex_info);
   ok(key == 0, "no mutex registered");
 
-  key= register_rwlock_class("FOO", 3, 0);
+  key= register_rwlock_class("FOO", 3, &rwlock_info);
   ok(key == 0, "no rwlock registered");
-  key= register_rwlock_class("BAR", 3, 0);
+  key= register_rwlock_class("BAR", 3, &rwlock_info);
   ok(key == 0, "no rwlock registered");
-  key= register_rwlock_class("FOO", 3, 0);
+  key= register_rwlock_class("FOO", 3, &rwlock_info);
   ok(key == 0, "no rwlock registered");
 
-  key= register_cond_class("FOO", 3, 0);
+  key= register_cond_class("FOO", 3, &cond_info);
   ok(key == 0, "no cond registered");
-  key= register_cond_class("BAR", 3, 0);
+  key= register_cond_class("BAR", 3, &cond_info);
   ok(key == 0, "no cond registered");
-  key= register_cond_class("FOO", 3, 0);
+  key= register_cond_class("FOO", 3, &cond_info);
   ok(key == 0, "no cond registered");
 
-  thread_key= register_thread_class("FOO", 3, 0);
+  thread_key= register_thread_class("FOO", 3, &thread_info);
   ok(thread_key == 0, "no thread registered");
-  thread_key= register_thread_class("BAR", 3, 0);
+  thread_key= register_thread_class("BAR", 3, &thread_info);
   ok(thread_key == 0, "no thread registered");
-  thread_key= register_thread_class("FOO", 3, 0);
+  thread_key= register_thread_class("FOO", 3, &thread_info);
   ok(thread_key == 0, "no thread registered");
 
-  file_key= register_file_class("FOO", 3, 0);
+  file_key= register_file_class("FOO", 3, &file_info);
   ok(file_key == 0, "no file registered");
-  file_key= register_file_class("BAR", 3, 0);
+  file_key= register_file_class("BAR", 3, &file_info);
   ok(file_key == 0, "no file registered");
-  file_key= register_file_class("FOO", 3, 0);
+  file_key= register_file_class("FOO", 3, &file_info);
   ok(file_key == 0, "no file registered");
 
-  socket_key= register_socket_class("FOO", 3, 0);
+  socket_key= register_socket_class("FOO", 3, &socket_info);
   ok(socket_key == 0, "no socket registered");
-  socket_key= register_socket_class("BAR", 3, 0);
+  socket_key= register_socket_class("BAR", 3, &socket_info);
   ok(socket_key == 0, "no socket registered");
-  socket_key= register_socket_class("FOO", 3, 0);
+  socket_key= register_socket_class("FOO", 3, &socket_info);
   ok(socket_key == 0, "no socket registered");
 
-  memory_key= register_memory_class("FOO", 3, 0);
+  memory_key= register_memory_class("FOO", 3, &memory_info);
   ok(memory_key == 0, "no memory registered");
-  memory_key= register_memory_class("BAR", 3, 0);
+  memory_key= register_memory_class("BAR", 3, &memory_info);
   ok(memory_key == 0, "no memory registered");
-  memory_key= register_memory_class("FOO", 3, 0);
+  memory_key= register_memory_class("FOO", 3, &memory_info);
   ok(memory_key == 0, "no memory registered");
 
 #ifdef LATER
@@ -171,38 +189,40 @@ void test_no_registration()
   cleanup_memory_class();
 }
 
-void test_mutex_registration()
+static void test_mutex_registration()
 {
   int rc;
   PFS_sync_key key;
   PFS_mutex_class *mutex;
+  PSI_mutex_info_v1 mutex_info;
+  memset(&mutex_info, 0, sizeof(mutex_info));
 
   rc= init_sync_class(5, 0, 0);
   ok(rc == 0, "room for 5 mutex");
 
-  key= register_mutex_class("FOO", 3, 0);
+  key= register_mutex_class("FOO", 3, &mutex_info);
   ok(key == 1, "foo registered");
-  key= register_mutex_class("BAR", 3, 0);
+  key= register_mutex_class("BAR", 3, &mutex_info);
   ok(key == 2, "bar registered");
-  key= register_mutex_class("FOO", 3, 0);
+  key= register_mutex_class("FOO", 3, &mutex_info);
   ok(key == 1, "foo re registered");
-  key= register_mutex_class("M-3", 3, 0);
+  key= register_mutex_class("M-3", 3, &mutex_info);
   ok(key == 3, "M-3 registered");
-  key= register_mutex_class("M-4", 3, 0);
+  key= register_mutex_class("M-4", 3, &mutex_info);
   ok(key == 4, "M-4 registered");
-  key= register_mutex_class("M-5", 3, 0);
+  key= register_mutex_class("M-5", 3, &mutex_info);
   ok(key == 5, "M-5 registered");
   ok(mutex_class_lost == 0, "lost nothing");
-  key= register_mutex_class("M-6", 3, 0);
+  key= register_mutex_class("M-6", 3, &mutex_info);
   ok(key == 0, "M-6 not registered");
   ok(mutex_class_lost == 1, "lost 1 mutex");
-  key= register_mutex_class("M-7", 3, 0);
+  key= register_mutex_class("M-7", 3, &mutex_info);
   ok(key == 0, "M-7 not registered");
   ok(mutex_class_lost == 2, "lost 2 mutex");
-  key= register_mutex_class("M-3", 3, 0);
+  key= register_mutex_class("M-3", 3, &mutex_info);
   ok(key == 3, "M-3 re registered");
   ok(mutex_class_lost == 2, "lost 2 mutex");
-  key= register_mutex_class("M-5", 3, 0);
+  key= register_mutex_class("M-5", 3, &mutex_info);
   ok(key == 5, "M-5 re registered");
   ok(mutex_class_lost == 2, "lost 2 mutex");
 
@@ -218,34 +238,36 @@ void test_mutex_registration()
   cleanup_sync_class();
 }
 
-void test_rwlock_registration()
+static void test_rwlock_registration()
 {
   int rc;
   PFS_sync_key key;
   PFS_rwlock_class *rwlock;
+  PSI_rwlock_info_v1 rwlock_info;
+  memset(&rwlock_info, 0, sizeof(rwlock_info));
 
   rc= init_sync_class(0, 5, 0);
   ok(rc == 0, "room for 5 rwlock");
 
-  key= register_rwlock_class("FOO", 3, 0);
+  key= register_rwlock_class("FOO", 3, &rwlock_info);
   ok(key == 1, "foo registered");
-  key= register_rwlock_class("BAR", 3, 0);
+  key= register_rwlock_class("BAR", 3, &rwlock_info);
   ok(key == 2, "bar registered");
-  key= register_rwlock_class("FOO", 3, 0);
+  key= register_rwlock_class("FOO", 3, &rwlock_info);
   ok(key == 1, "foo re registered");
-  key= register_rwlock_class("RW-3", 4, 0);
+  key= register_rwlock_class("RW-3", 4, &rwlock_info);
   ok(key == 3, "RW-3 registered");
-  key= register_rwlock_class("RW-4", 4, 0);
+  key= register_rwlock_class("RW-4", 4, &rwlock_info);
   ok(key == 4, "RW-4 registered");
-  key= register_rwlock_class("RW-5", 4, 0);
+  key= register_rwlock_class("RW-5", 4, &rwlock_info);
   ok(key == 5, "RW-5 registered");
-  key= register_rwlock_class("RW-6", 4, 0);
+  key= register_rwlock_class("RW-6", 4, &rwlock_info);
   ok(key == 0, "RW-6 not registered");
-  key= register_rwlock_class("RW-7", 4, 0);
+  key= register_rwlock_class("RW-7", 4, &rwlock_info);
   ok(key == 0, "RW-7 not registered");
-  key= register_rwlock_class("RW-3", 4, 0);
+  key= register_rwlock_class("RW-3", 4, &rwlock_info);
   ok(key == 3, "RW-3 re registered");
-  key= register_rwlock_class("RW-5", 4, 0);
+  key= register_rwlock_class("RW-5", 4, &rwlock_info);
   ok(key == 5, "RW-5 re registered");
 
   rwlock= find_rwlock_class(0);
@@ -260,34 +282,36 @@ void test_rwlock_registration()
   cleanup_sync_class();
 }
 
-void test_cond_registration()
+static void test_cond_registration()
 {
   int rc;
   PFS_sync_key key;
   PFS_cond_class *cond;
+  PSI_cond_info_v1 cond_info;
+  memset(&cond_info, 0, sizeof(cond_info));
 
   rc= init_sync_class(0, 0, 5);
   ok(rc == 0, "room for 5 cond");
 
-  key= register_cond_class("FOO", 3, 0);
+  key= register_cond_class("FOO", 3, &cond_info);
   ok(key == 1, "foo registered");
-  key= register_cond_class("BAR", 3, 0);
+  key= register_cond_class("BAR", 3, &cond_info);
   ok(key == 2, "bar registered");
-  key= register_cond_class("FOO", 3, 0);
+  key= register_cond_class("FOO", 3, &cond_info);
   ok(key == 1, "foo re registered");
-  key= register_cond_class("C-3", 3, 0);
+  key= register_cond_class("C-3", 3, &cond_info);
   ok(key == 3, "C-3 registered");
-  key= register_cond_class("C-4", 3, 0);
+  key= register_cond_class("C-4", 3, &cond_info);
   ok(key == 4, "C-4 registered");
-  key= register_cond_class("C-5", 3, 0);
+  key= register_cond_class("C-5", 3, &cond_info);
   ok(key == 5, "C-5 registered");
-  key= register_cond_class("C-6", 3, 0);
+  key= register_cond_class("C-6", 3, &cond_info);
   ok(key == 0, "C-6 not registered");
-  key= register_cond_class("C-7", 3, 0);
+  key= register_cond_class("C-7", 3, &cond_info);
   ok(key == 0, "C-7 not registered");
-  key= register_cond_class("C-3", 3, 0);
+  key= register_cond_class("C-3", 3, &cond_info);
   ok(key == 3, "C-3 re registered");
-  key= register_cond_class("C-5", 3, 0);
+  key= register_cond_class("C-5", 3, &cond_info);
   ok(key == 5, "C-5 re registered");
 
   cond= find_cond_class(0);
@@ -302,34 +326,36 @@ void test_cond_registration()
   cleanup_sync_class();
 }
 
-void test_thread_registration()
+static void test_thread_registration()
 {
   int rc;
   PFS_thread_key key;
   PFS_thread_class *thread;
+  PSI_thread_info_v1 thread_info;
+  memset(&thread_info, 0, sizeof(thread_info));
 
   rc= init_thread_class(5);
   ok(rc == 0, "room for 5 thread");
 
-  key= register_thread_class("FOO", 3, 0);
+  key= register_thread_class("FOO", 3, &thread_info);
   ok(key == 1, "foo registered");
-  key= register_thread_class("BAR", 3, 0);
+  key= register_thread_class("BAR", 3, &thread_info);
   ok(key == 2, "bar registered");
-  key= register_thread_class("FOO", 3, 0);
+  key= register_thread_class("FOO", 3, &thread_info);
   ok(key == 1, "foo re registered");
-  key= register_thread_class("Thread-3", 8, 0);
+  key= register_thread_class("Thread-3", 8, &thread_info);
   ok(key == 3, "Thread-3 registered");
-  key= register_thread_class("Thread-4", 8, 0);
+  key= register_thread_class("Thread-4", 8, &thread_info);
   ok(key == 4, "Thread-4 registered");
-  key= register_thread_class("Thread-5", 8, 0);
+  key= register_thread_class("Thread-5", 8, &thread_info);
   ok(key == 5, "Thread-5 registered");
-  key= register_thread_class("Thread-6", 8, 0);
+  key= register_thread_class("Thread-6", 8, &thread_info);
   ok(key == 0, "Thread-6 not registered");
-  key= register_thread_class("Thread-7", 8, 0);
+  key= register_thread_class("Thread-7", 8, &thread_info);
   ok(key == 0, "Thread-7 not registered");
-  key= register_thread_class("Thread-3", 8, 0);
+  key= register_thread_class("Thread-3", 8, &thread_info);
   ok(key == 3, "Thread-3 re registered");
-  key= register_thread_class("Thread-5", 8, 0);
+  key= register_thread_class("Thread-5", 8, &thread_info);
   ok(key == 5, "Thread-5 re registered");
 
   thread= find_thread_class(0);
@@ -344,34 +370,36 @@ void test_thread_registration()
   cleanup_thread_class();
 }
 
-void test_file_registration()
+static void test_file_registration()
 {
   int rc;
   PFS_file_key key;
   PFS_file_class *file;
+  PSI_file_info_v1 file_info;
+  memset(&file_info, 0, sizeof(file_info));
 
   rc= init_file_class(5);
   ok(rc == 0, "room for 5 file");
 
-  key= register_file_class("FOO", 3, 0);
+  key= register_file_class("FOO", 3, &file_info);
   ok(key == 1, "foo registered");
-  key= register_file_class("BAR", 3, 0);
+  key= register_file_class("BAR", 3, &file_info);
   ok(key == 2, "bar registered");
-  key= register_file_class("FOO", 3, 0);
+  key= register_file_class("FOO", 3, &file_info);
   ok(key == 1, "foo re registered");
-  key= register_file_class("File-3", 6, 0);
+  key= register_file_class("File-3", 6, &file_info);
   ok(key == 3, "File-3 registered");
-  key= register_file_class("File-4", 6, 0);
+  key= register_file_class("File-4", 6, &file_info);
   ok(key == 4, "File-4 registered");
-  key= register_file_class("File-5", 6, 0);
+  key= register_file_class("File-5", 6, &file_info);
   ok(key == 5, "File-5 registered");
-  key= register_file_class("File-6", 6, 0);
+  key= register_file_class("File-6", 6, &file_info);
   ok(key == 0, "File-6 not registered");
-  key= register_file_class("File-7", 6, 0);
+  key= register_file_class("File-7", 6, &file_info);
   ok(key == 0, "File-7 not registered");
-  key= register_file_class("File-3", 6, 0);
+  key= register_file_class("File-3", 6, &file_info);
   ok(key == 3, "File-3 re registered");
-  key= register_file_class("File-5", 6, 0);
+  key= register_file_class("File-5", 6, &file_info);
   ok(key == 5, "File-5 re registered");
 
   file= find_file_class(0);
@@ -386,38 +414,40 @@ void test_file_registration()
   cleanup_file_class();
 }
 
-void test_socket_registration()
+static void test_socket_registration()
 {
   int rc;
   PFS_socket_key key;
   PFS_socket_class *socket;
+  PSI_socket_info_v1 socket_info;
+  memset(&socket_info, 0, sizeof(socket_info));
 
   rc= init_socket_class(5);
   ok(rc == 0, "room for 5 socket");
 
-  key= register_socket_class("FOO", 3, 0);
+  key= register_socket_class("FOO", 3, &socket_info);
   ok(key == 1, "foo registered");
-  key= register_socket_class("BAR", 3, 0);
+  key= register_socket_class("BAR", 3, &socket_info);
   ok(key == 2, "bar registered");
-  key= register_socket_class("FOO", 3, 0);
+  key= register_socket_class("FOO", 3, &socket_info);
   ok(key == 1, "foo re registered");
-  key= register_socket_class("Socket-3", 8, 0);
+  key= register_socket_class("Socket-3", 8, &socket_info);
   ok(key == 3, "Socket-3 registered");
-  key= register_socket_class("Socket-4", 8, 0);
+  key= register_socket_class("Socket-4", 8, &socket_info);
   ok(key == 4, "Socket-4 registered");
-  key= register_socket_class("Socket-5", 8, 0);
+  key= register_socket_class("Socket-5", 8, &socket_info);
   ok(key == 5, "Socket-5 registered");
   ok(socket_class_lost == 0, "lost nothing");
-  key= register_socket_class("Socket-6", 8, 0);
+  key= register_socket_class("Socket-6", 8, &socket_info);
   ok(key == 0, "Socket-6 not registered");
   ok(socket_class_lost == 1, "lost 1 socket");
-  key= register_socket_class("Socket-7", 8, 0);
+  key= register_socket_class("Socket-7", 8, &socket_info);
   ok(key == 0, "Socket-7 not registered");
   ok(socket_class_lost == 2, "lost 2 socket");
-  key= register_socket_class("Socket-3", 8, 0);
+  key= register_socket_class("Socket-3", 8, &socket_info);
   ok(key == 3, "Socket-3 re registered");
   ok(socket_class_lost == 2, "lost 2 socket");
-  key= register_socket_class("Socket-5", 8, 0);
+  key= register_socket_class("Socket-5", 8, &socket_info);
   ok(key == 5, "Socket-5 re registered");
   ok(socket_class_lost == 2, "lost 2 socket");
 
@@ -433,7 +463,7 @@ void test_socket_registration()
   cleanup_socket_class();
 }
 
-void test_table_registration()
+static void test_table_registration()
 {
 #ifdef LATER
   PFS_table_share *table_share;
@@ -494,38 +524,40 @@ void test_table_registration()
 #endif
 }
 
-void test_memory_registration()
+static void test_memory_registration()
 {
   int rc;
   PFS_memory_key key;
   PFS_memory_class *memory;
+  PSI_memory_info_v1 memory_info;
+  memset(&memory_info, 0, sizeof(memory_info));
 
   rc= init_memory_class(5);
   ok(rc == 0, "room for 5 memory");
 
-  key= register_memory_class("FOO", 3, 0);
+  key= register_memory_class("FOO", 3, &memory_info);
   ok(key == 1, "foo registered");
-  key= register_memory_class("BAR", 3, 0);
+  key= register_memory_class("BAR", 3, &memory_info);
   ok(key == 2, "bar registered");
-  key= register_memory_class("FOO", 3, 0);
+  key= register_memory_class("FOO", 3, &memory_info);
   ok(key == 1, "foo re registered");
-  key= register_memory_class("Memory-3", 8, 0);
+  key= register_memory_class("Memory-3", 8, &memory_info);
   ok(key == 3, "Memory-3 registered");
-  key= register_memory_class("Memory-4", 8, 0);
+  key= register_memory_class("Memory-4", 8, &memory_info);
   ok(key == 4, "Memory-4 registered");
-  key= register_memory_class("Memory-5", 8, 0);
+  key= register_memory_class("Memory-5", 8, &memory_info);
   ok(key == 5, "Memory-5 registered");
   ok(memory_class_lost == 0, "lost nothing");
-  key= register_memory_class("Memory-6", 8, 0);
+  key= register_memory_class("Memory-6", 8, &memory_info);
   ok(key == 0, "Memory-6 not registered");
   ok(memory_class_lost == 1, "lost 1 memory");
-  key= register_memory_class("Memory-7", 8, 0);
+  key= register_memory_class("Memory-7", 8, &memory_info);
   ok(key == 0, "Memory-7 not registered");
   ok(memory_class_lost == 2, "lost 2 memory");
-  key= register_memory_class("Memory-3", 8, 0);
+  key= register_memory_class("Memory-3", 8, &memory_info);
   ok(key == 3, "Memory-3 re registered");
   ok(memory_class_lost == 2, "lost 2 memory");
-  key= register_memory_class("Memory-5", 8, 0);
+  key= register_memory_class("Memory-5", 8, &memory_info);
   ok(key == 5, "Memory-5 re registered");
   ok(memory_class_lost == 2, "lost 2 memory");
 
@@ -570,7 +602,7 @@ bool is_empty_stat(PFS_instr_class *klass)
 }
 #endif
 
-void test_instruments_reset()
+static void test_instruments_reset()
 {
   int rc;
   PFS_sync_key key;
@@ -601,39 +633,54 @@ void test_instruments_reset()
   rc= init_socket_class(3);
   ok(rc == 0, "init (socket)");
 
-  key= register_mutex_class("M-1", 3, 0);
+  PSI_mutex_info_v1 mutex_info;
+  memset(&mutex_info, 0, sizeof(mutex_info));
+
+  PSI_rwlock_info_v1 rwlock_info;
+  memset(&rwlock_info, 0, sizeof(rwlock_info));
+
+  PSI_cond_info_v1 cond_info;
+  memset(&cond_info, 0, sizeof(cond_info));
+
+  PSI_file_info_v1 file_info;
+  memset(&file_info, 0, sizeof(file_info));
+
+  PSI_socket_info_v1 socket_info;
+  memset(&socket_info, 0, sizeof(socket_info));
+
+  key= register_mutex_class("M-1", 3, &mutex_info);
   ok(key == 1, "mutex registered");
-  key= register_mutex_class("M-2", 3, 0);
+  key= register_mutex_class("M-2", 3, &mutex_info);
   ok(key == 2, "mutex registered");
-  key= register_mutex_class("M-3", 3, 0);
+  key= register_mutex_class("M-3", 3, &mutex_info);
   ok(key == 3, "mutex registered");
 
-  key= register_rwlock_class("RW-1", 4, 0);
+  key= register_rwlock_class("RW-1", 4, &rwlock_info);
   ok(key == 1, "rwlock registered");
-  key= register_rwlock_class("RW-2", 4, 0);
+  key= register_rwlock_class("RW-2", 4, &rwlock_info);
   ok(key == 2, "rwlock registered");
-  key= register_rwlock_class("RW-3", 4, 0);
+  key= register_rwlock_class("RW-3", 4, &rwlock_info);
   ok(key == 3, "rwlock registered");
 
-  key= register_cond_class("C-1", 3, 0);
+  key= register_cond_class("C-1", 3, &cond_info);
   ok(key == 1, "cond registered");
-  key= register_cond_class("C-2", 3, 0);
+  key= register_cond_class("C-2", 3, &cond_info);
   ok(key == 2, "cond registered");
-  key= register_cond_class("C-3", 3, 0);
+  key= register_cond_class("C-3", 3, &cond_info);
   ok(key == 3, "cond registered");
 
-  file_key= register_file_class("F-1", 3, 0);
+  file_key= register_file_class("F-1", 3, &file_info);
   ok(file_key == 1, "file registered");
-  file_key= register_file_class("F-2", 3, 0);
+  file_key= register_file_class("F-2", 3, &file_info);
   ok(file_key == 2, "file registered");
-  file_key= register_file_class("F-3", 3, 0);
+  file_key= register_file_class("F-3", 3, &file_info);
   ok(file_key == 3, "file registered");
 
-  socket_key= register_socket_class("S-1", 3, 0);
+  socket_key= register_socket_class("S-1", 3, &socket_info);
   ok(socket_key == 1, "socket registered");
-  socket_key= register_socket_class("S-2", 3, 0);
+  socket_key= register_socket_class("S-2", 3, &socket_info);
   ok(socket_key == 2, "socket registered");
-  socket_key= register_socket_class("S-3", 3, 0);
+  socket_key= register_socket_class("S-3", 3, &socket_info);
   ok(socket_key == 3, "socket registered");
 
   mutex_1= find_mutex_class(1);
@@ -719,7 +766,7 @@ void test_instruments_reset()
   cleanup_socket_class();
 }
 
-void do_all_tests()
+static void do_all_tests()
 {
   test_no_registration();
   test_mutex_registration();
@@ -738,6 +785,6 @@ int main(int, char **)
   plan(209);
   MY_INIT("pfs_instr_info-t");
   do_all_tests();
-  return 0;
+  return (exit_status());
 }
 

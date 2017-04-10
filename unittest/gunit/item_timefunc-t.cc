@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -54,7 +54,7 @@ protected:
 TEST_F(ItemTimeFuncTest, dateAddInterval)
 {
   Item_int *arg0= new Item_int(20130122145221LL); // 2013-01-22 14:52:21
-  Item_decimal *arg1= new Item_decimal(0.1234567, 8, 7);
+  Item_decimal *arg1= new Item_decimal(0.1234567);
   Item *item= 
     new Item_date_add_interval(POS(),
                                arg0, arg1, INTERVAL_SECOND_MICROSECOND, false);
@@ -189,4 +189,69 @@ TEST_P(ItemTimeFuncTestP, secToTime)
   testItemTimeFunctions(time, &ltime, sec->decimals);
 }
 
+// Test for MODE_TIME_TRUNCATE_FRACTIONAL.
+class ItemTimeFuncTruncFracTestP : public ::testing::TestWithParam<test_data>
+{
+protected:
+  virtual void SetUp()
+  {
+    initializer.SetUp();
+    m_t= GetParam();
+    save_mode= thd()->variables.sql_mode;
+    thd()->variables.sql_mode|= MODE_TIME_TRUNCATE_FRACTIONAL;
+  }
+
+  virtual void TearDown()
+  {
+    thd()->variables.sql_mode= save_mode;
+    initializer.TearDown();
+  }
+
+  THD *thd() { return initializer.thd(); }
+
+  Server_initializer initializer;
+  test_data m_t;
+  sql_mode_t save_mode;
+};
+
+const test_data test_values_trunc_frac[]=
+{
+  { "0.1234564", 0, 0, 0, 123456 },
+  { "0.1234567", 0, 0, 0, 123456 },
+  { "0.1234", 0, 0, 0, 123400 },
+  { "12.1234567", 0, 0, 12, 123456 },
+  { "123", 0, 2, 3, 0 },
+  { "2378.3422349", 0, 39, 38, 342234 },
+  { "3020398.999999999", 838, 59, 58, 999999 },
+  { "3020399", 838, 59, 59, 0 },
+  { "99999999.99999999", 838, 59, 59, 0 }
+};
+
+INSTANTIATE_TEST_CASE_P(a, ItemTimeFuncTruncFracTestP,
+                        ::testing::ValuesIn(test_values_trunc_frac));
+
+TEST_P(ItemTimeFuncTruncFracTestP, secToTime)
+{
+  Item_decimal *sec=
+    new Item_decimal(POS(), m_t.secs, strlen(m_t.secs), &my_charset_latin1_bin);
+  Item_func_sec_to_time *time= new Item_func_sec_to_time(POS(), sec);
+
+  Parse_context pc(thd(), thd()->lex->current_select());
+  Item *item;
+  EXPECT_FALSE(time->itemize(&pc, &item));
+  EXPECT_EQ(time, item);
+  EXPECT_FALSE(time->fix_fields(thd(), NULL));
+
+  MYSQL_TIME ltime;
+  time->get_time(&ltime);
+  EXPECT_EQ(0U, ltime.year);
+  EXPECT_EQ(0U, ltime.month);
+  EXPECT_EQ(0U, ltime.day);
+  EXPECT_EQ(m_t.hour, ltime.hour);
+  EXPECT_EQ(m_t.minute, ltime.minute);
+  EXPECT_EQ(m_t.second, ltime.second);
+  EXPECT_EQ(m_t.second_part, ltime.second_part);
+
+  testItemTimeFunctions(time, &ltime, sec->decimals);
+}
 }

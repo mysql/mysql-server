@@ -15,7 +15,10 @@
 
 /* Written by Sergei A. Golubchik, who has a shared copyright to this code */
 
-/* some definitions for full-text indices */
+/**
+  @file storage/myisam/fulltext.h
+  Some definitions for full-text indices
+*/
 
 #include "myisamdef.h"
 #include "ft_global.h"

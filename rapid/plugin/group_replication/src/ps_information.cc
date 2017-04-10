@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -23,7 +23,6 @@ bool get_group_members_info(uint index,
                             const GROUP_REPLICATION_GROUP_MEMBERS_CALLBACKS& callbacks,
                             Group_member_info_manager_interface
                                 *group_member_manager,
-                            char *group_name_pointer,
                             char *channel_name)
 {
   if (channel_name != NULL)
@@ -45,7 +44,7 @@ bool get_group_members_info(uint index,
     return false;
   }
 
-  uint number_of_members= group_member_manager->get_number_of_members();
+  size_t number_of_members= group_member_manager->get_number_of_members();
   if (index >= number_of_members) {
     /* purecov: begin inspected */
     if (index != 0) {
@@ -97,7 +96,6 @@ bool get_group_member_stats(const GROUP_REPLICATION_GROUP_MEMBER_STATS_CALLBACKS
                                 *group_member_manager,
                             Applier_module *applier_module,
                             Gcs_operations *gcs_module,
-                            char *group_name_pointer,
                             char *channel_name)
 {
   if (group_member_manager != NULL)

@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,8 +20,10 @@
   So we put them in a separate compilation unit.
 */
 
-#include "my_global.h"
+#include <stddef.h>
+
 #include "m_ctype.h"
+#include "my_inttypes.h"
 
 namespace skip_trailing_space_unittest {
 

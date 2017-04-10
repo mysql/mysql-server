@@ -87,7 +87,7 @@ DROP INDEX t_index2 ON t1;
 # Check-6: Roll back a failed RENAME TABLE
 --replace_result $master_uuid MASTER_UUID
 --eval SET SESSION GTID_NEXT='$master_uuid:6'
---error ER_FILE_NOT_FOUND
+--error ER_NO_SUCH_TABLE
 RENAME TABLE t3 TO t4;
 
 --let $assert_text= rollback gtid MASTER_UUID:6
@@ -155,6 +155,15 @@ DROP DATABASE db2;
 --let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = ""
 --source include/assert.inc
 
+# Disabled all cases for user-manipulation statements since
+# these tests do not take into account that these statements
+# are committed when they fail due to logic errors. So even
+# failed statement can be marked as executed with transactional
+# tables. We can't simply rollback execution of all failing statements
+# without breaking backward compatibility with 5.7 for partially
+# executed statements.
+# See also bug #21697422.
+--disable_parsing
 # Check-13: Roll back a failed CREATE USER
 --replace_result $master_uuid MASTER_UUID
 --eval SET SESSION GTID_NEXT='$master_uuid:13'
@@ -200,6 +209,7 @@ REVOKE ALL PRIVILEGES ON *.* FROM user2;
 --eval SET SESSION GTID_NEXT='$master_uuid:17'
 --error ER_CANNOT_USER
 DROP USER user2;
+--enable_parsing
 
 --let $assert_text= rollback gtid MASTER_UUID:17
 --let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = ""

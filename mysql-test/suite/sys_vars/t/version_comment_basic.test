@@ -52,7 +52,7 @@ SELECT COUNT(@@GLOBAL.version_comment);
 
 --disable_warnings
 SELECT @@GLOBAL.version_comment = VARIABLE_VALUE
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='version_comment';
 --enable_warnings
 --echo 1 Expected
@@ -62,7 +62,7 @@ SELECT COUNT(@@GLOBAL.version_comment);
 
 --disable_warnings
 SELECT COUNT(VARIABLE_VALUE)
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='version_comment';
 --enable_warnings
 --echo 1 Expected

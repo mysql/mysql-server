@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,9 +16,16 @@
 #ifndef _my_plugin_h
 #define _my_plugin_h
 
+/**
+  @file include/mysql/plugin.h
+*/
+
 #ifndef MYSQL_ABI_CHECK
 #include <stddef.h>
 #include "mysql_version.h" /* MYSQL_VERSION_ID */
+#ifdef __cplusplus
+#include "sql_plugin.h"  // plugin_thdvar_safe_update
+#endif
 #endif
 
 /*
@@ -342,7 +349,7 @@ typedef void (*mysql_var_update_func)(MYSQL_THD thd,
 */
 
 #define MYSQL_SYSVAR_BOOL(name, varname, opt, comment, check, update, def) \
-DECLARE_MYSQL_SYSVAR_BASIC(name, char) = { \
+DECLARE_MYSQL_SYSVAR_BASIC(name, bool) = { \
   PLUGIN_VAR_BOOL | ((opt) & PLUGIN_VAR_MASK), \
   #name, comment, check, update, &varname, def}
 
@@ -460,6 +467,10 @@ DECLARE_MYSQL_THDVAR_SIMPLE(name, double) = { \
 #define THDVAR(thd, name) \
   (*(MYSQL_SYSVAR_NAME(name).resolve(thd, MYSQL_SYSVAR_NAME(name).offset)))
 
+#define THDVAR_SET(thd, name, value) \
+  plugin_thdvar_safe_update(thd, MYSQL_SYSVAR(name), \
+                            (char **) &THDVAR(thd, name), \
+                            (const char *) value);
 
 /*
   Plugin description structure.

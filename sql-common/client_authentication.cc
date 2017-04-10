@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,20 +16,23 @@
 // First include (the generated) my_config.h, to get correct platform defines.
 #include "my_config.h"
 
+#include <stdarg.h>
+#include <string.h>
+
+#include "my_dbug.h"
+#include "my_inttypes.h"
+
 #if defined(HAVE_OPENSSL)
 #include "crypt_genhash_impl.h"
-#include "mysql/client_authentication.h"
-#include "m_ctype.h"
-#include "sql_common.h"
 #include "errmsg.h"
+#include "m_ctype.h"
+#include "mysql/client_authentication.h"
+#include "sql_common.h"
 #include "sql_string.h"
-
-#include <string.h>
-#include <stdarg.h>
 #if !defined(HAVE_YASSL)
-#include <openssl/rsa.h>
-#include <openssl/pem.h>
 #include <openssl/err.h>
+#include <openssl/pem.h>
+#include <openssl/rsa.h>
 #if defined(_WIN32) && !defined(_OPENSSL_Applink) && defined(HAVE_OPENSSL_APPLINK_C)
 #include <openssl/applink.c>
 #endif
@@ -42,7 +45,7 @@
 mysql_mutex_t g_public_key_mutex;
 #endif
 
-int sha256_password_init(char *a, size_t b, int c, va_list d)
+int sha256_password_init(char *, size_t, int, va_list)
 {
 #if !defined(HAVE_YASSL)
   mysql_mutex_init(0,&g_public_key_mutex, MY_MUTEX_INIT_SLOW);
@@ -68,7 +71,7 @@ int sha256_password_deinit(void)
   @return Pointer to the RSA public key storage buffer
 */
 
-RSA *rsa_init(MYSQL *mysql)
+static RSA *rsa_init(MYSQL *mysql)
 {
   static RSA *g_public_key= NULL;
   RSA *key= NULL;
@@ -84,7 +87,7 @@ RSA *rsa_init(MYSQL *mysql)
 
   if (mysql->options.extension != NULL &&
       mysql->options.extension->server_public_key_path != NULL &&
-      mysql->options.extension->server_public_key_path != '\0')
+      mysql->options.extension->server_public_key_path[0] != '\0')
   {
     pub_key_file= fopen(mysql->options.extension->server_public_key_path,
                         "r");
@@ -263,7 +266,7 @@ int sha256_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql)
         DBUG_RETURN(CR_ERROR);
 #else
       set_mysql_extended_error(mysql, CR_AUTH_PLUGIN_ERR, unknown_sqlstate,
-                                ER(CR_AUTH_PLUGIN_ERR), "sha256_password",
+                                ER_CLIENT(CR_AUTH_PLUGIN_ERR), "sha256_password",
                                 "Authentication requires SSL encryption");
       DBUG_RETURN(CR_ERROR); // If no openssl support
 #endif

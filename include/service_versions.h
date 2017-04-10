@@ -13,6 +13,10 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+/**
+  @file include/service_versions.h
+*/
+
 #ifdef _WIN32
 #define SERVICE_VERSION __declspec(dllexport) void *
 #else
@@ -36,3 +40,4 @@
 #define VERSION_srv_session_info_service 0x0100
 #define VERSION_srv_session_service      0x0100
 #define VERSION_mysql_keyring_service 0x0100
+#define VERSION_plugin_registry_service 0x100

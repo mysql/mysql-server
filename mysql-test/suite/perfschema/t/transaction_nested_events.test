@@ -7,9 +7,7 @@
 #                                                                    #
 ######################################################################
 
---source include/have_perfschema.inc
---source include/not_embedded.inc
---source include/have_innodb.inc
+# Test requires: sp-protocol/ps-protocol/view-protocol/cursor-protocol disabled
 --source include/no_protocol.inc
 --disable_query_log
 --source ../include/transaction_setup.inc
@@ -34,6 +32,15 @@ DROP DATABASE IF EXISTS db;
 CREATE DATABASE db;
 CREATE TABLE db.t1 (s1 int, s2 varchar(64)) ENGINE=INNODB;
 CREATE TABLE db.nt1 (s1 int, s2 varchar(64)) ENGINE=MYISAM;
+
+--echo
+--echo ## Warm-up data-dictionary cache.
+--disable_result_log
+--disable_query_log
+SELECT * FROM db.t1;
+SELECT * FROM db.nt1;
+--enable_query_log
+--enable_result_log
 
 --echo
 --echo ## Setup connection 1

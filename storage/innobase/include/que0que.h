@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -66,14 +66,16 @@ que_node_t*
 que_fork_get_child(
 /*===============*/
 	que_fork_t*	fork);	/*!< in: query fork */
-/***********************************************************************//**
-Sets the parent of a graph node. */
+
+/** Sets the parent of a graph node.
+@param[in]	node	graph node
+@param[in]	parent	parent */
 UNIV_INLINE
 void
 que_node_set_parent(
-/*================*/
-	que_node_t*	node,	/*!< in: graph node */
-	que_node_t*	parent);/*!< in: parent */
+	que_node_t*	node,
+	que_node_t*	parent);
+
 /** Creates a query graph thread node.
 @param[in]	parent		parent node, i.e., a fork node
 @param[in]	heap		memory heap where created
@@ -210,14 +212,16 @@ ulint
 que_node_get_val_buf_size(
 /*======================*/
 	que_node_t*	node);	/*!< in: graph node */
-/***********************************************************************//**
-Sets the value buffer size of a graph node. */
+
+/** Sets the value buffer size of a graph node.
+@param[in]	node	graph node
+@param[in]	size	size */
 UNIV_INLINE
 void
 que_node_set_val_buf_size(
-/*======================*/
-	que_node_t*	node,	/*!< in: graph node */
-	ulint		size);	/*!< in: size */
+	que_node_t*	node,
+	ulint		size);
+
 /*********************************************************************//**
 Gets the next list node in a list of query graph nodes. */
 UNIV_INLINE
@@ -241,15 +245,17 @@ que_node_t*
 que_node_get_containing_loop_node(
 /*==============================*/
 	que_node_t*	node);	/*!< in: node */
-/*********************************************************************//**
-Catenates a query graph node to a list of them, possible empty list.
+
+/** Catenates a query graph node to a list of them, possible empty list.
+@param[in]	node_list	node list, or NULL
+@param[in]	node		node
 @return one-way list of nodes */
 UNIV_INLINE
 que_node_t*
 que_node_list_add_last(
-/*===================*/
-	que_node_t*	node_list,	/*!< in: node list, or NULL */
-	que_node_t*	node);		/*!< in: node */
+	que_node_t*	node_list,
+	que_node_t*	node);
+
 /*************************************************************************
 Get the last node from the list.*/
 UNIV_INLINE
@@ -505,13 +511,10 @@ struct que_fork_t{
 #define QUE_NODE_COL_ASSIGNMENT	26
 #define QUE_NODE_FOR		(27 + QUE_NODE_CONTROL_STAT)
 #define QUE_NODE_RETURN		28
-#define QUE_NODE_ROW_PRINTF	29
-#define QUE_NODE_ELSIF		30
-#define QUE_NODE_CALL		31
-#define QUE_NODE_EXIT		32
+#define QUE_NODE_ELSIF		29
+#define QUE_NODE_CALL		30
+#define QUE_NODE_EXIT		31
 
-#ifndef UNIV_NONINL
 #include "que0que.ic"
-#endif
 
 #endif

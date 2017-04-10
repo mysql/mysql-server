@@ -1,8 +1,5 @@
 # Tests for PERFORMANCE_SCHEMA
 
---source include/not_embedded.inc
---source include/have_perfschema.inc
-
 # Set to a known state
 update performance_schema.setup_timers
   set timer_name='CYCLE' where name="wait";

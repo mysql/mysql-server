@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,18 +13,33 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#ifndef HAVE_REPLICATION
-#define HAVE_REPLICATION
-#endif
+#include "sql/rpl_group_replication.h"
 
-#include "rpl_group_replication.h"
+#include <stdlib.h>
+#include <sys/types.h>
+
+#include "log.h"                  // sql_print_error
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_sys.h"
+#include "mysql/plugin.h"
+#include "mysql/psi/mysql_mutex.h"
+#include "mysql/service_mysql_alloc.h"
+#include "mysqld.h"               // mysqld_port
+#include "mysqld_thd_manager.h"   // Global_THD_manager
+#include "replication.h"          // Trans_context_info
 #include "rpl_channel_service_interface.h"
-#include "rpl_info_factory.h"
-#include "rpl_slave.h"
-#include "tc_log.h"
-#include "mysqld_thd_manager.h"
-#include "log.h"
+#include "rpl_gtid.h"             // gtid_mode_lock
+#include "rpl_slave.h"            // report_host
+#include "sql_plugin.h"           // plugin_unlock
+#include "sql_string.h"           // to_lex_cstring
+#include "system_variables.h"     // System_variables
 
+class THD;
+
+
+extern ulong opt_mi_repository_id;
+extern ulong opt_rli_repository_id;
 
 /*
   Group Replication plugin handler.
@@ -395,7 +410,6 @@ void set_auto_increment_offset(ulong auto_increment_offset)
   global_system_variables.auto_increment_offset= auto_increment_offset;
 }
 
-#ifdef HAVE_REPLICATION
 void
 get_server_startup_prerequirements(Trans_context_info& requirements,
                                    bool has_lock)
@@ -415,7 +429,6 @@ get_server_startup_prerequirements(Trans_context_info& requirements,
   requirements.parallel_applier_workers= opt_mts_slave_parallel_workers;
   requirements.parallel_applier_preserve_commit_order= opt_slave_preserve_commit_order;
 }
-#endif //HAVE_REPLICATION
 
 bool get_server_encoded_gtid_executed(uchar **encoded_gtid_executed,
                                       size_t *length)

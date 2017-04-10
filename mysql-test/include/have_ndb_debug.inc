@@ -3,8 +3,10 @@
 disable_query_log;
 --exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" --verbose=0 -e "help" > $MYSQLTEST_VARDIR/tmp/help_debug.txt
 create table help_debug(help varchar(256));
--- eval load data local infile '$MYSQLTEST_VARDIR/tmp/help_debug.txt' into table help_debug;
--- require r/have_ndb_debug.require
-select count(*) as have_ndb_debug from help_debug where help like "%debug compiled%";
--- eval drop table help_debug;
-enable_query_log;
+--eval load data local infile '$MYSQLTEST_VARDIR/tmp/help_debug.txt' into table help_debug;
+
+let $have_ndb_debug = `SELECT COUNT(*) FROM help_debug WHERE help LIKE '%debug compiled%'`;
+if (!$have_ndb_debug)
+{
+  --skip Test requires debug compiled NDB
+}

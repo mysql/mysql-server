@@ -54,16 +54,6 @@ analyze table t1;
 drop table t1;
 
 #
-# procedure in PS BUG#13673
-#
-CREATE TABLE t1 (a int);
-prepare stmt1 from "SELECT * FROM t1 PROCEDURE ANALYSE()";
-execute stmt1;
-execute stmt1;
-deallocate prepare stmt1;
-drop table t1;
-
-#
 # bug#15225 (ANALYZE temporary has no effect)
 #
 create temporary table t1(a int, index(a));

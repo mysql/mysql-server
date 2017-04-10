@@ -42,7 +42,7 @@ a	b	c
 # INSERT INTO tbl_name (<normal+gcols>) VALUES... DEFAULT is specified 
 # against gcols
 insert into t1 (a,b) values (1,default), (2,default);
-select * from t1 order by a;
+select * from t1;
 a	b	c
 1	-1	-1
 2	-2	-2
@@ -109,8 +109,8 @@ drop table t2;
 insert into t1 values (1,default,default);
 select * from t1;
 a	b	c
-2	-2	-2
 1	-1	-1
+2	-2	-2
 create table t2 like t1;
 insert into t2 (a,b) select a,b from t1;
 ERROR HY000: The value specified for generated column 'b' in table 't2' is not allowed.
@@ -143,13 +143,13 @@ select * from t1;
 a	b	c
 # UPDATE tbl_name SET gcol=expr WHERE non-gcol=expr
 insert into t1 (a) values (1), (2);
-select * from t1 order by a;
+select * from t1;
 a	b	c
 1	-1	-1
 2	-2	-2
 update t1 set c=3 where a=2;
 ERROR HY000: The value specified for generated column 'c' in table 't1' is not allowed.
-select * from t1 order by a;
+select * from t1;
 a	b	c
 1	-1	-1
 2	-2	-2
@@ -158,12 +158,12 @@ select * from t1;
 a	b	c
 # UPDATE tbl_name SET non-gcol=expr WHERE gcol=expr
 insert into t1 (a) values (1), (2);
-select * from t1 order by a;
+select * from t1;
 a	b	c
 1	-1	-1
 2	-2	-2
 update t1 set a=3 where b=-2;
-select * from t1 order by a;
+select * from t1;
 a	b	c
 1	-1	-1
 3	-3	-3
@@ -172,13 +172,13 @@ select * from t1;
 a	b	c
 # UPDATE tbl_name SET gcol=expr WHERE gcol=expr
 insert into t1 (a) values (1), (2);
-select * from t1 order by a;
+select * from t1;
 a	b	c
 1	-1	-1
 2	-2	-2
 update t1 set c=3 where b=-2;
 ERROR HY000: The value specified for generated column 'c' in table 't1' is not allowed.
-select * from t1 order by a;
+select * from t1;
 a	b	c
 1	-1	-1
 2	-2	-2
@@ -207,12 +207,12 @@ a	b	c
 # INDEX created on gcol 
 # UPDATE tbl_name SET non-gcol=expr WHERE gcol=between const1 and const2
 insert into t1 (a) values (1), (2);
-select * from t1 order by a;
+select * from t1;
 a	b	c
 1	-1	-1
 2	-2	-2
 update t1 set a=3 where c between -3 and -2;
-select * from t1 order by a;
+select * from t1;
 a	b	c
 1	-1	-1
 3	-3	-3
@@ -222,12 +222,12 @@ a	b	c
 # No INDEX created on gcol 
 # UPDATE tbl_name SET non-gcol=expr WHERE gcol=between const1 and const2
 insert into t1 (a) values (1), (2);
-select * from t1 order by a;
+select * from t1;
 a	b	c
 1	-1	-1
 2	-2	-2
 update t1 set a=3 where b between -3 and -2;
-select * from t1 order by a;
+select * from t1;
 a	b	c
 1	-1	-1
 3	-3	-3
@@ -238,7 +238,7 @@ a	b	c
 # UPDATE tbl_name SET non-gcol=expr 
 # WHERE gcol=between const1 and const2 ORDER BY gcol
 insert into t1 (a) values (1), (2), (3), (4), (5);
-select * from t1 order by a;
+select * from t1;
 a	b	c
 1	-1	-1
 2	-2	-2
@@ -247,7 +247,7 @@ a	b	c
 5	-5	-5
 update t1 set a=6 where c between -1 and 0
 order by c;
-select * from t1 order by a;
+select * from t1;
 a	b	c
 2	-2	-2
 3	-3	-3
@@ -270,7 +270,7 @@ a	b	c
 5	-5	-5
 update t1 set a=6 where c between -1 and 0
 order by c limit 2;
-select * from t1 order by a;
+select * from t1;
 a	b	c
 2	-2	-2
 3	-3	-3
@@ -289,7 +289,7 @@ delete from t1;
 # UPDATE tbl_name SET non-gcol=expr
 # WHERE indexed gcol=between const1 and const2 and non-indexed gcol=const3
 insert into t1 (a) values (1), (2), (3), (4), (5);
-select * from t1 order by a;
+select * from t1;
 a	b	c
 1	-1	-1
 2	-2	-2
@@ -297,7 +297,7 @@ a	b	c
 4	-4	-4
 5	-5	-5
 update t1 set a=6 where (c between -2 and 0) and (b=-1);
-select * from t1 order by a;
+select * from t1;
 a	b	c
 2	-2	-2
 3	-3	-3
@@ -310,7 +310,7 @@ delete from t1;
 # WHERE indexed gcol=between const1 and const2 and non-indexed gcol=const3
 # ORDER BY indexed gcol
 insert into t1 (a) values (1), (2), (3), (4), (5);
-select * from t1 order by a;
+select * from t1;
 a	b	c
 1	-1	-1
 2	-2	-2
@@ -318,7 +318,7 @@ a	b	c
 4	-4	-4
 5	-5	-5
 update t1 set a=6 where (c between -2 and 0) and (b=-1) order by c;
-select * from t1 order by a;
+select * from t1;
 a	b	c
 2	-2	-2
 3	-3	-3
@@ -490,7 +490,7 @@ WHERE OUTR1.pk = 1
 );
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	OUTR1	NULL	const	PRIMARY	PRIMARY	4	const	1	100.00	NULL
-1	UPDATE	INNR1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; FirstMatch(OUTR1)
+1	SIMPLE	INNR1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; FirstMatch(OUTR1)
 1	SIMPLE	OUTR2	NULL	index	NULL	PRIMARY	4	NULL	2	100.00	Using index
 Warnings:
 Note	1276	Field or reference 'test.OUTR1.pk' of SELECT #2 was resolved in SELECT #1
@@ -758,6 +758,20 @@ b INTEGER GENERATED ALWAYS AS (a+1) VIRTUAL
 INSERT INTO t1 (a) VALUES (0), (0), (0);
 ALTER TABLE t1 ADD INDEX idx (b);
 DELETE FROM t1;
+DROP TEMPORARY TABLE t1;
+#
+#  WL#6599 - Add test case for SHOW COLUMNS/KEYS on a temporary table.
+#
+CREATE TEMPORARY TABLE t1 (
+a INTEGER NOT NULL,
+b INTEGER GENERATED ALWAYS AS (a+1) VIRTUAL
+);
+SHOW FULL COLUMNS FROM t1;
+Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
+a	int(11)	NULL	NO		NULL	NULL	#	
+b	int(11)	NULL	YES		NULL	VIRTUAL GENERATED	#	
+SHOW KEYS FROM t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 DROP TEMPORARY TABLE t1;
 DROP VIEW  IF EXISTS v1,v2;
 DROP TABLE IF EXISTS t1,t2,t3;

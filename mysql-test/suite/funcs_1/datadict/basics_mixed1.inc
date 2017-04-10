@@ -20,9 +20,11 @@ CREATE TABLE t1 (f1 INT, f2 INT, f3 INT);
 #
 # 1.2 CREATE VIEW
 # 1.2.1 Hit on existing INFORMATION_SCHEMA table
---error ER_DBACCESS_DENIED_ERROR
+#--error ER_DBACCESS_DENIED_ERROR
+--error ER_TABLE_EXISTS_ERROR
 CREATE VIEW tables AS SELECT 'garbage';
---error ER_DBACCESS_DENIED_ERROR
+#--error ER_DBACCESS_DENIED_ERROR
+--error ER_NO_SUCH_TABLE
 CREATE VIEW tables AS SELECT * FROM information_schema.tables;
 # 1.2.2 New view
 --error ER_DBACCESS_DENIED_ERROR
@@ -39,9 +41,11 @@ let $dd_part2= ( c1 INT );
 CREATE TABLE information_schema.t1 (f1 INT, f2 INT, f3 INT);
 #
 # Hit on existing INFORMATION_SCHEMA table
---error ER_DBACCESS_DENIED_ERROR
+#--error ER_DBACCESS_DENIED_ERROR
+--error ER_TABLE_EXISTS_ERROR
 CREATE VIEW information_schema.tables AS SELECT 'garbage';
---error ER_DBACCESS_DENIED_ERROR
+#--error ER_DBACCESS_DENIED_ERROR
+--error ER_NO_SUCH_TABLE
 CREATE VIEW information_schema.tables AS
 SELECT * FROM information_schema.tables;
 # New table

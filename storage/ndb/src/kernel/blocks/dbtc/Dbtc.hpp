@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -38,10 +38,15 @@
 #include <trigger_definitions.h>
 #include <SignalCounter.hpp>
 #include <KeyTable.hpp>
+#include <portlib/NdbTick.h>
 #endif
 
 
 #define JAM_FILE_ID 350
+
+#define TIME_TRACK_HISTOGRAM_RANGES 32
+#define TIME_TRACK_LOG_HISTOGRAM_RANGES 5
+#define TIME_TRACK_INITIAL_RANGE_VALUE 50
 
 #ifdef DBTC_C
 /*
@@ -277,7 +282,8 @@ public:
   
   enum IndexState {
     IS_BUILDING = 0,          // build in progress, start state at create
-    IS_ONLINE = 1             // ready to use
+    IS_ONLINE = 1,            // ready to use
+    IS_OFFLINE = 2            // not in use
   };
 
   /* Sub states of IndexOperation while waiting for TransId_AI
@@ -291,7 +297,6 @@ public:
     ITAS_WAIT_KEY_FAIL = 4     // Failed collecting key
   };
   
-
   /**--------------------------------------------------------------------------
    * LOCAL SYMBOLS PER 'SYMBOL-VALUED' VARIABLE
    *
@@ -331,6 +336,9 @@ public:
     2.3 RECORDS AND FILESIZES
     -------------------------
   */
+  typedef DataBuffer<11,ArrayPool<DataBufferSegment<11> > > AttributeBuffer;
+  typedef LocalDataBuffer<11,ArrayPool<DataBufferSegment<11> > > LocalAttributeBuffer;
+
   /* **************************************************************** */
   /* ---------------------------------------------------------------- */
   /* ------------------- TRIGGER AND INDEX DATA --------------------- */
@@ -393,23 +401,25 @@ public:
     }
   };
   typedef Ptr<TcDefinedTriggerData> DefinedTriggerPtr;
+  typedef ArrayPool<TcDefinedTriggerData> TcDefinedTriggerData_pool;
+  typedef DLList<TcDefinedTriggerData, TcDefinedTriggerData_pool> TcDefinedTriggerData_list;
   
   /**
    * Pool of trigger data record
    */
-  ArrayPool<TcDefinedTriggerData> c_theDefinedTriggerPool;
+  TcDefinedTriggerData_pool c_theDefinedTriggerPool;
   RSS_AP_SNAPSHOT(c_theDefinedTriggerPool);
 
   /**
    * The list of active triggers
    */  
-  DLList<TcDefinedTriggerData> c_theDefinedTriggers;
+  TcDefinedTriggerData_list c_theDefinedTriggers;
 
-  typedef DataBuffer<11> AttributeBuffer;
- 
   AttributeBuffer::DataBufferPool c_theAttributeBufferPool;
 
-  typedef DataBuffer<5> CommitAckMarkerBuffer;
+  typedef ArrayPool<DataBufferSegment<5> > CommitAckMarkerBuffer_pool;
+  typedef DataBuffer<5,CommitAckMarkerBuffer_pool> CommitAckMarkerBuffer;
+  typedef LocalDataBuffer<5,CommitAckMarkerBuffer_pool> LocalCommitAckMarkerBuffer;
 
   CommitAckMarkerBuffer::DataBufferPool c_theCommitAckMarkerBufferPool;
 
@@ -504,12 +514,16 @@ public:
     }
   };
   typedef Ptr<TcFiredTriggerData> FiredTriggerPtr;
+  typedef ArrayPool<TcFiredTriggerData> TcFiredTriggerData_pool;
+  typedef DLFifoList<TcFiredTriggerData, TcFiredTriggerData_pool> TcFiredTriggerData_fifo;
+  typedef LocalDLFifoList<TcFiredTriggerData, TcFiredTriggerData_pool> Local_TcFiredTriggerData_fifo;
+  typedef DLHashTable<TcFiredTriggerData_pool, TcFiredTriggerData> TcFiredTriggerData_hash;
   
   /**
    * Pool of trigger data record
    */
-  ArrayPool<TcFiredTriggerData> c_theFiredTriggerPool;
-  DLHashTable<TcFiredTriggerData> c_firedTriggerHash;
+  TcFiredTriggerData_pool c_theFiredTriggerPool;
+  TcFiredTriggerData_hash c_firedTriggerHash;
   AttributeBuffer::DataBufferPool c_theTriggerAttrInfoPool;
   RSS_AP_SNAPSHOT(c_theFiredTriggerPool);
 
@@ -545,7 +559,9 @@ public:
   /* WHEN THE INDEX IS DROPPED.               */
   /* **************************************** */
   struct TcIndexData {
-    TcIndexData() {}
+    TcIndexData() :
+      indexState(IS_OFFLINE)
+    {}
 
     /**
      *  IndexState
@@ -586,17 +602,19 @@ public:
   };
   
   typedef Ptr<TcIndexData> TcIndexDataPtr;
-  
+  typedef ArrayPool<TcIndexData> TcIndexData_pool;
+  typedef DLList<TcIndexData, TcIndexData_pool> TcIndexData_list;
+
   /**
    * Pool of index data record
    */
-  ArrayPool<TcIndexData> c_theIndexPool;
+  TcIndexData_pool c_theIndexPool;
   RSS_AP_SNAPSHOT(c_theIndexPool);
   
   /**
    * The list of defined indexes
    */  
-  DLList<TcIndexData> c_theIndexes;
+  TcIndexData_list c_theIndexes;
   UintR c_maxNumberOfIndexes;
 
   struct TcIndexOperation {
@@ -649,11 +667,14 @@ public:
   };
   
   typedef Ptr<TcIndexOperation> TcIndexOperationPtr;
-  
+  typedef ArrayPool<TcIndexOperation> TcIndexOperation_pool;
+  typedef SLList<TcIndexOperation, TcIndexOperation_pool> TcIndexOperation_sllist;
+  typedef DLList<TcIndexOperation, TcIndexOperation_pool> TcIndexOperation_dllist;
+
   /**
    * Pool of index data record
    */
-  ArrayPool<TcIndexOperation> c_theIndexOperationPool;
+  TcIndexOperation_pool c_theIndexOperationPool;
   RSS_AP_SNAPSHOT(c_theIndexOperationPool);
 
   UintR c_maxNumberOfIndexOperations;   
@@ -696,8 +717,8 @@ public:
     }
   };
 
-  typedef RecordPool<TcFKData, RWPool> FK_pool;
-  typedef KeyTableImpl<FK_pool, TcFKData> FK_hash;
+  typedef RecordPool<TcFKData, RWPool<TcFKData> > FK_pool;
+  typedef KeyTable<FK_pool, TcFKData> FK_hash;
 
   FK_pool c_fk_pool;
   FK_hash c_fk_hash;
@@ -741,12 +762,14 @@ public:
   static const Uint8 MaxCascadingScansPerTransaction = 1;
 
   struct ApiConnectRecord {
-    ApiConnectRecord(ArrayPool<TcFiredTriggerData> & firedTriggerPool,
-		     ArrayPool<TcIndexOperation> & seizedIndexOpPool):
+    ApiConnectRecord(TcFiredTriggerData_pool & firedTriggerPool,
+                     TcIndexOperation_pool & seizedIndexOpPool):
       m_special_op_flags(0),
       theFiredTriggers(firedTriggerPool),
       theSeizedIndexOperations(seizedIndexOpPool) 
-    {}
+    {
+      NdbTick_Invalidate(&m_start_ticks);
+    }
     
     //---------------------------------------------------
     // First 16 byte cache line. Hot variables.
@@ -823,6 +846,7 @@ public:
       TF_DEFERRED_UK_TRIGGERS = 32, // trans has deferred UK triggers
       TF_DEFERRED_FK_TRIGGERS = 64, // trans has deferred FK triggers
       TF_DISABLE_FK_CONSTRAINTS = 128,
+      TF_LATE_COMMIT = 256, // Wait sending apiCommit until complete phase done
 
       TF_END = 0
     };
@@ -872,7 +896,7 @@ public:
     /**
      * The list of fired triggers
      */  
-    DLFifoList<TcFiredTriggerData> theFiredTriggers;
+    TcFiredTriggerData_fifo theFiredTriggers;
     
     
     // Index data
@@ -885,11 +909,13 @@ public:
     Uint32 errorData;
     UintR attrInfoLen;
     Uint32 immediateTriggerId;  // Id of trigger op being fired NOW
+    Uint32 firedFragId;
     
     UintR accumulatingIndexOp;
     UintR executingIndexOp;
     UintR tcIndxSendArray[6];
-    DLList<TcIndexOperation> theSeizedIndexOperations;
+    NDB_TICKS m_start_ticks;
+    TcIndexOperation_dllist theSeizedIndexOperations;
 
 #ifdef ERROR_INSERT
     Uint32 continueBCount;  // ERROR_INSERT 8082
@@ -925,6 +951,10 @@ public:
   /*       TC_CONNECT RECORD ALIGNED TO BE 128 BYTES                   */
   /*******************************************************************>*/
   struct TcConnectRecord {
+    TcConnectRecord()
+    {
+      NdbTick_Invalidate(&m_start_ticks);
+    }
     //---------------------------------------------------
     // First 16 byte cache line. Those variables are only
     // used in error cases.
@@ -961,15 +991,16 @@ public:
     enum SpecialOpFlags {
       SOF_NORMAL = 0,
       SOF_INDEX_TABLE_READ = 1,       // Read index table
-      SOF_REORG_TRIGGER_BASE = 4,
-      SOF_REORG_TRIGGER = 4 | 16,     // A reorg trigger
+      SOF_REORG_TRIGGER = 4,          // A reorg trigger
       SOF_REORG_MOVING = 8,           // A record that should be moved
       SOF_TRIGGER = 16,               // A trigger
       SOF_REORG_COPY = 32,
       SOF_REORG_DELETE = 64,
       SOF_DEFERRED_UK_TRIGGER = 128,  // Op has deferred trigger
       SOF_DEFERRED_FK_TRIGGER = 256,
-      SOF_FK_READ_COMMITTED = 512     // reply to TC even for dirty read
+      SOF_FK_READ_COMMITTED = 512,    // reply to TC even for dirty read
+      SOF_FULLY_REPLICATED_TRIGGER = 1024,
+      SOF_UTIL_FLAG = 2048            // Sender to TC is DBUTIL (higher prio)
     };
     
     static inline bool isIndexOp(Uint16 flags) {
@@ -997,7 +1028,7 @@ public:
     /**
      * The list of pending fired triggers
      */
-    DLFifoList<TcFiredTriggerData>::Head thePendingTriggers;
+    TcFiredTriggerData_fifo::Head thePendingTriggers;
 
     UintR triggeringOperation;  // Which operation was "cause" of this op
     
@@ -1008,6 +1039,7 @@ public:
       Uint32 attrInfoLen;
       Uint32 triggerErrorCode;
     };
+    NDB_TICKS m_start_ticks;
   };
   
   friend struct TcConnectRecord;
@@ -1017,7 +1049,7 @@ public:
   // ********************** CACHE RECORD **************************************
   //---------------------------------------------------------------------------
   // This record is used between reception of TCKEYREQ and sending of LQHKEYREQ
-  // It is separatedso as to improve the cache hit rate and also to minimise 
+  // It is separated so as to improve the cache hit rate and also to minimise 
   // the necessary memory storage in NDB Cluster.
   //---------------------------------------------------------------------------
 
@@ -1059,7 +1091,8 @@ public:
        * EXECUTION MODE OF OPERATION                    
        * 0 = NORMAL EXECUTION, 1 = INTERPRETED EXECUTION
        */
-      Uint8  opExec;     
+      Uint8  opExec;
+      Uint8  m_read_committed_base;
     
       /* Use of Long signals */
       Uint8  isLongTcKeyReq;   /* Incoming TcKeyReq used long signal */
@@ -1098,6 +1131,26 @@ public:
     };
     Uint32 m_nf_bits;
     NdbNodeBitmask m_lqh_trans_conf;
+    /**
+     * Indicator if any history to track yet
+     *
+     * Tracking scan and scan errors (API node)
+     * Tracking read key, write key and index key operations
+     * (API node and primary DB node)
+     * Tracking scan frag and scan frag errors (API node)
+     * Tracking transactions (API node)
+     */
+    Uint32 time_tracked;
+    Uint64 time_track_scan_histogram[TIME_TRACK_HISTOGRAM_RANGES];
+    Uint64 time_track_scan_error_histogram[TIME_TRACK_HISTOGRAM_RANGES];
+    Uint64 time_track_read_key_histogram[TIME_TRACK_HISTOGRAM_RANGES];
+    Uint64 time_track_write_key_histogram[TIME_TRACK_HISTOGRAM_RANGES];
+    Uint64 time_track_index_key_histogram[TIME_TRACK_HISTOGRAM_RANGES];
+    Uint64 time_track_key_error_histogram[TIME_TRACK_HISTOGRAM_RANGES];
+    Uint64 time_track_scan_frag_histogram[TIME_TRACK_HISTOGRAM_RANGES];
+    Uint64 time_track_scan_frag_error_histogram[TIME_TRACK_HISTOGRAM_RANGES];
+    Uint64 time_track_transaction_histogram[TIME_TRACK_HISTOGRAM_RANGES];
+    Uint64 time_track_transaction_error_histogram[TIME_TRACK_HISTOGRAM_RANGES];
   };
   
   typedef Ptr<HostRecord> HostRecordPtr;
@@ -1121,6 +1174,9 @@ public:
       TR_STORED_TABLE = 1 << 2,
       TR_PREPARED     = 1 << 3
       ,TR_USER_DEFINED_PARTITIONING = 1 << 4
+      ,TR_READ_BACKUP = (1 << 5)
+      ,TR_FULLY_REPLICATED = (1<<6)
+      ,TR_DELAY_COMMIT = (1 << 7)
     };
     Uint8 get_enabled()     const { return (m_flags & TR_ENABLED)      != 0; }
     Uint8 get_dropping()    const { return (m_flags & TR_DROPPING)     != 0; }
@@ -1149,7 +1205,9 @@ public:
     bool checkTable(Uint32 schemaVersion) const {
       return !get_dropping() &&
 	((/** normal transaction path */
-          get_enabled() && table_version_major(schemaVersion) == table_version_major(currentSchemaVersion)) 
+          get_enabled() &&
+          table_version_major(schemaVersion) ==
+          table_version_major(currentSchemaVersion)) 
          ||
          (/** 
            * unique index is relaxed for DbUtil and transactions ongoing
@@ -1175,6 +1233,7 @@ public:
       lqhBlockref = 0;
       scanFragState = COMPLETED;
       scanRec = RNIL;
+      NdbTick_Invalidate(&m_start_ticks);
     }
     /**
      * ScanFragState      
@@ -1204,8 +1263,15 @@ public:
     // Timer for checking timeout of this fragment scan
     Uint32  scanFragTimer;
 
-    // Id of the current scanned fragment
+    /**
+     * Id of the current scanned fragment
+     * scanFragId can differ from lqhScanFragId for fully replicated
+     * tables where the full fragments are copies and DIGETNODESREQ
+     * might change the lqhScanFragId to differ from scanFragId to
+     * read a local fragment replica.
+     */
     Uint32 scanFragId;
+    Uint32 lqhScanFragId;
 
     // Blockreference of LQH 
     BlockReference lqhBlockref;
@@ -1238,10 +1304,14 @@ public:
       Uint32 nextList;
     };
     Uint32 prevList;
+    NDB_TICKS m_start_ticks;
   };
   
   typedef Ptr<ScanFragRec> ScanFragRecPtr;
-  typedef LocalDLList<ScanFragRec> ScanFragList;
+  typedef UnsafeArrayPool<ScanFragRec> ScanFragRec_pool;
+  typedef SLList<ScanFragRec, ScanFragRec_pool> ScanFragRec_sllist;
+  typedef DLList<ScanFragRec, ScanFragRec_pool> ScanFragRec_dllist;
+  typedef LocalDLList<ScanFragRec, ScanFragRec_pool> Local_ScanFragRec_dllist;
 
   /**
    * Each scan allocates one ScanRecord to store information 
@@ -1249,7 +1319,10 @@ public:
    *
    */
   struct ScanRecord {
-    ScanRecord() {}
+    ScanRecord()
+    {
+      NdbTick_Invalidate(&m_start_ticks);
+    }
     /** NOTE! This is the old comment for ScanState. - MASV
      *       STATE TRANSITIONS OF SCAN_STATE. SCAN_STATE IS THE STATE 
      *       VARIABLE OF THE RECEIVE AND DELIVERY PROCESS.
@@ -1318,10 +1391,10 @@ public:
     Uint32 scanKeyInfoPtr;
     Uint32 scanAttrInfoPtr;
 
-    DLList<ScanFragRec>::Head m_running_scan_frags;  // Currently in LQH
+    ScanFragRec_dllist::Head m_running_scan_frags;  // Currently in LQH
     union { Uint32 m_queued_count; Uint32 scanReceivedOperations; };
-    DLList<ScanFragRec>::Head m_queued_scan_frags;   // In TC !sent to API
-    DLList<ScanFragRec>::Head m_delivered_scan_frags;// Delivered to API
+    ScanFragRec_dllist::Head m_queued_scan_frags;   // In TC !sent to API
+    ScanFragRec_dllist::Head m_delivered_scan_frags;// Delivered to API
     
     // Id of the next fragment to be scanned. Used by scan fragment 
     // processes when they are ready for the next fragment
@@ -1375,12 +1448,15 @@ public:
      * Send opcount/total len as different words
      */
     bool m_4word_conf;
+    bool m_read_committed_base;
 
     /**
      *
      */
     bool m_scan_dist_key_flag;
     Uint32 m_scan_dist_key;
+    Uint32 m_read_any_node;
+    NDB_TICKS m_start_ticks;
   };
   typedef Ptr<ScanRecord> ScanRecordPtr;
   
@@ -1394,9 +1470,7 @@ public:
   /*       GCP RECORD ALIGNED TO BE 32 BYTES                                 */
   /*************************************************************************>*/
   struct GcpRecord {
-    Uint16 gcpUnused0;
     Uint16 gcpNomoretransRec;
-    UintR gcpUnused1[2];	/* p2c: Not used */
     UintR firstApiConnect;
     UintR lastApiConnect;
     UintR nextGcp;
@@ -1454,11 +1528,12 @@ private:
   void execCOMPLETED(Signal* signal);
   void execCOMMITTED(Signal* signal);
   void execDIGETNODESREF(Signal* signal);
-  void execDIH_SCAN_GET_NODES_REF(Signal* signal);
-  void execDIH_SCAN_GET_NODES_CONF(Signal* signal);
   void execDIVERIFYCONF(Signal* signal);
-  void execDIH_SCAN_TAB_REF(Signal* signal);
-  void execDIH_SCAN_TAB_CONF(Signal* signal);
+  void execDIH_SCAN_TAB_REF(Signal* signal,
+                            ScanRecordPtr scanptr);
+  void execDIH_SCAN_TAB_CONF(Signal* signal,
+                             ScanRecordPtr scanptr,
+                             TableRecordPtr tabPtr);
   void execGCP_NOMORETRANS(Signal* signal);
   void execLQHKEYCONF(Signal* signal);
   void execNDB_STTOR(Signal* signal);
@@ -1574,6 +1649,7 @@ private:
   void timeOutLoopStartFragLab(Signal* signal, Uint32 TscanConPtr);
   int  releaseAndAbort(Signal* signal);
 
+  void scan_for_read_backup(Signal *, Uint32, Uint32, Uint32);
   void releaseMarker(ApiConnectRecord * const regApiPtr);
 
   Uint32 get_transid_fail_bucket(Uint32 transid1);
@@ -1633,13 +1709,10 @@ private:
   void initScanfragrec(Signal* signal);
   void releaseScanResources(Signal*, ScanRecordPtr, bool not_started = false);
   ScanRecordPtr seizeScanrec(Signal* signal);
-  void startFragScansLab(Signal*, Uint32 tableId,
-                        SectionHandle&, Uint32 secOffs);
-  void startFragScanLab(Signal*, Uint32 tableId,
-                        const DihScanGetNodesConf::FragItem& fragConf);
+  bool startFragScanLab(Signal*, ScanFragRecPtr, ScanRecordPtr, bool &local);
 
   void sendDihGetNodesReq(Signal*, ScanRecordPtr);
-  void sendScanFragReq(Signal*, ScanRecord*, ScanFragRec*, bool);
+  void sendScanFragReq(Signal*, ScanRecord*, ScanFragRecPtr, bool);
   void sendScanTabConf(Signal* signal, ScanRecordPtr);
   void close_scan_req(Signal*, ScanRecordPtr, bool received_req);
   void close_scan_req_send_conf(Signal*, ScanRecordPtr);
@@ -1687,7 +1760,9 @@ private:
   void seizeGcp(Ptr<GcpRecord> & dst, Uint64 gci);
   void seizeTcConnect(Signal* signal);
   void seizeTcConnectFail(Signal* signal);
-  Ptr<ApiConnectRecord> sendApiCommit(Signal* signal);
+  Ptr<ApiConnectRecord> sendApiCommitAndCopy(Signal* signal);
+  void sendApiCommitSignal(Signal* signal, Ptr<ApiConnectRecord>);
+  void sendApiLateCommitSignal(Signal* signal, Ptr<ApiConnectRecord> apiCopy);
   bool sendAttrInfoTrain(Signal* signal,
                          UintR TBRef,
                          Uint32 connectPtr,
@@ -1724,9 +1799,9 @@ private:
                         const Uint32 *src,
                         Uint32 len);
   bool receivedAllTRANSID_AI(TcIndexOperation* indexOp);
-  void readIndexTable(Signal* signal, 
-		      ApiConnectRecord* regApiPtr,
-		      TcIndexOperation* indexOp,
+  void readIndexTable(Signal* signal,
+                      ApiConnectRecordPtr transPtr,
+                      TcIndexOperation* indexOp,
                       Uint32 special_op_flags);
   void executeIndexOperation(Signal* signal, 
 			     ApiConnectRecord* regApiPtr,
@@ -1748,11 +1823,13 @@ private:
                            Uint32 triggerPtrI,
                            TcConnectRecord* triggeringOp,
                            Uint32 returnCode);
-  void continueTriggeringOp(Signal* signal, TcConnectRecord* trigOp);
+  void continueTriggeringOp(Signal* signal,
+                            TcConnectRecord* trigOp,
+                            ApiConnectRecordPtr);
 
   void executeTriggers(Signal* signal, ApiConnectRecordPtr* transPtr);
   void waitToExecutePendingTrigger(Signal* signal, ApiConnectRecordPtr transPtr);
-  void executeTrigger(Signal* signal,
+  bool executeTrigger(Signal* signal,
                       TcFiredTriggerData* firedTriggerData,
                       ApiConnectRecordPtr* transPtr,
                       TcConnectRecordPtr* opPtr);
@@ -1762,11 +1839,11 @@ private:
                            ApiConnectRecordPtr* transPtr,
                            TcConnectRecordPtr* opPtr);
   Uint32 appendDataToSection(Uint32& sectionIVal,
-                             DataBuffer<11> & src,
-                             DataBuffer<11>::DataBufferIterator & iter,
+                             AttributeBuffer & src,
+                             AttributeBuffer::DataBufferIterator & iter,
                              Uint32 len);
   bool appendAttrDataToSection(Uint32& sectionIVal,
-                               DataBuffer<11>& values,
+                               AttributeBuffer& values,
                                bool withHeaders,
                                Uint32& attrId,
                                bool& hasNull);
@@ -1812,7 +1889,7 @@ private:
                              Uint32 op, Uint32 attrValuesPtrI);
 
   Uint32 fk_buildKeyInfo(Uint32& keyInfoPtrI, bool& hasNull,
-                         LocalDataBuffer<11>& values,
+                         LocalAttributeBuffer& values,
                          TcFKData* fkData,
                          bool parent);
 
@@ -1832,14 +1909,20 @@ private:
   void execKEYINFO20(Signal*);
 
   Uint32 fk_buildBounds(SegmentedSectionPtr & dst,
-                        LocalDataBuffer<11> & src,
+                        LocalAttributeBuffer & src,
                         TcFKData* fkData);
   Uint32 fk_constructAttrInfoSetNull(const TcFKData*);
   Uint32 fk_constructAttrInfoUpdateCascade(const TcFKData*,
-                                           DataBuffer<11>::Head&);
+                                           AttributeBuffer::Head&);
 
-  void releaseFiredTriggerData(DLFifoList<TcFiredTriggerData>* triggers);
-  void releaseFiredTriggerData(LocalDLFifoList<TcFiredTriggerData>* triggers);
+  bool executeFullyReplicatedTrigger(Signal* signal,
+                                     TcDefinedTriggerData* definedTriggerData,
+                                     TcFiredTriggerData* firedTriggerData,
+                                     ApiConnectRecordPtr* transPtr,
+                                     TcConnectRecordPtr* opPtr);
+
+  void releaseFiredTriggerData(TcFiredTriggerData_fifo* triggers);
+  void releaseFiredTriggerData(Local_TcFiredTriggerData_fifo* triggers);
   void abortTransFromTrigger(Signal* signal, const ApiConnectRecordPtr& transPtr, 
                              Uint32 error);
   // Generated statement blocks
@@ -1907,7 +1990,7 @@ private:
   void startphase1x010Lab(Signal* signal);
 
   void lqhKeyConf_checkTransactionState(Signal * signal,
-					Ptr<ApiConnectRecord> regApiPtr);
+                                        Ptr<ApiConnectRecord> regApiPtr);
 
   void checkDropTab(Signal* signal);
 
@@ -1915,7 +1998,7 @@ private:
 				  Uint32 scanPtrI,
 				  Uint32 failedNodeId);
   void checkScanFragList(Signal*, Uint32 failedNodeId, ScanRecord * scanP, 
-			 LocalDLList<ScanFragRec>::Head&);
+                         Local_ScanFragRec_dllist::Head&);
 
   void nodeFailCheckTransactions(Signal*,Uint32 transPtrI,Uint32 failedNodeId);
   void ndbdFailBlockCleanupCallback(Signal* signal, Uint32 failedNodeId, Uint32 ignoredRc);
@@ -1928,11 +2011,43 @@ private:
   void initData();
   void initRecords();
 
+  /**
+   * Functions used at completion of activities tracked for timing.
+   * Currently we track
+   * 1) Transactions
+   * 2) Key operations
+   * 3) Scan operations
+   * 4) Execution of SCAN_FRAGREQ's (local scans)
+   */
+   void time_track_init_histogram_limits(void);
+   Uint32 time_track_calculate_histogram_position(NDB_TICKS & start_ticks);
+
+   void time_track_complete_scan(ScanRecord * const scanPtr,
+                                 Uint32 apiNodeId);
+   void time_track_complete_scan_error(ScanRecord * const scanPtr,
+                                       Uint32 apiNodeId);
+   void time_track_complete_key_operation(TcConnectRecord * const tcConnectPtr,
+                                          Uint32 apiNodeId,
+                                          Uint32 dbNodeId);
+   void time_track_complete_index_key_operation(
+     TcConnectRecord * const tcConnectPtr,
+     Uint32 apiNodeId,
+     Uint32 dbNodeId);
+   void time_track_complete_key_operation_error(
+     TcConnectRecord * const tcConnectPtr,
+     Uint32 apiNodeId,
+     Uint32 dbNodeId);
+   void time_track_complete_scan_frag(ScanFragRec * const scanFragPtr);
+   void time_track_complete_scan_frag_error(ScanFragRec *const scanFragPtr);
+   void time_track_complete_transaction(ApiConnectRecord *const apiConnectPtr);
+   void time_track_complete_transaction_error(
+     ApiConnectRecord * const apiConnectPtr);
 protected:
   virtual bool getParam(const char* name, Uint32* count);
   
 private:
-
+   Uint32 c_time_track_histogram_boundary[TIME_TRACK_HISTOGRAM_RANGES];
+   bool c_time_track_activated;
   // Transit signals
 
 
@@ -2093,7 +2208,7 @@ private:
   ScanRecord *scanRecord;
   UintR cscanrecFileSize;
 
-  UnsafeArrayPool<ScanFragRec> c_scan_frag_pool;
+  ScanFragRec_pool c_scan_frag_pool;
   RSS_AP_SNAPSHOT(c_scan_frag_pool);
   ScanFragRecPtr scanFragptr;
 
@@ -2190,10 +2305,12 @@ public:
 
 private:
   typedef Ptr<CommitAckMarker> CommitAckMarkerPtr;
-  typedef DLHashTable<CommitAckMarker>::Iterator CommitAckMarkerIterator;
+  typedef ArrayPool<CommitAckMarker> CommitAckMarker_pool;
+  typedef DLHashTable<CommitAckMarker_pool, CommitAckMarker> CommitAckMarker_hash;
+  typedef CommitAckMarker_hash::Iterator CommitAckMarkerIterator;
   
-  ArrayPool<CommitAckMarker>   m_commitAckMarkerPool;
-  DLHashTable<CommitAckMarker> m_commitAckMarkerHash;
+  CommitAckMarker_pool m_commitAckMarkerPool;
+  CommitAckMarker_hash m_commitAckMarkerHash;
   RSS_AP_SNAPSHOT(m_commitAckMarkerPool);
   
   void execTC_COMMIT_ACK(Signal* signal);

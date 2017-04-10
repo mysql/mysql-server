@@ -1,7 +1,7 @@
 #ifndef PARTITION_INFO_INCLUDED
 #define PARTITION_INFO_INCLUDED
 
-/* Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,20 +16,32 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include <stddef.h>
+#include <sys/types.h>
+
+#include "handler.h"
 #include "lock.h"                             // Tablespace_hash_set
+#include "my_bitmap.h"
+#include "my_inttypes.h"
 #include "partition_element.h"
-#include "mysqld.h"                           // key_map
+#include "sql_alloc.h"
 #include "sql_bitmap.h"                       // Bitmap
 #include "sql_data_change.h"                  // enum_duplicates
+#include "sql_list.h"
+
+class Field;
+class Item;
+class Partition_handler;
+class String;
+class THD;
+struct TABLE;
 
 #define NOT_A_PARTITION_ID UINT_MAX32
 
-class partition_info;
-class Partition_share;
-class COPY_INFO;
 class Create_field;
-struct st_partition_iter;
+class partition_info;
 struct TABLE_LIST;
+struct st_partition_iter;
 
 /**
   A "Get next" function for partition iterator.
@@ -98,8 +110,6 @@ typedef struct st_partition_iter
 } PARTITION_ITERATOR;
 
 
-struct st_ddl_log_memory_entry;
-
 typedef struct {
   longlong list_value;
   uint32 partition_id;
@@ -132,7 +142,7 @@ typedef int (*get_subpart_id_func)(partition_info *part_info,
      - get_part_iter_for_interval_via_mapping
 
   @param part_info           Partitioning info
-  @param is_subpart
+  @param is_subpart          When true, act for sub partitions. When false, act for partitions.
   @param store_length_array  Length of fields packed in opt_range_key format
   @param min_val             Left edge,  field value in opt_range_key format
   @param max_val             Right edge, field value in opt_range_key format
@@ -155,6 +165,53 @@ typedef int (*get_partitions_in_range_iter)(partition_info *part_info,
                                             uint min_len, uint max_len,
                                             uint flags,
                                             PARTITION_ITERATOR *part_iter);
+/**
+  PARTITION BY KEY ALGORITHM=N
+  Which algorithm to use for hashing the fields.
+  N = 1 - Use 5.1 hashing (numeric fields are hashed as binary)
+  N = 2 - Use 5.5 hashing (numeric fields are hashed like latin1 bytes)
+*/
+enum class enum_key_algorithm
+{
+  KEY_ALGORITHM_NONE= 0,
+  KEY_ALGORITHM_51= 1,
+  KEY_ALGORITHM_55= 2
+};
+
+
+class Parser_partition_info
+{
+public:
+  partition_info * const part_info;
+  partition_element * const current_partition;  // partition
+  partition_element * const curr_part_elem;     // part or sub part
+  part_elem_value *curr_list_val;
+  uint curr_list_object;
+  uint count_curr_subparts;
+
+public:
+  Parser_partition_info(partition_info * const part_info,
+                        partition_element * const current_partition,
+                        partition_element * const curr_part_elem,
+                        part_elem_value *curr_list_val,
+                        uint curr_list_object)
+  : part_info(part_info),
+    current_partition(current_partition),
+    curr_part_elem(curr_part_elem),
+    curr_list_val(curr_list_val),
+    curr_list_object(curr_list_object),
+    count_curr_subparts(0)
+  {}
+
+  void init_col_val(part_column_list_val *col_val, Item *item);
+  part_column_list_val *add_column_value();
+  bool add_max_value();
+  bool reorganize_into_single_field_col_val();
+  bool init_column_part();
+  bool add_column_list_value(THD *thd, Item *item);
+};
+
+
 class partition_info : public Sql_alloc
 {
 public:
@@ -285,25 +342,21 @@ public:
    ********************************************/
 
   longlong err_value;
-  char* part_info_string;
+  char* part_info_string;                //!< Partition clause as string
 
-  char *part_func_string;
-  char *subpart_func_string;
+  char *part_func_string;                //!< Partition expression as string
+  char *subpart_func_string;             //!< Subpartition expression as string
 
-  partition_element *curr_part_elem;     // part or sub part
-  partition_element *current_partition;  // partition
-  part_elem_value *curr_list_val;
-  uint curr_list_object;
   uint num_columns;
 
   TABLE *table;
   /*
-    These key_map's are used for Partitioning to enable quick decisions
+    These Key_maps are used for Partitioning to enable quick decisions
     on whether we can derive more information about which partition to
     scan just by looking at what index is used.
   */
-  key_map all_fields_in_PF, all_fields_in_PPF, all_fields_in_SPF;
-  key_map some_fields_in_PF;
+  Key_map all_fields_in_PF, all_fields_in_PPF, all_fields_in_SPF;
+  Key_map some_fields_in_PF;
 
   handlerton *default_engine_type;
   partition_type part_type;
@@ -315,7 +368,6 @@ public:
 
   uint num_parts;
   uint num_subparts;
-  uint count_curr_subparts;                  // used during parsing
 
   uint num_list_values;
 
@@ -330,18 +382,7 @@ public:
     but mainly of use to handlers supporting partitioning.
   */
   uint16 linear_hash_mask;
-  /*
-    PARTITION BY KEY ALGORITHM=N
-    Which algorithm to use for hashing the fields.
-    N = 1 - Use 5.1 hashing (numeric fields are hashed as binary)
-    N = 2 - Use 5.5 hashing (numeric fields are hashed like latin1 bytes)
-  */
-  enum enum_key_algorithm
-    {
-      KEY_ALGORITHM_NONE= 0,
-      KEY_ALGORITHM_51= 1,
-      KEY_ALGORITHM_55= 2
-    };
+
   enum_key_algorithm key_algorithm;
 
   /* Only the number of partitions defined (uses default names and options). */
@@ -384,17 +425,16 @@ public:
     list_array(NULL), err_value(0),
     part_info_string(NULL),
     part_func_string(NULL), subpart_func_string(NULL),
-    curr_part_elem(NULL), current_partition(NULL),
-    curr_list_object(0), num_columns(0), table(NULL),
+    num_columns(0), table(NULL),
     default_engine_type(NULL),
-    part_type(NOT_A_PARTITION), subpart_type(NOT_A_PARTITION),
+    part_type(partition_type::NONE),
+    subpart_type(partition_type::NONE),
     part_info_len(0),
     part_func_len(0), subpart_func_len(0),
     num_parts(0), num_subparts(0),
-    count_curr_subparts(0),
     num_list_values(0), num_part_fields(0), num_subpart_fields(0),
     num_full_part_fields(0), has_null_part_id(0), linear_hash_mask(0),
-    key_algorithm(KEY_ALGORITHM_NONE),
+    key_algorithm(enum_key_algorithm::KEY_ALGORITHM_NONE),
     use_default_partitions(TRUE), use_default_num_partitions(TRUE),
     use_default_subpartitions(TRUE), use_default_num_subpartitions(TRUE),
     default_partitions_setup(FALSE), defined_max_value(FALSE),
@@ -418,7 +458,7 @@ public:
   /* Answers the question if subpartitioning is used for a certain table */
   inline bool is_sub_partitioned() const
   {
-    return (subpart_type == NOT_A_PARTITION ?  FALSE : TRUE);
+    return subpart_type != partition_type::NONE;
   }
 
   /* Returns the total number of partitions on the leaf level */
@@ -438,28 +478,21 @@ public:
   bool check_partition_info(THD *thd, handlerton **eng_type,
                             handler *file, HA_CREATE_INFO *info,
                             bool check_partition_function);
-  void print_no_partition_found(TABLE *table);
+  void print_no_partition_found(THD *thd, TABLE *table);
   void print_debug(const char *str, uint*);
   Item* get_column_item(Item *item, Field *field);
-  bool fix_partition_values(THD *thd,
-                            part_elem_value *val,
+  bool fix_partition_values(part_elem_value *val,
                             partition_element *part_elem,
                             uint part_id);
   bool fix_column_value_functions(THD *thd,
                                   part_elem_value *val,
                                   uint part_id);
   bool fix_parser_data(THD *thd);
-  bool add_max_value();
-  void init_col_val(part_column_list_val *col_val, Item *item);
-  bool reorganize_into_single_field_col_val();
-  part_column_list_val *add_column_value();
   bool set_part_expr(char *start_token, Item *item_ptr,
                      char *end_token, bool is_subpart);
   static int compare_column_values(const void *a, const void *b);
   bool set_up_charset_field_preps();
   bool check_partition_field_length();
-  bool init_column_part();
-  bool add_column_list_value(THD *thd, Item *item);
   void set_show_version_string(String *packet);
   partition_element *get_part_elem(const char *partition_name,
                                    char *file_name,
@@ -513,13 +546,12 @@ public:
   bool same_key_column_order(List<Create_field> *create_list);
 
 private:
-  static int list_part_cmp(const void* a, const void* b);
   bool set_up_default_partitions(Partition_handler *part_handler,
                                  HA_CREATE_INFO *info,
                                  uint start_no);
   bool set_up_default_subpartitions(Partition_handler *part_handler,
                                     HA_CREATE_INFO *info);
-  char *create_default_partition_names(uint part_no, uint num_parts,
+  char *create_default_partition_names(uint num_parts,
                                        uint start_no);
   char *create_default_subpartition_name(uint subpart_no,
                                          const char *part_name);
@@ -557,7 +589,38 @@ bool fill_partition_tablespace_names(
        partition_info *part_info,
        Tablespace_hash_set *tablespace_set);
 
-bool check_partition_tablespace_names(partition_info *part_info);
+
+/**
+  Check if all tablespace names specified for partitions have a valid length.
+
+  @param part_info    Partition info that could be using tablespaces.
+
+  @return true        One of the tablespace names specified has invalid length
+                      and an error is reported.
+  @return false       All the tablespace names specified for partitions have
+                      a valid length.
+*/
+
+bool validate_partition_tablespace_name_lengths(partition_info *part_info);
+
+
+/**
+  Check if all tablespace names specified for partitions are valid.
+
+  Do the validation by invoking the SE specific validation function.
+
+  @param part_info        Partition info that could be using tablespaces.
+  @param default_engine   Table level engine.
+
+  @return true            One of the tablespace names specified is invalid
+                          and an error is reported.
+  @return false           All the tablespace names specified for
+                          partitions are valid.
+*/
+
+bool validate_partition_tablespace_names(partition_info *part_info,
+                                         const handlerton *default_engine);
+
 
 /**
   Predicate which returns true if any partition or subpartition uses

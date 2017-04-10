@@ -1,6 +1,7 @@
 #
 # Bug #20031570 INNODB_CHECKSUM_ALGORITHM VARIABLE LEADS TO CRASHING
 #
+call mtr.add_suppression("Plugin \'InnoDB\'");
 set global innodb_checksum_algorithm=crc32;
 create table t1(f1 int not null primary key)engine=innodb;
 SET GLOBAL innodb_buffer_pool_dump_at_shutdown=OFF;

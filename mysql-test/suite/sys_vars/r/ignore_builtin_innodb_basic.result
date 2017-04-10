@@ -9,12 +9,12 @@ ignore_builtin_innodb	OFF
 show session variables like 'ignore_builtin_innodb';
 Variable_name	Value
 ignore_builtin_innodb	OFF
-select * from information_schema.global_variables where variable_name='ignore_builtin_innodb';
+select * from performance_schema.global_variables where variable_name='ignore_builtin_innodb';
 VARIABLE_NAME	VARIABLE_VALUE
-IGNORE_BUILTIN_INNODB	OFF
-select * from information_schema.session_variables where variable_name='ignore_builtin_innodb';
+ignore_builtin_innodb	OFF
+select * from performance_schema.session_variables where variable_name='ignore_builtin_innodb';
 VARIABLE_NAME	VARIABLE_VALUE
-IGNORE_BUILTIN_INNODB	OFF
+ignore_builtin_innodb	OFF
 set global ignore_builtin_innodb=1;
 ERROR HY000: Variable 'ignore_builtin_innodb' is a read only variable
 set session ignore_builtin_innodb=1;

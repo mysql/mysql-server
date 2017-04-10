@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,6 +14,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
+
+#include <stdarg.h>
 
 #include "ndb_component.h"
 
@@ -33,8 +35,9 @@ Ndb_component::init()
 {
   assert(m_thread_state == TS_UNINIT);
 
-  native_mutex_init(&m_start_stop_mutex, MY_MUTEX_INIT_FAST);
-  native_cond_init(&m_start_stop_cond);
+  mysql_mutex_init(PSI_INSTRUMENT_ME, &m_start_stop_mutex,
+                   MY_MUTEX_INIT_FAST);
+  mysql_cond_init(PSI_INSTRUMENT_ME, &m_start_stop_cond);
 
   int res= do_init();
   if (res == 0)
@@ -61,7 +64,7 @@ int
 Ndb_component::start()
 {
   assert(m_thread_state == TS_INIT);
-  native_mutex_lock(&m_start_stop_mutex);
+  mysql_mutex_lock(&m_start_stop_mutex);
   m_thread_state= TS_STARTING;
   int res= my_thread_create(&m_thread, &connection_attrib, Ndb_component_run_C,
                             this);
@@ -70,40 +73,40 @@ Ndb_component::start()
   {
     while (m_thread_state == TS_STARTING)
     {
-      native_cond_wait(&m_start_stop_cond, &m_start_stop_mutex);
+      mysql_cond_wait(&m_start_stop_cond, &m_start_stop_mutex);
     }
-    native_mutex_unlock(&m_start_stop_mutex);
+    mysql_mutex_unlock(&m_start_stop_mutex);
     return m_thread_state == TS_RUNNING ? 0 : 1;
   }
 
-  native_mutex_unlock(&m_start_stop_mutex);
+  mysql_mutex_unlock(&m_start_stop_mutex);
   return res;
 }
 
 void
 Ndb_component::run_impl()
 {
-  native_mutex_lock(&m_start_stop_mutex);
+  mysql_mutex_lock(&m_start_stop_mutex);
   if (m_thread_state == TS_STARTING)
   {
     m_thread_state= TS_RUNNING;
-    native_cond_signal(&m_start_stop_cond);
-    native_mutex_unlock(&m_start_stop_mutex);
+    mysql_cond_signal(&m_start_stop_cond);
+    mysql_mutex_unlock(&m_start_stop_mutex);
     do_run();
-    native_mutex_lock(&m_start_stop_mutex);
+    mysql_mutex_lock(&m_start_stop_mutex);
   }
   m_thread_state = TS_STOPPED;
-  native_cond_signal(&m_start_stop_cond);
-  native_mutex_unlock(&m_start_stop_mutex);
+  mysql_cond_signal(&m_start_stop_cond);
+  mysql_mutex_unlock(&m_start_stop_mutex);
 }
 
 bool
 Ndb_component::is_stop_requested()
 {
   bool res = false;
-  native_mutex_lock(&m_start_stop_mutex);
+  mysql_mutex_lock(&m_start_stop_mutex);
   res = m_thread_state != TS_RUNNING;
-  native_mutex_unlock(&m_start_stop_mutex);
+  mysql_mutex_unlock(&m_start_stop_mutex);
   return res;
 }
 
@@ -111,7 +114,7 @@ int
 Ndb_component::stop()
 {
   log_info("Stop");
-  native_mutex_lock(&m_start_stop_mutex);
+  mysql_mutex_lock(&m_start_stop_mutex);
   assert(m_thread_state == TS_RUNNING ||
          m_thread_state == TS_STOPPING ||
          m_thread_state == TS_STOPPED);
@@ -121,18 +124,24 @@ Ndb_component::stop()
     m_thread_state= TS_STOPPING;
   }
 
-  // Give subclass a call, should wake itself up to quickly detect the stop
+  // Give subclass a call, should wake itself up to quickly
+  // detect the stop.
+  // Unlock the mutex first to avoid deadlock betewen
+  // is_stop_requested() and do_wakeup() due to different
+  // mutex lock order
+  mysql_mutex_unlock(&m_start_stop_mutex);
   do_wakeup();
+  mysql_mutex_lock(&m_start_stop_mutex);
 
   if (m_thread_state == TS_STOPPING)
   {
     while (m_thread_state != TS_STOPPED)
     {
-      native_cond_signal(&m_start_stop_cond);
-      native_cond_wait(&m_start_stop_cond, &m_start_stop_mutex);
+      mysql_cond_signal(&m_start_stop_cond);
+      mysql_cond_wait(&m_start_stop_cond, &m_start_stop_mutex);
     }
   }
-  native_mutex_unlock(&m_start_stop_mutex);
+  mysql_mutex_unlock(&m_start_stop_mutex);
   log_info("Stop completed");
 
   return 0;
@@ -142,8 +151,8 @@ int
 Ndb_component::deinit()
 {
   assert(m_thread_state == TS_STOPPED);
-  native_mutex_destroy(&m_start_stop_mutex);
-  native_cond_destroy(&m_start_stop_cond);
+  mysql_mutex_destroy(&m_start_stop_mutex);
+  mysql_cond_destroy(&m_start_stop_cond);
   return do_deinit();
 }
 

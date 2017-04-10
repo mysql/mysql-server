@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,17 +14,20 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
-#include <my_global.h> /* For config defines */
 
-#include "ha_ndbcluster_glue.h"
-#include "ndb_conflict.h"
+#include "sql/ndb_conflict.h"
+
+#include "log.h"            // sql_print_*
+#include "my_base.h"   // HA_ERR_ROWS_EVENT_APPLY
+#include "my_dbug.h"
+#include "mysqld.h"   // lower_case_table_names
 #include "ndb_binlog_extra_row_info.h"
 #include "ndb_table_guard.h"
 
 extern st_ndb_slave_state g_ndb_slave_state;
 
-#ifdef HAVE_NDB_BINLOG
 #include "ndb_mi.h"
+
 extern ulong opt_ndb_slave_conflict_role;
 extern ulong opt_ndb_extra_logging;
 
@@ -870,8 +873,6 @@ ExceptionsTableWriter::writeRow(NdbTransaction* trans,
   DBUG_RETURN(0);
 }
 
-/* HAVE_NDB_BINLOG */
-#endif
 
 /**
    st_ndb_slave_state constructor
@@ -950,11 +951,9 @@ st_ndb_slave_state::resetPerAttemptCounters()
 void
 st_ndb_slave_state::atTransactionAbort()
 {
-#ifdef HAVE_NDB_BINLOG
   /* Reset any gathered transaction dependency information */
   atEndTransConflictHandling();
   trans_conflict_apply_state = SAS_NORMAL;
-#endif
 
   /* Reset current-transaction counters + state */
   resetPerAttemptCounters();
@@ -1101,7 +1100,7 @@ st_ndb_slave_state::verifyNextEpoch(Uint64 next_epoch,
                                     Uint32 master_server_id) const
 {
   DBUG_ENTER("verifyNextEpoch");
-#ifdef HAVE_NDB_BINLOG
+
   /**
     WRITE_ROW to ndb_apply_status injected by MySQLD
     immediately upstream of us.
@@ -1265,7 +1264,6 @@ st_ndb_slave_state::verifyNextEpoch(Uint64 next_epoch,
       }
     }
   }
-#endif
 
   /* Epoch looks ok */
   DBUG_RETURN(true);
@@ -1360,7 +1358,6 @@ st_ndb_slave_state::atResetSlave()
 void
 st_ndb_slave_state::atStartSlave()
 {
-#ifdef HAVE_NDB_BINLOG
   if (trans_conflict_apply_state != SAS_NORMAL)
   {
     /*
@@ -1370,7 +1367,6 @@ st_ndb_slave_state::atStartSlave()
     atEndTransConflictHandling();
     trans_conflict_apply_state = SAS_NORMAL;
   }
-#endif
 }
 
 bool
@@ -1425,7 +1421,6 @@ st_ndb_slave_state::checkSlaveConflictRoleChange(enum_slave_conflict_role old_ro
     return false;
   }
   
-#ifdef HAVE_NDB_BINLOG
   /* Check that Slave SQL thread is not running */
   if (ndb_mi_get_slave_sql_running())
   {
@@ -1433,13 +1428,11 @@ st_ndb_slave_state::checkSlaveConflictRoleChange(enum_slave_conflict_role old_ro
       "thread is running.  Use STOP SLAVE first.";
     return false;
   }
-#endif
 
   return true;
 }
 
 
-#ifdef HAVE_NDB_BINLOG
 
 /**
    atEndTransConflictHandling
@@ -2383,7 +2376,8 @@ static const st_conflict_fn_def conflict_fns[]=
     &resolve_col_args[0], row_conflict_fn_old,         0 },
   { "NDB$EPOCH2_TRANS",   CFT_NDB_EPOCH2_TRANS,
     &epoch_fn_args[0],    row_conflict_fn_epoch2,
-    CF_REFLECT_SEC_OPS | CF_USE_ROLE_VAR | CF_TRANSACTIONAL},
+    CF_REFLECT_SEC_OPS | CF_USE_ROLE_VAR | 
+    CF_TRANSACTIONAL | CF_DEL_DEL_CFT },
   { "NDB$EPOCH2",         CFT_NDB_EPOCH2,
     &epoch_fn_args[0],    row_conflict_fn_epoch2,      
     CF_REFLECT_SEC_OPS | CF_USE_ROLE_VAR
@@ -2916,8 +2910,6 @@ void slave_reset_conflict_fn(NDB_CONFLICT_FN_SHARE *cfn_share)
     memset(cfn_share, 0, sizeof(*cfn_share));
   }
 }
-
-#endif
 
 
 /**

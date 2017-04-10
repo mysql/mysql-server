@@ -1,9 +1,8 @@
--- source include/have_sjis.inc
--- source include/big_test.inc
-
 #
 # Tests with the sjis character set
 #
+--source include/no_valgrind_without_big.inc
+
 --disable_warnings
 drop table if exists t1;
 --enable_warnings
@@ -203,13 +202,11 @@ DROP TABLE t1;
 
 set names sjis;
 --source include/weight_string.inc
---source include/weight_string_l1.inc
 --source include/weight_string_8140.inc
 
 
 set collation_connection=sjis_bin;
 --source include/weight_string.inc
---source include/weight_string_l1.inc
 --source include/weight_string_8140.inc
 
 --echo #

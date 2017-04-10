@@ -1,7 +1,7 @@
 #ifndef SQL_OPTIMIZER_INCLUDED
 #define SQL_OPTIMIZER_INCLUDED
 
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,7 +17,10 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 
-/** @file Classes used for query optimizations */
+/**
+  @file sql/sql_optimizer.h
+  Classes used for query optimizations.
+*/
 
 /*
    This structure is used to collect info on potentially sargable
@@ -27,7 +30,38 @@
    Only such indexes are involved in range analysis.
 */
 
-#include "sql_select.h"        // Item_null_array
+#include <string.h>
+#include <sys/types.h>
+
+#include "field.h"
+#include "item.h"
+#include "item_subselect.h"
+#include "mem_root_array.h"
+#include "my_base.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_table_map.h"
+#include "opt_explain_format.h"                 // Explain_sort_clause
+#include "sql_alloc.h"
+#include "sql_array.h"
+#include "sql_class.h"
+#include "sql_executor.h"                       // Next_select_func
+#include "sql_lex.h"
+#include "sql_list.h"
+#include "sql_opt_exec_shared.h"
+#include "sql_select.h"                         // Key_use
+#include "table.h"
+#include "temp_table_param.h"
+#include "template_utils.h"
+
+class COND_EQUAL;
+class Item_sum;
+
+typedef Bounds_checked_array<Item_null_result*> Item_null_array;
+
+// Key_use has a trivial destructor, no need to run it from Mem_root_array.
+typedef Mem_root_array<Key_use> Key_use_array;
 
 class Cost_model_server;
 
@@ -44,9 +78,94 @@ typedef struct st_rollup
   enum State { STATE_NONE, STATE_INITED, STATE_READY };
   State state;
   Item_null_array null_items;
-  Ref_ptr_array *ref_pointer_arrays;
+  Ref_item_array *ref_item_arrays;
   List<Item> *fields;
 } ROLLUP;
+
+/**
+  Wrapper for ORDER* pointer to trace origins of ORDER list 
+  
+  As far as ORDER is just a head object of ORDER expression
+  chain, we need some wrapper object to associate flags with
+  the whole ORDER list.
+*/
+class ORDER_with_src
+{
+  /**
+    Private empty class to implement type-safe NULL assignment
+
+    This private utility class allows us to implement a constructor
+    from NULL and only NULL (or 0 -- this is the same thing) and
+    an assignment operator from NULL.
+    Assignments from other pointers still prohibited since other
+    pointer types are incompatible with the "null" type, and the
+    casting is impossible outside of ORDER_with_src class, since
+    the "null" type is private.
+  */
+  struct null {};
+
+public:
+  ORDER *order;  ///< ORDER expression that we are wrapping with this class
+  Explain_sort_clause src; ///< origin of order list
+
+private:
+  /**
+    True means that sort direction (ASC/DESC) could be ignored. Used for
+    picking index for ordering dataset for DISTINCT or GROUP BY.
+  */
+  bool ignore_order;
+  int flags; ///< bitmap of Explain_sort_property
+
+public:
+  ORDER_with_src() { clean(); }
+
+  ORDER_with_src(ORDER *order_arg, Explain_sort_clause src_arg)
+  : order(order_arg), src(src_arg),
+    ignore_order(src_arg == ESC_ORDER_BY ? false : true),
+    flags(order_arg ? ESP_EXISTS : ESP_none)
+  { }
+
+  /**
+    Type-safe NULL assignment
+
+    See a commentary for the "null" type above.
+  */
+  ORDER_with_src &operator=(null *) { clean(); return *this; }
+
+  /**
+    Type-safe constructor from NULL
+
+    See a commentary for the "null" type above.
+  */
+  ORDER_with_src(null *) { clean(); }
+
+  /**
+    Transparent access to the wrapped order list
+
+    These operators are safe, since we don't do any conversion of
+    ORDER_with_src value, but just an access to the wrapped
+    ORDER pointer value. 
+    We can use ORDER_with_src objects instead ORDER pointers in
+    a transparent way without accessor functions.
+
+    @note     This operator also implements safe "operator bool()"
+              functionality.
+  */
+  operator       ORDER *()       { return order; }
+  operator const ORDER *() const { return order; }
+
+  ORDER* operator->() const { return order; }
+
+  void clean() { order= NULL; src= ESC_none; flags= ESP_none; }
+
+  int get_flags() const { DBUG_ASSERT(order); return flags; }
+  /**
+    Inform optimizer that ASC/DESC direction of this list should be
+    honored.
+  */
+  void force_order() { ignore_order= false; }
+  bool can_ignore_order() { return ignore_order; }
+};
 
 class JOIN :public Sql_alloc
 {
@@ -111,13 +230,9 @@ public:
       need_tmp(false),
       keyuse_array(thd->mem_root),
       all_fields(select->all_fields),
-      tmp_all_fields1(),
-      tmp_all_fields2(),
-      tmp_all_fields3(),
-      tmp_fields_list1(),
-      tmp_fields_list2(),
-      tmp_fields_list3(),
       fields_list(select->fields_list),
+      tmp_all_fields(),
+      tmp_fields_list(),
       error(0),
       order(select->order_list.first, ESC_ORDER_BY),
       group_list(select->group_list.first, ESC_GROUP_BY),
@@ -132,7 +247,8 @@ public:
       tables_list((TABLE_LIST*)1),
       cond_equal(NULL),
       return_tab(0),
-      ref_ptrs(select->ref_ptr_array_slice(0)),
+      ref_items(),
+      current_ref_item_slice(REF_SLICE_SAVE),
       zero_result_cause(NULL),
       child_subquery_can_materialize(false),
       allow_outer_refs(false),
@@ -141,6 +257,7 @@ public:
       set_group_rpa(false),
       group_sent(false),
       calc_found_rows(false),
+      with_json_agg(select->json_agg_func_used()),
       optimized(false),
       executed(false),
       plan_state(NO_PLAN)
@@ -333,98 +450,22 @@ public:
 
   bool need_tmp;
 
-  // Used and updated by JOIN::make_join_plan() and optimize_keyuse()
+  /// Used and updated by JOIN::make_join_plan() and optimize_keyuse()
   Key_use_array keyuse_array;
 
-  List<Item> &all_fields; ///< to store all expressions used in query
-  ///Above list changed to use temporary table
-  List<Item> tmp_all_fields1, tmp_all_fields2, tmp_all_fields3;
-  ///Part, shared with list above, emulate following list
-  List<Item> tmp_fields_list1, tmp_fields_list2, tmp_fields_list3;
-  List<Item> &fields_list; ///< hold field list
+  /// List storing all expressions used in query block
+  List<Item> &all_fields;
+
+  /// List storing all expressions of select list
+  List<Item> &fields_list;
+
+  /// "all_fields" changed to use temporary table (uses slice 1-3)
+  List<Item> tmp_all_fields[4];
+
+  /// "fields_list" changed to use temporary table (uses slice 1-3)
+  List<Item> tmp_fields_list[4];
+
   int error; ///< set in optimize(), exec(), prepare_result()
-
-  /**
-    Wrapper for ORDER* pointer to trace origins of ORDER list 
-    
-    As far as ORDER is just a head object of ORDER expression
-    chain, we need some wrapper object to associate flags with
-    the whole ORDER list.
-  */
-  class ORDER_with_src
-  {
-    /**
-      Private empty class to implement type-safe NULL assignment
-
-      This private utility class allows us to implement a constructor
-      from NULL and only NULL (or 0 -- this is the same thing) and
-      an assignment operator from NULL.
-      Assignments from other pointers still prohibited since other
-      pointer types are incompatible with the "null" type, and the
-      casting is impossible outside of ORDER_with_src class, since
-      the "null" type is private.
-    */
-    struct null {};
-
-  public:
-    ORDER *order;  //< ORDER expression that we are wrapping with this class
-    Explain_sort_clause src; //< origin of order list
-
-  private:
-    int flags; //< bitmap of Explain_sort_property
-
-  public:
-    ORDER_with_src() { clean(); }
-
-    ORDER_with_src(ORDER *order_arg, Explain_sort_clause src_arg)
-    : order(order_arg), src(src_arg), flags(order_arg ? ESP_EXISTS : ESP_none)
-    {}
-
-    /**
-      Type-safe NULL assignment
-
-      See a commentary for the "null" type above.
-    */
-    ORDER_with_src &operator=(null *) { clean(); return *this; }
-
-    /**
-      Type-safe constructor from NULL
-
-      See a commentary for the "null" type above.
-    */
-    ORDER_with_src(null *) { clean(); }
-
-    /**
-      Transparent access to the wrapped order list
-
-      These operators are safe, since we don't do any conversion of
-      ORDER_with_src value, but just an access to the wrapped
-      ORDER pointer value. 
-      We can use ORDER_with_src objects instead ORDER pointers in
-      a transparent way without accessor functions.
-
-      @note     This operator also implements safe "operator bool()"
-                functionality.
-    */
-    operator       ORDER *()       { return order; }
-    operator const ORDER *() const { return order; }
-
-    ORDER* operator->() const { return order; }
- 
-    void clean() { order= NULL; src= ESC_none; flags= ESP_none; }
-
-    void set_flag(Explain_sort_property flag)
-    {
-      DBUG_ASSERT(order);
-      flags|= flag;
-    }
-    void reset_flag(Explain_sort_property flag) { flags&= ~flag; }
-    bool get_flag(Explain_sort_property flag) const {
-      DBUG_ASSERT(order);
-      return flags & flag;
-    }
-    int get_flags() const { DBUG_ASSERT(order); return flags; }
-  };
 
   /**
     ORDER BY and GROUP BY lists, to transform with prepare,optimize and exec
@@ -488,19 +529,51 @@ public:
   */
   plan_idx return_tab;
 
-  /*
-    Used pointer reference for this select.
-    select_lex->ref_pointer_array contains five "slices" of the same length:
-    |========|========|========|========|========|
-     ref_ptrs items0   items1   items2   items3
-   */
-  const Ref_ptr_array ref_ptrs;
-  // Copy of the initial slice above, to be used with different lists
-  Ref_ptr_array items0, items1, items2, items3;
-  // Used by rollup, to restore ref_ptrs after overwriting it.
-  Ref_ptr_array current_ref_ptrs;
+  /**
+    ref_items is an array of 5 slices, each containing an array of Item
+    pointers. ref_items is used in different phases of query execution.
+    - slice 0 is initially the same as SELECT_LEX::base_ref_items, ie it is
+      the set of items referencing fields from base tables. During optimization
+      and execution it may be temporarily overwritten by slice 1-3.
+    - slice 1 is a representation of the used items when being read from
+      the first temporary table.
+    - slice 2 is a representation of the used items when being read from
+      the second temporary table.
+    - slice 3 is a representation of the used items when used in
+      aggregation but no actual temporary table is needed.
+    - slice 4 is a copy of the original slice 0. It is created if
+      slice overwriting is necessary, and it is used to restore
+      original values in slice 0 after having been overwritten.
 
-  const char *zero_result_cause; ///< not 0 if exec must return zero result
+    Slice 0 is allocated for the lifetime of a statement, whereas slices 1-4
+    are associated with a single optimization. The size of slice 0 determines
+    the slice size used when allocating the other slices.
+   */
+  Ref_item_array ref_items[5];
+
+  /// Symbolic slice numbers into ref_items, tmp_fields and tmp_all_fields
+  static const uint REF_SLICE_BASE = 0;
+  static const uint REF_SLICE_TMP1 = 1;
+  static const uint REF_SLICE_TMP2 = 2;
+  static const uint REF_SLICE_TMP3 = 3;
+  static const uint REF_SLICE_SAVE = 4;
+
+  /**
+    The slice currently stored in ref_items[0].
+    Used to restore the base ref_items slice from the "save" slice after it
+    has been overwritten by another slice (1-3).
+  */
+  uint current_ref_item_slice;
+
+  /**
+    <> NULL if optimization has determined that execution will produce an
+    empty result before aggregation, contains a textual explanation on why
+    result is empty. Implicitly grouped queries may still produce an
+    aggregation row.
+    @todo - suggest to set to "Preparation determined that query is empty"
+            when SELECT_LEX::is_empty_query() is true.
+  */
+  const char *zero_result_cause;
 
   /**
      True if, at this stage of processing, subquery materialization is allowed
@@ -521,12 +594,21 @@ public:
   List<Semijoin_mat_exec> sjm_exec_list;
   /* end of allocation caching storage */
 
-  /** TRUE <=> ref_pointer_array is set to items3. */
+  /** TRUE <=> current ref_item slice is set to REF_SLICE_TMP3 */
   bool set_group_rpa;
   /** Exec time only: TRUE <=> current group has been sent */
   bool group_sent;
   /// If true, calculate found rows for this query block
   bool calc_found_rows;
+
+  /**
+    This will force tmp table to NOT use index + update for group
+    operation as it'll cause [de]serialization for each json aggregated
+    value and is very ineffective (times worse).
+    Server should use filesort, or tmp table + filesort to resolve GROUP BY
+    with JSON aggregate functions.
+  */
+  bool with_json_agg;
 
   /// True if plan is const, ie it will return zero or one rows.
   bool plan_is_const() const { return const_tables == primary_tables; }
@@ -542,46 +624,66 @@ public:
   void exec();
   bool prepare_result();
   bool destroy();
-  void restore_tmp();
   bool alloc_func_list();
   bool make_sum_func_list(List<Item> &all_fields,
                           List<Item> &send_fields,
                           bool before_group_by, bool recompute= FALSE);
 
   /**
-     Overwrites one slice with the contents of another slice.
+     Overwrites one slice of ref_items with the contents of another slice.
      In the normal case, dst and src have the same size().
      However: the rollup slices may have smaller size than slice_sz.
    */
-  void copy_ref_ptr_array(Ref_ptr_array dst_arr, Ref_ptr_array src_arr)
+  void copy_ref_item_slice(uint dst_slice, uint src_slice)
+  {
+    copy_ref_item_slice(ref_items[dst_slice], ref_items[src_slice]);
+  }
+  void copy_ref_item_slice(Ref_item_array dst_arr, Ref_item_array src_arr)
   {
     DBUG_ASSERT(dst_arr.size() >= src_arr.size());
     void *dest= dst_arr.array();
     const void *src= src_arr.array();
-    memcpy(dest, src, src_arr.size() * src_arr.element_size());
+    if (!src_arr.is_null())
+      memcpy(dest, src, src_arr.size() * src_arr.element_size());
   }
 
-  /// Overwrites 'ref_ptrs' and remembers the the source as 'current'.
-  void set_items_ref_array(Ref_ptr_array src_arr)
-  {
-    copy_ref_ptr_array(ref_ptrs, src_arr);
-    current_ref_ptrs= src_arr;
-  }
+  /**
+    Allocate a ref_item slice, assume that slice size is in ref_items[0]
 
-  /// Initializes 'items0' and remembers that it is 'current'.
-  void init_items_ref_array()
+    @param thd_arg  thread handler
+    @param sliceno  The slice number to allocate in JOIN::ref_items
+
+    @returns false if success, true if error
+  */
+  bool alloc_ref_item_slice(THD *thd_arg, uint sliceno)
   {
-    items0= select_lex->ref_ptr_array_slice(1);
-    copy_ref_ptr_array(items0, ref_ptrs);
-    current_ref_ptrs= items0;
+    DBUG_ASSERT(sliceno > 0 && sliceno < 5 &&
+                ref_items[sliceno].is_null());
+    size_t count= ref_items[0].size();
+    Item **slice= pointer_cast<Item **>(thd_arg->alloc(sizeof(Item *) * count));
+    if (slice == NULL)
+      return true;
+    ref_items[sliceno]= Ref_item_array(slice, count);
+    return false;
+  }
+  /**
+    Overwrite the base slice of ref_items with the slice supplied as argument.
+
+    @param sliceno number to overwrite the base slice with, must be 1-4.
+  */
+  void set_ref_item_slice(uint sliceno)
+  {
+    DBUG_ASSERT(sliceno > 0 && sliceno < 5);
+    copy_ref_item_slice(REF_SLICE_BASE, sliceno);
+    current_ref_item_slice= sliceno;
   }
 
   bool optimize_rollup();
   bool rollup_process_const_fields();
   bool rollup_make_fields(List<Item> &all_fields, List<Item> &fields,
 			  Item_sum ***func);
-  int rollup_send_data(uint idx);
-  int rollup_write_data(uint idx, TABLE *table);
+  bool rollup_send_data(uint idx);
+  bool rollup_write_data(uint idx, TABLE *table);
   void remove_subq_pushed_predicates();
   /**
     Release memory and, if possible, the open tables held by this execution
@@ -593,12 +695,9 @@ public:
   /** Cleanup this JOIN. Not a full cleanup. reusable? */
   void cleanup();
 
-  MY_ATTRIBUTE((warn_unused_result))
-  bool clear();
+  bool clear_fields(table_map *save_nullinfo);
+  void restore_fields(table_map save_nullinfo);
 
-  bool save_join_tab();
-  void restore_join_tab();
-  bool init_save_join_tab();
   /**
     Return whether the caller should send a row even if the join 
     produced no rows if:
@@ -618,7 +717,7 @@ public:
 
   bool cache_const_exprs();
   bool generate_derived_keys();
-  void drop_unused_derived_keys();
+  void finalize_derived_keys();
   bool get_best_combination();
   bool attach_join_conditions(plan_idx last_tab);
   bool update_equalities_for_sjm();
@@ -660,6 +759,12 @@ public:
   bool fts_index_access(JOIN_TAB *tab);
 
   Next_select_func get_end_select_func();
+  /**
+     Propagate dependencies between tables due to outer join relations.
+
+     @returns false if success, true if error
+  */
+  bool propagate_dependencies();
 
 private:
   bool optimized; ///< flag to avoid double optimization in EXPLAIN
@@ -667,13 +772,7 @@ private:
 
   /// Final execution plan state. Currently used only for EXPLAIN
   enum_plan_state plan_state;
-  /**
-    Send current query result set to the client. To be called from JOIN::execute
 
-    @note       Explain skips this call during JOIN::execute() execution
-  */
-  void send_data();
-  
   /**
     Create a temporary table to be used for processing DISTINCT/ORDER
     BY/GROUP BY.
@@ -694,11 +793,6 @@ private:
                                  ORDER_with_src &tmp_table_group,
                                  bool save_sum_fields);
   /**
-    Create the first temporary table to be used for processing DISTINCT/ORDER
-    BY/GROUP BY.
-  */
-  bool create_first_intermediate_table();
-  /**
     Optimize distinct when used on a subset of the tables.
 
     E.g.,: SELECT DISTINCT t1.a FROM t1,t2 WHERE t1.b=t2.b
@@ -713,6 +807,18 @@ private:
   bool optimize_fts_query();
 
   bool prune_table_partitions();
+  /**
+    Initialize key dependencies for join tables.
+
+    TODO figure out necessity of this method. Current test
+         suite passed without this intialization.
+  */
+  void init_key_dependencies()
+  {
+    JOIN_TAB *const tab_end= join_tab + tables;
+    for (JOIN_TAB *tab= join_tab; tab < tab_end; tab++)
+      tab->key_dependent= tab->dependent;
+  }
 
 private:
   void set_prefix_tables();
@@ -720,7 +826,6 @@ private:
   void set_semijoin_embedding();
   bool make_join_plan();
   bool init_planner_arrays();
-  bool propagate_dependencies();
   bool extract_const_tables();
   bool extract_func_dependent_tables();
   void update_sargable_from_const(SARGABLE_PARAM *sargables);
@@ -838,7 +943,10 @@ private:
   void test_skip_sort();
 };
 
-/// RAII class to ease the call of LEX::mark_broken() if error.
+/**
+  RAII class to ease the call of LEX::mark_broken() if error.
+  Used during preparation and optimization of DML queries.
+*/
 class Prepare_error_tracker
 {
 public:
@@ -867,15 +975,16 @@ bool build_equal_items(THD *thd, Item *cond, Item **retcond,
                        List<TABLE_LIST> *join_list,
                        COND_EQUAL **cond_equal_ref);
 bool is_indexed_agg_distinct(JOIN *join, List<Item_field> *out_args);
-Key_use_array *create_keyuse_for_table(THD *thd, TABLE *table, uint keyparts,
+Key_use_array *create_keyuse_for_table(THD *thd, uint keyparts,
                                        Item_field **fields,
                                        List<Item> outer_exprs);
-Item_equal *find_item_equal(COND_EQUAL *cond_equal, Item_field *item_field,
-                            bool *inherited_fl);
 Item_field *get_best_field(Item_field *item_field, COND_EQUAL *cond_equal);
 Item *
-make_cond_for_table(Item *cond, table_map tables, table_map used_table,
+make_cond_for_table(THD *thd, Item *cond, table_map tables,
+                    table_map used_table,
                     bool exclude_expensive_cond);
+uint build_bitmap_for_nested_joins(List<TABLE_LIST> *join_list,
+                                   uint first_unused);
 
 /**
    Returns true if arguments are a temporal Field having no date,

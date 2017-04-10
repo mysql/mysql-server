@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,13 +16,17 @@
 #ifndef PLUGIN_UTILS_INCLUDED
 #define PLUGIN_UTILS_INCLUDED
 
+#include <errno.h>
+#include <mysql/group_replication_priv.h>
+#include <stddef.h>
 #include <map>
 #include <queue>
 #include <string>
 #include <vector>
 
+#include "my_dbug.h"
+#include "my_systime.h"
 #include "plugin_psi.h"
-#include <mysql/group_replication_priv.h>
 
 /**
   This method instructs all local transactions to rollback when certification is
@@ -143,9 +147,9 @@ public:
     Checks the queue size
     @return the size of the queue
   */
-  ulong size()
+  size_t size()
   {
-    ulong qsize= 0;
+    size_t qsize= 0;
     mysql_mutex_lock(&lock);
     qsize= queue.size();
     mysql_mutex_unlock(&lock);

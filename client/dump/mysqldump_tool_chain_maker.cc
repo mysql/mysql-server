@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -15,17 +15,21 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "mysqldump_tool_chain_maker.h"
-#include "i_output_writer.h"
-#include "file_writer.h"
-#include "standard_writer.h"
+#include <boost/algorithm/string.hpp>
+#include <stddef.h>
+#include <functional>
+
 #include "compression_lz4_writer.h"
 #include "compression_zlib_writer.h"
-#include "sql_formatter.h"
+#include "file_writer.h"
+#include "i_output_writer.h"
+#include "mysqldump_tool_chain_maker.h"
 #include "mysqldump_tool_chain_maker_options.h"
-#include <boost/algorithm/string.hpp>
+#include "sql_formatter.h"
+#include "standard_writer.h"
 
 using namespace Mysql::Tools::Dump;
+using std::placeholders::_1;
 
 void Mysqldump_tool_chain_maker::delete_chain(
   uint64 chain_id, I_object_reader* chain)
@@ -99,6 +103,7 @@ I_object_reader* Mysqldump_tool_chain_maker::create_chain(
     Sql_formatter* formatter= new Sql_formatter(
       this->get_connection_provider(),
       this->get_message_handler(), this->get_object_id_generator(),
+      m_options,
       m_options->m_formatter_options);
     this->register_progress_watchers_in_child(formatter);
     formatter->register_output_writer(writer);
@@ -136,8 +141,9 @@ I_object_reader* Mysqldump_tool_chain_maker::create_chain(
   Object_queue* queue= new Object_queue(
     this->get_message_handler(), this->get_object_id_generator(),
     m_options->get_object_queue_threads_count(object_queue_id),
-    new Mysql::Instance_callback<void, bool, Mysqldump_tool_chain_maker>(
-      this, &Mysqldump_tool_chain_maker::mysql_thread_callback), m_program);
+    new std::function<void(bool)>(std::bind(
+      &Mysqldump_tool_chain_maker::mysql_thread_callback, this, _1)),
+    m_program);
   this->register_progress_watchers_in_child(queue);
   queue->register_object_reader(m_main_object_reader);
   m_all_created_elements.push_back(queue);
@@ -174,7 +180,7 @@ Mysqldump_tool_chain_maker::~Mysqldump_tool_chain_maker()
 
 Mysqldump_tool_chain_maker::Mysqldump_tool_chain_maker(
   I_connection_provider* connection_provider,
-  Mysql::I_callable<bool, const Mysql::Tools::Base::Message_data&>*
+  std::function<bool(const Mysql::Tools::Base::Message_data&)>*
     message_handler, Simple_id_generator* object_id_generator,
   Mysqldump_tool_chain_maker_options* options,
   Mysql::Tools::Base::Abstract_program* program)

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -17,31 +17,28 @@
  * 02110-1301  USA
  */
 
-#if !defined(MYSQL_DYNAMIC_PLUGIN) && defined(WIN32) && !defined(XPLUGIN_UNIT_TESTS)
-// Needed for importing PERFORMANCE_SCHEMA plugin API.
-#define MYSQL_DYNAMIC_PLUGIN 1
-#endif // WIN32
-
 #include "ngs/client.h"
-#include "ngs/scheduler.h"
-#include "ngs/interface/server_interface.h"
-#include "ngs/interface/session_interface.h"
-#include "ngs/capabilities/handler_tls.h"
-#include "ngs/capabilities/handler_auth_mech.h"
-#include "ngs/capabilities/handler_readonly_value.h"
-#include "ngs/protocol/protocol_config.h"
-#include "ngs/protocol_monitor.h"
-#include "ngs/ngs_error.h"
-#include "ngs_common/operations_factory.h"
 
-#include <string.h>
-#include <algorithm>
-#include <functional>
 #ifndef WIN32
 #include <arpa/inet.h>
 #endif
+#include <errno.h>
+#include <string.h>
+#include <sys/types.h>
+#include <algorithm>
+#include <functional>
 
+#include "ngs/capabilities/handler_auth_mech.h"
+#include "ngs/capabilities/handler_readonly_value.h"
+#include "ngs/capabilities/handler_tls.h"
+#include "ngs/interface/server_interface.h"
+#include "ngs/interface/session_interface.h"
 #include "ngs/log.h"
+#include "ngs/ngs_error.h"
+#include "ngs/protocol/protocol_config.h"
+#include "ngs/protocol_monitor.h"
+#include "ngs/scheduler.h"
+#include "ngs_common/operations_factory.h"
 
 #undef ERROR // Needed to avoid conflict with ERROR in mysqlx.pb.h
 #include "ngs_common/protocol_protobuf.h"
@@ -63,7 +60,8 @@ Client::Client(Connection_ptr connection,
   m_protocol_monitor(pmon),
   m_close_reason(Not_closing),
   m_msg_buffer(NULL),
-  m_msg_buffer_size(0)
+  m_msg_buffer_size(0),
+  m_supports_expired_passwords(false)
 {
   my_snprintf(m_id, sizeof(m_id), "%llu", static_cast<ulonglong>(client_id));
 }
@@ -85,9 +83,8 @@ ngs::chrono::time_point Client::get_accept_time() const
   return m_accept_time;
 }
 
-void Client::reset_accept_time(const Client_state new_state)
+void Client::reset_accept_time()
 {
-  m_state.exchange(new_state);
   m_accept_time = chrono::now();
   m_server.restart_client_supervision_timer();
 }
@@ -132,7 +129,7 @@ Capabilities_configurator *Client::capabilities_configurator()
 }
 
 
-void Client::get_capabilities(const Mysqlx::Connection::CapabilitiesGet &msg)
+void Client::get_capabilities(const Mysqlx::Connection::CapabilitiesGet&)
 {
   ngs::Memory_instrumented<Capabilities_configurator>::Unique_ptr configurator(capabilities_configurator());
   ngs::Memory_instrumented<Mysqlx::Connection::Capabilities>::Unique_ptr caps(configurator->get());
@@ -197,7 +194,7 @@ void Client::handle_message(Request &request)
         }
         break;
       }
-      /* no break */
+      // Fall through.
 
     default:
       // invalid message at this time
@@ -244,7 +241,7 @@ void Client::on_network_error(int error)
 }
 
 
-void Client::on_kill(Session_interface &session)
+void Client::on_kill(Session_interface&)
 {
   m_session->on_kill();
 }
@@ -307,7 +304,6 @@ void Client::on_accept()
   m_state = Client_accepted;
 
   m_encoder.reset(ngs::allocate_object<Protocol_encoder>(m_connection, ngs::bind(&Client::on_network_error, this, ngs::placeholders::_1), ngs::ref(m_protocol_monitor)));
-  reset_accept_time();
 
   // pre-allocate the initial session
   // this is also needed for the srv_session to correctly report us to the audit.log as in the Pre-authenticate state
@@ -336,7 +332,7 @@ void Client::on_accept()
   }
 }
 
-void Client::on_session_auth_success(Session_interface &s)
+void Client::on_session_auth_success(Session_interface&)
 {
   // this is called from worker thread
   Client_state expected = Client_authenticating_first;
@@ -413,6 +409,8 @@ void Client::get_last_error(int &error_code, std::string &message)
 
 void Client::shutdown_connection()
 {
+  m_state = Client_closing;
+
   if (m_connection->shutdown(Connection_vio::Shutdown_recv) < 0)
   {
     int err;
@@ -431,12 +429,6 @@ Request *Client::read_one_message(Error_code &ret_error)
     longlong dummy;
   };
   uint32_t msg_size;
-
-  /*
-    Use dummy, otherwise g++ 4.4 reports: unused variable 'dummy'
-    MY_ATTRIBUTE((unused)) did not work, so we must use it.
-  */
-  dummy= 0;
 
   // untill we get another message to process we mark the connection as idle (for PSF)
   m_connection->mark_idle();

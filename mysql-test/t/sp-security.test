@@ -246,16 +246,19 @@ drop procedure q;
 
 
 # Clean up
-#Still connection con1root;
+# Still connection con1root;
 disconnect con2user1;
 disconnect con3anon;
 disconnect con4user2;
 use test;
-select type,db,name from mysql.proc where db like 'db%';
+select routine_type, routine_schema, routine_name
+from information_schema.routines where routine_schema like 'db%'
+order by routine_type, routine_name;
 drop database db1_secret;
 drop database db2;
 # Make sure the routines are gone
-select type,db,name from mysql.proc where db like 'db%';
+select routine_type, routine_schema, routine_name
+from information_schema.routines where routine_schema like 'db%';
 # Get rid of the users
 delete from mysql.user where user='user1' or user='user2';
 delete from mysql.user where user='' and host='%';
@@ -965,42 +968,6 @@ drop database mysqltest_db;
 
 
 --echo #
---echo # Bug#11882603 SELECT_ACL ON ANY COLUMN IN MYSQL.PROC ALLOWS TO SEE
---echo #              DEFINITION OF ANY ROUTINE. 
---echo #
-
---disable_warnings
-DROP DATABASE IF EXISTS db1;
---enable_warnings
-
-CREATE DATABASE db1;
-CREATE PROCEDURE db1.p1() SELECT 1;
-CREATE USER user2@localhost IDENTIFIED BY '';
-GRANT SELECT(db) ON mysql.proc TO user2@localhost;
- 
---echo # Connection con2 as user2
-connect (con2, localhost, user2);
---echo # The statement below before disclosed info from body_utf8 column.
---error ER_SP_DOES_NOT_EXIST
-SHOW CREATE PROCEDURE db1.p1;
-
---echo # Check that SHOW works with SELECT grant on whole table
---echo # Connection default
-connection default;
-GRANT SELECT ON mysql.proc TO user2@localhost;
-
---echo # Connection con2
-connection con2;
---echo # This should work
-SHOW CREATE PROCEDURE db1.p1;
-
---echo # Connection default
-connection default;
-disconnect con2;
-DROP USER user2@localhost;
-DROP DATABASE db1;
-
---echo #
 --echo # Test for bug#12602983 - User without privilege on routine can discover
 --echo # its existence by executing "select non_existing_func();" or by 
 --echo # "call non_existing_proc()";
@@ -1042,9 +1009,92 @@ disconnect conn1;
 drop user bug12602983_user@localhost;
 drop database mysqltest_db;
 
-set GLOBAL sql_mode= @orig_sql_mode_global;
-set SESSION sql_mode= @orig_sql_mode_session;
+--echo #
+--echo # WL#7897 Use DD API for Stored Routines.
+--echo #    Test case to verify I_S.ROUTINES and I_S.PARAMETERS result set when
+--echo #    user has NO/ROUTINE LEVEL/GLOBAL SELECT Privilege(s).
+--echo #
 
-# Wait till all disconnects are completed
+--enable_connect_log
+
+CREATE DATABASE mysqltest_db;
+CREATE PROCEDURE mysqltest_db.p1(IN f1 INT) SELECT 1;
+
+let $select_routines=
+SELECT routine_schema, routine_name, routine_type
+FROM INFORMATION_SCHEMA.ROUTINES WHERE routine_schema = 'mysqltest_db';
+let $select_parameters=
+SELECT specific_schema, specific_name, parameter_name
+FROM INFORMATION_SCHEMA.PARAMETERS WHERE specific_schema = 'mysqltest_db';
+
+--echo # Create user with no privileges on mysqltest_db database.
+CREATE USER user@localhost;
+
+--echo # Connect as user 'user@localhost'.
+--connect (conn1, localhost, user,,)
+
+--echo # I_S.Routine and I_S.parameters shows empty result set for
+--echo # user@localhost as user does not have any privileges.
+eval $select_routines;
+eval $select_parameters;
+
+--echo # Grant procedure execute privilege to user@localhost.
+--connection default
+GRANT EXECUTE ON PROCEDURE mysqltest_db.p1 TO user@localhost;
+
+--echo # I_S.Routine and I_S.parameters shows result set
+--echo # for user@localhost as user has routine level privilege.
+--connection conn1
+eval $select_routines;
+eval $select_parameters;
+
+--echo # Revoke procedure execute privilege from user@localhost.
+CONNECTION default;
+REVOKE EXECUTE ON PROCEDURE mysqltest_db.p1 FROM user@localhost;
+
+--echo # I_S.Routine and I_S.parameters shows empty result set for
+--echo # user@localhost as user does not have any privileges.
+--connection conn1
+eval $select_routines;
+eval $select_parameters;
+
+--echo # Grant GLOBAL SELECT privilege to user@localhost.
+--connection default
+GRANT SELECT ON *.* TO user@localhost;
+
+--echo # I_S.Routine and I_S.parameters shows result set for
+--echo # user@localhost as user has global select privilege.
+--connect (conn2, localhost, user,,)
+eval $select_routines;
+eval $select_parameters;
+
+--echo #
+--echo # Wl8131 DYNAMIC PRIVILEGS
+--echo # SET_USER_ID is a replacement for SUPER which enable a user to 
+--echo # create a definer routine executing as some other user.
+--echo # This privielge can be used for privilege escalation.
+connection default;
+CREATE USER u1@localhost IDENTIFIED BY 'foo';
+GRANT SET_USER_ID, EXECUTE ON *.* TO u1@localhost;
+--connect (con1,localhost,u1,foo,)
+CREATE DEFINER=root@localhost PROCEDURE p1() SELECT current_user();
+CALL p1();
+SELECT CURRENT_USER();
+connection default;
+disconnect con1;
+DROP PROCEDURE p1;
+DROP USER u1@localhost;
+
+# Cleanup
+--connection default
+--disconnect conn1
+--disconnect conn2
+DROP USER user@localhost;
+DROP DATABASE mysqltest_db;
+
+SET GLOBAL sql_mode= @orig_sql_mode_global;
+SET SESSION sql_mode= @orig_sql_mode_session;
+
+# Wait till all disconnects are completed.
 --source include/wait_until_count_sessions.inc
 

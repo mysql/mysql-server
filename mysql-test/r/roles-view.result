@@ -1,0 +1,129 @@
+CREATE ROLE r1;
+CREATE DATABASE db1;
+CREATE DATABASE db2;
+CREATE USER u1@localhost IDENTIFIED BY 'foo';
+GRANT CREATE ON db1.* TO u1@localhost;
+GRANT r1 TO u1@localhost;
+SHOW STATUS LIKE '%acl_cache%';
+Variable_name	Value
+Acl_cache_items_count	0
+CREATE TABLE db1.t1 (c1 int);
+CREATE TABLE db1.t2 (c1 int);
+CREATE TABLE db2.t1 (c1 int);
+CREATE TABLE db2.t2 (c1 int);
+CREATE SQL SECURITY DEFINER VIEW db1.v1 AS SELECT * FROM db1.t1;
+CREATE SQL SECURITY DEFINER VIEW db2.v1 AS SELECT * FROM db2.t1;
+CREATE SQL SECURITY DEFINER VIEW db1.v2 AS SELECT * FROM db1.t1;
+CREATE SQL SECURITY INVOKER VIEW db1.v4 AS SELECT * FROM db2.t2;
+++ Test global level privileges
+GRANT SELECT ON *.* TO r1;
+SHOW GRANTS FOR u1@localhost USING r1;
+Grants for u1@localhost
+GRANT SELECT ON *.* TO `u1`@`localhost`
+GRANT CREATE ON `db1`.* TO `u1`@`localhost`
+GRANT `r1`@`%` TO `u1`@`localhost`
+SET ROLE r1;
+++ Positive test
+SELECT * FROM v1;
+c1
+SELECT * FROM db2.v1;
+c1
+SELECT * FROM v4;
+c1
+++ Test revoke
+REVOKE SELECT ON *.* FROM r1;
+SHOW GRANTS FOR u1@localhost USING r1;
+Grants for u1@localhost
+GRANT USAGE ON *.* TO `u1`@`localhost`
+GRANT CREATE ON `db1`.* TO `u1`@`localhost`
+GRANT `r1`@`%` TO `u1`@`localhost`
+SET ROLE r1;
+SELECT * FROM v1;
+ERROR 42000: SELECT command denied to user 'u1'@'localhost' for table 'v1'
+++ Test schema level privileges
+GRANT SELECT ON db1.* TO r1;
+SHOW GRANTS FOR u1@localhost USING r1;
+Grants for u1@localhost
+GRANT USAGE ON *.* TO `u1`@`localhost`
+GRANT SELECT, CREATE ON `db1`.* TO `u1`@`localhost`
+GRANT `r1`@`%` TO `u1`@`localhost`
+SET ROLE r1;
+++ Positive test
+SELECT * FROM v1;
+c1
+SELECT * FROM v2;
+c1
+++ Negative test
+SELECT * FROM db2.v1;
+ERROR 42000: SELECT command denied to user 'u1'@'localhost' for table 'v1'
+SELECT * FROM v4;
+ERROR HY000: View 'db1.v4' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+REVOKE SELECT ON db1.* FROM r1;
+++ Test routine level privileges
+GRANT SELECT ON db1.v1 TO r1;
+SET ROLE r1;
+++ Positive test
+SELECT * FROM v1;
+c1
+++ Negative test
+SELECT * FROM v2;
+ERROR 42000: SELECT command denied to user 'u1'@'localhost' for table 'v2'
+SELECT * FROM db2.v1;
+ERROR 42000: SELECT command denied to user 'u1'@'localhost' for table 'v1'
+SELECT * FROM v4;
+ERROR 42000: SELECT command denied to user 'u1'@'localhost' for table 'v4'
+++ Test Security invoker model
+GRANT SELECT ON db2.* TO r1;
+GRANT SELECT ON db1.* TO r1;
+GRANT CREATE VIEW ON db1.* TO r1;
+SET ROLE r1;
+++ Positive test
+SELECT * FROM v1;
+c1
+SHOW GRANTS FOR CURRENT_USER;
+Grants for u1@localhost
+GRANT USAGE ON *.* TO `u1`@`localhost`
+GRANT SELECT, CREATE, CREATE VIEW ON `db1`.* TO `u1`@`localhost`
+GRANT SELECT ON `db2`.* TO `u1`@`localhost`
+GRANT SELECT ON `db1`.`v1` TO `u1`@`localhost`
+GRANT `r1`@`%` TO `u1`@`localhost`
+SELECT * FROM v4;
+c1
+++ Test SUID = u1@localhost with default roles
+CREATE SQL SECURITY DEFINER VIEW db1.v5 AS SELECT * FROM db2.t1;
+Negative test; DEFINER VIEWs always use default roles
+SELECT * FROM v5;
+ERROR HY000: View 'db1.v5' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+Positive test; Added default role.
+ALTER USER u1@localhost DEFAULT ROLE r1;
+SELECT * FROM v5;
+c1
+CREATE USER u2@localhost IDENTIFIED BY 'oof';
+GRANT SELECT ON db1.* TO u2@localhost;
+SHOW GRANTS FOR u1@localhost USING r1;
+Grants for u1@localhost
+GRANT USAGE ON *.* TO `u1`@`localhost`
+GRANT SELECT, CREATE, CREATE VIEW ON `db1`.* TO `u1`@`localhost`
+GRANT SELECT ON `db2`.* TO `u1`@`localhost`
+GRANT SELECT ON `db1`.`v1` TO `u1`@`localhost`
+GRANT `r1`@`%` TO `u1`@`localhost`
+++ Positive test
+SELECT * FROM db1.v5;
+c1
+SELECT * FROM db1.v2;
+c1
+++ Negative test
+SELECT * FROM db1.v4;
+ERROR HY000: View 'db1.v4' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+REVOKE r1 FROM u1@localhost;
+SELECT * FROM v5;
+ERROR HY000: View 'db1.v5' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+++ Clean up
+DROP DATABASE db1;
+DROP DATABASE db2;
+DROP USER u1@localhost;
+DROP ROLE r1;
+DROP USER u2@localhost;
+SHOW STATUS LIKE '%acl_cache%';
+Variable_name	Value
+Acl_cache_items_count	1

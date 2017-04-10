@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -24,9 +24,10 @@ Created 8/22/1994 Heikki Tuuri
 *************************************************************************/
 
 #include "ha0ha.h"
-#ifdef UNIV_NONINL
-#include "ha0ha.ic"
-#endif
+
+#include <sys/types.h>
+
+#include "my_inttypes.h"
 
 #ifndef UNIV_HOTBACKUP
 #ifdef UNIV_DEBUG

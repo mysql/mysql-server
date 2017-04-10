@@ -1,0 +1,655 @@
+call mtr.add_suppression("Plugin * after shutdown");
+call mtr.add_suppression(".* Native table .* has the wrong structure");
+call mtr.add_suppression("Resizing redo log from");
+call mtr.add_suppression("Starting to delete and rewrite log files");
+call mtr.add_suppression("New log files created");
+call mtr.add_suppression("Info table is not ready to be used.");
+call mtr.add_suppression("must use supported storage engine");
+call mtr.add_suppression("after shutdown");
+call mtr.add_suppression("will be forced to shutdown");
+call mtr.add_suppression("Table 'mysql.component' doesn't exist");
+call mtr.add_suppression("ACL DDLs will not work unless mysql_upgrade is executed");
+call mtr.add_suppression("table is missing or has an incorrect definition");
+call mtr.add_suppression("is expected to be transactional");
+call mtr.add_suppression("Upgrading redo log");
+call mtr.add_suppression("information_schema");
+call mtr.add_suppression("doesn't exist");
+call mtr.add_suppression("references invalid");
+call mtr.add_suppression("Creating routine without parsing routine body");
+call mtr.add_suppression(".*The privilege system failed to initialize correctly.*");
+call mtr.add_suppression("Resolving dependency for the view");
+call mtr.add_suppression("You need to use --log-bin to make --binlog-format work");
+call mtr.add_suppression("Unknown system variable 'show_compatibility_56'");
+call mtr.add_suppression("Column count of mysql.* is wrong");
+call mtr.add_suppression("Column count of performance_schema.events_statements_summary_by_digest is wrong.*");
+call mtr.add_suppression(".*Missing system table mysql.global_grants.*");
+call mtr.add_suppression("InnoDB: Unable to delete statistics for table mysql.");
+call mtr.add_suppression("Column count of performance_schema.replication_applier_status_by_worker is wrong. Expected 16, found 8.");
+call mtr.add_suppression("Column count of performance_schema.replication_applier_status_by_coordinator is wrong. Expected 15, found 6.");
+call mtr.add_suppression("Column count of performance_schema.replication_connection_status is wrong. Expected 20, found 11.");
+# Copy the remote tablespace & DB zip files from suite location to working location.
+# Check that the file exists in the working folder.
+# Unzip the zip file.
+SET sql_mode='';
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+CREATE TABLE test.proc (db char(64) collate utf8_bin DEFAULT '' NOT NULL,
+name char(64) DEFAULT '' NOT NULL,
+type enum('FUNCTION','PROCEDURE') NOT NULL,
+specific_name char(64) DEFAULT '' NOT NULL,
+language enum('SQL') DEFAULT 'SQL' NOT NULL,
+sql_data_access enum('CONTAINS_SQL',
+'NO_SQL',
+'READS_SQL_DATA',
+'MODIFIES_SQL_DATA')
+DEFAULT 'CONTAINS_SQL' NOT NULL,
+is_deterministic enum('YES','NO') DEFAULT 'NO' NOT NULL,
+security_type enum('INVOKER','DEFINER')
+DEFAULT 'DEFINER' NOT NULL,
+param_list blob NOT NULL,
+returns longblob DEFAULT '' NOT NULL,
+body longblob NOT NULL,
+definer char(93) collate utf8_bin DEFAULT '' NOT NULL,
+created timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
+ON UPDATE CURRENT_TIMESTAMP,
+modified timestamp NOT NULL
+DEFAULT '0000-00-00 00:00:00',
+sql_mode set('REAL_AS_FLOAT', 'PIPES_AS_CONCAT',
+'ANSI_QUOTES', 'IGNORE_SPACE', 'NOT_USED',
+'ONLY_FULL_GROUP_BY',
+'NO_UNSIGNED_SUBTRACTION',
+'NO_DIR_IN_CREATE', 'POSTGRESQL', 'ORACLE',
+'MSSQL', 'DB2', 'MAXDB', 'NO_KEY_OPTIONS',
+'NO_TABLE_OPTIONS', 'NO_FIELD_OPTIONS',
+'MYSQL323', 'MYSQL40', 'ANSI',
+'NO_AUTO_VALUE_ON_ZERO',
+'NO_BACKSLASH_ESCAPES',
+'STRICT_TRANS_TABLES', 'STRICT_ALL_TABLES',
+'NO_ZERO_IN_DATE', 'NO_ZERO_DATE',
+'INVALID_DATES',
+'ERROR_FOR_DIVISION_BY_ZERO', 'TRADITIONAL',
+'NO_AUTO_CREATE_USER', 'HIGH_NOT_PRECEDENCE',
+'NO_ENGINE_SUBSTITUTION',
+'PAD_CHAR_TO_FULL_LENGTH') DEFAULT '' NOT NULL,
+comment text collate utf8_bin NOT NULL,
+character_set_client char(32) collate utf8_bin,
+collation_connection char(32) collate utf8_bin,
+db_collation char(32) collate utf8_bin, body_utf8 longblob,
+PRIMARY KEY (db,name,type)) engine=MyISAM character set utf8
+comment='Stored Procedures';
+Warnings:
+Warning	1101	BLOB, TEXT, GEOMETRY or JSON column 'returns' can't have a default value
+INSERT INTO test.proc VALUES ('sp','bug24805140','PROCEDURE','bug24805140','SQL',
+'CONTAINS_SQL','NO','DEFINER','out a int','',
+'begin select requesting_trx_id from '
+                              'information_schema.INNODB_LOCK_WAITS limit 1 into a; end',
+'root@localhost','2016-10-05 21:44:21',
+'2016-10-05 21:44:21',
+'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,'
+                              'NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,'
+                              'NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION',
+'','utf8','utf8_general_ci','latin1_swedish_ci',
+'begin select requesting_trx_id from '
+                              'information_schema.INNODB_LOCK_WAITS limit 1 into a; end'),
+('sp','proc2','PROCEDURE','proc2','SQL',
+'CONTAINS_SQL','NO','DEFINER','out b int','',
+'begin select   @@show_compatibility_56 into b; end',
+'root@localhost','2016-10-05 21:55:05',
+'2016-10-05 21:55:05','ONLY_FULL_GROUP_BY,'
+                              'STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,'
+                              'NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,'
+                              'NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION','',
+'utf8','utf8_general_ci','latin1_swedish_ci',
+'begin select   @@show_compatibility_56 into b; end');
+DROP TABLE test.proc;
+# Stop DB server which was created by MTR default
+# 1.1 Create db.opt file.
+#Files in 'test' dir
+auto.cnf
+aview
+db_charset_koi8r
+events
+foreign_keys
+ib_buffer_pool
+ib_logfile0
+ib_logfile1
+ibdata1
+mysql
+performance_schema
+sakila
+sp
+sys
+tablespace
+test
+test_tablespace_2.ibd
+test_tablespace_3.ibd
+triggers
+view_with_column_names
+MYSQL_TMP_DIR/bootstrap.log
+# Start the DB server. Server will create and populate Dictionary tables.
+# Sanity Testing after Server start
+CREATE SCHEMA test123;
+CREATE TABLE test123.t1(a int);
+INSERT INTO test123.t1 values(1);
+SELECT * FROM test123.t1;
+a
+1
+DROP SCHEMA test123;
+# Execute mysql_upgrade
+mysql.column_stats                                 OK
+mysql.columns_priv                                 OK
+mysql.component                                    OK
+mysql.db                                           OK
+mysql.default_roles                                OK
+mysql.engine_cost                                  OK
+mysql.event_backup_57                              OK
+mysql.func                                         OK
+mysql.general_log                                  OK
+mysql.global_grants                                OK
+mysql.gtid_executed                                OK
+mysql.help_category                                OK
+mysql.help_keyword                                 OK
+mysql.help_relation                                OK
+mysql.help_topic                                   OK
+mysql.innodb_index_stats                           OK
+mysql.innodb_table_stats                           OK
+mysql.ndb_binlog_index                             OK
+mysql.plugin                                       OK
+mysql.proc_backup_57                               OK
+mysql.procs_priv                                   OK
+mysql.proxies_priv                                 OK
+mysql.role_edges                                   OK
+mysql.server_cost                                  OK
+mysql.servers                                      OK
+mysql.slave_master_info                            OK
+mysql.slave_relay_log_info                         OK
+mysql.slave_worker_info                            OK
+mysql.slow_log                                     OK
+mysql.tables_priv                                  OK
+mysql.time_zone                                    OK
+mysql.time_zone_leap_second                        OK
+mysql.time_zone_name                               OK
+mysql.time_zone_transition                         OK
+mysql.time_zone_transition_type                    OK
+mysql.user                                         OK
+aview.t1                                           OK
+aview.t2                                           OK
+events.event_table                                 OK
+events.event_table_2                               OK
+foreign_keys.t1                                    OK
+foreign_keys.t2                                    OK
+foreign_keys.t3                                    OK
+foreign_keys.t4                                    OK
+foreign_keys.t5                                    OK
+foreign_keys.t6                                    OK
+foreign_keys.t7                                    OK
+foreign_keys.t8                                    OK
+sakila.actor                                       OK
+sakila.address                                     OK
+sakila.category                                    OK
+sakila.city                                        OK
+sakila.country                                     OK
+sakila.customer                                    OK
+sakila.film                                        OK
+sakila.film_actor                                  OK
+sakila.film_category                               OK
+sakila.film_text                                   OK
+sakila.inventory                                   OK
+sakila.language                                    OK
+sakila.payment                                     OK
+sakila.rental                                      OK
+sakila.staff                                       OK
+sakila.store                                       OK
+sp.t                                               OK
+sys.sys_config                                     OK
+tablespace.t1                                      OK
+tablespace.t2                                      OK
+tablespace.t3                                      OK
+tablespace.t4                                      OK
+test.geom                                          OK
+test.initial_tü                                   OK
+test.jemp                                          OK
+test.jemp_myisam                                   OK
+test.opening_lines                                 OK
+test.t_blackhole                                   OK
+test.t_blob                                        OK
+test.t_blob_myisam                                 OK
+test.t_compressed                                  OK
+test.t_compressed2                                 OK
+test.t_compressed3                                 OK
+test.t_dynamic                                     OK
+test.t_gen_stored                                  OK
+test.t_gen_stored_myisam                           OK
+test.t_gen_stored_myisam2                          OK
+test.t_index                                       OK
+test.t_json                                        OK
+test.t_myisam_compressed                           OK
+test.t_myisam_compressed2                          To be repaired, cause follows:
+Server issued Error    : Got error 202 - 'Row format changed in storage engine' from storage engine
+status   : OK
+test.t_myisam_compressed3                          To be repaired, cause follows:
+Server issued Error    : Got error 202 - 'Row format changed in storage engine' from storage engine
+status   : OK
+test.t_sc~!@#$%^&*(                                OK
+test.vt2                                           OK
+triggers.t1                                        OK
+triggers.t2                                        OK
+view_with_column_names.t1                          OK
+SHOW DATABASES;
+Database
+aview
+db_charset_koi8r
+events
+foreign_keys
+information_schema
+mysql
+performance_schema
+sakila
+sp
+sys
+tablespace
+test
+triggers
+view_with_column_names
+SHOW CREATE TABLE mysql.user;
+Table	Create Table
+user	CREATE TABLE `user` (
+  `Host` char(60) COLLATE utf8_bin NOT NULL DEFAULT '',
+  `User` char(32) COLLATE utf8_bin NOT NULL DEFAULT '',
+  `Select_priv` enum('N','Y') CHARACTER SET utf8 NOT NULL DEFAULT 'N',
+  `Insert_priv` enum('N','Y') CHARACTER SET utf8 NOT NULL DEFAULT 'N',
+  `Update_priv` enum('N','Y') CHARACTER SET utf8 NOT NULL DEFAULT 'N',
+  `Delete_priv` enum('N','Y') CHARACTER SET utf8 NOT NULL DEFAULT 'N',
+  `Create_priv` enum('N','Y') CHARACTER SET utf8 NOT NULL DEFAULT 'N',
+  `Drop_priv` enum('N','Y') CHARACTER SET utf8 NOT NULL DEFAULT 'N',
+  `Reload_priv` enum('N','Y') CHARACTER SET utf8 NOT NULL DEFAULT 'N',
+  `Shutdown_priv` enum('N','Y') CHARACTER SET utf8 NOT NULL DEFAULT 'N',
+  `Process_priv` enum('N','Y') CHARACTER SET utf8 NOT NULL DEFAULT 'N',
+  `File_priv` enum('N','Y') CHARACTER SET utf8 NOT NULL DEFAULT 'N',
+  `Grant_priv` enum('N','Y') CHARACTER SET utf8 NOT NULL DEFAULT 'N',
+  `References_priv` enum('N','Y') CHARACTER SET utf8 NOT NULL DEFAULT 'N',
+  `Index_priv` enum('N','Y') CHARACTER SET utf8 NOT NULL DEFAULT 'N',
+  `Alter_priv` enum('N','Y') CHARACTER SET utf8 NOT NULL DEFAULT 'N',
+  `Show_db_priv` enum('N','Y') CHARACTER SET utf8 NOT NULL DEFAULT 'N',
+  `Super_priv` enum('N','Y') CHARACTER SET utf8 NOT NULL DEFAULT 'N',
+  `Create_tmp_table_priv` enum('N','Y') CHARACTER SET utf8 NOT NULL DEFAULT 'N',
+  `Lock_tables_priv` enum('N','Y') CHARACTER SET utf8 NOT NULL DEFAULT 'N',
+  `Execute_priv` enum('N','Y') CHARACTER SET utf8 NOT NULL DEFAULT 'N',
+  `Repl_slave_priv` enum('N','Y') CHARACTER SET utf8 NOT NULL DEFAULT 'N',
+  `Repl_client_priv` enum('N','Y') CHARACTER SET utf8 NOT NULL DEFAULT 'N',
+  `Create_view_priv` enum('N','Y') CHARACTER SET utf8 NOT NULL DEFAULT 'N',
+  `Show_view_priv` enum('N','Y') CHARACTER SET utf8 NOT NULL DEFAULT 'N',
+  `Create_routine_priv` enum('N','Y') CHARACTER SET utf8 NOT NULL DEFAULT 'N',
+  `Alter_routine_priv` enum('N','Y') CHARACTER SET utf8 NOT NULL DEFAULT 'N',
+  `Create_user_priv` enum('N','Y') CHARACTER SET utf8 NOT NULL DEFAULT 'N',
+  `Event_priv` enum('N','Y') CHARACTER SET utf8 NOT NULL DEFAULT 'N',
+  `Trigger_priv` enum('N','Y') CHARACTER SET utf8 NOT NULL DEFAULT 'N',
+  `Create_tablespace_priv` enum('N','Y') CHARACTER SET utf8 NOT NULL DEFAULT 'N',
+  `ssl_type` enum('','ANY','X509','SPECIFIED') CHARACTER SET utf8 NOT NULL DEFAULT '',
+  `ssl_cipher` blob NOT NULL,
+  `x509_issuer` blob NOT NULL,
+  `x509_subject` blob NOT NULL,
+  `max_questions` int(11) unsigned NOT NULL DEFAULT '0',
+  `max_updates` int(11) unsigned NOT NULL DEFAULT '0',
+  `max_connections` int(11) unsigned NOT NULL DEFAULT '0',
+  `max_user_connections` int(11) unsigned NOT NULL DEFAULT '0',
+  `plugin` char(64) COLLATE utf8_bin NOT NULL DEFAULT 'mysql_native_password',
+  `authentication_string` text COLLATE utf8_bin,
+  `password_expired` enum('N','Y') CHARACTER SET utf8 NOT NULL DEFAULT 'N',
+  `password_last_changed` timestamp NULL DEFAULT NULL,
+  `password_lifetime` smallint(5) unsigned DEFAULT NULL,
+  `account_locked` enum('N','Y') CHARACTER SET utf8 NOT NULL DEFAULT 'N',
+  `Create_role_priv` enum('N','Y') CHARACTER SET utf8 NOT NULL DEFAULT 'N',
+  `Drop_role_priv` enum('N','Y') CHARACTER SET utf8 NOT NULL DEFAULT 'N',
+  PRIMARY KEY (`Host`,`User`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin STATS_PERSISTENT=0 COMMENT='Users and global privileges'
+SHOW CREATE TABLE mysql.innodb_table_stats;
+Table	Create Table
+innodb_table_stats	CREATE TABLE `innodb_table_stats` (
+  `database_name` varchar(64) COLLATE utf8_bin NOT NULL,
+  `table_name` varchar(199) COLLATE utf8_bin NOT NULL,
+  `last_update` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `n_rows` bigint(20) unsigned NOT NULL,
+  `clustered_index_size` bigint(20) unsigned NOT NULL,
+  `sum_of_other_index_sizes` bigint(20) unsigned NOT NULL,
+  PRIMARY KEY (`database_name`,`table_name`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
+SHOW CREATE TABLE mysql.innodb_index_stats;
+Table	Create Table
+innodb_index_stats	CREATE TABLE `innodb_index_stats` (
+  `database_name` varchar(64) COLLATE utf8_bin NOT NULL,
+  `table_name` varchar(199) COLLATE utf8_bin NOT NULL,
+  `index_name` varchar(64) COLLATE utf8_bin NOT NULL,
+  `last_update` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `stat_name` varchar(64) COLLATE utf8_bin NOT NULL,
+  `stat_value` bigint(20) unsigned NOT NULL,
+  `sample_size` bigint(20) unsigned DEFAULT NULL,
+  `stat_description` varchar(1024) COLLATE utf8_bin NOT NULL,
+  PRIMARY KEY (`database_name`,`table_name`,`index_name`,`stat_name`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
+SELECT NAME,LEN FROM INFORMATION_SCHEMA.INNODB_SYS_COLUMNS WHERE TABLE_ID IN
+(SELECT TABLE_ID FROM INFORMATION_SCHEMA.INNODB_SYS_TABLES WHERE NAME LIKE '%innodb_%_stats')
+AND NAME LIKE 'table_name';
+NAME	LEN
+table_name	597
+table_name	597
+SHOW CREATE TABLE test.t_compressed;
+Table	Create Table
+t_compressed	CREATE TABLE `t_compressed` (
+  `c1` int(11) NOT NULL,
+  `c2` varchar(20) DEFAULT NULL,
+  PRIMARY KEY (`c1`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=COMPRESSED
+SHOW CREATE TABLE test.t_compressed2;
+Table	Create Table
+t_compressed2	CREATE TABLE `t_compressed2` (
+  `c1` int(11) NOT NULL,
+  `c2` varchar(20) DEFAULT NULL,
+  PRIMARY KEY (`c1`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=4
+SHOW CREATE TABLE test.t_compressed3;
+Table	Create Table
+t_compressed3	CREATE TABLE `t_compressed3` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=4
+SHOW CREATE TABLE test.t_dynamic;
+Table	Create Table
+t_dynamic	CREATE TABLE `t_dynamic` (
+  `c1` int(11) NOT NULL,
+  `c2` varchar(20) DEFAULT NULL,
+  PRIMARY KEY (`c1`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
+SHOW CREATE TABLE test.t_index;
+Table	Create Table
+t_index	CREATE TABLE `t_index` (
+  `c1` int(11) NOT NULL,
+  `c2` int(11) NOT NULL,
+  PRIMARY KEY (`c1`),
+  KEY `c2` (`c2`) USING BTREE
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+SHOW CREATE TABLE test.vt2;
+Table	Create Table
+vt2	CREATE TABLE `vt2` (
+  `c1` text NOT NULL,
+  `c2` text GENERATED ALWAYS AS (substr(`c1`,1,2)) VIRTUAL,
+  PRIMARY KEY (`c1`(20)),
+  UNIQUE KEY `c2` (`c2`(2))
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+SELECT * FROM test.vt2;
+c1	c2
+abcd	ab
+SHOW CREATE TABLE test.t_gen_stored;
+Table	Create Table
+t_gen_stored	CREATE TABLE `t_gen_stored` (
+  `a` varchar(50) DEFAULT NULL,
+  `b` varchar(10) GENERATED ALWAYS AS (substr(`a`,5)) STORED
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+SHOW CREATE TABLE test.jemp;
+Table	Create Table
+jemp	CREATE TABLE `jemp` (
+  `c` json DEFAULT NULL,
+  `g` int(11) GENERATED ALWAYS AS (json_extract(`c`,_utf8mb4'$.id')) VIRTUAL,
+  KEY `i` (`g`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+SHOW CREATE TABLE test.t_gen_stored_myisam;
+Table	Create Table
+t_gen_stored_myisam	CREATE TABLE `t_gen_stored_myisam` (
+  `a` varchar(50) DEFAULT NULL,
+  `b` varchar(10) GENERATED ALWAYS AS (substr(`a`,5)) STORED
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+SHOW CREATE TABLE test.t_gen_stored_myisam2;
+Table	Create Table
+t_gen_stored_myisam2	CREATE TABLE `t_gen_stored_myisam2` (
+  `a` varchar(50) DEFAULT NULL,
+  `b` varchar(10) GENERATED ALWAYS AS (substr(`a`,5)) STORED,
+  KEY `a` (`a`,`b`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+SHOW CREATE TABLE test.jemp_myisam;
+Table	Create Table
+jemp_myisam	CREATE TABLE `jemp_myisam` (
+  `c` json DEFAULT NULL,
+  `g` int(11) GENERATED ALWAYS AS (json_extract(`c`,_utf8mb4'$.id')) VIRTUAL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+SELECT TABLE_SCHEMA, TABLE_NAME, TABLE_TYPE, ENGINE, VERSION, ROW_FORMAT
+FROM INFORMATION_SCHEMA.tables WHERE table_schema='test';
+TABLE_SCHEMA	TABLE_NAME	TABLE_TYPE	ENGINE	VERSION	ROW_FORMAT
+test	geom	BASE TABLE	InnoDB	10	Dynamic
+test	initial_t�	BASE TABLE	BLACKHOLE	10	Fixed
+test	initial_v�	VIEW	NULL	NULL	NULL
+test	jemp	BASE TABLE	InnoDB	10	Dynamic
+test	jemp_myisam	BASE TABLE	MyISAM	10	Dynamic
+test	opening_lines	BASE TABLE	InnoDB	10	Dynamic
+test	t_blackhole	BASE TABLE	BLACKHOLE	10	Fixed
+test	t_blob	BASE TABLE	InnoDB	10	Dynamic
+test	t_blob_myisam	BASE TABLE	InnoDB	10	Dynamic
+test	t_compressed	BASE TABLE	InnoDB	10	Compressed
+test	t_compressed2	BASE TABLE	InnoDB	10	Compressed
+test	t_compressed3	BASE TABLE	InnoDB	10	Compressed
+test	t_dynamic	BASE TABLE	InnoDB	10	Dynamic
+test	t_gen_stored	BASE TABLE	InnoDB	10	Dynamic
+test	t_gen_stored_myisam	BASE TABLE	MyISAM	10	Dynamic
+test	t_gen_stored_myisam2	BASE TABLE	MyISAM	10	Dynamic
+test	t_index	BASE TABLE	MyISAM	10	Fixed
+test	t_json	BASE TABLE	InnoDB	10	Dynamic
+test	t_myisam_compressed	BASE TABLE	MyISAM	10	Dynamic
+test	t_myisam_compressed2	BASE TABLE	MyISAM	10	Compressed
+test	t_myisam_compressed3	BASE TABLE	MyISAM	10	Compressed
+test	t_sc~!@#$%^&*(	BASE TABLE	InnoDB	10	Dynamic
+test	vt2	BASE TABLE	InnoDB	10	Dynamic
+SHOW CREATE VIEW aview.view_invalid;
+View	Create View	character_set_client	collation_connection
+view_invalid	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `aview`.`view_invalid` AS select `aview`.`t`.`a` AS `column1`,`aview`.`t`.`b` AS `column2` from `aview`.`t`	utf8	utf8_general_ci
+Warnings:
+Warning	1356	View 'aview.view_invalid' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+SHOW CREATE VIEW aview.view_2;
+View	Create View	character_set_client	collation_connection
+view_2	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `aview`.`view_2` AS select `aview`.`t1`.`a` AS `column1`,`aview`.`t1`.`b` AS `column2`,`aview`.`t1`.`c` AS `column3`,`aview`.`t2`.`a` AS `column4` from (`aview`.`t1` join `aview`.`t2`)	utf8	utf8_general_ci
+SHOW CREATE VIEW aview.second_view;
+View	Create View	character_set_client	collation_connection
+second_view	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `aview`.`second_view` AS select `view_2`.`column1` AS `column1`,`view_2`.`column2` AS `column2`,`view_2`.`column3` AS `column3`,`view_2`.`column4` AS `column4` from `aview`.`view_2`	utf8	utf8_general_ci
+SELECT * FROM aview.view_2;
+column1	column2	column3	column4
+50	ABCD	EFGH	100
+SELECT * FROM aview.second_view;
+column1	column2	column3	column4
+50	ABCD	EFGH	100
+SHOW CREATE VIEW aview.mixed_view;
+View	Create View	character_set_client	collation_connection
+mixed_view	CREATE ALGORITHM=MERGE DEFINER=`root`@`localhost` SQL SECURITY INVOKER VIEW `aview`.`mixed_view` AS select `second_view`.`column3` AS `column3`,`second_view`.`column4` AS `column4`,`hello`('FUNC') AS `hello('FUNC')` from `aview`.`second_view` WITH CASCADED CHECK OPTION	utf8	utf8_general_ci
+SHOW CREATE VIEW aview.mixed_view2;
+View	Create View	character_set_client	collation_connection
+mixed_view2	CREATE ALGORITHM=MERGE DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `aview`.`mixed_view2` AS select `second_view`.`column3` AS `column3`,`second_view`.`column4` AS `column4`,`hello`('FUNC') AS `hello('FUNC')` from `aview`.`second_view` WITH LOCAL CHECK OPTION	utf8	utf8_general_ci
+SELECT * FROM aview.mixed_view2;
+column3	column4	hello('FUNC')
+EFGH	100	Hello, FUNC!
+SHOW CREATE VIEW aview.view_user;
+View	Create View	character_set_client	collation_connection
+view_user	CREATE ALGORITHM=UNDEFINED DEFINER=`jeffrey`@`localhost` SQL SECURITY DEFINER VIEW `aview`.`view_user` AS select 1 AS `1`	utf8	utf8_general_ci
+SHOW CREATE VIEW aview.view_user2;
+View	Create View	character_set_client	collation_connection
+view_user2	CREATE ALGORITHM=UNDEFINED DEFINER=`abcd`@`localhost` SQL SECURITY INVOKER VIEW `aview`.`view_user2` AS select 1 AS `1`	utf8	utf8_general_ci
+SHOW CREATE VIEW aview.view_character_set;
+View	Create View	character_set_client	collation_connection
+view_character_set	CREATE ALGORITHM=UNDEFINED DEFINER=`jeffrey`@`localhost` SQL SECURITY DEFINER VIEW `aview`.`view_character_set` AS select 1 AS `1`	latin1	latin1_swedish_ci
+SHOW CREATE DATABASE db_charset_koi8r;
+Database	Create Database
+db_charset_koi8r	CREATE DATABASE `db_charset_koi8r` /*!40100 DEFAULT CHARACTER SET koi8r COLLATE koi8r_bin */
+SET names utf8;
+DESC `test`.`initial_vü`;
+Field	Type	Null	Key	Default	Extra
+cü	char(1)	YES		NULL	
+SELECT * FROM information_schema.tables WHERE table_schema = 'test' and table_type='VIEW';
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	TABLE_TYPE	ENGINE	VERSION	ROW_FORMAT	TABLE_ROWS	AVG_ROW_LENGTH	DATA_LENGTH	MAX_DATA_LENGTH	INDEX_LENGTH	DATA_FREE	AUTO_INCREMENT	CREATE_TIME	UPDATE_TIME	CHECK_TIME	TABLE_COLLATION	CHECKSUM	CREATE_OPTIONS	TABLE_COMMENT
+def	test	initial_vü	VIEW	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	CREATE_TIME	NULL	NULL	NULL	NULL	NULL	VIEW
+SET names default;
+SHOW CREATE PROCEDURE sp.simpleproc;
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+simpleproc	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `simpleproc`(OUT param1 INT)
+BEGIN
+  SELECT COUNT(*) INTO param1 FROM t;
+END	utf8mb4	utf8mb4_0900_ai_ci	latin1_swedish_ci
+SHOW CREATE PROCEDURE sp.proc_123;
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+proc_123	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `proc_123`(OUT param1 INT)
+    READS SQL DATA
+    SQL SECURITY INVOKER
+    COMMENT 'Procedure to test Upgrade'
+BEGIN   SELECT COUNT(*) INTO param1 FROM t; END	utf8mb4	utf8mb4_0900_ai_ci	latin1_swedish_ci
+SHOW CREATE PROCEDURE sp.proc_456;
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+proc_456	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `proc_456`(OUT param1 INT)
+    MODIFIES SQL DATA
+    DETERMINISTIC
+    COMMENT 'Procedure to test Upgrade 2'
+BEGIN   SELECT COUNT(*) INTO param1 FROM t; END	utf8mb4	utf8mb4_0900_ai_ci	latin1_swedish_ci
+SHOW CREATE PROCEDURE sp.bug24805140;
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+bug24805140	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bug24805140`(out a int)
+begin select requesting_trx_id from information_schema.INNODB_LOCK_WAITS limit 1 into a; end	utf8mb4	utf8mb4_0900_ai_ci	latin1_swedish_ci
+call sp.bug24805140();
+ERROR HY000: Failed to load routine 'sp.bug24805140'.
+SHOW WARNINGS;
+Level	Code	Message
+Error	1109	Unknown table 'INNODB_LOCK_WAITS' in information_schema
+Error	3512	Failed to load routine 'sp.bug24805140'.
+SHOW CREATE FUNCTION sp.hello;
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+hello	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `hello`(s CHAR(20)) RETURNS char(50) CHARSET latin1
+    DETERMINISTIC
+RETURN CONCAT('Hello, ',s,'!')	utf8mb4	utf8mb4_0900_ai_ci	latin1_swedish_ci
+SHOW CREATE EVENT events.e_totals;
+Event	sql_mode	time_zone	Create Event	character_set_client	collation_connection	Database Collation
+e_totals	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	SYSTEM	CREATE DEFINER=`root`@`localhost` EVENT `e_totals` ON SCHEDULE AT '2017-02-10 21:29:00' ON COMPLETION NOT PRESERVE ENABLE DO INSERT INTO events.event_table_2 VALUES (NOW())	utf8	utf8_general_ci	latin1_swedish_ci
+SHOW CREATE TABLE test.opening_lines;
+Table	Create Table
+opening_lines	CREATE TABLE `opening_lines` (
+  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `opening_line` text,
+  `author` varchar(200) DEFAULT NULL,
+  `title` varchar(200) DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  FULLTEXT KEY `idx` (`opening_line`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+SHOW CREATE TABLE tablespace.t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `a` int(11) DEFAULT NULL,
+  `b` varchar(50) DEFAULT NULL
+) /*!50100 TABLESPACE `tbsp1` */ ENGINE=InnoDB DEFAULT CHARSET=latin1
+SHOW CREATE TABLE tablespace.t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `a` int(11) NOT NULL,
+  `b` varchar(50) DEFAULT NULL,
+  `c` varchar(50) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) /*!50100 TABLESPACE `tbsp1` */ ENGINE=InnoDB DEFAULT CHARSET=latin1
+SELECT * FROM tablespace.t3;
+a	b	c
+11	he	ra
+SHOW CREATE TABLE tablespace.t4;
+Table	Create Table
+t4	CREATE TABLE `t4` (
+  `a` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `tbsp2` */ ENGINE=InnoDB DEFAULT CHARSET=latin1
+SHOW CREATE TABLE test.t_blackhole;
+Table	Create Table
+t_blackhole	CREATE TABLE `t_blackhole` (
+  `a` int(11) NOT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=BLACKHOLE DEFAULT CHARSET=latin1
+SHOW CREATE TABLE `test`.`t_sc~!@#$%^&*(`;
+Table	Create Table
+t_sc~!@#$%^&*(	CREATE TABLE `t_sc~!@#$%^&*(` (
+  `a` int(11) NOT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+SHOW CREATE TABLE test.t_json;
+Table	Create Table
+t_json	CREATE TABLE `t_json` (
+  `jdoc` json DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+SHOW CREATE TABLE test.geom;
+Table	Create Table
+geom	CREATE TABLE `geom` (
+  `g` geometry DEFAULT NULL,
+  `pt` point NOT NULL,
+  `ml` multipoint DEFAULT NULL,
+  `multi` multilinestring NOT NULL,
+  SPATIAL KEY `pt` (`pt`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+INSERT INTO triggers.t1 VALUES(1);
+UPDATE triggers.t1 SET a=2 WHERE a=1;
+SELECT * FROM triggers.t2;
+b
+Before Insert Trigger executed for t1
+After Insert 1st Trigger executed for t1
+After Insert Trigger executed for t1
+After Insert 3rd Trigger executed for t1
+Before Update Trigger Number 3 executed for t1
+Before Update Trigger executed for t1
+After Update Trigger for t1 : Query 1 :
+After Update Trigger for t1 : Query 3 :
+After Update Trigger for t1 : Query 3 :
+SELECT TRIGGER_SCHEMA, TRIGGER_NAME, EVENT_MANIPULATION, ACTION_TIMING,
+ACTION_ORDER FROM INFORMATION_SCHEMA.TRIGGERS WHERE TRIGGER_SCHEMA='triggers';
+TRIGGER_SCHEMA	TRIGGER_NAME	EVENT_MANIPULATION	ACTION_TIMING	ACTION_ORDER
+triggers	trg_t1_before_insert	INSERT	BEFORE	1
+triggers	t1_bi	INSERT	BEFORE	2
+triggers	trg_t1_after_insert_1	INSERT	AFTER	1
+triggers	trg_t1_after_insert	INSERT	AFTER	2
+triggers	trg_t1_after_insert_3	INSERT	AFTER	3
+triggers	trg_t1_before_update_3	UPDATE	BEFORE	1
+triggers	trg_t1_before_update	UPDATE	BEFORE	2
+triggers	trg_t1_after_update	UPDATE	AFTER	1
+triggers	trg1	DELETE	AFTER	1
+SHOW CREATE TRIGGER triggers.trg_t1_after_insert_3;
+Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
+trg_t1_after_insert_3	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `trg_t1_after_insert_3` AFTER INSERT ON `t1` FOR EACH ROW insert into t2 values('After Insert 3rd Trigger executed for t1')	utf8	utf8_general_ci	latin1_swedish_ci	#
+SHOW CREATE TRIGGER triggers.trg1;
+Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
+trg1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `trg1` AFTER DELETE ON `t1` FOR EACH ROW begin set@a=1; end	utf8	utf8_general_ci	latin1_swedish_ci	#
+SHOW CREATE TRIGGER triggers.t1_bi;
+Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
+t1_bi	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `t1_bi` BEFORE INSERT ON `t1` FOR EACH ROW SET @a:=_koi8r'ÂÌÁÂÌÁÂÌÁ'	utf8	utf8_general_ci	latin1_swedish_ci	#
+SELECT * FROM INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS WHERE
+CONSTRAINT_SCHEMA='foreign_keys' ORDER BY CONSTRAINT_SCHEMA,CONSTRAINT_NAME;
+CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	UNIQUE_CONSTRAINT_CATALOG	UNIQUE_CONSTRAINT_SCHEMA	UNIQUE_CONSTRAINT_NAME	MATCH_OPTION	UPDATE_RULE	DELETE_RULE	TABLE_NAME	REFERENCED_TABLE_NAME
+def	foreign_keys	t3_ibfk_1	def	foreign_keys	PRIMARY	NONE	RESTRICT	RESTRICT	t3	t1
+def	foreign_keys	t4_ibfk_1	def	foreign_keys	PRIMARY	NONE	RESTRICT	CASCADE	t4	t1
+def	foreign_keys	t5_ibfk_1	def	foreign_keys	PRIMARY	NONE	RESTRICT	SET NULL	t5	t1
+def	foreign_keys	t6_ibfk_1	def	foreign_keys	PRIMARY	NONE	CASCADE	CASCADE	t6	t1
+def	foreign_keys	t7_ibfk_1	def	foreign_keys	PRIMARY	NONE	RESTRICT	RESTRICT	t7	t1
+def	foreign_keys	t8_ibfk_1	def	foreign_keys	PRIMARY	NONE	RESTRICT	CASCADE	t8	t2
+SHOW CREATE VIEW view_with_column_names.v1;
+View	Create View	character_set_client	collation_connection
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `view_with_column_names`.`v1` AS select `view_with_column_names`.`t1`.`x` AS `a`,`view_with_column_names`.`t1`.`y` AS `b` from `view_with_column_names`.`t1` where (`view_with_column_names`.`t1`.`y` = 5)	utf8	utf8_general_ci
+SELECT * FROM view_with_column_names.v1;
+a	b
+3	5
+SHOW CREATE VIEW view_with_column_names.v2;
+View	Create View	character_set_client	collation_connection
+v2	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `view_with_column_names`.`v2` AS select `view_with_column_names`.`t1`.`x` AS `e`,`view_with_column_names`.`t1`.`y` AS `f` from `view_with_column_names`.`t1` where (`view_with_column_names`.`t1`.`y` = 5)	utf8	utf8_general_ci
+SELECT * FROM view_with_column_names.v2;
+e	f
+3	5
+SHOW CREATE VIEW view_with_column_names.v3;
+View	Create View	character_set_client	collation_connection
+v3	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `view_with_column_names`.`v3` AS select `view_with_column_names`.`t1`.`x` AS `x`,`view_with_column_names`.`t1`.`y` AS `y` from `view_with_column_names`.`t1` where (`view_with_column_names`.`t1`.`y` = 5)	utf8	utf8_general_ci
+SELECT * FROM view_with_column_names.v3;
+x	y
+3	5
+SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE
+TABLE_SCHEMA='view_with_column_names';
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	ORDINAL_POSITION	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	DATETIME_PRECISION	CHARACTER_SET_NAME	COLLATION_NAME	COLUMN_TYPE	COLUMN_KEY	EXTRA	PRIVILEGES	COLUMN_COMMENT	GENERATION_EXPRESSION
+def	view_with_column_names	t1	x	1	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references		
+def	view_with_column_names	t1	y	2	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references		
+def	view_with_column_names	v1	a	1	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references		
+def	view_with_column_names	v1	b	2	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references		
+def	view_with_column_names	v2	e	1	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references		
+def	view_with_column_names	v2	f	2	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references		
+def	view_with_column_names	v3	x	1	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references		
+def	view_with_column_names	v3	y	2	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references		
+# Stop the server
+# Restart the server with default options.
+# restart

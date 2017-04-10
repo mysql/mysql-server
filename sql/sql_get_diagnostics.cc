@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,11 +13,24 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
-#include "sql_list.h"                 // Sql_alloc, List, List_iterator
-#include "sql_cmd.h"                  // Sql_cmd
-#include "sql_class.h"                // Diagnostics_area
-#include "sql_get_diagnostics.h"      // Sql_cmd_get_diagnostics
+#include "sql/sql_get_diagnostics.h"
+
+#include <string.h>
+#include <sys/types.h>
+
+#include "item.h"
+#include "m_ctype.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_sys.h"
+#include "mysql/psi/mysql_statement.h"
+#include "mysqld_error.h"
 #include "sp_rcontext.h"              // sp_rcontext
+#include "sql_class.h"                // THD
+#include "sql_error.h"                // Diagnostics_area
+#include "sql_list.h"                 // List_iterator
+#include "sql_string.h"
+
 
 /**
   Execute this GET DIAGNOSTICS statement.
@@ -283,7 +296,7 @@ Condition_information::aggregate(THD *thd, const Diagnostics_area *da)
 */
 
 Item *
-Condition_information_item::make_utf8_string_item(THD *thd, const String *str)
+Condition_information_item::make_utf8_string_item(const String *str)
 {
   /* Default is utf8 character set and utf8_general_ci collation. */
   const CHARSET_INFO *to_cs= &my_charset_utf8_general_ci;
@@ -300,7 +313,7 @@ Condition_information_item::make_utf8_string_item(THD *thd, const String *str)
   a given condition.
 
   @param thd  The current thread.
-  @param da   The Diagnostics Area.
+  @param cond  The SQL condition.
 
   @retval Item representing the value.
   @retval NULL on error.
@@ -316,44 +329,44 @@ Condition_information_item::get_value(THD *thd, const Sql_condition *cond)
   switch (m_name)
   {
   case CLASS_ORIGIN:
-    value= make_utf8_string_item(thd, &(cond->m_class_origin));
+    value= make_utf8_string_item(&(cond->m_class_origin));
     break;
   case SUBCLASS_ORIGIN:
-    value= make_utf8_string_item(thd, &(cond->m_subclass_origin));
+    value= make_utf8_string_item(&(cond->m_subclass_origin));
     break;
   case CONSTRAINT_CATALOG:
-    value= make_utf8_string_item(thd, &(cond->m_constraint_catalog));
+    value= make_utf8_string_item(&(cond->m_constraint_catalog));
     break;
   case CONSTRAINT_SCHEMA:
-    value= make_utf8_string_item(thd, &(cond->m_constraint_schema));
+    value= make_utf8_string_item(&(cond->m_constraint_schema));
     break;
   case CONSTRAINT_NAME:
-    value= make_utf8_string_item(thd, &(cond->m_constraint_name));
+    value= make_utf8_string_item(&(cond->m_constraint_name));
     break;
   case CATALOG_NAME:
-    value= make_utf8_string_item(thd, &(cond->m_catalog_name));
+    value= make_utf8_string_item(&(cond->m_catalog_name));
     break;
   case SCHEMA_NAME:
-    value= make_utf8_string_item(thd, &(cond->m_schema_name));
+    value= make_utf8_string_item(&(cond->m_schema_name));
     break;
   case TABLE_NAME:
-    value= make_utf8_string_item(thd, &(cond->m_table_name));
+    value= make_utf8_string_item(&(cond->m_table_name));
     break;
   case COLUMN_NAME:
-    value= make_utf8_string_item(thd, &(cond->m_column_name));
+    value= make_utf8_string_item(&(cond->m_column_name));
     break;
   case CURSOR_NAME:
-    value= make_utf8_string_item(thd, &(cond->m_cursor_name));
+    value= make_utf8_string_item( &(cond->m_cursor_name));
     break;
   case MESSAGE_TEXT:
-    value= make_utf8_string_item(thd, &(cond->m_message_text));
+    value= make_utf8_string_item(&(cond->m_message_text));
     break;
   case MYSQL_ERRNO:
     value= new (thd->mem_root) Item_uint(cond->m_mysql_errno);
     break;
   case RETURNED_SQLSTATE:
     str.set_ascii(cond->returned_sqlstate(), strlen(cond->returned_sqlstate()));
-    value= make_utf8_string_item(thd, &str);
+    value= make_utf8_string_item(&str);
     break;
   }
 

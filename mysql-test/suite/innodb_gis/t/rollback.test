@@ -1,13 +1,10 @@
 # WL 6609. Testing insertion rollback
---source include/have_innodb.inc
 --source include/not_embedded.inc
 --source include/have_debug.inc
---source include/have_innodb_16k.inc
 # Valgrind can hang or return spurious messages on DBUG_SUICIDE
 --source include/not_valgrind.inc
 # Avoid CrashReporter popup on Mac
 --source include/not_crashrep.inc
---source include/have_innodb_16k.inc
 
 CREATE TABLE t4 (id bigint(12) unsigned NOT NULL auto_increment,
   c2 varchar(15) collate utf8_bin default NULL,
@@ -413,11 +410,9 @@ DROP TABLE t4;
 
 # Test externally stored update rollback.
 LET $file_per_table='on';
-LET $file_format='Barracuda';
 
 --disable_warnings
 eval SET GLOBAL innodb_file_per_table=$file_per_table;
-eval SET GLOBAL innodb_file_format=$file_format;
 --enable_warnings
 
 create table t1(i int primary key,
@@ -441,7 +436,6 @@ drop table t1;
 
 --disable_warnings
 SET GLOBAL innodb_file_per_table=default;
-SET GLOBAL innodb_file_format=default;
 --enable_warnings
 
 # Test partial update rollback.

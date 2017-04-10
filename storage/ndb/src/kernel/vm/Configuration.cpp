@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -25,7 +25,6 @@
 #include <ConfigRetriever.hpp>
 #include <IPCConfig.hpp>
 #include <ndb_version.h>
-#include <NdbMem.h>
 #include <NdbOut.hpp>
 #include <WatchDog.hpp>
 #include <NdbConfig.h>
@@ -340,6 +339,9 @@ Configuration::setupConfiguration(){
 	      "TimeBetweenWatchDogCheck missing");
   }
 
+  _schedulerResponsiveness = 5;
+  iter.get(CFG_DB_SCHED_RESPONSIVENESS, &_schedulerResponsiveness);
+
   _schedulerExecutionTimer = 50;
   iter.get(CFG_DB_SCHED_EXEC_TIME, &_schedulerExecutionTimer);
 
@@ -653,7 +655,14 @@ const ndb_mgm_configuration_iterator *
 Configuration::getOwnConfigIterator() const {
   return m_ownConfigIterator;
 }
-  
+
+const class ConfigValues*
+Configuration::get_own_config_values()
+{
+  return &m_ownConfig->m_config;
+}
+
+
 ndb_mgm_configuration_iterator * 
 Configuration::getClusterConfigIterator() const {
   return m_clusterConfigIter;
@@ -667,7 +676,7 @@ Configuration::get_config_generation() const {
   sys_iter.get(CFG_SYS_CONFIG_GENERATION, &generation);
   return generation;
 }
- 
+
 
 void
 Configuration::calcSizeAlt(ConfigValues * ownConfig){
@@ -831,18 +840,25 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
       3 * noOfUniqueHashIndexes + /* for unique hash indexes, I/U/D */
       3 * NDB_MAX_ACTIVE_EVENTS + /* for events in suma, I/U/D */
       3 * noOfTables +            /* for backup, I/U/D */
+      3 * noOfTables +            /* for Fully replicated tables, I/U/D */
       noOfOrderedIndexes;         /* for ordered indexes, C */
     if (noOfTriggers < neededNoOfTriggers)
     {
       noOfTriggers= neededNoOfTriggers;
       it2.set(CFG_DB_NO_TRIGGERS, noOfTriggers);
     }
+    g_eventLogger->info("MaxNoOfTriggers set to %u", noOfTriggers);
   }
 
   /**
    * Do size calculations
    */
   ConfigValuesFactory cfg(ownConfig);
+
+  /**
+   * Ensure that Backup doesn't fail due to lack of trigger resources
+   */
+  cfg.put(CFG_TUP_NO_TRIGGERS, noOfTriggers + 3 * noOfTables);
 
   Uint32 noOfMetaTables= noOfTables + noOfOrderedIndexes +
                            noOfUniqueHashIndexes;
@@ -898,8 +914,14 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
     // that they never have a problem with allocation of the operation record.
     // The remainder are allowed for use by the scan processes.
     /*-----------------------------------------------------------------------*/
+    /**
+     * We add an extra 150 operations, 100 of those are dedicated to DBUTIL
+     * interactions and LCP and Backup scans. The remaining 50 are
+     * non-dedicated things for local usage.
+     */
+#define EXTRA_LOCAL_OPERATIONS 150
     cfg.put(CFG_ACC_OP_RECS,
-	    (noOfLocalOperations + 50) + 
+	    (noOfLocalOperations + EXTRA_LOCAL_OPERATIONS) + 
 	    (noOfLocalScanRecords * noBatchSize) +
 	    NODE_RECOVERY_SCAN_OP_RECORDS);
     
@@ -950,7 +972,7 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
 	    noOfMetaTables);
 
     cfg.put(CFG_LQH_TC_CONNECT, 
-	    noOfLocalOperations + 50);
+	    noOfLocalOperations + EXTRA_LOCAL_OPERATIONS);
     
     cfg.put(CFG_LQH_SCAN, 
 	    noOfLocalScanRecords);
@@ -992,7 +1014,7 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
 	    NO_OF_FRAG_PER_NODE * noOfMetaTables* noOfReplicas);
     
     cfg.put(CFG_TUP_OP_RECS, 
-	    noOfLocalOperations + 50);
+	    noOfLocalOperations + EXTRA_LOCAL_OPERATIONS);
     
     cfg.put(CFG_TUP_PAGE, 
 	    noOfDataPages);
@@ -1083,15 +1105,17 @@ Configuration::setRealtimeScheduler(NdbThread* pThread,
       //Warning, no permission to set scheduler
       if (init)
       {
-        ndbout_c("Failed to set real-time prio on tid = %d, error_no = %d",
-                 NdbThread_GetTid(pThread), error_no);
+        g_eventLogger->info("Failed to set real-time prio on tid = %d,"
+                            " error_no = %d",
+                            NdbThread_GetTid(pThread), error_no);
+        abort(); /* Fail on failures at init */
       }
       return 1;
     }
     else if (init)
     {
-      ndbout_c("Successfully set real-time prio on tid = %d",
-               NdbThread_GetTid(pThread));
+      g_eventLogger->info("Successfully set real-time prio on tid = %d",
+                          NdbThread_GetTid(pThread));
     }
   }
   return 0;
@@ -1131,13 +1155,15 @@ Configuration::setLockCPU(NdbThread * pThread,
   {
     if (res > 0)
     {
-      ndbout_c("Locked tid = %d to CPU ok", NdbThread_GetTid(pThread));
+      g_eventLogger->info("Locked tid = %d to CPU ok",
+                          NdbThread_GetTid(pThread));
       return 0;
     }
     else
     {
-      ndbout_c("Failed to lock tid = %d to CPU, error_no = %d",
-               NdbThread_GetTid(pThread), (-res));
+      g_eventLogger->info("Failed to lock tid = %d to CPU, error_no = %d",
+                          NdbThread_GetTid(pThread), (-res));
+      abort(); /* We fail when failing to lock to CPUs */
       return 1;
     }
   }
@@ -1145,10 +1171,97 @@ Configuration::setLockCPU(NdbThread * pThread,
   return 0;
 }
 
+int
+Configuration::setThreadPrio(NdbThread * pThread,
+                             enum ThreadTypes type)
+{
+  int res = 0;
+  unsigned thread_prio;
+  if (type != BlockThread &&
+      type != SendThread &&
+      type != ReceiveThread)
+  {
+    if (type == NdbfsThread)
+    {
+      /*
+       * NdbfsThread (IO threads).
+       */
+      res = m_thr_config.do_thread_prio_io(pThread, thread_prio);
+    }
+    else
+    {
+      /*
+       * WatchDogThread, SocketClientThread, SocketServerThread
+       */
+      res = m_thr_config.do_thread_prio_watchdog(pThread, thread_prio);
+    }
+  }
+  else if (!NdbIsMultiThreaded())
+  {
+    BlockNumber list[] = { DBDIH };
+    res = m_thr_config.do_thread_prio(pThread, list, 1, thread_prio);
+  }
+
+  if (res != 0)
+  {
+    if (res > 0)
+    {
+      g_eventLogger->info("Set thread prio to %u for tid: %d ok",
+                          thread_prio, NdbThread_GetTid(pThread));
+      return 0;
+    }
+    else
+    {
+      g_eventLogger->info("Failed to set thread prio to %u for tid: %d,"
+                          " error_no = %d",
+                          thread_prio,
+                          NdbThread_GetTid(pThread),
+                          (-res));
+      abort(); /* We fail when failing to set thread prio */
+      return 1;
+    }
+  }
+  return 0;
+}
+
 bool
 Configuration::get_io_real_time() const
 {
   return m_thr_config.do_get_realtime_io();
+}
+
+const char*
+Configuration::get_type_string(enum ThreadTypes type)
+{
+  const char *type_str;
+  switch (type)
+  {
+    case WatchDogThread:
+      type_str = "WatchDogThread";
+      break;
+    case SocketServerThread:
+      type_str = "SocketServerThread";
+      break;
+    case SocketClientThread:
+      type_str = "SocketClientThread";
+      break;
+    case NdbfsThread:
+      type_str = "NdbfsThread";
+      break;
+    case BlockThread:
+      type_str = "BlockThread";
+      break;
+    case SendThread:
+      type_str = "SendThread";
+      break;
+    case ReceiveThread:
+      type_str = "ReceiveThread";
+      break;
+    default:
+      type_str = NULL;
+      abort();
+  }
+  return type_str;
 }
 
 Uint32
@@ -1172,29 +1285,8 @@ Configuration::addThread(struct NdbThread* pThread,
   threadInfo[i].pThread = pThread;
   threadInfo[i].type = type;
   NdbMutex_Unlock(threadIdMutex);
-  switch (type)
-  {
-    case WatchDogThread:
-      type_str = "WatchDogThread";
-      break;
-    case SocketServerThread:
-      type_str = "SocketServerThread";
-      break;
-    case SocketClientThread:
-      type_str = "SocketClientThread";
-      break;
-    case NdbfsThread:
-      type_str = "NdbfsThread";
-      break;
-    case BlockThread:
-    case SendThread:
-    case ReceiveThread:
-      type_str = NULL;
-      break;
-    default:
-      type_str = NULL;
-      abort();
-  }
+
+  type_str = get_type_string(type);
 
   bool real_time;
   if (single_threaded)

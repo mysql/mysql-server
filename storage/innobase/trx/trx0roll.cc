@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -23,17 +23,15 @@ Transaction rollback
 Created 3/26/1996 Heikki Tuuri
 *******************************************************/
 
-#include "ha_prototypes.h"
-
-#include "trx0roll.h"
-
-#ifdef UNIV_NONINL
-#include "trx0roll.ic"
-#endif
+#include <sys/types.h>
 
 #include "fsp0fsp.h"
+#include "ha_prototypes.h"
 #include "lock0lock.h"
 #include "mach0data.h"
+#include "my_compiler.h"
+#include "my_inttypes.h"
+#include "os0thread-create.h"
 #include "pars0pars.h"
 #include "que0que.h"
 #include "read0read.h"
@@ -42,6 +40,7 @@ Created 3/26/1996 Heikki Tuuri
 #include "srv0mon.h"
 #include "srv0start.h"
 #include "trx0rec.h"
+#include "trx0roll.h"
 #include "trx0rseg.h"
 #include "trx0sys.h"
 #include "trx0trx.h"
@@ -222,6 +221,8 @@ trx_rollback_low(
 			trx_undo_ptr_t*	undo_ptr = &trx->rsegs.m_redo;
 			mtr_t		mtr;
 			mtr.start();
+			mtr.set_undo_space(trx->rsegs.m_redo.rseg->space_id);
+
 			mutex_enter(&trx->rsegs.m_redo.rseg->mutex);
 			if (undo_ptr->insert_undo != NULL) {
 				trx_undo_set_state_at_prepare(
@@ -410,7 +411,7 @@ the row, these locks are naturally released in the rollback. Savepoints which
 were set after this savepoint are deleted.
 @return if no savepoint of the name found then DB_NO_SAVEPOINT,
 otherwise DB_SUCCESS */
-static MY_ATTRIBUTE((nonnull, warn_unused_result))
+static MY_ATTRIBUTE((warn_unused_result))
 dberr_t
 trx_rollback_to_savepoint_for_mysql_low(
 /*====================================*/
@@ -791,11 +792,7 @@ trx_rollback_or_clean_recovered(
 	trx_t*	trx;
 
 	ut_a(srv_force_recovery < SRV_FORCE_NO_TRX_UNDO);
-
-	if (trx_sys_get_n_rw_trx() == 0) {
-
-		return;
-	}
+	ut_ad(!all || trx_sys_need_rollback());
 
 	if (all) {
 		ib::info() << "Starting in background the rollback"
@@ -841,37 +838,23 @@ trx_rollback_or_clean_recovered(
 	}
 }
 
-/*******************************************************************//**
-Rollback or clean up any incomplete transactions which were
+/** Rollback or clean up any incomplete transactions which were
 encountered in crash recovery.  If the transaction already was
 committed, then we clean up a possible insert undo log. If the
 transaction was not yet committed, then we roll it back.
-Note: this is done in a background thread.
-@return a dummy parameter */
-extern "C"
-os_thread_ret_t
-DECLARE_THREAD(trx_rollback_or_clean_all_recovered)(
-/*================================================*/
-	void*	arg MY_ATTRIBUTE((unused)))
-			/*!< in: a dummy parameter required by
-			os_thread_create */
+Note: this is done in a background thread. */
+void
+trx_recovery_rollback_thread()
 {
-	ut_ad(!srv_read_only_mode);
+	my_thread_init();
 
-#ifdef UNIV_PFS_THREAD
-	pfs_register_thread(trx_rollback_clean_thread_key);
-#endif /* UNIV_PFS_THREAD */
+	ut_ad(!srv_read_only_mode);
 
 	trx_rollback_or_clean_recovered(TRUE);
 
 	trx_rollback_or_clean_is_active = false;
 
-	/* We count the number of threads in os_thread_exit(). A created
-	thread should always use that to exit and not use return() to exit. */
-
-	os_thread_exit();
-
-	OS_THREAD_DUMMY_RETURN;
+	my_thread_end();
 }
 
 /***********************************************************************//**
@@ -947,6 +930,7 @@ Pops the topmost record when the two undo logs of a transaction are seen
 as a single stack of records ordered by their undo numbers.
 @return undo log record copied to heap, NULL if none left, or if the
 undo number of the top record would be less than the limit */
+static
 trx_undo_rec_t*
 trx_roll_pop_top_rec_of_trx_low(
 /*============================*/
@@ -1012,7 +996,7 @@ trx_roll_pop_top_rec_of_trx_low(
 	undo_no = trx_undo_rec_get_undo_no(undo_rec);
 
 	ut_ad(trx_roll_check_undo_rec_ordering(
-		undo_no, undo->rseg->space, trx));
+		undo_no, undo->rseg->space_id, trx));
 
 	/* We print rollback progress info if we are in a crash recovery
 	and the transaction has at least 1000 row operations to undo. */
@@ -1036,7 +1020,7 @@ trx_roll_pop_top_rec_of_trx_low(
 	}
 
 	trx->undo_no = undo_no;
-	trx->undo_rseg_space = undo->rseg->space;
+	trx->undo_rseg_space = undo->rseg->space_id;
 
 	undo_rec_copy = trx_undo_rec_copy(undo_rec, heap);
 
@@ -1066,7 +1050,7 @@ trx_roll_pop_top_rec_of_trx(
 			trx, &trx->rsegs.m_redo, limit, roll_ptr, heap);
 	}
 
-	if (undo_rec == 0 && trx_is_noredo_rseg_updated(trx)) {
+	if (undo_rec == 0 && trx_is_temp_rseg_updated(trx)) {
 		undo_rec = trx_roll_pop_top_rec_of_trx_low(
 			trx, &trx->rsegs.m_noredo, limit, roll_ptr, heap);
 	}

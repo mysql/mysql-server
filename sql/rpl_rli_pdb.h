@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,18 +14,35 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #ifndef RPL_RLI_PDB_H
-
 #define RPL_RLI_PDB_H
 
-#ifdef HAVE_REPLICATION
+#include <stdarg.h>
+#include <stdarg.h>
+#include <sys/types.h>
+#include <time.h>
 
-#include "my_global.h"
-#include "my_bitmap.h"         // MY_BITMAP
-#include "prealloced_array.h"  // Prealloced_array
+#include "binlog_event.h"
 #include "log_event.h"         // Format_description_log_event
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_io.h"
+#include "my_loglevel.h"
+#include "my_psi_config.h"
+#include "mysql/psi/mysql_cond.h"
+#include "mysql/psi/mysql_mutex.h"
+#include "mysql/psi/psi_base.h"
+#include "mysql/service_mysql_alloc.h"
+#include "prealloced_array.h"  // Prealloced_array
+#include "rpl_gtid.h"
 #include "rpl_mts_submode.h"   // enum_mts_parallel_type
 #include "rpl_rli.h"           // Relay_log_info
 #include "rpl_slave.h"         // MTS_WORKER_UNDEF
+#include "sql_class.h"
+#include "system_variables.h"
+
+class Rpl_info_handler;
+class Slave_worker;
+struct TABLE;
 
 #ifndef DBUG_OFF
 extern ulong w_rr;
@@ -79,8 +96,6 @@ Slave_worker *get_least_occupied_worker(Relay_log_info *rli,
                                         Log_event* ev);
 
 #define SLAVE_INIT_DBS_IN_GROUP 4     // initial allocation for CGEP dynarray
-
-#define NUMBER_OF_FIELDS_TO_IDENTIFY_WORKER 2
 
 typedef struct st_slave_job_group
 {
@@ -186,7 +201,7 @@ class circular_buffer_queue
 {
 public:
 
-  Prealloced_array<Element_type, 1, true> m_Q;
+  Prealloced_array<Element_type, 1> m_Q;
   ulong size;           // the Size of the queue in terms of element
   ulong avail;          // first Available index to append at (next to tail)
   ulong entry;          // the head index or the entry point to the queue.
@@ -265,23 +280,7 @@ public:
   /* the being assigned group index in GAQ */
   ulong assigned_group_index;
 
-  Slave_committed_queue (const char *log, ulong max, uint n)
-    : circular_buffer_queue<Slave_job_group>(max), inited(false),
-      last_done(key_memory_Slave_job_group_group_relay_log_name)
-  {
-    if (max >= (ulong) -1 || !inited_queue)
-      return;
-    else
-      inited= TRUE;
-
-    last_done.resize(n);
-
-    lwm.group_relay_log_name=
-      (char *) my_malloc(key_memory_Slave_job_group_group_relay_log_name,
-                         FN_REFLEN + 1, MYF(0));
-    lwm.group_relay_log_name[0]= 0;
-    lwm.sequence_number= SEQ_UNINIT;
-  }
+  Slave_committed_queue(ulong max, uint n);
 
   ~Slave_committed_queue ()
   {
@@ -488,7 +487,8 @@ public:
   */
   void copy_values_for_PFS(ulong worker_id, en_running_state running_status,
                            THD *worker_thd, const Error &last_error,
-                           const Gtid_specification &currently_executing_gtid);
+                           trx_monitoring_info *processing_trx_arg,
+                           trx_monitoring_info *last_processed_trx_arg);
 
   /*
     The running status is guarded by jobs_lock mutex that a writer
@@ -511,6 +511,36 @@ public:
   ulonglong get_master_log_pos() { return master_log_pos; };
   ulonglong set_master_log_pos(ulong val) { return master_log_pos= val; };
   bool commit_positions(Log_event *evt, Slave_job_group *ptr_g, bool force);
+  /**
+    The method is a wrapper to provide uniform interface with STS and is
+    to be called from Relay_log_info and Slave_worker pre_commit() methods.
+  */
+  bool commit_positions()
+  {
+    DBUG_ASSERT(current_event);
+
+    return commit_positions(current_event,
+                            c_rli->
+                            gaq->get_job_group(current_event->mts_group_idx),
+                            is_transactional());
+  };
+  /**
+    See the comments for STS version of this method.
+  */
+  void post_commit(bool on_rollback)
+  {
+    if (on_rollback)
+    {
+      if (is_transactional())
+        rollback_positions(c_rli->
+                           gaq->get_job_group(current_event->mts_group_idx));
+    }
+    else if (!is_transactional())
+      commit_positions(current_event,
+                       c_rli->
+                       gaq->get_job_group(current_event->mts_group_idx),
+                       true);
+  };
   /*
     When commit fails clear bitmap for executed worker group. Revert back the
     positions to the old positions that existed before commit using the checkpoint.
@@ -527,7 +557,7 @@ public:
     Similarly to the Coordinator's
     Relay_log_info::set_rli_description_event() the possibly existing
     old FD is destoyed, carefully; each worker decrements
-    Format_description_log_event::usage_counter and when it is made
+    Format_description_log_event::atomic_usage_counter and when it is made
     zero the destructor runs.
     Unlike to Coordinator's role, the usage counter of the new FD is *not*
     incremented, see @c Log_event::get_slave_worker() where and why it's done
@@ -583,9 +613,9 @@ public:
     }
     if (rli_description_event)
     {
-      DBUG_ASSERT(rli_description_event->usage_counter.atomic_get() > 0);
+      DBUG_ASSERT(rli_description_event->atomic_usage_counter > 0);
 
-      if (rli_description_event->usage_counter.atomic_add(-1) == 1)
+      if (--rli_description_event->atomic_usage_counter == 0)
       {
         /* The being deleted by Worker FD can't be the latest one */
         DBUG_ASSERT(rli_description_event != c_rli->get_rli_description_event());
@@ -698,5 +728,6 @@ inline Slave_worker* get_thd_worker(THD *thd)
   return static_cast<Slave_worker *>(thd->rli_slave);
 }
 
-#endif // HAVE_REPLICATION
+int slave_worker_exec_job_group(Slave_worker *w, Relay_log_info *rli);
+
 #endif

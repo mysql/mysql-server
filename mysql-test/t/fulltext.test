@@ -14,12 +14,13 @@
 drop table if exists t1,t2,t3;
 --enable_warnings
 
-CREATE TABLE t1 (a VARCHAR(200), b TEXT, FULLTEXT (a,b));
+CREATE TABLE t1 (a VARCHAR(200), b TEXT, FULLTEXT (a,b)) charset utf8mb4;
 INSERT INTO t1 VALUES('MySQL has now support', 'for full-text search'),
                        ('Full-text indexes', 'are called collections'),
                           ('Only MyISAM tables','support collections'),
              ('Function MATCH ... AGAINST()','is used to do a search'),
         ('Full-text search in MySQL', 'implements vector space model');
+ANALYZE TABLE t1;
 SHOW INDEX FROM t1;
 
 # nl search
@@ -126,7 +127,7 @@ CREATE TABLE t1 (
   ticket int(11),
   KEY ti (id),
   KEY tit (ticket)
-);
+) charset utf8mb4;
 INSERT INTO t1 VALUES (2,3),(1,2);
 
 CREATE TABLE t2 (
@@ -134,7 +135,7 @@ CREATE TABLE t2 (
   inhalt text,
   KEY tig (ticket),
   fulltext index tix (inhalt)
-);
+) charset utf8mb4;
 INSERT INTO t2 VALUES (1,'foo'),(2,'bar'),(3,'foobar');
 
 select t1.id FROM t2 as ttxt,t1,t1 as ticket2
@@ -383,7 +384,7 @@ DROP TABLE t1;
 # BUG#13835: max key length is 1000 bytes when trying to create
 #            a fulltext index
 #
-CREATE TABLE t1 (a VARCHAR(10000), FULLTEXT(a));
+CREATE TABLE t1 (a VARCHAR(10000), FULLTEXT(a)) charset utf8mb4;
 SHOW CREATE TABLE t1;
 DROP TABLE t1;
 

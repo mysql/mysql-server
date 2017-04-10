@@ -1,4 +1,4 @@
-/*  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+/*  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
     This program is free software; you can redistribute it and/or modify it
     under the terms of the GNU General Public License as published by the
@@ -17,11 +17,14 @@
 #define RULE_INCLUDED
 
 #include "my_config.h"
-#include "persisted_rule.h"
-#include "services.h"
+
+#include <my_dbug.h>
 #include <string>
 #include <vector>
-#include <my_dbug.h>
+
+#include "my_inttypes.h"
+#include "persisted_rule.h"
+#include "services.h"
 
 
 /// The results of an attempt to rewrite a query parse tree.
@@ -177,7 +180,7 @@ public:
     Applies the rule on a query, thereby creating a new one. This is done by
     merging the replacement and literals from the query.
 
-    @param query Pointer to the query string.
+    @param thd Pointer to the query string.
 
     @retval false Everything worked, the new query is pointed to by 'query'.
     @retval true The query did not match the pattern, nothing is allocated.

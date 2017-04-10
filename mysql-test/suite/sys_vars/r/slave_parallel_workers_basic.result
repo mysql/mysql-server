@@ -1,9 +1,9 @@
 set @save.slave_parallel_workers= @@global.slave_parallel_workers;
 select @@session.slave_parallel_workers;
 ERROR HY000: Variable 'slave_parallel_workers' is a GLOBAL variable
-select variable_name from information_schema.global_variables where variable_name='$var';
+select variable_name from performance_schema.global_variables where variable_name='$var';
 variable_name
-select variable_name from information_schema.session_variables where variable_name='$var';
+select variable_name from performance_schema.session_variables where variable_name='$var';
 variable_name
 set @@global.slave_parallel_workers= 0;
 select @@global.slave_parallel_workers;

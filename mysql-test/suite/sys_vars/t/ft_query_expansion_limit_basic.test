@@ -7,8 +7,8 @@ select @@session.ft_query_expansion_limit;
 show global variables like 'ft_query_expansion_limit';
 show session variables like 'ft_query_expansion_limit';
 --disable_warnings
-select * from information_schema.global_variables where variable_name='ft_query_expansion_limit';
-select * from information_schema.session_variables where variable_name='ft_query_expansion_limit';
+select * from performance_schema.global_variables where variable_name='ft_query_expansion_limit';
+select * from performance_schema.session_variables where variable_name='ft_query_expansion_limit';
 --enable_warnings
 
 #

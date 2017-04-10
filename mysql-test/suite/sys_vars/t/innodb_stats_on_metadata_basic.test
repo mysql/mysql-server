@@ -3,7 +3,6 @@
 # 2010-01-25 - Added
 #
 
---source include/have_innodb.inc
 
 SET @start_global_value = @@global.innodb_stats_on_metadata;
 SELECT @start_global_value;
@@ -19,8 +18,8 @@ select @@session.innodb_stats_on_metadata;
 show global variables like 'innodb_stats_on_metadata';
 show session variables like 'innodb_stats_on_metadata';
 --disable_warnings
-select * from information_schema.global_variables where variable_name='innodb_stats_on_metadata';
-select * from information_schema.session_variables where variable_name='innodb_stats_on_metadata';
+select * from performance_schema.global_variables where variable_name='innodb_stats_on_metadata';
+select * from performance_schema.session_variables where variable_name='innodb_stats_on_metadata';
 --enable_warnings
 
 #
@@ -29,26 +28,26 @@ select * from information_schema.session_variables where variable_name='innodb_s
 set global innodb_stats_on_metadata='OFF';
 select @@global.innodb_stats_on_metadata;
 --disable_warnings
-select * from information_schema.global_variables where variable_name='innodb_stats_on_metadata';
-select * from information_schema.session_variables where variable_name='innodb_stats_on_metadata';
+select * from performance_schema.global_variables where variable_name='innodb_stats_on_metadata';
+select * from performance_schema.session_variables where variable_name='innodb_stats_on_metadata';
 --enable_warnings
 set @@global.innodb_stats_on_metadata=1;
 select @@global.innodb_stats_on_metadata;
 --disable_warnings
-select * from information_schema.global_variables where variable_name='innodb_stats_on_metadata';
-select * from information_schema.session_variables where variable_name='innodb_stats_on_metadata';
+select * from performance_schema.global_variables where variable_name='innodb_stats_on_metadata';
+select * from performance_schema.session_variables where variable_name='innodb_stats_on_metadata';
 --enable_warnings
 set global innodb_stats_on_metadata=0;
 select @@global.innodb_stats_on_metadata;
 --disable_warnings
-select * from information_schema.global_variables where variable_name='innodb_stats_on_metadata';
-select * from information_schema.session_variables where variable_name='innodb_stats_on_metadata';
+select * from performance_schema.global_variables where variable_name='innodb_stats_on_metadata';
+select * from performance_schema.session_variables where variable_name='innodb_stats_on_metadata';
 --enable_warnings
 set @@global.innodb_stats_on_metadata='ON';
 select @@global.innodb_stats_on_metadata;
 --disable_warnings
-select * from information_schema.global_variables where variable_name='innodb_stats_on_metadata';
-select * from information_schema.session_variables where variable_name='innodb_stats_on_metadata';
+select * from performance_schema.global_variables where variable_name='innodb_stats_on_metadata';
+select * from performance_schema.session_variables where variable_name='innodb_stats_on_metadata';
 --enable_warnings
 --error ER_GLOBAL_VARIABLE
 set session innodb_stats_on_metadata='OFF';
@@ -68,8 +67,8 @@ set global innodb_stats_on_metadata=2;
 set global innodb_stats_on_metadata=-3;
 select @@global.innodb_stats_on_metadata;
 --disable_warnings
-select * from information_schema.global_variables where variable_name='innodb_stats_on_metadata';
-select * from information_schema.session_variables where variable_name='innodb_stats_on_metadata';
+select * from performance_schema.global_variables where variable_name='innodb_stats_on_metadata';
+select * from performance_schema.session_variables where variable_name='innodb_stats_on_metadata';
 --enable_warnings
 --error ER_WRONG_VALUE_FOR_VAR
 set global innodb_stats_on_metadata='AUTO';

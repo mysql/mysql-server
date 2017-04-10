@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,24 +16,39 @@
 #ifndef SQL_INSERT_INCLUDED
 #define SQL_INSERT_INCLUDED
 
-#include "sql_class.h"            // Query_result_interceptor
+#include <stddef.h>
+#include <sys/types.h>
+
+#include "handler.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_sqlcommand.h"
+#include "query_result.h"         // Query_result_interceptor
 #include "sql_cmd_dml.h"          // Sql_cmd_dml
 #include "sql_data_change.h"      // enum_duplicates
+#include "sql_list.h"
+#include "table.h"
 
-struct TABLE_LIST;
+class Alter_info;
+class Field;
+class Item;
+class SELECT_LEX_UNIT;
+class THD;
+
 typedef List<Item> List_item;
+typedef struct st_mysql_lock MYSQL_LOCK;
 
-int check_that_all_fields_are_given_values(THD *thd, TABLE *entry,
-                                           TABLE_LIST *table_list);
-void prepare_triggers_for_insert_stmt(TABLE *table);
-int write_record(THD *thd, TABLE *table,
-                 COPY_INFO *info, COPY_INFO *update);
+bool check_that_all_fields_are_given_values(THD *thd, TABLE *entry,
+                                            TABLE_LIST *table_list);
+void prepare_triggers_for_insert_stmt(THD *thd, TABLE *table);
+bool write_record(THD *thd, TABLE *table,
+                  COPY_INFO *info, COPY_INFO *update);
 bool validate_default_values_of_unset_fields(THD *thd, TABLE *table);
-bool mysql_insert_select_prepare(THD *thd);
 
 class Query_result_insert :public Query_result_interceptor
 {
 public:
+  /// The table used for insertion of rows
   TABLE_LIST *table_list;
   TABLE *table;
 private:
@@ -56,6 +71,7 @@ public:
      Creates a Query_result_insert for routing a result set to an existing
      table.
 
+     @param thd              Thread handle
      @param table_list_par   The table reference for the destination table.
      @param table_par        The destination table. May be NULL.
      @param target_columns   See details.
@@ -64,7 +80,7 @@ public:
                              keys. May be NULL.
      @param update_values    The values to be assigned in case of duplicate
                              keys. May be NULL.
-     @param duplicate        The policy for handling duplicates.
+     @param duplic           The policy for handling duplicates.
 
      @todo This constructor takes 8 arguments, 6 of which are used to
      immediately construct a COPY_INFO object. Obviously the constructor
@@ -94,18 +110,20 @@ public:
      @li Otherwise it is:
 @verbatim
      INSERT INTO a_table [(columns1)] SELECT ...
-@verbatim
+@endverbatim
      target_columns is columns1, if not empty then 'info' must manage defaults
      of other columns than columns1.
   */
-  Query_result_insert(TABLE_LIST *table_list_par,
+  Query_result_insert(THD *thd,
+                      TABLE_LIST *table_list_par,
                       TABLE *table_par,
                       List<Item> *target_columns,
                       List<Item> *target_or_source_columns,
                       List<Item> *update_fields,
                       List<Item> *update_values,
                       enum_duplicates duplic)
-    :table_list(table_list_par),
+    :Query_result_interceptor(thd),
+     table_list(table_list_par),
      table(table_par),
      fields(target_or_source_columns),
      bulk_insert_started(false),
@@ -127,17 +145,15 @@ public:
 
 
 public:
-  ~Query_result_insert();
-  virtual bool need_explain_interceptor() const { return true; }
-  int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
-  virtual int prepare2(void);
-  bool send_data(List<Item> &items);
+  bool need_explain_interceptor() const override { return true; }
+  bool prepare(List<Item> &list, SELECT_LEX_UNIT *u) override;
+  bool start_execution() override;
+  bool send_data(List<Item> &items) override;
   virtual void store_values(List<Item> &values);
-  void send_error(uint errcode,const char *err);
-  bool send_eof();
-  virtual void abort_result_set();
-  /* not implemented: Query_result_insert is never re-used in prepared statements */
-  void cleanup();
+  void send_error(uint errcode, const char *err) override;
+  bool send_eof() override;
+  void abort_result_set() override;
+  void cleanup() override;
 };
 
 
@@ -146,7 +162,7 @@ public:
    line with good programming practices and the inheritance should be broken
    up.
 */
-class Query_result_create: public Query_result_insert {
+class Query_result_create final : public Query_result_insert {
   TABLE_LIST *create_table;
   HA_CREATE_INFO *create_info;
   TABLE_LIST *select_tables;
@@ -156,43 +172,47 @@ class Query_result_create: public Query_result_insert {
   MYSQL_LOCK *m_lock;
   /* m_lock or thd->extra_lock */
   MYSQL_LOCK **m_plock;
+  /**
+    If table being created has SE supporting atomic DDL, pointer to SE's
+    handlerton object to be used for calling SE post-DDL hook, nullptr -
+    otherwise.
+  */
+  handlerton *m_post_ddl_ht;
 public:
-  Query_result_create(TABLE_LIST *table_arg,
+  Query_result_create(THD *thd,
+                      TABLE_LIST *table_arg,
                       HA_CREATE_INFO *create_info_par,
                       Alter_info *alter_info_arg,
                       List<Item> &select_fields,
                       enum_duplicates duplic,
-                      TABLE_LIST *select_tables_arg)
-    :Query_result_insert (NULL, // table_list_par
-                          NULL, // table_par
-                          NULL, // target_columns
-                          &select_fields,
-                          NULL, // update_fields
-                          NULL, // update_values
-                          duplic),
-     create_table(table_arg),
-     create_info(create_info_par),
-     select_tables(select_tables_arg),
-     alter_info(alter_info_arg),
-     m_plock(NULL)
-  {}
-  int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
+                      TABLE_LIST *select_tables_arg);
 
-  int binlog_show_create_table(TABLE **tables, uint count);
-  void store_values(List<Item> &values);
-  void send_error(uint errcode,const char *err);
-  bool send_eof();
-  virtual void abort_result_set();
+  bool prepare(List<Item> &list, SELECT_LEX_UNIT *u) override;
+  void store_values(List<Item> &values) override;
+  void send_error(uint errcode, const char *err) override;
+  bool send_eof() override;
+  void abort_result_set() override;
+  bool start_execution() override;
 
-  // Needed for access from local class MY_HOOKS in prepare(), since thd is proteted.
-  const THD *get_thd(void) { return thd; }
-  const HA_CREATE_INFO *get_create_info() { return create_info; };
-  int prepare2(void);
+private:
+  int binlog_show_create_table();
+  void drop_open_table();
 };
 
 
+/**
+  Base class for all INSERT and REPLACE statements. Abstract class that
+  is inherited by Sql_cmd_insert_values and Sql_cmd_insert_select.
+*/
+
 class Sql_cmd_insert_base : public Sql_cmd_dml
 {
+protected:
+  virtual bool precheck(THD *thd);
+
+  virtual bool prepare_inner(THD *thd);
+
+public:
   /*
     field_list was created for view and should be removed before PS/SP
     rexecuton
@@ -214,14 +234,6 @@ public:
   */
   List<Item>          insert_field_list;
   /**
-    ON DUPLICATE KEY UPDATE data value list
-  */
-  List<Item>          insert_value_list;
-  /**
-    ON DUPLICATE KEY UPDATE field list
-  */
-  List<Item>          insert_update_list;
-  /**
     Row data to insert/replace
 
     One of two things:
@@ -232,7 +244,15 @@ public:
        emulate this syntax:
          INSERT/REPLACE ... (col1, ... colM) VALUE (x1, ..., xM);
   */
-  List<List_item>     insert_many_values; // TODO: move to Sql_cmd_insert
+  List<List_item>     insert_many_values;
+  /// Number of values per row in insert_many_values, available after resolving
+  uint value_count;
+
+  /// ON DUPLICATE KEY UPDATE field list
+  List<Item>          update_field_list;
+
+  /// ON DUPLICATE KEY UPDATE data value list
+  List<Item>          update_value_list;
 
   const enum_duplicates duplicates;
 
@@ -240,10 +260,11 @@ public:
   Sql_cmd_insert_base(bool is_replace_arg, enum_duplicates duplicates_arg)
   : empty_field_list_on_rset(false),
     is_replace(is_replace_arg),
+    value_count(0),
     duplicates(duplicates_arg)
   {}
 
-  virtual void cleanup(THD *thd)
+  virtual void cleanup(THD*)
   {
     if (empty_field_list_on_rset)
     {
@@ -251,44 +272,36 @@ public:
       insert_field_list.empty();
     }
   }
-
-
-protected:
-  bool mysql_prepare_insert(THD *thd,
-                            TABLE_LIST *table_list,
-                            List_item *values,
-                            bool select_insert);
-  bool insert_precheck(THD *thd, TABLE_LIST *tables);
-  bool mysql_prepare_insert_check_table(THD *thd,
-                                        TABLE_LIST *table_list,
-                                        List<Item> &fields,
-                                        bool select_insert);
 };
 
 
-class Sql_cmd_insert : public Sql_cmd_insert_base
+/**
+  Class that implements INSERT ... VALUES and REPLACE ... VALUES statements.
+*/
+
+class Sql_cmd_insert_values : public Sql_cmd_insert_base
 {
 public:
   explicit
-  Sql_cmd_insert(bool is_replace_arg, enum_duplicates duplicates_arg)
+  Sql_cmd_insert_values(bool is_replace_arg, enum_duplicates duplicates_arg)
   : Sql_cmd_insert_base(is_replace_arg, duplicates_arg)
   {}
 
   virtual enum_sql_command sql_command_code() const
   {
-    return is_replace ?  SQLCOM_REPLACE : SQLCOM_INSERT;
+    return is_replace ? SQLCOM_REPLACE : SQLCOM_INSERT;
   }
 
-  virtual bool execute(THD *thd);
-  virtual bool prepared_statement_test(THD *thd);
-  virtual bool prepare(THD *thd) { return false; }
+  virtual bool is_single_table_plan() const { return true; }
 
-private:
-  bool mysql_insert(THD *thd,TABLE_LIST *table);
-
-  bool mysql_test_insert(THD *thd, TABLE_LIST *table_list);
+protected:
+  virtual bool execute_inner(THD *thd);
 };
 
+
+/**
+  Class that implements INSERT ... SELECT and REPLACE ... SELECT statements.
+*/
 
 class Sql_cmd_insert_select : public Sql_cmd_insert_base
 {
@@ -302,13 +315,6 @@ public:
   {
     return is_replace ? SQLCOM_REPLACE_SELECT : SQLCOM_INSERT_SELECT;
   }
-
-  virtual bool execute(THD *thd);
-  virtual bool prepared_statement_test(THD *thd);
-  virtual bool prepare(THD *thd);
-
-protected:
-  bool mysql_insert_select_prepare(THD *thd);
 };
 
 #endif /* SQL_INSERT_INCLUDED */

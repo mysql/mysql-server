@@ -1,5 +1,4 @@
-/* Copyright (c) 2005-2007 MySQL AB
-   Use is subject to license terms
+/* Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -22,7 +21,9 @@
 #ifndef _my_user_h_
 #define _my_user_h_
 
-#include <my_global.h>
+#include <stddef.h>
+
+#include "my_macros.h"
 
 C_MODE_START
 

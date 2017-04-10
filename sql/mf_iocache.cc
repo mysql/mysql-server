@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -32,8 +32,17 @@
   flush_io_cache().  
 */
 
-#ifdef HAVE_REPLICATION
+#include <stddef.h>
+#include <sys/types.h>
+
+#include "current_thd.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "mysql_com.h"
+#include "protocol_classic.h"
 #include "sql_class.h"                          // THD
+#include "sql_string.h"
 
 extern "C" {
 
@@ -85,6 +94,3 @@ int _my_b_net_read(IO_CACHE *info, uchar *Buffer,
 }
 
 } /* extern "C" */
-#endif /* HAVE_REPLICATION */
-
-

@@ -16,7 +16,6 @@
 #                                                                             #
 ###############################################################################
 
---source include/have_innodb.inc
 
 ####################################################################
 #   Display default value                                          #
@@ -41,7 +40,7 @@ SELECT COUNT(@@GLOBAL.innodb_undo_logs);
 
 --disable_warnings
 SELECT VARIABLE_VALUE
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='innodb_undo_logs';
 --enable_warnings
 --echo 128 Expected

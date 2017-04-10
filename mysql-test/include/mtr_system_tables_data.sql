@@ -1,4 +1,4 @@
--- Copyright (c) 2014, 2015 Oracle and/or its affiliates. All rights reserved.
+-- Copyright (c) 2014, 2016 Oracle and/or its affiliates. All rights reserved.
 -- 
 -- This program is free software; you can redistribute it and/or modify
 -- it under the terms of the GNU General Public License as published by
@@ -35,10 +35,8 @@ DROP TABLE tmp_db;
 -- Fill "user" table with default users allowing root access
 -- from local machine if "user" table didn't exist before
 CREATE TEMPORARY TABLE tmp_user LIKE user;
-INSERT INTO tmp_user VALUES ('localhost','root','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0,0,@@default_authentication_plugin,'','N',CURRENT_TIMESTAMP,NULL,'N');
-REPLACE INTO tmp_user SELECT @current_hostname,'root','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0,0,@@default_authentication_plugin,'','N',CURRENT_TIMESTAMP,NULL,'N' FROM dual WHERE @current_hostname != 'localhost';
-REPLACE INTO tmp_user VALUES ('127.0.0.1','root','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0,0,@@default_authentication_plugin,'','N',CURRENT_TIMESTAMP,NULL,'N');
-REPLACE INTO tmp_user VALUES ('::1','root','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0,0,@@default_authentication_plugin,'','N',CURRENT_TIMESTAMP,NULL,'N');
+INSERT INTO tmp_user VALUES ('localhost','root','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0,0,@@default_authentication_plugin,'','N',CURRENT_TIMESTAMP,NULL,'N','Y','Y');
+REPLACE INTO tmp_user SELECT @current_hostname,'root','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0,0,@@default_authentication_plugin,'','N',CURRENT_TIMESTAMP,NULL,'N','Y','Y' FROM dual WHERE @current_hostname != 'localhost';
 INSERT INTO tmp_user (host,user) SELECT @current_hostname,'' FROM dual WHERE @current_hostname != 'localhost';
 INSERT INTO user SELECT * FROM tmp_user WHERE @had_user_table=0;
 DROP TABLE tmp_user;

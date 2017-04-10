@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,13 +13,19 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
+#include <assert.h>
+#include <errno.h>
 #include <signal.h>
-#include "recovery.h"
-#include "recovery_message.h"
+#include <time.h>
+
 #include "member_info.h"
-#include "plugin_log.h"
-#include "recovery_channel_state_observer.h"
+#include "my_dbug.h"
+#include "my_systime.h"
 #include "plugin.h"
+#include "plugin_log.h"
+#include "recovery.h"
+#include "recovery_channel_state_observer.h"
+#include "recovery_message.h"
 
 using std::list;
 using std::string;
@@ -265,7 +271,7 @@ Recovery_module::recovery_thread_handle()
   set_recovery_thread_context();
 
   //take this before the start method returns
-  int number_of_members= group_member_mgr->get_number_of_members();
+  size_t number_of_members= group_member_mgr->get_number_of_members();
   recovery_state_transfer.initialize_group_info();
 
   mysql_mutex_lock(&run_lock);
@@ -313,7 +319,7 @@ Recovery_module::recovery_thread_handle()
                   });
   DBUG_EXECUTE_IF("recovery_thread_start_wait",
                   {
-                    const char act[]= "now wait_for signal.recovery_continue";
+                    const char act[]= "now signal signal.recovery_waiting wait_for signal.recovery_continue";
                     DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
                   });
 #endif // DBUG_OFF
@@ -498,7 +504,7 @@ int Recovery_module::wait_for_applier_module_recovery()
   bool applier_monitoring= true;
   while (!recovery_aborted && applier_monitoring)
   {
-    ulong queue_size = applier_module->get_message_queue_size();
+    size_t queue_size = applier_module->get_message_queue_size();
     if (queue_size <= RECOVERY_TRANSACTION_THRESHOLD)
     {
       if (recovery_completion_policy == RECOVERY_POLICY_WAIT_EXECUTED)

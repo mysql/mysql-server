@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,22 +13,25 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-// First include (the generated) my_config.h, to get correct platform defines.
-#include "my_config.h"
-#include <gtest/gtest.h>
 #include <gmock/gmock.h>
+#include <gtest/gtest.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <sys/types.h>
 
 #include "my_getopt.h"
+#include "my_inttypes.h"
+#include "my_sys.h"
 #include "my_thread_local.h"
-
-#include <stdlib.h>
+#include "mysql/psi/mysql_mutex.h"
 
 class Cost_constant_cache;
+CHARSET_INFO *system_charset_info= NULL;
 
 namespace {
 
-my_bool opt_use_tap= true;
-my_bool opt_unit_help= false;
+bool opt_use_tap= true;
+bool opt_unit_help= false;
 
 struct my_option unittest_options[] =
 {
@@ -48,7 +51,7 @@ struct my_option unittest_options[] =
 };
 
 
-extern "C" my_bool get_one_option(int, const struct my_option *, char *)
+extern "C" bool get_one_option(int, const struct my_option *, char *)
 {
   return FALSE;
 }

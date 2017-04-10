@@ -98,7 +98,7 @@ Mysqlx.Ok {
 }
 
 View	Create View	character_set_client	collation_connection
-xview	CREATE ALGORITHM=MERGE DEFINER=`xuser`@`localhost` SQL SECURITY DEFINER VIEW `xtest`.`xview` AS select `xtest`.`xtable`.`second` AS `third` from `xtest`.`xtable`	utf8mb4	utf8mb4_general_ci
+xview	CREATE ALGORITHM=MERGE DEFINER=`xuser`@`localhost` SQL SECURITY DEFINER VIEW `xtest`.`xview` (`third`) AS select `xtest`.`xtable`.`second` AS `doc` from `xtest`.`xtable`	utf8mb4	utf8mb4_general_ci
 0 rows affected
 
 Modify view (too many columns)
@@ -111,7 +111,7 @@ Mysqlx.Error {
 }
 
 View	Create View	character_set_client	collation_connection
-xview	CREATE ALGORITHM=MERGE DEFINER=`xuser`@`localhost` SQL SECURITY DEFINER VIEW `xtest`.`xview` AS select `xtest`.`xtable`.`second` AS `third` from `xtest`.`xtable`	utf8mb4	utf8mb4_general_ci
+xview	CREATE ALGORITHM=MERGE DEFINER=`xuser`@`localhost` SQL SECURITY DEFINER VIEW `xtest`.`xview` (`third`) AS select `xtest`.`xtable`.`second` AS `doc` from `xtest`.`xtable`	utf8mb4	utf8mb4_general_ci
 0 rows affected
 Variable_name	Value
 Mysqlx_crud_modify_view	11

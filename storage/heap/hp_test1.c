@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,10 +19,12 @@
    raderas.
 */
 
-#include <my_global.h>
-#include <my_sys.h>
 #include <m_string.h>
+#include <my_sys.h>
+#include <sys/types.h>
+
 #include "heap.h"
+#include "my_inttypes.h"
 #include "my_thread_local.h"
 
 static int get_options(int argc, char *argv[]);
@@ -39,7 +41,7 @@ int main(int argc, char **argv)
   HA_KEYSEG keyseg[4];
   HP_CREATE_INFO hp_create_info;
   HP_SHARE *tmp_share;
-  my_bool unused;
+  bool unused;
   MY_INIT(argv[0]);
 
   filename= "test1";

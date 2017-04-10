@@ -1,4 +1,14 @@
 --source include/have_debug.inc
+
+########################################
+##### WL#7554 Force schema `test` to character set latin1
+##### This test should be migrated to utf8mb4
+--disable_query_log
+let $testdbcs70=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
+alter schema test default character set latin1;
+--enable_query_log
+########################################
+
 #
 # BUG#60111 storage type for table not saved in .frm
 #
@@ -88,36 +98,6 @@ SHOW CREATE TABLE t1;
 
 DROP TABLE t1;
 
-#
-# Check that it's possible to read a .frm fle created
-# by MySQL Cluster 7.0(which introduced the new "format
-# section) with this statement:
-#
-# CREATE TABLE cluster_7022_table
-# (
-#   a int primary key,
-#   b int,
-#   c int STORAGE DISK,
-#   d int STORAGE MEMORY NOT NULL,
-#   e int COLUMN_FORMAT DYNAMIC,
-#   f int COLUMN_FORMAT FIXED,
-#   g int COLUMN_FORMAT DEFAULT,
-#   h int STORAGE DISK COLUMN_FORMAT DYNAMIC NOT NULL,
-#   i int STORAGE MEMORY COLUMN_FORMAT DYNAMIC,
-#   j int STORAGE DISK COLUMN_FORMAT FIXED,
-#   k int STORAGE MEMORY COLUMN_FORMAT FIXED
-# ) STORAGE DISK TABLESPACE the_tablespacename ENGINE=MyISAM;
-#
-
-let $MYSQLD_DATADIR= `SELECT @@datadir`;
-copy_file std_data/cluster_7022_table.frm $MYSQLD_DATADIR/test/t1.frm;
-copy_file std_data/cluster_7022_table.MYD $MYSQLD_DATADIR/test/t1.MYD;
-copy_file std_data/cluster_7022_table.MYI $MYSQLD_DATADIR/test/t1.MYI;
-
-SHOW CREATE TABLE t1;
-
-DROP TABLE t1;
-
 --echo #
 --echo # WL#3627 Add COLUMN_FORMAT and STORAGE for fields
 --echo #
@@ -200,3 +180,186 @@ SET SESSION debug="+d,out_of_tablespace_disk";
 CREATE TABLESPACE `ts6` ADD DATAFILE 'ts6.ibd' ENGINE=INNODB;
 SHOW WARNINGS;
 SET SESSION debug="-d,out_of_tablespace_disk";
+
+
+--echo #
+--echo # Additional coverage for WL#7743 "New data dictionary: changes
+--echo # to DDL-related parts of SE API".
+--echo #
+--echo # Check that limits on tablespace comment and datafile path lengths
+--echo # are enforced.
+--echo #
+--let $TOO_LONG_COMMENT= `SELECT REPEAT('a', 2049)`
+--replace_result $TOO_LONG_COMMENT TOO_LONG_COMMENT
+--error ER_TOO_LONG_TABLESPACE_COMMENT
+--eval CREATE TABLESPACE ts ADD DATAFILE 'ts.ibd' COMMENT="$TOO_LONG_COMMENT" ENGINE=InnoDB
+--let $TOO_LONG_PATH= `SELECT CONCAT(REPEAT('a', 512),'.ibd')`
+--replace_result $TOO_LONG_PATH TOO_LONG_PATH
+--error ER_PATH_LENGTH
+--eval CREATE TABLESPACE ts ADD DATAFILE '$TOO_LONG_PATH' ENGINE=InnoDB
+--echo # Also coverage for ALTER TABLESPACE case.
+--error ER_TABLESPACE_MISSING_WITH_NAME
+ALTER TABLESPACE no_such_ts ADD DATAFILE 'ts.ibd';
+CREATE TABLESPACE ts ADD DATAFILE 'ts.ibd' ENGINE=InnoDB;
+--let $TOO_LONG_PATH= `SELECT CONCAT(REPEAT('a', 512),'.ibd')`
+--replace_result $TOO_LONG_PATH TOO_LONG_PATH
+--error ER_PATH_LENGTH
+--eval ALTER TABLESPACE ts ADD DATAFILE '$TOO_LONG_PATH'
+--error ER_WRONG_FILE_NAME
+ALTER TABLESPACE ts DROP DATAFILE 'no_such_file.ibd';
+DROP TABLESPACE ts;
+
+--disable_connect_log
+--echo #
+--echo # Validate tablespace names in the SE.
+--echo #
+--echo # 1. Tablespace DDL.
+--echo # 1.1 Create/drop predefined tablespaces.
+
+--error ER_WRONG_TABLESPACE_NAME
+CREATE TABLESPACE innodb_system ADD DATAFILE 'f.ibd' ENGINE InnoDB;
+--error ER_WRONG_TABLESPACE_NAME
+CREATE TABLESPACE innodb_file_per_table ADD DATAFILE 'f.ibd' ENGINE InnoDB;
+--error ER_WRONG_TABLESPACE_NAME
+CREATE TABLESPACE innodb_temporary ADD DATAFILE 'f.ibd' ENGINE InnoDB;
+--error ER_WRONG_TABLESPACE_NAME
+CREATE TABLESPACE mysql ADD DATAFILE 'f.ibd' ENGINE InnoDB;
+
+--error ER_WRONG_TABLESPACE_NAME
+DROP TABLESPACE innodb_system;
+--error ER_WRONG_TABLESPACE_NAME
+DROP TABLESPACE innodb_file_per_table;
+--error ER_WRONG_TABLESPACE_NAME
+DROP TABLESPACE innodb_temporary;
+--error ER_WRONG_TABLESPACE_NAME
+DROP TABLESPACE mysql;
+
+--echo # 1.2 Create/drop implicit tablespaces.
+
+--error ER_WRONG_TABLESPACE_NAME
+CREATE TABLESPACE `innodb_file_per_table.2` ADD DATAFILE 'f.ibd' ENGINE InnoDB;
+--error ER_WRONG_TABLESPACE_NAME
+DROP TABLESPACE `innodb_file_per_table.2`;
+
+--error ER_WRONG_TABLESPACE_NAME
+CREATE TABLESPACE innodb_file_per_table_whatever ADD DATAFILE 'f.ibd' ENGINE InnoDB;
+--error ER_WRONG_TABLESPACE_NAME
+DROP TABLESPACE innodb_file_per_table_whatever;
+
+--error ER_WRONG_TABLESPACE_NAME
+CREATE TABLESPACE innodb_file_per_table ADD DATAFILE 'f.ibd' ENGINE InnoDB;
+--error ER_WRONG_TABLESPACE_NAME
+DROP TABLESPACE innodb_file_per_table;
+
+--echo # 2. Non partitioned table DDL.
+--echo # 2.1 Create table.
+
+CREATE TABLE t1 (i INTEGER) TABLESPACE innodb_file_per_table ENGINE InnoDB;
+CREATE TABLE t2 (i INTEGER) TABLESPACE innodb_system ENGINE InnoDB;
+
+SHOW CREATE TABLE t1;
+SHOW CREATE TABLE t2;
+
+--error ER_WRONG_TABLESPACE_NAME
+CREATE TABLE t_bad (i INTEGER) TABLESPACE `innodb_file_per_table.2` ENGINE InnoDB;
+
+--echo # 2.2 Alter table.
+
+--error ER_WRONG_TABLESPACE_NAME
+ALTER TABLE t2 TABLESPACE `innodb_file_per_table.2`;
+--echo # This is valid since MyISAM does not care:
+ALTER TABLE t2 TABLESPACE `innodb_file_per_table.2` ENGINE MyISAM;
+SHOW CREATE TABLE t2;
+
+--echo # Table t1 is carried over to MyISAM using the dummy 'innodb_file_per_table':
+ALTER TABLE t1 ENGINE MyISAM;
+SHOW CREATE TABLE t1;
+
+--echo # Changing only engine back to InnoDB now will be rejected for t2:
+--error ER_WRONG_TABLESPACE_NAME
+ALTER TABLE t2 ENGINE InnoDB;
+SHOW CREATE TABLE t2;
+
+--echo # For t1, changing engine back to InnoDB will re-establish usage of the implicit tablespace:
+ALTER TABLE t1 ENGINE InnoDB;
+SHOW CREATE TABLE t1;
+
+--echo # Changing both engine and tablespace works:
+ALTER TABLE t1 TABLESPACE innodb_system ENGINE InnoDB;
+SHOW CREATE TABLE t1;
+ALTER TABLE t2 TABLESPACE innodb_file_per_table ENGINE InnoDB;
+SHOW CREATE TABLE t2;
+
+--echo # Keeping a valid tablespace through ALTER TABLE:
+ALTER TABLE t1 ADD COLUMN (j INTEGER);
+CREATE TABLESPACE ts ADD DATAFILE 'f.ibd' ENGINE InnoDB;
+ALTER TABLE t1 TABLESPACE ts;
+ALTER TABLE t1 ENGINE MyISAM;
+SHOW CREATE TABLE t1;
+ALTER TABLE t1 ENGINE InnoDB;
+SHOW CREATE TABLE t1;
+
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLESPACE ts;
+
+--echo # 3. Partitioned table DDL.
+--echo # 3.1 Create table.
+
+--error ER_WRONG_TABLESPACE_NAME
+CREATE TABLE t_part_bad (i INTEGER) PARTITION BY RANGE(i)
+PARTITIONS 2 (
+    PARTITION p0 VALUES LESS THAN(100) TABLESPACE `innodb_file_per_table.2`,
+    PARTITION p1 VALUES LESS THAN(200));
+
+CREATE TABLE t_part (i INTEGER) TABLESPACE innodb_file_per_table PARTITION BY RANGE(i)
+PARTITIONS 2 (
+    PARTITION p0 VALUES LESS THAN(100),
+    PARTITION p1 VALUES LESS THAN(200));
+SHOW CREATE TABLE t_part;
+
+CREATE TABLE t_subpart (i INTEGER) PARTITION BY RANGE(i)
+PARTITIONS 2 SUBPARTITION BY HASH(i) (
+    PARTITION p0 VALUES LESS THAN(100) (
+      SUBPARTITION sp00,
+      SUBPARTITION sp01),
+    PARTITION p1 VALUES LESS THAN(200) (
+      SUBPARTITION sp10,
+      SUBPARTITION sp11));
+SHOW CREATE TABLE t_subpart;
+
+--echo # 2.3 Alter table.
+
+ALTER TABLE t_part TABLESPACE innodb_system;
+SHOW CREATE TABLE t_part;
+
+ALTER TABLE t_subpart TABLESPACE innodb_file_per_table;
+SHOW CREATE TABLE t_subpart;
+
+--error ER_WRONG_TABLESPACE_NAME
+ALTER TABLE t_part TABLESPACE `innodb_file_per_table.2`;
+
+--error ER_WRONG_TABLESPACE_NAME
+ALTER TABLE t_subpart TABLESPACE `innodb_file_per_table.2`;
+
+--error ER_WRONG_TABLESPACE_NAME
+ALTER TABLE t_part REORGANIZE PARTITION p1 INTO
+  (PARTITION p1 VALUES LESS THAN (300) TABLESPACE `innodb_file_per_table.2`);
+
+--error ER_WRONG_TABLESPACE_NAME
+ALTER TABLE t_subpart REORGANIZE PARTITION p1 INTO
+  (PARTITION p1 VALUES LESS THAN (300) TABLESPACE `innodb_file_per_table.2`);
+
+--error ER_WRONG_TABLESPACE_NAME
+ALTER TABLE t_subpart REORGANIZE PARTITION s11 INTO
+  (PARTITION s11 TABLESPACE `innodb_file_per_table.2`);
+
+DROP TABLE t_part;
+DROP TABLE t_subpart;
+
+########################################
+##### WL#7554 set schema `test` back to what it was
+--disable_query_log
+--eval alter schema test default character set $testdbcs70;
+--enable_query_log
+########################################

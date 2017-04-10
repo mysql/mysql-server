@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -21,14 +21,18 @@
   Table EVENTS_WAITS_xxx (declarations).
 */
 
+#include <sys/types.h>
+
+#include "my_inttypes.h"
 #include "pfs_column_types.h"
 #include "pfs_engine_table.h"
 #include "pfs_events_waits.h"
+#include "table_helper.h"
 
 struct PFS_thread;
 
 /**
-  @addtogroup Performance_schema_tables
+  @addtogroup performance_schema_tables
   @{
 */
 
@@ -88,41 +92,67 @@ struct row_events_waits
 /** Position of a cursor on PERFORMANCE_SCHEMA.EVENTS_WAITS_CURRENT. */
 struct pos_events_waits_current : public PFS_double_index
 {
-  pos_events_waits_current()
-    : PFS_double_index(0, 0)
-  {}
-
-  inline void reset(void)
+  pos_events_waits_current() : PFS_double_index(0, 0)
   {
-    m_index_1= 0;
-    m_index_2= 0;
   }
 
-  inline void next_thread(void)
+  inline void
+  reset(void)
+  {
+    m_index_1 = 0;
+    m_index_2 = 0;
+  }
+
+  inline void
+  next_thread(void)
   {
     m_index_1++;
-    m_index_2= 0;
+    m_index_2 = 0;
   }
 };
 
 /** Position of a cursor on PERFORMANCE_SCHEMA.EVENTS_WAITS_HISTORY. */
 struct pos_events_waits_history : public PFS_double_index
 {
-  pos_events_waits_history()
-    : PFS_double_index(0, 0)
-  {}
-
-  inline void reset(void)
+  pos_events_waits_history() : PFS_double_index(0, 0)
   {
-    m_index_1= 0;
-    m_index_2= 0;
   }
 
-  inline void next_thread(void)
+  inline void
+  reset(void)
+  {
+    m_index_1 = 0;
+    m_index_2 = 0;
+  }
+
+  inline void
+  next_thread(void)
   {
     m_index_1++;
-    m_index_2= 0;
+    m_index_2 = 0;
   }
+};
+
+class PFS_index_events_waits : public PFS_engine_index
+{
+public:
+  PFS_index_events_waits()
+    : PFS_engine_index(&m_key_1, &m_key_2),
+      m_key_1("THREAD_ID"),
+      m_key_2("EVENT_ID")
+  {
+  }
+
+  ~PFS_index_events_waits()
+  {
+  }
+
+  bool match(PFS_thread *pfs);
+  bool match(PFS_events_waits *pfs);
+
+private:
+  PFS_key_thread_id m_key_1;
+  PFS_key_event_id m_key_2;
 };
 
 /**
@@ -140,7 +170,8 @@ protected:
   table_events_waits_common(const PFS_engine_table_share *share, void *pos);
 
   ~table_events_waits_common()
-  {}
+  {
+  }
 
   void clear_object_columns();
   int make_table_object_columns(PFS_events_waits *wait);
@@ -148,12 +179,10 @@ protected:
   int make_socket_object_columns(PFS_events_waits *wait);
   int make_metadata_lock_object_columns(PFS_events_waits *wait);
 
-  void make_row(PFS_events_waits *wait);
+  int make_row(PFS_events_waits *wait);
 
   /** Current row. */
   row_events_waits m_row;
-  /** True if the current row exists. */
-  bool m_row_exists;
 };
 
 /** Table PERFORMANCE_SCHEMA.EVENTS_WAITS_CURRENT. */
@@ -162,12 +191,15 @@ class table_events_waits_current : public table_events_waits_common
 public:
   /** Table share */
   static PFS_engine_table_share m_share;
-  static PFS_engine_table* create();
+  static PFS_engine_table *create();
   static int delete_all_rows();
   static ha_rows get_row_count();
 
+  virtual int index_init(uint idx, bool sorted);
+
   virtual int rnd_next();
   virtual int rnd_pos(const void *pos);
+  virtual int index_next();
   virtual void reset_position(void);
 
 protected:
@@ -175,7 +207,8 @@ protected:
 
 public:
   ~table_events_waits_current()
-  {}
+  {
+  }
 
 private:
   friend class table_events_waits_history;
@@ -190,12 +223,15 @@ private:
   */
   static TABLE_FIELD_DEF m_field_def;
 
-  void make_row(PFS_thread *thread, PFS_events_waits *wait);
+  PFS_events_waits *get_wait(PFS_thread *pfs_thread, uint index_2);
+  int make_row(PFS_thread *thread, PFS_events_waits *wait);
 
   /** Current position. */
   pos_events_waits_current m_pos;
   /** Next position. */
   pos_events_waits_current m_next_pos;
+
+  PFS_index_events_waits *m_opened_index;
 };
 
 /** Table PERFORMANCE_SCHEMA.EVENTS_WAITS_HISTORY. */
@@ -204,31 +240,39 @@ class table_events_waits_history : public table_events_waits_common
 public:
   /** Table share */
   static PFS_engine_table_share m_share;
-  static PFS_engine_table* create();
+  static PFS_engine_table *create();
   static int delete_all_rows();
   static ha_rows get_row_count();
 
+  virtual void reset_position(void);
+
+  virtual int index_init(uint idx, bool sorted);
+  virtual int index_next();
+
   virtual int rnd_next();
   virtual int rnd_pos(const void *pos);
-  virtual void reset_position(void);
 
 protected:
   table_events_waits_history();
 
 public:
   ~table_events_waits_history()
-  {}
+  {
+  }
 
 private:
   /** Table share lock. */
   static THR_LOCK m_table_lock;
 
-  void make_row(PFS_thread *thread, PFS_events_waits *wait);
+  PFS_events_waits *get_wait(PFS_thread *pfs_thread, uint index_2);
+  int make_row(PFS_thread *thread, PFS_events_waits *wait);
 
   /** Current position. */
   pos_events_waits_history m_pos;
   /** Next position. */
   pos_events_waits_history m_next_pos;
+
+  PFS_index_events_waits *m_opened_index;
 };
 
 /** Table PERFORMANCE_SCHEMA.EVENTS_WAITS_HISTORY_LONG. */
@@ -237,7 +281,7 @@ class table_events_waits_history_long : public table_events_waits_common
 public:
   /** Table share */
   static PFS_engine_table_share m_share;
-  static PFS_engine_table* create();
+  static PFS_engine_table *create();
   static int delete_all_rows();
   static ha_rows get_row_count();
 
@@ -250,7 +294,8 @@ protected:
 
 public:
   ~table_events_waits_history_long()
-  {}
+  {
+  }
 
 private:
   /** Table share lock. */

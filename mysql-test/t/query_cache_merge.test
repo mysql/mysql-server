@@ -7,7 +7,7 @@
 
 # Test query cache with many tables
 
---source include/have_query_cache.inc
+SET @save_query_cache_size=@@query_cache_size;
 let $LIMIT=`SHOW VARIABLES LIKE 'open_files_limit'`;
 let $MIN_LIMIT=600;
 let $MAX_LIMIT=65536;
@@ -109,7 +109,7 @@ while ($c)
   dec $c;
 }
 
-SET @@global.query_cache_size = DEFAULT;
+SET @@global.query_cache_size = @save_query_cache_size;
 SET @@global.table_definition_cache = @save_table_definition_cache;
 
 --echo End of 5.1 tests

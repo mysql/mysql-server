@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,8 +16,11 @@
 #ifndef REPLICATION_THREADS_API_INCLUDE
 #define REPLICATION_THREADS_API_INCLUDE
 
-#include <string>
 #include <mysql/group_replication_priv.h>
+#include <stddef.h>
+#include <string>
+
+#include "my_inttypes.h"
 
 #define DEFAULT_THREAD_PRIORITY 0
 //Applier thread InnoDB priority
@@ -205,7 +208,7 @@ public:
       @retval REPLICATION_THREAD_WAIT_TIMEOUT_ERROR     A timeout occurred
       @retval REPLICATION_THREAD_WAIT_NO_INFO_ERROR     An error occurred
   */
-  int wait_for_gtid_execution(longlong timeout);
+  int wait_for_gtid_execution(double timeout);
 
   /**
     Method to get applier ids from the configured channel

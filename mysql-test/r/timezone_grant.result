@@ -16,8 +16,8 @@ Warnings:
 Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 show grants for current_user();
 Grants for mysqltest_1@localhost
-GRANT USAGE ON *.* TO 'mysqltest_1'@'localhost'
-GRANT ALL PRIVILEGES ON `test`.* TO 'mysqltest_1'@'localhost'
+GRANT USAGE ON *.* TO `mysqltest_1`@`localhost`
+GRANT ALL PRIVILEGES ON `test`.* TO `mysqltest_1`@`localhost`
 set time_zone= '+00:00';
 set time_zone= 'Europe/Moscow';
 select convert_tz('2004-10-21 19:00:00', 'Europe/Moscow', 'UTC');
@@ -37,9 +37,9 @@ grant all privileges on test.t1 to mysqltest_1@localhost;
 grant all privileges on test.t2 to mysqltest_1@localhost;
 show grants for current_user();
 Grants for mysqltest_1@localhost
-GRANT USAGE ON *.* TO 'mysqltest_1'@'localhost'
-GRANT ALL PRIVILEGES ON `test`.`t2` TO 'mysqltest_1'@'localhost'
-GRANT ALL PRIVILEGES ON `test`.`t1` TO 'mysqltest_1'@'localhost'
+GRANT USAGE ON *.* TO `mysqltest_1`@`localhost`
+GRANT ALL PRIVILEGES ON `test`.`t1` TO `mysqltest_1`@`localhost`
+GRANT ALL PRIVILEGES ON `test`.`t2` TO `mysqltest_1`@`localhost`
 set time_zone= '+00:00';
 set time_zone= 'Europe/Moscow';
 select convert_tz('2004-11-31 12:00:00', 'Europe/Moscow', 'UTC');

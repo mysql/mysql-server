@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -299,6 +299,10 @@ InitConfigFileParser::storeNameValuePair(Context& ctx,
       ctx.reportWarning("[%s] %s is deprecated", ctx.fname, fname);
     }
   }
+  if( status == ConfigInfo::CI_INTERNAL) {
+    ctx.reportError("[%s] Parameter %s not configurable by user", ctx.fname, fname);
+    return false;
+  }
 
   const ConfigInfo::Type type = m_info->getType(ctx.m_currentInfo, fname);
   switch(type){
@@ -371,6 +375,9 @@ InitConfigFileParser::storeNameValuePair(Context& ctx,
         break;
       case -2:
         desc.assfmt("Too large id used in bitmask, max is %llu", max);
+        break;
+      case -3:
+        desc.assfmt("Empty bitmask not allowed");
         break;
       default:
         break;
@@ -548,10 +555,12 @@ InitConfigFileParser::parseDefaultSectionHeader(const char* line) const {
   int no = sscanf(line, "[%120[A-Z_a-z] %120[A-Z_a-z]]", token1, token2);
 
   // Not correct no of tokens 
-  if (no != 2) return NULL;
+  if (no != 2)
+    return NULL;
 
   // Not correct keyword at end
-  if (!native_strcasecmp(token2, "DEFAULT") == 0) return NULL;
+  if (native_strcasecmp(token2, "DEFAULT") != 0)
+    return NULL;
 
   const char *token1_alias= m_info->getAlias(token1);
   if (token1_alias == 0)
@@ -645,13 +654,11 @@ InitConfigFileParser::Context::reportWarning(const char * fmt, ...){
 
 #include <my_sys.h>
 #include <my_getopt.h>
-#ifdef HAVE_MY_DEFAULT_H
 #include <my_default.h>
-#endif
 
 static int order = 1;
 static 
-my_bool 
+bool 
 parse_mycnf_opt(int, const struct my_option * opt, char * value)
 {
   long *app_type= (long*) &opt->app_type;
@@ -740,10 +747,7 @@ load_defaults(Vector<struct my_option>& options, const char* groups[])
   BaseString group_suffix;
 
   const char *save_file = my_defaults_file;
-#if MYSQL_VERSION_ID >= 50508
-  const
-#endif
-  char *save_extra_file = my_defaults_extra_file;
+  const char *save_extra_file = my_defaults_extra_file;
   const char *save_group_suffix = my_defaults_group_suffix;
 
   if (my_defaults_file)

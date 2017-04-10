@@ -28,109 +28,239 @@ DROP FUNCTION test.f1;
 #########################################################################
 DESCRIBE          information_schema.KEY_COLUMN_USAGE;
 Field	Type	Null	Key	Default	Extra
-CONSTRAINT_CATALOG	varchar(512)	NO			
-CONSTRAINT_SCHEMA	varchar(64)	NO			
+CONSTRAINT_CATALOG	varchar(64)	NO		NULL	
+CONSTRAINT_SCHEMA	varchar(64)	NO		NULL	
 CONSTRAINT_NAME	varchar(64)	NO			
-TABLE_CATALOG	varchar(512)	NO			
-TABLE_SCHEMA	varchar(64)	NO			
-TABLE_NAME	varchar(64)	NO			
+TABLE_CATALOG	varchar(64)	NO		NULL	
+TABLE_SCHEMA	varchar(64)	NO		NULL	
+TABLE_NAME	varchar(64)	NO		NULL	
 COLUMN_NAME	varchar(64)	NO			
-ORDINAL_POSITION	bigint(10)	NO		0	
-POSITION_IN_UNIQUE_CONSTRAINT	bigint(10)	YES		NULL	
-REFERENCED_TABLE_SCHEMA	varchar(64)	YES		NULL	
-REFERENCED_TABLE_NAME	varchar(64)	YES		NULL	
-REFERENCED_COLUMN_NAME	varchar(64)	YES		NULL	
+ORDINAL_POSITION	int(10) unsigned	NO		NULL	
+POSITION_IN_UNIQUE_CONSTRAINT	binary(0)	YES		NULL	
+REFERENCED_TABLE_SCHEMA	binary(0)	YES		NULL	
+REFERENCED_TABLE_NAME	binary(0)	YES		NULL	
+REFERENCED_COLUMN_NAME	binary(0)	YES		NULL	
 SHOW CREATE TABLE information_schema.KEY_COLUMN_USAGE;
-Table	Create Table
-KEY_COLUMN_USAGE	CREATE TEMPORARY TABLE `KEY_COLUMN_USAGE` (
-  `CONSTRAINT_CATALOG` varchar(512) NOT NULL DEFAULT '',
-  `CONSTRAINT_SCHEMA` varchar(64) NOT NULL DEFAULT '',
-  `CONSTRAINT_NAME` varchar(64) NOT NULL DEFAULT '',
-  `TABLE_CATALOG` varchar(512) NOT NULL DEFAULT '',
-  `TABLE_SCHEMA` varchar(64) NOT NULL DEFAULT '',
-  `TABLE_NAME` varchar(64) NOT NULL DEFAULT '',
-  `COLUMN_NAME` varchar(64) NOT NULL DEFAULT '',
-  `ORDINAL_POSITION` bigint(10) NOT NULL DEFAULT '0',
-  `POSITION_IN_UNIQUE_CONSTRAINT` bigint(10) DEFAULT NULL,
-  `REFERENCED_TABLE_SCHEMA` varchar(64) DEFAULT NULL,
-  `REFERENCED_TABLE_NAME` varchar(64) DEFAULT NULL,
-  `REFERENCED_COLUMN_NAME` varchar(64) DEFAULT NULL
-) ENGINE=MEMORY DEFAULT CHARSET=utf8
+View	Create View	character_set_client	collation_connection
+KEY_COLUMN_USAGE	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `information_schema`.`KEY_COLUMN_USAGE` AS (select `cat`.`name` AS `CONSTRAINT_CATALOG`,`sch`.`name` AS `CONSTRAINT_SCHEMA`,convert(`idx`.`name` using utf8) AS `CONSTRAINT_NAME`,`cat`.`name` AS `TABLE_CATALOG`,`sch`.`name` AS `TABLE_SCHEMA`,`tbl`.`name` AS `TABLE_NAME`,(`col`.`name` collate utf8_tolower_ci) AS `COLUMN_NAME`,`icu`.`ordinal_position` AS `ORDINAL_POSITION`,NULL AS `POSITION_IN_UNIQUE_CONSTRAINT`,NULL AS `REFERENCED_TABLE_SCHEMA`,NULL AS `REFERENCED_TABLE_NAME`,NULL AS `REFERENCED_COLUMN_NAME` from (((((`mysql`.`indexes` `idx` join `mysql`.`tables` `tbl` on((`idx`.`table_id` = `tbl`.`id`))) join `mysql`.`schemata` `sch` on((`tbl`.`schema_id` = `sch`.`id`))) join `mysql`.`catalogs` `cat` on((`cat`.`id` = `sch`.`catalog_id`))) join `mysql`.`index_column_usage` `icu` on((`icu`.`index_id` = `idx`.`id`))) join `mysql`.`columns` `col` on(((`icu`.`column_id` = `col`.`id`) and (`idx`.`type` in ('PRIMARY','UNIQUE'))))) where (can_access_column(`sch`.`name`,`tbl`.`name`,`col`.`name`) and (not(`tbl`.`hidden`)))) union (select `cat`.`name` AS `CONSTRAINT_CATALOG`,`sch`.`name` AS `CONSTRAINT_SCHEMA`,convert(`fk`.`name` using utf8) AS `CONSTRAINT_NAME`,`cat`.`name` AS `TABLE_CATALOG`,`sch`.`name` AS `TABLE_SCHEMA`,`tbl`.`name` AS `TABLE_NAME`,(`col`.`name` collate utf8_tolower_ci) AS `COLUMN_NAME`,`fkcu`.`ordinal_position` AS `ORDINAL_POSITION`,`fkcu`.`ordinal_position` AS `POSITION_IN_UNIQUE_CONSTRAINT`,`fk`.`referenced_table_schema` AS `REFERENCED_TABLE_SCHEMA`,`fk`.`referenced_table_name` AS `REFERENCED_TABLE_NAME`,`fkcu`.`referenced_column_name` AS `REFERENCED_COLUMN_NAME` from (((((`mysql`.`foreign_keys` `fk` join `mysql`.`tables` `tbl` on((`fk`.`table_id` = `tbl`.`id`))) join `mysql`.`foreign_key_column_usage` `fkcu` on((`fkcu`.`foreign_key_id` = `fk`.`id`))) join `mysql`.`schemata` `sch` on((`fk`.`schema_id` = `sch`.`id`))) join `mysql`.`catalogs` `cat` on((`cat`.`id` = `sch`.`catalog_id`))) join `mysql`.`columns` `col` on((`fkcu`.`column_id` = `col`.`id`))) where (can_access_column(`sch`.`name`,`tbl`.`name`,`col`.`name`) and (not(`tbl`.`hidden`))))	utf8	utf8_general_ci
 SHOW COLUMNS FROM information_schema.KEY_COLUMN_USAGE;
 Field	Type	Null	Key	Default	Extra
-CONSTRAINT_CATALOG	varchar(512)	NO			
-CONSTRAINT_SCHEMA	varchar(64)	NO			
+CONSTRAINT_CATALOG	varchar(64)	NO		NULL	
+CONSTRAINT_SCHEMA	varchar(64)	NO		NULL	
 CONSTRAINT_NAME	varchar(64)	NO			
-TABLE_CATALOG	varchar(512)	NO			
-TABLE_SCHEMA	varchar(64)	NO			
-TABLE_NAME	varchar(64)	NO			
+TABLE_CATALOG	varchar(64)	NO		NULL	
+TABLE_SCHEMA	varchar(64)	NO		NULL	
+TABLE_NAME	varchar(64)	NO		NULL	
 COLUMN_NAME	varchar(64)	NO			
-ORDINAL_POSITION	bigint(10)	NO		0	
-POSITION_IN_UNIQUE_CONSTRAINT	bigint(10)	YES		NULL	
-REFERENCED_TABLE_SCHEMA	varchar(64)	YES		NULL	
-REFERENCED_TABLE_NAME	varchar(64)	YES		NULL	
-REFERENCED_COLUMN_NAME	varchar(64)	YES		NULL	
+ORDINAL_POSITION	int(10) unsigned	NO		NULL	
+POSITION_IN_UNIQUE_CONSTRAINT	binary(0)	YES		NULL	
+REFERENCED_TABLE_SCHEMA	binary(0)	YES		NULL	
+REFERENCED_TABLE_NAME	binary(0)	YES		NULL	
+REFERENCED_COLUMN_NAME	binary(0)	YES		NULL	
 SELECT constraint_catalog, constraint_schema, constraint_name, table_catalog,
 table_schema, table_name, column_name
 FROM information_schema.key_column_usage
-WHERE constraint_catalog IS NOT NULL OR table_catalog IS NOT NULL;
+WHERE (constraint_catalog IS NOT NULL OR table_catalog IS NOT NULL) AND
+table_name != 'ndb_binlog_index'
+ORDER BY constraint_name, table_name, column_name;
 constraint_catalog	constraint_schema	constraint_name	table_catalog	table_schema	table_name	column_name
-def	mysql	PRIMARY	def	mysql	columns_priv	Host
-def	mysql	PRIMARY	def	mysql	columns_priv	Db
-def	mysql	PRIMARY	def	mysql	columns_priv	User
-def	mysql	PRIMARY	def	mysql	columns_priv	Table_name
-def	mysql	PRIMARY	def	mysql	columns_priv	Column_name
-def	mysql	PRIMARY	def	mysql	db	Host
-def	mysql	PRIMARY	def	mysql	db	Db
-def	mysql	PRIMARY	def	mysql	db	User
-def	mysql	PRIMARY	def	mysql	engine_cost	cost_name
-def	mysql	PRIMARY	def	mysql	engine_cost	engine_name
-def	mysql	PRIMARY	def	mysql	engine_cost	device_type
-def	mysql	PRIMARY	def	mysql	event	db
-def	mysql	PRIMARY	def	mysql	event	name
-def	mysql	PRIMARY	def	mysql	func	name
-def	mysql	PRIMARY	def	mysql	gtid_executed	source_uuid
-def	mysql	PRIMARY	def	mysql	gtid_executed	interval_start
-def	mysql	PRIMARY	def	mysql	help_category	help_category_id
+def	performance_schema	ACCOUNT	def	performance_schema	accounts	HOST
+def	performance_schema	ACCOUNT	def	performance_schema	accounts	USER
+def	performance_schema	ACCOUNT	def	performance_schema	events_errors_summary_by_account_by_error	ERROR_NUMBER
+def	performance_schema	ACCOUNT	def	performance_schema	events_errors_summary_by_account_by_error	HOST
+def	performance_schema	ACCOUNT	def	performance_schema	events_errors_summary_by_account_by_error	USER
+def	performance_schema	ACCOUNT	def	performance_schema	events_stages_summary_by_account_by_event_name	EVENT_NAME
+def	performance_schema	ACCOUNT	def	performance_schema	events_stages_summary_by_account_by_event_name	HOST
+def	performance_schema	ACCOUNT	def	performance_schema	events_stages_summary_by_account_by_event_name	USER
+def	performance_schema	ACCOUNT	def	performance_schema	events_statements_summary_by_account_by_event_name	EVENT_NAME
+def	performance_schema	ACCOUNT	def	performance_schema	events_statements_summary_by_account_by_event_name	HOST
+def	performance_schema	ACCOUNT	def	performance_schema	events_statements_summary_by_account_by_event_name	USER
+def	performance_schema	ACCOUNT	def	performance_schema	events_transactions_summary_by_account_by_event_name	EVENT_NAME
+def	performance_schema	ACCOUNT	def	performance_schema	events_transactions_summary_by_account_by_event_name	HOST
+def	performance_schema	ACCOUNT	def	performance_schema	events_transactions_summary_by_account_by_event_name	USER
+def	performance_schema	ACCOUNT	def	performance_schema	events_waits_summary_by_account_by_event_name	EVENT_NAME
+def	performance_schema	ACCOUNT	def	performance_schema	events_waits_summary_by_account_by_event_name	HOST
+def	performance_schema	ACCOUNT	def	performance_schema	events_waits_summary_by_account_by_event_name	USER
+def	performance_schema	ACCOUNT	def	performance_schema	memory_summary_by_account_by_event_name	EVENT_NAME
+def	performance_schema	ACCOUNT	def	performance_schema	memory_summary_by_account_by_event_name	HOST
+def	performance_schema	ACCOUNT	def	performance_schema	memory_summary_by_account_by_event_name	USER
+def	performance_schema	ACCOUNT	def	performance_schema	status_by_account	HOST
+def	performance_schema	ACCOUNT	def	performance_schema	status_by_account	USER
+def	performance_schema	ACCOUNT	def	performance_schema	status_by_account	VARIABLE_NAME
+def	performance_schema	ERROR_NUMBER	def	performance_schema	events_errors_summary_global_by_error	ERROR_NUMBER
+def	performance_schema	HOST	def	performance_schema	events_errors_summary_by_host_by_error	ERROR_NUMBER
+def	performance_schema	HOST	def	performance_schema	events_errors_summary_by_host_by_error	HOST
+def	performance_schema	HOST	def	performance_schema	events_stages_summary_by_host_by_event_name	EVENT_NAME
+def	performance_schema	HOST	def	performance_schema	events_stages_summary_by_host_by_event_name	HOST
+def	performance_schema	HOST	def	performance_schema	events_statements_summary_by_host_by_event_name	EVENT_NAME
+def	performance_schema	HOST	def	performance_schema	events_statements_summary_by_host_by_event_name	HOST
+def	performance_schema	HOST	def	performance_schema	events_transactions_summary_by_host_by_event_name	EVENT_NAME
+def	performance_schema	HOST	def	performance_schema	events_transactions_summary_by_host_by_event_name	HOST
+def	performance_schema	HOST	def	performance_schema	events_waits_summary_by_host_by_event_name	EVENT_NAME
+def	performance_schema	HOST	def	performance_schema	events_waits_summary_by_host_by_event_name	HOST
+def	performance_schema	HOST	def	performance_schema	hosts	HOST
+def	performance_schema	HOST	def	performance_schema	memory_summary_by_host_by_event_name	EVENT_NAME
+def	performance_schema	HOST	def	performance_schema	memory_summary_by_host_by_event_name	HOST
+def	performance_schema	HOST	def	performance_schema	status_by_host	HOST
+def	performance_schema	HOST	def	performance_schema	status_by_host	VARIABLE_NAME
 def	mysql	name	def	mysql	help_category	name
-def	mysql	PRIMARY	def	mysql	help_keyword	help_keyword_id
 def	mysql	name	def	mysql	help_keyword	name
+def	mysql	name	def	mysql	help_topic	name
+def	performance_schema	OBJECT	def	performance_schema	objects_summary_global_by_type	OBJECT_NAME
+def	performance_schema	OBJECT	def	performance_schema	objects_summary_global_by_type	OBJECT_SCHEMA
+def	performance_schema	OBJECT	def	performance_schema	objects_summary_global_by_type	OBJECT_TYPE
+def	performance_schema	OBJECT	def	performance_schema	setup_objects	OBJECT_NAME
+def	performance_schema	OBJECT	def	performance_schema	setup_objects	OBJECT_SCHEMA
+def	performance_schema	OBJECT	def	performance_schema	setup_objects	OBJECT_TYPE
+def	performance_schema	OBJECT	def	performance_schema	table_io_waits_summary_by_index_usage	INDEX_NAME
+def	performance_schema	OBJECT	def	performance_schema	table_io_waits_summary_by_index_usage	OBJECT_NAME
+def	performance_schema	OBJECT	def	performance_schema	table_io_waits_summary_by_index_usage	OBJECT_SCHEMA
+def	performance_schema	OBJECT	def	performance_schema	table_io_waits_summary_by_index_usage	OBJECT_TYPE
+def	performance_schema	OBJECT	def	performance_schema	table_io_waits_summary_by_table	OBJECT_NAME
+def	performance_schema	OBJECT	def	performance_schema	table_io_waits_summary_by_table	OBJECT_SCHEMA
+def	performance_schema	OBJECT	def	performance_schema	table_io_waits_summary_by_table	OBJECT_TYPE
+def	performance_schema	OBJECT	def	performance_schema	table_lock_waits_summary_by_table	OBJECT_NAME
+def	performance_schema	OBJECT	def	performance_schema	table_lock_waits_summary_by_table	OBJECT_SCHEMA
+def	performance_schema	OBJECT	def	performance_schema	table_lock_waits_summary_by_table	OBJECT_TYPE
+def	performance_schema	OWNER_THREAD_ID	def	performance_schema	prepared_statements_instances	OWNER_EVENT_ID
+def	performance_schema	OWNER_THREAD_ID	def	performance_schema	prepared_statements_instances	OWNER_THREAD_ID
+def	mysql	PRIMARY	def	mysql	column_stats	column_name
+def	mysql	PRIMARY	def	mysql	column_stats	database_name
+def	mysql	PRIMARY	def	mysql	column_stats	table_name
+def	mysql	PRIMARY	def	mysql	columns_priv	Column_name
+def	mysql	PRIMARY	def	mysql	columns_priv	Db
+def	mysql	PRIMARY	def	mysql	columns_priv	Host
+def	mysql	PRIMARY	def	mysql	columns_priv	Table_name
+def	mysql	PRIMARY	def	mysql	columns_priv	User
+def	mysql	PRIMARY	def	mysql	component	component_id
+def	performance_schema	PRIMARY	def	performance_schema	cond_instances	OBJECT_INSTANCE_BEGIN
+def	performance_schema	PRIMARY	def	performance_schema	data_locks	ENGINE
+def	performance_schema	PRIMARY	def	performance_schema	data_locks	ENGINE_LOCK_ID
+def	mysql	PRIMARY	def	mysql	db	Db
+def	mysql	PRIMARY	def	mysql	db	Host
+def	mysql	PRIMARY	def	mysql	db	User
+def	mysql	PRIMARY	def	mysql	default_roles	DEFAULT_ROLE_HOST
+def	mysql	PRIMARY	def	mysql	default_roles	DEFAULT_ROLE_USER
+def	mysql	PRIMARY	def	mysql	default_roles	HOST
+def	mysql	PRIMARY	def	mysql	default_roles	USER
+def	mysql	PRIMARY	def	mysql	engine_cost	cost_name
+def	mysql	PRIMARY	def	mysql	engine_cost	device_type
+def	mysql	PRIMARY	def	mysql	engine_cost	engine_name
+def	performance_schema	PRIMARY	def	performance_schema	events_stages_current	EVENT_ID
+def	performance_schema	PRIMARY	def	performance_schema	events_stages_current	THREAD_ID
+def	performance_schema	PRIMARY	def	performance_schema	events_stages_history	EVENT_ID
+def	performance_schema	PRIMARY	def	performance_schema	events_stages_history	THREAD_ID
+def	performance_schema	PRIMARY	def	performance_schema	events_stages_summary_by_thread_by_event_name	EVENT_NAME
+def	performance_schema	PRIMARY	def	performance_schema	events_stages_summary_by_thread_by_event_name	THREAD_ID
+def	performance_schema	PRIMARY	def	performance_schema	events_stages_summary_global_by_event_name	EVENT_NAME
+def	performance_schema	PRIMARY	def	performance_schema	events_statements_current	EVENT_ID
+def	performance_schema	PRIMARY	def	performance_schema	events_statements_current	THREAD_ID
+def	performance_schema	PRIMARY	def	performance_schema	events_statements_histogram_global	BUCKET_NUMBER
+def	performance_schema	PRIMARY	def	performance_schema	events_statements_history	EVENT_ID
+def	performance_schema	PRIMARY	def	performance_schema	events_statements_history	THREAD_ID
+def	performance_schema	PRIMARY	def	performance_schema	events_statements_summary_by_program	OBJECT_NAME
+def	performance_schema	PRIMARY	def	performance_schema	events_statements_summary_by_program	OBJECT_SCHEMA
+def	performance_schema	PRIMARY	def	performance_schema	events_statements_summary_by_program	OBJECT_TYPE
+def	performance_schema	PRIMARY	def	performance_schema	events_statements_summary_by_thread_by_event_name	EVENT_NAME
+def	performance_schema	PRIMARY	def	performance_schema	events_statements_summary_by_thread_by_event_name	THREAD_ID
+def	performance_schema	PRIMARY	def	performance_schema	events_statements_summary_global_by_event_name	EVENT_NAME
+def	performance_schema	PRIMARY	def	performance_schema	events_transactions_current	EVENT_ID
+def	performance_schema	PRIMARY	def	performance_schema	events_transactions_current	THREAD_ID
+def	performance_schema	PRIMARY	def	performance_schema	events_transactions_history	EVENT_ID
+def	performance_schema	PRIMARY	def	performance_schema	events_transactions_history	THREAD_ID
+def	performance_schema	PRIMARY	def	performance_schema	events_transactions_summary_by_thread_by_event_name	EVENT_NAME
+def	performance_schema	PRIMARY	def	performance_schema	events_transactions_summary_by_thread_by_event_name	THREAD_ID
+def	performance_schema	PRIMARY	def	performance_schema	events_transactions_summary_global_by_event_name	EVENT_NAME
+def	performance_schema	PRIMARY	def	performance_schema	events_waits_current	EVENT_ID
+def	performance_schema	PRIMARY	def	performance_schema	events_waits_current	THREAD_ID
+def	performance_schema	PRIMARY	def	performance_schema	events_waits_history	EVENT_ID
+def	performance_schema	PRIMARY	def	performance_schema	events_waits_history	THREAD_ID
+def	performance_schema	PRIMARY	def	performance_schema	events_waits_summary_by_instance	OBJECT_INSTANCE_BEGIN
+def	performance_schema	PRIMARY	def	performance_schema	events_waits_summary_by_thread_by_event_name	EVENT_NAME
+def	performance_schema	PRIMARY	def	performance_schema	events_waits_summary_by_thread_by_event_name	THREAD_ID
+def	performance_schema	PRIMARY	def	performance_schema	events_waits_summary_global_by_event_name	EVENT_NAME
+def	performance_schema	PRIMARY	def	performance_schema	file_instances	FILE_NAME
+def	performance_schema	PRIMARY	def	performance_schema	file_summary_by_event_name	EVENT_NAME
+def	performance_schema	PRIMARY	def	performance_schema	file_summary_by_instance	OBJECT_INSTANCE_BEGIN
+def	mysql	PRIMARY	def	mysql	func	name
+def	mysql	PRIMARY	def	mysql	global_grants	HOST
+def	mysql	PRIMARY	def	mysql	global_grants	PRIV
+def	mysql	PRIMARY	def	mysql	global_grants	USER
+def	performance_schema	PRIMARY	def	performance_schema	global_status	VARIABLE_NAME
+def	performance_schema	PRIMARY	def	performance_schema	global_variables	VARIABLE_NAME
+def	mysql	PRIMARY	def	mysql	gtid_executed	interval_start
+def	mysql	PRIMARY	def	mysql	gtid_executed	source_uuid
+def	mysql	PRIMARY	def	mysql	help_category	help_category_id
+def	mysql	PRIMARY	def	mysql	help_keyword	help_keyword_id
 def	mysql	PRIMARY	def	mysql	help_relation	help_keyword_id
 def	mysql	PRIMARY	def	mysql	help_relation	help_topic_id
 def	mysql	PRIMARY	def	mysql	help_topic	help_topic_id
-def	mysql	name	def	mysql	help_topic	name
+def	performance_schema	PRIMARY	def	performance_schema	host_cache	IP
 def	mysql	PRIMARY	def	mysql	innodb_index_stats	database_name
-def	mysql	PRIMARY	def	mysql	innodb_index_stats	table_name
 def	mysql	PRIMARY	def	mysql	innodb_index_stats	index_name
 def	mysql	PRIMARY	def	mysql	innodb_index_stats	stat_name
+def	mysql	PRIMARY	def	mysql	innodb_index_stats	table_name
 def	mysql	PRIMARY	def	mysql	innodb_table_stats	database_name
 def	mysql	PRIMARY	def	mysql	innodb_table_stats	table_name
-def	mysql	PRIMARY	def	mysql	ndb_binlog_index	epoch
-def	mysql	PRIMARY	def	mysql	ndb_binlog_index	orig_server_id
-def	mysql	PRIMARY	def	mysql	ndb_binlog_index	orig_epoch
+def	performance_schema	PRIMARY	def	performance_schema	memory_summary_by_thread_by_event_name	EVENT_NAME
+def	performance_schema	PRIMARY	def	performance_schema	memory_summary_by_thread_by_event_name	THREAD_ID
+def	performance_schema	PRIMARY	def	performance_schema	memory_summary_global_by_event_name	EVENT_NAME
+def	performance_schema	PRIMARY	def	performance_schema	metadata_locks	OBJECT_INSTANCE_BEGIN
+def	performance_schema	PRIMARY	def	performance_schema	mutex_instances	OBJECT_INSTANCE_BEGIN
+def	performance_schema	PRIMARY	def	performance_schema	persisted_variables	VARIABLE_NAME
 def	mysql	PRIMARY	def	mysql	plugin	name
-def	mysql	PRIMARY	def	mysql	proc	db
-def	mysql	PRIMARY	def	mysql	proc	name
-def	mysql	PRIMARY	def	mysql	proc	type
-def	mysql	PRIMARY	def	mysql	procs_priv	Host
+def	performance_schema	PRIMARY	def	performance_schema	prepared_statements_instances	OBJECT_INSTANCE_BEGIN
 def	mysql	PRIMARY	def	mysql	procs_priv	Db
-def	mysql	PRIMARY	def	mysql	procs_priv	User
+def	mysql	PRIMARY	def	mysql	procs_priv	Host
 def	mysql	PRIMARY	def	mysql	procs_priv	Routine_name
 def	mysql	PRIMARY	def	mysql	procs_priv	Routine_type
+def	mysql	PRIMARY	def	mysql	procs_priv	User
 def	mysql	PRIMARY	def	mysql	proxies_priv	Host
-def	mysql	PRIMARY	def	mysql	proxies_priv	User
 def	mysql	PRIMARY	def	mysql	proxies_priv	Proxied_host
 def	mysql	PRIMARY	def	mysql	proxies_priv	Proxied_user
+def	mysql	PRIMARY	def	mysql	proxies_priv	User
+def	performance_schema	PRIMARY	def	performance_schema	replication_applier_configuration	CHANNEL_NAME
+def	performance_schema	PRIMARY	def	performance_schema	replication_applier_status	CHANNEL_NAME
+def	performance_schema	PRIMARY	def	performance_schema	replication_applier_status_by_coordinator	CHANNEL_NAME
+def	performance_schema	PRIMARY	def	performance_schema	replication_applier_status_by_worker	CHANNEL_NAME
+def	performance_schema	PRIMARY	def	performance_schema	replication_applier_status_by_worker	WORKER_ID
+def	performance_schema	PRIMARY	def	performance_schema	replication_connection_configuration	CHANNEL_NAME
+def	performance_schema	PRIMARY	def	performance_schema	replication_connection_status	CHANNEL_NAME
+def	mysql	PRIMARY	def	mysql	role_edges	FROM_HOST
+def	mysql	PRIMARY	def	mysql	role_edges	FROM_USER
+def	mysql	PRIMARY	def	mysql	role_edges	TO_HOST
+def	mysql	PRIMARY	def	mysql	role_edges	TO_USER
+def	performance_schema	PRIMARY	def	performance_schema	rwlock_instances	OBJECT_INSTANCE_BEGIN
 def	mysql	PRIMARY	def	mysql	server_cost	cost_name
 def	mysql	PRIMARY	def	mysql	servers	Server_name
+def	performance_schema	PRIMARY	def	performance_schema	session_account_connect_attrs	ATTR_NAME
+def	performance_schema	PRIMARY	def	performance_schema	session_account_connect_attrs	PROCESSLIST_ID
+def	performance_schema	PRIMARY	def	performance_schema	session_connect_attrs	ATTR_NAME
+def	performance_schema	PRIMARY	def	performance_schema	session_connect_attrs	PROCESSLIST_ID
+def	performance_schema	PRIMARY	def	performance_schema	session_status	VARIABLE_NAME
+def	performance_schema	PRIMARY	def	performance_schema	session_variables	VARIABLE_NAME
+def	performance_schema	PRIMARY	def	performance_schema	setup_actors	HOST
+def	performance_schema	PRIMARY	def	performance_schema	setup_actors	ROLE
+def	performance_schema	PRIMARY	def	performance_schema	setup_actors	USER
+def	performance_schema	PRIMARY	def	performance_schema	setup_consumers	NAME
+def	performance_schema	PRIMARY	def	performance_schema	setup_instruments	NAME
+def	performance_schema	PRIMARY	def	performance_schema	setup_timers	NAME
 def	mysql	PRIMARY	def	mysql	slave_master_info	Channel_name
 def	mysql	PRIMARY	def	mysql	slave_relay_log_info	Channel_name
 def	mysql	PRIMARY	def	mysql	slave_worker_info	Channel_name
 def	mysql	PRIMARY	def	mysql	slave_worker_info	Id
-def	mysql	PRIMARY	def	mysql	tables_priv	Host
+def	performance_schema	PRIMARY	def	performance_schema	socket_instances	OBJECT_INSTANCE_BEGIN
+def	performance_schema	PRIMARY	def	performance_schema	socket_summary_by_event_name	EVENT_NAME
+def	performance_schema	PRIMARY	def	performance_schema	socket_summary_by_instance	OBJECT_INSTANCE_BEGIN
+def	performance_schema	PRIMARY	def	performance_schema	status_by_thread	THREAD_ID
+def	performance_schema	PRIMARY	def	performance_schema	status_by_thread	VARIABLE_NAME
+def	sys	PRIMARY	def	sys	sys_config	variable
+def	performance_schema	PRIMARY	def	performance_schema	table_handles	OBJECT_INSTANCE_BEGIN
 def	mysql	PRIMARY	def	mysql	tables_priv	Db
-def	mysql	PRIMARY	def	mysql	tables_priv	User
+def	mysql	PRIMARY	def	mysql	tables_priv	Host
 def	mysql	PRIMARY	def	mysql	tables_priv	Table_name
+def	mysql	PRIMARY	def	mysql	tables_priv	User
+def	performance_schema	PRIMARY	def	performance_schema	threads	THREAD_ID
 def	mysql	PRIMARY	def	mysql	time_zone	Time_zone_id
 def	mysql	PRIMARY	def	mysql	time_zone_leap_second	Transition_time
 def	mysql	PRIMARY	def	mysql	time_zone_name	Name
@@ -140,7 +270,32 @@ def	mysql	PRIMARY	def	mysql	time_zone_transition_type	Time_zone_id
 def	mysql	PRIMARY	def	mysql	time_zone_transition_type	Transition_type_id
 def	mysql	PRIMARY	def	mysql	user	Host
 def	mysql	PRIMARY	def	mysql	user	User
-def	sys	PRIMARY	def	sys	sys_config	variable
+def	performance_schema	PRIMARY	def	performance_schema	user_variables_by_thread	THREAD_ID
+def	performance_schema	PRIMARY	def	performance_schema	user_variables_by_thread	VARIABLE_NAME
+def	performance_schema	PRIMARY	def	performance_schema	variables_by_thread	THREAD_ID
+def	performance_schema	PRIMARY	def	performance_schema	variables_by_thread	VARIABLE_NAME
+def	performance_schema	SCHEMA_NAME	def	performance_schema	events_statements_histogram_by_digest	BUCKET_NUMBER
+def	performance_schema	SCHEMA_NAME	def	performance_schema	events_statements_histogram_by_digest	DIGEST
+def	performance_schema	SCHEMA_NAME	def	performance_schema	events_statements_histogram_by_digest	SCHEMA_NAME
+def	performance_schema	SCHEMA_NAME	def	performance_schema	events_statements_summary_by_digest	DIGEST
+def	performance_schema	SCHEMA_NAME	def	performance_schema	events_statements_summary_by_digest	SCHEMA_NAME
+def	performance_schema	THREAD_ID	def	performance_schema	events_errors_summary_by_thread_by_error	ERROR_NUMBER
+def	performance_schema	THREAD_ID	def	performance_schema	events_errors_summary_by_thread_by_error	THREAD_ID
+def	performance_schema	USER	def	performance_schema	events_errors_summary_by_user_by_error	ERROR_NUMBER
+def	performance_schema	USER	def	performance_schema	events_errors_summary_by_user_by_error	USER
+def	performance_schema	USER	def	performance_schema	events_stages_summary_by_user_by_event_name	EVENT_NAME
+def	performance_schema	USER	def	performance_schema	events_stages_summary_by_user_by_event_name	USER
+def	performance_schema	USER	def	performance_schema	events_statements_summary_by_user_by_event_name	EVENT_NAME
+def	performance_schema	USER	def	performance_schema	events_statements_summary_by_user_by_event_name	USER
+def	performance_schema	USER	def	performance_schema	events_transactions_summary_by_user_by_event_name	EVENT_NAME
+def	performance_schema	USER	def	performance_schema	events_transactions_summary_by_user_by_event_name	USER
+def	performance_schema	USER	def	performance_schema	events_waits_summary_by_user_by_event_name	EVENT_NAME
+def	performance_schema	USER	def	performance_schema	events_waits_summary_by_user_by_event_name	USER
+def	performance_schema	USER	def	performance_schema	memory_summary_by_user_by_event_name	EVENT_NAME
+def	performance_schema	USER	def	performance_schema	memory_summary_by_user_by_event_name	USER
+def	performance_schema	USER	def	performance_schema	status_by_user	USER
+def	performance_schema	USER	def	performance_schema	status_by_user	VARIABLE_NAME
+def	performance_schema	USER	def	performance_schema	users	USER
 ########################################################################################
 # Testcase 3.2.7.2 + 3.2.7.3: INFORMATION_SCHEMA.KEY_COLUMN_USAGE accessible information
 ########################################################################################
@@ -202,7 +357,7 @@ CREATE TABLE test.t1_my_table
 DEFAULT CHARACTER SET latin1 COLLATE latin1_swedish_ci
 ENGINE = <engine_type>;
 SELECT * FROM information_schema.key_column_usage
-WHERE table_name = 't1_my_table';
+WHERE table_name = 't1_my_table' ORDER BY column_name;
 CONSTRAINT_CATALOG	def
 CONSTRAINT_SCHEMA	test
 CONSTRAINT_NAME	PRIMARY
@@ -210,7 +365,7 @@ TABLE_CATALOG	def
 TABLE_SCHEMA	test
 TABLE_NAME	t1_my_table
 COLUMN_NAME	f1
-ORDINAL_POSITION	1
+ORDINAL_POSITION	#
 POSITION_IN_UNIQUE_CONSTRAINT	NULL
 REFERENCED_TABLE_SCHEMA	NULL
 REFERENCED_TABLE_NAME	NULL
@@ -222,7 +377,7 @@ TABLE_CATALOG	def
 TABLE_SCHEMA	test
 TABLE_NAME	t1_my_table
 COLUMN_NAME	f2
-ORDINAL_POSITION	2
+ORDINAL_POSITION	#
 POSITION_IN_UNIQUE_CONSTRAINT	NULL
 REFERENCED_TABLE_SCHEMA	NULL
 REFERENCED_TABLE_NAME	NULL

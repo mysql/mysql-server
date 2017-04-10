@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,17 +17,23 @@
 #ifndef XA_H_INCLUDED
 #define XA_H_INCLUDED
 
-#include "my_global.h"        // ulonglong
-#include "mysql/plugin.h"     // MYSQL_XIDDATASIZE
-#include "mysqld.h"           // server_id
-#include "sql_cmd.h"
-#include "sql_plugin_ref.h"   // plugin_ref
 #include <string.h>
-#include "xa_aux.h"
+#include <sys/types.h>
+
+#include "lex_string.h"
+#include "m_string.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_sqlcommand.h"
+#include "sql_cmd.h"          // Sql_cmd
+#include "sql_plugin_ref.h"   // plugin_ref
+#include "xa_aux.h"           // serialize_xid
 
 class Protocol;
 class THD;
 struct xid_t;
+
+typedef int64 query_id_t;
 
 enum xa_option_words {XA_NONE, XA_JOIN, XA_RESUME, XA_ONE_PHASE,
                       XA_SUSPEND, XA_FOR_MIGRATE};
@@ -200,8 +206,12 @@ private:
 
 typedef ulonglong my_xid; // this line is the same as in log_event.h
 #define MYSQL_XID_PREFIX "MySQLXid"
-#define XIDDATASIZE MYSQL_XIDDATASIZE
-class XID_STATE;
+
+/*
+ Same as MYSQL_XIDDATASIZE but we do not want to include plugin.h here
+ See static_assert in .cc file.
+*/
+#define XIDDATASIZE 128
 
 /**
   struct xid_t is binary compatible with the XID structure as
@@ -214,9 +224,6 @@ class XID_STATE;
 typedef struct xid_t
 {
 private:
-  static const uint MYSQL_XID_PREFIX_LEN= 8; // must be a multiple of 8
-  static const uint MYSQL_XID_OFFSET= MYSQL_XID_PREFIX_LEN + sizeof(server_id);
-  static const uint MYSQL_XID_GTRID_LEN= MYSQL_XID_OFFSET + sizeof(my_xid);
 
   /**
     -1 means that the XID is null
@@ -300,21 +307,12 @@ public:
   {
     formatID= f;
     memcpy(data, g, gtrid_length= gl);
-    memcpy(data + gl, b, bqual_length= bl);
+    bqual_length= bl;
+    if (bl > 0)
+      memcpy(data + gl, b, bl);
   }
 
-  my_xid get_my_xid() const
-  {
-    if (gtrid_length == static_cast<long>(MYSQL_XID_GTRID_LEN) &&
-        bqual_length == 0 &&
-        !memcmp(data, MYSQL_XID_PREFIX, MYSQL_XID_PREFIX_LEN))
-    {
-      my_xid tmp;
-      memcpy(&tmp, data + MYSQL_XID_OFFSET, sizeof(tmp));
-      return tmp;
-    }
-    return 0;
-  }
+  my_xid get_my_xid() const;
 
   uchar *key()
   {
@@ -386,15 +384,7 @@ private:
     memcpy(this, xid, sizeof(xid->formatID) + xid->key_length());
   }
 
-  void set(my_xid xid)
-  {
-    formatID= 1;
-    memcpy(data, MYSQL_XID_PREFIX, MYSQL_XID_PREFIX_LEN);
-    memcpy(data + MYSQL_XID_PREFIX_LEN, &server_id, sizeof(server_id));
-    memcpy(data + MYSQL_XID_OFFSET, &xid, sizeof(xid));
-    gtrid_length= MYSQL_XID_GTRID_LEN;
-    bqual_length= 0;
-  }
+  void set(my_xid xid);
 
   void null()
   {
@@ -598,35 +588,6 @@ bool transaction_cache_init();
 
 
 /**
-  Search information about XA transaction by a XID value.
-
-  @param xid    Pointer to a XID structure that identifies a XA transaction.
-
-  @return  pointer to a Transaction_ctx that describes the whole transaction
-           including XA-specific information (XID_STATE).
-    @retval  NULL     failure
-    @retval  != NULL  success
-*/
-
-Transaction_ctx *transaction_cache_search(XID *xid);
-
-
-/**
-  Insert information about XA transaction into a cache indexed by XID.
-
-  @param xid     Pointer to a XID structure that identifies a XA transaction.
-  @param transaction
-                 Pointer to Transaction object that is inserted.
-
-  @return  operation result
-    @retval  false   success or a cache already contains XID_STATE
-                     for this XID value
-    @retval  true    failure
-*/
-
-bool transaction_cache_insert(XID *xid, Transaction_ctx *transaction);
-
-/**
   Transaction is marked in the cache as if it's recovered.
   The method allows to sustain prepared transaction disconnection.
 
@@ -640,21 +601,6 @@ bool transaction_cache_insert(XID *xid, Transaction_ctx *transaction);
 */
 
 bool transaction_cache_detach(Transaction_ctx *transaction);
-
-
-/**
-  Insert information about XA transaction being recovered into a cache
-  indexed by XID.
-
-  @param xid     Pointer to a XID structure that identifies a XA transaction.
-
-  @return  operation result
-    @retval  false   success or a cache already contains Transaction_ctx
-                     for this XID value
-    @retval  true    failure
-*/
-
-bool transaction_cache_insert_recovery(XID *xid);
 
 
 /**
@@ -681,7 +627,7 @@ void transaction_cache_free();
   THD of the slave applier is dissociated from a transaction object in engine
   that continues to exist there.
 
-  @param  THD current thread
+  @param  thd current thread
   @return the value of is_error()
 */
 
@@ -705,9 +651,7 @@ struct st_plugin_int *plugin_find_by_type(const LEX_CSTRING &plugin, int type);
   @return    FALSE   on success, TRUE otherwise.
 */
 
-my_bool detach_native_trx(THD *thd, plugin_ref plugin,
-                                      void *unused);
-
+bool detach_native_trx(THD *thd, plugin_ref plugin, void *);
 
 /**
   Reset some transaction state information and delete corresponding

@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -16,14 +16,21 @@
 #ifndef TABLE_USERS_H
 #define TABLE_USERS_H
 
-#include "pfs_column_types.h"
+/**
+  @file storage/perfschema/table_users.h
+  TABLE USERS.
+*/
+
+#include <sys/types.h>
+
 #include "cursor_by_user.h"
+#include "pfs_column_types.h"
 #include "table_helper.h"
 
 struct PFS_user;
 
 /**
-  \addtogroup Performance_schema_tables
+  @addtogroup performance_schema_tables
   @{
 */
 
@@ -38,6 +45,23 @@ struct row_users
   PFS_connection_stat_row m_connection_stat;
 };
 
+class PFS_index_users_by_user : public PFS_index_users
+{
+public:
+  PFS_index_users_by_user() : PFS_index_users(&m_key), m_key("USER")
+  {
+  }
+
+  ~PFS_index_users_by_user()
+  {
+  }
+
+  virtual bool match(PFS_user *pfs);
+
+private:
+  PFS_key_user m_key;
+};
+
 /** Table PERFORMANCE_SCHEMA.USERS. */
 class table_users : public cursor_by_user
 {
@@ -45,7 +69,7 @@ public:
   /** Table share */
   static PFS_engine_table_share m_share;
   /** Table builder */
-  static PFS_engine_table* create();
+  static PFS_engine_table *create();
   static int delete_all_rows();
 
 protected:
@@ -54,16 +78,18 @@ protected:
                               Field **fields,
                               bool read_all);
 
-
 protected:
   table_users();
 
 public:
   ~table_users()
-  {}
+  {
+  }
+
+  int index_init(uint idx, bool sorted);
 
 private:
-  virtual void make_row(PFS_user *pfs);
+  virtual int make_row(PFS_user *pfs);
 
   /** Table share lock. */
   static THR_LOCK m_table_lock;
@@ -72,8 +98,6 @@ private:
 
   /** Current row. */
   row_users m_row;
-  /** True if the current row exists. */
-  bool m_row_exists;
 };
 
 /** @} */

@@ -1,0 +1,30 @@
+# Tests for PERFORMANCE_SCHEMA
+
+#setup
+let $select_column = LOW_COUNT_USED;
+let $table = performance_schema.memory_summary_by_user_by_event_name;
+
+create user foo@localhost;
+grant ALL on *.* to foo@localhost;
+connect(con, localhost, foo,,);
+
+select connection_id() into @conid;
+select thread_id from performance_schema.threads
+  where PROCESSLIST_ID = @conid
+  into @tid;
+
+###########################################################################
+# Test index on USER, EVENT_NAME
+###########################################################################
+
+let $column_count = 2;
+let $col1 = USER;
+let $col2 = EVENT_NAME;
+let $col1_act = "foo";
+let $col2_act = "memory/sql/help";
+
+--source ../include/idx_explain_test.inc
+
+# Cleanup
+--connection default
+drop user foo@localhost;

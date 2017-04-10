@@ -29,7 +29,7 @@ COUNT(@@GLOBAL.innodb_log_file_size)
 1 Expected
 '#---------------------WL6372_VAR_9_03----------------------#'
 SELECT @@GLOBAL.innodb_log_file_size = VARIABLE_VALUE
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='innodb_log_file_size';
 @@GLOBAL.innodb_log_file_size = VARIABLE_VALUE
 1
@@ -39,7 +39,7 @@ COUNT(@@GLOBAL.innodb_log_file_size)
 1
 1 Expected
 SELECT COUNT(VARIABLE_VALUE)
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='innodb_log_file_size';
 COUNT(VARIABLE_VALUE)
 1
@@ -68,6 +68,6 @@ The output size is in unit blocks
 TRUE
 TRUE Expected
 '#---------------------WL6372_VAR_9_06----------------------#'
-The size of the ib_logfile(0/1): 5242880 
-The size of the ib_logfile(0/1): 5242880 
+The size of the ib_logfile(0/1): 5242880
+The size of the ib_logfile(0/1): 5242880
 5242880 expected

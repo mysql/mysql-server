@@ -37,20 +37,10 @@ Database: mysql  Table: user  Wildcard: user
 +-------+----------+-----------+------+-----+---------+-------+---------------------------------+---------+
 mysql.test: Records: 1  Deleted: 0  Skipped: 0  Warnings: 1
 # Tests related to deprecation of ssl options
-WARNING: --ssl is deprecated and will be removed in a future version. Use --ssl-mode instead.
-Variable_name	Value
-Ssl_cipher	DHE-RSA-AES256-SHA
-WARNING: --ssl is deprecated and will be removed in a future version. Use --ssl-mode instead.
-WARNING: no verification of server certificate will be done. Use --ssl-mode=VERIFY_CA or VERIFY_IDENTITY.
-WARNING: --ssl-verify-server-cert is deprecated and will be removed in a future version. Use --ssl-mode=VERIFY_IDENTITY instead.
-Variable_name	Value
-Ssl_cipher	DHE-RSA-AES256-SHA
 # Tests related to invalid option of --ssl-mode
 # Tests related to valid values of --ssl-mode
 Variable_name	Value
 Ssl_cipher	
-Variable_name	Value
-Ssl_cipher	DHE-RSA-AES256-SHA
 Variable_name	Value
 Ssl_cipher	DHE-RSA-AES256-SHA
 Variable_name	Value
@@ -66,18 +56,6 @@ Ssl_cipher	DHE-RSA-AES256-SHA
 Variable_name	Value
 Ssl_cipher	DHE-RSA-AES256-SHA
 # Check the legacy options
-WARNING: --ssl is deprecated and will be removed in a future version. Use --ssl-mode instead.
-Variable_name	Value
-Ssl_cipher	
-WARNING: --ssl is deprecated and will be removed in a future version. Use --ssl-mode instead.
-Variable_name	Value
-Ssl_cipher	DHE-RSA-AES256-SHA
-WARNING: --ssl is deprecated and will be removed in a future version. Use --ssl-mode instead.
-WARNING: --ssl-verify-server-cert is deprecated and will be removed in a future version. Use --ssl-mode=VERIFY_IDENTITY instead.
-WARNING: no verification of server certificate will be done. Use --ssl-mode=VERIFY_CA or VERIFY_IDENTITY.
-Variable_name	Value
-Ssl_cipher	DHE-RSA-AES256-SHA
-WARNING: --ssl-verify-server-cert is deprecated and will be removed in a future version. Use --ssl-mode=VERIFY_IDENTITY instead.
 # Cleanup
 DROP USER 'user1'@'%';
 DROP TABLE mysql.test;

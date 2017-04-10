@@ -155,9 +155,11 @@ SELECT @@session.wait_timeout;
 SET @@session.wait_timeout = 'test';
 SET @@session.wait_timeout = 0;
 SELECT @@session.wait_timeout;
-SET @@session.wait_timeout = 123456789031;
+# Truncated timeout may result in shorter timeouts that
+# expire so comment out the below statements.
+# SET @@session.wait_timeout = 123456789031;
 SELECT @@session.wait_timeout = @max_wait_timeout;
-SET @@session.wait_timeout = -1;
+# SET @@session.wait_timeout = -1;
 SELECT @@session.wait_timeout;
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@session.wait_timeout = ' ';
@@ -171,7 +173,7 @@ SELECT @@session.wait_timeout;
 
 --disable_warnings
 SELECT @@global.wait_timeout = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='wait_timeout';
 --enable_warnings
 
@@ -182,7 +184,7 @@ WHERE VARIABLE_NAME='wait_timeout';
 
 --disable_warnings
 SELECT @@session.wait_timeout = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES
+FROM performance_schema.session_variables
 WHERE VARIABLE_NAME='wait_timeout';
 --enable_warnings
 

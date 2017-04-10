@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,7 +17,6 @@
 
 #include "ndb_conflict_trans.h"
 
-#ifdef HAVE_NDB_BINLOG
 #include "my_sys.h"
 #include "my_base.h"
 
@@ -784,7 +783,3 @@ DependencyTracker::get_conflict_count() const
 {
   return conflicting_trans_count;
 }
-
-/* #ifdef HAVE_NDB_BINLOG */
-
-#endif

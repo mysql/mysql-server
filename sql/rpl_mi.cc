@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,13 +13,28 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#ifdef HAVE_REPLICATION
 #include "rpl_mi.h"
+
+#include <stdlib.h>
+#include <string.h>
+#include <algorithm>
 
 #include "dynamic_ids.h"        // Server_ids
 #include "log.h"                // sql_print_error
+#include "my_dbug.h"
+#include "my_macros.h"
+#include "my_sys.h"
+#include "mysql/psi/psi_stage.h"
+#include "mysql/service_my_snprintf.h"
+#include "mysql_version.h"
+#include "mysqld.h"             // sync_masterinfo_period
+#include "prealloced_array.h"
+#include "rpl_info_handler.h"
 #include "rpl_msr.h"            // channel_map
 #include "rpl_slave.h"          // master_retry_count
+#include "sql_class.h"
+
+class Relay_log_info;
 
 
 enum {
@@ -144,6 +159,11 @@ Master_info::Master_info(
   start_user[0]= 0;
   ignore_server_ids= new Server_ids;
 
+  last_queued_trx= new trx_monitoring_info;
+  last_queued_trx->clear();
+  queueing_trx= new trx_monitoring_info;
+  queueing_trx->clear();
+
   /*channel is set in base class, rpl_info.cc*/
   my_snprintf(for_channel_str, sizeof(for_channel_str)-1,
              " for channel '%s'", channel);
@@ -167,6 +187,8 @@ Master_info::~Master_info()
   delete m_channel_lock;
   delete ignore_server_ids;
   delete mi_description_event;
+  delete last_queued_trx;
+  delete queueing_trx;
 }
 
 /**
@@ -235,8 +257,6 @@ void Master_info::end_info()
 
   - Error can happen if writing to file fails or if flushing the file
     fails.
-
-  @param rli The object representing the Relay_log_info.
 
   @todo Change the log file information to a binary format to avoid
   calling longlong2str.
@@ -489,8 +509,8 @@ bool Master_info::read_info(Rpl_info_handler *from)
       DBUG_RETURN(true);
   }
 
-  ssl= (my_bool) MY_TEST(temp_ssl);
-  ssl_verify_server_cert= (my_bool) MY_TEST(temp_ssl_verify_server_cert);
+  ssl= (bool) MY_TEST(temp_ssl);
+  ssl_verify_server_cert= (bool) MY_TEST(temp_ssl_verify_server_cert);
   master_log_pos= (my_off_t) temp_master_log_pos;
   auto_position= MY_TEST(temp_auto_position);
 
@@ -622,10 +642,8 @@ void Master_info::wait_until_no_reference(THD *thd)
   thd->enter_stage(&stage_waiting_for_no_channel_reference,
                    old_stage, __func__, __FILE__, __LINE__);
 
-  while (references.atomic_get() != 0)
+  while (atomic_references != 0)
     my_sleep(10000);
 
   THD_STAGE_INFO(thd, *old_stage);
 }
-
-#endif /* HAVE_REPLICATION */

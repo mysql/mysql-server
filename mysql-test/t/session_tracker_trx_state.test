@@ -1,6 +1,10 @@
 # We do not support --embedded-server at this point; see WL#7766.
 --source include/not_embedded.inc
---source include/have_query_cache.inc
+
+# Skipping the test temporarily when log-bin is enabled as the test contains a
+# statement accessing mysql.general_log in an trxn. The trxn status tracker
+# (@@session_track_transaction_info) marks it unsafe only when logbin is on
+--source include/not_log_bin.inc
 
 --echo #
 --echo # WL#6631: Detect transaction boundaries

@@ -13,7 +13,7 @@ COUNT(@@GLOBAL.bind_address)
 1 Expected
 '#---------------------BS_STVARS_001_03----------------------#'
 SELECT VARIABLE_VALUE = ''
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='bind_address';
 VARIABLE_VALUE = ''
 0
@@ -23,7 +23,7 @@ COUNT(@@GLOBAL.bind_address)
 1
 1 Expected
 SELECT COUNT(VARIABLE_VALUE)
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='bind_address';
 COUNT(VARIABLE_VALUE)
 1

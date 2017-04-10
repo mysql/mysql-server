@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2015 Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,16 +20,19 @@
 
 #include <map>
 #include <string>
-#include "i_option.h"
-#include "i_options_provider.h"
-#include "i_option_changed_listener.h"
-#include "simple_option.h"
-#include "disabled_option.h"
-#include "char_array_option.h"
-#include "password_option.h"
-#include "string_option.h"
-#include "number_option.h"
+
 #include "bool_option.h"
+#include "char_array_option.h"
+#include "disabled_option.h"
+#include "enum_option.h"
+#include "i_option.h"
+#include "i_option_changed_listener.h"
+#include "i_options_provider.h"
+#include "my_inttypes.h"
+#include "number_option.h"
+#include "password_option.h"
+#include "simple_option.h"
+#include "string_option.h"
 
 namespace Mysql{
 namespace Tools{
@@ -47,7 +50,7 @@ public:
     Creates and attach new simple option.
     @param name Name of option. It is used in command-line option name as
       --name.
-    @param desription Description of option to be printed in --help.
+    @param description Description of option to be printed in --help.
    */
   Simple_option* create_new_option(std::string name, std::string description);
   /**
@@ -55,18 +58,16 @@ public:
     of options inavailable due to distribution configuration.
     @param name Name of option. It is used in command-line option name as
       --name.
-    @param desription Description of option to be printed in --help.
+    @param description Description of option to be printed in --help.
    */
   Disabled_option* create_new_disabled_option(
     std::string name, std::string description);
   /**
     Creates and attach new string option stored in char* type object.
     @param value Pointer to char* object to receive option value.
-    @param allocated Specifies if value set should be some static string or
-      dynamically allocated string with my_strdup.
     @param name Name of option. It is used in command line option name as
       --name.
-    @param desription Description of option to be printed in --help.
+    @param description Description of option to be printed in --help.
    */
   Char_array_option* create_new_option(
     char** value, std::string name, std::string description);
@@ -77,7 +78,7 @@ public:
     @param value Pointer to Nullable<string> object to receive option value.
     @param name Name of option. It is used in command line option name as
       --name.
-    @param desription Description of option to be printed in --help.
+    @param description Description of option to be printed in --help.
    */
   Password_option* create_new_password_option(
     Nullable<std::string>* value, std::string name, std::string description);
@@ -86,7 +87,7 @@ public:
     @param value Pointer to Nullable<string> object to receive option value.
     @param name Name of option. It is used in command line option name as
       --name.
-    @param desription Description of option to be printed in --help.
+    @param description Description of option to be printed in --help.
    */
   String_option* create_new_option(
     Nullable<std::string>* value, std::string name, std::string description);
@@ -95,7 +96,7 @@ public:
     @param value Pointer to int32 object to receive option value.
     @param name Name of option. It is used in command line option name as
       --name.
-    @param desription Description of option to be printed in --help.
+    @param description Description of option to be printed in --help.
    */
   Number_option<int32>* create_new_option(
     int32* value, std::string name, std::string description);
@@ -104,7 +105,7 @@ public:
     @param value Pointer to uint32 object to receive option value.
     @param name Name of option. It is used in command line option name as
       --name.
-    @param desription Description of option to be printed in --help.
+    @param description Description of option to be printed in --help.
    */
   Number_option<uint32>* create_new_option(
     uint32* value, std::string name, std::string description);
@@ -113,7 +114,7 @@ public:
     @param value Pointer to int64 object to receive option value.
     @param name Name of option. It is used in command line option name as
       --name.
-    @param desription Description of option to be printed in --help.
+    @param description Description of option to be printed in --help.
    */
   Number_option<int64>* create_new_option(
     int64* value, std::string name, std::string description);
@@ -122,7 +123,7 @@ public:
     @param value Pointer to uint64 object to receive option value.
     @param name Name of option. It is used in command line option name as
       --name.
-    @param desription Description of option to be printed in --help.
+    @param description Description of option to be printed in --help.
    */
   Number_option<uint64>* create_new_option(
     uint64* value, std::string name, std::string description);
@@ -131,7 +132,7 @@ public:
     @param value Pointer to double object to receive option value.
     @param name Name of option. It is used in command line option name as
       --name.
-    @param desription Description of option to be printed in --help.
+    @param description Description of option to be printed in --help.
    */
   Number_option<double>* create_new_option(
     double* value, std::string name, std::string description);
@@ -140,10 +141,20 @@ public:
     @param value Pointer to double object to receive option value.
     @param name Name of option. It is used in command line option name as
       --name.
-    @param desription Description of option to be printed in --help.
+    @param description Description of option to be printed in --help.
    */
   Bool_option* create_new_option(
     bool* value, std::string name, std::string description);
+
+  template<typename T_type, typename T_typelib>
+    Enum_option<T_type, T_typelib>* create_new_enum_option(
+      T_type* value, const T_typelib* type, std::string name,
+      std::string description)
+  {
+    return this->attach_new_option<Enum_option<T_type, T_typelib> >(
+      new Enum_option<T_type, T_typelib>(value, type, name, description));
+  }
+
 
   /**
     Creates all options that will be provided.
@@ -178,7 +189,20 @@ private:
   /**
     Makes sure this provider will be able to watch name and optid usage.
    */
-  template<typename T_type> T_type* attach_new_option(T_type* option);
+  template<typename T_type> T_type* attach_new_option(T_type* option)
+  {
+    // Make this option reporting all name and optid changes to us.
+    option->set_option_changed_listener(this);
+
+    // Add to list of our own options.
+    this->m_options_created.push_back(option);
+
+    // Check for name and optid collision.
+    this->notify_option_name_changed(option, "");
+    this->notify_option_optid_changed(option, 0);
+
+    return option;
+  }
 
   /**
     Called after specified option has name changed.

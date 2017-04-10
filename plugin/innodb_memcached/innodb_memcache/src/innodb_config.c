@@ -202,7 +202,7 @@ innodb_read_cache_policy(
 		goto func_exit;
 	}
 
-	err = ib_cb_read_row(crsr, tpl, NULL, NULL);
+	err = ib_cb_read_row(crsr, tpl, NULL, 0, NULL, NULL, NULL);
 
 	n_cols = innodb_cb_tuple_get_n_cols(tpl);
 
@@ -318,7 +318,7 @@ innodb_read_config_option(
 
 
 	do {
-		err = ib_cb_read_row(crsr, tpl, NULL, NULL);
+		err = ib_cb_read_row(crsr, tpl, NULL, 0, NULL, NULL, NULL);
 
 		if (err != DB_SUCCESS) {
 			fprintf(stderr, " InnoDB_Memcached: failed to read"
@@ -538,7 +538,7 @@ innodb_config_meta_hash_init(
 	while (err == DB_SUCCESS) {
 		meta_cfg_info_t*        item;
 
-		err = ib_cb_read_row(crsr, tpl, NULL, NULL);
+		err = ib_cb_read_row(crsr, tpl, NULL, 0, NULL, NULL, NULL);
 
 		if (err != DB_SUCCESS) {
 			fprintf(stderr, " InnoDB_Memcached: failed to read row"
@@ -659,7 +659,7 @@ innodb_config_container(
 		err = ib_cb_col_set_value(tpl, 0, name, name_len, true);
 
 		ib_cb_cursor_set_match_mode(crsr, IB_EXACT_MATCH);
-		err = ib_cb_moveto(crsr, tpl, IB_CUR_GE);
+		err = ib_cb_moveto(crsr, tpl, IB_CUR_GE, 0);
 	}
 
 	if (err != DB_SUCCESS) {
@@ -672,11 +672,11 @@ innodb_config_container(
 
 	if (!name) {
 		read_tpl = tpl;
-		err = ib_cb_read_row(crsr, tpl, NULL, NULL);
+		err = ib_cb_read_row(crsr, tpl, NULL, 0, NULL, NULL, NULL);
 	} else {
 		read_tpl = ib_cb_read_tuple_create(crsr);
 
-		err = ib_cb_read_row(crsr, read_tpl, NULL, NULL);
+		err = ib_cb_read_row(crsr, read_tpl, NULL, 0, NULL, NULL, NULL);
 	}
 
 	if (err != DB_SUCCESS) {

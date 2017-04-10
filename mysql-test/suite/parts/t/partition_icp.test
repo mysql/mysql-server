@@ -1,14 +1,21 @@
---source include/have_partition.inc
+########################################
+##### WL#7554 Force schema `test` to character set latin1
+##### This test should be migrated to utf8mb4
+--disable_query_log
+let $testdbcs346=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
+alter schema default character set latin1;
+use test;
+--enable_query_log
+########################################
+
 
 --echo #
 --echo # test using Index Condition Pushdown for partitioned tables
 --echo #
 
---echo # Test failure of ICP calls -> don't use ICP (MyISAM does not support
---echo # ICP on BLOB indexes)
+--echo # Test behavior of ICP calls -> use ICP for InnoDB even for BLOB indexes.
 
 CREATE TABLE t1 (a int PRIMARY KEY, b BLOB, c varchar(16) DEFAULT 'Filler...', INDEX (b(4), a))
-ENGINE = MyISAM
 PARTITION BY HASH (a) PARTITIONS 3;
 
 SHOW CREATE TABLE t1;
@@ -23,13 +30,11 @@ eval EXPLAIN $query;
 eval EXPLAIN FORMAT=JSON $query;
 eval $query;
 
---echo Only MyISAM and InnoDB supports both INDEX and BLOBS...
-ALTER TABLE t1 ENGINE = InnoDB;
-
-ANALYZE TABLE t1;
-
-eval EXPLAIN $query;
-eval EXPLAIN FORMAT=JSON $query;
-eval $query;
-
 DROP TABLE t1;
+
+########################################
+##### WL#7554 set schema `test` back to what it was
+--disable_query_log
+--eval alter schema test default character set $testdbcs346;
+--enable_query_log
+########################################

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2014, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2014, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -17,7 +17,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 *****************************************************************************/
 
 /******************************************************************//**
-@file include gis0rtree.h
+@file include/gis0rtree.h
 R-tree header file
 
 Created 2013/03/27 Jimmy Yang and Allen Lai
@@ -45,29 +45,6 @@ Created 2013/03/27 Jimmy Yang and Allen Lai
 #include "btr0types.h"
 #include "btr0cur.h"
 
-/* Whether MBR 'a' contains 'b' */
-#define	MBR_CONTAIN_CMP(a, b)					\
-	((((b)->xmin >= (a)->xmin) && ((b)->xmax <= (a)->xmax)	\
-	 && ((b)->ymin >= (a)->ymin) && ((b)->ymax <= (a)->ymax)))
-
-/* Whether MBR 'a' equals to 'b' */
-#define	MBR_EQUAL_CMP(a, b)					\
-	((((b)->xmin == (a)->xmin) && ((b)->xmax == (a)->xmax))	\
-	 && (((b)->ymin == (a)->ymin) && ((b)->ymax == (a)->ymax)))
-
-/* Whether MBR 'a' intersects 'b' */
-#define	MBR_INTERSECT_CMP(a, b)					\
-	((((b)->xmin <= (a)->xmax) || ((b)->xmax >= (a)->xmin))	\
-	 && (((b)->ymin <= (a)->ymax) || ((b)->ymax >= (a)->ymin)))
-
-/* Whether MBR 'a' and 'b' disjoint */
-#define	MBR_DISJOINT_CMP(a, b)	(!MBR_INTERSECT_CMP(a, b))
-
-/* Whether MBR 'a' within 'b' */
-#define	MBR_WITHIN_CMP(a, b)					\
-	((((b)->xmin <= (a)->xmin) && ((b)->xmax >= (a)->xmax))	\
-	 && (((b)->ymin <= (a)->ymin) && ((b)->ymax >= (a)->ymax)))
-
 /* Define it for rtree search mode checking. */
 #define RTREE_SEARCH_MODE(mode)					\
 	(((mode) >= PAGE_CUR_CONTAIN) && ((mode <= PAGE_CUR_RTREE_GET_FATHER)))
@@ -84,7 +61,7 @@ rtr_index_build_node_ptr(
 	const rtr_mbr_t*	mbr,	/*!< in: mbr of lower page */
 	const rec_t*		rec,	/*!< in: record for which to build node
 					pointer */
-	ulint			page_no,/*!< in: page number to put in node
+	page_no_t		page_no,/*!< in: page number to put in node
 					pointer */
 	mem_heap_t*		heap,	/*!< in: memory heap where pointer
 					created */
@@ -112,49 +89,42 @@ rtr_page_split_and_insert(
 	ulint		n_ext,	/*!< in: number of externally stored columns */
 	mtr_t*		mtr);	/*!< in: mtr */
 
-/**************************************************************//**
-Sets the child node mbr in a node pointer. */
+/** Sets the child node mbr in a node pointer.
+@param[in]	index	index
+@param[in]	block	bufer block
+@param[out]	mbr	MBR encapsulates the page
+@param[in]	heap	heap for the memory allocation */
 UNIV_INLINE
 void
 rtr_page_cal_mbr(
-/*=============*/
-	const dict_index_t*	index,	/*!< in: index */
-	const buf_block_t*	block,	/*!< in: buffer block */
-	rtr_mbr_t*		mbr,	/*!< out: MBR encapsulates the page */
-	mem_heap_t*		heap);	/*!< in: heap for the memory
-					allocation */
-/*************************************************************//**
-Find the next matching record. This function will first exhaust
+	const dict_index_t*	index,
+	const buf_block_t*	block,
+	rtr_mbr_t*		mbr,
+	mem_heap_t*		heap);
+
+/** Find the next matching record. This function will first exhaust
 the copied record listed in the rtr_info->matches vector before
 moving to next page
+@param[in]	tuple		data tuple; NOTE: n_fields_cmp in tuple
+				must be set so that it cannot get compared
+				to the node ptr page number field!
+@param[in]	mode		cursor search mode
+@param[in]	sel_mode	select mode: SELECT_ORDINARY,
+				SELECT_SKIP_LOKCED, or SELECT_NO_WAIT
+@param[in]	cursor		persistent cursor; NOTE that the function
+				may release the page latch
+@param[in]	cur_level	current level
+@param[in]	mtr		mini-transaction
 @return true if there is next qualified record found, otherwise(if
 exhausted) false */
 bool
 rtr_pcur_move_to_next(
-/*==================*/
-	const dtuple_t*	tuple,	/*!< in: data tuple; NOTE: n_fields_cmp in
-				tuple must be set so that it cannot get
-				compared to the node ptr page number field! */
-	page_cur_mode_t	mode,	/*!< in: cursor search mode */
-	btr_pcur_t*	cursor, /*!< in: persistent cursor; NOTE that the
-				function may release the page latch */
+	const dtuple_t*	tuple,
+	page_cur_mode_t	mode,
+	select_mode	sel_mode,
+	btr_pcur_t*	cursor,
 	ulint		cur_level,
-				/*!< in: current level */
-	mtr_t*		mtr);	/*!< in: mtr */
-
-/**************************************************************//**
-Restores the stored position of a persistent cursor bufferfixing the page */
-bool
-rtr_cur_restore_position_func(
-/*==========================*/
-	ulint		latch_mode,	/*!< in: BTR_SEARCH_LEAF, ... */
-	btr_cur_t*	cursor,		/*!< in: detached persistent cursor */
-	ulint		level,		/*!< in: index level */
-	const char*	file,		/*!< in: file name */
-	ulint		line,		/*!< in: line where called */
-	mtr_t*		mtr);		/*!< in: mtr */
-#define rtr_cur_restore_position(l,cur,level,mtr)		\
-	rtr_cur_restore_position_func(l,cur,level,__FILE__,__LINE__,mtr)
+	mtr_t*		mtr);
 
 /****************************************************************//**
 Searches the right position in rtree for a page cursor. */
@@ -208,36 +178,43 @@ rtr_get_father_node(
 	btr_cur_t*	sea_cur,/*!< in: search cursor */
 	btr_cur_t*	cursor,	/*!< in/out: tree cursor; the cursor page is
 				s- or x-latched */
-	ulint		page_no,/*!< in: current page no */
+	page_no_t	page_no,/*!< in: current page no */
 	mtr_t*		mtr);	/*!< in: mtr */
 
-/**************************************************************//**
-push a nonleaf index node to the search path */
+/** Push a nonleaf index node to the search path
+@param[in,out]	path		search path
+@param[in]	pageno		pageno to insert
+@param[in]	seq_no		Node sequence num
+@param[in]	level		index level
+@param[in]	child_no	child page no
+@param[in]	cursor		position cursor
+@param[in]	mbr_inc		MBR needs to be enlarged */
 UNIV_INLINE
 void
 rtr_non_leaf_stack_push(
-/*====================*/
-	rtr_node_path_t*	path,		/*!< in/out: search path */
-	ulint			pageno,		/*!< in: pageno to insert */
-	node_seq_t		seq_no,		/*!< in: Node sequence num */
-	ulint			level,		/*!< in: index level */
-	ulint			child_no,	/*!< in: child page no */
-	btr_pcur_t*		cursor,		/*!< in: position cursor */
-	double			mbr_inc);	/*!< in: MBR needs to be
-						enlarged */
+	rtr_node_path_t*	path,
+	page_no_t		pageno,
+	node_seq_t		seq_no,
+	ulint			level,
+	page_no_t		child_no,
+	btr_pcur_t*		cursor,
+	double			mbr_inc);
 
-/**************************************************************//**
-push a nonleaf index node to the search path for insertion */
+/** Push a nonleaf index node to the search path for insertion
+@param[in]	index	index descriptor
+@param[in,out]	path	search path
+@param[in]	level	index level
+@param[in]	block	block of the page
+@param[in]	rec	positioned record
+@param[in]	mbr_inc	MBR needs to be enlarged */
 void
 rtr_non_leaf_insert_stack_push(
-/*===========================*/
-	dict_index_t*		index,		/*!< in: index descriptor */
-	rtr_node_path_t*	path,		/*!< in/out: search path */
-	ulint			level,		/*!< in: index level */
-	const buf_block_t*	block,		/*!< in: block of the page */
-	const rec_t*		rec,		/*!< in: positioned record */
-	double			mbr_inc);	/*!< in: MBR needs to be
-						enlarged */
+	dict_index_t*		index,
+	rtr_node_path_t*	path,
+	ulint			level,
+	const buf_block_t*	block,
+	const rec_t*		rec,
+	double			mbr_inc);
 
 /*****************************************************************//**
 Allocates a new Split Sequence Number.
@@ -317,9 +294,6 @@ rtr_get_mbr_from_tuple(
 	const dtuple_t*	dtuple,	/*!< in: data tuple */
 	rtr_mbr*	mbr);	/*!< out: mbr to fill */
 
-#define rtr_page_get_father_node_ptr(of,heap,sea,cur,mtr)		\
-	rtr_page_get_father_node_ptr_func(of,heap,sea,cur,__FILE__,__LINE__,mtr)
-
 /* Get the rtree page father.
 @param[in]	offsets		work area for the return value
 @param[in]	index		rtree index
@@ -336,24 +310,6 @@ rtr_page_get_father(
 	mtr_t*		mtr,
 	btr_cur_t*	sea_cur,
 	btr_cur_t*	cursor);
-
-/************************************************************//**
-Returns the upper level node pointer to a R-Tree page. It is assumed
-that mtr holds an x-latch on the tree.
-@return rec_get_offsets() of the node pointer record */
-ulint*
-rtr_page_get_father_node_ptr_func(
-/*==============================*/
-	ulint*		offsets,/*!< in: work area for the return value */
-	mem_heap_t*	heap,	/*!< in: memory heap to use */
-	btr_cur_t*	sea_cur,/*!< in: search cursor */
-	btr_cur_t*	cursor,	/*!< in: cursor pointing to user record,
-				out: cursor on node pointer record,
-				its page x-latched */
-	const char*	file,	/*!< in: file name */
-	ulint		line,	/*!< in: line where called */
-	mtr_t*		mtr);	/*!< in: mtr */
-
 
 /************************************************************//**
 Returns the father block to a page. It is assumed that mtr holds
@@ -410,27 +366,29 @@ rtr_pcur_open_low(
 
 struct btr_cur_t;
 
-/*********************************************************//**
-Returns the R-Tree node stored in the parent search path
+/** Returns the R-Tree node stored in the parent search path
+@param[in]	btr_cur		persistent cursor
+@param[in]	level		index level of buffer page
+@param[in]	is_insert	whether insert operation
 @return pointer to R-Tree cursor component */
 UNIV_INLINE
 node_visit_t*
 rtr_get_parent_node(
-/*================*/
-	btr_cur_t*	btr_cur,	/*!< in: persistent cursor */
-	ulint		level,		/*!< in: index level of buffer page */
-	ulint		is_insert);	/*!< in: whether it is insert */
+	btr_cur_t*	btr_cur,
+	ulint		level,
+	ulint		is_insert);
 
-/*********************************************************//**
-Returns the R-Tree cursor stored in the parent search path
+/** Returns the R-Tree cursor stored in the parent search path
+@param[in]	btr_cur		persistent cursor
+@param[in]	level		index level of buffer page
+@param[in]	is_insert	whether insert operation
 @return pointer to R-Tree cursor component */
 UNIV_INLINE
 btr_pcur_t*
 rtr_get_parent_cursor(
-/*==================*/
-	btr_cur_t*	btr_cur,	/*!< in: persistent cursor */
-	ulint		level,		/*!< in: index level of buffer page */
-	ulint		is_insert);	/*!< in: whether insert operation */
+	btr_cur_t*	btr_cur,
+	ulint		level,
+	ulint		is_insert);
 
 /*************************************************************//**
 Copy recs from a page to new_block of rtree. */
@@ -533,23 +491,23 @@ rtr_check_same_block(
 	buf_block_t*	childb, /*!< in: child Page */
 	mem_heap_t*	heap);	/*!< in: memory heap */
 
-/*********************************************************************//**
-Sets pointer to the data and length in a field. */
+/** Sets pointer to the data and length in a field.
+@param[out]	data	data
+@param[in]	mbr	data */
 UNIV_INLINE
 void
 rtr_write_mbr(
-/*==========*/
-	byte*			data,	/*!< out: data */
-	const rtr_mbr_t*	mbr);	/*!< in: data */
+	byte*			data,
+	const rtr_mbr_t*	mbr);
 
-/*********************************************************************//**
-Sets pointer to the data and length in a field. */
+/** Sets pointer to the data and length in a field.
+@param[in]	data	data
+@param[out]	mbr	data */
 UNIV_INLINE
 void
 rtr_read_mbr(
-/*==========*/
-	const byte*		data,	/*!< in: data */
-	rtr_mbr_t*		mbr);	/*!< out: data */
+	const byte*		data,
+	rtr_mbr_t*		mbr);
 
 /**************************************************************//**
 Check whether a discarding page is in anyone's search path */
@@ -561,16 +519,16 @@ rtr_check_discard_page(
 				the root page */
 	buf_block_t*	block);	/*!< in: block of page to be discarded */
 
-/********************************************************************//**
-Reinitialize a RTree search info */
+/** Reinitialize a RTree search info
+@param[in,out]	cursor		tree cursor
+@param[in]	index		index struct
+@param[in]	need_prdt	Whether predicate lock is needed */
 UNIV_INLINE
 void
 rtr_info_reinit_in_cursor(
-/************************/
-	btr_cur_t*	cursor,		/*!< in/out: tree cursor */
-	dict_index_t*	index,		/*!< in: index struct */
-	bool		need_prdt);	/*!< in: Whether predicate lock is
-					needed */
+	btr_cur_t*	cursor,
+	dict_index_t*	index,
+	bool		need_prdt);
 
 /** Estimates the number of rows in a given area.
 @param[in]	index	index
@@ -583,7 +541,5 @@ rtr_estimate_n_rows_in_range(
 	const dtuple_t*	tuple,
 	page_cur_mode_t	mode);
 
-#ifndef UNIV_NONINL
 #include "gis0rtree.ic"
-#endif
 #endif /*!< gis0rtree.h */

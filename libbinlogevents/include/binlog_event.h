@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -28,17 +28,21 @@
 #ifndef BINLOG_EVENT_INCLUDED
 #define BINLOG_EVENT_INCLUDED
 
-#include "debug_vars.h"
+#include <stdlib.h>
+#include <sys/types.h>
+#include <zlib.h> //for checksum calculations
+#include <climits>
+#include <cstdio>
+#include <iostream>
+
 /*
  The header contains functions macros for reading and storing in
  machine independent format (low byte first).
 */
 #include "byteorder.h"
+#include "debug_vars.h"
+#include "my_io.h"
 #include "wrapper_functions.h"
-#include <zlib.h> //for checksum calculations
-#include <cstdio>
-#include <iostream>
-#include <climits>
 
 #if defined(_WIN32)
 #include <Winsock2.h>
@@ -123,7 +127,9 @@
                                    1U + (MAX_DBS_IN_EVENT_MTS * (1 + NAME_LEN)) + \
                                    3U +            /* type, microseconds */ + \
                                    1U + 32*3 + 1 + 60 \
-                                   /* type, user_len, user, host_len, host */)
+                                   /* type, user_len, user, host_len, host */ + \
+                                   1U + 1          /* type, explicit_def..ts*/+ \
+                                   1U + 8          /* type, xid of DDL */)
 
 
 /**
@@ -132,12 +138,20 @@
 */
 const int64_t SEQ_UNINIT= 0;
 
+/** We use 7 bytes, 1 bit being used as a flag. */
+#define MAX_COMMIT_TIMESTAMP_VALUE (1ULL << 55)
+/**
+  Used to determine whether the original_commit_timestamp is already known or if
+  it still needs to be determined when computing it.
+*/
+const int64_t UNDEFINED_COMMIT_TIMESTAMP= MAX_COMMIT_TIMESTAMP_VALUE;
+
 /** Setting this flag will mark an event as Ignorable */
 #define LOG_EVENT_IGNORABLE_F 0x80
 
 /**
   In case the variable is updated,
-  make sure to update it in $MYSQL_SOURCE_DIR/my_global.h.
+  make sure to update it in $MYSQL_SOURCE_DIR/my_io.h.
 */
 #ifndef FN_REFLEN
 #define FN_REFLEN       512     /* Max length of full path-name */
@@ -245,8 +259,11 @@ namespace binary_log
 enum Log_event_type
 {
   /**
-    Every time you update this enum (when you add a type), you have to
-    fix Format_description_event::Format_description_event().
+    Every time you add a type, you have to
+    - Assign it a number explicitly. Otherwise it will cause trouble
+      if a event type before is deprecated and removed directly from
+      the enum.
+    - Fix Format_description_event::Format_description_event().
   */
   UNKNOWN_EVENT= 0,
   START_EVENT_V3= 1,
@@ -254,18 +271,12 @@ enum Log_event_type
   STOP_EVENT= 3,
   ROTATE_EVENT= 4,
   INTVAR_EVENT= 5,
-  LOAD_EVENT= 6,
+
   SLAVE_EVENT= 7,
-  CREATE_FILE_EVENT= 8,
+
   APPEND_BLOCK_EVENT= 9,
-  EXEC_LOAD_EVENT= 10,
   DELETE_FILE_EVENT= 11,
-  /**
-    NEW_LOAD_EVENT is like LOAD_EVENT except that it has a longer
-    sql_ex, allowing multibyte TERMINATED BY etc; both types share the
-    same class (Load_event)
-  */
-  NEW_LOAD_EVENT= 12,
+
   RAND_EVENT= 13,
   USER_VAR_EVENT= 14,
   FORMAT_DESCRIPTION_EVENT= 15,
@@ -276,15 +287,7 @@ enum Log_event_type
   TABLE_MAP_EVENT = 19,
 
   /**
-    The PRE_GA event numbers were used for 5.1.0 to 5.1.15 and are
-    therefore obsolete.
-   */
-  PRE_GA_WRITE_ROWS_EVENT = 20,
-  PRE_GA_UPDATE_ROWS_EVENT = 21,
-  PRE_GA_DELETE_ROWS_EVENT = 22,
-
-  /**
-    The V1 event numbers are used from 5.1.16 until mysql-trunk-xx
+    The V1 event numbers are used from 5.1.16 until mysql-5.6.
   */
   WRITE_ROWS_EVENT_V1 = 23,
   UPDATE_ROWS_EVENT_V1 = 24,
@@ -662,8 +665,7 @@ public:
   @param buf                  the buffer containing the complete information
                               including the event and the header data
 
-  @param description_event    first constructor of Format_description_event,
-                              used to extract the binlog_version
+  @param binlog_version       the binary log version
   */
   Log_event_header(const char* buf, uint16_t binlog_version);
 
@@ -760,16 +762,12 @@ public:
     // where 5.0 differs: 2 for length of N-bytes vars.
     QUERY_HEADER_LEN=(QUERY_HEADER_MINIMAL_LEN + 2),
     STOP_HEADER_LEN= 0,
-    LOAD_HEADER_LEN= (4 + 4 + 4 + 1 +1 + 4),
     START_V3_HEADER_LEN= (2 + ST_SERVER_VER_LEN + 4),
     // this is FROZEN (the Rotate post-header is frozen)
     ROTATE_HEADER_LEN= 8,
     INTVAR_HEADER_LEN= 0,
-    CREATE_FILE_HEADER_LEN= 4,
     APPEND_BLOCK_HEADER_LEN= 4,
-    EXEC_LOAD_HEADER_LEN= 4,
     DELETE_FILE_HEADER_LEN= 4,
-    NEW_LOAD_HEADER_LEN= LOAD_HEADER_LEN,
     RAND_HEADER_LEN= 0,
     USER_VAR_HEADER_LEN= 0,
     FORMAT_DESCRIPTION_HEADER_LEN= (START_V3_HEADER_LEN + 1 + LOG_EVENT_TYPES),
@@ -809,10 +807,8 @@ protected:
 
     @param buf              Contains the serialized event
     @param binlog_version   The binary log format version
-    @param server_version   The MySQL server's version
   */
-  Binary_log_event(const char **buf, uint16_t binlog_version,
-                   const char *server_version);
+  Binary_log_event(const char **buf, uint16_t binlog_version);
 public:
 #ifndef HAVE_MYSYS
   /*

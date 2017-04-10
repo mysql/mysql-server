@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,13 +16,12 @@
 */
 
 #include "ndb_mi.h"
-#include "ha_ndbcluster_glue.h"
 
-#include "rpl_msr.h"
+#include "my_dbug.h"
 #include "rpl_mi.h"
+#include "rpl_msr.h"
 #include "rpl_rli.h"
 
-#ifdef HAVE_NDB_BINLOG
 
 /*
   Utility class for interacting with the global structure which
@@ -120,4 +119,3 @@ bool ndb_mi_get_slave_sql_running()
   return msi.get_default_mi()->rli->slave_running;
 }
 
-#endif

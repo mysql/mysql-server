@@ -1116,7 +1116,7 @@ send Mysqlx.Crud.Insert {
   }
 }
 
-Got expected error: Table 'schema_no_exist.categories' doesn't exist (code 1146)
+Got expected error: Unknown database 'schema_no_exist' (code 1049)
 Invalid Table name
 send Mysqlx.Crud.Insert {
   collection {
@@ -1467,7 +1467,7 @@ send Mysqlx.Crud.Insert {
   }
 }
 
-Got expected error: Invalid JSON text: "Missing a comma or '}' after an object member." at position 99 in value for column 'main_collection.doc'. (code 3140)
+Got expected error: Invalid JSON text: "Missing a comma or '}' after an object member." at position 98 in value for column 'main_collection.doc'. (code 3140)
 ================================================================================
 CLEAN UP
 ================================================================================

@@ -33,9 +33,8 @@ ERROR HY000: Error writing file 'master-bin' ((errno: #)
 CREATE TRIGGER tr1 AFTER INSERT ON t1 FOR EACH ROW INSERT INTO t1 VALUES (new.a + 100);
 CREATE TRIGGER tr1 AFTER INSERT ON t1 FOR EACH ROW INSERT INTO t1 VALUES (new.a + 100);
 ERROR HY000: Error writing file 'master-bin' ((errno: #)
-DROP TRIGGER tr1;
-DROP TRIGGER tr1;
-ERROR HY000: Error writing file 'master-bin' ((errno: #)
+SHOW CREATE TRIGGER tr1;
+ERROR HY000: Trigger does not exist
 ALTER TABLE t1 ADD (b INT);
 ALTER TABLE t1 ADD (b INT);
 ERROR HY000: Error writing file 'master-bin' ((errno: #)
@@ -63,12 +62,14 @@ ERROR HY000: Error writing file 'master-bin' ((errno: #)
 CREATE USER user1;
 CREATE USER user1;
 ERROR HY000: Error writing file 'master-bin' ((errno: #)
+CREATE USER user1;
 REVOKE ALL PRIVILEGES, GRANT OPTION FROM user1;
 REVOKE ALL PRIVILEGES, GRANT OPTION FROM user1;
 ERROR HY000: Error writing file 'master-bin' ((errno: #)
 DROP USER user1;
 DROP USER user1;
 ERROR HY000: Error writing file 'master-bin' ((errno: #)
+DROP USER user1;
 #
 # Cleanup
 #

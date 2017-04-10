@@ -86,7 +86,9 @@ DROP TABLE t2;
 SHOW VARIABLES LIKE 'default_storage_engine';
 SET default_storage_engine="ndb";
 
+--disable_warnings
 CREATE TABLE t2 AS SELECT * FROM t1;
+--enable_warnings
 
 SELECT COUNT(*) FROM t2;
 

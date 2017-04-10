@@ -1,0 +1,30 @@
+drop table if exists t1,t2,t3;
+create table t1 (
+a int not null primary key,
+b int not null,
+c char(255)
+) engine ndb;
+create table t2 (
+a int not null primary key,
+b int not null) engine ndb;
+create table t3 (
+a int not null primary key,
+b int not null) engine ndb;
+insert into t1 values (1,1,'1'),(2,2,'2'),(3,3,'3'),(4,4,'4');
+insert into t1 select a+4,b,c from t1;
+insert into t1 select a+8,b,c from t1;
+insert into t1 select a+16,b,c from t1;
+insert into t1 select a+32,b,c from t1;
+insert into t1 select a+64,b,c from t1;
+insert into t1 select a+128,b,c from t1;
+insert into t1 select a+256,b,c from t1;
+insert into t1 select a+512,b,c from t1;
+insert into t1 select a+1024,b,c from t1;
+insert into t1 select a+2048,b,c from t1;
+insert into t1 select a+4096,b,c from t1;
+insert into t1 select a+8192,b,c from t1;
+insert into t1 select a+16384,b,c from t1;
+insert into t1 select a+32768,b,c from t1;
+insert into t2 values (1,1),(2,2),(3,3),(4,4);
+insert into t3 values (1,1),(2,2),(3,3),(4,4);
+drop table t1;

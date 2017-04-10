@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,15 +13,28 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
 
-/* Defines to make different thread packages compatible */
+/**
+  @file include/my_thread.h
+  Defines to make different thread packages compatible.
+*/
 
 #ifndef MY_THREAD_INCLUDED
 #define MY_THREAD_INCLUDED
 
-#include "my_global.h"              /* my_bool */
+#include <errno.h>
+#include <stdbool.h>
+#include <stddef.h>
 
-#if !defined(_WIN32)
-#include <pthread.h>
+#include "my_compiler.h"
+#include "my_config.h"
+#include "my_inttypes.h"
+#include "my_macros.h"
+
+#if defined(_WIN32)
+#include <windows.h>
+#else
+#include <pthread.h>                // IWYU pragma: export
+#include <sched.h>                  // IWYU pragma: export
 #endif
 
 #ifndef ETIME
@@ -36,10 +49,16 @@
   MySQL can survive with 32K, but some glibc libraries require > 128K stack
   To resolve hostnames. Also recursive stored procedures needs stack.
 */
-#if SIZEOF_CHARP > 4
-#define DEFAULT_THREAD_STACK	(256*1024L)
+#if defined(__sparc) && (defined(__SUNPRO_CC) || defined(__SUNPRO_C))
+#define STACK_MULTIPLIER 2UL
 #else
-#define DEFAULT_THREAD_STACK	(192*1024)
+#define STACK_MULTIPLIER 1UL
+#endif
+
+#if SIZEOF_CHARP > 4
+#define DEFAULT_THREAD_STACK	(STACK_MULTIPLIER * 256UL * 1024UL)
+#else
+#define DEFAULT_THREAD_STACK	(STACK_MULTIPLIER * 192UL * 1024UL)
 #endif
 
 #ifdef  __cplusplus
@@ -47,6 +66,14 @@
 #else
 #define EXTERNC
 #endif
+
+static inline int is_timeout(int e) {
+#if ETIMEDOUT == ETIME
+  return e == ETIMEDOUT;
+#else
+  return e == ETIMEDOUT || e == ETIME;
+#endif
+}
 
 C_MODE_START
 
@@ -172,13 +199,13 @@ int my_thread_create(my_thread_handle *thread, const my_thread_attr_t *attr,
                      my_start_routine func, void *arg);
 int my_thread_join(my_thread_handle *thread, void **value_ptr);
 int my_thread_cancel(my_thread_handle *thread);
-void my_thread_exit(void *value_ptr);
+void my_thread_exit(void *value_ptr) MY_ATTRIBUTE((noreturn));
 
 
-extern my_bool my_thread_global_init();
+extern bool my_thread_global_init();
 extern void my_thread_global_reinit();
 extern void my_thread_global_end();
-extern my_bool my_thread_init();
+extern bool my_thread_init();
 extern void my_thread_end();
 
 C_MODE_END

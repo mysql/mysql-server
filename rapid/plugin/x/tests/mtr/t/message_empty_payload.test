@@ -1,5 +1,5 @@
  ## Preamble
---source ../include/xplugin_preamble.inc
+--source include/xplugin_preamble.inc
 
 ## TEST STARTS HERE
 --write_file $MYSQL_TMP_DIR/validate_empty_message.tmp
@@ -36,5 +36,6 @@ SET GLOBAL mysqlx_connect_timeout = 300;
 
 ## Postamble
 --remove_file $MYSQL_TMP_DIR/validate_empty_message.tmp
+--remove_file $MYSQL_TMP_DIR/validate_empty_message_on_valid_session.tmp
 
 uninstall plugin mysqlx;

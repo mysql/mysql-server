@@ -16,18 +16,88 @@
 #ifndef MYSQL_PSI_BASE_H
 #define MYSQL_PSI_BASE_H
 
+#include "my_psi_config.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 /**
-  @file mysql/psi/psi_base.h
+  @file include/mysql/psi/psi_base.h
   Performance schema instrumentation interface.
 
-  @defgroup Instrumentation_interface Instrumentation Interface
-  @ingroup Performance_schema
+  @defgroup instrumentation_interface Instrumentation Interface
+  @ingroup performance_schema
   @{
+
+    @defgroup psi_api Instrumentation Programming Interface
+    @{
+    @}
+
+    @defgroup psi_abi Instrumentation Binary Interface
+    @{
 */
+
+/**
+  Instrumented mutex key.
+  To instrument a mutex, a mutex key must be obtained using @c register_mutex.
+  Using a zero key always disable the instrumentation.
+*/
+typedef unsigned int PSI_mutex_key;
+
+/**
+  Instrumented rwlock key.
+  To instrument a rwlock, a rwlock key must be obtained
+  using @c register_rwlock.
+  Using a zero key always disable the instrumentation.
+*/
+typedef unsigned int PSI_rwlock_key;
+
+/**
+  Instrumented cond key.
+  To instrument a condition, a condition key must be obtained
+  using @c register_cond.
+  Using a zero key always disable the instrumentation.
+*/
+typedef unsigned int PSI_cond_key;
+
+/**
+  Instrumented thread key.
+  To instrument a thread, a thread key must be obtained
+  using @c register_thread.
+  Using a zero key always disable the instrumentation.
+*/
+typedef unsigned int PSI_thread_key;
+
+/**
+  Instrumented file key.
+  To instrument a file, a file key must be obtained using @c register_file.
+  Using a zero key always disable the instrumentation.
+*/
+typedef unsigned int PSI_file_key;
+
+/**
+  Instrumented stage key.
+  To instrument a stage, a stage key must be obtained using @c register_stage.
+  Using a zero key always disable the instrumentation.
+*/
+typedef unsigned int PSI_stage_key;
+
+/**
+  Instrumented statement key.
+  To instrument a statement, a statement key must be obtained using @c
+  register_statement.
+  Using a zero key always disable the instrumentation.
+*/
+typedef unsigned int PSI_statement_key;
+
+/**
+  Instrumented socket key.
+  To instrument a socket, a socket key must be obtained using @c
+  register_socket.
+  Using a zero key always disable the instrumentation.
+*/
+typedef unsigned int PSI_socket_key;
 
 #define PSI_INSTRUMENT_ME 0
 
@@ -69,87 +139,30 @@ extern "C" {
 */
 #define PSI_FLAG_TRANSFER (1 << 5)
 
-/**
-  Volatility flag.
-  This flag indicate that an instrumented object
-  has a volatility (life cycle) comparable
-  to the volatility of a session.
-*/
-#define PSI_FLAG_VOLATILITY_SESSION (1 << 6)
+#define PSI_VOLATILITY_UNKNOWN 0
+#define PSI_VOLATILITY_PERMANENT 1
+#define PSI_VOLATILITY_PROVISIONING 2
+#define PSI_VOLATILITY_DDL 3
+#define PSI_VOLATILITY_ACCOUNT 4
+#define PSI_VOLATILITY_SESSION 5
+#define PSI_VOLATILITY_TRANSACTION 6
+#define PSI_VOLATILITY_QUERY 7
+#define PSI_VOLATILITY_INTRA_QUERY 8
 
-#ifdef HAVE_PSI_INTERFACE
+#define PSI_COUNT_VOLATILITY 9
 
-/**
-  @def PSI_VERSION_1
-  Performance Schema Interface number for version 1.
-  This version is supported.
-*/
-#define PSI_VERSION_1 1
-
-/**
-  @def PSI_VERSION_2
-  Performance Schema Interface number for version 2.
-  This version is not implemented, it's a placeholder.
-*/
-#define PSI_VERSION_2 2
+struct PSI_placeholder
+{
+  int m_placeholder;
+};
 
 /**
-  @def PSI_CURRENT_VERSION
-  Performance Schema Interface number for the most recent version.
-  The most current version is @c PSI_VERSION_1
+    @} (end of group psi_abi)
+  @} (end of group instrumentation_interface)
 */
-#define PSI_CURRENT_VERSION 1
-
-/**
-  @def USE_PSI_1
-  Define USE_PSI_1 to use the interface version 1.
-*/
-
-/**
-  @def USE_PSI_2
-  Define USE_PSI_2 to use the interface version 2.
-*/
-
-/**
-  @def HAVE_PSI_1
-  Define HAVE_PSI_1 if the interface version 1 needs to be compiled in.
-*/
-
-/**
-  @def HAVE_PSI_2
-  Define HAVE_PSI_2 if the interface version 2 needs to be compiled in.
-*/
-
-#ifndef USE_PSI_2
-#ifndef USE_PSI_1
-#define USE_PSI_1
-#endif
-#endif
-
-#ifdef USE_PSI_1
-#define HAVE_PSI_1
-#endif
-
-#ifdef USE_PSI_2
-#define HAVE_PSI_2
-#endif
-
-/*
-  Allow to override PSI_XXX_CALL at compile time
-  with more efficient implementations, if available.
-  If nothing better is available,
-  make a dynamic call using the PSI_server function pointer.
-*/
-
-#define PSI_DYNAMIC_CALL(M) PSI_server->M
-
-#endif /* HAVE_PSI_INTERFACE */
-
-/** @} */
 
 #ifdef __cplusplus
 }
 #endif
 
 #endif /* MYSQL_PSI_BASE_H */
-

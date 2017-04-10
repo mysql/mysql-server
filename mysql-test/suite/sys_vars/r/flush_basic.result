@@ -62,7 +62,7 @@ SELECT @@session.flush;
 ERROR HY000: Variable 'flush' is a GLOBAL variable
 '#----------------------FN_DYNVARS_030_06------------------------#'
 SELECT IF(@@global.flush, "ON", "OFF") = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='flush';
 IF(@@global.flush, "ON", "OFF") = VARIABLE_VALUE
 1

@@ -46,10 +46,10 @@ select COMMAND, STATE
 from INFORMATION_SCHEMA.PROCESSLIST
 where ID = @slave_sql_pid;
 COMMAND	STATE
-Connect	Slave has read all relay log; waiting for more updates
+Query	Slave has read all relay log; waiting for more updates
 select NAME, TYPE, PROCESSLIST_COMMAND, PROCESSLIST_STATE
 from performance_schema.threads
 where PROCESSLIST_ID = @slave_sql_pid;
 NAME	TYPE	PROCESSLIST_COMMAND	PROCESSLIST_STATE
-thread/sql/slave_sql	FOREGROUND	Connect	Slave has read all relay log; waiting for more updates
+thread/sql/slave_sql	FOREGROUND	Query	Slave has read all relay log; waiting for more updates
 include/rpl_end.inc

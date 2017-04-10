@@ -12,7 +12,7 @@ SHOW VARIABLES LIKE 'test_service%';
 
 --echo ------ Show status of plugin -------------------------------------
 SHOW STATUS LIKE 'test_services_status';
-let $test_status= `SELECT variable_value FROM information_schema.global_status 
+let $test_status= `SELECT variable_value FROM performance_schema.global_status 
                    WHERE variable_name LIKE 'test_services_status'`;
 --echo test status: $test_status
 

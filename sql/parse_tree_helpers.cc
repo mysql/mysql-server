@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2017 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,13 +13,27 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "my_config.h"
+#include "auth_acls.h"
+#include "derror.h"
+#include "handler.h"
+#include "item_create.h"
+#include "m_string.h"
+#include "my_dbug.h"
+#include "my_sqlcommand.h"
+#include "my_sys.h"
+#include "mysqld_error.h"
 #include "parse_tree_helpers.h"
-
-#include "sql_class.h"
 #include "sp_head.h"
 #include "sp_instr.h"
-#include "auth/auth_common.h"
+#include "sp_pcontext.h"
+#include "sql_class.h"
+#include "sql_error.h"
+#include "sql_lex.h"
+#include "sql_plugin.h"
+#include "sql_plugin_ref.h"
+#include "system_variables.h"
+#include "trigger_def.h"
+#include "parse_tree_nodes.h"
 
 
 /**
@@ -62,6 +76,15 @@ Item_splocal* create_item_for_sp_var(THD *thd,
 
   DBUG_ASSERT(pctx && spv);
 
+  if (lex->reparse_common_table_expr_at != 0)
+  {
+    /*
+      This variable doesn't exist in the original query: shouldn't be
+      substituted for logging.
+    */
+    query_start_ptr= NULL;
+  }
+
   if (query_start_ptr)
   {
     /* Position and length of the SP variable name in the query. */
@@ -79,61 +102,6 @@ Item_splocal* create_item_for_sp_var(THD *thd,
 #endif
 
   return item;
-}
-
-
-/**
-   Report syntax error if the sel query block can't be parenthesized
-
-   @return false if successful, true if an error was reported. In the latter
-   case parsing should stop.
- */
-bool setup_select_in_parentheses(SELECT_LEX *sel)
-{
-  DBUG_ASSERT(sel->braces);
-  if (sel->linkage == UNION_TYPE &&
-      !sel->master_unit()->first_select()->braces &&
-      sel->master_unit()->first_select()->linkage ==
-      UNION_TYPE)
-  {
-    my_syntax_error(ER(ER_SYNTAX_ERROR));
-    return true;
-  }
-  if (sel->linkage == UNION_TYPE &&
-      sel->olap != UNSPECIFIED_OLAP_TYPE &&
-      sel->master_unit()->fake_select_lex)
-  {
-    my_error(ER_WRONG_USAGE, MYF(0), "CUBE/ROLLUP", "ORDER BY");
-    return true;
-  }
-  return false;
-}
-
-
-/**
-  @brief Push an error message into MySQL diagnostic area with line
-  and position information.
-
-  This function provides semantic action implementers with a way
-  to push the famous "You have a syntax error near..." error
-  message into the diagnostic area, which is normally produced only if
-  a parse error is discovered internally by the Bison generated
-  parser.
-*/
-
-void my_syntax_error(const char *s)
-{
-  THD *thd= current_thd;
-  Lex_input_stream *lip= & thd->m_parser_state->m_lip;
-
-  const char *yytext= lip->get_tok_start();
-  if (!yytext)
-    yytext= "";
-
-  /* Push an error into the diagnostic area */
-  ErrConvString err(yytext, thd->variables.character_set_client);
-  my_printf_error(ER_PARSE_ERROR,  ER(ER_PARSE_ERROR), MYF(0), s,
-                  err.ptr(), lip->yylineno);
 }
 
 
@@ -175,7 +143,6 @@ set_system_variable(THD *thd, struct sys_var_with_base *var_with_base,
   if (pctx && var_with_base->var == Sys_autocommit_ptr)
     sp->m_flags|= sp_head::HAS_SET_AUTOCOMMIT_STMT;
 
-#ifdef HAVE_REPLICATION
   if (lex->uses_stored_routines() &&
       ((var_with_base->var == Sys_gtid_next_ptr
 #ifdef HAVE_GTID_NEXT_LIST
@@ -188,7 +155,6 @@ set_system_variable(THD *thd, struct sys_var_with_base *var_with_base,
              var_with_base->var->name.str);
     return TRUE;
   }
-#endif
 
   if (val && val->type() == Item::FIELD_ITEM &&
       ((Item_field*)val)->table_name)
@@ -429,4 +395,123 @@ bool sp_create_assignment_instr(THD *thd, const char *expr_end_ptr)
   return false;
 }
 
+/**
+  Resolve engine by its name
 
+  @param        thd            Thread handler.
+  @param        name           Engine's name.
+  @param        is_temp_table  True if temporary table.
+  @param        strict         Force error if engine is unknown(*).
+  @param[out]   ret            Engine object or NULL(**).
+
+  @returns true if error is reported(**), otherwise false.
+
+  @note *) NO_ENGINE_SUBSTITUTION sql_mode overrides the @c strict parameter.
+  @note **) If @c strict if false and engine is unknown, the function outputs
+            a warning, sets @c ret to NULL and returns false (success).
+*/
+bool resolve_engine(THD *thd,
+                    const LEX_STRING &name,
+                    bool is_temp_table,
+                    bool strict,
+                    handlerton **ret)
+{
+  plugin_ref plugin= ha_resolve_by_name(thd, &name, is_temp_table);
+  if (plugin)
+  {
+    *ret= plugin_data<handlerton*>(plugin);
+    return false;
+  }
+
+  if (strict || (thd->variables.sql_mode & MODE_NO_ENGINE_SUBSTITUTION))
+  {
+    my_error(ER_UNKNOWN_STORAGE_ENGINE, MYF(0), name.str);
+    return true;
+  }
+  push_warning_printf(thd, Sql_condition::SL_WARNING,
+                      ER_UNKNOWN_STORAGE_ENGINE,
+                      ER_THD(thd, ER_UNKNOWN_STORAGE_ENGINE),
+                      name.str);
+  *ret= NULL;
+  return false;
+}
+
+
+/**
+  This helper function is responsible for aggregating grants from parser tokens
+  to containers and masks which can be used during semantic analysis.
+ 
+  @param thd The thread handler
+  @param privs A list of parser tokens representing roles or privileges.
+  @return Error state
+    @retval true An error occurred
+    @retval false Success
+*/
+
+bool apply_privileges(THD *thd,
+                      const Trivial_array<class PT_role_or_privilege *> &privs)
+{
+  LEX * const lex= thd->lex;
+
+  for (PT_role_or_privilege *p : privs)
+  {
+    Privilege *privilege= p->get_privilege(thd);
+    if (p == NULL)
+      return true;
+
+    if (privilege->type == Privilege::DYNAMIC)
+    {
+      // We can push a reference to the PT object since it will have the same
+      // life time as our dynamic_privileges list.
+      LEX_CSTRING *grant= static_cast<LEX_CSTRING *>(thd->alloc(sizeof(LEX_CSTRING)));
+      grant->str= static_cast<Dynamic_privilege *>(privilege)->ident.str;
+      grant->length= static_cast<Dynamic_privilege *>(privilege)->ident.length;
+      char *s= static_cast<Dynamic_privilege *>(privilege)->ident.str;
+      char *s_end=
+        s + static_cast<Dynamic_privilege *>(privilege)->ident.length;
+      while (s != s_end)
+      {
+        *s= my_toupper(system_charset_info, *s);
+        ++s;
+      }
+      lex->dynamic_privileges.push_back(grant);
+    }
+    else
+    {
+      auto grant= static_cast<Static_privilege *>(privilege)->grant;
+      auto columns= static_cast<Static_privilege *>(privilege)->columns;
+
+      if (columns == NULL)
+        lex->grant|= grant;
+      else
+      {
+        for (auto &c : *columns)
+        {
+          auto new_str = new (thd->mem_root) String(c.str, c.length,
+                                                    system_charset_info);
+          if (new_str == NULL)
+            return true;
+          List_iterator <LEX_COLUMN> iter(lex->columns);
+          class LEX_COLUMN *point;
+          while ((point=iter++))
+          {
+            if (!my_strcasecmp(system_charset_info,
+                               point->column.ptr(), new_str->ptr()))
+              break;
+          }
+          lex->grant_tot_col|= grant;
+          if (point)
+            point->rights |= grant;
+          else
+          {
+            LEX_COLUMN *col= new LEX_COLUMN (*new_str, grant);
+            if (col == NULL)
+              return true;
+            lex->columns.push_back(col);
+          }
+        }
+      }
+    }
+  } // end for
+  return false;
+}

@@ -1,6 +1,6 @@
 #ifndef SQL_DATA_CHANGE_INCLUDED
 #define SQL_DATA_CHANGE_INCLUDED
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -23,12 +23,16 @@
   sql_{insert, update}.{h,cc} 
 */
 
+#include <stddef.h>
+#include <sys/types.h>
+
 #include "my_base.h"        // ha_rows
 #include "my_bitmap.h"      // MY_BITMAP
+#include "my_dbug.h"
 #include "sql_alloc.h"      // Sql_alloc
 
-struct TABLE;
 class Item;
+struct TABLE;
 template <class T> class List;
 
 enum enum_duplicates { DUP_ERROR, DUP_REPLACE, DUP_UPDATE };
@@ -39,7 +43,7 @@ enum enum_duplicates { DUP_ERROR, DUP_REPLACE, DUP_UPDATE };
 
    -# Insert statements, i.e. INSERT INTO .. VALUES
 
-   -# Update statements. UPDATE <table> SET ...
+   -# Update statements. UPDATE @<table@> SET ...
 
    -# Delete statements. Currently this class is not used for delete statements
       and thus has not yet been adapted to handle it.
@@ -100,7 +104,7 @@ private:
 
   /** Whether this object must manage function defaults */
   const bool m_manage_defaults;
-  /** Bitmap: bit is set if we should set column #i to its function default */
+  /** Bitmap: bit is set if we should set column number i to its function default */
   MY_BITMAP *m_function_default_columns;
 
   /// Policy for handling insertion of duplicate values.
@@ -112,9 +116,9 @@ protected:
      This function will, unless done already, calculate and keep the set of
      function default columns.
 
-     Function default columns are those columns declared DEFAULT <function>
-     and/or ON UPDATE <function>. These will store the return value of
-     <function> when the relevant operation is applied on the table.
+     Function default columns are those columns declared DEFAULT @<function@>
+     and/or ON UPDATE @<function@>. These will store the return value of
+     @<function@> when the relevant operation is applied on the table.
 
      Calling this function, without error, is a prerequisite for calling
      COPY_INFO::set_function_defaults().
@@ -191,7 +195,6 @@ public:
      @param inserted_columns2 A second list like inserted_columns
      @param manage_defaults   Whether this object should manage function
                               defaults.
-     @param ignore_duplicates   Whether duplicate rows are ignored.
      @param duplicates_handling How to handle duplicates.
      @param escape_character    The escape character.
   */
@@ -219,6 +222,7 @@ public:
      Initializes this data change operation as an SQL @c UPDATE (multi- or
      not).
 
+     @param optype  The data change operation type.
      @param fields  The column objects that are to be updated.
      @param values  The values to be assigned to the fields.
      @note that UPDATE always lists columns, so non-listed columns may need a
@@ -290,7 +294,7 @@ public:
      @note COPY_INFO::add_function_default_columns() must be called prior to
      invoking this function.
   */
-  bool function_defaults_apply(const TABLE *table) const
+  bool function_defaults_apply(const TABLE*) const
   {
     DBUG_ASSERT(m_function_default_columns != NULL);
     return !bitmap_is_clear_all(m_function_default_columns);

@@ -74,8 +74,8 @@ SET SESSION block_encryption_mode=DEFAULT;
 --echo #### 128, 192 and 256 bit $block_mode
 
 
-eval CREATE TABLE aes_$block_mode(a VARCHAR(128), b128 VARCHAR(144),
-  b192 VARCHAR(144), b256 CHAR(144));
+eval CREATE TABLE aes_$block_mode(a VARBINARY(128), b128 VARBINARY(144),
+  b192 VARBINARY(144), b256 BINARY(144));
 eval INSERT INTO aes_$block_mode (a) VALUES (REPEAT('a', 128));
 eval INSERT INTO aes_$block_mode (a) VALUES (REPEAT(0x00313233, 32));
 

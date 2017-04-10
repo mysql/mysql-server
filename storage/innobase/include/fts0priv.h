@@ -102,9 +102,9 @@ minus this count gives us the total number of documents. */
 /** The minimum length of an FTS auxiliary table names's id component
 e.g., For an auxiliary table name
 
-	FTS_<TABLE_ID>_SUFFIX
+	"FTS_@<TABLE_ID@>_SUFFIX"
 
-This constant is for the minimum length required to store the <TABLE_ID>
+This constant is for the minimum length required to store the @<TABLE_ID@>
 component.
 */
 #define FTS_AUX_MIN_TABLE_ID_LENGTH	48
@@ -172,7 +172,6 @@ we want to get Doc whose ID is equal to or greater or smaller than supplied
 ID */
 #define	FTS_FETCH_DOC_BY_ID_EQUAL	1
 #define	FTS_FETCH_DOC_BY_ID_LARGE	2
-#define	FTS_FETCH_DOC_BY_ID_SMALL	3
 
 /*************************************************************//**
 Fetch document (= a single row's indexed text) with the given
@@ -232,30 +231,6 @@ fts_check_token(
 	bool			is_ngram,
 	const CHARSET_INFO*	cs);
 
-/*******************************************************************//**
-Tokenize a document. */
-void
-fts_tokenize_document(
-/*==================*/
-	fts_doc_t*	doc,		/*!< in/out: document to
-					tokenize */
-	fts_doc_t*	result,		/*!< out: if provided, save
-					result tokens here */
-	st_mysql_ftparser*	parser);/* in: plugin fts parser */
-
-/*******************************************************************//**
-Continue to tokenize a document. */
-void
-fts_tokenize_document_next(
-/*=======================*/
-	fts_doc_t*	doc,		/*!< in/out: document to
-					tokenize */
-	ulint		add_pos,	/*!< in: add this position to all
-					tokens from this tokenization */
-	fts_doc_t*	result,		/*!< out: if provided, save
-					result tokens here */
-	st_mysql_ftparser*	parser);/* in: plugin fts parser */
-
 /******************************************************************//**
 Initialize a document. */
 void
@@ -302,36 +277,26 @@ fts_index_fetch_nodes(
 			word,		/*!< in: the word to fetch */
 	fts_fetch_t*	fetch);		/*!< in: fetch callback.*/
 
-/******************************************************************//**
-Create a fts_optimizer_word_t instance.
-@return new instance */
-fts_word_t*
-fts_word_init(
-/*==========*/
-	fts_word_t*	word,		/*!< in: word to initialize */
-	byte*		utf8,		/*!< in: UTF-8 string */
-	ulint		len);		/*!< in: length of string in bytes */
-
-/******************************************************************//**
-Compare two fts_trx_table_t instances, we actually compare the
+/** Compare two fts_trx_table_t instances, we actually compare the
 table id's here.
+@param[in]	v1	id1
+@param[in]	v2	id2
 @return < 0 if n1 < n2, 0 if n1 == n2, > 0 if n1 > n2 */
 UNIV_INLINE
 int
 fts_trx_table_cmp(
-/*==============*/
-	const void*	v1,		/*!< in: id1 */
-	const void*	v2);		/*!< in: id2 */
+	const void*	v1,
+	const void*	v2);
 
-/******************************************************************//**
-Compare a table id with a trx_table_t table id.
+/** Compare a table id with a trx_table_t table id.
+@param[in]	p1	id1
+@param[in]	p2	id2
 @return < 0 if n1 < n2, 0 if n1 == n2, > 0 if n1 > n2 */
 UNIV_INLINE
 int
 fts_trx_table_id_cmp(
-/*=================*/
-	const void*	p1,		/*!< in: id1 */
-	const void*	p2);		/*!< in: id2 */
+	const void*	p1,
+	const void*	p2);
 
 /******************************************************************//**
 Commit a transaction.
@@ -429,31 +394,7 @@ fts_config_set_index_value(
 					config table */
 	MY_ATTRIBUTE((warn_unused_result));
 
-/******************************************************************//**
-Increment the value in the config table for column name.
-@return DB_SUCCESS or error code */
-dberr_t
-fts_config_increment_value(
-/*=======================*/
-	trx_t*		trx,		/*!< transaction */
-	fts_table_t*	fts_table,	/*!< in: the indexed FTS table */
-	const char*	name,		/*!< in: increment config value
-					for this parameter name */
-	ulint		delta)		/*!< in: increment by this much */
-	MY_ATTRIBUTE((warn_unused_result));
-
-/******************************************************************//**
-Increment the per index value in the config table for column name.
-@return DB_SUCCESS or error code */
-dberr_t
-fts_config_increment_index_value(
-/*=============================*/
-	trx_t*		trx,		/*!< transaction */
-	dict_index_t*	index,		/*!< in: FTS index */
-	const char*	name,		/*!< in: increment config value
-					for this parameter name */
-	ulint		delta);		/*!< in: increment by this much */
-
+#ifdef FTS_OPTIMIZE_DEBUG
 /******************************************************************//**
 Get an ulint value from the config table.
 @return DB_SUCCESS or error code */
@@ -477,6 +418,7 @@ fts_config_set_index_ulint(
 	const char*	name,		/*!< in: param name */
 	ulint		int_value)	/*!< in: value */
 	MY_ATTRIBUTE((warn_unused_result));
+#endif /* FTS_OPTIMIZE_DEBUG */
 
 /******************************************************************//**
 Get an ulint value from the config table.
@@ -502,17 +444,6 @@ fts_cache_find_word(
 	MY_ATTRIBUTE((warn_unused_result));
 
 /******************************************************************//**
-Check cache for deleted doc id.
-@return TRUE if deleted */
-ibool
-fts_cache_is_deleted_doc_id(
-/*========================*/
-	const fts_cache_t*
-			cache,		/*!< in: cache ito search */
-	doc_id_t	doc_id)		/*!< in: doc id to search for */
-	MY_ATTRIBUTE((warn_unused_result));
-
-/******************************************************************//**
 Append deleted doc ids to vector and sort the vector. */
 void
 fts_cache_append_deleted_doc_ids(
@@ -533,18 +464,6 @@ fts_wait_for_background_thread_to_start(
 	ulint		max_wait);	/*!< in: time in microseconds, if set
 					to 0 then it disables timeout
 					checking */
-#ifdef FTS_DOC_STATS_DEBUG
-/******************************************************************//**
-Get the total number of words in the FTS for a particular FTS index.
-@return DB_SUCCESS or error code */
-dberr_t
-fts_get_total_word_count(
-/*=====================*/
-	trx_t*		trx,		/*!< in: transaction */
-	dict_index_t*	index,		/*!< in: for this index */
-	ulint*		total)		/*!< out: total words */
-	MY_ATTRIBUTE((warn_unused_result));
-#endif
 /******************************************************************//**
 Search the index specific cache for a particular FTS index.
 @return the index specific cache else NULL */
@@ -557,19 +476,19 @@ fts_find_index_cache(
 			index)		/*!< in: index to search for */
 	MY_ATTRIBUTE((warn_unused_result));
 
-/******************************************************************//**
-Write the table id to the given buffer (including final NUL). Buffer must be
-at least FTS_AUX_MIN_TABLE_ID_LENGTH bytes long.
+/** Write the table id to the given buffer (including final NUL). Buffer must
+be at least FTS_AUX_MIN_TABLE_ID_LENGTH bytes long.
+@param[in]	id		a table/index id
+@param[in]	str		buffer to write the id to
+@param[in]	hex_format	true for fixed hex format, false for old
+				ambiguous format
 @return number of bytes written */
 UNIV_INLINE
 int
 fts_write_object_id(
-/*================*/
-	ib_id_t		id,		/*!< in: a table/index id */
-	char*		str,		/*!< in: buffer to write the id to */
+	ib_id_t		id,
+	char*		str,
 	bool		hex_format MY_ATTRIBUTE((unused)));
-					/*!< in: true for fixed hex format,
-					false for old ambiguous format */
 
 /******************************************************************//**
 Read the table id from the string generated by fts_write_object_id().
@@ -603,13 +522,6 @@ fts_optimize_add_table(
 	dict_table_t*	table);		/*!< in: table to add */
 
 /******************************************************************//**
-Optimize a table. */
-void
-fts_optimize_do_table(
-/*==================*/
-	dict_table_t*	table);		/*!< in: table to optimize */
-
-/******************************************************************//**
 Construct the prefix name of an FTS table.
 @return own: table name, must be freed with ut_free() */
 char*
@@ -639,8 +551,6 @@ fts_config_create_index_param_name(
 	const dict_index_t*	index)	/*!< in: index for config */
 	MY_ATTRIBUTE((warn_unused_result));
 
-#ifndef UNIV_NONINL
 #include "fts0priv.ic"
-#endif
 
 #endif /* INNOBASE_FTS0PRIV_H */

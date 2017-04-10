@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,10 +14,10 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-// First include (the generated) my_config.h, to get correct platform defines.
-#include "my_config.h"
-#include "opt_costmodel.h"
+#include "handler.h"
+#include "my_dbug.h"
 #include "opt_costconstantcache.h"              // Cost_constant_cache
+#include "opt_costmodel.h"
 #include "table.h"                              // TABLE
 
 extern Cost_constant_cache *cost_constant_cache;// defined in
@@ -36,7 +36,7 @@ Cost_model_server::~Cost_model_server()
 
 void Cost_model_server::init()
 {
-  if (m_server_cost_constants == NULL)
+  if (cost_constant_cache && m_server_cost_constants == NULL)
   {
     // Get the current set of cost constants
     m_cost_constants= cost_constant_cache->get_cost_constants();

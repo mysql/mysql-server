@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,9 +13,11 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include <errno.h>
+#include <time.h>
 #include <vector>
 
-#include "gcs_log_system.h"
+#include "mysql/gcs/gcs_log_system.h"
 
 Ext_logger_interface *Gcs_logger::log= NULL;
 
@@ -239,7 +241,7 @@ void Gcs_ext_logger_impl::log_event(gcs_log_level_t level, const char *message)
   // Get and increment write index
   m_write_index_mutex->lock();
   int current_write_index= m_write_index++;
-  int index= current_write_index & BUF_MASK;
+  unsigned int index= current_write_index & BUF_MASK;
   m_write_index_mutex->unlock();
 
   while(!m_buffer[index].get_logged())
@@ -265,10 +267,10 @@ void Gcs_ext_logger_impl::log_event(gcs_log_level_t level, const char *message)
 void Gcs_ext_logger_impl::consume_events()
 {
   int cycles= 0;
-  int index= 0;
+  unsigned int index= 0;
   int current_max_read_index;
   struct timespec ts;
-  long wait_ms= 500;
+  unsigned long wait_ms= 500;
 
   m_max_read_index_mutex->lock();
   current_max_read_index= m_max_read_index;

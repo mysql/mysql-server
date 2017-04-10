@@ -3,7 +3,6 @@
 # 2010-01-25 - Added
 #
 
---source include/have_innodb.inc
 
 SET @start_global_value = @@global.innodb_old_blocks_pct;
 SELECT @start_global_value;
@@ -19,8 +18,8 @@ select @@session.innodb_old_blocks_pct;
 show global variables like 'innodb_old_blocks_pct';
 show session variables like 'innodb_old_blocks_pct';
 --disable_warnings
-select * from information_schema.global_variables where variable_name='innodb_old_blocks_pct';
-select * from information_schema.session_variables where variable_name='innodb_old_blocks_pct';
+select * from performance_schema.global_variables where variable_name='innodb_old_blocks_pct';
+select * from performance_schema.session_variables where variable_name='innodb_old_blocks_pct';
 --enable_warnings
 
 #
@@ -29,8 +28,8 @@ select * from information_schema.session_variables where variable_name='innodb_o
 set global innodb_old_blocks_pct=10;
 select @@global.innodb_old_blocks_pct;
 --disable_warnings
-select * from information_schema.global_variables where variable_name='innodb_old_blocks_pct';
-select * from information_schema.session_variables where variable_name='innodb_old_blocks_pct';
+select * from performance_schema.global_variables where variable_name='innodb_old_blocks_pct';
+select * from performance_schema.session_variables where variable_name='innodb_old_blocks_pct';
 --enable_warnings
 --error ER_GLOBAL_VARIABLE
 set session innodb_old_blocks_pct=1;
@@ -58,17 +57,17 @@ set global innodb_old_blocks_pct='';
 set global innodb_old_blocks_pct=4;
 select @@global.innodb_old_blocks_pct;
 --disable_warnings
-select * from information_schema.global_variables where variable_name='innodb_old_blocks_pct';
+select * from performance_schema.global_variables where variable_name='innodb_old_blocks_pct';
 --enable_warnings
 set global innodb_old_blocks_pct=-7;
 select @@global.innodb_old_blocks_pct;
 --disable_warnings
-select * from information_schema.global_variables where variable_name='innodb_old_blocks_pct';
+select * from performance_schema.global_variables where variable_name='innodb_old_blocks_pct';
 --enable_warnings
 set global innodb_old_blocks_pct=96;
 select @@global.innodb_old_blocks_pct;
 --disable_warnings
-select * from information_schema.global_variables where variable_name='innodb_old_blocks_pct';
+select * from performance_schema.global_variables where variable_name='innodb_old_blocks_pct';
 --enable_warnings
 
 #

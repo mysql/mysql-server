@@ -7,7 +7,6 @@ SET sql_mode = 'PIPES_AS_CONCAT';
 SHOW VARIABLES LIKE '%query_cache%';
 
 --source suite/query_rewrite_plugins/include/have_plugin_rewriter.inc
---source include/have_query_cache.inc
 
 FLUSH STATUS;
 
@@ -101,8 +100,6 @@ SHOW STATUS LIKE "Qcache_inserts";
 SHOW STATUS LIKE "Qcache_hits";
 
 DROP TABLE t1, t2;
-
-SET GLOBAL query_cache_size = DEFAULT;
 
 --source suite/query_rewrite_plugins/include/reload.inc
 

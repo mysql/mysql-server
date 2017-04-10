@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -16,7 +16,8 @@
 #ifndef PFS_COLUMN_VALUES_H
 #define PFS_COLUMN_VALUES_H
 
-#include "m_string.h"                           /* LEX_STRING */
+#include "lex_string.h"
+#include "m_string.h" /* LEX_STRING */
 
 /**
   @file storage/perfschema/pfs_column_values.h
@@ -35,20 +36,31 @@ extern LEX_STRING rwlock_instrument_prefix;
 extern LEX_STRING sxlock_instrument_prefix;
 /** String prefix for all cond instruments. */
 extern LEX_STRING cond_instrument_prefix;
-/** String prefix for all thread instruments. */
-extern LEX_STRING thread_instrument_prefix;
 /** String prefix for all file instruments. */
 extern LEX_STRING file_instrument_prefix;
+/** Name of the global table I/O class. */
+extern LEX_STRING table_io_class_name;
+/** Name of the global table lock class. */
+extern LEX_STRING table_lock_class_name;
+/** String prefix for all socket instruments. */
+extern LEX_STRING socket_instrument_prefix;
+/** Name of the global idle class. */
+extern LEX_STRING idle_class_name;
+/** Name of the global metadata lock class. */
+extern LEX_STRING metadata_lock_class_name;
+/** String prefix for all thread instruments. */
+extern LEX_STRING thread_instrument_prefix;
 /** String prefix for all stage instruments. */
 extern LEX_STRING stage_instrument_prefix;
 /** String prefix for all statement instruments. */
 extern LEX_STRING statement_instrument_prefix;
 /** String prefix for all transaction instruments. */
 extern LEX_STRING transaction_instrument_prefix;
-/** String prefix for all socket instruments. */
-extern LEX_STRING socket_instrument_prefix;
+/** String prefix for built-in memory instruments. */
+extern LEX_STRING builtin_memory_instrument_prefix;
 /** String prefix for all memory instruments. */
 extern LEX_STRING memory_instrument_prefix;
+/** Name of the global error class. */
+extern LEX_STRING error_class_name;
 
 #endif
-

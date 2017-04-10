@@ -1,37 +1,82 @@
-/*
-   Copyright (c) 2005, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
 
-   This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+  This program is free software; you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation; version 2 of the License.
 
-   This program is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU General Public License for more details.
 
-   You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
+  You should have received a copy of the GNU General Public License
+  along with this program; if not, write to the Free Software
+  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "events.h"
 
-#include "sql_parse.h"                          // check_access
-#include "sql_base.h"                           // close_mysql_tables
-#include "sql_show.h"                           // append_definer
-#include "sql_db.h"                          // check_db_dir_existence
-#include "sql_table.h"                       // write_bin_log
-#include "tztime.h"                             // struct Time_zone
-#include "auth_common.h"                        // EVENT_ACL
-#include "records.h"          // init_read_record, end_read_record
-#include "event_data_objects.h"
-#include "event_db_repository.h"
-#include "event_queue.h"
-#include "event_scheduler.h"
-#include "sp_head.h" // for Stored_program_creation_ctx
-#include "lock.h"   // lock_object_name
-#include "log.h"
+#include <stdio.h>
+#include <string.h>
+#include <new>
+#include <string>
+#include <utility>
+#include <vector>
+
+#include "auth_acls.h"
+#include "auth_common.h"           // EVENT_ACL
+#include "dd/cache/dictionary_client.h"
+#include "dd/dd_event.h"
+#include "dd/dd_schema.h"               // dd::Schema_MDL_locker
+#include "dd/string_type.h"
+#include "dd/types/event.h"
+#include "dd/types/schema.h"
+#include "event_data_objects.h"    // Event_queue_element
+#include "event_db_repository.h"   // Event_db_repository
+#include "event_parse_data.h"      // Event_parse_data
+#include "event_queue.h"           // Event_queue
+#include "event_scheduler.h"       // Event_scheduler
+#include "item.h"
+#include "item_create.h"
+#include "lex_string.h"
+#include "lock.h"                  // lock_object_name
+#include "log.h"                   // sql_print_error
+#include "m_ctype.h"               // CHARSET_INFO
+#include "m_string.h"
+#include "mdl.h"
+#include "my_dbug.h"
+#include "my_sqlcommand.h"
+#include "my_sys.h"
+#include "mysql/psi/mysql_cond.h"
+#include "mysql/psi/mysql_memory.h"
+#include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/mysql_sp.h"
+#include "mysql/psi/mysql_stage.h"
+#include "mysql/psi/mysql_thread.h"
+#include "mysql/psi/psi_cond.h"
+#include "mysql/psi/psi_mutex.h"
+#include "mysql/psi/psi_thread.h"
+#include "mysql_com.h"
+#include "mysqld.h"                // LOCK_global_system_variables
+#include "mysqld_error.h"          // ER_*
+#include "protocol.h"
+#include "set_var.h"
+#include "sp_head.h"               // Stored_program_creation_ctx
+#include "sql_admin.h"
+#include "sql_class.h"             // THD
+#include "sql_const.h"
+#include "sql_lex.h"
+#include "sql_list.h"
+#include "sql_plugin.h"
+#include "sql_show.h"              // append_definer
+#include "sql_string.h"            // String
+#include "sql_table.h"             // write_bin_log
+#include "system_variables.h"
+#include "table.h"
+#include "template_utils.h"
+#include "thr_malloc.h"
+#include "transaction.h"
+#include "tztime.h"                // Time_zone
+
 
 /**
   @addtogroup Event_Scheduler
@@ -79,8 +124,8 @@ Event_queue *Events::event_queue;
 Event_scheduler *Events::scheduler;
 Event_db_repository *Events::db_repository;
 ulong Events::opt_event_scheduler= Events::EVENTS_OFF;
-bool Events::check_system_tables_error= FALSE;
 
+static bool load_events_from_db(THD *thd, Event_queue *event_queue);
 
 /*
   Compares 2 LEX strings regarding case.
@@ -100,30 +145,19 @@ bool Events::check_system_tables_error= FALSE;
 int sortcmp_lex_string(LEX_STRING s, LEX_STRING t, CHARSET_INFO *cs)
 {
  return cs->coll->strnncollsp(cs, (uchar *) s.str,s.length,
-                                  (uchar *) t.str,t.length, 0);
+                                  (uchar *) t.str,t.length);
 }
 
 
-/**
-  Push an error into the error stack if the system tables are
-  not up to date.
-*/
-
-bool Events::check_if_system_tables_error()
+void convert_name_lowercase(const char *from, char *to, size_t len)
 {
-  DBUG_ENTER("Events::check_if_system_tables_error");
-
-  if (check_system_tables_error)
-  {
-    my_error(ER_EVENTS_DB_ERROR, MYF(0));
-    DBUG_RETURN(TRUE);
-  }
-
-  DBUG_RETURN(FALSE);
+  my_stpncpy(to, from, len - 1);
+  my_casedn_str(&my_charset_utf8_tolower_ci, to);
+  to[len - 1]= '\0';
 }
 
 
-/**
+/*
   Reconstructs interval expression from interval type and expression
   value that is in form of a value of the smalles entity:
   For
@@ -147,7 +181,7 @@ Events::reconstruct_interval_expression(String *buf, interval_type interval,
 {
   ulonglong expr= expression;
   char tmp_buff[128], *end;
-  bool close_quote= TRUE;
+  bool close_quote= true;
   int multipl= 0;
   char separator=':';
 
@@ -237,12 +271,14 @@ common_1_lev_code:
     break;
   case INTERVAL_QUARTER:
     expr/= 3;
-    close_quote= FALSE;
+    close_quote= false;
     break;
   case INTERVAL_WEEK:
     expr/= 7;
+    close_quote= false;
+    break;
   default:
-    close_quote= FALSE;
+    close_quote= false;
     break;
   }
   if (close_quote)
@@ -298,8 +334,8 @@ create_query_string(THD *thd, String *buf)
   @sa Events::drop_event for the notes about locking, pre-locking
   and Events DDL.
 
-  @retval  FALSE  OK
-  @retval  TRUE   Error (reported)
+  @retval  false  OK
+  @retval  true   Error (reported)
 */
 
 bool
@@ -307,12 +343,12 @@ Events::create_event(THD *thd, Event_parse_data *parse_data,
                      bool if_not_exists)
 {
   bool ret;
-  bool save_binlog_row_based, event_already_exists;
-  ulong save_binlog_format= thd->variables.binlog_format;
+  bool event_already_exists;
   DBUG_ENTER("Events::create_event");
 
-  if (check_if_system_tables_error())
-    DBUG_RETURN(TRUE);
+  DBUG_EXECUTE_IF("thd_killed_injection",
+                   thd->killed= THD::KILL_QUERY;
+                   DBUG_RETURN(false););
 
   /*
     Perform semantic checks outside of Event_db_repository:
@@ -320,33 +356,28 @@ Events::create_event(THD *thd, Event_parse_data *parse_data,
     checks will be moved to PREPARE phase.
   */
   if (parse_data->check_parse_data(thd))
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
 
   /* At create, one of them must be set */
   DBUG_ASSERT(parse_data->expression || parse_data->execute_at);
 
   if (check_access(thd, EVENT_ACL, parse_data->dbname.str, NULL, NULL, 0, 0))
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
 
-  if (lock_object_name(thd, MDL_key::EVENT,
-                       parse_data->dbname.str, parse_data->name.str))
-    DBUG_RETURN(TRUE);
-
-  if (check_db_dir_existence(parse_data->dbname.str))
-  {
-    my_error(ER_BAD_DB_ERROR, MYF(0), parse_data->dbname.str);
-    DBUG_RETURN(TRUE);
-  }
+  // Acquire exclusive MDL lock.
+  if (lock_object_name(thd, MDL_key::EVENT, parse_data->dbname.str,
+                       parse_data->name.str))
+    DBUG_RETURN(true);
 
   if (parse_data->do_not_create)
-    DBUG_RETURN(FALSE);
-  /* 
-    Turn off row binlogging of this statement and use statement-based 
+    DBUG_RETURN(false);
+  /*
+    Turn off row binlogging of this statement and use statement-based
     so that all supporting tables are updated for CREATE EVENT command.
+    When we are going out of the function scope, the original binary
+    format state will be restored.
   */
-  if ((save_binlog_row_based= thd->is_current_stmt_binlog_format_row()))
-    thd->clear_current_stmt_binlog_format_row();
-  thd->variables.binlog_format= BINLOG_FORMAT_STMT;
+  Save_and_Restore_binlog_format_state binlog_format_state(thd);
 
   /* On error conditions my_error() is called so no need to handle here */
   if (!(ret= db_repository->create_event(thd, parse_data, if_not_exists,
@@ -358,13 +389,13 @@ Events::create_event(THD *thd, Event_parse_data *parse_data,
     if (opt_event_scheduler != Events::EVENTS_DISABLED && !event_already_exists)
     {
       if (!(new_element= new Event_queue_element()))
-        ret= TRUE;                                // OOM
+        ret= true;                                // OOM
       else if ((ret= db_repository->load_named_event(thd, parse_data->dbname,
                                                      parse_data->name,
                                                      new_element)))
       {
         if (!db_repository->drop_event(thd, parse_data->dbname, parse_data->name,
-                                       TRUE))
+                                       true))
           dropped= 1;
         delete new_element;
       }
@@ -397,16 +428,10 @@ Events::create_event(THD *thd, Event_parse_data *parse_data,
           If the definer is not set or set to CURRENT_USER, the value of CURRENT_USER
           will be written into the binary log as the definer for the SQL thread.
         */
-        ret= write_bin_log(thd, TRUE, log_query.c_ptr(), log_query.length());
+        ret= write_bin_log(thd, true, log_query.c_ptr(), log_query.length());
       }
     }
   }
-  /* Restore the state of binlog format */
-  DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
-  if (save_binlog_row_based)
-    thd->set_current_stmt_binlog_format_row();
-  thd->variables.binlog_format= save_binlog_format;
-
   DBUG_RETURN(ret);
 }
 
@@ -426,8 +451,8 @@ Events::create_event(THD *thd, Event_parse_data *parse_data,
   this means that RENAME TO was specified in the query
   @sa Events::drop_event for the locking notes.
 
-  @retval  FALSE  OK
-  @retval  TRUE   error (reported)
+  @retval  false  OK
+  @retval  true   error (reported)
 */
 
 bool
@@ -435,30 +460,19 @@ Events::update_event(THD *thd, Event_parse_data *parse_data,
                      LEX_STRING *new_dbname, LEX_STRING *new_name)
 {
   int ret;
-  bool save_binlog_row_based;
-  ulong save_binlog_format= thd->variables.binlog_format;
   Event_queue_element *new_element;
 
   DBUG_ENTER("Events::update_event");
 
-  if (check_if_system_tables_error())
-    DBUG_RETURN(TRUE);
-
   if (parse_data->check_parse_data(thd) || parse_data->do_not_create)
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
 
   if (check_access(thd, EVENT_ACL, parse_data->dbname.str, NULL, NULL, 0, 0))
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
 
-  if (lock_object_name(thd, MDL_key::EVENT,
-                       parse_data->dbname.str, parse_data->name.str))
-    DBUG_RETURN(TRUE);
-
-  if (check_db_dir_existence(parse_data->dbname.str))
-  {
-    my_error(ER_BAD_DB_ERROR, MYF(0), parse_data->dbname.str);
-    DBUG_RETURN(TRUE);
-  }
+  if (lock_object_name(thd, MDL_key::EVENT, parse_data->dbname.str,
+                       parse_data->name.str))
+    DBUG_RETURN(true);
 
   if (new_dbname != NULL)                               /* It's a rename */
   {
@@ -469,7 +483,7 @@ Events::update_event(THD *thd, Event_parse_data *parse_data,
                              system_charset_info))
     {
       my_error(ER_EVENT_SAME_NAME, MYF(0));
-      DBUG_RETURN(TRUE);
+      DBUG_RETURN(true);
     }
 
     /*
@@ -479,30 +493,20 @@ Events::update_event(THD *thd, Event_parse_data *parse_data,
       access it.
     */
     if (check_access(thd, EVENT_ACL, new_dbname->str, NULL, NULL, 0, 0))
-      DBUG_RETURN(TRUE);
+      DBUG_RETURN(true);
 
-    /*
-      Acquire mdl exclusive lock on target database name.
-    */
-    if (lock_object_name(thd, MDL_key::EVENT,
-                         new_dbname->str, new_name->str))
-      DBUG_RETURN(TRUE);
-
-    /* Check that the target database exists */
-    if (check_db_dir_existence(new_dbname->str))
-    {
-      my_error(ER_BAD_DB_ERROR, MYF(0), new_dbname->str);
-      DBUG_RETURN(TRUE);
-    }
+    //  Acquire mdl exclusive lock on target database name.
+    if (lock_object_name(thd, MDL_key::EVENT, new_dbname->str, new_name->str))
+      DBUG_RETURN(true);
   }
 
-  /* 
-    Turn off row binlogging of this statement and use statement-based 
-    so that all supporting tables are updated for UPDATE EVENT command.
+  /*
+    Turn off row binlogging of this statement and use statement-based
+    so that all supporting tables are updated for CREATE EVENT command.
+    When we are going out of the function scope, the original binary
+    format state will be restored.
   */
-  if ((save_binlog_row_based= thd->is_current_stmt_binlog_format_row()))
-    thd->clear_current_stmt_binlog_format_row();
-  thd->variables.binlog_format= BINLOG_FORMAT_STMT;
+  Save_and_Restore_binlog_format_state binlog_format_state(thd);
 
   /* On error conditions my_error() is called so no need to handle here */
   if (!(ret= db_repository->update_event(thd, parse_data,
@@ -514,7 +518,7 @@ Events::update_event(THD *thd, Event_parse_data *parse_data,
     if (opt_event_scheduler != Events::EVENTS_DISABLED)
     {
       if (!(new_element= new Event_queue_element()))
-        ret= TRUE;                                // OOM
+        ret= true;                                // OOM
       else if ((ret= db_repository->load_named_event(thd, dbname, name,
                                                    new_element)))
         delete new_element;
@@ -540,12 +544,6 @@ Events::update_event(THD *thd, Event_parse_data *parse_data,
       }
     }
   }
-  /* Restore the state of binlog format */
-  DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
-  if (save_binlog_row_based)
-    thd->set_current_stmt_binlog_format_row();
-  thd->variables.binlog_format= save_binlog_format;
-
   DBUG_RETURN(ret);
 }
 
@@ -570,8 +568,8 @@ Events::update_event(THD *thd, Event_parse_data *parse_data,
   and COMMIT/ROLLBACK is not allowed in stored functions and
   triggers.
 
-  @retval  FALSE  OK
-  @retval  TRUE   Error (reported)
+  @retval  false  OK
+  @retval  true   Error (reported)
 */
 
 bool
@@ -580,15 +578,13 @@ Events::drop_event(THD *thd, LEX_STRING dbname, LEX_STRING name, bool if_exists)
   int ret;
   DBUG_ENTER("Events::drop_event");
 
-  if (check_if_system_tables_error())
-    DBUG_RETURN(TRUE);
-
   if (check_access(thd, EVENT_ACL, dbname.str, NULL, NULL, 0, 0))
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
 
-  if (lock_object_name(thd, MDL_key::EVENT,
-                       dbname.str, name.str))
-    DBUG_RETURN(TRUE);
+  // Acquire exclusive MDL lock.
+  if (lock_object_name(thd, MDL_key::EVENT, dbname.str, name.str))
+    DBUG_RETURN(true);
+
   /* On error conditions my_error() is called so no need to handle here */
   if (!(ret= db_repository->drop_event(thd, dbname, name, if_exists)))
   {
@@ -598,14 +594,50 @@ Events::drop_event(THD *thd, LEX_STRING dbname, LEX_STRING name, bool if_exists)
     DBUG_ASSERT(thd->query().str && thd->query().length);
 
     thd->add_to_binlog_accessed_dbs(dbname.str);
-    ret= write_bin_log(thd, TRUE, thd->query().str, thd->query().length);
+    ret= write_bin_log(thd, true, thd->query().str, thd->query().length);
 #ifdef HAVE_PSI_SP_INTERFACE
     /* Drop statistics for this stored program from performance schema. */
-    MYSQL_DROP_SP(SP_TYPE_EVENT,
+    MYSQL_DROP_SP(to_uint(enum_sp_type::EVENT),
                   dbname.str, dbname.length, name.str, name.length);
-#endif 
+#endif
   }
   DBUG_RETURN(ret);
+}
+
+
+/**
+  Take exclusive metadata lock on all events in a schema.
+
+  @param   thd     Thread handle.
+  @param   schema  Schema object.
+*/
+
+bool Events::lock_schema_events(THD *thd, const dd::Schema &schema)
+{
+  DBUG_ENTER("Events::lock_schema_events");
+
+  std::vector<dd::String_type> event_names;
+  if (thd->dd_client()->fetch_schema_component_names<dd::Event>(&schema, &event_names))
+    DBUG_RETURN(true);
+
+  MDL_request_list mdl_requests;
+  for (std::vector<dd::String_type>::const_iterator name= event_names.begin();
+       name != event_names.end(); ++name)
+  {
+    // Event names are case insensitive, so convert to lower case.
+    char lc_event_name[NAME_LEN + 1];
+    convert_name_lowercase(name->c_str(), lc_event_name, sizeof(lc_event_name));
+
+    // Add MDL_request for routine to mdl_requests list.
+    MDL_request *mdl_request= new (thd->mem_root) MDL_request;
+    MDL_REQUEST_INIT(mdl_request, MDL_key::EVENT, schema.name().c_str(),
+                     lc_event_name, MDL_EXCLUSIVE, MDL_TRANSACTION);
+    mdl_requests.push_front(mdl_request);
+  }
+
+  DBUG_RETURN(thd->mdl_context.acquire_locks(&mdl_requests,
+                                             thd->variables.lock_wait_timeout));
+
 }
 
 
@@ -616,35 +648,34 @@ Events::drop_event(THD *thd, LEX_STRING dbname, LEX_STRING name, bool if_exists)
   scheduler is disabled. This is to not produce any warnings
   in case of DROP DATABASE and a disabled scheduler.
 
-  @param[in,out]  thd  Thread
-  @param[in]      db   ASCIIZ schema name
-*/
+  @param[in]      thd     THD handle.
+  @param[in]      schema  Schema object.
 
-void
-Events::drop_schema_events(THD *thd, const char *db)
+  @returns true   drop events from database failed.
+  @returns false  drop events from database succeeded.
+*/
+bool
+Events::drop_schema_events(THD *thd, const dd::Schema &schema)
 {
-  LEX_STRING db_lex= { const_cast<char*>(db), strlen(db) };
+  LEX_STRING db_lex= { const_cast<char*>(schema.name().c_str()),
+                       schema.name().length() };
 
   DBUG_ENTER("Events::drop_schema_events");
-  DBUG_PRINT("enter", ("dropping events from %s", db));
 
-  /*
-    Sic: no check if the scheduler is disabled or system tables
-    are damaged, as intended.
-  */
   if (event_queue)
-    event_queue->drop_schema_events(thd, db_lex);
-  db_repository->drop_schema_events(thd, db_lex);
+    event_queue->drop_schema_events(db_lex);
 
-  DBUG_VOID_RETURN;
+  DBUG_RETURN(db_repository->drop_schema_events(thd, schema));
 }
 
 
 /**
-  A helper function to generate SHOW CREATE EVENT output from
-  a named event
-*/
+  A helper function to generate SHOW CREATE EVENT output from a named event.
 
+  @param[in]    thd      THD handle.
+  @param[in]    et       Pointer to Event_timed object.
+  @param[in]    protocol Pointer to Protocol object.
+*/
 static bool
 send_show_create_event(THD *thd, Event_timed *et, Protocol *protocol)
 {
@@ -655,19 +686,19 @@ send_show_create_event(THD *thd, Event_timed *et, Protocol *protocol)
   const String *tz_name;
 
   DBUG_ENTER("send_show_create_event");
-
   show_str.length(0);
+
   if (et->get_create_event(thd, &show_str))
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
 
   field_list.push_back(new Item_empty_string("Event", NAME_CHAR_LEN));
 
-  if (sql_mode_string_representation(thd, et->sql_mode, &sql_mode))
-    DBUG_RETURN(TRUE);
+  if (sql_mode_string_representation(thd, et->m_sql_mode, &sql_mode))
+    DBUG_RETURN(true);
 
   field_list.push_back(new Item_empty_string("sql_mode", (uint) sql_mode.length));
 
-  tz_name= et->time_zone->get_name();
+  tz_name= et->m_time_zone->get_name();
 
   field_list.push_back(new Item_empty_string("time_zone",
                                              tz_name->length()));
@@ -686,31 +717,31 @@ send_show_create_event(THD *thd, Event_timed *et, Protocol *protocol)
 
   if (thd->send_result_metadata(&field_list,
                                 Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
 
   protocol->start_row();
 
-  protocol->store(et->name.str, et->name.length, system_charset_info);
+  protocol->store(et->m_event_name.str, et->m_event_name.length, system_charset_info);
   protocol->store(sql_mode.str, sql_mode.length, system_charset_info);
   protocol->store(tz_name->ptr(), tz_name->length(), system_charset_info);
   protocol->store(show_str.c_ptr(), show_str.length(),
-                  et->creation_ctx->get_client_cs());
-  protocol->store(et->creation_ctx->get_client_cs()->csname,
-                  strlen(et->creation_ctx->get_client_cs()->csname),
+                  et->m_creation_ctx->get_client_cs());
+  protocol->store(et->m_creation_ctx->get_client_cs()->csname,
+                  strlen(et->m_creation_ctx->get_client_cs()->csname),
                   system_charset_info);
-  protocol->store(et->creation_ctx->get_connection_cl()->name,
-                  strlen(et->creation_ctx->get_connection_cl()->name),
+  protocol->store(et->m_creation_ctx->get_connection_cl()->name,
+                  strlen(et->m_creation_ctx->get_connection_cl()->name),
                   system_charset_info);
-  protocol->store(et->creation_ctx->get_db_cl()->name,
-                  strlen(et->creation_ctx->get_db_cl()->name),
+  protocol->store(et->m_creation_ctx->get_db_cl()->name,
+                  strlen(et->m_creation_ctx->get_db_cl()->name),
                   system_charset_info);
 
   if (protocol->end_row())
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
 
   my_eof(thd);
 
-  DBUG_RETURN(FALSE);
+  DBUG_RETURN(false);
 }
 
 
@@ -720,8 +751,8 @@ send_show_create_event(THD *thd, Event_timed *et, Protocol *protocol)
       thd   Thread context
       spn   The name of the event (db, name)
 
-  @retval  FALSE  OK
-  @retval  TRUE   error (reported)
+  @retval  false  OK
+  @retval  true   error (reported)
 */
 
 bool
@@ -733,11 +764,28 @@ Events::show_create_event(THD *thd, LEX_STRING dbname, LEX_STRING name)
   DBUG_ENTER("Events::show_create_event");
   DBUG_PRINT("enter", ("name: %s@%s", dbname.str, name.str));
 
-  if (check_if_system_tables_error())
-    DBUG_RETURN(TRUE);
-
   if (check_access(thd, EVENT_ACL, dbname.str, NULL, NULL, 0, 0))
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
+
+  // We must make sure the schema is released and unlocked in the right
+  // order. Fail if we are unable to get a meta data lock on the schema
+  // name.
+  dd::Schema_MDL_locker mdl_handler(thd);
+  if (mdl_handler.ensure_locked(dbname.str))
+    DBUG_RETURN(true);
+
+  // convert event name to lower case before acquiring MDL lock.
+  char event_name_buf[NAME_LEN + 1];
+  convert_name_lowercase(name.str, event_name_buf, sizeof(event_name_buf));
+
+  // Grab MDL lock on object in shared mode.
+  MDL_request event_mdl_request;
+  MDL_REQUEST_INIT(&event_mdl_request, MDL_key::EVENT,
+                   dbname.str, event_name_buf,
+                   MDL_SHARED_HIGH_PRIO, MDL_TRANSACTION);
+  if (thd->mdl_context.acquire_lock(&event_mdl_request,
+                                    thd->variables.lock_wait_timeout))
+    DBUG_RETURN(true);
 
   /*
     We would like to allow SHOW CREATE EVENT under LOCK TABLES and
@@ -750,71 +798,8 @@ Events::show_create_event(THD *thd, LEX_STRING dbname, LEX_STRING name)
     flag.
   */
   ret= db_repository->load_named_event(thd, dbname, name, &et);
-
   if (!ret)
     ret= send_show_create_event(thd, &et, thd->get_protocol());
-
-  DBUG_RETURN(ret);
-}
-
-
-/**
-  Check access rights and fill INFORMATION_SCHEMA.events table.
-
-  @param[in,out]  thd     Thread context
-  @param[in]      tables  The temporary table to fill.
-
-  In MySQL INFORMATION_SCHEMA tables are temporary tables that are
-  created and filled on demand. In this function, we fill
-  INFORMATION_SCHEMA.events. It is a callback for I_S module, invoked from
-  sql_show.cc
-
-  @return Has to be integer, as such is the requirement of the I_S API
-  @retval  0  success
-  @retval  1  an error, pushed into the error stack
-*/
-
-int
-Events::fill_schema_events(THD *thd, TABLE_LIST *tables, Item * /* cond */)
-{
-  char *db= NULL;
-  int ret;
-  DBUG_ENTER("Events::fill_schema_events");
-
-  if (check_if_system_tables_error())
-    DBUG_RETURN(1);
-
-  /*
-    If it's SHOW EVENTS then thd->lex->select_lex->db is guaranteed not to
-    be NULL. Let's do an assert anyway.
-  */
-  if (thd->lex->sql_command == SQLCOM_SHOW_EVENTS)
-  {
-    db= thd->lex->select_lex->db;
-    DBUG_ASSERT(db != NULL);
-    /*
-      Nobody has EVENT_ACL for I_S and P_S,
-      even with a GRANT ALL to *.*,
-      because these schemas have additional ACL restrictions:
-      see ACL_internal_schema_registry.
-
-      Yet there are no events in I_S and P_S to hide either,
-      so this check voluntarily does not enforce ACL for
-      SHOW EVENTS in I_S or P_S,
-      to return an empty list instead of an access denied error.
-
-      This is more user friendly, in particular for tools.
-
-      EVENT_ACL is not fine grained enough to differentiate:
-      - creating / updating / deleting events
-      - viewing existing events
-    */
-    if (! is_infoschema_db(db) &&
-        ! is_perfschema_db(db) &&
-        check_access(thd, EVENT_ACL, db, NULL, NULL, 0, 0))
-      DBUG_RETURN(1);
-  }
-  ret= db_repository->fill_schema_events(thd, tables, db);
 
   DBUG_RETURN(ret);
 }
@@ -824,31 +809,42 @@ Events::fill_schema_events(THD *thd, TABLE_LIST *tables, Item * /* cond */)
   Initializes the scheduler's structures.
 
   @param  opt_noacl_or_bootstrap
-                     TRUE if there is --skip-grant-tables or --bootstrap
-                     option. In that case we disable the event scheduler.
+                     true if there is --skip-grant-tables or
+                     --initialize. In that case we disable the event
+                     scheduler.
 
   @note   This function is not synchronized.
 
-  @retval  FALSE   Perhaps there was an error, and the event scheduler
+  @retval  false   Perhaps there was an error, and the event scheduler
                    is disabled. But the error is not fatal and the 
                    server start up can continue.
-  @retval  TRUE    Fatal error. Startup must terminate (call unireg_abort()).
+  @retval  true    Fatal error. Startup must terminate (call unireg_abort()).
 */
 
 bool
-Events::init(my_bool opt_noacl_or_bootstrap)
+Events::init(bool opt_noacl_or_bootstrap)
 {
 
   THD *thd;
   int err_no;
-  bool res= FALSE;
+  bool res= false;
 
   DBUG_ENTER("Events::init");
 
-  /* We need a temporary THD during boot */
+  /*
+    We need a temporary THD during boot
+
+    Current time is stored in data member start_time of THD class
+    and initialized by THD::set_time() called by ctor->THD::init()
+    Subsequently, this value is used to check whether event was expired
+    when make loading events from storage. Check for event expiration time
+    is done at Event_queue_element::compute_next_execution_time() where
+    event's status set to Event_parse_data::DISABLED and dropped flag set
+    to true if event was expired.
+  */
   if (!(thd= new THD()))
   {
-    res= TRUE;
+    res= true;
     goto end;
   }
   /*
@@ -859,56 +855,22 @@ Events::init(my_bool opt_noacl_or_bootstrap)
   thd->thread_stack= (char*) &thd;
   thd->store_globals();
   /*
-    Set current time for the thread that handles events.
-    Current time is stored in data member start_time of THD class.
-    Subsequently, this value is used to check whether event was expired
-    when make loading events from storage. Check for event expiration time
-    is done at Event_queue_element::compute_next_execution_time() where
-    event's status set to Event_parse_data::DISABLED and dropped flag set
-    to true if event was expired.
-  */
-  thd->set_time();
-  /*
     We will need Event_db_repository anyway, even if the scheduler is
     disabled - to perform events DDL.
   */
   if (!(db_repository= new Event_db_repository))
   {
-    res= TRUE; /* fatal error: request unireg_abort */
+    res= true; /* fatal error: request unireg_abort */
     goto end;
   }
 
-  /*
-    Since we allow event DDL even if the scheduler is disabled,
-    check the system tables, as we might need them.
-
-    If run with --skip-grant-tables or --bootstrap, don't try to do the
-    check of system tables and don't complain: in these modes the tables
-    are most likely not there and we're going to disable the event
-    scheduler anyway.
-  */
-  if (opt_noacl_or_bootstrap || Event_db_repository::check_system_tables(thd))
+  //  If run with --skip-grant-tables or --initialize, disable the event
+  //  scheduler.
+  if (opt_noacl_or_bootstrap)
   {
-    if (! opt_noacl_or_bootstrap)
-    {
-      sql_print_error("Event Scheduler: An error occurred when initializing "
-                      "system tables. Disabling the Event Scheduler.");
-      check_system_tables_error= TRUE;
-    }
-
-    /* Disable the scheduler since the system tables are not up to date */
     opt_event_scheduler= EVENTS_DISABLED;
     goto end;
   }
-
-  /*
-    Was disabled explicitly from the command line, or because we're running
-    with --skip-grant-tables, or --bootstrap, or because we have no system
-    tables.
-  */
-  if (opt_event_scheduler == Events::EVENTS_DISABLED)
-    goto end;
-
 
   DBUG_ASSERT(opt_event_scheduler == Events::EVENTS_ON ||
               opt_event_scheduler == Events::EVENTS_OFF);
@@ -916,15 +878,15 @@ Events::init(my_bool opt_noacl_or_bootstrap)
   if (!(event_queue= new Event_queue) ||
       !(scheduler= new Event_scheduler(event_queue)))
   {
-    res= TRUE; /* fatal error: request unireg_abort */
+    res= true; /* fatal error: request unireg_abort */
     goto end;
   }
 
-  if (event_queue->init_queue(thd) || load_events_from_db(thd) ||
+  if (event_queue->init_queue() || load_events_from_db(thd, event_queue) ||
       (opt_event_scheduler == EVENTS_ON && scheduler->start(&err_no)))
   {
     sql_print_error("Event Scheduler: Error while loading from disk.");
-    res= TRUE; /* fatal error: request unireg_abort */
+    res= true; /* fatal error: request unireg_abort */
     goto end;
   }
   Event_worker_thread::init(db_repository);
@@ -979,8 +941,8 @@ PSI_mutex_key key_LOCK_event_queue,
 
 static PSI_mutex_info all_events_mutexes[]=
 {
-  { &key_LOCK_event_queue, "LOCK_event_queue", PSI_FLAG_GLOBAL},
-  { &key_event_scheduler_LOCK_scheduler_state, "Event_scheduler::LOCK_scheduler_state", PSI_FLAG_GLOBAL}
+  { &key_LOCK_event_queue, "LOCK_event_queue", PSI_FLAG_GLOBAL, 0},
+  { &key_event_scheduler_LOCK_scheduler_state, "Event_scheduler::LOCK_scheduler_state", PSI_FLAG_GLOBAL, 0}
 };
 
 PSI_cond_key key_event_scheduler_COND_state, key_COND_queue_state;
@@ -1024,24 +986,24 @@ static void init_events_psi_keys(void)
   const char* category= "sql";
   int count;
 
-  count= array_elements(all_events_mutexes);
+  count= static_cast<int>(array_elements(all_events_mutexes));
   mysql_mutex_register(category, all_events_mutexes, count);
 
-  count= array_elements(all_events_conds);
+  count= static_cast<int>(array_elements(all_events_conds));
   mysql_cond_register(category, all_events_conds, count);
 
-  count= array_elements(all_events_threads);
+  count= static_cast<int>(array_elements(all_events_threads));
   mysql_thread_register(category, all_events_threads, count);
 
-  count= array_elements(all_events_stages);
+  count= static_cast<int>(array_elements(all_events_stages));
   mysql_stage_register(category, all_events_stages, count);
 
-  count= array_elements(all_events_memory);
+  count= static_cast<int>(array_elements(all_events_memory));
   mysql_memory_register(category, all_events_memory, count);
 }
 #endif /* HAVE_PSI_INTERFACE */
 
-/**
+/*
   Inits Events mutexes
 
   SYNOPSIS
@@ -1108,126 +1070,119 @@ bool Events::stop()
 }
 
 /**
-  Loads all ENABLED events from mysql.event into a prioritized
-  queue.
+   Loads all ENABLED events into a prioritized queue.
 
-  This function is called during the server start up. It reads
-  every event, computes the next execution time, and if the event
-  needs execution, adds it to a prioritized queue. Otherwise, if
-  ON COMPLETION DROP is specified, the event is automatically
-  removed from the table.
+   This function is called during the server start up. It reads
+   every event, computes the next execution time, and if the event
+   needs execution, adds it to a prioritized queue. Otherwise, if
+   ON COMPLETION DROP is specified, the event is automatically
+   removed from the table.
 
-  @param[in,out] thd Thread context. Used for memory allocation in some cases.
+   @param  thd           THD context. Used for memory allocation in some cases.
+   @param  event_queue   Pointer to Event_queue object.
 
-  @retval  FALSE  success
-  @retval  TRUE   error, the load is aborted
+   @retval  false  success
+   @retval  true   error, the load is aborted
 
-  @note Reports the error to the console
+   @note Reports the error to the console
 */
 
-bool
-Events::load_events_from_db(THD *thd)
+static bool load_events_from_db(THD *thd, Event_queue *event_queue)
 {
-  TABLE *table;
-  READ_RECORD read_record_info;
-  bool ret= TRUE;
-  uint count= 0;
-  ulong saved_master_access;
-
   DBUG_ENTER("Events::load_events_from_db");
-  DBUG_PRINT("enter", ("thd: 0x%lx", (long) thd));
+  DBUG_PRINT("enter", ("thd: %p", thd));
 
-  /*
-    NOTE: even if we run in read-only mode, we should be able to lock the
-    mysql.event table for writing. In order to achieve this, we should call
-    mysql_lock_tables() under the super user.
+  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
 
-    Same goes for transaction access mode.
-    Temporarily reset it to read-write.
-  */
+  // Fetch all Schemas
+  std::vector<const dd::Schema*> schemas;
+  if (thd->dd_client()->fetch_global_components(&schemas))
+    DBUG_RETURN(true);
 
-  saved_master_access= thd->security_context()->master_access();
-  thd->security_context()->set_master_access(saved_master_access | SUPER_ACL);
-  bool save_tx_read_only= thd->tx_read_only;
-  thd->tx_read_only= false;
+  std::vector<std::pair<const dd::Schema*, const dd::Event*> > drop_events_vector;
 
-  ret= db_repository->open_event_table(thd, TL_WRITE, &table);
-
-  thd->tx_read_only= save_tx_read_only;
-  thd->security_context()->set_master_access(saved_master_access);
-
-  if (ret)
+  for (const dd::Schema *schema_obj : schemas)
   {
-    sql_print_error("Event Scheduler: Failed to open table mysql.event");
-    DBUG_RETURN(TRUE);
-  }
+    // Fetch all events in a schema
+    std::vector<const dd::Event*> events;
+    if (thd->dd_client()->fetch_schema_components(schema_obj, &events))
+      DBUG_RETURN(true);
 
-  if (init_read_record(&read_record_info, thd, table, NULL, 0, 1, FALSE))
-  {
-    sql_print_error("Event Scheduler: Error while starting read of mysql.event");
-    DBUG_RETURN(TRUE);
-  }
-  while (!(read_record_info.read_record(&read_record_info)))
-  {
-    Event_queue_element *et;
-    bool created, dropped;
-
-    if (!(et= new Event_queue_element))
-      goto end;
-
-    DBUG_PRINT("info", ("Loading event from row."));
-
-    if (et->load_from_row(thd, table))
+    for (const dd::Event *ev_obj : events)
     {
-      sql_print_error("Event Scheduler: "
-                      "Error while loading events from mysql.event. "
-                      "The table probably contains bad data or is corrupted");
-      delete et;
-      goto end;
-    }
-
-    /**
-      Since the Event_queue_element object could be deleted inside
-      Event_queue::create_event we should save the value of dropped flag
-      into the temporary variable.
-    */
-    dropped= et->dropped;
-    if (event_queue->create_event(thd, et, &created))
-    {
-      /* Out of memory */
-      delete et;
-      goto end;
-    }
-    if (created)
-      count++;
-    else if (dropped)
-    {
-      /*
-        If not created, a stale event - drop if immediately if
-        ON COMPLETION NOT PRESERVE.
-        XXX: This won't be replicated, thus the drop won't appear in
-             in the slave. When the slave is restarted it will drop events.
-             However, as the slave will be "out of sync", it might happen that
-             an event created on the master, after master restart, won't be
-             replicated to the slave correctly, as the create will fail there.
-      */
-      int rc= table->file->ha_delete_row(table->record[0]);
-      if (rc)
+      Event_queue_element *et= new (std::nothrow) Event_queue_element;
+      if (et == nullptr)
       {
-        table->file->print_error(rc, MYF(0));
-        goto end;
+        sql_print_error("Event Scheduler: Error getting event object.");
+        DBUG_RETURN(true);
+      }
+
+      if (et->fill_event_info(thd, *ev_obj, schema_obj->name().c_str()))
+      {
+        sql_print_error("Event Scheduler: "
+                        "Error while loading events from mysql.events."
+                        "The table probably contains bad data or is corrupted");
+        delete et;
+        DBUG_RETURN(true);
+      }
+      bool drop_event= et->m_dropped; // create_event may free et.
+      bool created; // Not used
+      if (event_queue->create_event(thd, et, &created))
+      {
+        /* Out of memory */
+        delete et;
+        DBUG_RETURN(true);
+      }
+      if (drop_event)
+      {
+        /*
+          If not created, a stale event - drop if immediately if
+          ON COMPLETION NOT PRESERVE.
+          XXX: This won't be replicated, thus the drop won't appear in
+          in the slave. When the slave is restarted it will drop events.
+          However, as the slave will be "out of sync", it might happen that
+          an event created on the master, after master restart, won't be
+          replicated to the slave correctly, as the create will fail there.
+        */
+        drop_events_vector.push_back(std::make_pair(schema_obj, ev_obj));
       }
     }
   }
-  sql_print_information("Event Scheduler: Loaded %d event%s",
-                        count, (count == 1) ? "" : "s");
-  ret= FALSE;
 
-end:
-  end_read_record(&read_record_info);
+  Disable_gtid_state_update_guard disabler(thd);
+  bool error= false;
+  for (auto event_info : drop_events_vector)
+  {
+    if (lock_object_name(thd, MDL_key::EVENT, event_info.first->name().c_str(),
+                         event_info.second->name().c_str()))
+    {
+      sql_print_warning("Unable to obtain lock for ");
+      sql_print_warning("dropping event %s from schema %s ",
+                        event_info.second->name().c_str(),
+                        event_info.first->name().c_str());
+      continue;
+    }
 
-  close_mysql_tables(thd);
-  DBUG_RETURN(ret);
+    if (thd->dd_client()->drop(event_info.second))
+    {
+      error= true;
+      sql_print_warning("Unable to drop event %s from schema %s",
+                        event_info.second->name().c_str(),
+                        event_info.first->name().c_str());
+      break;
+    }
+  }
+  if (error)
+  {
+    trans_rollback_stmt(thd);
+    // Full rollback in case we have THD::transaction_rollback_request.
+    trans_rollback(thd);
+  }
+  else
+    error= trans_commit_stmt(thd) || trans_commit(thd);
+
+  thd->mdl_context.release_transactional_locks();
+  DBUG_RETURN(error);
 }
 
 /**

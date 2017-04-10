@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -17,11 +17,17 @@
  * 02110-1301  USA
  */
 
+#include "my_config.h"
 
+#include <math.h>
+#include "my_rapidjson_size_t.h"  // IWYU pragma: keep
 #include <rapidjson/document.h>
 #include <rapidjson/stringbuffer.h>
 #include <rapidjson/writer.h>
+#include <stdarg.h>
+#include <stdio.h>
 #include <string.h>
+#include <sys/types.h>
 #include <algorithm>
 #include <fstream>
 #include <ios>
@@ -30,35 +36,35 @@
 #include <sstream>
 #include <stdexcept>
 
+#include "common/utils_string_parsing.h"
 #include "dummy_stream.h"
 #include "m_string.h" // needed by writer.h, but has to be included after expr_parser.h
-#include "my_global.h"
+#include "my_loglevel.h"
 #include "mysqlx_error.h"
 #include "mysqlx_protocol.h"
 #include "mysqlx_resultset.h"
 #include "mysqlx_session.h"
 #include "mysqlx_version.h"
-#include "ngs_common/bind.h"
 #include "mysqlxtest_error_names.h"
-#include "common/utils_string_parsing.h"
+#include "ngs_common/bind.h"
 #include "ngs_common/chrono.h"
 #include "ngs_common/protocol_const.h"
 #include "ngs_common/protocol_protobuf.h"
 #include "ngs_common/to_string.h"
+#include "print_version.h"
 #include "utils_mysql_parsing.h"
 #include "violite.h"
+#include "welcome_copyright_notice.h"	/* ORACLE_WELCOME_COPYRIGHT_NOTICE */
 
 #ifdef HAVE_SYS_UN_H
 #include <sys/un.h>
 #endif
 
 const char * const CMD_ARG_BE_QUIET = "be-quiet";
-const char * const MYSQLXTEST_VERSION = "1.0";
 const char CMD_ARG_SEPARATOR = '\t';
-const unsigned short MYSQLX_PORT = 33060;
 
-#include <mysql/service_my_snprintf.h>
 #include <mysql.h>
+#include <mysql/service_my_snprintf.h>
 
 #ifdef _MSC_VER
 #  pragma push_macro("ERROR")
@@ -80,15 +86,19 @@ typedef std::map<int8_t, std::pair<mysqlx::Message* (*)(), std::string> > Messag
 static Message_by_id server_msgs_by_id;
 static Message_by_id client_msgs_by_id;
 
+typedef ngs::unique_ptr<mysqlx::Message> Message_ptr;
+
 bool OPT_quiet = false;
 bool OPT_bindump = false;
 bool OPT_show_warnings = false;
-bool OPT_fatal_errors = false;
+bool OPT_fatal_errors = true;
 bool OPT_verbose = false;
 bool OPT_query = true;
 #ifndef _WIN32
 bool OPT_color = false;
 #endif
+const char current_dir[] = {FN_CURLIB, FN_LIBCHAR, '\0'};
+std::string OPT_import_path(current_dir);
 
 class Expected_error;
 static Expected_error *OPT_expect_error = 0;
@@ -438,7 +448,7 @@ public:
           active_connection->send(Mysqlx::Session::Close());
           active_connection->set_closed();
           int msgid;
-          ngs::unique_ptr<mysqlx::Message> msg(active_connection->recv_raw(msgid));
+          Message_ptr msg(active_connection->recv_raw(msgid));
           std::cout << message_to_text(*msg);
           if (Mysqlx::ServerMessages::OK != msgid)
             throw mysqlx::Error(CR_COMMANDS_OUT_OF_SYNC,
@@ -453,7 +463,7 @@ public:
           {
             try
             {
-              ngs::unique_ptr<mysqlx::Message> msg(active_connection->recv_raw(msgid));
+              Message_ptr msg(active_connection->recv_raw(msgid));
 
               std::cout << message_to_text(*msg);
 
@@ -900,6 +910,7 @@ public:
     m_commands["query_result"]    = &Command::cmd_query;
     m_commands["noquery_result"]  = &Command::cmd_noquery;
     m_commands["wait_for "]       = &Command::cmd_wait_for;
+    m_commands["received "]       = &Command::cmd_received;
   }
 
   bool is_command_syntax(const std::string &cmd) const
@@ -1007,7 +1018,7 @@ private:
 
     bool be_quiet = false;
     int msgid;
-    ngs::unique_ptr<mysqlx::Message> msg(context.connection()->recv_raw(msgid));
+    Message_ptr msg(context.connection()->recv_raw(msgid));
 
     if (1 < vargs.size())
     {
@@ -1047,7 +1058,8 @@ private:
   Result cmd_recverror(Execution_context &context, const std::string &args)
   {
     int msgid;
-    ngs::unique_ptr<mysqlx::Message> msg(context.connection()->recv_raw(msgid));
+    Message_ptr msg(context.connection()->recv_raw(msgid));
+
     if (msg.get())
     {
       bool failed = false;
@@ -1080,17 +1092,13 @@ private:
     return Continue;
   }
 
-  static void set_variable(bool &was_set, std::string name, std::string value)
+  static void set_variable(std::string name, std::string value)
   {
-    was_set = true;
-
     variables[name] = value;
   }
 
   Result cmd_recvtovar(Execution_context &context, const std::string &args)
   {
-    bool was_set = false;
-
     std::string args_cmd = args;
     std::vector<std::string> args_array;
     aux::trim(args_cmd);
@@ -1105,13 +1113,7 @@ private:
       args_cmd += args_array.at(1);
     }
 
-    cmd_recvresult(context, args_cmd, ngs::bind(&Command::set_variable, ngs::ref(was_set), args_array.at(0), ngs::placeholders::_1));
-
-    if (!was_set)
-    {
-      std::cerr << "No data received from query\n";
-      return Stop_with_failure;
-    }
+    cmd_recvresult(context, args_cmd, ngs::bind(&Command::set_variable, args_array.at(0), ngs::placeholders::_1));
 
     return Continue;
   }
@@ -1226,7 +1228,8 @@ private:
 
     do
     {
-      ngs::unique_ptr<mysqlx::Message> msg(context.connection()->recv_raw(msgid));
+      Message_ptr msg(context.connection()->recv_raw(msgid));
+
       if (msg.get())
       {
         if (msg->GetDescriptor()->full_name() == argl[0] ||
@@ -1409,9 +1412,8 @@ private:
     catch (mysqlx::Error &err)
     {
       context.connection()->pop_local_notice_handler();
-      dumpx(err);
-      if (OPT_fatal_errors)
-        return Stop_with_success;
+      if (!OPT_expect_error->check_error(err))
+        return Stop_with_failure;
     }
 
     return Continue;
@@ -1558,7 +1560,7 @@ private:
     {
       while(true)
       {
-        ngs::unique_ptr<mysqlx::Message> msg(context.connection()->recv_raw(msgid));
+        Message_ptr msg(context.connection()->recv_raw(msgid));
 
         //TODO:
         // For now this command will be used in places where random messages
@@ -1605,7 +1607,7 @@ private:
     {
       int msgid;
 
-      ngs::unique_ptr<mysqlx::Message> msg(context.connection()->recv_raw_with_deadline(msgid, 2 * expected_delta_time));
+      Message_ptr msg(context.connection()->recv_raw_with_deadline(msgid, 2 * expected_delta_time));
 
       if (msg.get())
       {
@@ -1663,7 +1665,7 @@ private:
 
     try
     {
-      ngs::unique_ptr<mysqlx::Message> msg(context.connection()->recv_raw(msgid));
+      Message_ptr msg(context.connection()->recv_raw(msgid));
 
       std::ostream &out = get_stream_for_results(quiet);
 
@@ -2167,6 +2169,7 @@ private:
 
     if (strtoll(vargs[0].c_str(), &end_string, 10) < strtoll(vargs[1].c_str(), &end_string, 10))
     {
+      std::cerr << "assert_gt(" << args << ") failed!\n";
       std::cerr << "Expecting '" << vargs[0] << "' to be greater or equal to '" << vargs[1] << "'\n";
       return Stop_with_failure;
     }
@@ -2271,6 +2274,26 @@ private:
   }
 
   Result cmd_import(Execution_context &context, const std::string &args);
+
+  Result cmd_received(Execution_context &context, const std::string &args)
+  {
+    std::string cargs(args);
+    std::vector<std::string> vargs;
+    aux::split(vargs, cargs, " \t", true);
+    replace_variables(vargs[0]);
+
+    if (2 != vargs.size())
+    {
+      std::cerr << "Specified invalid number of arguments for command received:"
+                << vargs.size() << " expecting 2\n";
+      return Stop_with_failure;
+    }
+
+    set_variable(vargs[1],
+                 ngs::to_string(
+                     context.connection()->get_received_msg_counter(vargs[0])));
+    return Continue;
+  }
 };
 
 ngs::chrono::time_point Command::m_start_measure;
@@ -2329,38 +2352,28 @@ std::string get_field_value(ngs::shared_ptr<mysqlx::Row> &row, const int field, 
     switch (col.type)
     {
     case mysqlx::SINT:
-      return get_object_value(row->sInt64Field(field));
+      return ngs::to_string(row->sInt64Field(field));
 
     case mysqlx::UINT:
-      return get_object_value(row->uInt64Field(field));
+      return ngs::to_string(row->uInt64Field(field));
 
     case mysqlx::DOUBLE:
-      if (col.fractional_digits >= 31)
-      {
-        char buffer[100];
-        my_gcvt(row->doubleField(field), MY_GCVT_ARG_DOUBLE, sizeof(buffer)-1, buffer, NULL);
-        return buffer;
-      }
-      else
+      if (col.fractional_digits < 31)
       {
         char buffer[100];
         my_fcvt(row->doubleField(field), col.fractional_digits, buffer, NULL);
         return buffer;
       }
+      return ngs::to_string(row->doubleField(field));
 
     case mysqlx::FLOAT:
-      if (col.fractional_digits >= 31)
-      {
-        char buffer[100];
-        my_gcvt(row->floatField(field), MY_GCVT_ARG_FLOAT, sizeof(buffer)-1, buffer, NULL);
-        return buffer;
-      }
-      else
+      if (col.fractional_digits < 31)
       {
         char buffer[100];
         my_fcvt(row->floatField(field), col.fractional_digits, buffer, NULL);
         return buffer;
       }
+      return ngs::to_string(row->floatField(field));
 
     case mysqlx::BYTES:
     {
@@ -2823,7 +2836,7 @@ public:
         std::string processed_buffer = m_buffer;
         replace_variables(processed_buffer);
 
-        ngs::unique_ptr<mysqlx::Message> msg(text_to_client_message(m_full_name, processed_buffer, msg_id));
+        Message_ptr msg(text_to_client_message(m_full_name, processed_buffer, msg_id));
 
         m_full_name.clear();
         if (!msg.get())
@@ -3019,19 +3032,23 @@ public:
 
   void print_version()
   {
-    printf("%s  Ver %s Distrib %s, for %s (%s)\n", my_progname, MYSQLXTEST_VERSION,
-        MYSQL_SERVER_VERSION, SYSTEM_TYPE, MACHINE_TYPE);
+    ::print_version();
   }
 
   void print_help()
   {
+
+    print_version();
+    std::cout << (ORACLE_WELCOME_COPYRIGHT_NOTICE("2015")) << endl;
+
     std::cout << "mysqlxtest <options>\n";
     std::cout << "Options:\n";
     std::cout << "-f, --file=<file>     Reads input from file\n";
+    std::cout << "-I, --import=<dir>    Reads macro files from dir; required by -->import\n";
     std::cout << "--sql=<SQL>           Use SQL as input and execute it like in -->sql block\n";
     std::cout << "-n, --no-auth         Skip authentication which is required by -->sql block (run mode)\n";
     std::cout << "--plain-auth          Use PLAIN text authentication mechanism\n";
-    std::cout << "-u, --user=<user>a    Connection user\n";
+    std::cout << "-u, --user=<user>     Connection user\n";
     std::cout << "-p, --password=<pass> Connection password\n";
     std::cout << "-h, --host=<host>     Connection host\n";
     std::cout << "-P, --port=<port>     Connection port (default:" << MYSQLX_TCP_PORT << ")\n";
@@ -3060,7 +3077,7 @@ public:
     std::cout << "--connect-expired-password Allow expired password\n";
     std::cout << "--quiet               Don't print out messages sent\n";
     std::cout << "-vVARIABLE_NAME=VALUE Set variable VARIABLE_NAME from command line\n";
-    std::cout << "--fatal-errors=<0|1>  Mysqlxtest is started with ignoring or stopping on fatal error\n";
+    std::cout << "--fatal-errors=<0|1>  Mysqlxtest is started with ignoring or stopping on fatal error (default: 1)\n";
     std::cout << "-B, --bindump         Dump binary representation of messages sent, in format suitable for\n";
     std::cout << "--verbose             Enable extra verbose messages\n";
     std::cout << "--daemon              Work as a daemon (unix only)\n";
@@ -3089,7 +3106,7 @@ public:
     std::cout << "-->callmacro <macro>\t<argvalue1>\t...\n";
     std::cout << "  Executes the macro text, substituting argument values with the provided ones (args separated by tabs).\n";
     std::cout << "-->import <macrofile>\n";
-    std::cout << "  Loads macros from the specified file\n";
+    std::cout << "  Loads macros from the specified file. The file must be in the directory specified by --import option in command line.\n";
     std::cout << "-->enablessl\n";
     std::cout << "  Enables ssl on current connection\n";
     std::cout << "<protomsg>\n";
@@ -3173,6 +3190,8 @@ public:
     std::cout << "   Toggle verbose messages\n";
     std::cout << "-->query_result/noquery_result\n";
     std::cout << "   Toggle visibility for query results\n";
+    std::cout << "-->received <msgtype>\t<varname>\n";
+    std::cout << "   Assigns number of received messages of indicated type (in active session) to a variable\n";
     std::cout << "# comment\n";
   }
 
@@ -3188,11 +3207,7 @@ public:
 
   std::string get_socket_name()
   {
-#if defined(_WIN32)
-    return MYSQLX_NAMEDPIPE;
-#else
     return MYSQLX_UNIX_ADDR;
-#endif
   }
 
   My_command_line_options(int argc, char **argv)
@@ -3284,6 +3299,12 @@ public:
       else if (check_arg(argv, i, "--color", NULL))
         OPT_color = true;
 #endif
+      else if (check_arg_with_value(argv, i, "--import", "-I", value))
+      {
+        OPT_import_path = value;
+        if (*OPT_import_path.rbegin() != FN_LIBCHAR)
+          OPT_import_path += FN_LIBCHAR;
+      }
       else if (check_arg(argv, i, "--help", "--help"))
       {
         print_help();
@@ -3583,13 +3604,18 @@ bool Command::json_string_to_any(const std::string &json_string, Any &any) const
 }
 
 
-Command::Result Command::cmd_import(Execution_context &context, const std::string &args)
+Command::Result Command::cmd_import(Execution_context &context,
+                                    const std::string &args)
 {
-  std::ifstream fs;
-  fs.open(args.c_str());
+  std::string varg(args);
+  replace_variables(varg);
+  const std::string filename = OPT_import_path + varg;
+
+  std::ifstream fs(filename.c_str());
   if (!fs.good())
   {
-    std::cerr << error() << "Could not open macro file " << args << eoerr();
+    std::cerr << error() << "Could not open macro file " << args << " (aka "
+              << filename << ")" << eoerr();
     return Stop_with_failure;
   }
 

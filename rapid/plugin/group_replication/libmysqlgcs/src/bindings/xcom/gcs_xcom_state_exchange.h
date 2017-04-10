@@ -21,14 +21,16 @@
 #include <vector>
 #include <string>
 #include <stdio.h>
+#include <sys/types.h>
+
+#include "mysql/gcs/gcs_message.h"
+#include "mysql/gcs/gcs_communication_interface.h"
+#include "mysql/gcs/gcs_view.h"
 
 #include "gcs_xcom_utils.h"
-#include "gcs_message.h"
-#include "gcs_communication_interface.h"
 #include "gcs_xcom_view_identifier.h"
-#include "gcs_view.h"
-#include <sys/types.h>
 #include "gcs_internal_message.h"
+
 #include "xcom_vp.h"
 
 #define WIRE_XCOM_VARIABLE_VIEW_ID_SIZE 8
@@ -49,7 +51,7 @@ public:
   /**
     Xcom_member_state constructor.
 
-    @param[in] view_id_arg the view identifier from the node
+    @param[in] view_id the view identifier from the node
     @param[in] configuration_id Configuration identifier in use when the state
                                 exchange message was created
     @param[in] data the generic data to be exchanged
@@ -82,7 +84,7 @@ public:
     Encodes the Member State's header to be sent through the newtwork.
 
     @param[out] buffer where the header will be stored.
-    @param[in/out] buffer_len pointer to the variable that will hold the
+    @param[in,out] buffer_len pointer to the variable that will hold the
                    header's size and has the buffer's len as input.
 
     @return True if there is no space to store the header.
@@ -223,9 +225,9 @@ private:
   is trivially simple and compares the set of nodes received in the
   current view with the set of nodes in the previous view:
 
-    . left nodes = (alive_members \in old_set) - (alive_members \in new_set)
+    . left nodes = (alive_members in old_set) - (alive_members in new_set)
 
-    . joined nodes = (alive_members \in new_set) - (alive_members \in old_set)
+    . joined nodes = (alive_members in new_set) - (alive_members in old_set)
 
   However, the new view is only delivered to an upper layer after all
   members exchange what we call a state message. While the view is being
@@ -277,9 +279,6 @@ public:
   /**
     If messages were buffered during its processing, they are discarded
     and internal structures needed are cleaned up.
-
-    @param[in] flush Whether buffered messages should be flushed or
-                     not.
   */
 
   virtual void reset()= 0;
@@ -307,7 +306,7 @@ public:
     @param[in] total          xcom total members in the new view
     @param[in] left           xcom members that left in the new view
     @param[in] joined         xcom members that joined in the new view
-    @param[in] data generic   exchanged data
+    @param[in] exchangeable_data generic exchanged data
     @param[in] current_view   the currently installed view
     @param[in] group          group name
     @param[in] local_info     the local GCS member identifier
@@ -386,8 +385,6 @@ public:
 
 
 /**
-  @class gcs_xcom_state_exchange
-
   Implementation of the gcs_xcom_state_exchange_interface.
 */
 class Gcs_xcom_state_exchange: public Gcs_xcom_state_exchange_interface
@@ -480,7 +477,8 @@ private:
   /**
     Broadcasts the local state to all nodes in the Cluster.
 
-    @param[in] List with exchangeable messages
+    @param[in] proposed_view proposed view to broadcast
+    @param[in] exchangeable_data List with exchangeable messages
   */
 
   enum_gcs_error broadcast_state(
@@ -498,8 +496,7 @@ private:
   /**
     Converts xcom data to a set of internal representation.
 
-    @param[in] list xcom list
-    @param[in] num  xcom list size
+    @param[in] in xcom list
     @param[in] pset Set where the converted member ids will be written
   */
 

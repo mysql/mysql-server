@@ -11,7 +11,7 @@ CREATE TABLE t1 (a INT PRIMARY KEY, b INT);
 INSERT INTO t1 VALUES (1,1), (2,2), (3,3), (4,4);
 --echo **** On Slave ****
 --source include/sync_slave_sql_with_master.inc
-SHOW STATUS LIKE 'Slave_retried_transactions';
+SELECT count_transactions_retries FROM performance_schema.replication_applier_status;
 # since bug#31552/31609 idempotency is not default any longer. In order
 # the following UPDATE t1 to pass the mode is switched temprorarily
 set @@global.slave_exec_mode= 'IDEMPOTENT';
@@ -25,7 +25,7 @@ SELECT * FROM t1 order by a;
 --echo **** On Slave ****
 --source include/sync_slave_sql_with_master.inc
 set @@global.slave_exec_mode= default;
-SHOW STATUS LIKE 'Slave_retried_transactions';
+SELECT count_transactions_retries FROM performance_schema.replication_applier_status;
 SELECT * FROM t1 order by a;
 source include/check_slave_is_running.inc;
 

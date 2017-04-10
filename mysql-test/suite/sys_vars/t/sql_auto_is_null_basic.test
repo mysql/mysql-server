@@ -44,10 +44,10 @@ SELECT @@session.sql_auto_is_null;
 
 --disable_warnings
 SELECT IF(@@session.sql_auto_is_null, "ON", "OFF") = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+FROM performance_schema.session_variables 
 WHERE VARIABLE_NAME='sql_auto_is_null';
 
-SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+SELECT VARIABLE_VALUE FROM performance_schema.session_variables 
 WHERE VARIABLE_NAME='sql_auto_is_null';
 --enable_warnings
 

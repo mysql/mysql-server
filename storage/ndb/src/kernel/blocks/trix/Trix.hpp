@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -59,7 +59,7 @@ public:
     ,FK_BUILD = 6
     //ALTER_TABLE
   };
-  typedef DataBuffer<11> AttrOrderBuffer;
+  typedef DataBuffer<11,ArrayPool<DataBufferSegment<11> > > AttrOrderBuffer;
 
 private:
   // Private attributes
@@ -94,16 +94,18 @@ private:
   };
   
   typedef Ptr<NodeRecord> NodeRecPtr;
+  typedef ArrayPool<NodeRecord> NodeRecord_pool;
+  typedef DLList<NodeRecord, NodeRecord_pool> NodeRecord_list;
 
   /**
    * The pool of node records
    */
-  ArrayPool<NodeRecord> c_theNodeRecPool;
+  NodeRecord_pool c_theNodeRecPool;
 
   /**
    * The list of other NDB nodes
    */  
-  DLList<NodeRecord> c_theNodes;
+  NodeRecord_list c_theNodes;
 
   Uint32 c_masterNodeId;
   BlockReference c_masterTrixRef;
@@ -154,17 +156,19 @@ private:
   };
   
   typedef Ptr<SubscriptionRecord> SubscriptionRecPtr;
+  typedef ArrayPool<SubscriptionRecord> SubscriptionRecord_pool;
+  typedef DLList<SubscriptionRecord, SubscriptionRecord_pool> SubscriptionRecord_list;
 
   /**
    * The pool of node records
    */
-  ArrayPool<SubscriptionRecord> c_theSubscriptionRecPool;
+  SubscriptionRecord_pool c_theSubscriptionRecPool;
   RSS_AP_SNAPSHOT(c_theSubscriptionRecPool);
 
   /**
    * The list of other subscriptions
    */  
-  DLList<SubscriptionRecord> c_theSubscriptions;
+  SubscriptionRecord_list c_theSubscriptions;
 
   /*
    * Ordered index stats.  Implements sub-ops of DBDICT index stat
@@ -242,7 +246,6 @@ private:
       Uint32 m_cleanCount;
       // bounds on index_id, index_version, sample_version
       Uint32 m_bound[3 * 3];
-      Uint32 m_boundCount;
       Uint32 m_boundSize;
       Clean() {}
     };
@@ -284,7 +287,9 @@ private:
     };
   };
   typedef Ptr<StatOp> StatOpPtr;
-  ArrayPool<StatOp> c_statOpPool;
+  typedef ArrayPool<StatOp> StatOp_pool;
+
+  StatOp_pool c_statOpPool;
   RSS_AP_SNAPSHOT(c_statOpPool);
 
   // System start
@@ -421,7 +426,8 @@ private:
   void statOpAbort(Signal*, StatOp&);
   void statOpRef(Signal*, StatOp&);
   void statOpRef(Signal*, const IndexStatImplReq*, Uint32 errorCode, Uint32 errorLine);
-  void statOpEvent(StatOp&, const char* level, const char* msg, ...);
+  void statOpEvent(StatOp&, const char* level, const char* msg, ...)
+    ATTRIBUTE_FORMAT(printf, 4, 5);
   // debug
   friend class NdbOut& operator<<(NdbOut&, const StatOp& stat);
 };

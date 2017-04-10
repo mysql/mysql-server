@@ -1,7 +1,7 @@
 #ifndef PROTOCOL_INCLUDED
 #define PROTOCOL_INCLUDED
 
-/* Copyright (c) 2002, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,9 +16,12 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "sql_error.h"
-#include "my_decimal.h"                         /* my_decimal */
-
+#include "my_dbug.h"
+#include "my_decimal.h"                // my_decimal
+#include "mysql/mysql_lex_string.h"    // LEX_STRING
+#include "mysql_com.h"                 // mysql_enum_shutdown_level
+#include "mysql_time.h"                // MYSQL_TIME
+#include "sql_string.h"                // String
 #include "violite.h"                            /* SSL && enum_vio_type */
 #ifdef HAVE_OPENSSL
 #define SSL_handle SSL*
@@ -37,10 +40,47 @@ class THD;
 
 class Send_field;
 class Proto_field;
+class Item_param;
+template <class T> class List;
 
 
-class Protocol {
+class Protocol
+{
+private:
+  /// Pointer to the Protocol below on the stack.
+  Protocol *m_previous_protocol= nullptr;
+
 public:
+  virtual ~Protocol() { }
+
+
+  /**
+    Remove the reference to the previous protocol and return it.
+
+    @returns The new top of the Protocol stack.
+  */
+  Protocol *pop_protocol()
+  {
+    DBUG_ASSERT(m_previous_protocol);
+    Protocol *protocol= m_previous_protocol;
+    m_previous_protocol= nullptr;
+    return protocol;
+  }
+
+
+  /**
+    Set reference to "this" as the previous protocol on the protocol provided
+    as argument.
+
+    @param protocol   Protocol to become the top of Protocol stack.
+  */
+  void push_protocol(Protocol *protocol)
+  {
+    DBUG_ASSERT(!protocol->m_previous_protocol);
+    protocol->m_previous_protocol= this;
+  }
+
+
   /**
     Read packet from client
 
@@ -56,8 +96,6 @@ public:
 
     @param com_data  out parameter
     @param cmd       out parameter
-    @param pkt       packet to be parsed
-    @param length    size of the packet
 
     @returns
       -1  fatal protcol error
@@ -124,7 +162,8 @@ public:
   /**
     Send \\0 end terminated string.
 
-    @param from	NullS or \\0 terminated string
+    @param from   NullS or \\0 terminated string.
+    @param fromcs Character set of the from string.
 
     @note In most cases one should use store(from, length, cs) instead of
     this function
@@ -248,7 +287,6 @@ public:
     Sends field metadata.
 
     @param field                   Field metadata to be send to the client
-    @param field                   Field to be send to the client
     @param charset                 Field's charset: in case it is different
                                    than the one used by the connection it will
                                    be used to convert the value to
@@ -303,8 +341,8 @@ public:
     Send error message to the client.
 
     @param sql_errno    The error code to send
-    @param err          A pointer to the error message
-    @param sqlstate     SQL state
+    @param err_msg      A pointer to the error message
+    @param sql_state    SQL state
 
     @return
       @retval false The message was successfully sent
@@ -313,6 +351,45 @@ public:
 
   virtual bool send_error(uint sql_errno, const char *err_msg,
                           const char *sql_state)= 0;
+
+  /**
+    Used for the classic protocol.
+    Makes the protocol send the messages/data to the client.
+
+    @return
+      @retval false The flush was successful.
+      @retval true An error occurred.
+  */
+  virtual bool flush()= 0;
+
+  /**
+    Sends prepared statement's id and metadata to the client after prepare.
+
+    @param stmt_id       Statement id.
+    @param column_count  Number of columns.
+    @param param_count   Number of parameters.
+    @param cond_count    Number of conditions raised by the current statement.
+
+    @return Error status.
+      @retval false The send was successful.
+      @retval true  An error occurred.
+  */
+  virtual bool store_ps_status(ulong stmt_id, uint column_count,
+                               uint param_count, ulong cond_count)= 0;
+
+  /**
+    Sends the OUT-parameters to the client.
+
+    @param parameters      List of PS/SP parameters (both input and output).
+    @param is_sql_prepare  Used for the legacy protocol. If we're dealing with
+                           sql prepare then text protocol wil be used.
+
+    @return Error status.
+      @retval false Success.
+      @retval true  Error.
+  */
+  virtual bool send_parameters(List<Item_param> *parameters,
+                               bool is_sql_prepare)= 0;
 };
 
 #endif /* PROTOCOL_INCLUDED */

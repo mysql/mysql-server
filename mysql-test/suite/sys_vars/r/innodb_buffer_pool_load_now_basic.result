@@ -7,7 +7,7 @@ SET GLOBAL innodb_fast_shutdown=0;
 # restart
 SET GLOBAL innodb_buffer_pool_load_now = ON;
 SELECT variable_value
-FROM information_schema.global_status
+FROM performance_schema.global_status
 WHERE LOWER(variable_name) = 'innodb_buffer_pool_load_status';
 variable_value
-Buffer pool(s) load completed at TIMESTAMP_NOW
+Buffer pool load completed or still running

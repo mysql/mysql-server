@@ -1,10 +1,19 @@
+########################################
+##### WL#7554 Force schema `test` to character set latin1
+##### This test should be migrated to utf8mb4
+--disable_query_log
+let $testdbcs166=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
+alter schema default character set latin1;
+use test;
+--enable_query_log
+########################################
+
 # Let's see if FLUSH TABLES WITH READ LOCK blocks COMMIT of existing
 # transactions.
 # We verify that we did not introduce a deadlock.
 # This is intended to mimick how mysqldump and innobackup work.
 
 # And it requires InnoDB
---source include/have_innodb.inc
 
 --echo # Save the initial number of concurrent sessions
 --source include/count_sessions.inc
@@ -114,3 +123,10 @@ DROP TABLE t1;
 --echo # Wait till all disconnects are completed
 --source include/wait_until_count_sessions.inc
 
+
+########################################
+##### WL#7554 set schema `test` back to what it was
+--disable_query_log
+--eval alter schema test default character set $testdbcs166;
+--enable_query_log
+########################################

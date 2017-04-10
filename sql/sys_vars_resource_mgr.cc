@@ -14,14 +14,19 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "sys_vars_resource_mgr.h"
-#include <set_var.h>
-#include "mysqld.h"
+
+#include "hash.h"
+#include "my_sys.h"
+#include "mysql/psi/psi_base.h"
+#include "mysql/service_mysql_alloc.h"
+#include "psi_memory_key.h"
+#include "thr_malloc.h"
 
 /**
   Returns the member that contains the given key (address).
 
-  @parma key    [IN]        Key (address) to look for in the list.
-  @param length [IN]        Length of the key.
+  @param key           Key (address) to look for in the list.
+  @param length        Length of the key.
 
   @return
     Success - Address of the member containing the specified key (address).
@@ -39,8 +44,8 @@ uchar *Session_sysvar_resource_manager::find(void *key, size_t length)
   Allocates memory for Sys_var_charptr session variable during session
   initialization.
 
-  @param var     [IN]     The variable.
-  @param charset [IN]     Character set information.
+  @param var         The variable.
+  @param charset     Character set information.
 
   @return
   Success - false
@@ -56,8 +61,8 @@ bool Session_sysvar_resource_manager::init(char **var, const CHARSET_INFO * char
 
     if (!my_hash_inited(&m_sysvar_string_alloc_hash))
       my_hash_init(&m_sysvar_string_alloc_hash,
-	           const_cast<CHARSET_INFO *> (charset),
-		   4, 0, 0, (my_hash_get_key) sysvars_mgr_get_key,
+	           charset,
+		   4, 0, sysvars_mgr_get_key,
 		   my_free, HASH_UNIQUE,
                    key_memory_THD_Session_sysvar_resource_manager);
     /* Create a new node & add it to the hash. */
@@ -82,9 +87,9 @@ bool Session_sysvar_resource_manager::init(char **var, const CHARSET_INFO * char
   Frees the old alloced memory, memdup()'s the given val to a new memory
   address & updated the session variable pointer.
 
-  @param var     [IN]     The variable.
-  @param val     [IN]     The new value.
-  @param val_len [IN]     Length of the new value.
+  @param var         The variable.
+  @param val         The new value.
+  @param val_len     Length of the new value.
 
   @return
   Success - false
@@ -213,9 +218,9 @@ void Session_sysvar_resource_manager::deinit()
   }
 }
 
-uchar *Session_sysvar_resource_manager::sysvars_mgr_get_key(const char *entry,
-							    size_t *length,
-							    my_bool not_used MY_ATTRIBUTE((unused)))
+const uchar *
+Session_sysvar_resource_manager::sysvars_mgr_get_key(const uchar *entry,
+                                                     size_t *length)
 {
   char *key;
   key= (char *) ((sys_var_ptr *) entry)->data;

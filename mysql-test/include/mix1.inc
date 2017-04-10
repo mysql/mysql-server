@@ -651,26 +651,6 @@ SELECT * FROM t3 WHERE a = 'uk';
 DROP TABLE t1,t2,t3;
 
 #
-# Test bug when trying to drop data file which no InnoDB directory entry
-#
-
-create table t1 (a int) engine=innodb;
-let $MYSQLD_DATADIR= `select @@datadir`;
-copy_file $MYSQLD_DATADIR/test/t1.frm $MYSQLD_DATADIR/test/bug29807.frm;
---error 1146
-select * from bug29807;
-drop table t1;
---error 1051
-drop table bug29807;
-create table bug29807 (a int);
-drop table bug29807;
---disable_query_log
-call mtr.add_suppression("InnoDB: Table .*test.*bug29807.* does not exist in the InnoDB internal");
-call mtr.add_suppression("InnoDB: Cannot open table test/bug29807 from");
---enable_query_log
-
-
-#
 # Bug #29154: LOCK TABLES is not atomic when >1 InnoDB tables are locked
 #
 
@@ -812,19 +792,6 @@ TRUNCATE table t2;
 INSERT INTO t2 select * from t1;
 SELECT * from t2;
 drop table t1,t2;
-
-#
-# Bug#17530: Incorrect key truncation on table creation caused server crash.
-#
-
-# Legacy queries below need to turn off ONLY_FULL_GROUP_BY and STRICT mode.
-SET sql_mode='NO_ENGINE_SUBSTITUTION';
-create table t1(f1 varchar(800) binary not null, key(f1))
-  character set utf8 collate utf8_general_ci;
-insert into t1 values('aaa');
-drop table t1;
-SET sql_mode=default;
-
 
 #
 # Bug#22781: SQL_BIG_RESULT fails to influence sort plan
@@ -1002,9 +969,11 @@ DROP TABLE t1;
 
 # Legacy queries below need to turn off ONLY_FULL_GROUP_BY and STRICT mode.
 SET sql_mode='NO_ENGINE_SUBSTITUTION';
-create table t1(a text) engine=innodb default charset=utf8; 
+create table t1(a text) engine=innodb row_format=dynamic default charset=utf8;
 insert into t1 values('aaa');
-alter table t1 add index(a(1024));
+--replace_result 768 3072 1536 3072
+alter table t1 add index(a(1025));
+--replace_result 256 1024 512 1024
 show create table t1;
 drop table t1;
 SET sql_mode=default;
@@ -1165,7 +1134,10 @@ drop table t1;
 
 CREATE TABLE t1 (id int, type char(6), d int, INDEX idx(id,d)) ENGINE=InnoDB;
 INSERT INTO t1 VALUES 
-  (191, 'member', 1), (NULL, 'member', 3), (NULL, 'member', 4), (201, 'member', 2); 
+  (191, 'member', 1), (NULL, 'member', 3), (NULL, 'member', 4),
+  (201, 'member', 2), (NULL, 'member', 5), (191, 'member', 6),
+  (191, 'member', 7), (191, 'member', 8), (191, 'member', 9),
+  (191, 'member', 10);
 
 -- disable_query_log
 -- disable_result_log
@@ -1200,6 +1172,7 @@ CREATE TABLE t1 (a int, b int, c int, PRIMARY KEY (a), KEY t1_b (b))
 
 INSERT INTO t1 (a,b,c) VALUES (1,1,1), (2,1,1), (3,1,1), (4,1,1);
 INSERT INTO t1 (a,b,c) SELECT a+4,b,c FROM t1;
+INSERT INTO t1 (a,b,c) SELECT a+8,b,c FROM t1;
 
 -- disable_query_log
 -- disable_result_log
@@ -1210,7 +1183,7 @@ ANALYZE TABLE t1;
 # should be range access
 EXPLAIN SELECT a, b, c FROM t1 WHERE b = 1 ORDER BY a DESC LIMIT 5;
 
-# should produce '8 7 6 5 4' for a
+# should produce '16 15 14 13 12' for a
 SELECT a, b, c FROM t1 WHERE b = 1 ORDER BY a DESC LIMIT 5;
 
 DROP TABLE t1;

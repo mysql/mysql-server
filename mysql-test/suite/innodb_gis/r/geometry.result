@@ -197,21 +197,21 @@ WHERE c2=ST_LineFromText('LINESTRING(10 10,20 20,30 30)');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tab	NULL	ref	idx1	idx1	8	const	#	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select st_astext(`test`.`tab`.`c1`) AS `ST_ASText(c1)`,st_astext(`test`.`tab`.`c2`) AS `ST_AsText(c2)`,st_astext(`test`.`tab`.`c8`) AS `ST_AsText(c8)` from `test`.`tab` where (`test`.`tab`.`c2` = <cache>(st_geometryfromtext('LINESTRING(10 10,20 20,30 30)')))
+Note	1003	/* select#1 */ select st_astext(`test`.`tab`.`c1`) AS `ST_ASText(c1)`,st_astext(`test`.`tab`.`c2`) AS `ST_AsText(c2)`,st_astext(`test`.`tab`.`c8`) AS `ST_AsText(c8)` from `test`.`tab` where (`test`.`tab`.`c2` = <cache>(st_linefromtext('LINESTRING(10 10,20 20,30 30)')))
 #check index with  WKB function
 EXPLAIN SELECT ST_ASText(c1),ST_AsText(c2),ST_AsText(c8)
 FROM tab WHERE c2=ST_LineStringFromWKB(ST_AsWKB(ST_LineFromText('LINESTRING(10 10,20 20,30 30)')));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tab	NULL	ref	idx1	idx1	8	const	#	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select st_astext(`test`.`tab`.`c1`) AS `ST_ASText(c1)`,st_astext(`test`.`tab`.`c2`) AS `ST_AsText(c2)`,st_astext(`test`.`tab`.`c8`) AS `ST_AsText(c8)` from `test`.`tab` where (`test`.`tab`.`c2` = <cache>(st_geometryfromwkb(st_aswkb(st_geometryfromtext('LINESTRING(10 10,20 20,30 30)')))))
+Note	1003	/* select#1 */ select st_astext(`test`.`tab`.`c1`) AS `ST_ASText(c1)`,st_astext(`test`.`tab`.`c2`) AS `ST_AsText(c2)`,st_astext(`test`.`tab`.`c8`) AS `ST_AsText(c8)` from `test`.`tab` where (`test`.`tab`.`c2` = <cache>(st_linestringfromwkb(st_aswkb(st_linefromtext('LINESTRING(10 10,20 20,30 30)')))))
 #check index with  WKT function
 EXPLAIN SELECT ST_ASText(c1),ST_AsText(c2),ST_AsText(c8) FROM tab
 WHERE c3=ST_PolyFromText('POLYGON((0 0,5 5,10 10,15 15,0 0),(10 10,20 20,30 30,40 40,10 10))');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tab	NULL	ref	idx3	idx3	8	const	#	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select st_astext(`test`.`tab`.`c1`) AS `ST_ASText(c1)`,st_astext(`test`.`tab`.`c2`) AS `ST_AsText(c2)`,st_astext(`test`.`tab`.`c8`) AS `ST_AsText(c8)` from `test`.`tab` where (`test`.`tab`.`c3` = <cache>(st_geometryfromtext('POLYGON((0 0,5 5,10 10,15 15,0 0),(10 10,20 20,30 30,40 40,10 10))')))
+Note	1003	/* select#1 */ select st_astext(`test`.`tab`.`c1`) AS `ST_ASText(c1)`,st_astext(`test`.`tab`.`c2`) AS `ST_AsText(c2)`,st_astext(`test`.`tab`.`c8`) AS `ST_AsText(c8)` from `test`.`tab` where (`test`.`tab`.`c3` = <cache>(st_polyfromtext('POLYGON((0 0,5 5,10 10,15 15,0 0),(10 10,20 20,30 30,40 40,10 10))')))
 #check index with  WKB function
 EXPLAIN SELECT ST_ASText(c1),ST_AsText(c2),ST_AsText(c8)
 FROM tab
@@ -219,7 +219,7 @@ WHERE c3=ST_PolyFromWKB(ST_AsWkB(ST_PolyFromText('POLYGON((0 0,5 5,10 10,15 15,0
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tab	NULL	ref	idx3	idx3	8	const	#	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select st_astext(`test`.`tab`.`c1`) AS `ST_ASText(c1)`,st_astext(`test`.`tab`.`c2`) AS `ST_AsText(c2)`,st_astext(`test`.`tab`.`c8`) AS `ST_AsText(c8)` from `test`.`tab` where (`test`.`tab`.`c3` = <cache>(st_geometryfromwkb(st_aswkb(st_geometryfromtext('POLYGON((0 0,5 5,10 10,15 15,0 0),(10 10,20 20,30 30,40 40,10 10))')))))
+Note	1003	/* select#1 */ select st_astext(`test`.`tab`.`c1`) AS `ST_ASText(c1)`,st_astext(`test`.`tab`.`c2`) AS `ST_AsText(c2)`,st_astext(`test`.`tab`.`c8`) AS `ST_AsText(c8)` from `test`.`tab` where (`test`.`tab`.`c3` = <cache>(st_polyfromwkb(st_aswkb(st_polyfromtext('POLYGON((0 0,5 5,10 10,15 15,0 0),(10 10,20 20,30 30,40 40,10 10))')))))
 #check index with  WKT function
 EXPLAIN SELECT ST_ASText(c1),ST_AsText(c2),ST_AsText(c8) FROM tab
 WHERE c8=ST_GeomCollFromText('GeometryCollection(Point(1 1),LineString(2 2, 3 3))');
@@ -378,7 +378,7 @@ tab	CREATE TABLE `tab` (
   `c7` geometrycollection DEFAULT NULL,
   `c8` geometry DEFAULT NULL,
   UNIQUE KEY `idx2` (`c8`(5)),
-  KEY `idx1` (`c2`(5)) USING BTREE,
+  KEY `idx1` (`c2`(5) DESC) USING BTREE,
   KEY `idx3` (`c3`(5)) USING BTREE
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 #check the data after modify
@@ -703,21 +703,21 @@ WHERE c2=ST_LineFromText('LINESTRING(10 10,20 20,30 30)');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tab3	NULL	ref	idx1	idx1	8	const	#	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select st_astext(`test`.`tab3`.`c1`) AS `ST_ASText(c1)`,st_astext(`test`.`tab3`.`c2`) AS `ST_AsText(c2)`,st_astext(`test`.`tab3`.`c8`) AS `ST_AsText(c8)` from `test`.`tab3` where (`test`.`tab3`.`c2` = <cache>(st_geometryfromtext('LINESTRING(10 10,20 20,30 30)')))
+Note	1003	/* select#1 */ select st_astext(`test`.`tab3`.`c1`) AS `ST_ASText(c1)`,st_astext(`test`.`tab3`.`c2`) AS `ST_AsText(c2)`,st_astext(`test`.`tab3`.`c8`) AS `ST_AsText(c8)` from `test`.`tab3` where (`test`.`tab3`.`c2` = <cache>(st_linefromtext('LINESTRING(10 10,20 20,30 30)')))
 #check index with  WKB function
 EXPLAIN SELECT ST_ASText(c1),ST_AsText(c2),ST_AsText(c8)
 FROM tab3 WHERE c2=ST_LineStringFromWKB(ST_AsWKB(ST_LineFromText('LINESTRING(10 10,20 20,30 30)')));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tab3	NULL	ref	idx1	idx1	8	const	#	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select st_astext(`test`.`tab3`.`c1`) AS `ST_ASText(c1)`,st_astext(`test`.`tab3`.`c2`) AS `ST_AsText(c2)`,st_astext(`test`.`tab3`.`c8`) AS `ST_AsText(c8)` from `test`.`tab3` where (`test`.`tab3`.`c2` = <cache>(st_geometryfromwkb(st_aswkb(st_geometryfromtext('LINESTRING(10 10,20 20,30 30)')))))
+Note	1003	/* select#1 */ select st_astext(`test`.`tab3`.`c1`) AS `ST_ASText(c1)`,st_astext(`test`.`tab3`.`c2`) AS `ST_AsText(c2)`,st_astext(`test`.`tab3`.`c8`) AS `ST_AsText(c8)` from `test`.`tab3` where (`test`.`tab3`.`c2` = <cache>(st_linestringfromwkb(st_aswkb(st_linefromtext('LINESTRING(10 10,20 20,30 30)')))))
 #check index with  WKT function
 EXPLAIN SELECT ST_ASText(c1),ST_AsText(c2),ST_AsText(c8) FROM tab3
 WHERE c3=ST_PolyFromText('POLYGON((0 0,5 5,10 10,15 15,0 0),(10 10,20 20,30 30,40 40,10 10))');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tab3	NULL	ref	idx3	idx3	8	const	#	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select st_astext(`test`.`tab3`.`c1`) AS `ST_ASText(c1)`,st_astext(`test`.`tab3`.`c2`) AS `ST_AsText(c2)`,st_astext(`test`.`tab3`.`c8`) AS `ST_AsText(c8)` from `test`.`tab3` where (`test`.`tab3`.`c3` = <cache>(st_geometryfromtext('POLYGON((0 0,5 5,10 10,15 15,0 0),(10 10,20 20,30 30,40 40,10 10))')))
+Note	1003	/* select#1 */ select st_astext(`test`.`tab3`.`c1`) AS `ST_ASText(c1)`,st_astext(`test`.`tab3`.`c2`) AS `ST_AsText(c2)`,st_astext(`test`.`tab3`.`c8`) AS `ST_AsText(c8)` from `test`.`tab3` where (`test`.`tab3`.`c3` = <cache>(st_polyfromtext('POLYGON((0 0,5 5,10 10,15 15,0 0),(10 10,20 20,30 30,40 40,10 10))')))
 #check index with  WKB function
 EXPLAIN SELECT ST_ASText(c1),ST_AsText(c2),ST_AsText(c8)
 FROM tab3
@@ -725,7 +725,7 @@ WHERE c3=ST_PolyFromWKB(ST_AsWkB(ST_PolyFromText('POLYGON((0 0,5 5,10 10,15 15,0
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tab3	NULL	ref	idx3	idx3	8	const	#	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select st_astext(`test`.`tab3`.`c1`) AS `ST_ASText(c1)`,st_astext(`test`.`tab3`.`c2`) AS `ST_AsText(c2)`,st_astext(`test`.`tab3`.`c8`) AS `ST_AsText(c8)` from `test`.`tab3` where (`test`.`tab3`.`c3` = <cache>(st_geometryfromwkb(st_aswkb(st_geometryfromtext('POLYGON((0 0,5 5,10 10,15 15,0 0),(10 10,20 20,30 30,40 40,10 10))')))))
+Note	1003	/* select#1 */ select st_astext(`test`.`tab3`.`c1`) AS `ST_ASText(c1)`,st_astext(`test`.`tab3`.`c2`) AS `ST_AsText(c2)`,st_astext(`test`.`tab3`.`c8`) AS `ST_AsText(c8)` from `test`.`tab3` where (`test`.`tab3`.`c3` = <cache>(st_polyfromwkb(st_aswkb(st_polyfromtext('POLYGON((0 0,5 5,10 10,15 15,0 0),(10 10,20 20,30 30,40 40,10 10))')))))
 #check index with  WKT function
 EXPLAIN SELECT ST_ASText(c1),ST_AsText(c2),ST_AsText(c8) FROM tab3
 WHERE c8=ST_GeomCollFromText('GeometryCollection(Point(1 1),LineString(2 2, 3 3))');
@@ -796,7 +796,7 @@ tab3	CREATE TABLE `tab3` (
   `c7` geometrycollection DEFAULT NULL,
   `c8` geometry DEFAULT NULL,
   UNIQUE KEY `idx2` (`c8`(5)),
-  KEY `idx1` (`c2`(5)) USING BTREE,
+  KEY `idx1` (`c2`(5) DESC) USING BTREE,
   KEY `idx3` (`c3`(5)) USING BTREE
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC KEY_BLOCK_SIZE=16
 #check index with  WKB function
@@ -805,14 +805,14 @@ FROM tab3 WHERE c2=ST_LineStringFromWKB(ST_AsWKB(ST_LineFromText('LINESTRING(10 
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tab3	NULL	ref	idx1	idx1	8	const	#	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select st_astext(`test`.`tab3`.`c1`) AS `ST_ASText(c1)`,st_astext(`test`.`tab3`.`c2`) AS `ST_AsText(c2)`,st_astext(`test`.`tab3`.`c8`) AS `ST_AsText(c8)` from `test`.`tab3` where (`test`.`tab3`.`c2` = <cache>(st_geometryfromwkb(st_aswkb(st_geometryfromtext('LINESTRING(10 10,20 20,30 30)')))))
+Note	1003	/* select#1 */ select st_astext(`test`.`tab3`.`c1`) AS `ST_ASText(c1)`,st_astext(`test`.`tab3`.`c2`) AS `ST_AsText(c2)`,st_astext(`test`.`tab3`.`c8`) AS `ST_AsText(c8)` from `test`.`tab3` where (`test`.`tab3`.`c2` = <cache>(st_linestringfromwkb(st_aswkb(st_linefromtext('LINESTRING(10 10,20 20,30 30)')))))
 #check index with  WKT function
 EXPLAIN SELECT ST_ASText(c1),ST_AsText(c2),ST_AsText(c8) FROM tab3
 WHERE c3=ST_PolyFromText('POLYGON((0 0,5 5,10 10,15 15,0 0),(10 10,20 20,30 30,40 40,10 10))');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tab3	NULL	ref	idx3	idx3	8	const	#	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select st_astext(`test`.`tab3`.`c1`) AS `ST_ASText(c1)`,st_astext(`test`.`tab3`.`c2`) AS `ST_AsText(c2)`,st_astext(`test`.`tab3`.`c8`) AS `ST_AsText(c8)` from `test`.`tab3` where (`test`.`tab3`.`c3` = <cache>(st_geometryfromtext('POLYGON((0 0,5 5,10 10,15 15,0 0),(10 10,20 20,30 30,40 40,10 10))')))
+Note	1003	/* select#1 */ select st_astext(`test`.`tab3`.`c1`) AS `ST_ASText(c1)`,st_astext(`test`.`tab3`.`c2`) AS `ST_AsText(c2)`,st_astext(`test`.`tab3`.`c8`) AS `ST_AsText(c8)` from `test`.`tab3` where (`test`.`tab3`.`c3` = <cache>(st_polyfromtext('POLYGON((0 0,5 5,10 10,15 15,0 0),(10 10,20 20,30 30,40 40,10 10))')))
 #check the Geometry property functions
 SELECT fid, ST_Dimension(g) FROM gis_geometry;
 fid	ST_Dimension(g)

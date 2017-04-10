@@ -1,4 +1,4 @@
-/* Copyright (c) 2001, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2001, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,36 +16,16 @@
 
 /* Execute DO statement */
 
-#include "transaction.h"
 #include "sql_do.h"
-#include "sql_base.h"                 // open_tables_for_query
-#include "sql_select.h"               // handle_query
-#include "auth_common.h"              // check_table_access
+
+#include "item.h"
+#include "m_ctype.h"
+#include "my_dbug.h"
+#include "sql_class.h"
+#include "sql_const.h"
+#include "sql_list.h"
+#include "sql_string.h"
  
-bool mysql_do(THD *thd, LEX *lex)
-{
-  DBUG_ENTER("mysql_do");
-
-  if (check_table_access(thd, SELECT_ACL, lex->query_tables, false, UINT_MAX,
-                         false))
-    DBUG_RETURN(true);
-
-  DBUG_ASSERT(!lex->unit->global_parameters()->explicit_limit);
-
-  if (open_tables_for_query(thd, lex->query_tables, 0))
-    DBUG_RETURN(true);
-
-  DBUG_ASSERT(!lex->describe);
-
-  Query_result *result= new Query_result_do(thd);
-  if (!result)
-    DBUG_RETURN(true);
-
-  if (handle_query(thd, lex, result, 0, 0))
-    DBUG_RETURN(true);
-
-  DBUG_RETURN(false);
-}
 
 bool Query_result_do::send_data(List<Item> &items)
 {

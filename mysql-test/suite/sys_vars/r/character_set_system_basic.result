@@ -13,7 +13,7 @@ COUNT(@@GLOBAL.character_set_system)
 1 Expected
 '#---------------------BS_STVARS_003_03----------------------#'
 SELECT @@GLOBAL.character_set_system = VARIABLE_VALUE
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='character_set_system';
 @@GLOBAL.character_set_system = VARIABLE_VALUE
 1
@@ -23,7 +23,7 @@ COUNT(@@GLOBAL.character_set_system)
 1
 1 Expected
 SELECT COUNT(VARIABLE_VALUE)
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='character_set_system';
 COUNT(VARIABLE_VALUE)
 1

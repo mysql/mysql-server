@@ -109,7 +109,7 @@ SELECT @@session.event_scheduler;
 
 --disable_warnings
 SELECT @@global.event_scheduler = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='event_scheduler';
 --enable_warnings
 

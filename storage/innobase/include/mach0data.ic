@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -24,18 +24,17 @@ to the machine format.
 Created 11/28/1995 Heikki Tuuri
 ***********************************************************************/
 
-#ifndef UNIV_INNOCHECKSUM
-
 #include "mtr0types.h"
+#include "ut0byte.h"
 
-/*******************************************************//**
-The following function is used to store data in one byte. */
+/** The following function is used to store data in one byte.
+@param[in]	b	pointer to byte where to store
+@param[in]	n	ulint integer to be stored, >= 0, < 256 */
 UNIV_INLINE
 void
 mach_write_to_1(
-/*============*/
-	byte*	b,	/*!< in: pointer to byte where to store */
-	ulint	n)	/*!< in: ulint integer to be stored, >= 0, < 256 */
+	byte*	b,
+	ulint	n)
 {
 	ut_ad(b);
 	ut_ad((n | 0xFFUL) <= 0xFFUL);
@@ -43,17 +42,15 @@ mach_write_to_1(
 	b[0] = (byte) n;
 }
 
-#endif /* !UNIV_INNOCHECKSUM */
-
-/*******************************************************//**
-The following function is used to store data in two consecutive
-bytes. We store the most significant byte to the lowest address. */
+/** The following function is used to store data in two consecutive
+bytes. We store the most significant byte to the lower address.
+@param[in]	b	pointer to 2 bytes where to store
+@param[in]	n	2 byte integer to be stored, >= 0, < 64k */
 UNIV_INLINE
 void
 mach_write_to_2(
-/*============*/
-	byte*	b,	/*!< in: pointer to two bytes where to store */
-	ulint	n)	/*!< in: ulint integer to be stored */
+	byte*	b,
+	ulint	n)
 {
 	ut_ad(b);
 	ut_ad((n | 0xFFFFUL) <= 0xFFFFUL);
@@ -62,33 +59,29 @@ mach_write_to_2(
 	b[1] = (byte)(n);
 }
 
-/********************************************************//**
-The following function is used to fetch data from one byte.
+/** The following function is used to fetch data from one byte.
+@param[in]	b	pointer to a byte to read
 @return ulint integer, >= 0, < 256 */
 UNIV_INLINE
-ulint
+uint8_t
 mach_read_from_1(
-/*=============*/
-	const byte*	b)	/*!< in: pointer to byte */
+	const byte*	b)
 {
 	ut_ad(b);
-	return((ulint)(b[0]));
+	return((uint8_t)(b[0]));
 }
 
-/********************************************************//**
-The following function is used to fetch data from 2 consecutive
+/** The following function is used to fetch data from 2 consecutive
 bytes. The most significant byte is at the lowest address.
-@return ulint integer */
+@param[in]	b	pointer to 2 bytes to read
+@return 2-byte integer, >= 0, < 64k */
 UNIV_INLINE
-ulint
+uint16_t
 mach_read_from_2(
-/*=============*/
-	const byte*	b)	/*!< in: pointer to 2 bytes */
+	const byte*	b)
 {
 	return(((ulint)(b[0]) << 8) | (ulint)(b[1]));
 }
-
-#ifndef UNIV_INNOCHECKSUM
 
 /********************************************************//**
 The following function is used to convert a 16-bit data item
@@ -96,7 +89,7 @@ to the canonical format, for fast bytewise equality test
 against memory.
 @return 16-bit integer in canonical format */
 UNIV_INLINE
-uint16
+uint16_t
 mach_encode_2(
 /*==========*/
 	ulint	n)	/*!< in: integer in machine-dependent format */
@@ -121,15 +114,15 @@ mach_decode_2(
 	return(mach_read_from_2((const byte*) &n));
 }
 
-/*******************************************************//**
-The following function is used to store data in 3 consecutive
-bytes. We store the most significant byte to the lowest address. */
+/** The following function is used to store data in 3 consecutive
+bytes. We store the most significant byte to the lowest address.
+@param[in]	b	pointer to 3 bytes where to store
+@param[in]	n	3 byte integer to be stored */
 UNIV_INLINE
 void
 mach_write_to_3(
-/*============*/
-	byte*	b,	/*!< in: pointer to 3 bytes where to store */
-	ulint	n)	/*!< in: ulint integer to be stored */
+	byte*	b,
+	ulint	n)
 {
 	ut_ad(b);
 	ut_ad((n | 0xFFFFFFUL) <= 0xFFFFFFUL);
@@ -139,77 +132,71 @@ mach_write_to_3(
 	b[2] = (byte)(n);
 }
 
-/********************************************************//**
-The following function is used to fetch data from 3 consecutive
+/** The following function is used to fetch data from 3 consecutive
 bytes. The most significant byte is at the lowest address.
-@return ulint integer */
+@param[in]	b	pointer to 3 bytes to read
+@return uint32_t integer */
 UNIV_INLINE
-ulint
+uint32_t
 mach_read_from_3(
-/*=============*/
-	const byte*	b)	/*!< in: pointer to 3 bytes */
+	const byte*	b)
 {
 	ut_ad(b);
-	return( ((ulint)(b[0]) << 16)
-		| ((ulint)(b[1]) << 8)
-		| (ulint)(b[2])
+	return( (static_cast<uint32_t>(b[0]) << 16)
+		| (static_cast<uint32_t>(b[1]) << 8)
+		| static_cast<uint32_t>(b[2])
 		);
 }
 
-#endif /* !UNIV_INNOCHECKSUM */
-
-/*******************************************************//**
-The following function is used to store data in four consecutive
-bytes. We store the most significant byte to the lowest address. */
+/** The following function is used to store data in 4 consecutive
+bytes. We store the most significant byte to the lowest address.
+@param[in]	b	pointer to 4 bytes where to store
+@param[in]	n	4 byte integer to be stored */
 UNIV_INLINE
 void
 mach_write_to_4(
-/*============*/
-	byte*	b,	/*!< in: pointer to four bytes where to store */
-	ulint	n)	/*!< in: ulint integer to be stored */
+	byte*	b,
+	ulint	n)
 {
 	ut_ad(b);
 
-	b[0] = (byte)(n >> 24);
-	b[1] = (byte)(n >> 16);
-	b[2] = (byte)(n >> 8);
-	b[3] = (byte) n;
+	b[0] = static_cast<byte>(n >> 24);
+	b[1] = static_cast<byte>(n >> 16);
+	b[2] = static_cast<byte>(n >> 8);
+	b[3] = static_cast<byte>(n);
 }
 
-/********************************************************//**
-The following function is used to fetch data from 4 consecutive
+/** The following function is used to fetch data from 4 consecutive
 bytes. The most significant byte is at the lowest address.
-@return ulint integer */
+@param[in]	b	pointer to 4 bytes to read
+@return 32 bit integer */
 UNIV_INLINE
-ulint
+uint32_t
 mach_read_from_4(
-/*=============*/
-	const byte*	b)	/*!< in: pointer to four bytes */
+	const byte*	b)
 {
 	ut_ad(b);
-	return( ((ulint)(b[0]) << 24)
-		| ((ulint)(b[1]) << 16)
-		| ((ulint)(b[2]) << 8)
-		| (ulint)(b[3])
+	return( (static_cast<uint32_t>(b[0]) << 24)
+		| (static_cast<uint32_t>(b[1]) << 16)
+		| (static_cast<uint32_t>(b[2]) << 8)
+		| static_cast<uint32_t>(b[3])
 		);
 }
 
-#ifndef UNIV_INNOCHECKSUM
-
-/*********************************************************//**
-Writes a ulint in a compressed form where the first byte codes the
+/** Writes a ulint in a compressed form where the first byte codes the
 length of the stored ulint. We look at the most significant bits of
 the byte. If the most significant bit is zero, it means 1-byte storage,
 else if the 2nd bit is 0, it means 2-byte storage, else if 3rd is 0,
 it means 3-byte storage, else if 4th is 0, it means 4-byte storage,
 else the storage is 5-byte.
+@param[in]	b	pointer to memory where to store
+@param[in]	n	ulint integer (< 2^32) to be stored
 @return compressed size in bytes */
 UNIV_INLINE
 ulint
 mach_write_compressed(
-/*==================*/
-	byte*	b,	/*!< in: pointer to memory where to store */
-	ulint	n)	/*!< in: ulint integer (< 2^32) to be stored */
+	byte*	b,
+	ulint	n)
 {
 	ut_ad(b);
 
@@ -237,14 +224,13 @@ mach_write_compressed(
 	}
 }
 
-/*********************************************************//**
-Returns the size of a ulint when written in the compressed form.
+/** Return the size of an ulint when written in the compressed form.
+@param[in]	n	ulint integer (< 2^32) to be stored
 @return compressed size in bytes */
 UNIV_INLINE
 ulint
 mach_get_compressed_size(
-/*=====================*/
-	ulint	n)	/*!< in: ulint integer (< 2^32) to be stored */
+	ulint	n)
 {
 	if (n < 0x80) {
 		/* 0nnnnnnn (7 bits) */
@@ -264,14 +250,13 @@ mach_get_compressed_size(
 	}
 }
 
-/*********************************************************//**
-Reads a ulint in a compressed form.
+/** Read a ulint in a compressed form.
+@param[in]	b	pointer to memory from where to read
 @return read integer (< 2^32) */
 UNIV_INLINE
 ulint
 mach_read_compressed(
-/*=================*/
-	const byte*	b)	/*!< in: pointer to memory from where to read */
+	const byte*	b)
 {
 	ulint	val;
 
@@ -343,15 +328,15 @@ mach_read_next_compressed(
 	return(static_cast<ib_uint32_t>(val));
 }
 
-/*******************************************************//**
-The following function is used to store data in 8 consecutive
-bytes. We store the most significant byte to the lowest address. */
+/** The following function is used to store data in 8 consecutive
+bytes. We store the most significant byte to the lowest address.
+@param[in]	b	pointer to 8 bytes where to store
+@param[in]	n	64-bit integer (< 2^64) to be stored */
 UNIV_INLINE
 void
 mach_write_to_8(
-/*============*/
-	void*		b,	/*!< in: pointer to 8 bytes where to store */
-	ib_uint64_t	n)	/*!< in: 64-bit integer to be stored */
+	void*		b,
+	ib_uint64_t	n)
 {
 	ut_ad(b);
 
@@ -359,17 +344,14 @@ mach_write_to_8(
 	mach_write_to_4(static_cast<byte*>(b) + 4, (ulint) n);
 }
 
-#endif /* !UNIV_INNOCHECKSUM */
-
-/********************************************************//**
-The following function is used to fetch data from 8 consecutive
+/** The following function is used to fetch data from 8 consecutive
 bytes. The most significant byte is at the lowest address.
+@param[in]	b	pointer to 8 bytes from where read
 @return 64-bit integer */
 UNIV_INLINE
 ib_uint64_t
 mach_read_from_8(
-/*=============*/
-	const byte*	b)	/*!< in: pointer to 8 bytes */
+	const byte*	b)
 {
 	ib_uint64_t	u64;
 
@@ -380,17 +362,15 @@ mach_read_from_8(
 	return(u64);
 }
 
-#ifndef UNIV_INNOCHECKSUM
-
-/*******************************************************//**
-The following function is used to store data in 7 consecutive
-bytes. We store the most significant byte to the lowest address. */
+/** The following function is used to store data in 7 consecutive
+bytes. We store the most significant byte to the lowest address.
+@param[in]	b	pointer to 7 bytes where to store
+@param[in]	n	56-bit integer */
 UNIV_INLINE
 void
 mach_write_to_7(
-/*============*/
-	byte*		b,	/*!< in: pointer to 7 bytes where to store */
-	ib_uint64_t	n)	/*!< in: 56-bit integer */
+	byte*		b,
+	ib_uint64_t	n)
 {
 	ut_ad(b);
 
@@ -398,30 +378,29 @@ mach_write_to_7(
 	mach_write_to_4(b + 3, (ulint) n);
 }
 
-/********************************************************//**
-The following function is used to fetch data from 7 consecutive
+/** The following function is used to fetch data from 7 consecutive
 bytes. The most significant byte is at the lowest address.
+@param[in]	b	pointer to 7 bytes to read
 @return 56-bit integer */
 UNIV_INLINE
 ib_uint64_t
 mach_read_from_7(
-/*=============*/
-	const byte*	b)	/*!< in: pointer to 7 bytes */
+	const byte*	b)
 {
 	ut_ad(b);
 
 	return(ut_ull_create(mach_read_from_3(b), mach_read_from_4(b + 3)));
 }
 
-/*******************************************************//**
-The following function is used to store data in 6 consecutive
-bytes. We store the most significant byte to the lowest address. */
+/** The following function is used to store data in 6 consecutive
+bytes. We store the most significant byte to the lowest address.
+@param[in]	b	pointer to 6 bytes where to store
+@param[in]	id	48-bit integer to write */
 UNIV_INLINE
 void
 mach_write_to_6(
-/*============*/
-	byte*		b,	/*!< in: pointer to 6 bytes where to store */
-	ib_uint64_t	n)	/*!< in: 48-bit integer */
+	byte*		b,
+	ib_uint64_t	n)
 {
 	ut_ad(b);
 
@@ -429,15 +408,14 @@ mach_write_to_6(
 	mach_write_to_4(b + 2, (ulint) n);
 }
 
-/********************************************************//**
-The following function is used to fetch data from 6 consecutive
+/** The following function is used to fetch data from 6 consecutive
 bytes. The most significant byte is at the lowest address.
+@param[in]	b	pointer to 6 bytes to read
 @return 48-bit integer */
 UNIV_INLINE
 ib_uint64_t
 mach_read_from_6(
-/*=============*/
-	const byte*	b)	/*!< in: pointer to 6 bytes */
+	const byte*	b)
 {
 	ut_ad(b);
 
@@ -510,7 +488,8 @@ mach_u64_write_much_compressed(
 
 /*********************************************************//**
 Reads a 64-bit integer in a compressed form.
-@return the value read */
+@return the value read
+@see mach_parse_u64_much_compressed() */
 UNIV_INLINE
 ib_uint64_t
 mach_u64_read_much_compressed(
@@ -859,13 +838,13 @@ mach_swap_byte_order(
         dest += len;
 
         switch (len & 0x7) {
-        case 0: *--dest = *from++;
-        case 7: *--dest = *from++;
-        case 6: *--dest = *from++;
-        case 5: *--dest = *from++;
-        case 4: *--dest = *from++;
-        case 3: *--dest = *from++;
-        case 2: *--dest = *from++;
+        case 0: *--dest = *from++;  // Fall through.
+        case 7: *--dest = *from++;  // Fall through.
+        case 6: *--dest = *from++;  // Fall through.
+        case 5: *--dest = *from++;  // Fall through.
+        case 4: *--dest = *from++;  // Fall through.
+        case 3: *--dest = *from++;  // Fall through.
+        case 2: *--dest = *from++;  // Fall through.
         case 1: *--dest = *from;
         }
 }
@@ -927,7 +906,7 @@ mach_write_ulonglong(
 @param[in]	type	MLOG_1BYTE, MLOG_2BYTES, or MLOG_4BYTES
 @return value read */
 UNIV_INLINE
-ulint
+uint32_t
 mach_read_ulint(
 	const byte*	ptr,
 	mlog_id_t	type)
@@ -948,4 +927,3 @@ mach_read_ulint(
 }
 
 #endif /* !UNIV_HOTBACKUP */
-#endif /* !UNIV_INNOCHECKSUM */

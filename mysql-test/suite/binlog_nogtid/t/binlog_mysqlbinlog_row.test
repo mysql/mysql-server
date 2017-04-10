@@ -1,0 +1,4 @@
+--source include/have_log_bin.inc
+--source include/have_binlog_format_row.inc
+
+--source extra/binlog_tests/binlog_mysqlbinlog_row.inc

@@ -1,8 +1,5 @@
 # Tests for PERFORMANCE_SCHEMA
 
---source include/not_embedded.inc
---source include/have_perfschema.inc
-
 --disable_warnings
 drop table if exists test.setup_actors;
 --enable_warnings
@@ -62,7 +59,7 @@ update performance_schema.setup_actors
 
 --error ER_WRONG_PERFSCHEMA_USAGE
 update performance_schema.setup_actors
-  set role='ILLEGAL';
+  set `role`='ILLEGAL';
 
 # update on ENABLED column is allowed
 update performance_schema.setup_actors

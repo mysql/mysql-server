@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,39 +14,70 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 
-#include "sql_show_status.h"
-#include "sql_parse.h"
-#include "sql_yacc.h"
-#include "parse_tree_items.h"
-#include "parse_tree_nodes.h"
-#include "item_cmpfunc.h"
+#include "sql/sql_show_status.h"
+
+#include <stddef.h>
+
+#include "item_cmpfunc.h"              // Item_func_like
+#include "lex_string.h"
+#include "m_string.h"                  // C_STRING_WITH_LEN
+#include "mem_root_array.h"
+#include "my_sqlcommand.h"
+#include "mysqld.h"
+#include "parse_tree_items.h"          // PTI_simple_ident_ident
+#include "parse_tree_nodes.h"          // PT_select_item_list
+#include "sql_class.h"                 // THD
+#include "sql_lex.h"                   // Query_options
+#include "sql_string.h"
+
 
 /**
   Build a replacement query for SHOW STATUS.
   When the parser accepts the following syntax:
+
+  <code>
     SHOW GLOBAL STATUS
+  </code>
+
   the parsed tree built for this query is in fact:
-  SELECT * FROM
-           (SELECT VARIABLE_NAME as Variable_name, VARIABLE_VALUE as Value
-            FROM performance_schema.global_status) global_status
 
-  Likewise, the query:
-    SHOW GLOBAL STATUS LIKE "<value>"
-  is built as:
-  SELECT * FROM
-           (SELECT VARIABLE_NAME as Variable_name, VARIABLE_VALUE as Value
-            FROM performance_schema.global_status) global_status
-            WHERE Variable_name LIKE "<value>"
-
-  Likewise, the query:
-    SHOW GLOBAL STATUS where <where_clause>
-  is built as:
+  <code>
     SELECT * FROM
              (SELECT VARIABLE_NAME as Variable_name, VARIABLE_VALUE as Value
               FROM performance_schema.global_status) global_status
-              WHERE <where_clause>
+  </code>
+
+  Likewise, the query:
+
+  <code>
+    SHOW GLOBAL STATUS LIKE "<value>"
+  </code>
+
+  is built as:
+
+  <code>
+    SELECT * FROM
+             (SELECT VARIABLE_NAME as Variable_name, VARIABLE_VALUE as Value
+              FROM performance_schema.global_status) global_status
+              WHERE Variable_name LIKE "<value>"
+  </code>
+
+  Likewise, the query:
+
+  <code>
+    SHOW GLOBAL STATUS where @<where_clause@>
+  </code>
+
+  is built as:
+
+  <code>
+    SELECT * FROM
+             (SELECT VARIABLE_NAME as Variable_name, VARIABLE_VALUE as Value
+              FROM performance_schema.global_status) global_status
+              WHERE @<where_clause@>
+  </code>
 */
-SELECT_LEX*
+static SELECT_LEX*
 build_query(const POS &pos,
             THD *thd,
             enum_sql_command command,
@@ -68,40 +99,13 @@ build_query(const POS &pos,
   static const LEX_STRING as_value= { C_STRING_WITH_LEN("Value")};
   static const LEX_STRING pfs= { C_STRING_WITH_LEN("performance_schema")};
 
+  static const LEX_STRING star= { C_STRING_WITH_LEN("*")};
+
   static const Query_options options=
   {
     0, /* query_spec_options */
     SELECT_LEX::SQL_CACHE_UNSPECIFIED /* sql_cache */
   };
-
-  static const Select_lock_type lock_type=
-  {
-    false, /* is_set */
-    TL_READ, /* lock_type */
-    false /* is_safe_to_cache_query */
-  };
-
-
-  /* * */
-  Item *star= new (thd->mem_root) Item_field(pos, NULL, NULL, "*");
-
-  PT_select_item_list *item_list2;
-  item_list2= new (thd->mem_root) PT_select_item_list();
-  if (item_list2 == NULL)
-    return NULL;
-  item_list2->push_back(star);
-
-  /* SELECT * ... */
-  PT_select_options_and_item_list *options_and_item_list2;
-  options_and_item_list2= new (thd->mem_root) PT_select_options_and_item_list(options, item_list2);
-  if (options_and_item_list2 == NULL)
-    return NULL;
-
-
- /*
-    ... (SELECT VARIABLE_NAME as Variable_name, VARIABLE_VALUE as Value
-           FROM performance_schema.<table_name>) ...
-  */
 
   /* ... VARIABLE_NAME ... */
   PTI_simple_ident_ident *ident_name;
@@ -135,12 +139,6 @@ build_query(const POS &pos,
   item_list->push_back(expr_name);
   item_list->push_back(expr_value);
 
-  /* SELECT VARIABLE_NAME as Variable_name, VARIABLE_VALUE as Value ... */
-  PT_select_options_and_item_list *options_and_item_list;
-  options_and_item_list= new (thd->mem_root) PT_select_options_and_item_list(options, item_list);
-  if (options_and_item_list == NULL)
-    return NULL;
-
   /*
     make_table_list() might alter the database and table name strings. Create
     copies and leave the original values unaltered.
@@ -168,63 +166,66 @@ build_query(const POS &pos,
   if (table_factor == NULL)
     return NULL;
 
-  PT_join_table_list *join_table_list;
-  join_table_list= new (thd->mem_root) PT_join_table_list(pos, table_factor);
-  if (join_table_list == NULL)
+  Mem_root_array_YY<PT_table_reference *> table_reference_list;
+  table_reference_list.init(thd->mem_root);
+  if (table_reference_list.push_back(table_factor))
     return NULL;
 
-  PT_table_reference_list *table_reference_list;
-  table_reference_list= new (thd->mem_root) PT_table_reference_list(join_table_list);
-  if (table_reference_list == NULL)
+  /* Form subquery */
+  /* SELECT VARIABLE_NAME as Variable_name, VARIABLE_VALUE as Value FROM performance_schema.<table_name> */
+  PT_query_primary *query_specification;
+  query_specification= new (thd->mem_root) PT_query_specification(options,
+                                                                  item_list,
+                                                                  table_reference_list,  // from
+                                                                  NULL);                 // where
+  if (query_specification == NULL)
     return NULL;
 
-  PT_table_expression *table_expression;
-  table_expression= new (thd->mem_root)PT_table_expression(table_reference_list,
-                                                           NULL,
-                                                           NULL,
-                                                           NULL,
-                                                           NULL,
-                                                           NULL,
-                                                           NULL,
-                                                           lock_type);
-
-  /* ... FROM (SELECT ...) ... */
-  PT_table_factor_select_sym *table_factor_select_sym;
-  table_factor_select_sym= new (thd->mem_root) PT_table_factor_select_sym(pos, NULL, options, item_list, table_expression);
-  if (table_factor_select_sym == NULL)
+  PT_query_expression_body_primary *query_expression_body_primary;
+  query_expression_body_primary= new (thd->mem_root) PT_query_expression_body_primary(query_specification);
+  if (query_expression_body_primary == NULL)
     return NULL;
 
-  PT_select_derived *select_derived;
-  select_derived= new (thd->mem_root) PT_select_derived(pos, table_factor_select_sym);
-  if (select_derived == NULL)
+  PT_query_expression *query_expression;
+  query_expression= new (thd->mem_root) PT_query_expression(query_expression_body_primary);
+  if (query_expression == NULL)
     return NULL;
 
-  PT_select_derived_union_select *select_derived_union_select;
-  select_derived_union_select= new (thd->mem_root) PT_select_derived_union_select(select_derived, NULL, pos);
-  if (select_derived_union_select == NULL)
+  PT_subquery *sub_query;
+  sub_query= new (thd->mem_root) PT_subquery(pos, query_expression);
+  if (sub_query == NULL)
     return NULL;
 
-  /* ... derived_table ... */
   LEX_STRING derived_table_name;
   if (!thd->make_lex_string(&derived_table_name, table_name.str, table_name.length, false))
     return NULL;
+  Create_col_name_list column_names;
+  column_names.init(thd->mem_root);
+  PT_derived_table *derived_table;
+  derived_table= new (thd->mem_root) PT_derived_table(sub_query,
+                                                      &derived_table_name,
+                                                      &column_names);
+  if (derived_table == NULL)
+   return NULL;
 
-  PT_table_factor_parenthesis *table_factor_parenthesis;
-  table_factor_parenthesis= new (thd->mem_root) PT_table_factor_parenthesis(select_derived_union_select, &derived_table_name, pos);
-  if (table_factor_parenthesis == NULL)
+  Mem_root_array_YY<PT_table_reference *> table_reference_list1;
+  table_reference_list1.init(thd->mem_root);
+  if (table_reference_list1.push_back(derived_table))
     return NULL;
 
-  PT_join_table_list *join_table_list2;
-  join_table_list2= new (thd->mem_root) PT_join_table_list(pos, table_factor_parenthesis);
-  if (join_table_list2 == NULL)
+  /* SELECT * ... */
+  PTI_simple_ident_ident *ident_star;
+  ident_star= new (thd->mem_root) PTI_simple_ident_ident(pos, star);
+  if (ident_star == NULL)
     return NULL;
 
-  PT_table_reference_list *table_reference_list2;
-  table_reference_list2= new (thd->mem_root) PT_table_reference_list(join_table_list2);
-  if (table_reference_list2 == NULL)
+  PT_select_item_list *item_list1;
+  item_list1= new (thd->mem_root) PT_select_item_list();
+  if (item_list1 == NULL)
     return NULL;
+  item_list1->push_back(ident_star);
 
-  /* where clause */
+  /* Process where clause */
   Item *where_clause= NULL;
 
   if (wild != NULL)
@@ -266,32 +267,29 @@ build_query(const POS &pos,
     where_clause= where_cond;
   }
 
-
   /* SELECT * FROM (SELECT ...) derived_table [ WHERE Variable_name LIKE <value> ] */
   /* SELECT * FROM (SELECT ...) derived_table [ WHERE <cond> ] */
-  PT_select_part2 *select_part2;
-  select_part2= new (thd->mem_root) PT_select_part2(options_and_item_list2,
-                                                    NULL, /* opt_into */
-                                                    table_reference_list2, /* from_clause */
-                                                    where_clause, /* opt_where_clause */
-                                                    NULL, /* opt_group_clause */
-                                                    NULL, /* opt_having_clause */
-                                                    NULL, /* opt_order_clause */
-                                                    NULL, /* opt_limit_clause */
-                                                    NULL, /* opt_procedure_analyse_clause */
-                                                    NULL, /* opt_into */
-                                                    lock_type /* opt_select_lock_type */);
-  if (select_part2 == NULL)
+  PT_query_specification *query_specification2;
+  query_specification2= new (thd->mem_root) PT_query_specification(options,
+                                                                   item_list1,
+                                                                   table_reference_list1,  // from
+                                                                   where_clause);          // where
+  if (query_specification2 == NULL)
     return NULL;
 
-  PT_select_init2 *select_init2;
-  select_init2= new (thd->mem_root) PT_select_init2(NULL, select_part2, NULL);
-  if (select_init2 == NULL)
+  PT_query_expression_body_primary *query_expression_body_primary2;
+  query_expression_body_primary2= new (thd->mem_root) PT_query_expression_body_primary(query_specification2);
+  if (query_expression_body_primary2 == NULL)
     return NULL;
 
-  PT_select *select;
-  select= new (thd->mem_root) PT_select(select_init2, SQLCOM_SELECT);
-  if (select == NULL)
+  PT_query_expression *query_expression2;
+  query_expression2= new (thd->mem_root) PT_query_expression(query_expression_body_primary2);
+  if (query_expression2 == NULL)
+    return NULL;
+
+  PT_select_stmt *select2;
+  select2= new (thd->mem_root) PT_select_stmt(query_expression2);
+  if (select2 == NULL)
     return NULL;
 
   LEX *lex= thd->lex;
@@ -300,7 +298,7 @@ build_query(const POS &pos,
   if (thd->is_error())
     return NULL;
 
-  if (select->contextualize(&pc))
+  if (select2->contextualize(&pc))
     return NULL;
 
   /* contextualize sets to COM_SELECT */

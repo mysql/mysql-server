@@ -20,29 +20,29 @@
 #ifndef NGS_CHRONO_H_
 #define NGS_CHRONO_H_
 
-#include <boost/date_time/posix_time/posix_time.hpp>
+#include <chrono>
 
 namespace ngs {
 namespace chrono {
 
-using boost::posix_time::milliseconds;
-using boost::posix_time::seconds;
-typedef boost::posix_time::ptime time_point;
-typedef boost::posix_time::time_duration duration;
+using std::chrono::milliseconds;
+using std::chrono::seconds;
+typedef std::chrono::steady_clock::time_point time_point;
+typedef std::chrono::steady_clock::duration duration;
 
-inline time_point now() {
-  return boost::posix_time::microsec_clock::universal_time();
+inline time_point now() { return std::chrono::steady_clock::now(); }
+
+inline milliseconds::rep to_milliseconds(const duration &d) {
+  return std::chrono::duration_cast<milliseconds>(d).count();
 }
 
-inline duration::tick_type to_milliseconds(const duration &d) {
-  return d.total_milliseconds();
+inline seconds::rep to_seconds(const duration &d) {
+  return std::chrono::duration_cast<seconds>(d).count();
 }
 
-inline duration::sec_type to_seconds(const duration &d) {
-  return d.total_seconds();
+inline bool is_valid(const time_point &p) {
+  return p.time_since_epoch().count() > 0;
 }
-
-inline bool is_valid(const time_point &p) { return !p.is_not_a_date_time(); }
 
 }  // namespace chrono
 }  // namespcae ngs

@@ -115,7 +115,7 @@ SET @@global.tx_read_only = test;
 SET @@session.tx_read_only = ONN;
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@session.tx_read_only = ONF;
---Error ER_WRONG_VALUE_FOR_VAR
+--error ER_PARSE_ERROR
 SET @@session.tx_read_only = OF;
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@session.tx_read_only = 'OFN';
@@ -138,7 +138,7 @@ SELECT @@session.tx_read_only;
 
 --disable_warnings
 SELECT IF(@@global.tx_read_only, "ON", "OFF") = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='tx_read_only';
 --enable_warnings
 
@@ -148,7 +148,7 @@ WHERE VARIABLE_NAME='tx_read_only';
 
 --disable_warnings
 SELECT IF(@@session.tx_read_only, "ON", "OFF") = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+FROM performance_schema.session_variables 
 WHERE VARIABLE_NAME='tx_read_only';
 --enable_warnings
 

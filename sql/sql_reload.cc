@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,26 +13,42 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "sql_reload.h"
-#include "mysqld.h"      // select_errors
-#include "sql_class.h"   // THD
+#include "sql/sql_reload.h"
+
+#include <stddef.h>
+
 #include "auth_common.h" // acl_reload, grant_reload
-#include "sql_servers.h" // servers_reload
-#include "sql_connect.h" // reset_mqh
-#include "sql_base.h"    // close_cached_tables
-#include "sql_db.h"      // my_dbopt_cleanup
+#include "binlog.h"
+#include "connection_handler_impl.h"
+#include "current_thd.h" // my_thread_set_THR_THD
+#include "debug_sync.h"
+#include "des_key_file.h"
+#include "handler.h"
 #include "hostname.h"    // hostname_cache_refresh
+#include "lex_string.h"
+#include "log.h"         // query_logger
+#include "mdl.h"
+#include "my_base.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_sys.h"
+#include "mysql_com.h"
+#include "mysqld.h"      // select_errors
+#include "mysqld_error.h"
+#include "opt_costconstantcache.h"     // reload_optimizer_cost_constants
+#include "query_options.h"
 #include "rpl_master.h"  // reset_master
 #include "rpl_slave.h"   // reset_slave
-#include "rpl_rli.h"     // rotate_relay_log
-#include "rpl_mi.h"
-#include "rpl_msr.h"     /* multisource replication */
-#include "debug_sync.h"
-#include "connection_handler_impl.h"
-#include "opt_costconstantcache.h"     // reload_optimizer_cost_constants
-#include "log.h"         // query_logger
-#include "des_key_file.h"
-
+#include "sql_admin.h"
+#include "sql_base.h"    // close_cached_tables
+#include "sql_cache.h"   // query_cache
+#include "sql_class.h"   // THD
+#include "sql_connect.h" // reset_mqh
+#include "sql_const.h"
+#include "sql_plugin_ref.h"
+#include "sql_servers.h" // servers_reload
+#include "system_variables.h"
+#include "table.h"
 
 /**
   Reload/resets privileges and the different caches.
@@ -66,7 +82,6 @@ bool reload_acl_and_cache(THD *thd, unsigned long options,
 
   DBUG_ASSERT(!thd || !thd->in_sub_stmt);
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   if (options & REFRESH_GRANT)
   {
     THD *tmp_thd= 0;
@@ -85,7 +100,6 @@ bool reload_acl_and_cache(THD *thd, unsigned long options,
       bool reload_acl_failed= acl_reload(thd);
       bool reload_grants_failed= grant_reload(thd);
       bool reload_servers_failed= servers_reload(thd);
-
       if (reload_acl_failed || reload_grants_failed || reload_servers_failed)
       {
         result= 1;
@@ -95,16 +109,39 @@ bool reload_acl_and_cache(THD *thd, unsigned long options,
         */
         my_error(ER_UNKNOWN_ERROR, MYF(0));
       }
+      else
+      {
+        /* Reload the role grant graph and rebuild index */
+        if (roles_init_from_tables(thd))
+        {
+          result= 1;
+          my_error(ER_UNKNOWN_ERROR, MYF(0));
+        }
+      }
+
+      /*
+        Check storage engine type for every ACL table and output warning
+        message in case it's different from supported one (InnoDB).
+      */
+      if (check_engine_type_for_acl_table(thd))
+        result= 1;
+
+      /*
+        Check all the ACL tables are intact and output warning message in
+        case any of the ACL tables are corrupted.
+      */
+      if (check_acl_tables_intact(thd))
+        result= 1;
     }
 
+    reset_mqh(thd, (LEX_USER *)NULL, TRUE);
     if (tmp_thd)
     {
       delete tmp_thd;
       thd= 0;
     }
-    reset_mqh((LEX_USER *)NULL, TRUE);
   }
-#endif
+
   if (options & REFRESH_LOG)
   {
     /*
@@ -164,10 +201,8 @@ bool reload_acl_and_cache(THD *thd, unsigned long options,
     }
     if (options & REFRESH_RELAY_LOG)
     {
-#ifdef HAVE_REPLICATION
       if (flush_relay_logs_cmd(thd))
         *write_to_binlog= -1;
-#endif
     }
     if (tmp_thd)
     {
@@ -179,12 +214,12 @@ bool reload_acl_and_cache(THD *thd, unsigned long options,
   }
   if (options & REFRESH_QUERY_CACHE_FREE)
   {
-    query_cache.pack();				// FLUSH QUERY CACHE
+    query_cache.pack(thd);			// FLUSH QUERY CACHE
     options &= ~REFRESH_QUERY_CACHE;    // Don't flush cache, just free memory
   }
   if (options & (REFRESH_TABLES | REFRESH_QUERY_CACHE))
   {
-    query_cache.flush();			// RESET QUERY CACHE
+    query_cache.flush(thd);			// RESET QUERY CACHE
   }
 
   DBUG_ASSERT(!thd || thd->locked_tables_mode ||
@@ -293,17 +328,13 @@ bool reload_acl_and_cache(THD *thd, unsigned long options,
         result= 1;
       }
     }
-    my_dbopt_cleanup();
   }
   if (options & REFRESH_HOSTS)
     hostname_cache_refresh();
   if (thd && (options & REFRESH_STATUS))
-    refresh_status(thd);
-#ifndef EMBEDDED_LIBRARY
+    refresh_status();
   if (options & REFRESH_THREADS)
     Per_thread_connection_handler::kill_blocked_pthreads();
-#endif
-#ifdef HAVE_REPLICATION
   if (options & REFRESH_MASTER)
   {
     DBUG_ASSERT(thd);
@@ -314,7 +345,6 @@ bool reload_acl_and_cache(THD *thd, unsigned long options,
       result= 1;
     }
   }
-#endif
 #ifdef HAVE_OPENSSL
    if (options & REFRESH_DES_KEY_FILE)
    {
@@ -327,7 +357,6 @@ bool reload_acl_and_cache(THD *thd, unsigned long options,
 #endif
   if (options & REFRESH_OPTIMIZER_COSTS)
     reload_optimizer_cost_constants();
-#ifdef HAVE_REPLICATION
  if (options & REFRESH_SLAVE)
  {
    tmp_write_to_binlog= 0;
@@ -337,9 +366,8 @@ bool reload_acl_and_cache(THD *thd, unsigned long options,
      result= 1;
    }
  }
-#endif
  if (options & REFRESH_USER_RESOURCES)
-   reset_mqh((LEX_USER *) NULL, 0);             /* purecov: inspected */
+   reset_mqh(thd, nullptr, 0);             /* purecov: inspected */
  if (*write_to_binlog != -1)
    *write_to_binlog= tmp_write_to_binlog;
  /*
@@ -348,9 +376,8 @@ bool reload_acl_and_cache(THD *thd, unsigned long options,
  return result || (thd ? thd->killed : 0);
 }
 
-
 /**
-  Implementation of FLUSH TABLES <table_list> WITH READ LOCK.
+  Implementation of FLUSH TABLES @<table_list@> WITH READ LOCK.
 
   In brief: take exclusive locks, expel tables from the table
   cache, reopen the tables, enter the 'LOCKED TABLES' mode,
@@ -370,9 +397,9 @@ bool reload_acl_and_cache(THD *thd, unsigned long options,
   ---------------------------------------
   We don't wait for the GRL, since neither the
   5.1 combination that this new statement is intended to
-  replace (LOCK TABLE <list> WRITE; FLUSH TABLES;),
+  replace (LOCK TABLE @<list@> WRITE; FLUSH TABLES;),
   nor FLUSH TABLES WITH READ LOCK do.
-  @todo: this is not implemented, Dmitry disagrees.
+  @todo This is not implemented, Dmitry disagrees.
   Currently we wait for GRL in another connection,
   but are compatible with a GRL in our own connection.
 
@@ -391,7 +418,7 @@ bool reload_acl_and_cache(THD *thd, unsigned long options,
   new transactions will be able to read the tables, but not
   write to them.
 
-  Differences from FLUSH TABLES <list>
+  Differences from FLUSH TABLES @<list@>
   -------------------------------------
   - you can't flush WITH READ LOCK a non-existent table
   - you can't flush WITH READ LOCK under LOCK TABLES

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -560,6 +560,7 @@ int runScanReadErrorOneNode(NDBT_Context* ctx, NDBT_Step* step){
       g_err << "Cluster failed to restart" << endl;
       result = NDBT_FAILED;
     }
+    CHK_NDB_READY(GETNDB(step));
     restarter.insertErrorInAllNodes(0);
     
     i++;
@@ -1718,6 +1719,8 @@ runBug54945(NDBT_Context* ctx, NDBT_Step* step)
       res.waitNodesNoStart(&node, 1);
       res.startAll();
       res.waitClusterStarted();
+      if (pNdb->waitUntilReady() != 0)
+        return NDBT_FAILED;
     }
   }
 
@@ -2291,6 +2294,359 @@ runExtraNextResult(NDBT_Context* ctx, NDBT_Step* step)
   return result;
 }
 
+/**
+ * populateFragment0 - load a table with rows until fragment 0 contains a
+ * given number of rows.
+ */
+static int
+populateFragment0(Ndb* ndb, const NdbDictionary::Table* tab, Uint32 rows, Uint32 dbaccBuckets = 0)
+{
+  NdbRestarter restarter;
+  require(restarter.insertError2InAllNodes(3004, dbaccBuckets) == 0);
+
+  HugoTransactions hugoTrans(*tab);
+
+  const NdbRecord* const record = tab->getDefaultRecord();
+  require(record != NULL);
+
+  NdbScanOperation::ScanOptions scanOptions;
+  scanOptions.optionsPresent = scanOptions.SO_PARALLEL |
+                               scanOptions.SO_BATCH |
+                               scanOptions.SO_GETVALUE;
+  scanOptions.parallel = 1;
+  scanOptions.batch = 1;
+
+  NdbOperation::GetValueSpec extraCols[2];
+
+  Uint32 fragment;
+  extraCols[0].column = NdbDictionary::Column::FRAGMENT;
+  extraCols[0].appStorage = &fragment;
+  extraCols[0].recAttr = NULL;
+
+  Uint32 row_count = 0;
+  extraCols[1].column = NdbDictionary::Column::ROW_COUNT;
+  extraCols[1].appStorage = &row_count;
+  extraCols[1].recAttr = NULL;
+
+  scanOptions.extraGetValues = &extraCols[0];
+  scanOptions.numExtraGetValues = 2;
+
+  int start_row = 0;
+  while (row_count < rows)
+  {
+    const int missing_rows = rows - row_count;
+    hugoTrans.loadTableStartFrom(ndb, start_row, missing_rows);
+    start_row += missing_rows;
+
+    NdbTransaction* trans;
+    NdbScanOperation* scanOp;
+    trans = ndb->startTransaction();
+    require(trans != NULL);
+    scanOp = trans->scanTable(record,
+                              NdbOperation::LM_Read,
+                              NULL,
+                              &scanOptions,
+                              sizeof(scanOptions));
+    require(scanOp != NULL);
+    require(trans->execute(Commit) == 0);
+    const char* resRow;
+    int queryRes = scanOp->nextResult(&resRow,
+                                      true,
+                                      false);
+    require(queryRes == 0);
+    require(fragment == 0);
+
+    scanOp->close();
+    trans->close();
+  }
+  return 0;
+}
+
+/**
+ * sizeFragment0DbaccHashTable - triggers Dbacc to change the hash table size
+ * of fragment 0 to have given number of buckets.  The error insert (3004)
+ * used can have effect on any tables fragment 0.  The resizing is triggered
+ * on table given by the NdbRecord argument by deleting and re-insert a given
+ * row.  That row must exist and be unlocked.
+ */
+static int
+sizeFragment0DbaccHashTable(Ndb* ndb,
+                            const NdbRecord* record,
+                            const char* row,
+                            Uint32 bucketCount)
+{
+  NdbRestarter restarter;
+
+  // Set wanted bucket count for fragment 0
+  require(restarter.insertError2InAllNodes(3004, bucketCount) == 0);
+
+  NdbTransaction* trans = ndb->startTransaction();
+  require(NULL != trans->deleteTuple(record, row, record));
+  require(NULL != trans->insertTuple(record, row, record, row));
+  require(0 == trans->execute(Commit));
+  trans->close();
+  sleep(1);
+
+  return 0;
+}
+
+/**
+ * runScanDuringShrinkAndExpandBack - test case demonstrating
+ * Bug#22926938 ACC TABLE SCAN MAY SCAN SAME ROW TWICE
+ *
+ * 1. Start with table with just below 2^n buckets in fragment 0.
+ * 2. Start scan and read a few rows.
+ * 3. Shrink table, due to 1) top buckets will be merged to just below middle
+ *    buckets, and shrink will not be hindered by the scan near bottom of
+ *    table.
+ * 4. Scan beyond middle buckets.
+ * 5. Expand table back to original size.  The top buckets will now contain
+ *    scanned elements.  But before bug fix top buckets was marked as
+ *    unscanned.
+ * 6. Complete scan on fragment 0.  Before bug fix some rows was scanned twice.
+ */
+static int
+runScanDuringShrinkAndExpandBack(NDBT_Context* ctx, NDBT_Step* step)
+{
+  const NdbDictionary::Table * pTab = ctx->getTab();
+  Ndb* const ndb = GETNDB(step);
+  const NdbRecord* const record = pTab->getDefaultRecord();
+  require(record != NULL);
+  NdbScanOperation::ScanOptions scanOptions;
+  scanOptions.optionsPresent = scanOptions.SO_PARALLEL |
+                               scanOptions.SO_BATCH |
+                               scanOptions.SO_GETVALUE;
+  scanOptions.parallel = 1;
+  scanOptions.batch = 1;
+
+  Uint32 fragment;
+  NdbOperation::GetValueSpec extraCols[1];
+  extraCols[0].column = NdbDictionary::Column::FRAGMENT;
+  extraCols[0].appStorage = &fragment;
+  extraCols[0].recAttr = NULL;
+
+  scanOptions.extraGetValues = &extraCols[0];
+  scanOptions.numExtraGetValues = 1;
+
+  const size_t rowlen = NdbDictionary::getRecordRowLength(record);
+  char* firstRow = new char[rowlen];
+
+  const Uint32 high_bucket = 100; // top = 100, maxp = 63, p = 37
+  const Uint32 low_bucket = 70;   // top = 70, maxp = 63, p = 7
+  const Uint32 fragment_rows = 1000;
+
+  // 1. Start with table with just below 2^n buckets in fragment 0.
+  require(0 == populateFragment0(ndb, pTab, fragment_rows, high_bucket));
+
+  // 2. Start scan and read a few rows.
+
+  // Scan one row to delete later, and a second
+  NdbTransaction* trans;
+  NdbScanOperation* scanOp;
+
+  trans = ndb->startTransaction();
+  require(trans != NULL);
+  scanOp = trans->scanTable(record,
+                            NdbOperation::LM_Read,
+                            NULL,
+                            &scanOptions,
+                            sizeof(scanOptions));
+  require(scanOp != NULL);
+  require(trans->execute(Commit) == 0);
+
+  const char* anyRow;
+
+  Uint32 scanned_rows = 0;
+  int queryRes = scanOp->nextResult(&anyRow,
+                                    true,
+                                    false);
+  require(queryRes == 0);
+  memcpy(firstRow, anyRow, rowlen);
+  scanned_rows ++;
+
+  queryRes = scanOp->nextResult(&anyRow,
+                                true,
+                                false);
+  require(queryRes == 0);
+  scanned_rows ++;
+
+  // 3. Shrink table.
+  sizeFragment0DbaccHashTable(ndb, record, firstRow, low_bucket);
+
+  // 4. Scan beyond middle buckets.
+  while (scanned_rows < fragment_rows / 2)
+  {
+    queryRes = scanOp->nextResult(&anyRow, true, false);
+    require(queryRes == 0);
+    scanned_rows ++;
+  }
+
+  // 5. Expand table back to original size.
+  sizeFragment0DbaccHashTable(ndb, record, firstRow, high_bucket);
+
+  // 6. Complete scan on fragment 0.
+  for(;;)
+  {
+    queryRes = scanOp->nextResult(&anyRow, true, false);
+    require(queryRes == 0);
+    if (fragment != 0)
+    {
+      break;
+    }
+    scanned_rows ++;
+  }
+  g_err << "Scanned " << scanned_rows << " rows." << endl;
+
+  delete[] firstRow;
+  scanOp->close();
+  trans->close();
+
+  if (scanned_rows < fragment_rows ||
+      scanned_rows > fragment_rows + 2)
+  {
+    /**
+     * Fragment 0 only have fragment_rows rows.
+     * First row was deleted and re-inserted twice.
+     * So it could legally been seen three times.
+     * If scanned more than fragment_rows + 2 rows it is definitely an error.
+     */
+    return NDBT_FAILED;
+  }
+
+  /**
+   * Reset error insert.
+   */
+  NdbRestarter restarter;
+  require(restarter.insertErrorInAllNodes(0) == 0);
+
+  return NDBT_OK;
+}
+
+/**
+ * runScanDuringExpandAndShrinkBack - test case demonstrating
+ * Bug#22926938 ACC TABLE SCAN MAY SCAN SAME ROW TWICE
+ *
+ * 1. Start with table with just above 2^n buckets in fragment 0.
+ * 2. Start scan and read about half of the rows in fragment 0.
+ * 3. Expand table, due to 1) the scanned buckets in bottom of table are
+ *    splitted to top buckets.  And since scan is at about middle of the
+ *    table it will not hinder expansion.
+ * 4. Shrink table back to original size.  The scanned top buckets will now
+ *    be merged back to bottom of table.  But before bug fix top buckets was
+ *    marked as unscanned before merge.
+ * 5. Complete scan on fragment 0.  Before bug fix some rows was scanned twice.
+ */
+static int
+runScanDuringExpandAndShrinkBack(NDBT_Context* ctx, NDBT_Step* step)
+{
+  const NdbDictionary::Table * pTab = ctx->getTab();
+  Ndb* const ndb = GETNDB(step);
+  const NdbRecord* const record = pTab->getDefaultRecord();
+  require(record != NULL);
+  NdbScanOperation::ScanOptions scanOptions;
+  scanOptions.optionsPresent = scanOptions.SO_PARALLEL |
+                               scanOptions.SO_BATCH |
+                               scanOptions.SO_GETVALUE;
+  scanOptions.parallel = 1;
+  scanOptions.batch = 1;
+
+  Uint32 fragment;
+  NdbOperation::GetValueSpec extraCols[1];
+  extraCols[0].column = NdbDictionary::Column::FRAGMENT;
+  extraCols[0].appStorage = &fragment;
+  extraCols[0].recAttr = NULL;
+
+  scanOptions.extraGetValues = &extraCols[0];
+  scanOptions.numExtraGetValues = 1;
+
+  const size_t rowlen = NdbDictionary::getRecordRowLength(record);
+  char* firstRow = new char[rowlen];
+
+  const Uint32 low_bucket = 129;   // top = 129, maxp = 127, p = 2
+  const Uint32 high_bucket = 150;  // top = 150, maxp = 127, p = 23
+  const Uint32 fragment_rows = 1000;
+
+  // 1. Start with table with just above 2^n buckets in fragment 0.
+  require(0 == populateFragment0(ndb, pTab, fragment_rows, low_bucket));
+  sleep(1);
+
+  // 2. Start scan and read about half of the rows in fragment 0.
+
+  // Scan one row to delete later, and a second
+  NdbTransaction* trans;
+  NdbScanOperation* scanOp;
+
+  trans = ndb->startTransaction();
+  require(trans != NULL);
+  scanOp = trans->scanTable(record,
+                            NdbOperation::LM_Read,
+                            NULL,
+                            &scanOptions,
+                            sizeof(scanOptions));
+  require(scanOp != NULL);
+  require(trans->execute(Commit) == 0);
+
+  const char* anyRow;
+
+  Uint32 scanned_rows = 0;
+  int queryRes = scanOp->nextResult(&anyRow,
+                                    true,
+                                    false);
+  require(queryRes == 0);
+  memcpy(firstRow, anyRow, rowlen);
+  scanned_rows ++;
+
+  while (scanned_rows < fragment_rows / 2)
+  {
+    queryRes = scanOp->nextResult(&anyRow, true, false);
+    require(queryRes == 0);
+    scanned_rows++;
+  }
+
+  // 3. Expand table.
+  sizeFragment0DbaccHashTable(ndb, record, firstRow, high_bucket);
+
+  // 4. Shrink table back to original size.
+  sizeFragment0DbaccHashTable(ndb, record, firstRow, low_bucket);
+
+  // 5. Complete scan on fragment 0.
+  for(;;)
+  {
+    queryRes = scanOp->nextResult(&anyRow, true, false);
+    require(queryRes == 0);
+    if (fragment != 0)
+    {
+      break;
+    }
+    scanned_rows ++;
+  }
+  g_info << "Scanned " << scanned_rows << " rows." << endl;
+
+  delete[] firstRow;
+  scanOp->close();
+  trans->close();
+
+  if (scanned_rows < fragment_rows ||
+      scanned_rows > fragment_rows + 2)
+  {
+    /**
+     * Fragment 0 only have fragment_rows rows.
+     * First row was deleted and re-inserted twice.
+     * So it could legally been seen three times.
+     * If scanned more than fragment_rows + 2 rows it is definitely an error.
+     */
+    return NDBT_FAILED;
+  }
+
+  /**
+   * Reset error insert.
+   */
+  NdbRestarter restarter;
+  require(restarter.insertErrorInAllNodes(0) == 0);
+
+  return NDBT_OK;
+}
+
 NDBT_TESTSUITE(testScan);
 TESTCASE("ScanRead", 
 	 "Verify scan requirement: It should be possible "\
@@ -2846,9 +3202,9 @@ TESTCASE("CloseRefresh", "")
 {
   INITIALIZER(runCloseRefresh);
 }
-TESTCASE("Bug54945", "")
+TESTCASE("Bug54945", "Need --skip-ndb-optimized-node-selection")
 {
-  INITIALIZER(runBug54945);
+  STEP(runBug54945);
 }
 TESTCASE("ScanFragRecExhaust", 
          "Test behaviour when TC scan frag recs exhausted")
@@ -2935,7 +3291,21 @@ TESTCASE("Bug16402744",
   STEP(runScanReadError);
   FINALIZER(runClearTable);
 }
-  
+
+TESTCASE("ScanDuringShrinkAndExpandBack",
+         "Verify that dbacc scan do not scan rows twice if table shrinks and then "
+         "expands back.  See bug#22926938.")
+{
+  STEP(runScanDuringShrinkAndExpandBack);
+}
+
+TESTCASE("ScanDuringExpandAndShrinkBack",
+         "Verify that dbacc scan do not scan rows twice if table expands and then "
+         "shrinks back.  See bug#22926938.")
+{
+  STEP(runScanDuringExpandAndShrinkBack);
+}
+
 
 
 NDBT_TESTSUITE_END(testScan);

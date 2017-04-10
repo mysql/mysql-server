@@ -17,7 +17,6 @@
 #                   of preceding sql EXECUTEs
 #
 
---source include/have_query_cache.inc
 # embedded can't make more than one connection, which this test needs
 -- source include/not_embedded.inc
 

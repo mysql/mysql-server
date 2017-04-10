@@ -271,22 +271,22 @@ row_build_row_ref_in_tuple(
 					or NULL */
 	trx_t*			trx);	/*!< in: transaction or NULL */
 
-/*******************************************************************//**
-Builds from a secondary index record a row reference with which we can
-search the clustered index record. */
+/** Builds from a secondary index record a row reference with which we can
+search the clustered index record.
+@param[in,out]	ref	typed data tuple where the reference is built
+@param[in]	map	array of field numbers in rec telling how ref should
+			be built from the fields of rec
+@param[in]	rec	record in the index; must be preserved while ref is
+			used, as we do not copy field values to heap
+@param[in]	offsets	array returned by rec_get_offsets() */
 UNIV_INLINE
 void
 row_build_row_ref_fast(
-/*===================*/
-	dtuple_t*	ref,	/*!< in/out: typed data tuple where the
-				reference is built */
-	const ulint*	map,	/*!< in: array of field numbers in rec
-				telling how ref should be built from
-				the fields of rec */
-	const rec_t*	rec,	/*!< in: record in the index; must be
-				preserved while ref is used, as we do
-				not copy field values to heap */
-	const ulint*	offsets);/*!< in: array returned by rec_get_offsets() */
+	dtuple_t*	ref,
+	const ulint*	map,
+	const rec_t*	rec,
+	const ulint*	offsets);
+
 /***************************************************************//**
 Searches the clustered index record for a row, if we have the row
 reference.
@@ -297,7 +297,7 @@ row_search_on_row_ref(
 	btr_pcur_t*		pcur,	/*!< out: persistent cursor, which must
 					be closed by the caller */
 	ulint			mode,	/*!< in: BTR_MODIFY_LEAF, ... */
-	const dict_table_t*	table,	/*!< in: table */
+	dict_table_t*		table,	/*!< in: table */
 	const dtuple_t*		ref,	/*!< in: row reference */
 	mtr_t*			mtr)	/*!< in/out: mtr */
 	MY_ATTRIBUTE((warn_unused_result));
@@ -314,6 +314,42 @@ row_get_clust_rec(
 	dict_index_t**	clust_index,/*!< out: clustered index */
 	mtr_t*		mtr)	/*!< in: mtr */
 	MY_ATTRIBUTE((warn_unused_result));
+
+/** Parse the integer data from specified data, which could be
+DATA_INT, DATA_FLOAT or DATA_DOUBLE. If the value is less than 0
+and the type is not unsigned then we reset the value to 0
+@param[in]	data		data to read
+@param[in]	len		length of data
+@param[in]	mtype		mtype of data
+@param[in]	unsigned_type	if the data is unsigned
+@return the integer value from the data */
+inline
+ib_uint64_t
+row_parse_int(
+	const byte*	data,
+	ulint		len,
+	ulint		mtype,
+	bool		unsigned_type);
+
+/** Parse the integer data from specified field, which could be
+DATA_INT, DATA_FLOAT or DATA_DOUBLE. We could return 0 if
+1) the value is less than 0 and the type is not unsigned
+or 2) the field is null.
+@param[in]	field		field to read the int value
+@return the integer value read from the field, 0 for negative signed
+int or NULL field */
+ib_uint64_t
+row_parse_int_from_field(
+	const dfield_t*	field);
+
+/** Read the autoinc counter from the clustered index row.
+@param[in]	row	row to read the autoinc counter
+@param[in]	n	autoinc counter is in the nth field
+@return the autoinc counter read */
+ib_uint64_t
+row_get_autoinc_counter(
+	const dtuple_t*		row,
+	ulint			n);
 
 /** Result of row_search_index_entry */
 enum row_search_result {
@@ -370,8 +406,6 @@ row_raw_format(
 						in bytes */
 	MY_ATTRIBUTE((warn_unused_result));
 
-#ifndef UNIV_NONINL
 #include "row0row.ic"
-#endif
 
 #endif

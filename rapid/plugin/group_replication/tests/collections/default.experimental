@@ -1,2 +1,4 @@
 # For easier human reading (MTR doesn't care), please keep entries
 # in alphabetical order. This also helps with merge conflict resolution.
+
+group_replication.gr_generated_column                           # BUG#24940226  2016-10-25 Nuno Carvalho

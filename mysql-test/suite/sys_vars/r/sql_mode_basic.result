@@ -389,13 +389,13 @@ SET @@session.sql_mode = DISABLE;
 ERROR 42000: Variable 'sql_mode' can't be set to the value of 'DISABLE'
 '#-------------------FN_DYNVARS_152_05----------------------------#'
 SELECT @@session.sql_mode = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+FROM performance_schema.session_variables 
 WHERE VARIABLE_NAME='sql_mode';
 @@session.sql_mode = VARIABLE_VALUE
 1
 '#----------------------FN_DYNVARS_152_06------------------------#'
 SELECT @@global.sql_mode = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='sql_mode';
 @@global.sql_mode = VARIABLE_VALUE
 1
@@ -438,8 +438,8 @@ SET @@global.sql_mode = 4294967295;
 SELECT @@global.sql_mode;
 @@global.sql_mode
 REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,,,ONLY_FULL_GROUP_BY,NO_UNSIGNED_SUBTRACTION,NO_DIR_IN_CREATE,POSTGRESQL,ORACLE,MSSQL,DB2,MAXDB,NO_KEY_OPTIONS,NO_TABLE_OPTIONS,NO_FIELD_OPTIONS,MYSQL323,MYSQL40,ANSI,NO_AUTO_VALUE_ON_ZERO,NO_BACKSLASH_ESCAPES,STRICT_TRANS_TABLES,STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ALLOW_INVALID_DATES,ERROR_FOR_DIVISION_BY_ZERO,TRADITIONAL,NO_AUTO_CREATE_USER,HIGH_NOT_PRECEDENCE,NO_ENGINE_SUBSTITUTION,PAD_CHAR_TO_FULL_LENGTH
-SET @@global.sql_mode = 4294967296;
-ERROR 42000: Variable 'sql_mode' can't be set to the value of '4294967296'
+SET @@global.sql_mode = 8589934592;
+ERROR 42000: Variable 'sql_mode' can't be set to the value of '8589934592'
 SET @@global.sql_mode = 0.4;
 ERROR 42000: Incorrect argument type to variable 'sql_mode'
 '#---------------------FN_DYNVARS_152_08----------------------#'

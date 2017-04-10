@@ -1,0 +1,20 @@
+# Tests for PERFORMANCE_SCHEMA
+
+#setup
+let $select_column = TOTAL_CONNECTIONS;
+let $table = performance_schema.hosts;
+
+create user foo@localhost;
+grant ALL on *.* to foo@localhost;
+connect(con, localhost, foo,,);
+
+# Test index on HOST
+
+let $column_count = 1;
+let $col1 = HOST;
+let $col1_act = "localhost";
+
+--source ../include/idx_explain_test.inc
+
+# Cleanup
+drop user foo@localhost;

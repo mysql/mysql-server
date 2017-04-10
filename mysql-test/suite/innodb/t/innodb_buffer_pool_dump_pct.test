@@ -6,8 +6,6 @@
 # step 3.Compare the size of both the dump files
 # Here if the size of step 1 > size of step 2 (pass) else fail
 #*************************************************************
---source include/have_innodb.inc
---source include/have_innodb_16k.inc
 
 --echo # Set the environmental variables
 let MYSQLD_DATADIR = `SELECT @@datadir`;
@@ -30,7 +28,7 @@ SET GLOBAL innodb_buffer_pool_dump_pct=100;
 
 #***********************************************************
 # SELECT *
-# FROM information_schema.global_status
+# FROM performance_schema.global_status
 # WHERE variable_name = 'INNODB_BUFFER_POOL_DUMP_STATUS'
 # gives
 # a) VARIABLE_NAME                   VARIABLE_VALUE
@@ -54,7 +52,7 @@ SET GLOBAL innodb_buffer_pool_dump_pct=100;
 # Read the current value to compare with the new value.
 --disable_warnings
 SELECT variable_value INTO @IBPDS
-FROM information_schema.global_status
+FROM performance_schema.global_status
 WHERE variable_name = 'INNODB_BUFFER_POOL_DUMP_STATUS';
 --enable_warnings
 
@@ -68,7 +66,7 @@ SET GLOBAL innodb_buffer_pool_dump_now=ON;
 --echo # Wait until the system table get updated & dump get created
 --disable_warnings
 let $wait_condition = SELECT count(*) = 1
-FROM information_schema.global_status
+FROM performance_schema.global_status
 WHERE variable_name = 'INNODB_BUFFER_POOL_DUMP_STATUS'
 AND variable_value != @IBPDS
 AND variable_value like 'Buffer pool(s) dump completed at%';
@@ -89,7 +87,7 @@ SELECT @@global.innodb_buffer_pool_dump_pct;
 # Read the current value to compare with the new value.
 --disable_warnings
 SELECT variable_value INTO @IBPDS
-FROM information_schema.global_status
+FROM performance_schema.global_status
 WHERE variable_name = 'INNODB_BUFFER_POOL_DUMP_STATUS';
 --enable_warnings
 
@@ -103,7 +101,7 @@ SET GLOBAL innodb_buffer_pool_dump_now=ON;
 --echo # Wait until the system table get updated & dump get created
 --disable_warnings
 let $wait_condition = SELECT count(*) = 1
-FROM information_schema.global_status
+FROM performance_schema.global_status
 WHERE variable_name = 'INNODB_BUFFER_POOL_DUMP_STATUS'
 AND variable_value != @IBPDS
 AND variable_value like 'Buffer pool(s) dump completed at%'; 

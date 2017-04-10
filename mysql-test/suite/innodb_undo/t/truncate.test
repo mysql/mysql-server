@@ -9,8 +9,7 @@
 --source include/not_embedded.inc
 --source include/big_test.inc
 
-
---let $restart_parameters="restart: --innodb_undo_tablespaces=2 --innodb_undo_logs=35"
+--let $restart_parameters="restart: --innodb_undo_tablespaces=2 --innodb_undo_logs=3"
 --source include/restart_mysqld.inc
 
 ################################################################################
@@ -78,7 +77,6 @@ open(OUT, ">$ENV{CHECKFILE}") || die;
 print OUT "let \$size2='$size1,$size2';\n";
 close(OUT);
 EOF
-
 --source $CHECKFILE
 
 if ($size1 == $size2)

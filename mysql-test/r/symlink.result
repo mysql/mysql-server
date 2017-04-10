@@ -62,7 +62,7 @@ engine=myisam index directory="/this-dir-does-not-exist";
 Got one of the listed errors
 create table mysqltest.t9 (a int not null auto_increment, b char(16) not null, primary key (a)) 
 engine=myisam index directory="not-hard-path";
-ERROR 42000: Incorrect table name 'not-hard-path'
+ERROR HY000: Incorrect path value: 'not-hard-path'
 create table mysqltest.t9 (a int not null auto_increment, b char(16) not null, primary key (a)) 
 engine=myisam index directory="MYSQLTEST_VARDIR/run";
 Got one of the listed errors
@@ -183,14 +183,22 @@ Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be r
 # BUG#40980 - Drop table can remove another MyISAM table's
 #             data and index files
 #
-CREATE TABLE user(a INT) ENGINE=MYISAM DATA DIRECTORY='MYSQL_TMP_DIR/mysql'
-                             INDEX DIRECTORY='MYSQL_TMP_DIR/mysql';
-FLUSH TABLE user;
-# Symlinking mysql database to tmpdir
-FLUSH TABLE mysql.user;
-DROP TABLE user;
-FLUSH TABLE mysql.user;
-SELECT * FROM mysql.user;
+CREATE SCHEMA schema1;
+CREATE TABLE schema1.t1 (a INT, b INT) ENGINE=MYISAM;
+INSERT INTO schema1.t1 VALUES(1,1);
+INSERT INTO schema1.t1 VALUES(2,2);
+CREATE TABLE t1(a INT) ENGINE=MYISAM DATA DIRECTORY='MYSQL_TMP_DIR/mysql'
+                            INDEX DIRECTORY='MYSQL_TMP_DIR/mysql';
+FLUSH TABLE t1;
+# Symlinking schema1 database to tmpdir
+FLUSH TABLE schema1.t1;
+DROP TABLE t1;
+FLUSH TABLE schema1.t1;
+SELECT * FROM schema1.t1;
+a	b
+1	1
+2	2
+DROP SCHEMA schema1;
 End of 5.1 tests
 #
 # Test for bug #11759990 - "52354: 'CREATE TABLE .. LIKE ... '
@@ -217,3 +225,14 @@ t2	CREATE TABLE `t2` (
   PRIMARY KEY (`a`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop tables t1, t2;
+#
+# Test for bug #25514146 DB_NAME IS IGNORED WHEN CREATING TABLE
+# WITH DATA DIRECTORY
+#
+# Make sure we have no current database
+CREATE DATABASE x;
+USE x;
+DROP DATABASE x;
+CREATE TABLE test.t1(id INT(11)) ENGINE MYISAM
+DATA DIRECTORY "MYSQLTEST_VARDIR/tmp";
+DROP TABLE test.t1;

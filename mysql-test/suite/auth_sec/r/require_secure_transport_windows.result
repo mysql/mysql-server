@@ -43,7 +43,7 @@ ERROR HY000: No secure transports (SSL or Shared Memory) are configured, unable 
 # TCP/IP connection should succeed
 6
 6
-ERROR HY000: Can't open shared memory; client could not create request event (2)
+ERROR HY000: Can't open shared memory; client could not create request event (Errcode)
 # Rebooting to start ssl support and require-secure-transport=off, disabled with SHM
 # Change the dynamic variable from OFF to ON. it should not throw error
 SET @@global.require_secure_transport = ON;

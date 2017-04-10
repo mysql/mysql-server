@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -13,17 +13,17 @@
   along with this program; if not, write to the Free Software Foundation,
   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include <my_global.h>
+#include <memory.h>
 #include <my_thread.h>
-#include <pfs_server.h>
-#include <pfs_instr_class.h>
-#include <pfs_instr.h>
 #include <pfs_global.h>
+#include <pfs_instr.h>
+#include <pfs_instr_class.h>
+#include <pfs_server.h>
+#include <string.h>
+#include <sys/types.h>
 #include <tap.h>
 
-
-#include <string.h>
-#include <memory.h>
+#include "my_inttypes.h"
 
 /* test helpers, to inspect data */
 bool read_nth_attr(const char *connect_attrs, uint connect_attrs_length,
@@ -34,7 +34,7 @@ bool read_nth_attr(const char *connect_attrs, uint connect_attrs_length,
                           char *attr_value, uint max_attr_value,
                           uint *attr_value_length);
 
-void test_blob_parser()
+static void test_blob_parser()
 {
   char name[100], value[4096];
   unsigned char packet[10000], *ptr;
@@ -152,7 +152,7 @@ void test_blob_parser()
   ok(result == false, "first attribute that's cut %d", 1365);
 }
 
-void test_multibyte_lengths()
+static void test_multibyte_lengths()
 {
   char name[100], value[4096];
   uint name_len, value_len;
@@ -184,7 +184,7 @@ void test_multibyte_lengths()
 }
 
 
-void test_utf8_parser()
+static void test_utf8_parser()
 {
   /* utf8 max byte length per character is 6 */
   char name[33 * 6], value[1024 * 6], packet[1500 * 6], *ptr;
@@ -236,7 +236,7 @@ void test_utf8_parser()
 }
 
 
-void test_utf8_parser_bad_encoding()
+static void test_utf8_parser_bad_encoding()
 {
   /* utf8 max byte length per character is 3*/
   char name[33 * 3], value[1024 * 3], packet[1500 * 3], *ptr;
@@ -267,7 +267,7 @@ void test_utf8_parser_bad_encoding()
 
 const CHARSET_INFO *cs_cp1251;
 
-void test_cp1251_parser()
+static void test_cp1251_parser()
 {
   /* utf8 max byte length per character is 3*/
   char name[33 * 3], value[1024 * 3], packet[1500 * 3], *ptr;
@@ -323,7 +323,7 @@ void test_cp1251_parser()
 }
 
 
-void do_all_tests()
+static void do_all_tests()
 {
   test_blob_parser();
   test_multibyte_lengths();
@@ -341,5 +341,5 @@ int main(int, char **)
     diag("skipping the cp1251 tests : missing character set");
   plan(59 + (cs_cp1251 ? 10 : 0));
   do_all_tests();
-  return 0;
+  return (exit_status());
 }

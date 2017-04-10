@@ -1,8 +1,6 @@
 # Author: Horst Hunger
 # Created: 2010-07-07
 
---source include/have_partition.inc
---source include/have_innodb.inc
 
 let $engine_table= InnoDB;
 let $engine_part= InnoDB;

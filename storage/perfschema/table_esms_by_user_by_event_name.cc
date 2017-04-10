@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -11,26 +11,31 @@
 
   You should have received a copy of the GNU General Public License
   along with this program; if not, write to the Free Software
-  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
+  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
+  */
 
 /**
   @file storage/perfschema/table_esms_by_user_by_event_name.cc
   Table EVENTS_STATEMENTS_SUMMARY_BY_USER_BY_EVENT_NAME (implementation).
 */
 
-#include "my_global.h"
+#include "storage/perfschema/table_esms_by_user_by_event_name.h"
+
+#include <stddef.h>
+
+#include "field.h"
+#include "my_dbug.h"
 #include "my_thread.h"
-#include "pfs_instr_class.h"
+#include "pfs_buffer_container.h"
 #include "pfs_column_types.h"
 #include "pfs_column_values.h"
-#include "table_esms_by_user_by_event_name.h"
 #include "pfs_global.h"
+#include "pfs_instr_class.h"
 #include "pfs_visitor.h"
-#include "pfs_buffer_container.h"
-#include "field.h"
 
 THR_LOCK table_esms_by_user_by_event_name::m_table_lock;
 
+/* clang-format off */
 static const TABLE_FIELD_TYPE field_types[]=
 {
   {
@@ -164,15 +169,13 @@ static const TABLE_FIELD_TYPE field_types[]=
     { NULL, 0}
   }
 };
+/* clang-format on */
 
 TABLE_FIELD_DEF
-table_esms_by_user_by_event_name::m_field_def=
-{ 26, field_types };
+table_esms_by_user_by_event_name::m_field_def = {26, field_types};
 
-PFS_engine_table_share
-table_esms_by_user_by_event_name::m_share=
-{
-  { C_STRING_WITH_LEN("events_statements_summary_by_user_by_event_name") },
+PFS_engine_table_share table_esms_by_user_by_event_name::m_share = {
+  {C_STRING_WITH_LEN("events_statements_summary_by_user_by_event_name")},
   &pfs_truncatable_acl,
   table_esms_by_user_by_event_name::create,
   NULL, /* write_row */
@@ -185,7 +188,38 @@ table_esms_by_user_by_event_name::m_share=
   false  /* perpetual */
 };
 
-PFS_engine_table*
+bool
+PFS_index_esms_by_user_by_event_name::match(PFS_user *pfs)
+{
+  if (m_fields >= 1)
+  {
+    if (!m_key_1.match(pfs))
+    {
+      return false;
+    }
+  }
+  return true;
+}
+
+bool
+PFS_index_esms_by_user_by_event_name::match(PFS_instr_class *instr_class)
+{
+  if (instr_class->is_mutable())
+  {
+    return false;
+  }
+
+  if (m_fields >= 2)
+  {
+    if (!m_key_2.match(instr_class))
+    {
+      return false;
+    }
+  }
+  return true;
+}
+
+PFS_engine_table *
 table_esms_by_user_by_event_name::create(void)
 {
   return new table_esms_by_user_by_event_name();
@@ -207,41 +241,41 @@ table_esms_by_user_by_event_name::get_row_count(void)
 }
 
 table_esms_by_user_by_event_name::table_esms_by_user_by_event_name()
-  : PFS_engine_table(&m_share, &m_pos),
-    m_row_exists(false), m_pos(), m_next_pos()
-{}
+  : PFS_engine_table(&m_share, &m_pos), m_pos(), m_next_pos()
+{
+}
 
-void table_esms_by_user_by_event_name::reset_position(void)
+void
+table_esms_by_user_by_event_name::reset_position(void)
 {
   m_pos.reset();
   m_next_pos.reset();
 }
 
-int table_esms_by_user_by_event_name::rnd_init(bool scan)
+int
+table_esms_by_user_by_event_name::rnd_init(bool)
 {
-  m_normalizer= time_normalizer::get(statement_timer);
+  m_normalizer = time_normalizer::get(statement_timer);
   return 0;
 }
 
-int table_esms_by_user_by_event_name::rnd_next(void)
+int
+table_esms_by_user_by_event_name::rnd_next(void)
 {
   PFS_user *user;
   PFS_statement_class *statement_class;
-  bool has_more_user= true;
+  bool has_more_user = true;
 
-  for (m_pos.set_at(&m_next_pos);
-       has_more_user;
-       m_pos.next_user())
+  for (m_pos.set_at(&m_next_pos); has_more_user; m_pos.next_user())
   {
-    user= global_user_container.get(m_pos.m_index_1, & has_more_user);
+    user = global_user_container.get(m_pos.m_index_1, &has_more_user);
     if (user != NULL)
     {
-      statement_class= find_statement_class(m_pos.m_index_2);
+      statement_class = find_statement_class(m_pos.m_index_2);
       if (statement_class)
       {
-        make_row(user, statement_class);
         m_next_pos.set_after(&m_pos);
-        return 0;
+        return make_row(user, statement_class);
       }
     }
   }
@@ -257,33 +291,85 @@ table_esms_by_user_by_event_name::rnd_pos(const void *pos)
 
   set_position(pos);
 
-  user= global_user_container.get(m_pos.m_index_1);
+  user = global_user_container.get(m_pos.m_index_1);
   if (user != NULL)
   {
-    statement_class= find_statement_class(m_pos.m_index_2);
+    statement_class = find_statement_class(m_pos.m_index_2);
     if (statement_class)
     {
-      make_row(user, statement_class);
-      return 0;
+      return make_row(user, statement_class);
     }
   }
 
   return HA_ERR_RECORD_DELETED;
 }
 
-void table_esms_by_user_by_event_name
-::make_row(PFS_user *user, PFS_statement_class *klass)
+int
+table_esms_by_user_by_event_name::index_init(uint idx, bool)
+{
+  m_normalizer = time_normalizer::get(statement_timer);
+  PFS_index_esms_by_user_by_event_name *result = NULL;
+  DBUG_ASSERT(idx == 0);
+  result = PFS_NEW(PFS_index_esms_by_user_by_event_name);
+  m_opened_index = result;
+  m_index = result;
+  return 0;
+}
+
+int
+table_esms_by_user_by_event_name::index_next(void)
+{
+  PFS_user *user;
+  PFS_statement_class *statement_class;
+  bool has_more_user = true;
+
+  for (m_pos.set_at(&m_next_pos); has_more_user; m_pos.next_user())
+  {
+    user = global_user_container.get(m_pos.m_index_1, &has_more_user);
+    if (user != NULL)
+    {
+      if (m_opened_index->match(user))
+      {
+        do
+        {
+          statement_class = find_statement_class(m_pos.m_index_2);
+          if (statement_class)
+          {
+            if (m_opened_index->match(statement_class))
+            {
+              if (!make_row(user, statement_class))
+              {
+                m_next_pos.set_after(&m_pos);
+                return 0;
+              }
+            }
+            m_pos.m_index_2++;
+          }
+        } while (statement_class != NULL);
+      }
+    }
+  }
+
+  return HA_ERR_END_OF_FILE;
+}
+
+int
+table_esms_by_user_by_event_name::make_row(PFS_user *user,
+                                           PFS_statement_class *klass)
 {
   pfs_optimistic_state lock;
-  m_row_exists= false;
 
   if (klass->is_mutable())
-    return;
+  {
+    return HA_ERR_RECORD_DELETED;
+  }
 
   user->m_lock.begin_optimistic_lock(&lock);
 
   if (m_row.m_user.make_row(user))
-    return;
+  {
+    return HA_ERR_RECORD_DELETED;
+  }
 
   m_row.m_event_name.make_row(klass);
 
@@ -292,33 +378,35 @@ void table_esms_by_user_by_event_name
                                       true,  /* accounts */
                                       true,  /* threads */
                                       false, /* THDs */
-                                      & visitor);
+                                      &visitor);
 
-  if (! user->m_lock.end_optimistic_lock(&lock))
-    return;
+  if (!user->m_lock.end_optimistic_lock(&lock))
+  {
+    return HA_ERR_RECORD_DELETED;
+  }
 
-  m_row_exists= true;
-  m_row.m_stat.set(m_normalizer, & visitor.m_stat);
+  m_row.m_stat.set(m_normalizer, &visitor.m_stat);
+
+  return 0;
 }
 
-int table_esms_by_user_by_event_name
-::read_row_values(TABLE *table, unsigned char *buf, Field **fields,
-                  bool read_all)
+int
+table_esms_by_user_by_event_name::read_row_values(TABLE *table,
+                                                  unsigned char *buf,
+                                                  Field **fields,
+                                                  bool read_all)
 {
   Field *f;
 
-  if (unlikely(! m_row_exists))
-    return HA_ERR_RECORD_DELETED;
-
   /* Set the null bits */
   DBUG_ASSERT(table->s->null_bytes == 1);
-  buf[0]= 0;
+  buf[0] = 0;
 
-  for (; (f= *fields) ; fields++)
+  for (; (f = *fields); fields++)
   {
     if (read_all || bitmap_is_set(table->read_set, f->field_index))
     {
-      switch(f->field_index)
+      switch (f->field_index)
       {
       case 0: /* USER */
         m_row.m_user.set_field(f);
@@ -335,4 +423,3 @@ int table_esms_by_user_by_event_name
 
   return 0;
 }
-

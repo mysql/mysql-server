@@ -1,7 +1,7 @@
 ## Crud views sundries
 
 ## Preamble
---source ../include/xplugin_preamble.inc
+--source include/xplugin_preamble.inc
 
 ## Test data
 --let $xtest_file= $MYSQL_TMP_DIR/crud_view_sundries.tmp

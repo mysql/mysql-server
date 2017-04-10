@@ -9,8 +9,8 @@ select @@session.end_markers_in_json;
 show global variables like 'end_markers_in_json';
 show session variables like 'end_markers_in_json';
 --disable_warnings
-select * from information_schema.global_variables where variable_name='end_markers_in_json';
-select * from information_schema.session_variables where variable_name='end_markers_in_json';
+select * from performance_schema.global_variables where variable_name='end_markers_in_json';
+select * from performance_schema.session_variables where variable_name='end_markers_in_json';
 --enable_warnings
 
 #

@@ -11,8 +11,8 @@ revoke all privileges on *.* from mysqltest_1@localhost;
 grant select,alter on mysqltest_1.* to mysqltest_1@localhost;
 show grants for current_user;
 Grants for mysqltest_1@localhost
-GRANT USAGE ON *.* TO 'mysqltest_1'@'localhost'
-GRANT SELECT, ALTER ON `mysqltest_1`.* TO 'mysqltest_1'@'localhost'
+GRANT USAGE ON *.* TO `mysqltest_1`@`localhost`
+GRANT SELECT, ALTER ON `mysqltest_1`.* TO `mysqltest_1`@`localhost`
 alter table t1 add b int;
 alter table t1 drop partition p2;
 ERROR 42000: DROP command denied to user 'mysqltest_1'@'localhost' for table 't1'

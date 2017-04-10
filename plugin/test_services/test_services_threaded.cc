@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,11 +13,16 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
-#include <my_global.h>
-#include <mysql_version.h>
+#include <fcntl.h>
 #include <mysql/plugin.h>
-#include "my_sys.h"                             // my_write, my_malloc
+#include <mysql_version.h>
+#include <stdlib.h>
+
 #include "m_string.h"                           // strlen
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_io.h"
+#include "my_sys.h"                             // my_write, my_malloc
 #include "sql_plugin.h"                         // st_plugin_int
 
 #define STRING_BUFFER 256
@@ -60,7 +65,7 @@ static struct st_mysql_sys_var *test_services_sysvars[]= {
 };
 
 /* The test cases for snprintf service.  */
-int test_snprintf()
+static int test_snprintf()
 {
   DBUG_ENTER("mysql_outfile");
   char filename[FN_REFLEN];
@@ -90,7 +95,7 @@ int test_snprintf()
 }
 
 /* The test cases for the log_message service. */
-int test_my_plugin_log_message(void *p)
+static int test_my_plugin_log_message(void *p)
 {
   DBUG_ENTER("my_plugin_log_message");
 /* Writes to mysqld.1.err: Plugin test_services reports an info text */
@@ -106,7 +111,7 @@ int test_my_plugin_log_message(void *p)
 }
 
 /* This fucntion is needed to be called in a thread. */
-void *test_services(void *p) {
+static void *test_services(void *p) {
   DBUG_ENTER("test_services");
 
   int ret= 0; 

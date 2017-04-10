@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,12 +15,23 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 
-/* class for the the myisam handler */
+/**
+  @file storage/myisam/ha_myisam.h
+  MyISAM storage engine.
+*/
 
-#include <myisam.h>
 #include <ft_global.h>
+#include <myisam.h>
+#include <stddef.h>
+#include <sys/types.h>
+
 #include "handler.h"                            /* handler */
+#include "my_icp.h"
+#include "my_inttypes.h"
+#include "my_macros.h"
+#include "sql_string.h"
 #include "table.h"                              /* TABLE_SHARE */
+#include "typelib.h"
 
 struct TABLE_SHARE;
 typedef struct st_ha_create_information HA_CREATE_INFO;
@@ -34,6 +45,14 @@ typedef struct st_ha_create_information HA_CREATE_INFO;
 extern TYPELIB myisam_recover_typelib;
 extern const char *myisam_recover_names[];
 extern ulonglong myisam_recover_options;
+extern const char *myisam_stats_method_names[];
+
+int table2myisam(TABLE *table_arg, MI_KEYDEF **keydef_out,
+                 MI_COLUMNDEF **recinfo_out, uint *records_out);
+int check_definition(MI_KEYDEF *t1_keyinfo, MI_COLUMNDEF *t1_recinfo,
+                     uint t1_keys, uint t1_recs,
+                     MI_KEYDEF *t2_keyinfo, MI_COLUMNDEF *t2_recinfo,
+                     uint t2_keys, uint t2_recs, bool strict);
 
 C_MODE_START
 ICP_RESULT index_cond_func_myisam(void *arg);
@@ -60,14 +79,16 @@ class ha_myisam: public handler
   ~ha_myisam() {}
   handler *clone(const char *name, MEM_ROOT *mem_root);
   const char *table_type() const { return "MyISAM"; }
-  const char *index_type(uint key_number);
-  const char **bas_ext() const;
+  virtual enum ha_key_alg get_default_index_algorithm() const
+  { return HA_KEY_ALG_BTREE; }
+  virtual bool is_index_algorithm_supported(enum ha_key_alg key_alg) const
+  { return key_alg == HA_KEY_ALG_BTREE || key_alg == HA_KEY_ALG_RTREE; }
   ulonglong table_flags() const { return int_table_flags; }
   int index_init(uint idx, bool sorted);
   int index_end();
   int rnd_end();
 
-  ulong index_flags(uint inx, uint part, bool all_parts) const
+  ulong index_flags(uint inx, uint, bool) const
   {
     if (table_share->key_info[inx].algorithm == HA_KEY_ALG_FULLTEXT)
       return 0;
@@ -86,7 +107,8 @@ class ha_myisam: public handler
   uint max_supported_key_part_length() const { return MI_MAX_KEY_LENGTH; }
   uint checksum() const;
 
-  int open(const char *name, int mode, uint test_if_locked);
+  int open(const char *name, int mode, uint test_if_locked,
+           const dd::Table *table_def);
   int close(void);
   int write_row(uchar * buf);
   int update_row(const uchar * old_data, uchar * new_data);
@@ -126,8 +148,6 @@ class ha_myisam: public handler
   int reset(void);
   int external_lock(THD *thd, int lock_type);
   int delete_all_rows(void);
-  int truncate();
-  int reset_auto_increment(ulonglong value);
   int disable_indexes(uint mode);
   int enable_indexes(uint mode);
   int indexes_are_disabled(void);
@@ -135,15 +155,18 @@ class ha_myisam: public handler
   int end_bulk_insert();
   ha_rows records_in_range(uint inx, key_range *min_key, key_range *max_key);
   void update_create_info(HA_CREATE_INFO *create_info);
-  int create(const char *name, TABLE *form, HA_CREATE_INFO *create_info);
+  int create(const char *name, TABLE *form, HA_CREATE_INFO *create_info,
+             dd::Table *table_def);
   THR_LOCK_DATA **store_lock(THD *thd, THR_LOCK_DATA **to,
 			     enum thr_lock_type lock_type);
   virtual void get_auto_increment(ulonglong offset, ulonglong increment,
                                   ulonglong nb_desired_values,
                                   ulonglong *first_value,
                                   ulonglong *nb_reserved_values);
-  int rename_table(const char * from, const char * to);
-  int delete_table(const char *name);
+  int rename_table(const char * from, const char * to,
+                   const dd::Table *from_table_def,
+                   dd::Table *to_table_def);
+  int delete_table(const char *name, const dd::Table *table_def);
   int check(THD* thd, HA_CHECK_OPT* check_opt);
   int analyze(THD* thd,HA_CHECK_OPT* check_opt);
   int repair(THD* thd, HA_CHECK_OPT* check_opt);
@@ -154,11 +177,11 @@ class ha_myisam: public handler
   int assign_to_keycache(THD* thd, HA_CHECK_OPT* check_opt);
   int preload_keys(THD* thd, HA_CHECK_OPT* check_opt);
   bool check_if_incompatible_data(HA_CREATE_INFO *info, uint table_changes);
-  my_bool register_query_cache_table(THD *thd, char *table_key,
-                                     size_t key_length,
-                                     qc_engine_callback
-                                     *engine_callback,
-                                     ulonglong *engine_data);
+  bool register_query_cache_table(THD *thd, char *table_key,
+                                  size_t key_length,
+                                  qc_engine_callback
+                                  *engine_callback,
+                                  ulonglong *engine_data);
   MI_INFO *file_ptr(void)
   {
     return file;

@@ -2,9 +2,6 @@
 # Tests for the performance schema statement Digests.
 # -----------------------------------------------------------------------
 
---source include/not_embedded.inc
---source include/have_perfschema.inc
-
 SET sql_mode='NO_ENGINE_SUBSTITUTION';
 # Initial Setup for Digest
 --source ../include/digest_setup.inc

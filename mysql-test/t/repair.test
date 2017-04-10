@@ -6,6 +6,16 @@
 --source include/force_myisam_default.inc
 --source include/have_myisam.inc
 
+########################################
+##### WL#7554 Force schema `test` to character set latin1
+##### This test should be migrated to utf8mb4
+--disable_query_log
+let $testdbcs256=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
+alter schema default character set latin1;
+use test;
+--enable_query_log
+########################################
+
 #
 # Test of repair table
 #
@@ -26,8 +36,10 @@ drop table t1;
 create table t1(id int PRIMARY KEY, st varchar(10), KEY st_key(st));
 insert into t1 values(1, "One");
 alter table t1 disable keys;
+analyze table t1;
 show keys from t1;
 repair table t1 extended;
+analyze table t1;
 show keys from t1;
 drop table t1;
 
@@ -50,6 +62,7 @@ CREATE TABLE t1(a INT, KEY(a));
 INSERT INTO t1 VALUES(1),(2),(3),(4),(5);
 SET myisam_repair_threads=2;
 REPAIR TABLE t1;
+ANALYZE TABLE t1;
 SHOW INDEX FROM t1;
 SET myisam_repair_threads=@@global.myisam_repair_threads;
 DROP TABLE t1;
@@ -123,37 +136,6 @@ DROP TABLE t1;
 
 --echo End of 4.1 tests
 
-#
-# BUG#36055 - mysql_upgrade doesn't really 'upgrade' tables
-#
-
---echo # Test with a saved table from 4.1
-let $MYSQLD_DATADIR= `select @@datadir`;
---copy_file std_data/bug36055.frm $MYSQLD_DATADIR/test/t1.frm
---copy_file std_data/bug36055.MYD $MYSQLD_DATADIR/test/t1.MYD
---copy_file std_data/bug36055.MYI $MYSQLD_DATADIR/test/t1.MYI
-
---replace_column 12 # 13 #
-SHOW TABLE STATUS LIKE 't1';
-SELECT * FROM t1;
-
---echo # Run CHECK TABLE, it should indicate table need a REPAIR TABLE
-CHECK TABLE t1 FOR UPGRADE;
-
---echo # REPAIR old table USE_FRM should fail
-REPAIR TABLE t1 USE_FRM;
-
---echo # Run REPAIR TABLE to upgrade .frm file
-REPAIR TABLE t1;
---replace_column 12 # 13 #
-SHOW TABLE STATUS LIKE 't1';
-SELECT * FROM t1;
-
-REPAIR TABLE t1 USE_FRM;
-SELECT * FROM t1;
-
-DROP TABLE t1;
-# End of 5.0 tests
 
 #
 # Bug#18775 - Temporary table from alter table visible to other threads
@@ -196,3 +178,10 @@ set @@autocommit= 0;
 repair table t1, t2;
 set @@autocommit= default;
 drop tables t1, t2;
+
+########################################
+##### WL#7554 set schema `test` back to what it was
+--disable_query_log
+--eval alter schema test default character set $testdbcs256;
+--enable_query_log
+########################################

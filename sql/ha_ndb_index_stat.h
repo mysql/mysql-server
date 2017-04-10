@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,22 +19,17 @@
 #define HA_NDB_INDEX_STAT_H
 
 #include "ndb_component.h"
+#include <mysql/psi/mysql_thread.h>
 
-/* for NdbIndexScanOperation::IndexBound */
-#include <ndbapi/NdbIndexScanOperation.hpp>
-
-/* forward declarations */
-struct st_key_range;
-typedef struct st_key_range key_range;
-struct st_key;
-typedef struct st_key KEY;
+struct NDB_SHARE;
+class Ndb_cluster_connection;
 
 class Ndb_index_stat_thread : public Ndb_component
 {
   // Someone is waiting for stats
   bool client_waiting;
-  native_mutex_t LOCK;
-  native_cond_t COND;
+  mysql_mutex_t LOCK_client_waiting;
+  mysql_cond_t COND_client_waiting;
 public:
   Ndb_index_stat_thread();
   virtual ~Ndb_index_stat_thread();
@@ -43,8 +38,8 @@ public:
     protect stats entry lists where needed
     protect and signal changes in stats entries
   */
-  native_mutex_t stat_mutex;
-  native_cond_t stat_cond;
+  mysql_mutex_t stat_mutex;
+  mysql_cond_t stat_cond;
 
   // Wake thread up to fetch stats or do other stuff
   void wakeup();
@@ -52,23 +47,24 @@ public:
   /* are we setup */
   bool is_setup_complete();
 private:
-  virtual int do_init() { return 0;}
+  virtual int do_init();
   virtual void do_run();
-  virtual int do_deinit() { return 0;}
+  virtual int do_deinit();
   // Wakeup for stop
   virtual void do_wakeup();
 
+  int check_or_create_systables(struct Ndb_index_stat_proc& pr);
+  int check_or_create_sysevents(struct Ndb_index_stat_proc& pr);
+  void drop_ndb(struct Ndb_index_stat_proc& pr);
+  int start_listener(struct Ndb_index_stat_proc& pr);
+  int create_ndb(struct Ndb_index_stat_proc& pr,
+                 Ndb_cluster_connection* connection);
+  void stop_listener(struct Ndb_index_stat_proc& pr);
 };
 
 /* free entries from share or at end */
 void ndb_index_stat_free(NDB_SHARE*, int iudex_id, int index_version);
 void ndb_index_stat_free(NDB_SHARE*);
 void ndb_index_stat_end();
-
-void
-compute_index_bounds(NdbIndexScanOperation::IndexBound & bound,
-                     const KEY *key_info,
-                     const key_range *start_key, const key_range *end_key,
-                     int from);
 
 #endif

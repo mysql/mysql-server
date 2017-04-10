@@ -22,7 +22,6 @@
 #                                                                             #
 ###############################################################################
 
---source include/have_innodb.inc
 
 --echo '#---------------------BS_STVARS_035_01----------------------#'
 ####################################################################
@@ -54,7 +53,7 @@ SELECT COUNT(@@GLOBAL.innodb_log_file_size);
 
 --disable_warnings
 SELECT @@GLOBAL.innodb_log_file_size = VARIABLE_VALUE
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='innodb_log_file_size';
 --enable_warnings
 --echo 1 Expected
@@ -64,7 +63,7 @@ SELECT COUNT(@@GLOBAL.innodb_log_file_size);
 
 --disable_warnings
 SELECT COUNT(VARIABLE_VALUE)
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='innodb_log_file_size';
 --enable_warnings
 --echo 1 Expected

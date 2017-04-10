@@ -1,7 +1,4 @@
-#ifndef SQL_AUTHENTICATION_INCLUDED
-#define SQL_AUTHENTICATION_INCLUDED
-
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,16 +13,32 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "my_global.h"                  // NO_EMBEDDED_ACCESS_CHECKS
-#include "my_thread_local.h"            // my_thread_id
-#include <mysql/plugin_auth.h>          // MYSQL_SERVER_AUTH_INFO
-#include "sql_plugin_ref.h"             // plugin_ref
+#ifndef SQL_AUTHENTICATION_INCLUDED
+#define SQL_AUTHENTICATION_INCLUDED
 
-/* Forward declarations */
+#include "my_config.h"
+
+#include <sys/types.h>
+
+#include "lex_string.h"
+#include "m_ctype.h"
+#include "my_thread_local.h"            // my_thread_id
+#include "mysql/plugin.h"
+#include "mysql/plugin_auth.h"          // MYSQL_SERVER_AUTH_INFO
+#include "mysql/plugin_auth_common.h"
+#include "mysql_com.h"
+#include "sql_plugin.h"
+#include "sql_plugin_ref.h"             // plugin_ref
+#include "thr_malloc.h"
+
 class THD;
+
 typedef struct charset_info_st CHARSET_INFO;
+typedef struct st_mysql_show_var SHOW_VAR;
 class ACL_USER;
 class Protocol_classic;
+class String;
+
 typedef struct st_net NET;
 
 /* Classes */
@@ -83,6 +96,10 @@ struct MPVIO_EXT : public MYSQL_PLUGIN_VIO
 
 #if defined(HAVE_OPENSSL)
 #ifndef HAVE_YASSL
+bool init_rsa_keys(void);
+void deinit_rsa_keys(void);
+int show_rsa_public_key(THD *thd, SHOW_VAR *var, char *buff);
+
 typedef struct rsa_st RSA;
 class Rsa_authentication_keys
 {
@@ -132,9 +149,7 @@ extern LEX_CSTRING sha256_password_plugin_name;
 extern LEX_CSTRING validate_password_plugin_name;
 extern LEX_CSTRING default_auth_plugin_name;
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
 extern bool allow_all_hosts;
-#endif /* NO_EMBEDDED_ACCESS_CHECKS */
 
 extern plugin_ref native_password_plugin;
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,12 +13,18 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
-#include <stdlib.h>
-#include <my_global.h>
-#include "my_sys.h"                             // my_write, my_malloc
+#include <fcntl.h>
 #include <mysql/plugin.h>
-#include "mysql_com.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <sys/types.h>
+
 #include "m_string.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_io.h"
+#include "my_sys.h"                             // my_write, my_malloc
+#include "mysql_com.h"
 #include "sql_string.h" /* STRING_PSI_MEMORY_KEY */
 
 static const char *log_filename= "test_sql_complex";
@@ -96,12 +102,12 @@ static struct st_test_statement test_query_plan[]=
   {"test1", false, "UPDATE tbl SET a=2"},
   {"test1", false, "ROLLBACK"},
   {"test1", false, "SELECT IF(SUM(4) = 12, 'OK', 'FAIL') FROM tbl"},
-  // disabled commands
-  {"test1", false, "INSTALL PLUGIN plugin_name SONAME 'shared_library_name'"},
-  {"test1", false, "UNINSTALL PLUGIN plugin_name"},
-  {"test1", false, "START GROUP_REPLICATION"},
-  {"test1", false, "STOP GROUP_REPLICATION"},
-   // empty cmd
+  {"test1", true, "set @a=((2) in (select a from tbl))"},
+  {"test1", true, "SELECT @a"},
+  {"test1", true, "set @b=42"},
+  {"test1", true, "SELECT @b"},
+  {"test1", true, "SELECT @non_existing"},
+  // empty cmd
   {"test1", true, ""},
 
   {"test1", false, "DROP TABLE tbl"},
@@ -216,7 +222,7 @@ struct st_plugin_ctx
 };
 
 
-static int sql_start_result_metadata(void *ctx, uint num_cols, uint flags,
+static int sql_start_result_metadata(void *ctx, uint num_cols, uint,
                                      const CHARSET_INFO *resultcs)
 {
   struct st_plugin_ctx *pctx= (struct st_plugin_ctx*) ctx;
@@ -230,10 +236,10 @@ static int sql_start_result_metadata(void *ctx, uint num_cols, uint flags,
   pctx->current_col= 0;
 
   DBUG_RETURN(false);
-};
+}
 
 static int sql_field_metadata(void *ctx, struct st_send_field *field,
-                              const CHARSET_INFO *charset)
+                              const CHARSET_INFO*)
 {
   struct st_plugin_ctx *pctx= (struct st_plugin_ctx*) ctx;
   st_send_field_n *cfield= &pctx->sql_field[pctx->current_col];
@@ -263,7 +269,7 @@ static int sql_field_metadata(void *ctx, struct st_send_field *field,
 
   pctx->current_col++;
   DBUG_RETURN(false);
-};
+}
 
 static int sql_end_result_metadata(void *ctx, uint server_status,
                                    uint warn_count)
@@ -275,7 +281,7 @@ static int sql_end_result_metadata(void *ctx, uint server_status,
   pctx->meta_warn_count= warn_count;
   pctx->num_rows= 0;
   DBUG_RETURN(false);
-};
+}
 
 static int sql_start_row(void *ctx)
 {
@@ -284,7 +290,7 @@ static int sql_start_row(void *ctx)
   DBUG_ENTER("sql_start_row");
   pctx->current_col= 0;
   DBUG_RETURN(false);
-};
+}
 
 static int sql_end_row(void *ctx)
 {
@@ -293,19 +299,19 @@ static int sql_end_row(void *ctx)
   DBUG_ENTER("sql_end_row");
   pctx->num_rows++;
   DBUG_RETURN(false);
-};
+}
 
-static void sql_abort_row(void *ctx)
+static void sql_abort_row(void*)
 {
   DBUG_ENTER("sql_abort_row");
   DBUG_VOID_RETURN;
-};
+}
 
-static ulong sql_get_client_capabilities(void *ctx)
+static ulong sql_get_client_capabilities(void*)
 {
   DBUG_ENTER("sql_get_client_capabilities");
   DBUG_RETURN(0);
-};
+}
 
 static int sql_get_null(void *ctx)
 {
@@ -320,7 +326,7 @@ static int sql_get_null(void *ctx)
   pctx->sql_str_len[row][col]=  sizeof("[NULL]")-1;
 
   DBUG_RETURN(false);
-};
+}
 
 static int sql_get_integer(void * ctx, longlong value)
 {
@@ -338,7 +344,7 @@ static int sql_get_integer(void * ctx, longlong value)
   pctx->sql_str_len[row][col]= len;
 
   DBUG_RETURN(false);
-};
+}
 
 static int sql_get_longlong(void * ctx, longlong value, uint is_unsigned)
 {
@@ -357,7 +363,7 @@ static int sql_get_longlong(void * ctx, longlong value, uint is_unsigned)
   pctx->sql_str_len[row][col]= len;
 
   DBUG_RETURN(false);
-};
+}
 
 
 static const char *test_decimal_as_string(char *buff, const decimal_t *val, int *length)
@@ -382,9 +388,9 @@ static int sql_get_decimal(void * ctx, const decimal_t * value)
   pctx->sql_str_len[row][col]= len;
 
   DBUG_RETURN(false);
-};
+}
 
-static int sql_get_double(void * ctx, double value, uint32 decimals)
+static int sql_get_double(void * ctx, double value, uint32)
 {
   char buffer[1024];
   struct st_plugin_ctx *pctx= (struct st_plugin_ctx*) ctx;
@@ -400,7 +406,7 @@ static int sql_get_double(void * ctx, double value, uint32 decimals)
   pctx->sql_str_len[row][col]= len;
 
   DBUG_RETURN(false);
-};
+}
 
 static int sql_get_date(void * ctx, const MYSQL_TIME * value)
 {
@@ -421,9 +427,9 @@ static int sql_get_date(void * ctx, const MYSQL_TIME * value)
   pctx->sql_str_len[row][col]= len;
 
   DBUG_RETURN(false);
-};
+}
 
-static int sql_get_time(void * ctx, const MYSQL_TIME * value, uint decimals)
+static int sql_get_time(void * ctx, const MYSQL_TIME * value, uint)
 {
   char buffer[1024];
   struct st_plugin_ctx *pctx= (struct st_plugin_ctx*) ctx;
@@ -442,9 +448,9 @@ static int sql_get_time(void * ctx, const MYSQL_TIME * value, uint decimals)
   strncpy(pctx->sql_str_value[row][col], buffer, len);
   pctx->sql_str_len[row][col]= len;
   DBUG_RETURN(false);
-};
+}
 
-static int sql_get_datetime(void * ctx, const MYSQL_TIME * value, uint decimals)
+static int sql_get_datetime(void * ctx, const MYSQL_TIME * value, uint)
 {
   char buffer[1024];
   struct st_plugin_ctx *pctx= (struct st_plugin_ctx*) ctx;
@@ -465,11 +471,11 @@ static int sql_get_datetime(void * ctx, const MYSQL_TIME * value, uint decimals)
 
 
   DBUG_RETURN(false);
-};
+}
 
 
 static int sql_get_string(void * ctx, const char * const value, size_t length,
-                          const CHARSET_INFO * const valuecs)
+                          const CHARSET_INFO * const)
 {
   struct st_plugin_ctx *pctx= (struct st_plugin_ctx*) ctx;
 //  WRITE_STR("sql_get_string\n");
@@ -482,7 +488,7 @@ static int sql_get_string(void * ctx, const char * const value, size_t length,
   pctx->sql_str_len[row][col]= length;
 
   DBUG_RETURN(false);
-};
+}
 
 static void sql_handle_ok(void * ctx,
                           uint server_status, uint statement_warn_count,
@@ -503,7 +509,7 @@ static void sql_handle_ok(void * ctx,
     strncpy(pctx->message, message, sizeof(pctx->message));
 
   DBUG_VOID_RETURN;
-};
+}
 
 static void sql_handle_error(void * ctx, uint sql_errno,
                              const char * const err_msg,
@@ -517,13 +523,13 @@ static void sql_handle_error(void * ctx, uint sql_errno,
   WRITE_VAL("[%s]", err_msg);
   pctx->num_rows= 0;
   DBUG_VOID_RETURN;
-};
+}
 
-static void sql_shutdown(void *ctx, int shutdown_server)
+static void sql_shutdown(void*, int)
 {
   DBUG_ENTER("sql_shutdown");
   DBUG_VOID_RETURN;
-};
+}
 
 
 const struct st_command_service_cbs protocol_callbacks=
@@ -823,7 +829,7 @@ void static change_current_db(MYSQL_SESSION session, const char * db,
 }
 
 
-void test_selects(MYSQL_SESSION session, void *p)
+static void test_selects(MYSQL_SESSION session, void *p)
 {
   DBUG_ENTER("test_selects");
   char buffer[STRING_BUFFER_SIZE];

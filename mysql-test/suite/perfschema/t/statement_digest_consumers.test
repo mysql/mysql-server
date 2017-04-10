@@ -5,9 +5,6 @@
 # Test case to show behavior of statements digest in combination of different
 # consumers enabled/disabled
 
---source include/not_embedded.inc
---source include/have_perfschema.inc
-
 # Initial Setup for Digest
 --source ../include/digest_setup.inc
 

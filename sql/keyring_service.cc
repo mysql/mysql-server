@@ -1,4 +1,4 @@
-/*  Copyright (c) 2016 Oracle and/or its affiliates. All rights reserved.
+/*  Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
     This program is free software; you can redistribute it and/or
     modify it under the terms of the GNU General Public License as
@@ -14,13 +14,16 @@
     along with this program; if not, write to the Free Software
     Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA */
 
-#include "m_ctype.h"  /* my_charset_utf8_bin */
-#include <mysql/plugin_keyring.h> /* keyring plugin */
+#include <stddef.h>
 
-#include "strfunc.h"
-#include "sql_string.h"
+#include "current_thd.h"
+#include "my_inttypes.h"
+#include "mysql/plugin.h"
+#include "mysql/plugin_keyring.h" /* keyring plugin */
 #include "sql_plugin.h"
-#include "mysqld.h"
+#include "sql_plugin_ref.h"
+
+class THD;
 
 struct Key_data
 {
@@ -35,10 +38,10 @@ struct Key_data
   void **key_to_fetch;
   size_t key_len_to_store;
   size_t *key_len_to_fetch;
-  my_bool result;
+  bool result;
 };
 
-static my_bool key_fetch(THD *thd, plugin_ref plugin, void *arg)
+static bool key_fetch(THD*, plugin_ref plugin, void *arg)
 {
   Key_data *key_data= reinterpret_cast<Key_data*>(arg);
   plugin= my_plugin_lock(NULL, &plugin);
@@ -55,7 +58,7 @@ static my_bool key_fetch(THD *thd, plugin_ref plugin, void *arg)
   return TRUE;
 }
 
-static my_bool key_store(THD *thd, plugin_ref plugin, void *arg)
+static bool key_store(THD*, plugin_ref plugin, void *arg)
 {
   Key_data *key_data= reinterpret_cast<Key_data*>(arg);
   plugin= my_plugin_lock(NULL, &plugin);
@@ -72,7 +75,7 @@ static my_bool key_store(THD *thd, plugin_ref plugin, void *arg)
   return TRUE;
 }
 
-static my_bool key_remove(THD *thd, plugin_ref plugin, void *arg)
+static bool key_remove(THD*, plugin_ref plugin, void *arg)
 {
   Key_data *key_data= reinterpret_cast<Key_data*>(arg);
   plugin= my_plugin_lock(NULL, &plugin);
@@ -88,7 +91,7 @@ static my_bool key_remove(THD *thd, plugin_ref plugin, void *arg)
   return TRUE;
 }
 
-static my_bool key_generate(THD *thd, plugin_ref plugin, void *arg)
+static bool key_generate(THD*, plugin_ref plugin, void *arg)
 {
   Key_data *key_data= reinterpret_cast<Key_data*>(arg);
   plugin= my_plugin_lock(NULL, &plugin);
@@ -105,6 +108,12 @@ static my_bool key_generate(THD *thd, plugin_ref plugin, void *arg)
   return TRUE;
 }
 
+/**
+  Iterates over all active keyring plugins and calls the mysql_key_fetch API
+  for the first one found.
+
+  @sa st_mysql_keyring::mysql_key_fetch, mysql_keyring_service_st
+*/
 int my_key_fetch(const char *key_id, char **key_type, const char *user_id,
                  void **key, size_t *key_len)
 {
@@ -118,6 +127,13 @@ int my_key_fetch(const char *key_id, char **key_type, const char *user_id,
   return key_data.result;
 }
 
+
+/**
+  Iterates over all active keyring plugins calls the mysql_key_store API
+  for the first one found.
+
+  @sa st_mysql_keyring::mysql_key_store, mysql_keyring_service_st
+*/
 int my_key_store(const char *key_id, const char *key_type, const char *user_id,
                  const void *key, size_t key_len)
 {
@@ -131,6 +147,12 @@ int my_key_store(const char *key_id, const char *key_type, const char *user_id,
   return key_data.result;
 }
 
+/**
+  Iterates over all active keyring plugins and calls the mysql_key_remove API
+  for the first one found.
+
+  @sa st_mysql_keyring::mysql_key_remove, mysql_keyring_service_st
+*/
 int my_key_remove(const char *key_id, const char *user_id)
 {
   Key_data key_data;
@@ -140,6 +162,12 @@ int my_key_remove(const char *key_id, const char *user_id)
   return key_data.result;
 }
 
+/**
+  Iterates over all active keyring plugins and calls the mysql_key_generate API
+  for the first one found.
+
+  @sa st_mysql_keyring::mysql_key_generate, mysql_keyring_service_st
+*/
 int my_key_generate(const char *key_id, const char *key_type,
                     const char *user_id, size_t key_len)
 {

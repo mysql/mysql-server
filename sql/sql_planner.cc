@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -25,17 +25,46 @@
 */
 
 #include "sql_planner.h"
-#include "sql_optimizer.h"
-#include "opt_costmodel.h"
-#include "opt_range.h"
-#include "opt_trace.h"
-#include "sql_executor.h"
-#include "merge_sort.h"
-#include <my_bit.h>
-#include "opt_hints.h"   // hint_table_state()
-#include "parse_tree_hints.h"
 
+#include <float.h>
+#include <limits.h>
+#include <string.h>
 #include <algorithm>
+
+#include "enum_query_type.h"
+#include "field.h"
+#include "handler.h"
+#include "item.h"
+#include "item_cmpfunc.h"
+#include "key.h"
+#include "merge_sort.h"         // merge_sort
+#include "my_base.h"            // key_part_map
+#include "my_bit.h"             // my_count_bits
+#include "my_bitmap.h"
+#include "my_compiler.h"
+#include "my_config.h"
+#include "my_dbug.h"
+#include "my_macros.h"
+#include "opt_costmodel.h"
+#include "opt_hints.h"          // hint_table_state
+#include "opt_range.h"          // QUICK_SELECT_I
+#include "opt_trace.h"          // Opt_trace_object
+#include "opt_trace_context.h"
+#include "query_options.h"
+#include "sql_bitmap.h"
+#include "sql_class.h"          // THD
+#include "sql_const.h"
+#include "sql_executor.h"
+#include "sql_lex.h"
+#include "sql_list.h"
+#include "sql_opt_exec_shared.h"
+#include "sql_optimizer.h"      // JOIN
+#include "sql_select.h"         // JOIN_TAB
+#include "sql_string.h"
+#include "sql_test.h"           // print_plan
+#include "system_variables.h"
+#include "table.h"
+
 using std::max;
 using std::min;
 
@@ -56,7 +85,6 @@ cache_record_length(JOIN *join,uint idx)
 {
   uint length=0;
   JOIN_TAB **pos,**end;
-  THD *thd=join->thd;
 
   for (pos=join->best_ref+join->const_tables,end=join->best_ref+idx ;
        pos != end ;
@@ -71,7 +99,7 @@ cache_record_length(JOIN *join,uint idx)
         (1) keep_current_rowid: we don't know if Duplicate Weedout may be
         used, length will thus be inaccurate, this is acceptable.
       */
-      calc_used_field_length(thd, join_tab->table(),
+      calc_used_field_length(join_tab->table(),
                              false,             // (1)
                              &used_fields, &join_tab->used_fieldlength,
                              &used_blobs, &used_null_fields,
@@ -81,6 +109,21 @@ cache_record_length(JOIN *join,uint idx)
   }
   return length;
 }
+
+
+Optimize_table_order::Optimize_table_order(THD *thd_arg, JOIN *join_arg,
+                                           TABLE_LIST *sjm_nest_arg)
+: thd(thd_arg), join(join_arg),
+  search_depth(determine_search_depth(thd->variables.optimizer_search_depth,
+                                      join->tables - join->const_tables)),
+  prune_level(thd->variables.optimizer_prune_level),
+  cur_embedding_map(0), emb_sjm_nest(sjm_nest_arg),
+  excluded_tables((emb_sjm_nest ?
+                   (join->all_table_map & ~emb_sjm_nest->sj_inner_tables) : 0) |
+                  (join->allow_outer_refs ? 0 : OUTER_REF_TABLE_BIT)),
+  has_sj(!(join->select_lex->sj_nests.is_empty() || emb_sjm_nest)),
+  test_all_ref_keys(false), found_plan_with_allowed_sj(false)
+{}
 
 
 /**
@@ -105,7 +148,7 @@ cache_record_length(JOIN *join,uint idx)
                                     is added to the partial plan.
   @param prefix_rowcount            estimate for the number of records returned
                                     by the partial plan
-  @param found_condition [out]      whether or not there exists a condition
+  @param [out] found_condition      whether or not there exists a condition
                                     that filters away rows for this table.
                                     Always true when the function finds a
                                     usable 'ref' access, but also if it finds
@@ -116,15 +159,15 @@ cache_record_length(JOIN *join,uint idx)
                                     condition in question must be in the plan
                                     prefix for this to be 'true'. Unmodified
                                     if no relevant condition is found.
-  @param ref_depend_map [out]       tables the best ref access depends on.
+  @param [out] ref_depend_map       tables the best ref access depends on.
                                     Unmodified if no 'ref' access is found.
-  @param used_key_parts [out]       Number of keyparts 'ref' access uses.
+  @param [out] used_key_parts       Number of keyparts 'ref' access uses.
                                     Unmodified if no 'ref' access is found.
 
   @return pointer to Key_use for the index with best 'ref' access, NULL if
           no 'ref' access method is found.
 */
-Key_use* Optimize_table_order::find_best_ref(JOIN_TAB *tab,
+Key_use* Optimize_table_order::find_best_ref(const JOIN_TAB *tab,
                                              const table_map remaining_tables,
                                              const uint idx,
                                              const double prefix_rowcount,
@@ -132,6 +175,10 @@ Key_use* Optimize_table_order::find_best_ref(JOIN_TAB *tab,
                                              table_map *ref_depend_map,
                                              uint *used_key_parts)
 {
+  // Skip finding best_ref if quick object is forced by hint.
+  if (tab->quick() && tab->quick()->forced_by_hint)
+    return NULL;
+
   // Return value - will point to Key_use of the index with cheapest ref access
   Key_use *best_ref= NULL;
 
@@ -186,8 +233,6 @@ Key_use* Optimize_table_order::find_best_ref(JOIN_TAB *tab,
       type will be used.
     */
     key_part_map ref_or_null_part= 0;
-    /// Set dodgy_ref_cost only if that index is chosen for ref access.
-    bool is_dodgy= false;
 
     DBUG_PRINT("info", ("Considering ref access on key %s", keyinfo->name));
     Opt_trace_object trace_access_idx(trace);
@@ -516,10 +561,13 @@ Key_use* Optimize_table_order::find_best_ref(JOIN_TAB *tab,
             if (!table_deps && table->quick_keys.is_set(key) &&     // (1)
                 table->quick_key_parts[key] > cur_used_keyparts &&  // (2)
                 cur_fanout < (double)table->quick_rows[key])        // (3)
-                {
-                  cur_fanout= (double)table->quick_rows[key];
-                  is_dodgy= true;
-                }
+            {
+              trace_access_idx.add("chosen", false).
+                add_alnum("cause",
+                          "unreliable_ref_cost_and_range_uses_more_keyparts");
+              continue;
+            }
+
 
             tmp_fanout= cur_fanout;
           }
@@ -686,11 +734,7 @@ Key_use* Optimize_table_order::find_best_ref(JOIN_TAB *tab,
       best_found_keytype= cur_keytype;
     }
 
-    bool chosen= (best_ref == start_key);
-    trace_access_idx.add("chosen", chosen);
-    if (chosen)
-      tab->dodgy_ref_cost= is_dodgy;
-
+    trace_access_idx.add("chosen", best_ref == start_key);
 
     if (best_found_keytype == CLUSTERED_PK)
     {
@@ -933,7 +977,7 @@ void Optimize_table_order::best_access_path(JOIN_TAB *tab,
   */
   disable_jbuf= disable_jbuf ||
     idx == join->const_tables ||                                     // 1
-    !hint_table_state(join->thd, tab->table_ref->table,              // 2
+    !hint_table_state(join->thd, tab->table_ref,                     // 2
                       BNL_HINT_ENUM, OPTIMIZER_SWITCH_BNL);
 
   DBUG_ENTER("Optimize_table_order::best_access_path");
@@ -1435,7 +1479,7 @@ cleanup:
 
 
 /**
-   @Returns a bitmap of bound semi-join equalities.
+   Returns a bitmap of bound semi-join equalities.
 
    If we consider (oe1, .. oeN) IN (SELECT ie1, .. ieN) then ieK=oeK is
    called sj-equality. If ieK or oeK depends only on tables available before
@@ -2304,10 +2348,10 @@ bool Optimize_table_order::greedy_search(table_map remaining_tables)
 /**
   Calculate a cost of given partial join order
  
-  @param join              Join to use. ::positions holds the partial join order
-  @param n_tables          Number of tables in the partial join order
-  @param cost_arg[out]     Store read time here 
-  @param rowcount_arg[out] Store record count here
+  @param join               Join to use. @c positions holds the partial join order
+  @param n_tables           Number of tables in the partial join order
+  @param [out] cost_arg     Store read time here 
+  @param [out] rowcount_arg Store record count here
 
     This is needed for semi-join materialization code. The idea is that 
     we detect sj-materialization after we've put all sj-inner tables into
@@ -2478,8 +2522,8 @@ void Optimize_table_order::consider_plan(uint             idx,
     the complexity of greedy_search is O(N!).
 
   @note
-    ::best_extension_by_limited_search() & ::eq_ref_extension_by_limited_search()
-    are closely related to each other and intentially implemented using the
+    @c best_extension_by_limited_search() and @c eq_ref_extension_by_limited_search()
+    are closely related to each other and intentionally implemented using the
     same pattern wherever possible. If a change/bug fix is done to either of
     these also consider if it is relevant for the other.
 
@@ -2612,7 +2656,7 @@ bool Optimize_table_order::best_extension_by_limited_search(
       be uncond. swapped to maintain '#rows-ordered' best_ref[].
       This is critical for early pruning of bad plans.
     */
-    swap_variables(JOIN_TAB*, join->best_ref[idx], *pos);
+    std::swap(join->best_ref[idx], *pos);
 
     if ((remaining_tables & real_table_bit) && 
         !(eq_ref_extended & real_table_bit) &&
@@ -2824,10 +2868,10 @@ static inline bool almost_equal(double left, double right)
   1::1 relation between the rows being joined. Assuming we
   have multiple such 1::1 (star-)joined relations in a
   sequence, without other join types inbetween. Then all of 
-  these 'eq_ref-joins' will be estimated to return the excact 
-  same #rows and having identical 'cost' (or 'read_time').
+  these 'eq_ref-joins' will be estimated to return the exact 
+  same number of rows and having identical 'cost' (or 'read_time').
 
-  This leads to that we can append such a contigous sequence
+  This leads to that we can append such a contiguous sequence
   of eq_ref-joins to a partial plan in any order without 
   affecting the total cost of the query plan. Exploring the
   different permutations of these eq_refs in the 'greedy' 
@@ -2835,7 +2879,7 @@ static inline bool almost_equal(double left, double right)
 
   Once we have appended a single eq_ref-join to a partial
   plan, we may use eq_ref_extension_by_limited_search() to search 
-  'remaining_tables' for more eq_refs which will form a contigous
+  'remaining_tables' for more eq_refs which will form a contiguous
   set of eq_refs in the QEP.
 
   Effectively, this chain of eq_refs will be handled as a single
@@ -2860,8 +2904,8 @@ static inline bool almost_equal(double left, double right)
   corresponding cost of the optimal plan is in 'join->best_read'.
 
   @note
-    ::best_extension_by_limited_search() & ::eq_ref_extension_by_limited_search()
-    are closely related to each other and intentially implemented using the
+    @c best_extension_by_limited_search() and @c eq_ref_extension_by_limited_search()
+    are closely related to each other and intentionally implemented using the
     same pattern wherever possible. If a change/bug fix is done to either of
     these also consider if it is relevant for the other.
 
@@ -2958,7 +3002,7 @@ table_map Optimize_table_order::eq_ref_extension_by_limited_search(
       should be swapped to maintain '#rows' ordered tables.
       This is critical for early pruning of bad plans.
     */
-    swap_variables(JOIN_TAB*, join->best_ref[idx], *pos);
+    std::swap(join->best_ref[idx], *pos);
 
     /*
       Consider table for 'eq_ref' heuristic if:
@@ -3529,7 +3573,7 @@ bool Optimize_table_order::check_interleaving_with_nj(JOIN_TAB *tab)
   @param final            If true, use and update access path data in
                           join->best_positions, otherwise use join->positions
                           and update a local buffer.
-  @param[out] rowcount    New output row count
+  @param[out] newcount    New output row count
   @param[out] newcost     New join prefix cost
 
   @return True if strategy selection successful, false otherwise.
@@ -3704,7 +3748,7 @@ bool Optimize_table_order::semijoin_firstmatch_loosescan_access_paths(
   @param final             If true, use and update access path data in
                            join->best_positions, otherwise use join->positions
                            and update a local buffer.
-  @param[out] rowcount     New output row count
+  @param[out] newcount     New output row count
   @param[out] newcost      New join prefix cost
 
   @details
@@ -3790,7 +3834,7 @@ void Optimize_table_order::semijoin_mat_scan_access_paths(
 
   @param last_inner        Index of the last inner table
   @param sjm_nest          Pointer to semi-join nest for inner tables
-  @param[out] rowcount     New output row count
+  @param[out] newcount     New output row count
   @param[out] newcost      New join prefix cost
 
   @details
@@ -3837,12 +3881,8 @@ void Optimize_table_order::semijoin_mat_lookup_access_paths(
 
   @param first_tab        The first tab to calculate access paths for
   @param last_tab         The last tab to calculate access paths for
-  @param remaining_tables Bitmap of tables that are not in the
-                          [0...last_tab] join prefix
   @param[out] newcount    New output row count
   @param[out] newcost     New join prefix cost
-
-  @return True if strategy selection successful, false otherwise.
 
   @details
     Notice that new best access paths need not be calculated.
@@ -3858,8 +3898,7 @@ void Optimize_table_order::semijoin_mat_lookup_access_paths(
 */
 
 void Optimize_table_order::semijoin_dupsweedout_access_paths(
-                uint first_tab, uint last_tab, 
-                table_map remaining_tables, 
+                uint first_tab, uint last_tab,
                 double *newcount, double *newcost)
 {
   DBUG_ENTER("Optimize_table_order::semijoin_dupsweedout_access_paths");
@@ -3992,6 +4031,7 @@ void Optimize_table_order::semijoin_dupsweedout_access_paths(
           ..
         }
       }
+    }
 
     Most of the new state is saved in join->positions[idx] (and hence no undo
     is necessary).
@@ -4320,12 +4360,24 @@ void Optimize_table_order::advance_sj_state(
       The simple way to model this is to remove SJM-SCAN(...) fanout once
       we reach the point #2.
     */
-    pos->sjm_scan_need_tables=
-      emb_sj_nest->sj_inner_tables | 
-      emb_sj_nest->nested_join->sj_depends_on;
-    pos->sjm_scan_last_inner= idx;
-    Opt_trace_object(trace).add_alnum("strategy", "MaterializeScan").
-      add_alnum("choice", "deferred");
+    if (pos->sjm_scan_need_tables &&
+        emb_sj_nest != NULL &&
+        emb_sj_nest !=
+        join->positions[pos->sjm_scan_last_inner].table->emb_sj_nest)
+      /*
+        Prevent that inner tables of different semijoin nests are
+        interleaved for MatScan.
+      */
+      pos->sjm_scan_need_tables= 0;
+    else
+    {
+      pos->sjm_scan_need_tables=
+        emb_sj_nest->sj_inner_tables |
+        emb_sj_nest->nested_join->sj_depends_on;
+      pos->sjm_scan_last_inner= idx;
+      Opt_trace_object(trace).add_alnum("strategy", "MaterializeScan").
+        add_alnum("choice", "deferred");
+    }
   }
   else if (sjm_strategy == SJ_OPT_MATERIALIZE_LOOKUP)
   {
@@ -4435,7 +4487,7 @@ void Optimize_table_order::advance_sj_state(
       */
       double rowcount, cost;
       semijoin_dupsweedout_access_paths(pos->first_dupsweedout_table, idx,
-                                        remaining_tables, &rowcount, &cost);
+                                        &rowcount, &cost);
       /*
         Use the strategy if
          * it is cheaper then what we've had, and strategy is enabled, or

@@ -13,7 +13,7 @@ COUNT(@@GLOBAL.innodb_force_recovery)
 1 Expected
 '#---------------------BS_STVARS_030_03----------------------#'
 SELECT @@GLOBAL.innodb_force_recovery = VARIABLE_VALUE
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='innodb_force_recovery';
 @@GLOBAL.innodb_force_recovery = VARIABLE_VALUE
 1
@@ -23,7 +23,7 @@ COUNT(@@GLOBAL.innodb_force_recovery)
 1
 1 Expected
 SELECT COUNT(VARIABLE_VALUE)
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='innodb_force_recovery';
 COUNT(VARIABLE_VALUE)
 1

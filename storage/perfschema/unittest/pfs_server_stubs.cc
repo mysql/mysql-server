@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -17,13 +17,16 @@
   Minimal code to be able to link a unit test.
 */
 
-#include "my_global.h"
+#include <stddef.h>
+#include <sys/types.h>
+
 #include "m_ctype.h"
+#include "mysqld.h"
 #include "sql_class.h"
 #include "sql_show.h"
 
-my_bool show_compatibility_56= FALSE;
-struct system_status_var global_status_var;
+struct System_status_var global_status_var;
+
 struct sql_digest_storage;
 volatile bool ready_to_exit= false;
 
@@ -39,3 +42,12 @@ void reset_status_vars()
 {
 }
 
+struct System_status_var* get_thd_status_var(THD*)
+{
+  return NULL;
+}
+
+unsigned int mysql_errno_to_sqlstate_index(unsigned int)
+{
+  return 0;
+}

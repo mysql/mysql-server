@@ -5,9 +5,7 @@
 # Simulate failures from host names formats:
 # - reported in COUNT_FORMAT_ERRORS
 
---source include/not_embedded.inc
 --source include/have_debug.inc
---source include/have_perfschema.inc
 
 # [Warning] IP address '192.0.2.4' could not be resolved:
 # Name or service not known

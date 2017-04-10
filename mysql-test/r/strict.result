@@ -1474,7 +1474,7 @@ Warning	1629	Comment for field 'i' is too long (max = 1024)
 SET sql_mode = default;
 select column_name, column_comment from information_schema.columns where
 table_schema = 'test' and table_name = 't1';
-column_name	column_comment
+COLUMN_NAME	COLUMN_COMMENT
 i	123456789*123456789*123456789*123456789*
   123456789*123456789*123456789*123456789*
   123456789*123456789*123456789*123456789*

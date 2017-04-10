@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,18 +13,15 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
-#ifdef MYSQL_CLIENT
+/**
+  @file include/sslopt-longopts.h
+*/
+
+#if defined(HAVE_OPENSSL)
+#ifndef MYSQL_SERVER
   {"ssl-mode", OPT_SSL_MODE,
    "SSL connection mode.",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"ssl", OPT_SSL_SSL,
-   "Deprecated. Use --ssl-mode instead.",
-   &opt_use_ssl_arg, &opt_use_ssl_arg, 0, GET_BOOL, OPT_ARG, 1, 0, 0, 0, 0, 0},
-  {"ssl-verify-server-cert", OPT_SSL_VERIFY_SERVER_CERT,
-   "Deprecated. Use --ssl-mode=VERIFY_IDENTITY instead.",
-   &opt_ssl_verify_server_cert_arg, &opt_ssl_verify_server_cert_arg,
-    0, GET_BOOL, OPT_ARG, 0, 0, 0, 0, 0, 0},
 #else
   {"ssl", OPT_SSL_SSL,
    "If set to ON, this option enforces that SSL is established before client "

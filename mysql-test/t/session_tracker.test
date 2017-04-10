@@ -1,5 +1,6 @@
 -- source include/not_embedded.inc
 -- source include/have_validate_password_plugin.inc
+# Test requires: sp-protocol/ps-protocol/view-protocol/cursor-protocol disabled
 -- source include/no_protocol.inc
 
 --echo #
@@ -546,4 +547,3 @@ connection default;
 
 --echo
 --echo # End of tests
-

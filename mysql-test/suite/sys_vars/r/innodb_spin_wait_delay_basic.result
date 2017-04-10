@@ -17,22 +17,22 @@ innodb_spin_wait_delay	6
 show session variables like 'innodb_spin_wait_delay';
 Variable_name	Value
 innodb_spin_wait_delay	6
-select * from information_schema.global_variables where variable_name='innodb_spin_wait_delay';
+select * from performance_schema.global_variables where variable_name='innodb_spin_wait_delay';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_SPIN_WAIT_DELAY	6
-select * from information_schema.session_variables where variable_name='innodb_spin_wait_delay';
+innodb_spin_wait_delay	6
+select * from performance_schema.session_variables where variable_name='innodb_spin_wait_delay';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_SPIN_WAIT_DELAY	6
+innodb_spin_wait_delay	6
 set global innodb_spin_wait_delay=10;
 select @@global.innodb_spin_wait_delay;
 @@global.innodb_spin_wait_delay
 10
-select * from information_schema.global_variables where variable_name='innodb_spin_wait_delay';
+select * from performance_schema.global_variables where variable_name='innodb_spin_wait_delay';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_SPIN_WAIT_DELAY	10
-select * from information_schema.session_variables where variable_name='innodb_spin_wait_delay';
+innodb_spin_wait_delay	10
+select * from performance_schema.session_variables where variable_name='innodb_spin_wait_delay';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_SPIN_WAIT_DELAY	10
+innodb_spin_wait_delay	10
 set session innodb_spin_wait_delay=1;
 ERROR HY000: Variable 'innodb_spin_wait_delay' is a GLOBAL variable and should be set with SET GLOBAL
 set global innodb_spin_wait_delay=DEFAULT;
@@ -79,9 +79,9 @@ Warning	1292	Truncated incorrect innodb_spin_wait_delay value: '-1024'
 select @@global.innodb_spin_wait_delay;
 @@global.innodb_spin_wait_delay
 0
-select * from information_schema.global_variables where variable_name='innodb_spin_wait_delay';
+select * from performance_schema.global_variables where variable_name='innodb_spin_wait_delay';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_SPIN_WAIT_DELAY	0
+innodb_spin_wait_delay	0
 SET @@global.innodb_spin_wait_delay = 4294967296;
 SELECT @@global.innodb_spin_wait_delay IN (4294967296,4294967295);
 @@global.innodb_spin_wait_delay IN (4294967296,4294967295)

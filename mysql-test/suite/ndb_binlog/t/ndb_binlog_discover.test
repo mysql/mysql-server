@@ -42,6 +42,9 @@ while ($mysql_errno)
 }
 --enable_query_log
 
+# wait for stats thread to re-initialize
+source include/ndb_index_stat_wait.inc;
+
 # check that data went in ok
 select * from t1;
 

@@ -6,7 +6,6 @@
 #
 #      <testcasename>  : Comment test
 #
-#  Don't use any TAB characters for whitespace.
+#  Do not use any TAB characters for whitespace.
 #
 ##############################################################################
-

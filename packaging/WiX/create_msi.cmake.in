@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -37,8 +37,8 @@ SET(CPACK_WIX_CONFIG "@CPACK_WIX_CONFIG@")
 SET(CPACK_WIX_INCLUDE "@CPACK_WIX_INCLUDE@")
 SET(PRODUCT_NAME "MySQL Server")
 SET(PRODUCT_DESCRIPTION "MySQL Database Server")
-SET(UPGRADE_ID "F59F931A-0282-45D0-97CD-33F8B43AE3C2")
-SET(UPGRADE_CODE "F59F931A-0282-45D0-97CD-33F8B43AE3C2")
+SET(UPGRADE_ID "D1DA7A5D-E358-40A5-8DB0-94B563487A74")
+SET(UPGRADE_CODE "D1DA7A5D-E358-40A5-8DB0-94B563487A74")
 
 IF("${VERSION}" MATCHES "-ndb-")
   MESSAGE(STATUS "This is Cluster build")
@@ -75,13 +75,8 @@ LIST(APPEND EXCLUDE_DIRS
 
 LIST(APPEND EXCLUDE_FILES
      bin/echo.exe
-     bin/mysql_client_test_embedded.exe
      bin/mysqld-debug.exe
-     bin/mysqltest_embedded.exe
-     bin/replace.exe
      lib/debug/mysqlserver.lib
-     lib/libmysqld.dll
-     lib/libmysqld.lib
      lib/mysqlserver.lib
      lib/mysqlservices.lib
 )

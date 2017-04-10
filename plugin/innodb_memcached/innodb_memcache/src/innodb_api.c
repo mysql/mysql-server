@@ -77,10 +77,8 @@ static ib_cb_t* innodb_memcached_api[] = {
 	(ib_cb_t*) &ib_cb_cursor_new_trx,
 	(ib_cb_t*) &ib_cb_cursor_reset,
 	(ib_cb_t*) &ib_cb_col_get_name,
-	(ib_cb_t*) &ib_cb_table_truncate,
 	(ib_cb_t*) &ib_cb_cursor_open_index_using_name,
 	(ib_cb_t*) &ib_cb_get_cfg,
-	(ib_cb_t*) &ib_cb_cursor_set_memcached_sync,
 	(ib_cb_t*) &ib_cb_cursor_set_cluster_access,
 	(ib_cb_t*) &ib_cb_cursor_commit_trx,
 	(ib_cb_t*) &ib_cb_cfg_trx_level,
@@ -91,6 +89,14 @@ static ib_cb_t* innodb_memcached_api[] = {
 	(ib_cb_t*) &ib_cb_cfg_bk_commit_interval,
 	(ib_cb_t*) &ib_cb_ut_strerr,
 	(ib_cb_t*) &ib_cb_cursor_stmt_begin,
+#ifdef UNIV_MEMCACHED_SDI
+	(ib_cb_t*) &ib_cb_sdi_get,
+	(ib_cb_t*) &ib_cb_sdi_delete,
+	(ib_cb_t*) &ib_cb_sdi_set,
+	(ib_cb_t*) &ib_cb_sdi_create_copies,
+	(ib_cb_t*) &ib_cb_sdi_drop_copies,
+	(ib_cb_t*) &ib_cb_sdi_get_keys,
+#endif /* UNIV_MEMCACHED_SDI */
 	(ib_cb_t*) &ib_cb_trx_read_only,
 	(ib_cb_t*) &ib_cb_is_virtual_table
 };
@@ -240,7 +246,6 @@ innodb_api_begin(
 						      lock_mode);
 			}
 		}
-
 	} else {
 		ib_cb_cursor_new_trx(*crsr, ib_trx);
 
@@ -684,13 +689,15 @@ innodb_api_search(
 	mci_item_t*		item,	/*!< in: result */
 	ib_tpl_t*		r_tpl,	/*!< in: tpl for other DML
 					operations */
-	bool			sel_only) /*!< in: for select only */
+	bool			sel_only, /*!< in: for select only */
+	innodb_range_key_t*	range_key)/* search mode if not exact search */
 {
 	ib_err_t	err = DB_SUCCESS;
 	meta_cfg_info_t* meta_info = cursor_data->conn_meta;
 	meta_column_t*	col_info = meta_info->col_info;
 	meta_index_t*	meta_index = &meta_info->index_info;
 	ib_tpl_t	key_tpl;
+	ib_tpl_t	cmp_tpl = NULL;
 	ib_crsr_t	srch_crsr;
 
 	if (item) {
@@ -745,14 +752,65 @@ innodb_api_search(
 		srch_crsr = crsr;
 	}
 
-	err = innodb_api_setup_field_value(key_tpl, 0,
-					   &col_info[CONTAINER_KEY],
-					   key, len,
-					   NULL, true);
+	/* If it is range select, we will need to setup the upper bound
+	compare tuple */
+	if (range_key && range_key->bound == RANGE_BOUND) {
+		assert(sel_only);
 
-	ib_cb_cursor_set_match_mode(srch_crsr, IB_EXACT_MATCH);
+		if (meta_index->srch_use_idx == META_USE_SECONDARY) {
+			cmp_tpl = ib_cb_search_tuple_create(
+					cursor_data->idx_read_crsr);
+		} else {
+			cmp_tpl = ib_cb_search_tuple_create(
+					cursor_data->read_crsr);
+		}
 
-	err = ib_cb_moveto(srch_crsr, key_tpl, IB_CUR_GE);
+		err = innodb_api_setup_field_value(key_tpl, 0,
+						   &col_info[CONTAINER_KEY],
+						   range_key->start,
+						   range_key->start_len,
+						   NULL, true);
+
+		err = innodb_api_setup_field_value(cmp_tpl, 0,
+						   &col_info[CONTAINER_KEY],
+						   range_key->end,
+						   range_key->end_len,
+						   NULL, true);
+	} else {
+		err = innodb_api_setup_field_value(key_tpl, 0,
+						   &col_info[CONTAINER_KEY],
+						   key, len,
+						   NULL, true);
+	}
+
+	if (!range_key) {
+		/* Exact search */
+		ib_cb_cursor_set_match_mode(srch_crsr, IB_EXACT_MATCH);
+
+		err = ib_cb_moveto(srch_crsr, key_tpl, IB_CUR_GE, 0);
+	} else if (range_key->bound == UPPER_BOUND) {
+		err = innodb_api_setup_field_value(key_tpl, 0,
+						   &col_info[CONTAINER_KEY],
+						   range_key->end,
+						   range_key->end_len,
+						   NULL, true);
+		/* Range search for < (less than) */
+		if (!cursor_data->range) {
+			innodb_cb_cursor_first(srch_crsr);
+		} else {
+			ib_cb_cursor_next(srch_crsr);
+		}
+		cmp_tpl = key_tpl;
+	} else {
+		int direction;
+
+		direction = !cursor_data->range ? 0 : 1;
+
+		/* Range search */
+		ib_cb_cursor_set_match_mode(srch_crsr, IB_CLOSEST_MATCH);
+		err = ib_cb_moveto(srch_crsr, key_tpl, range_key->start_mode,
+				   direction);
+	}
 
 	if (err != DB_SUCCESS) {
 		if (r_tpl) {
@@ -777,9 +835,11 @@ innodb_api_search(
 			read_tpl = cursor_data->read_tpl;
 		}
 
-		err = ib_cb_read_row(srch_crsr, read_tpl,
-				     &cursor_data->row_buf,
-				     &(cursor_data->row_buf_len));
+		err = ib_cb_read_row(srch_crsr, read_tpl, cmp_tpl,
+				     range_key ? range_key->end_mode : 0,
+				     cursor_data->row_buf,
+				     &(cursor_data->row_buf_slot),
+				     &(cursor_data->row_buf_used));
 
 		if (err != DB_SUCCESS) {
 			if (r_tpl) {
@@ -927,14 +987,18 @@ func_exit:
 	return(err);
 }
 
-/*************************************************************//**
-Get montonically increasing cas (check and set) ID.
+/** Get montonically increasing cas (check and set) ID.
+@param[in]	eng	InnoDB Memcached engine
 @return new cas ID */
 static
 uint64_t
 mci_get_cas(
 /*========*/
-	innodb_engine_t*	eng)	/*!< in: InnoDB Memcached engine */
+	innodb_engine_t*	eng
+#if defined(HAVE_GCC_ATOMIC_BUILTINS)
+				__attribute__((unused))
+#endif /* HAVE_GCC_ATOMIC_BUILTINS */
+	)
 {
 	static uint64_t cas_id = 0;
 
@@ -1330,7 +1394,7 @@ innodb_api_delete(
 
 	/* First look for the record, and check whether it exists */
 	err = innodb_api_search(cursor_data, &srch_crsr, key, len,
-				&result, &tpl_delete, false);
+				&result, &tpl_delete, false, 0);
 
 	if (err != DB_SUCCESS) {
 		return(ENGINE_KEY_ENOENT);
@@ -1525,7 +1589,7 @@ innodb_api_arithmetic(
 	ENGINE_ERROR_CODE ret = ENGINE_SUCCESS;
 
 	err = innodb_api_search(cursor_data, &srch_crsr, key, len,
-				&result, &old_tpl, false);
+				&result, &old_tpl, false, 0);
 
 	/* If the return message is not success or record not found, just
 	exit */
@@ -1716,7 +1780,7 @@ innodb_api_store(
 	} else {
 		/* First check whether record with the key value exists */
 		err = innodb_api_search(cursor_data, &srch_crsr,
-					key, len, &result, &old_tpl, false);
+					key, len, &result, &old_tpl, false, 0);
 	}
 
 	/* If the return message is not success or record not found, just
@@ -1799,7 +1863,7 @@ func_exit:
 }
 
 /*************************************************************//**
-Implement the "flush_all" command, map to InnoDB's "trunk table" operation
+Implement the "flush_all" command, map to InnoDB's DELETE operation
 return ENGINE_SUCCESS is all successful */
 ENGINE_ERROR_CODE
 innodb_api_flush(
@@ -1810,18 +1874,31 @@ innodb_api_flush(
 	const char*		dbname,	/*!< in: database name */
 	const char*		name)	/*!< in: table name */
 {
-	ib_err_t	err = DB_SUCCESS;
+	ib_err_t	err;
 	char		table_name[MAX_TABLE_NAME_LEN
 				   + MAX_DATABASE_NAME_LEN + 1];
-	ib_id_u64_t	new_id;
+	ib_crsr_t	crsr	= conn_data->crsr;
 
-#ifdef _WIN32
-	sprintf(table_name, "%s\%s", dbname, name);
-#else
-	snprintf(table_name, sizeof(table_name), "%s/%s", dbname, name);
-#endif
-	/* currently, we implement engine flush as truncate table */
-	err  = ib_cb_table_truncate(table_name, &new_id);
+	err = innodb_cb_cursor_lock(engine, crsr, IB_LOCK_X);
+
+	if (err != DB_SUCCESS) {
+		fprintf(stderr, " InnoDB_Memcached: Fail to lock"
+			" table '%s.%s'\n", dbname, name);
+		return(err);
+	}
+
+	for (err = ib_cb_cursor_first(crsr); err == DB_SUCCESS;
+	     err = ib_cb_cursor_next(crsr)) {
+		err = ib_cb_delete_row(crsr);
+
+		if (err == DB_RECORD_NOT_FOUND) {
+			err = DB_SUCCESS;
+		}
+	}
+
+	if (err == DB_END_OF_INDEX) {
+		err = DB_SUCCESS;
+	}
 
 	/* If binlog is enabled, log the truncate table statement */
 	if (err == DB_SUCCESS && engine->enable_binlog) {
@@ -1905,11 +1982,6 @@ innodb_reset_conn(
 			}
 
 			ib_cb_trx_rollback(conn_data->crsr_trx);
-		}
-
-		/* Decrease the memcached sync counter to unblock SQL DDL.*/
-		if (conn_data->in_use) {
-			ib_cb_cursor_set_memcached_sync(ib_crsr, false);
 		}
 
 		commit_trx = true;
@@ -2036,8 +2108,6 @@ innodb_cb_cursor_lock(
 	} else {
 		err = ib_cb_cursor_set_lock(ib_crsr, ib_lck_mode);
 	}
-
-	err = ib_cb_cursor_set_memcached_sync(ib_crsr, true);
 
 	return(err);
 }

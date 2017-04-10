@@ -1,7 +1,7 @@
 #ifndef GCC_SYNC_INCLUDED
 #define GCC_SYNC_INCLUDED
 
-/* Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,6 +15,12 @@
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
+
+/**
+  @file include/atomic/gcc_sync.h
+*/
+
+#include "my_inttypes.h"
 
 /* Old GCC __sync builtins introduced in GCC 4.1 */
 

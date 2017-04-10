@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2014, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2014, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -17,7 +17,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 *****************************************************************************/
 
 /**************************************************//**
-@file ut/ut0stage.h
+@file include/ut0stage.h
 Supplementary code to performance schema stage instrumentation.
 
 Created Nov 12, 2014 Vasil Dimov
@@ -26,19 +26,14 @@ Created Nov 12, 2014 Vasil Dimov
 #ifndef ut0stage_h
 #define ut0stage_h
 
-#include <algorithm>
 #include <math.h>
-
-#include "my_global.h" /* needed for headers from mysql/psi/ */
-
-#include "mysql/psi/mysql_stage.h" /* mysql_stage_inc_work_completed */
-#include "mysql/psi/psi.h" /* HAVE_PSI_STAGE_INTERFACE, PSI_stage_progress */
-
-#include "univ.i"
+#include <algorithm>
 
 #include "dict0mem.h" /* dict_index_t */
+#include "mysql/psi/mysql_stage.h" /* mysql_stage_inc_work_completed */
 #include "row0log.h" /* row_log_estimate_work() */
 #include "srv0srv.h" /* ut_stage_alter_t */
+#include "univ.i"
 
 #ifdef HAVE_PSI_STAGE_INTERFACE
 

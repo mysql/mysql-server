@@ -1,4 +1,4 @@
-/* Copyright (c) 2016 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -15,11 +15,14 @@
 
 
 #include <gtest/gtest.h>
-#include "ngs_common/protocol_protobuf.h"
+#include <stddef.h>
+
+#include "my_inttypes.h"
 #include "ngs/protocol/message_builder.h"
 #include "ngs/protocol/metadata_builder.h"
 #include "ngs/protocol/notice_builder.h"
 #include "ngs/protocol/output_buffer.h"
+#include "ngs_common/protocol_protobuf.h"
 #include "protobuf_message.h"
 
 namespace xpl

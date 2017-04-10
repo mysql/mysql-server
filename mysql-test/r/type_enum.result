@@ -1780,7 +1780,7 @@ t1	CREATE TABLE `t1` (
 drop table t1;
 create table t1(exhausting_charset enum('ABCDEFGHIJKLMNOPQRSTUVWXYZ','	
  !"','#$%&\'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~','xx\','yy\€','zz‚ƒ„…†‡‰‹‘’“”•–—™› ΅Ά£¤¥¦§¨©ª«¬­®―°±²³΄µ¶·ΈΉΊ»Ό½ΎΏΐΑΒΓΔΕΖΗΘΙΚΛΜΝΞΟΠΡÒΣΤΥΦΧΨΩΪΫάέήίΰαβγδεζηθικλμνξοπρςστυφχψωϊϋόύώÿ'));
-ERROR 42000: Field separator argument is not what is expected; check the manual
+drop table t1;
 CREATE TABLE t1 (
 id INT AUTO_INCREMENT PRIMARY KEY,
 c1 ENUM('a', '', 'b')
@@ -1821,9 +1821,9 @@ Warning	1265	Data truncated for column 'c1' at row 1
 INSERT INTO t1 (c1) VALUES ('');
 SELECT c1 + 0, COUNT(c1) FROM t1 GROUP BY c1;
 c1 + 0	COUNT(c1)
-0	1
-2	2
 3	1
+2	2
+0	1
 CREATE TABLE t2 SELECT * FROM t1;
 SELECT c1 + 0 FROM t2;
 c1 + 0

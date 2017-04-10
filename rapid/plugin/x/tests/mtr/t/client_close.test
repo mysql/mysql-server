@@ -16,10 +16,12 @@
 #  Close_aborted
 
 --source include/restart_mysqld.inc
---source ../include/xplugin_preamble.inc
+--source include/xplugin_preamble.inc
 
 call mtr.add_suppression('Message of size 4294967040 received, exceeding the limit of 1048576');
 call mtr.add_suppression('21.1: Unsuccessful login attempt: Invalid user or password');
+# Plugin 'InnoDB' has ref_count=1 after shutdown
+call mtr.add_suppression("Plugin \'InnoDB\'");
 # wait a little to give time for internal temporary session to die out
 select sleep(1);
 --replace_regex /localhost[:0-9]*/localhost/ /Execute/Query/
@@ -191,7 +193,11 @@ Mysqlx.Sql.StmtExecute {
         }
     }
 }
--->recvresult
+# The kill operation can return an error here. If the thread being killed is in "kill immune" mode
+# its killing is delayed till it leaves that mode. This is temporary solution in the server for the DD opartions.
+# The kill immune mode is to be removed in the future.
+-->expecterror 0, 1095
+-->recvresult be-quiet
 
 -->setsession sess
 -->closesession abort
@@ -219,7 +225,11 @@ Mysqlx.Sql.StmtExecute {
         }
     }
 }
--->recvresult
+# The kill operation can return an error here. If the thread being killed is in "kill immune" mode
+# its killing is delayed till it leaves that mode. This is temporary solution in the server for the DD opartions.
+# The kill immune mode is to be removed in the future.
+-->expecterror 0, 1095
+-->recvresult be-quiet
 
 -->setsession sess
 
@@ -247,7 +257,11 @@ Mysqlx.Sql.StmtExecute {
         }
     }
 }
--->recvresult
+# The kill operation can return an error here. If the thread being killed is in "kill immune" mode
+# its killing is delayed till it leaves that mode. This is temporary solution in the server for the DD opartions.
+# The kill immune mode is to be removed in the future.
+-->expecterror 0, 1095
+-->recvresult be-quiet
 
 -->setsession sess
 -->expecterror 2006,2007
@@ -279,7 +293,11 @@ Mysqlx.Sql.StmtExecute {
         }
     }
 }
--->recvresult
+# The kill operation can return an error here. If the thread being killed is in "kill immune" mode
+# its killing is delayed till it leaves that mode. This is temporary solution in the server for the DD opartions.
+# The kill immune mode is to be removed in the future.
+-->expecterror 0, 1095
+-->recvresult be-quiet
 
 -->setsession sess
 -->recv quiet

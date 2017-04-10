@@ -1,6 +1,6 @@
 ## Ping
 
---source ../include/xplugin_preamble.inc
+--source include/xplugin_preamble.inc
 
 SET GLOBAL Mysqlx_min_worker_threads=50;
 SET GLOBAL Mysqlx_max_connections = 200;

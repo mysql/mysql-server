@@ -44,6 +44,8 @@ GSuppDf TINYINT,
 VNotSupp TINYINT,
 x034 TINYINT,
 PRIMARY KEY USING HASH (dummyKey) );
+Warnings:
+Note	3502	This storage engine does not support the HASH index algorithm, storage engine default was used instead.
 LOCK TABLES test.t1 WRITE;
 INSERT INTO test.t1  VALUES (6,1,1,1,1,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,b'111111',b'111110',b'110101',4,5,5,5,5,5,5,5,5,5,3,2,1);
 INSERT INTO  test.t1 VALUES (1,1,1,1,1,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,b'111111',b'000000',b'100100',4,5,5,5,5,5,5,5,5,5,3,2,1);

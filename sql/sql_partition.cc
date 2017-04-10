@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -47,30 +47,68 @@
 
 #include "sql_partition.h"
 
-#include "hash.h"                       // HASH
+#include <assert.h>
+#include <limits.h>
+#include <string.h>
+#include <algorithm>
+
+#include "binary_log_types.h"
+#include "current_thd.h"
 #include "debug_sync.h"                 // DEBUG_SYNC
+#include "derror.h"                     // ER_THD
+#include "field.h"
 #include "item.h"                       // enum_monotoncity_info
-#include "key.h"                        // key_restore
+#include "item_func.h"                  // Item_func
+#include "key.h"
 #include "lock.h"                       // mysql_lock_remove
 #include "log.h"                        // sql_print_warning
+#include "m_string.h"
+#include "mdl.h"
+#include "my_byteorder.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_decimal.h"
+#include "my_io.h"
+#include "my_macros.h"
+#include "my_sqlcommand.h"
+#include "my_sys.h"
+#include "my_table_map.h"
+#include "mysql/plugin.h"
+#include "mysql/psi/mysql_file.h"
+#include "mysql/psi/mysql_mutex.h"
+#include "mysql/service_my_snprintf.h"
+#include "mysql/service_mysql_alloc.h"
+#include "mysql_com.h"
+#include "mysqld.h"                     // mysql_tmpdir
+#include "mysqld_error.h"
 #include "opt_range.h"                  // store_key_image_to_rec
-#include "sql_analyse.h"                // append_escaped
-#include "sql_alter.h"                  // Alter_table_ctx
+#include "parse_tree_node_base.h"
 #include "partition_info.h"             // partition_info
 #include "partitioning/partition_handler.h" // Partition_handler
+#include "psi_memory_key.h"
+#include "query_options.h"
+#include "session_tracker.h"
+#include "sql_alter.h"
 #include "sql_base.h"                   // wait_while_table_is_used
+#include "sql_bitmap.h"
 #include "sql_cache.h"                  // query_cache
 #include "sql_class.h"                  // THD
+#include "sql_const.h"
+#include "sql_digest_stream.h"
+#include "sql_error.h"
+#include "sql_lex.h"
+#include "sql_list.h"
 #include "sql_parse.h"                  // parse_sql
-#include "sql_show.h"                   // append_identifier
+#include "sql_show.h"
+#include "sql_string.h"
 #include "sql_table.h"                  // build_table_filename
-#include "sql_tablespace.h"             // check_tablespace_name
-#include "table.h"                      // TABLE_SHARE
+#include "sql_tablespace.h"             // validate_tablespace_name
+#include "system_variables.h"
+#include "table.h"
+#include "thr_malloc.h"
 
-#include "pfs_file_provider.h"
-#include "mysql/psi/mysql_file.h"
+struct PSI_statement_locker;
 
-#include <algorithm>
 using std::max;
 using std::min;
 
@@ -104,79 +142,88 @@ static const char *end_paren_str= ")";
 static const char *begin_paren_str= "(";
 static const char *comma_str= ",";
 
-int get_partition_id_list_col(partition_info *part_info,
-                              uint32 *part_id,
-                              longlong *func_value);
-int get_partition_id_list(partition_info *part_info,
-                          uint32 *part_id,
-                          longlong *func_value);
-int get_partition_id_range_col(partition_info *part_info,
-                               uint32 *part_id,
-                               longlong *func_value);
-int get_partition_id_range(partition_info *part_info,
-                           uint32 *part_id,
-                           longlong *func_value);
+static int get_partition_id_list_col(partition_info *part_info,
+                                     uint32 *part_id,
+                                     longlong *func_value);
+static int get_partition_id_list(partition_info *part_info,
+                                 uint32 *part_id,
+                                 longlong *func_value);
+static int get_partition_id_range_col(partition_info *part_info,
+                                      uint32 *part_id,
+                                      longlong *func_value);
+static int get_partition_id_range(partition_info *part_info,
+                                  uint32 *part_id,
+                                  longlong *func_value);
 static int get_part_id_charset_func_part(partition_info *part_info,
                                          uint32 *part_id,
                                          longlong *func_value);
 static int get_part_id_charset_func_subpart(partition_info *part_info,
                                             uint32 *part_id);
-int get_partition_id_hash_nosub(partition_info *part_info,
-                                uint32 *part_id,
-                                longlong *func_value);
-int get_partition_id_key_nosub(partition_info *part_info,
-                               uint32 *part_id,
-                               longlong *func_value);
-int get_partition_id_linear_hash_nosub(partition_info *part_info,
+static int get_partition_id_hash_nosub(partition_info *part_info,
                                        uint32 *part_id,
                                        longlong *func_value);
-int get_partition_id_linear_key_nosub(partition_info *part_info,
+static int get_partition_id_key_nosub(partition_info *part_info,
                                       uint32 *part_id,
                                       longlong *func_value);
-int get_partition_id_with_sub(partition_info *part_info,
-                              uint32 *part_id,
-                              longlong *func_value);
-int get_partition_id_hash_sub(partition_info *part_info,
-                              uint32 *part_id);
-int get_partition_id_key_sub(partition_info *part_info,
-                             uint32 *part_id);
-int get_partition_id_linear_hash_sub(partition_info *part_info,
+static int get_partition_id_linear_hash_nosub(partition_info *part_info,
+                                              uint32 *part_id,
+                                              longlong *func_value);
+static int get_partition_id_linear_key_nosub(partition_info *part_info,
+                                             uint32 *part_id,
+                                             longlong *func_value);
+static int get_partition_id_with_sub(partition_info *part_info,
+                                     uint32 *part_id,
+                                     longlong *func_value);
+static int get_partition_id_hash_sub(partition_info *part_info,
                                      uint32 *part_id);
-int get_partition_id_linear_key_sub(partition_info *part_info,
+static int get_partition_id_key_sub(partition_info *part_info,
                                     uint32 *part_id);
+static int get_partition_id_linear_hash_sub(partition_info *part_info,
+                                            uint32 *part_id);
+static int get_partition_id_linear_key_sub(partition_info *part_info,
+                                           uint32 *part_id);
 static uint32 get_next_partition_via_walking(PARTITION_ITERATOR*);
 static void set_up_range_analysis_info(partition_info *part_info);
 static uint32 get_next_subpartition_via_walking(PARTITION_ITERATOR*);
 
-uint32 get_next_partition_id_range(PARTITION_ITERATOR* part_iter);
-uint32 get_next_partition_id_list(PARTITION_ITERATOR* part_iter);
-int get_part_iter_for_interval_via_mapping(partition_info *part_info,
-                                           bool is_subpart,
-                                           uint32 *store_length_array,
-                                           uchar *min_value, uchar *max_value,
-                                           uint min_len, uint max_len,
-                                           uint flags,
-                                           PARTITION_ITERATOR *part_iter);
-int get_part_iter_for_interval_cols_via_map(partition_info *part_info,
-                                            bool is_subpart,
-                                            uint32 *store_length_array,
-                                            uchar *min_value, uchar *max_value,
-                                            uint min_len, uint max_len,
-                                            uint flags,
-                                            PARTITION_ITERATOR *part_iter);
-int get_part_iter_for_interval_via_walking(partition_info *part_info,
-                                           bool is_subpart,
-                                           uint32 *store_length_array,
-                                           uchar *min_value, uchar *max_value,
-                                           uint min_len, uint max_len,
-                                           uint flags,
-                                           PARTITION_ITERATOR *part_iter);
+static uint32 get_partition_id_range_for_endpoint(partition_info *part_info,
+                                                  bool left_endpoint,
+                                                  bool include_endpoint);
+static uint32 get_next_partition_id_list(PARTITION_ITERATOR* part_iter);
+static int get_part_iter_for_interval_via_mapping(partition_info *part_info,
+                                                  bool is_subpart,
+                                                  uint32 *store_length_array,
+                                                  uchar *min_value, uchar *max_value,
+                                                  uint min_len, uint max_len,
+                                                  uint flags,
+                                                  PARTITION_ITERATOR *part_iter);
+static int get_part_iter_for_interval_cols_via_map(partition_info *part_info,
+                                                   bool is_subpart,
+                                                   uint32 *store_length_array,
+                                                   uchar *min_value, uchar *max_value,
+                                                   uint min_len, uint max_len,
+                                                   uint flags,
+                                                   PARTITION_ITERATOR *part_iter);
+static int get_part_iter_for_interval_via_walking(partition_info *part_info,
+                                                  bool is_subpart,
+                                                  uint32 *store_length_array,
+                                                  uchar *min_value, uchar *max_value,
+                                                  uint min_len, uint max_len,
+                                                  uint flags,
+                                                  PARTITION_ITERATOR *part_iter);
 
 static int cmp_rec_and_tuple(part_column_list_val *val, uint32 nvals_in_rec);
 static int cmp_rec_and_tuple_prune(part_column_list_val *val,
                                    uint32 n_vals_in_rec,
                                    bool is_left_endpoint,
                                    bool include_endpoint);
+
+static void set_field_ptr(Field **ptr, const uchar *new_buf,
+                          const uchar *old_buf);
+
+static uint32 get_list_array_idx_for_endpoint(partition_info *part_info,
+                                              bool left_endpoint,
+                                              bool include_endpoint);
 
 /*
   Convert constants in VALUES definition to the character set the
@@ -253,9 +300,9 @@ static bool is_name_in_list(const char *name, List<String> list_names)
     FALSE                         Success
 */
 
-bool partition_default_handling(TABLE *table, partition_info *part_info,
-                                bool is_create_table_ind,
-                                const char *normalized_path)
+static bool partition_default_handling(TABLE *table, partition_info *part_info,
+                                       bool is_create_table_ind,
+                                       const char *normalized_path)
 {
   Partition_handler *part_handler= table->file->get_partition_handler();
   DBUG_ENTER("partition_default_handling");
@@ -814,7 +861,7 @@ static bool handle_list_of_fields(List_iterator<char> it,
       goto end;
     }
   }
-  if (is_list_empty && part_info->part_type == HASH_PARTITION)
+  if (is_list_empty && part_info->part_type == partition_type::HASH)
   {
     uint primary_key= table->s->primary_key;
     if (primary_key != MAX_KEY)
@@ -868,11 +915,11 @@ end:
     >0                       Sign error
 */
 
-int check_signed_flag(partition_info *part_info)
+static int check_signed_flag(partition_info *part_info)
 {
   int error= 0;
   uint i= 0;
-  if (part_info->part_type != HASH_PARTITION &&
+  if (part_info->part_type != partition_type::HASH &&
       part_info->part_expr->unsigned_flag)
   {
     List_iterator<partition_element> part_it(part_info->partitions);
@@ -905,11 +952,9 @@ int check_signed_flag(partition_info *part_info)
     stack for resolving of fields from a single table.
 */
 
-static int
+static bool
 init_lex_with_single_table(THD *thd, TABLE *table, LEX *lex)
 {
-  TABLE_LIST *table_list;
-  Table_ident *table_ident;
   SELECT_LEX *select_lex= lex->select_lex;
   Name_resolution_context *context= &select_lex->context;
   /*
@@ -921,14 +966,17 @@ init_lex_with_single_table(THD *thd, TABLE *table, LEX *lex)
     we're working with to the Name_resolution_context.
   */
   thd->lex= lex;
-  if ((!(table_ident= new Table_ident(thd,
-                                      to_lex_cstring(table->s->table_name),
-                                      to_lex_cstring(table->s->db), TRUE))) ||
-      (!(table_list= select_lex->add_table_to_list(thd,
-                                                   table_ident,
-                                                   NULL,
-                                                   0))))
-    return TRUE;
+  auto table_ident= new Table_ident(thd->get_protocol(),
+                                    to_lex_cstring(table->s->table_name),
+                                    to_lex_cstring(table->s->db), true);
+  if (table_ident == nullptr)
+    return true;
+
+  TABLE_LIST *table_list=
+    select_lex->add_table_to_list(thd, table_ident, nullptr, 0);
+  if (table_list == nullptr)
+    return true;
+
   context->resolve_in_table_list_only(table_list);
   lex->use_only_table_context= TRUE;
   table->get_fields_in_item_tree= TRUE;
@@ -1006,8 +1054,8 @@ static bool fix_fields_part_func(THD *thd, Item* func_expr, TABLE *table,
   int error;
   LEX *old_lex= thd->lex;
   LEX lex;
-  st_select_lex_unit unit(CTX_NONE);
-  st_select_lex select(NULL, NULL, NULL, NULL, NULL, NULL);
+  SELECT_LEX_UNIT unit(CTX_NONE);
+  SELECT_LEX select(nullptr, nullptr);
   lex.new_static_query(&unit, &select);
 
   DBUG_ENTER("fix_fields_part_func");
@@ -1080,7 +1128,7 @@ static bool fix_fields_part_func(THD *thd, Item* func_expr, TABLE *table,
     else
       push_warning(thd, Sql_condition::SL_WARNING,
                    ER_WRONG_EXPR_IN_PARTITION_FUNC_ERROR,
-                   ER(ER_WRONG_EXPR_IN_PARTITION_FUNC_ERROR));
+                   ER_THD(thd, ER_WRONG_EXPR_IN_PARTITION_FUNC_ERROR));
   }
 
   if ((!is_sub_part) && (error= check_signed_flag(part_info)))
@@ -1232,13 +1280,12 @@ static bool check_unique_keys(TABLE *table)
 
   SYNOPSIS
     check_range_capable_PF()
-    table                TABLE object for which partition fields are set-up
 
   DESCRIPTION
     Support for this is not implemented yet.
 */
 
-void check_range_capable_PF(TABLE *table)
+static void check_range_capable_PF(TABLE*)
 {
   DBUG_ENTER("check_range_capable_PF");
 
@@ -1249,7 +1296,6 @@ void check_range_capable_PF(TABLE *table)
 /**
   Set up partition bitmaps
 
-    @param thd           Thread object
     @param part_info     Reference to partitioning data structure
 
   @return Operation status
@@ -1260,7 +1306,7 @@ void check_range_capable_PF(TABLE *table)
     and initialise it.
 */
 
-static bool set_up_partition_bitmaps(THD *thd, partition_info *part_info)
+static bool set_up_partition_bitmaps(partition_info *part_info)
 {
   uint32 *bitmap_buf;
   uint bitmap_bits= part_info->num_subparts?
@@ -1374,7 +1420,7 @@ static void set_up_partition_func_pointers(partition_info *part_info)
   if (part_info->is_sub_partitioned())
   {
     part_info->get_partition_id= get_partition_id_with_sub;
-    if (part_info->part_type == RANGE_PARTITION)
+    if (part_info->part_type == partition_type::RANGE)
     {
       if (part_info->column_list)
         part_info->get_part_partition_id= get_partition_id_range_col;
@@ -1421,14 +1467,14 @@ static void set_up_partition_func_pointers(partition_info *part_info)
   {
     part_info->get_part_partition_id= NULL;
     part_info->get_subpartition_id= NULL;
-    if (part_info->part_type == RANGE_PARTITION)
+    if (part_info->part_type == partition_type::RANGE)
     {
       if (part_info->column_list)
         part_info->get_partition_id= get_partition_id_range_col;
       else
         part_info->get_partition_id= get_partition_id_range;
     }
-    else if (part_info->part_type == LIST_PARTITION)
+    else if (part_info->part_type == partition_type::LIST)
     {
       if (part_info->column_list)
         part_info->get_partition_id= get_partition_id_list_col;
@@ -1683,7 +1729,7 @@ bool fix_partition_func(THD *thd, TABLE *table,
   }
   if (part_info->is_sub_partitioned())
   {
-    DBUG_ASSERT(part_info->subpart_type == HASH_PARTITION);
+    DBUG_ASSERT(part_info->subpart_type == partition_type::HASH);
     /*
       Subpartition is defined. We need to verify that subpartitioning
       function is correct.
@@ -1708,12 +1754,12 @@ bool fix_partition_func(THD *thd, TABLE *table,
       }
     }
   }
-  DBUG_ASSERT(part_info->part_type != NOT_A_PARTITION);
+  DBUG_ASSERT(part_info->part_type != partition_type::NONE);
   /*
     Partition is defined. We need to verify that partitioning
     function is correct.
   */
-  if (part_info->part_type == HASH_PARTITION)
+  if (part_info->part_type == partition_type::HASH)
   {
     if (part_info->linear_hash_ind)
       set_linear_hash_mask(part_info, part_info->num_parts);
@@ -1752,13 +1798,13 @@ bool fix_partition_func(THD *thd, TABLE *table,
         goto end;
     }
     part_info->fixed= TRUE;
-    if (part_info->part_type == RANGE_PARTITION)
+    if (part_info->part_type == partition_type::RANGE)
     {
       error_str= partition_keywords[PKW_RANGE].str;
       if (unlikely(part_info->check_range_constants(thd)))
         goto end;
     }
-    else if (part_info->part_type == LIST_PARTITION)
+    else if (part_info->part_type == partition_type::LIST)
     {
       error_str= partition_keywords[PKW_LIST].str;
       if (unlikely(part_info->check_list_constants(thd)))
@@ -1782,7 +1828,7 @@ bool fix_partition_func(THD *thd, TABLE *table,
       goto end;
     }
   }
-  if (((part_info->part_type != HASH_PARTITION ||
+  if (((part_info->part_type != partition_type::HASH ||
         part_info->list_of_part_fields == FALSE) &&
        !part_info->column_list &&
        check_part_func_fields(part_info->part_field_array, TRUE)) ||
@@ -1805,7 +1851,7 @@ bool fix_partition_func(THD *thd, TABLE *table,
       (table->s->db_type()->partition_flags() & HA_CAN_PARTITION_UNIQUE))) &&
                check_unique_keys(table)))
     goto end;
-  if (unlikely(set_up_partition_bitmaps(thd, part_info)))
+  if (unlikely(set_up_partition_bitmaps(part_info)))
     goto end;
   if (unlikely(part_info->set_up_charset_field_preps()))
   {
@@ -1840,6 +1886,8 @@ end:
 }
 
 
+// TODO: Change this to use streams instead, to make it possible to skip
+//       temporary files etc. and write directly to a string if wanted.
 /*
   The code below is support routines for the reverse parsing of the
   partitioning syntax. This feature is very useful to generate syntax for
@@ -1933,30 +1981,59 @@ static int add_subpartition_by(File fptr)
   return err + add_partition_by(fptr);
 }
 
-static int add_part_field_list(File fptr, List<char> field_list)
+
+/**
+  Append field list to string.
+
+  Used by KEY and COLUMNS partitioning.
+
+  @param[in]     thd        Thread handle.
+  @param[in,out] str        String to append.
+  @param[in]     field_list List of field names to append.
+
+  @return false if success, else true.
+*/
+
+static bool append_field_list(THD *thd, String *str, List<char> field_list)
 {
   uint i, num_fields;
-  int err= 0;
 
   List_iterator<char> part_it(field_list);
   num_fields= field_list.elements;
   i= 0;
-  err+= add_begin_parenthesis(fptr);
+  ulonglong save_options= thd->variables.option_bits;
+  thd->variables.option_bits&= ~OPTION_QUOTE_SHOW_CREATE;
   while (i < num_fields)
   {
     const char *field_str= part_it++;
-    String field_string("", 0, system_charset_info);
-    THD *thd= current_thd;
-    ulonglong save_options= thd->variables.option_bits;
-    thd->variables.option_bits&= ~OPTION_QUOTE_SHOW_CREATE;
-    append_identifier(thd, &field_string, field_str,
-                      strlen(field_str));
-    thd->variables.option_bits= save_options;
-    err+= add_string_object(fptr, &field_string);
+    append_identifier(thd, str, field_str, strlen(field_str));
     if (i != (num_fields-1))
-      err+= add_comma(fptr);
+    {
+      if (str->append(','))
+      {
+        thd->variables.option_bits= save_options;
+        return true;
+      }
+    }
     i++;
   }
+  thd->variables.option_bits= save_options;
+  return false;
+}
+
+
+static int add_part_field_list(File fptr, List<char> field_list)
+{
+  int err= 0;
+  THD *thd= current_thd;
+  String str("", 0, system_charset_info);
+
+  err+= add_begin_parenthesis(fptr);
+  if (append_field_list(thd, &str, field_list))
+  {
+    err++;
+  }
+  err+= add_string_object(fptr, &str);
   err+= add_end_parenthesis(fptr);
   return err;
 }
@@ -2075,7 +2152,7 @@ static int add_keyword_path(File fptr, const char *keyword,
 
   if (strlen(path) >= FN_REFLEN)
   {
-    my_error(ER_PATH_LENGTH, MYF(0), "data/index directory (>=512 bytes)");
+    my_error(ER_PATH_LENGTH, MYF(0), keyword);
     return 1;
   }
 
@@ -2142,6 +2219,7 @@ static int add_keyword_int(File fptr, const char *keyword, longlong num)
 static int add_engine(File fptr, handlerton *engine_type)
 {
   const char *engine_str= ha_resolve_storage_engine_name(engine_type);
+  DBUG_ASSERT(engine_type != NULL);
   DBUG_PRINT("info", ("ENGINE: %s", engine_str));
   int err= add_string(fptr, "ENGINE = ");
   return err + add_string(fptr, engine_str);
@@ -2257,17 +2335,17 @@ error:
   SYNOPSIS
     get_sql_field()
     field_name                   Field name
-    alter_info                   Info from ALTER TABLE/CREATE TABLE
+    create_fields                Info from ALTER TABLE/CREATE TABLE
 
   RETURN VALUE
     sql_field                    Object filled in by parser about field
     NULL                         No field found
 */
 
-static Create_field* get_sql_field(char *field_name,
-                                   Alter_info *alter_info)
+static Create_field* get_sql_field(const char *field_name,
+                                   List<Create_field> *create_fields)
 {
-  List_iterator<Create_field> it(alter_info->create_list);
+  List_iterator<Create_field> it(*create_fields);
   Create_field *sql_field;
   DBUG_ENTER("get_sql_field");
 
@@ -2283,17 +2361,97 @@ static Create_field* get_sql_field(char *field_name,
   DBUG_RETURN(NULL);
 }
 
+int expr_to_string(String *val_conv,
+                   Item *item_expr, 
+                   Field *field,
+                   const char *field_name,
+                   const HA_CREATE_INFO *create_info,
+                   List<Create_field> *create_fields)
+{
+  char buffer[MAX_KEY_LENGTH];
+  String str(buffer, sizeof(buffer), &my_charset_bin);
+  String *res;
+  const CHARSET_INFO *field_cs;
+  bool need_cs_check= FALSE;
+  Item_result result_type= STRING_RESULT;
 
-static int add_column_list_values(File fptr, partition_info *part_info,
-                                  part_elem_value *list_value,
-                                  HA_CREATE_INFO *create_info,
-                                  Alter_info *alter_info)
+  /*
+    This function is called at a very early stage, even before
+    we have prepared the sql_field objects. Thus we have to
+    find the proper sql_field object and get the character set
+    from that object.
+  */
+  if (create_info)
+  {
+    Create_field *sql_field;
+
+    if (!(sql_field= get_sql_field(field_name,
+                                   create_fields)))
+    {
+      my_error(ER_FIELD_NOT_FOUND_PART_ERROR, MYF(0));
+      return 1;
+    }
+    if (check_part_field(sql_field->sql_type,
+                         sql_field->field_name,
+                         &result_type,
+                         &need_cs_check))
+      return 1;
+    if (need_cs_check)
+      field_cs= get_sql_field_charset(sql_field, create_info);
+    else
+      field_cs= NULL;
+  }
+  else
+  {
+    result_type= field->result_type();
+    if (check_part_field(field->real_type(),
+                         field->field_name,
+                         &result_type,
+                         &need_cs_check))
+      return 1;
+    DBUG_ASSERT(result_type == field->result_type());
+    if (need_cs_check)
+      field_cs= field->charset();
+    else
+      field_cs= NULL;
+  }
+  if (result_type != item_expr->result_type())
+  {
+    my_error(ER_WRONG_TYPE_COLUMN_VALUE_ERROR, MYF(0));
+    return 1;
+  }
+  if (field_cs && field_cs != item_expr->collation.collation)
+  {
+    if (!(item_expr= convert_charset_partition_constant(item_expr,
+                                                        field_cs)))
+    {
+      my_error(ER_PARTITION_FUNCTION_IS_NOT_ALLOWED, MYF(0));
+      return 1;
+    }
+  }
+  val_conv->set_charset(system_charset_info);
+  res= item_expr->val_str(&str);
+  if (get_cs_converted_part_value_from_string(current_thd,
+                                              item_expr, res,
+                                              val_conv, field_cs,
+                                              (bool)(create_fields != NULL)))
+  {
+      return 1;
+  }
+  return 0;
+}
+ 
+static
+int add_column_list_values(File fptr, partition_info *part_info,
+                           part_elem_value *list_value,
+                           HA_CREATE_INFO *create_info,
+                           List<Create_field> *create_fields)
 {
   int err= 0;
   uint i;
   List_iterator<char> it(part_info->part_field_list);
   uint num_elements= part_info->part_field_list.elements;
-  bool use_parenthesis= (part_info->part_type == LIST_PARTITION &&
+  bool use_parenthesis= (part_info->part_type == partition_type::LIST &&
                          part_info->num_columns > 1U);
 
   if (use_parenthesis)
@@ -2311,81 +2469,41 @@ static int add_column_list_values(File fptr, partition_info *part_info,
       char buffer[MAX_KEY_LENGTH];
       String str(buffer, sizeof(buffer), &my_charset_bin);
       Item *item_expr= col_val->item_expression;
-      if (item_expr->null_value)
+      if (!item_expr)
+      {
+        /*
+	  The values are not from the parser, but from the
+	  dd::Partition_values table. See fill_partitioning_from_dd().
+	*/
+        DBUG_ASSERT(col_val->column_value.value_str);
+        err+= add_string(fptr, col_val->column_value.value_str);
+      }
+      else if (item_expr->null_value)
+      {
         err+= add_string(fptr, "NULL");
+      }
       else
       {
-        String *res;
-        const CHARSET_INFO *field_cs;
-        bool need_cs_check= FALSE;
-        Item_result result_type= STRING_RESULT;
-
-        /*
-          This function is called at a very early stage, even before
-          we have prepared the sql_field objects. Thus we have to
-          find the proper sql_field object and get the character set
-          from that object.
-        */
+        String val_conv;
         if (create_info)
         {
-          Create_field *sql_field;
-
-          if (!(sql_field= get_sql_field(field_name,
-                                         alter_info)))
-          {
-            my_error(ER_FIELD_NOT_FOUND_PART_ERROR, MYF(0));
-            return 1;
-          }
-          if (check_part_field(sql_field->sql_type,
-                               sql_field->field_name,
-                               &result_type,
-                               &need_cs_check))
-            return 1;
-          if (need_cs_check)
-            field_cs= get_sql_field_charset(sql_field, create_info);
-          else
-            field_cs= NULL;
+          err+= expr_to_string(&val_conv,
+                               item_expr,
+                               NULL,
+                               field_name,
+                               create_info,
+                               create_fields);
         }
         else
         {
-          Field *field= part_info->part_field_array[i];
-          result_type= field->result_type();
-          if (check_part_field(field->real_type(),
-                               field->field_name,
-                               &result_type,
-                               &need_cs_check))
-            return 1;
-          DBUG_ASSERT(result_type == field->result_type());
-          if (need_cs_check)
-            field_cs= field->charset();
-          else
-            field_cs= NULL;
+          err+= expr_to_string(&val_conv,
+                               item_expr,
+                               part_info->part_field_array[i],
+                               NULL,
+                               NULL,
+                               NULL);
         }
-        if (result_type != item_expr->result_type())
-        {
-          my_error(ER_WRONG_TYPE_COLUMN_VALUE_ERROR, MYF(0));
-          return 1;
-        }
-        if (field_cs && field_cs != item_expr->collation.collation)
-        {
-          if (!(item_expr= convert_charset_partition_constant(item_expr,
-                                                              field_cs)))
-          {
-            my_error(ER_PARTITION_FUNCTION_IS_NOT_ALLOWED, MYF(0));
-            return 1;
-          }
-        }
-        {
-          String val_conv;
-          val_conv.set_charset(system_charset_info);
-          res= item_expr->val_str(&str);
-          if (get_cs_converted_part_value_from_string(current_thd,
-                                                      item_expr, res,
-                                                      &val_conv, field_cs,
-                                                      (alter_info != NULL)))
-            return 1;
-          err+= add_string_object(fptr, &val_conv);
-        }
+        err+= add_string_object(fptr, &val_conv);
       }
     }
     if (i != (num_elements - 1))
@@ -2399,11 +2517,11 @@ static int add_column_list_values(File fptr, partition_info *part_info,
 static int add_partition_values(File fptr, partition_info *part_info,
                                 partition_element *p_elem,
                                 HA_CREATE_INFO *create_info,
-                                Alter_info *alter_info)
+                                List<Create_field> *create_fields)
 {
   int err= 0;
 
-  if (part_info->part_type == RANGE_PARTITION)
+  if (part_info->part_type == partition_type::RANGE)
   {
     err+= add_string(fptr, " VALUES LESS THAN ");
     if (part_info->column_list)
@@ -2412,7 +2530,7 @@ static int add_partition_values(File fptr, partition_info *part_info,
       part_elem_value *list_value= list_val_it++;
       err+= add_begin_parenthesis(fptr);
       err+= add_column_list_values(fptr, part_info, list_value,
-                                   create_info, alter_info);
+                                   create_info, create_fields);
       err+= add_end_parenthesis(fptr);
     }
     else
@@ -2430,7 +2548,7 @@ static int add_partition_values(File fptr, partition_info *part_info,
         err+= add_string(fptr, partition_keywords[PKW_MAXVALUE].str);
     }
   }
-  else if (part_info->part_type == LIST_PARTITION)
+  else if (part_info->part_type == partition_type::LIST)
   {
     uint i;
     List_iterator<part_elem_value> list_val_it(p_elem->list_val_list);
@@ -2455,7 +2573,7 @@ static int add_partition_values(File fptr, partition_info *part_info,
 
       if (part_info->column_list)
         err+= add_column_list_values(fptr, part_info, list_value,
-                                     create_info, alter_info);
+                                     create_info, create_fields);
       else
       {
         if (!list_value->unsigned_flag)
@@ -2497,9 +2615,9 @@ static int add_key_with_algorithm(File fptr, partition_info *part_info,
     Then only add ALGORITHM = 1, not the default 2 or non-set 0!
     For .frm current_comment_start is NULL, then add ALGORITHM if != 0.
   */
-  if (part_info->key_algorithm == partition_info::KEY_ALGORITHM_51 || // SHOW
+  if (part_info->key_algorithm == enum_key_algorithm::KEY_ALGORITHM_51 ||// SHOW
       (!current_comment_start &&                                      // .frm
-       (part_info->key_algorithm != partition_info::KEY_ALGORITHM_NONE)))
+       (part_info->key_algorithm != enum_key_algorithm::KEY_ALGORITHM_NONE)))
   {
     /* If we already are within a comment, end that comment first. */
     if (current_comment_start)
@@ -2508,7 +2626,7 @@ static int add_key_with_algorithm(File fptr, partition_info *part_info,
     err+= add_part_key_word(fptr, partition_keywords[PKW_ALGORITHM].str);
     err+= add_equal(fptr);
     err+= add_space(fptr);
-    err+= add_int(fptr, part_info->key_algorithm);
+    err+= add_int(fptr, static_cast<longlong>(part_info->key_algorithm));
     err+= add_space(fptr);
     err+= add_string(fptr, "*/ ");
     if (current_comment_start)
@@ -2521,6 +2639,36 @@ static int add_key_with_algorithm(File fptr, partition_info *part_info,
     }
   }
   return err;
+}
+
+static char *get_file_content(File fptr, uint *buf_length, bool use_sql_alloc)
+{
+  my_off_t buffer_length;
+  char *buf;
+  buffer_length= mysql_file_seek(fptr, 0L, MY_SEEK_END, MYF(0));
+  if (unlikely(buffer_length == MY_FILEPOS_ERROR))
+    return NULL;
+  if (unlikely(mysql_file_seek(fptr, 0L, MY_SEEK_SET, MYF(0))
+               == MY_FILEPOS_ERROR))
+    return NULL;
+  *buf_length= (uint)buffer_length;
+  if (use_sql_alloc)
+    buf= (char*) sql_alloc(*buf_length+1);
+  else
+    buf= (char*) my_malloc(key_memory_partition_syntax_buffer,
+                           *buf_length+1, MYF(MY_WME));
+  if (!buf)
+    return NULL;
+
+  if (unlikely(mysql_file_read(fptr, (uchar*)buf, *buf_length, MYF(MY_FNABP))))
+  {
+    if (!use_sql_alloc)
+      my_free(buf);
+    buf= NULL;
+  }
+  else
+    buf[*buf_length]= 0;
+  return buf;
 }
 
 
@@ -2537,7 +2685,9 @@ static int add_key_with_algorithm(File fptr, partition_info *part_info,
                                otherwise use my_malloc
     show_partition_options     Should we display partition options
     create_info                Info generated by parser
-    alter_info                 Info generated by parser
+    create_fields              Info generated by parser
+    current_comment_start      NULL, or comment string encapsulating the
+                               PARTITION BY clause.
 
   RETURN VALUES
     NULL error
@@ -2568,37 +2718,32 @@ char *generate_partition_syntax(partition_info *part_info,
                                 bool use_sql_alloc,
                                 bool show_partition_options,
                                 HA_CREATE_INFO *create_info,
-                                Alter_info *alter_info,
+                                List<Create_field> *create_fields,
                                 const char *current_comment_start)
 {
   uint i,j, tot_num_parts, num_subparts;
   partition_element *part_elem;
-  ulonglong buffer_length;
-  char path[FN_REFLEN];
   int err= 0;
   List_iterator<partition_element> part_it(part_info->partitions);
   File fptr;
   char *buf= NULL; //Return buffer
   DBUG_ENTER("generate_partition_syntax");
 
-  if (unlikely(((fptr= create_temp_file(path,mysql_tmpdir,"psy",
-                                        O_RDWR | O_BINARY | O_TRUNC |
-                                        O_TEMPORARY, MYF(MY_WME)))) < 0))
+  if (!(fptr= mysql_tmpfile("psy")))
+  {
     DBUG_RETURN(NULL);
-#ifndef _WIN32
-  unlink(path);
-#endif
+  }
   err+= add_space(fptr);
   err+= add_partition_by(fptr);
   switch (part_info->part_type)
   {
-    case RANGE_PARTITION:
+    case partition_type::RANGE:
       err+= add_part_key_word(fptr, partition_keywords[PKW_RANGE].str);
       break;
-    case LIST_PARTITION:
+    case partition_type::LIST:
       err+= add_part_key_word(fptr, partition_keywords[PKW_LIST].str);
       break;
-    case HASH_PARTITION:
+    case partition_type::HASH:
       if (part_info->linear_hash_ind)
         err+= add_string(fptr, partition_keywords[PKW_LINEAR].str);
       if (part_info->list_of_part_fields)
@@ -2616,7 +2761,8 @@ char *generate_partition_syntax(partition_info *part_info,
       my_error(ER_OUT_OF_RESOURCES, MYF(ME_FATALERROR));
       DBUG_RETURN(NULL);
   }
-  if (part_info->part_expr)
+  /* TODO: use part_expr->print() ?*/
+  if (part_info->part_func_len)
   {
     err+= add_begin_parenthesis(fptr);
     err+= add_string_len(fptr, part_info->part_func_string,
@@ -2650,7 +2796,7 @@ char *generate_partition_syntax(partition_info *part_info,
     }
     else
       err+= add_part_key_word(fptr, partition_keywords[PKW_HASH].str);
-    if (part_info->subpart_expr)
+    if (part_info->subpart_func_len)
     {
       err+= add_begin_parenthesis(fptr);
       err+= add_string_len(fptr, part_info->subpart_func_string,
@@ -2690,7 +2836,7 @@ char *generate_partition_syntax(partition_info *part_info,
         err+= add_partition(fptr);
         err+= add_name_string(fptr, part_elem->partition_name);
         err+= add_partition_values(fptr, part_info, part_elem,
-                                   create_info, alter_info);
+                                   create_info, create_fields);
         if (!part_info->is_sub_partitioned() ||
             part_info->use_default_subpartitions)
         {
@@ -2703,14 +2849,15 @@ char *generate_partition_syntax(partition_info *part_info,
           err+= add_space(fptr);
           err+= add_begin_parenthesis(fptr);
           List_iterator<partition_element> sub_it(part_elem->subpartitions);
+          partition_element *sub_elem;
           j= 0;
           do
           {
-            part_elem= sub_it++;
+            sub_elem= sub_it++;
             err+= add_subpartition(fptr);
-            err+= add_name_string(fptr, part_elem->partition_name);
+            err+= add_name_string(fptr, sub_elem->partition_name);
             if (show_partition_options)
-              err+= add_partition_options(fptr, part_elem);
+              err+= add_partition_options(fptr, sub_elem);
             if (j != (num_subparts-1))
             {
               err+= add_comma(fptr);
@@ -2729,31 +2876,7 @@ char *generate_partition_syntax(partition_info *part_info,
   }
   if (err)
     goto close_file;
-  buffer_length= mysql_file_seek(fptr, 0L, MY_SEEK_END, MYF(0));
-  if (unlikely(buffer_length == MY_FILEPOS_ERROR))
-    goto close_file;
-  if (unlikely(mysql_file_seek(fptr, 0L, MY_SEEK_SET, MYF(0))
-               == MY_FILEPOS_ERROR))
-    goto close_file;
-  *buf_length= (uint)buffer_length;
-  if (use_sql_alloc)
-    buf= (char*) sql_alloc(*buf_length+1);
-  else
-    buf= (char*) my_malloc(key_memory_partition_syntax_buffer,
-                           *buf_length+1, MYF(MY_WME));
-  if (!buf)
-    goto close_file;
-
-  if (unlikely(mysql_file_read(fptr, (uchar*)buf, *buf_length, MYF(MY_FNABP))))
-  {
-    if (!use_sql_alloc)
-      my_free(buf);
-    else
-      buf= NULL;
-  }
-  else
-    buf[*buf_length]= 0;
-
+  buf= get_file_content(fptr, buf_length, use_sql_alloc);
 close_file:
   if (buf == NULL)
   {
@@ -2934,7 +3057,7 @@ static int get_part_id_linear_hash(partition_info *part_info,
   @param file                Handler to storage engine
   @param field_array         Array of fields for PARTTION KEY
   @param num_parts           Number of KEY partitions
-  @param func_value[out]     Returns calculated hash value
+  @param [out] func_value    Returns calculated hash value
 
   @return Calculated partition id
 */
@@ -3168,9 +3291,9 @@ static int get_part_id_charset_func_subpart(partition_info *part_info,
   DBUG_RETURN(res);
 }
 
-int get_partition_id_list_col(partition_info *part_info,
-                              uint32 *part_id,
-                              longlong *func_value)
+static int get_partition_id_list_col(partition_info *part_info,
+                                     uint32 *part_id,
+                                     longlong*)
 {
   part_column_list_val *list_col_array= part_info->list_col_array;
   uint num_columns= part_info->part_field_list.elements;
@@ -3204,9 +3327,9 @@ notfound:
 }
 
 
-int get_partition_id_list(partition_info *part_info,
-                          uint32 *part_id,
-                          longlong *func_value)
+static int get_partition_id_list(partition_info *part_info,
+                                 uint32 *part_id,
+                                 longlong *func_value)
 {
   LIST_PART_ENTRY *list_array= part_info->list_array;
   int list_index;
@@ -3257,10 +3380,10 @@ notfound:
 }
 
 
-uint32 get_partition_id_cols_list_for_endpoint(partition_info *part_info,
-                                               bool left_endpoint,
-                                               bool include_endpoint,
-                                               uint32 nparts)
+static uint32 get_partition_id_cols_list_for_endpoint(partition_info *part_info,
+                                                      bool left_endpoint,
+                                                      bool include_endpoint,
+                                                      uint32 nparts)
 {
   part_column_list_val *list_col_array= part_info->list_col_array;
   uint num_columns= part_info->part_field_list.elements;
@@ -3346,9 +3469,9 @@ uint32 get_partition_id_cols_list_for_endpoint(partition_info *part_info,
   @return The index of corresponding sub-array of part_info->list_array.
 */
 
-uint32 get_list_array_idx_for_endpoint_charset(partition_info *part_info,
-                                               bool left_endpoint,
-                                               bool include_endpoint)
+static uint32 get_list_array_idx_for_endpoint_charset(partition_info *part_info,
+                                                      bool left_endpoint,
+                                                      bool include_endpoint)
 {
   uint32 res;
   copy_to_part_field_buffers(part_info->part_field_array,
@@ -3361,9 +3484,9 @@ uint32 get_list_array_idx_for_endpoint_charset(partition_info *part_info,
   return res;
 }
 
-uint32 get_list_array_idx_for_endpoint(partition_info *part_info,
-                                       bool left_endpoint,
-                                       bool include_endpoint)
+static uint32 get_list_array_idx_for_endpoint(partition_info *part_info,
+                                              bool left_endpoint,
+                                              bool include_endpoint)
 {
   LIST_PART_ENTRY *list_array= part_info->list_array;
   uint list_index;
@@ -3422,9 +3545,9 @@ notfound:
 }
 
 
-int get_partition_id_range_col(partition_info *part_info,
-                               uint32 *part_id,
-                               longlong *func_value)
+static int get_partition_id_range_col(partition_info *part_info,
+                                      uint32 *part_id,
+                                      longlong*)
 {
   part_column_list_val *range_col_array= part_info->range_col_array;
   uint num_columns= part_info->part_field_list.elements;
@@ -3562,9 +3685,9 @@ get_partition_id_range_for_endpoint_charset(partition_info *part_info,
   return res;
 }
 
-uint32 get_partition_id_range_for_endpoint(partition_info *part_info,
-                                           bool left_endpoint,
-                                           bool include_endpoint)
+static uint32 get_partition_id_range_for_endpoint(partition_info *part_info,
+                                                  bool left_endpoint,
+                                                  bool include_endpoint)
 {
   longlong *range_array= part_info->range_int_array;
   longlong part_end_val;
@@ -3652,27 +3775,27 @@ uint32 get_partition_id_range_for_endpoint(partition_info *part_info,
 }
 
 
-int get_partition_id_hash_nosub(partition_info *part_info,
-                                 uint32 *part_id,
-                                 longlong *func_value)
+static int get_partition_id_hash_nosub(partition_info *part_info,
+                                       uint32 *part_id,
+                                       longlong *func_value)
 {
   return get_part_id_hash(part_info->num_parts, part_info->part_expr,
                           part_id, func_value);
 }
 
 
-int get_partition_id_linear_hash_nosub(partition_info *part_info,
-                                        uint32 *part_id,
-                                        longlong *func_value)
+static int get_partition_id_linear_hash_nosub(partition_info *part_info,
+                                              uint32 *part_id,
+                                              longlong *func_value)
 {
   return get_part_id_linear_hash(part_info, part_info->num_parts,
                                  part_info->part_expr, part_id, func_value);
 }
 
 
-int get_partition_id_key_nosub(partition_info *part_info,
-                                uint32 *part_id,
-                                longlong *func_value)
+static int get_partition_id_key_nosub(partition_info *part_info,
+                                      uint32 *part_id,
+                                      longlong *func_value)
 {
   *part_id= get_part_id_key(part_info->table->file,
                             part_info->part_field_array,
@@ -3681,9 +3804,9 @@ int get_partition_id_key_nosub(partition_info *part_info,
 }
 
 
-int get_partition_id_linear_key_nosub(partition_info *part_info,
-                                      uint32 *part_id,
-                                      longlong *func_value)
+static int get_partition_id_linear_key_nosub(partition_info *part_info,
+                                             uint32 *part_id,
+                                             longlong *func_value)
 {
   *part_id= get_part_id_linear_key(part_info,
                                    part_info->part_field_array,
@@ -3692,9 +3815,9 @@ int get_partition_id_linear_key_nosub(partition_info *part_info,
 }
 
 
-int get_partition_id_with_sub(partition_info *part_info,
-                              uint32 *part_id,
-                              longlong *func_value)
+static int get_partition_id_with_sub(partition_info *part_info,
+                                     uint32 *part_id,
+                                     longlong *func_value)
 {
   uint32 loc_part_id, sub_part_id;
   uint num_subparts;
@@ -3742,8 +3865,8 @@ int get_partition_id_with_sub(partition_info *part_info,
     get_partition_id_linear_key_sub
 */
 
-int get_partition_id_hash_sub(partition_info *part_info,
-                              uint32 *part_id)
+static int get_partition_id_hash_sub(partition_info *part_info,
+                                     uint32 *part_id)
 {
   longlong func_value;
   return get_part_id_hash(part_info->num_subparts, part_info->subpart_expr,
@@ -3751,8 +3874,8 @@ int get_partition_id_hash_sub(partition_info *part_info,
 }
 
 
-int get_partition_id_linear_hash_sub(partition_info *part_info,
-                                     uint32 *part_id)
+static int get_partition_id_linear_hash_sub(partition_info *part_info,
+                                            uint32 *part_id)
 {
   longlong func_value;
   return get_part_id_linear_hash(part_info, part_info->num_subparts,
@@ -3761,8 +3884,8 @@ int get_partition_id_linear_hash_sub(partition_info *part_info,
 }
 
 
-int get_partition_id_key_sub(partition_info *part_info,
-                             uint32 *part_id)
+static int get_partition_id_key_sub(partition_info *part_info,
+                                    uint32 *part_id)
 {
   longlong func_value;
   *part_id= get_part_id_key(part_info->table->file,
@@ -3772,8 +3895,8 @@ int get_partition_id_key_sub(partition_info *part_info,
 }
 
 
-int get_partition_id_linear_key_sub(partition_info *part_info,
-                                       uint32 *part_id)
+static int get_partition_id_linear_key_sub(partition_info *part_info,
+                                           uint32 *part_id)
 {
   longlong func_value;
   *part_id= get_part_id_linear_key(part_info,
@@ -3925,8 +4048,8 @@ static int get_sub_part_id_from_key(const TABLE *table,uchar *buf,
     get the partition identity and restore field pointers afterwards.
 */
 
-bool get_part_id_from_key(const TABLE *table, uchar *buf, KEY *key_info,
-                          const key_range *key_spec, uint32 *part_id)
+static bool get_part_id_from_key(const TABLE *table, uchar *buf, KEY *key_info,
+                                 const key_range *key_spec, uint32 *part_id)
 {
   bool result;
   uchar *rec0= table->record[0];
@@ -4389,9 +4512,6 @@ void get_partition_set(const TABLE *table, uchar *buf, const uint index,
      serialisation of these objects other than in parseable text format).
      We need to save the text of the partition functions since it is not
      possible to retrace this given an item tree.
-
-     Note: Upon any change to this function we might want to make
-     similar change to get_partition_tablespace_names() too.
 */
 
 bool mysql_unpack_partition(THD *thd,
@@ -4406,8 +4526,8 @@ bool mysql_unpack_partition(THD *thd,
     thd->variables.character_set_client;
   LEX *old_lex= thd->lex;
   LEX lex;
-  st_select_lex_unit unit(CTX_NONE);
-  st_select_lex select(NULL, NULL, NULL, NULL, NULL, NULL);
+  SELECT_LEX_UNIT unit(CTX_NONE);
+  SELECT_LEX select(nullptr, nullptr);
   lex.new_static_query(&unit, &select);
 
   sql_digest_state *parent_digest= thd->m_digest;
@@ -4417,7 +4537,7 @@ bool mysql_unpack_partition(THD *thd,
 
   thd->variables.character_set_client= system_charset_info;
 
-  Parser_state parser_state;
+  Partition_expr_parser_state parser_state;
   if (parser_state.init(thd, part_buf, part_info_len))
     goto end;
 
@@ -4434,25 +4554,19 @@ bool mysql_unpack_partition(THD *thd,
     we then save in the partition info structure.
   */
   *work_part_info_used= FALSE;
-  lex.part_info= new partition_info();/* Indicates MYSQLparse from this place */
-  if (!lex.part_info)
-  {
-    mem_alloc_error(sizeof(partition_info));
-    goto end;
-  }
-  part_info= lex.part_info;
   DBUG_PRINT("info", ("Parse: %s", part_buf));
 
   thd->m_digest= NULL;
   thd->m_statement_psi= NULL;
   if (parse_sql(thd, & parser_state, NULL) ||
-      part_info->fix_parser_data(thd))
+      parser_state.result->fix_parser_data(thd))
   {
     thd->free_items();
     thd->m_digest= parent_digest;
     thd->m_statement_psi= parent_locker;
     goto end;
   }
+  part_info= parser_state.result;
   thd->m_digest= parent_digest;
   thd->m_statement_psi= parent_locker;
   /*
@@ -4502,7 +4616,6 @@ bool mysql_unpack_partition(THD *thd,
     part_info->default_engine_type= default_db_type;
   DBUG_ASSERT(part_info->default_engine_type == default_db_type);
   DBUG_ASSERT(part_info->default_engine_type->db_type != DB_TYPE_UNKNOWN);
-  DBUG_ASSERT(!is_ha_partition_handlerton(part_info->default_engine_type));
 
   {
   /*
@@ -4518,6 +4631,10 @@ bool mysql_unpack_partition(THD *thd,
     size_t subpart_func_len= part_info->subpart_func_len;
     char *part_func_string= NULL;
     char *subpart_func_string= NULL;
+    /*
+      TODO: Verify that it really should be allocated on the thd?
+      Or simply remove it and use part_expr->print() instead?
+    */
     if ((part_func_len &&
          !((part_func_string= (char*) thd->alloc(part_func_len)))) ||
         (subpart_func_len &&
@@ -4541,95 +4658,6 @@ end:
   end_lex_with_single_table(thd, table, old_lex);
   thd->variables.character_set_client= old_character_set_client;
   DBUG_RETURN(result);
-}
-
-/**
-  Fill Tablespace_hash_set with tablespace names used in given
-  partition expression. The partition expression is parsed to get
-  the tablespace names.
-
-  Note that, upon any change to this function we might want to make
-  similar change to mysql_unpack_partition() too.
-
-  @param thd                 - Thread invoking the function
-  @param partition_info_str  - The partition expression.
-  @param partition_info_len  - The partition expression length.
-  @param tablespace_set (OUT)- Hash set to be filled with tablespace name.
-
-  @retval true  - On failure.
-  @retval false - On success.
-*/
-bool get_partition_tablespace_names(
-       THD *thd,
-       const char *partition_info_str,
-       uint partition_info_len,
-       Tablespace_hash_set *tablespace_set)
-{
-  // Backup query arena
-  Query_arena *backup_stmt_arena_ptr= thd->stmt_arena;
-  Query_arena backup_arena;
-  Query_arena part_func_arena(thd->mem_root,
-                              Query_arena::STMT_INITIALIZED);
-  thd->set_n_backup_active_arena(&part_func_arena, &backup_arena);
-  thd->stmt_arena= &part_func_arena;
-
-  //
-  // Parsing the partition expression.
-  //
-
-  // Save old state and prepare new LEX
-  const CHARSET_INFO *old_character_set_client=
-    thd->variables.character_set_client;
-  thd->variables.character_set_client= system_charset_info;
-  LEX *old_lex= thd->lex;
-  LEX lex;
-  st_select_lex_unit unit(CTX_NONE);
-  st_select_lex select(NULL, NULL, NULL, NULL, NULL, NULL);
-  lex.new_static_query(&unit, &select);
-  thd->lex= &lex;
-
-  sql_digest_state *parent_digest= thd->m_digest;
-  PSI_statement_locker *parent_locker= thd->m_statement_psi;
-
-  Parser_state parser_state;
-  bool error= true;
-  if ((error= parser_state.init(thd,
-                                partition_info_str,
-                                partition_info_len)))
-    goto end;
-
-  // Create new partition_info object.
-  lex.part_info= new partition_info();
-  if (!lex.part_info)
-  {
-    mem_alloc_error(sizeof(partition_info));
-    goto end;
-  }
-
-  // Parse the string and filling the partition_info.
-  thd->m_digest= NULL;
-  thd->m_statement_psi= NULL;
-  error= parse_sql(thd, &parser_state, NULL);
-  thd->m_digest= parent_digest;
-  thd->m_statement_psi= parent_locker;
-
-  // Fill in partitions from part_info.
-  error= error || fill_partition_tablespace_names(lex.part_info,
-                                                  tablespace_set);
-end:
-  // Free items from current arena.
-  thd->free_items();
-
-  // Retore the old lex.
-  lex_end(thd->lex);
-  thd->lex= old_lex;
-
-  // Restore old arena.
-  thd->stmt_arena= backup_stmt_arena_ptr;
-  thd->restore_active_arena(&part_func_arena, &backup_arena);
-  thd->variables.character_set_client= old_character_set_client;
-
-  return (error);
 }
 
 
@@ -4691,7 +4719,7 @@ static void fast_end_partition(THD *thd, ulonglong copied,
 
   query_cache.invalidate(thd, table_list, FALSE);
 
-  my_snprintf(tmp_name, sizeof(tmp_name), ER(ER_INSERT_INFO),
+  my_snprintf(tmp_name, sizeof(tmp_name), ER_THD(thd, ER_INSERT_INFO),
               (long) (copied + deleted),
               (long) deleted,
               0L);
@@ -4740,8 +4768,6 @@ static bool check_native_partitioned(HA_CREATE_INFO *create_info,bool *ret_val,
     if (thd->lex->sql_command != SQLCOM_CREATE_TABLE)
     {
       table_engine_set= TRUE;
-      DBUG_ASSERT(engine_type &&
-                  !is_ha_partition_handlerton(engine_type));
     }
   }
   DBUG_PRINT("info", ("engine_type = %s, table_engine_set = %u",
@@ -4934,8 +4960,12 @@ bool compare_partition_options(HA_CREATE_INFO *table_create_info,
   @param[in,out] create_info     Create info for CREATE TABLE
   @param[in]  alter_ctx          ALTER TABLE runtime context
   @param[out] partition_changed  Boolean indicating whether partition changed
+  @param[out] fast_alter_part_table  Indicates that fast partition alter
+                                     is possible.
   @param[out] new_part_info      New partition_info object if fast partition
-                                 alter is possible. (NULL if not possible).
+                                 alter or in-place alter which requires mark-up
+                                 in partition_info is possible (NULL if neither
+                                 is possible).
 
   @return Operation status
     @retval TRUE                 Error
@@ -4955,25 +4985,15 @@ uint prep_alter_part_table(THD *thd, TABLE *table, Alter_info *alter_info,
                            HA_CREATE_INFO *create_info,
                            Alter_table_ctx *alter_ctx,
                            bool *partition_changed,
+                           bool *fast_alter_part_table,
                            partition_info **new_part_info)
 {
   DBUG_ENTER("prep_alter_part_table");
   DBUG_ASSERT(new_part_info);
 
-  /* Foreign keys are not supported by ha_partition, waits for WL#148 */
-  if (is_ha_partition_handlerton(table->file->ht) &&
-      table->part_info &&
-      (alter_info->flags & Alter_info::ADD_FOREIGN_KEY ||
-       alter_info->flags & Alter_info::DROP_FOREIGN_KEY))
-  {
-    DBUG_ASSERT(table->part_info);
-    my_error(ER_FOREIGN_KEY_ON_PARTITIONED, MYF(0));
-    DBUG_RETURN(TRUE);
-  }
-  /* Remove/upgrade partitioning on a non-partitioned table is not possible */
-  if (!table->part_info &&
-      (alter_info->flags & (Alter_info::ALTER_REMOVE_PARTITIONING |
-                            Alter_info::ALTER_UPGRADE_PARTITIONING)))
+  /* Remove partitioning on a not partitioned table is not possible */
+  if (!table->part_info && (alter_info->flags &
+                            Alter_info::ALTER_REMOVE_PARTITIONING))
   {
     my_error(ER_PARTITION_MGMT_ON_NONPARTITIONED, MYF(0));
     DBUG_RETURN(TRUE);
@@ -5051,7 +5071,7 @@ uint prep_alter_part_table(THD *thd, TABLE *table, Alter_info *alter_info,
          if default partitioning is used.
       */
 
-      if (tab_part_info->part_type != HASH_PARTITION ||
+      if (tab_part_info->part_type != partition_type::HASH ||
           ((table->s->db_type()->partition_flags() & HA_USE_AUTO_PARTITION) &&
            !tab_part_info->use_default_num_partitions) ||
           ((!(table->s->db_type()->partition_flags() & HA_USE_AUTO_PARTITION)) &&
@@ -5070,8 +5090,9 @@ uint prep_alter_part_table(THD *thd, TABLE *table, Alter_info *alter_info,
           without any changes at all.
         */
         flags= part_handler->alter_flags(alter_info->flags);
-        if ((flags & HA_FAST_CHANGE_PARTITION) != 0)
+        if (flags & (HA_FAST_CHANGE_PARTITION | HA_INPLACE_CHANGE_PARTITION))
         {
+          *fast_alter_part_table= (flags & HA_FAST_CHANGE_PARTITION);
           *new_part_info= tab_part_info;
           /* Force table re-open for consistency with the main case. */
           table->m_needs_reopen= true;
@@ -5104,14 +5125,15 @@ uint prep_alter_part_table(THD *thd, TABLE *table, Alter_info *alter_info,
       my_error(ER_PARTITION_FUNCTION_FAILURE, MYF(0));
       goto err;
     }
-    if ((flags & HA_FAST_CHANGE_PARTITION) != 0)
+    if (flags & (HA_FAST_CHANGE_PARTITION | HA_INPLACE_CHANGE_PARTITION))
     {
       /*
-        "Fast" change of partitioning is supported in this case.
-        We will change TABLE::part_info (as this is how we pass
+        "Fast" or "inplace" change of partitioning is supported in this
+        case. We will change TABLE::part_info (as this is how we pass
         information to storage engine in this case), so the table
         must be reopened.
       */
+      *fast_alter_part_table= (flags & HA_FAST_CHANGE_PARTITION);
       *new_part_info= tab_part_info;
       table->m_needs_reopen= true;
     }
@@ -5121,14 +5143,14 @@ uint prep_alter_part_table(THD *thd, TABLE *table, Alter_info *alter_info,
     {
       if (thd->work_part_info->part_type != tab_part_info->part_type)
       {
-        if (thd->work_part_info->part_type == NOT_A_PARTITION)
+        if (thd->work_part_info->part_type == partition_type::NONE)
         {
-          if (tab_part_info->part_type == RANGE_PARTITION)
+          if (tab_part_info->part_type == partition_type::RANGE)
           {
             my_error(ER_PARTITIONS_MUST_BE_DEFINED_ERROR, MYF(0), "RANGE");
             goto err;
           }
-          else if (tab_part_info->part_type == LIST_PARTITION)
+          else if (tab_part_info->part_type == partition_type::LIST)
           {
             my_error(ER_PARTITIONS_MUST_BE_DEFINED_ERROR, MYF(0), "LIST");
             goto err;
@@ -5140,25 +5162,25 @@ uint prep_alter_part_table(THD *thd, TABLE *table, Alter_info *alter_info,
         }
         else
         {
-          if (thd->work_part_info->part_type == RANGE_PARTITION)
+          if (thd->work_part_info->part_type == partition_type::RANGE)
           {
             my_error(ER_PARTITION_WRONG_VALUES_ERROR, MYF(0),
                      "RANGE", "LESS THAN");
           }
-          else if (thd->work_part_info->part_type == LIST_PARTITION)
+          else if (thd->work_part_info->part_type == partition_type::LIST)
           {
-            DBUG_ASSERT(thd->work_part_info->part_type == LIST_PARTITION);
+            DBUG_ASSERT(thd->work_part_info->part_type == partition_type::LIST);
             my_error(ER_PARTITION_WRONG_VALUES_ERROR, MYF(0),
                      "LIST", "IN");
           }
-          else if (tab_part_info->part_type == RANGE_PARTITION)
+          else if (tab_part_info->part_type == partition_type::RANGE)
           {
             my_error(ER_PARTITION_REQUIRES_VALUES_ERROR, MYF(0),
                      "RANGE", "LESS THAN");
           }
           else
           {
-            DBUG_ASSERT(tab_part_info->part_type == LIST_PARTITION);
+            DBUG_ASSERT(tab_part_info->part_type == partition_type::LIST);
             my_error(ER_PARTITION_REQUIRES_VALUES_ERROR, MYF(0),
                      "LIST", "IN");
           }
@@ -5168,11 +5190,11 @@ uint prep_alter_part_table(THD *thd, TABLE *table, Alter_info *alter_info,
       if ((tab_part_info->column_list &&
           alt_part_info->num_columns != tab_part_info->num_columns) ||
           (!tab_part_info->column_list &&
-            (tab_part_info->part_type == RANGE_PARTITION ||
-             tab_part_info->part_type == LIST_PARTITION) &&
+            (tab_part_info->part_type == partition_type::RANGE ||
+             tab_part_info->part_type == partition_type::LIST) &&
             alt_part_info->num_columns != 1U) ||
           (!tab_part_info->column_list &&
-            tab_part_info->part_type == HASH_PARTITION &&
+            tab_part_info->part_type == partition_type::HASH &&
             alt_part_info->num_columns != 0))
       {
         my_error(ER_PARTITION_COLUMN_LIST_ERROR, MYF(0));
@@ -5201,7 +5223,7 @@ uint prep_alter_part_table(THD *thd, TABLE *table, Alter_info *alter_info,
         must know the number of new partitions in this case.
       */
       if (thd->lex->no_write_to_binlog &&
-          tab_part_info->part_type != HASH_PARTITION)
+          tab_part_info->part_type != partition_type::HASH)
       {
         my_error(ER_NO_BINLOG_ERROR, MYF(0));
         goto err;
@@ -5304,7 +5326,7 @@ and copying and finally the third line after also dropping the partitions
 that are reorganised.
 */
       if (*new_part_info &&
-          tab_part_info->part_type == HASH_PARTITION)
+          tab_part_info->part_type == partition_type::HASH)
       {
         uint part_no= 0, start_part= 1, start_sec_part= 1;
         uint end_part= 0, end_sec_part= 0;
@@ -5428,7 +5450,7 @@ that are reorganised.
       {
         if (!alt_part_info->use_default_partitions)
         {
-          DBUG_PRINT("info", ("part_info: 0x%lx", (long) tab_part_info));
+          DBUG_PRINT("info", ("part_info: %p", tab_part_info));
           tab_part_info->use_default_partitions= FALSE;
         }
         tab_part_info->use_default_num_partitions= FALSE;
@@ -5450,8 +5472,8 @@ that are reorganised.
       List_iterator<partition_element> part_it(tab_part_info->partitions);
 
       tab_part_info->is_auto_partitioned= FALSE;
-      if (!(tab_part_info->part_type == RANGE_PARTITION ||
-            tab_part_info->part_type == LIST_PARTITION))
+      if (!(tab_part_info->part_type == partition_type::RANGE ||
+            tab_part_info->part_type == partition_type::LIST))
       {
         my_error(ER_ONLY_ON_RANGE_LIST_PARTITION, MYF(0), "DROP");
         goto err;
@@ -5506,7 +5528,7 @@ that are reorganised.
       uint num_parts_coalesced= alter_info->num_parts;
       uint num_parts_remain= tab_part_info->num_parts - num_parts_coalesced;
       List_iterator<partition_element> part_it(tab_part_info->partitions);
-      if (tab_part_info->part_type != HASH_PARTITION)
+      if (tab_part_info->part_type != partition_type::HASH)
       {
         my_error(ER_COALESCE_ONLY_ON_HASH_PARTITION, MYF(0));
         goto err;
@@ -5628,8 +5650,8 @@ state of p1.
         my_error(ER_REORG_PARTITION_NOT_EXIST, MYF(0));
         goto err;
       }
-      if (!(tab_part_info->part_type == RANGE_PARTITION ||
-            tab_part_info->part_type == LIST_PARTITION) &&
+      if (!(tab_part_info->part_type == partition_type::RANGE ||
+            tab_part_info->part_type == partition_type::LIST) &&
            (num_parts_new != num_parts_reorged))
       {
         my_error(ER_REORG_HASH_ONLY_ON_SAME_NO, MYF(0));
@@ -5800,7 +5822,7 @@ the generated partition syntax in a correct manner.
         to reorganize into
       */
       if (alter_info->flags == Alter_info::ALTER_REORGANIZE_PARTITION &&
-          tab_part_info->part_type == RANGE_PARTITION &&
+          tab_part_info->part_type == partition_type::RANGE &&
           ((is_last_partition_reorged &&
             (tab_part_info->column_list ?
              (tab_part_info->compare_column_values(
@@ -5859,15 +5881,6 @@ the generated partition syntax in a correct manner.
        we override the old partitioning info and create a new table using
        the specified engine.
        In this case the partition also is changed.
-
-     Case IIc:
-       There was a partitioning before and there is no new one defined.
-       The user has specified explicitly to upgrade partitioning
-
-       We use the old partitioning also for the new table. We do this
-       by assigning the partition_info from the table loaded in
-       open_table to the partition_info struct used by mysql_create_table
-       later in this method.
 
      Case III:
        There was no partitioning before altering the table, there is
@@ -5940,15 +5953,6 @@ the generated partition syntax in a correct manner.
           }
           *partition_changed= TRUE;
         }
-        else if (alter_info->flags == Alter_info::ALTER_UPGRADE_PARTITIONING)
-        {
-          DBUG_PRINT("info", ("Upgrade partitioning"));
-          DBUG_ASSERT(create_info->used_fields == 0);
-          /* Fast alter allowed as meta-data only change. */
-          *new_part_info= thd->work_part_info;
-          /* Force table re-open for consistency with the main case. */
-          table->m_needs_reopen= true;
-        }
       }
     }
     if (thd->work_part_info)
@@ -5971,19 +5975,11 @@ the generated partition syntax in a correct manner.
           rebuild). This is to handle KEY (numeric_cols) partitioned tables
           created in 5.1. For more info, see bug#14521864.
         */
-        if (alter_info->flags == Alter_info::ALTER_PARTITION &&
-            table->part_info &&
-            alter_info->requested_algorithm ==
-              Alter_info::ALTER_TABLE_ALGORITHM_INPLACE &&
-            table->part_info->has_same_partitioning(part_info))
-        {
-          DBUG_PRINT("info", ("Changed KEY partitioning algorithm"));
-          /* Fast alter allowed as meta-data only change. */
-          *new_part_info= part_info;
-          /* Force table re-open for consistency with the main case. */
-          table->m_needs_reopen= true;
-        }
-        else
+        if (alter_info->flags != Alter_info::ALTER_PARTITION ||
+            !table->part_info ||
+            alter_info->requested_algorithm !=
+              Alter_info::ALTER_TABLE_ALGORITHM_INPLACE ||
+            !table->part_info->has_same_partitioning(part_info))
         {
           DBUG_PRINT("info", ("partition changed"));
           *partition_changed= true;
@@ -6002,8 +5998,6 @@ the generated partition syntax in a correct manner.
         else
           part_info->default_engine_type= create_info->db_type;
       }
-      DBUG_ASSERT(part_info->default_engine_type &&
-                  !is_ha_partition_handlerton(part_info->default_engine_type));
       if (check_native_partitioned(create_info, &is_native_partitioned,
                                    part_info, thd))
       {
@@ -6011,16 +6005,8 @@ the generated partition syntax in a correct manner.
       }
       if (!is_native_partitioned)
       {
-        DBUG_ASSERT(create_info->db_type);
-        LEX_CSTRING name= { "partition", 9 };
-        plugin_ref plugin= ha_resolve_by_name_raw(thd, name);
-        if (!plugin)
-        {
-          my_error(ER_FEATURE_NOT_AVAILABLE, MYF(0), "partitioning",
-                   "--skip-partition", "-DWITH_PARTITION_STORAGE_ENGINE=1");
-          goto err;
-        }
-        create_info->db_type= plugin_data<handlerton*>(plugin);
+        my_error(ER_CHECK_NOT_IMPLEMENTED, MYF(0), "native partitioning");
+        goto err;
       }
     }
   }
@@ -6685,10 +6671,8 @@ error:
     FALSE                    Success
 */
 
-static void write_log_completed(ALTER_PARTITION_PARAM_TYPE *lpt,
-                                bool dont_crash)
+static void write_log_completed(partition_info *part_info)
 {
-  partition_info *part_info= lpt->part_info;
   DDL_LOG_MEMORY_ENTRY *log_entry= part_info->exec_log_entry;
   DBUG_ENTER("write_log_completed");
 
@@ -6776,10 +6760,10 @@ static void reopen_locked_tables(THD *thd)
   @param error              True if error occurred.
 */
 
-bool handle_alter_part_end(ALTER_PARTITION_PARAM_TYPE *lpt,
-                           bool error)
+static bool handle_alter_part_end(ALTER_PARTITION_PARAM_TYPE *lpt,
+                                  bool error)
 {
-  partition_info *part_info= lpt->part_info->get_clone();
+  partition_info *part_info;
   THD *thd= lpt->thd;
   TABLE *table= lpt->table;
   DBUG_ENTER("handle_alter_part_end");
@@ -6841,7 +6825,7 @@ bool handle_alter_part_end(ALTER_PARTITION_PARAM_TYPE *lpt,
       We couldn't recover from error, most likely manual interaction
       is required.
     */
-    write_log_completed(lpt, FALSE);
+    write_log_completed(part_info);
     if (error)
     {
       push_warning_printf(thd, Sql_condition::SL_WARNING, 1,
@@ -6934,9 +6918,6 @@ bool fast_alter_partition_table(THD *thd,
   lpt->part_info= part_info;
   lpt->alter_info= alter_info;
   lpt->create_info= create_info;
-  lpt->db_options= create_info->table_options;
-  if (create_info->row_type == ROW_TYPE_DYNAMIC)
-    lpt->db_options|= HA_OPTION_PACK_RECORD;
   lpt->table= table;
   lpt->key_info_buffer= 0;
   lpt->key_count= 0;
@@ -6944,8 +6925,6 @@ bool fast_alter_partition_table(THD *thd,
   lpt->table_name= table_name;
   lpt->copied= 0;
   lpt->deleted= 0;
-  lpt->pack_frm_data= NULL;
-  lpt->pack_frm_len= 0;
 
   if (!part_handler)
   {
@@ -6953,45 +6932,7 @@ bool fast_alter_partition_table(THD *thd,
     my_error(ER_PARTITION_MGMT_ON_NONPARTITIONED, MYF(0));
     DBUG_RETURN(true);
   }
-
-  if (alter_info->flags & (Alter_info::ALTER_PARTITION |
-                           Alter_info::ALTER_UPGRADE_PARTITIONING))
-  {
-    DBUG_ASSERT(alter_info->flags == Alter_info::ALTER_PARTITION ||
-                alter_info->flags == Alter_info::ALTER_UPGRADE_PARTITIONING);
-    DBUG_ASSERT(create_info->used_fields == 0);
-
-    /*
-      Only metadata changes, i.e frm-only!
-
-      1. Add an ddl_log entry that there may be a shadow .frm file to remove
-      2. Create the new .frm file and associated files
-      3. Get exclusive access to the table.
-      4. Write the command to the bin log.
-      5. Put the new .frm file in place.
-    */
-    if (write_log_drop_shadow_frm(lpt) ||
-        ERROR_INJECT_CRASH("crash_upgrade_partition_1") ||
-        ERROR_INJECT_ERROR("fail_upgrade_partition_1") ||
-        mysql_write_frm(lpt, WFRM_WRITE_SHADOW) ||
-        ERROR_INJECT_CRASH("crash_upgrade_partition_2") ||
-        ERROR_INJECT_ERROR("fail_upgrade_partition_2") ||
-        wait_while_table_is_used(thd, table, HA_EXTRA_FORCE_REOPEN) ||
-        ERROR_INJECT_CRASH("crash_upgrade_partition_3") ||
-        ERROR_INJECT_ERROR("fail_upgrade_partition_3") ||
-        ((!thd->lex->no_write_to_binlog) &&
-         (write_bin_log(thd, FALSE,
-                        thd->query().str, thd->query().length), FALSE)) ||
-        ERROR_INJECT_CRASH("crash_upgrade_partition_4") ||
-        ERROR_INJECT_ERROR("fail_upgrade_partition_4") ||
-        write_log_rename_frm(lpt) ||
-        ERROR_INJECT_CRASH("crash_upgrade_partition_5") ||
-        ERROR_INJECT_ERROR("fail_upgrade_partition_5"))
-    {
-      error= true;
-    }
-  }
-  else if (alter_info->flags & Alter_info::ALTER_DROP_PARTITION)
+  if (alter_info->flags & Alter_info::ALTER_DROP_PARTITION)
   {
     /*
       Now after all checks and setting state on dropped partitions we can
@@ -7049,7 +6990,7 @@ bool fast_alter_partition_table(THD *thd,
     if (write_log_drop_shadow_frm(lpt) ||
         ERROR_INJECT_CRASH("crash_drop_partition_1") ||
         ERROR_INJECT_ERROR("fail_drop_partition_1") ||
-        mysql_write_frm(lpt, WFRM_WRITE_SHADOW) ||
+        mysql_update_dd(lpt, WSDI_WRITE_SHADOW) ||
         ERROR_INJECT_CRASH("crash_drop_partition_2") ||
         ERROR_INJECT_ERROR("fail_drop_partition_2") ||
         wait_while_table_is_used(thd, table, HA_EXTRA_FORCE_REOPEN) ||
@@ -7068,8 +7009,8 @@ bool fast_alter_partition_table(THD *thd,
     }
   }
   else if ((alter_info->flags & Alter_info::ALTER_ADD_PARTITION) &&
-           (part_info->part_type == RANGE_PARTITION ||
-            part_info->part_type == LIST_PARTITION))
+           (part_info->part_type == partition_type::RANGE ||
+            part_info->part_type == partition_type::LIST))
   {
     /*
       ADD RANGE/LIST PARTITIONS
@@ -7099,7 +7040,7 @@ bool fast_alter_partition_table(THD *thd,
     if (write_log_drop_shadow_frm(lpt) ||
         ERROR_INJECT_CRASH("crash_add_partition_1") ||
         ERROR_INJECT_ERROR("fail_add_partition_1") ||
-        mysql_write_frm(lpt, WFRM_WRITE_SHADOW) ||
+        mysql_update_dd(lpt, WSDI_WRITE_SHADOW) ||
         ERROR_INJECT_CRASH("crash_add_partition_2") ||
         ERROR_INJECT_ERROR("fail_add_partition_2") ||
         wait_while_table_is_used(thd, table, HA_EXTRA_FORCE_REOPEN) ||
@@ -7181,7 +7122,7 @@ bool fast_alter_partition_table(THD *thd,
     if (write_log_drop_shadow_frm(lpt) ||
         ERROR_INJECT_CRASH("crash_change_partition_1") ||
         ERROR_INJECT_ERROR("fail_change_partition_1") ||
-        mysql_write_frm(lpt, WFRM_WRITE_SHADOW) ||
+        mysql_update_dd(lpt, WSDI_WRITE_SHADOW) ||
         ERROR_INJECT_CRASH("crash_change_partition_2") ||
         ERROR_INJECT_ERROR("fail_change_partition_2") ||
         write_log_add_change_partition(lpt) ||
@@ -7235,8 +7176,8 @@ bool fast_alter_partition_table(THD *thd,
     also for other programs.
 */
 
-void set_field_ptr(Field **ptr, const uchar *new_buf,
-                   const uchar *old_buf)
+static void set_field_ptr(Field **ptr, const uchar *new_buf,
+                          const uchar *old_buf)
 {
   my_ptrdiff_t diff= (new_buf - old_buf);
   DBUG_ENTER("set_field_ptr");
@@ -7245,44 +7186,6 @@ void set_field_ptr(Field **ptr, const uchar *new_buf,
   {
     (*ptr)->move_field_offset(diff);
   } while (*(++ptr));
-  DBUG_VOID_RETURN;
-}
-
-
-/*
-  Prepare for calling val_int on partition function by setting fields to
-  point to the record where the values of the PF-fields are stored.
-  This variant works on a key_part reference.
-  It is not required that all fields are NOT NULL fields.
-
-  SYNOPSIS
-    set_key_field_ptr()
-    key_info            key info with a set of fields to change ptr
-    new_buf             New record pointer
-    old_buf             Old record pointer
-
-  DESCRIPTION
-    Set ptr in field objects of field array to refer to new_buf record
-    instead of previously old_buf. Used before calling val_int and after
-    it is used to restore pointers to table->record[0].
-    This routine is placed outside of partition code since it can be useful
-    also for other programs.
-*/
-
-void set_key_field_ptr(KEY *key_info, const uchar *new_buf,
-                       const uchar *old_buf)
-{
-  KEY_PART_INFO *key_part= key_info->key_part;
-  uint key_parts= key_info->user_defined_key_parts;
-  uint i= 0;
-  my_ptrdiff_t diff= (new_buf - old_buf);
-  DBUG_ENTER("set_key_field_ptr");
-
-  do
-  {
-    key_part->field->move_field_offset(diff);
-    key_part++;
-  } while (++i < key_parts);
   DBUG_VOID_RETURN;
 }
 
@@ -7334,7 +7237,7 @@ void append_row_to_str(String &str, const uchar *row, TABLE *table)
     str.append(" ");
     str.append(field->field_name);
     str.append(":");
-    field_unpack(&str, field, rec, 0, false);
+    field_unpack(&str, field, 0, false);
   }
 
   if (!is_rec0)
@@ -7481,8 +7384,8 @@ static void set_up_range_analysis_info(partition_info *part_info)
     partitioning
   */
   switch (part_info->part_type) {
-  case RANGE_PARTITION:
-  case LIST_PARTITION:
+  case partition_type::RANGE:
+  case partition_type::LIST:
     if (!part_info->column_list)
     {
       if (part_info->part_expr->get_monotonicity_info() != NON_MONOTONIC)
@@ -7562,10 +7465,10 @@ setup_subparts:
   RETURN VALUE
   nparts                         Number of fields assigned
 */
-uint32 store_tuple_to_record(Field **pfield,
-                             uint32 *store_length_array,
-                             uchar *value,
-                             uchar *value_end)
+static uint32 store_tuple_to_record(Field **pfield,
+                                    uint32 *store_length_array,
+                                    uchar *value,
+                                    uchar *value_end)
 {
   /* This function is inspired by store_key_image_rec. */
   uint32 nparts= 0;
@@ -7623,7 +7526,7 @@ static int cmp_rec_and_tuple(part_column_list_val *val, uint32 nvals_in_rec)
     }
     if (val->null_value)
       return +1;
-    res= (*field)->cmp((const uchar*)val->column_value);
+    res= (*field)->cmp(val->column_value.field_image);
     if (res)
       return res;
   }
@@ -7720,10 +7623,10 @@ typedef uint32 (*get_col_endpoint_func)(partition_info*, bool left_endpoint,
   get_partition_id_range_for_endpoint.
 */
 
-uint32 get_partition_id_cols_range_for_endpoint(partition_info *part_info,
-                                                bool is_left_endpoint,
-                                                bool include_endpoint,
-                                                uint32 nparts)
+static uint32 get_partition_id_cols_range_for_endpoint(partition_info *part_info,
+                                                       bool is_left_endpoint,
+                                                       bool include_endpoint,
+                                                       uint32 nparts)
 {
   uint min_part_id= 0, max_part_id= part_info->num_parts, loc_part_id;
   part_column_list_val *range_col_array= part_info->range_col_array;
@@ -7769,24 +7672,24 @@ uint32 get_partition_id_cols_range_for_endpoint(partition_info *part_info,
 }
 
 
-int get_part_iter_for_interval_cols_via_map(partition_info *part_info,
-                                            bool is_subpart,
-                                            uint32 *store_length_array,
-                                            uchar *min_value, uchar *max_value,
-                                            uint min_len, uint max_len,
-                                            uint flags,
-                                            PARTITION_ITERATOR *part_iter)
+static int get_part_iter_for_interval_cols_via_map(partition_info *part_info,
+                                                   bool,
+                                                   uint32 *store_length_array,
+                                                   uchar *min_value, uchar *max_value,
+                                                   uint min_len, uint max_len,
+                                                   uint flags,
+                                                   PARTITION_ITERATOR *part_iter)
 {
   uint32 nparts;
-  get_col_endpoint_func  get_col_endpoint;
+  get_col_endpoint_func get_col_endpoint;
   DBUG_ENTER("get_part_iter_for_interval_cols_via_map");
 
-  if (part_info->part_type == RANGE_PARTITION)
+  if (part_info->part_type == partition_type::RANGE)
   {
     get_col_endpoint= get_partition_id_cols_range_for_endpoint;
     part_iter->get_next= get_next_partition_id_range;
   }
-  else if (part_info->part_type == LIST_PARTITION)
+  else if (part_info->part_type == partition_type::LIST)
   {
     get_col_endpoint= get_partition_id_cols_list_for_endpoint;
     part_iter->get_next= get_next_partition_id_list;
@@ -7794,7 +7697,10 @@ int get_part_iter_for_interval_cols_via_map(partition_info *part_info,
     DBUG_ASSERT(part_info->num_list_values);
   }
   else
+  {
     assert(0);
+    get_col_endpoint= nullptr;
+  }
 
   if (flags & NO_MIN_RANGE)
     part_iter->part_nums.start= part_iter->part_nums.cur= 0;
@@ -7811,11 +7717,11 @@ int get_part_iter_for_interval_cols_via_map(partition_info *part_info,
   }
   if (flags & NO_MAX_RANGE)
   {
-    if (part_info->part_type == RANGE_PARTITION)
+    if (part_info->part_type == partition_type::RANGE)
       part_iter->part_nums.end= part_info->num_parts;
     else /* LIST_PARTITION */
     {
-      DBUG_ASSERT(part_info->part_type == LIST_PARTITION);
+      DBUG_ASSERT(part_info->part_type == partition_type::LIST);
       part_iter->part_nums.end= part_info->num_list_values;
     }
   }
@@ -7870,13 +7776,13 @@ int get_part_iter_for_interval_cols_via_map(partition_info *part_info,
     @retval -1  All partitions would match (iterator not initialized)
 */
 
-int get_part_iter_for_interval_via_mapping(partition_info *part_info,
-                                           bool is_subpart,
-                                           uint32 *store_length_array, /* ignored */
-                                           uchar *min_value, uchar *max_value,
-                                           uint min_len, uint max_len, /* ignored */
-                                           uint flags,
-                                           PARTITION_ITERATOR *part_iter)
+static int get_part_iter_for_interval_via_mapping(partition_info *part_info,
+                                                  bool is_subpart,
+                                                  uint32 *store_length_array, /* ignored */
+                                                  uchar *min_value, uchar *max_value,
+                                                  uint min_len, uint max_len, /* ignored */
+                                                  uint flags,
+                                                  PARTITION_ITERATOR *part_iter)
 {
   Field *field= part_info->part_field_array[0];
   uint32             max_endpoint_val= 0;
@@ -7893,7 +7799,7 @@ int get_part_iter_for_interval_via_mapping(partition_info *part_info,
   (void)max_len;
   part_iter->ret_null_part= part_iter->ret_null_part_orig= FALSE;
 
-  if (part_info->part_type == RANGE_PARTITION)
+  if (part_info->part_type == partition_type::RANGE)
   {
     if (part_info->part_charset_field_array)
       get_endpoint=        get_partition_id_range_for_endpoint_charset;
@@ -7902,7 +7808,7 @@ int get_part_iter_for_interval_via_mapping(partition_info *part_info,
     max_endpoint_val=    part_info->num_parts;
     part_iter->get_next= get_next_partition_id_range;
   }
-  else if (part_info->part_type == LIST_PARTITION)
+  else if (part_info->part_type == partition_type::LIST)
   {
 
     if (part_info->part_charset_field_array)
@@ -7931,7 +7837,7 @@ int get_part_iter_for_interval_via_mapping(partition_info *part_info,
   can_match_multiple_values= (flags || !min_value || !max_value ||
                               memcmp(min_value, max_value, field_len));
   if (can_match_multiple_values &&
-      (part_info->part_type == RANGE_PARTITION ||
+      (part_info->part_type == partition_type::RANGE ||
        part_info->has_null_value))
   {
     /* Range scan on RANGE or LIST partitioned table */
@@ -8086,13 +7992,13 @@ int get_part_iter_for_interval_via_mapping(partition_info *part_info,
    -1 - All partitions would match, iterator not initialized
 */
 
-int get_part_iter_for_interval_via_walking(partition_info *part_info,
-                                      bool is_subpart,
-                                      uint32 *store_length_array, /* ignored */
-                                      uchar *min_value, uchar *max_value,
-                                      uint min_len, uint max_len, /* ignored */
-                                      uint flags,
-                                      PARTITION_ITERATOR *part_iter)
+static int get_part_iter_for_interval_via_walking(partition_info *part_info,
+                                                  bool is_subpart,
+                                                  uint32 *store_length_array, /* ignored */
+                                                  uchar *min_value, uchar *max_value,
+                                                  uint min_len, uint max_len, /* ignored */
+                                                  uint flags,
+                                                  PARTITION_ITERATOR *part_iter)
 {
   Field *field;
   uint total_parts;
@@ -8262,7 +8168,7 @@ uint32 get_next_partition_id_range(PARTITION_ITERATOR* part_iter)
     NOT_A_PARTITION_ID if there are no more partitions
 */
 
-uint32 get_next_partition_id_list(PARTITION_ITERATOR *part_iter)
+static uint32 get_next_partition_id_list(PARTITION_ITERATOR *part_iter)
 {
   if (part_iter->part_nums.cur >= part_iter->part_nums.end)
   {
@@ -8454,14 +8360,10 @@ bool set_up_table_before_create(THD *thd,
   share->max_rows= part_elem->part_max_rows;
   share->min_rows= part_elem->part_min_rows;
   partition_name= strrchr(partition_name_with_path, FN_LIBCHAR);
-  if ((part_elem->index_file_name &&
-      (error= append_file_to_dir(thd,
-                                 &part_elem->index_file_name,
-                                 partition_name+1))) ||
-      (part_elem->data_file_name &&
-      (error= append_file_to_dir(thd,
-                                 &part_elem->data_file_name,
-                                 partition_name+1))))
+  if ((error= prepare_index_and_data_dir_path(thd,
+                                              &part_elem->data_file_name,
+                                              &part_elem->index_file_name,
+                                              partition_name+1)))
   {
     DBUG_RETURN(error);
   }
@@ -8475,9 +8377,12 @@ bool set_up_table_before_create(THD *thd,
   }
   if (part_elem->tablespace_name != NULL)
   {
-    if (check_tablespace_name(part_elem->tablespace_name) != IDENT_NAME_OK)
+    if (validate_tablespace_name_length(part_elem->tablespace_name) ||
+        validate_tablespace_name(false,
+                                 part_elem->tablespace_name,
+                                 part_elem->engine_type))
     {
-	    DBUG_RETURN(true);
+      DBUG_RETURN(true);
     }
     info->tablespace= part_elem->tablespace_name;
   }

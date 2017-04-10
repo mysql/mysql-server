@@ -15,14 +15,21 @@
 * High performance
  * Use template and inline functions to reduce function call overheads.
  * Internal optimized Grisu2 and floating point parsing implementations.
- * Optional SSE2/SSE4.1 support.
+ * Optional SSE2/SSE4.2 support.
 
 ## Standard compliance
 
 * RapidJSON should be fully RFC4627/ECMA-404 compliance.
+* Support JSON Pointer (RFC6901).
+* Support JSON Schema Draft v4.
 * Support Unicode surrogate.
 * Support null character (`"\u0000"`)
  * For example, `["Hello\u0000World"]` can be parsed and handled gracefully. There is API for getting/setting lengths of string.
+* Support optional relaxed syntax.
+ * Single line (`// ...`) and multiple line (`/* ... */`) comments (`kParseCommentsFlag`). 
+ * Trailing commas at the end of objects and arrays (`kParseTrailingCommasFlag`).
+ * `NaN`, `Inf`, `Infinity`, `-Inf` and `-Infinity` as `double` values (`kParseNanAndInfFlag`)
+* [NPM compliant](http://github.com/miloyip/rapidjson/blob/master/doc/npm.md).
 
 ## Unicode
 
@@ -66,7 +73,7 @@
  * Only store pointer instead of copying
 * Optimization for "short" strings
  * Store short string in `Value` internally without additional allocation.
- * For UTF-8 string: maximum 11 characters in 32-bit, 15 characters in 64-bit.
+ * For UTF-8 string: maximum 11 characters in 32-bit, 21 characters in 64-bit (13 characters in x86-64).
 * Optionally support `std::string` (define `RAPIDJSON_HAS_STDSTRING=1`)
 
 ## Generation
@@ -94,3 +101,4 @@
 * Some C++11 support (optional)
  * Rvalue reference
  * `noexcept` specifier
+ * Range-based for loop

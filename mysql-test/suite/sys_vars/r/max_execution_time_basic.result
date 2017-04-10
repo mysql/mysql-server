@@ -170,13 +170,13 @@ SELECT @@session.max_execution_time;
 0
 # Check if the value in GLOBAL Table matches value in variable
 SELECT @@global.max_execution_time = VARIABLE_VALUE
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='max_execution_time';
 @@global.max_execution_time = VARIABLE_VALUE
 1
 # Check if the value in SESSION Table matches value in variable
 SELECT @@session.max_execution_time = VARIABLE_VALUE
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES
+FROM performance_schema.session_variables
 WHERE VARIABLE_NAME='max_execution_time';
 @@session.max_execution_time = VARIABLE_VALUE
 1

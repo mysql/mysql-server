@@ -1,0 +1,9 @@
+# Tests for PERFORMANCE_SCHEMA
+
+# There are no indexes on this table.
+
+show create table performance_schema.replication_group_members;
+
+select * from INFORMATION_SCHEMA.STATISTICS
+  where TABLE_SCHEMA = "performance_schema"
+  and TABLE_NAME = "replication_group_members";

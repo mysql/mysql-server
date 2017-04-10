@@ -11,22 +11,22 @@ SELECT @@session.session_track_system_variables;
 @@session.session_track_system_variables
 time_zone,autocommit,character_set_client,character_set_results,character_set_connection
 
-# via INFORMATION_SCHEMA.GLOBAL_VARIABLES
-SELECT * FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME LIKE 'session_track%' ORDER BY VARIABLE_NAME;
+# via performance_schema.global_variables
+SELECT * FROM performance_schema.global_variables WHERE VARIABLE_NAME LIKE 'session_track%' ORDER BY VARIABLE_NAME;
 VARIABLE_NAME	VARIABLE_VALUE
-SESSION_TRACK_GTIDS	OFF
-SESSION_TRACK_SCHEMA	ON
-SESSION_TRACK_STATE_CHANGE	OFF
-SESSION_TRACK_SYSTEM_VARIABLES	time_zone,autocommit,character_set_client,character_set_results,character_set_connection
-SESSION_TRACK_TRANSACTION_INFO	OFF
-# via INFORMATION_SCHEMA.SESSION_VARIABLES
-SELECT * FROM INFORMATION_SCHEMA.SESSION_VARIABLES WHERE VARIABLE_NAME LIKE 'session_track%' ORDER BY VARIABLE_NAME;
+session_track_gtids	OFF
+session_track_schema	ON
+session_track_state_change	OFF
+session_track_system_variables	time_zone,autocommit,character_set_client,character_set_results,character_set_connection
+session_track_transaction_info	OFF
+# via performance_schema.session_variables
+SELECT * FROM performance_schema.session_variables WHERE VARIABLE_NAME LIKE 'session_track%' ORDER BY VARIABLE_NAME;
 VARIABLE_NAME	VARIABLE_VALUE
-SESSION_TRACK_GTIDS	OFF
-SESSION_TRACK_SCHEMA	ON
-SESSION_TRACK_STATE_CHANGE	OFF
-SESSION_TRACK_SYSTEM_VARIABLES	time_zone,autocommit,character_set_client,character_set_results,character_set_connection
-SESSION_TRACK_TRANSACTION_INFO	OFF
+session_track_gtids	OFF
+session_track_schema	ON
+session_track_state_change	OFF
+session_track_system_variables	time_zone,autocommit,character_set_client,character_set_results,character_set_connection
+session_track_transaction_info	OFF
 SET @global_saved_tmp =  @@global.session_track_system_variables;
 
 # Altering global variable's value

@@ -10,14 +10,20 @@
 # Avoid CrashReporter popup on Mac
 --source include/not_crashrep.inc
 
--- source include/have_innodb.inc
+-- source include/have_innodb_max_16k.inc
 
--- source include/have_innodb_zip.inc
+########################################
+##### WL#7554 Force schema `test` to character set latin1
+##### This test should be migrated to utf8mb4. Added opt file too.
+--disable_query_log
+let $testdbcs57=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
+alter schema test default character set latin1;
+--enable_query_log
+########################################
 
 # compressed table in tests are with sizes KEY_BLOCK_SIZE 1,2,4,8,16
 # Table creatation fails if KEY_BLOCK_SIZE > innodb-page-size,so
 # allow test to run only when innodb-page-size=16
---source include/have_innodb_16k.inc
 
 let MYSQLD_DATADIR =`SELECT @@datadir`;
 let $innodb_file_per_table = `SELECT @@innodb_file_per_table`;
@@ -44,7 +50,7 @@ INSERT INTO test_wl5522.t1 VALUES (1), (2), (3), (4);
 FLUSH TABLES test_wl5522.t1 FOR EXPORT;
 
 perl;
-do 'include/innodb-util.inc';
+require 'include/innodb-util.inc';
 ib_backup_tablespaces("test_wl5522", "t1");
 EOF
 UNLOCK TABLES;
@@ -58,7 +64,7 @@ INSERT INTO test_wl5522.t1 VALUES (1);
 ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
 
 perl;
-do 'include/innodb-util.inc';
+require 'include/innodb-util.inc';
 ib_discard_tablespaces("test_wl5522", "t1");
 EOF
 
@@ -67,7 +73,7 @@ SELECT COUNT(*) FROM test_wl5522.t1;
 
 # Restore files
 perl;
-do 'include/innodb-util.inc';
+require 'include/innodb-util.inc';
 ib_restore_tablespaces("test_wl5522", "t1");
 EOF
 
@@ -110,7 +116,7 @@ ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
 # recreate the table and do a proper import.
 -- source include/wait_until_disconnected.inc
 perl;
-do 'include/innodb-util.inc';
+require 'include/innodb-util.inc';
 ib_unlink_tablespace("test_wl5522", "t1");
 EOF
 
@@ -139,7 +145,7 @@ ROW_FORMAT=COMPRESSED;
 ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
 
 perl;
-do 'include/innodb-util.inc';
+require 'include/innodb-util.inc';
 ib_restore_tablespaces("test_wl5522", "t1");
 EOF
 
@@ -165,7 +171,7 @@ SELECT COUNT(*) FROM test_wl5522.t1;
 
 # Restore files
 perl;
-do 'include/innodb-util.inc';
+require 'include/innodb-util.inc';
 ib_restore_tablespaces("test_wl5522", "t1");
 EOF
 
@@ -181,7 +187,7 @@ SET SESSION debug="-d,ib_import_internal_error";
 
 # Restore files
 perl;
-do 'include/innodb-util.inc';
+require 'include/innodb-util.inc';
 ib_restore_tablespaces("test_wl5522", "t1");
 EOF
 
@@ -201,7 +207,7 @@ SELECT COUNT(*) FROM test_wl5522.t1;
 
 # Restore files
 perl;
-do 'include/innodb-util.inc';
+require 'include/innodb-util.inc';
 ib_restore_tablespaces("test_wl5522", "t1");
 EOF
 
@@ -215,7 +221,7 @@ ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
 
 # Restore files
 perl;
-do 'include/innodb-util.inc';
+require 'include/innodb-util.inc';
 ib_restore_tablespaces("test_wl5522", "t1");
 EOF
 
@@ -233,7 +239,7 @@ SET SESSION debug="-d,ib_import_open_tablespace_failure";
 
 # Restore files
 perl;
-do 'include/innodb-util.inc';
+require 'include/innodb-util.inc';
 ib_restore_tablespaces("test_wl5522", "t1");
 EOF
 
@@ -248,7 +254,7 @@ SET SESSION debug="-d,ib_import_check_bitmap_failure";
 
 # Restore files
 perl;
-do 'include/innodb-util.inc';
+require 'include/innodb-util.inc';
 ib_restore_tablespaces("test_wl5522", "t1");
 EOF
 
@@ -262,7 +268,7 @@ SET SESSION debug="-d,ib_import_cluster_root_adjust_failure";
 
 # Restore files
 perl;
-do 'include/innodb-util.inc';
+require 'include/innodb-util.inc';
 ib_restore_tablespaces("test_wl5522", "t1");
 EOF
 
@@ -276,7 +282,7 @@ SET SESSION debug="-d,ib_import_cluster_failure";
 
 # Restore files
 perl;
-do 'include/innodb-util.inc';
+require 'include/innodb-util.inc';
 ib_restore_tablespaces("test_wl5522", "t1");
 EOF
 
@@ -290,7 +296,7 @@ SET SESSION debug="-d,ib_import_sec_root_adjust_failure";
 
 # Restore files
 perl;
-do 'include/innodb-util.inc';
+require 'include/innodb-util.inc';
 ib_restore_tablespaces("test_wl5522", "t1");
 EOF
 
@@ -304,7 +310,7 @@ SET SESSION debug="-d,ib_import_set_max_rowid_failure";
 
 # Left over from the failed IMPORT
 perl;
-do 'include/innodb-util.inc';
+require 'include/innodb-util.inc';
 ib_unlink_tablespace("test_wl5522", "t1");
 EOF
 
@@ -386,7 +392,7 @@ SELECT name
 FLUSH TABLES test_wl5522.t1 FOR EXPORT;
 
 perl;
-do 'include/innodb-util.inc';
+require 'include/innodb-util.inc';
 ib_backup_tablespaces("test_wl5522", "t1");
 EOF
 
@@ -422,7 +428,7 @@ SELECT c1, c2 FROM test_wl5522.t1;
 ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
 
 perl;
-do 'include/innodb-util.inc';
+require 'include/innodb-util.inc';
 ib_restore_tablespaces("test_wl5522", "t1");
 EOF
 
@@ -458,7 +464,7 @@ SELECT COUNT(*) FROM test_wl5522.t1;
 FLUSH TABLES test_wl5522.t1 FOR EXPORT;
 
 perl;
-do 'include/innodb-util.inc';
+require 'include/innodb-util.inc';
 ib_backup_tablespaces("test_wl5522", "t1");
 EOF
 
@@ -476,7 +482,7 @@ SELECT COUNT(*) FROM test_wl5522.t1;
 
 # Restore files
 perl;
-do 'include/innodb-util.inc';
+require 'include/innodb-util.inc';
 ib_restore_tablespaces("test_wl5522", "t1");
 EOF
 
@@ -492,7 +498,7 @@ SET SESSION debug="-d,ib_import_trigger_corruption_1";
 DROP TABLE test_wl5522.t1;
 
 perl;
-do 'include/innodb-util.inc';
+require 'include/innodb-util.inc';
 ib_unlink_tablespace("test_wl5522", "t1");
 EOF
 
@@ -508,7 +514,7 @@ SELECT COUNT(*) FROM test_wl5522.t1;
 
 # Restore files
 perl;
-do 'include/innodb-util.inc';
+require 'include/innodb-util.inc';
 ib_restore_tablespaces("test_wl5522", "t1");
 EOF
 
@@ -525,7 +531,7 @@ SET SESSION debug="-d,buf_page_import_corrupt_failure";
 DROP TABLE test_wl5522.t1;
 
 perl;
-do 'include/innodb-util.inc';
+require 'include/innodb-util.inc';
 ib_unlink_tablespace("test_wl5522", "t1");
 EOF
 
@@ -539,7 +545,7 @@ SELECT COUNT(*) FROM test_wl5522.t1;
 
 # Restore files
 perl;
-do 'include/innodb-util.inc';
+require 'include/innodb-util.inc';
 ib_restore_tablespaces("test_wl5522", "t1");
 EOF
 
@@ -553,7 +559,7 @@ SET SESSION debug="-d,ib_import_trigger_corruption_2";
 DROP TABLE test_wl5522.t1;
 
 perl;
-do 'include/innodb-util.inc';
+require 'include/innodb-util.inc';
 ib_unlink_tablespace("test_wl5522", "t1");
 EOF
 
@@ -567,7 +573,7 @@ SELECT COUNT(*) FROM test_wl5522.t1;
 
 # Restore files
 perl;
-do 'include/innodb-util.inc';
+require 'include/innodb-util.inc';
 ib_restore_tablespaces("test_wl5522", "t1");
 EOF
 
@@ -583,7 +589,7 @@ SET SESSION debug="-d,ib_import_trigger_corruption_3";
 DROP TABLE test_wl5522.t1;
 
 perl;
-do 'include/innodb-util.inc';
+require 'include/innodb-util.inc';
 ib_unlink_tablespace("test_wl5522", "t1");
 EOF
 
@@ -604,7 +610,7 @@ SET SESSION debug="-d,ib_import_create_index_failure_1";
 DROP TABLE test_wl5522.t1;
 
 perl;
-do 'include/innodb-util.inc';
+require 'include/innodb-util.inc';
 ib_unlink_tablespace("test_wl5522", "t1");
 EOF
 
@@ -620,7 +626,7 @@ SELECT COUNT(*) FROM test_wl5522.t1;
 
 # Restore files
 perl;
-do 'include/innodb-util.inc';
+require 'include/innodb-util.inc';
 ib_restore_tablespaces("test_wl5522", "t1");
 EOF
 
@@ -634,7 +640,7 @@ SET SESSION debug="-d,fil_space_create_failure";
 DROP TABLE test_wl5522.t1;
 
 perl;
-do 'include/innodb-util.inc';
+require 'include/innodb-util.inc';
 ib_unlink_tablespace("test_wl5522", "t1");
 EOF
 
@@ -650,7 +656,7 @@ SELECT COUNT(*) FROM test_wl5522.t1;
 
 # Restore files
 perl;
-do 'include/innodb-util.inc';
+require 'include/innodb-util.inc';
 ib_restore_tablespaces("test_wl5522", "t1");
 EOF
 
@@ -664,7 +670,7 @@ SET SESSION debug="-d,dict_tf_to_fsp_flags_failure";
 DROP TABLE test_wl5522.t1;
 
 perl;
-do 'include/innodb-util.inc';
+require 'include/innodb-util.inc';
 ib_unlink_tablespace("test_wl5522", "t1");
 EOF
 
@@ -680,7 +686,7 @@ SELECT COUNT(*) FROM test_wl5522.t1;
 
 # Restore files
 perl;
-do 'include/innodb-util.inc';
+require 'include/innodb-util.inc';
 ib_restore_tablespaces("test_wl5522", "t1");
 EOF
 
@@ -696,7 +702,7 @@ SET SESSION debug="-d,fsp_flags_is_valid_failure";
 DROP TABLE test_wl5522.t1;
 
 perl;
-do 'include/innodb-util.inc';
+require 'include/innodb-util.inc';
 ib_unlink_tablespace("test_wl5522", "t1");
 EOF
 
@@ -732,3 +738,10 @@ call mtr.add_suppression("\\[Warning\\] InnoDB: Tablespace for table .* is set a
 --remove_file $MYSQLTEST_VARDIR/tmp/t1.ibd
 
 eval SET GLOBAL INNODB_FILE_PER_TABLE=$innodb_file_per_table;
+
+########################################
+##### WL#7554 set schema `test` back to what it was
+--disable_query_log
+--eval alter schema test default character set $testdbcs57;
+--enable_query_log
+########################################

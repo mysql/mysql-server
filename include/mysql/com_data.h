@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify it
    under the terms of the GNU General Public License as published by the Free
@@ -16,13 +16,13 @@
 #define PLUGIN_PROTOCOL_INCLUDED
 
 #ifndef MYSQL_ABI_CHECK
-#include "my_global.h" /* Needed for my_bool in mysql_com.h */
+#include "binary_log_types.h" /* enum_field_types */
 #include "mysql_com.h" /* mysql_enum_shutdown_level */
 #endif
 
 
 /**
-@file
+  @file include/mysql/com_data.h
   Definition of COM_DATA to be used with the Command service as data input
   structure.
 */
@@ -39,11 +39,6 @@ typedef struct st_com_refresh_data
   unsigned char options;
 } COM_REFRESH_DATA;
 
-typedef struct st_com_shutdown_data
-{
-  enum mysql_enum_shutdown_level level;
-} COM_SHUTDOWN_DATA;
-
 typedef struct st_com_kill_data
 {
   unsigned long id;
@@ -54,12 +49,22 @@ typedef struct st_com_set_option_data
   unsigned int opt_command;
 } COM_SET_OPTION_DATA;
 
+typedef struct st_ps_param
+{
+  unsigned char null_bit;
+  enum enum_field_types type;
+  unsigned char unsigned_type;
+  const unsigned char *value;
+  unsigned long length;
+} PS_PARAM;
+
 typedef struct st_com_stmt_execute_data
 {
   unsigned long stmt_id;
-  unsigned long flags;
-  unsigned char *params;
-  unsigned long params_length;
+  unsigned long open_cursor;
+  PS_PARAM *parameters;
+  unsigned long parameter_count;
+  unsigned char has_new_types;
 } COM_STMT_EXECUTE_DATA;
 
 typedef struct st_com_stmt_fetch_data
@@ -109,7 +114,6 @@ typedef struct st_com_field_list_data
 union COM_DATA {
   COM_INIT_DB_DATA com_init_db;
   COM_REFRESH_DATA com_refresh;
-  COM_SHUTDOWN_DATA com_shutdown;
   COM_KILL_DATA com_kill;
   COM_SET_OPTION_DATA com_set_option;
   COM_STMT_EXECUTE_DATA com_stmt_execute;

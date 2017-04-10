@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -13,26 +13,24 @@
   along with this program; if not, write to the Free Software Foundation,
   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include <my_global.h>
 #include <my_thread.h>
-#include <pfs_instr.h>
-#include <pfs_stat.h>
-#include <pfs_global.h>
-#include <pfs_defaults.h>
-#include <pfs_user.h>
-#include <pfs_host.h>
 #include <pfs_account.h>
 #include <pfs_buffer_container.h>
+#include <pfs_defaults.h>
+#include <pfs_global.h>
+#include <pfs_host.h>
+#include <pfs_instr.h>
+#include <pfs_stat.h>
+#include <pfs_user.h>
+#include <string.h> /* memset */
+#include <sys/types.h>
 #include <tap.h>
 
 #include "stub_pfs_global.h"
-#include "stub_global_status_var.h"
-
-#include <string.h> /* memset */
 
 PFS_thread pfs_thread;
 
-void initialize_performance_schema_helper(PFS_global_param *param)
+static void initialize_performance_schema_helper(PFS_global_param *param)
 {
   stub_alloc_always_fails= false;
   stub_alloc_fails_after_count= 1000;
@@ -81,7 +79,7 @@ void initialize_performance_schema_helper(PFS_global_param *param)
   pfs_initialized= true;
 }
 
-void test_oom()
+static void test_oom()
 {
   PFS_global_param param;
   PFS_account *pfs_account;
@@ -152,7 +150,7 @@ void test_oom()
   shutdown_performance_schema();
 }
 
-void do_all_tests()
+static void do_all_tests()
 {
   test_oom();
 }
@@ -162,5 +160,5 @@ int main(int, char **)
   plan(12);
   MY_INIT("pfs_account-oom-t");
   do_all_tests();
-  return 0;
+  return (exit_status());
 }

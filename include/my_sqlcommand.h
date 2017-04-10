@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017 Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -15,6 +15,10 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #ifndef _mysql_sql_command_h
 #define _mysql_sql_command_h
+
+/**
+  @file include/my_sqlcommand.h
+*/
 
 /*
   @enum  enum_sql_command
@@ -160,7 +164,6 @@ enum enum_sql_command {
   SQLCOM_SHOW_CREATE_EVENT,
   SQLCOM_SHOW_EVENTS,
   SQLCOM_SHOW_CREATE_TRIGGER,
-  SQLCOM_ALTER_DB_UPGRADE,
   SQLCOM_SHOW_PROFILE,
   SQLCOM_SHOW_PROFILES,
   SQLCOM_SIGNAL,
@@ -171,7 +174,17 @@ enum enum_sql_command {
   SQLCOM_EXPLAIN_OTHER,
   SQLCOM_SHOW_CREATE_USER,
   SQLCOM_SHUTDOWN,
+  SQLCOM_SET_PASSWORD,
   SQLCOM_ALTER_INSTANCE,
+  SQLCOM_INSTALL_COMPONENT,
+  SQLCOM_UNINSTALL_COMPONENT,
+  SQLCOM_CREATE_ROLE,
+  SQLCOM_DROP_ROLE,
+  SQLCOM_SET_ROLE,
+  SQLCOM_GRANT_ROLE,
+  SQLCOM_REVOKE_ROLE,
+  SQLCOM_ALTER_USER_DEFAULT_ROLE,
+  SQLCOM_IMPORT,
   /* This should be the last !!! */
   SQLCOM_END
 };

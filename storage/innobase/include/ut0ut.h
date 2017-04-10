@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -30,8 +30,7 @@ Created 1/20/1994 Heikki Tuuri
 
 #include <ostream>
 #include <sstream>
-
-#ifndef UNIV_INNOCHECKSUM
+#include <string.h>
 
 #include "db0err.h"
 
@@ -41,11 +40,10 @@ Created 1/20/1994 Heikki Tuuri
 
 #include <time.h>
 
-#ifndef MYSQL_SERVER
 #include <ctype.h>
-#endif /* MYSQL_SERVER */
 
 #include <stdarg.h>
+#include "ut/ut.h"
 
 /** Index name prefix in fast index creation, as a string constant */
 #define TEMP_INDEX_PREFIX_STR	"\377"
@@ -120,15 +118,17 @@ ut_pair_min(
 	ulint	a_lo,
 	ulint	b_hi,
 	ulint	b_lo);
-/******************************************************//**
-Compares two ulints.
+
+/** Compares two ulints.
+@param[in]	a	ulint
+@param[in]	b	ulint
 @return 1 if a > b, 0 if a == b, -1 if a < b */
 UNIV_INLINE
 int
 ut_ulint_cmp(
-/*=========*/
-	ulint	a,	/*!< in: ulint */
-	ulint	b);	/*!< in: ulint */
+	ulint	a,
+	ulint	b);
+
 /** Compare two pairs of integers.
 @param[in]	a_h	more significant part of first pair
 @param[in]	a_l	less significant part of first pair
@@ -241,6 +241,26 @@ purposes.
 ulint
 ut_time_ms(void);
 /*============*/
+#ifdef _WIN32
+/** Initialize counter frequency and offset values used by high resolution
+timing functions on Windows. */
+void
+ut_win_init_time();
+
+/** Return the system time using a high resolution clock.
+Upon successful completion, the value 0 is returned; otherwise the
+value -1 is returned and the global variable errno is set to indicate the
+error.
+@param[out]	sec		seconds since the Epoch
+@param[out]	ms		microseconds since the Epoch+*sec
+@return 0 on success, -1 otherwise */
+int
+ut_high_res_usectime(
+	ulint*	sec,
+	ulint*	ms);
+#else
+#define ut_high_res_usectime	ut_usectime
+#endif /* _WIN32 */
 #endif /* !UNIV_HOTBACKUP */
 
 /**********************************************************//**
@@ -261,8 +281,6 @@ ut_difftime(
 	ib_time_t	time2,	/*!< in: time */
 	ib_time_t	time1);	/*!< in: time */
 
-#endif /* !UNIV_INNOCHECKSUM */
-
 /** Determines if a number is zero or a power of two.
 @param[in]	n	number
 @return nonzero if n is zero or a power of two; zero otherwise */
@@ -280,22 +298,6 @@ struct ut_strcmp_functor
 	}
 };
 
-/**********************************************************//**
-Prints a timestamp to a file. */
-void
-ut_print_timestamp(
-/*===============*/
-	FILE*	file)	/*!< in: file where to print */
-	UNIV_COLD MY_ATTRIBUTE((nonnull));
-
-#ifndef UNIV_INNOCHECKSUM
-
-/**********************************************************//**
-Sprintfs a timestamp to a buffer, 13..14 chars plus terminating NUL. */
-void
-ut_sprintf_timestamp(
-/*=================*/
-	char*	buf); /*!< in: buffer where to sprintf */
 #ifdef UNIV_HOTBACKUP
 /**********************************************************//**
 Sprintfs a timestamp to a buffer with no spaces and with ':' characters
@@ -321,36 +323,7 @@ ulint
 ut_delay(
 /*=====*/
 	ulint	delay);	/*!< in: delay in microseconds on 100 MHz Pentium */
-#endif /* UNIV_HOTBACKUP */
-/*************************************************************//**
-Prints the contents of a memory buffer in hex and ascii. */
-void
-ut_print_buf(
-/*=========*/
-	FILE*		file,	/*!< in: file where to print */
-	const void*	buf,	/*!< in: memory buffer */
-	ulint		len);	/*!< in: length of the buffer */
 
-/*************************************************************//**
-Prints the contents of a memory buffer in hex. */
-void
-ut_print_buf_hex(
-/*=============*/
-	std::ostream&	o,	/*!< in/out: output stream */
-	const void*	buf,	/*!< in: memory buffer */
-	ulint		len)	/*!< in: length of the buffer */
-	MY_ATTRIBUTE((nonnull));
-/*************************************************************//**
-Prints the contents of a memory buffer in hex and ascii. */
-void
-ut_print_buf(
-/*=========*/
-	std::ostream&	o,	/*!< in/out: output stream */
-	const void*	buf,	/*!< in: memory buffer */
-	ulint		len)	/*!< in: length of the buffer */
-	MY_ATTRIBUTE((nonnull));
-
-#ifndef UNIV_HOTBACKUP
 /* Forward declaration of transaction handle */
 struct trx_t;
 
@@ -418,19 +391,6 @@ ut_vsnprintf(
 	size_t		size,	/*!< in: str size */
 	const char*	fmt,	/*!< in: format */
 	va_list		ap);	/*!< in: format values */
-
-/**********************************************************************//**
-A substitute for snprintf(3), formatted output conversion into
-a limited buffer.
-@return number of characters that would have been printed if the size
-were unlimited, not including the terminating '\0'. */
-int
-ut_snprintf(
-/*========*/
-	char*		str,	/*!< out: string */
-	size_t		size,	/*!< in: str size */
-	const char*	fmt,	/*!< in: format */
-	...);			/*!< in: format values */
 #else
 /**********************************************************************//**
 A wrapper for vsnprintf(3), formatted output conversion into
@@ -441,10 +401,6 @@ _vscprintf() in addition to estimate that but we would need another copy
 of "ap" for that and VC does not provide va_copy(). */
 # define ut_vsnprintf(buf, size, fmt, ap)	\
 	((void) vsnprintf(buf, size, fmt, ap))
-/**********************************************************************//**
-A wrapper for snprintf(3), formatted output conversion into
-a limited buffer. */
-# define ut_snprintf	snprintf
 #endif /* _WIN32 */
 
 /*************************************************************//**
@@ -455,8 +411,6 @@ const char*
 ut_strerr(
 /*======*/
 	dberr_t	num);	/*!< in: error number */
-
-#endif /* !UNIV_INNOCHECKSUM */
 
 #ifdef UNIV_PFS_MEMORY
 
@@ -616,9 +570,7 @@ private:
 
 } // namespace ib
 
-#ifndef UNIV_NONINL
 #include "ut0ut.ic"
-#endif
 
 #endif
 

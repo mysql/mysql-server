@@ -1,4 +1,4 @@
-/* Copyright (c) 2001, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2001, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -52,7 +52,14 @@
 */
 
 #define FT_CORE
+#include <fcntl.h>
+#include <sys/types.h>
+
 #include "ftdefs.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_macros.h"
 
 /* search with boolean queries */
 
@@ -161,11 +168,14 @@ static int FTB_WORD_cmp(my_off_t *v, FTB_WORD *a, FTB_WORD *b)
   return i;
 }
 
-static int FTB_WORD_cmp_list(CHARSET_INFO *cs, FTB_WORD **a, FTB_WORD **b)
+static int FTB_WORD_cmp_list(const void *cmp_arg, const void *a_arg, const void *b_arg)
 {
+  CHARSET_INFO *cs= (CHARSET_INFO*)cmp_arg;
+  FTB_WORD **a= (FTB_WORD**)a_arg;
+  FTB_WORD **b= (FTB_WORD**)b_arg;
   /* ORDER BY word, ndepth */
   int i= ha_compare_text(cs, (uchar*) (*a)->word + 1, (*a)->len - 1,
-                             (uchar*) (*b)->word + 1, (*b)->len - 1, 0, 0);
+                             (uchar*) (*b)->word + 1, (*b)->len - 1, 0);
   if (!i)
     i= CMP_NUM((*a)->ndepth, (*b)->ndepth);
   return i;
@@ -355,11 +365,11 @@ static int _ftb_no_dupes_cmp(const void* not_used MY_ATTRIBUTE((unused)),
 
   returns 1 if the search was finished (must-word wasn't found)
 */
-static int _ft2_search_no_lock(FTB *ftb, FTB_WORD *ftbw, my_bool init_search)
+static int _ft2_search_no_lock(FTB *ftb, FTB_WORD *ftbw, bool init_search)
 {
   int r;
   int subkeys=1;
-  my_bool can_go_down;
+  bool can_go_down;
   MI_INFO *info=ftb->info;
   uint off= 0, extra= HA_FT_WLEN + info->s->rec_reflength;
   uchar *lastkey_buf=ftbw->word+ftbw->off;
@@ -421,7 +431,7 @@ static int _ft2_search_no_lock(FTB *ftb, FTB_WORD *ftbw, my_bool init_search)
                        info->lastkey_length-extra-1,
               (uchar*) ftbw->word+1,
                        ftbw->len-1,
-             (my_bool) (ftbw->flags & FTB_FLAG_TRUNC),0);
+             (bool) (ftbw->flags & FTB_FLAG_TRUNC));
   }
 
   if (r || info->lastkey_length > max_word_length) /* not found */
@@ -485,7 +495,7 @@ static int _ft2_search_no_lock(FTB *ftb, FTB_WORD *ftbw, my_bool init_search)
   return 0;
 }
 
-static int _ft2_search(FTB *ftb, FTB_WORD *ftbw, my_bool init_search)
+static int _ft2_search(FTB *ftb, FTB_WORD *ftbw, bool init_search)
 {
   int r;
   MYISAM_SHARE *share= ftb->info->s;
@@ -612,7 +622,7 @@ FT_INFO * ft_init_boolean_search(MI_INFO *info, uint keynr, uchar *query,
                                               (ftb->queue.max_elements + 1) *
                                               sizeof(void *))))
     goto err;
-  reinit_queue(&ftb->queue, ftb->queue.max_elements, 0, 0,
+  reinit_queue(&ftb->queue, key_memory_QUEUE, ftb->queue.max_elements, 0, 0,
                          (int (*)(void*, uchar*, uchar*))FTB_WORD_cmp, 0);
   for (ftbw= ftb->last_word; ftbw; ftbw= ftbw->prev)
     queue_insert(&ftb->queue, (uchar *)ftbw);
@@ -620,7 +630,7 @@ FT_INFO * ft_init_boolean_search(MI_INFO *info, uint keynr, uchar *query,
                                      sizeof(FTB_WORD *)*ftb->queue.elements);
   memcpy(ftb->list, ftb->queue.root+1, sizeof(FTB_WORD *)*ftb->queue.elements);
   my_qsort2(ftb->list, ftb->queue.elements, sizeof(FTB_WORD *),
-            (qsort2_cmp)FTB_WORD_cmp_list, ftb->charset);
+            FTB_WORD_cmp_list, ftb->charset);
   if (ftb->queue.elements<2) ftb->with_scan &= ~FTB_FLAG_TRUNC;
   ftb->state=READY;
   return ftb;
@@ -920,7 +930,7 @@ static int ftb_find_relevance_add_word(MYSQL_FTPARSER_PARAM *param,
     ftbw= ftb->list[c];
     if (ha_compare_text(ftb->charset, (uchar*)word, len,
                         (uchar*)ftbw->word+1, ftbw->len-1,
-                        (my_bool) (ftbw->flags & FTB_FLAG_TRUNC), 0) < 0)
+                        (bool) (ftbw->flags & FTB_FLAG_TRUNC)) < 0)
       b= c;
     else
       a= c;
@@ -947,7 +957,7 @@ static int ftb_find_relevance_add_word(MYSQL_FTPARSER_PARAM *param,
     ftbw= ftb->list[c];
     if (ha_compare_text(ftb->charset, (uchar*)word, len,
                         (uchar*)ftbw->word + 1,ftbw->len - 1,
-                        (my_bool)(ftbw->flags & FTB_FLAG_TRUNC), 0))
+                        (bool)(ftbw->flags & FTB_FLAG_TRUNC)))
     {
       if (ftb->with_scan & FTB_FLAG_TRUNC)
         continue;

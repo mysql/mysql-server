@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
+ Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -2405,6 +2405,38 @@ Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024Dictionary_removeCachedIndex(JN
     gcall_mfv< ttrait_c_m_n_n_NdbDictionary_Dictionary_t, ttrait_char_cp_jutf8null, ttrait_char_cp_jutf8null, &NdbDictionary::Dictionary::removeCachedIndex >(env, obj, p0, p1);
 #else
     gcall_fv< ttrait_c_m_n_n_NdbDictionary_Dictionary_r, ttrait_char_cp_jutf8null, ttrait_char_cp_jutf8null, &NdbApiWrapper::NdbDictionary__Dictionary__removeCachedIndex__1 >(env, NULL, obj, p0, p1);
+#endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
+}
+
+/*
+ * Class:     com_mysql_ndbjtie_ndbapi_NdbDictionary_Dictionary
+ * Method:    invalidateTable
+ * Signature: (Ljava/lang/String;)V
+ */
+JNIEXPORT void JNICALL
+Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024Dictionary_invalidateTable(JNIEnv * env, jobject obj, jstring p0)
+{
+    TRACE("void Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024Dictionary_invalidateTable(JNIEnv *, jobject, jstring)");
+#ifndef NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
+    gcall_mfv< ttrait_c_m_n_n_NdbDictionary_Dictionary_t, ttrait_char_cp_jutf8null, &NdbDictionary::Dictionary::invalidateTable >(env, obj, p0);
+#else
+    gcall_fv< ttrait_c_m_n_n_NdbDictionary_Dictionary_r, ttrait_char_cp_jutf8null, &NdbApiWrapper::NdbDictionary__Dictionary__invalidateTable__0 >(env, NULL, obj, p0);
+#endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
+}
+
+/*
+ * Class:     com_mysql_ndbjtie_ndbapi_NdbDictionary_Dictionary
+ * Method:    invalidateIndex
+ * Signature: (Ljava/lang/String;Ljava/lang/String;)V
+ */
+JNIEXPORT void JNICALL
+Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024Dictionary_invalidateIndex(JNIEnv * env, jobject obj, jstring p0, jstring p1)
+{
+    TRACE("void Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024Dictionary_invalidateIndex(JNIEnv *, jobject, jstring, jstring)");
+#ifndef NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
+    gcall_mfv< ttrait_c_m_n_n_NdbDictionary_Dictionary_t, ttrait_char_cp_jutf8null, ttrait_char_cp_jutf8null, &NdbDictionary::Dictionary::invalidateIndex >(env, obj, p0, p1);
+#else
+    gcall_fv< ttrait_c_m_n_n_NdbDictionary_Dictionary_r, ttrait_char_cp_jutf8null, ttrait_char_cp_jutf8null, &NdbApiWrapper::NdbDictionary__Dictionary__invalidateIndex__1 >(env, NULL, obj, p0, p1);
 #endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
 }
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,15 +13,19 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
+#include <assert.h>
 #include <sstream>
 
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_io.h"
 #include "observer_server_actions.h"
 #include "observer_server_state.h"
 #include "observer_trans.h"
+#include "pipeline_stats.h"
 #include "plugin.h"
 #include "plugin_log.h"
 #include "sql_service_gr_user.h"
-#include "pipeline_stats.h"
 
 using std::string;
 
@@ -37,7 +41,6 @@ bool wait_on_engine_initialization= false;
 bool delay_gr_user_creation= false;
 bool server_shutdown_status= false;
 bool plugin_is_auto_starting= false;
-bool plugin_is_being_unistalled= false;
 
 /* Plugin modules */
 //The plugin applier
@@ -63,7 +66,7 @@ char *group_seeds_var= NULL;
 char *force_members_var= NULL;
 bool force_members_running= false;
 static mysql_mutex_t force_members_running_mutex;
-my_bool bootstrap_group_var= false;
+bool bootstrap_group_var= false;
 ulong poll_spin_loops_var= 0;
 ulong ssl_mode_var= 0;
 
@@ -107,10 +110,10 @@ Compatibility_module* compatibility_mgr= NULL;
 /* Plugin group related options */
 const char *group_replication_plugin_name= "group_replication";
 char *group_name_var= NULL;
-my_bool start_group_replication_at_boot_var= true;
+bool start_group_replication_at_boot_var= true;
 rpl_sidno group_sidno;
-my_bool single_primary_mode_var= FALSE;
-my_bool enforce_update_everywhere_checks_var= TRUE;
+bool single_primary_mode_var= FALSE;
+bool enforce_update_everywhere_checks_var= TRUE;
 
 /* Applier module related */
 bool known_server_reset;
@@ -129,7 +132,7 @@ static const int RECOVERY_SSL_CRLPATH_OPT= 7;
 std::map<const char*, int> recovery_ssl_opt_map;
 
 // SSL options
-my_bool recovery_use_ssl_var= false;
+bool recovery_use_ssl_var= false;
 char* recovery_ssl_ca_var= NULL;
 char* recovery_ssl_capath_var= NULL;
 char* recovery_ssl_cert_var= NULL;
@@ -137,7 +140,7 @@ char* recovery_ssl_cipher_var= NULL;
 char* recovery_ssl_key_var= NULL;
 char* recovery_ssl_crl_var= NULL;
 char* recovery_ssl_crlpath_var= NULL;
-my_bool recovery_ssl_verify_server_cert_var= false;
+bool recovery_ssl_verify_server_cert_var= false;
 ulong  recovery_completion_policy_var;
 
 ulong recovery_retry_count_var= 0;
@@ -180,10 +183,10 @@ int flow_control_certifier_threshold_var= DEFAULT_FLOW_CONTROL_THRESHOLD;
 int flow_control_applier_threshold_var= DEFAULT_FLOW_CONTROL_THRESHOLD;
 
 /* Downgrade options */
-char allow_local_lower_version_join_var= 0;
+bool allow_local_lower_version_join_var= 0;
 
 /* Allow errand transactions */
-char allow_local_disjoint_gtids_join_var= 0;
+bool allow_local_disjoint_gtids_join_var= 0;
 
 /* Certification latch */
 Wait_ticket<my_thread_id> *certification_latch;
@@ -229,7 +232,7 @@ int log_message(enum plugin_log_level level, const char *format, ...)
   va_start(args, format);
   my_vsnprintf(buff, sizeof(buff), format, args);
   va_end(args);
-  return my_plugin_log_message(&plugin_info_ptr, level, buff);
+  return my_plugin_log_message(&plugin_info_ptr, level, "%s", buff);
 }
 
 /*
@@ -264,8 +267,7 @@ plugin_get_group_members(
 {
   char* channel_name= applier_module_channel_name;
 
-  return get_group_members_info(index, callbacks, group_member_mgr,
-                                group_name_var, channel_name);
+  return get_group_members_info(index, callbacks, group_member_mgr, channel_name);
 }
 
 uint plugin_get_group_members_number()
@@ -282,7 +284,7 @@ plugin_get_group_member_stats(
   char* channel_name= applier_module_channel_name;
 
   return get_group_member_stats(callbacks, group_member_mgr, applier_module,
-                                gcs_module, group_name_var, channel_name);
+                                gcs_module, channel_name);
 }
 
 int plugin_group_replication_start()
@@ -702,9 +704,6 @@ int plugin_group_replication_stop()
   /* first leave all joined groups (currently one) */
   leave_group();
 
-  group_member_mgr->update_member_status(local_member_info->get_uuid(),
-                                         Group_member_info::MEMBER_OFFLINE);
-
   int error= terminate_plugin_modules();
 
   group_replication_running= false;
@@ -754,22 +753,6 @@ int terminate_plugin_modules()
                   "On plugin shutdown it was not possible to reset the server"
                   " read mode settings. Try to reset it manually."); /* purecov: inspected */
     }
-
-    DBUG_EXECUTE_IF("group_replication_bypass_user_removal",
-                    { plugin_is_being_unistalled= false; };);
-
-    if (plugin_is_being_unistalled)
-    {
-      if (remove_group_replication_user(false,
-                                        sql_command_interface->get_sql_service_interface()))
-      {
-        //Do not throw an error as the user can remove the user
-        log_message(MY_WARNING_LEVEL,
-                    "On plugin shutdown it was not possible to remove the user"
-                    " associate to the plugin: " GROUPREPL_USER "."
-                    " You can remove it manually if desired."); /* purecov: inspected */
-      }
-    }
     delete sql_command_interface;
   }
 
@@ -788,6 +771,12 @@ int terminate_plugin_modules()
     Clear server sessions opened caches on transactions observer.
   */
   observer_trans_clear_io_cache_unused_list();
+
+  if (group_member_mgr != NULL && local_member_info != NULL)
+  {
+    group_member_mgr->update_member_status(local_member_info->get_uuid(),
+                                           Group_member_info::MEMBER_OFFLINE);
+  }
 
   return error;
 }
@@ -914,11 +903,26 @@ int plugin_group_replication_deinit(void *p)
     return 0;
 
   int observer_unregister_error= 0;
-  plugin_is_being_unistalled= true;
 
+  //plugin_group_replication_stop will be called from this method stack
   if (group_replication_cleanup())
     log_message(MY_ERROR_LEVEL,
                 "Failure when cleaning Group Replication server state");
+
+  DBUG_EXECUTE_IF("group_replication_bypass_user_removal",
+          { server_shutdown_status= true; };);
+
+  if(!server_shutdown_status && server_engine_initialized())
+  {
+    if(remove_group_replication_user(false))
+    {
+      //Do not throw an error as the user can remove the user
+      log_message(MY_WARNING_LEVEL,
+                  "On plugin shutdown there was an error when removing the"
+                  " user associate to the plugin: " GROUPREPL_USER "."
+                  " You can remove it manually if desired.");
+    }
+  }
 
   if(group_member_mgr != NULL)
   {
@@ -1010,7 +1014,7 @@ static bool init_group_sidno()
   DBUG_ENTER("init_group_sidno");
   rpl_sid group_sid;
 
-  if (group_sid.parse(group_name_var) != RETURN_STATUS_OK)
+  if (group_sid.parse(group_name_var, strlen(group_name_var)) != RETURN_STATUS_OK)
   {
     /* purecov: begin inspected */
     log_message(MY_ERROR_LEVEL, "Unable to parse the group name.");
@@ -1499,7 +1503,8 @@ static int check_group_name_string(const char *str, bool is_var_update)
     DBUG_RETURN(1);
   }
 
-  if (strlen(str) > UUID_LENGTH)
+  size_t length= strlen(str);
+  if (length > UUID_LENGTH)
   {
     if(!is_var_update)
       log_message(MY_ERROR_LEVEL, "The group name '%s' is not a valid UUID, its"
@@ -1511,7 +1516,7 @@ static int check_group_name_string(const char *str, bool is_var_update)
     DBUG_RETURN(1);
   }
 
-  if (!Uuid::is_valid(str))
+  if (!binary_log::Uuid::is_valid(str, length))
   {
     if(!is_var_update)
       log_message(MY_ERROR_LEVEL, "The group name '%s' is not a valid UUID", str); /* purecov: inspected */
@@ -1524,7 +1529,7 @@ static int check_group_name_string(const char *str, bool is_var_update)
   DBUG_RETURN(0);
 }
 
-static int check_group_name(MYSQL_THD thd, SYS_VAR *var, void* save,
+static int check_group_name(MYSQL_THD thd, SYS_VAR*, void* save,
                             struct st_mysql_value *value)
 {
   DBUG_ENTER("check_group_name");
@@ -1558,7 +1563,7 @@ static int check_group_name(MYSQL_THD thd, SYS_VAR *var, void* save,
 
 //Recovery module's module variable update/validate methods
 
-static void update_recovery_retry_count(MYSQL_THD thd, SYS_VAR *var,
+static void update_recovery_retry_count(MYSQL_THD, SYS_VAR*,
                                         void *var_ptr, const void *save)
 {
   DBUG_ENTER("update_recovery_retry_count");
@@ -1574,7 +1579,7 @@ static void update_recovery_retry_count(MYSQL_THD thd, SYS_VAR *var,
   DBUG_VOID_RETURN;
 }
 
-static void update_recovery_reconnect_interval(MYSQL_THD thd, SYS_VAR *var,
+static void update_recovery_reconnect_interval(MYSQL_THD, SYS_VAR*,
                                                void *var_ptr, const void *save)
 {
   DBUG_ENTER("update_recovery_reconnect_interval");
@@ -1593,14 +1598,13 @@ static void update_recovery_reconnect_interval(MYSQL_THD thd, SYS_VAR *var,
 
 //Recovery SSL options
 
-static void
-update_ssl_use(MYSQL_THD thd, SYS_VAR *var,
-               void *var_ptr, const void *save)
+static void update_ssl_use(MYSQL_THD, SYS_VAR*,
+                           void *var_ptr, const void *save)
 {
   DBUG_ENTER("update_ssl_use");
 
-  bool use_ssl_val= *((my_bool *) save);
-  (*(my_bool *) var_ptr)= (*(my_bool *) save);
+  bool use_ssl_val= *((bool *) save);
+  (*(bool *) var_ptr)= (*(bool *) save);
 
   if (recovery_module != NULL)
   {
@@ -1658,7 +1662,7 @@ static int check_recovery_ssl_option(MYSQL_THD thd, SYS_VAR *var, void* save,
   DBUG_RETURN(0);
 }
 
-static void update_recovery_ssl_option(MYSQL_THD thd, SYS_VAR *var,
+static void update_recovery_ssl_option(MYSQL_THD, SYS_VAR *var,
                                        void *var_ptr, const void *save)
 {
   DBUG_ENTER("update_recovery_ssl_option");
@@ -1706,13 +1710,13 @@ static void update_recovery_ssl_option(MYSQL_THD thd, SYS_VAR *var,
 }
 
 static void
-update_ssl_server_cert_verification(MYSQL_THD thd, SYS_VAR *var,
+update_ssl_server_cert_verification(MYSQL_THD, SYS_VAR*,
                                     void *var_ptr, const void *save)
 {
   DBUG_ENTER("update_ssl_server_cert_verification");
 
-  bool ssl_verify_server_cert= *((my_bool *) save);
-  (*(my_bool *) var_ptr)= (*(my_bool *) save);
+  bool ssl_verify_server_cert= *((bool *) save);
+  (*(bool *) var_ptr)= (*(bool *) save);
 
   if (recovery_module != NULL)
   {
@@ -1726,7 +1730,7 @@ update_ssl_server_cert_verification(MYSQL_THD thd, SYS_VAR *var,
 // Recovery threshold update method
 
 static void
-update_recovery_completion_policy(MYSQL_THD thd, SYS_VAR *var,
+update_recovery_completion_policy(MYSQL_THD, SYS_VAR*,
                                   void *var_ptr, const void *save)
 {
   DBUG_ENTER("update_recovery_completion_policy");
@@ -1746,7 +1750,7 @@ update_recovery_completion_policy(MYSQL_THD thd, SYS_VAR *var,
 
 //Component timeout update method
 
-static void update_component_timeout(MYSQL_THD thd, SYS_VAR *var,
+static void update_component_timeout(MYSQL_THD, SYS_VAR*,
                                      void *var_ptr, const void *save)
 {
   DBUG_ENTER("update_component_timeout");
@@ -1766,7 +1770,7 @@ static void update_component_timeout(MYSQL_THD thd, SYS_VAR *var,
   DBUG_VOID_RETURN;
 }
 
-static int check_auto_increment_increment(MYSQL_THD thd, SYS_VAR *var,
+static int check_auto_increment_increment(MYSQL_THD, SYS_VAR*,
                                           void* save,
                                           struct st_mysql_value *value)
 {
@@ -1803,7 +1807,7 @@ static int check_auto_increment_increment(MYSQL_THD thd, SYS_VAR *var,
 
 //Communication layer options.
 
-static int check_ip_whitelist_preconditions(MYSQL_THD thd, SYS_VAR *var,
+static int check_ip_whitelist_preconditions(MYSQL_THD thd, SYS_VAR*,
                                             void *save,
                                             struct st_mysql_value *value)
 {
@@ -1846,7 +1850,7 @@ static int check_ip_whitelist_preconditions(MYSQL_THD thd, SYS_VAR *var,
   DBUG_RETURN(0);
 }
 
-static int check_compression_threshold(MYSQL_THD thd, SYS_VAR *var,
+static int check_compression_threshold(MYSQL_THD, SYS_VAR*,
                                        void* save,
                                        struct st_mysql_value *value)
 {
@@ -1878,7 +1882,7 @@ static int check_compression_threshold(MYSQL_THD thd, SYS_VAR *var,
   DBUG_RETURN(0);
 }
 
-static int check_force_members(MYSQL_THD thd, SYS_VAR *var,
+static int check_force_members(MYSQL_THD thd, SYS_VAR*,
                                void* save,
                                struct st_mysql_value *value)
 {
@@ -1938,7 +1942,7 @@ end:
   DBUG_RETURN(error);
 }
 
-static int check_gtid_assignment_block_size(MYSQL_THD thd, SYS_VAR *var,
+static int check_gtid_assignment_block_size(MYSQL_THD, SYS_VAR*,
                                             void* save,
                                             struct st_mysql_value *value)
 {
@@ -1974,7 +1978,7 @@ static int check_gtid_assignment_block_size(MYSQL_THD thd, SYS_VAR *var,
 
 static bool
 get_bool_value_using_type_lib(struct st_mysql_value *value,
-                              my_bool &resulting_value)
+                              bool &resulting_value)
 {
   DBUG_ENTER("get_bool_value_using_type_lib");
   longlong value_to_check;
@@ -2014,12 +2018,12 @@ get_bool_value_using_type_lib(struct st_mysql_value *value,
 }
 
 static int
-check_single_primary_mode(MYSQL_THD thd, SYS_VAR *var,
+check_single_primary_mode(MYSQL_THD, SYS_VAR*,
                           void* save,
                           struct st_mysql_value *value)
 {
   DBUG_ENTER("check_single_primary_mode");
-  my_bool single_primary_mode_val;
+  bool single_primary_mode_val;
 
   if (!get_bool_value_using_type_lib(value, single_primary_mode_val))
     DBUG_RETURN(1);
@@ -2041,18 +2045,18 @@ check_single_primary_mode(MYSQL_THD thd, SYS_VAR *var,
     DBUG_RETURN(1);
   }
 
-  *(my_bool *)save = single_primary_mode_val;
+  *(bool *)save = single_primary_mode_val;
 
   DBUG_RETURN(0);
 }
 
 static int
-check_enforce_update_everywhere_checks(MYSQL_THD thd, SYS_VAR *var,
+check_enforce_update_everywhere_checks(MYSQL_THD, SYS_VAR*,
                                        void* save,
                                        struct st_mysql_value *value)
 {
   DBUG_ENTER("check_enforce_update_everywhere_checks");
-  my_bool enforce_update_everywhere_checks_val;
+  bool enforce_update_everywhere_checks_val;
 
   if (!get_bool_value_using_type_lib(value, enforce_update_everywhere_checks_val))
     DBUG_RETURN(1);
@@ -2074,7 +2078,7 @@ check_enforce_update_everywhere_checks(MYSQL_THD thd, SYS_VAR *var,
     DBUG_RETURN(1);
   }
 
-  *(my_bool *)save = enforce_update_everywhere_checks_val;
+  *(bool *)save = enforce_update_everywhere_checks_val;
 
   DBUG_RETURN(0);
 }
@@ -2541,8 +2545,7 @@ static SYS_VAR* group_replication_system_vars[]= {
 };
 
 
-static int
-show_primary_member(MYSQL_THD thd, SHOW_VAR *var, char *buff)
+static int show_primary_member(MYSQL_THD, SHOW_VAR *var, char *buff)
 {
   var->type= SHOW_CHAR;
   var->value= NULL;

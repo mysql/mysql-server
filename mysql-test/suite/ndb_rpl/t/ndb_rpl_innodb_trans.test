@@ -1,16 +1,15 @@
 # Test of a transaction mixing the two engines
 
 -- source include/have_ndb.inc
--- source include/have_innodb.inc
 -- source suite/ndb_rpl/ndb_master-slave.inc
 
-create table t1 (a int, unique(a)) engine=ndbcluster;
-create table t2 (a int, unique(a)) engine=innodb;
+create table t1 (a int, b int, unique(b)) engine=ndbcluster;
+create table t2 (a int, b int, unique(b)) engine=innodb;
 
 
 begin;
-insert into t1 values(1);
-insert into t2 values(1);
+insert into t1 values(1,1);
+insert into t2 values(1,1);
 rollback;
 
 select count(*) from t1;
@@ -49,8 +48,8 @@ connection master;
 delete from t1;
 delete from t2;
 begin;
-insert into t2 values(3),(4);
-insert into t1 values(3),(4);
+insert into t2 values(3,3),(4,4);
+insert into t1 values(3,3),(4,4);
 load data infile '../../../std_data/rpl_loaddata.dat' into table t2;
 load data infile '../../../std_data/rpl_loaddata.dat' into table t1;
 rollback;

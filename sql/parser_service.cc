@@ -1,4 +1,4 @@
-/*  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+/*  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
     This program is free software; you can redistribute it and/or modify it
     under the terms of the GNU General Public License as published by the
@@ -14,25 +14,45 @@
     Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
     02110-1301  USA */
 
-#include "my_global.h"
+#include <stddef.h>
+#include <sys/types.h>
+#include <algorithm>
+#include <new>
 
-#include <mysql/service_parser.h>
-
+#include "current_thd.h"
+#include "enum_query_type.h"
+#include "error_handler.h"
 #include "item.h"
-#include "mysqld.h"
+#include "lex_string.h"
+#include "m_string.h"
+#include "mdl.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_sqlcommand.h"
+#include "my_thread.h"
+#include "mysql/mysql_lex_string.h"
+#include "mysql/psi/mysql_thread.h"
+#include "mysql/service_locking.h"
+#include "mysql/service_parser.h"
+#include "mysql_com.h"
+#include "mysqld.h"                             // my_localhost
+#include "mysqld_thd_manager.h"
 #include "select_lex_visitor.h"
-#include "sp_cache.h"
+#include "sql_base.h" // close_thread_tables
 #include "sql_class.h"
+#include "sql_const.h"
 #include "sql_digest.h"
+#include "sql_digest_stream.h"
 #include "sql_error.h"
 #include "sql_lex.h"
 #include "sql_list.h"
 #include "sql_parse.h"
+#include "sql_plugin.h"
+#include "sql_security_ctx.h"
 #include "sql_string.h"
-#include "transaction.h" // trans_commit_stmt
-#include "sql_base.h" // close_thread_tables
-#include "mysqld_thd_manager.h"
+#include "system_variables.h"
 #include "template_utils.h"
+#include "transaction.h" // trans_commit_stmt
 
 /**
   This class implements the parse tree visiting service.
@@ -102,7 +122,7 @@ public:
       thd->push_internal_handler(this);
   }
 
-  virtual bool handle_condition(THD *thd,
+  virtual bool handle_condition(THD*,
                                 uint sql_errno_u,
                                 const char* sqlstate,
                                 Sql_condition::enum_severity_level *,

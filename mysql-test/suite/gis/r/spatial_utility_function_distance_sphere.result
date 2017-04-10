@@ -405,21 +405,21 @@ SELECT ST_DISTANCE_SPHERE(NULL,NULL);
 ST_DISTANCE_SPHERE(NULL,NULL)
 NULL
 SELECT ST_DISTANCE_SPHERE(ST_GEOMFROMTEXT('POINT()'),ST_GEOMFROMTEXT('POINT(0 0)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_DISTANCE_SPHERE(ST_GEOMFROMTEXT('POINT(a 0)'),ST_GEOMFROMTEXT('POINT(0 0)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_DISTANCE_SPHERE(ST_GEOMFROMTEXT('POINT(! 0)'),ST_GEOMFROMTEXT('POINT(0 0)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_DISTANCE_SPHERE(ST_GEOMFROMTEXT('POINT('!' 0)'),ST_GEOMFROMTEXT('POINT(0 0)'));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0)'),ST_GEOMFROMTEXT('POINT(0 0)'))' at line 1
 SELECT ST_DISTANCE_SPHERE(ST_GEOMFROMTEXT('POINT(12,34 0)'),ST_GEOMFROMTEXT('POINT(0 0)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_DISTANCE_SPHERE(ST_GEOMFROMTEXT('MULTIPOINT()'),ST_GEOMFROMTEXT('POINT(0 0)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_DISTANCE_SPHERE(ST_GEOMFROMTEXT('MULTIPOINT(1 12,34 a)'),ST_GEOMFROMTEXT('POINT(0 0)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_DISTANCE_SPHERE(ST_GEOMFROMTEXT('MULTIPOINT(1 12,34 0,1)'),ST_GEOMFROMTEXT('POINT(0 0)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_DISTANCE_SPHERE(ST_GEOMFROMTEXT('MULTIPOINT(1 1,2 2,'!' 0)'),ST_GEOMFROMTEXT('POINT(0 0)'));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0)'),ST_GEOMFROMTEXT('POINT(0 0)'))' at line 1
 SELECT ST_DISTANCE_SPHERE(,);
@@ -472,3 +472,32 @@ SELECT ST_DISTANCE_SPHERE(ST_GEOMFROMTEXT('POINT(1 1)'), ST_GEOMFROMTEXT('POINT(
 ERROR 42000: Incorrect parameter count in the call to native function 'ST_DISTANCE_SPHERE'
 # Clean up
 DROP TABLE gis_geometrycollection;
+#
+# WL#8579 Spatial Reference Systems
+#
+# SRID 0 (should pass)
+SELECT ST_DISTANCE_SPHERE(ST_GEOMFROMTEXT('POINT(0 0)', 0), ST_GEOMFROMTEXT('POINT(1 1)', 0));
+ST_DISTANCE_SPHERE(ST_GEOMFROMTEXT('POINT(0 0)', 0), ST_GEOMFROMTEXT('POINT(1 1)', 0))
+157249.03572
+# Projected SRS (should pass)
+SELECT ST_DISTANCE_SPHERE(ST_GEOMFROMTEXT('POINT(0 0)', 2000), ST_GEOMFROMTEXT('POINT(1 1)', 2000));
+ST_DISTANCE_SPHERE(ST_GEOMFROMTEXT('POINT(0 0)', 2000), ST_GEOMFROMTEXT('POINT(1 1)', 2000))
+157249.03572
+# Geographic SRS (should pass)
+SELECT ST_DISTANCE_SPHERE(ST_GEOMFROMTEXT('POINT(0 0)', 4326), ST_GEOMFROMTEXT('POINT(1 1)', 4326));
+ST_DISTANCE_SPHERE(ST_GEOMFROMTEXT('POINT(0 0)', 4326), ST_GEOMFROMTEXT('POINT(1 1)', 4326))
+157249.03572
+# Undefined SRS (should pass)
+SELECT ST_DISTANCE_SPHERE(ST_GEOMFROMTEXT('POINT(0 0)', 19000000), ST_GEOMFROMTEXT('POINT(1 1)', 19000000));
+ST_DISTANCE_SPHERE(ST_GEOMFROMTEXT('POINT(0 0)', 19000000), ST_GEOMFROMTEXT('POINT(1 1)', 19000000))
+157249.03572
+Warnings:
+Warning	3565	There's no spatial reference system with SRID 19000000. The axis order is unknown.
+Warning	3565	There's no spatial reference system with SRID 19000000. The axis order is unknown.
+# Unparseable SRS definition (should fail)
+INSERT INTO mysql.st_spatial_reference_systems(id, catalog_id, name,
+organization, organization_coordsys_id, definition, description)
+VALUES (33333333, 1, 'TEST33333333', 'Foo', 33333333, 'FOOBAR', '');
+SELECT ST_DISTANCE_SPHERE(ST_GEOMFROMTEXT('POINT(0 0)', 33333333), ST_GEOMFROMTEXT('POINT(1 1)', 33333333));
+ERROR SR002: Can't parse the spatial reference system definition of SRID 33333333.
+DELETE FROM mysql.st_spatial_reference_systems WHERE id = 33333333;

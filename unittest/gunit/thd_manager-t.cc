@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,11 +18,16 @@
 */
 
 #include "my_config.h"
+
 #include <gtest/gtest.h>
-#include "sql_class.h"
-#include "thread_utils.h"
+#include <stddef.h>
+#include <sys/types.h>
+
+#include "my_inttypes.h"
 #include "mysqld.h"
 #include "mysqld_thd_manager.h"  // Global_THD_manager
+#include "sql_class.h"
+#include "thread_utils.h"
 
 using thread::Thread;
 using thread::Notification;

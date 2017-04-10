@@ -1,0 +1,29 @@
+# Tests for PERFORMANCE_SCHEMA
+
+#setup
+let $select_column = count(*);
+let $table = performance_schema.cond_instances;
+
+select OBJECT_INSTANCE_BEGIN, NAME from performance_schema.cond_instances
+  limit 1
+  into @oib, @name;
+
+###########################################################################
+# Test index on OBJECT_INSTANCE_BEGIN
+###########################################################################
+
+let $column_count = 1;
+let $col1 = OBJECT_INSTANCE_BEGIN;
+let $col1_act = @oib;
+
+--source ../include/idx_explain_test.inc
+
+###########################################################################
+# Test index on NAME
+###########################################################################
+
+let $column_count = 1;
+let $col1 = NAME;
+let $col1_act = @name;
+
+--source ../include/idx_explain_test.inc

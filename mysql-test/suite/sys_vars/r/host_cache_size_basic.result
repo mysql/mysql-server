@@ -9,14 +9,14 @@ host_cache_size	123
 show session variables like 'host_cache_size';
 Variable_name	Value
 host_cache_size	123
-select * from information_schema.global_variables
+select * from performance_schema.global_variables
 where variable_name='host_cache_size';
 VARIABLE_NAME	VARIABLE_VALUE
-HOST_CACHE_SIZE	123
-select * from information_schema.session_variables
+host_cache_size	123
+select * from performance_schema.session_variables
 where variable_name='host_cache_size';
 VARIABLE_NAME	VARIABLE_VALUE
-HOST_CACHE_SIZE	123
+host_cache_size	123
 set global host_cache_size=1;
 select @@global.host_cache_size;
 @@global.host_cache_size

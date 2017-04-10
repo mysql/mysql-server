@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2012, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2012, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -27,8 +27,32 @@ InnoDB Native API
 #ifndef api0api_h
 #define api0api_h
 
-#include "db0err.h"
 #include <stdio.h>
+
+#include "config.h"
+#include "db0err.h"
+
+/* Define uint32 outside my_inttypes.h, because my_inttypes.h would not allow
+Memcached C code to use the bool data type. */
+#if SIZEOF_INT == 4
+typedef unsigned int uint32;
+#elif SIZEOF_LONG == 4
+typedef unsigned long uint32;
+#else
+# error Neither int or long is of 4 bytes width
+#endif
+
+#if defined(WITH_INNODB_MEMCACHED) && !defined(DBUG_OFF)
+# define UNIV_MEMCACHED_SDI
+#endif
+
+/** Page number */
+typedef uint32	page_no_t;
+/** Tablespace identifier */
+typedef uint32	space_id_t;
+
+typedef struct ib_sdi_key	ib_sdi_key_t;
+typedef struct ib_sdi_vector	ib_sdi_vector_t;
 
 #if defined(__GNUC__)
 #define UNIV_NO_IGNORE		MY_ATTRIBUTE ((warn_unused_result))
@@ -309,7 +333,7 @@ typedef enum {
 					a prefix of a fixed length column) */
 } ib_match_mode_t;
 
-/** @struct ib_col_meta_t InnoDB column meta data. */
+/** InnoDB column meta data. */
 typedef struct {
 	ib_col_type_t	type;		/*!< Type of the column */
 
@@ -398,7 +422,7 @@ is such that we must use the client code to compare them.
 
 @param col_meta column meta data
 @param p1 key
-@oaram p1_len		key length
+@param p1_len key length
 @param p2 second key
 @param p2_len second key length
 @return 1, 0, -1, if a is greater, equal, less than b, respectively */
@@ -482,17 +506,6 @@ ib_trx_rollback(
 	ib_trx_t	ib_trx);	/*!< in: trx handle */
 
 /*****************************************************************//**
-Open an InnoDB table and return a cursor handle to it.
-@return DB_SUCCESS or err code */
-ib_err_t
-ib_cursor_open_table_using_id(
-/*==========================*/
-	ib_id_u64_t	table_id,	/*!< in: table id of table to open */
-	ib_trx_t	ib_trx,		/*!< in: Current transaction handle
-					can be NULL */
-	ib_crsr_t*	ib_crsr);	/*!< out,own: InnoDB cursor */
-
-/*****************************************************************//**
 Open an InnoDB secondary index cursor and return a cursor handle to it.
 @return DB_SUCCESS or err code */
 ib_err_t
@@ -529,14 +542,6 @@ Close an InnoDB table and free the cursor.
 ib_err_t
 ib_cursor_close(
 /*============*/
-	ib_crsr_t	ib_crsr);	/*!< in/out: InnoDB cursor */
-
-/*****************************************************************//**
-Close the table, decrement n_ref_count count.
-@return DB_SUCCESS or err code */
-ib_err_t
-ib_cursor_close_table(
-/*==================*/
 	ib_crsr_t	ib_crsr);	/*!< in/out: InnoDB cursor */
 
 /*****************************************************************//**
@@ -592,8 +597,13 @@ ib_cursor_read_row(
 /*===============*/
 	ib_crsr_t	ib_crsr,	/*!< in: InnoDB cursor instance */
 	ib_tpl_t	ib_tpl,		/*!< out: read cols into this tuple */
+	ib_tpl_t	cmp_tpl,	/*!< in: tuple to compare and stop
+					reading */
+	int		mode,		/*!< in: mode determine when to
+					stop read */
 	void**		row_buf,	/*!< in/out: row buffer */
-	ib_ulint_t*	row_len);	/*!< in/out: row buffer len */
+	ib_ulint_t*	row_len,	/*!< in/out: row buffer len */
+	ib_ulint_t*	used_len);	/*!< in/out: row buffer len used */
 
 /*****************************************************************//**
 Move cursor to the first record in the table.
@@ -619,7 +629,8 @@ ib_cursor_moveto(
 /*=============*/
 	ib_crsr_t	ib_crsr,	/*!< in: InnoDB cursor instance */
 	ib_tpl_t	ib_tpl,		/*!< in: Key to search for */
-	ib_srch_mode_t	ib_srch_mode);	/*!< in: search mode */
+	ib_srch_mode_t	ib_srch_mode,	/*!< in: search mode */
+	ib_ulint_t	direction);	/*!< in: search direction */
 
 /*****************************************************************//**
 Set the match mode for ib_cursor_move(). */
@@ -837,17 +848,6 @@ ib_tuple_delete(
 	ib_tpl_t	ib_tpl);	/*!< in,own: Tuple instance to delete */
 
 /*****************************************************************//**
-Truncate a table. The cursor handle will be closed and set to NULL
-on success.
-@return DB_SUCCESS or error code */
-ib_err_t
-ib_cursor_truncate(
-/*===============*/
-	ib_crsr_t*	ib_crsr,	/*!< in/out: cursor for table
-					to truncate */
-	ib_id_u64_t*	table_id);	/*!< out: new table id */
-
-/*****************************************************************//**
 Get a table id.
 @return DB_SUCCESS if found */
 ib_err_t
@@ -880,16 +880,6 @@ ib_err_t
 ib_cursor_lock(
 /*===========*/
 	ib_crsr_t	ib_crsr,	/*!< in/out: InnoDB cursor */
-	ib_lck_mode_t	ib_lck_mode);	/*!< in: InnoDB lock mode */
-
-/*****************************************************************//**
-Set the Lock an InnoDB table using the table id.
-@return DB_SUCCESS or error code */
-ib_err_t
-ib_table_lock(
-/*===========*/
-	ib_trx_t	ib_trx,		/*!< in/out: transaction */
-	ib_id_u64_t	table_id,	/*!< in: table id */
 	ib_lck_mode_t	ib_lck_mode);	/*!< in: InnoDB lock mode */
 
 /*****************************************************************//**
@@ -974,30 +964,11 @@ ib_get_idx_field_name(
 	ib_ulint_t	i);		/*!< in: column index in tuple */
 
 /*****************************************************************//**
-Truncate a table.
-@return DB_SUCCESS or error code */
-ib_err_t
-ib_table_truncate(
-/*==============*/
-	const char*	table_name,	/*!< in: table name */
-	ib_id_u64_t*	table_id);	/*!< out: new table id */
-
-/*****************************************************************//**
 Get generic configure status
 @return configure status*/
 int
 ib_cfg_get_cfg();
 /*============*/
-
-/*****************************************************************//**
-Increase/decrease the memcached sync count of table to sync memcached
-DML with SQL DDLs.
-@return DB_SUCCESS or error number */
-ib_err_t
-ib_cursor_set_memcached_sync(
-/*=========================*/
-	ib_crsr_t	ib_crsr,	/*!< in: cursor */
-	ib_bool_t	flag);		/*!< in: true for increasing */
 
 /*****************************************************************//**
 Return isolation configuration set by "innodb_api_trx_level"
@@ -1030,11 +1001,173 @@ ib_ut_strerr(
 /*=========*/
 	ib_err_t	num);		/*!< in: error number */
 
+/** Get the SDI keys in a tablespace into vector.
+@param[in]	tablespace_id	tablespace id
+@param[in,out]	ib_sdi_vector	vector to hold objects with tablespace types
+and ids
+@param[in]	copy_num	SDI copy number to operate on. Should be 0 or 1
+@param[in,out]	trx		data dictionary transaction
+@return DB_SUCCESS if SDI keys retrieval is successful, else error */
+ib_err_t
+ib_sdi_get_keys(
+	uint32_t		tablespace_id,
+	ib_sdi_vector_t*	ib_sdi_vector,
+	uint32_t		copy_num,
+	ib_trx_t		trx);
+
+/** Retrieve SDI from tablespace.
+@param[in]	tablespace_id	tablespace id
+@param[in]	sdi_key		SDI key to uniquely identify the tablespace
+object
+@param[in,out]	sdi		SDI retrieved from tablespace
+@param[in,out]	sdi_len		in:  Size of memory allocated
+				out: Actual SDI length
+@param[in]	copy_num	the copy from which SDI has to retrieved
+@param[in,out]	trx		innodb transaction
+@return DB_SUCCESS if SDI retrieval is successful, else error */
+ib_err_t
+ib_sdi_get(
+	uint32_t		tablespace_id,
+	const ib_sdi_key_t*	sdi_key,
+	void*			sdi,
+	uint64_t*		sdi_len,
+	uint32_t		copy_num,
+	ib_trx_t		trx);
+
+/** Insert/Update SDI in tablespace.
+@param[in]	tablespace_id	tablespace id
+@param[in]	sdi_key		SDI key to uniquely identify the tablespace
+object
+@param[in]	sdi		SDI to be stored in tablespace
+@param[in]	sdi_len		SDI length
+@param[in]	copy_num	SDI copy number to operate on. Should be 0 or 1
+@param[in,out]	trx		innodb transaction
+@return DB_SUCCESS if SDI Insert/Update is successful, else error */
+ib_err_t
+ib_sdi_set(
+	uint32_t		tablespace_id,
+	const ib_sdi_key_t*	sdi_key,
+	const void*		sdi,
+	uint64_t		sdi_len,
+	uint32_t		copy_num,
+	ib_trx_t		trx);
+
+/** Delete SDI from tablespace.
+@param[in]	tablespace_id	tablespace id
+@param[in]	sdi_key		SDI key to uniquely identify the tablespace
+object
+@param[in]	copy_num	the copy from which SDI has to be deleted
+@param[in,out]	trx		innodb transaction
+@return DB_SUCCESS if SDI deletion is successful, else error */
+ib_err_t
+ib_sdi_delete(
+	uint32_t		tablespace_id,
+	const ib_sdi_key_t*	sdi_key,
+	uint32_t		copy_num,
+	ib_trx_t		trx);
+
+/** Return the number of SDI copies stored in tablespace.
+@param[in]	tablespace_id	Tablespace id
+@retval		0		if there are no SDI copies
+@retval		MAX_SDI_COPIES	if the SDI is present
+@retval		UINT32_MAX	in case of failure */
+uint32_t
+ib_sdi_get_num_copies(space_id_t tablespace_id);
+
+/** Create SDI Copies in a tablespace. The number of allowed copies is always
+two for InnoDB.
+@param[in]	tablespace_id	InnoDB tablespace id
+@param[in]	num_of_copies	number of SDI copies to create
+@return DB_SUCCESS if SDI index creation is successful, else error */
+ib_err_t
+ib_sdi_create_copies(
+	space_id_t	tablespace_id,
+	uint32_t	num_of_copies);
+
+/** Drop SDI Indexes from tablespace. This should be used only when SDI
+is corrupted.
+@param[in]	tablespace_id	InnoDB tablespace id
+@return DB_SUCCESS if dropping of SDI indexes  is successful, else error */
+ib_err_t
+ib_sdi_drop_copies(space_id_t tablespace_id);
+
+/** Flush SDI copy in a tablespace. The pages of a SDI copy modified by the
+transaction will be flushed to disk.
+@param[in]	space_id	tablespace id
+@return DB_SUCCESS always*/
+ib_err_t
+ib_sdi_flush(space_id_t space_id);
+
+#ifdef UNIV_MEMCACHED_SDI
+/** Wrapper function to retrieve SDI from tablespace.
+@param[in]	crsr		Memcached cursor
+@param[in]	key_str		Memcached key
+@param[in,out]	sdi		SDI data retrieved
+@param[in,out]	sdi_len		in:  Size of allocated memory
+				out: Actual SDI length
+@return DB_SUCCESS if SDI retrieval is successful, else error */
+ib_err_t
+ib_memc_sdi_get(
+	ib_crsr_t	ib_crsr,
+	const char*	key,
+	void*		sdi,
+	uint64_t*	sdi_len);
+
+/** Wrapper function to delete SDI from tablespace.
+@param[in,out]	crsr		Memcached cursor
+@param[in]	key_str		Memcached key
+@return DB_SUCCESS if SDI deletion is successful, else error */
+ib_err_t
+ib_memc_sdi_delete(
+	ib_crsr_t	ib_crsr,
+	const char*	key);
+
+/** Wrapper function to insert SDI into tablespace.
+@param[in]	crsr		Memcached cursor
+@param[in]	key_str		Memcached key
+@param[in]	sdi		SDI to be stored in tablespace
+@param[in]	sdi_len		SDI length
+@return DB_SUCCESS if SDI insertion is successful, else error */
+ib_err_t
+ib_memc_sdi_set(
+	ib_crsr_t	ib_crsr,
+	const char*	key,
+	const void*	sdi,
+	uint64_t*	sdi_len);
+
+/** Wrapper function to create SDI copies in a tablespace.
+@param[in,out]	crsr		Memcached cursor
+@return DB_SUCCESS if SDI creation is successful, else error */
+ib_err_t
+ib_memc_sdi_create_copies(
+	ib_crsr_t	ib_crsr);
+
+/** Wrapper function to drop SDI copies in a tablespace.
+@param[in,out]	crsr		Memcached cursor
+@return DB_SUCCESS if dropping of SDI is successful, else error */
+ib_err_t
+ib_memc_sdi_drop_copies(
+	ib_crsr_t	ib_crsr);
+
+/* Wrapper function to retreive list of SDI keys into the buffer
+The SDI keys are copied in the from x:y and separated by '|'.
+@param[in,out]	crsr		Memcached cursor
+@param[in]	key_str		Memcached key
+@param[out]	sdi		The keys are copies into this buffer
+@return DB_SUCCESS if SDI keys retrieval is successful, else error */
+ib_err_t
+ib_memc_sdi_get_keys(
+	ib_crsr_t	crsr,
+	const char*	key,
+	void*		sdi,
+	uint64_t	list_buf_len);
+#endif /* UNIV_MEMCACHED_SDI */
+
 /** Check the table whether it contains virtual columns.
 @param[in]	crsr	InnoDB Cursor
 @return true if table contains virtual column else false. */
 ib_bool_t
 ib_is_virtual_table(
-        ib_crsr_t	crsr);
+	ib_crsr_t	crsr);
 
 #endif /* api0api_h */

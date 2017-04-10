@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -29,9 +29,9 @@ static int clear_table(Ndb* pNdb, const NdbDictionary::Table* pTab,
 const char *load_default_groups[]= { "mysql_cluster",0 };
 
 static const char* _dbname = "TEST_DB";
-static my_bool _transactional = false;
-static my_bool _tupscan = 0;
-static my_bool _diskscan = 0;
+static bool _transactional = false;
+static bool _tupscan = 0;
+static bool _diskscan = 0;
 
 static struct my_option my_long_options[] =
 {
@@ -75,7 +75,7 @@ int main(int argc, char** argv){
 
   Ndb_cluster_connection con(opt_ndb_connectstring, opt_ndb_nodeid);
   con.set_name("ndb_delete_all");
-  if(con.connect(12, 5, 1) != 0)
+  if(con.connect(opt_connect_retries - 1, opt_connect_retry_delay, 1) != 0)
   {
     ndbout << "Unable to connect to management server." << endl;
     return NDBT_ProgramExit(NDBT_FAILED);

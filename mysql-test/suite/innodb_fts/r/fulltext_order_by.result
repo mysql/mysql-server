@@ -131,7 +131,7 @@ group by
 a.text, b.id, b.betreff
 order by 
 match(b.betreff) against ('+abc' in boolean mode) desc;
-ERROR 42000: Table 'b' from one of the SELECTs cannot be used in field list
+ERROR 42000: Table 'b' from one of the SELECTs cannot be used in global ORDER clause
 select a.text, b.id, b.betreff
 from 
 t2 a inner join t3 b on a.id = b.forum inner join
@@ -147,7 +147,7 @@ where
 match(c.beitrag) against ('+abc' in boolean mode)
 order by 
 match(b.betreff) against ('+abc' in boolean mode) desc;
-ERROR 42000: Table 'b' from one of the SELECTs cannot be used in field list
+ERROR 42000: Table 'b' from one of the SELECTs cannot be used in global ORDER clause
 select a.text, b.id, b.betreff
 from 
 t2 a inner join t3 b on a.id = b.forum inner join

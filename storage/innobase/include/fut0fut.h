@@ -44,7 +44,7 @@ bufferfixed and latched */
 UNIV_INLINE
 byte*
 fut_get_ptr(
-	ulint			space,
+	space_id_t		space,
 	const page_size_t&	page_size,
 	fil_addr_t		addr,
 	rw_lock_type_t		rw_latch,
@@ -52,8 +52,6 @@ fut_get_ptr(
 	buf_block_t**		ptr_block = NULL)
 	MY_ATTRIBUTE((warn_unused_result));
 
-#ifndef UNIV_NONINL
 #include "fut0fut.ic"
-#endif
 
 #endif /* fut0fut_h */

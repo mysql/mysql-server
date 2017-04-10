@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,11 +16,19 @@
 #ifndef MY_THREAD_LOCAL_INCLUDED
 #define MY_THREAD_LOCAL_INCLUDED
 
-#ifndef _WIN32
+/**
+  @file include/my_thread_local.h
+*/
+
+#include "my_inttypes.h"
+#include "my_macros.h"
+
+#ifdef _WIN32
+#include <windows.h>
+#else
 #include <pthread.h>
 #endif
 
-struct _db_code_state_;
 typedef uint32 my_thread_id;
 
 C_MODE_START

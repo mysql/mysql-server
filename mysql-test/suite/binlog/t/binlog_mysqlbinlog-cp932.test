@@ -3,7 +3,6 @@
 --source include/not_embedded.inc
 
 -- source include/have_binlog_format_mixed_or_statement.inc
--- source include/have_cp932.inc
 -- source include/have_log_bin.inc
 
 RESET MASTER;

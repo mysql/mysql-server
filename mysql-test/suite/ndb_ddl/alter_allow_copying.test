@@ -1,0 +1,71 @@
+--source setup.inc
+
+# Test that it's possible to turn off copying ALTER TABLE by
+# setting  ndb_allow_copying_alter_table = 0. This means that
+# only queries which automatically are performed inplace or were
+# user explicitly requested ALGORITHM=COPY will
+# be allowed
+#
+
+# Check the default value of ndb_allow_copying_alter_table
+select @@ndb_allow_copying_alter_table;
+
+#
+# 1) Query fails since implicit copying alter is not allowed
+#
+set @@ndb_allow_copying_alter_table = 0;
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+ALTER TABLE t1
+  modify column b varchar(255);
+
+#
+# 2) Query is allowed since user explicitly requested ALGORITHM=COPY
+#    and that overrides ndb_allow_copying_alter_table=0
+#
+set @@ndb_allow_copying_alter_table = 0;
+ALTER TABLE t1
+  ALGORITHM=COPY,
+  modify column b varchar(255);
+
+# Set variable back to default and check
+set @@ndb_allow_copying_alter_table = default;
+select @@ndb_allow_copying_alter_table;
+
+
+
+#
+# Check combination with ndb_use_copying_alter_table, which
+# forces usage of copying alter table unless ALGORITHM=INPLACE
+# has been specified
+#
+set @@ndb_allow_copying_alter_table = 0;
+set @@ndb_use_copying_alter_table = 1;
+
+# Implicit inplace alter, use_copying -> error because of allow_copying
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+ALTER TABLE t1
+  add column c int;
+
+# Implicit copying alter, use_copying -> error because of allow_copying
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+ALTER TABLE t1
+  modify column b varchar(255);
+
+# Explicit inplace alter, allowed
+ALTER TABLE t1
+  ALGORITHM=INPLACE,
+  add column c int COLUMN_FORMAT DYNAMIC;
+
+# Explicit copying alter, works as it overrides ndb_allow_copying_alter_table
+ALTER TABLE t1
+  ALGORITHM=COPY,
+  add column d int;
+
+set @@ndb_use_copying_alter_table = default;
+set @@ndb_allow_copying_alter_table = default;
+
+--source verify_mysql_dd.inc
+
+--source cleanup.inc
+
+

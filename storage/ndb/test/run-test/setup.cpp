@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2007, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2007, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -69,6 +69,8 @@ const char * ndbcs = "--ndb-connectstring=";
 bool
 setup_config(atrt_config& config, const char* atrt_mysqld)
 {
+  config.m_site = g_site;
+
   BaseString tmp(g_clusters);
   
   if (atrt_mysqld)
@@ -263,12 +265,19 @@ load_process(atrt_config& config, atrt_cluster& cluster,
   proc.m_proc.m_id = -1;
   proc.m_proc.m_type = "temporary";
   proc.m_proc.m_owner = "atrt";  
-  proc.m_proc.m_group = cluster.m_name.c_str();
+  if (config.m_site.length() == 0)
+  {
+    proc.m_proc.m_group.assfmt("%s", cluster.m_name.c_str());
+  }
+  else
+  {
+    proc.m_proc.m_group.assfmt("%s-%s", config.m_site.c_str(), cluster.m_name.c_str());
+  }
   proc.m_proc.m_stdout = "log.out";
   proc.m_proc.m_stderr = "2>&1";
   proc.m_proc.m_runas = proc.m_host->m_user;
   proc.m_proc.m_ulimit = "c:unlimited";
-  proc.m_proc.m_env.assfmt("MYSQL_BASE_DIR=%s", g_prefix);
+  proc.m_proc.m_env.assfmt("MYSQL_BASE_DIR=%s", g_prefix0);
   proc.m_proc.m_env.appfmt(" MYSQL_HOME=%s", g_basedir);
   proc.m_proc.m_env.appfmt(" ATRT_PID=%u", (unsigned)proc_no);
   proc.m_proc.m_shutdown_options = "";
@@ -788,8 +797,10 @@ generate(atrt_process& proc, const char * name, Properties& props)
   }
   else if (strcmp(name, "--datadir=") == 0)
   {
-    opts.m_loaded.put(name, proc.m_proc.m_cwd.c_str());
-    opts.m_generated.put(name, proc.m_proc.m_cwd.c_str());
+    BaseString datadir(proc.m_proc.m_cwd);
+    datadir.append("/data");
+    opts.m_loaded.put(name, datadir.c_str());
+    opts.m_generated.put(name, datadir.c_str());
     return true;
   }
   else if (strcmp(name, "--FileSystemPath=") == 0)
@@ -1079,7 +1090,7 @@ operator<<(NdbOut& out, const atrt_process& proc)
 char *
 find_bin_path(const char * exe)
 {
-  return find_bin_path(g_prefix, exe);
+  return find_bin_path(g_prefix0, exe);
 }
 
 char *

@@ -72,7 +72,7 @@ SELECT @@SESSION.binlog_row_image;
 
 --disable_warnings
 SELECT @@GLOBAL.binlog_row_image = VARIABLE_VALUE
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='binlog_row_image';
 --enable_warnings
 --echo 1 Expected
@@ -82,7 +82,7 @@ SELECT COUNT(@@GLOBAL.binlog_row_image);
 
 --disable_warnings
 SELECT COUNT(VARIABLE_VALUE)
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='binlog_row_image';
 --enable_warnings
 --echo 1 Expected
@@ -95,7 +95,7 @@ WHERE VARIABLE_NAME='binlog_row_image';
 
 --disable_warnings
 SELECT @@SESSION.binlog_row_image = VARIABLE_VALUE
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES
+FROM performance_schema.session_variables
 WHERE VARIABLE_NAME='binlog_row_image';
 --enable_warnings
 --echo 1 Expected
@@ -105,7 +105,7 @@ SELECT COUNT(@@SESSION.binlog_row_image);
 
 --disable_warnings
 SELECT COUNT(VARIABLE_VALUE)
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES
+FROM performance_schema.session_variables
 WHERE VARIABLE_NAME='binlog_row_image';
 --enable_warnings
 --echo 1 Expected

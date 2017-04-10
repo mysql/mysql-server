@@ -48,7 +48,7 @@ create table t1 (
   primary key (a1),
   index b1x (b1),
   index c1x (c1)
-) engine=ndb;
+) engine=ndb comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 
 create table t2 (
   a2 int unsigned not null,
@@ -57,7 +57,7 @@ create table t2 (
   primary key (a2),
   index b2x (b2),
   index c2x (c2)
-) engine=ndb;
+) engine=ndb comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 
 # enough rows to make index stats more approximate
 

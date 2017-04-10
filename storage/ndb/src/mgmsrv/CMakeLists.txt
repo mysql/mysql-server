@@ -1,4 +1,4 @@
-# Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -17,6 +17,7 @@ INCLUDE_DIRECTORIES(
   ${NDB_SOURCE_DIR}/src/mgmapi
   ${NDB_SOURCE_DIR}/src/ndbapi
   ${NDB_SOURCE_DIR}/src/mgmclient)
+
 
 ADD_CONVENIENCE_LIBRARY(ndbconf
                Config.cpp
@@ -63,13 +64,4 @@ IF(UNIX)
   TARGET_LINK_LIBRARIES(ndb_mgmd ${EDITLINE_LIBRARY})
 ENDIF(UNIX)
 
-ADD_EXECUTABLE(MgmConfig-t
-               testConfig.cpp)
-TARGET_LINK_LIBRARIES(MgmConfig-t
-                      ndbmgmapi
-                      ndbtrace
-                      ndbconf
-                      ndblogger
-                      ndbgeneral
-                      ndbportlib)
-
+NDB_ADD_TEST(MgmConfig-t testConfig.cpp LIBS ndbmgmapi ndbtrace ndbconf ndblogger ndbgeneral ndbportlib)

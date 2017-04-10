@@ -1,0 +1,9 @@
+# Test SKIP LOCKED and NOWAIT with archive engine.
+# Both extentions must not have an effect.
+CREATE TABLE t1 ( a INT) ENGINE=archive;
+INSERT INTO t1 VALUES (1);
+SELECT * FROM t1 FOR UPDATE;
+SELECT * FROM t1 FOR UPDATE SKIP LOCKED;
+SELECT * FROM t1 FOR UPDATE NOWAIT;
+DROP TABLE t1;
+

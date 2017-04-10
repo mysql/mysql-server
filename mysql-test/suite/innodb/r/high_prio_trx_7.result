@@ -157,7 +157,7 @@ XA END 'xa_high_prio';
 XA PREPARE 'xa_high_prio';
 XA COMMIT 'xa_high_prio';
 COMMIT;
-ERROR HY000: Got error 149 during COMMIT
+ERROR HY000: Got error 149 - 'Lock deadlock; Retry transaction' during COMMIT
 SELECT * FROM t1;
 c1
 1
@@ -178,7 +178,7 @@ XA END 'xa_high_prio';
 XA PREPARE 'xa_high_prio';
 XA COMMIT 'xa_high_prio';
 COMMIT;
-ERROR HY000: Got error 149 during COMMIT
+ERROR HY000: Got error 149 - 'Lock deadlock; Retry transaction' during COMMIT
 Reap UPDATE t1 SET c1=13 WHERE c1=0;
 SELECT * FROM t1;
 c1

@@ -1,9 +1,7 @@
-source include/have_innodb.inc;
 source include/not_embedded.inc;
 source include/have_profiling.inc;
 
 SET GLOBAL EVENT_SCHEDULER = OFF;
-SET BINLOG_FORMAT = STATEMENT;
 
 LET $OLD_DB= `SELECT DATABASE()`;
 
@@ -536,14 +534,6 @@ source include/implicit_commit_helper.inc;
 
 #let $statement=
 #  alter database db2 collate cp1251_general_cs;
-#source include/implicit_commit_helper.inc;
-
---echo #
---echo # SQLCOM_ALTER_DB_UPGRADE
---echo #
-
-#let $statement=
-#  alter database `#mysql50#db3` upgrade data directory name;
 #source include/implicit_commit_helper.inc;
 
 --echo #

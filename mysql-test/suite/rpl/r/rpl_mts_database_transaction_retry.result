@@ -117,7 +117,7 @@ INSERT INTO db1.t1 VALUES(50, NULL);
 include/save_master_pos.inc
 [connection slave]
 include/wait_for_slave_sql_error.inc [errno=1062]
-include/assert.inc [slave_retried_transactions should not increase]
+include/assert.inc [count_transactions_retries should not increase]
 DELETE FROM db1.t1 WHERE c1 = 50;
 include/start_slave_sql.inc
 include/sync_slave_sql.inc

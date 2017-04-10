@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,11 +16,14 @@
 // First include (the generated) my_config.h, to get correct platform defines,
 // then gtest.h (before any other MySQL headers), to avoid min() macros etc ...
 #include "my_config.h"
-#include <gtest/gtest.h>
 
-#include "test_utils.h"
-#include "mock_create_field.h"
+#include <gtest/gtest.h>
+#include <stddef.h>
+
 #include "item_timefunc.h"         // Item_func_now_local
+#include "mock_create_field.h"
+#include "test_utils.h"
+
 
 namespace create_field_unittest {
 
@@ -43,16 +46,17 @@ TEST_F(CreateFieldTest, init)
   Item_func_now_local *now= new Item_func_now_local(0);
 
   Mock_create_field field_definition_none(MYSQL_TYPE_TIMESTAMP, NULL, NULL);
-  EXPECT_EQ(Field::NONE, field_definition_none.unireg_check);
+  EXPECT_EQ(Field::NONE, field_definition_none.auto_flags);
 
   Mock_create_field field_definition_dn(MYSQL_TYPE_TIMESTAMP, now, NULL);
-  EXPECT_EQ(Field::TIMESTAMP_DN_FIELD, field_definition_dn.unireg_check);
+  EXPECT_EQ(Field::DEFAULT_NOW, field_definition_dn.auto_flags);
 
   Mock_create_field field_definition_dnun(MYSQL_TYPE_TIMESTAMP, now, now);
-  EXPECT_EQ(Field::TIMESTAMP_DNUN_FIELD, field_definition_dnun.unireg_check);
+  EXPECT_EQ((Field::DEFAULT_NOW|Field::ON_UPDATE_NOW),
+            field_definition_dnun.auto_flags);
 
   Mock_create_field field_definition_un(MYSQL_TYPE_TIMESTAMP, NULL, now);
-  EXPECT_EQ(Field::TIMESTAMP_UN_FIELD, field_definition_un.unireg_check);
+  EXPECT_EQ(Field::ON_UPDATE_NOW, field_definition_un.auto_flags);
 }
 
 }

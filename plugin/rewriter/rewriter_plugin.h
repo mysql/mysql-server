@@ -1,6 +1,6 @@
 #ifndef REWRITER_PLUGIN_INCLUDED
 #define REWRITER_PLUGIN_INCLUDED
-/* Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,7 +21,6 @@
 */
 
 #include "my_config.h"
-#include <my_global.h>
 #include <mysql/plugin_audit.h>
 
 bool refresh_rules_table();

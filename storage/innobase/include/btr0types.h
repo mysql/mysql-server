@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -42,7 +42,7 @@ struct btr_search_t;
 
 /** Is search system enabled.
 Search system is protected by array of latches. */
-extern char	btr_search_enabled;
+extern bool	btr_search_enabled;
 
 /** Number of adaptive hash index partition. */
 extern ulong	btr_ahi_parts;
@@ -55,36 +55,5 @@ in the index record. */
 /** If the data don't exceed the size, the data are stored locally. */
 #define BTR_EXTERN_LOCAL_STORED_MAX_SIZE	\
 	(BTR_EXTERN_FIELD_REF_SIZE * 2)
-
-/** The information is used for creating a new index tree when
-applying TRUNCATE log record during recovery */
-struct btr_create_t {
-
-	explicit btr_create_t(const byte* const ptr)
-		:
-		format_flags(),
-		n_fields(),
-		field_len(),
-		fields(ptr),
-		trx_id_pos(ULINT_UNDEFINED)
-	{
-		/* Do nothing */
-	}
-
-	/** Page format */
-	ulint			format_flags;
-
-	/** Numbr of index fields */
-	ulint			n_fields;
-
-	/** The length of the encoded meta-data */
-	ulint			field_len;
-
-	/** Field meta-data, encoded. */
-	const byte* const	fields;
-
-	/** Position of trx-id column. */
-	ulint			trx_id_pos;
-};
 
 #endif

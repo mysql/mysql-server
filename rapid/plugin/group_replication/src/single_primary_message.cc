@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,6 +14,8 @@
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #include "single_primary_message.h"
+
+#include "my_dbug.h"
 
 Single_primary_message::Single_primary_message(Single_primary_message_type type)
     : Plugin_gcs_message(CT_SINGLE_PRIMARY_MESSAGE),
@@ -31,7 +33,8 @@ Single_primary_message::Single_primary_message(const uchar* buf, size_t len)
   decode(buf, len);
 }
 
-void Single_primary_message::decode_payload(const unsigned char* buffer, size_t length)
+void Single_primary_message::decode_payload(const unsigned char* buffer,
+                                            const unsigned char*)
 {
   DBUG_ENTER("Single_primary_message::decode_payload");
   const unsigned char *slider= buffer;

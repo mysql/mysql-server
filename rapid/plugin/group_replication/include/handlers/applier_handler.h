@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,9 +16,11 @@
 #ifndef SQL_THREAD_APPLIER_INCLUDE
 #define SQL_THREAD_APPLIER_INCLUDE
 
+#include <mysql/group_replication_priv.h>
+
+#include "my_inttypes.h"
 #include "pipeline_handlers.h"
 #include "replication_threads_api.h"
-#include <mysql/group_replication_priv.h>
 
 
 class Applier_handler : public Event_handler
@@ -85,19 +87,7 @@ public:
       @retval -1     A timeout occurred
       @retval -2     An error occurred
   */
-  int wait_for_gtid_execution(longlong timeout);
-
-  /**
-     Checks if the given id matches any of the event applying threads for
-     the configured channel.
-
-     @param id  the thread id
-
-     @return if the id belongs to a thread
-       @retval true   the id matches a SQL or worker thread
-       @retval false  the id doesn't match any thread
-  */
-  bool is_own_event_applier(my_thread_id id);
+  int wait_for_gtid_execution(double timeout);
 
   /**
     Checks if the channel's relay log contains partial transaction.
@@ -111,9 +101,6 @@ private:
 
   Replication_thread_api channel_interface;
 
-  ulong *thread_id_array;
-
-  int num_appliers;
 };
 
 #endif /* SQL_THREAD_APPLIER_INCLUDE */

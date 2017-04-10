@@ -15,6 +15,7 @@
 # 11 MAX_DATA_LENGTH
 # 12 INDEX_LENGTH
 # 13 DATA_FREE
+# 14 AUTO_INCREMENT
 # 15 CREATE_TIME
 # 16 UPDATE_TIME
 # 17 CHECK_TIME
@@ -31,7 +32,7 @@ let $ndb_pattern    = 'number_of_replicas';
 --vertical_results
 # We do not unify the engine name here, because the rowformat is
 # specific to the engine.
---replace_column  8 "#TBLR#" 9 "#ARL#" 10 "#DL#" 11 "#MDL#" 12 "#IL#" 13 "#DF#" 15 "#CRT#" 16 "#UT#" 17 "#CT#" 20 "#CO#" 21 "#TC#"
+--replace_column  8 "#TBLR#" 9 "#ARL#" 10 "#DL#" 11 "#MDL#" 12 "#IL#" 13 "#DF#" 14 "#AI#" 15 "#CRT#" 16 "#UT#" 17 "#CT#" 20 "#CO#" 21 "#TC#"
 --replace_result InnoDB TMP_TABLE_ENGINE MyISAM TMP_TABLE_ENGINE 
 eval
 SELECT *,
@@ -45,5 +46,5 @@ SELECT *,
        '-----------------------------------------------------' AS "Separator"
 FROM information_schema.tables
 $my_where
-ORDER BY table_schema,table_name;
+ORDER BY table_schema,table_name COLLATE utf8_general_ci;
 --horizontal_results

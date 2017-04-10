@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,12 +13,35 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "sql_cursor.h"
-#include "probes_mysql.h"
+#include "sql/sql_cursor.h"
+
+#include <stddef.h>
+#include <algorithm>
+
+#include "debug_sync.h"
+#include "field.h"
+#include "handler.h"
+#include "item.h"
+#include "my_base.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_sys.h"
+#include "mysql_com.h"
+#include "parse_tree_node_base.h"
+#include "protocol.h"
+#include "query_options.h"
+#include "query_result.h"
+#include "sql_lex.h"
+#include "sql_list.h"
 #include "sql_parse.h"                        // mysql_execute_command
 #include "sql_tmp_table.h"                   // tmp tables
-#include "debug_sync.h"
 #include "sql_union.h"                       // Query_result_union
+#include "system_variables.h"
+#include "table.h"
+
+struct PSI_statement_locker;
+struct sql_digest_state;
 
 /****************************************************************************
   Declarations.
@@ -31,7 +54,7 @@
   handler of the temporary table.
 */
 
-class Materialized_cursor: public Server_side_cursor
+class Materialized_cursor final : public Server_side_cursor
 {
   MEM_ROOT main_mem_root;
   /* A fake unit to supply to Query_result_send when fetching */
@@ -45,10 +68,10 @@ public:
   Materialized_cursor(Query_result *result, TABLE *table);
 
   int send_result_set_metadata(THD *thd, List<Item> &send_result_set_metadata);
-  virtual bool is_open() const { return table != 0; }
-  virtual int open(JOIN *join MY_ATTRIBUTE((unused)));
-  virtual bool fetch(ulong num_rows);
-  virtual void close();
+  bool is_open() const override { return table != 0; }
+  int open(JOIN *) override;
+  bool fetch(ulong num_rows) override;
+  void close() override;
   virtual ~Materialized_cursor();
 };
 
@@ -62,14 +85,19 @@ public:
   create a Materialized_cursor.
 */
 
-class Query_result_materialize: public Query_result_union
+class Query_result_materialize final : public Query_result_union
 {
   Query_result *result; /**< the result object of the caller (PS or SP) */
 public:
   Materialized_cursor *materialized_cursor;
-  Query_result_materialize(Query_result *result_arg)
-    :result(result_arg), materialized_cursor(0) {}
-  virtual bool send_result_set_metadata(List<Item> &list, uint flags);
+  Query_result_materialize(THD *thd, Query_result *result_arg)
+    :Query_result_union(thd),
+     result(result_arg), materialized_cursor(0) {}
+  bool send_result_set_metadata(List<Item> &list, uint flags) override;
+  void cleanup() override
+  {
+    table= NULL;  // Pass table object to Materialized_cursor
+  }
 };
 
 
@@ -101,19 +129,13 @@ bool mysql_open_cursor(THD *thd, Query_result *result,
   LEX *lex= thd->lex;
 
   if (! (result_materialize=
-           new (thd->mem_root) Query_result_materialize(result)))
+         new (thd->mem_root) Query_result_materialize(thd, result)))
     return true;
 
   save_result= lex->result;
 
   lex->result= result_materialize;
 
-  MYSQL_QUERY_EXEC_START(const_cast<char*>(thd->query().str),
-                         thd->thread_id(),
-                         (char *) (thd->db().str ? thd->db().str : ""),
-                         (char *) thd->security_context()->priv_user().str,
-                         (char *) thd->security_context()->host_or_ip().str,
-                         2);
   parent_digest= thd->m_digest;
   parent_locker= thd->m_statement_psi;
   thd->m_digest= NULL;
@@ -122,7 +144,6 @@ bool mysql_open_cursor(THD *thd, Query_result *result,
   thd->m_digest= parent_digest;
   DEBUG_SYNC(thd, "after_table_close");
   thd->m_statement_psi= parent_locker;
-  MYSQL_QUERY_EXEC_DONE(rc);
 
   lex->result= save_result;
   /*
@@ -188,7 +209,7 @@ Server_side_cursor::~Server_side_cursor()
 void Server_side_cursor::operator delete(void *ptr, size_t size)
 {
   Server_side_cursor *cursor= (Server_side_cursor*) ptr;
-  MEM_ROOT own_root= *cursor->mem_root;
+  MEM_ROOT own_root= std::move(*cursor->mem_root);
 
   DBUG_ENTER("Server_side_cursor::operator delete");
   TRASH(ptr, size);
@@ -209,7 +230,7 @@ void Server_side_cursor::operator delete(void *ptr, size_t size)
 
 Materialized_cursor::Materialized_cursor(Query_result *result_arg,
                                          TABLE *table_arg)
-  :Server_side_cursor(&table_arg->mem_root, result_arg),
+  :Server_side_cursor(&table_arg->s->mem_root, result_arg),
   fake_unit(CTX_NONE),
   table(table_arg),
   fetch_limit(0),
@@ -371,9 +392,8 @@ void Materialized_cursor::close()
     We need to grab table->mem_root to prevent free_tmp_table from freeing:
     the cursor object was allocated in this memory.
   */
-  main_mem_root= table->mem_root;
+  main_mem_root= std::move(table->s->mem_root);
   mem_root= &main_mem_root;
-  clear_alloc_root(&table->mem_root);
   free_tmp_table(table->in_use, table);
   table= 0;
 }
@@ -391,22 +411,16 @@ Materialized_cursor::~Materialized_cursor()
 ****************************************************************************/
 
 bool Query_result_materialize::send_result_set_metadata(List<Item> &list,
-                                                        uint flags)
+                                                        uint)
 {
   DBUG_ASSERT(table == 0);
-  /*
-    PROCEDURE ANALYSE installs a result filter that has a different set
-    of input and output column Items:
-  */
-  List<Item> *column_types= (unit->first_select()->parent_lex->proc_analyse ?
-                             &list : unit->get_field_list());
-  if (create_result_table(unit->thd, column_types,
+  if (create_result_table(unit->thd, unit->get_field_list(),
                           FALSE,
                           thd->variables.option_bits | TMP_TABLE_ALL_COLUMNS,
                           "", FALSE, TRUE))
     return TRUE;
 
-  materialized_cursor= new (&table->mem_root)
+  materialized_cursor= new (&table->s->mem_root)
                        Materialized_cursor(result, table);
 
   if (!materialized_cursor)

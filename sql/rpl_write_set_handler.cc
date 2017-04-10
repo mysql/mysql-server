@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,21 +13,39 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "rpl_write_set_handler.h"
+#include "sql/rpl_write_set_handler.h"
 
-#include "my_global.h"
-#include "my_stacktrace.h" // my_safe_itoa
-#include "field.h"         // Field
-#include "sql_class.h"     // THD
-#include "sql_list.h"      // List
-#include "table.h"         // TABLE
-
-#include "my_murmur3.h"    // murmur3_32
-#include "../extra/lz4/my_xxhash.h" // xxHash
-
+#include <string.h>
+#include <sys/types.h>
 #include <map>
 #include <string>
 #include <vector>
+
+#include "../extra/lz4/my_xxhash.h"  // IWYU pragma: keep
+#include "field.h"         // Field
+#include "handler.h"
+#include "key.h"
+#include "lex_string.h"
+#include "m_ctype.h"
+#include "m_string.h"
+#include "my_base.h"
+#include "my_bitmap.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_murmur3.h"    // murmur3_32
+#include "my_stacktrace.h" // my_safe_itoa
+#include "mysql/service_mysql_alloc.h"
+#include "psi_memory_key.h"
+#include "rpl_transaction_write_set_ctx.h"
+#include "sql_class.h"     // THD
+#include "sql_const.h"
+#include "sql_list.h"      // List
+#include "sql_plugin_ref.h"
+#include "sql_string.h"
+#include "system_variables.h"
+#include "table.h"         // TABLE
+#include "transaction_info.h"
+#include "rpl_handler.h"
 
 #define NAME_READ_BUFFER_SIZE 1024
 #define HASH_STRING_SEPARATOR "½"
@@ -75,8 +93,8 @@ template <class type> uint64 calc_hash(ulong algorithm, type T)
   @param[out] foreign_key_map - a standard map which keeps track of the
                                 foreign key fields.
 */
-void check_foreign_key(TABLE *table, THD *thd,
-                       std::map<std::string,std::string> &foreign_key_map)
+static void check_foreign_key(TABLE *table, THD *thd,
+                              std::map<std::string,std::string> &foreign_key_map)
 {
   DBUG_ENTER("check_foreign_key");
   /*
@@ -158,7 +176,7 @@ void check_foreign_key(TABLE *table, THD *thd,
 
 }
 
-void debug_check_for_write_sets(std::vector<std::string> &key_list_to_hash)
+static void debug_check_for_write_sets(std::vector<std::string> &key_list_to_hash)
 {
   DBUG_EXECUTE_IF("PKE_assert_single_primary_key_generated_insert",
                   DBUG_ASSERT(key_list_to_hash[0] == "PRIMARY" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t1"
@@ -270,7 +288,7 @@ void debug_check_for_write_sets(std::vector<std::string> &key_list_to_hash)
   @param[in] thd - THD object pointing to current thread.
 */
 
-void generate_hash_pke(std::string pke, THD* thd)
+static void generate_hash_pke(std::string pke, THD* thd)
 {
   DBUG_ENTER("generate_hash_pke");
   DBUG_ASSERT(thd->variables.transaction_write_set_extraction !=
@@ -368,8 +386,12 @@ void add_pke(TABLE *table, THD *thd)
     Finally these value are hashed using the murmur hash function to prevent sending more
     for certification algorithm.
   */
+  Rpl_transaction_write_set_ctx* ws_ctx=
+    thd->get_transaction()->get_transaction_write_set_ctx();
   std::vector<std::string> key_list_to_hash;
   bitmap_set_all(table->read_set);
+  int writeset_hashes_added= 0;
+
   if(table->key_info && (table->s->primary_key < MAX_KEY))
   {
     for (uint key_number=0; key_number < table->s->keys; key_number++)
@@ -465,6 +487,9 @@ void add_pke(TABLE *table, THD *thd)
       }
     }
 
+    if (table->file->referenced_by_foreign_key())
+      ws_ctx->set_has_related_foreign_keys();
+
     debug_check_for_write_sets(key_list_to_hash);
 
     while(key_list_to_hash.size())
@@ -472,7 +497,12 @@ void add_pke(TABLE *table, THD *thd)
       std::string prepared_string= key_list_to_hash.back();
       key_list_to_hash.pop_back();
       generate_hash_pke(prepared_string, thd);
+      writeset_hashes_added++;
     }
   }
+
+  if (writeset_hashes_added == 0)
+    ws_ctx->set_has_missing_keys();
+
   DBUG_VOID_RETURN;
 }

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -29,10 +29,13 @@
 #ifndef CONTROL_EVENT_INCLUDED
 #define CONTROL_EVENT_INCLUDED
 
-#include "binlog_event.h"
+#include <sys/types.h>
+#include <time.h>
 #include <list>
 #include <map>
 #include <vector>
+
+#include "binlog_event.h"
 
 namespace binary_log
 {
@@ -131,7 +134,7 @@ public:
     </pre>
 
     @param buf                Contains the serialized event.
-    @param length             Length of the serialized event.
+    @param event_len          Length of the serialized event.
     @param description_event  An FDE event, used to get the
                               following information
                               -binlog_version
@@ -264,6 +267,7 @@ public:
     </pre>
 
     @param buf                Contains the serialized event.
+    @param event_len          Length of the serialized event.
     @param description_event  An FDE event, used to get the
                               following information
                               -binlog_version
@@ -395,7 +399,7 @@ public:
           +=====================================+
     </pre>
     @param buf                Contains the serialized event.
-    @param length             Length of the serialized event.
+    @param event_len          Length of the serialized event.
     @param description_event  An FDE event, used to get the
                               following information
                               -binlog_version
@@ -464,8 +468,7 @@ public:
   */
   Stop_event(const char* buf,
              const Format_description_event *description_event)
-    :Binary_log_event(&buf, description_event->binlog_version,
-                      description_event->server_version)
+    :Binary_log_event(&buf, description_event->binlog_version)
   {}
 
 #ifndef HAVE_MYSYS
@@ -563,7 +566,7 @@ public:
     databases to be resynchronized.
 
     @param buf                Contains the serialized event.
-    @param length             Length of the serialized event.
+    @param event_len          Length of the serialized event.
     @param description_event  An FDE event, used to get the
                               following information
                               -binlog_version
@@ -641,7 +644,7 @@ public:
                               The content of this object
                               depends on the binlog-version currently in use.
   */
-  Xid_event(const char *buf, const Format_description_event *fde);
+  Xid_event(const char *buf, const Format_description_event *description_event);
   uint64_t xid;
 #ifndef HAVE_MYSYS
   void print_event_info(std::ostream& info);
@@ -729,7 +732,7 @@ public:
     An XID event is generated for a commit of a transaction that modifies one or
     more tables of an XA-capable storage engine
     @param buf    Contains the serialized event.
-    @param fde    An FDE event, used to get the following information
+    @param description_event    An FDE event, used to get the following information
                      -binlog_version
                      -server_version
                      -post_header_len
@@ -737,7 +740,7 @@ public:
                      The content of this object
                      depends on the binlog-version currently in use.
   */
-  XA_prepare_event(const char *buf, const Format_description_event *fde);
+  XA_prepare_event(const char *buf, const Format_description_event *description_event);
 #ifndef HAVE_MYSYS
   /*
     todo: we need to find way how to exploit server's code of
@@ -854,11 +857,12 @@ struct gtid_info
     <th>Description</th>
   </tr>
   <tr>
-    <td>byte</th>
-    <td>unsigned char array</th>
+    <td>byte</td>
+    <td>unsigned char array</td>
     <td>This stores the Uuid of the server on which transaction
-        is originated</th>
+        is originated</td>
   </tr>
+  </table>
 */
 
 struct Uuid
@@ -880,19 +884,63 @@ struct Uuid
   bool equals(const Uuid &other) const
   { return memcmp(bytes, other.bytes, BYTE_LENGTH) == 0; }
   /**
-    Return true if parse() would return succeed, but don't actually
-    store the result anywhere.
+    Returns true if parse() would succeed, but doesn't store the result.
+
+     @param string String that needs to be checked.
+     @param len    Length of that string.
+
+     @retval true  valid string.
+     @retval false invalid string.
   */
-  static bool is_valid(const char *string);
+  static bool is_valid(const char *string, size_t len);
 
   /**
-    Stores the UUID represented by a string on the form
-    XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX in this object.
+    Stores the UUID represented by a string of the form
+    XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX or
+    XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX or
+    {XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX}
+    in this object.
 
-     @return  0   success.
-             >0   failure
+     @param string String to be parsed and stored.
+     @param len    Length of that string.
+
+     @retval   0   success.
+     @retval  >0   failure.
   */
-  int parse(const char *string);
+  int parse(const char *string, size_t len);
+
+  /**
+    Parses the UUID passed as argument in in_string and functions and writes
+    the binary representation in out_binary_string.
+    Depends on UUID's read_section method and the constants for text length.
+
+     @param[in] in_string           String to be parsed.
+     @param[in] len                 Length of that string.
+     @param[out] out_binary_string  String where the binary UUID will be stored
+
+     @retval   0   success.
+     @retval  >0   failure.
+  */
+  static int parse(const char *in_string, size_t len,
+                   const unsigned char *out_binary_string);
+  /**
+    Helper method used to validate and parse one section of a uuid.
+    If the last parameter, out_binary_str, is NULL then the function will
+    just validate the section.
+
+     @param[in]      section_len      Length of the section to be parsed.
+     @param[in,out]  section_str      Pointer to a string containing the
+                                      section. It will be updated during the
+                                      execution as the string is parsed.
+     @param[out]     out_binary_str   String where the section will be stored
+                                      in binary format. If null, the function
+                                      will just validate the input string.
+
+     @retval  false   success.
+     @retval  true    failure.
+  */
+  static bool read_section(int section_len, const char **section_str,
+                           const unsigned char **out_binary_str);
   /** The number of bytes in the data of a Uuid. */
   static const size_t BYTE_LENGTH= 16;
   /** The data for this Uuid. */
@@ -938,7 +986,55 @@ struct Uuid
 
   @section Gtid_event_binary_format Binary Format
 
-  @todo
+  The Body has five components:
+
+  <table>
+  <caption>Body for Gtid_event</caption>
+
+  <tr>
+    <th>Name</th>
+    <th>Format</th>
+    <th>Description</th>
+  </tr>
+
+  </tr>
+  <tr>
+    <td>COMMIT_FLAG</td>
+    <td>1 byte</td>
+    <td>Currently unused.</td>
+  </tr>
+  <tr>
+    <td>ENCODED_SID_LENGTH</td>
+    <td>4 bytes static const integer</td>
+    <td>Length of SID in event encoding</td>
+  </tr>
+  <tr>
+    <td>ENCODED_GNO_LENGTH</td>
+    <td>4 bytes static const integer</td>
+    <td>Length of GNO in event encoding.</td>
+  </tr>
+  <tr>
+    <td>last_committed</td>
+    <td>8 byte integer</td>
+    <td>Store the transaction's commit parent sequence_number</td>
+  </tr>
+  <tr>
+    <td>sequence_number</td>
+    <td>8 byte integer</td>
+    <td>The transaction's logical timestamp assigned at prepare phase</td>
+  </tr>
+  <tr>
+    <td>immediate_commit_timestamp</td>
+    <td>7 byte integer</td>
+    <td>Timestamp of commit on the immediate master/td>
+  </tr>
+  <tr>
+    <td>original_commit_timestamp</td>
+    <td>7 byte integer</td>
+    <td>Timestamp of commit on the originating master</td>
+  </tr>
+  </table>
+
 */
 class Gtid_event: public Binary_log_event
 {
@@ -951,18 +1047,24 @@ public:
   */
   long long int last_committed;
   long long int sequence_number;
+  /** Timestamp when the transaction was committed on the originating master. */
+  unsigned long long int original_commit_timestamp;
+  /** Timestamp when the transaction was committed on the nearest master. */
+  unsigned long long int immediate_commit_timestamp;
+  bool has_commit_timestamps;
   /**
     Ctor of Gtid_event
 
     The layout of the buffer is as follows
-    +-------------+-------------+------------+---------+----------------+
-    | commit flag | ENCODED SID | ENCODED GNO| TS_TYPE | logical ts(:s) |
-    +-------------+-------------+------------+---------+----------------+
+    +-----------+-----------+-- --------+-------+--------------+---------+
+    |commit flag|ENCODED SID|ENCODED GNO|TS_TYPE|logical ts(:s)|commit ts|
+    +-----------+-----------+-----------+-------+------------------------+
     TS_TYPE is from {G_COMMIT_TS2} singleton set of values
+    Details on commit timestamps in Gtid_event(const char*...)
 
     @param buffer             Contains the serialized event.
     @param event_len          Length of the serialized event.
-    @param description_event  An FDE event, used to get the
+    @param descr_event        An FDE event, used to get the
                               following information
                               -binlog_version
                               -server_version
@@ -978,10 +1080,14 @@ public:
     Constructor.
   */
   explicit Gtid_event(long long int last_committed_arg,
-                      long long int sequence_number_arg)
+                      long long int sequence_number_arg,
+                      unsigned long long int original_commit_timestamp_arg,
+                      unsigned long long int immediate_commit_timestamp_arg)
     : Binary_log_event(GTID_LOG_EVENT),
       last_committed(last_committed_arg),
-      sequence_number(sequence_number_arg)
+      sequence_number(sequence_number_arg),
+      original_commit_timestamp(original_commit_timestamp_arg),
+      immediate_commit_timestamp(immediate_commit_timestamp_arg)
   {}
 #ifndef HAVE_MYSYS
   //TODO(WL#7684): Implement the method print_event_info and print_long_info
@@ -999,6 +1105,23 @@ protected:
   static const int LOGICAL_TIMESTAMP_LENGTH= 16;
   // Type code used before the logical timestamps.
   static const int LOGICAL_TIMESTAMP_TYPECODE= 2;
+
+  static const int IMMEDIATE_COMMIT_TIMESTAMP_LENGTH= 7;
+  static const int ORIGINAL_COMMIT_TIMESTAMP_LENGTH= 7;
+  // Length of two timestamps (from original/immediate masters)
+  static const int FULL_COMMIT_TIMESTAMP_LENGTH=
+    IMMEDIATE_COMMIT_TIMESTAMP_LENGTH + ORIGINAL_COMMIT_TIMESTAMP_LENGTH;
+  // We use 7 bytes out of which 1 bit is used as a flag.
+  static const int ENCODED_COMMIT_TIMESTAMP_LENGTH= 55;
+
+  /* We have only original commit timestamp if both timestamps are equal. */
+  int get_commit_timestamp_length() const
+  {
+    if (original_commit_timestamp != immediate_commit_timestamp)
+      return FULL_COMMIT_TIMESTAMP_LENGTH;
+    return ORIGINAL_COMMIT_TIMESTAMP_LENGTH;
+  }
+
   gtid_info gtid_info_struct;
   Uuid Uuid_parent_struct;
 public:
@@ -1010,8 +1133,16 @@ public:
     LOGICAL_TIMESTAMP_TYPECODE_LENGTH + /* length of typecode */
     LOGICAL_TIMESTAMP_LENGTH;           /* length of two logical timestamps */
 
+  /*
+    Length of two timestamps used for monitoring.
+    We keep the timestamps in the body section because they can be of
+    variable length.
+    On the originating master, the event has only one timestamp as the two
+    timestamps are equal. On every other server we have two timestamps.
+  */
+  static const int MAX_DATA_LENGTH= FULL_COMMIT_TIMESTAMP_LENGTH;
   static const int MAX_EVENT_LENGTH=
-    LOG_EVENT_HEADER_LEN + POST_HEADER_LENGTH;
+    LOG_EVENT_HEADER_LEN + POST_HEADER_LENGTH + MAX_DATA_LENGTH;
 };
 
 
@@ -1059,9 +1190,9 @@ public:
     | Gtids executed in the last binary log file |
     +--------------------------------------------+
     </pre>
-    @param buffer             Contains the serialized event.
+    @param buf                Contains the serialized event.
     @param event_len          Length of the serialized event.
-    @param description_event  An FDE event, used to get the
+    @param descr_event        An FDE event, used to get the
                               following information
                               -binlog_version
                               -server_version
@@ -1156,9 +1287,8 @@ public:
     The buffer layout is as follows
     </pre>
 
-    @param buf                Contains the serialized event.
-    @param event_len          Length of the serialized event.
-    @param descr_event        An FDE event, used to get the
+    @param buffer             Contains the serialized event.
+    @param description_event  An FDE event, used to get the
                               following information
                               -binlog_version
                               -server_version
@@ -1167,8 +1297,8 @@ public:
                               The content of this object
                               depends on the binlog-version currently in use.
   */
-  Transaction_context_event(const char *buf, unsigned int event_len,
-                            const Format_description_event *descr_event);
+  Transaction_context_event(const char *buffer,
+                            const Format_description_event *description_event);
 
   Transaction_context_event(unsigned int thread_id_arg,
                             bool is_gtid_specified_arg)
@@ -1266,7 +1396,6 @@ public:
     </pre>
 
     @param buf                Contains the serialized event.
-    @param event_len          Length of the serialized event.
     @param descr_event        An FDE event, used to get the
                               following information
                               -binlog_version
@@ -1276,7 +1405,7 @@ public:
                               The content of this object
                               depends on the binlog-version currently in use.
   */
-  View_change_event(const char *buf, unsigned int event_len,
+  View_change_event(const char *buf,
                     const Format_description_event *descr_event);
 
   explicit View_change_event(char* raw_view_id);

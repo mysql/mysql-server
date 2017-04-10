@@ -1,7 +1,12 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
+########################################
+##### WL#7554 Force schema `test` to character set latin1
+##### This test should be migrated to utf8mb4
+--disable_query_log
+let $testdbcs296=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
+alter schema default character set latin1;
+use test;
+--enable_query_log
+########################################
 
 #
 # testing different DATETIME ranges
@@ -237,7 +242,7 @@ select * from t1,t2 where if(1,'01-02-03 12:34:56','') in (f1, f2);
 create table t3(f3 varchar(20));
 insert into t3 select * from t2;
 select * from t2,t3 where f2 in (f3,'03-04-05');
-select f1,f2,f3 from t1,t2,t3 where (f1,'1') in ((f2,'1'),(f3,'1'));
+select f1,f2,f3 from t1,t2,t3 where (f1,'1') in ((f2,'1'),(f3,'1')) order by f1,f2,f3;
 select f1 from t1 where ('1',f1) in (('1','01-01-01'),('1','2001-1-1 0:0:0'),('1','02-02-02'));
 drop table t1,t2,t3;
 
@@ -363,6 +368,7 @@ create table t1 (id int(10) not null, cur_date datetime not null);
 create table t2 (id int(10) not null, cur_date date not null);
 insert into t1 (id, cur_date) values (1, '2007-04-25 18:30:22');
 insert into t2 (id, cur_date) values (1, '2007-04-25');
+analyze table t1;
 
 --disable_query_log
 if (`select locate('semijoin', @@optimizer_switch) > 0`) 
@@ -500,6 +506,7 @@ STR_TO_DATE('1/1/2010', '%m/%d/%Y');
 
 create table t2(f1 datetime primary key);
 insert into t2 select STR_TO_DATE(CONCAT_WS('/01/',`month`,`year`), '%m/%d/%Y') from t1;
+analyze table t1;
 select * from t2 where f1=STR_TO_DATE('4/1/2010', '%m/%d/%Y');
 --echo t2 should be const
 explain select * from t2 where f1=STR_TO_DATE('4/1/2010', '%m/%d/%Y');
@@ -630,3 +637,10 @@ SET @@sql_mode= @org_mode;
 --echo #
 --echo # End of 5.6 tests
 --echo #
+
+########################################
+##### WL#7554 set schema `test` back to what it was
+--disable_query_log
+--eval alter schema test default character set $testdbcs296;
+--enable_query_log
+########################################

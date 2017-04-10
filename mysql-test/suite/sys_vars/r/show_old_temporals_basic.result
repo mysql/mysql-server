@@ -6,9 +6,9 @@ Warning	1287	'@@show_old_temporals' is deprecated and will be removed in a futur
 SHOW SESSION VARIABLES LIKE 'show_old_temporals';
 Variable_name	Value
 show_old_temporals	OFF
-SELECT * FROM information_schema.session_variables WHERE variable_name='show_old_temporals';
+SELECT * FROM performance_schema.session_variables WHERE variable_name='show_old_temporals';
 VARIABLE_NAME	VARIABLE_VALUE
-SHOW_OLD_TEMPORALS	OFF
+show_old_temporals	OFF
 #Also can be set as a global variable.
 SELECT @@global.show_old_temporals;
 @@global.show_old_temporals
@@ -18,9 +18,9 @@ Warning	1287	'@@show_old_temporals' is deprecated and will be removed in a futur
 SHOW GLOBAL VARIABLES LIKE 'show_old_temporals';
 Variable_name	Value
 show_old_temporals	OFF
-SELECT * FROM information_schema.global_variables WHERE variable_name='show_old_temporals';
+SELECT * FROM performance_schema.global_variables WHERE variable_name='show_old_temporals';
 VARIABLE_NAME	VARIABLE_VALUE
-SHOW_OLD_TEMPORALS	OFF
+show_old_temporals	OFF
 #Test setting the variable to various values.
 #Boolean values.
 SET SESSION show_old_temporals= ON;

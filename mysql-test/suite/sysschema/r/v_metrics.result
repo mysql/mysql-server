@@ -1,7 +1,7 @@
 DESC sys.metrics;
 Field	Type	Null	Key	Default	Extra
-Variable_name	varchar(193)	YES		NULL	
-Variable_value	text	YES		NULL	
-Type	varchar(210)	YES		NULL	
-Enabled	varchar(7)	NO			
+Variable_name	varchar(64)	NO			
+Variable_value	varchar(1024)	YES		NULL	
+Type	varchar(13)	NO			
+Enabled	varchar(3)	NO			
 SELECT * FROM sys.metrics;

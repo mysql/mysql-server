@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -24,11 +24,6 @@ Created 6/25/1996 Heikki Tuuri
 *******************************************************/
 
 #include "usr0sess.h"
-
-#ifdef UNIV_NONINL
-#include "usr0sess.ic"
-#endif
-
 #include "trx0trx.h"
 
 /*********************************************************************//**

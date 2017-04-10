@@ -3,6 +3,9 @@
 #
 # Test bugs in RESET MASTER.
 
+# Genereates a lot of noise when run with valgrind.
+--source include/not_valgrind.inc
+
 --source include/have_debug.inc
 --source include/have_log_bin.inc
 

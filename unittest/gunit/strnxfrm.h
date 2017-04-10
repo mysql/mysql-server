@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,7 +20,9 @@
   So we put them in a separate compilation unit.
 */
 
-#include "my_global.h"
+#include <stddef.h>
+#include <sys/types.h>
+
 #include "m_ctype.h"
 
 namespace strnxfrm_unittest {

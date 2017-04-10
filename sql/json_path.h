@@ -1,7 +1,7 @@
 #ifndef SQL_JSON_PATH_INCLUDED
 #define SQL_JSON_PATH_INCLUDED
 
-/* Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -24,13 +24,12 @@
   attached to WL#7909.
  */
 
-#include "my_global.h"
-#include "prealloced_array.h"                   // Prealloced_array
-#include "sql_string.h"                         // String
-
+#include <stddef.h>
 #include <string>
 
-class Json_string;
+#include "prealloced_array.h"                   // Prealloced_array
+
+class String;
 
 enum enum_json_path_leg_type
 {
@@ -87,6 +86,7 @@ public:
 class Json_seekable_path
 {
 public:
+  virtual ~Json_seekable_path() {}
 
   /** Return the number of legs in this searchable path */
   virtual size_t leg_count() const =0;
@@ -100,11 +100,6 @@ public:
      corresponding Json_path_leg.
   */
   virtual const Json_path_leg *get_leg_at(const size_t index) const =0;
-
-  /**
-    Return true if the path contains an ellipsis token
-  */
-  virtual bool contains_ellipsis() const =0;
 
 };
 
@@ -150,7 +145,7 @@ public:
 class Json_path : public Json_seekable_path
 {
 private:
-  typedef Prealloced_array<Json_path_leg, 8, false> Path_leg_vector;
+  typedef Prealloced_array<Json_path_leg, 8> Path_leg_vector;
   Path_leg_vector m_path_legs;
 
   /**
@@ -283,11 +278,6 @@ public:
   */
   bool contains_wildcard_or_ellipsis() const;
 
-  /**
-    Return true if the path contains an ellipsis token
-  */
-  bool contains_ellipsis() const;
-
   /** Turn into a human-readable string. */
   bool to_string(String *buf) const;
 
@@ -307,7 +297,7 @@ public:
 class Json_path_clone : public Json_seekable_path
 {
 private:
-  typedef Prealloced_array<const Json_path_leg *, 8, false> Path_leg_pointers;
+  using Path_leg_pointers= Prealloced_array<const Json_path_leg *, 8>;
   Path_leg_pointers m_path_legs;
 
 public:
@@ -338,7 +328,7 @@ public:
     Clear this clone and then add all of the
     legs from another path.
 
-    @param[in,out] other The source path
+    @param[in,out] source The source path
     @return false on success, true on error
   */
   bool set(Json_seekable_path *source);
@@ -354,11 +344,6 @@ public:
     Resets this to an empty path with no legs.
   */
   void clear();
-
-  /**
-    Return true if the path contains an ellipsis token
-  */
-  bool contains_ellipsis() const;
 
 };
 

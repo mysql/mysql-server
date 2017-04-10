@@ -126,8 +126,8 @@ namespace ngs
     };
 
   private:
-    Page_pool(const Page_pool &);
-    Page_pool &operator=(const Page_pool &);
+    Page_pool(const Page_pool &) = delete;
+    Page_pool &operator=(const Page_pool &) = delete;
 
     class Page_memory_managed : public Page
     {

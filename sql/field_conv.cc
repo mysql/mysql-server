@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -24,10 +24,32 @@
     gives much more speed.
 */
 
-#include "sql_class.h"                          // THD
-#include "sql_time.h"
-#include <m_ctype.h>
+#include <string.h>
+#include <sys/types.h>
+
+#include "binary_log_types.h"
+#include "field.h"
 #include "item_timefunc.h"               // Item_func_now_local
+#include "m_ctype.h"
+#include "my_byteorder.h"
+#include "my_compare.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_decimal.h"
+#include "my_inttypes.h"
+#include "my_macros.h"
+#include "my_sys.h"
+#include "my_time.h"
+#include "mysql/psi/mysql_statement.h"
+#include "mysql_com.h"
+#include "mysqld_error.h"
+#include "sql_class.h"                          // THD
+#include "sql_const.h"
+#include "sql_error.h"
+#include "sql_string.h"
+#include "sql_time.h"
+#include "system_variables.h"
+#include "table.h"
 #include "template_utils.h"              // down_cast
 
 
@@ -148,19 +170,19 @@ type_conversion_status set_field_to_null(Field *field)
     neither NULL-able nor temporary NULL-able (see setup_copy_fields()).
   */
   field->reset();
-  switch (field->table->in_use->count_cuted_fields) {
+  switch (field->table->in_use->check_for_truncated_fields) {
   case CHECK_FIELD_WARN:
     field->set_warning(Sql_condition::SL_WARNING, WARN_DATA_TRUNCATED, 1);
     /* fall through */
   case CHECK_FIELD_IGNORE:
     return TYPE_OK;
   case CHECK_FIELD_ERROR_FOR_NULL:
-    if (!field->table->in_use->no_errors)
-      my_error(ER_BAD_NULL_ERROR, MYF(0), field->field_name);
+    my_error(ER_BAD_NULL_ERROR, MYF(0), field->field_name);
     return TYPE_ERR_NULL_CONSTRAINT_VIOLATION;
   }
   DBUG_ASSERT(false); // impossible
 
+  my_error(ER_BAD_NULL_ERROR, MYF(0), field->field_name);
   return TYPE_ERR_NULL_CONSTRAINT_VIOLATION; // to avoid compiler's warning
 }
 
@@ -230,18 +252,18 @@ set_field_to_null_with_conversions(Field *field, bool no_conversions)
     return TYPE_OK;
   }
 
-  switch (field->table->in_use->count_cuted_fields) {
+  switch (field->table->in_use->check_for_truncated_fields) {
   case CHECK_FIELD_WARN:
     field->set_warning(Sql_condition::SL_WARNING, ER_BAD_NULL_ERROR, 1);
     /* fall through */
   case CHECK_FIELD_IGNORE:
     return TYPE_OK;
   case CHECK_FIELD_ERROR_FOR_NULL:
-    if (!field->table->in_use->no_errors)
-      my_error(ER_BAD_NULL_ERROR, MYF(0), field->field_name);
+    my_error(ER_BAD_NULL_ERROR, MYF(0), field->field_name);
     return TYPE_ERR_NULL_CONSTRAINT_VIOLATION;
   }
   DBUG_ASSERT(false); // impossible
+  my_error(ER_BAD_NULL_ERROR, MYF(0), field->field_name);
   return TYPE_ERR_NULL_CONSTRAINT_VIOLATION;
 }
 
@@ -530,6 +552,15 @@ static size_t get_varstring_copy_length(Field_varstring *to,
   else
     bytes_to_copy= uint2korr(from->ptr);
 
+  if (from->pack_length() - from->length_bytes <= to_byte_length)
+  {
+    /*
+      There's room for everything in the destination buffer;
+      no need to truncate.
+    */
+    return bytes_to_copy;
+  }
+
   if (is_multibyte_charset)
   {
     int well_formed_error;
@@ -543,7 +574,7 @@ static size_t get_varstring_copy_length(Field_varstring *to,
                                 &well_formed_error);
     if (bytes_to_copy < from_byte_length)
     {
-      if (from->table->in_use->count_cuted_fields)
+      if (from->table->in_use->check_for_truncated_fields)
         to->set_warning(Sql_condition::SL_WARNING,
                         WARN_DATA_TRUNCATED, 1);
     }
@@ -553,7 +584,7 @@ static size_t get_varstring_copy_length(Field_varstring *to,
     if (bytes_to_copy > (to_byte_length))
     {
       bytes_to_copy= to_byte_length;
-      if (from->table->in_use->count_cuted_fields)
+      if (from->table->in_use->check_for_truncated_fields)
         to->set_warning(Sql_condition::SL_WARNING,
                         WARN_DATA_TRUNCATED, 1);
     }
@@ -974,12 +1005,18 @@ type_conversion_status field_conv(Field *to,Field *from)
     if (from->type() == MYSQL_TYPE_TIME)
     {
       from->get_time(&ltime);
-      nr= TIME_to_ulonglong_time_round(&ltime);
+      if (current_thd->is_fsp_truncate_mode())
+        nr= TIME_to_ulonglong_time(&ltime);
+      else
+        nr= TIME_to_ulonglong_time_round(&ltime);
     }
     else
     {
       from->get_date(&ltime, TIME_FUZZY_DATE);
-      nr= TIME_to_ulonglong_datetime_round(&ltime);
+      if (current_thd->is_fsp_truncate_mode())
+        nr= TIME_to_ulonglong_datetime(&ltime);
+      else
+        nr= TIME_to_ulonglong_datetime_round(&ltime);
     }
     return to->store(ltime.neg ? -nr : nr, 0);
   }

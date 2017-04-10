@@ -7,8 +7,8 @@ select @@session.protocol_version;
 show global variables like 'protocol_version';
 show session variables like 'protocol_version';
 --disable_warnings
-select * from information_schema.global_variables where variable_name='protocol_version';
-select * from information_schema.session_variables where variable_name='protocol_version';
+select * from performance_schema.global_variables where variable_name='protocol_version';
+select * from performance_schema.session_variables where variable_name='protocol_version';
 --enable_warnings
 
 #

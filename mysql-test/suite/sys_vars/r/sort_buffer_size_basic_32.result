@@ -21,10 +21,10 @@ SELECT @@session.sort_buffer_size;
 @@session.sort_buffer_size
 262144
 '#--------------------FN_DYNVARS_151_03-------------------------#'
-SET @@global.sort_buffer_size = 32776;
+SET @@global.sort_buffer_size = 32768;
 SELECT @@global.sort_buffer_size;
 @@global.sort_buffer_size
-32776
+32768
 SET @@global.sort_buffer_size = 32777;
 SELECT @@global.sort_buffer_size;
 @@global.sort_buffer_size
@@ -38,10 +38,10 @@ SELECT @@global.sort_buffer_size;
 @@global.sort_buffer_size
 4294967294
 '#--------------------FN_DYNVARS_151_04-------------------------#'
-SET @@session.sort_buffer_size = 32776;
+SET @@session.sort_buffer_size = 32768;
 SELECT @@session.sort_buffer_size;
 @@session.sort_buffer_size
-32776
+32768
 SET @@session.sort_buffer_size = 32777;
 SELECT @@session.sort_buffer_size;
 @@session.sort_buffer_size
@@ -55,11 +55,21 @@ SELECT @@session.sort_buffer_size;
 @@session.sort_buffer_size
 4294967294
 '#------------------FN_DYNVARS_151_05-----------------------#'
-SET @@global.sort_buffer_size = 32775;
+SET @@global.sort_buffer_size = 32767;
 SELECT @@global.sort_buffer_size;
 @@global.sort_buffer_size
-32775
+32768
 SET @@global.sort_buffer_size = -1024;
+SELECT @@global.sort_buffer_size;
+@@global.sort_buffer_size
+32768
+SET @@global.sort_buffer_size = 65530.34;
+ERROR 42000: Incorrect argument type to variable 'sort_buffer_size'
+SELECT @@global.sort_buffer_size;
+@@global.sort_buffer_size
+32768
+SET @@global.sort_buffer_size = test;
+ERROR 42000: Incorrect argument type to variable 'sort_buffer_size'
 SELECT @@global.sort_buffer_size;
 @@global.sort_buffer_size
 32768
@@ -67,40 +77,38 @@ SET @@global.sort_buffer_size = 4294967296;
 SELECT @@global.sort_buffer_size;
 @@global.sort_buffer_size
 4294967295
-SET @@global.sort_buffer_size = 65530.34;
-ERROR 42000: Incorrect argument type to variable 'sort_buffer_size'
+SET @@global.sort_buffer_size = 42949672950;
 SELECT @@global.sort_buffer_size;
 @@global.sort_buffer_size
 4294967295
-SET @@global.sort_buffer_size = test;
-ERROR 42000: Incorrect argument type to variable 'sort_buffer_size'
-SELECT @@global.sort_buffer_size;
-@@global.sort_buffer_size
-4294967295
-SET @@session.sort_buffer_size = 32775;
+SET @@session.sort_buffer_size = 32767;
 SELECT @@session.sort_buffer_size;
 @@session.sort_buffer_size
-32775
+32768
 SET @@session.sort_buffer_size = -2;
 SELECT @@session.sort_buffer_size;
 @@session.sort_buffer_size
 32768
 SET @@session.sort_buffer_size = 65530.34;
 ERROR 42000: Incorrect argument type to variable 'sort_buffer_size'
+SET @@session.sort_buffer_size = test;
+ERROR 42000: Incorrect argument type to variable 'sort_buffer_size'
 SET @@session.sort_buffer_size = 4294967296;
 SELECT @@session.sort_buffer_size;
 @@session.sort_buffer_size
 4294967295
-SET @@session.sort_buffer_size = test;
-ERROR 42000: Incorrect argument type to variable 'sort_buffer_size'
+SET @@session.sort_buffer_size = 42949672950;
+SELECT @@session.sort_buffer_size;
+@@session.sort_buffer_size
+4294967295
 '#------------------FN_DYNVARS_151_06-----------------------#'
 SELECT @@global.sort_buffer_size = VARIABLE_VALUE FROM 
-INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME='sort_buffer_size';
+performance_schema.global_variables WHERE VARIABLE_NAME='sort_buffer_size';
 @@global.sort_buffer_size = VARIABLE_VALUE
 1
 '#------------------FN_DYNVARS_151_07-----------------------#'
 SELECT @@session.sort_buffer_size = VARIABLE_VALUE FROM
-INFORMATION_SCHEMA.SESSION_VARIABLES WHERE VARIABLE_NAME='sort_buffer_size';
+performance_schema.session_variables WHERE VARIABLE_NAME='sort_buffer_size';
 @@session.sort_buffer_size = VARIABLE_VALUE
 1
 '#------------------FN_DYNVARS_151_08-----------------------#'

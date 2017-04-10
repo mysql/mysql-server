@@ -88,7 +88,7 @@ SELECT @@global.init_slave;
 ON
 '#--------------------FN_DYNVARS_037_06-------------------------#'
 SELECT @@global.init_slave = (SELECT VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='init_slave') AS res;
 res
 1

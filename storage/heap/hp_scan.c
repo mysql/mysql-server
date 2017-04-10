@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,7 +15,11 @@
 
 /* Scan through all rows */
 
+#include <sys/types.h>
+
 #include "heapdef.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
 
 /*
 	   Returns one of following values:
@@ -48,6 +52,12 @@ int heap_scan(HP_INFO *info, uchar *record)
   else
   {
     info->next_block+=share->block.records_in_block;
+    /*
+      The table is organized as a linked list of blocks, each block has room
+      for a fixed number (share->records_in_block) of records
+      of fixed size (share->block.recbuffer).
+    */
+    info->next_block-= (info->next_block % share->block.records_in_block);
     if (info->next_block >= share->records+share->deleted)
     {
       info->next_block= share->records+share->deleted;

@@ -158,3 +158,61 @@ insert into t2 (b2,c2) values (62,61);
 delete from t1 where b1=61 and c1=62;
 
 drop table t2, t1;
+
+-- echo #
+-- echo # BUG#18560951 NDB_RESTORE INCLUDES FK FOR ALL DATABASES WHEN USING --INCLUDE-* OR --EXCLUDE
+-- echo #
+
+-- echo # create database db1 with tables t1,t2
+create database db1;
+
+create table db1.t1 (
+  a1 int primary key
+) engine ndb;
+
+create table db1.t2 (
+  a1 int,
+  foreign key fk1(a1) references t1(a1)
+) engine ndb;
+
+-- echo # create database db2 with table tb1
+
+create database db2;
+
+create table db2.t1 (
+  a1 int primary key
+) engine ndb;
+
+-- echo # take backup and drop the tables
+--source include/ndb_backup.inc
+drop table db1.t2, db1.t1, db2.t1;
+
+-- echo # now try restoring only the database db2
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -m -r --include-databases=db2 --print --print_meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+
+-- echo # verify the tables present
+show tables from db2;
+--disable_warnings
+show create table db2.t1;
+--enable_warnings
+drop table db2.t1;
+
+-- echo # restore particular table and check for fk problem
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -m -r --include-tables=db1.t1,db2.t1 --print --print_meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+
+-- echo # verify the tables present
+show tables from db1;
+show tables from db2;
+--disable_warnings
+show create table db1.t1;
+show create table db2.t1;
+--enable_warnings
+drop table db1.t1, db2.t1;
+
+--echo # verify that restoring table with FK whose parent doesn't exist, fails
+--error 1
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -m -r --skip-core-file --include-tables=db1.t2 --print --print_meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+
+--echo # cleanup
+drop database db1;
+drop database db2;

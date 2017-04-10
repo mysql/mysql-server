@@ -109,7 +109,7 @@ show create table v1;
 Table	Create Table
 v1	CREATE TEMPORARY TABLE `v1` (
   `A` varchar(19) NOT NULL DEFAULT ''
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 show create view v1;
 View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select 'This is view' AS `A`	latin1	latin1_swedish_ci
@@ -147,7 +147,7 @@ CREATE TEMPORARY TABLE t2 (i INT);
 DROP TEMPORARY TABLE t2, t1;
 ERROR 42S02: Unknown table 'test.t1'
 SELECT * FROM t2;
-ERROR 42S02: Table 'test.t2' doesn't exist
+i
 SELECT * FROM t1;
 i
 DROP TABLE t1;
@@ -259,18 +259,32 @@ INSERT INTO t2 VALUES (11), (12), (13);
 INSERT INTO t3 VALUES (101), (102), (103);
 OPTIMIZE TABLE t1, t2, t3;
 Table	Op	Msg_type	Msg_text
+test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
 test.t1	optimize	status	OK
+test.t2	optimize	note	Table does not support optimize, doing recreate + analyze instead
 test.t2	optimize	status	OK
+test.t3	optimize	note	Table does not support optimize, doing recreate + analyze instead
 test.t3	optimize	status	OK
 INSERT INTO t1 VALUES (1), (2), (3);
 INSERT INTO t2 VALUES (11), (12), (13);
 INSERT INTO t3 VALUES (101), (102), (103);
 REPAIR TABLE t1, t2, t3;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	status	OK
-test.t2	repair	status	OK
-test.t3	repair	status	OK
+test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t2	repair	note	The storage engine for the table doesn't support repair
+test.t3	repair	note	The storage engine for the table doesn't support repair
 DROP TABLES t1, t2, t3;
+DROP TABLE IF EXISTS t1;
+CREATE TEMPORARY TABLE t1(a INT) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (1), (2), (3);
+OPTIMIZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	optimize	status	OK
+INSERT INTO t1 VALUES (1), (2), (3);
+REPAIR TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	repair	status	OK
+DROP TABLES t1;
 #
 # Bug#19497209 SEGMENTATION FAULT IN FILL_RECORD FOR MULTI_UPDATE
 # Bug#19628808 MULTI-UPDATE CRASH WITH LONG PRIMARY KEY
@@ -299,3 +313,13 @@ COUNT(DISTINCT t1.a)	b
 0	NULL
 1	2
 DROP TABLE t1,t2;
+#
+# Bug24713918: ASSERTION `MDL_CHECKER::IS_READ_LOCKED(M_THD, *OBJECT)'
+#              FAILED.
+#
+CREATE DATABASE db1;
+CREATE TABLE t1(a INT);
+CREATE TEMPORARY TABLE t1(c1 INT);
+ALTER TABLE t1 RENAME TO db1.t1;
+DROP DATABASE db1;
+DROP TABLE t1;

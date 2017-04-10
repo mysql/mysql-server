@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,7 +18,9 @@
 #ifndef NDB_LOG_H
 #define NDB_LOG_H
 
-#include <my_global.h>
+#include <stdarg.h>
+
+#include "my_compiler.h"
 
 // Returns the current verbose level
 unsigned ndb_log_get_verbose_level(void);

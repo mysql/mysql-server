@@ -33,6 +33,12 @@ Warning	1292	Truncated incorrect key_cache_age_threshold value: '65535'
 SELECT @@global.key_cache_age_threshold;
 @@global.key_cache_age_threshold
 65500
+SET @@global.key_cache_age_threshold = 18446744073709551615;
+Warnings:
+Warning	1292	Truncated incorrect key_cache_age_threshold value: '18446744073709551615'
+SELECT @@global.key_cache_age_threshold;
+@@global.key_cache_age_threshold
+18446744073709551600
 '#--------------------FN_DYNVARS_056_04-------------------------#'
 SET @@global.key_cache_age_threshold = -1;
 Warnings:
@@ -40,17 +46,11 @@ Warning	1292	Truncated incorrect key_cache_age_threshold value: '-1'
 SELECT @@global.key_cache_age_threshold;
 @@global.key_cache_age_threshold
 100
-SET @@global.key_cache_age_threshold = 42949672951;
-Warnings:
-Warning	1292	Truncated incorrect key_cache_age_threshold value: '42949672951'
-SELECT @@global.key_cache_age_threshold;
-@@global.key_cache_age_threshold
-42949672900
 SET @@global.key_cache_age_threshold = 10000.01;
 ERROR 42000: Incorrect argument type to variable 'key_cache_age_threshold'
 SELECT @@global.key_cache_age_threshold;
 @@global.key_cache_age_threshold
-42949672900
+100
 SET @@global.key_cache_age_threshold = -1024;
 Warnings:
 Warning	1292	Truncated incorrect key_cache_age_threshold value: '-1024'
@@ -73,6 +73,11 @@ ERROR 42000: Incorrect argument type to variable 'key_cache_age_threshold'
 SELECT @@global.key_cache_age_threshold;
 @@global.key_cache_age_threshold
 100
+SET @@global.key_cache_age_threshold = 18446744073709551616;
+ERROR 42000: Incorrect argument type to variable 'key_cache_age_threshold'
+SELECT @@global.key_cache_age_threshold;
+@@global.key_cache_age_threshold
+100
 '#-------------------FN_DYNVARS_056_05----------------------------#'
 SET @@session.key_cache_age_threshold = 0;
 ERROR HY000: Variable 'key_cache_age_threshold' is a GLOBAL variable and should be set with SET GLOBAL
@@ -80,12 +85,12 @@ SELECT @@session.key_cache_age_threshold;
 ERROR HY000: Variable 'key_cache_age_threshold' is a GLOBAL variable
 '#----------------------FN_DYNVARS_056_06------------------------#'
 SELECT @@global.key_cache_age_threshold = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='key_cache_age_threshold';
 @@global.key_cache_age_threshold = VARIABLE_VALUE
 1
 SELECT @@key_cache_age_threshold = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+FROM performance_schema.session_variables 
 WHERE VARIABLE_NAME='key_cache_age_threshold';
 @@key_cache_age_threshold = VARIABLE_VALUE
 1

@@ -1,0 +1,39 @@
+include/save_binlog_position.inc
+# ----------------------------------------------------------------------
+# Begin : Tests for GRANT ROLE
+CREATE USER userX, userY, userZ;
+CREATE ROLE roleX, roleY, roleZ;
+include/save_binlog_position.inc
+# Case 1 : Execute GRANT ROLE for existing users
+GRANT roleX, roleY TO userX, userY;
+# Must show grants
+SELECT FROM_USER, TO_USER FROM mysql.role_edges;
+FROM_USER	TO_USER
+roleX	userX
+roleX	userY
+roleY	userX
+roleY	userY
+# This event sequence pattern MUST be present in binlog: !Q(GRANT.*roleX.*roleY.*TO.*userX.*userY.*)
+include/assert_binlog_events.inc
+include/save_binlog_position.inc
+# Case 2 : Execute GRANT ROLE for non-existing users
+GRANT roleZ, roleA TO userX, userY;
+ERROR HY000: Unknown authorization ID `roleA`@`%`
+GRANT roleZ TO userX, userA;
+ERROR HY000: Unknown authorization ID `userA`@`%`
+# Must not have changed
+SELECT FROM_USER, TO_USER FROM mysql.role_edges;
+FROM_USER	TO_USER
+roleX	userX
+roleX	userY
+roleY	userX
+roleY	userY
+# This event sequence pattern MUST NOT be present in binlog: !Q(GRANT.*roleZ.*roleA.*TO.*userX.*userY.*)
+include/assert_binlog_events.inc
+# This event sequence pattern MUST NOT be present in binlog: !Q(GRANT.*roleZ.*TO.*userX.*userA.*)
+include/assert_binlog_events.inc
+DROP ROLE roleX, roleY, roleZ;
+DROP USER userX, userY, userZ;
+include/save_binlog_position.inc
+# End : Tests for GRANT ROLE
+# ----------------------------------------------------------------------

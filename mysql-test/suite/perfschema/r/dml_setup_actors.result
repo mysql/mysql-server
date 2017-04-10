@@ -41,7 +41,7 @@ update performance_schema.setup_actors
 set host='ILLEGAL';
 ERROR HY000: Invalid performance_schema usage.
 update performance_schema.setup_actors
-set role='ILLEGAL';
+set `role`='ILLEGAL';
 ERROR HY000: Invalid performance_schema usage.
 update performance_schema.setup_actors
 set ENABLED='YES';

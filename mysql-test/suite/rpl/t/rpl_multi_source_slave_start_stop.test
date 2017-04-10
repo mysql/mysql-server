@@ -81,22 +81,25 @@ STOP SLAVE;
 --echo #
 
 --echo # 3.a) Test START SLAVE IO_THREAD FOR CHANNEL
---let $rpl_channel_name= channel_1
+--let $rpl_channel_name= 'channel_1'
 --source include/start_slave_io.inc
 
 --echo # 3.b) Test START SLAVE SQL_THREAD FOR CHANNEL
---let $rpl_channel_name= channel_1
+--let $rpl_channel_name= 'channel_1'
 --source include/start_slave_sql.inc
 
 --echo # 3.c) Test STOP SLAVE IO_THREAD FOR CHANNEL
---let $rpl_channel_name= channel_1
+--let $rpl_channel_name= 'channel_1'
 --source include/stop_slave_io.inc
 
 --echo # 3.d) Test STOP SLAVE SQL_THREAD FOR CHANNEL
---let $rpl_channel_name= channel_1
+--let $rpl_channel_name= 'channel_1'
 --source include/stop_slave_sql.inc
 
 
 --let $rpl_skip_sync= 1
 --let $rpl_only_running_threads= 1
 --source include/rpl_end.inc
+
+# Remove this line after Bug#24700334 is fixed
+--source include/force_restart.inc

@@ -1,7 +1,7 @@
 #ifndef SQL_STRING_INCLUDED
 #define SQL_STRING_INCLUDED
 
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,12 +18,32 @@
 
 /* This file is originally from the mysql distribution. Coded by monty */
 
-#include "m_ctype.h"                            /* my_charset_bin */
-#include "my_sys.h"              /* alloc_root, my_free, my_realloc */
-#include "m_string.h"                           /* TRASH */
+/**
+  @file include/sql_string.h
+*/
+
+#include <string.h>
+#include <sys/types.h>
+#include <new>
+
+#include "lex_string.h"
+#include "m_ctype.h"                         // my_convert
+#include "m_string.h"                        // LEX_CSTRING
+#include "mem_root_fwd.h"
+#include "my_byteorder.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_sys.h"                          // alloc_root
+#include "mysql/mysql_lex_string.h"          // LEX_STRING
+#include "mysql/psi/psi_base.h"
+#include "mysql/psi/psi_memory.h"
+#include "mysql/service_mysql_alloc.h"       // my_free
 
 #ifdef MYSQL_SERVER
+extern "C" {
 extern PSI_memory_key key_memory_String_value;
+}
 #define STRING_PSI_MEMORY_KEY key_memory_String_value
 #else
 #define STRING_PSI_MEMORY_KEY PSI_NOT_INSTRUMENTED
@@ -45,7 +65,7 @@ class Simple_cstring
 private:
   const char *m_str;
   size_t m_length;
-protected:
+public:
   /**
     Initialize from a C string whose length is already known.
   */
@@ -58,7 +78,6 @@ protected:
     m_str= str_arg;
     m_length= length_arg;
   }
-public:
   Simple_cstring()
   {
     set(NULL, 0);
@@ -114,12 +133,12 @@ public:
 
 
 class String;
+
 typedef struct charset_info_st CHARSET_INFO;
 typedef struct st_io_cache IO_CACHE;
-typedef struct st_mem_root MEM_ROOT;
 
 int sortcmp(const String *a,const String *b, const CHARSET_INFO *cs);
-String *copy_if_not_alloced(String *a, String *b, size_t arg_length);
+String *copy_if_not_alloced(String *to, String *from, size_t from_length);
 inline size_t copy_and_convert(char *to, size_t to_length,
                                const CHARSET_INFO *to_cs,
                                const char *from, size_t from_length,
@@ -176,7 +195,9 @@ public:
      m_alloced_length(static_cast<uint32>(str.m_alloced_length)),
      m_is_alloced(false)
   { }
-  static void *operator new(size_t size, MEM_ROOT *mem_root) throw ()
+  static void *operator new(size_t size, MEM_ROOT *mem_root,
+                            const std::nothrow_t &arg MY_ATTRIBUTE((unused))
+                            = std::nothrow) throw ()
   { return alloc_root(mem_root, size); }
   static void operator delete(void *ptr_arg, size_t size)
   {
@@ -184,8 +205,11 @@ public:
     (void) size;
     TRASH(ptr_arg, size);
   }
-  static void operator delete(void *, MEM_ROOT *)
+
+  static void operator delete(void *, MEM_ROOT *,
+                              const std::nothrow_t &) throw ()
   { /* never called */ }
+
   ~String() { mem_free(); }
 
   void set_charset(const CHARSET_INFO *charset_arg)
@@ -197,13 +221,18 @@ public:
   void length(size_t len) { m_length= len; }
   bool is_empty() const { return (m_length == 0); }
   void mark_as_const() { m_alloced_length= 0;}
+  /* Returns a pointer to data, may not include NULL terminating character. */
   const char *ptr() const { return m_ptr; }
   char *c_ptr()
   {
     DBUG_ASSERT(!m_is_alloced || !m_ptr || !m_alloced_length ||
                 (m_alloced_length >= (m_length + 1)));
 
-    if (!m_ptr || m_ptr[m_length])		/* Should be safe */
+    /*
+      Should be safe, but in case valgrind complains on this line, it means
+      there is a misuse of c_ptr(). Please prefer <ptr(), length()> instead.
+    */
+    if (!m_ptr || m_ptr[m_length])
       (void) mem_realloc(m_length);
     return m_ptr;
   }
@@ -294,14 +323,14 @@ public:
   /*
     PMG 2004.11.12
     This is a method that works the same as perl's "chop". It simply
-    drops the last character of a string. This is useful in the case
+    drops the last byte of a string. This is useful in the case
     of the federated storage handler where I'm building a unknown
     number, list of values and fields to be used in a sql insert
     statement to be run on the remote server, and have a comma after each.
     When the list is complete, I "chop" off the trailing comma
 
-    ex. 
-      String stringobj; 
+    ex.
+      String stringobj;
       stringobj.append("VALUES ('foo', 'fi', 'fo',");
       stringobj.chop();
       stringobj.append(")");
@@ -311,13 +340,13 @@ public:
     VALUES ('foo', 'fi', 'fo',
     VALUES ('foo', 'fi', 'fo'
     VALUES ('foo', 'fi', 'fo')
-      
+
+    This is not safe to call when the string ends in a multi-byte character!
   */
   void chop()
   {
     m_length--;
     m_ptr[m_length]= '\0';
-    DBUG_ASSERT(strlen(m_ptr) == m_length);
   }
 
   void mem_claim()
@@ -453,8 +482,26 @@ public:
   bool append_with_prefill(const char *s, size_t arg_length, 
 			   size_t full_length, char fill_char);
   bool append_parenthesized(long nr, int radix= 10);
-  int strstr(const String &search,size_t offset=0); // Returns offset to substring or -1
-  int strrstr(const String &search,size_t offset=0); // Returns offset to substring or -1
+  /**
+    Search for a substring.
+
+    @param search    substring to search for
+    @param offset    starting point, bytes from the start of the string
+
+    @return byte offset to the substring from the start of this string
+    @retval -1 if the substring is not found starting from the offset
+  */
+  int strstr(const String &search, size_t offset= 0) const;
+  /**
+    Reverse search for a substring.
+
+    @param search    substring to search for
+    @param offset    starting point, bytes from the start of the string
+
+    @return byte offset to the substring from the start of this string
+    @retval -1 if the substring is not found starting from the offset
+  */
+  int strrstr(const String &search, size_t offset= 0) const;
   /**
    * Returns substring of given characters lenght, starting at given character offset.
    * Note that parameter indexes are character indexes and not byte indexes.
@@ -471,7 +518,7 @@ public:
     }
     else
     {
-      if (mem_realloc_exp(m_length + 1))
+      if (mem_realloc_exp(m_length+1))
 	return 1;
       m_ptr[m_length++]= chr;
     }
@@ -481,9 +528,9 @@ public:
   void strip_sp();
   friend int sortcmp(const String *a,const String *b, const CHARSET_INFO *cs);
   friend int stringcmp(const String *a,const String *b);
-  friend String *copy_if_not_alloced(String *a,String *b, size_t arg_length);
+  friend String *copy_if_not_alloced(String *to, String *from, size_t from_length);
   size_t numchars() const;
-  size_t charpos(size_t i, size_t offset=0);
+  size_t charpos(size_t i, size_t offset= 0) const;
 
   int reserve(size_t space_needed)
   {
@@ -634,8 +681,8 @@ public:
 };
 
 
-static inline bool check_if_only_end_space(const CHARSET_INFO *cs, char *str, 
-                                           char *end)
+static inline bool check_if_only_end_space(const CHARSET_INFO *cs,
+                                           const char *str, const char *end)
 {
   return str+ cs->cset->scan(cs, str, end, MY_SEQ_SPACES) == end;
 }
@@ -663,4 +710,7 @@ inline LEX_CSTRING to_lex_cstring(const char *s)
 bool
 validate_string(const CHARSET_INFO *cs, const char *str, uint32 length,
                 size_t *valid_length, bool *length_error);
+
+bool append_escaped(String *to_str, const String *from_str);
+
 #endif /* SQL_STRING_INCLUDED */

@@ -82,12 +82,12 @@ SELECT @@read_only;
 0
 '#----------------------FN_DYNVARS_139_06------------------------#'
 SELECT IF(@@global.read_only, "ON", "OFF") = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='read_only';
 IF(@@global.read_only, "ON", "OFF") = VARIABLE_VALUE
 1
 SELECT IF(@@read_only, "ON", "OFF") = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+FROM performance_schema.session_variables 
 WHERE VARIABLE_NAME='read_only';
 IF(@@read_only, "ON", "OFF") = VARIABLE_VALUE
 1

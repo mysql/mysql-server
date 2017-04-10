@@ -1,11 +1,17 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 # This test can't be run with running server (--extern) as this uses
 # load_file() on a file in the tree.
 #
+--source include/have_myisam.inc
+
+########################################
+##### WL#7554 Force schema `test` to character set latin1
+##### This test should be migrated to utf8mb4
+--disable_query_log
+let $testdbcs295=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
+alter schema default character set latin1;
+use test;
+--enable_query_log
+########################################
 
 #
 # Basic cleanup
@@ -136,8 +142,8 @@ select d,count(*) from t1 group by d;
 drop table t1;
 
 -- error 1071
-create table t1 (a text, unique (a(2100))); # should give an error
-create table t1 (a text, key (a(2100)));    # key is auto-truncated
+create table t1 (a text, unique (a(2100))) engine=myisam; # should give an error
+create table t1 (a text, key (a(2100))) engine=myisam;    # key is auto-truncated
 show create table t1;
 drop table t1;
 
@@ -368,6 +374,7 @@ drop table t1;
 create table t1 (id integer primary key auto_increment, txt text, index txt_index (txt (20)));
 insert into t1 (txt) values ('Chevy'), ('Chevy '), (NULL);
 select * from t1 where txt='Chevy' or txt is NULL;
+analyze table t1;
 explain select * from t1 where txt='Chevy' or txt is NULL;
 select * from t1 where txt='Chevy ';
 select * from t1 where txt='Chevy ' or txt='Chevy';
@@ -388,6 +395,7 @@ select * from t1 where txt <= 'Chevy';
 select * from t1 where txt > 'Chevy';
 select * from t1 where txt >= 'Chevy';
 alter table t1 modify column txt blob;
+analyze table t1;
 explain select * from t1 where txt='Chevy' or txt is NULL;
 select * from t1 where txt='Chevy' or txt is NULL;
 explain select * from t1 where txt='Chevy' or txt is NULL order by txt;
@@ -847,3 +855,10 @@ SELECT ( SELECT ( b <> 1 ) FROM t2) <> ALL(SELECT 1681007452 FROM t1) FROM t1;
 SELECT ( SELECT ( b <> 1 ) FROM t2) <> ALL(SELECT 1681007452 FROM t1) FROM t1;
 DROP TABLE t1,t2;
 set sql_mode=default;
+
+########################################
+##### WL#7554 set schema `test` back to what it was
+--disable_query_log
+--eval alter schema test default character set $testdbcs295;
+--enable_query_log
+########################################

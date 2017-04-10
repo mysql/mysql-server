@@ -3,13 +3,24 @@
 #	    MySQL Optimizer
 #
 
---source include/have_innodb.inc
 --source include/no_valgrind_without_big.inc
 --source include/not_embedded.inc
 
+# Temporarily skipping the test when log-bin is enabled due to Bug#22472365
+--source include/not_log_bin.inc
+
+########################################
+##### WL#7554 Force schema `test` to character set latin1
+##### This test should be migrated to utf8mb4
+--disable_query_log
+let $testdbcs76=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
+alter schema default character set latin1;
+use test;
+--enable_query_log
+########################################
+
 # Optimizer plan are printed as part of the test-case and changing page
 # size will affect the optimizer plan numbers. so enable it only for 16K
---source include/have_innodb_16k.inc
 
 
 ################################################################################
@@ -39,7 +50,16 @@ let $restart_parameters = restart: --big-tables=1;
 #
 # Workload in read-only mode.
 #
-let $restart_parameters = restart: --innodb-read-only --big-tables=1;
+
+# Suppress warning regarding re-populating charsets and collations.
+--disable_query_log
+CALL mtr.add_suppression("Skip re-populating collations and character sets tables in InnoDB read-only mode.");
+--enable_query_log
+
+# Force a change buffer merge, so that --innodb-read-only will not
+# # refuse startup, in case there exist buffered changes from earlier tests.
+SET GLOBAL innodb_fast_shutdown = 0;
+let $restart_parameters = restart: --big-tables=1 --innodb-read-only;
 --source include/restart_mysqld.inc
 
 --source suite/innodb/include/query_workload_itt.inc
@@ -147,3 +167,10 @@ SELECT 'SUCCESS_INNODB_CMPMEM' FROM DUAL WHERE EXISTS
 
 SELECT 'SUCCESS_INNODB_CMP' FROM DUAL WHERE EXISTS
 (SELECT * FROM INFORMATION_SCHEMA.INNODB_CMPMEM_RESET);
+
+########################################
+##### WL#7554 set schema `test` back to what it was
+--disable_query_log
+--eval alter schema test default character set $testdbcs76;
+--enable_query_log
+########################################

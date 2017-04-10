@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -13,20 +13,16 @@
   along with this program; if not, write to the Free Software Foundation,
   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include <my_global.h>
+#include <memory.h>
 #include <my_thread.h>
-#include <pfs_instr.h>
-#include <pfs_stat.h>
-#include <pfs_global.h>
-#include <pfs_instr_class.h>
 #include <pfs_buffer_container.h>
+#include <pfs_global.h>
+#include <pfs_instr.h>
+#include <pfs_instr_class.h>
+#include <pfs_stat.h>
 #include <tap.h>
 
-#include "stub_global_status_var.h"
-
-#include <memory.h>
-
-void test_no_instruments()
+static void test_no_instruments()
 {
   int rc;
   PFS_global_param param;
@@ -70,6 +66,7 @@ void test_no_instruments()
   param.m_statement_stack_sizing= 0;
   param.m_memory_class_sizing= 0;
   param.m_metadata_lock_sizing= 0;
+  param.m_error_sizing= 0;
 
   init_event_name_sizing(& param);
   rc= init_instruments(& param);
@@ -78,7 +75,7 @@ void test_no_instruments()
   cleanup_instruments();
 }
 
-void test_no_instances()
+static void test_no_instances()
 {
   int rc;
   PFS_mutex_class dummy_mutex_class;
@@ -157,6 +154,7 @@ void test_no_instances()
   param.m_statement_stack_sizing= 0;
   param.m_memory_class_sizing= 1;
   param.m_metadata_lock_sizing= 0;
+  param.m_error_sizing= 0;
 
   init_event_name_sizing(& param);
   rc= init_instruments(& param);
@@ -239,7 +237,7 @@ void test_no_instances()
   cleanup_instruments();
 }
 
-void test_with_instances()
+static void test_with_instances()
 {
   int rc;
   PFS_mutex_class dummy_mutex_class;
@@ -304,6 +302,7 @@ void test_with_instances()
   param.m_statement_stack_sizing= 0;
   param.m_memory_class_sizing= 1;
   param.m_metadata_lock_sizing= 0;
+  param.m_error_sizing= 0;
 
   init_event_name_sizing(& param);
   rc= init_instruments(& param);
@@ -461,7 +460,7 @@ void test_with_instances()
   cleanup_instruments();
 }
 
-void do_all_tests()
+static void do_all_tests()
 {
   flag_global_instrumentation= true;
   flag_thread_instrumentation= true;
@@ -476,6 +475,6 @@ int main(int, char **)
   plan(103);
   MY_INIT("pfs_instr-t");
   do_all_tests();
-  return 0;
+  return (exit_status());
 }
 

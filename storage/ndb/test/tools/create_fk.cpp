@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -143,15 +143,15 @@ static
 NdbDictionary::ForeignKey::FkAction
 parse_action(const char * str)
 {
-  if (strcasecmp(str, "noaction") == 0)
+  if (native_strcasecmp(str, "noaction") == 0)
     return NdbDictionary::ForeignKey::NoAction;
-  if (strcasecmp(str, "restrict") == 0)
+  if (native_strcasecmp(str, "restrict") == 0)
     return NdbDictionary::ForeignKey::Restrict;
-  else if (strcasecmp(str, "cascade") == 0)
+  else if (native_strcasecmp(str, "cascade") == 0)
     return NdbDictionary::ForeignKey::Cascade;
-  else if (strcasecmp(str, "setnull") == 0)
+  else if (native_strcasecmp(str, "setnull") == 0)
     return NdbDictionary::ForeignKey::SetNull;
-  else if (strcasecmp(str, "setnull") == 0)
+  else if (native_strcasecmp(str, "setnull") == 0)
     return NdbDictionary::ForeignKey::SetDefault;
 
   ndbout_c("Unknown action: %s "

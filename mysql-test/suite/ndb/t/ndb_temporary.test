@@ -1,13 +1,4 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 -- source include/have_ndb.inc
-
---disable_warnings
-DROP TABLE IF EXISTS t1;
---enable_warnings
 
 #
 # creating a temporary table with engine=ndb should give an error
@@ -34,8 +25,9 @@ CREATE TEMPORARY TABLE foo LIKE bar ;
 DROP TABLE bar;
 
 #
-# if default storage engine=ndb, temporary tables
-# without explicit engine= should be created as myisam
+# When default storage engine=ndb, temporary tables
+# without explicit engine= should be created using the
+# default temporary table engine
 #
 SET SESSION default_storage_engine=NDBCLUSTER;
 create table t1 (a int key);
@@ -46,5 +38,7 @@ drop table t1;
 
 # verify that we have a myisam table
 create temporary table t1 (a int key);
+--disable_warnings
 show create table t1;
+--enable_warnings
 drop table t1;

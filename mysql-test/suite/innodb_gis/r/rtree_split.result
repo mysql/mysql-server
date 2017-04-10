@@ -73,6 +73,7 @@ set @g1 = ST_GeomFromText('Polygon((0 0,0 100,100 100,100 0,0 0))');
 select count(*) from t1 where MBRWithin(t1.c2, @g1);
 count(*)
 73728
+SET GLOBAL innodb_fast_shutdown = 0;
 # restart: --innodb-read-only
 set @g1 = ST_GeomFromText('Polygon((0 0,0 100,100 100,100 0,0 0))');
 select count(*) from t1 where MBRWithin(t1.c2, @g1);

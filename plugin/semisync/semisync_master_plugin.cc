@@ -1,5 +1,5 @@
 /* Copyright (C) 2007 Google Inc.
-   Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,9 +15,19 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
 
+#include <stddef.h>
+#include <sys/types.h>
+
+#include "current_thd.h"
+#include "my_inttypes.h"
+#include "my_macros.h"
+#include "my_psi_config.h"
+#include "mysql/psi/mysql_memory.h"
+#include "mysql/psi/mysql_stage.h"
 #include "semisync_master.h"
-#include "sql_class.h"                          // THD
 #include "semisync_master_ack_receiver.h"
+#include "sql_class.h"                          // THD
+#include "typelib.h"
 
 ReplSemiSyncMaster repl_semisync;
 Ack_receiver ack_receiver;
@@ -45,9 +55,9 @@ static inline bool is_semi_sync_dump()
 
 C_MODE_START
 
-int repl_semi_report_binlog_update(Binlog_storage_param *param,
-				   const char *log_file,
-				   my_off_t log_pos)
+static int repl_semi_report_binlog_update(Binlog_storage_param*,
+                                          const char *log_file,
+                                          my_off_t log_pos)
 {
   int  error= 0;
 
@@ -65,36 +75,31 @@ int repl_semi_report_binlog_update(Binlog_storage_param *param,
   return error;
 }
 
-int repl_semi_report_binlog_sync(Binlog_storage_param *param,
-                                 const char *log_file,
-                                 my_off_t log_pos)
+static int repl_semi_report_binlog_sync(Binlog_storage_param*,
+                                        const char *log_file,
+                                        my_off_t log_pos)
 {
   if (rpl_semi_sync_master_wait_point == WAIT_AFTER_SYNC)
     return repl_semisync.commitTrx(log_file, log_pos);
   return 0;
 }
 
-int repl_semi_report_before_dml(Trans_param *param, int& out)
+static int repl_semi_report_before_dml(Trans_param*, int&)
 {
   return 0;
 }
 
-int repl_semi_request_commit(Trans_param *param)
+static int repl_semi_report_before_commit(Trans_param*)
 {
   return 0;
 }
 
-int repl_semi_report_before_commit(Trans_param *param)
+static int repl_semi_report_before_rollback(Trans_param*)
 {
   return 0;
 }
 
-int repl_semi_report_before_rollback(Trans_param *param)
-{
-  return 0;
-}
-
-int repl_semi_report_commit(Trans_param *param)
+static int repl_semi_report_commit(Trans_param *param)
 {
 
   bool is_real_trans= param->flags & TRANS_IS_REAL_TRANS;
@@ -108,14 +113,14 @@ int repl_semi_report_commit(Trans_param *param)
   return 0;
 }
 
-int repl_semi_report_rollback(Trans_param *param)
+static int repl_semi_report_rollback(Trans_param *param)
 {
   return repl_semi_report_commit(param);
 }
 
-int repl_semi_binlog_dump_start(Binlog_transmit_param *param,
-				 const char *log_file,
-				 my_off_t log_pos)
+static int repl_semi_binlog_dump_start(Binlog_transmit_param *param,
+                                       const char *log_file,
+                                       my_off_t log_pos)
 {
   long long semi_sync_slave= 0;
 
@@ -159,7 +164,7 @@ int repl_semi_binlog_dump_start(Binlog_transmit_param *param,
   return 0;
 }
 
-int repl_semi_binlog_dump_end(Binlog_transmit_param *param)
+static int repl_semi_binlog_dump_end(Binlog_transmit_param *param)
 {
   bool semi_sync_slave= is_semi_sync_dump();
 
@@ -176,18 +181,18 @@ int repl_semi_binlog_dump_end(Binlog_transmit_param *param)
   return 0;
 }
 
-int repl_semi_reserve_header(Binlog_transmit_param *param,
-			     unsigned char *header,
-			     unsigned long size, unsigned long *len)
+static int repl_semi_reserve_header(Binlog_transmit_param* ,
+                                    unsigned char *header,
+                                    unsigned long size, unsigned long *len)
 {
   if (is_semi_sync_dump())
     *len +=  repl_semisync.reserveSyncHeader(header, size);
   return 0;
 }
 
-int repl_semi_before_send_event(Binlog_transmit_param *param,
-                                unsigned char *packet, unsigned long len,
-                                const char *log_file, my_off_t log_pos)
+static int repl_semi_before_send_event(Binlog_transmit_param *param,
+                                       unsigned char *packet, unsigned long,
+                                       const char *log_file, my_off_t log_pos)
 {
   if (!is_semi_sync_dump())
     return 0;
@@ -198,10 +203,10 @@ int repl_semi_before_send_event(Binlog_transmit_param *param,
 					param->server_id);
 }
 
-int repl_semi_after_send_event(Binlog_transmit_param *param,
-                               const char *event_buf, unsigned long len,
-                               const char * skipped_log_file,
-                               my_off_t skipped_log_pos)
+static int repl_semi_after_send_event(Binlog_transmit_param *param,
+                                      const char *event_buf, unsigned long,
+                                      const char * skipped_log_file,
+                                      my_off_t skipped_log_pos)
 {
   if (is_semi_sync_dump())
   {
@@ -218,14 +223,14 @@ int repl_semi_after_send_event(Binlog_transmit_param *param,
       */
       (void) repl_semisync.readSlaveReply(
         thd->get_protocol_classic()->get_net(),
-        param->server_id, event_buf);
+        event_buf);
       thd->clear_error();
     }
   }
   return 0;
 }
 
-int repl_semi_reset_master(Binlog_transmit_param *param)
+static int repl_semi_reset_master(Binlog_transmit_param*)
 {
   if (repl_semisync.resetMaster())
     return 1;
@@ -335,20 +340,20 @@ static SYS_VAR* semi_sync_master_system_vars[]= {
   MYSQL_SYSVAR(wait_for_slave_count),
   NULL,
 };
-static void fix_rpl_semi_sync_master_timeout(MYSQL_THD thd,
-				      SYS_VAR *var,
-				      void *ptr,
-				      const void *val)
+static void fix_rpl_semi_sync_master_timeout(MYSQL_THD,
+                                             SYS_VAR *,
+                                             void *ptr,
+                                             const void *val)
 {
   *(unsigned long *)ptr= *(unsigned long *)val;
   repl_semisync.setWaitTimeout(rpl_semi_sync_master_timeout);
   return;
 }
 
-static void fix_rpl_semi_sync_master_trace_level(MYSQL_THD thd,
-					  SYS_VAR *var,
-					  void *ptr,
-					  const void *val)
+static void fix_rpl_semi_sync_master_trace_level(MYSQL_THD,
+                                                 SYS_VAR*,
+                                                 void *ptr,
+                                                 const void *val)
 {
   *(unsigned long *)ptr= *(unsigned long *)val;
   repl_semisync.setTraceLevel(rpl_semi_sync_master_trace_level);
@@ -356,10 +361,10 @@ static void fix_rpl_semi_sync_master_trace_level(MYSQL_THD thd,
   return;
 }
 
-static void fix_rpl_semi_sync_master_enabled(MYSQL_THD thd,
-				      SYS_VAR *var,
-				      void *ptr,
-				      const void *val)
+static void fix_rpl_semi_sync_master_enabled(MYSQL_THD,
+                                             SYS_VAR*,
+                                             void *ptr,
+                                             const void *val)
 {
   *(char *)ptr= *(char *)val;
   if (rpl_semi_sync_master_enabled)
@@ -382,19 +387,19 @@ static void fix_rpl_semi_sync_master_enabled(MYSQL_THD thd,
   return;
 }
 
-static void fix_rpl_semi_sync_master_wait_for_slave_count(MYSQL_THD thd,
-                                                          SYS_VAR *var,
-                                                          void *ptr,
+static void fix_rpl_semi_sync_master_wait_for_slave_count(MYSQL_THD,
+                                                          SYS_VAR*,
+                                                          void*,
                                                           const void *val)
 {
   (void) repl_semisync.setWaitSlaveCount(*(unsigned int*) val);
   return;
 }
 
-static void fix_rpl_semi_sync_master_wait_no_slave(MYSQL_THD thd,
-				      SYS_VAR *var,
-				      void *ptr,
-				      const void *val)
+static void fix_rpl_semi_sync_master_wait_no_slave(MYSQL_THD,
+                                                   SYS_VAR*,
+                                                   void *ptr,
+                                                   const void *val)
 {
   if (rpl_semi_sync_master_wait_no_slave != *(char *)val)
   {
@@ -437,7 +442,7 @@ Binlog_transmit_observer transmit_observer = {
   rpl_semi_sync_master_show_##name
 
 #define DEF_SHOW_FUNC(name, show_type)					\
-  static  int SHOW_FNAME(name)(MYSQL_THD thd, SHOW_VAR *var, char *buff) \
+  static  int SHOW_FNAME(name)(MYSQL_THD, SHOW_VAR *var, char*)         \
   {									\
     repl_semisync.setExportStats();					\
     var->type= show_type;						\
@@ -510,8 +515,8 @@ PSI_mutex_key key_ss_mutex_Ack_receiver_mutex;
 
 static PSI_mutex_info all_semisync_mutexes[]=
 {
-  { &key_ss_mutex_LOCK_binlog_, "LOCK_binlog_", 0},
-  { &key_ss_mutex_Ack_receiver_mutex, "Ack_receiver::m_mutex", 0}
+  { &key_ss_mutex_LOCK_binlog_, "LOCK_binlog_", 0, 0},
+  { &key_ss_mutex_Ack_receiver_mutex, "Ack_receiver::m_mutex", 0, 0}
 };
 
 PSI_cond_key key_ss_cond_COND_binlog_send_;
@@ -561,19 +566,19 @@ static void init_semisync_psi_keys(void)
   const char* category= "semisync";
   int count;
 
-  count= array_elements(all_semisync_mutexes);
+  count= static_cast<int>(array_elements(all_semisync_mutexes));
   mysql_mutex_register(category, all_semisync_mutexes, count);
 
-  count= array_elements(all_semisync_conds);
+  count= static_cast<int>(array_elements(all_semisync_conds));
   mysql_cond_register(category, all_semisync_conds, count);
 
-  count= array_elements(all_semisync_stages);
+  count= static_cast<int>(array_elements(all_semisync_stages));
   mysql_stage_register(category, all_semisync_stages, count);
 
-  count= array_elements(all_semisync_memory);
+  count= static_cast<int>(array_elements(all_semisync_memory));
   mysql_memory_register(category, all_semisync_memory, count);
 
-  count= array_elements(all_semisync_threads);
+  count= static_cast<int>(array_elements(all_semisync_threads));
   mysql_thread_register(category, all_semisync_threads, count);
 }
 #endif /* HAVE_PSI_INTERFACE */

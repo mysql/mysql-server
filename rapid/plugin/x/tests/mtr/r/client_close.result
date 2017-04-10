@@ -4,6 +4,7 @@ call mtr.add_suppression("Plugin mysqlx reported: .Failed at SSL configuration: 
 call mtr.add_suppression("Plugin mysqlx reported: .SSL_CTX_load_verify_locations failed.");
 call mtr.add_suppression('Message of size 4294967040 received, exceeding the limit of 1048576');
 call mtr.add_suppression('21.1: Unsuccessful login attempt: Invalid user or password');
+call mtr.add_suppression("Plugin \'InnoDB\'");
 select sleep(1);
 sleep(1)
 0
@@ -240,9 +241,7 @@ send Mysqlx.Sql.StmtExecute {
   namespace: "xplugin"
 }
 
-
-command ok
-Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
+Got expected error (one of: 0 1095 )
 switched to session sess
 aborting session sess
 switched to session default
@@ -272,8 +271,7 @@ send Mysqlx.Sql.StmtExecute {
   namespace: "xplugin"
 }
 
-
-command ok
+Got expected error (one of: 0 1095 )
 switched to session sess
 Got expected error (one of: 1317 2006 2007 5010 )
 aborting session sess
@@ -296,8 +294,7 @@ send Mysqlx.Sql.StmtExecute {
   namespace: "xplugin"
 }
 
-
-command ok
+Got expected error (one of: 0 1095 )
 switched to session sess
 RUN select 1
 While executing select 1:
@@ -325,8 +322,7 @@ send Mysqlx.Sql.StmtExecute {
   namespace: "xplugin"
 }
 
-
-command ok
+Got expected error (one of: 0 1095 )
 switched to session sess
 Got expected error (one of: 2006 2007 )
 aborting session sess

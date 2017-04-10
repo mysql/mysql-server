@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2017, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -13,15 +13,18 @@
  along with this program; if not, write to the Free Software
  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-/*
-  This is a private header of sql-common library, containing
-  declarations for my_time.c
-*/
-
 #ifndef _my_time_h_
 #define _my_time_h_
-#include "my_global.h"
+#include <limits.h>
+#include <stddef.h>
+#include <sys/types.h>
+
+#include "my_config.h"
+#include "my_inttypes.h"
+#include "my_macros.h"
 #include "mysql_time.h"
+
+struct timeval;
 
 C_MODE_START
 
@@ -70,7 +73,7 @@ typedef enum enum_mysql_timestamp_type timestamp_type;
 typedef uint my_time_flags_t;
 static const my_time_flags_t TIME_FUZZY_DATE=         1;
 static const my_time_flags_t TIME_DATETIME_ONLY=      2;
-static const my_time_flags_t TIME_NO_NSEC_ROUNDING=   4;
+static const my_time_flags_t TIME_FRAC_TRUNCATE=      4;
 static const my_time_flags_t TIME_NO_DATE_FRAC_WARN=  8;
 static const my_time_flags_t TIME_NO_ZERO_IN_DATE=   16;
 static const my_time_flags_t TIME_NO_ZERO_DATE=      32;
@@ -113,13 +116,13 @@ static inline void my_time_status_init(MYSQL_TIME_STATUS *status)
 }
 
 
-my_bool check_date(const MYSQL_TIME *ltime, my_bool not_zero_date,
-                   my_time_flags_t flags, int *was_cut);
-my_bool str_to_datetime(const char *str, size_t length, MYSQL_TIME *l_time,
-                        my_time_flags_t flags, MYSQL_TIME_STATUS *status);
+bool check_date(const MYSQL_TIME *ltime, bool not_zero_date,
+                my_time_flags_t flags, int *was_cut);
+bool str_to_datetime(const char *str, size_t length, MYSQL_TIME *l_time,
+                     my_time_flags_t flags, MYSQL_TIME_STATUS *status);
 longlong number_to_datetime(longlong nr, MYSQL_TIME *time_res,
                             my_time_flags_t flags, int *was_cut);
-my_bool number_to_time(longlong nr, MYSQL_TIME *ltime, int *warnings);
+bool number_to_time(longlong nr, MYSQL_TIME *ltime, int *warnings);
 ulonglong TIME_to_ulonglong_datetime(const MYSQL_TIME *);
 ulonglong TIME_to_ulonglong_date(const MYSQL_TIME *);
 ulonglong TIME_to_ulonglong_time(const MYSQL_TIME *);
@@ -127,8 +130,8 @@ ulonglong TIME_to_ulonglong(const MYSQL_TIME *);
 
 #define MY_PACKED_TIME_GET_INT_PART(x)     ((x) >> 24)
 #define MY_PACKED_TIME_GET_FRAC_PART(x)    ((x) % (1LL << 24))
-#define MY_PACKED_TIME_MAKE(i, f)          ((((longlong) (i)) << 24) + (f))
-#define MY_PACKED_TIME_MAKE_INT(i)         ((((longlong) (i)) << 24))
+#define MY_PACKED_TIME_MAKE(i, f)          ((((ulonglong) (i)) << 24) + (f))
+#define MY_PACKED_TIME_MAKE_INT(i)         ((((ulonglong) (i)) << 24))
 
 longlong year_to_longlong_datetime_packed(long year);
 longlong TIME_to_longlong_datetime_packed(const MYSQL_TIME *);
@@ -151,12 +154,12 @@ longlong my_time_packed_from_binary(const uchar *ptr, uint dec);
 void my_timestamp_to_binary(const struct timeval *tm, uchar *ptr, uint dec);
 void my_timestamp_from_binary(struct timeval *tm, const uchar *ptr, uint dec);
 
-my_bool str_to_time(const char *str, size_t length, MYSQL_TIME *l_time,
-                    MYSQL_TIME_STATUS *status);
+bool str_to_time(const char *str, size_t length, MYSQL_TIME *l_time,
+                 MYSQL_TIME_STATUS *status);
 
-my_bool check_time_mmssff_range(const MYSQL_TIME *ltime);
-my_bool check_time_range_quick(const MYSQL_TIME *ltime);
-my_bool check_datetime_range(const MYSQL_TIME *ltime);
+bool check_time_mmssff_range(const MYSQL_TIME *ltime);
+bool check_time_range_quick(const MYSQL_TIME *ltime);
+bool check_datetime_range(const MYSQL_TIME *ltime);
 void adjust_time_range(struct st_mysql_time *, int *warning);
 
 long calc_daynr(uint year,uint month,uint day);
@@ -179,7 +182,7 @@ void my_init_time(void);
     FALSE   The MYSQL_TIME value is definitely out of range
 */
 
-static inline my_bool validate_timestamp_range(const MYSQL_TIME *t)
+static inline bool validate_timestamp_range(const MYSQL_TIME *t)
 {
   if ((t->year > TIMESTAMP_MAX_YEAR || t->year < TIMESTAMP_MIN_YEAR) ||
       (t->year == TIMESTAMP_MAX_YEAR && (t->month > 1 || t->day > 19)) ||
@@ -191,10 +194,10 @@ static inline my_bool validate_timestamp_range(const MYSQL_TIME *t)
 
 my_time_t 
 my_system_gmt_sec(const MYSQL_TIME *t, long *my_timezone,
-                  my_bool *in_dst_time_gap);
+                  bool *in_dst_time_gap);
 
 void set_zero_time(MYSQL_TIME *tm, enum enum_mysql_timestamp_type time_type);
-void set_max_time(MYSQL_TIME *tm, my_bool neg);
+void set_max_time(MYSQL_TIME *tm, bool neg);
 void set_max_hhmmss(MYSQL_TIME *tm);
 
 /*

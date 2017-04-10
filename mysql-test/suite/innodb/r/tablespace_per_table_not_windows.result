@@ -3,6 +3,11 @@
 # the database name with the table name to make a unique table name.
 #
 SET default_storage_engine=InnoDB;
+# Suppress errors about too long filenames in error log.
+call mtr.add_suppression("\\[ERROR\\] InnoDB: Operating system error number .* in a file operation.");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: Error number .* means '.*'");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: Cannot create file .*");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: File .* 'create' returned OS error .*");
 #
 # MySQL limits each database and tablename identifier to 64 characters
 # of up to 3 bytes per character, corresponding to 192 bytes.
@@ -63,7 +68,7 @@ CREATE TABLE `test`.`#################################################_long_` (a
 # A 252-byte tablename is too long
 #
 CREATE TABLE `test`.`#################################################_long___` (a SERIAL);
-ERROR HY000: Can't create table '#################################################_long___' (errno: ##)
+ERROR HY000: Got error 168 - 'Unknown (generic) error from engine' from storage engine
 CREATE DATABASE twenty_byte_db_name_;
 USE `twenty_byte_db_name_`;
 #
@@ -74,7 +79,7 @@ CREATE TABLE `twenty_byte_db_name_`.`###########################################
 # A 252 byte expanded table name is also too long in a longer database name
 #
 CREATE TABLE `twenty_byte_db_name_`.`#################################################_long___` (a SERIAL);
-ERROR HY000: Can't create table '#################################################_long___' (errno: ##)
+ERROR HY000: Got error 168 - 'Unknown (generic) error from engine' from storage engine
 #
 # Another limitation is a 512 byte length to an expanded path that includes
 # the datadir which is './' in this test, the expanded database name,
@@ -92,16 +97,11 @@ Error	1860	Long database name and identifier for object resulted in path length 
 # Show the successfully created databases and tables
 #
 ---- list_files MYSQLD_DATADIR/test
-#################################################_long_.frm
 #################################################_long_.ibd
 ---- list_files MYSQLD_DATADIR/this_sixty_four_byte_name_is_not_too_long_______________________
-db.opt
-this_sixty_four_byte_name_is_not_too_long_______________________.frm
 this_sixty_four_byte_name_is_not_too_long_______________________.ibd
 ---- list_files MYSQLD_DATADIR/##################################################_long
-#################################################_long.frm
 #################################################_long.ibd
-db.opt
 SELECT name FROM information_schema.innodb_sys_tables WHERE name LIKE '%long%';
 name
 ##################################################_long/#################################################_long

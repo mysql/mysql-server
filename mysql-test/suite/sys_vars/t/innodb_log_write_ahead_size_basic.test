@@ -1,4 +1,3 @@
---source include/have_innodb.inc
 
 SET @start_global_value = @@global.innodb_log_write_ahead_size;
 
@@ -20,9 +19,9 @@ SELECT @@session.innodb_log_write_ahead_size;
 SHOW global variables LIKE 'innodb_log_write_ahead_size';
 SHOW session variables LIKE 'innodb_log_write_ahead_size';
 --disable_warnings
-SELECT * FROM information_schema.global_variables
+SELECT * FROM performance_schema.global_variables
 WHERE variable_name='innodb_log_write_ahead_size';
-SELECT * FROM information_schema.session_variables
+SELECT * FROM performance_schema.session_variables
 WHERE variable_name='innodb_log_write_ahead_size';
 --enable_warnings
 
@@ -32,9 +31,9 @@ WHERE variable_name='innodb_log_write_ahead_size';
 SET global innodb_log_write_ahead_size=1024;
 SELECT @@global.innodb_log_write_ahead_size;
 --disable_warnings
-SELECT * FROM information_schema.global_variables
+SELECT * FROM performance_schema.global_variables
 WHERE variable_name='innodb_log_write_ahead_size';
-SELECT * FROM information_schema.session_variables
+SELECT * FROM performance_schema.session_variables
 WHERE variable_name='innodb_log_write_ahead_size';
 --enable_warnings
 --error ER_GLOBAL_VARIABLE
@@ -82,7 +81,7 @@ SET global innodb_log_write_ahead_size="foo";
 SET global innodb_log_write_ahead_size=-7;
 SELECT @@global.innodb_log_write_ahead_size;
 --disable_warnings
-SELECT * FROM information_schema.global_variables
+SELECT * FROM performance_schema.global_variables
 WHERE variable_name='innodb_log_write_ahead_size';
 --enable_warnings
 

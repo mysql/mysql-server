@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -22,7 +22,7 @@ INCLUDE_DIRECTORIES(
   ${SSL_INCLUDE_DIRS}
   ${CMAKE_SOURCE_DIR}/libmysql
   ${CMAKE_SOURCE_DIR}/libbinlogevents/include
-  ${CMAKE_SOURCE_DIR}/regex
+  ${CMAKE_SOURCE_DIR}/extra/regex
   ${CMAKE_SOURCE_DIR}/strings
   ${EDITLINE_INCLUDE_DIR}
   ${CMAKE_CURRENT_BINARY_DIR}
@@ -48,19 +48,15 @@ IF(UNIX)
 ENDIF(UNIX)
 
 IF(NOT WITHOUT_SERVER)
-  MYSQL_ADD_EXECUTABLE(mysql_upgrade
-    upgrade/program.cc
-  )
-ADD_COMPILE_FLAGS(
-  upgrade/program.cc COMPILE_FLAGS -I${BOOST_PATCHES_DIR} -I${BOOST_INCLUDE_DIR}
-)
-TARGET_LINK_LIBRARIES(mysql_upgrade mysqlclient client_base mysqlcheck_core)
-ADD_DEPENDENCIES(mysql_upgrade GenFixPrivs GenSysSchema)
+  MYSQL_ADD_EXECUTABLE(mysql_upgrade upgrade/program.cc)
+  TARGET_LINK_LIBRARIES(mysql_upgrade mysqlclient client_base mysqlcheck_core)
+  ADD_DEPENDENCIES(mysql_upgrade GenFixPrivs GenSysSchema GenBootstrapPriv)
 ENDIF()
 
 MYSQL_ADD_EXECUTABLE(mysqltest mysqltest.cc COMPONENT Test)
 SET_SOURCE_FILES_PROPERTIES(mysqltest.cc PROPERTIES COMPILE_FLAGS "-DTHREADS")
 TARGET_LINK_LIBRARIES(mysqltest mysqlclient regex)
+ADD_DEPENDENCIES(mysqltest GenError GenClientError)
 
 ADD_CONVENIENCE_LIBRARY(mysqlcheck_core check/mysqlcheck_core.cc)
 TARGET_LINK_LIBRARIES(mysqlcheck_core mysqlclient)
@@ -68,24 +64,37 @@ TARGET_LINK_LIBRARIES(mysqlcheck_core mysqlclient)
 MYSQL_ADD_EXECUTABLE(mysqlcheck check/mysqlcheck.cc)
 TARGET_LINK_LIBRARIES(mysqlcheck mysqlcheck_core)
 
-MYSQL_ADD_EXECUTABLE(mysqldump mysqldump.c ../sql-common/my_user.c)
+MYSQL_ADD_EXECUTABLE(mysqldump mysqldump.cc)
 TARGET_LINK_LIBRARIES(mysqldump mysqlclient)
 
-MYSQL_ADD_EXECUTABLE(mysqlimport mysqlimport.c)
-SET_SOURCE_FILES_PROPERTIES(mysqlimport.c PROPERTIES COMPILE_FLAGS "-DTHREADS")
+MYSQL_ADD_EXECUTABLE(mysqlimport mysqlimport.cc)
+SET_SOURCE_FILES_PROPERTIES(mysqlimport.cc PROPERTIES COMPILE_FLAGS "-DTHREADS")
 TARGET_LINK_LIBRARIES(mysqlimport mysqlclient)
 
-MYSQL_ADD_EXECUTABLE(mysqlshow mysqlshow.c)
+MYSQL_ADD_EXECUTABLE(mysqlshow mysqlshow.cc)
 TARGET_LINK_LIBRARIES(mysqlshow mysqlclient)
 
-MYSQL_ADD_EXECUTABLE(mysql_plugin mysql_plugin.c)
-TARGET_LINK_LIBRARIES(mysql_plugin mysqlclient)
-
 MYSQL_ADD_EXECUTABLE(mysqlbinlog mysqlbinlog.cc)
+SET(MYSQLBINLOG_LIB_SOURCES
+  ${CMAKE_SOURCE_DIR}/strings/decimal.cc
+  ${CMAKE_SOURCE_DIR}/sql/log_event.cc
+  ${CMAKE_SOURCE_DIR}/sql/rpl_utility.cc
+  ${CMAKE_SOURCE_DIR}/sql/rpl_gtid_sid_map.cc
+  ${CMAKE_SOURCE_DIR}/sql/rpl_gtid_misc.cc
+  ${CMAKE_SOURCE_DIR}/sql/rpl_gtid_set.cc
+  ${CMAKE_SOURCE_DIR}/sql/rpl_gtid_specification.cc
+  ${CMAKE_SOURCE_DIR}/sql/rpl_tblmap.cc
+)
+ADD_LIBRARY(mysqlbinlog_lib STATIC ${MYSQLBINLOG_LIB_SOURCES})
+ADD_DEPENDENCIES(mysqlbinlog_lib GenError)
 ADD_COMPILE_FLAGS(
   mysqlbinlog.cc
-  COMPILE_FLAGS "-I${CMAKE_SOURCE_DIR}/sql" "-DHAVE_REPLICATION" "-DDISABLE_PSI_MUTEX"
+  ${MYSQLBINLOG_LIB_SOURCES}
+  COMPILE_FLAGS
+  "-I${CMAKE_SOURCE_DIR}/sql" "-DDISABLE_PSI_MUTEX"
 )
+
+TARGET_LINK_LIBRARIES(mysqlbinlog mysqlbinlog_lib)
 TARGET_LINK_LIBRARIES(mysqlbinlog mysqlclient binlogevents_static)
 
 MYSQL_ADD_EXECUTABLE(mysqladmin mysqladmin.cc)
@@ -101,17 +110,6 @@ TARGET_LINK_LIBRARIES(mysql_config_editor mysqlclient)
 MYSQL_ADD_EXECUTABLE(mysql_secure_installation mysql_secure_installation.cc)
 TARGET_LINK_LIBRARIES(mysql_secure_installation mysqlclient)
 
-IF(UNIX AND NOT WITHOUT_SERVER)
-  MYSQL_ADD_EXECUTABLE(mysql_install_db
-    mysql_install_db.cc auth_utils.cc path.cc logger.cc)
-  TARGET_LINK_LIBRARIES(mysql_install_db mysqlclient)
-  ADD_COMPILE_FLAGS(
-    auth_utils.cc mysql_install_db.cc
-    COMPILE_FLAGS "-I${CMAKE_SOURCE_DIR}/sql/auth"
-    )
-  ADD_DEPENDENCIES(mysql_install_db GenBootstrapPriv GenSysSchema)
-ENDIF()
-
 MYSQL_ADD_EXECUTABLE(mysql_ssl_rsa_setup mysql_ssl_rsa_setup.cc path.cc logger.cc)
 TARGET_LINK_LIBRARIES(mysql_ssl_rsa_setup mysys mysys_ssl)
 SET_TARGET_PROPERTIES(mysql_ssl_rsa_setup PROPERTIES LINKER_LANGUAGE CXX)
@@ -120,15 +118,3 @@ SET_TARGET_PROPERTIES(mysql_ssl_rsa_setup PROPERTIES LINKER_LANGUAGE CXX)
 IF(WIN32)
   MYSQL_ADD_EXECUTABLE(echo echo.c)
 ENDIF(WIN32)
-
-SET_TARGET_PROPERTIES (
-  mysql_plugin
-  mysqlcheck
-  mysqldump
-  mysqlimport
-  mysqlshow
-  mysqlslap
-PROPERTIES HAS_CXX TRUE)
-
-ADD_DEFINITIONS(-DHAVE_DLOPEN)
-

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -308,9 +308,11 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 #define GSN_DIGETNODESCONF              210
 #define GSN_DIGETNODESREF               211
 #define GSN_DIGETNODESREQ               212
-#define GSN_DIH_SCAN_GET_NODES_REQ      213
-#define GSN_DIH_SCAN_GET_NODES_REF      215
-#define GSN_DIH_SCAN_GET_NODES_CONF     214
+
+/*
+ Signal 213, 214, 215 no longer used, was
+ DIH_SCAN_GET_NODES_REQ/CONF/REF
+*/
 
 #define GSN_DIH_RESTARTCONF             217
 #define GSN_DIH_RESTARTREF              218
@@ -838,9 +840,9 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 #define GSN_CHECK_NODE_RESTARTCONF      619
 
 #define GSN_GET_CPU_USAGE_REQ           620
-#define GSN_621
-#define GSN_622
-#define GSN_623
+#define GSN_OVERLOAD_STATUS_REP         621
+#define GSN_SEND_THREAD_STATUS_REP      622
+#define GSN_NODE_OVERLOAD_STATUS_ORD    623
 
 #define GSN_CREATE_FK_REQ               627
 #define GSN_CREATE_FK_REF               628
@@ -871,6 +873,10 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 #define GSN_647
 #define GSN_648
 #define GSN_649
+
+#define GSN_SET_WAKEUP_THREAD_ORD       657
+#define GSN_WAKEUP_THREAD_ORD           658
+#define GSN_SEND_WAKEUP_THREAD_ORD      659
 
 #define GSN_UTIL_CREATE_LOCK_REQ        132
 #define GSN_UTIL_CREATE_LOCK_REF        133

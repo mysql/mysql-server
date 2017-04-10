@@ -4,7 +4,6 @@
 
 char *push1=0;
 
-#include <my_global.h>  /* This includes dbug.h */
 #include <my_thread.h>
 #include <string.h>
 

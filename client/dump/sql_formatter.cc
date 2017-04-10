@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -15,13 +15,21 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "sql_formatter.h"
-#include "view.h"
-#include "mysql_function.h"
-#include "stored_procedure.h"
-#include "privilege.h"
+#include "client/dump/sql_formatter.h"
+
+#include "my_config.h"
+
 #include <boost/algorithm/string.hpp>
-#include <boost/chrono.hpp>
+#include <sys/types.h>
+#include <time.h>
+#include <chrono>
+#include <functional>
+#include <sstream>
+
+#include "mysql_function.h"
+#include "privilege.h"
+#include "stored_procedure.h"
+#include "view.h"
 
 using namespace Mysql::Tools::Dump;
 
@@ -67,7 +75,13 @@ void Sql_formatter::format_row_group(Row_group_dump_task* row_group)
 
   if (m_options->m_insert_type_replace)
     row_string+= "REPLACE INTO ";
-  else if (m_options->m_insert_type_ignore)
+  /*
+   for mysql.innodb_table_stats, mysql.innodb_index_stats tables always
+   dump as INSERT IGNORE INTO
+  */
+  else if (m_options->m_insert_type_ignore ||
+    innodb_stats_tables(row_group->m_source_table->get_schema(),
+                        row_group->m_source_table->get_name()))
     row_string+= "INSERT IGNORE INTO ";
   else
     row_string+= "INSERT INTO ";
@@ -210,6 +224,13 @@ void Sql_formatter::format_table_definition(
   Table_definition_dump_task* table_definition_dump_task)
 {
   Table* table= table_definition_dump_task->get_related_table();
+
+  /*
+   do not dump DDLs for mysql.innodb_table_stats,
+   mysql.innodb_index_stats tables
+  */
+  if (innodb_stats_tables(table->get_schema(), table->get_name()))
+    return;
   bool use_added= false;
   if (m_options->m_drop_table)
     this->append_output("DROP TABLE IF EXISTS "
@@ -246,8 +267,8 @@ void Sql_formatter::format_database_start(
 void Sql_formatter::format_dump_end(Dump_end_dump_task* dump_start_dump_task)
 {
   std::ostringstream out;
-  std::time_t sys_time = boost::chrono::system_clock::to_time_t(
-    boost::chrono::system_clock::now());
+  std::time_t sys_time = std::chrono::system_clock::to_time_t(
+    std::chrono::system_clock::now());
   // Convert to calendar time.
   std::string time_string = std::ctime(&sys_time);
   boost::trim(time_string);
@@ -261,7 +282,9 @@ void Sql_formatter::format_dump_end(Dump_end_dump_task* dump_start_dump_task)
   out << "SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS;\n"
     "SET UNIQUE_CHECKS=@OLD_UNIQUE_CHECKS;\n"
     "SET SQL_MODE=@OLD_SQL_MODE;\n";
-
+  if (m_options->m_innodb_stats_tables_included)
+    out << "SET GLOBAL INNODB_STATS_AUTO_RECALC="
+      << "@OLD_INNODB_STATS_AUTO_RECALC;\n";
   out << "-- Dump end time: " << time_string << "\n";
 
   this->append_output(out.str());
@@ -271,8 +294,8 @@ void Sql_formatter::format_dump_start(
   Dump_start_dump_task* dump_start_dump_task)
 {
   // Convert to system time.
-  std::time_t sys_time = boost::chrono::system_clock::to_time_t(
-    boost::chrono::system_clock::now());
+  std::time_t sys_time = std::chrono::system_clock::to_time_t(
+    std::chrono::system_clock::now());
   // Convert to calendar time.
   std::string time_string = std::ctime(&sys_time);
   // Skip trailing newline
@@ -288,6 +311,8 @@ void Sql_formatter::format_dump_start(
     "FOREIGN_KEY_CHECKS=0;\n" << "SET @OLD_SQL_MODE=@@SQL_MODE;\n"
     "SET SQL_MODE=\"NO_AUTO_VALUE_ON_ZERO\";\n";
 
+  /* disable binlog */
+  out << "SET @@SESSION.SQL_LOG_BIN= 0;\n";
 
   if (m_options->m_timezone_consistent)
     out << "SET @OLD_TIME_ZONE=@@TIME_ZONE;\n"
@@ -299,6 +324,44 @@ void Sql_formatter::format_dump_start(
     "SET NAMES "
     << this->get_charset()->csname
     << ";\n";
+
+  if (m_options->m_innodb_stats_tables_included)
+    out << "SET @OLD_INNODB_STATS_AUTO_RECALC="
+      << "@@INNODB_STATS_AUTO_RECALC;\n"
+      << "SET GLOBAL INNODB_STATS_AUTO_RECALC=OFF;\n";
+
+  if (dump_start_dump_task->m_gtid_mode == "OFF" &&
+      *((ulong*)&m_options->m_gtid_purged) == ((ulong)GTID_PURGED_ON))
+  {
+    m_options->m_mysql_chain_element_options->get_program()->error(
+      Mysql::Tools::Base::Message_data(1, "Server has GTIDs disabled.\n",
+      Mysql::Tools::Base::Message_type_error));
+    return;
+  }
+  if (dump_start_dump_task->m_gtid_mode != "OFF")
+  {
+    /*
+     value for m_gtid_purged is set by typecasting its address to ulong*
+     however below conditions fails if we do direct comparison without
+     typecasting on solaris sparc. Guessing that this is due to differnt
+     endianess.
+    */
+    if (*((ulong*)&m_options->m_gtid_purged) == ((ulong)GTID_PURGED_ON) ||
+        *((ulong*)&m_options->m_gtid_purged) == ((ulong)GTID_PURGED_AUTO))
+    {
+      if (!m_mysqldump_tool_options->m_dump_all_databases)
+      {
+        m_options->m_mysql_chain_element_options->get_program()->error(
+          Mysql::Tools::Base::Message_data(1,
+          "A partial dump from a server that has GTIDs is not allowed.\n",
+          Mysql::Tools::Base::Message_type_error));
+        return;
+      }
+      std::string gtid_output("SET @@GLOBAL.GTID_PURGED=/*!80000 '+'*/ '");
+      gtid_output+= (dump_start_dump_task->m_gtid_executed + "';\n");
+      out << gtid_output;
+    }
+  }
 
   this->append_output(out.str());
 }
@@ -381,6 +444,24 @@ void Sql_formatter::format_sql_objects_definer(
     plain_sql_dump_task->set_sql_formatted_definition(new_sql_stmt);
   }
 }
+
+/**
+  Check if the table is innodb stats table in mysql database.
+
+   @param [in] db           Database name
+   @param [in] table        Table name
+
+  @return
+    @retval TRUE if it is innodb stats table else FALSE
+*/
+bool Sql_formatter::innodb_stats_tables(std::string db,
+                                        std::string table)
+{
+  return ((db == "mysql") &&
+          ((table == "innodb_table_stats") ||
+          (table == "innodb_index_stats")));
+}
+
 void Sql_formatter::format_object(Item_processing_data* item_to_process)
 {
   this->object_processing_starts(item_to_process);
@@ -414,13 +495,15 @@ void Sql_formatter::format_object(Item_processing_data* item_to_process)
 }
 
 Sql_formatter::Sql_formatter(I_connection_provider* connection_provider,
-  Mysql::I_callable<bool, const Mysql::Tools::Base::Message_data&>*
+  std::function<bool(const Mysql::Tools::Base::Message_data&)>*
     message_handler, Simple_id_generator* object_id_generator,
+  const Mysqldump_tool_chain_maker_options* mysqldump_tool_options,
   const Sql_formatter_options* options)
   : Abstract_output_writer_wrapper(message_handler, object_id_generator),
   Abstract_mysql_chain_element_extension(
   connection_provider, message_handler,
   options->m_mysql_chain_element_options),
+  m_mysqldump_tool_options(mysqldump_tool_options),
   m_options(options)
 {
   m_escaping_runner= this->get_runner();

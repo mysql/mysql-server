@@ -1,7 +1,7 @@
 ## generated
 ## Test delete everything (should this be allowed?)
 
---source ../include/xplugin_preamble.inc
+--source include/xplugin_preamble.inc
 ## Test starts here
 --write_file $MYSQL_TMP_DIR/delete_del_all.tmp
 ## Test data

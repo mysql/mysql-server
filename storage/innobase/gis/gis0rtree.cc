@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2016, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -23,22 +23,28 @@ InnoDB R-tree interfaces
 Created 2013/03/27 Allen Lai and Jimmy Yang
 ***********************************************************************/
 
+#include <sys/types.h>
+#include <cmath>
+
 #include "fsp0fsp.h"
-#include "page0page.h"
-#include "page0cur.h"
-#include "page0zip.h"
 #include "gis0rtree.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "page0cur.h"
+#include "page0page.h"
+#include "page0zip.h"
 
 #ifndef UNIV_HOTBACKUP
 #include "btr0cur.h"
-#include "btr0sea.h"
 #include "btr0pcur.h"
-#include "rem0cmp.h"
-#include "lock0lock.h"
-#include "ibuf0ibuf.h"
-#include "trx0trx.h"
-#include "srv0mon.h"
+#include "btr0sea.h"
 #include "gis0geo.h"
+#include "ibuf0ibuf.h"
+#include "lock0lock.h"
+#include "rem0cmp.h"
+#include "srv0mon.h"
+#include "trx0trx.h"
 
 #endif /* UNIV_HOTBACKUP */
 
@@ -133,7 +139,7 @@ rtr_index_build_node_ptr(
 	const rtr_mbr_t*	mbr,	/*!< in: mbr of lower page */
 	const rec_t*		rec,	/*!< in: record for which to build node
 					pointer */
-	ulint			page_no,/*!< in: page number to put in node
+	page_no_t		page_no,/*!< in: page number to put in node
 					pointer */
 	mem_heap_t*		heap,	/*!< in: memory heap where pointer
 					created */
@@ -292,13 +298,13 @@ rtr_update_mbr_field(
 	rec_t*		child_rec;
 	ulint		up_match = 0;
 	ulint		low_match = 0;
-	ulint		child;
+	page_no_t	child;
 	ulint		level;
 	ulint		rec_info;
 	page_zip_des_t*	page_zip;
 	bool		ins_suc = true;
 	ulint		cur2_pos = 0;
-	ulint		del_page_no = 0;
+	page_no_t		del_page_no = 0;
 	ulint*		offsets2;
 
 	rec = btr_cur_get_rec(cursor);
@@ -606,7 +612,7 @@ update_mbr:
 	}
 
 #ifdef UNIV_DEBUG
-	ulint	left_page_no = btr_page_get_prev(page, mtr);
+	page_no_t	left_page_no = btr_page_get_prev(page, mtr);
 
 	if (left_page_no == FIL_NULL) {
 
@@ -623,7 +629,7 @@ update_mbr:
 
 /**************************************************************//**
 Update parent page's MBR and Predicate lock information during a split */
-static MY_ATTRIBUTE((nonnull))
+static
 void
 rtr_adjust_upper_level(
 /*===================*/
@@ -639,8 +645,8 @@ rtr_adjust_upper_level(
 {
 	page_t*		page;
 	page_t*		new_page;
-	ulint		page_no;
-	ulint		new_page_no;
+	page_no_t	page_no;
+	page_no_t	new_page_no;
 	page_zip_des_t*	page_zip;
 	page_zip_des_t*	new_page_zip;
 	dict_index_t*	index = sea_cur->index;
@@ -649,9 +655,9 @@ rtr_adjust_upper_level(
 	mem_heap_t*	heap;
 	ulint		level;
 	dtuple_t*	node_ptr_upper;
-	ulint		prev_page_no;
-	ulint		next_page_no;
-	ulint		space;
+	page_no_t	prev_page_no;
+	page_no_t	next_page_no;
+	space_id_t	space;
 	page_cur_t*	page_cursor;
 	rtr_mbr_t	parent_mbr;
 	lock_prdt_t	prdt;
@@ -807,6 +813,7 @@ This has to be done either within the same mini-transaction,
 or by invoking ibuf_reset_free_bits() before mtr_commit().
 
 @return TRUE on success; FALSE on compression failure */
+static
 ibool
 rtr_split_page_move_rec_list(
 /*=========================*/
@@ -912,7 +919,7 @@ rtr_split_page_move_rec_list(
 	for MVCC. */
 	if (dict_index_is_sec_or_ibuf(index)
 	    && page_is_leaf(page)
-	    && !dict_table_is_temporary(index->table)) {
+	    && !index->table->is_temporary()) {
 		page_update_max_trx_id(new_block, NULL,
 				       page_get_max_trx_id(page),
 				       mtr);
@@ -922,7 +929,7 @@ rtr_split_page_move_rec_list(
 		mtr_set_log_mode(mtr, log_mode);
 
 		if (!page_zip_compress(new_page_zip, new_page, index,
-				       page_zip_level, NULL, mtr)) {
+				       page_zip_level, mtr)) {
 			ulint	ret_pos;
 
 			/* Before trying to reorganize the page,
@@ -999,9 +1006,9 @@ rtr_page_split_and_insert(
 	buf_block_t*		block;
 	page_t*			page;
 	page_t*			new_page;
-	ulint			page_no;
+	page_no_t		page_no;
 	byte			direction;
-	ulint			hint_page_no;
+	page_no_t		hint_page_no;
 	buf_block_t*		new_block;
 	page_zip_des_t*		page_zip;
 	page_zip_des_t*		new_page_zip;
@@ -1039,7 +1046,7 @@ func_start:
 					MTR_MEMO_X_LOCK | MTR_MEMO_SX_LOCK));
 	ut_ad(!dict_index_is_online_ddl(cursor->index)
 	      || (flags & BTR_CREATE_FLAG)
-	      || dict_index_is_clust(cursor->index));
+	      || cursor->index->is_clustered());
 	ut_ad(rw_lock_own_flagged(dict_index_get_lock(cursor->index),
 				  RW_LOCK_FLAG_X | RW_LOCK_FLAG_SX));
 
@@ -1297,8 +1304,8 @@ after_insert:
 	 again. */
 	if (!rec) {
 		/* We play safe and reset the free bits for new_page */
-		if (!dict_index_is_clust(cursor->index)
-		    && !dict_table_is_temporary(cursor->index->table)) {
+		if (!cursor->index->is_clustered()
+		    && !cursor->index->table->is_temporary()) {
 			ibuf_reset_free_bits(new_block);
 			ibuf_reset_free_bits(block);
 		}
@@ -1781,7 +1788,7 @@ rtr_check_same_block(
 	mem_heap_t*	heap)	/*!< in: memory heap */
 
 {
-	ulint		page_no = childb->page.id.page_no();
+	page_no_t	page_no = childb->page.id.page_no();
 	ulint*		offsets;
 	rec_t*		rec = page_rec_get_next(page_get_infimum_rec(
 				buf_block_get_frame(parentb)));
@@ -1832,7 +1839,7 @@ rtr_rec_cal_increase(
 	ret = rtree_area_increase(
 		rec_b_ptr,
 		static_cast<const byte*>(dfield_get_data(dtuple_field)),
-		static_cast<int>(dtuple_f_len), area);
+		static_cast<int>(dtuple_f_len), area, 0);
 
 	return(ret);
 }
@@ -1958,13 +1965,15 @@ rtr_estimate_n_rows_in_range(
 			case PAGE_CUR_CONTAIN:
 			case PAGE_CUR_INTERSECT:
 				area += rtree_area_overlapping(range_mbr_ptr,
-						field, DATA_MBR_LEN) / rec_area;
+						field, DATA_MBR_LEN, 0)
+					/ rec_area;
 				break;
 
 			case PAGE_CUR_DISJOINT:
 				area += 1;
 				area -= rtree_area_overlapping(range_mbr_ptr,
-						field, DATA_MBR_LEN) / rec_area;
+						field, DATA_MBR_LEN, 0)
+					/ rec_area;
 				break;
 
 			case PAGE_CUR_WITHIN:
@@ -1988,7 +1997,7 @@ rtr_estimate_n_rows_in_range(
 	mtr_commit(&mtr);
 	mem_heap_free(heap);
 
-	if (my_isinf(area) || my_isnan(area)) {
+	if (!std::isfinite(area)) {
 		return(HA_POS_ERROR);
 	}
 

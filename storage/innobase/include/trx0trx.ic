@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -124,11 +124,14 @@ trx_get_id_for_print(
 	/* Readonly and transactions whose intentions are unknown (whether
 	they will eventually do a WRITE) don't have trx_t::id assigned (it is
 	0 for those transactions). Transaction IDs in
-	innodb_trx.trx_id,
-	innodb_locks.lock_id,
-	innodb_locks.lock_trx_id,
-	innodb_lock_waits.requesting_trx_id,
-	innodb_lock_waits.blocking_trx_id should match because those tables
+	information_schema.innodb_trx.trx_id,
+	performance_schema.data_locks.engine_lock_id,
+	performance_schema.data_locks.engine_transaction_id,
+	performance_schema.data_lock_waits.requesting_engine_lock_id,
+	performance_schema.data_lock_waits.requesting_engine_transaction_id,
+	performance_schema.data_lock_waits.blocking_engine_lock_id,
+	performance_schema.data_lock_waits.blocking_engine_transaction_id
+	should match because those tables
 	could be used in an SQL JOIN on those columns. Also trx_t::id is
 	printed by SHOW ENGINE INNODB STATUS, and in logs, so we must have the
 	same value printed everywhere consistently. */
@@ -203,16 +206,6 @@ ok:
 	trx->dict_operation = op;
 }
 
-/**
-Releases the search latch if trx has reserved it.
-@param[in,out] trx		Transaction that may own the AHI latch */
-UNIV_INLINE
-void
-trx_search_latch_release_if_reserved(trx_t* trx)
-{
-	ut_a(!trx->has_search_latch);
-}
-
 /********************************************************************//**
 Check if redo rseg is modified for insert/update. */
 UNIV_INLINE
@@ -229,7 +222,7 @@ trx_is_redo_rseg_updated(
 Check if noredo rseg is modified for insert/update. */
 UNIV_INLINE
 bool
-trx_is_noredo_rseg_updated(
+trx_is_temp_rseg_updated(
 /*=======================*/
 	const trx_t*	   trx) /*!< in: transaction */
 {
@@ -246,7 +239,7 @@ trx_is_rseg_updated(
 	const trx_t*	   trx) /*!< in: transaction */
 {
 	return(trx_is_redo_rseg_updated(trx)
-	       || trx_is_noredo_rseg_updated(trx));
+	       || trx_is_temp_rseg_updated(trx));
 }
 
 /********************************************************************//**

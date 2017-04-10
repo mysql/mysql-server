@@ -1,7 +1,7 @@
 #ifndef ITEM_ROW_INCLUDED
 #define ITEM_ROW_INCLUDED
 
-/* Copyright (c) 2002, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,7 +16,23 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
+#include <sys/types.h>
+
+#include "enum_query_type.h"
 #include "item.h"  // Item
+#include "my_compiler.h"
+#include "my_decimal.h"
+#include "my_inttypes.h"
+#include "my_table_map.h"
+#include "my_time.h"
+#include "mysql_com.h"
+#include "parse_tree_node_base.h"
+
+class SELECT_LEX;
+class Send_field;
+class String;
+class THD;
+template <class T> class List;
 
 /**
    Item which stores (x,y,...) and ROW(x,y,...).
@@ -65,69 +81,69 @@ public:
     with_null(0)
   {}
 
-  virtual bool itemize(Parse_context *pc, Item **res);
+  bool itemize(Parse_context *pc, Item **res) override;
 
-  enum Type type() const { return ROW_ITEM; };
-  void illegal_method_call(const char *);
-  bool is_null() { return null_value; }
-  void make_field(Send_field *)
+  enum Type type() const override { return ROW_ITEM; };
+  void illegal_method_call(const char *) const MY_ATTRIBUTE((cold));
+  bool is_null() override { return null_value; }
+  void make_field(Send_field *) override
   {
-    illegal_method_call((const char*)"make_field");
+    illegal_method_call("make_field");
   };
-  double val_real()
+  double val_real() override
   {
-    illegal_method_call((const char*)"val");
+    illegal_method_call("val_real");
     return 0;
   };
-  longlong val_int()
+  longlong val_int() override
   {
-    illegal_method_call((const char*)"val_int");
+    illegal_method_call("val_int");
     return 0;
   };
-  String *val_str(String *)
+  String *val_str(String *) override
   {
-    illegal_method_call((const char*)"val_str");
+    illegal_method_call("val_str");
     return 0;
   };
-  my_decimal *val_decimal(my_decimal *)
+  my_decimal *val_decimal(my_decimal *) override
   {
-    illegal_method_call((const char*)"val_decimal");
+    illegal_method_call("val_decimal");
     return 0;
   };
-  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
+  bool get_date(MYSQL_TIME *, my_time_flags_t) override
   {
-    illegal_method_call((const char *) "get_date");
+    illegal_method_call("get_date");
     return true;
   }
-  bool get_time(MYSQL_TIME *ltime)
+  bool get_time(MYSQL_TIME *) override
   {
-    illegal_method_call((const char *) "get_time");
+    illegal_method_call("get_time");
     return true;
   }
 
-  bool fix_fields(THD *thd, Item **ref);
-  void fix_after_pullout(st_select_lex *parent_select,
-                         st_select_lex *removed_select);
-  void cleanup();
-  void split_sum_func(THD *thd, Ref_ptr_array ref_pointer_array,
-                      List<Item> &fields);
-  table_map used_tables() const { return used_tables_cache; };
-  bool const_item() const { return const_item_cache; };
-  enum Item_result result_type() const { return ROW_RESULT; }
-  void update_used_tables();
-  table_map not_null_tables() const { return not_null_tables_cache; }
-  virtual void print(String *str, enum_query_type query_type);
+  bool fix_fields(THD *thd, Item **ref) override;
+  void fix_after_pullout(SELECT_LEX *parent_select,
+                         SELECT_LEX *removed_select) override;
+  void cleanup() override;
+  void split_sum_func(THD *thd, Ref_item_array ref_item_array,
+                      List<Item> &fields) override;
+  table_map used_tables() const override { return used_tables_cache; };
+  bool const_item() const override { return const_item_cache; };
+  enum Item_result result_type() const override { return ROW_RESULT; }
+  void update_used_tables() override;
+  table_map not_null_tables() const override { return not_null_tables_cache; }
+  void print(String *str, enum_query_type query_type) override;
 
-  bool walk(Item_processor processor, enum_walk walk, uchar *arg);
-  Item *transform(Item_transformer transformer, uchar *arg);
+  bool walk(Item_processor processor, enum_walk walk, uchar *arg) override;
+  Item *transform(Item_transformer transformer, uchar *arg) override;
 
-  uint cols() { return arg_count; }
-  Item* element_index(uint i) { return items[i]; }
-  Item** addr(uint i) { return items + i; }
-  bool check_cols(uint c);
-  bool null_inside() { return with_null; };
-  void bring_value();
-  bool check_gcol_func_processor(uchar *int_arg) {return false; }
+  uint cols() const override { return arg_count; }
+  Item *element_index(uint i) override { return items[i]; }
+  Item **addr(uint i) override { return items + i; }
+  bool check_cols(uint c) override;
+  bool null_inside() override { return with_null; };
+  void bring_value() override;
+  bool check_gcol_func_processor(uchar *) override { return false; }
 };
 
 #endif /* ITEM_ROW_INCLUDED */

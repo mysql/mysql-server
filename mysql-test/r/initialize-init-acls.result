@@ -16,12 +16,12 @@ SET PASSWORD='';
 # Must have USAGE
 SHOW GRANTS FOR u1@localhost;
 Grants for u1@localhost
-GRANT USAGE ON *.* TO 'u1'@'localhost'
+GRANT USAGE ON *.* TO `u1`@`localhost`
 # Must have a SELECT privilege
 SHOW GRANTS FOR u3@localhost;
 Grants for u3@localhost
-GRANT SELECT ON `grants_try`.* TO 'u3'@'localhost'
-GRANT USAGE ON *.* TO 'u3'@'localhost'
+GRANT SELECT ON `grants_try`.* TO `u3`@`localhost`
+GRANT USAGE ON *.* TO `u3`@`localhost`
 # Must have a password
 SHOW CREATE USER u2@localhost;
 CREATE USER for u2@localhost

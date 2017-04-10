@@ -1,0 +1,17 @@
+# Tests in this file are disabled for ASAN runs in pushbuild.
+# This is in addition to tests disabled by normal disabled.def files
+innodb.alter_kill                            : Bug#19442959 2015-11-05 jhauglid
+innodb.innodb-multiple-tablespaces           : Bug#19442959 2015-11-05 jhauglid
+innodb.innodb_page_size_func                 : Bug#19442959 2015-11-05 jhauglid
+innodb.innodb_pagesize_max_recordsize        : Bug#19442959 2015-11-05 jhauglid
+innodb.log_based_discovery                   : Bug#19442959 2016-03-11 jhauglid
+innodb.log_corruption                        : Bug#19442959 2015-11-05 jhauglid
+innodb.log_corruption_1                      : Bug#19442959 2015-11-05 jhauglid
+innodb.bootstrap                             : Bug#19442959 2015-11-05 jhauglid
+innodb.log_file_name                         : Bug#19442959 2015-11-05 jhauglid
+innodb.log_file_size                         : Bug#19442959 2015-11-05 jhauglid
+innodb.log_file_size_1                       : Bug#19442959 2015-11-05 jhauglid
+innodb.log_file_system                       : Bug#19442959 2015-11-05 jhauglid
+innodb.temporary_table                       : Bug#19442959 2015-11-05 jhauglid
+innodb.table_encrypt_2                       : Bug#21237667 2016-02-05 hvadodar
+main.dd_bootstrap                            : Bug#24421481 2016-08-08 edahl

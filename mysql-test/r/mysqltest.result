@@ -234,7 +234,7 @@ mysqltest: At line 2: Spurious text after `query` expression
 mysqltest: At line 1: Missing argument(s) to 'error'
 mysqltest: At line 1: Missing argument(s) to 'error'
 mysqltest: At line 1: The sqlstate definition must start with an uppercase S
-mysqltest: At line 1: The error name definition must start with an uppercase E
+mysqltest: At line 1: The error name definition must start with an uppercase E or C
 mysqltest: At line 1: Invalid argument to error: '9eeeee' - the errno may only consist of digits[0-9]
 mysqltest: At line 1: Invalid argument to error: '1sssss' - the errno may only consist of digits[0-9]
 mysqltest: At line 1: The sqlstate must be exactly 5 chars long
@@ -373,12 +373,12 @@ var3 two columns with same name
 var4 from query that returns NULL
 var5 from query that returns no row
 failing query in let
-create table t1 (a varchar(100));
+create table t1 (a varchar(100)) charset utf8mb4;
 insert into t1 values ('`select 42`');
 `select 42`
 insert into t1 values ('$dollar');
-$dollar
 `select 42`
+$dollar
 drop table t1;
 mysqltest: At line 1: query 'let $var2= `failing query`' failed: 1064: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'failing query' at line 1
 mysqltest: At line 1: Missing required argument 'filename' to command 'source'
@@ -967,7 +967,7 @@ select 1;
 1
 1
 -- a comment for the server;
-mysqltest: At line 1: Found line beginning with --  that didn't contain a valid mysqltest command, check your syntax or use # if you intended to write a comment
+mysqltest: At line 1: Found line 'select 1;' beginning with -- that didn't contain a valid mysqltest command, check your syntax or use # if you intended to write a comment
 con1
 con2
 default
@@ -1006,3 +1006,459 @@ R
 select "a" as R;
 R
 R
+#
+# Bug#22224687 : MTR TEST UTILITY SCRIPT 'INCLUDE/SEARCH_PATTERN.INC' SHOULD BE EXTENDED
+#
+# SEARCH_PATTERN = 'jan feb', SEARCH_ECHO = NONE
+Pattern "jan feb" found
+# SEARCH_PATTERN = 'jan feb', SEARCH_ECHO = FIRST
+1: jan feb mar
+Pattern "jan feb" found
+# SEARCH_PATTERN = 'jan feb', SEARCH_ECHO = ALL
+1: jan feb mar
+5: jan feb mar
+9: jan feb mar
+13: jan feb mar
+17: jan feb oct
+Pattern "jan feb" found
+# SEARCH_PATTERN = 'apr may', SEARCH_ECHO = FIRST, IGNORE_PATTERN = 'jun'
+Pattern "apr may" not found
+# SEARCH_PATTERN = 'apr may', SEARCH_ECHO = ALL, IGNORE_PATTERN = 'jun'
+Pattern "apr may" not found
+# SEARCH_PATTERN = 'jan feb', SEARCH_ECHO = ALL, IGNORE_PATTERN = 'mar'
+17: jan feb oct
+Pattern "jan feb" found
+# SEARCH_PATTERN = 'jan feb', SEARCH_ECHO = ALL, IGNORE_PATTERN = 'march'
+1: jan feb mar
+5: jan feb mar
+9: jan feb mar
+13: jan feb mar
+17: jan feb oct
+Pattern "jan feb" found
+# SEARCH_PATTERN = 'jan feb', SEARCH_ECHO = FIRST, SEARCH_ECHO_CTX = 1
+1: jan feb mar
+2: apr may jun
+Pattern "jan feb" found
+# SEARCH_PATTERN = 'jan feb', SEARCH_ECHO = FIRST, SEARCH_ECHO_CTX = 2
+1: jan feb mar
+2: apr may jun
+3: jul aug sept
+Pattern "jan feb" found
+# SEARCH_PATTERN = 'jan feb', SEARCH_ECHO = ALL, SEARCH_ECHO_CTX = 3
+1: jan feb mar
+2: apr may jun
+3: jul aug sept
+4: oct nov dec
+---
+2: apr may jun
+3: jul aug sept
+4: oct nov dec
+5: jan feb mar
+6: apr may jun
+7: jul aug sept
+8: oct nov dec
+---
+6: apr may jun
+7: jul aug sept
+8: oct nov dec
+9: jan feb mar
+10: apr may jun
+11: jul aug sept
+12: oct nov dec
+---
+10: apr may jun
+11: jul aug sept
+12: oct nov dec
+13: jan feb mar
+14: apr may jun
+15: jul aug sept
+16: oct nov dec
+---
+14: apr may jun
+15: jul aug sept
+16: oct nov dec
+17: jan feb oct
+---
+Pattern "jan feb" found
+# SEARCH_PATTERN = 'nov dec', SEARCH_ECHO = FIRST, IGNORE_PATTERN = 'oct', SEARCH_ECHO_CTX = 3
+Pattern "nov dec" not found
+# SEARCH_PATTERN = 'nov dec', SEARCH_ECHO = ALL, IGNORE_PATTERN = 'oct', SEARCH_ECHO_CTX = 3
+Pattern "nov dec" not found
+# SEARCH_PATTERN = 'nov dec', SEARCH_ECHO = ALL, IGNORE_PATTERN = 'october', SEARCH_ECHO_CTX = 3
+1: jan feb mar
+2: apr may jun
+3: jul aug sept
+4: oct nov dec
+5: jan feb mar
+6: apr may jun
+7: jul aug sept
+---
+5: jan feb mar
+6: apr may jun
+7: jul aug sept
+8: oct nov dec
+9: jan feb mar
+10: apr may jun
+11: jul aug sept
+---
+9: jan feb mar
+10: apr may jun
+11: jul aug sept
+12: oct nov dec
+13: jan feb mar
+14: apr may jun
+15: jul aug sept
+---
+13: jan feb mar
+14: apr may jun
+15: jul aug sept
+16: oct nov dec
+17: jan feb oct
+---
+Pattern "nov dec" found
+#
+# Bug#17944190 : MYSQLTEST CANNOT PARSE PERL BLOCK INSIDE IF THAT EVALUATES TO FALSE
+#
+True block
+Hello
+#
+# Bug#23035906 : MTR: MYSQLTEST PARSES QUOTES IN SQL COMMENTS LITERALLY LEADING TO EOL JUNK ERROR
+#
+SELECT 100 + /* Shouldn't fail */ 1 AS result;
+result
+101
+SELECT 100 /* Shouldn't fail */ + 1 AS result;
+result
+101
+SELECT 100 +
+/*
+Shouldn't
+fail
+*/
+1 AS result;
+result
+101
+SELECT 100
+/*
+Shouldn't
+fail
+*/
++ 1 AS result;
+result
+101
+SELECT 100 /* shouldn't / fail */ + 1 AS result;
+result
+101
+SELECT 100 /* shouldn't * fail */ + 1 AS result;
+result
+101
+SELECT 100 /* shouldn't /* fail */ + 1 AS result;
+result
+101
+SELECT 100 /* shouldn't /* fail */ + 1 AS res1, 'ABC' AS res2;
+res1	res2
+101	ABC
+SELECT 100 + /* "shouldnt fail */ 1 AS result;
+result
+101
+SELECT 100 + /* "shouldn't fail" */ 1 AS result;
+result
+101
+SELECT 100 + /* `shouldn't fail */ 1 AS result;
+result
+101
+SELECT 100 + /* `shouldn't fail` */ 1 AS result;
+result
+101
+SELECT 100 + /*  + shouldn't fail */ 1 AS result;
+result
+101
+SELECT 100 + /*  ! shouldn't fail */ 1 AS result;
+result
+101
+SELECT 1 /*!,"\'" */;
+1	'
+1	'
+SELECT 100 + /***/ 1 AS result;
+result
+101
+SELECT 100 + /**'*/ 1 AS result;
+result
+101
+SELECT 100 + /*/*/ 1 AS result;
+result
+101
+SELECT 100 + /*/'*/ 1 AS result;
+result
+101
+SELECT 100 + /* should */ fail */ 1 AS result;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '/ 1 AS result' at line 1
+SELECT 100 + /* shoul'd */ fail */ 1 AS result;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '/ 1 AS result' at line 1
+CREATE TABLE t1(a INT PRIMARY KEY);
+INSERT INTO t1 values (1),(5),(10) /* doesn't throw error */;
+SELECT * FROM t1 /* shouldn't throw error */;
+a
+1
+5
+10
+DROP TABLE t1;
+SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_TEMP_TABLE_INFO;
+COUNT(*)
+0
+CREATE /*! TEMPORARY */ TABLE t1 /* shouldn't fail */ (a INT) CHARSET utf8mb4;
+SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_TEMP_TABLE_INFO;
+COUNT(*)
+1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TEMPORARY TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+DROP TEMPORARY TABLE t1;
+#
+# Bug#21048973 : SUPPORT "--ERROR CR_..." FOR COMMUNICATION RELATED ERRORS
+#
+SELECT 1 AS res;
+res
+1
+SELECT 1 AS res;
+ERROR HY000: MySQL server has gone away
+#
+# Bug#23743035: ADD A COPY_FILES_WILDCARD COMMAND
+#
+bug20683959loaddata.txt
+bug30435_10k_items.txt
+bug30435_5k.txt
+cat_file.txt
+charset_utf8.txt
+crl-certificate-readme.txt
+loaddata1.dat
+loaddata2.dat
+loaddata3.dat
+loaddata4.dat
+loaddata5.dat
+loaddata6.dat
+loaddata7.dat
+loaddata_dq.dat
+loaddata_pair.dat
+loaddata_utf8.dat
+loadxml.dat
+loadxml2.dat
+numbers.txt
+wl5766_data.txt
+words.dat
+words2.dat
+bug20683959loaddata.txt
+bug30435_10k_items.txt
+bug30435_5k.txt
+cat_file.txt
+charset_utf8.txt
+crl-certificate-readme.txt
+loaddata1.dat
+loaddata2.dat
+loaddata3.dat
+loaddata4.dat
+loaddata5.dat
+loaddata6.dat
+loaddata7.dat
+loaddata_dq.dat
+loaddata_pair.dat
+loaddata_utf8.dat
+loadxml.dat
+loadxml2.dat
+numbers.txt
+wl5766_data.txt
+words.dat
+words2.dat
+#
+# Bug#24316799: --RMDIR DOES NOT DELETE DIRECTORY RECURSIVELY
+#
+#
+# Bug#21046241 : MTR CONNECT() NOT WORKING FOR TCP AND SOCKET PROTOCOL OPTIONS
+#
+#
+# Bug#24466969 : MTR CONNECT() ACCEPTS CONNECTION OPTIONS WITH ADDITIONAL TRAILING CHARACTERS
+#
+mysqltest: At line 1: Illegal option to connect: SOCKETNEW
+mysqltest: At line 1: Illegal option to connect: SSL3
+#
+# Bug#24806681 : MTR: INTRODUCE COMMAND TO COPY DIRECTORIES RECURSIVELY
+#
+# Destination directory doesn't exist and is created, should pass
+Berlin
+London
+Paris
+# Destination directory exists, should pass
+Berlin
+London
+Paris
+# Destination contains a subdirectory with the same name as a
+# subdirectory in source, should pass
+Berlin
+Italy
+London
+Paris
+# Source directory doesn't exist, should fail
+# Destination contains a file with the same name as a
+# subdirectory in source, should fail
+# Source directory path and destination directory path are same, should fail
+#
+# BUG#24806741 : MTR: INTRODUCE "EXPR" COMMAND
+#
+#
+# Arithmetic operation
+#
+# Addition operation
+expr $res= 10 + 20
+30
+expr $res= 20 + (-10)
+10
+expr $res= -10 + 10.5
+0.5
+expr $res= -3.5 + 10.5
+7
+expr $res= 1e10 + 1e10
+2e+10
+expr $res= 1e10 + 1e8
+1.01e+10
+# Subtraction operation
+expr $res= 10 - 20
+-10
+expr $res= 20 - (-10)
+30
+expr $res= -10 - 10
+-20
+expr $res= 10.5 - 10
+0.5
+expr $res= 1e10 - 1e8
+9900000000
+expr $res= 1e8 - 1e10
+-9900000000
+# Multiplication operation
+expr $res= 10 * 20
+200
+expr $res= 10 * (-10)
+-100
+expr $res= -10 * 10.5
+-105
+expr $res= 10.5 * (-3.5)
+-36.75
+expr $res= 1e10 * 1e8
+1e+18
+# Division operation
+expr $res= 10 / 20
+0.5
+expr $res= 20 / (-10)
+-2
+expr $res= 10.5 / (-3.5)
+-3
+expr $res= 1e10 / 1e8
+100
+# Modulo operation
+expr $res= 10 % 20
+10
+expr $res= 20 % (-10)
+0
+expr $res= 10.5 % -3.5
+1
+#
+# Logical operation
+#
+# Logical AND operation
+expr $res= 10 && 20
+1
+expr $res= -10 && 0
+0
+expr $res= 20 && -10
+1
+expr $res= 10.5 && -3.5
+1
+expr $res= -3.5 && 0
+0
+expr $res= 0 && 0
+0
+# Logical OR operation
+expr $res= 10 || 20
+1
+expr $res= -10 || 0
+1
+expr $res= -10 || -3.5
+1
+expr $res= 10.5 || 0
+1
+expr $res= 0 || 0
+0
+#
+# Bitwise operation
+#
+# Binary AND operation
+expr $res= 10 & 20
+0
+expr $res= 20 & 10.5
+0
+expr $res= 20 & 0
+0
+expr $res= 10 & 2
+2
+# Binary OR operation
+expr $res= 10 | 20
+30
+expr $res= 20 | 10.5
+30
+expr $res= 20 | 0
+20
+expr $res= 0 | 0
+0
+# Binary XOR operation
+expr $res= 10 ^ 20
+30
+expr $res= 20 ^ 10.5
+30
+expr $res= 20 ^ 0
+20
+# Binary right shift operation
+expr $res= 10 >> 2
+2
+expr $res= 20 >> 3
+2
+expr $res= 20 >> 0
+20
+# Binary left shift operation
+expr $res= 10 << 2
+40
+expr $res= 20 << 3
+160
+expr $res= 20 << 0
+20
+# Infinite result
+expr $res= 1e308 + 1e308
+inf
+# Division by 0, result will be an infinite value and MTR will print 'inf' keyword.
+expr $res= 10 / 0
+inf
+# Invalid mathematical expressions
+expr
+mysqltest: At line 1: Missing arguments to expr command.
+expr $res
+mysqltest: At line 1: Missing assignment operator in expr command.
+expr $res= $a
+mysqltest: At line 1: Undefined/invalid first operand '$a' in expr command.
+expr $res= $b + $a
+mysqltest: At line 1: Undefined/invalid first operand '$b' in expr command.
+expr $res= $a + $c
+mysqltest: At line 1: Undefined/invalid second operand '$c' in expr command.
+expr $res= $a + $c
+mysqltest: At line 1: Undefined/invalid second operand '$c' in expr command.
+expr $res= $a + $
+mysqltest: At line 1: Missing variable name.
+expr $re@s= $a + $a
+mysqltest: At line 1: Invalid variable name '$re@s'
+expr $res= $a + $a**
+mysqltest: At line 1: Invalid variable name '$a**'
+expr $res= $a + $b + $c
+mysqltest: At line 1: Invalid mathematical expression '$a + $b + $c' in expr command.
+expr $res= $a + b
+mysqltest: At line 1: Variable name 'b' should start with '$'
+expr $res= $a ++ $b
+mysqltest: At line 1: Invalid operator '++' in expr command

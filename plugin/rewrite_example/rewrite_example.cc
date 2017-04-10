@@ -1,4 +1,4 @@
-/*  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+/*  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
     This program is free software; you can redistribute it and/or modify it
     under the terms of the GNU General Public License as published by the
@@ -15,14 +15,15 @@
     02110-1301  USA */
 
 #include <ctype.h>
-#include <string.h>
-
-#include <my_global.h>
+#include <my_thread.h> // my_thread_handle needed by mysql_memory.h
 #include <mysql/plugin.h>
 #include <mysql/plugin_audit.h>
-#include <mysql/service_mysql_alloc.h>
-#include <my_thread.h> // my_thread_handle needed by mysql_memory.h
 #include <mysql/psi/mysql_memory.h>
+#include <mysql/service_mysql_alloc.h>
+#include <string.h>
+
+#include "my_inttypes.h"
+#include "my_psi_config.h"
 
 /* instrument the memory allocation */
 #ifdef HAVE_PSI_INTERFACE
@@ -38,7 +39,7 @@ static int plugin_init(MYSQL_PLUGIN)
   const char* category= "sql";
   int count;
 
-  count= array_elements(all_rewrite_memory);
+  count= static_cast<int>(array_elements(all_rewrite_memory));
   mysql_memory_register(category, all_rewrite_memory, count);
   return 0; /* success */
 }
@@ -48,7 +49,7 @@ static int plugin_init(MYSQL_PLUGIN)
 #endif /* HAVE_PSI_INTERFACE */
 
 
-static int rewrite_lower(MYSQL_THD thd, mysql_event_class_t event_class,
+static int rewrite_lower(MYSQL_THD, mysql_event_class_t event_class,
                          const void *event)
 {
   if (event_class == MYSQL_AUDIT_PARSE_CLASS)

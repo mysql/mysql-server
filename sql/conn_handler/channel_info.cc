@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2015 Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,8 +17,17 @@
 
 #include "channel_info.h"
 
+#include <stddef.h>
+#include <new>
+
+#include "derror.h"                     // ER_DEFAULT
+#include "my_dbug.h"
 #include "my_stacktrace.h"              // my_safe_snprintf
+#include "mysql/service_my_snprintf.h"
+#include "mysql_com.h"
+#include "protocol_classic.h"
 #include "sql_class.h"                  // THD
+#include "violite.h"
 
 
 THD* Channel_info::create_thd()
@@ -68,7 +77,7 @@ void Channel_info::send_error_and_close_channel(uint errorcode,
     }
     if (vio_tmp != NULL)
     {
-      vio_tmp->inactive= TRUE; // channel is already closed.
+      vio_tmp->inactive= true; // channel is already closed.
       vio_delete(vio_tmp);
     }
   }

@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -21,24 +21,29 @@
   Performance schema instrumentation (declarations).
 */
 
+#include <sys/types.h>
+
+#include "my_psi_config.h"
+
 #ifdef HAVE_PSI_TABLE_INTERFACE
 #ifdef MYSQL_SERVER
-#ifndef EMBEDDED_LIBRARY
 #ifndef MYSQL_DYNAMIC_PLUGIN
 
-#include "mysql/psi/psi.h"
+#include "my_inttypes.h"
+#include "my_macros.h"
+#include "mysql/psi/psi_table.h"
 
 #define PSI_TABLE_CALL(M) pfs_ ## M ## _v1
 
 C_MODE_START
 
 PSI_table_share*
-pfs_get_table_share_v1(my_bool temporary, struct TABLE_SHARE *share);
+pfs_get_table_share_v1(bool temporary, struct TABLE_SHARE *share);
 
 void pfs_release_table_share_v1(PSI_table_share* share);
 
 void
-pfs_drop_table_share_v1(my_bool temporary,
+pfs_drop_table_share_v1(bool temporary,
                         const char *schema_name, int schema_name_length,
                         const char *table_name, int table_name_length);
 
@@ -75,7 +80,6 @@ void pfs_unlock_table_v1(PSI_table *table);
 C_MODE_END
 
 #endif /* MYSQL_DYNAMIC_PLUGIN */
-#endif /* EMBEDDED_LIBRARY */
 #endif /* MYSQL_SERVER */
 #endif /* HAVE_PSI_TABLE_INTERFACE */
 

@@ -115,7 +115,7 @@ SET @@session.query_cache_wlock_invalidate = "Y";
 SET @@session.query_cache_wlock_invalidate = TRÜE;
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@session.query_cache_wlock_invalidate = ÕN;
---Error ER_WRONG_VALUE_FOR_VAR
+--error ER_PARSE_ERROR
 SET @@session.query_cache_wlock_invalidate = OF;
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@session.query_cache_wlock_invalidate = ÓFF;
@@ -134,7 +134,7 @@ SET @@global.query_cache_wlock_invalidate = "Y";
 SET @@global.query_cache_wlock_invalidate = TRÜE;
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@global.query_cache_wlock_invalidate = ÕN;
---Error ER_WRONG_VALUE_FOR_VAR
+--error ER_PARSE_ERROR
 SET @@global.query_cache_wlock_invalidate = OF;
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@global.query_cache_wlock_invalidate = ÓFF;
@@ -159,13 +159,13 @@ SELECT @@session.query_cache_wlock_invalidate AS res_is_1;
 
 --disable_warnings
 SELECT IF(@@global.query_cache_wlock_invalidate, "ON", "OFF") = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='query_cache_wlock_invalidate';
 --enable_warnings
 SELECT @@global.query_cache_wlock_invalidate;
 --disable_warnings
 SELECT VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='query_cache_wlock_invalidate';
 --enable_warnings
 
@@ -176,13 +176,13 @@ WHERE VARIABLE_NAME='query_cache_wlock_invalidate';
 
 --disable_warnings
 SELECT IF(@@session.query_cache_wlock_invalidate, "ON", "OFF") = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+FROM performance_schema.session_variables 
 WHERE VARIABLE_NAME='query_cache_wlock_invalidate';
 --enable_warnings
 SELECT @@session.query_cache_wlock_invalidate;
 --disable_warnings
 SELECT VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+FROM performance_schema.session_variables 
 WHERE VARIABLE_NAME='query_cache_wlock_invalidate';
 --enable_warnings
 

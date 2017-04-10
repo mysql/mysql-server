@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,15 +13,16 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include <my_global.h>
+#include <stddef.h>
+
 #include "keys_container.h"
+#include "my_dbug.h"
 
 namespace keyring {
 
 extern PSI_memory_key key_memory_KEYRING;
 
-static uchar *get_hash_key(const uchar *key, size_t *length,
-                           my_bool not_used MY_ATTRIBUTE((unused)))
+static uchar *get_hash_key(const uchar *key, size_t *length)
 {
   std::string *key_signature= reinterpret_cast<const IKey *>(key)->get_key_signature();
   *length= key_signature->length();
@@ -29,7 +30,7 @@ static uchar *get_hash_key(const uchar *key, size_t *length,
 }
 
 
-void free_hash_key(void* key)
+static void free_hash_key(void* key)
 {
   IKey *key_to_free= reinterpret_cast<IKey*>(key);
   delete key_to_free;
@@ -49,12 +50,12 @@ Keys_container::~Keys_container()
     delete keyring_io;
 }
 
-my_bool Keys_container::init(IKeyring_io* keyring_io, std::string keyring_storage_url)
+bool Keys_container::init(IKeyring_io* keyring_io, std::string keyring_storage_url)
 {
   this->keyring_io= keyring_io;
   this->keyring_storage_url= keyring_storage_url;
-  if (my_hash_init(&keys_hash, system_charset_info, 0x100, 0, 0,
-                   (my_hash_get_key) get_hash_key, free_hash_key, HASH_UNIQUE,
+  if (my_hash_init(&keys_hash, system_charset_info, 0, 0,
+                   (hash_get_key_function) get_hash_key, free_hash_key, HASH_UNIQUE,
                    key_memory_KEYRING) ||
       keyring_io->init(&this->keyring_storage_url) ||
       load_keys_from_keyring_storage())
@@ -65,19 +66,25 @@ my_bool Keys_container::init(IKeyring_io* keyring_io, std::string keyring_storag
   return FALSE;
 }
 
+//Keyring_io passed to this function should be already initialized
+void Keys_container::set_keyring_io(IKeyring_io *keyring_io)
+{
+  this->keyring_io= keyring_io;
+}
+
 std::string Keys_container::get_keyring_storage_url()
 {
   return keyring_storage_url;
 }
 
-my_bool Keys_container::store_key_in_hash(IKey *key)
+bool Keys_container::store_key_in_hash(IKey *key)
 {
   if (my_hash_insert(&keys_hash, (uchar *) key))
     return TRUE;
   return FALSE;
 }
 
-my_bool Keys_container::store_key(IKey* key)
+bool Keys_container::store_key(IKey* key)
 {
   if (flush_to_backup() || store_key_in_hash(key))
     return TRUE;
@@ -115,16 +122,16 @@ IKey*Keys_container::fetch_key(IKey *key)
   return key;
 }
 
-my_bool Keys_container::remove_key_from_hash(IKey *key)
+bool Keys_container::remove_key_from_hash(IKey *key)
 {
-  my_bool retVal= TRUE;
-  keys_hash.free= NULL; //Prevent my_hash_delete from removing key from memory
+  bool retVal= TRUE;
+  keys_hash.free_element= NULL; //Prevent my_hash_delete from removing key from memory
   retVal= my_hash_delete(&keys_hash, reinterpret_cast<uchar*>(key));
-  keys_hash.free= free_hash_key;
+  keys_hash.free_element= free_hash_key;
   return retVal;
 }
 
-my_bool Keys_container::remove_key(IKey *key)
+bool Keys_container::remove_key(IKey *key)
 {
   IKey* fetched_key_to_delete= get_key_from_hash(key);
   if (fetched_key_to_delete == NULL || flush_to_backup() ||
@@ -149,9 +156,9 @@ void Keys_container::free_keys_hash()
     my_hash_free(&keys_hash);
 }
 
-my_bool Keys_container::load_keys_from_keyring_storage()
+bool Keys_container::load_keys_from_keyring_storage()
 {
-  my_bool was_error= FALSE;
+  bool was_error= FALSE;
   ISerialized_object *serialized_keys= NULL;
   was_error= keyring_io->get_serialized_object(&serialized_keys);
   while(was_error == FALSE && serialized_keys != NULL)
@@ -179,7 +186,7 @@ my_bool Keys_container::load_keys_from_keyring_storage()
   return was_error;
 }
 
-my_bool Keys_container::flush_to_storage(IKey *key, Key_operation operation)
+bool Keys_container::flush_to_storage(IKey *key, Key_operation operation)
 {
   ISerialized_object *serialized_object=
     keyring_io->get_serializer()->serialize(&keys_hash, key, operation);
@@ -194,7 +201,7 @@ my_bool Keys_container::flush_to_storage(IKey *key, Key_operation operation)
   return FALSE;
 }
 
-my_bool Keys_container::flush_to_backup()
+bool Keys_container::flush_to_backup()
 {
   ISerialized_object *serialized_object=
     keyring_io->get_serializer()->serialize(&keys_hash, NULL, NONE);

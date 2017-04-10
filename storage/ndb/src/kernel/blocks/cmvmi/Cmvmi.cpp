@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,8 +20,9 @@
 #include <Configuration.hpp>
 #include <kernel_types.h>
 #include <NdbOut.hpp>
-#include <NdbMem.h>
+#include <portlib/NdbMem.h>
 #include <NdbTick.h>
+#include <util/ConfigValues.hpp>
 
 #include <TransporterRegistry.hpp>
 #include <SignalLoggerManager.hpp>
@@ -49,6 +50,8 @@
 #include <SafeCounter.hpp>
 #include <SectionReader.hpp>
 #include <vm/WatchDog.hpp>
+
+#include <DebuggerNames.hpp>
 
 #define JAM_FILE_ID 380
 
@@ -201,6 +204,12 @@ void Cmvmi::execNDB_TAMPER(Signal* signal)
   if(ERROR_INSERTED(9995)){
     simulate_error_during_shutdown= SIGSEGV;
     kill(getpid(), SIGABRT);
+  }
+
+  if(ERROR_INSERTED(9006)){
+    g_eventLogger->info("Activating error 9006 for SEGV of all nodes");
+    int *invalid_ptr = (int*) 123;
+    printf("%u", *invalid_ptr); // SEGV
   }
 #endif
 
@@ -1225,8 +1234,8 @@ void Cmvmi::execTAMPER_ORD(Signal* signal)
   }
   else if (errNo < 12000)
   {
-    // DBUTIL_REF ?
     jam();
+    tuserblockref = PGMAN_REF;
   }
   else if (errNo < 13000)
   {
@@ -1262,6 +1271,11 @@ void Cmvmi::execTAMPER_ORD(Signal* signal)
   {
     jam();
     tuserblockref = TRIX_REF;
+  }
+  else if (errNo < 20000)
+  {
+    jam();
+    tuserblockref = DBUTIL_REF;
   }
   else if (errNo < 30000)
   {
@@ -1375,6 +1389,34 @@ Cmvmi::execDUMP_STATE_ORD(Signal* signal)
     else if (check_block(LQH, val))
     {
       sendSignal(DBLQH_REF, GSN_DUMP_STATE_ORD, signal, signal->length(), JBB);
+    }
+    else if (check_block(CMVMI, val))
+    {
+      /**
+       * Handle here since we are already in CMVMI, mostly used for
+       * online config changes.
+       */
+      DumpStateOrd * const & dumpState = (DumpStateOrd *)&signal->theData[0];
+      Uint32 arg = dumpState->args[0];
+      Uint32 first_val = dumpState->args[1];
+      if (signal->length() != 2)
+      {
+        ndbout_c("dump 103000 X, where X is between 0 and 10 to set"
+                 "transactional priority");
+      }
+      else if (arg == DumpStateOrd::SetSchedulerResponsiveness)
+      {
+        if (first_val > 10)
+        {
+          ndbout_c("Trying to set SchedulerResponsiveness outside 0-10");
+        }
+        else
+        {
+          ndbout_c("Setting SchedulerResponsiveness to %u", first_val);
+          Configuration *conf = globalEmulatorData.theConfiguration;
+          conf->setSchedulerResponsiveness(first_val);
+        }
+      }
     }
     return;
   }
@@ -1515,6 +1557,151 @@ Cmvmi::execDUMP_STATE_ORD(Signal* signal)
 
     ndbrequire(false);
 #endif
+  }
+
+  if (arg == DumpStateOrd::CmvmiLongSignalMemorySnapshotCheck2)
+  {
+    ndbout_c("CmvmiLongSignalMemorySnapshotCheck2");
+
+#if defined VM_TRACE || defined ERROR_INSERT
+    Uint32 orig_idx = (f_free_segment_pos - 1) % 
+      NDB_ARRAY_SIZE(f_free_segments);
+
+    Uint32 poolsize = g_sectionSegmentPool.getSize();    
+    Uint32 orig_level = f_free_segments[orig_idx];
+    Uint32 orig_used = poolsize - orig_level;
+    Uint32 curr_level = g_sectionSegmentPool.getNoOfFree();
+    Uint32 curr_used = poolsize - curr_level;
+
+    ndbout_c("  Total : %u", poolsize);
+    ndbout_c("  Orig free level : %u (%u pct)", 
+             orig_level, orig_level * 100 / poolsize);
+    ndbout_c("  Curr free level : %u (%u pct)", 
+             curr_level, curr_level * 100 / poolsize);
+    ndbout_c("  Orig in-use : %u (%u pct)",
+             orig_used, orig_used * 100 / poolsize);
+    ndbout_c("  Curr in-use : %u (%u pct)",
+             curr_used, curr_used * 100 / poolsize);
+    
+    if (curr_used > 2 * orig_used)
+    {
+      ndbout_c("  ERROR : in-use has grown by more than a factor of 2");
+      ndbrequire(false);
+    }
+    else
+    {
+      ndbout_c("  Snapshot ok");
+    }
+#endif
+  }
+
+  if (arg == DumpStateOrd::CmvmiShowLongSignalOwnership)
+  {
+#ifdef NDB_DEBUG_RES_OWNERSHIP
+    ndbout_c("CMVMI dump LSB usage");
+    Uint32 buffs = g_sectionSegmentPool.getSize();
+    Uint32* buffOwners = (Uint32*) malloc(buffs * sizeof(Uint32));
+    Uint64* buffOwnersCount = (Uint64*) malloc(buffs * sizeof(Uint64));
+    
+    memset(buffOwnersCount, 0, buffs * sizeof(Uint64));
+
+    ndbout_c("  Filling owners list");
+    Uint32 zeroOwners = 0;
+    lock_global_ssp();
+    {
+      /* Fill owners list */
+      Ptr<SectionSegment> tmp;
+      for (tmp.i=0; tmp.i<buffs; tmp.i++)
+      {
+        g_sectionSegmentPool.getPtrIgnoreAlloc(tmp);
+        buffOwners[tmp.i] = tmp.p->m_ownerRef;
+        if (buffOwners[tmp.i] == 0)
+          zeroOwners++;
+        
+        /* Expensive, ideally find a hacky way to iterate the freelist */
+        if (!g_sectionSegmentPool.findId(tmp.i))
+        {
+          buffOwners[tmp.i] = 0;
+        }
+      }
+    }
+    unlock_global_ssp();
+
+    ndbout_c("  Summing by owner");
+    /* Use a linear hash to find items */
+    
+    Uint32 free = 0;
+    Uint32 numOwners = 0;
+    for (Uint32 i=0; i < buffs; i++)
+    {
+      Uint32 owner = buffOwners[i];
+      if (owner == 0)
+      {
+        free++;
+      }
+      else
+      {
+        Uint32 ownerHash = 17 + 37 * owner;
+        Uint32 start=ownerHash % buffs;
+
+        Uint32 y=0;
+        for (; y < buffs; y++)
+        {
+          Uint32 pos = (start + y) % buffs;
+          if (buffOwnersCount[pos] == 0)
+          {
+            numOwners++;
+            buffOwnersCount[pos] = (Uint64(owner) << 32 | 1);
+            break;
+          }
+          else if ((buffOwnersCount[pos] >> 32) == owner)
+          {
+            buffOwnersCount[pos] ++;
+            break;
+          }
+        }
+        ndbrequire(y != buffs);
+      }
+    }
+
+    ndbout_c("  Summary");
+    ndbout_c("    Warning, free buffers in thread caches considered used here");
+    ndbout_c("    ndbd avoids this problem");
+    ndbout_c("    Zero owners : %u", zeroOwners);
+    ndbout_c("    Num free : %u", free);
+    ndbout_c("    Num owners : %u", numOwners);
+    
+    for (Uint32 i=0; i < buffs; i++)
+    {
+      Uint64 entry = buffOwnersCount[i];
+      if (entry != 0)
+      {
+        /* Breakdown assuming Block ref + GSN format */
+        Uint32 count = Uint32(entry & 0xffffffff);
+        Uint32 ownerId = Uint32(entry >> 32);
+        Uint32 block = (ownerId >> 16) & 0x1ff;
+        Uint32 instance = ownerId >> 25;
+        Uint32 gsn = ownerId & 0xffff;
+        ndbout_c("      Count : %u : OwnerId : 0x%x (0x%x:%u/%u) %s %s",
+                 count,
+                 ownerId,
+                 block,
+                 instance,
+                 gsn,
+                 block == 1 ? "RECV" : getBlockName(block, "Unknown"),
+                 getSignalName(gsn, "Unknown"));
+      }
+    }
+
+    ndbout_c("Done");
+ 
+    ::free(buffOwners);
+    ::free(buffOwnersCount);
+#else
+    ndbout_c("CMVMI :: ShowLongSignalOwnership.  Not compiled "
+             "with NDB_DEBUG_RES_OWNERSHIP");
+#endif
+
   }
 
   if (dumpState->args[0] == DumpStateOrd::DumpPageMemory)
@@ -1771,7 +1958,7 @@ Cmvmi::execDUMP_STATE_ORD(Signal* signal)
 #endif
 #endif
 
-  if (arg == 9999)
+  if (arg == 9999 || arg == 9006)
   {
     Uint32 delay = 1000;
     switch(signal->getLength()){
@@ -1787,8 +1974,7 @@ Cmvmi::execDUMP_STATE_ORD(Signal* signal)
       break;
     }
     }
-    
-    signal->theData[0] = 9999;
+    signal->theData[0] = arg;
     if (delay == 0)
     {
       execNDB_TAMPER(signal);
@@ -1972,6 +2158,72 @@ void Cmvmi::execDBINFO_SCANREQ(Signal *signal)
         return;
       }
     }
+    break;
+  }
+
+  case Ndbinfo::CONFIG_VALUES_TABLEID:
+  {
+    jam();
+    Uint32 index = cursor->data[0];
+
+    char buf[512];
+    const ConfigValues* const values = m_ctx.m_config.get_own_config_values();
+    ConfigValues::Entry entry;
+    while (true)
+    {
+      /*
+        Iterate own configuration by index and
+        return the configured values
+      */
+      index = values->getNextEntryByIndex(index, &entry);
+      if (index == 0)
+      {
+         // No more config values
+        break;
+      }
+
+      if (entry.m_key > PRIVATE_BASE)
+      {
+        // Skip private configuration values which are calculated
+        // and only to be known within one data node
+        index++;
+        continue;
+      }
+
+      Ndbinfo::Row row(signal, req);
+      row.write_uint32(getOwnNodeId()); // Node id
+      row.write_uint32(entry.m_key); // config_param
+
+      switch(entry.m_type)
+      {
+      case ConfigValues::IntType:
+        BaseString::snprintf(buf, sizeof(buf), "%u", entry.m_int);
+        break;
+
+      case ConfigValues::Int64Type:
+        BaseString::snprintf(buf, sizeof(buf), "%llu", entry.m_int64);
+        break;
+
+      case ConfigValues::StringType:
+        BaseString::snprintf(buf, sizeof(buf), "%s", entry.m_string);
+        break;
+
+      default:
+        assert(false);
+        break;
+      }
+      row.write_string(buf); // config_values
+
+      ndbinfo_send_row(signal, req, row, rl);
+
+      if (rl.need_break(req))
+      {
+        jam();
+        ndbinfo_send_scan_break(signal, req, rl, index);
+        return;
+      }
+    }
+    break;
   }
 
   default:

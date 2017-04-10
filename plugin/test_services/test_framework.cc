@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,14 +13,14 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
-#include <my_global.h>
-//#include <stdlib.h>
-//#include <ctype.h>
-#include <mysql_version.h>
 #include <mysql/plugin.h>
+#include <mysql_version.h>
+#include <stddef.h>
+
+#include "m_string.h"                           // strlen
+#include "my_dbug.h"
 //#include <my_dir.h>
 #include "my_sys.h"                             // my_write, my_malloc
-#include "m_string.h"                           // strlen
 #include "sql_plugin.h"                         // st_plugin_int
 
 /*
@@ -37,7 +37,7 @@
     1                    failure (cannot happen)
 */
 
-static int test_services_plugin_init(void *p)
+static int test_services_plugin_init(void*)
 {
   DBUG_ENTER("test_services_plugin_init");
   DBUG_RETURN(0);
@@ -57,7 +57,7 @@ static int test_services_plugin_init(void *p)
 
 */
 
-static int test_services_plugin_deinit(void *p)
+static int test_services_plugin_deinit(void*)
 {
   DBUG_ENTER("test_services_plugin_deinit");
   DBUG_RETURN(0);

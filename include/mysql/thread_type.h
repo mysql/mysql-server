@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,6 +18,10 @@
 #ifndef THREAD_TYPE_INCLUDED
 #define THREAD_TYPE_INCLUDED
 
+/**
+  @file include/mysql/thread_type.h
+*/
+
 #ifdef  __cplusplus
 extern "C"{
 #endif
@@ -34,7 +38,12 @@ enum enum_thread_type
   SYSTEM_THREAD_INFO_REPOSITORY= 32,
   SYSTEM_THREAD_SLAVE_WORKER= 64,
   SYSTEM_THREAD_COMPRESS_GTID_TABLE= 128,
-  SYSTEM_THREAD_BACKGROUND= 256
+  SYSTEM_THREAD_BACKGROUND= 256,
+  SYSTEM_THREAD_DD_INITIALIZE= 512,
+  SYSTEM_THREAD_DD_RESTART= 1024,
+  SYSTEM_THREAD_SERVER_INITIALIZE= 2048,
+  SYSTEM_THREAD_INIT_FILE= 4096,
+  SYSTEM_THREAD_DDL_LOG_RECOVERY= 8192
 };
 
 #ifdef  __cplusplus

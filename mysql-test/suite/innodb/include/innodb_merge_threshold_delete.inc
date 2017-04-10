@@ -5,9 +5,11 @@
 # "create table tab1 (a bigint primary key, b varchar(2048)) engine=InnoDB;"
 #
 
---source include/have_innodb.inc
---source include/have_debug.inc
---source include/have_innodb_16k.inc
+--echo # check MERGE_THRESHOLD
+--replace_result tab1#P tab1#p
+select t.NAME as TABLE_NAME, i.NAME as INDEX_NAME, i.MERGE_THRESHOLD
+from INFORMATION_SCHEMA.INNODB_SYS_TABLES t, INFORMATION_SCHEMA.INNODB_SYS_INDEXES i
+where t.TABLE_ID = i.TABLE_ID and t.NAME like 'test/tab1%';
 
 # turn on flags
 --disable_query_log
@@ -16,12 +18,6 @@ SET GLOBAL innodb_monitor_reset=index_page_merge_attempts;
 SET GLOBAL innodb_monitor_enable=index_page_merge_successful;
 SET GLOBAL innodb_monitor_reset=index_page_merge_successful;
 --enable_query_log
-
---echo # check MERGE_THRESHOLD
---replace_result tab1#P tab1#p
-select t.NAME as TABLE_NAME, i.NAME as INDEX_NAME, i.MERGE_THRESHOLD
-from INFORMATION_SCHEMA.INNODB_SYS_TABLES t, INFORMATION_SCHEMA.INNODB_SYS_INDEXES i
-where t.TABLE_ID = i.TABLE_ID and t.NAME like 'test/tab1%';
 
 insert into tab1 values (1, repeat('a',2048));
 insert into tab1 values (2, repeat('a',2048));

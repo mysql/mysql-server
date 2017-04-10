@@ -15,10 +15,27 @@
 
 #include "rpl_info_file.h"
 
-#include "my_dir.h"            // MY_STAT
-#include "my_thread_local.h"   // my_errno
+#include "my_config.h"
+
+#include <fcntl.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
+#endif
+
 #include "dynamic_ids.h"       // Server_ids
 #include "log.h"               // sql_print_error
+#include "m_string.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_dir.h"            // MY_STAT
+#include "my_thread_local.h"   // my_errno
+#include "mysql/service_mysql_alloc.h"
+#include "mysqld.h"            // mysql_data_home
+#include "psi_memory_key.h"
+#include "sql_string.h"
 
 
 int init_ulongvar_from_file(ulong* var, IO_CACHE* f, ulong default_val);
@@ -85,7 +102,7 @@ int Rpl_info_file::do_init_info()
         end_io_cache(&info_file);
       my_close(info_fd, MYF(MY_WME));
     }
-    if ((info_fd = my_open(info_fname, O_CREAT|O_RDWR|O_BINARY, MYF(MY_WME))) < 0)
+    if ((info_fd = my_open(info_fname, O_CREAT | O_RDWR, MYF(MY_WME))) < 0)
     {
       sql_print_error("Failed to create a new info file (\
 file '%s', errno %d)", info_fname, my_errno());
@@ -112,7 +129,7 @@ file '%s')", info_fname);
       reinit_io_cache(&info_file, READ_CACHE, 0L,0,0);
     else
     {
-      if ((info_fd = my_open(info_fname, O_RDWR|O_BINARY, MYF(MY_WME))) < 0 )
+      if ((info_fd = my_open(info_fname, O_RDWR, MYF(MY_WME))) < 0 )
       {
         sql_print_error("Failed to open the existing info file (\
 file '%s', errno %d)", info_fname, my_errno());
@@ -342,31 +359,31 @@ int Rpl_info_file::do_reset_info(const int nparam,
   DBUG_RETURN(error);
 }
 
-bool Rpl_info_file::do_set_info(const int pos, const char *value)
+bool Rpl_info_file::do_set_info(const int, const char *value)
 {
   return (my_b_printf(&info_file, "%s\n", value) > (size_t) 0 ?
           FALSE : TRUE);
 }
 
-bool Rpl_info_file::do_set_info(const int pos, const uchar *value,
+bool Rpl_info_file::do_set_info(const int, const uchar *value,
                                 const size_t size)
 {
   return (my_b_write(&info_file, value, size));
 }
 
-bool Rpl_info_file::do_set_info(const int pos, const ulong value)
+bool Rpl_info_file::do_set_info(const int, const ulong value)
 {
   return (my_b_printf(&info_file, "%lu\n", value) > (size_t) 0 ?
           FALSE : TRUE);
 }
 
-bool Rpl_info_file::do_set_info(const int pos, const int value)
+bool Rpl_info_file::do_set_info(const int, const int value)
 {
   return (my_b_printf(&info_file, "%d\n", value) > (size_t) 0 ?
           FALSE : TRUE);
 }
 
-bool Rpl_info_file::do_set_info(const int pos, const float value)
+bool Rpl_info_file::do_set_info(const int, const float value)
 {
   /*
     64 bytes provide enough space considering that the precision is 3
@@ -387,7 +404,7 @@ bool Rpl_info_file::do_set_info(const int pos, const float value)
           FALSE : TRUE);
 }
 
-bool Rpl_info_file::do_set_info(const int pos, const Server_ids *value)
+bool Rpl_info_file::do_set_info(const int, const Server_ids *value)
 {
   bool error= TRUE;
   String buffer;
@@ -404,42 +421,42 @@ err:
   return error;
 }
 
-bool Rpl_info_file::do_get_info(const int pos, char *value, const size_t size,
+bool Rpl_info_file::do_get_info(const int, char *value, const size_t size,
                                 const char *default_value)
 {
   return (init_strvar_from_file(value, size, &info_file,
                                 default_value));
 }
 
-bool Rpl_info_file::do_get_info(const int pos, uchar *value, const size_t size,
-                                const uchar *default_value)
+bool Rpl_info_file::do_get_info(const int, uchar *value, const size_t size,
+                                const uchar*)
 {
   return(my_b_read(&info_file, value, size));
 }
 
-bool Rpl_info_file::do_get_info(const int pos, ulong *value,
+bool Rpl_info_file::do_get_info(const int, ulong *value,
                                 const ulong default_value)
 {
   return (init_ulongvar_from_file(value, &info_file,
                                   default_value));
 }
 
-bool Rpl_info_file::do_get_info(const int pos, int *value,
+bool Rpl_info_file::do_get_info(const int, int *value,
                                 const int default_value)
 {
   return (init_intvar_from_file(value, &info_file,
                                 (int) default_value));
 }
 
-bool Rpl_info_file::do_get_info(const int pos, float *value,
+bool Rpl_info_file::do_get_info(const int, float *value,
                                 const float default_value)
 {
   return (init_floatvar_from_file(value, &info_file,
                                   default_value));
 }
 
-bool Rpl_info_file::do_get_info(const int pos, Server_ids *value,
-                                const Server_ids *default_value MY_ATTRIBUTE((unused)))
+bool Rpl_info_file::do_get_info(const int, Server_ids *value,
+                                const Server_ids*)
 {
   /*
     Static buffer to use most of the times. However, if it is not big
@@ -612,9 +629,10 @@ int init_floatvar_from_file(float* var, IO_CACHE* f, float default_val)
    shorter or equal of @c long and separated by the single space.
 
    @param  buffer      Put the read values in this static buffer
-   @param  buffer      Size of the static buffer
+   @param  size        Size of the static buffer
    @param  buffer_act  Points to the final buffer as dynamic buffer may
                        be used if the static buffer is not big enough.
+   @param  f           IO_CACHE of the replication info file.
 
    @retval 0           All OK
    @retval non-zero  An error

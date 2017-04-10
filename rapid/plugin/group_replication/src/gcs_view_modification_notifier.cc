@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,6 +14,11 @@
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #include "gcs_view_modification_notifier.h"
+
+#include <time.h>
+
+#include "my_dbug.h"
+#include "my_systime.h"
 #include "plugin_psi.h"
 
 
@@ -21,7 +26,6 @@ Plugin_gcs_view_modification_notifier::Plugin_gcs_view_modification_notifier()
   :view_changing(false), cancelled_view_change(false),
    injected_view_modification(false), error(0)
 {
-
   mysql_cond_init(key_GR_COND_view_modification_wait, &wait_for_view_cond);
   mysql_mutex_init(key_GR_LOCK_view_modification_wait, &wait_for_view_mutex,
                    MY_MUTEX_INIT_FAST);

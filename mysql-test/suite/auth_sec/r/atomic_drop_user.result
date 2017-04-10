@@ -1,0 +1,60 @@
+include/save_binlog_position.inc
+# -----------------------------------------------------------------------
+# Begin : Tests for DROP USER
+CREATE USER userX, userY, userZ;
+DROP USER userZ;
+include/save_binlog_position.inc
+SELECT user from mysql.user WHERE user LIKE 'user%';
+user
+userX
+userY
+# Case 1 : Try removing a non-existing user
+DROP USER userX, userY, userZ;
+ERROR HY000: Operation DROP USER failed for 'userZ'@'%'
+# Must show userX and userY
+SELECT user FROM mysql.user WHERE user LIKE 'user%';
+user
+userX
+userY
+# This event sequence pattern MUST NOT be present in binlog: !Q(DROP USER.*userX.*userY.*userZ)
+include/assert_binlog_events.inc
+# Case 2 : DROP USER after deleting entry from mysql.user tables
+DELETE FROM mysql.user WHERE user LIKE 'userY';
+include/save_binlog_position.inc
+# Must succeed
+DROP USER userX, userY;
+# Must not show any entries
+SELECT user FROM mysql.user WHERE user LIKE 'user%';
+user
+# This event sequence pattern MUST be present in binlog: !Q(DROP USER.*userX.*userY.*)
+include/assert_binlog_events.inc
+include/save_binlog_position.inc
+# End : Tests for DROP USER
+# -----------------------------------------------------------------------
+# Begin : Tests for DROP USER IF EXISTS
+CREATE USER userX, userY, userZ;
+DROP USER userZ;
+include/save_binlog_position.inc
+# Case 1 : DROP USER IF EXISTS for non-existing user
+DROP USER IF EXISTS userX, userY, userZ;
+Warnings:
+Note	3162	Authorization ID 'userZ'@'%' does not exist.
+# Must not show any entries
+SELECT user FROM mysql.user WHERE user LIKE 'user%';
+user
+#check binlog : Must show DROP USER IF EXISTS as it is
+# This event sequence pattern MUST be present in binlog: !Q(DROP USER.*userX.*userY.*)
+include/assert_binlog_events.inc
+include/save_binlog_position.inc
+# Case 2 : DROP USER IF EXISTS should be logged in binlog
+#          even if non of the users were present.
+DROP USER IF EXISTS userX, userY, userZ;
+Warnings:
+Note	3162	Authorization ID 'userX'@'%' does not exist.
+Note	3162	Authorization ID 'userY'@'%' does not exist.
+Note	3162	Authorization ID 'userZ'@'%' does not exist.
+# This event sequence pattern MUST be present in binlog: !Q(DROP USER.*userX.*userY.*)
+include/assert_binlog_events.inc
+include/save_binlog_position.inc
+# End : Test for DROP USER IF EXISTS
+# -----------------------------------------------------------------------

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -61,14 +61,14 @@ mem_heap_block_free(
 	mem_heap_t*	heap,	/*!< in: heap */
 	mem_block_t*	block);	/*!< in: block to free */
 
-#ifndef UNIV_HOTBACKUP
+#ifndef UNIV_LIBRARY
 /******************************************************************//**
 Frees the free_block field from a memory heap. */
 void
 mem_heap_free_block_free(
 /*=====================*/
 	mem_heap_t*	heap);	/*!< in: heap */
-#endif /* !UNIV_HOTBACKUP */
+#endif /* !UNIV_LIBRARY */
 
 /***************************************************************//**
 Adds a new block to a memory heap.
@@ -118,7 +118,7 @@ UNIV_INLINE
 void
 mem_block_set_free(mem_block_t* block, ulint free)
 {
-	ut_ad(free > 0);
+	ut_ad(free >= block->start);
 	ut_ad(free <= mem_block_get_len(block));
 
 	block->free = free;
@@ -151,10 +151,18 @@ mem_block_get_start(mem_block_t* block)
 @param[in]	block	Memory block to check. */
 UNIV_INLINE
 void
-mem_block_validate(
-	const mem_block_t*	block)
+mem_block_validate(const mem_block_t* block)
 {
-	ut_a(block->magic_n == MEM_BLOCK_MAGIC_N);
+	if (block->magic_n != MEM_BLOCK_MAGIC_N) {
+
+		ib::fatal error;
+		error << "Memory block is invalid (correctness field value"
+			" should be " << MEM_BLOCK_MAGIC_N << ", but it is "
+			<< block->magic_n << ") in a block of size "
+			<< block->len;
+		ut_d(error << ", allocated at " << block->file_name << ":"
+				 << block->line);
+	}
 }
 
 /** Allocates and zero-fills n bytes of memory from a memory heap.
@@ -186,7 +194,7 @@ mem_heap_alloc(
 	ulint		n)
 {
 	mem_block_t*	block;
-	void*		buf;
+	byte*		buf;
 	ulint		free;
 
 	ut_d(mem_block_validate(heap));
@@ -211,13 +219,42 @@ mem_heap_alloc(
 
 	free = mem_block_get_free(block);
 
-	buf = (byte*) block + free;
+	buf = (byte*) block + free + MEM_NO_MANS_LAND;
 
 	mem_block_set_free(block, free + MEM_SPACE_NEEDED(n));
 
-	UNIV_MEM_ALLOC(buf, n);
+	ut_ad(mem_block_get_len(block) >= mem_block_get_free(block));
+
+	UNIV_MEM_ALLOC(buf - MEM_NO_MANS_LAND, MEM_SPACE_NEEDED(n));
+
+#ifdef UNIV_DEBUG
+	byte* start_no_mans_land = buf - MEM_NO_MANS_LAND;
+	byte* end_no_mans_land = start_no_mans_land + MEM_SPACE_NEEDED(n)
+		- MEM_NO_MANS_LAND;
+	memset(start_no_mans_land, MEM_NO_MANS_LAND_BEFORE_BYTE,
+		MEM_NO_MANS_LAND);
+	UNIV_MEM_FREE(start_no_mans_land, MEM_NO_MANS_LAND);
+
+	memset(end_no_mans_land, MEM_NO_MANS_LAND_AFTER_BYTE,
+		MEM_NO_MANS_LAND);
+	UNIV_MEM_FREE(end_no_mans_land, MEM_NO_MANS_LAND);
+#endif
+
 	return(buf);
 }
+
+#ifdef UNIV_DEBUG
+UNIV_INLINE
+void validate_no_mans_land(byte* no_mans_land_begin, byte mem_no_mans_land_byte)
+{
+	UNIV_MEM_VALID(no_mans_land_begin, MEM_NO_MANS_LAND);
+	for (byte* no_mans_land_it = no_mans_land_begin;
+		no_mans_land_it < no_mans_land_begin + MEM_NO_MANS_LAND;
+		++no_mans_land_it) {
+		ut_a(*no_mans_land_it == mem_no_mans_land_byte);
+	}
+}
+#endif
 
 /** Returns a pointer to the heap top.
 @param[in]	heap	memory heap
@@ -277,12 +314,20 @@ mem_heap_free_heap_top(
 
 	ut_ad(block);
 
+	if (old_top == (byte*)block + mem_block_get_free(block)) {
+		return;
+	}
+
+#ifdef UNIV_DEBUG
+	validate_no_mans_land(old_top, MEM_NO_MANS_LAND_BEFORE_BYTE);
+	validate_no_mans_land((byte*)block + mem_block_get_free(block)
+		- MEM_NO_MANS_LAND, MEM_NO_MANS_LAND_AFTER_BYTE);
+#endif
 	/* Set the free field of block */
 	mem_block_set_free(block, old_top - (byte*) block);
 
 	ut_ad(mem_block_get_start(block) <= mem_block_get_free(block));
-	UNIV_MEM_ASSERT_W(old_top, (byte*) block + block->len - old_top);
-	UNIV_MEM_ALLOC(old_top, (byte*) block + block->len - old_top);
+	UNIV_MEM_FREE(old_top, (byte*) block + block->len - old_top);
 
 	/* If free == start, we may free the block if it is not the first
 	one */
@@ -302,11 +347,11 @@ mem_heap_empty(
 	mem_heap_t*	heap)
 {
 	mem_heap_free_heap_top(heap, (byte*) heap + mem_block_get_start(heap));
-#ifndef UNIV_HOTBACKUP
+#ifndef UNIV_LIBRARY
 	if (heap->free_block) {
 		mem_heap_free_block_free(heap);
 	}
-#endif /* !UNIV_HOTBACKUP */
+#endif /* !UNIV_LIBRARY */
 }
 
 /** Returns a pointer to the topmost element in a memory heap.
@@ -327,7 +372,8 @@ mem_heap_get_top(
 
 	block = UT_LIST_GET_LAST(heap->base);
 
-	buf = (byte*) block + mem_block_get_free(block) - MEM_SPACE_NEEDED(n);
+	buf = (byte*) block + mem_block_get_free(block) - MEM_SPACE_NEEDED(n)
+		+ MEM_NO_MANS_LAND;
 
 	return((void*) buf);
 }
@@ -353,7 +399,8 @@ mem_heap_is_top(
 
 	first_free_byte = mem_heap_get_heap_top(heap);
 
-	presumed_start_of_buf = first_free_byte - MEM_SPACE_NEEDED(buf_sz);
+	presumed_start_of_buf = first_free_byte - MEM_SPACE_NEEDED(buf_sz)
+		+ MEM_NO_MANS_LAND;
 
 	return(presumed_start_of_buf == buf);
 }
@@ -446,8 +493,16 @@ mem_heap_free_top(
 
 	/* Subtract the free field of block */
 	mem_block_set_free(block, mem_block_get_free(block)
-			   - MEM_SPACE_NEEDED(n));
-	UNIV_MEM_ASSERT_W((byte*) block + mem_block_get_free(block), n);
+		- MEM_SPACE_NEEDED(n));
+	UNIV_MEM_ASSERT_W((byte*) block + mem_block_get_free(block)
+		+ MEM_NO_MANS_LAND, n);
+#ifdef UNIV_DEBUG
+	validate_no_mans_land((byte*)block + mem_block_get_free(block),
+		MEM_NO_MANS_LAND_BEFORE_BYTE);
+	validate_no_mans_land((byte*)block + mem_block_get_free(block)
+		+ MEM_SPACE_NEEDED(n) - MEM_NO_MANS_LAND,
+		MEM_NO_MANS_LAND_AFTER_BYTE);
+#endif
 
 	/* If free == start, we may free the block if it is not the first
 	one */
@@ -456,11 +511,8 @@ mem_heap_free_top(
 				== mem_block_get_start(block))) {
 		mem_heap_block_free(heap, block);
 	} else {
-		/* Avoid a bogus UNIV_MEM_ASSERT_W() warning in a
-		subsequent invocation of mem_heap_free_top().
-		Originally, this was UNIV_MEM_FREE(), to catch writes
-		to freed memory. */
-		UNIV_MEM_ALLOC((byte*) block + mem_block_get_free(block), n);
+		UNIV_MEM_FREE((byte*) block + mem_block_get_free(block),
+			MEM_SPACE_NEEDED(n));
 	}
 }
 
@@ -484,7 +536,7 @@ mem_heap_create_func(
 #endif /* UNIV_DEBUG */
 	ulint		type)
 {
-	mem_block_t*   block;
+	mem_block_t*	block;
 
 	if (!size) {
 		size = MEM_BLOCK_START_SIZE;
@@ -497,9 +549,11 @@ mem_heap_create_func(
 		return(NULL);
 	}
 
+#ifndef UNIV_LIBRARY
 	/* The first block should not be in buffer pool,
 	because it might be relocated to resize buffer pool. */
 	ut_ad(block->buf_block == NULL);
+#endif /* !UNIV_LIBRARY */
 
 	UT_LIST_INIT(block->base, &mem_block_t::list);
 
@@ -524,11 +578,11 @@ mem_heap_free(
 
 	block = UT_LIST_GET_LAST(heap->base);
 
-#ifndef UNIV_HOTBACKUP
+#ifndef UNIV_LIBRARY
 	if (heap->free_block) {
 		mem_heap_free_block_free(heap);
 	}
-#endif /* !UNIV_HOTBACKUP */
+#endif /* !UNIV_LIBRARY */
 
 	while (block != NULL) {
 		/* Store the contents of info before freeing current block
@@ -556,11 +610,11 @@ mem_heap_get_size(
 
 	size = heap->total_size;
 
-#ifndef UNIV_HOTBACKUP
+#ifndef UNIV_LIBRARY
 	if (heap->free_block) {
 		size += UNIV_PAGE_SIZE;
 	}
-#endif /* !UNIV_HOTBACKUP */
+#endif /* !UNIV_LIBRARY */
 
 	return(size);
 }

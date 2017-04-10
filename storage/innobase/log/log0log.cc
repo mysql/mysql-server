@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2017, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2009, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -30,32 +30,36 @@ Database log
 Created 12/9/1995 Heikki Tuuri
 *******************************************************/
 
-#include "ha_prototypes.h"
 #include <debug_sync.h>
+#include <sys/types.h>
+#include <time.h>
 
+#include "ha_prototypes.h"
 #include "log0log.h"
-
-#ifdef UNIV_NONINL
-#include "log0log.ic"
-#endif
-
-#include "mem0mem.h"
-#include "buf0buf.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
 #ifndef UNIV_HOTBACKUP
+#include <mysqld.h>
+
+#include "buf0buf.h"
 #include "buf0flu.h"
-#include "srv0srv.h"
-#include "log0recv.h"
-#include "fil0fil.h"
 #include "dict0boot.h"
 #include "dict0stats_bg.h"
+#include "fil0fil.h"
+#include "log0recv.h"
+#include "mem0mem.h"
+#include "srv0mon.h"
+#include "srv0mon.h"
+#include "srv0srv.h"
 #include "srv0srv.h"
 #include "srv0start.h"
+#include "sync0sync.h"
+#include "sync0sync.h"
+#include "trx0roll.h"
+#include "trx0roll.h"
 #include "trx0sys.h"
 #include "trx0trx.h"
-#include "trx0roll.h"
-#include "srv0mon.h"
-#include "sync0sync.h"
-#endif /* !UNIV_HOTBACKUP */
 
 /*
 General philosophy of InnoDB redo-logs:
@@ -87,18 +91,24 @@ reduce the size of the log.
 log_t*	log_sys	= NULL;
 
 /** Whether to generate and require checksums on the redo log pages */
-my_bool	innodb_log_checksums;
+bool	innodb_log_checksums;
 
 /** Pointer to the log checksum calculation function */
 log_checksum_func_t log_checksum_algorithm_ptr;
 
 /* These control how often we print warnings if the last checkpoint is too
 old */
-bool	log_has_printed_chkp_warning = false;
-time_t	log_last_warning_time;
+static bool	log_has_printed_chkp_warning = false;
+static time_t	log_last_warning_time;
 
-bool	log_has_printed_chkp_margine_warning = false;
-time_t	log_last_margine_warning_time;
+static bool	log_has_printed_chkp_margine_warning = false;
+static time_t	log_last_margine_warning_time;
+
+/** TRUE if we don't have DDTableBuffer in the system tablespace,
+this should be due to we run the server against old data files.
+Please do NOT change this when server is running.
+FIXME: This should be removed away once we can upgrade for new DD. */
+extern bool	srv_missing_dd_table_buffer;
 
 /* A margin for free space in the log buffer before a log entry is catenated */
 #define LOG_BUF_WRITE_MARGIN	(4 * OS_FILE_LOG_BLOCK_SIZE)
@@ -106,12 +116,6 @@ time_t	log_last_margine_warning_time;
 /* Margins for free space in the log buffer after a log entry is catenated */
 #define LOG_BUF_FLUSH_RATIO	2
 #define LOG_BUF_FLUSH_MARGIN	(LOG_BUF_WRITE_MARGIN + 4 * UNIV_PAGE_SIZE)
-
-/* Margin for the free space in the smallest log group, before a new query
-step which modifies the database, is started */
-
-#define LOG_CHECKPOINT_FREE_PER_THREAD	(4 * UNIV_PAGE_SIZE)
-#define LOG_CHECKPOINT_EXTRA_FREE	(8 * UNIV_PAGE_SIZE)
 
 /* This parameter controls asynchronous making of a new checkpoint; the value
 should be bigger than LOG_POOL_PREFLUSH_RATIO_SYNC */
@@ -125,10 +129,6 @@ should be bigger than LOG_POOL_PREFLUSH_RATIO_SYNC */
 the previous */
 #define LOG_POOL_PREFLUSH_RATIO_ASYNC	8
 
-/* Codes used in unlocking flush latches */
-#define LOG_UNLOCK_NONE_FLUSHED_LOCK	1
-#define LOG_UNLOCK_FLUSH_LOCK		2
-
 /******************************************************//**
 Completes a checkpoint write i/o to a log file. */
 static
@@ -136,7 +136,6 @@ void
 log_io_complete_checkpoint(void);
 /*============================*/
 
-#ifndef UNIV_HOTBACKUP
 /****************************************************************//**
 Returns the oldest modified block lsn in the pool, or log_sys->lsn if none
 exists.
@@ -159,7 +158,6 @@ log_buf_pool_get_oldest_modification(void)
 
 	return(lsn);
 }
-#endif  /* !UNIV_HOTBACKUP */
 
 /** Extends the log buffer.
 @param[in]	len	requested minimum size in bytes */
@@ -226,7 +224,7 @@ log_buffer_extend(
 	log_sys->buf_next_to_write -= move_start;
 
 	/* reallocate log buffer */
-	srv_log_buffer_size = len / UNIV_PAGE_SIZE + 1;
+	srv_log_buffer_size = static_cast<ulong>(len / UNIV_PAGE_SIZE + 1);
 	ut_free(log_sys->buf_ptr);
 
 	log_sys->buf_size = LOG_BUFFER_SIZE;
@@ -253,7 +251,6 @@ log_buffer_extend(
 		<< LOG_BUFFER_SIZE << ".";
 }
 
-#ifndef UNIV_HOTBACKUP
 /** Calculate actual length in redo buffer and file including
 block header and trailer.
 @param[in]	len	length to write
@@ -344,7 +341,7 @@ log_margin_checkpoint_age(
 
 	return;
 }
-#endif /* !UNIV_HOTBACKUP */
+
 /** Open the log for log_write_low. The log must be closed with log_close.
 @param[in]	len	length of the data to be written
 @return start lsn of the log record */
@@ -553,6 +550,7 @@ function_exit:
 Calculates the data capacity of a log group, when the log file headers are not
 included.
 @return capacity in bytes */
+static
 lsn_t
 log_group_get_capacity(
 /*===================*/
@@ -651,47 +649,9 @@ log_group_calc_lsn_offset(
 
 	return(log_group_calc_real_offset(offset, group));
 }
+#endif /* !UNIV_HOTBACKUP */
 
-/*******************************************************************//**
-Calculates where in log files we find a specified lsn.
-@return log file number */
-ulint
-log_calc_where_lsn_is(
-/*==================*/
-	int64_t*	log_file_offset,	/*!< out: offset in that file
-						(including the header) */
-	ib_uint64_t	first_header_lsn,	/*!< in: first log file start
-						lsn */
-	ib_uint64_t	lsn,			/*!< in: lsn whose position to
-						determine */
-	ulint		n_log_files,		/*!< in: total number of log
-						files */
-	int64_t		log_file_size)		/*!< in: log file size
-						(including the header) */
-{
-	int64_t		capacity	= log_file_size - LOG_FILE_HDR_SIZE;
-	ulint		file_no;
-	int64_t		add_this_many;
-
-	if (lsn < first_header_lsn) {
-		add_this_many = 1 + (first_header_lsn - lsn)
-			/ (capacity * static_cast<int64_t>(n_log_files));
-		lsn += add_this_many
-			* capacity * static_cast<int64_t>(n_log_files);
-	}
-
-	ut_a(lsn >= first_header_lsn);
-
-	file_no = ((ulint)((lsn - first_header_lsn) / capacity))
-		% n_log_files;
-	*log_file_offset = (lsn - first_header_lsn) % capacity;
-
-	*log_file_offset = *log_file_offset + LOG_FILE_HDR_SIZE;
-
-	return(file_no);
-}
-
-
+#ifndef UNIV_HOTBACKUP
 /********************************************************//**
 Sets the field values in group to correspond to a given lsn. For this function
 to work, the values must already be correctly initialized to correspond to
@@ -706,7 +666,7 @@ log_group_set_fields(
 	group->lsn_offset = log_group_calc_lsn_offset(lsn, group);
 	group->lsn = lsn;
 }
-#ifndef UNIV_HOTBACKUP
+
 /*****************************************************************//**
 Calculates the recommended highest values for lsn - last_checkpoint_lsn
 and lsn - buf_get_oldest_modification().
@@ -796,6 +756,13 @@ void
 log_init(void)
 /*==========*/
 {
+	ut_ad(static_cast<int>(MTR_MEMO_PAGE_S_FIX)
+	      == static_cast<int>(RW_S_LATCH));
+	ut_ad(static_cast<int>(MTR_MEMO_PAGE_X_FIX)
+	      == static_cast<int>(RW_X_LATCH));
+	ut_ad(static_cast<int>(MTR_MEMO_PAGE_SX_FIX)
+	      == static_cast<int>(RW_SX_LATCH));
+
 	log_sys = static_cast<log_t*>(ut_zalloc_nokey(sizeof(log_t)));
 
 	mutex_create(LATCH_ID_LOG_SYS, &log_sys->mutex);
@@ -868,10 +835,10 @@ MY_ATTRIBUTE((warn_unused_result))
 bool
 log_group_init(
 /*===========*/
-	ulint	id,			/*!< in: group id */
-	ulint	n_files,		/*!< in: number of log files */
-	lsn_t	file_size,		/*!< in: log file size in bytes */
-	ulint	space_id)		/*!< in: space id of the file space
+	ulint		id,		/*!< in: group id */
+	ulint		n_files,	/*!< in: number of log files */
+	lsn_t		file_size,	/*!< in: log file size in bytes */
+	space_id_t	space_id)	/*!< in: space id of the file space
 					which contains the log files of this
 					group */
 {
@@ -915,7 +882,7 @@ log_group_init(
 
 	return(log_calc_max_ages());
 }
-#endif /* !UNIV_HOTBACKUP */
+
 /******************************************************//**
 Completes an i/o to a log file. */
 void
@@ -953,17 +920,16 @@ log_io_complete(
 			logs and cannot end up here! */
 }
 
-/******************************************************//**
-Writes a log file header to a log file space. */
+/** Writes a log file header to a log file space.
+@param[in]	group		log group
+@param[in]	nth_file	header to the nth file in the log file space
+@param[in]	start_lsn	log file data starts at this lsn */
 static
 void
 log_group_file_header_flush(
-/*========================*/
-	log_group_t*	group,		/*!< in: log group */
-	ulint		nth_file,	/*!< in: header to the nth file in the
-					log file space */
-	lsn_t		start_lsn)	/*!< in: log file data starts at this
-					lsn */
+	log_group_t*	group,
+	ulint		nth_file,
+	lsn_t		start_lsn)
 {
 	byte*	buf;
 	lsn_t	dest_offset;
@@ -982,6 +948,7 @@ log_group_file_header_flush(
 	       LOG_HEADER_CREATOR_CURRENT);
 	ut_ad(LOG_HEADER_CREATOR_END - LOG_HEADER_CREATOR
 	      >= sizeof LOG_HEADER_CREATOR_CURRENT);
+
 	log_block_set_checksum(buf, log_block_calc_checksum_crc32(buf));
 
 	dest_offset = nth_file * group->file_size;
@@ -997,8 +964,9 @@ log_group_file_header_flush(
 
 	srv_stats.os_log_pending_writes.inc();
 
-	const ulint	page_no
-		= (ulint) (dest_offset / univ_page_size.physical());
+	const page_no_t	page_no
+		= static_cast<page_no_t>(
+			dest_offset / univ_page_size.physical());
 
 	fil_io(IORequestLogWrite, true,
 	       page_id_t(group->space_id, page_no),
@@ -1007,6 +975,254 @@ log_group_file_header_flush(
 	       OS_FILE_LOG_BLOCK_SIZE, buf, group);
 
 	srv_stats.os_log_pending_writes.dec();
+}
+
+/* Read the first log file header to get the encryption. It's in the
+3rd block.
+@return true if success */
+bool
+log_read_encryption()
+{
+	ulint		log_space_id = SRV_LOG_SPACE_FIRST_ID;
+	const page_id_t	page_id(log_space_id, 0);
+	byte*		log_block_buf_ptr;
+	byte*		log_block_buf;
+	byte		key[ENCRYPTION_KEY_LEN];
+	byte		iv[ENCRYPTION_KEY_LEN];
+	fil_space_t*	space = fil_space_get(log_space_id);
+	dberr_t		err;
+
+	log_block_buf_ptr = static_cast<byte*>(ut_malloc_nokey(
+		2 * OS_FILE_LOG_BLOCK_SIZE));
+	memset(log_block_buf_ptr, 0, 2 * OS_FILE_LOG_BLOCK_SIZE);
+	log_block_buf = static_cast<byte*>(
+		ut_align(log_block_buf_ptr, OS_FILE_LOG_BLOCK_SIZE));
+
+	fil_io(IORequestLogRead, true, page_id, univ_page_size,
+	       LOG_CHECKPOINT_1 + OS_FILE_LOG_BLOCK_SIZE,
+	       OS_FILE_LOG_BLOCK_SIZE, log_block_buf, NULL);
+
+	if (memcmp(log_block_buf + LOG_HEADER_CREATOR_END,
+		   ENCRYPTION_KEY_MAGIC_V2, ENCRYPTION_MAGIC_SIZE) == 0) {
+
+		/* Make sure the keyring is loaded. */
+		if (!Encryption::check_keyring()) {
+			ut_free(log_block_buf_ptr);
+			ib::error()
+				<< "Redo log was encrypted,"
+				<< " but keyring plugin is not loaded.";
+			return(false);
+		}
+
+		if (Encryption::decode_encryption_info(
+				key, iv,
+				log_block_buf + LOG_HEADER_CREATOR_END)) {
+			/* If redo log encryption is enabled, set the
+			space flag. Otherwise, we just fill the encryption
+			information to space object for decrypting old
+			redo log blocks. */
+			space->flags |= FSP_FLAGS_MASK_ENCRYPTION;
+			err = fil_set_encryption(space->id,
+						 Encryption::AES,
+						 key, iv);
+
+			if (err == DB_SUCCESS) {
+				ut_free(log_block_buf_ptr);
+				ib::info() << "Read redo log encryption"
+					<< " metadata successful.";
+				return(true);
+			} else {
+				ut_free(log_block_buf_ptr);
+				ib::error()
+					<< "Can't set redo log tablespace"
+					<< " encryption metadata.";
+				return(false);
+			}
+		} else {
+			ut_free(log_block_buf_ptr);
+			ib::error() << "Cannot read the encryption"
+				" information in log file header, please"
+				" check if keyring plugin loaded and"
+				" the key file exists.";
+			return(false);
+		}
+	}
+
+	ut_free(log_block_buf_ptr);
+	return(true);
+}
+
+/** Writes encryption information to log header.
+@param[in,out]	buf	log file header
+@param[in]	key	encryption key
+@param[in]	iv	encryption iv
+@param[in]	is_boot	if it's for bootstrap */
+static
+bool
+log_file_header_fill_encryption(
+	byte*		buf,
+	byte*		key,
+	byte*		iv,
+	bool		is_boot)
+{
+	byte		encryption_info[ENCRYPTION_INFO_SIZE_V2];
+
+	if (!Encryption::fill_encryption_info(key,
+					      iv,
+					      encryption_info,
+					      is_boot)) {
+		return(false);
+	}
+
+	ut_ad(LOG_HEADER_CREATOR_END + ENCRYPTION_INFO_SIZE_V2
+	      < OS_FILE_LOG_BLOCK_SIZE);
+
+	memcpy(buf + LOG_HEADER_CREATOR_END,
+	       encryption_info,
+	       ENCRYPTION_INFO_SIZE_V2);
+
+	return(true);
+}
+
+/** Write the encryption info into the log file header(the 3rd block).
+It just need to flush the file header block with current master key.
+@param[in]	key	encryption key
+@param[in]	iv	encryption iv
+@param[in]	is_boot	if it is for bootstrap
+@return true if success. */
+bool
+log_write_encryption(
+	byte*	key,
+	byte*	iv,
+	bool	is_boot)
+{
+	const page_id_t	page_id(SRV_LOG_SPACE_FIRST_ID, 0);
+	byte*		log_block_buf_ptr;
+	byte*		log_block_buf;
+
+	log_block_buf_ptr = static_cast<byte*>(ut_malloc_nokey(
+		2 * OS_FILE_LOG_BLOCK_SIZE));
+	memset(log_block_buf_ptr, 0, 2 * OS_FILE_LOG_BLOCK_SIZE);
+	log_block_buf = static_cast<byte*>(
+		ut_align(log_block_buf_ptr, OS_FILE_LOG_BLOCK_SIZE));
+
+	if (key == NULL && iv == NULL) {
+		fil_space_t*	space = fil_space_get(SRV_LOG_SPACE_FIRST_ID);
+
+		key = space->encryption_key;
+		iv = space->encryption_iv;
+	}
+
+	log_write_mutex_enter();
+	if (!log_file_header_fill_encryption(log_block_buf,
+					     key,
+					     iv,
+					     is_boot)) {
+		ut_free(log_block_buf_ptr);
+		log_write_mutex_exit();
+		return(false);
+	}
+
+	log_sys->n_log_ios++;
+
+	MONITOR_INC(MONITOR_LOG_IO);
+
+	srv_stats.os_log_pending_writes.inc();
+
+	fil_io(IORequestLogWrite, true,
+	       page_id,
+	       univ_page_size,
+	       LOG_CHECKPOINT_1 + OS_FILE_LOG_BLOCK_SIZE,
+	       OS_FILE_LOG_BLOCK_SIZE, log_block_buf, NULL);
+
+	srv_stats.os_log_pending_writes.dec();
+	log_write_mutex_exit();
+
+	ut_free(log_block_buf_ptr);
+	return(true);
+}
+
+/** Rotate the redo log encryption
+It will re-encrypt the redo log encryption metadata and write it to
+redo log file header.
+@return true if success. */
+bool
+log_rotate_encryption() {
+	fil_space_t* space = fil_space_get(SRV_LOG_SPACE_FIRST_ID);
+
+	if (!FSP_FLAGS_GET_ENCRYPTION(space->flags)) {
+		return(true);
+	}
+
+	/* Rotate log tablespace */
+	return(log_write_encryption(NULL, NULL, false));
+}
+
+/** Check the redo log encryption is enabled or not.
+It will try to enable the redo log encryption and write the metadata to
+redo log file header. */
+void
+log_enable_encryption_if_set()
+{
+	fil_space_t* space = fil_space_get(SRV_LOG_SPACE_FIRST_ID);
+
+	if (srv_shutdown_state != SRV_SHUTDOWN_NONE) {
+		return;
+	}
+
+	/* Check encryption for redo log is enabled or not. If it's
+	enabled, we will start to encrypt the redo log block from now on.
+	Note: We need the server_uuid initialized, otherwise, the keyname will
+	not contains server uuid. */
+	if (srv_redo_log_encrypt
+	    && !FSP_FLAGS_GET_ENCRYPTION(space->flags)
+	    && strlen(server_uuid) > 0) {
+		dberr_t err;
+		byte	key[ENCRYPTION_KEY_LEN];
+		byte	iv[ENCRYPTION_KEY_LEN];
+
+		if (srv_read_only_mode) {
+			srv_redo_log_encrypt = false;
+			ib::error() << "Can't set redo log tablespace to be"
+				<< " encrypted in read-only mode.";
+			return;
+		}
+
+		Encryption::random_value(key);
+		Encryption::random_value(iv);
+		if (!log_write_encryption(key, iv, false)) {
+			srv_redo_log_encrypt = false;
+			ib::error() << "Can't set redo log"
+				<< " tablespace to be"
+				<< " encrypted.";
+		} else {
+			space->flags |=
+				FSP_FLAGS_MASK_ENCRYPTION;
+			err = fil_set_encryption(
+				space->id, Encryption::AES,
+				key, iv);
+			if (err != DB_SUCCESS) {
+				srv_redo_log_encrypt = false;
+				ib::warn() << "Can't set redo log"
+					<< " tablespace to be"
+					<< " encrypted.";
+			} else {
+				ib::info() << "Redo log encryption is"
+					<< " enabled.";
+			}
+		}
+	}
+
+	/* If the redo log space is using default key, rotate it.
+	We also need the server_uuid initialized. */
+	if (space->encryption_type != Encryption::NONE
+	    && Encryption::master_key_id == ENCRYPTION_DEFAULT_MASTER_KEY_ID
+	    && !srv_read_only_mode
+	    && strlen(server_uuid) > 0) {
+		ut_ad(FSP_FLAGS_GET_ENCRYPTION(space->flags));
+
+		log_write_encryption(NULL, NULL, false);
+	}
 }
 
 /******************************************************//**
@@ -1118,10 +1334,10 @@ loop:
 
 	srv_stats.os_log_pending_writes.inc();
 
-	ut_a(next_offset / UNIV_PAGE_SIZE <= ULINT_MAX);
+	ut_a(next_offset / UNIV_PAGE_SIZE <= PAGE_NO_MAX);
 
-	const ulint	page_no
-		= (ulint) (next_offset / univ_page_size.physical());
+	const page_no_t	page_no = static_cast<page_no_t>(
+		next_offset / univ_page_size.physical());
 
 	fil_io(IORequestLogWrite, true,
 	       page_id_t(group->space_id, page_no),
@@ -1259,7 +1475,6 @@ loop:
 	}
 
 #ifdef _WIN32
-# ifndef UNIV_HOTBACKUP
 	/* write requests during fil_flush() might not be good for Windows */
 	if (log_sys->n_pending_flushes > 0
 	    || !os_event_is_set(log_sys->flush_event)) {
@@ -1267,11 +1482,6 @@ loop:
 		os_event_wait(log_sys->flush_event);
 		goto loop;
 	}
-# else
-	if (log_sys->n_pending_flushes > 0) {
-		goto loop;
-	}
-# endif  /* !UNIV_HOTBACKUP */
 #endif /* _WIN32 */
 
 	/* If it is a write call we should just go ahead and do it
@@ -1282,7 +1492,6 @@ loop:
 	if (flush_to_disk
 	    && (log_sys->n_pending_flushes > 0
 		|| !os_event_is_set(log_sys->flush_event))) {
-
 		/* Figure out if the current flush will do the job
 		for us. */
 		bool work_done = log_sys->current_flush_lsn >= lsn;
@@ -1478,7 +1687,7 @@ log_flush_margin(void)
 		log_write_up_to(lsn, false);
 	}
 }
-#ifndef UNIV_HOTBACKUP
+
 /** Advances the smallest lsn for which there are unflushed dirty blocks in the
 buffer pool.
 NOTE: this function may only be called if the calling thread owns no
@@ -1541,7 +1750,7 @@ log_preflush_pool_modified_pages(
 
 	return(success);
 }
-#endif /* !UNIV_HOTBACKUP */
+
 /******************************************************//**
 Completes a checkpoint. */
 static
@@ -1599,9 +1808,6 @@ log_group_checkpoint(
 
 	ut_ad(!srv_read_only_mode);
 	ut_ad(log_mutex_own());
-#if LOG_CHECKPOINT_SIZE > OS_FILE_LOG_BLOCK_SIZE
-# error "LOG_CHECKPOINT_SIZE > OS_FILE_LOG_BLOCK_SIZE"
-#endif
 
 	DBUG_PRINT("ib_log", ("checkpoint " UINT64PF " at " LSN_PF
 			      " written to group " ULINTPF,
@@ -1653,6 +1859,7 @@ log_group_checkpoint(
 
 	ut_ad(((ulint) group & 0x1UL) == 0);
 }
+#endif /* !UNIV_HOTBACKUP */
 
 #ifdef UNIV_HOTBACKUP
 /******************************************************//**
@@ -1677,10 +1884,10 @@ log_reset_first_header_and_checkpoint(
 	lsn = start + LOG_BLOCK_HDR_SIZE;
 
 	/* Write the label of mysqlbackup --restore */
-	strcpy((char*)hdr_buf + LOG_HEADER_CREATOR, LOG_HEADER_CREATOR_CURRENT);
+	strcpy((char*) hdr_buf + LOG_HEADER_CREATOR, "ibbackup ");
 	ut_sprintf_timestamp((char*) hdr_buf
 			     + (LOG_HEADER_CREATOR
-			     + (sizeof LOG_HEADER_CREATOR_CURRENT) - 1));
+				+ (sizeof "ibbackup ") - 1));
 	buf = hdr_buf + LOG_CHECKPOINT_1;
 	memset(buf, 0, OS_FILE_LOG_BLOCK_SIZE);
 
@@ -1698,7 +1905,7 @@ log_reset_first_header_and_checkpoint(
 #ifndef UNIV_HOTBACKUP
 /** Read a log group header page to log_sys->checkpoint_buf.
 @param[in]	group	log group
-@param[in]	header	0 or LOG_CHEKCPOINT_1 or LOG_CHECKPOINT2 */
+@param[in]	header	0 or LOG_CHECKPOINT_1 or LOG_CHECKPOINT2 */
 void
 log_group_header_read(
 	const log_group_t*	group,
@@ -1711,9 +1918,11 @@ log_group_header_read(
 	MONITOR_INC(MONITOR_LOG_IO);
 
 	fil_io(IORequestLogRead, true,
-	       page_id_t(group->space_id, header / univ_page_size.physical()),
-	       univ_page_size, header % univ_page_size.physical(),
-	       OS_FILE_LOG_BLOCK_SIZE, log_sys->checkpoint_buf, NULL);
+		page_id_t(group->space_id, static_cast<page_no_t>(
+				header / univ_page_size.physical())),
+		univ_page_size,
+		static_cast<page_no_t>(header % univ_page_size.physical()),
+		OS_FILE_LOG_BLOCK_SIZE, log_sys->checkpoint_buf, NULL);
 }
 
 /** Write checkpoint info to the log header and invoke log_mutex_exit().
@@ -1787,6 +1996,13 @@ log_checkpoint(
 		recv_apply_hashed_log_recs(TRUE);
 	}
 
+	if (!srv_missing_dd_table_buffer) {
+
+		rw_lock_x_lock(&dict_persist->lock);
+
+		dict_persist_to_dd_table_buffer();
+	}
+
 #ifndef _WIN32
 	switch (srv_unix_file_flush_method) {
 	case SRV_UNIX_NOSYNC:
@@ -1801,6 +2017,11 @@ log_checkpoint(
 #endif /* !_WIN32 */
 
 	log_mutex_enter();
+
+	if (!srv_missing_dd_table_buffer) {
+
+		rw_lock_x_unlock(&dict_persist->lock);
+	}
 
 	ut_ad(!recv_no_log_write);
 	oldest_lsn = log_buf_pool_get_oldest_modification();
@@ -1854,7 +2075,7 @@ log_checkpoint(
 		if (write_always) {
 			DEBUG_SYNC_C("wa_checkpoint_middle");
 
-			const my_bool b = TRUE;
+			const bool b = TRUE;
 			buf_flush_page_cleaner_disabled_debug_update(
 				NULL, NULL, NULL, &b);
 			dict_stats_disabled_debug_update(
@@ -2036,10 +2257,10 @@ loop:
 
 	MONITOR_INC(MONITOR_LOG_IO);
 
-	ut_a(source_offset / UNIV_PAGE_SIZE <= ULINT_MAX);
+	ut_a(source_offset / UNIV_PAGE_SIZE <= PAGE_NO_MAX);
 
-	const ulint	page_no
-		= (ulint) (source_offset / univ_page_size.physical());
+	const page_no_t	page_no = static_cast<page_no_t>(
+		source_offset / univ_page_size.physical());
 
 	fil_io(IORequestLogRead, true,
 	       page_id_t(group->space_id, page_no),
@@ -2089,16 +2310,9 @@ logs_empty_and_mark_files_at_shutdown(void)
 	ulint			count = 0;
 	ulint			total_trx;
 	ulint			pending_io;
-	enum srv_thread_type	active_thd;
 	const char*		thread_name;
 
 	ib::info() << "Starting shutdown...";
-
-	while (srv_fast_shutdown == 0 && trx_rollback_or_clean_is_active) {
-		/* we should wait until rollback after recovery end
-		for slow shutdown */
-		os_thread_sleep(100000);
-	}
 
 	/* Wait until the master thread and all other operations are idle: our
 	algorithm only works if the server is idle at shutdown */
@@ -2116,8 +2330,8 @@ loop:
 
 	if (thread_name != NULL) {
 		/* Print a message every 60 seconds if we are waiting
-		for the monitor thread to exit. Master and worker
-		threads check will be done later. */
+		for the monitor thread to exit. The master thread
+		will be checked later. */
 
 		if (srv_print_verbose_log && count > 600) {
 			ib::info() << "Waiting for " << thread_name
@@ -2129,7 +2343,7 @@ loop:
 	}
 
 	/* Check that there are no longer transactions, except for
-	PREPARED ones. We need this wait even for the 'very fast'
+	XA PREPARE ones. We need this wait even for the 'very fast'
 	shutdown, because the InnoDB layer may have committed or
 	prepared transactions and we don't want to lose them. */
 
@@ -2147,45 +2361,10 @@ loop:
 		goto loop;
 	}
 
-	/* Check that the background threads are suspended */
-
-	active_thd = srv_get_active_thread_type();
-
-	if (active_thd != SRV_NONE) {
-
-		if (active_thd == SRV_PURGE) {
-			srv_purge_wakeup();
-		}
-
-		/* The srv_lock_timeout_thread, srv_error_monitor_thread
-		and srv_monitor_thread should already exit by now. The
-		only threads to be suspended are the master threads
-		and worker threads (purge threads). Print the thread
-		type if any of such threads not in suspended mode */
+	if (srv_master_thread_active()) {
 		if (srv_print_verbose_log && count > 600) {
-			const char*	thread_type = "<null>";
-
-			switch (active_thd) {
-			case SRV_NONE:
-				/* This shouldn't happen because we've
-				already checked for this case before
-				entering the if(). We handle it here
-				to avoid a compiler warning. */
-				ut_error;
-			case SRV_WORKER:
-				thread_type = "worker threads";
-				break;
-			case SRV_MASTER:
-				thread_type = "master thread";
-				break;
-			case SRV_PURGE:
-				thread_type = "purge thread";
-				break;
-			}
-
-			ib::info() << "Waiting for " << thread_type
-				<< " to be suspended";
-
+			ib::info() << "Waiting for master thread"
+				" to be suspended";
 			count = 0;
 		}
 
@@ -2248,7 +2427,14 @@ loop:
 			that we can recover all committed transactions in
 			a crash recovery. We must not write the lsn stamps
 			to the data files, since at a startup InnoDB deduces
-			from the stamps if the previous shutdown was clean. */
+			from the stamps if the previous shutdown was clean.
+
+			In this path, there is no checkpoint, so we have to
+			write back persistent metadata before flushing.
+			There should be no concurrent DML, so no need to
+			require dict_persist::lock. */
+
+			dict_persist_to_dd_table_buffer();
 
 			log_buffer_flush_to_disk();
 
@@ -2286,7 +2472,15 @@ loop:
 
 	log_mutex_exit();
 
-	if (lsn != log_sys->last_checkpoint_lsn) {
+	/** If innodb_force_recovery is set to 6 then log_sys doesn't
+	have recent checkpoint information. So last checkpoint lsn
+	will never be equal to current lsn. */
+	const bool	is_last = ((srv_force_recovery == SRV_FORCE_NO_LOG_REDO
+				    && lsn == log_sys->last_checkpoint_lsn
+						+ LOG_BLOCK_HDR_SIZE)
+				   || lsn == log_sys->last_checkpoint_lsn);
+
+	if (!is_last) {
 		goto loop;
 	}
 
@@ -2323,8 +2517,7 @@ loop:
 	srv_shutdown_state = SRV_SHUTDOWN_LAST_PHASE;
 
 	/* Make some checks that the server really is quiet */
-	srv_thread_type	type = srv_get_active_thread_type();
-	ut_a(type == SRV_NONE);
+	ut_a(!srv_master_thread_active());
 
 	bool	freed = buf_all_freed();
 	ut_a(freed);
@@ -2346,8 +2539,7 @@ loop:
 	fil_close_all_files();
 
 	/* Make some checks that the server really is quiet */
-	type = srv_get_active_thread_type();
-	ut_a(type == SRV_NONE);
+	ut_a(!srv_master_thread_active());
 
 	freed = buf_all_freed();
 	ut_a(freed);

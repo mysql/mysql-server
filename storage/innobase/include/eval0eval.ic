@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -158,7 +158,7 @@ eval_node_get_int_val(
 
 	ut_ad(dfield_get_len(dfield) == 4);
 
-	return((int) mach_read_from_4(ptr));
+	return(mach_read_from_4(ptr));
 }
 
 /*****************************************************************//**

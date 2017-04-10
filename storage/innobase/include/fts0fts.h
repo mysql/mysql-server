@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2011, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2011, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -136,7 +136,7 @@ extern ulong		fts_num_word_optimize;
 
 /** Variable specifying whether we do additional FTS diagnostic printout
 in the log */
-extern char		fts_enable_diag_print;
+extern bool		fts_enable_diag_print;
 
 /** FTS rank type, which will be between 0 .. 1 inclusive */
 typedef float 		fts_rank_t;
@@ -302,7 +302,7 @@ struct fts_table_t {
 
 	table_id_t	table_id;	/*!< The table id */
 
-	index_id_t	index_id;	/*!< The index id */
+	space_index_t	index_id;	/*!< The index id */
 
 	const char*	suffix;		/*!< The suffix of the fts auxiliary
 					table name, can be NULL, not used
@@ -341,7 +341,7 @@ public:
 	@param[in]	table	table with FTS indexes
 	@param[in,out]	heap	memory heap where 'this' is stored */
 	fts_t(
-		const dict_table_t*	table,
+		dict_table_t*		table,
 		mem_heap_t*		heap);
 
 	/** fts_t destructor. */
@@ -663,6 +663,7 @@ void
 fts_startup(void);
 /*==============*/
 
+#if 0 // TODO: Enable this in WL#6608
 /******************************************************************//**
 Signal FTS threads to initiate shutdown. */
 void
@@ -682,6 +683,7 @@ fts_shutdown(
 						indexes */
 	fts_t*		fts);			/*!< in: fts instance to
 						shutdown */
+#endif
 
 /******************************************************************//**
 Create an instance of fts_t.
@@ -713,13 +715,6 @@ Startup the optimize thread and create the work queue. */
 void
 fts_optimize_init(void);
 /*====================*/
-
-/**********************************************************************//**
-Check whether the work queue is initialized.
-@return TRUE if optimze queue is initialized. */
-ibool
-fts_optimize_is_init(void);
-/*======================*/
 
 /****************************************************************//**
 Drops index ancillary tables for a FTS index
@@ -773,13 +768,6 @@ fts_savepoint_release(
 	trx_t*		trx,			/*!< in: transaction */
 	const char*	name);			/*!< in: savepoint name */
 
-/**********************************************************************//**
-Free the FTS cache. */
-void
-fts_cache_destroy(
-/*==============*/
-	fts_cache_t*	cache);			/*!< in: cache*/
-
 /** Clear cache.
 @param[in,out]	cache	fts cache */
 void
@@ -823,17 +811,6 @@ char*
 fts_get_parent_table_name(
 	const char*	aux_table_name,
 	ulint		aux_table_len);
-
-/******************************************************************//**
-Since we do a horizontal split on the index table, we need to drop
-all the split tables.
-@return DB_SUCCESS or error code */
-dberr_t
-fts_drop_index_split_tables(
-/*========================*/
-	trx_t*		trx,			/*!< in: transaction */
-	dict_index_t*	index)			/*!< in: fts instance */
-	MY_ATTRIBUTE((warn_unused_result));
 
 /** Run SYNC on the table, i.e., write out data from the cache to the
 FTS auxiliary INDEX table and clear the cache at the end.
@@ -985,14 +962,6 @@ fts_load_stopword(
 						reload of FTS table */
 
 /****************************************************************//**
-Create the vector of fts_get_doc_t instances.
-@return vector of fts_get_doc_t instances */
-ib_vector_t*
-fts_get_docs_create(
-/*================*/
-	fts_cache_t*	cache);			/*!< in: fts cache */
-
-/****************************************************************//**
 Read the rows from the FTS index
 @return DB_SUCCESS if OK */
 dberr_t
@@ -1060,6 +1029,29 @@ void
 fts_check_corrupt(
 	dict_table_t*	base_table,
 	trx_t*		trx);
+
+/** Fetch the document from tuple, tokenize the text data and
+insert the text data into fts auxiliary table and
+its cache. Moreover this tuple fields doesn't contain any information
+about externally stored field. This tuple contains data directly
+converted from mysql.
+@param[in]	ftt	FTS transaction table
+@param[in]	doc_id	doc id
+@param[in]	tuple	tuple from where data can be retrieved
+			and tuple should be arranged in table
+			schema order. */
+void
+fts_add_doc_from_tuple(
+	fts_trx_table_t*ftt,
+	doc_id_t	doc_id,
+	const dtuple_t*	tuple);
+
+/** Create an FTS trx.
+@param[in,out]	trx	InnoDB Transaction
+@return FTS transaction. */
+fts_trx_t*
+fts_trx_create(
+	trx_t*	trx);
 
 #endif /*!< fts0fts.h */
 

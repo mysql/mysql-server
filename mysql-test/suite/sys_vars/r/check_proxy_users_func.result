@@ -8,9 +8,9 @@ SET Global check_proxy_users=OFF;
 CREATE USER sameea;
 ** Connecting connn using username 'sameea' **
 SET GLOBAL check_proxy_users=ON;
-ERROR 42000: Access denied; you need (at least one of) the SUPER privilege(s) for this operation
+ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
 SET @@global.check_proxy_users=ON;
-ERROR 42000: Access denied; you need (at least one of) the SUPER privilege(s) for this operation
+ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
 ** Connection default **
 ** Disconnecting connn **
 DROP USER sameea;

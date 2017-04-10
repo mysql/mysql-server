@@ -1,4 +1,3 @@
--- source include/have_cp932.inc
 --echo #
 --echo # Bug #11755818 LIKE DOESN'T MATCH WHEN CP932_BIN/SJIS_BIN COLLATIONS ARE 
 --echo #               USED.

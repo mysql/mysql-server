@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2017, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -25,20 +25,18 @@ Created 2/2/1994 Heikki Tuuri
 *******************************************************/
 
 #include "page0page.h"
-#ifdef UNIV_NONINL
-#include "page0page.ic"
-#endif
 
+#include "btr0btr.h"
+#include "buf0buf.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
 #include "page0cur.h"
 #include "page0zip.h"
-#include "buf0buf.h"
-#include "btr0btr.h"
-#include "row0trunc.h"
 #ifndef UNIV_HOTBACKUP
-# include "srv0srv.h"
-# include "lock0lock.h"
-# include "fut0lst.h"
 # include "btr0sea.h"
+# include "fut0lst.h"
+# include "lock0lock.h"
+# include "srv0srv.h"
 #endif /* !UNIV_HOTBACKUP */
 
 /*			THE INDEX PAGE
@@ -91,11 +89,11 @@ page_dir_find_owner_slot(
 /*=====================*/
 	const rec_t*	rec)	/*!< in: the physical record */
 {
-	const page_t*			page;
-	register uint16			rec_offs_bytes;
-	register const page_dir_slot_t*	slot;
-	register const page_dir_slot_t*	first_slot;
-	register const rec_t*		r = rec;
+	const page_t*		page;
+	uint16			rec_offs_bytes;
+	const page_dir_slot_t*	slot;
+	const page_dir_slot_t*	first_slot;
+	const rec_t*		r = rec;
 
 	ut_ad(page_rec_check(rec));
 
@@ -266,31 +264,40 @@ page_mem_alloc_heap(
 }
 
 #ifndef UNIV_HOTBACKUP
-/**********************************************************//**
-Writes a log record of page creation. */
+/** Writes a log record of page creation
+@param[in]	frame		a buffer frame where the page is created
+@param[in]	mtr		mini-transaction handle
+@param[in]	comp		TRUE=compact page format
+@param[in]	page_type	page type */
 UNIV_INLINE
 void
 page_create_write_log(
-/*==================*/
-	buf_frame_t*	frame,	/*!< in: a buffer frame where the page is
-				created */
-	mtr_t*		mtr,	/*!< in: mini-transaction handle */
-	ibool		comp,	/*!< in: TRUE=compact page format */
-	bool		is_rtree) /*!< in: whether it is R-tree */
+	buf_frame_t*	frame,
+	mtr_t*		mtr,
+	ibool		comp,
+	page_type_t	page_type)
 {
 	mlog_id_t	type;
 
-	if (is_rtree) {
+	switch (page_type) {
+	case FIL_PAGE_INDEX:
+		type = comp ? MLOG_COMP_PAGE_CREATE : MLOG_PAGE_CREATE;
+		break;
+	case FIL_PAGE_RTREE:
 		type = comp ? MLOG_COMP_PAGE_CREATE_RTREE
 			    : MLOG_PAGE_CREATE_RTREE;
-	} else {
-		type = comp ? MLOG_COMP_PAGE_CREATE : MLOG_PAGE_CREATE;
+		break;
+	case FIL_PAGE_SDI:
+		type = comp ? MLOG_COMP_PAGE_CREATE_SDI : MLOG_PAGE_CREATE_SDI;
+		break;
+	default:
+		ut_error;
 	}
 
 	mlog_write_initial_log_record(frame, type, mtr);
 }
 #else /* !UNIV_HOTBACKUP */
-# define page_create_write_log(frame,mtr,comp,is_rtree) ((void) 0)
+# define page_create_write_log(frame, mtr, comp, type) ((void) 0)
 #endif /* !UNIV_HOTBACKUP */
 
 /** The page infimum and supremum of an empty page in ROW_FORMAT=REDUNDANT */
@@ -325,17 +332,17 @@ static const byte infimum_supremum_compact[] = {
 	's', 'u', 'p', 'r', 'e', 'm', 'u', 'm'
 };
 
-/**********************************************************//**
-The index page creation function.
+/** The index page creation function.
+@param[in,out]	block		a buffer block where the page is created
+@param[in]	comp		nonzero=compact page format
+@param[in]	page_type	page type
 @return pointer to the page */
 static
 page_t*
 page_create_low(
-/*============*/
-	buf_block_t*	block,		/*!< in: a buffer block where the
-					page is created */
-	ulint		comp,		/*!< in: nonzero=compact page format */
-	bool		is_rtree)	/*!< in: if it is an R-Tree page */
+	buf_block_t*	block,
+	ulint		comp,
+	page_type_t	page_type)
 {
 	page_t*		page;
 
@@ -350,11 +357,10 @@ page_create_low(
 
 	page = buf_block_get_frame(block);
 
-	if (is_rtree) {
-		fil_page_set_type(page, FIL_PAGE_RTREE);
-	} else {
-		fil_page_set_type(page, FIL_PAGE_INDEX);
-	}
+	ut_ad(page_type == FIL_PAGE_INDEX || page_type == FIL_PAGE_RTREE
+	      || page_type == FIL_PAGE_SDI);
+
+	fil_page_set_type(page, page_type);
 
 	memset(page + PAGE_HEADER, 0, PAGE_HEADER_PRIV_END);
 	page[PAGE_HEADER + PAGE_N_DIR_SLOTS + 1] = 2;
@@ -391,85 +397,82 @@ page_create_low(
 }
 
 /** Parses a redo log record of creating a page.
-@param[in,out]	block	buffer block, or NULL
-@param[in]	comp	nonzero=compact page format
-@param[in]	is_rtree whether it is rtree page */
+@param[in,out]	block		buffer block, or NULL
+@param[in]	comp		nonzero=compact page format
+@param[in]	page_type	page type (FIL_PAGE_INDEX, FIL_PAGE_RTREE
+				or FIL_PAGE_SDI) */
 void
 page_parse_create(
 	buf_block_t*	block,
 	ulint		comp,
-	bool		is_rtree)
+	page_type_t	page_type)
 {
 	if (block != NULL) {
-		page_create_low(block, comp, is_rtree);
+		page_create_low(block, comp, page_type);
 	}
 }
 
-/**********************************************************//**
-Create an uncompressed B-tree or R-tree index page.
+/** Create an uncompressed B-tree or R-tree or SDI index page.
+@param[in]	block		a buffer block where the page is created
+@param[in]	mtr		mini-transaction handle
+@param[in]	comp		nonzero=compact page format
+@param[in]	page_type	page type
 @return pointer to the page */
 page_t*
 page_create(
-/*========*/
-	buf_block_t*	block,		/*!< in: a buffer block where the
-					page is created */
-	mtr_t*		mtr,		/*!< in: mini-transaction handle */
-	ulint		comp,		/*!< in: nonzero=compact page format */
-	bool		is_rtree)	/*!< in: whether it is a R-Tree page */
+	buf_block_t*	block,
+	mtr_t*		mtr,
+	ulint		comp,
+	page_type_t	page_type)
 {
 	ut_ad(mtr->is_named_space(block->page.id.space()));
-	page_create_write_log(buf_block_get_frame(block), mtr, comp, is_rtree);
-	return(page_create_low(block, comp, is_rtree));
+	page_create_write_log(buf_block_get_frame(block), mtr, comp, page_type);
+	return(page_create_low(block, comp, page_type));
 }
 
-/**********************************************************//**
-Create a compressed B-tree index page.
+/** Create a compressed B-tree index page.
+@param[in,out]	block		buffer frame where the page is created
+@param[in]	index		index of the page, or NULL when applying
+				TRUNCATE log record during recovery
+@param[in]	level		the B-tree level of the page
+@param[in]	max_trx_id	PAGE_MAX_TRX_ID
+@param[in]	mtr		mini-transaction handle
+@param[in]	page_type	page_type to be created. Only FIL_PAGE_INDEX,
+				FIL_PAGE_RTREE, FIL_PAGE_SDI allowed
 @return pointer to the page */
 page_t*
 page_create_zip(
-/*============*/
-	buf_block_t*		block,		/*!< in/out: a buffer frame
-						where the page is created */
-	dict_index_t*		index,		/*!< in: the index of the
-						page, or NULL when applying
-						TRUNCATE log
-						record during recovery */
-	ulint			level,		/*!< in: the B-tree level
-						of the page */
-	trx_id_t		max_trx_id,	/*!< in: PAGE_MAX_TRX_ID */
-	const redo_page_compress_t* page_comp_info,
-						/*!< in: used for applying
-						TRUNCATE log
-						record during recovery */
-	mtr_t*			mtr)		/*!< in/out: mini-transaction
-						handle */
+	buf_block_t*			block,
+	dict_index_t*			index,
+	ulint				level,
+	trx_id_t			max_trx_id,
+	mtr_t*				mtr,
+	page_type_t			page_type)
 {
 	page_t*			page;
 	page_zip_des_t*		page_zip = buf_block_get_page_zip(block);
-	bool			is_spatial;
 
 	ut_ad(block);
 	ut_ad(page_zip);
-	ut_ad(index == NULL || dict_table_is_comp(index->table));
-	is_spatial = index ? dict_index_is_spatial(index)
-			   : page_comp_info->type & DICT_SPATIAL;
+	ut_ad(dict_table_is_comp(index->table));
 
-	page = page_create_low(block, TRUE, is_spatial);
+#ifdef UNIV_DEBUG
+	switch (page_type) {
+	case FIL_PAGE_INDEX:
+	case FIL_PAGE_RTREE:
+	case FIL_PAGE_SDI:
+		break;
+	default:
+		ut_ad(0);
+	}
+#endif /* UNIV_DEBUG */
+
+	page = page_create_low(block, TRUE, page_type);
+
 	mach_write_to_2(PAGE_HEADER + PAGE_LEVEL + page, level);
 	mach_write_to_8(PAGE_HEADER + PAGE_MAX_TRX_ID + page, max_trx_id);
 
-	if (truncate_t::s_fix_up_active) {
-		/* Compress the index page created when applying
-		TRUNCATE log during recovery */
-		if (!page_zip_compress(page_zip, page, index, page_zip_level,
-				       page_comp_info, NULL)) {
-			/* The compression of a newly created
-			page should always succeed. */
-			ut_error;
-		}
-
-	} else if (!page_zip_compress(page_zip, page, index,
-				      page_zip_level, NULL, mtr)) {
+	if (!page_zip_compress(page_zip, page, index, page_zip_level, mtr)) {
 		/* The compression of a newly created
 		page should always succeed. */
 		ut_error;
@@ -488,7 +491,7 @@ page_create_empty(
 	mtr_t*		mtr)	/*!< in/out: mini-transaction */
 {
 	trx_id_t	max_trx_id = 0;
-	const page_t*	page	= buf_block_get_frame(block);
+	page_t*	page	= buf_block_get_frame(block);
 	page_zip_des_t*	page_zip= buf_block_get_page_zip(block);
 
 	ut_ad(fil_page_index_page_check(page));
@@ -498,19 +501,21 @@ page_create_empty(
 	max_trx_id is ignored for temp tables because it not required
 	for MVCC. */
 	if (dict_index_is_sec_or_ibuf(index)
-	    && !dict_table_is_temporary(index->table)
+	    && !index->table->is_temporary()
 	    && page_is_leaf(page)) {
 		max_trx_id = page_get_max_trx_id(page);
 		ut_ad(max_trx_id);
 	}
 
 	if (page_zip) {
+		ut_ad(!index->table->is_temporary());
 		page_create_zip(block, index,
 				page_header_get_field(page, PAGE_LEVEL),
-				max_trx_id, NULL, mtr);
+				max_trx_id, mtr,
+				fil_page_get_type(page));
 	} else {
 		page_create(block, mtr, page_is_comp(page),
-			    dict_index_is_spatial(index));
+			    fil_page_get_type(page));
 
 		if (max_trx_id) {
 			page_update_max_trx_id(
@@ -674,7 +679,7 @@ page_copy_rec_list_end(
 	for MVCC. */
 	if (dict_index_is_sec_or_ibuf(index)
 	    && page_is_leaf(page)
-	    && !dict_table_is_temporary(index->table)) {
+	    && !index->table->is_temporary()) {
 		page_update_max_trx_id(new_block, NULL,
 				       page_get_max_trx_id(page), mtr);
 	}
@@ -686,7 +691,7 @@ page_copy_rec_list_end(
 				       new_page,
 				       index,
 				       page_zip_level,
-				       NULL, mtr)) {
+				       mtr)) {
 			/* Before trying to reorganize the page,
 			store the number of preceding records on the page. */
 			ulint	ret_pos
@@ -832,7 +837,7 @@ page_copy_rec_list_start(
 	for MVCC. */
 	if (dict_index_is_sec_or_ibuf(index)
 	    && page_is_leaf(page_align(rec))
-	    && !dict_table_is_temporary(index->table)) {
+	    && !index->table->is_temporary()) {
 		page_update_max_trx_id(new_block, NULL,
 				       page_get_max_trx_id(page_align(rec)),
 				       mtr);
@@ -845,11 +850,11 @@ page_copy_rec_list_start(
 				goto zip_reorganize;);
 
 		if (!page_zip_compress(new_page_zip, new_page, index,
-				       page_zip_level, NULL, mtr)) {
+				       page_zip_level, mtr)) {
 			ulint	ret_pos;
-#ifndef DBUG_OFF
+#ifdef UNIV_DEBUG
 zip_reorganize:
-#endif /* DBUG_OFF */
+#endif /* UNIV_DEBUG */
 			/* Before trying to reorganize the page,
 			store the number of preceding records on the page. */
 			ret_pos = page_rec_get_n_recs_before(ret);
@@ -2379,13 +2384,16 @@ page_validate(
 	max_trx_id is ignored for temp tables because it not required
 	for MVCC. */
 	if (dict_index_is_sec_or_ibuf(index)
-	    && !dict_table_is_temporary(index->table)
+	    && !index->table->is_temporary()
 	    && page_is_leaf(page)
 	    && !page_is_empty(page)) {
 		trx_id_t	max_trx_id	= page_get_max_trx_id(page);
+		/* This will be 0 during recv_apply_hashed_log_recs(TRUE),
+		because the transaction system has not been initialized yet */
 		trx_id_t	sys_max_trx_id	= trx_sys_get_max_trx_id();
 
-		if (max_trx_id == 0 || max_trx_id > sys_max_trx_id) {
+		if (max_trx_id == 0
+		    || (sys_max_trx_id != 0 && max_trx_id > sys_max_trx_id)) {
 			ib::error() << "PAGE_MAX_TRX_ID out of bounds: "
 				<< max_trx_id << ", " << sys_max_trx_id;
 			goto func_exit2;
@@ -2490,7 +2498,7 @@ page_validate(
 
 			data_size += rec_offs_size(offsets);
 
-#if UNIV_GIS_DEBUG
+#ifdef UNIV_GIS_DEBUG
 			/* For spatial index, print the mbr info.*/
 			if (index->type & DICT_SPATIAL) {
 				rec_print_mbr_rec(stderr, rec, offsets);
@@ -2724,7 +2732,7 @@ page_delete_rec(
 		    && mach_read_from_4(page + FIL_PAGE_PREV) == FIL_NULL)
 		|| (page_get_n_recs(page) < 2))) {
 
-		ulint	root_page_no = dict_index_get_page(index);
+		page_no_t	root_page_no = dict_index_get_page(index);
 
 		/* The page fillfactor will drop below a predefined
 		minimum value, OR the level in the B-tree contains just
@@ -2756,7 +2764,7 @@ page_delete_rec(
 @return the last record, not delete-marked
 @retval infimum record if all records are delete-marked */
 const rec_t*
-page_find_rec_max_not_deleted(
+page_find_rec_last_not_deleted(
 	const page_t*	page)
 {
 	const rec_t*	rec = page_get_infimum_rec(page);
@@ -2785,7 +2793,7 @@ page_find_rec_max_not_deleted(
 
 /** Issue a warning when the checksum that is stored in the page is valid,
 but different than the global setting innodb_checksum_algorithm.
-@param[in]	current_algo	current checksum algorithm
+@param[in]	curr_algo	current checksum algorithm
 @param[in]	page_checksum	page valid checksum
 @param[in]	page_id		page identifier */
 void

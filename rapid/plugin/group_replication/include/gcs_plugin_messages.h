@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,14 +16,14 @@
 #ifndef GCS_PLUGIN_MESSAGES_INCLUDED
 #define	GCS_PLUGIN_MESSAGES_INCLUDED
 
-#include <string>
-#include <vector>
-
 /*
   Since this file is used on unit tests, through member_info.h,
   includes must set here and not through plugin_server_include.h.
 */
-#include <my_global.h>
+#include <string>
+#include <vector>
+
+#include "my_inttypes.h"
 
 /**
  This is the base GCS plugin message.
@@ -245,9 +245,10 @@ protected:
     values according to the values decoded.
 
     @param[in] buffer the buffer to decode from.
-    @param[in] length the length of the buffer.
+    @param[in] end    the end of the buffer.
   */
-  virtual void decode_payload(const unsigned char* buffer, size_t length)= 0;
+  virtual void decode_payload(const unsigned char* buffer,
+                              const unsigned char* end)= 0;
 
   /**
     Encodes the given payload item type and length into the buffer.

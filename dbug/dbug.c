@@ -79,13 +79,28 @@
  *
  */
 
-#include <my_global.h>
-#include "my_sys.h"
-#include <m_string.h>
-#include <errno.h>
+#include "my_config.h"
+
+#include <assert.h>
 #include <ctype.h>
-#include "thr_mutex.h"
+#include <errno.h>
+#include <m_string.h>
+#include <stdarg.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <sys/types.h>
+#include <time.h>
+
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_io.h"
+#include "my_macros.h"
+#include "my_sys.h"
 #include "my_thread_local.h"
+#include "mysql/service_my_snprintf.h"
+#include "thr_mutex.h"
+#include "thr_rwlock.h"
 
 #ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
@@ -109,7 +124,6 @@
  *            Manifest constants which may be "tuned" if desired.
  */
 
-#define PRINTBUF              1024    /* Print buffer size */
 #define INDENT                2       /* Indentation per trace level */
 #define MAXDEPTH              200     /* Maximum trace depth default */
 
@@ -138,47 +152,6 @@
 #define TRACING (cs->stack->flags & TRACE_ON)
 #define DEBUGGING (cs->stack->flags & DEBUG_ON)
 #define PROFILING (cs->stack->flags & PROFILE_ON)
-
-/*
- *      Typedefs to make things more obvious.
- */
-
-#define BOOLEAN my_bool
-
-/*
- *      Make it easy to change storage classes if necessary.
- */
-
-#define IMPORT extern           /* Names defined externally */
-#define EXPORT                  /* Allocated here, available globally */
-
-/*
- * The default file for profiling.  Could also add another flag
- * (G?) which allowed the user to specify this.
- *
- * If the automatic variables get allocated on the stack in
- * reverse order from their declarations, then define AUTOS_REVERSE to 1.
- * This is used by the code that keeps track of stack usage.  For
- * forward allocation, the difference in the dbug frame pointers
- * represents stack used by the callee function.  For reverse allocation,
- * the difference represents stack used by the caller function.
- *
- */
-
-#define PROF_FILE       "dbugmon.out"
-#define PROF_EFMT       "E\t%ld\t%s\n"
-#define PROF_SFMT       "S\t%lx\t%lx\t%s\n"
-#define PROF_XFMT       "X\t%ld\t%s\n"
-
-#ifdef M_I386           /* predefined by xenix 386 compiler */
-#define AUTOS_REVERSE 1
-#else
-#define AUTOS_REVERSE 0
-#endif
-
-/*
- *      Externally supplied functions.
- */
 
 /*
  *      The user may specify a list of functions to trace or
@@ -232,7 +205,7 @@ struct settings {
  */
 
 
-static BOOLEAN init_done= FALSE; /* Set to TRUE when initialization done */
+static bool init_done= FALSE; /* Set to TRUE when initialization done */
 /**
   Global debugging settings.
   This structure shared between all threads,
@@ -241,7 +214,6 @@ static BOOLEAN init_done= FALSE; /* Set to TRUE when initialization done */
 */
 static struct settings init_settings;
 static const char *db_process= 0;/* Pointer to process name; argv[0] */
-my_bool _dbug_on_= TRUE;	 /* FALSE if no debugging at all */
 
 typedef struct _db_code_state_ {
   const char *process;          /* Pointer to process name; usually argv[0] */
@@ -306,13 +278,13 @@ static int DoTrace(CODE_STATE *cs);
 #define DISABLE_TRACE   4
 
 static void DoPrefix(CODE_STATE *cs, uint line);
-static BOOLEAN Writable(const char *pathname);
+static bool Writable(const char *pathname);
 
 static char *DbugMalloc(size_t size);
 static const char *BaseName(const char *pathname);
 static void Indent(CODE_STATE *cs, int indent);
 static void DbugFlush(CODE_STATE *);
-static void DbugExit(const char *why);
+static void DbugExit(const char *why) MY_ATTRIBUTE((noreturn));
 static const char *DbugStrTok(const char *s);
 static void DbugVfprintf(FILE *stream, const char* format, va_list args);
 
@@ -350,13 +322,6 @@ static native_rw_lock_t THR_LOCK_init_settings;
 static CODE_STATE *code_state(void)
 {
   CODE_STATE *cs, **cs_ptr;
-
-  /*
-    _dbug_on_ is reset if we don't plan to use any debug commands at all and
-    we want to run on maximum speed
-   */
-  if (!_dbug_on_)
-    return 0;
 
   if (!init_done)
   {
@@ -478,7 +443,7 @@ void _db_process_(const char *name)
  *      0 - a list of functions was not changed
  */
 
-int DbugParse(CODE_STATE *cs, const char *control)
+static int DbugParse(CODE_STATE *cs, const char *control)
 {
   const char *end;
   int rel, f_used=0;
@@ -758,8 +723,8 @@ int DbugParse(CODE_STATE *cs, const char *control)
                               (ListFlags(cs->stack->functions) & INCLUDE) ?  \
                                        0 : (uint)TRACE_ON)
 
-void FixTraceFlags_helper(CODE_STATE *cs, const char *func,
-                          struct _db_stack_frame_ *framep)
+static void FixTraceFlags_helper(CODE_STATE *cs, const char *func,
+                                 struct _db_stack_frame_ *framep)
 {
   if (framep->prev)
     FixTraceFlags_helper(cs, framep->func, framep->prev);
@@ -784,7 +749,7 @@ void FixTraceFlags_helper(CODE_STATE *cs, const char *func,
 
 #define fflags(cs) cs->stack->out_file ? ListFlags(cs->stack->functions) : TRACE_ON;
 
-void FixTraceFlags(uint old_fflags, CODE_STATE *cs)
+static void FixTraceFlags(uint old_fflags, CODE_STATE *cs)
 {
   const char *func;
   uint new_fflags, traceon, level;
@@ -1439,55 +1404,6 @@ void _db_doprnt_(const char *format,...)
 
 
 /*
- *  FUNCTION
- *
- *      _db_doputs_    handle print of debug lines
- *
- *  SYNOPSIS
- *
- *      VOID _db_doputs_(const char* log)
- *      const char *log;
- *
- *  DESCRIPTION
- *
- *      This function handles the printing of the argument via the log
- *      string.  The line number of the DBUG macro in the source is found in
- *      u_line.
- *
- *      Note that the log string SHOULD NOT include a terminating
- *      newline, this is supplied automatically.
- */
-void _db_doputs_(const char *log)
-{
-  CODE_STATE *cs;
-  int save_errno;
-
-  get_code_state_or_return;
-
-  /* Dirty read, for DBUG_PUTS() performance. */
-  if (! DEBUGGING)
-    return;
-
-  read_lock_stack(cs);
-
-  save_errno= errno;
-  if (!cs->locked)
-    native_mutex_lock(&THR_LOCK_dbug);
-  DoPrefix(cs, cs->u_line);
-  if (TRACING)
-    Indent(cs, cs->level + 1);
-  else
-    (void) fprintf(cs->stack->out_file, "%s: ", cs->func);
-  (void) fprintf(cs->stack->out_file, "%s: ", cs->u_keyword);
-  fprintf(cs->stack->out_file, "%s\n", log);
-  DbugFlush(cs);
-  errno= save_errno;
-
-  unlock_stack(cs);
-}
-
-
-/*
  * This function is intended as a
  * vfprintf clone with consistent, platform independent output for 
  * problematic formats like %p, %zd and %lld.
@@ -1544,8 +1460,8 @@ void _db_dump_(uint _line_, const char *keyword,
     {
       fprintf(cs->stack->out_file, "%s: ", cs->func);
     }
-    (void) fprintf(cs->stack->out_file, "%s: Memory: 0x%lx  Bytes: (%ld)\n",
-            keyword, (ulong) memory, (long) length);
+    (void) fprintf(cs->stack->out_file, "%s: Memory: %p  Bytes: (%ld)\n",
+            keyword, memory, (long) length);
 
     pos=0;
     while (length-- > 0)
@@ -1853,11 +1769,6 @@ void _db_end_()
   struct settings *discard;
   static struct settings tmp;
   CODE_STATE *cs;
-  /*
-    Set _dbug_on_ to be able to do full reset even when DEBUGGER_OFF was
-    called after dbug was initialized
-  */
-  _dbug_on_= 1;
   get_code_state_or_return;
 
   /*
@@ -1954,9 +1865,9 @@ FILE *_db_fp_(void)
  *
  */
 
-BOOLEAN _db_keyword_(CODE_STATE *cs, const char *keyword, int strict)
+int _db_keyword_(CODE_STATE *cs, const char *keyword, int strict)
 {
-  BOOLEAN result;
+  bool result;
   get_code_state_if_not_set_or_return FALSE;
 
   /* Dirty read, for DBUG_EXECUTE(), DBUG_EXECUTE_IF() ... performance. */
@@ -2309,7 +2220,7 @@ static const char *BaseName(const char *pathname)
  *
  *  SYNOPSIS
  *
- *      static BOOLEAN Writable(pathname)
+ *      static bool Writable(pathname)
  *      char *pathname;
  *
  *  DESCRIPTION
@@ -2326,9 +2237,9 @@ static const char *BaseName(const char *pathname)
  */
 
 
-static BOOLEAN Writable(const char *pathname)
+static bool Writable(const char *pathname)
 {
-  BOOLEAN granted;
+  bool granted;
   char *lastslash;
 
   granted= FALSE;
@@ -2352,62 +2263,6 @@ static BOOLEAN Writable(const char *pathname)
   return granted;
 }
 
-
-/*
- *  FUNCTION
- *
- *      _db_setjmp_    save debugger environment
- *
- *  SYNOPSIS
- *
- *      VOID _db_setjmp_()
- *
- *  DESCRIPTION
- *
- *      Invoked as part of the user's DBUG_SETJMP macro to save
- *      the debugger environment in parallel with saving the user's
- *      environment.
- *
- */
-
-EXPORT void _db_setjmp_()
-{
-  CODE_STATE *cs;
-  get_code_state_or_return;
-
-  cs->jmplevel= cs->level;
-  cs->jmpfunc= cs->func;
-  cs->jmpfile= cs->file;
-}
-
-/*
- *  FUNCTION
- *
- *      _db_longjmp_    restore previously saved debugger environment
- *
- *  SYNOPSIS
- *
- *      VOID _db_longjmp_()
- *
- *  DESCRIPTION
- *
- *      Invoked as part of the user's DBUG_LONGJMP macro to restore
- *      the debugger environment in parallel with restoring the user's
- *      previously saved environment.
- *
- */
-
-EXPORT void _db_longjmp_()
-{
-  CODE_STATE *cs;
-  get_code_state_or_return;
-
-  cs->level= cs->jmplevel;
-  if (cs->jmpfunc)
-    cs->func= cs->jmpfunc;
-  if (cs->jmpfile)
-    cs->file= cs->jmpfile;
-}
 
         /* flush dbug-stream, free mutex lock & wait delay */
         /* This is because some systems (MSDOS!!) dosn't flush fileheader */
@@ -2472,6 +2327,7 @@ void _db_suicide_()
   retval= sigsuspend(&new_mask);
   fprintf(stderr, "sigsuspend returned %d errno %d \n", retval, errno);
   assert(FALSE); /* With full signal mask, we should never return here. */
+  DBUG_ABORT();
 }
 #endif  /* ! _WIN32 */
 

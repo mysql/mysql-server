@@ -491,3 +491,59 @@ ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (U
 delete from t1 where b1=61 and c1=62;
 ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (Unknown error code)
 drop table t2, t1;
+#
+# BUG#18560951 NDB_RESTORE INCLUDES FK FOR ALL DATABASES WHEN USING --INCLUDE-* OR --EXCLUDE
+#
+# create database db1 with tables t1,t2
+create database db1;
+create table db1.t1 (
+a1 int primary key
+) engine ndb;
+create table db1.t2 (
+a1 int,
+foreign key fk1(a1) references t1(a1)
+) engine ndb;
+# create database db2 with table tb1
+create database db2;
+create table db2.t1 (
+a1 int primary key
+) engine ndb;
+# take backup and drop the tables
+drop table db1.t2, db1.t1, db2.t1;
+# now try restoring only the database db2
+# verify the tables present
+show tables from db2;
+Tables_in_db2
+t1
+show create table db2.t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a1` int(11) NOT NULL,
+  PRIMARY KEY (`a1`)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+drop table db2.t1;
+# restore particular table and check for fk problem
+# verify the tables present
+show tables from db1;
+Tables_in_db1
+t1
+show tables from db2;
+Tables_in_db2
+t1
+show create table db1.t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a1` int(11) NOT NULL,
+  PRIMARY KEY (`a1`)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+show create table db2.t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a1` int(11) NOT NULL,
+  PRIMARY KEY (`a1`)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+drop table db1.t1, db2.t1;
+# verify that restoring table with FK whose parent doesn't exist, fails
+# cleanup
+drop database db1;
+drop database db2;

@@ -1,3 +1,4 @@
+--source include/no_valgrind_without_big.inc
 #Start server with MyISAM
 --source include/force_myisam_default.inc
 
@@ -14,11 +15,9 @@
 # Storage engine to be used in CREATE TABLE
 let $engine_type= MyISAM;
 
+# Test requires: sp-protocol/ps-protocol/view-protocol/cursor-protocol disabled
+--source include/no_protocol.inc
 
-if (`SELECT $PS_PROTOCOL + $SP_PROTOCOL + $CURSOR_PROTOCOL + $VIEW_PROTOCOL > 0`)
-{
-   --skip Test requires: ps-protocol/sp-protocol/cursor-protocol/view-protocol disabled
-}
 let $run= `SELECT '$BIG_TEST' = '1'`;
 if ($run)
 {

@@ -1,6 +1,6 @@
 #ifndef SQL_HSET_INCLUDED
 #define SQL_HSET_INCLUDED
-/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,7 +15,6 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
 
-#include "my_global.h"
 #include "hash.h"
 
 
@@ -23,7 +22,7 @@
   A type-safe wrapper around mysys HASH.
 */
 
-template <typename T, my_hash_get_key K>
+template <typename T, hash_get_key_function K>
 class Hash_set
 {
 public:
@@ -36,7 +35,6 @@ public:
   Hash_set(PSI_memory_key psi_key)
   {
     m_psi_key= psi_key;
-    my_hash_clear(&m_hash);
   }
   /**
     Destroy the hash by freeing the buckets table. Does
@@ -57,10 +55,11 @@ public:
   */
   bool insert(T *value)
   {
-    my_hash_init_opt(&m_hash, &my_charset_bin, START_SIZE, 0, 0, K, 0, MYF(0),
-                     m_psi_key);
+    if (!my_hash_inited(&m_hash))
+      my_hash_init(&m_hash, &my_charset_bin, START_SIZE, 0, K, nullptr, 0,
+                   m_psi_key);
     size_t key_len;
-    const uchar *key= K(reinterpret_cast<uchar*>(value), &key_len, FALSE);
+    const uchar *key= K(reinterpret_cast<uchar*>(value), &key_len);
     if (my_hash_search(&m_hash, key, key_len) == NULL)
       return my_hash_insert(&m_hash, reinterpret_cast<uchar *>(value));
     return FALSE;

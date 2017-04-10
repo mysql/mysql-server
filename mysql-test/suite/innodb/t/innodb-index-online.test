@@ -1,5 +1,13 @@
---source include/have_innodb.inc
 --source include/have_debug_sync.inc
+
+########################################
+##### WL#7554 Force schema `test` to character set latin1
+##### This test should be migrated to utf8mb4
+--disable_query_log
+let $testdbcs39=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
+alter schema test default character set latin1;
+--enable_query_log
+########################################
 
 let $innodb_metrics_select=
 SELECT name, count FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE
@@ -199,6 +207,7 @@ CREATE INDEX c2d ON t1(c2);
 # This should show the newly calculated stats by CREATE INDEX above,
 # not the faked cardinality=4 for c2d(c2).
 # Purge may or may not have cleaned up the DELETE FROM t1 WHERE c1 = 7;
+ANALYZE TABLE t1;
 --replace_result 81 80
 SHOW INDEX FROM t1;
 EXPLAIN SELECT COUNT(*) FROM t1 WHERE c2 > 3;
@@ -419,3 +428,10 @@ SET GLOBAL innodb_monitor_reset = default;
 SET GLOBAL innodb_monitor_enable = default;
 SET GLOBAL innodb_monitor_disable = default;
 --enable_warnings
+
+########################################
+##### WL#7554 set schema `test` back to what it was
+--disable_query_log
+--eval alter schema test default character set $testdbcs39;
+--enable_query_log
+########################################

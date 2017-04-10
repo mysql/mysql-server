@@ -21,10 +21,11 @@
 #define _XPL_PERFORMANCE_SCHEMA_H_
 
 #include <my_sys.h>
-#include <mysql/psi/psi.h>
-#include <mysql/psi/mysql_thread.h>
-#include <mysql/psi/mysql_socket.h>
 #include <mysql/psi/mysql_memory.h>
+#include <mysql/psi/mysql_socket.h>
+#include <mysql/psi/mysql_thread.h>
+
+#include "my_psi_config.h"
 
 
 #ifdef HAVE_PSI_INTERFACE

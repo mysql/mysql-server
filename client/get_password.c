@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,12 +17,19 @@
 ** Ask for a password from tty
 ** This is an own file to avoid conflicts with curses
 */
-#include <my_global.h>
-#include <my_sys.h>
-#include "mysql.h"
-#include <m_string.h>
+
+#include "my_config.h"
+
 #include <m_ctype.h>
+#include <m_string.h>
+#include <my_sys.h>
 #include <mysql/get_password.h>
+
+#include "my_byteorder.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "mysql.h"
+#include "mysql/service_mysql_alloc.h"
 
 #ifdef HAVE_GETPASS
 #ifdef HAVE_PWD_H
@@ -35,13 +42,16 @@
 #endif
 #ifdef HAVE_TERMIOS_H				/* For tty-password */
 #include	<termios.h>
+
 #define TERMIO	struct termios
 #else
 #ifdef HAVE_TERMIO_H				/* For tty-password */
 #include	<termio.h>
+
 #define TERMIO	struct termio
 #else
 #include	<sgtty.h>
+
 #define TERMIO	struct sgttyb
 #endif
 #endif
@@ -103,7 +113,7 @@ char *get_tty_password_ext(const char *opt_message,
 *  to will not include the eol characters.
 */
 
-static void get_password(char *to,uint length,int fd, my_bool echo)
+static void get_password(char *to,uint length,int fd, bool echo)
 {
   char *pos=to,*end=to+length;
 

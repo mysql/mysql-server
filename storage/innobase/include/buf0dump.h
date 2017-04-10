@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2011, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2011, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -17,7 +17,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 *****************************************************************************/
 
 /**************************************************//**
-@file buf/buf0dump.h
+@file include/buf0dump.h
 Implements a buffer pool dump/load.
 
 Created April 08, 2011 Vasil Dimov
@@ -54,16 +54,10 @@ void
 buf_load_abort();
 /*============*/
 
-/*****************************************************************//**
-This is the main thread for buffer pool dump/load. It waits for an
+/** This is the main thread for buffer pool dump/load. It waits for an
 event and when waked up either performs a dump or load and sleeps
-again.
-@return this function does not return, it calls os_thread_exit() */
-extern "C"
-os_thread_ret_t
-DECLARE_THREAD(buf_dump_thread)(
-/*============================*/
-	void*	arg);				/*!< in: a dummy parameter
-						required by os_thread_create */
+again. */
+void
+buf_dump_thread();
 
 #endif /* buf0dump_h */

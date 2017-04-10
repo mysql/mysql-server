@@ -1,15 +1,2 @@
 # List of disabled tests
 # test name : comment
-rpl_redirect : Fails due to bug#49978
-crash_manycolumns_string : Bug#50495 'Row size too large' for plugin, but works for built-in innodb
-ix_unique_lob : Bug#52283 Innodb reports extra warnings when SELECT/WHERE is performed using invalid value
-ix_unique_string_length : Bug#52283 Innodb reports extra warnings when SELECT/WHERE is performed using invalid value
-rpl_empty_master_crash    : Test not applicable in 5.5+
-rpl_REDIRECT              : Test not applicable in 5.5+
-rpl_000015 : Result Difference due To Change In .inc File
-rpl_insert_select : Result Difference due To Change In .inc File
-rpl_loaddata2 : Result Difference due To Change In .inc File
-rpl_stm_mystery22 : Result Difference due To Change In .inc File
-rpl_row_stop_middle : Result Difference due To Change In .inc File
-rpl_row_until: BUG#20365935
-

@@ -1,6 +1,5 @@
 # Test for Bug#578 mysqlimport -l silently fails when binlog-ignore-db is set
 
---source include/have_innodb.inc
 
 # Save the initial number of concurrent sessions
 --source include/count_sessions.inc

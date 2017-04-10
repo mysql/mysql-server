@@ -12,27 +12,27 @@ ngram_token_size	2
 show session variables like 'ngram_token_size';
 Variable_name	Value
 ngram_token_size	2
-select * from information_schema.global_variables where variable_name='ngram_token_size';
+select * from performance_schema.global_variables where variable_name='ngram_token_size';
 VARIABLE_NAME	VARIABLE_VALUE
-NGRAM_TOKEN_SIZE	2
-select * from information_schema.session_variables where variable_name='ngram_token_size';
+ngram_token_size	2
+select * from performance_schema.session_variables where variable_name='ngram_token_size';
 VARIABLE_NAME	VARIABLE_VALUE
-NGRAM_TOKEN_SIZE	2
+ngram_token_size	2
 set global ngram_token_size = 3;
 ERROR HY000: Variable 'ngram_token_size' is a read only variable
 # restart: --ngram_token_size=0
-select * from information_schema.global_variables where variable_name='ngram_token_size';
+select * from performance_schema.global_variables where variable_name='ngram_token_size';
 VARIABLE_NAME	VARIABLE_VALUE
-NGRAM_TOKEN_SIZE	1
+ngram_token_size	1
 # restart: --ngram_token_size=-1
-select * from information_schema.global_variables where variable_name='ngram_token_size';
+select * from performance_schema.global_variables where variable_name='ngram_token_size';
 VARIABLE_NAME	VARIABLE_VALUE
-NGRAM_TOKEN_SIZE	1
+ngram_token_size	1
 # restart: --ngram_token_size=11
-select * from information_schema.global_variables where variable_name='ngram_token_size';
+select * from performance_schema.global_variables where variable_name='ngram_token_size';
 VARIABLE_NAME	VARIABLE_VALUE
-NGRAM_TOKEN_SIZE	10
+ngram_token_size	10
 # restart: --ngram_token_size=10
-select * from information_schema.global_variables where variable_name='ngram_token_size';
+select * from performance_schema.global_variables where variable_name='ngram_token_size';
 VARIABLE_NAME	VARIABLE_VALUE
-NGRAM_TOKEN_SIZE	10
+ngram_token_size	10

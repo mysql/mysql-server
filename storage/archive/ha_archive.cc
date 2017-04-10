@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License
@@ -16,16 +16,27 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "probes_mysql.h"
-#include "sql_class.h"                          // SSV
-#include "sql_table.h"
-#include <myisam.h>
+#include "storage/archive/ha_archive.h"
 
-#include "ha_archive.h"
+#include <errno.h>
+#include <fcntl.h>
+#include <limits.h>
 #include <my_dir.h>
-
+#include <myisam.h>
 #include <mysql/plugin.h>
+
+#include "derror.h"
+#include "field.h"
+#include "lex_string.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_psi_config.h"
 #include "mysql/psi/mysql_file.h"
+#include "mysql/psi/mysql_memory.h"
+#include "sql_class.h"
+#include "sql_table.h"
+#include "system_variables.h"
+#include "table.h"
 
 /*
   First, if you want to understand storage engines you should look at 
@@ -119,18 +130,13 @@
 #define DATA_BUFFER_SIZE 2       // Size of the data used in the data file
 #define ARCHIVE_CHECK_HEADER 254 // The number we use to determine corruption
 
-#ifdef HAVE_PSI_INTERFACE
 extern "C" PSI_file_key arch_key_file_data;
-#endif
 
 /* Static declarations for handerton */
-static handler *archive_create_handler(handlerton *hton, 
-                                       TABLE_SHARE *table, 
+static handler *archive_create_handler(handlerton *hton,
+                                       TABLE_SHARE *table,
+                                       bool partitioned,
                                        MEM_ROOT *mem_root);
-int archive_discover(handlerton *hton, THD* thd, const char *db, 
-                     const char *name,
-                     uchar **frmblob, 
-                     size_t *frmlen);
 
 /*
   Number of rows that will force a bulk insert.
@@ -143,7 +149,8 @@ int archive_discover(handlerton *hton, THD* thd, const char *db,
 #define ARCHIVE_ROW_HEADER_SIZE 4
 
 static handler *archive_create_handler(handlerton *hton,
-                                       TABLE_SHARE *table, 
+                                       TABLE_SHARE *table,
+                                       bool,
                                        MEM_ROOT *mem_root)
 {
   return new (mem_root) ha_archive(hton, table);
@@ -152,46 +159,65 @@ static handler *archive_create_handler(handlerton *hton,
 PSI_memory_key az_key_memory_frm;
 PSI_memory_key az_key_memory_record_buffer;
 
-#ifdef HAVE_PSI_INTERFACE
+#ifdef HAVE_PSI_MUTEX_INTERFACE
 PSI_mutex_key az_key_mutex_Archive_share_mutex;
 
 static PSI_mutex_info all_archive_mutexes[]=
 {
-  { &az_key_mutex_Archive_share_mutex, "Archive_share::mutex", 0}
+  { &az_key_mutex_Archive_share_mutex, "Archive_share::mutex", 0, 0}
 };
+#endif /* HAVE_PSI_MUTEX_INTERFACE */
 
-PSI_file_key arch_key_file_metadata, arch_key_file_data, arch_key_file_frm;
+PSI_file_key arch_key_file_data;
+
+#ifdef HAVE_PSI_FILE_INTERFACE
+PSI_file_key arch_key_file_metadata, arch_key_file_frm;
 static PSI_file_info all_archive_files[]=
 {
   { &arch_key_file_metadata, "metadata", 0},
   { &arch_key_file_data, "data", 0},
   { &arch_key_file_frm, "FRM", 0}
 };
+#endif /* HAVE_PSI_FILE_INTERFACE */
 
+#ifdef HAVE_PSI_MEMORY_INTERFACE
 static PSI_memory_info all_archive_memory[]=
 {
   { &az_key_memory_frm, "FRM", 0},
   { &az_key_memory_record_buffer, "record_buffer", 0},
 };
-
+#endif /* HAVE_PSI_MEMORY_INTERFACE */
 
 static void init_archive_psi_keys(void)
 {
-  const char* category= "archive";
-  int count;
+  const char* category MY_ATTRIBUTE((unused)) = "archive";
+  int count MY_ATTRIBUTE((unused));
 
-  count= array_elements(all_archive_mutexes);
+#ifdef HAVE_PSI_MUTEX_INTERFACE
+  count= static_cast<int>(array_elements(all_archive_mutexes));
   mysql_mutex_register(category, all_archive_mutexes, count);
+#endif /* HAVE_PSI_MUTEX_INTERFACE */
 
-  count= array_elements(all_archive_files);
+#ifdef HAVE_PSI_FILE_INTERFACE
+  count= static_cast<int>(array_elements(all_archive_files));
   mysql_file_register(category, all_archive_files, count);
+#endif /* HAVE_PSI_FILE_INTERFACE */
 
-  count= array_elements(all_archive_memory);
+#ifdef HAVE_PSI_MEMORY_INTERFACE
+  count= static_cast<int>(array_elements(all_archive_memory));
   mysql_memory_register(category, all_archive_memory, count);
+#endif /* HAVE_PSI_MEMORY_INTERFACE */
 }
 
 
-#endif /* HAVE_PSI_INTERFACE */
+/*
+  We just implement one additional file extension.
+*/
+static const char *ha_archive_exts[] = {
+  ARZ,
+  NullS
+};
+
 
 /*
   Initialize the archive handler.
@@ -205,7 +231,7 @@ static void init_archive_psi_keys(void)
     TRUE        Error
 */
 
-int archive_db_init(void *p)
+static int archive_db_init(void *p)
 {
   DBUG_ENTER("archive_db_init");
   handlerton *archive_hton;
@@ -219,7 +245,8 @@ int archive_db_init(void *p)
   archive_hton->db_type= DB_TYPE_ARCHIVE_DB;
   archive_hton->create= archive_create_handler;
   archive_hton->flags= HTON_NO_FLAGS;
-  archive_hton->discover= archive_discover;
+  archive_hton->file_extensions= ha_archive_exts;
+  archive_hton->rm_tmp_tables= default_rm_tmp_tables;
 
   DBUG_RETURN(0);
 }
@@ -253,49 +280,6 @@ ha_archive::ha_archive(handlerton *hton, TABLE_SHARE *table_arg)
   archive_reader_open= FALSE;
 }
 
-int archive_discover(handlerton *hton, THD* thd, const char *db, 
-                     const char *name,
-                     uchar **frmblob, 
-                     size_t *frmlen)
-{
-  DBUG_ENTER("archive_discover");
-  DBUG_PRINT("archive_discover", ("db: %s, name: %s", db, name)); 
-  azio_stream frm_stream;
-  char az_file[FN_REFLEN];
-  char *frm_ptr;
-  MY_STAT file_stat; 
-
-  build_table_filename(az_file, sizeof(az_file) - 1, db, name, ARZ, 0);
-
-  if (!(mysql_file_stat(arch_key_file_data, az_file, &file_stat, MYF(0))))
-    goto err;
-
-  if (!(azopen(&frm_stream, az_file, O_RDONLY|O_BINARY)))
-  {
-    if (errno == EROFS || errno == EACCES)
-    {
-      set_my_errno(errno);
-      DBUG_RETURN(errno);
-    }
-    DBUG_RETURN(HA_ERR_CRASHED_ON_USAGE);
-  }
-
-  if (frm_stream.frm_length == 0)
-    goto err;
-
-  frm_ptr= (char *)my_malloc(az_key_memory_frm,
-                             sizeof(char) * frm_stream.frm_length, MYF(0));
-  azread_frm(&frm_stream, frm_ptr);
-  azclose(&frm_stream);
-
-  *frmlen= frm_stream.frm_length;
-  *frmblob= (uchar*) frm_ptr;
-
-  DBUG_RETURN(0);
-err:
-  set_my_errno(0);
-  DBUG_RETURN(1);
-}
 
 static void save_auto_increment(TABLE *table, ulonglong *value)
 {
@@ -491,7 +475,7 @@ Archive_share *ha_archive::get_share(const char *table_name, int *rc)
       anything but reading... open it for write and we will generate null
       compression writes).
     */
-    if (!(azopen(&archive_tmp, tmp_share->data_file_name, O_RDONLY|O_BINARY)))
+    if (!(azopen(&archive_tmp, tmp_share->data_file_name, O_RDONLY)))
     {
       delete tmp_share;
       *rc= my_errno() ? my_errno() : HA_ERR_CRASHED;
@@ -527,8 +511,7 @@ int Archive_share::init_archive_writer()
     a gzip file that can be both read and written we keep a writer open
     that is shared amoung all open tables.
   */
-  if (!(azopen(&archive_write, data_file_name,
-               O_RDWR|O_BINARY)))
+  if (!(azopen(&archive_write, data_file_name, O_RDWR)))
   {
     DBUG_PRINT("ha_archive", ("Could not open archive write file"));
     crashed= true;
@@ -568,7 +551,7 @@ int ha_archive::init_archive_reader()
   */
   if (!archive_reader_open)
   {
-    if (!(azopen(&archive, share->data_file_name, O_RDONLY|O_BINARY)))
+    if (!(azopen(&archive, share->data_file_name, O_RDONLY)))
     {
       DBUG_PRINT("ha_archive", ("Could not open archive read file"));
       share->crashed= TRUE;
@@ -581,27 +564,14 @@ int ha_archive::init_archive_reader()
 }
 
 
-/*
-  We just implement one additional file extension.
-*/
-static const char *ha_archive_exts[] = {
-  ARZ,
-  NullS
-};
-
-const char **ha_archive::bas_ext() const
-{
-  return ha_archive_exts;
-}
-
-
 /* 
   When opening a file we:
   Create/get our shared structure.
   Init out lock.
   We open the file we will read from.
 */
-int ha_archive::open(const char *name, int mode, uint open_options)
+int ha_archive::open(const char *name, int, uint open_options,
+                     const dd::Table*)
 {
   int rc= 0;
   DBUG_ENTER("ha_archive::open");
@@ -678,72 +648,6 @@ int ha_archive::close(void)
 }
 
 
-void ha_archive::frm_load(const char *name, azio_stream *dst)
-{
-  char name_buff[FN_REFLEN];
-  MY_STAT file_stat;
-  File frm_file;
-  uchar *frm_ptr;
-  DBUG_ENTER("ha_archive::frm_load");
-  fn_format(name_buff, name, "", ".frm", MY_REPLACE_EXT | MY_UNPACK_FILENAME);
-
-  /* Here is where we open up the frm and pass it to archive to store */
-  if ((frm_file= mysql_file_open(arch_key_file_frm, name_buff, O_RDONLY, MYF(0))) >= 0)
-  {
-    if (!mysql_file_fstat(frm_file, &file_stat, MYF(MY_WME)))
-    {
-      frm_ptr= (uchar *) my_malloc(az_key_memory_frm,
-                                   sizeof(uchar) * (size_t) file_stat.st_size, MYF(0));
-      if (frm_ptr)
-      {
-        if (mysql_file_read(frm_file, frm_ptr, (size_t) file_stat.st_size, MYF(0)) ==
-            (size_t) file_stat.st_size)
-          azwrite_frm(dst, (char *) frm_ptr, (size_t) file_stat.st_size);
-        my_free(frm_ptr);
-      }
-    }
-    mysql_file_close(frm_file, MYF(0));
-  }
-  DBUG_VOID_RETURN;
-}
-
-
-/**
-  Copy a frm blob between streams.
-
-  @param[in]  src   The source stream.
-  @param[in]  dst   The destination stream.
-
-  @return Zero on success, non-zero otherwise.
-*/
-
-int ha_archive::frm_copy(azio_stream *src, azio_stream *dst)
-{
-  int rc= 0;
-  char *frm_ptr;
-
-  /* If there is no .frm in source stream, try to read .frm from file. */
-  if (!src->frm_length)
-  {
-    frm_load(table->s->normalized_path.str, dst);
-    return 0;
-  }
-
-  if (!(frm_ptr= (char *) my_malloc(az_key_memory_frm,
-                                    src->frm_length, MYF(0))))
-    return HA_ERR_OUT_OF_MEM;
-
-  /* Write file offset is set to the end of the file. */
-  if (azread_frm(src, frm_ptr) ||
-      azwrite_frm(dst, frm_ptr, src->frm_length))
-    rc= my_errno() ? my_errno() : HA_ERR_INTERNAL_ERROR;
-
-  my_free(frm_ptr);
-
-  return rc;
-}
-
-
 /*
   We create our data file here. The format is pretty simple. 
   You can read about the format of the data file above.
@@ -754,7 +658,8 @@ int ha_archive::frm_copy(azio_stream *src, azio_stream *dst)
 */
 
 int ha_archive::create(const char *name, TABLE *table_arg,
-                       HA_CREATE_INFO *create_info)
+                       HA_CREATE_INFO *create_info,
+                       dd::Table *table_def)
 {
   char name_buff[FN_REFLEN];
   char linkname[FN_REFLEN];
@@ -788,7 +693,7 @@ int ha_archive::create(const char *name, TABLE *table_arg,
   /* 
     We reuse name_buff since it is available.
   */
-#ifdef HAVE_READLINK
+#ifndef _WIN32
   if (my_enable_symlinks &&
       create_info->data_file_name &&
       create_info->data_file_name[0] != '#')
@@ -802,7 +707,7 @@ int ha_archive::create(const char *name, TABLE *table_arg,
               MY_REPLACE_EXT | MY_UNPACK_FILENAME);
   }
   else
-#endif /* HAVE_READLINK */
+#endif /* !_WIN32 */
   {
     if (create_info->data_file_name)
     {
@@ -832,16 +737,18 @@ int ha_archive::create(const char *name, TABLE *table_arg,
   if (!(mysql_file_stat(arch_key_file_data, name_buff, &file_stat, MYF(0))))
   {
     set_my_errno(0);
-    if (!(azopen(&create_stream, name_buff, O_CREAT|O_RDWR|O_BINARY)))
+    if (!(azopen(&create_stream, name_buff, O_CREAT | O_RDWR)))
     {
       error= errno;
       goto error2;
     }
 
+#ifndef _WIN32
     if (linkname[0])
       my_symlink(name_buff, linkname, MYF(0));
+#endif
 
-    frm_load(name, &create_stream);
+    // TODO: Write SDI here?
 
     if (create_info->comment.str)
       azwrite_comment(&create_stream, create_info->comment.str, 
@@ -869,7 +776,7 @@ int ha_archive::create(const char *name, TABLE *table_arg,
   DBUG_RETURN(0);
 
 error2:
-  delete_table(name);
+  delete_table(name, table_def);
 error:
   /* Return error number, if we got one */
   DBUG_RETURN(error ? error : -1);
@@ -908,7 +815,7 @@ int ha_archive::real_write_row(uchar *buf, azio_stream *writer)
   the bytes required for the length in the header.
 */
 
-uint32 ha_archive::max_row_length(const uchar *buf)
+uint32 ha_archive::max_row_length(const uchar*)
 {
   uint32 length= (uint32)(table->s->reclength + table->s->fields*2);
   length+= ARCHIVE_ROW_HEADER_SIZE;
@@ -980,7 +887,7 @@ int ha_archive::write_row(uchar *buf)
   if (share->crashed)
     DBUG_RETURN(HA_ERR_CRASHED_ON_USAGE);
 
-  ha_statistic_increment(&SSV::ha_write_count);
+  ha_statistic_increment(&System_status_var::ha_write_count);
   mysql_mutex_lock(&share->mutex);
 
   if (!share->archive_write_open && share->init_archive_writer())
@@ -1029,8 +936,7 @@ error:
 }
 
 
-void ha_archive::get_auto_increment(ulonglong offset, ulonglong increment,
-                                    ulonglong nb_desired_values,
+void ha_archive::get_auto_increment(ulonglong, ulonglong, ulonglong,
                                     ulonglong *first_value,
                                     ulonglong *nb_reserved_values)
 {
@@ -1039,7 +945,7 @@ void ha_archive::get_auto_increment(ulonglong offset, ulonglong increment,
 }
 
 /* Initialized at each key walk (called multiple times unlike rnd_init()) */
-int ha_archive::index_init(uint keynr, bool sorted)
+int ha_archive::index_init(uint keynr, bool)
 {
   DBUG_ENTER("ha_archive::index_init");
   active_index= keynr;
@@ -1056,15 +962,13 @@ int ha_archive::index_read(uchar *buf, const uchar *key,
 {
   int rc;
   DBUG_ENTER("ha_archive::index_read");
-  MYSQL_INDEX_READ_ROW_START(table_share->db.str, table_share->table_name.str);
   rc= index_read_idx(buf, active_index, key, key_len, find_flag);
-  MYSQL_INDEX_READ_ROW_DONE(rc);
   DBUG_RETURN(rc);
 }
 
 
 int ha_archive::index_read_idx(uchar *buf, uint index, const uchar *key,
-                                 uint key_len, enum ha_rkey_function find_flag)
+                               uint key_len, enum ha_rkey_function)
 {
   int rc;
   bool found= 0;
@@ -1093,7 +997,6 @@ int ha_archive::index_read_idx(uchar *buf, uint index, const uchar *key,
   if (found)
   {
     /* notify handler that a record has been found */
-    table->status= 0;
     DBUG_RETURN(0);
   }
 
@@ -1108,7 +1011,6 @@ int ha_archive::index_next(uchar * buf)
   int rc;
 
   DBUG_ENTER("ha_archive::index_next");
-  MYSQL_INDEX_READ_ROW_START(table_share->db.str, table_share->table_name.str);
 
   while (!(get_row(&archive, buf)))
   {
@@ -1120,7 +1022,6 @@ int ha_archive::index_next(uchar * buf)
   }
 
   rc= found ? 0 : HA_ERR_END_OF_FILE;
-  MYSQL_INDEX_READ_ROW_DONE(rc);
   DBUG_RETURN(rc);
 }
 
@@ -1357,8 +1258,6 @@ int ha_archive::rnd_next(uchar *buf)
 {
   int rc;
   DBUG_ENTER("ha_archive::rnd_next");
-  MYSQL_READ_ROW_START(table_share->db.str,
-                       table_share->table_name.str, TRUE);
 
   if (share->crashed)
       DBUG_RETURN(HA_ERR_CRASHED_ON_USAGE);
@@ -1370,14 +1269,11 @@ int ha_archive::rnd_next(uchar *buf)
   }
   scan_rows--;
 
-  ha_statistic_increment(&SSV::ha_read_rnd_next_count);
+  ha_statistic_increment(&System_status_var::ha_read_rnd_next_count);
   current_position= aztell(&archive);
   rc= get_row(&archive, buf);
 
-  table->status=rc ? STATUS_NOT_FOUND: 0;
-
 end:
-  MYSQL_READ_ROW_DONE(rc);
   DBUG_RETURN(rc);
 }
 
@@ -1388,7 +1284,7 @@ end:
   needed.
 */
 
-void ha_archive::position(const uchar *record)
+void ha_archive::position(const uchar*)
 {
   DBUG_ENTER("ha_archive::position");
   my_store_ptr(ref, ref_length, current_position);
@@ -1407,9 +1303,7 @@ int ha_archive::rnd_pos(uchar * buf, uchar *pos)
 {
   int rc;
   DBUG_ENTER("ha_archive::rnd_pos");
-  MYSQL_READ_ROW_START(table_share->db.str,
-                       table_share->table_name.str, FALSE);
-  ha_statistic_increment(&SSV::ha_read_rnd_next_count);
+  ha_statistic_increment(&System_status_var::ha_read_rnd_next_count);
   current_position= (my_off_t)my_get_ptr(pos, ref_length);
   if (azseek(&archive, current_position, SEEK_SET) == (my_off_t)(-1L))
   {
@@ -1418,7 +1312,6 @@ int ha_archive::rnd_pos(uchar * buf, uchar *pos)
   }
   rc= get_row(&archive, buf);
 end:
-  MYSQL_READ_ROW_DONE(rc);
   DBUG_RETURN(rc);
 }
 
@@ -1443,7 +1336,7 @@ int ha_archive::repair(THD* thd, HA_CHECK_OPT* check_opt)
   The table can become fragmented if data was inserted, read, and then
   inserted again. What we do is open up the file and recompress it completely. 
 */
-int ha_archive::optimize(THD* thd, HA_CHECK_OPT* check_opt)
+int ha_archive::optimize(THD*, HA_CHECK_OPT* check_opt)
 {
   int rc= 0;
   azio_stream writer;
@@ -1471,21 +1364,14 @@ int ha_archive::optimize(THD* thd, HA_CHECK_OPT* check_opt)
   fn_format(writer_filename, share->table_name, "", ARN, 
             MY_REPLACE_EXT | MY_UNPACK_FILENAME);
 
-  if (!(azopen(&writer, writer_filename, O_CREAT|O_RDWR|O_BINARY)))
+  if (!(azopen(&writer, writer_filename, O_CREAT | O_RDWR)))
   {
     share->in_optimize= false;
     DBUG_RETURN(HA_ERR_CRASHED_ON_USAGE);
   }
 
-  /*
-    Transfer the embedded FRM so that the file can be discoverable.
-    Write file offset is set to the end of the file.
-  */
-  if ((rc= frm_copy(&archive, &writer)))
-  {
-    share->in_optimize= false;
-    goto error;
-  }
+  // TODO: Copy SDI here?
+
   /* 
     An extended rebuild is a lot more effort. We open up each row and re-record it. 
     Any dead rows are removed (aka rows that may have been partially recorded). 
@@ -1592,8 +1478,7 @@ THR_LOCK_DATA **ha_archive::store_lock(THD *thd,
     */
 
     if ((lock_type >= TL_WRITE_CONCURRENT_INSERT &&
-         lock_type <= TL_WRITE) && !thd_in_lock_tables(thd)
-        && !thd_tablespace_op(thd))
+         lock_type <= TL_WRITE) && !thd_in_lock_tables(thd))
       lock_type = TL_WRITE_ALLOW_WRITE;
 
     /* 
@@ -1708,7 +1593,7 @@ int ha_archive::info(uint flag)
     @return != 0 Error
 */
 
-int ha_archive::extra(enum ha_extra_function operation)
+int ha_archive::extra(enum ha_extra_function operation MY_ATTRIBUTE((unused)))
 {
   int ret= 0;
   DBUG_ENTER("ha_archive::extra");
@@ -1772,7 +1657,7 @@ int ha_archive::end_bulk_insert()
   This is done for security reasons. In a later version we will enable this by 
   allowing the user to select a different row format.
 */
-int ha_archive::truncate()
+int ha_archive::truncate(dd::Table*)
 {
   DBUG_ENTER("ha_archive::truncate");
   DBUG_RETURN(HA_ERR_WRONG_COMMAND);
@@ -1791,15 +1676,13 @@ bool ha_archive::is_crashed() const
 /**
   @brief Check for upgrade
 
-  @param[in]  check_opt  check options
-
   @return Completion status
     @retval HA_ADMIN_OK            No upgrade required
     @retval HA_ADMIN_CORRUPT       Cannot read meta-data
     @retval HA_ADMIN_NEEDS_UPGRADE Upgrade required
 */
 
-int ha_archive::check_for_upgrade(HA_CHECK_OPT *check_opt)
+int ha_archive::check_for_upgrade(HA_CHECK_OPT*)
 {
   DBUG_ENTER("ha_archive::check_for_upgrade");
   if (init_archive_reader())
@@ -1814,7 +1697,7 @@ int ha_archive::check_for_upgrade(HA_CHECK_OPT *check_opt)
   Simple scan of the tables to make sure everything is ok.
 */
 
-int ha_archive::check(THD* thd, HA_CHECK_OPT* check_opt)
+int ha_archive::check(THD* thd, HA_CHECK_OPT*)
 {
   int rc= 0;
   const char *old_proc_info;

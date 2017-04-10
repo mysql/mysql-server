@@ -1,16 +1,25 @@
+########################################
+##### WL#7554 Force schema `test` to character set latin1
+##### This test should be migrated to utf8mb4
+--disable_query_log
+let $testdbcs54=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
+alter schema default character set latin1;
+use test;
+--enable_query_log
+########################################
+
 --echo #
 --echo # This is a copy of innodb-alter.test except using remote tablespaces
 --echo # and showing those files.
 --echo #
 
---source include/have_innodb.inc
 
 --disable_query_log
 # This can change during the test
 LET $innodb_file_per_table_orig=`select @@innodb_file_per_table`;
 
 # Use this coversion to make the result file consistent. This string gets printed
-# in the result file in numerous places.  Since ".ibd" or ".isl" is one of the patterns that
+# in the result file in numerous places.  Since ".ibd" is one of the patterns that
 # makes a whitespace delimited word recognized as a path, the '\' characters will
 # get converted to '/' in the result file on Windows, but not on Unix.
 # So just look for ".i".
@@ -598,3 +607,10 @@ DROP TABLE tt, t1o, sys_tables, sys_indexes, sys_foreign;
 eval set global innodb_file_per_table=$innodb_file_per_table_orig;
 call mtr.add_suppression("deleting orphaned .ibd file");
 -- enable_query_log
+
+########################################
+##### WL#7554 set schema `test` back to what it was
+--disable_query_log
+--eval alter schema test default character set $testdbcs54;
+--enable_query_log
+########################################

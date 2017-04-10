@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,9 +16,12 @@
 #ifndef SQL_INITIALIZE_H
 #define SQL_INITIALIZE_H 1
 
-#include "bootstrap_impl.h"
+#include <string>
 
-class Compiled_in_command_iterator : public Command_iterator
+#include "bootstrap_impl.h"
+#include "my_inttypes.h"
+
+class Compiled_in_command_iterator : public bootstrap::Command_iterator
 {
 public:
   Compiled_in_command_iterator() : is_active(false)
@@ -34,7 +37,7 @@ private:
   bool is_active;
 };
 
-extern my_bool opt_initialize_insecure;
+extern bool opt_initialize_insecure;
 bool initialize_create_data_directory(const char *data_home);
 
 #endif /* SQL_INITIALIZE_H */

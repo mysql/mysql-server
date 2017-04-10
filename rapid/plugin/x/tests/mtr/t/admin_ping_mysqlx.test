@@ -1,7 +1,7 @@
 ## generated
 ## Ping
 
---source ../include/xplugin_preamble.inc
+--source include/xplugin_preamble.inc
 
 create user abc@localhost identified by 'abc';
 ## Test starts here

@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License as
@@ -14,13 +14,18 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA */
 
-#include <stdio.h>
 #include <m_ctype.h>
+#include <my_sys.h>
 #include <mysql/plugin.h>
 #include <mysql/plugin_audit.h>
-#include <my_sys.h>
 #include <mysqld_error.h>
+#include <stdio.h>
+#include <sys/types.h>
+
+#include "lex_string.h"
 #include "my_compiler.h"
+#include "my_inttypes.h"
+#include "my_macros.h"
 
 /** Event strings. */
 LEX_CSTRING event_names[][6] = {
@@ -90,6 +95,7 @@ static volatile int number_of_calls;
 
 #define AUDIT_NULL_VAR(x) static volatile int number_of_calls_ ## x;
 #include "audit_null_variables.h"
+
 #undef AUDIT_NULL_VAR
 
 /*
@@ -105,6 +111,7 @@ static struct st_mysql_show_var simple_status[] =
 #define AUDIT_NULL_VAR(x) { "Audit_null_" #x, (char*)&number_of_calls_ ## x, \
                             SHOW_INT, SHOW_SCOPE_GLOBAL },
 #include "audit_null_variables.h"
+
 #undef AUDIT_NULL_VAR
 
   { 0, 0, 0, SHOW_SCOPE_GLOBAL }
@@ -148,6 +155,7 @@ static MYSQL_THDVAR_STR(event_record_def,
                         "Event recording definition", NULL, NULL, NULL);
 
 static MYSQL_THDVAR_STR(event_record,
+                        PLUGIN_VAR_READONLY |
                         PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_MEMALLOC,
                         "Event recording", NULL, NULL, NULL);
 /*
@@ -198,8 +206,8 @@ static int audit_null_plugin_deinit(void *arg MY_ATTRIBUTE((unused)))
 /**
   @brief Converts event_class and event_subclass into a string.
 
-  @param event_class[in]    Event class value.
-  @param event_subclass[in] Event subclass value.
+  @param [in] event_class    Event class value.
+  @param [in] event_subclass Event subclass value.
 
   @retval Event name.
 */
@@ -215,7 +223,7 @@ static LEX_CSTRING event_to_str(unsigned int event_class,
 /**
   @brief Read token delimited by a semicolon from a string.
 
-  @param str[in,out] Pointer to a string containing text.
+  @param [in,out] str Pointer to a string containing text.
                      Pointer is moved to a new token after the function ends.
 
   @retval Token retrieved from a string.
@@ -285,6 +293,7 @@ static void process_event_record(MYSQL_THD thd, LEX_CSTRING event_name,
     /* Add event. */
     add_event(thd, buffer, event_name, data, data_length);
 
+    my_free((void *)(buffer));
 
     if (!my_charset_latin1.coll->strnncoll(&my_charset_latin1,
                                            (const uchar *)record_begin.str,
@@ -298,6 +307,8 @@ static void process_event_record(MYSQL_THD thd, LEX_CSTRING event_name,
   }
   else
   {
+    const char *buffer;
+
     /* We have not started recording of events yet. */
     if (my_charset_latin1.coll->strnncoll(&my_charset_latin1,
                                           (const uchar *)record_begin.str,
@@ -308,6 +319,10 @@ static void process_event_record(MYSQL_THD thd, LEX_CSTRING event_name,
       /* Event not matching. */
       return;
     }
+
+    buffer= THDVAR(thd, event_record);
+
+    my_free((void *)(buffer));
 
     THDVAR(thd, event_record)= 0;
 
@@ -323,7 +338,7 @@ static void process_event_record(MYSQL_THD thd, LEX_CSTRING event_name,
 }
 
 static int process_command(MYSQL_THD thd, LEX_CSTRING event_command,
-                           my_bool consume_event)
+                           bool consume_event)
 {
   LEX_CSTRING abort_ret_command= { C_STRING_WITH_LEN("ABORT_RET") };
 
@@ -366,12 +381,12 @@ static int process_command(MYSQL_THD thd, LEX_CSTRING event_command,
 /**
   @brief Plugin function handler.
 
-  @param thd[in]         Connection context.
-  @param event_class[in] Event class value.
-  @param event[in]       Event data.
+  @param [in] thd         Connection context.
+  @param [in] event_class Event class value.
+  @param [in] event       Event data.
 
   @retval Value indicating, whether the server should abort continuation
-          of the current oparation.
+          of the current operation.
 */
 static int audit_null_notify(MYSQL_THD thd,
                              mysql_event_class_t event_class,
@@ -387,7 +402,7 @@ static int audit_null_notify(MYSQL_THD thd,
   LEX_CSTRING event_token= get_token(&order_str);
   LEX_CSTRING event_data= get_token(&order_str);
   LEX_CSTRING event_command= get_token(&order_str);
-  my_bool consume_event= TRUE;
+  bool consume_event= TRUE;
 
   /* prone to races, oh well */
   number_of_calls++;
@@ -455,6 +470,7 @@ static int audit_null_notify(MYSQL_THD thd,
       break;
     }
   }
+#if 0
   /**
     Currently events not active.
 
@@ -496,6 +512,7 @@ static int audit_null_notify(MYSQL_THD thd,
     }
   }
   */
+#endif
   else if (event_class == MYSQL_AUDIT_SERVER_STARTUP_CLASS)
   {
     /* const struct mysql_event_server_startup *event_startup=

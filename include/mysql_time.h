@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2017, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -16,7 +16,8 @@
 #ifndef _mysql_time_h_
 #define _mysql_time_h_
 
-/*
+/**
+  @file include/mysql_time.h
   Time declarations shared between the server and client API:
   you should not add anything to this header unless it's used
   (and hence should be visible) in mysql.h.
@@ -24,6 +25,8 @@
   it's most likely my_time.h. See also "C API Handling of Date
   and Time Values" chapter in documentation.
 */
+
+#include "my_inttypes.h"
 
 enum enum_mysql_timestamp_type
 {
@@ -48,7 +51,7 @@ typedef struct st_mysql_time
 {
   unsigned int  year, month, day, hour, minute, second;
   unsigned long second_part;  /**< microseconds */
-  my_bool       neg;
+  bool          neg;
   enum enum_mysql_timestamp_type time_type;
 } MYSQL_TIME;
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,20 +13,33 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-/* Key cache variable structures */
+/**
+  @file include/keycache.h
+  Key cache variable structures.
+*/
 
 #ifndef _keycache_h
 #define _keycache_h
 
+#include <stddef.h>
+#include <sys/types.h>
+
+#include "my_inttypes.h"
+#include "my_io.h"
+#include "my_macros.h"
 #include "my_sys.h"                             /* flush_type */
+#include "mysql/psi/mysql_cond.h"
+#include "mysql/psi/mysql_mutex.h"
 
 C_MODE_START
 
 /* declare structures that is used by st_key_cache */
 
 struct st_block_link;
+
 typedef struct st_block_link BLOCK_LINK;
 struct st_hash_link;
+
 typedef struct st_hash_link HASH_LINK;
 
 /* Thread specific variables */
@@ -43,6 +56,11 @@ typedef struct st_keycache_wqueue
   st_keycache_thread_var *last_thread;  /* circular list of waiting threads */
 } KEYCACHE_WQUEUE;
 
+	/* Typical key cash */
+#define KEY_CACHE_SIZE		(uint) (8*1024*1024)
+	/* Default size of a key cache block  */
+#define KEY_CACHE_BLOCK_SIZE	(uint) 1024
+
 #define CHANGED_BLOCKS_HASH 128             /* must be power of 2 */
 
 /*
@@ -52,11 +70,11 @@ typedef struct st_keycache_wqueue
 
 typedef struct st_key_cache
 {
-  my_bool key_cache_inited;
-  my_bool in_resize;             /* true during resize operation             */
-  my_bool resize_in_flush;       /* true during flush of resize operation    */
-  my_bool can_be_used;           /* usage of cache for read/write is allowed */
-  size_t key_cache_mem_size;      /* specified size of the cache memory       */
+  bool key_cache_inited;
+  bool in_resize;                /* true during resize operation             */
+  bool resize_in_flush;          /* true during flush of resize operation    */
+  bool can_be_used;   	         /* usage of cache for read/write is allowed */
+  size_t key_cache_mem_size;     /* specified size of the cache memory       */
   uint key_cache_block_size;     /* size of the page buffer of a cache block */
   ulonglong min_warm_blocks;     /* min number of warm blocks;               */
   ulonglong age_threshold;       /* age threshold for hot blocks             */
@@ -109,7 +127,7 @@ typedef struct st_key_cache
   ulonglong global_cache_read;      /* number of reads from files to cache   */
 
   int blocks;                   /* max number of blocks in the cache        */
-  my_bool in_init;		/* Set to 1 in MySQL during init/resize     */
+  bool in_init;		/* Set to 1 in MySQL during init/resize     */
 } KEY_CACHE;
 
 /* The default key cache */
@@ -140,13 +158,13 @@ extern int key_cache_write(KEY_CACHE *keycache,
 extern int flush_key_blocks(KEY_CACHE *keycache,
                             st_keycache_thread_var *thread_var,
                             int file, enum flush_type type);
-extern void end_key_cache(KEY_CACHE *keycache, my_bool cleanup);
+extern void end_key_cache(KEY_CACHE *keycache, bool cleanup);
 
 /* Functions to handle multiple key caches */
-extern my_bool multi_keycache_init(void);
+extern bool multi_keycache_init(void);
 extern void multi_keycache_free(void);
 extern KEY_CACHE *multi_key_cache_search(uchar *key, uint length);
-extern my_bool multi_key_cache_set(const uchar *key, uint length,
+extern bool multi_key_cache_set(const uchar *key, uint length,
 				   KEY_CACHE *key_cache);
 extern void multi_key_cache_change(KEY_CACHE *old_data,
 				   KEY_CACHE *new_data);

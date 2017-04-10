@@ -59,9 +59,9 @@ ERROR HY000: Variable 'log_error_verbosity' is a GLOBAL variable and should be s
 CREATE USER mysqltest_1;
 # as unprivileged user:
 SET GLOBAL log_error_verbosity=1;
-ERROR 42000: Access denied; you need (at least one of) the SUPER privilege(s) for this operation
+ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
 SET GLOBAL log_timestamps=SYSTEM;
-ERROR 42000: Access denied; you need (at least one of) the SUPER privilege(s) for this operation
+ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
 # as root:
 DROP USER mysqltest_1;
 

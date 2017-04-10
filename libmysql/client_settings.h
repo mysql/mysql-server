@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
    
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,6 +18,9 @@
 #else
 #error You have already included an client_settings.h and it should not be included twice
 #endif /* CLIENT_SETTINGS_INCLUDED */
+
+#include "my_macros.h"
+#include "mysql.h"
 
 extern uint		mysql_port;
 extern char *	mysql_unix_port;
@@ -40,8 +43,9 @@ extern char *	mysql_unix_port;
                              CLIENT_SESSION_TRACK | \
                              CLIENT_DEPRECATE_EOF)
 
+C_MODE_START
 void read_user_name(char *name);
-my_bool handle_local_infile(MYSQL *mysql, const char *net_filename);
+bool handle_local_infile(MYSQL *mysql, const char *net_filename);
 
 void mysql_read_default_options(struct st_mysql_options *options,
 				const char *filename,const char *group);
@@ -54,7 +58,7 @@ cli_mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
 void cli_mysql_close(MYSQL *mysql);
 
 MYSQL_FIELD * cli_list_fields(MYSQL *mysql);
-my_bool cli_read_prepare_result(MYSQL *mysql, MYSQL_STMT *stmt);
+bool cli_read_prepare_result(MYSQL *mysql, MYSQL_STMT *stmt);
 MYSQL_DATA * cli_read_rows(MYSQL *mysql,MYSQL_FIELD *mysql_fields,
 				   uint fields);
 int cli_stmt_execute(MYSQL_STMT *stmt);
@@ -62,11 +66,7 @@ int cli_read_binary_rows(MYSQL_STMT *stmt);
 int cli_unbuffered_fetch(MYSQL *mysql, char **row);
 const char * cli_read_statistics(MYSQL *mysql);
 int cli_read_change_user_result(MYSQL *mysql);
-
-#ifdef EMBEDDED_LIBRARY
-int init_embedded_server(int argc, char **argv, char **groups);
-void end_embedded_server();
-#endif /*EMBEDDED_LIBRARY*/
+C_MODE_END
 
 C_MODE_START
 extern int mysql_init_character_set(MYSQL *mysql);

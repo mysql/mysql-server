@@ -241,8 +241,8 @@ test
 # 'bug58090' database should be present.
 SHOW DATABASES;
 Database
-information_schema
 bug58090
+information_schema
 mtr
 mysql
 performance_schema

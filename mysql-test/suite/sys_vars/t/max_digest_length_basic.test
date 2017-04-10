@@ -13,10 +13,10 @@ show global variables like 'max_digest_length';
 show session variables like 'max_digest_length';
 
 --disable_warnings
-select * from information_schema.global_variables
+select * from performance_schema.global_variables
   where variable_name='max_digest_length';
 
-select * from information_schema.session_variables
+select * from performance_schema.session_variables
   where variable_name='max_digest_length';
 --enable_warnings
 

@@ -17,6 +17,10 @@
 #ifndef _my_audit_h
 #define _my_audit_h
 
+/**
+  @file include/mysql/plugin_audit.h
+*/
+
 #include "plugin.h"
 #include "mysql/mysql_lex_string.h"
 #ifndef MYSQL_ABI_CHECK
@@ -292,11 +296,9 @@ struct mysql_event_authorization
 };
 
 /**
-  @enum mysql_event_table_row_access_subclass_t
-
-  Events for MYSQL_AUDIT_TABLE_ACCES_CLASS event class.
+  Events for MYSQL_AUDIT_TABLE_ACCESS_CLASS event class.
 */
-typedef enum
+enum mysql_event_table_access_subclass_t
 {
   /** Occurs when table data are read. */
   MYSQL_AUDIT_TABLE_ACCESS_READ   = 1 << 0,
@@ -306,7 +308,9 @@ typedef enum
   MYSQL_AUDIT_TABLE_ACCESS_UPDATE = 1 << 2,
   /** Occurs when table data are deleted. */
   MYSQL_AUDIT_TABLE_ACCESS_DELETE = 1 << 3
-} mysql_event_table_access_subclass_t;
+};
+
+typedef enum mysql_event_table_access_subclass_t mysql_event_table_access_subclass_t;
 
 #define MYSQL_AUDIT_TABLE_ACCESS_ALL (MYSQL_AUDIT_TABLE_ACCESS_READ | \
                                       MYSQL_AUDIT_TABLE_ACCESS_INSERT | \

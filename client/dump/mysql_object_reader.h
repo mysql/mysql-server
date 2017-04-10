@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -18,13 +18,16 @@
 #ifndef MYSQL_OBJECT_READER_INCLUDED
 #define MYSQL_OBJECT_READER_INCLUDED
 
-#include "i_object_reader.h"
+#include <functional>
+
 #include "abstract_data_formatter_wrapper.h"
 #include "abstract_mysql_chain_element_extension.h"
+#include "i_object_reader.h"
+#include "my_inttypes.h"
+#include "mysql_field.h"
 #include "mysql_object_reader_options.h"
 #include "row_group_dump_task.h"
 #include "table_rows_dump_task.h"
-#include "mysql_field.h"
 
 namespace Mysql{
 namespace Tools{
@@ -41,7 +44,7 @@ class Mysql_object_reader
 public:
   Mysql_object_reader(
     I_connection_provider* connection_provider,
-    Mysql::I_callable<bool, const Mysql::Tools::Base::Message_data&>*
+    std::function<bool(const Mysql::Tools::Base::Message_data&)>*
     message_handler, Simple_id_generator* object_id_generator,
     const Mysql_object_reader_options* options);
 
@@ -49,6 +52,19 @@ public:
 
   void format_rows(
     Item_processing_data* item_to_process, Row_group_dump_task* row_group);
+
+  // Fix "inherits ... via dominance" warnings
+  void register_progress_watcher(I_progress_watcher* new_progress_watcher)
+  { Abstract_chain_element::register_progress_watcher(new_progress_watcher); }
+
+  // Fix "inherits ... via dominance" warnings
+  uint64 get_id() const
+  { return Abstract_chain_element::get_id(); }
+
+protected:
+  // Fix "inherits ... via dominance" warnings
+  void item_completion_in_child_callback(Item_processing_data* item_processed)
+  { Abstract_chain_element::item_completion_in_child_callback(item_processed); }
 
 private:
   void read_table_rows_task(Table_rows_dump_task* table_rows_dump_task,

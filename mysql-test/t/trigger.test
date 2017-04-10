@@ -1112,38 +1112,6 @@ drop trigger t1_bi;
 drop table t1;
 drop database mysqltest;
 use test;
-# And now let us check that the properly handle rename if there is some
-# error during it (that we rollback such renames completely).
-create table t1 (id int);
-create trigger t1_bi before insert on t1 for each row set @a:=new.id;
-create trigger t1_ai after insert on t1 for each row set @b:=new.id;
-insert into t1 values (101);
-select @a, @b;
-select trigger_schema, trigger_name, event_object_schema,
-       event_object_table, action_statement from information_schema.triggers
-       where event_object_schema = 'test';
-# Trick which makes update of second .TRN file impossible
-let $MYSQLD_DATADIR= `select @@datadir`;
-write_file $MYSQLD_DATADIR/test/t1_ai.TRN~;
-dummy
-EOF
-chmod 0000 $MYSQLD_DATADIR/test/t1_ai.TRN~;
-# Normalize the datadir path; the embedded server doesn't chdir to datadir
---replace_result $MYSQLTEST_VARDIR . mysqld.1/data/ ''
---error 1
-rename table t1 to t2;
-# 't1' should be still there and triggers should work correctly
-insert into t1 values (102);
-select @a, @b;
-select trigger_schema, trigger_name, event_object_schema,
-       event_object_table, action_statement from information_schema.triggers
-       where event_object_schema = 'test';
-chmod 0600 $MYSQLD_DATADIR/test/t1_ai.TRN~;
-remove_file $MYSQLD_DATADIR/test/t1_ai.TRN~;
-# Let us check that updates to .TRN files were rolled back too
-drop trigger t1_bi;
-drop trigger t1_ai;
-drop table t1;
 
 # Test for bug #16829 "Firing trigger with RETURN crashes the server"
 # RETURN is not supposed to be used anywhere except functions, so error
@@ -2416,6 +2384,12 @@ DROP TABLE t1,t2;
 --echo #
 --echo # Bug#50755: Crash if stored routine def contains version comments
 --echo #
+--echo # With WL#9494, the SHOW TRIGGERS no more parses
+--echo # the underlaying trigger, and hence it would not
+--echo # report parse error. This means that the code
+--echo # causing this issue is removed now with WL#9494.
+--echo # This test case is kept for reference.
+--echo #
 
 --disable_warnings
 DROP DATABASE IF EXISTS db1;
@@ -2430,16 +2404,11 @@ CREATE TABLE t1 (b INT);
 CREATE TABLE t2 (a INT);
 
 CREATE TRIGGER trg1 BEFORE INSERT ON t2 FOR EACH ROW INSERT/*!INTO*/t1 VALUES (1);
---echo # Used to crash
+--replace_column 6 #
 SHOW TRIGGERS IN db1;
 --error ER_PARSE_ERROR
 INSERT INTO t2 VALUES (1);
 SELECT * FROM t1;
-
---echo # Work around Bug#45235
-let $MYSQLD_DATADIR = `select @@datadir`;
---remove_file $MYSQLD_DATADIR/db1/t2.TRG
---remove_file $MYSQLD_DATADIR/db1/trg1.TRN
 
 DROP DATABASE db1;
 USE test;
@@ -2905,4 +2874,77 @@ DROP USER user_name_robert_golebiowski@oh_my_gosh_this_is_a_long_hostname_look_a
 DROP TRIGGER test.silly_trigger;
 DROP TABLE test.silly_one;
 
+--echo #
+--echo # Bug #22512899 - DROP TRIGGER AFTER RENAME TABLE RESULTS IN ERROR CODE 1146: TABLE DOESN'T EXIST
+--echo #
+
+CREATE TABLE t1 (a INT) ENGINE=InnoDB;
+CREATE TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW BEGIN END;
+
+RENAME TABLE t1 TO t1Renamed;
+
+DROP TRIGGER t1_bi;
+DROP TABLE t1Renamed;
+
 --echo End of 5.7 tests.
+
+--echo #
+--echo # Bug #23624693 - USING SHOW CREATE TRIGGER IN A TRANSACTION CRASHES THE SERVER
+--echo #
+
+--error ER_BAD_DB_ERROR
+SHOW CREATE TRIGGER non_existence_db.some_trigger;
+
+--error ER_BAD_DB_ERROR
+CREATE TRIGGER non_existent_db.trg1 BEFORE INSERT ON t1 FOR EACH ROW BEGIN END;
+
+--error ER_BAD_DB_ERROR
+DROP TRIGGER non_existent_db.trg1;
+
+--echo #
+--echo # Bug#24449174 - DROPPING A PARTITION DROPS THE TRIGGER ON 8.0.0
+--echo #
+
+CREATE TABLE t1 (val INT NOT NULL) ENGINE=InnoDB
+PARTITION BY LIST(val) (
+  PARTITION p1 VALUES IN (1,2,3),
+  PARTITION p2 VALUES IN (4,5)
+);
+
+CREATE TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW BEGIN END;
+
+--replace_column 7 #
+SHOW CREATE TRIGGER t1_bi;
+
+ALTER TABLE t1 DROP PARTITION p1;
+
+--replace_column 7 #
+SHOW CREATE TRIGGER t1_bi;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#24482919 -- SHOW TRIGGER OUTPUT INCONSISTENCY ON WINDOWS / LINUX ON 8.0.0
+--echo #
+CREATE TABLE t1 (a INT);
+CREATE TRIGGER trg1a BEFORE INSERT ON t1 FOR EACH ROW BEGIN END;
+CREATE TRIGGER trg1b AFTER INSERT ON t1 FOR EACH ROW BEGIN END;
+CREATE TRIGGER trg1c BEFORE UPDATE ON t1 FOR EACH ROW BEGIN END;
+CREATE TRIGGER trg1d AFTER UPDATE ON t1 FOR EACH ROW BEGIN END;
+CREATE TRIGGER trg1e BEFORE DELETE ON t1 FOR EACH ROW BEGIN END;
+CREATE TRIGGER trg1f AFTER DELETE ON t1 FOR EACH ROW BEGIN END;
+CREATE TRIGGER trg1a2 BEFORE INSERT ON t1 FOR EACH ROW BEGIN END;
+CREATE TRIGGER trg1b2 AFTER INSERT ON t1 FOR EACH ROW BEGIN END;
+CREATE TRIGGER trg1c2 BEFORE UPDATE ON t1 FOR EACH ROW BEGIN END;
+CREATE TRIGGER trg1d2 AFTER UPDATE ON t1 FOR EACH ROW BEGIN END;
+CREATE TRIGGER trg1f2 AFTER DELETE ON t1 FOR EACH ROW BEGIN END;
+CREATE TRIGGER trg1a0 BEFORE INSERT ON t1 FOR EACH ROW PRECEDES trg1a BEGIN END;
+CREATE TRIGGER trg1a3 BEFORE INSERT ON t1 FOR EACH ROW FOLLOWS trg1a2 BEGIN END;
+CREATE TRIGGER trg1b0 AFTER INSERT ON t1 FOR EACH ROW PRECEDES trg1b BEGIN END;
+CREATE TRIGGER trg1b3 AFTER INSERT ON t1 FOR EACH ROW FOLLOWS trg1b2 BEGIN END;
+CREATE TRIGGER trg1c0 BEFORE UPDATE ON t1 FOR EACH ROW PRECEDES trg1c BEGIN END;
+CREATE TRIGGER trg1c3 BEFORE UPDATE ON t1 FOR EACH ROW FOLLOWS trg1c2 BEGIN END;
+SELECT TRIGGER_NAME FROM information_schema.triggers WHERE TRIGGER_NAME LIKE 'trg1%' ORDER BY TRIGGER_NAME;
+--replace_column 6 # 7 #
+SHOW TRIGGERS;
+DROP TABLE t1;

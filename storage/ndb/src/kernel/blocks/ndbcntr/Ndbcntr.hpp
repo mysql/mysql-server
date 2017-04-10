@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -377,8 +377,8 @@ public:
     
     BlockNumber number() const { return cntr.number(); }
     EmulatedJamBuffer *jamBuffer() const { return cntr.jamBuffer(); }
-    void progError(int line, int cause, const char * extra) { 
-      cntr.progError(line, cause, extra); 
+    void progError(int line, int cause, const char * extra, const char * check) {
+      cntr.progError(line, cause, extra, check);
     }
 
     enum StopNodesStep {
@@ -410,8 +410,8 @@ private:
     
     BlockNumber number() const { return cntr.number(); }
     EmulatedJamBuffer *jamBuffer() const { return cntr.jamBuffer(); }
-    void progError(int line, int cause, const char * extra) { 
-      cntr.progError(line, cause, extra); 
+    void progError(int line, int cause, const char * extra, const char * check) {
+      cntr.progError(line, cause, extra, check);
     }
     Ndbcntr & cntr;
   };

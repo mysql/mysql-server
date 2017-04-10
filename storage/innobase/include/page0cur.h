@@ -77,24 +77,25 @@ page_cur_get_rec(
 # define page_cur_get_page_zip(cur)	buf_block_get_page_zip((cur)->block)
 # define page_cur_get_rec(cur)		(cur)->rec
 #endif /* UNIV_DEBUG */
-/*********************************************************//**
-Sets the cursor object to point before the first user record
-on the page. */
+
+/** Sets the cursor object to point before the first user record on the page.
+@param[in]	block	index page
+@param[in]	cur	cursor */
 UNIV_INLINE
 void
 page_cur_set_before_first(
-/*======================*/
-	const buf_block_t*	block,	/*!< in: index page */
-	page_cur_t*		cur);	/*!< in: cursor */
-/*********************************************************//**
-Sets the cursor object to point after the last user record on
-the page. */
+	const buf_block_t*	block,
+	page_cur_t*		cur);
+
+/** Sets the cursor object to point after the last user record on the page.
+@param[in]	block	index page
+@param[in]	cur	cursor */
 UNIV_INLINE
 void
 page_cur_set_after_last(
-/*====================*/
-	const buf_block_t*	block,	/*!< in: index page */
-	page_cur_t*		cur);	/*!< in: cursor */
+	const buf_block_t*	block,
+	page_cur_t*		cur);
+
 /*********************************************************//**
 Returns TRUE if the cursor is before first user record on page.
 @return TRUE if at start */
@@ -111,16 +112,18 @@ ibool
 page_cur_is_after_last(
 /*===================*/
 	const page_cur_t*	cur);	/*!< in: cursor */
-/**********************************************************//**
-Positions the cursor on the given record. */
+
+/** Positions the cursor on the given record.
+@param[in]	rec	record on a page
+@param[in]	block	buffer block containing the record
+@param[out]	cur	page cursor */
 UNIV_INLINE
 void
 page_cur_position(
-/*==============*/
-	const rec_t*		rec,	/*!< in: record on a page */
-	const buf_block_t*	block,	/*!< in: buffer block containing
-					the record */
-	page_cur_t*		cur);	/*!< out: page cursor */
+	const rec_t*		rec,
+	const buf_block_t*	block,
+	page_cur_t*		cur);
+
 /**********************************************************//**
 Moves the cursor to the next record on page. */
 UNIV_INLINE
@@ -162,29 +165,34 @@ page_cur_tuple_insert(
 	bool		use_cache = false)
 				/*!< in: if true, then use record cache to
 				hold the tuple converted record. */
-	MY_ATTRIBUTE((nonnull(1,2,3,4,5), warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 #endif /* !UNIV_HOTBACKUP */
-/***********************************************************//**
-Inserts a record next to page cursor. Returns pointer to inserted record if
-succeed, i.e., enough space available, NULL otherwise. The cursor stays at
+
+/** Inserts a record next to page cursor. Returns pointer to inserted record
+if succeed, i.e., enough space available, NULL otherwise. The cursor stays at
 the same logical position, but the physical position may change if it is
 pointing to a compressed page that was reorganized.
 
-IMPORTANT: The caller will have to update IBUF_BITMAP_FREE
-if this is a compressed leaf page in a secondary index.
-This has to be done either within the same mini-transaction,
-or by invoking ibuf_reset_free_bits() before mtr_commit().
+IMPORTANT: The caller will have to update IBUF_BITMAP_FREE if this is a
+compressed leaf page in a secondary index.
+This has to be done either within the same mini-transaction, or by invoking
+ibuf_reset_free_bits() before mtr_commit().
 
+@param[in,out]	cursor	a page cursor
+@param[in]	rec	record to insert
+@param[in]	index	record descriptor
+@param[in,out]	offsets	rec_get_offsets(rec, index)
+@param[in]	mtr	mini-transaction handle, or NULL
 @return pointer to record if succeed, NULL otherwise */
 UNIV_INLINE
 rec_t*
 page_cur_rec_insert(
-/*================*/
-	page_cur_t*	cursor,	/*!< in/out: a page cursor */
-	const rec_t*	rec,	/*!< in: record to insert */
-	dict_index_t*	index,	/*!< in: record descriptor */
-	ulint*		offsets,/*!< in/out: rec_get_offsets(rec, index) */
-	mtr_t*		mtr);	/*!< in: mini-transaction handle, or NULL */
+	page_cur_t*	cursor,
+	const rec_t*	rec,
+	dict_index_t*	index,
+	ulint*		offsets,
+	mtr_t*		mtr);
+
 /***********************************************************//**
 Inserts a record next to page cursor on an uncompressed page.
 Returns pointer to inserted record if succeed, i.e., enough
@@ -199,7 +207,7 @@ page_cur_insert_rec_low(
 	const rec_t*	rec,	/*!< in: pointer to a physical record */
 	ulint*		offsets,/*!< in/out: rec_get_offsets(rec, index) */
 	mtr_t*		mtr)	/*!< in: mini-transaction handle, or NULL */
-	MY_ATTRIBUTE((nonnull(1,2,3,4), warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 
 /** Inserts a record next to page cursor on an uncompressed page.
 @param[in]	current_rec	pointer to current record after which
@@ -238,7 +246,7 @@ page_cur_insert_rec_zip(
 	const rec_t*	rec,	/*!< in: pointer to a physical record */
 	ulint*		offsets,/*!< in/out: rec_get_offsets(rec, index) */
 	mtr_t*		mtr)	/*!< in: mini-transaction handle, or NULL */
-	MY_ATTRIBUTE((nonnull(1,2,3,4), warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 /*************************************************************//**
 Copies records from page to a newly created page, from a given record onward,
 including that record. Infimum and supremum records are not copied.
@@ -406,8 +414,6 @@ struct page_cur_t{
 	buf_block_t*	block;	/*!< pointer to the block containing rec */
 };
 
-#ifndef UNIV_NONINL
 #include "page0cur.ic"
-#endif
 
 #endif

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -38,6 +38,7 @@
 #include <my_sys.h>
 #include <signaldata/LqhFrag.hpp>
 #include <signaldata/AttrInfo.hpp>
+#include "../dblqh/Dblqh.hpp"
 
 #include <EventLogger.hpp>
 
@@ -305,6 +306,12 @@ void Dbtup::execTUP_ADD_ATTRREQ(Signal* signal)
       regTabPtr.p->m_attributes[ind].m_no_of_dyn_var++;
       regTabPtr.p->m_dyn_null_bits[ind]++;
     }
+    if (null_pos > AO_NULL_FLAG_POS_MASK)
+    {
+      jam();
+      terrorCode = ZTOO_MANY_BITS_ERROR;
+      goto error;
+    }
     AttributeOffset::setNullFlagPos(attrDes2, null_pos);
 
     ndbassert((regTabPtr.p->m_attributes[ind].m_no_of_dyn_var +
@@ -456,7 +463,7 @@ void Dbtup::execTUP_ADD_ATTRREQ(Signal* signal)
   }
 #endif
   
-#if SYNC_TABLE
+#ifdef SYNC_TABLE
   if (regTabPtr.p->m_no_of_disk_attributes)
   {
     jam();
@@ -701,6 +708,7 @@ void Dbtup::execTUPFRAGREQ(Signal* signal)
   Uint32 fragId         = req->fragId;
   Uint32 tablespace_id  = req->tablespaceid;
   Uint32 changeMask     = req->changeMask;
+  Uint32 partitionId    = req->partitionId;
 
   Uint64 maxRows =
     (((Uint64)req->maxRowsHigh) << 32) + req->maxRowsLow;
@@ -797,8 +805,9 @@ void Dbtup::execTUPFRAGREQ(Signal* signal)
   regFragPtr.p->fragStatus = Fragrecord::FS_ONLINE;
   regFragPtr.p->fragTableId= regTabPtr.i;
   regFragPtr.p->fragmentId= fragId;
+  regFragPtr.p->partitionId= partitionId;
   regFragPtr.p->m_tablespace_id= tablespace_id;
-  regFragPtr.p->m_undo_complete= false;
+  regFragPtr.p->m_undo_complete= 0;
   regFragPtr.p->m_lcp_scan_op = RNIL;
   regFragPtr.p->m_lcp_keep_list_head.setNull();
   regFragPtr.p->m_lcp_keep_list_tail.setNull();
@@ -819,7 +828,7 @@ void Dbtup::execTUPFRAGREQ(Signal* signal)
   if(regTabPtr.p->m_no_of_disk_attributes)
   {
     D("Tablespace_client - execTUPFRAGREQ");
-    Tablespace_client tsman(0, this, c_tsman, 0, 0,
+    Tablespace_client tsman(0, this, c_tsman, 0, 0, 0,
                             regFragPtr.p->m_tablespace_id);
     ndbrequire(tsman.get_tablespace_info(&rep) == 0);
     regFragPtr.p->m_logfile_group_id= rep.tablespace.logfile_group_id;
@@ -2106,9 +2115,9 @@ Dbtup::drop_fragment_unmap_pages(Signal *signal,
     }
     
     Ptr<Page> pagePtr;
-    ArrayPool<Page> *pool= (ArrayPool<Page>*)&m_global_page_pool;
+    Page_pool *pool= (Page_pool*)&m_global_page_pool;
     {
-      LocalDLList<Page> list(*pool, alloc_info.m_dirty_pages[pos]);
+      Local_Page_list list(*pool, alloc_info.m_dirty_pages[pos]);
       list.first(pagePtr);
       list.remove(pagePtr);
     }
@@ -2187,7 +2196,7 @@ Dbtup::drop_fragment_free_extent(Signal *signal,
         CallbackPtr cb;
 	cb.m_callbackData= fragPtr.i;
 	cb.m_callbackIndex = DROP_FRAGMENT_FREE_EXTENT_LOG_BUFFER_CALLBACK;
-#if NOT_YET_UNDO_FREE_EXTENT
+#ifdef NOT_YET_UNDO_FREE_EXTENT
 	Uint32 sz= sizeof(Disk_undo::FreeExtent) >> 2;
 	(void) c_lgman->alloc_log_space(fragPtr.p->m_logfile_group_id,
                                         sz,
@@ -2316,7 +2325,7 @@ Dbtup::drop_fragment_free_extent_log_buffer_callback(Signal* signal,
       Ptr<Extent_info> ext_ptr;
       list.first(ext_ptr);
 
-#if NOT_YET_UNDO_FREE_EXTENT
+#ifdef NOT_YET_UNDO_FREE_EXTENT
 #error "This code is complete"
 #error "but not needed until we do dealloc of empty extents"
       Disk_undo::FreeExtent free;
@@ -2338,6 +2347,7 @@ Dbtup::drop_fragment_free_extent_log_buffer_callback(Signal* signal,
       D("Tablespace_client - drop_fragment_free_extent_log_buffer_callback");
       Tablespace_client tsman(signal, this, c_tsman, tabPtr.i, 
 			      fragPtr.p->fragmentId,
+                              c_lqh->getCreateSchemaVersion(tabPtr.i),
 			      fragPtr.p->m_tablespace_id);
       
       tsman.free_extent(&ext_ptr.p->m_key, lsn);
@@ -2376,7 +2386,7 @@ Dbtup::drop_fragment_free_var_pages(Signal* signal)
   {
     if (! fragPtr.p->free_var_page_array[i].isEmpty())
     {
-      LocalDLList<Page> list(c_page_pool, fragPtr.p->free_var_page_array[i]);
+      Local_Page_list list(c_page_pool, fragPtr.p->free_var_page_array[i]);
       ndbrequire(list.first(pagePtr));
       list.remove(pagePtr);
       returnCommonArea(pagePtr.i, 1);

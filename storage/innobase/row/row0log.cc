@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2011, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2011, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -25,25 +25,27 @@ Created 2011-05-26 Marko Makela
 
 #include "row0log.h"
 
-#ifdef UNIV_NONINL
-#include "row0log.ic"
-#endif
+#include "my_config.h"
 
-#include "row0row.h"
-#include "row0ins.h"
-#include "row0upd.h"
-#include "row0merge.h"
-#include "row0ext.h"
-#include "data0data.h"
-#include "que0que.h"
-#include "srv0mon.h"
-#include "handler0alter.h"
-#include "ut0new.h"
-#include "ut0stage.h"
-#include "trx0rec.h"
-
+#include <fcntl.h>
 #include <algorithm>
 #include <map>
+
+#include "data0data.h"
+#include "handler0alter.h"
+#include "lob0lob.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "que0que.h"
+#include "row0ext.h"
+#include "row0ins.h"
+#include "row0merge.h"
+#include "row0row.h"
+#include "row0upd.h"
+#include "srv0mon.h"
+#include "trx0rec.h"
+#include "ut0new.h"
+#include "ut0stage.h"
 
 /** Table row modification operations during online table rebuild.
 Delete-marked records are not copied to the rebuilt table. */
@@ -150,10 +152,10 @@ If a page number maps to a nonzero number, the number is a byte offset
 into the index->online_log, indicating that the page is safe to access
 when applying log records starting from that offset. */
 typedef std::map<
-	ulint,
+	page_no_t,
 	row_log_table_blob_t,
-	std::less<ulint>,
-	ut_allocator<std::pair<const ulint, row_log_table_blob_t> > >
+	std::less<page_no_t>,
+	ut_allocator<std::pair<const page_no_t, row_log_table_blob_t> > >
 	page_no_map;
 
 /** @brief Buffer for logging modifications during online index creation
@@ -292,7 +294,7 @@ row_log_online_op(
 	ut_ad(rw_lock_own(dict_index_get_lock(index), RW_LOCK_S)
 	      || rw_lock_own(dict_index_get_lock(index), RW_LOCK_X));
 
-	if (dict_index_is_corrupted(index)) {
+	if (index->is_corrupted()) {
 		return;
 	}
 
@@ -380,16 +382,17 @@ row_log_online_op(
 			goto err_exit;
 		}
 
-		err = os_file_write(
+		err = os_file_write_int_fd(
 			request,
 			"(modification log)",
-			OS_FILE_FROM_FD(log->fd),
+			log->fd,
 			log->tail.block, byte_offset, srv_sort_buf_size);
+
 		log->tail.blocks++;
 		if (err != DB_SUCCESS) {
 write_failed:
-			/* We set the flag directly instead of invoking
-			dict_set_corrupted_index_cache_only(index) here,
+			/* We set the flag directly instead of
+			invoking dict_set_corrupted() here,
 			because the index is not "public" yet. */
 			index->type |= DICT_CORRUPT;
 		}
@@ -416,7 +419,7 @@ row_log_table_get_error(
 	const dict_index_t*	index)	/*!< in: clustered index of a table
 					that is being rebuilt online */
 {
-	ut_ad(dict_index_is_clust(index));
+	ut_ad(index->is_clustered());
 	ut_ad(dict_index_is_online_ddl(index));
 	return(index->online_log->error);
 }
@@ -424,7 +427,7 @@ row_log_table_get_error(
 /******************************************************//**
 Starts logging an operation to a table that is being rebuilt.
 @return pointer to log, or NULL if no logging is necessary */
-static MY_ATTRIBUTE((nonnull, warn_unused_result))
+static MY_ATTRIBUTE((warn_unused_result))
 byte*
 row_log_table_open(
 /*===============*/
@@ -459,7 +462,7 @@ err_exit:
 
 /******************************************************//**
 Stops logging an operation to a table that is being rebuilt. */
-static MY_ATTRIBUTE((nonnull))
+static
 void
 row_log_table_close_func(
 /*=====================*/
@@ -498,11 +501,12 @@ row_log_table_close_func(
 			goto err_exit;
 		}
 
-		err = os_file_write(
+		err = os_file_write_int_fd(
 			request,
 			"(modification log)",
-			OS_FILE_FROM_FD(log->fd),
+			log->fd,
 			log->tail.block, byte_offset, srv_sort_buf_size);
+
 		log->tail.blocks++;
 		if (err != DB_SUCCESS) {
 write_failed:
@@ -566,9 +570,9 @@ row_log_table_delete(
 	ulint		avail_size;
 	mem_heap_t*	heap		= NULL;
 	const dtuple_t*	old_pk;
-	row_ext_t*	ext;
+	row_ext_t*	ext = NULL;
 
-	ut_ad(dict_index_is_clust(index));
+	ut_ad(index->is_clustered());
 	ut_ad(rec_offs_validate(rec, index, offsets));
 	ut_ad(rec_offs_n_fields(offsets) == dict_index_get_n_fields(index));
 	ut_ad(rec_offs_size(offsets) <= sizeof index->online_log->tail.buf);
@@ -576,16 +580,16 @@ row_log_table_delete(
 			&index->lock,
 			RW_LOCK_FLAG_S | RW_LOCK_FLAG_X | RW_LOCK_FLAG_SX));
 
-	if (dict_index_is_corrupted(index)
+	if (index->is_corrupted()
 	    || !dict_index_is_online_ddl(index)
 	    || index->online_log->error != DB_SUCCESS) {
 		return;
 	}
 
 	dict_table_t* new_table = index->online_log->table;
-	dict_index_t* new_index = dict_table_get_first_index(new_table);
+	dict_index_t* new_index = new_table->first_index();
 
-	ut_ad(dict_index_is_clust(new_index));
+	ut_ad(new_index->is_clustered());
 	ut_ad(!dict_index_is_online_ddl(new_index));
 
 	/* Create the tuple PRIMARY KEY,DB_TRX_ID,DB_ROLL_PTR in new_table. */
@@ -652,8 +656,8 @@ row_log_table_delete(
 	old and new table are in COMPACT or REDUNDANT format,
 	which store the prefix in the clustered index record. */
 	if (rec_offs_any_extern(offsets)
-	    && (dict_table_get_format(index->table) >= UNIV_FORMAT_B
-		|| dict_table_get_format(new_table) >= UNIV_FORMAT_B)) {
+	    && (dict_table_has_atomic_blobs(index->table)
+		|| dict_table_has_atomic_blobs(new_table))) {
 
 		/* Build a cache of those off-page column prefixes
 		that are referenced by secondary indexes. It can be
@@ -772,7 +776,7 @@ row_log_table_low_redundant(
 	ut_ad(dict_index_get_n_fields(index) == rec_get_n_fields_old(rec));
 	ut_ad(dict_tf2_is_valid(index->table->flags, index->table->flags2));
 	ut_ad(!dict_table_is_comp(index->table));  /* redundant row format */
-	ut_ad(dict_index_is_clust(new_index));
+	ut_ad(new_index->is_clustered());
 
 	heap = mem_heap_create(DTUPLE_EST_ALLOC(index->n_fields));
 	tuple = dtuple_create_with_vcol(heap, index->n_fields, num_v);
@@ -919,10 +923,10 @@ row_log_table_low(
 	ulint			avail_size;
 	const dict_index_t*	new_index;
 
-	new_index = dict_table_get_first_index(index->online_log->table);
+	new_index = index->online_log->table->first_index();
 
-	ut_ad(dict_index_is_clust(index));
-	ut_ad(dict_index_is_clust(new_index));
+	ut_ad(index->is_clustered());
+	ut_ad(new_index->is_clustered());
 	ut_ad(!dict_index_is_online_ddl(new_index));
 	ut_ad(rec_offs_validate(rec, index, offsets));
 	ut_ad(rec_offs_n_fields(offsets) == dict_index_get_n_fields(index));
@@ -941,7 +945,7 @@ row_log_table_low(
 	ut_ad(!o_ventry || !insert);
 	ut_ad(!o_ventry || ventry);
 
-	if (dict_index_is_corrupted(index)
+	if (index->is_corrupted()
 	    || !dict_index_is_online_ddl(index)
 	    || index->online_log->error != DB_SUCCESS) {
 		return;
@@ -1085,7 +1089,7 @@ row_log_table_get_pk_old_col(
 {
 	for (ulint i = 0; i < table->n_cols; i++) {
 		if (col_no == col_map[i]) {
-			return(dict_table_get_nth_col(table, i));
+			return(table->get_col(i));
 		}
 	}
 
@@ -1142,8 +1146,9 @@ row_log_table_get_pk_col(
 		blob_field = static_cast<byte*>(
 			mem_heap_alloc(heap, field_len));
 
-		len = btr_copy_externally_stored_field_prefix(
-			blob_field, field_len, page_size, field, len);
+		len = lob::btr_copy_externally_stored_field_prefix(
+			blob_field, field_len, page_size, field, false, len);
+
 		if (len >= max_len + 1) {
 			return(DB_TOO_BIG_INDEX_COL);
 		}
@@ -1176,8 +1181,9 @@ row_log_table_get_pk(
 	dtuple_t*	tuple	= NULL;
 	row_log_t*	log	= index->online_log;
 
-	ut_ad(dict_index_is_clust(index));
+	ut_ad(index->is_clustered());
 	ut_ad(dict_index_is_online_ddl(index));
+	ut_ad(!dict_index_is_sdi(index));
 	ut_ad(!offsets || rec_offs_validate(rec, index, offsets));
 	ut_ad(rw_lock_own_flagged(
 			&index->lock,
@@ -1193,8 +1199,8 @@ row_log_table_get_pk(
 			ulint	trx_id_offs = index->trx_id_offset;
 
 			if (!trx_id_offs) {
-				ulint	pos = dict_index_get_sys_col_pos(
-					index, DATA_TRX_ID);
+				ulint	pos =
+					index->get_sys_col_pos(DATA_TRX_ID);
 				ulint	len;
 				ut_ad(pos > 0);
 
@@ -1221,8 +1227,7 @@ row_log_table_get_pk(
 	/* log->error is protected by log->mutex. */
 	if (log->error == DB_SUCCESS) {
 		dict_table_t*	new_table	= log->table;
-		dict_index_t*	new_index
-			= dict_table_get_first_index(new_table);
+		dict_index_t*	new_index	= new_table->first_index();
 		const ulint	new_n_uniq
 			= dict_index_get_n_unique(new_index);
 
@@ -1236,8 +1241,7 @@ row_log_table_get_pk(
 			}
 
 			for (ulint i = 0; i < new_n_uniq; i++) {
-				size += dict_col_get_min_size(
-					dict_index_get_nth_col(new_index, i));
+				size += new_index->get_col(i)->get_min_size();
 			}
 
 			*heap = mem_heap_create(
@@ -1264,11 +1268,10 @@ row_log_table_get_pk(
 			ulint		prtype;
 			ulint		mbminmaxlen;
 
-			ifield = dict_index_get_nth_field(new_index, new_i);
+			ifield = new_index->get_field(new_i);
 			dfield = dtuple_get_nth_field(tuple, new_i);
 
-			const ulint	col_no
-				= dict_field_get_col(ifield)->ind;
+			const ulint	col_no = ifield->col->ind;
 
 			if (const dict_col_t* col
 			    = row_log_table_get_pk_old_col(
@@ -1371,9 +1374,9 @@ void
 row_log_table_blob_free(
 /*====================*/
 	dict_index_t*	index,	/*!< in/out: clustered index, X-latched */
-	ulint		page_no)/*!< in: starting page number of the BLOB */
+	page_no_t	page_no)/*!< in: starting page number of the BLOB */
 {
-	ut_ad(dict_index_is_clust(index));
+	ut_ad(index->is_clustered());
 	ut_ad(dict_index_is_online_ddl(index));
 	ut_ad(rw_lock_own_flagged(
 			&index->lock,
@@ -1415,9 +1418,9 @@ void
 row_log_table_blob_alloc(
 /*=====================*/
 	dict_index_t*	index,	/*!< in/out: clustered index, X-latched */
-	ulint		page_no)/*!< in: starting page number of the BLOB */
+	page_no_t	page_no)/*!< in: starting page number of the BLOB */
 {
-	ut_ad(dict_index_is_clust(index));
+	ut_ad(index->is_clustered());
 	ut_ad(dict_index_is_online_ddl(index));
 
 	ut_ad(rw_lock_own_flagged(
@@ -1445,7 +1448,7 @@ row_log_table_blob_alloc(
 /******************************************************//**
 Converts a log record to a table row.
 @return converted row, or NULL if the conversion fails */
-static MY_ATTRIBUTE((nonnull, warn_unused_result))
+static MY_ATTRIBUTE((warn_unused_result))
 const dtuple_t*
 row_log_table_apply_convert_mrec(
 /*=============================*/
@@ -1468,20 +1471,19 @@ row_log_table_apply_convert_mrec(
 	if (log->add_cols) {
 		row = dtuple_copy(log->add_cols, heap);
 		/* dict_table_copy_types() would set the fields to NULL */
-		for (ulint i = 0; i < dict_table_get_n_cols(log->table); i++) {
-			dict_col_copy_type(
-				dict_table_get_nth_col(log->table, i),
+		for (ulint i = 0; i < log->table->get_n_cols(); i++) {
+			log->table->get_col(i)->copy_type(
 				dfield_get_type(dtuple_get_nth_field(row, i)));
 		}
 	} else {
 		row = dtuple_create_with_vcol(
-			heap, dict_table_get_n_cols(log->table), num_v);
+			heap, log->table->get_n_cols(), num_v);
 		dict_table_copy_types(row, log->table);
 	}
 
 	for (ulint i = 0; i < rec_offs_n_fields(offsets); i++) {
 		const dict_field_t*	ind_field
-			= dict_index_get_nth_field(index, i);
+			= index->get_field(i);
 
 		if (ind_field->prefix_len) {
 			/* Column prefixes can only occur in key
@@ -1493,8 +1495,7 @@ row_log_table_apply_convert_mrec(
 			continue;
 		}
 
-		const dict_col_t*	col
-			= dict_field_get_col(ind_field);
+		const dict_col_t*	col = ind_field->col;
 
 		ulint			col_no
 			= log->col_map[dict_col_get_no(col)];
@@ -1519,9 +1520,9 @@ row_log_table_apply_convert_mrec(
 					mrec, offsets, i, &len);
 				ut_ad(len >= BTR_EXTERN_FIELD_REF_SIZE);
 
-				ulint	page_no = mach_read_from_4(
+				page_no_t page_no = mach_read_from_4(
 					data + len - (BTR_EXTERN_FIELD_REF_SIZE
-						      - BTR_EXTERN_PAGE_NO));
+						      - lob::BTR_EXTERN_PAGE_NO));
 				page_no_map::const_iterator p = blobs->find(
 					page_no);
 				if (p != blobs->end()
@@ -1535,10 +1536,11 @@ row_log_table_apply_convert_mrec(
 				}
 			}
 
-			data = btr_rec_copy_externally_stored_field(
+			data = lob::btr_rec_copy_externally_stored_field(
 				mrec, offsets,
 				dict_table_page_size(index->table),
-				i, &len, heap);
+				i, &len, false, heap);
+
 			ut_a(data);
 			dfield_set_data(dfield, data, len);
 blob_done:
@@ -1571,7 +1573,7 @@ blob_done:
 
 		/* See if any columns were changed to NULL or NOT NULL. */
 		const dict_col_t*	new_col
-			= dict_table_get_nth_col(log->table, col_no);
+			= log->table->get_col(col_no);
 		ut_ad(new_col->mtype == col->mtype);
 
 		/* Assert that prtype matches except for nullability. */
@@ -1593,8 +1595,7 @@ blob_done:
 		/* Adjust the DATA_NOT_NULL flag in the parsed row. */
 		dfield_get_type(dfield)->prtype = new_col->prtype;
 
-		ut_ad(dict_col_type_assert_equal(new_col,
-						 dfield_get_type(dfield)));
+		ut_ad(new_col->assert_equal(dfield_get_type(dfield)));
 	}
 
 	/* read the virtual column data if any */
@@ -1611,7 +1612,7 @@ blob_done:
 /******************************************************//**
 Replays an insert operation on a table that was rebuilt.
 @return DB_SUCCESS or error code */
-static MY_ATTRIBUTE((nonnull, warn_unused_result))
+static MY_ATTRIBUTE((warn_unused_result))
 dberr_t
 row_log_table_apply_insert_low(
 /*===========================*/
@@ -1628,7 +1629,7 @@ row_log_table_apply_insert_low(
 	dberr_t		error;
 	dtuple_t*	entry;
 	const row_log_t*log	= dup->index->online_log;
-	dict_index_t*	index	= dict_table_get_first_index(log->table);
+	dict_index_t*	index	= log->table->first_index();
 	ulint		n_index = 0;
 
 	ut_ad(dtuple_validate(row));
@@ -1662,7 +1663,7 @@ row_log_table_apply_insert_low(
 	}
 
 	do {
-		if (!(index = dict_table_get_next_index(index))) {
+		if (!(index = index->next())) {
 			break;
 		}
 
@@ -1689,7 +1690,7 @@ row_log_table_apply_insert_low(
 /******************************************************//**
 Replays an insert operation on a table that was rebuilt.
 @return DB_SUCCESS or error code */
-static MY_ATTRIBUTE((nonnull, warn_unused_result))
+static MY_ATTRIBUTE((warn_unused_result))
 dberr_t
 row_log_table_apply_insert(
 /*=======================*/
@@ -1757,11 +1758,11 @@ row_log_table_apply_delete_low(
 						will be committed */
 {
 	dberr_t		error;
-	row_ext_t*	ext;
+	row_ext_t*	ext = NULL;
 	dtuple_t*	row;
 	dict_index_t*	index	= btr_pcur_get_btr_cur(pcur)->index;
 
-	ut_ad(dict_index_is_clust(index));
+	ut_ad(index->is_clustered());
 
 	DBUG_PRINT("ib_alter_table",
 		   ("delete table " IB_ID_FMT "(index " IB_ID_FMT "): %s",
@@ -1769,7 +1770,7 @@ row_log_table_apply_delete_low(
 		    rec_printer(btr_pcur_get_rec(pcur),
 				offsets).str().c_str()));
 
-	if (dict_table_get_next_index(index)) {
+	if (index->next()) {
 		/* Build a row template for purging secondary index entries. */
 		row = row_build(
 			ROW_COPY_DATA, index, btr_pcur_get_rec(pcur),
@@ -1794,7 +1795,7 @@ row_log_table_apply_delete_low(
 		return(error);
 	}
 
-	while ((index = dict_table_get_next_index(index)) != NULL) {
+	while ((index = index->next()) != NULL) {
 		if (index->type & DICT_FTS) {
 			continue;
 		}
@@ -1845,7 +1846,7 @@ flag_ok:
 /******************************************************//**
 Replays a delete operation on a table that was rebuilt.
 @return DB_SUCCESS or error code */
-static MY_ATTRIBUTE((nonnull(1, 3, 4, 5, 6, 7), warn_unused_result))
+static MY_ATTRIBUTE((warn_unused_result))
 dberr_t
 row_log_table_apply_delete(
 /*=======================*/
@@ -1864,7 +1865,7 @@ row_log_table_apply_delete(
 	ulint			ext_size)	/*!< in: external field size */
 {
 	dict_table_t*	new_table = log->table;
-	dict_index_t*	index = dict_table_get_first_index(new_table);
+	dict_index_t*	index = new_table->first_index();
 	dtuple_t*	old_pk;
 	mtr_t		mtr;
 	btr_pcur_t	pcur;
@@ -1983,7 +1984,7 @@ all_done:
 /******************************************************//**
 Replays an update operation on a table that was rebuilt.
 @return DB_SUCCESS or error code */
-static MY_ATTRIBUTE((nonnull, warn_unused_result))
+static MY_ATTRIBUTE((warn_unused_result))
 dberr_t
 row_log_table_apply_update(
 /*=======================*/
@@ -2006,7 +2007,7 @@ row_log_table_apply_update(
 {
 	const row_log_t*log	= dup->index->online_log;
 	const dtuple_t*	row;
-	dict_index_t*	index	= dict_table_get_first_index(log->table);
+	dict_index_t*	index	= log->table->first_index();
 	mtr_t		mtr;
 	btr_pcur_t	pcur;
 	dberr_t		error;
@@ -2192,8 +2193,9 @@ func_exit_committed:
 		goto func_exit_committed;
 	}
 
-	dtuple_t*	entry	= row_build_index_entry(
-		row, NULL, index, heap);
+	/** It allows to create tuple with virtual column information. */
+	dtuple_t*	entry	= row_build_index_entry_low(
+		row, NULL, index, heap, ROW_BUILD_FOR_INSERT);
 	upd_t*		update	= row_upd_build_difference_binary(
 		index, entry, btr_pcur_get_rec(&pcur), cur_offsets,
 		false, NULL, heap, dup->table);
@@ -2240,7 +2242,7 @@ func_exit_committed:
 	dtuple_t*	old_row;
 	row_ext_t*	old_ext;
 
-	if (dict_table_get_next_index(index)) {
+	if (index->next()) {
 		/* Construct the row corresponding to the old value of
 		the record. */
 		old_row = row_build(
@@ -2271,15 +2273,15 @@ func_exit_committed:
 
 	if (big_rec) {
 		if (error == DB_SUCCESS) {
-			error = btr_store_big_rec_extern_fields(
+			error = lob::btr_store_big_rec_extern_fields(
 				&pcur, update, cur_offsets, big_rec, &mtr,
-				BTR_STORE_UPDATE);
+				lob::OPCODE_UPDATE);
 		}
 
 		dtuple_big_rec_free(big_rec);
 	}
 
-	while ((index = dict_table_get_next_index(index)) != NULL) {
+	while ((index = index->next()) != NULL) {
 		if (error != DB_SUCCESS) {
 			break;
 		}
@@ -2348,7 +2350,7 @@ func_exit_committed:
 Applies an operation to a table that was rebuilt.
 @return NULL on failure (mrec corruption) or when out of data;
 pointer to next record on success */
-static MY_ATTRIBUTE((nonnull, warn_unused_result))
+static MY_ATTRIBUTE((warn_unused_result))
 const mrec_t*
 row_log_table_apply_op(
 /*===================*/
@@ -2370,14 +2372,14 @@ row_log_table_apply_op(
 						for parsing mrec */
 {
 	row_log_t*	log	= dup->index->online_log;
-	dict_index_t*	new_index = dict_table_get_first_index(log->table);
+	dict_index_t*	new_index = log->table->first_index();
 	ulint		extra_size;
 	const mrec_t*	next_mrec;
 	dtuple_t*	old_pk;
 	row_ext_t*	ext;
 	ulint		ext_size;
 
-	ut_ad(dict_index_is_clust(dup->index));
+	ut_ad(dup->index->is_clustered());
 	ut_ad(dup->index->table != log->table);
 	ut_ad(log->head.total <= log->tail.total);
 
@@ -2766,18 +2768,18 @@ row_log_table_apply_ops(
 	dict_index_t*	index		= const_cast<dict_index_t*>(
 		dup->index);
 	dict_table_t*	new_table	= index->online_log->table;
-	dict_index_t*	new_index	= dict_table_get_first_index(
-		new_table);
+	dict_index_t*	new_index	= new_table->first_index();
 	const ulint	i		= 1 + REC_OFFS_HEADER_SIZE
 		+ ut_max(dict_index_get_n_fields(index),
 			 dict_index_get_n_unique(new_index) + 2);
 	const ulint	trx_id_col	= dict_col_get_clust_pos(
-		dict_table_get_sys_col(index->table, DATA_TRX_ID), index);
+		index->table->get_sys_col(DATA_TRX_ID), index);
 	const ulint	new_trx_id_col	= dict_col_get_clust_pos(
-		dict_table_get_sys_col(new_table, DATA_TRX_ID), new_index);
+		new_table->get_sys_col(DATA_TRX_ID), new_index);
 	trx_t*		trx		= thr_get_trx(thr);
+	dberr_t         err;
 
-	ut_ad(dict_index_is_clust(index));
+	ut_ad(index->is_clustered());
 	ut_ad(dict_index_is_online_ddl(index));
 	ut_ad(trx->mysql_thd);
 	ut_ad(rw_lock_own(dict_index_get_lock(index), RW_LOCK_X));
@@ -2808,7 +2810,7 @@ next_block:
 		goto interrupted;
 	}
 
-	if (dict_index_is_corrupted(index)) {
+	if (index->is_corrupted()) {
 		error = DB_INDEX_CORRUPT;
 		goto func_exit;
 	}
@@ -2880,9 +2882,9 @@ all_done:
 
 		IORequest	request;
 
-		dberr_t	err = os_file_read_no_error_handling(
+		err = os_file_read_no_error_handling_int_fd(
 			request,
-			OS_FILE_FROM_FD(index->online_log->fd),
+			index->online_log->fd,
 			index->online_log->head.block, ofs,
 			srv_sort_buf_size,
 			NULL);
@@ -3108,7 +3110,7 @@ row_log_table_apply(
 	stage->begin_phase_log_table();
 
 	ut_ad(!rw_lock_own(dict_operation_lock, RW_LOCK_S));
-	clust_index = dict_table_get_first_index(old_table);
+	clust_index = old_table->first_index();
 
 	rw_lock_x_lock(dict_index_get_lock(clust_index));
 
@@ -3163,7 +3165,7 @@ row_log_allocate(
 	DBUG_ENTER("row_log_allocate");
 
 	ut_ad(!dict_index_is_online_ddl(index));
-	ut_ad(dict_index_is_clust(index) == !!table);
+	ut_ad(index->is_clustered() == !!table);
 	ut_ad(!table || index->table != table);
 	ut_ad(same_pk || table);
 	ut_ad(!table || col_map);
@@ -3244,7 +3246,7 @@ row_log_get_max_trx(
 
 /******************************************************//**
 Applies an operation to a secondary index that was being created. */
-static MY_ATTRIBUTE((nonnull))
+static
 void
 row_log_apply_op_low(
 /*=================*/
@@ -3264,12 +3266,12 @@ row_log_apply_op_low(
 	btr_cur_t	cursor;
 	ulint*		offsets = NULL;
 
-	ut_ad(!dict_index_is_clust(index));
+	ut_ad(!index->is_clustered());
 
 	ut_ad(rw_lock_own(dict_index_get_lock(index), RW_LOCK_X)
 	      == has_index_lock);
 
-	ut_ad(!dict_index_is_corrupted(index));
+	ut_ad(!index->is_corrupted());
 	ut_ad(trx_id != 0 || op == ROW_OP_DELETE);
 
 	DBUG_PRINT("ib_create_index",
@@ -3481,7 +3483,7 @@ func_exit:
 Applies an operation to a secondary index that was being created.
 @return NULL on failure (mrec corruption) or when out of data;
 pointer to next record on success */
-static MY_ATTRIBUTE((nonnull, warn_unused_result))
+static MY_ATTRIBUTE((warn_unused_result))
 const mrec_t*
 row_log_apply_op(
 /*=============*/
@@ -3509,12 +3511,12 @@ row_log_apply_op(
 	trx_id_t	trx_id;
 
 	/* Online index creation is only used for secondary indexes. */
-	ut_ad(!dict_index_is_clust(index));
+	ut_ad(!index->is_clustered());
 
 	ut_ad(rw_lock_own(dict_index_get_lock(index), RW_LOCK_X)
 	      == has_index_lock);
 
-	if (dict_index_is_corrupted(index)) {
+	if (index->is_corrupted()) {
 		*error = DB_INDEX_CORRUPT;
 		return(NULL);
 	}
@@ -3651,7 +3653,7 @@ next_block:
 		goto func_exit;
 	}
 
-	if (dict_index_is_corrupted(index)) {
+	if (index->is_corrupted()) {
 		error = DB_INDEX_CORRUPT;
 		goto func_exit;
 	}
@@ -3710,10 +3712,9 @@ all_done:
 		}
 
 		IORequest	request;
-
-		dberr_t	err = os_file_read_no_error_handling(
+		dberr_t	err = os_file_read_no_error_handling_int_fd(
 			request,
-			OS_FILE_FROM_FD(index->online_log->fd),
+			index->online_log->fd,
 			index->online_log->head.block, ofs,
 			srv_sort_buf_size,
 			NULL);
@@ -3898,8 +3899,8 @@ func_exit:
 		}
 		/* fall through */
 	default:
-		/* We set the flag directly instead of invoking
-		dict_set_corrupted_index_cache_only(index) here,
+		/* We set the flag directly instead of
+		invoking dict_set_corrupted() here,
 		because the index is not "public" yet. */
 		index->type |= DICT_CORRUPT;
 	}
@@ -3933,7 +3934,7 @@ row_log_apply(
 	DBUG_ENTER("row_log_apply");
 
 	ut_ad(dict_index_is_online_ddl(index));
-	ut_ad(!dict_index_is_clust(index));
+	ut_ad(!index->is_clustered());
 
 	stage->begin_phase_log_index();
 
@@ -3941,7 +3942,7 @@ row_log_apply(
 
 	rw_lock_x_lock(dict_index_get_lock(index));
 
-	if (!dict_table_is_corrupted(index->table)) {
+	if (!index->table->is_corrupted()) {
 		error = row_log_apply_ops(trx, index, &dup, stage);
 	} else {
 		error = DB_SUCCESS;
@@ -3949,8 +3950,8 @@ row_log_apply(
 
 	if (error != DB_SUCCESS) {
 		ut_a(!dict_table_is_discarded(index->table));
-		/* We set the flag directly instead of invoking
-		dict_set_corrupted_index_cache_only(index) here,
+		/* We set the flag directly instead of
+		invoking dict_set_corrupted() here,
 		because the index is not "public" yet. */
 		index->type |= DICT_CORRUPT;
 		index->table->drop_aborted = TRUE;

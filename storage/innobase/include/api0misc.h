@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2008, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2008, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -27,25 +27,36 @@ InnoDB Native API
 #ifndef api0misc_h
 #define	api0misc_h
 
-#include "univ.i"
+#include <sys/types.h>
+
+#include "handler.h"
 #include "os0file.h"
 #include "que0que.h"
 #include "trx0trx.h"
+#include "univ.i"
 
 /** Whether binlog is enabled for applications using InnoDB APIs */
-extern my_bool                  ib_binlog_enabled;
+extern bool                  ib_binlog_enabled;
 
 /** Whether MySQL MDL is enabled for applications using InnoDB APIs */
-extern my_bool                  ib_mdl_enabled;
+extern bool                  ib_mdl_enabled;
 
 /** Whether InnoDB row lock is disabled for applications using InnoDB APIs */
-extern my_bool                  ib_disable_row_lock;
+extern bool                  ib_disable_row_lock;
 
 /** configure value for transaction isolation level */
 extern ulong			ib_trx_level_setting;
 
 /** configure value for background commit interval (in seconds) */
 extern ulong			ib_bk_commit_interval;
+
+struct ib_sdi_key {
+	const dd::sdi_key_t*	sdi_key;
+};
+
+struct ib_sdi_vector {
+	dd::sdi_vector_t*	sdi_vector;
+};
 
 /********************************************************************
 Handles user errors and lock waits detected by the database engine.

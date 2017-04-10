@@ -92,26 +92,23 @@ public:
 	}
 
 	/** Parse the input params and populate member variables.
-	@param	filepath	path to data files
+	@param	filepath_spec	path to data files
 	@param	supports_raw	true if it supports raw devices
 	@return true on success parse */
-	bool parse_params(const char* filepath, bool supports_raw);
+	bool parse_params(const char* filepath_spec, bool supports_raw);
 
 	/** Check the data file specification.
-	@param[out]	create_new_db		true if a new database
+	@param[in]	create_new_db		true if a new database
 	is to be created
 	@param[in]	min_expected_size	expected tablespace
 	size in bytes
 	@return DB_SUCCESS if all OK else error code */
 	dberr_t check_file_spec(
-		bool*	create_new_db,
-		ulint	min_expected_tablespace_size);
+		bool	create_new_db,
+		ulint	min_expected_size);
 
 	/** Free the memory allocated by parse() */
 	void shutdown();
-
-	/** Normalize the file size, convert to extents. */
-	void normalize();
 
 	/**
 	@return true if a new raw device was created. */
@@ -129,15 +126,15 @@ public:
 
 	/** Set the last file size.
 	@param[in]	size	the size to set */
-	void set_last_file_size(ulint size)
+	void set_last_file_size(page_no_t size)
 	{
 		ut_ad(!m_files.empty());
 		m_files.back().m_size = size;
 	}
 
-	/** Get the size of the last data file in the tablespace
+	/** Get the number of pages in the last data file in the tablespace
 	@return the size of the last data file in the array */
-	ulint last_file_size() const
+	page_no_t last_file_size() const
 	{
 		ut_ad(!m_files.empty());
 		return(m_files.back().m_size);
@@ -145,24 +142,27 @@ public:
 
 	/**
 	@return the autoextend increment in pages. */
-	ulint get_autoextend_increment() const
+	page_no_t get_autoextend_increment() const
 	{
 		return(sys_tablespace_auto_extend_increment
 		       * ((1024 * 1024) / UNIV_PAGE_SIZE));
 	}
 
-	/** Roundoff to MegaBytes is similar as done in
-	SysTablespace::parse_units() function.
-	@return the pages when given size of file (bytes). */
-	ulint get_pages_from_size(os_offset_t size)
+	/** Round the number of bytes in the file to MegaBytes
+	and then return the number of pages.
+	Note: Only system tablespaces are required to be at least
+	1 megabyte.
+	@return the number of pages in the file. */
+	page_no_t get_pages_from_size(os_offset_t size)
 	{
-		return (ulint)((size / (1024 * 1024))
-			       * ((1024 * 1024) / UNIV_PAGE_SIZE));
+		return static_cast<page_no_t>(
+			((size / (1024 * 1024))
+			* ((1024 * 1024) / UNIV_PAGE_SIZE)));
 	}
 
 	/**
 	@return next increment size */
-	ulint get_increment() const;
+	page_no_t get_increment() const;
 
 	/** Open or create the data files
 	@param[in]  is_temp		whether this is a temporary tablespace
@@ -171,39 +171,32 @@ public:
 	@param[out] flush_lsn		FIL_PAGE_FILE_FLUSH_LSN of first file
 	@return DB_SUCCESS or error code */
 	dberr_t open_or_create(
-		bool	is_temp,
-		bool	create_new_db,
-		ulint*	sum_new_sizes,
-		lsn_t*	flush_lsn)
+		bool		is_temp,
+		bool		create_new_db,
+		page_no_t*	sum_new_sizes,
+		lsn_t*		flush_lsn)
 		MY_ATTRIBUTE((warn_unused_result));
 
 private:
+	/** Check if the DDTableBuffer exists in this tablespace.
+	FIXME: This should be removed away once we can upgrade for new DD
+	@return DB_SUCCESS or error code */
+	dberr_t check_dd_table_buffer();
+
 	/** Check the tablespace header for this tablespace.
 	@param[out]	flushed_lsn	the value of FIL_PAGE_FILE_FLUSH_LSN
 	@return DB_SUCCESS or error code */
 	dberr_t read_lsn_and_check_flags(lsn_t* flushed_lsn);
 
-	/**
-	@return true if the last file size is valid. */
-	bool is_valid_size() const
-	{
-		return(m_last_file_size_max >= last_file_size());
-	}
-
-	/**
-	@return true if configured to use raw devices */
-	bool has_raw_device();
-
 	/** Note that the data file was not found.
 	@param[in]	file		data file object
-	@param[out]	create_new_db	true if a new instance to be created
-	@return DB_SUCESS or error code */
-	dberr_t file_not_found(Datafile& file, bool* create_new_db);
+	@param[in]	create_new_db	true if a new instance to be created
+	@return DB_SUCCESS or error code */
+	dberr_t file_not_found(Datafile& file, bool create_new_db);
 
 	/** Note that the data file was found.
-	@param[in,out]	file	data file object
-	@return true if a new instance to be created */
-	bool file_found(Datafile& file);
+	@param[in,out]	file	data file object */
+	void file_found(Datafile& file);
 
 	/** Create a data file.
 	@param[in,out]	file	data file object
@@ -225,14 +218,23 @@ private:
 	@return DB_SUCCESS or error code */
 	dberr_t set_size(Datafile& file);
 
-	/** Convert a numeric string that optionally ends in G or M, to a
-	number containing megabytes.
-	@param[in]	ptr	string with a quantity in bytes
-	@param[out]	megs	the number in megabytes
-	@return next character in string */
-	static char* parse_units(char* ptr, ulint* megs);
-
 private:
+	/* Put the pointer to the next byte after a valid file name.
+	Note that we must step over the ':' in a Windows filepath.
+	A Windows path normally looks like C:\ibdata\ibdata1:1G, but
+	a Windows raw partition may have a specification like
+	\\.\C::1Gnewraw or \\.\PHYSICALDRIVE2:1Gnewraw.
+	@param[in]	str		system tablespace file path spec
+	@return next character in string after the file name */
+	static char* parse_file_name(char* ptr);
+
+	/** Convert a numeric string that optionally ends in upper or lower
+	case G, M, or K, rounding off to the nearest number of megabytes.
+	Then return the number of pages in the file.
+	@param[in,out]	ptr	Pointer to a numeric string
+	@return the number of pages in the file. */
+	page_no_t parse_units(char*& ptr);
+
 	enum file_status_t {
 		FILE_STATUS_VOID = 0,		/** status not set */
 		FILE_STATUS_RW_PERMISSION_ERROR,/** permission error */
@@ -260,7 +262,7 @@ private:
 
 	/** if != 0, this tells the max size auto-extending may increase the
 	last data file size */
-	ulint		m_last_file_size_max;
+	page_no_t	m_last_file_size_max;
 
 	/** If the following is true we do not allow
 	inserts etc. This protects the user from forgetting
@@ -281,40 +283,4 @@ extern SysTablespace srv_sys_space;
 
 /** The control info of a temporary table shared tablespace. */
 extern SysTablespace srv_tmp_space;
-
-/** Check if the space_id is for a system-tablespace (shared + temp).
-@param[in]	id	Space ID to check
-@return true if id is a system tablespace, false if not. */
-UNIV_INLINE
-bool
-is_system_tablespace(
-	ulint	id)
-{
-	return(id == srv_sys_space.space_id()
-	       || id == srv_tmp_space.space_id());
-}
-
-/** Check if shared-system or undo tablespace.
-@return true if shared-system or undo tablespace */
-UNIV_INLINE
-bool
-is_system_or_undo_tablespace(
-	ulint   id)
-{
-	return(id == srv_sys_space.space_id()
-	       || id <= srv_undo_tablespaces_open);
-}
-
-/** Check if predefined shared tablespace.
-@return true if predefined shared tablespace */
-UNIV_INLINE
-bool
-is_predefined_tablespace(
-	ulint   id)
-{
-	ut_ad(srv_sys_space.space_id() == TRX_SYS_SPACE);
-	ut_ad(TRX_SYS_SPACE == 0);
-	return(id <= srv_undo_tablespaces_open
-	       || id == srv_tmp_space.space_id());
-}
 #endif /* fsp0sysspace_h */

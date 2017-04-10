@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2011, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2011, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 Portions of this file contain modifications contributed and copyrighted by
 Google, Inc. Those modifications are gratefully acknowledged and are described
@@ -37,13 +37,16 @@ InnoDB concurrency manager
 Created 2011/04/18 Sunny Bains
 *******************************************************/
 
-#include "ha_prototypes.h"
 #include <mysql/service_thd_wait.h>
+#include <stddef.h>
+#include <sys/types.h>
 
+#include "dict0dict.h"
+#include "ha_prototypes.h"
+#include "my_inttypes.h"
+#include "row0mysql.h"
 #include "srv0srv.h"
 #include "trx0trx.h"
-#include "row0mysql.h"
-#include "dict0dict.h"
 
 /** Number of times a thread is allowed to enter InnoDB within the same
 SQL query after it has once got the ticket. */
@@ -54,12 +57,6 @@ ulong	srv_adaptive_max_sleep_delay = 150000;
 
 ulong	srv_thread_sleep_delay	= 10000;
 
-
-/** We are prepared for a situation that we have this many threads waiting for
-a semaphore inside InnoDB. innobase_start_or_create_for_mysql() sets the
-value. */
-
-ulint	srv_max_n_threads	= 0;
 
 /** The following controls how many threads we let inside InnoDB concurrently:
 threads waiting for locks are not counted into the number because otherwise
@@ -183,13 +180,6 @@ srv_conc_enter_innodb_with_atomics(
 		if (!notified_mysql) {
 			(void) os_atomic_increment_lint(
 				&srv_conc.n_waiting, 1);
-
-			/* Release possible search system latch this
-			thread has */
-
-			if (trx->has_search_latch) {
-				trx_search_latch_release_if_reserved(trx);
-			}
 
 			thd_wait_begin(trx->mysql_thd, THD_WAIT_USER_LOCK);
 

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,28 +14,58 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "sp_head.h"
 #include "event_parse_data.h"
-#include "sql_time.h"                           // TIME_to_timestamp
+
+#include <string.h>
+
+#include "derror.h"                             // ER_THD
+#include "item.h"
 #include "item_timefunc.h"                      // get_interval_value
+#include "key.h"
+#include "my_dbug.h"
+#include "my_decimal.h"
+#include "my_sqlcommand.h"
+#include "my_sys.h"
+#include "mysql/thread_type.h"
+#include "mysqld.h"                             // server_id
+#include "mysqld_error.h"                       // ER_INVALID_CHARACTER_STRING
+#include "session_tracker.h"
+#include "sp_head.h"                            // sp_name
+#include "sql_admin.h"
+#include "sql_class.h"                          // THD
+#include "sql_const.h"
+#include "sql_error.h"
+#include "sql_lex.h"
+#include "sql_security_ctx.h"
+#include "sql_string.h"                         // validate_string
+#include "sql_time.h"                           // TIME_to_timestamp
 
-/*
-  Returns a new instance
 
-  SYNOPSIS
-    Event_parse_data::new_instance()
+/**
+   Check if the given string is invalid using the system charset.
 
-  RETURN VALUE
-    Address or NULL in case of error
+   @param string_val Reference to the string.
 
-  NOTE
-    Created on THD's mem_root
+   @return true if the string has an invalid encoding using
+                the system charset else false.
 */
 
-Event_parse_data *
-Event_parse_data::new_instance(THD *thd)
+static bool is_invalid_string(const LEX_STRING &string_val)
 {
-  return new (thd->mem_root) Event_parse_data;
+  size_t valid_len;
+  bool len_error;
+
+  if (validate_string(system_charset_info, string_val.str, string_val.length,
+                      &valid_len, &len_error))
+  {
+    char hexbuf[7];
+    octet2hex(hexbuf, string_val.str + valid_len,
+              std::min<size_t>(string_val.length - valid_len, 3));
+    my_error(ER_INVALID_CHARACTER_STRING, MYF(0), system_charset_info->csname,
+             hexbuf);
+    return true;
+  }
+  return false;
 }
 
 
@@ -46,24 +76,6 @@ Event_parse_data::new_instance(THD *thd)
     Event_parse_data::Event_parse_data()
 */
 
-Event_parse_data::Event_parse_data()
-  :on_completion(Event_parse_data::ON_COMPLETION_DEFAULT),
-  status(Event_parse_data::ENABLED), status_changed(false),
-  do_not_create(FALSE), body_changed(FALSE),
-  item_starts(NULL), item_ends(NULL), item_execute_at(NULL),
-  starts_null(TRUE), ends_null(TRUE), execute_at_null(TRUE),
-  item_expression(NULL), expression(0)
-{
-  DBUG_ENTER("Event_parse_data::Event_parse_data");
-
-  /* Actually in the parser STARTS is always set */
-  starts= ends= execute_at= 0;
-
-  comment.str= NULL;
-  comment.length= 0;
-
-  DBUG_VOID_RETURN;
-}
 
 
 /*
@@ -112,7 +124,7 @@ Event_parse_data::init_name(THD *thd, sp_name *spn)
 void
 Event_parse_data::check_if_in_the_past(THD *thd, my_time_t ltime_utc)
 {
-  if (ltime_utc >= (my_time_t) thd->query_start())
+  if (ltime_utc >= (my_time_t) thd->query_start_in_secs())
     return;
 
   /*
@@ -127,7 +139,7 @@ Event_parse_data::check_if_in_the_past(THD *thd, my_time_t ltime_utc)
     case SQLCOM_CREATE_EVENT:
       push_warning(thd, Sql_condition::SL_NOTE,
                    ER_EVENT_CANNOT_CREATE_IN_THE_PAST,
-                   ER(ER_EVENT_CANNOT_CREATE_IN_THE_PAST));
+                   ER_THD(thd, ER_EVENT_CANNOT_CREATE_IN_THE_PAST));
       break;
     case SQLCOM_ALTER_EVENT:
       my_error(ER_EVENT_CANNOT_ALTER_IN_THE_PAST, MYF(0));
@@ -136,7 +148,7 @@ Event_parse_data::check_if_in_the_past(THD *thd, my_time_t ltime_utc)
       DBUG_ASSERT(0);
     }
 
-    do_not_create= TRUE;
+    do_not_create= true;
   }
   else if (status == Event_parse_data::ENABLED)
   {
@@ -144,7 +156,7 @@ Event_parse_data::check_if_in_the_past(THD *thd, my_time_t ltime_utc)
     status_changed= true;
     push_warning(thd, Sql_condition::SL_NOTE,
                  ER_EVENT_EXEC_TIME_IN_THE_PAST,
-                 ER(ER_EVENT_EXEC_TIME_IN_THE_PAST));
+                 ER_THD(thd, ER_EVENT_EXEC_TIME_IN_THE_PAST));
   }
 }
 
@@ -165,8 +177,8 @@ Event_parse_data::check_if_in_the_past(THD *thd, my_time_t ltime_utc)
                      Will be overridden by value in ALTER EVENT if given.
 
   RETURN VALUE
-    TRUE            an error occurred, do not ALTER
-    FALSE           OK
+    true            an error occurred, do not ALTER
+    false           OK
 */
 
 bool
@@ -200,7 +212,7 @@ Event_parse_data::check_dates(THD *thd, int previous_on_completion)
 int
 Event_parse_data::init_execute_at(THD *thd)
 {
-  my_bool not_used;
+  bool not_used;
   MYSQL_TIME ltime;
   my_time_t ltime_utc;
 
@@ -229,7 +241,7 @@ Event_parse_data::init_execute_at(THD *thd)
 
   check_if_in_the_past(thd, ltime_utc);
 
-  execute_at_null= FALSE;
+  execute_at_null= false;
   execute_at= ltime_utc;
   DBUG_RETURN(0);
 
@@ -370,7 +382,7 @@ wrong_value:
 int
 Event_parse_data::init_starts(THD *thd)
 {
-  my_bool not_used;
+  bool not_used;
   MYSQL_TIME ltime;
   my_time_t ltime_utc;
 
@@ -389,9 +401,9 @@ Event_parse_data::init_starts(THD *thd)
     goto wrong_value;
 
   DBUG_PRINT("info",("now: %ld  starts: %ld",
-                     (long) thd->query_start(), (long) ltime_utc));
+                     (long) thd->query_start_in_secs(), (long) ltime_utc));
 
-  starts_null= FALSE;
+  starts_null= false;
   starts= ltime_utc;
   DBUG_RETURN(0);
 
@@ -424,7 +436,7 @@ wrong_value:
 int
 Event_parse_data::init_ends(THD *thd)
 {
-  my_bool not_used;
+  bool not_used;
   MYSQL_TIME ltime;
   my_time_t ltime_utc;
 
@@ -450,7 +462,7 @@ Event_parse_data::init_ends(THD *thd)
 
   check_if_in_the_past(thd, ltime_utc);
 
-  ends_null= FALSE;
+  ends_null= false;
   ends= ltime_utc;
   DBUG_RETURN(0);
 
@@ -488,8 +500,8 @@ Event_parse_data::report_bad_value(const char *item_name, Item *bad_item)
       thd  Thread
 
   RETURN VALUE
-    FALSE  OK
-    TRUE   Error (reported)
+    false  OK
+    true   Error (reported)
 */
 
 bool
@@ -497,9 +509,12 @@ Event_parse_data::check_parse_data(THD *thd)
 {
   bool ret;
   DBUG_ENTER("Event_parse_data::check_parse_data");
-  DBUG_PRINT("info", ("execute_at: 0x%lx  expr=0x%lx  starts=0x%lx  ends=0x%lx",
-                      (long) item_execute_at, (long) item_expression,
-                      (long) item_starts, (long) item_ends));
+  DBUG_PRINT("info", ("execute_at: %p  expr=%p  starts=%p  ends=%p",
+                      item_execute_at, item_expression,
+                      item_starts, item_ends));
+
+  if (is_invalid_string(comment))
+    DBUG_RETURN(true);
 
   init_name(thd, identifier);
 
@@ -532,9 +547,9 @@ Event_parse_data::init_definer(THD *thd)
   size_t  definer_user_len= thd->lex->definer->user.length;
   size_t  definer_host_len= thd->lex->definer->host.length;
 
-  DBUG_PRINT("info",("init definer_user thd->mem_root: 0x%lx  "
-                     "definer_user: 0x%lx", (long) thd->mem_root,
-                     (long) definer_user));
+  DBUG_PRINT("info",("init definer_user thd->mem_root: %p  "
+                     "definer_user: %p", thd->mem_root,
+                     definer_user));
 
   /* + 1 for @ */
   DBUG_PRINT("info",("init definer as whole"));

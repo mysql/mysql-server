@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,10 +15,15 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "ha_ndbcluster_glue.h"
 #include "ha_ndbcluster.h"
-#include "ndb_table_guard.h"
+#include "sql_class.h"
+#include "key_spec.h"
+#include "my_dbug.h"
+#include "ndb_log.h"
 #include "mysql/service_thd_alloc.h"
+#include "ndb_table_guard.h"
+#include "template_utils.h"
+#include "mysqld.h"         // global_system_variables table_alias_charset ...
 
 #define ERR_RETURN(err)                  \
 {                                        \
@@ -113,8 +118,8 @@ find_matching_index(NDBDICT* dict,
     const NDBINDEX* index= dict->getIndexGlobal(index_name, *tab);
     if (index->getType() == NDBINDEX::UniqueHashIndex)
     {
-      uint cnt= 0;
-      for (unsigned j = 0; columns[j] != 0; j++)
+      uint cnt= 0, j;
+      for (j = 0; columns[j] != 0; j++)
       {
         /*
          * Search for matching columns in any order
@@ -134,7 +139,7 @@ find_matching_index(NDBDICT* dict,
         else
           break;
       }
-      if (cnt == index->getNoOfColumns())
+      if (cnt == index->getNoOfColumns() && columns[j] == 0)
       {
         /**
          * Full match...return this index, no need to look further
@@ -224,43 +229,16 @@ private:
   char save_db[FN_REFLEN + 1];
 };
 
-/**
- * ndbapi want's c-strings (null terminated)
- * mysql frequently uses LEX-string...(ptr + len)
- *
- * also...they have changed between 5.1 and 5.5...
- * add a small compability-kit
- */
-static inline
+
+template <size_t buf_size>
 const char *
-lex2str(const LEX_STRING& str, char buf[], size_t len)
+lex2str(const LEX_CSTRING& str, char (&buf)[buf_size])
 {
-  my_snprintf(buf, len, "%.*s", (int)str.length, str.str);
+  my_snprintf(buf, buf_size, "%.*s", (int)str.length, str.str);
   return buf;
 }
 
-static inline
-const char *
-lex2str(const char * str, char buf[], size_t len)
-{
-  return str;
-}
 
-static inline
-bool
-isnull(const LEX_STRING& str)
-{
-  return str.str == 0 || str.length == 0;
-}
-
-static inline
-bool
-isnull(const char * str)
-{
-  return str == 0;
-}
-
-// copied from unused table_case_convert() in mysqld.h
 static void
 ndb_fk_casedn(char *name)
 {
@@ -310,7 +288,7 @@ class Fk_util
     }
 
     // Print info to log
-    sql_print_information("NDB FK: %s", msg);
+    ndb_log_info("%s", msg);
   }
 
 
@@ -325,7 +303,7 @@ class Fk_util
     push_warning(m_thd, Sql_condition::SL_WARNING, ER_CANNOT_ADD_FOREIGN, msg);
 
     // Print warning to log
-    sql_print_warning("NDB FK: %s", msg);
+    ndb_log_warning("%s", msg);
   }
 
 
@@ -351,7 +329,7 @@ class Fk_util
                           ER_CANNOT_ADD_FOREIGN, "Ndb error: %s", ndb_msg);
     }
     // Print error to log
-    sql_print_error("NDB FK: %s, Ndb error: %s", msg, ndb_msg);
+    ndb_log_error("%s, Ndb error: %s", msg, ndb_msg);
   }
 
 
@@ -745,31 +723,29 @@ public:
                          child_id, fk_index, parent_name));
     const size_t len = my_snprintf(buf, buf_size, "NDB$FKM_%d_%u_%s",
                                    child_id, fk_index, parent_name);
-    DBUG_PRINT("info", ("len: %lu, buf_size: %lu", len, buf_size));
     if (len >= buf_size - 1)
     {
       DBUG_PRINT("info", ("Size of buffer too small"));
       DBUG_RETURN(NULL);
     }
-    DBUG_PRINT("exit", ("buf: '%s', len: %lu", buf, len));
+    DBUG_PRINT("exit", ("buf: '%s'", buf));
     DBUG_RETURN(buf);
   }
 
 
-  // Adaptor function for calling create() with List<key_part_spec>
+  // Adaptor function for calling create() with Mem_root_array<key_part_spec>
   bool create(NDBDICT *dict, const char* mock_name, const char* child_name,
-              List<Key_part_spec> key_part_list, const NDBCOL * col_types[])
+              const Mem_root_array<const Key_part_spec*> &key_part_list,
+              const NDBCOL * col_types[])
   {
     // Convert List<Key_part_spec> into null terminated const char* array
     const char* col_names[NDB_MAX_ATTRIBUTES_IN_INDEX + 1];
     {
       unsigned i = 0;
-      Key_part_spec* key = 0;
-      List_iterator<Key_part_spec> it1(key_part_list);
-      while ((key= it1++))
+      for (const Key_part_spec *key : key_part_list)
       {
         char col_name_buf[FN_REFLEN];
-        const char* col_name = lex2str(key->field_name, col_name_buf, sizeof(col_name_buf));
+        const char* col_name = lex2str(key->field_name, col_name_buf);
         col_names[i++] = strdup(col_name);
       }
       col_names[i] = 0;
@@ -1021,7 +997,6 @@ public:
     if (dict->dropForeignKey(fk) != 0)
     {
       error(dict, "Failed to drop fk '%s'", fk_name);
-      DBUG_ASSERT(false);
       DBUG_RETURN(false);
     }
     DBUG_RETURN(true);
@@ -1188,15 +1163,13 @@ ha_ndbcluster::create_fks(THD *thd, Ndb *ndb)
   char tmpbuf[FN_REFLEN];
 
   assert(thd->lex != 0);
-  Key * key= 0;
-  List_iterator<Key> key_iterator(thd->lex->alter_info.key_list);
-  while ((key=key_iterator++))
+  for (const Key_spec *key : thd->lex->alter_info.key_list)
   {
     if (key->type != KEYTYPE_FOREIGN)
       continue;
 
     NDBDICT *dict= ndb->getDictionary();
-    Foreign_key * fk= reinterpret_cast<Foreign_key*>(key);
+    const Foreign_key_spec * fk= down_cast<const Foreign_key_spec*>(key);
 
     /**
      * NOTE: we need to fetch also child table...
@@ -1226,12 +1199,10 @@ ha_ndbcluster::create_fks(THD *thd, Ndb *ndb)
     {
       unsigned pos= 0;
       const NDBTAB * tab= child_tab.get_table();
-      Key_part_spec* col= 0;
-      List_iterator<Key_part_spec> it1(fk->columns);
-      while ((col= it1++))
+      for (const Key_part_spec *col : fk->columns)
       {
         const NDBCOL * ndbcol= tab->getColumn(lex2str(col->field_name,
-                                                      tmpbuf, sizeof(tmpbuf)));
+                                                      tmpbuf));
         if (ndbcol == 0)
         {
           push_warning_printf(thd, Sql_condition::SL_WARNING,
@@ -1359,12 +1330,10 @@ ha_ndbcluster::create_fks(THD *thd, Ndb *ndb)
     {
       unsigned pos= 0;
       const NDBTAB * tab= parent_tab.get_table();
-      Key_part_spec* col= 0;
-      List_iterator<Key_part_spec> it1(fk->ref_columns);
-      while ((col= it1++))
+      for (const Key_part_spec *col : fk->ref_columns)
       {
         const NDBCOL * ndbcol= tab->getColumn(lex2str(col->field_name,
-                                                      tmpbuf, sizeof(tmpbuf)));
+                                                      tmpbuf));
         if (ndbcol == 0)
         {
           push_warning_printf(thd, Sql_condition::SL_WARNING,
@@ -1417,13 +1386,14 @@ ha_ndbcluster::create_fks(THD *thd, Ndb *ndb)
 
     NdbDictionary::ForeignKey ndbfk;
     char fk_name[FN_REFLEN];
-    if (!isnull(fk->name))
+    if (fk->name.str && fk->name.length)
     {
-      my_snprintf(fk_name, sizeof(fk_name), "%s",
-                  lex2str(fk->name, tmpbuf, sizeof(tmpbuf)));
+      // The fk has a name, use it
+      lex2str(fk->name, fk_name);
     }
     else
     {
+      // The fk has no name, generate a name
       my_snprintf(fk_name, sizeof(fk_name), "FK_%u_%u",
                   parent_index ?
                   parent_index->getObjectId() :
@@ -1877,7 +1847,7 @@ ha_ndbcluster::get_fk_data(THD *thd, Ndb *ndb)
 }
 
 void
-ha_ndbcluster::release_fk_data(THD *thd)
+ha_ndbcluster::release_fk_data()
 {
   DBUG_ENTER("ha_ndbcluster::release_fk_data");
 
@@ -2254,9 +2224,7 @@ ha_ndbcluster::copy_fk_for_offline_alter(THD * thd, Ndb* ndb, NDBTAB* _dsttab)
 
   // check if fk to drop exists
   {
-    Alter_drop * drop_item= 0;
-    List_iterator<Alter_drop> drop_iterator(thd->lex->alter_info.drop_list);
-    while ((drop_item=drop_iterator++))
+    for (const Alter_drop *drop_item : thd->lex->alter_info.drop_list)
     {
       if (drop_item->type != Alter_drop::FOREIGN_KEY)
         continue;
@@ -2311,9 +2279,7 @@ ha_ndbcluster::copy_fk_for_offline_alter(THD * thd, Ndb* ndb, NDBTAB* _dsttab)
         const char * name= fk_split_name(db_and_name,obj_list.elements[i].name);
 
         bool found= false;
-        Alter_drop * drop_item= 0;
-        List_iterator<Alter_drop> drop_iterator(thd->lex->alter_info.drop_list);
-        while ((drop_item=drop_iterator++))
+        for (const Alter_drop *drop_item : thd->lex->alter_info.drop_list)
         {
           if (drop_item->type != Alter_drop::FOREIGN_KEY)
             continue;
@@ -2408,7 +2374,24 @@ ha_ndbcluster::copy_fk_for_offline_alter(THD * thd, Ndb* ndb, NDBTAB* _dsttab)
         }
         else
         {
-          fk.setParent(* dsttab.get_table(), 0, cols);
+          /*
+            The parent column was previously the primary key.
+            Make sure it still is a primary key as implicit pks
+            might change during the alter. If not, get a better
+            matching index.
+           */
+          bool parent_primary = FALSE;
+          const NDBINDEX * idx = find_matching_index(dict,
+                                                     dsttab.get_table(),
+                                                     cols,
+                                                     parent_primary);
+          if (!parent_primary && idx == 0)
+          {
+            my_error(ER_FK_NO_INDEX_PARENT, MYF(0), fk.getName(),
+                     dsttab.get_table()->getName());
+            DBUG_RETURN(HA_ERR_CANNOT_ADD_FOREIGN);
+          }
+          fk.setParent(*dsttab.get_table(), idx, cols);
         }
 
 
@@ -2441,8 +2424,12 @@ ha_ndbcluster::copy_fk_for_offline_alter(THD * thd, Ndb* ndb, NDBTAB* _dsttab)
         {
           name = fk_split_name(db_and_name, fk.getChildIndex(), true);
           setDbName(ndb, db_and_name);
-          const NDBINDEX * idx = dict->getIndexGlobal(name,*dsttab.get_table());
-          if (idx == 0)
+          bool child_primary_key = FALSE;
+          const NDBINDEX * idx = find_matching_index(dict,
+                                                     dsttab.get_table(),
+                                                     cols,
+                                                     child_primary_key);
+          if (!child_primary_key && idx == 0)
           {
             printf("%u %s - %u/%u get_index(%s)\n",
                    __LINE__, fk.getName(),
@@ -2452,7 +2439,8 @@ ha_ndbcluster::copy_fk_for_offline_alter(THD * thd, Ndb* ndb, NDBTAB* _dsttab)
             ERR_RETURN(dict->getNdbError());
           }
           fk.setChild(* dsttab.get_table(), idx, cols);
-          dict->removeIndexGlobal(* idx, 0);
+          if(idx)
+            dict->removeIndexGlobal(*idx, 0);
         }
         else
         {
@@ -2505,9 +2493,7 @@ ha_ndbcluster::drop_fk_for_online_alter(THD * thd, Ndb* ndb, NDBDICT * dict,
     ERR_RETURN(dict->getNdbError());
   }
 
-  Alter_drop * drop_item= 0;
-  List_iterator<Alter_drop> drop_iterator(thd->lex->alter_info.drop_list);
-  while ((drop_item=drop_iterator++))
+  for (const Alter_drop *drop_item : thd->lex->alter_info.drop_list)
   {
     if (drop_item->type != Alter_drop::FOREIGN_KEY)
       continue;

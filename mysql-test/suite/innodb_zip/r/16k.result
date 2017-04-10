@@ -1,11 +1,11 @@
 SET default_storage_engine=InnoDB;
 # Test 1) Show the page size from Information Schema
-SELECT variable_value FROM information_schema.global_status
+SELECT variable_value FROM performance_schema.global_status
 WHERE LOWER(variable_name) = 'innodb_page_size';
 variable_value
 16384
 # Test 2) The number of buffer pool pages is dependent upon the page size.
-SELECT variable_value FROM information_schema.global_status
+SELECT variable_value FROM performance_schema.global_status
 WHERE LOWER(variable_name) = 'innodb_buffer_pool_pages_total';
 variable_value
 {checked_valid}
@@ -18,30 +18,126 @@ FROM	INFORMATION_SCHEMA.INNODB_SYS_TABLES  t,
 INFORMATION_SCHEMA.INNODB_SYS_INDEXES i
 WHERE	t.table_id = i.table_id
 AND	t.name LIKE 'mysql%'
+        AND     t.name NOT LIKE 'mysql/ndb_binlog_index'
 	ORDER BY t.name, i.index_id;
 table_name	n_cols	table_flags	index_name	root_page	type	n_fields	merge_threshold
-mysql/engine_cost	9	33	PRIMARY	3	3	3	50
-mysql/gtid_executed	6	33	PRIMARY	3	3	2	50
-mysql/help_category	7	33	PRIMARY	3	3	1	50
-mysql/help_category	7	33	name	4	2	1	50
-mysql/help_keyword	5	33	PRIMARY	3	3	1	50
-mysql/help_keyword	5	33	name	4	2	1	50
-mysql/help_relation	5	33	PRIMARY	3	3	2	50
-mysql/help_topic	9	33	PRIMARY	3	3	1	50
-mysql/help_topic	9	33	name	4	2	1	50
-mysql/innodb_index_stats	11	33	PRIMARY	3	3	4	50
-mysql/innodb_table_stats	9	33	PRIMARY	3	3	2	50
-mysql/plugin	5	33	PRIMARY	3	3	1	50
-mysql/servers	12	33	PRIMARY	3	3	1	50
-mysql/server_cost	7	33	PRIMARY	3	3	1	50
-mysql/slave_master_info	28	33	PRIMARY	3	3	1	50
-mysql/slave_relay_log_info	12	33	PRIMARY	3	3	1	50
-mysql/slave_worker_info	16	33	PRIMARY	3	3	2	50
-mysql/time_zone	5	33	PRIMARY	3	3	1	50
-mysql/time_zone_leap_second	5	33	PRIMARY	3	3	1	50
-mysql/time_zone_name	5	33	PRIMARY	3	3	1	50
-mysql/time_zone_transition	6	33	PRIMARY	3	3	2	50
-mysql/time_zone_transition_type	8	33	PRIMARY	3	3	2	50
+mysql/catalogs	7	33	PRIMARY	5	3	1	50
+mysql/catalogs	7	33	name	6	2	1	50
+mysql/character_sets	8	33	PRIMARY	5	3	1	50
+mysql/character_sets	8	33	name	6	2	1	50
+mysql/character_sets	8	33	default_collation_id	7	0	1	50
+mysql/collations	9	33	PRIMARY	5	3	1	50
+mysql/collations	9	33	name	6	2	1	50
+mysql/collations	9	33	character_set_id	7	0	1	50
+mysql/columns	31	33	PRIMARY	5	3	1	50
+mysql/columns	31	33	table_id	6	2	2	50
+mysql/columns	31	33	table_id_2	7	2	2	50
+mysql/columns	31	33	collation_id	8	0	1	50
+mysql/columns_priv	10	33	PRIMARY	5	3	5	50
+mysql/column_stats	7	33	PRIMARY	5	3	3	50
+mysql/column_type_elements	6	33	PRIMARY	5	3	2	50
+mysql/component	6	33	PRIMARY	5	3	1	50
+mysql/db	25	33	PRIMARY	5	3	3	50
+mysql/db	25	33	User	6	0	1	50
+mysql/default_roles	7	33	PRIMARY	5	3	4	50
+mysql/engine_cost	9	33	PRIMARY	5	3	3	50
+mysql/events	26	33	PRIMARY	5	3	1	50
+mysql/events	26	33	schema_id	6	2	2	50
+mysql/events	26	33	client_collation_id	7	0	1	50
+mysql/events	26	33	connection_collation_id	8	0	1	50
+mysql/events	26	33	schema_collation_id	9	0	1	50
+mysql/foreign_keys	14	33	PRIMARY	5	3	1	50
+mysql/foreign_keys	14	33	schema_id	6	2	2	50
+mysql/foreign_keys	14	33	table_id	7	2	2	50
+mysql/foreign_keys	14	33	unique_constraint_id	8	0	1	50
+mysql/foreign_key_column_usage	7	33	PRIMARY	5	3	2	50
+mysql/foreign_key_column_usage	7	33	foreign_key_id	6	2	3	50
+mysql/foreign_key_column_usage	7	33	column_id	7	0	1	50
+mysql/func	7	33	PRIMARY	5	3	1	50
+mysql/global_grants	7	33	PRIMARY	5	3	3	50
+mysql/gtid_executed	6	33	PRIMARY	5	3	2	50
+mysql/help_category	7	33	PRIMARY	5	3	1	50
+mysql/help_category	7	33	name	6	2	1	50
+mysql/help_keyword	5	33	PRIMARY	5	3	1	50
+mysql/help_keyword	5	33	name	6	2	1	50
+mysql/help_relation	5	33	PRIMARY	5	3	2	50
+mysql/help_topic	9	33	PRIMARY	5	3	1	50
+mysql/help_topic	9	33	name	6	2	1	50
+mysql/indexes	18	33	PRIMARY	5	3	1	50
+mysql/indexes	18	33	table_id	6	2	2	50
+mysql/indexes	18	33	tablespace_id	7	0	1	50
+mysql/index_column_usage	9	33	index_id	5	3	2	50
+mysql/index_column_usage	9	33	index_id_2	6	2	3	50
+mysql/index_column_usage	9	33	f2	7	0	1	50
+mysql/index_partitions	8	33	PRIMARY	5	3	2	50
+mysql/index_partitions	8	33	index_id	6	0	1	50
+mysql/index_partitions	8	33	tablespace_id	7	0	1	50
+mysql/index_stats	8	33	schema_name	5	3	4	50
+mysql/innodb_index_stats	11	33	PRIMARY	5	3	4	50
+mysql/innodb_table_stats	9	33	PRIMARY	5	3	2	50
+mysql/parameters	18	33	PRIMARY	5	3	1	50
+mysql/parameters	18	33	routine_id	6	2	2	50
+mysql/parameters	18	33	collation_id	7	0	1	50
+mysql/parameter_type_elements	6	33	PRIMARY	5	3	2	50
+mysql/plugin	5	33	PRIMARY	5	3	1	50
+mysql/procs_priv	11	33	PRIMARY	5	3	5	50
+mysql/procs_priv	11	33	Grantor	6	0	1	50
+mysql/proxies_priv	10	33	PRIMARY	5	3	4	50
+mysql/proxies_priv	10	33	Grantor	6	0	1	50
+mysql/role_edges	8	33	PRIMARY	5	3	4	50
+mysql/routines	30	33	PRIMARY	5	3	1	50
+mysql/routines	30	33	schema_id	6	2	3	50
+mysql/routines	30	33	result_collation_id	7	0	1	50
+mysql/routines	30	33	client_collation_id	8	0	1	50
+mysql/routines	30	33	connection_collation_id	9	0	1	50
+mysql/routines	30	33	schema_collation_id	10	0	1	50
+mysql/schemata	9	33	PRIMARY	5	3	1	50
+mysql/schemata	9	33	catalog_id	6	2	2	50
+mysql/schemata	9	33	default_collation_id	7	0	1	50
+mysql/servers	12	33	PRIMARY	5	3	1	50
+mysql/server_cost	7	33	PRIMARY	5	3	1	50
+mysql/slave_master_info	28	33	PRIMARY	5	3	1	50
+mysql/slave_relay_log_info	12	33	PRIMARY	5	3	1	50
+mysql/slave_worker_info	16	33	PRIMARY	5	3	2	50
+mysql/st_spatial_reference_systems	12	33	PRIMARY	5	3	1	50
+mysql/st_spatial_reference_systems	12	33	catalog_id	6	2	2	50
+mysql/tables	35	33	PRIMARY	5	3	1	50
+mysql/tables	35	33	schema_id	6	2	2	50
+mysql/tables	35	33	engine	7	2	2	50
+mysql/tables	35	33	engine_2	8	0	1	50
+mysql/tables	35	33	collation_id	9	0	1	50
+mysql/tables	35	33	tablespace_id	10	0	1	50
+mysql/tablespaces	9	33	PRIMARY	5	3	1	50
+mysql/tablespaces	9	33	name	6	2	1	50
+mysql/tablespace_files	7	33	tablespace_id	5	3	2	50
+mysql/tablespace_files	7	33	file_name	6	2	1	50
+mysql/tables_priv	11	33	PRIMARY	5	3	4	50
+mysql/tables_priv	11	33	Grantor	6	0	1	50
+mysql/table_partitions	14	33	PRIMARY	5	3	1	50
+mysql/table_partitions	14	33	table_id	6	2	2	50
+mysql/table_partitions	14	33	table_id_2	7	2	3	50
+mysql/table_partitions	14	33	engine	8	2	2	50
+mysql/table_partitions	14	33	engine_2	9	0	1	50
+mysql/table_partitions	14	33	tablespace_id	10	0	1	50
+mysql/table_partition_values	8	33	PRIMARY	5	3	3	50
+mysql/table_stats	15	33	PRIMARY	5	3	2	50
+mysql/time_zone	5	33	PRIMARY	5	3	1	50
+mysql/time_zone_leap_second	5	33	PRIMARY	5	3	1	50
+mysql/time_zone_name	5	33	PRIMARY	5	3	1	50
+mysql/time_zone_transition	6	33	PRIMARY	5	3	2	50
+mysql/time_zone_transition_type	8	33	PRIMARY	5	3	2	50
+mysql/triggers	19	33	PRIMARY	5	3	1	50
+mysql/triggers	19	33	schema_id	6	2	2	50
+mysql/triggers	19	33	table_id	7	2	4	50
+mysql/triggers	19	33	client_collation_id	8	0	1	50
+mysql/triggers	19	33	connection_collation_id	9	0	1	50
+mysql/triggers	19	33	schema_collation_id	10	0	1	50
+mysql/user	50	33	PRIMARY	5	3	2	50
+mysql/version	4	33	PRIMARY	5	3	1	50
+mysql/view_routine_usage	7	33	PRIMARY	5	3	4	50
+mysql/view_routine_usage	7	33	routine_catalog	6	0	3	50
+mysql/view_table_usage	7	33	PRIMARY	5	3	4	50
+mysql/view_table_usage	7	33	table_catalog	6	0	3	50
 CREATE TABLE t1 (a INT KEY, b TEXT) ROW_FORMAT=REDUNDANT ENGINE=innodb;
 CREATE TABLE t2 (a INT KEY, b TEXT) ROW_FORMAT=COMPACT ENGINE=innodb;
 CREATE TABLE t3 (a INT KEY, b TEXT) ROW_FORMAT=COMPRESSED ENGINE=innodb;
@@ -55,10 +151,10 @@ WHERE	t.table_id = i.table_id
 AND	t.name LIKE 'test%'
 	ORDER BY t.name, i.name;
 table_name	n_cols	table_flags	index_name	root_page	type	n_fields	merge_threshold
-test/t1	5	0	PRIMARY	3	3	1	50
-test/t2	5	1	PRIMARY	3	3	1	50
-test/t3	5	41	PRIMARY	3	3	1	50
-test/t4	5	33	PRIMARY	3	3	1	50
+test/t1	5	0	PRIMARY	5	3	1	50
+test/t2	5	1	PRIMARY	5	3	1	50
+test/t3	5	41	PRIMARY	5	3	1	50
+test/t4	5	33	PRIMARY	5	3	1	50
 === information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
 test/t1	Single	DEFAULT	0	Compact or Redundant	MYSQLD_DATADIR/test/t1.ibd
@@ -208,42 +304,42 @@ SHOW WARNINGS;
 Level	Code	Message
 SELECT table_name, row_format, create_options
 FROM information_schema.tables WHERE table_name = 't1';
-table_name	row_format	create_options
+TABLE_NAME	ROW_FORMAT	CREATE_OPTIONS
 t1	Compressed	row_format=COMPRESSED KEY_BLOCK_SIZE=16
 ALTER TABLE t1 KEY_BLOCK_SIZE=8;
 SHOW WARNINGS;
 Level	Code	Message
 SELECT table_name, row_format, create_options
 FROM information_schema.tables WHERE table_name = 't1';
-table_name	row_format	create_options
+TABLE_NAME	ROW_FORMAT	CREATE_OPTIONS
 t1	Compressed	row_format=COMPRESSED KEY_BLOCK_SIZE=8
 ALTER TABLE t1 KEY_BLOCK_SIZE=4;
 SHOW WARNINGS;
 Level	Code	Message
 SELECT table_name, row_format, create_options
 FROM information_schema.tables WHERE table_name = 't1';
-table_name	row_format	create_options
+TABLE_NAME	ROW_FORMAT	CREATE_OPTIONS
 t1	Compressed	row_format=COMPRESSED KEY_BLOCK_SIZE=4
 ALTER TABLE t1 KEY_BLOCK_SIZE=2;
 SHOW WARNINGS;
 Level	Code	Message
 SELECT table_name, row_format, create_options
 FROM information_schema.tables WHERE table_name = 't1';
-table_name	row_format	create_options
+TABLE_NAME	ROW_FORMAT	CREATE_OPTIONS
 t1	Compressed	row_format=COMPRESSED KEY_BLOCK_SIZE=2
 ALTER TABLE t1 KEY_BLOCK_SIZE=1;
 SHOW WARNINGS;
 Level	Code	Message
 SELECT table_name, row_format, create_options
 FROM information_schema.tables WHERE table_name = 't1';
-table_name	row_format	create_options
+TABLE_NAME	ROW_FORMAT	CREATE_OPTIONS
 t1	Compressed	row_format=COMPRESSED KEY_BLOCK_SIZE=1
 ALTER TABLE t1 KEY_BLOCK_SIZE=0;
 SHOW WARNINGS;
 Level	Code	Message
 SELECT table_name, row_format, create_options
 FROM information_schema.tables WHERE table_name = 't1';
-table_name	row_format	create_options
+TABLE_NAME	ROW_FORMAT	CREATE_OPTIONS
 t1	Compressed	row_format=COMPRESSED
 DROP TABLE t1;
 SET SESSION innodb_strict_mode = OFF;
@@ -252,42 +348,42 @@ SHOW WARNINGS;
 Level	Code	Message
 SELECT table_name, row_format, create_options
 FROM information_schema.tables WHERE table_name = 't1';
-table_name	row_format	create_options
+TABLE_NAME	ROW_FORMAT	CREATE_OPTIONS
 t1	Compressed	row_format=COMPRESSED KEY_BLOCK_SIZE=16
 ALTER TABLE t1 KEY_BLOCK_SIZE=8;
 SHOW WARNINGS;
 Level	Code	Message
 SELECT table_name, row_format, create_options
 FROM information_schema.tables WHERE table_name = 't1';
-table_name	row_format	create_options
+TABLE_NAME	ROW_FORMAT	CREATE_OPTIONS
 t1	Compressed	row_format=COMPRESSED KEY_BLOCK_SIZE=8
 ALTER TABLE t1 KEY_BLOCK_SIZE=4;
 SHOW WARNINGS;
 Level	Code	Message
 SELECT table_name, row_format, create_options
 FROM information_schema.tables WHERE table_name = 't1';
-table_name	row_format	create_options
+TABLE_NAME	ROW_FORMAT	CREATE_OPTIONS
 t1	Compressed	row_format=COMPRESSED KEY_BLOCK_SIZE=4
 ALTER TABLE t1 KEY_BLOCK_SIZE=2;
 SHOW WARNINGS;
 Level	Code	Message
 SELECT table_name, row_format, create_options
 FROM information_schema.tables WHERE table_name = 't1';
-table_name	row_format	create_options
+TABLE_NAME	ROW_FORMAT	CREATE_OPTIONS
 t1	Compressed	row_format=COMPRESSED KEY_BLOCK_SIZE=2
 ALTER TABLE t1 KEY_BLOCK_SIZE=1;
 SHOW WARNINGS;
 Level	Code	Message
 SELECT table_name, row_format, create_options
 FROM information_schema.tables WHERE table_name = 't1';
-table_name	row_format	create_options
+TABLE_NAME	ROW_FORMAT	CREATE_OPTIONS
 t1	Compressed	row_format=COMPRESSED KEY_BLOCK_SIZE=1
 ALTER TABLE t1 KEY_BLOCK_SIZE=0;
 SHOW WARNINGS;
 Level	Code	Message
 SELECT table_name, row_format, create_options
 FROM information_schema.tables WHERE table_name = 't1';
-table_name	row_format	create_options
+TABLE_NAME	ROW_FORMAT	CREATE_OPTIONS
 t1	Compressed	row_format=COMPRESSED
 DROP TABLE t1;
 # Test 6) Make sure that KEY_BLOCK_SIZE = 8 and 16
@@ -310,24 +406,13 @@ Level	Code	Message
 Warning	1478	InnoDB: KEY_BLOCK_SIZE requires innodb_file_per_table.
 Error	1031	Table storage engine for 't5' doesn't have this option
 SET GLOBAL innodb_file_per_table = ON;
-SET GLOBAL innodb_file_format = `Antelope`;
-Warnings:
-Warning	131	Using innodb_file_format is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.7/en/innodb-file-format.html
 CREATE TABLE t4 (id int PRIMARY KEY) ENGINE=innodb KEY_BLOCK_SIZE=8;
-ERROR HY000: Table storage engine for 't4' doesn't have this option
 SHOW WARNINGS;
 Level	Code	Message
-Warning	1478	InnoDB: KEY_BLOCK_SIZE requires innodb_file_format > Antelope.
-Error	1031	Table storage engine for 't4' doesn't have this option
 CREATE TABLE t5 (id int PRIMARY KEY) ENGINE=innodb KEY_BLOCK_SIZE=16;
-ERROR HY000: Table storage engine for 't5' doesn't have this option
 SHOW WARNINGS;
 Level	Code	Message
-Warning	1478	InnoDB: KEY_BLOCK_SIZE requires innodb_file_format > Antelope.
-Error	1031	Table storage engine for 't5' doesn't have this option
-SET GLOBAL innodb_file_format = `Barracuda`;
-Warnings:
-Warning	131	Using innodb_file_format is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.7/en/innodb-file-format.html
+DROP TABLE t4,t5;
 # Test 7) This series of tests were moved from innodb-index to here
 # because the second alter table t1 assumes a 16k page size.
 # Moving the test allows the rest of innodb-index to be run on all

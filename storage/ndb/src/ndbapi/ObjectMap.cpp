@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2007, 2008 MySQL AB, 2008 Sun Microsystems, Inc.
-    All rights reserved. Use is subject to license terms.
+   Copyright (c) 2007, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -41,7 +40,7 @@ NdbObjectIdMap::~NdbObjectIdMap()
 int NdbObjectIdMap::expand(Uint32 incSize)
 {
   assert(checkConsistency());
-  Uint32 newSize = m_size + incSize;
+  const Uint32 newSize = m_size + incSize;
   MapEntry * tmp = (MapEntry*)realloc(m_map, newSize * sizeof(MapEntry));
 
   if (likely(tmp != 0))
@@ -61,7 +60,7 @@ int NdbObjectIdMap::expand(Uint32 incSize)
   else
   {
     g_eventLogger->error("NdbObjectIdMap::expand: realloc(%u*%lu) failed",
-                         newSize, sizeof(MapEntry));
+                         newSize, (unsigned long) sizeof(MapEntry));
     return -1;
   }
   return 0;

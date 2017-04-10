@@ -1,7 +1,22 @@
-#
+# The test contains queries which are impossible to write to binary log if binlog-format is row (which
+# is the default) and has tables which use a storage engine limited to statement-based logging. Hence,
+# it is skipped when log-bin is enabled.
+--source include/not_log_bin.inc
+
 --source include/not_windows_embedded.inc
 --source include/have_example_plugin.inc
+--source include/have_debug.inc
 --source include/have_debug_sync.inc
+
+########################################
+##### WL#7554 Force schema `test` to character set latin1
+##### This test should be migrated to utf8mb4
+--disable_query_log
+let $testdbcs67=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
+alter schema test default character set latin1;
+--enable_query_log
+########################################
+
 
 # Save the initial number of concurrent sessions
 --source include/count_sessions.inc
@@ -21,9 +36,9 @@ UNINSTALL PLUGIN example;
 eval INSTALL PLUGIN example SONAME '$EXAMPLE_PLUGIN';
 
 --echo # Example engine does not support indexes
---error ER_TOO_MANY_KEY_PARTS
+--error ER_TOO_MANY_KEYS
 CREATE TABLE t1 (a int PRIMARY KEY) ENGINE=EXAMPLE;
---error ER_TOO_MANY_KEY_PARTS
+--error ER_TOO_MANY_KEYS
 CREATE TABLE t1 (a int, KEY (a)) ENGINE=EXAMPLE;
 
 
@@ -48,14 +63,26 @@ DELETE FROM t1 WHERE a = 0;
 --error ER_ILLEGAL_HA
 HANDLER t1 OPEN;
 
+--echo # Try to delete table when plugin is not loaded.
+--echo # Remove table from TDC to allow plugin unload.
+FLUSH TABLE t1;
+UNINSTALL PLUGIN example;
+
+--error ER_STORAGE_ENGINE_NOT_LOADED 
+DROP TABLE t1;
+
+--replace_regex /\.dll/.so/
+eval INSTALL PLUGIN example SONAME '$EXAMPLE_PLUGIN';
+
 DROP TABLE t1;
 
 # a couple of tests for variables
 set global example_ulong_var=500;
 set global example_enum_var= e1;
 --disable_warnings
-select * from information_schema.global_status where variable_name like 'example%' order by variable_name;
+select * from performance_schema.global_status where variable_name like 'example%' order by variable_name;
 --enable_warnings
+--replace_regex /^Last creation.*t1'$/Last creation 't1'/
 show variables like 'example%';
 
 UNINSTALL PLUGIN example;
@@ -184,7 +211,7 @@ END
 
 CREATE PROCEDURE p_show_vars()
 BEGIN
-  SELECT COUNT(*) FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES;
+  SELECT COUNT(*) FROM performance_schema.global_variables;
 END|
 
 delimiter ;|
@@ -299,5 +326,59 @@ disconnect con2;
 --error ER_PLUGIN_DELETE_BUILTIN
 UNINSTALL PLUGIN innodb;
 
+--echo #
+--echo # Bug #19917521: MEMORY LEAK WITH STRING THREAD VARIABLE 
+--echo #                THAT SET MEMALLOC FLAG
+--echo #
+--replace_regex /\.dll/.so/
+eval INSTALL PLUGIN example SONAME '$EXAMPLE_PLUGIN';
+
+SET SESSION example_create_count_thdvar = 0;
+SET SESSION example_last_create_thdvar = '';
+
+CREATE TABLE t10(a INT) ENGINE=EXAMPLE;
+SELECT @@SESSION.example_create_count_thdvar;
+--replace_regex /^Last creation.*t10'$/Last creation 't10'/
+SELECT @@SESSION.example_last_create_thdvar;
+
+CREATE TABLE t20(a INT) ENGINE=EXAMPLE;
+SELECT @@SESSION.example_create_count_thdvar;
+--replace_regex /^Last creation.*t20'$/Last creation 't20'/
+SELECT @@SESSION.example_last_create_thdvar;
+
+DROP TABLE t10, t20;
+
+UNINSTALL PLUGIN example;
+
+--echo #
+--echo # BUG#24344026 - SIG 11 IN MY_VALID_MBCHARLEN_UTF8 AT STRINGS/CTYPE-UTF8.CC:9437
+--echo #
+SET GLOBAL DEBUG='+d,set_uninstall_sync_point';
+connect(con1, localhost, root,,);
+
+connection default;
+--replace_regex /\.dll/.so/
+eval INSTALL PLUGIN example SONAME '$EXAMPLE_PLUGIN';
+SET DEBUG_SYNC='before_store_plugin_name SIGNAL uninstall_plugin WAIT_FOR plugin_uninstalled';
+--send SELECT * FROM INFORMATION_SCHEMA.PLUGINS WHERE PLUGIN_NAME='example';
+
+connection con1;
+SET DEBUG_SYNC='now WAIT_FOR uninstall_plugin';
+UNINSTALL PLUGIN example;
+SET DEBUG_SYNC='now SIGNAL plugin_uninstalled';
+
+connection default;
+--reap
+SET DEBUG_SYNC='RESET';
+SET GLOBAL DEBUG='-d,set_uninstall_sync_point';
+disconnect con1;
+
 # Wait till we reached the initial number of concurrent sessions
 --source include/wait_until_count_sessions.inc
+
+########################################
+##### WL#7554 set schema `test` back to what it was
+--disable_query_log
+--eval alter schema test default character set $testdbcs67;
+--enable_query_log
+########################################

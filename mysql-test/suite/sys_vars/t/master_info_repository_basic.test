@@ -50,7 +50,7 @@ SELECT @@GLOBAL.master_info_repository;
 #################################################################
 --disable_warnings
 SELECT @@GLOBAL.master_info_repository = VARIABLE_VALUE
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='master_info_repository';
 --enable_warnings
 --echo 1 Expected
@@ -60,7 +60,7 @@ SELECT COUNT(@@GLOBAL.master_info_repository);
 
 --disable_warnings
 SELECT COUNT(VARIABLE_VALUE)
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='master_info_repository';
 --enable_warnings
 --echo 1 Expected

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,8 +18,21 @@
 #ifndef TRIGGER_CHAIN_H_INCLUDED
 #define TRIGGER_CHAIN_H_INCLUDED
 
+#include "lex_string.h"
+#include "m_string.h"                       // LEX_STRING, LEX_CSTRING
+#include "sql_alloc.h"                      // Sql_alloc
+#include "sql_list.h"                       // List
+#include "thr_malloc.h"
+#include "trigger_def.h"                    // enum_trigger_order_type
+
+class Query_tables_list;
 class THD;
 class Trigger;
+struct TABLE;
+struct TABLE_LIST;
+
+typedef struct st_bitmap MY_BITMAP;
+
 
 class Trigger_chain : public Sql_alloc
 {
@@ -27,6 +40,7 @@ public:
   Trigger_chain()
   { }
 
+  ~Trigger_chain();
   /**
     @return a reference to the list of triggers with the same
     EVENT/ACTION_TIME assigned to the table.
@@ -37,7 +51,7 @@ public:
   bool add_trigger(MEM_ROOT *mem_root,
                    Trigger *new_trigger,
                    enum_trigger_order_type ordering_clause,
-                   const LEX_STRING &referenced_trigger_name);
+                   const LEX_CSTRING &referenced_trigger_name);
 
   bool add_trigger(MEM_ROOT *mem_root,
                    Trigger *new_trigger);
@@ -51,8 +65,6 @@ public:
   void mark_fields(TABLE *subject_table);
 
   bool has_updated_trigger_fields(const MY_BITMAP *used_fields);
-
-  void renumerate_triggers();
 
 private:
   /// List of triggers of this chain.

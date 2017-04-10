@@ -1,6 +1,6 @@
 #ifndef INCLUDES_MYSQL_SQL_LIST_H
 #define INCLUDES_MYSQL_SQL_LIST_H
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,15 +15,16 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "sql_alloc.h"
-#include "my_global.h"
-#include "my_sys.h"
-#include "m_string.h" /* for TRASH */
+#include <stddef.h>
+#include <sys/types.h>
+#include <algorithm>
+#include <type_traits>
 
-#include "my_sys.h"                    /* alloc_root, TRASH, MY_WME,
-                                          MY_FAE, MY_ALLOW_ZERO_PTR */
-#include "m_string.h"
-#include "thr_malloc.h"                         /* sql_alloc */
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_sharedlib.h"
+#include "sql_alloc.h"         // Sql_alloc
+#include "thr_malloc.h"
 
 
 /**
@@ -184,12 +185,9 @@ public:
   }
   /**
     Construct a deep copy of the argument in memory root mem_root.
-    The elements themselves are copied by pointer. If you also
-    need to copy elements by value, you should employ
-    list_copy_and_replace_each_value after creating a copy.
+    The elements themselves are copied by pointer.
   */
   base_list(const base_list &rhs, MEM_ROOT *mem_root);
-  inline base_list(bool error) { }
   inline bool push_back(void *info)
   {
     if (((*last)=new list_node(info, &end_of_list)))
@@ -326,14 +324,16 @@ public:
   */
   inline void swap(base_list &rhs)
   {
-    swap_variables(list_node *, first, rhs.first);
-    swap_variables(list_node **, last, rhs.last);
-    swap_variables(uint, elements, rhs.elements);
+    std::swap(first, rhs.first);
+    std::swap(last, rhs.last);
+    std::swap(elements, rhs.elements);
   }
   inline list_node* last_node() { return *last; }
   inline list_node* first_node() { return first;}
   inline void *head() { return first->info; }
+  inline const void *head() const { return first->info; }
   inline void **head_ref() { return first != &end_of_list ? &first->info : 0; }
+  inline void *back() { return (*last)->info; }
   inline bool is_empty() const { return first == &end_of_list ; }
   inline list_node *last_ref() { return &end_of_list; }
   friend class base_list_iterator;
@@ -550,8 +550,11 @@ public:
   {
     return base_list::push_front((void *) a, mem_root);
   }
-  inline T* head() {return (T*) base_list::head(); }
+  inline T* head() { return static_cast<T *>(base_list::head()); }
+  inline const T *head() const
+  { return static_cast<const T *>(base_list::head()); }
   inline T** head_ref() {return (T**) base_list::head_ref(); }
+  inline T* back() {return (T*) base_list::back(); }
   inline T* pop()  {return (T*) base_list::pop(); }
   inline void concat(List<T> *list) { base_list::concat(list); }
   inline void disjoin(List<T> *list) { base_list::disjoin(list); }
@@ -565,6 +568,15 @@ public:
       delete (T*) element->info;
     }
     empty();
+  }
+
+  T *operator[] (uint index) const
+  {
+    DBUG_ASSERT(index < elements);
+    list_node *current= first;
+    for (uint i= 0; i < index; ++i)
+      current= current->next;
+    return static_cast<T*>(current->info);
   }
 
   using base_list::sort;
@@ -590,14 +602,13 @@ public:
   inline T** ref(void)	    { return (T**) base_list_iterator::ref(); }
 };
 
-
 template <class T> class List_iterator_fast :public base_list_iterator
 {
 protected:
-  inline T *replace(T *a)   { return (T*) 0; }
-  inline T *replace(List<T> &a) { return (T*) 0; }
+  inline T *replace(T*)     { return (T*) 0; }
+  inline T *replace(List<T> &) { return (T*) 0; }
   inline void remove(void)  { }
-  inline void after(T *a)   { }
+  inline void after(T*)     { }
   inline T** ref(void)	    { return (T**) 0; }
 
 public:
@@ -617,8 +628,8 @@ template <typename T> class base_ilist;
 template <typename T> class base_ilist_iterator;
 
 /*
-  A simple intrusive list which automaticly removes element from list
-  on delete (for THD element)
+  A simple intrusive list.
+
   NOTE: this inherently unsafe, since we rely on <T> to have
   the same layout as ilink<T> (see base_ilist::sentinel).
   Please consider using a different strategy for linking objects.
@@ -639,8 +650,6 @@ public:
     prev= NULL;
     next= NULL;
   }
-
-  virtual ~ilink() { unlink(); }		/*lint -e1740 */
 
   friend class base_ilist<T>;
   friend class base_ilist_iterator<T>;
@@ -677,13 +686,21 @@ class base_ilist
 {
   T *first;
   ilink<T> sentinel;
+
+  static_assert(! std::is_polymorphic<T>::value,
+                "Do not use this for classes with virtual members");
+
 public:
-  void empty() {
+  // The sentinel is not a T, but at least it is a POD
+  void empty() SUPPRESS_UBSAN {
     first= static_cast<T*>(&sentinel);
     sentinel.prev= &first;
   }
   base_ilist() { empty(); }
-  bool is_empty() const { return first == static_cast<const T*>(&sentinel); }
+
+  // The sentinel is not a T, but at least it is a POD
+  bool is_empty() const SUPPRESS_UBSAN
+  { return first == static_cast<const T*>(&sentinel); }
 
   /// Pushes new element in front of list.
   void push_front(T *a)
@@ -754,7 +771,8 @@ public:
     current(NULL)
   {}
 
-  T *next(void)
+  // The sentinel is not a T, but at least it is a POD
+  T *next(void) SUPPRESS_UBSAN
   {
     /* This is coded to allow push_back() while iterating */
     current= *el;
@@ -791,32 +809,6 @@ public:
   inline T* operator++(int) { return base_ilist_iterator<T>::next(); }
 };
 
-/**
-  Make a deep copy of each list element.
-
-  @note A template function and not a template method of class List
-  is employed because of explicit template instantiation:
-  in server code there are explicit instantiations of List<T> and
-  an explicit instantiation of a template requires that any method
-  of the instantiated class used in the template can be resolved.
-  Evidently not all template arguments have clone() method with
-  the right signature.
-
-  @return You must query the error state in THD for out-of-memory
-  situation after calling this function.
-*/
-
-template <typename T>
-inline
-void
-list_copy_and_replace_each_value(List<T> &list, MEM_ROOT *mem_root)
-{
-  /* Make a deep copy of each element */
-  List_iterator<T> it(list);
-  T *el;
-  while ((el= it++))
-    it.replace(el->clone(mem_root));
-}
 
 void free_list(I_List <i_string_pair> *list);
 void free_list(I_List <i_string> *list);

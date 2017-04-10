@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,10 +20,30 @@
    sql_mode contains 'only_full_group_by'.
 */
 
-#include "sql_select.h"
-#include "opt_trace.h"
-#include "sql_base.h"
 #include "aggregate_check.h"
+
+#include "my_config.h"
+
+#include <utility>
+
+#include "derror.h"
+#include "field.h"
+#include "item_func.h"
+#include "item_row.h"
+#include "key.h"
+#include "my_base.h"
+#include "my_dbug.h"
+#include "my_sys.h"
+#include "mysqld_error.h"
+#include "opt_trace.h"
+#include "opt_trace_context.h"
+#include "sql_base.h"
+#include "sql_class.h"
+#include "sql_const.h"
+#include "sql_lex.h"
+#include "sql_list.h"
+#include "table.h"
+#include "template_utils.h"
 
 /**
   @addtogroup AGGREGATE_CHECKS
@@ -114,7 +134,7 @@ bool Distinct_check::check_query(THD *thd)
       differ due to white space....).
       Subqueries in ORDER BY are non-standard anyway.
     */
-    Item** const res= find_item_in_list(*order->item, select->item_list,
+    Item** const res= find_item_in_list(thd, *order->item, select->item_list,
                                         &counter, REPORT_EXCEPT_NOT_FOUND,
                                         &resolution);
     if (res == NULL)    // Other error than "not found", my_error() was called
@@ -203,12 +223,12 @@ err:
   if (select->is_explicitly_grouped())
   {
     code= ER_WRONG_FIELD_WITH_GROUP;        // old code
-    text= ER(ER_WRONG_FIELD_WITH_GROUP_V2); // new text
+    text= ER_THD(thd, ER_WRONG_FIELD_WITH_GROUP_V2); // new text
   }
   else
   {
     code= ER_MIX_OF_GROUP_FUNC_AND_FIELDS;        // old code
-    text= ER(ER_MIX_OF_GROUP_FUNC_AND_FIELDS_V2); // new text
+    text= ER_THD(thd, ER_MIX_OF_GROUP_FUNC_AND_FIELDS_V2); // new text
   }
   my_printf_error(code, text, MYF(0), number_in_list, place,
                   failed_ident->full_name());
@@ -218,6 +238,7 @@ err:
 
 /**
    Validates one expression (this forms one step of check_query()).
+   @param  thd   current thread
    @param  expr  expression
    @param  in_select_list  whether this expression is coming from the SELECT
    list.
@@ -231,7 +252,7 @@ bool Group_check::check_expression(THD *thd, Item *expr,
     uint counter;
     enum_resolution_type resolution;
     // Search if this expression is equal to one in the SELECT list.
-    Item** const res= find_item_in_list(expr,
+    Item** const res= find_item_in_list(thd, expr,
                                         select->item_list,
                                         &counter, REPORT_EXCEPT_NOT_FOUND,
                                         &resolution);
@@ -569,7 +590,7 @@ void Group_check::find_group_in_fd(Item *item)
 Item *Group_check::select_expression(uint idx)
 {
   List_iterator<Item> it_select_list_of_subq(*select->get_item_list());
-  Item *expr_under;
+  Item *expr_under= NULL;
   for (uint k= 0; k <= idx ; k++)
     expr_under= it_select_list_of_subq++;
   DBUG_ASSERT(expr_under);
@@ -602,7 +623,7 @@ void Group_check::add_to_source_of_mat_table(Item_field *item_field,
   if (mat_unit->is_union() || mat_select->olap != UNSPECIFIED_OLAP_TYPE)
     return;                        // If UNION or ROLLUP, no FD
   // Grab Group_check for this subquery.
-  Group_check *mat_gc;
+  Group_check *mat_gc= NULL;
   uint j;
   for (j= 0; j < mat_tables.size(); j++)
   {
@@ -662,7 +683,9 @@ void Group_check::add_to_source_of_mat_table(Item_field *item_field,
  */
 bool Group_check::is_in_fd(Item *item)
 {
-  if (item->type() == Item::SUM_FUNC_ITEM)
+  if (item->type() == Item::SUM_FUNC_ITEM ||
+      (item->type() == Item_func::FUNC_ITEM &&
+       (((Item_func*)item)->functype() == Item_func::GROUPING_FUNC)))
   {
     /*
       If all group expressions are FD on the source, this set function also is

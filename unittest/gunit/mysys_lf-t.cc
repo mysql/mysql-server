@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,19 +19,23 @@
   Unit tests for lock-free algorithms of mysys
 */
 
-// First include (the generated) my_config.h, to get correct platform defines.
 #include "my_config.h"
-#include <gtest/gtest.h>
 
-#include <my_global.h>
-#include <my_sys.h>
+#include <gtest/gtest.h>
+#include <stddef.h>
+#include <sys/types.h>
+
+#include "my_byteorder.h"
+#include "my_compiler.h"
+#include "my_inttypes.h"
+#include "my_sys.h"
 
 
 namespace mysys_lf_unittest {
 
-#include "thr_template.cc"
-
 #include <lf.h>
+
+#include "thr_template.cc"
 
 int32 inserts= 0, N;
 LF_ALLOCATOR lf_allocator;
@@ -77,6 +81,8 @@ typedef union {
   void *not_used;
 } TLA;
 
+// SUPPRESS_UBSAN: integer overflow when generating random data.
+extern "C" void *test_lf_alloc(void *arg) SUPPRESS_UBSAN;
 extern "C" void *test_lf_alloc(void *arg)
 {
   int    m= (*(int *)arg)/2;
