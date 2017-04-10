@@ -5457,7 +5457,7 @@ void safe_connect(MYSQL* mysql, const char *name, const char *host,
                 &can_handle_expired_passwords);
   while(!mysql_connect_ssl_check(mysql, host,user, pass, db, port, sock,
                                  CLIENT_MULTI_STATEMENTS | CLIENT_REMEMBER_OPTIONS,
-                                 opt_ssl_required))
+                                 opt_ssl_mode == SSL_MODE_REQUIRED))
   {
     /*
       Connect failed
@@ -5563,7 +5563,7 @@ int connect_n_handle_errors(struct st_command *command,
                 &can_handle_expired_passwords);
   while (!mysql_connect_ssl_check(con, host, user, pass, db, port,
                                   sock ? sock: 0, CLIENT_MULTI_STATEMENTS,
-                                  opt_ssl_required))
+                                  opt_ssl_mode == SSL_MODE_REQUIRED))
   {
     /*
       If we have used up all our connections check whether this
