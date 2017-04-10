@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -66,5 +66,16 @@ private:
 void ndb_index_stat_free(NDB_SHARE*, int iudex_id, int index_version);
 void ndb_index_stat_free(NDB_SHARE*);
 void ndb_index_stat_end();
+
+
+/**
+  show_ndb_status_index_stat
+
+  Called as part of SHOW STATUS or performance_schema
+  queries. Returns info about ndb index stat related status variables.
+*/
+
+int
+show_ndb_status_index_stat(THD* thd, struct st_mysql_show_var* var, char* buff);
 
 #endif

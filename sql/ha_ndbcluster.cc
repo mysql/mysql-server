@@ -501,10 +501,6 @@ static ulong multi_range_max_entry(NDB_INDEX_TYPE keytype, ulong reclength);
 
 struct st_ndb_status g_ndb_status;
 
-const char *g_ndb_status_index_stat_status = "";
-long g_ndb_status_index_stat_cache_query = 0;
-long g_ndb_status_index_stat_cache_clean = 0;
-
 long long g_event_data_count = 0;
 long long g_event_nondata_count = 0;
 long long g_event_bytes_count = 0;
@@ -695,7 +691,6 @@ static int update_status_variables(Thd_ndb *thd_ndb,
                             ns->cluster_node_id, ns->connected_host,
                             ns->connected_port);
   }
-  ns->number_of_replicas= 0;
   {
     int n= c->get_no_ready();
     ns->number_of_ready_data_nodes= n > 0 ?  n : 0;
@@ -796,11 +791,12 @@ static int update_status_variables(Thd_ndb *thd_ndb,
    (char *) ARRAY_LOCATION[ Ndb::DeferredSendsCount ],                  \
    SHOW_LONGLONG, SHOW_SCOPE_GLOBAL}
 
-SHOW_VAR ndb_status_variables_dynamic[]= {
+
+static SHOW_VAR ndb_status_vars_dynamic[]=
+{
   {"cluster_node_id",     (char*) &g_ndb_status.cluster_node_id,      SHOW_LONG, SHOW_SCOPE_GLOBAL},
   {"config_from_host",    (char*) &g_ndb_status.connected_host,       SHOW_CHAR_PTR, SHOW_SCOPE_GLOBAL},
   {"config_from_port",    (char*) &g_ndb_status.connected_port,       SHOW_LONG, SHOW_SCOPE_GLOBAL},
-//{"number_of_replicas",  (char*) &g_ndb_status.number_of_replicas,   SHOW_LONG, SHOW_SCOPE_GLOBAL},
   {"number_of_data_nodes",(char*) &g_ndb_status.number_of_data_nodes, SHOW_LONG, SHOW_SCOPE_GLOBAL},
   {"number_of_ready_data_nodes",
    (char*) &g_ndb_status.number_of_ready_data_nodes,                  SHOW_LONG, SHOW_SCOPE_GLOBAL},
@@ -829,20 +825,23 @@ SHOW_VAR ndb_status_variables_dynamic[]= {
 };
 
 
-SHOW_VAR ndb_status_injector_variables[]= {
+static SHOW_VAR ndb_status_vars_injector[]=
+{
   {"api_event_data_count_injector",     (char*) &g_event_data_count, SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
   {"api_event_nondata_count_injector",  (char*) &g_event_nondata_count, SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
   {"api_event_bytes_count_injector",    (char*) &g_event_bytes_count, SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
   {NullS, NullS, SHOW_LONG, SHOW_SCOPE_GLOBAL}
 };
 
-SHOW_VAR ndb_status_slave_variables[]= {
+static SHOW_VAR ndb_status_vars_slave[]=
+{
   NDBAPI_COUNTERS("_slave", &g_slave_api_client_stats),
   {"slave_max_replicated_epoch", (char*) &g_ndb_slave_state.max_rep_epoch, SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
   {NullS, NullS, SHOW_LONG, SHOW_SCOPE_GLOBAL}
 };
 
-SHOW_VAR ndb_status_server_client_stat_variables[]= {
+static SHOW_VAR ndb_status_vars_server_api[]=
+{
   NDBAPI_COUNTERS("", &g_server_api_client_stats),
   {"api_event_data_count",     
    (char*) &g_server_api_client_stats[ Ndb::DataEventsRecvdCount ], 
@@ -856,30 +855,26 @@ SHOW_VAR ndb_status_server_client_stat_variables[]= {
   {NullS, NullS, SHOW_LONG, SHOW_SCOPE_GLOBAL}
 };
 
-static int show_ndb_server_api_stats(THD *thd, SHOW_VAR *var, char *buff)
+
+/*
+   Called when SHOW STATUS or performance_schema.[global|session]_status
+   wants to see the status variables. We use this opportunity to:
+   1) Update the globals with current values
+   2) Return an array of var definitions, pointing to
+      the updated globals
+*/
+
+static
+int show_ndb_status_server_api(THD *thd, SHOW_VAR *var, char *buff)
 {
-  /* This function is called when SHOW STATUS / INFO_SCHEMA wants
-   * to see one of our status vars
-   * We use this opportunity to :
-   *  1) Update the globals with current values
-   *  2) Return an array of var definitions, pointing to
-   *     the updated globals
-   */
   ndb_get_connection_stats((Uint64*) &g_server_api_client_stats[0]);
 
   var->type= SHOW_ARRAY;
-  var->value= (char*) ndb_status_server_client_stat_variables;
+  var->value= (char*) ndb_status_vars_server_api;
   var->scope= SHOW_SCOPE_GLOBAL;
 
   return 0;
 }
-
-SHOW_VAR ndb_status_index_stat_variables[]= {
-  {"status",          (char*) &g_ndb_status_index_stat_status, SHOW_CHAR_PTR, SHOW_SCOPE_GLOBAL},
-  {"cache_query",     (char*) &g_ndb_status_index_stat_cache_query, SHOW_LONG, SHOW_SCOPE_GLOBAL},
-  {"cache_clean",     (char*) &g_ndb_status_index_stat_cache_clean, SHOW_LONG, SHOW_SCOPE_GLOBAL},
-  {NullS, NullS, SHOW_LONG, SHOW_SCOPE_GLOBAL}
-};
 
 
 /*
@@ -20009,20 +20004,23 @@ static int ndbcluster_fill_files_table(handlerton *hton,
   DBUG_RETURN(0);
 }
 
-static int show_ndb_vars(THD *thd, SHOW_VAR *var, char *buff)
+
+static
+int show_ndb_status(THD* thd, SHOW_VAR* var, char*)
 {
   if (!check_ndb_in_thd(thd))
     return -1;
+
   struct st_ndb_status *st;
   SHOW_VAR *st_var;
   {
     char *mem= (char*)sql_alloc(sizeof(struct st_ndb_status) +
-                                sizeof(ndb_status_variables_dynamic));
+                                sizeof(ndb_status_vars_dynamic));
     st= new (mem) st_ndb_status;
     st_var= (SHOW_VAR*)(mem + sizeof(struct st_ndb_status));
-    memcpy(st_var, &ndb_status_variables_dynamic, sizeof(ndb_status_variables_dynamic));
+    memcpy(st_var, &ndb_status_vars_dynamic, sizeof(ndb_status_vars_dynamic));
     int i= 0;
-    SHOW_VAR *tmp= &(ndb_status_variables_dynamic[0]);
+    SHOW_VAR *tmp= &(ndb_status_vars_dynamic[0]);
     for (; tmp->value; tmp++, i++)
       st_var[i].value= mem + (tmp->value - (char*)&g_ndb_status);
   }
@@ -20036,13 +20034,23 @@ static int show_ndb_vars(THD *thd, SHOW_VAR *var, char *buff)
   return 0;
 }
 
-SHOW_VAR ndb_status_variables_export[]= {
-  {"Ndb",          (char*) &show_ndb_vars,                 SHOW_FUNC,  SHOW_SCOPE_GLOBAL},
-  {"Ndb_conflict", (char*) &show_ndb_conflict_status_vars, SHOW_FUNC,  SHOW_SCOPE_GLOBAL},
-  {"Ndb",          (char*) &ndb_status_injector_variables, SHOW_ARRAY, SHOW_SCOPE_GLOBAL},
-  {"Ndb",          (char*) &ndb_status_slave_variables,    SHOW_ARRAY, SHOW_SCOPE_GLOBAL},
-  {"Ndb",          (char*) &show_ndb_server_api_stats,     SHOW_FUNC,  SHOW_SCOPE_GLOBAL},
-  {"Ndb_index_stat", (char*) &ndb_status_index_stat_variables, SHOW_ARRAY, SHOW_SCOPE_GLOBAL},
+/*
+   Array defining the status variables which can be returned by
+   the ndbcluster plugin in a SHOW STATUS or performance_schema query.
+
+   The list consist of functions as well as further sub arrays. Functions
+   are used when the array first need to be populated before its values
+   can be read.
+*/
+
+static SHOW_VAR ndb_status_vars[] =
+{
+  {"Ndb",          (char*) &show_ndb_status, SHOW_FUNC,  SHOW_SCOPE_GLOBAL},
+  {"Ndb_conflict", (char*) &show_ndb_status_conflict, SHOW_FUNC,  SHOW_SCOPE_GLOBAL},
+  {"Ndb",          (char*) &ndb_status_vars_injector, SHOW_ARRAY, SHOW_SCOPE_GLOBAL},
+  {"Ndb",          (char*) &ndb_status_vars_slave,    SHOW_ARRAY, SHOW_SCOPE_GLOBAL},
+  {"Ndb",          (char*) &show_ndb_status_server_api,     SHOW_FUNC,  SHOW_SCOPE_GLOBAL},
+  {"Ndb_index_stat", (char*) &show_ndb_status_index_stat, SHOW_FUNC, SHOW_SCOPE_GLOBAL},
   {NullS, NullS, SHOW_LONG, SHOW_SCOPE_GLOBAL}
 };
 
@@ -20849,7 +20857,7 @@ mysql_declare_plugin(ndbcluster)
   ndbcluster_init,            /* plugin init */
   NULL,                       /* plugin deinit */
   0x0100,                     /* plugin version */
-  ndb_status_variables_export,/* status variables                */
+  ndb_status_vars,            /* status variables */
   system_variables,           /* system variables */
   NULL,                       /* config options */
   0                           /* flags */
