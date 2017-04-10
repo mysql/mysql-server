@@ -51,7 +51,7 @@ ngs::Error_code Crud_command_handler::execute(
   catch (const ngs::Error_code &error) {
     return error;
   }
-
+  log_debug("CRUD query: %s", m_qb.get().c_str());
   ngs::Error_code error = session.data_context().execute(
       m_qb.get().data(), m_qb.get().length(), &resultset);
   if (error) return error_handling(error, msg);
@@ -201,13 +201,14 @@ ngs::Error_code Crud_command_handler::error_handling(
     case ER_BAD_FIELD_ERROR:
       std::string::size_type pos = std::string::npos;
       if (check_message(error.message, "having clause", pos))
-        return ngs::Error(ER_X_DOC_REQUIRED_FIELD_MISSING,
-                          "%sgrouping criteria",
-                          error.message.substr(0, pos - 1).c_str());
+        return ngs::Error(ER_X_EXPR_BAD_VALUE,
+                          "Invalid expression in grouping criteria");
+
       if (check_message(error.message, "where clause", pos))
         return ngs::Error(ER_X_DOC_REQUIRED_FIELD_MISSING,
                           "%sselection criteria",
                           error.message.substr(0, pos - 1).c_str());
+
       if (check_message(error.message, "field list", pos))
         return ngs::Error(ER_X_DOC_REQUIRED_FIELD_MISSING, "%scollection",
                           error.message.substr(0, pos - 1).c_str());
