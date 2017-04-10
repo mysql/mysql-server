@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -582,6 +582,7 @@ static int dump_tablespaces_for_databases(char** databases);
 static int dump_tablespaces(char* ts_where);
 static void print_comment(FILE *sql_file, my_bool is_error, const char *format,
                           ...);
+static const char* fix_identifier_with_newline(char*);
 
 
 /*
@@ -682,7 +683,7 @@ static void write_header(FILE *sql_file, char *db_name)
                   MACHINE_TYPE);
     print_comment(sql_file, 0, "-- Host: %s    Database: %s\n",
                   current_host ? current_host : "localhost",
-                  db_name ? db_name : "");
+                  db_name ? fix_identifier_with_newline(db_name) : "");
     print_comment(sql_file, 0,
                   "-- ------------------------------------------------------\n"
                  );
@@ -1556,7 +1557,7 @@ static int connect_to_db(char *host, char *user,char *passwd)
   if (!(mysql= mysql_connect_ssl_check(&mysql_connection, host, user,
                                        passwd, NULL, opt_mysql_port,
                                        opt_mysql_unix_port, 0,
-                                       opt_ssl_required)))
+                                       opt_ssl_mode == SSL_MODE_REQUIRED)))
   {
     DB_error(&mysql_connection, "when trying to connect");
     DBUG_RETURN(1);
@@ -2036,6 +2037,30 @@ static void print_comment(FILE *sql_file, my_bool is_error, const char *format,
   print_xml_comment(sql_file, strlen(comment_buff), comment_buff);
 }
 
+/*
+ This function accepts object names and prefixes -- wherever \n
+ character is found.
+
+ @param[in]     object_name
+
+ @return
+    @retval fixed object name.
+*/
+
+static const char* fix_identifier_with_newline(char* object_name)
+{
+  static char buff[COMMENT_LENGTH]= {0};
+  char *ptr= buff;
+  memset(buff, 0, 255);
+  while(*object_name)
+  {
+    *ptr++ = *object_name;
+    if (*object_name == '\n')
+      ptr= strmov(ptr, "-- ");
+    object_name++;
+  }
+  return buff;
+}
 
 /*
  create_delimiter
@@ -2104,7 +2129,8 @@ static uint dump_events_for_db(char *db)
 
   /* nice comments */
   print_comment(sql_file, 0,
-                "\n--\n-- Dumping events for database '%s'\n--\n", db);
+                "\n--\n-- Dumping events for database '%s'\n--\n",
+                fix_identifier_with_newline(db));
 
   /*
     not using "mysql_query_with_error_report" because we may have not
@@ -2321,7 +2347,8 @@ static uint dump_routines_for_db(char *db)
 
   /* nice comments */
   print_comment(sql_file, 0,
-                "\n--\n-- Dumping routines for database '%s'\n--\n", db);
+                "\n--\n-- Dumping routines for database '%s'\n--\n",
+                fix_identifier_with_newline(db));
 
   /*
     not using "mysql_query_with_error_report" because we may have not
@@ -2380,7 +2407,7 @@ static uint dump_routines_for_db(char *db)
                           query_buff);
             print_comment(sql_file, 1,
                           "-- does %s have permissions on mysql.proc?\n\n",
-                          current_user);
+                          fix_identifier_with_newline(current_user));
             maybe_die(EX_MYSQLERR,"%s has insufficent privileges to %s!", current_user, query_buff);
           }
           else if (strlen(row[2]))
@@ -2593,12 +2620,12 @@ static uint get_table_structure(char *table, char *db, char *table_type,
 
       if (strcmp (table_type, "VIEW") == 0)         /* view */
         print_comment(sql_file, 0,
-                      "\n--\n-- Temporary view structure for view %s\n--\n\n",
-                      result_table);
+                      "\n--\n-- Temporary table structure for view %s\n--\n\n",
+                      fix_identifier_with_newline(result_table));
       else
         print_comment(sql_file, 0,
                       "\n--\n-- Table structure for table %s\n--\n\n",
-                      result_table);
+                      fix_identifier_with_newline(result_table));
 
       if (opt_drop)
       {
@@ -2833,7 +2860,7 @@ static uint get_table_structure(char *table, char *db, char *table_type,
 
       print_comment(sql_file, 0,
                     "\n--\n-- Table structure for table %s\n--\n\n",
-                    result_table);
+                    fix_identifier_with_newline(result_table));
       if (opt_drop)
         fprintf(sql_file, "DROP TABLE IF EXISTS %s;\n", result_table);
       if (!opt_xml)
@@ -3531,21 +3558,23 @@ static void dump_table(char *table, char *db)
   {
     print_comment(md_result_file, 0,
                   "\n--\n-- Dumping data for table %s\n--\n",
-                  result_table);
+                  fix_identifier_with_newline(result_table));
     
     dynstr_append_checked(&query_string, "SELECT /*!40001 SQL_NO_CACHE */ * FROM ");
     dynstr_append_checked(&query_string, result_table);
 
     if (where)
     {
-      print_comment(md_result_file, 0, "-- WHERE:  %s\n", where);
+      print_comment(md_result_file, 0, "-- WHERE:  %s\n",
+        fix_identifier_with_newline(where));
 
       dynstr_append_checked(&query_string, " WHERE ");
       dynstr_append_checked(&query_string, where);
     }
     if (order_by)
     {
-      print_comment(md_result_file, 0, "-- ORDER BY:  %s\n", order_by);
+      print_comment(md_result_file, 0, "-- ORDER BY:  %s\n",
+        fix_identifier_with_newline(order_by));
 
       dynstr_append_checked(&query_string, " ORDER BY ");
       dynstr_append_checked(&query_string, order_by);
@@ -4371,7 +4400,8 @@ static int init_dumping(char *database, int init_func(char*))
       char *qdatabase= quote_name(database,quoted_database_buf,opt_quoted);
 
       print_comment(md_result_file, 0,
-                    "\n--\n-- Current Database: %s\n--\n", qdatabase);
+                    "\n--\n-- Current Database: %s\n--\n",
+                    fix_identifier_with_newline(qdatabase));
 
       /* Call the view or table specific function */
       init_func(qdatabase);
@@ -5597,7 +5627,7 @@ static my_bool get_view_structure(char *table, char* db)
 
   print_comment(sql_file, 0,
                 "\n--\n-- Final view structure for view %s\n--\n\n",
-                result_table);
+                fix_identifier_with_newline(result_table));
 
   verbose_msg("-- Dropping the temporary view structure created\n");
   fprintf(sql_file, "/*!50001 DROP VIEW IF EXISTS %s*/;\n", opt_quoted_table);

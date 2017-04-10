@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -371,7 +371,8 @@ int main(int argc, char **argv)
   {
     if (!(mysql_connect_ssl_check(&mysql, host, user, opt_password,
                                   NULL, opt_mysql_port, opt_mysql_unix_port,
-                                  connect_flags, opt_ssl_required)))
+                                  connect_flags,
+                                  opt_ssl_mode == SSL_MODE_REQUIRED)))
     {
       fprintf(stderr,"%s: Error when connecting to server: %s\n",
               my_progname,mysql_error(&mysql));
