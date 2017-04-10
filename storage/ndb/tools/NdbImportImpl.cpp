@@ -1298,7 +1298,7 @@ operator<<(NdbOut& out, const NdbImportImpl::Job& job)
   {
     const Error& error = job.m_error;
     const char* typetext = error.gettypetext();
-    out << "error[" << typetext << "-" << error.code << "]";
+    out << " error[" << typetext << "-" << error.code << "]";
   }
   return out;
 }
@@ -1313,7 +1313,7 @@ operator<<(NdbOut& out, const NdbImportImpl::Team& team)
   {
     const Error& error = team.m_error;
     const char* typetext = error.gettypetext();
-    out << "error[" << typetext << "-" << error.code << "]";
+    out << " error[" << typetext << "-" << error.code << "]";
   }
   return out;
 }
@@ -1559,6 +1559,7 @@ NdbImportImpl::CsvInputWorker::CsvInputWorker(Team& team, uint n) :
   m_buf(true)
 {
   m_inputstate = InputState::State_null;
+  m_csvinput = 0;
   m_firstread = false;
   m_eof = false;
 }
@@ -3506,6 +3507,11 @@ NdbImportImpl::DiagWorker::write_result()
     uint64 rows = 0;
     uint64 reject = 0;
     uint64 temperrors = 0;
+    if (team.m_state != TeamState::State_stopped)
+    {
+      // not worth crashing
+      team.m_timer.stop();
+    }
     uint64 runtime = team.m_timer.elapsed_msec();
     uint64 utime = team.m_stat_utime->m_sum;
     const Error& error = team.m_error;
