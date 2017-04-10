@@ -5432,3 +5432,66 @@ a
 DROP TABLE t1;
 DROP TABLE t2;
 DROP DATABASE db_20772273;
+#
+# Bug #25717383: MYSQLDUMP MAY EXECUTE ANY ARBITRARY QUERY
+#
+CREATE DATABASE bug25717383;
+use bug25717383;
+CREATE TABLE `tab
+one` (a int);
+CREATE VIEW `view
+one` as SELECT * FROM `tab
+one`;
+CREATE PROCEDURE `proc
+one`() SELECT * from `tab
+one`;
+CREATE TEMPORARY TABLE `temp
+one` (id INT);
+CREATE TRIGGER `trig
+one` BEFORE INSERT ON `tab
+one` FOR EACH ROW SET NEW.a = 1;
+CREATE EVENT `event
+one` ON SCHEDULE AT '2030-01-01 00:00:00' DO SET @a=5;
+SHOW TABLES FROM bug25717383;
+Tables_in_bug25717383
+tab
+one
+view
+one
+SHOW TRIGGERS FROM bug25717383;
+Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer	character_set_client	collation_connection	Database Collation
+trig
+one	INSERT	tab
+one	SET NEW.a = 1	BEFORE	NULL		root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
+SHOW EVENTS FROM bug25717383;
+Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator	character_set_client	collation_connection	Database Collation
+bug25717383	event
+one	root@localhost	SYSTEM	ONE TIME	#	NULL	NULL	NULL	NULL	ENABLED	1	latin1	latin1_swedish_ci	latin1_swedish_ci
+SELECT ROUTINE_NAME FROM INFORMATION_SCHEMA.ROUTINES
+WHERE ROUTINE_SCHEMA='bug25717383' AND ROUTINE_TYPE= 'PROCEDURE'
+       ORDER BY ROUTINE_NAME;
+ROUTINE_NAME
+proc
+one
+SHOW TABLES FROM bug25717383;
+Tables_in_bug25717383
+tab
+one
+view
+one
+SHOW TRIGGERS FROM bug25717383;
+Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer	character_set_client	collation_connection	Database Collation
+trig
+one	INSERT	tab
+one	SET NEW.a = 1	BEFORE	NULL		root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
+SHOW EVENTS FROM bug25717383;
+Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator	character_set_client	collation_connection	Database Collation
+bug25717383	event
+one	root@localhost	SYSTEM	ONE TIME	#	NULL	NULL	NULL	NULL	ENABLED	1	latin1	latin1_swedish_ci	latin1_swedish_ci
+SELECT ROUTINE_NAME FROM INFORMATION_SCHEMA.ROUTINES
+WHERE ROUTINE_SCHEMA='bug25717383' AND ROUTINE_TYPE= 'PROCEDURE'
+       ORDER BY ROUTINE_NAME;
+ROUTINE_NAME
+proc
+one
+DROP DATABASE bug25717383;
