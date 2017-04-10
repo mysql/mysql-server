@@ -3663,11 +3663,11 @@ bool Item_func_nullif::resolve_type(THD *thd)
 double
 Item_func_nullif::val_real()
 {
-  DBUG_ASSERT(fixed == 1);
+  DBUG_ASSERT(fixed);
   double value;
   if (!cmp.compare())
   {
-    null_value=1;
+    null_value= true;
     return 0.0;
   }
   value= args[0]->val_real();
@@ -3678,11 +3678,11 @@ Item_func_nullif::val_real()
 longlong
 Item_func_nullif::val_int()
 {
-  DBUG_ASSERT(fixed == 1);
+  DBUG_ASSERT(fixed);
   longlong value;
   if (!cmp.compare())
   {
-    null_value=1;
+    null_value= true;
     return 0;
   }
   value=args[0]->val_int();
@@ -3693,12 +3693,12 @@ Item_func_nullif::val_int()
 String *
 Item_func_nullif::val_str(String *str)
 {
-  DBUG_ASSERT(fixed == 1);
+  DBUG_ASSERT(fixed);
   String *res;
   if (!cmp.compare())
   {
-    null_value=1;
-    return 0;
+    null_value= true;
+    return nullptr;
   }
   res=args[0]->val_str(str);
   null_value=args[0]->null_value;
@@ -3709,14 +3709,28 @@ Item_func_nullif::val_str(String *str)
 my_decimal *
 Item_func_nullif::val_decimal(my_decimal * decimal_value)
 {
-  DBUG_ASSERT(fixed == 1);
+  DBUG_ASSERT(fixed);
   my_decimal *res;
   if (!cmp.compare())
   {
-    null_value=1;
-    return 0;
+    null_value= true;
+    return nullptr;
   }
   res= args[0]->val_decimal(decimal_value);
+  null_value= args[0]->null_value;
+  return res;
+}
+
+
+bool Item_func_nullif::val_json(Json_wrapper *wr)
+{
+  DBUG_ASSERT(fixed);
+  if (cmp.compare() == 0)
+  {
+    null_value= true;
+    return false;
+  }
+  bool res= args[0]->val_json(wr);
   null_value= args[0]->null_value;
   return res;
 }

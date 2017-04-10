@@ -2350,3 +2350,10 @@ SELECT CAST('-2e308' AS JSON);
 SELECT CAST('2e309' AS JSON);
 --error ER_INVALID_JSON_TEXT_IN_PARAM
 SELECT CAST('-2e309' AS JSON);
+
+--echo #
+--echo # Bug#25818544: Assert failure when using result from NULLIF as JSON
+--echo #
+SELECT JSON_EXTRACT(NULLIF(JSON_OBJECT('a', 123), JSON_ARRAY()), '$.a');
+SELECT JSON_EXTRACT(NULLIF('a', 'a'), '$');
+SELECT JSON_EXTRACT(NULLIF('1', '2'), '$');

@@ -1123,6 +1123,7 @@ public:
   longlong val_int() override;
   String *val_str(String *str) override;
   my_decimal *val_decimal(my_decimal *) override;
+  bool val_json(Json_wrapper *wr) override;
   Item_result result_type() const override { return cached_result_type; }
   bool resolve_type(THD *thd) override;
   uint decimal_precision() const override
