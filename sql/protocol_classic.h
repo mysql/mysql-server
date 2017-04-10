@@ -24,7 +24,6 @@
 #include "my_decimal.h"
 #include "my_inttypes.h"
 #include "my_io.h"
-#include "my_sharedlib.h"
 #include "mysql_com.h"
 #include "protocol.h"            // Protocol
 #include "sql_string.h"
@@ -47,7 +46,7 @@ class THD;
 #define MYSQL_THD void*
 #endif
 
-class MYSQL_PLUGIN_LEGACY_API Protocol_classic : public Protocol
+class Protocol_classic : public Protocol
 {
 private:
   ulong m_client_capabilities;

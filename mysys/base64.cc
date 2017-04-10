@@ -58,7 +58,7 @@ base64_encode_max_arg_length()
 }
 
 
-MYSQL_PLUGIN_LEGACY_API uint64
+uint64
 base64_needed_encoded_length(uint64 length_of_data)
 {
   uint64 nb_base64_chars;
@@ -102,7 +102,7 @@ base64_needed_decoded_length(uint64 length_of_encoded_data)
         See base64_needed_encoded_length().
 */
 
-MYSQL_PLUGIN_LEGACY_API int
+int
 base64_encode(const void *src, size_t src_len, char *dst)
 {
   const unsigned char *s= (const unsigned char*)src;

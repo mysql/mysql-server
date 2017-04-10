@@ -31,7 +31,6 @@
 #include "my_loglevel.h"
 #include "my_macros.h"
 #include "my_psi_config.h"
-#include "my_sharedlib.h"
 #include "my_sys.h"
 #include "my_systime.h"
 #include "my_thread.h"
@@ -73,7 +72,7 @@ mysql_cond_t  THR_COND_threads;
 #endif
 
 #ifdef PTHREAD_ADAPTIVE_MUTEX_INITIALIZER_NP
-MYSQL_PLUGIN_API native_mutexattr_t my_fast_mutexattr;
+native_mutexattr_t my_fast_mutexattr;
 #endif
 #ifdef PTHREAD_ERRORCHECK_MUTEX_INITIALIZER_NP
 native_mutexattr_t my_errorcheck_mutexattr;
@@ -315,7 +314,7 @@ void my_thread_global_end()
   @retval TRUE   Fatal error; mysys/dbug functions can't be used
 */
 
-MYSQL_PLUGIN_LEGACY_API bool my_thread_init()
+bool my_thread_init()
 {
 #ifndef DBUG_OFF
   struct st_my_thread_var *tmp;
@@ -354,7 +353,7 @@ MYSQL_PLUGIN_LEGACY_API bool my_thread_init()
   mysql_server_end() and then ends with a mysql_end().
 */
 
-MYSQL_PLUGIN_LEGACY_API void my_thread_end()
+void my_thread_end()
 {
 #ifndef DBUG_OFF
   struct st_my_thread_var *tmp= mysys_thread_var();
@@ -398,7 +397,7 @@ MYSQL_PLUGIN_LEGACY_API void my_thread_end()
 }
 
 
-MYSQL_PLUGIN_LEGACY_API int my_errno()
+int my_errno()
 {
   if (THR_KEY_mysys_initialized)
     return  (int)(intptr)my_get_thread_local(THR_KEY_myerrno);
@@ -406,7 +405,7 @@ MYSQL_PLUGIN_LEGACY_API int my_errno()
 }
 
 
-MYSQL_PLUGIN_LEGACY_API void set_my_errno(int my_errno)
+void set_my_errno(int my_errno)
 {
   if (THR_KEY_mysys_initialized)
     (void) my_set_thread_local(THR_KEY_myerrno, (void*)(intptr)my_errno);

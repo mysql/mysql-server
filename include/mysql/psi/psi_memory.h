@@ -213,7 +213,7 @@ typedef struct PSI_placeholder PSI_memory_service_t;
 typedef struct PSI_placeholder PSI_memory_info;
 #endif
 
-extern MYSQL_PLUGIN_API PSI_memory_service_t *psi_memory_service;
+extern MYSQL_PLUGIN_IMPORT PSI_memory_service_t *psi_memory_service;
 
 #ifdef __cplusplus
 }

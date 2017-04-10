@@ -48,7 +48,7 @@
 #include "sql_lex.h"
 #include "sql_security_ctx.h"
 
-MYSQL_PLUGIN_LEGACY_API int initialize_channel_service_interface()
+int initialize_channel_service_interface()
 {
   DBUG_ENTER("initialize_channel_service_interface");
 
@@ -139,7 +139,7 @@ static void delete_surrogate_thread(THD *thd)
   my_thread_set_THR_THD(NULL);
 }
 
-MYSQL_PLUGIN_LEGACY_API void
+void
 initialize_channel_creation_info(Channel_creation_info* channel_info)
 {
   channel_info->type= SLAVE_REPLICATION_CHANNEL;
@@ -160,8 +160,7 @@ initialize_channel_creation_info(Channel_creation_info* channel_info)
   channel_info->connect_retry= 0;
 }
 
-MYSQL_PLUGIN_LEGACY_API void initialize_channel_ssl_info(
-  Channel_ssl_info* channel_ssl_info)
+void initialize_channel_ssl_info(Channel_ssl_info* channel_ssl_info)
 {
   channel_ssl_info->use_ssl= 0;
   channel_ssl_info->ssl_ca_file_name= 0;
@@ -175,7 +174,7 @@ MYSQL_PLUGIN_LEGACY_API void initialize_channel_ssl_info(
   channel_ssl_info->ssl_verify_server_cert= 0;
 }
 
-MYSQL_PLUGIN_LEGACY_API void
+void
 initialize_channel_connection_info(Channel_connection_info* channel_info)
 {
   channel_info->until_condition= CHANNEL_NO_UNTIL_CONDITION;
@@ -237,8 +236,8 @@ static void set_mi_ssl_options(LEX_MASTER_INFO* lex_mi, Channel_ssl_info* channe
   }
 }
 
-MYSQL_PLUGIN_LEGACY_API int channel_create(
-  const char* channel, Channel_creation_info* channel_info)
+int channel_create(const char* channel,
+                   Channel_creation_info* channel_info)
 {
   DBUG_ENTER("channel_create");
 
@@ -339,9 +338,10 @@ err:
   DBUG_RETURN(error);
 }
 
-MYSQL_PLUGIN_LEGACY_API int channel_start(
-  const char* channel, Channel_connection_info* connection_info,
-  int threads_to_start, int wait_for_connection)
+int channel_start(const char* channel,
+                  Channel_connection_info* connection_info,
+                  int threads_to_start,
+                  int wait_for_connection)
 {
   DBUG_ENTER("channel_start(channel, threads_to_start, wait_for_connection");
   int error= 0;
@@ -516,8 +516,7 @@ end:
   DBUG_RETURN(error);
 }
 
-MYSQL_PLUGIN_LEGACY_API int channel_purge_queue(
-  const char* channel, bool reset_all)
+int channel_purge_queue(const char* channel, bool reset_all)
 {
   DBUG_ENTER("channel_purge_queue(channel, only_purge");
 
@@ -545,8 +544,7 @@ MYSQL_PLUGIN_LEGACY_API int channel_purge_queue(
   DBUG_RETURN(error);
 }
 
-MYSQL_PLUGIN_LEGACY_API bool channel_is_active(
-  const char* channel, enum_channel_thread_types thd_type)
+bool channel_is_active(const char* channel, enum_channel_thread_types thd_type)
 {
   int thread_mask= 0;
   DBUG_ENTER("channel_is_active(channel, thd_type");
@@ -582,10 +580,9 @@ MYSQL_PLUGIN_LEGACY_API bool channel_is_active(
   DBUG_RETURN(false);
 }
 
-MYSQL_PLUGIN_LEGACY_API int channel_get_thread_id(
-  const char* channel,
-  enum_channel_thread_types thd_type,
-  unsigned long** thread_id)
+int channel_get_thread_id(const char* channel,
+                          enum_channel_thread_types thd_type,
+                          unsigned long** thread_id)
 {
   DBUG_ENTER("channel_get_thread_id(channel, thread_type ,*thread_id");
 
@@ -695,8 +692,7 @@ MYSQL_PLUGIN_LEGACY_API int channel_get_thread_id(
   DBUG_RETURN(number_threads);
 }
 
-MYSQL_PLUGIN_LEGACY_API long long channel_get_last_delivered_gno(
-  const char* channel, int sidno)
+long long channel_get_last_delivered_gno(const char* channel, int sidno)
 {
   DBUG_ENTER("channel_get_last_delivered_gno(channel, sidno)");
 
@@ -735,8 +731,7 @@ MYSQL_PLUGIN_LEGACY_API long long channel_get_last_delivered_gno(
   DBUG_RETURN(last_gno);
 }
 
-MYSQL_PLUGIN_LEGACY_API int channel_add_executed_gtids_to_received_gtids(
-  const char* channel)
+int channel_add_executed_gtids_to_received_gtids(const char* channel)
 {
   DBUG_ENTER("channel_add_executed_gtids_to_received_gtids(channel)");
 
@@ -761,8 +756,9 @@ MYSQL_PLUGIN_LEGACY_API int channel_add_executed_gtids_to_received_gtids(
   DBUG_RETURN(return_status != RETURN_STATUS_OK);
 }
 
-MYSQL_PLUGIN_LEGACY_API int channel_queue_packet(
-  const char* channel, const char* buf, unsigned long event_len)
+int channel_queue_packet(const char* channel,
+                         const char* buf,
+                         unsigned long event_len)
 {
   int result;
   DBUG_ENTER("channel_queue_packet(channel, event_buffer, event_len)");
@@ -784,8 +780,8 @@ MYSQL_PLUGIN_LEGACY_API int channel_queue_packet(
   DBUG_RETURN(result);
 }
 
-MYSQL_PLUGIN_LEGACY_API int channel_wait_until_apply_queue_applied(
-  const char* channel, double timeout)
+int channel_wait_until_apply_queue_applied(const char* channel,
+                                           double timeout)
 {
   DBUG_ENTER("channel_wait_until_apply_queue_applied(channel, timeout)");
 
@@ -828,7 +824,7 @@ MYSQL_PLUGIN_LEGACY_API int channel_wait_until_apply_queue_applied(
   DBUG_RETURN(error);
 }
 
-MYSQL_PLUGIN_LEGACY_API int channel_is_applier_waiting(const char* channel)
+int channel_is_applier_waiting(const char* channel)
 {
   DBUG_ENTER("channel_is_applier_waiting(channel)");
   int result= RPL_CHANNEL_SERVICE_CHANNEL_DOES_NOT_EXISTS_ERROR;
@@ -909,7 +905,7 @@ int channel_is_applier_thread_waiting(unsigned long thread_id, bool worker)
   DBUG_RETURN(result);
 }
 
-MYSQL_PLUGIN_LEGACY_API int channel_flush(const char* channel)
+int channel_flush(const char* channel)
 {
   DBUG_ENTER("channel_flush(channel)");
 
@@ -930,8 +926,8 @@ MYSQL_PLUGIN_LEGACY_API int channel_flush(const char* channel)
   DBUG_RETURN(error ? 1 : 0);
 }
 
-MYSQL_PLUGIN_LEGACY_API int channel_get_retrieved_gtid_set(
-  const char* channel, char** retrieved_set)
+int channel_get_retrieved_gtid_set(const char* channel,
+                                   char** retrieved_set)
 {
   DBUG_ENTER("channel_get_retrieved_gtid_set(channel,retrieved_set)");
 
@@ -959,8 +955,8 @@ MYSQL_PLUGIN_LEGACY_API int channel_get_retrieved_gtid_set(
   DBUG_RETURN(error);
 }
 
-MYSQL_PLUGIN_LEGACY_API bool channel_is_stopping(
-  const char* channel, enum_channel_thread_types thd_type)
+bool channel_is_stopping(const char* channel,
+                         enum_channel_thread_types thd_type)
 {
   bool is_stopping= false;
   DBUG_ENTER("channel_is_stopping(channel, thd_type");
@@ -995,8 +991,7 @@ MYSQL_PLUGIN_LEGACY_API bool channel_is_stopping(
   DBUG_RETURN(is_stopping);
 }
 
-MYSQL_PLUGIN_LEGACY_API bool is_partial_transaction_on_channel_relay_log(
-  const char *channel)
+bool is_partial_transaction_on_channel_relay_log(const char *channel)
 {
   DBUG_ENTER("is_partial_transaction_on_channel_relay_log(channel)");
   channel_map.rdlock();

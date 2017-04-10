@@ -25,7 +25,6 @@
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_pointer_arithmetic.h"
-#include "my_sharedlib.h"
 #include "my_sys.h"  // IWYU pragma: keep
 #include "mysql/psi/psi_memory.h"
 #include "mysql/service_mysql_alloc.h"
@@ -45,8 +44,7 @@
 	NULL
 */
 
-MYSQL_PLUGIN_LEGACY_API void* my_multi_malloc(
-  PSI_memory_key key, myf myFlags, ...)
+void* my_multi_malloc(PSI_memory_key key, myf myFlags, ...)
 {
   va_list args;
   char **ptr,*start,*res;

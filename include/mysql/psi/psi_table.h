@@ -338,7 +338,7 @@ typedef struct PSI_table_service_v1 PSI_table_service_t;
 typedef struct PSI_placeholder PSI_table_service_t;
 #endif
 
-extern MYSQL_PLUGIN_API PSI_table_service_t *psi_table_service;
+extern MYSQL_PLUGIN_IMPORT PSI_table_service_t *psi_table_service;
 
 /** @} (end of group psi_abi_table) */
 

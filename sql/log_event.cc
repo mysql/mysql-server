@@ -1228,13 +1228,12 @@ bool Log_event::write_header(IO_CACHE* file, size_t event_data_length)
   The caller should allocate the packet buffer before calling this function.
 */
 
-int Log_event::read_log_event(
-  IO_CACHE* file, String* packet,
-  mysql_mutex_t* log_lock,
-  enum_binlog_checksum_alg checksum_alg_arg,
-  const char *log_file_name_arg,
-  bool* is_binlog_active,
-  char *event_header)
+int Log_event::read_log_event(IO_CACHE* file, String* packet,
+                              mysql_mutex_t* log_lock,
+                              enum_binlog_checksum_alg checksum_alg_arg,
+                              const char *log_file_name_arg,
+                              bool* is_binlog_active,
+                              char *event_header)
 {
 
   ulong data_len;
@@ -1405,17 +1404,17 @@ end:
   @note
     Allocates memory;  The caller is responsible for clean-up.
 */
-Log_event* Log_event::read_log_event(
-  IO_CACHE* file,
-  mysql_mutex_t* log_lock,
-  const Format_description_log_event *description_event,
-  bool crc_check)
+Log_event* Log_event::read_log_event(IO_CACHE* file,
+                                     mysql_mutex_t* log_lock,
+                                     const Format_description_log_event
+                                     *description_event,
+                                     bool crc_check)
 #else
-Log_event* Log_event::read_log_event(
-  IO_CACHE* file,
-  const Format_description_log_event *description_event,
-  bool crc_check,
-  read_log_event_filter_function f)
+Log_event* Log_event::read_log_event(IO_CACHE* file,
+                                     const Format_description_log_event
+                                     *description_event,
+                                     bool crc_check,
+                                     read_log_event_filter_function f)
 #endif
 {
   DBUG_ENTER("Log_event::read_log_event(IO_CACHE *[, mysql_mutex_t *], Format_description_log_event *, bool)");
@@ -4032,7 +4031,6 @@ bool is_atomic_ddl(THD *thd, bool using_trans_arg)
   @param ignore_cmd_internals       Ignore user's statement, i.e. lex information, while
                       deciding which cache must be used.
 */
-MYSQL_PLUGIN_LEGACY_API
 Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
 				 size_t query_length, bool using_trans,
 				 bool immediate, bool suppress_use,
@@ -5305,7 +5303,7 @@ Start_log_event_v3::Start_log_event_v3()
   Start_log_event_v3::pack_info()
 */
 
-MYSQL_PLUGIN_LEGACY_API int Start_log_event_v3::pack_info(Protocol *protocol)
+int Start_log_event_v3::pack_info(Protocol *protocol)
 {
   char buf[12 + ST_SERVER_VER_LEN + 14 + 22], *pos;
   pos= my_stpcpy(buf, "Server ver: ");
@@ -13360,7 +13358,6 @@ int Previous_gtids_log_event::do_update_pos(Relay_log_info *rli)
 	Transaction_context_log_event methods
 **************************************************************************/
 
-MYSQL_PLUGIN_LEGACY_API
 Transaction_context_log_event::
 Transaction_context_log_event(const char *server_uuid_arg,
                               bool using_trans,
@@ -13586,8 +13583,7 @@ bool Transaction_context_log_event::write_data_set(IO_CACHE* file,
 }
 #endif
 
-MYSQL_PLUGIN_LEGACY_API bool
-Transaction_context_log_event::read_snapshot_version()
+bool Transaction_context_log_event::read_snapshot_version()
 {
   DBUG_ENTER("Transaction_context_log_event::read_snapshot_version");
   DBUG_ASSERT(snapshot_version->is_empty());
@@ -13623,8 +13619,7 @@ int Transaction_context_log_event::get_data_set_size(std::list<const char*> *set
   DBUG_RETURN(size);
 }
 
-MYSQL_PLUGIN_LEGACY_API void Transaction_context_log_event::add_write_set(
-  const char *hash)
+void Transaction_context_log_event::add_write_set(const char *hash)
 {
   DBUG_ENTER("Transaction_context_log_event::add_write_set");
   write_set.push_back(hash);
@@ -13643,7 +13638,6 @@ void Transaction_context_log_event::add_read_set(const char *hash)
 **************************************************************************/
 
 #ifdef MYSQL_SERVER
-MYSQL_PLUGIN_LEGACY_API
 View_change_log_event::View_change_log_event(char* raw_view_id)
   : binary_log::View_change_event(raw_view_id),
     Log_event(header(), footer(), Log_event::EVENT_TRANSACTIONAL_CACHE,
@@ -13659,7 +13653,6 @@ View_change_log_event::View_change_log_event(char* raw_view_id)
 }
 #endif
 
-MYSQL_PLUGIN_LEGACY_API
 View_change_log_event::
 View_change_log_event(const char *buffer,
                       const Format_description_event *descr_event)
@@ -13847,7 +13840,7 @@ bool View_change_log_event::write_data_map(IO_CACHE* file,
 /*
   Updates the certification info map.
 */
-MYSQL_PLUGIN_LEGACY_API void
+void
 View_change_log_event::set_certification_info(std::map<std::string, std::string> *info)
 {
   DBUG_ENTER("View_change_log_event::set_certification_database_snapshot");

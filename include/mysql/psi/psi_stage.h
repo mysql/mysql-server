@@ -173,7 +173,7 @@ typedef struct PSI_placeholder PSI_stage_info;
 typedef struct PSI_placeholder PSI_stage_progress;
 #endif
 
-extern MYSQL_PLUGIN_API PSI_stage_service_t *psi_stage_service;
+extern MYSQL_PLUGIN_IMPORT PSI_stage_service_t *psi_stage_service;
 
 /** @} (end of group psi_abi_stage) */
 

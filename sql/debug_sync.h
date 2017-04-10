@@ -41,7 +41,7 @@ class THD;
              } while (0)
 
 /* Command line option --debug-sync-timeout. See mysqld.cc. */
-extern MYSQL_PLUGIN_API uint opt_debug_sync_timeout;
+extern MYSQL_PLUGIN_IMPORT uint opt_debug_sync_timeout;
 
 /* Default WAIT_FOR timeout if command line option is given without argument. */
 #define DEBUG_SYNC_DEFAULT_WAIT_TIMEOUT 300
@@ -52,10 +52,8 @@ extern void debug_sync_end(void);
 extern void debug_sync_init_thread(THD *thd);
 extern void debug_sync_claim_memory_ownership(THD *thd);
 extern void debug_sync_end_thread(THD *thd);
-extern MYSQL_PLUGIN_LEGACY_API void debug_sync(
-  THD *thd, const char *sync_point_name, size_t name_len);
-extern MYSQL_PLUGIN_LEGACY_API bool debug_sync_set_action(
-  THD *thd, const char *action_str, size_t len);
+extern void debug_sync(THD *thd, const char *sync_point_name, size_t name_len);
+extern bool debug_sync_set_action(THD *thd, const char *action_str, size_t len);
 extern bool debug_sync_update(THD *thd, char *val_str);
 extern uchar *debug_sync_value_ptr(THD *thd);
 

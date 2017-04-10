@@ -17,7 +17,6 @@
 #define REPLICATION_H
 
 #include "handler.h"                  // enum_tx_isolation
-#include "my_sharedlib.h"
 #include "my_thread_local.h"          // my_thread_id
 #include "mysql/psi/mysql_thread.h"   // mysql_mutex_t
 
@@ -653,8 +652,7 @@ typedef struct Binlog_relay_IO_observer {
    @retval 0 Sucess
    @retval 1 Observer already exists
 */
-MYSQL_PLUGIN_LEGACY_API int register_trans_observer(
-  Trans_observer *observer, void *p);
+int register_trans_observer(Trans_observer *observer, void *p);
 
 /**
    Unregister a transaction observer
@@ -665,8 +663,7 @@ MYSQL_PLUGIN_LEGACY_API int register_trans_observer(
    @retval 0 Sucess
    @retval 1 Observer not exists
 */
-MYSQL_PLUGIN_LEGACY_API int unregister_trans_observer(
-  Trans_observer *observer, void *p);
+int unregister_trans_observer(Trans_observer *observer, void *p);
 
 /**
    Register a binlog storage observer
@@ -677,8 +674,7 @@ MYSQL_PLUGIN_LEGACY_API int unregister_trans_observer(
    @retval 0 Sucess
    @retval 1 Observer already exists
 */
-MYSQL_PLUGIN_LEGACY_API int register_binlog_storage_observer(
-  Binlog_storage_observer *observer, void *p);
+int register_binlog_storage_observer(Binlog_storage_observer *observer, void *p);
 
 /**
    Unregister a binlog storage observer
@@ -689,8 +685,7 @@ MYSQL_PLUGIN_LEGACY_API int register_binlog_storage_observer(
    @retval 0 Sucess
    @retval 1 Observer not exists
 */
-MYSQL_PLUGIN_LEGACY_API int unregister_binlog_storage_observer(
-  Binlog_storage_observer *observer, void *p);
+int unregister_binlog_storage_observer(Binlog_storage_observer *observer, void *p);
 
 /**
    Register a binlog transmit observer
@@ -701,8 +696,7 @@ MYSQL_PLUGIN_LEGACY_API int unregister_binlog_storage_observer(
    @retval 0 Sucess
    @retval 1 Observer already exists
 */
-MYSQL_PLUGIN_LEGACY_API int register_binlog_transmit_observer(
-  Binlog_transmit_observer *observer, void *p);
+int register_binlog_transmit_observer(Binlog_transmit_observer *observer, void *p);
 
 /**
    Unregister a binlog transmit observer
@@ -713,8 +707,7 @@ MYSQL_PLUGIN_LEGACY_API int register_binlog_transmit_observer(
    @retval 0 Sucess
    @retval 1 Observer not exists
 */
-MYSQL_PLUGIN_LEGACY_API int unregister_binlog_transmit_observer(
-  Binlog_transmit_observer *observer, void *p);
+int unregister_binlog_transmit_observer(Binlog_transmit_observer *observer, void *p);
 
 /**
    Register a server state observer
@@ -725,8 +718,7 @@ MYSQL_PLUGIN_LEGACY_API int unregister_binlog_transmit_observer(
    @retval 0 Success
    @retval 1 Observer already exists
 */
-MYSQL_PLUGIN_LEGACY_API int register_server_state_observer(
-  Server_state_observer *observer, void *p);
+int register_server_state_observer(Server_state_observer *observer, void *p);
 
 /**
    Unregister a server state observer
@@ -737,8 +729,7 @@ MYSQL_PLUGIN_LEGACY_API int register_server_state_observer(
    @retval 0 Success
    @retval 1 Observer not exists
 */
-MYSQL_PLUGIN_LEGACY_API int unregister_server_state_observer(
-  Server_state_observer *observer, void *p);
+int unregister_server_state_observer(Server_state_observer *observer, void *p);
 
 /**
    Register a binlog relay IO (slave IO thread) observer
@@ -749,8 +740,7 @@ MYSQL_PLUGIN_LEGACY_API int unregister_server_state_observer(
    @retval 0 Sucess
    @retval 1 Observer already exists
 */
-MYSQL_PLUGIN_LEGACY_API int register_binlog_relay_io_observer(
-  Binlog_relay_IO_observer *observer, void *p);
+int register_binlog_relay_io_observer(Binlog_relay_IO_observer *observer, void *p);
 
 /**
    Unregister a binlog relay IO (slave IO thread) observer
@@ -761,8 +751,7 @@ MYSQL_PLUGIN_LEGACY_API int register_binlog_relay_io_observer(
    @retval 0 Sucess
    @retval 1 Observer not exists
 */
-MYSQL_PLUGIN_LEGACY_API int unregister_binlog_relay_io_observer(
-  Binlog_relay_IO_observer *observer, void *p);
+int unregister_binlog_relay_io_observer(Binlog_relay_IO_observer *observer, void *p);
 
 /**
    Set thread entering a condition
@@ -781,11 +770,10 @@ MYSQL_PLUGIN_LEGACY_API int unregister_binlog_relay_io_observer(
    @param src_file The caller source file name
    @param src_line The caller source line number
 */
-MYSQL_PLUGIN_LEGACY_API void thd_enter_cond(
-  void *opaque_thd, mysql_cond_t *cond, mysql_mutex_t *mutex,
-  const PSI_stage_info *stage, PSI_stage_info *old_stage,
-  const char *src_function, const char *src_file,
-  int src_line);
+void thd_enter_cond(void *opaque_thd, mysql_cond_t *cond, mysql_mutex_t *mutex,
+                    const PSI_stage_info *stage, PSI_stage_info *old_stage,
+                    const char *src_function, const char *src_file,
+                    int src_line);
 
 #define THD_ENTER_COND(P1, P2, P3, P4, P5) \
   thd_enter_cond(P1, P2, P3, P4, P5, __func__, __FILE__, __LINE__)
@@ -803,10 +791,9 @@ MYSQL_PLUGIN_LEGACY_API void thd_enter_cond(
    @param src_file The caller source file name
    @param src_line The caller source line number
 */
-MYSQL_PLUGIN_LEGACY_API void thd_exit_cond(
-  void *opaque_thd, const PSI_stage_info *stage,
-  const char *src_function, const char *src_file,
-  int src_line);
+void thd_exit_cond(void *opaque_thd, const PSI_stage_info *stage,
+                   const char *src_function, const char *src_file,
+                   int src_line);
 
 #define THD_EXIT_COND(P1, P2) \
   thd_exit_cond(P1, P2, __func__, __FILE__, __LINE__)
@@ -826,8 +813,8 @@ MYSQL_PLUGIN_LEGACY_API void thd_exit_cond(
    @retval 0 Success
    @retval 1 Variable not found
 */
-MYSQL_PLUGIN_LEGACY_API int get_user_var_int(
-  const char *name, long long int *value, int *null_value);
+int get_user_var_int(const char *name,
+                     long long int *value, int *null_value);
 
 /**
    Get the value of user variable as a double precision float number.

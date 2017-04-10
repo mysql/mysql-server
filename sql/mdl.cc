@@ -43,7 +43,7 @@
 #include "prealloced_array.h"
 #include "thr_malloc.h"
 
-extern "C" MYSQL_PLUGIN_API CHARSET_INFO *system_charset_info;
+extern "C" MYSQL_PLUGIN_IMPORT CHARSET_INFO *system_charset_info;
 
 static PSI_memory_key key_memory_MDL_context_acquire_locks;
 
@@ -1562,7 +1562,6 @@ bool MDL_context::fix_pins()
   @param  src_line       Source line number issuing the request.
 */
 
-MYSQL_PLUGIN_LEGACY_API
 void MDL_request::init_with_source(MDL_key::enum_mdl_namespace mdl_namespace,
                        const char *db_arg,
                        const char *name_arg,

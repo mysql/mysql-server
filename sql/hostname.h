@@ -22,7 +22,6 @@
 
 #include "hash_filo.h"
 #include "my_inttypes.h"
-#include "my_sharedlib.h"
 #include "mysql_com.h"
 
 #ifdef HAVE_NETINET_IN_H
@@ -172,7 +171,6 @@ public:
 
 #define RC_OK 0
 #define RC_BLOCKED_HOST 1
-MYSQL_PLUGIN_LEGACY_API
 int ip_to_hostname(struct sockaddr_storage *ip_storage,
                    const char *ip_string,
                    char **hostname, uint *connect_errors);

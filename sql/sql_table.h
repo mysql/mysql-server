@@ -373,7 +373,7 @@ void parse_filename(const char *filename, size_t filename_length,
                     const char ** partition_name, size_t *partition_name_length,
                     const char ** subpartition_name, size_t *subpartition_name_length);
 
-extern MYSQL_PLUGIN_API const char *primary_key_name;
+extern MYSQL_PLUGIN_IMPORT const char *primary_key_name;
 extern mysql_mutex_t LOCK_gdl;
 
 

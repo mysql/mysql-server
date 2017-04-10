@@ -1479,7 +1479,7 @@ static inline bool belongs_to_p_s(TABLE_LIST *tl)
     leave prelocked mode if needed.
 */
 
-MYSQL_PLUGIN_LEGACY_API void close_thread_tables(THD *thd)
+void close_thread_tables(THD *thd)
 {
   TABLE *table;
   DBUG_ENTER("close_thread_tables");
@@ -6574,9 +6574,8 @@ end:
   @retval TRUE   Error
 */
 
-MYSQL_PLUGIN_LEGACY_API bool open_and_lock_tables(
-  THD *thd, TABLE_LIST *tables, uint flags,
-  Prelocking_strategy *prelocking_strategy)
+bool open_and_lock_tables(THD *thd, TABLE_LIST *tables, uint flags,
+                          Prelocking_strategy *prelocking_strategy)
 {
   uint counter;
   MDL_savepoint mdl_savepoint= thd->mdl_context.mdl_savepoint();

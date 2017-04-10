@@ -70,7 +70,7 @@ const char* ER_DEFAULT(int mysql_errno)
 }
 
 
-MYSQL_PLUGIN_LEGACY_API const char* ER_THD(const THD *thd, int mysql_errno)
+const char* ER_THD(const THD *thd, int mysql_errno)
 {
   return thd->variables.lc_messages->errmsgs->lookup(mysql_errno);
 }

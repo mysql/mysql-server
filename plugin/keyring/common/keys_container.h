@@ -30,7 +30,7 @@
 
 namespace keyring {
 
-extern "C" MYSQL_PLUGIN_API CHARSET_INFO *system_charset_info;
+extern "C" MYSQL_PLUGIN_IMPORT CHARSET_INFO *system_charset_info;
 
 class Keys_container : public IKeys_container
 {

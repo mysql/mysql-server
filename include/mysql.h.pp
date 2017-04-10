@@ -42,7 +42,6 @@ extern LIST *list_reverse(LIST *root);
 extern void list_free(LIST *root,unsigned int free_data);
 extern unsigned int list_length(LIST *);
 extern int list_walk(LIST *,list_walk_action action,unsigned char * argument);
-#include "my_sharedlib.h"
 #include "mysql_com.h"
 #include "my_command.h"
 enum enum_server_command
@@ -81,7 +80,6 @@ enum enum_server_command
   COM_RESET_CONNECTION,
   COM_END
 };
-#include "my_sharedlib.h"
 enum SERVER_STATUS_flags_enum
 {
   SERVER_STATUS_IN_TRANS= 1,
@@ -153,12 +151,11 @@ enum enum_session_state_type
 bool my_net_init(NET *net, void* vio);
 void my_net_local_init(NET *net);
 void net_end(NET *net);
- void net_clear(NET *net, bool check_buffer);
+void net_clear(NET *net, bool check_buffer);
 void net_claim_memory_ownership(NET *net);
 bool net_realloc(NET *net, size_t length);
- bool net_flush(NET *net);
- bool my_net_write(
-  NET *net,const unsigned char *packet, size_t len);
+bool net_flush(NET *net);
+bool my_net_write(NET *net,const unsigned char *packet, size_t len);
 bool net_write_command(NET *net,unsigned char command,
      const unsigned char *header, size_t head_len,
      const unsigned char *packet, size_t len);
@@ -214,8 +211,8 @@ void make_password_from_salt(char *to, const unsigned char *hash_stage2);
 char *octet2hex(char *to, const char *str, unsigned int len);
 char *get_tty_password(const char *opt_message);
 const char *mysql_errno_to_sqlstate(unsigned int mysql_errno);
- bool my_thread_init(void);
- void my_thread_end(void);
+bool my_thread_init(void);
+void my_thread_end(void);
 unsigned long net_field_length(unsigned char **packet);
 unsigned long long net_field_length_ll(unsigned char **packet);
 unsigned char *net_store_length(unsigned char *pkg, unsigned long long length);
@@ -494,7 +491,7 @@ MYSQL_FIELD_OFFSET mysql_field_tell(MYSQL_RES *res);
 unsigned int mysql_field_count(MYSQL *mysql);
 my_ulonglong mysql_affected_rows(MYSQL *mysql);
 my_ulonglong mysql_insert_id(MYSQL *mysql);
- unsigned int mysql_errno(MYSQL *mysql);
+unsigned int mysql_errno(MYSQL *mysql);
 const char * mysql_error(MYSQL *mysql);
 const char * mysql_sqlstate(MYSQL *mysql);
 unsigned int mysql_warning_count(MYSQL *mysql);
@@ -520,9 +517,9 @@ int mysql_select_db(MYSQL *mysql, const char *db);
 int mysql_query(MYSQL *mysql, const char *q);
 int mysql_send_query(MYSQL *mysql, const char *q,
       unsigned long length);
- int mysql_real_query(MYSQL *mysql, const char *q,
+int mysql_real_query(MYSQL *mysql, const char *q,
      unsigned long length);
- MYSQL_RES * mysql_store_result(MYSQL *mysql);
+MYSQL_RES * mysql_store_result(MYSQL *mysql);
 MYSQL_RES * mysql_use_result(MYSQL *mysql);
 void mysql_get_character_set_info(MYSQL *mysql,
                            MY_CHARSET_INFO *charset);
@@ -573,14 +570,14 @@ int mysql_options4(MYSQL *mysql,enum mysql_option option,
                                        const void *arg1, const void *arg2);
 int mysql_get_option(MYSQL *mysql, enum mysql_option option,
                                          const void *arg);
- void mysql_free_result(MYSQL_RES *result);
+void mysql_free_result(MYSQL_RES *result);
 void mysql_data_seek(MYSQL_RES *result,
      my_ulonglong offset);
 MYSQL_ROW_OFFSET mysql_row_seek(MYSQL_RES *result,
       MYSQL_ROW_OFFSET offset);
 MYSQL_FIELD_OFFSET mysql_field_seek(MYSQL_RES *result,
         MYSQL_FIELD_OFFSET offset);
- MYSQL_ROW mysql_fetch_row(MYSQL_RES *result);
+MYSQL_ROW mysql_fetch_row(MYSQL_RES *result);
 unsigned long * mysql_fetch_lengths(MYSQL_RES *result);
 MYSQL_FIELD * mysql_fetch_field(MYSQL_RES *result);
 MYSQL_RES * mysql_list_fields(MYSQL *mysql, const char *table,
@@ -714,4 +711,4 @@ bool mysql_autocommit(MYSQL * mysql, bool auto_mode);
 bool mysql_more_results(MYSQL *mysql);
 int mysql_next_result(MYSQL *mysql);
 int mysql_stmt_next_result(MYSQL_STMT *stmt);
- void mysql_close(MYSQL *sock);
+void mysql_close(MYSQL *sock);

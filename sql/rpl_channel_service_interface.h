@@ -16,8 +16,6 @@
 #ifndef RPL_SERVICE_INTERFACE_INCLUDE
 #define RPL_SERVICE_INTERFACE_INCLUDE
 
-#include "my_sharedlib.h"
-
 //Channel errors
 
 #define RPL_CHANNEL_SERVICE_RECEIVER_CONNECTION_ERROR      -1
@@ -72,8 +70,7 @@ struct st_ssl_info
 };
 typedef struct st_ssl_info Channel_ssl_info;
 
-MYSQL_PLUGIN_LEGACY_API void initialize_channel_ssl_info(
-  Channel_ssl_info* channel_ssl_info);
+void initialize_channel_ssl_info(Channel_ssl_info* channel_ssl_info);
 
 /**
  Creation information for a channel.
@@ -100,8 +97,7 @@ struct st_channel_info
 };
 typedef struct st_channel_info Channel_creation_info;
 
-MYSQL_PLUGIN_LEGACY_API void initialize_channel_creation_info(
-  Channel_creation_info* channel_info);
+void initialize_channel_creation_info(Channel_creation_info* channel_info);
 
 //Start settings
 
@@ -140,7 +136,7 @@ struct st_channel_connection_info
 
 typedef struct st_channel_connection_info Channel_connection_info;
 
-MYSQL_PLUGIN_LEGACY_API void
+void
 initialize_channel_connection_info(Channel_connection_info* channel_info);
 
 /**
@@ -157,8 +153,8 @@ initialize_channel_connection_info(Channel_connection_info* channel_info);
     @retval 0      OK
     @retval !=0    Error on channel creation
 */
-MYSQL_PLUGIN_LEGACY_API int channel_create(
-  const char* channel, Channel_creation_info* channel_information);
+int channel_create(const char* channel,
+                   Channel_creation_info* channel_information);
 
 /**
   Start the Applier/Receiver threads according to the given options.
@@ -175,11 +171,10 @@ MYSQL_PLUGIN_LEGACY_API int channel_create(
     @retval 0      OK
     @retval !=0    Error
  */
-MYSQL_PLUGIN_LEGACY_API int channel_start(
-  const char* channel,
-  Channel_connection_info* connection_info,
-  int threads_to_start,
-  int wait_for_connection);
+int channel_start(const char* channel,
+                  Channel_connection_info* connection_info,
+                  int threads_to_start,
+                  int wait_for_connection);
 
 /**
   Stops the channel threads according to the given options.
@@ -191,9 +186,9 @@ MYSQL_PLUGIN_LEGACY_API int channel_start(
     @retval 0      OK
     @retval !=0    Error
 */
-MYSQL_PLUGIN_LEGACY_API int channel_stop(const char* channel,
-                                         int threads_to_stop,
-					 long timeout);
+int channel_stop(const char* channel,
+                 int threads_to_stop,
+                 long timeout);
 
 /**
   Purges the channel logs
@@ -206,8 +201,7 @@ MYSQL_PLUGIN_LEGACY_API int channel_stop(const char* channel,
     @retval 0      OK
     @retval !=0    Error
 */
-MYSQL_PLUGIN_LEGACY_API int channel_purge_queue(
-  const char* channel, bool reset_all);
+int channel_purge_queue(const char* channel, bool reset_all);
 
 /**
   Tells if the selected component of the channel is active or not.
@@ -221,8 +215,7 @@ MYSQL_PLUGIN_LEGACY_API int channel_purge_queue(
     @retval true    Yes
     @retval false   No
 */
-MYSQL_PLUGIN_LEGACY_API bool channel_is_active(
-  const char* channel, enum_channel_thread_types type);
+bool channel_is_active(const char* channel, enum_channel_thread_types type);
 
 /**
   Returns the id(s) of the channel threads: receiver or applier.
@@ -237,10 +230,9 @@ MYSQL_PLUGIN_LEGACY_API bool channel_is_active(
     @retval -1  the channel does no exists, or the thread is not present
     @retval >0 the number of thread ids returned.
 */
-MYSQL_PLUGIN_LEGACY_API int channel_get_thread_id(
-  const char* channel,
-  enum_channel_thread_types thread_type,
-  unsigned long** thread_id);
+int channel_get_thread_id(const char* channel,
+                          enum_channel_thread_types thread_type,
+                          unsigned long** thread_id);
 
 /**
   Returns last GNO from applier from a given UUID.
@@ -252,8 +244,7 @@ MYSQL_PLUGIN_LEGACY_API int channel_get_thread_id(
     @retval <0 the channel does no exists, or the applier is not present
     @retval >0 the gno
 */
-MYSQL_PLUGIN_LEGACY_API long long channel_get_last_delivered_gno(
-  const char* channel, int sidno);
+long long channel_get_last_delivered_gno(const char* channel, int sidno);
 
 /**
   Adds server executed GTID set to channel received GTID set.
@@ -264,8 +255,7 @@ MYSQL_PLUGIN_LEGACY_API long long channel_get_last_delivered_gno(
     @retval 0      OK
     @retval != 0   Error
 */
-MYSQL_PLUGIN_LEGACY_API int channel_add_executed_gtids_to_received_gtids(
-  const char* channel);
+int channel_add_executed_gtids_to_received_gtids(const char* channel);
 
 /**
   Queues a event packet into the current active channel.
@@ -278,8 +268,7 @@ MYSQL_PLUGIN_LEGACY_API int channel_add_executed_gtids_to_received_gtids(
     @retval 0      OK
     @retval != 0   Error on queue
 */
-MYSQL_PLUGIN_LEGACY_API int channel_queue_packet(
-  const char* channel, const char* buf, unsigned long len);
+int channel_queue_packet(const char* channel, const char* buf, unsigned long len);
 
 /**
   Checks if all the queued transactions were executed.
@@ -297,8 +286,8 @@ MYSQL_PLUGIN_LEGACY_API int channel_queue_packet(
     @retval REPLICATION_THREAD_WAIT_TIMEOUT_ERROR     A timeout occurred
     @retval REPLICATION_THREAD_WAIT_NO_INFO_ERROR     An error occurred
 */
-MYSQL_PLUGIN_LEGACY_API int channel_wait_until_apply_queue_applied(
-  const char* channel, double timeout);
+int channel_wait_until_apply_queue_applied(const char* channel,
+                                           double timeout);
 
 /**
   Checks if the applier, and its workers when parallel applier is
@@ -312,7 +301,7 @@ MYSQL_PLUGIN_LEGACY_API int channel_wait_until_apply_queue_applied(
     @retval  0  Applier is not waiting
     @retval  1  Applier is waiting
 */
-MYSQL_PLUGIN_LEGACY_API int channel_is_applier_waiting(const char* channel);
+int channel_is_applier_waiting(const char* channel);
 
 /**
   Checks if the applier thread, and its workers when parallel applier is
@@ -337,7 +326,7 @@ int channel_is_applier_thread_waiting(unsigned long thread_id,
     @retval 0      OK
     @retval != 0   Error on flush
 */
-MYSQL_PLUGIN_LEGACY_API int channel_flush(const char* channel);
+int channel_flush(const char* channel);
 
 /**
   Initializes channel structures if needed.
@@ -346,7 +335,7 @@ MYSQL_PLUGIN_LEGACY_API int channel_flush(const char* channel);
     @retval 0      OK
     @retval != 0   Error on queue
 */
-MYSQL_PLUGIN_LEGACY_API int initialize_channel_service_interface();
+int initialize_channel_service_interface();
 
 /**
   Returns the receiver thread retrieved GTID set in string format.
@@ -360,8 +349,8 @@ MYSQL_PLUGIN_LEGACY_API int initialize_channel_service_interface();
     @retval 0    OK
     @retval !=0  Error on retrieval
 */
-MYSQL_PLUGIN_LEGACY_API int channel_get_retrieved_gtid_set(
-  const char* channel, char** retrieved_set);
+int channel_get_retrieved_gtid_set(const char* channel,
+                                   char** retrieved_set);
 
 /**
   Tells if the selected component of the channel is stopping or not.
@@ -373,8 +362,7 @@ MYSQL_PLUGIN_LEGACY_API int channel_get_retrieved_gtid_set(
     @retval true    Yes
     @retval false   No, no type was specified or the channel does not exist.
 */
-MYSQL_PLUGIN_LEGACY_API bool channel_is_stopping(
-  const char* channel, enum_channel_thread_types type);
+bool channel_is_stopping(const char* channel, enum_channel_thread_types type);
 
 /**
   Checks if the given channel's relaylog contains a partial transaction.
@@ -385,7 +373,6 @@ MYSQL_PLUGIN_LEGACY_API bool channel_is_stopping(
     @retval true    If relaylog contains partial transcation.
     @retval false   If relaylog does not contain partial transaction.
 */
-MYSQL_PLUGIN_LEGACY_API bool is_partial_transaction_on_channel_relay_log(
-  const char* channel);
+bool is_partial_transaction_on_channel_relay_log(const char* channel);
 
 #endif //RPL_SERVICE_INTERFACE_INCLUDE

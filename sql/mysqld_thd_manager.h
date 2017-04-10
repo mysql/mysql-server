@@ -22,7 +22,6 @@
 
 #include "my_dbug.h"
 #include "my_inttypes.h"
-#include "my_sharedlib.h"
 #include "my_thread_local.h"   // my_thread_id
 #include "mysql/psi/mysql_cond.h"
 #include "mysql/psi/mysql_mutex.h"
@@ -33,8 +32,8 @@ class THD;
 #ifdef __cplusplus
 extern "C" {
 #endif
-MYSQL_PLUGIN_LEGACY_API void thd_lock_thread_count();
-MYSQL_PLUGIN_LEGACY_API void thd_unlock_thread_count();
+void thd_lock_thread_count();
+void thd_unlock_thread_count();
 #ifdef __cplusplus
 }
 #endif

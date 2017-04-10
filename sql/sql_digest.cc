@@ -47,7 +47,7 @@
 #define SIZE_OF_A_TOKEN 2
 
 ulong max_digest_length= 0;
-MYSQL_PLUGIN_LEGACY_API ulong get_max_digest_length()
+ulong get_max_digest_length()
 {
   return max_digest_length;
 }
@@ -175,8 +175,8 @@ void compute_digest_md5(const sql_digest_storage *digest_storage, unsigned char 
 /*
   Iterate token array and updates digest_text.
 */
-MYSQL_PLUGIN_LEGACY_API void compute_digest_text(
-  const sql_digest_storage* digest_storage, String *digest_text)
+void compute_digest_text(const sql_digest_storage* digest_storage,
+                         String *digest_text)
 {
   DBUG_ASSERT(digest_storage != NULL);
   uint byte_count= digest_storage->m_byte_count;

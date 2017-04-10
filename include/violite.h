@@ -35,7 +35,6 @@
 #include "my_inttypes.h"
 #include "my_io.h"
 #include "my_psi_config.h"  // IWYU pragma: keep
-#include "my_sharedlib.h"
 
 struct st_vio;
 
@@ -134,8 +133,7 @@ enum enum_vio_io_event
 #define VIO_READ_BUFFER_SIZE 16384              /* size of read buffer */
 
 MYSQL_VIO vio_new(my_socket sd, enum enum_vio_type type, uint flags);
-MYSQL_PLUGIN_LEGACY_API MYSQL_VIO mysql_socket_vio_new(
-  MYSQL_SOCKET mysql_socket, enum enum_vio_type type, uint flags);
+MYSQL_VIO  mysql_socket_vio_new(MYSQL_SOCKET mysql_socket, enum enum_vio_type type, uint flags);
 
 #ifdef _WIN32
 MYSQL_VIO vio_new_win32pipe(HANDLE hPipe);
@@ -169,11 +167,11 @@ bool vio_was_timeout(MYSQL_VIO vio);
 #define VIO_DESCRIPTION_SIZE 30                 /* size of description */
 void vio_description(MYSQL_VIO vio, char *buf);
 /* Return the type of the connection */
-MYSQL_PLUGIN_LEGACY_API enum enum_vio_type vio_type(MYSQL_VIO vio);
+enum enum_vio_type vio_type(MYSQL_VIO vio);
 /* Return last error number */
 int	vio_errno(MYSQL_VIO vio);
 /* Get socket number */
-MYSQL_PLUGIN_LEGACY_API my_socket vio_fd(MYSQL_VIO vio);
+my_socket vio_fd(MYSQL_VIO vio);
 /* Remote peer's address and name in text form */
 bool vio_peer_addr(MYSQL_VIO vio, char *buf, uint16 *port, size_t buflen);
 /* Wait for an I/O event notification. */
@@ -193,11 +191,10 @@ bool vio_get_normalized_ip_string(const struct sockaddr *addr, size_t addr_lengt
 
 bool vio_is_no_name_error(int err_code);
 
-MYSQL_PLUGIN_LEGACY_API int vio_getnameinfo(
-  const struct sockaddr *sa,
-  char *hostname, size_t hostname_size,
-  char *port, size_t port_size,
-  int flags);
+int vio_getnameinfo(const struct sockaddr *sa,
+                    char *hostname, size_t hostname_size,
+                    char *port, size_t port_size,
+                    int flags);
 
 #ifdef HAVE_OPENSSL
 #include <openssl/opensslv.h>
@@ -230,15 +227,13 @@ enum enum_ssl_init_error
   SSL_INITERR_MEMFAIL, SSL_INITERR_NO_USABLE_CTX, SSL_INITERR_DHFAIL,
   SSL_TLS_VERSION_INVALID, SSL_INITERR_LASTERR
 };
-MYSQL_PLUGIN_LEGACY_API const char* sslGetErrString(
-  enum enum_ssl_init_error err);
+const char* sslGetErrString(enum enum_ssl_init_error err);
 
 struct st_VioSSLFd
 {
   SSL_CTX *ssl_context;
 };
 
-MYSQL_PLUGIN_LEGACY_API
 int sslaccept(struct st_VioSSLFd*, MYSQL_VIO, long timeout, unsigned long *errptr);
 int sslconnect(struct st_VioSSLFd*, MYSQL_VIO, long timeout, unsigned long *errptr);
 
@@ -248,14 +243,14 @@ struct st_VioSSLFd
                        const char *cipher, enum enum_ssl_init_error *error,
                        const char *crl_file, const char *crl_path, const long ssl_ctx_flags);
 
-MYSQL_PLUGIN_LEGACY_API long process_tls_version(const char *tls_version);
+long process_tls_version(const char *tls_version);
 
-MYSQL_PLUGIN_LEGACY_API struct st_VioSSLFd
+struct st_VioSSLFd
 *new_VioSSLAcceptorFd(const char *key_file, const char *cert_file,
                       const char *ca_file,const char *ca_path,
                       const char *cipher, enum enum_ssl_init_error *error,
                       const char *crl_file, const char *crl_path, const long ssl_ctx_flags);
-MYSQL_PLUGIN_LEGACY_API void free_vio_ssl_acceptor_fd(struct st_VioSSLFd *fd);
+void free_vio_ssl_acceptor_fd(struct st_VioSSLFd *fd);
 
 void vio_ssl_end();
 

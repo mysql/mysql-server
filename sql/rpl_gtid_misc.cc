@@ -171,8 +171,7 @@ int Gtid::to_string(const rpl_sid &sid, char *buf) const
 }
 
 
-MYSQL_PLUGIN_LEGACY_API int Gtid::to_string(
-  const Sid_map *sid_map, char *buf, bool need_lock) const
+int Gtid::to_string(const Sid_map *sid_map, char *buf, bool need_lock) const
 {
   DBUG_ENTER("Gtid::to_string");
   int ret;
@@ -279,7 +278,7 @@ void check_return_status(enum_return_status status, const char *action,
 
 
 #ifdef MYSQL_SERVER
-MYSQL_PLUGIN_LEGACY_API rpl_sidno get_sidno_from_global_sid_map(rpl_sid sid)
+rpl_sidno get_sidno_from_global_sid_map(rpl_sid sid)
 {
   DBUG_ENTER("get_sidno_from_global_sid_map(rpl_sid)");
 
@@ -290,7 +289,7 @@ MYSQL_PLUGIN_LEGACY_API rpl_sidno get_sidno_from_global_sid_map(rpl_sid sid)
   DBUG_RETURN(sidno);
 }
 
-MYSQL_PLUGIN_LEGACY_API rpl_gno get_last_executed_gno(rpl_sidno sidno)
+rpl_gno get_last_executed_gno(rpl_sidno sidno)
 {
   DBUG_ENTER("get_last_executed_gno(rpl_sidno)");
 

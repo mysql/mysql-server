@@ -43,7 +43,6 @@
 #include "my_inttypes.h"
 #include "my_macros.h"
 #include "my_pointer_arithmetic.h"
-#include "my_sharedlib.h"
 
 #ifdef HAVE_ENDIAN_H
 #include <endian.h>
@@ -229,7 +228,6 @@ size_t my_fcvt(double x, int precision, char *to, bool *error)
      digits.
 */
 
-MYSQL_PLUGIN_LEGACY_API
 size_t my_gcvt(double x, my_gcvt_arg_type type, int width, char *to,
                bool *error)
 {

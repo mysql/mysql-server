@@ -39,7 +39,6 @@
 #include "my_inttypes.h"
 #include "my_io.h"
 #include "my_macros.h"
-#include "my_sharedlib.h"
 #include "mysql/service_my_snprintf.h"
 #include "vio_priv.h"
 
@@ -540,12 +539,12 @@ void vio_description(Vio *vio, char *buf)
   }
 }
 
-MYSQL_PLUGIN_LEGACY_API enum enum_vio_type vio_type(Vio* vio)
+enum enum_vio_type vio_type(Vio* vio)
 {
   return vio->type;
 }
 
-MYSQL_PLUGIN_LEGACY_API my_socket vio_fd(Vio* vio)
+my_socket vio_fd(Vio* vio)
 {
   return mysql_socket_getfd(vio->mysql_socket);
 }
@@ -1309,11 +1308,10 @@ bool vio_is_no_name_error(int err_code)
       requires them to be filled.
 */
 
-MYSQL_PLUGIN_LEGACY_API int vio_getnameinfo(
-  const struct sockaddr *sa,
-  char *hostname, size_t hostname_size,
-  char *port, size_t port_size,
-  int flags)
+int vio_getnameinfo(const struct sockaddr *sa,
+                    char *hostname, size_t hostname_size,
+                    char *port, size_t port_size,
+                    int flags)
 {
   int sa_length= 0;
 

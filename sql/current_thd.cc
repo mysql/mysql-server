@@ -16,12 +16,10 @@
 #include "current_thd.h"
 
 thread_local_key_t THR_THD;
-
-// Needs to be exported for plugins built in debug mode.
-MYSQL_PLUGIN_API bool THR_THD_initialized= false;
+bool THR_THD_initialized= false;
 
 #if defined(_WIN32)
-extern "C"   THD MYSQL_PLUGIN_LEGACY_API *_current_thd_noinline(void)
+extern "C"   THD *_current_thd_noinline(void)
 {
   return my_thread_get_THR_THD();
 }

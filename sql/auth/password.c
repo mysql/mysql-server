@@ -66,7 +66,6 @@
 #include "m_string.h"
 #include "my_inttypes.h"
 #include "my_macros.h"
-#include "my_sharedlib.h"
 #include "mysql_com.h"
 #include "password.h"
 #include "sha1.h"
@@ -264,7 +263,6 @@ void my_make_scrambled_password_sha1(char *to, const char *password,
     password  IN  NULL-terminated password string
 */
 
-MYSQL_PLUGIN_LEGACY_API
 void make_scrambled_password(char *to, const char *password)
 {
   my_make_scrambled_password_sha1(to, password, strlen(password));
@@ -344,7 +342,7 @@ check_scramble_sha1(const uchar *scramble_arg, const char *message,
   return MY_TEST(memcmp(hash_stage2, hash_stage2_reassured, SHA1_HASH_SIZE));
 }
 
-MYSQL_PLUGIN_LEGACY_API bool
+bool
 check_scramble(const uchar *scramble_arg, const char *message,
                const uint8 *hash_stage2)
 {
@@ -360,9 +358,8 @@ check_scramble(const uchar *scramble_arg, const char *message,
                   bytes long.
     password  IN  4.1.1 version value of user.password
 */
-
-MYSQL_PLUGIN_LEGACY_API void get_salt_from_password(
-  uint8 *hash_stage2, const char *password)
+    
+void get_salt_from_password(uint8 *hash_stage2, const char *password)
 {
   hex2octet(hash_stage2, password+1 /* skip '*' */, SHA1_HASH_SIZE * 2);
 }

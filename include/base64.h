@@ -23,7 +23,6 @@
 #include <stddef.h>
 
 #include "my_inttypes.h"
-#include "my_sharedlib.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -32,8 +31,7 @@ extern "C" {
 /*
   Calculate how much memory needed for dst of base64_encode()
 */
-MYSQL_PLUGIN_LEGACY_API uint64 base64_needed_encoded_length(
-  uint64 length_of_data);
+uint64 base64_needed_encoded_length(uint64 length_of_data);
 
 /*
   Maximum length base64_encode_needed_length() can accept with no overflow.
@@ -53,8 +51,7 @@ uint64 base64_decode_max_arg_length();
 /*
   Encode data as a base64 string
 */
-MYSQL_PLUGIN_LEGACY_API int base64_encode(
-  const void *src, size_t src_len, char *dst);
+int base64_encode(const void *src, size_t src_len, char *dst);
 
 /*
   Decode a base64 string into data

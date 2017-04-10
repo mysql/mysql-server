@@ -39,7 +39,6 @@
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_macros.h"
-#include "my_sharedlib.h"
 #include "my_thread.h"
 
 C_MODE_START
@@ -57,8 +56,7 @@ typedef pthread_mutexattr_t native_mutexattr_t;
 
 /* Can be set in /usr/include/pthread.h */
 #ifdef PTHREAD_ADAPTIVE_MUTEX_INITIALIZER_NP
-// Don't use this in new plugins; use std::mutex.
-extern MYSQL_PLUGIN_LEGACY_API native_mutexattr_t my_fast_mutexattr;
+extern native_mutexattr_t my_fast_mutexattr;
 #define MY_MUTEX_INIT_FAST &my_fast_mutexattr
 #else
 #define MY_MUTEX_INIT_FAST   NULL
@@ -143,15 +141,11 @@ typedef struct st_safe_mutex_t
 } my_mutex_t;
 
 void safe_mutex_global_init();
-// Don't use these in new plugins; use std::mutex.
-int MYSQL_PLUGIN_LEGACY_API safe_mutex_init(
-  my_mutex_t *mp, const native_mutexattr_t *attr, const char *file, uint line);
-int MYSQL_PLUGIN_LEGACY_API safe_mutex_lock(
-  my_mutex_t *mp, bool try_lock, const char *file, uint line);
-int MYSQL_PLUGIN_LEGACY_API safe_mutex_unlock(
-  my_mutex_t *mp, const char *file, uint line);
-int MYSQL_PLUGIN_LEGACY_API safe_mutex_destroy(
-  my_mutex_t *mp, const char *file, uint line);
+int safe_mutex_init(my_mutex_t *mp, const native_mutexattr_t *attr,
+                    const char *file, uint line);
+int safe_mutex_lock(my_mutex_t *mp, bool try_lock, const char *file, uint line);
+int safe_mutex_unlock(my_mutex_t *mp, const char *file, uint line);
+int safe_mutex_destroy(my_mutex_t *mp, const char *file, uint line);
 
 static inline void safe_mutex_assert_owner(const my_mutex_t *mp)
 {

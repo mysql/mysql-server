@@ -2930,7 +2930,7 @@ typedef struct st_lookup_field_values
     1	                  error
 */
 
-MYSQL_PLUGIN_LEGACY_API bool schema_table_store_record(THD *thd, TABLE *table)
+bool schema_table_store_record(THD *thd, TABLE *table)
 {
   int error;
   if ((error= table->file->ha_write_row(table->record[0])))

@@ -20,7 +20,7 @@
 #ifdef _WIN32
 #define SERVICE_VERSION __declspec(dllexport) void *
 #else
-#define SERVICE_VERSION __attribute__((visibility("default"))) void *
+#define SERVICE_VERSION void *
 #endif
 
 #define VERSION_command         0x0100

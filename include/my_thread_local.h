@@ -22,7 +22,6 @@
 
 #include "my_inttypes.h"
 #include "my_macros.h"
-#include "my_sharedlib.h"
 
 #ifdef _WIN32
 #include <windows.h>
@@ -82,12 +81,12 @@ static inline int my_set_thread_local(thread_local_key_t key,
 /**
   Retrieve the MySQL thread-local storage variant of errno.
 */
-MYSQL_PLUGIN_LEGACY_API int my_errno();
+int my_errno();
 
 /**
   Set the MySQL thread-local storage variant of errno.
 */
-MYSQL_PLUGIN_LEGACY_API void set_my_errno(int my_errno);
+void set_my_errno(int my_errno);
 
 #ifdef _WIN32
 /*

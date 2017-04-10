@@ -27,8 +27,8 @@
 
 #include "my_thread_local.h"
 
-MYSQL_PLUGIN_LEGACY_API int safe_cond_wait(
-  native_cond_t *cond, my_mutex_t *mp, const char *file, uint line)
+int safe_cond_wait(native_cond_t *cond, my_mutex_t *mp,
+                   const char *file, uint line)
 {
   int error;
   native_mutex_lock(&mp->global);
@@ -79,10 +79,10 @@ MYSQL_PLUGIN_LEGACY_API int safe_cond_wait(
   return error;
 }
 
-MYSQL_PLUGIN_LEGACY_API int safe_cond_timedwait(
-  native_cond_t *cond, my_mutex_t *mp,
-  const struct timespec *abstime,
-  const char *file, uint line)
+
+int safe_cond_timedwait(native_cond_t *cond, my_mutex_t *mp,
+                        const struct timespec *abstime,
+                        const char *file, uint line)
 {
   int error;
   native_mutex_lock(&mp->global);

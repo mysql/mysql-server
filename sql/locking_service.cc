@@ -116,13 +116,12 @@ public:
 };
 
 
-MYSQL_PLUGIN_LEGACY_API int acquire_locking_service_locks(
-  MYSQL_THD opaque_thd,
-  const char *lock_namespace,
-  const char **lock_names,
-  size_t lock_num,
-  enum_locking_service_lock_type lock_type,
-  ulong lock_timeout)
+int acquire_locking_service_locks(MYSQL_THD opaque_thd,
+                                  const char *lock_namespace,
+                                  const char **lock_names,
+                                  size_t lock_num,
+                                  enum_locking_service_lock_type lock_type,
+                                  ulong lock_timeout)
 {
   if (lock_num == 0)
     return 0;
@@ -166,8 +165,8 @@ MYSQL_PLUGIN_LEGACY_API int acquire_locking_service_locks(
 }
 
 
-MYSQL_PLUGIN_LEGACY_API int release_locking_service_locks(
-  MYSQL_THD opaque_thd, const char *lock_namespace)
+int release_locking_service_locks(MYSQL_THD opaque_thd,
+                                  const char *lock_namespace)
 {
   // Check that namespace length is acceptable
   if (check_lock_name(lock_namespace))

@@ -56,7 +56,6 @@
 #include "my_loglevel.h"
 #include "my_macros.h"
 #include "my_psi_config.h"
-#include "my_sharedlib.h"
 #include "my_shm_defaults.h"
 #include "mysql.h"
 #include "mysql/client_authentication.h"
@@ -1638,7 +1637,7 @@ void end_server(MYSQL *mysql)
 }
 
 
-MYSQL_PLUGIN_LEGACY_API void STDCALL
+void STDCALL
 mysql_free_result(MYSQL_RES *result)
 {
   DBUG_ENTER("mysql_free_result");
@@ -5469,7 +5468,7 @@ void mysql_detach_stmt_list(LIST **stmt_list MY_ATTRIBUTE((unused)),
 }
 
 
-MYSQL_PLUGIN_LEGACY_API void STDCALL mysql_close(MYSQL *mysql)
+void STDCALL mysql_close(MYSQL *mysql)
 {
   DBUG_ENTER("mysql_close");
   if (mysql)					/* Some simple safety */
@@ -5582,7 +5581,7 @@ mysql_send_query(MYSQL* mysql, const char* query, ulong length)
 }
 
 
-MYSQL_PLUGIN_LEGACY_API int STDCALL
+int STDCALL
 mysql_real_query(MYSQL *mysql, const char *query, ulong length)
 {
   int retval;
@@ -5608,7 +5607,7 @@ mysql_real_query(MYSQL *mysql, const char *query, ulong length)
   mysql_data_seek may be used.
 **************************************************************************/
 
-MYSQL_PLUGIN_LEGACY_API MYSQL_RES * STDCALL mysql_store_result(MYSQL *mysql)
+MYSQL_RES * STDCALL mysql_store_result(MYSQL *mysql)
 {
   MYSQL_RES *result;
   DBUG_ENTER("mysql_store_result");
@@ -5724,7 +5723,7 @@ static MYSQL_RES * cli_use_result(MYSQL *mysql)
   Return next row of the query results
 **************************************************************************/
 
-MYSQL_PLUGIN_LEGACY_API MYSQL_ROW STDCALL
+MYSQL_ROW STDCALL
 mysql_fetch_row(MYSQL_RES *res)
 {
   DBUG_ENTER("mysql_fetch_row");
@@ -6352,7 +6351,7 @@ unsigned int STDCALL mysql_num_fields(MYSQL_RES *res)
   return res->field_count;
 }
 
-MYSQL_PLUGIN_LEGACY_API uint STDCALL mysql_errno(MYSQL *mysql)
+uint STDCALL mysql_errno(MYSQL *mysql)
 {
   return mysql ? mysql->net.last_errno : mysql_server_last_errno;
 }

@@ -112,7 +112,7 @@ static int never = 0;		/* for use in asserts; shuts lint up */
  = #define	MY_REG_PEND	0040
  = #define	MY_REG_DUMP	0200
  */
-MYSQL_PLUGIN_LEGACY_API int		/* 0 success, otherwise MY_REG_something */
+int				/* 0 success, otherwise MY_REG_something */
 my_regcomp(preg, pattern, cflags, charset)
 my_regex_t *preg;
 const char *pattern;

@@ -16,8 +16,6 @@
 #ifndef RPL_WRITE_SET_HANDLER_INCLUDED
 #define RPL_WRITE_SET_HANDLER_INCLUDED
 
-#include "my_sharedlib.h"
-
 extern const char *transaction_write_set_hashing_algorithms[];
 
 class THD;
@@ -30,8 +28,7 @@ struct TABLE;
 
   @return the algorithm name
 */
-MYSQL_PLUGIN_LEGACY_API const char* get_write_set_algorithm_string(
-  unsigned int algorithm);
+const char* get_write_set_algorithm_string(unsigned int algorithm);
 
 /**
   Function to add the hash of the PKE to the transaction context object.

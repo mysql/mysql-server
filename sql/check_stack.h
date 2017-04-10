@@ -16,11 +16,9 @@
 #ifndef SQL_CHECK_STACK_H_INCLUDED
 #define SQL_CHECK_STACK_H_INCLUDED
 
-#include "my_sharedlib.h"
-
 class THD;
 
-extern "C" MYSQL_PLUGIN_LEGACY_API bool check_stack_overrun(
-  const THD *thd, long margin, unsigned char *dummy);
+extern "C" bool check_stack_overrun(const THD *thd,
+                                    long margin, unsigned char *dummy);
 
 #endif /* SQL_CHECK_STACK_H_INCLUDED */

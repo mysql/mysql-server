@@ -23,7 +23,6 @@
 
 #include "my_dbug.h"
 #include "my_inttypes.h"
-#include "mysql/client_plugin.h"
 
 #define MAX_KEYRING_UDF_KEY_LENGTH_IN_BITS 16384
 #define MAX_KEYRING_UDF_KEY_TEXT_LENGTH MAX_KEYRING_UDF_KEY_LENGTH_IN_BITS/8
@@ -32,7 +31,7 @@
 #ifdef WIN32
 #define PLUGIN_EXPORT extern "C" __declspec(dllexport)
 #else
-#define PLUGIN_EXPORT extern "C" __attribute__((visibility("default")))
+#define PLUGIN_EXPORT extern "C"
 #endif
 
 static bool is_keyring_udf_initialized= FALSE;

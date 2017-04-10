@@ -24,7 +24,6 @@
 #include "m_ctype.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
-#include "my_sharedlib.h"
 #include "my_sys.h"
 #include "mysql/psi/psi_memory.h"
 #include "mysql/service_mysql_alloc.h"
@@ -77,7 +76,7 @@ static my_hash_value_type calc_hash(const HASH *hash,
     @retval 0 success
     @retval 1 failure
 */
-MYSQL_PLUGIN_LEGACY_API bool
+bool
 my_hash_init(HASH *hash,
              const CHARSET_INFO *charset,
              ulong reserve_size,
@@ -161,7 +160,7 @@ void my_hash_claim(HASH *hash)
   NOTES: Hash can't be reused without calling my_hash_init again.
 */
 
-MYSQL_PLUGIN_LEGACY_API void my_hash_free(HASH *hash)
+void my_hash_free(HASH *hash)
 {
   DBUG_ENTER("my_hash_free");
   DBUG_PRINT("enter",("hash: %p", hash));
@@ -182,7 +181,7 @@ MYSQL_PLUGIN_LEGACY_API void my_hash_free(HASH *hash)
     hash   the hash to delete elements of
 */
 
-MYSQL_PLUGIN_LEGACY_API void my_hash_reset(HASH *hash)
+void my_hash_reset(HASH *hash)
 {
   DBUG_ENTER("my_hash_reset");
   DBUG_PRINT("enter",("hash: %p", hash));
@@ -232,8 +231,7 @@ static inline my_hash_value_type rec_hashnr(HASH *hash,const uchar *record)
 }
 
 
-MYSQL_PLUGIN_LEGACY_API uchar* my_hash_search(
-  const HASH *hash, const uchar *key, size_t length)
+uchar* my_hash_search(const HASH *hash, const uchar *key, size_t length)
 {
   HASH_SEARCH_STATE state;
   return my_hash_first(hash, key, length, &state);
@@ -263,9 +261,8 @@ my_hash_value_type my_calc_hash(const HASH *hash,
    Assigns the number of the found record to HASH_SEARCH_STATE state
 */
 
-MYSQL_PLUGIN_LEGACY_API uchar* my_hash_first(
-  const HASH *hash, const uchar *key, size_t length,
-  HASH_SEARCH_STATE *current_record)
+uchar* my_hash_first(const HASH *hash, const uchar *key, size_t length,
+                     HASH_SEARCH_STATE *current_record)
 {
   uchar *res;
   if (my_hash_inited(hash))
@@ -318,9 +315,8 @@ uchar* my_hash_first_from_hash_value(const HASH *hash,
 	/* Get next record with identical key */
 	/* Can only be called if previous calls was my_hash_search */
 
-MYSQL_PLUGIN_LEGACY_API uchar* my_hash_next(
-  const HASH *hash, const uchar *key, size_t length,
-  HASH_SEARCH_STATE *current_record)
+uchar* my_hash_next(const HASH *hash, const uchar *key, size_t length,
+                    HASH_SEARCH_STATE *current_record)
 {
   HASH_LINK *pos;
   uint idx;
@@ -389,7 +385,7 @@ static int hashcmp(const HASH *hash, HASH_LINK *pos, const uchar *key,
 
 	/* Write a hash-key to the hash-index */
 
-MYSQL_PLUGIN_LEGACY_API bool my_hash_insert(HASH *info, const uchar *record)
+bool my_hash_insert(HASH *info, const uchar *record)
 {
   int flag;
   size_t idx,halfbuff,first_index;
@@ -527,7 +523,7 @@ MYSQL_PLUGIN_LEGACY_API bool my_hash_insert(HASH *info, const uchar *record)
 ** if there is a free-function it's called for record if found
 ******************************************************************************/
 
-MYSQL_PLUGIN_LEGACY_API bool my_hash_delete(HASH *hash, uchar *record)
+bool my_hash_delete(HASH *hash, uchar *record)
 {
   size_t blength;
   uint pos2, idx, empty_index;
@@ -716,7 +712,7 @@ bool my_hash_update(HASH *hash, uchar *record, uchar *old_key,
 }
 
 
-MYSQL_PLUGIN_LEGACY_API uchar *my_hash_element(HASH *hash, ulong idx)
+uchar *my_hash_element(HASH *hash, ulong idx)
 {
   if (idx < hash->records)
     return dynamic_element(&hash->array,idx,HASH_LINK*)->data;

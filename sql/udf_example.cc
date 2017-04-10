@@ -137,6 +137,36 @@
 */
 static std::mutex *LOCK_hostname{nullptr};
 
+/* These must be right or mysqld will not find the symbol! */
+
+extern "C" {
+
+bool metaphon_init(UDF_INIT *initid, UDF_ARGS *args, char *message);
+void metaphon_deinit(UDF_INIT *initid);
+char *metaphon(UDF_INIT *initid, UDF_ARGS *args, char *result,
+	       unsigned long *length, char *is_null, char *error);
+bool myfunc_double_init(UDF_INIT *, UDF_ARGS *args, char *message);
+double myfunc_double(UDF_INIT *initid, UDF_ARGS *args, char *is_null,
+		     char *error);
+bool myfunc_int_init(UDF_INIT *initid, UDF_ARGS *args, char *message);
+long long myfunc_int(UDF_INIT *initid, UDF_ARGS *args, char *is_null,
+                     char *error);
+bool sequence_init(UDF_INIT *initid, UDF_ARGS *args, char *message);
+ void sequence_deinit(UDF_INIT *initid);
+long long sequence(UDF_INIT *initid, UDF_ARGS *args, char *is_null,
+		   char *error);
+bool avgcost_init( UDF_INIT* initid, UDF_ARGS* args, char* message );
+void avgcost_deinit( UDF_INIT* initid );
+void avgcost_reset( UDF_INIT* initid, UDF_ARGS* args, char* is_null, char *error );
+void avgcost_clear( UDF_INIT* initid, char* is_null, char *error );
+void avgcost_add( UDF_INIT* initid, UDF_ARGS* args, char* is_null, char *error );
+double avgcost( UDF_INIT* initid, UDF_ARGS* args, char* is_null, char *error );
+bool is_const_init(UDF_INIT *initid, UDF_ARGS *args, char *message);
+char *is_const(UDF_INIT *initid, UDF_ARGS *args, char *result, unsigned long
+               *length, char *is_null, char *error);
+
+}
+
 /*************************************************************************
 ** Example of init function
 ** Arguments:
@@ -177,7 +207,6 @@ static std::mutex *LOCK_hostname{nullptr};
 
 #define MAXMETAPH 8
 
-extern "C" MYSQL_PLUGIN_EXPORT
 bool metaphon_init(UDF_INIT *initid, UDF_ARGS *args, char *message)
 {
   if (args->arg_count != 1 || args->arg_type[0] != STRING_RESULT)
@@ -197,7 +226,7 @@ bool metaphon_init(UDF_INIT *initid, UDF_ARGS *args, char *message)
 ****************************************************************************/
 
 
-extern "C" MYSQL_PLUGIN_EXPORT void metaphon_deinit(UDF_INIT *)
+void metaphon_deinit(UDF_INIT *)
 {
 }
 
@@ -243,7 +272,6 @@ static char codes[26] =  {
 #define NOGHTOF(x)  (codes[(x) - 'A'] & 16)	/* BDH */
 
 
-extern "C" MYSQL_PLUGIN_EXPORT
 char *metaphon(UDF_INIT *,
                UDF_ARGS *args, char *result, unsigned long *length,
                char *is_null, char *)
@@ -499,7 +527,6 @@ char *metaphon(UDF_INIT *,
 ** This function should return the result.
 ***************************************************************************/
 
-extern "C" MYSQL_PLUGIN_EXPORT
 bool myfunc_double_init(UDF_INIT *initid, UDF_ARGS *args, char *message)
 {
   unsigned i;
@@ -522,7 +549,6 @@ bool myfunc_double_init(UDF_INIT *initid, UDF_ARGS *args, char *message)
 }
 
 
-extern "C" MYSQL_PLUGIN_EXPORT
 double myfunc_double(UDF_INIT *, UDF_ARGS *args,
                      char *is_null, char *)
 {
@@ -562,7 +588,6 @@ double myfunc_double(UDF_INIT *, UDF_ARGS *args,
 
 /* This function returns the sum of all arguments */
 
-extern "C" MYSQL_PLUGIN_EXPORT
 long long myfunc_int(UDF_INIT *, UDF_ARGS *args,
                     char *,
                     char *)
@@ -595,7 +620,6 @@ long long myfunc_int(UDF_INIT *, UDF_ARGS *args,
   At least one of _init/_deinit is needed unless the server is started
   with --allow_suspicious_udfs.
 */
-extern "C" MYSQL_PLUGIN_EXPORT
 bool myfunc_int_init(UDF_INIT *, UDF_ARGS *, char *)
 {
   return 0;
@@ -606,7 +630,6 @@ bool myfunc_int_init(UDF_INIT *, UDF_ARGS *, char *)
   or 1 if no arguments have been given
 */
 
-extern "C" MYSQL_PLUGIN_EXPORT
 bool sequence_init(UDF_INIT *initid, UDF_ARGS *args, char *message)
 {
   if (args->arg_count > 1)
@@ -631,13 +654,12 @@ bool sequence_init(UDF_INIT *initid, UDF_ARGS *args, char *message)
   return 0;
 }
 
-extern "C" MYSQL_PLUGIN_EXPORT void sequence_deinit(UDF_INIT *initid)
+void sequence_deinit(UDF_INIT *initid)
 {
   if (initid->ptr)
     free(initid->ptr);
 }
 
-extern "C" MYSQL_PLUGIN_EXPORT
 long long sequence(UDF_INIT *initid, UDF_ARGS *args, char *, char *)
 {
   unsigned long long val=0;
@@ -665,18 +687,14 @@ long long sequence(UDF_INIT *initid, UDF_ARGS *args, char *, char *)
 
 extern "C" {
 
-MYSQL_PLUGIN_EXPORT bool lookup_init(
-  UDF_INIT *initid, UDF_ARGS *args, char *message);
-MYSQL_PLUGIN_EXPORT void lookup_deinit(UDF_INIT *initid);
-MYSQL_PLUGIN_EXPORT char *lookup(
-  UDF_INIT *initid, UDF_ARGS *args, char *result,
-  unsigned long *length, char *null_value, char *error);
-MYSQL_PLUGIN_EXPORT bool reverse_lookup_init(
-  UDF_INIT *initid, UDF_ARGS *args, char *message);
-MYSQL_PLUGIN_EXPORT void reverse_lookup_deinit(UDF_INIT *initid);
-MYSQL_PLUGIN_EXPORT char *reverse_lookup(
-  UDF_INIT *initid, UDF_ARGS *args, char *result,
-  unsigned long *length, char *null_value, char *error);
+bool lookup_init(UDF_INIT *initid, UDF_ARGS *args, char *message);
+void lookup_deinit(UDF_INIT *initid);
+char *lookup(UDF_INIT *initid, UDF_ARGS *args, char *result,
+	     unsigned long *length, char *null_value, char *error);
+bool reverse_lookup_init(UDF_INIT *initid, UDF_ARGS *args, char *message);
+void reverse_lookup_deinit(UDF_INIT *initid);
+char *reverse_lookup(UDF_INIT *initid, UDF_ARGS *args, char *result,
+		     unsigned long *length, char *null_value, char *error);
 
 }
 
@@ -846,8 +864,8 @@ struct avgcost_data
 /*
 ** Average Cost Aggregate Function.
 */
-extern "C" MYSQL_PLUGIN_EXPORT
-bool avgcost_init( UDF_INIT* initid, UDF_ARGS* args, char* message )
+bool
+avgcost_init( UDF_INIT* initid, UDF_ARGS* args, char* message )
 {
   struct avgcost_data*	data;
 
@@ -892,8 +910,8 @@ bool avgcost_init( UDF_INIT* initid, UDF_ARGS* args, char* message )
   return 0;
 }
 
-extern "C" MYSQL_PLUGIN_EXPORT
-void avgcost_deinit( UDF_INIT* initid )
+void
+avgcost_deinit( UDF_INIT* initid )
 {
   void *void_ptr= initid->ptr;
   avgcost_data *data= static_cast<avgcost_data*>(void_ptr);
@@ -901,8 +919,18 @@ void avgcost_deinit( UDF_INIT* initid )
 }
 
 
-extern "C" MYSQL_PLUGIN_EXPORT
-void avgcost_clear(UDF_INIT* initid, char*, char*)
+/* This is only for MySQL 4.0 compability */
+void
+avgcost_reset(UDF_INIT* initid, UDF_ARGS* args, char* is_null, char* message)
+{
+  avgcost_clear(initid, is_null, message);
+  avgcost_add(initid, args, is_null, message);
+}
+
+/* This is needed to get things to work in MySQL 4.1.1 and above */
+
+void
+avgcost_clear(UDF_INIT* initid, char*, char*)
 {
   struct avgcost_data* data = (struct avgcost_data*)initid->ptr;
   data->totalprice=	0.0;
@@ -911,7 +939,7 @@ void avgcost_clear(UDF_INIT* initid, char*, char*)
 }
 
 
-extern "C" MYSQL_PLUGIN_EXPORT void
+void
 avgcost_add(UDF_INIT* initid, UDF_ARGS* args, char*, char*)
 {
   if (args->args[0] && args->args[1])
@@ -957,8 +985,8 @@ avgcost_add(UDF_INIT* initid, UDF_ARGS* args, char*, char*)
 }
 
 
-extern "C" MYSQL_PLUGIN_EXPORT
-double avgcost( UDF_INIT* initid, UDF_ARGS*, char* is_null, char*)
+double
+avgcost( UDF_INIT* initid, UDF_ARGS*, char* is_null, char*)
 {
   struct avgcost_data* data = (struct avgcost_data*)initid->ptr;
   if (!data->count || !data->totalquantity)
@@ -1010,7 +1038,7 @@ char *myfunc_argument_name(UDF_INIT *initid,
 }
 
 
-extern "C" MYSQL_PLUGIN_EXPORT
+
 bool is_const_init(UDF_INIT *initid, UDF_ARGS *args, char *message)
 {
   if (args->arg_count != 1)
@@ -1022,7 +1050,6 @@ bool is_const_init(UDF_INIT *initid, UDF_ARGS *args, char *message)
   return 0;
 }
 
-extern "C" MYSQL_PLUGIN_EXPORT
 char * is_const(UDF_INIT *initid, UDF_ARGS *,
                 char *result, unsigned long *length,
                 char *is_null, char *)
@@ -1039,7 +1066,7 @@ char * is_const(UDF_INIT *initid, UDF_ARGS *,
 
 
 
-extern "C" MYSQL_PLUGIN_EXPORT
+extern "C"
 bool check_const_len_init(UDF_INIT *initid, UDF_ARGS *args, char *message)
 {
   if (args->arg_count != 1)
@@ -1063,7 +1090,7 @@ bool check_const_len_init(UDF_INIT *initid, UDF_ARGS *args, char *message)
   return 0;
 }
 
-extern "C" MYSQL_PLUGIN_EXPORT
+extern "C"
 char * check_const_len(UDF_INIT *initid, UDF_ARGS *,
                 char *result, unsigned long *length,
                 char *is_null, char *)
@@ -1077,15 +1104,14 @@ char * check_const_len(UDF_INIT *initid, UDF_ARGS *,
 
 extern "C" {
 
-MYSQL_PLUGIN_EXPORT bool my_median_init(
-  UDF_INIT *initid, UDF_ARGS *args, char *message);
-MYSQL_PLUGIN_EXPORT void my_median_deinit(UDF_INIT* initid);
-MYSQL_PLUGIN_EXPORT void my_median_add(
-  UDF_INIT* initid, UDF_ARGS* args, char* is_null, char *error);
-MYSQL_PLUGIN_EXPORT void my_median_clear(
-  UDF_INIT* initid, UDF_ARGS* args, char* is_null, char *error);
-MYSQL_PLUGIN_EXPORT long long my_median (
-  UDF_INIT* initid, UDF_ARGS* args, char* is_null, char *error);
+bool     my_median_init  (UDF_INIT *initid, UDF_ARGS *args, char *message);
+void     my_median_deinit(UDF_INIT* initid);
+void     my_median_add   (UDF_INIT* initid, UDF_ARGS* args,
+                          char* is_null, char *error);
+void     my_median_clear (UDF_INIT* initid, UDF_ARGS* args,
+                          char* is_null, char *error);
+long long my_median      (UDF_INIT* initid, UDF_ARGS* args,
+                          char* is_null, char *error);
 
 }
 
@@ -1150,12 +1176,11 @@ long long my_median(UDF_INIT* initid, UDF_ARGS*,
 
 extern "C" {
 
-MYSQL_PLUGIN_EXPORT bool my_cpp11_re_match_init(
-  UDF_INIT *initid, UDF_ARGS *args, char *message);
-MYSQL_PLUGIN_EXPORT void my_cpp11_re_match_deinit(UDF_INIT* initid);
+bool     my_cpp11_re_match_init  (UDF_INIT *initid, UDF_ARGS *args, char *message);
+void     my_cpp11_re_match_deinit(UDF_INIT* initid);
 
-MYSQL_PLUGIN_EXPORT long long my_cpp11_re_match(
-  UDF_INIT* initid, UDF_ARGS* args, char* is_null, char *error);
+long long my_cpp11_re_match      (UDF_INIT* initid, UDF_ARGS* args,
+                                  char* is_null, char *error);
 
 }
 

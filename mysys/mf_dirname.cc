@@ -66,8 +66,7 @@ size_t dirname_length(const char *name)
    #  Length of directory part in 'name'
 */
 
-MYSQL_PLUGIN_LEGACY_API size_t dirname_part(
-  char *to, const char *name, size_t *to_res_length)
+size_t dirname_part(char *to, const char *name, size_t *to_res_length)
 {
   size_t length;
   DBUG_ENTER("dirname_part");

@@ -21,14 +21,13 @@
 
 #include "my_inttypes.h"
 #include "my_md5_size.h"       // MD5_HASH_SIZE
-#include "my_sharedlib.h"
 
 class String;
 
 
 #define MAX_DIGEST_STORAGE_SIZE (1024*1024)
 
-MYSQL_PLUGIN_LEGACY_API ulong get_max_digest_length();
+ulong get_max_digest_length();
 
 /**
   Structure to store token count/array for a statement
@@ -128,8 +127,8 @@ void compute_digest_md5(const sql_digest_storage *digest_storage, unsigned char 
   @param digest_storage The digest
   @param [out] digest_text The digest text
 */
-MYSQL_PLUGIN_LEGACY_API void compute_digest_text(
-  const sql_digest_storage *digest_storage, String *digest_text);
+void compute_digest_text(const sql_digest_storage *digest_storage,
+                         String *digest_text);
 
 #endif
 

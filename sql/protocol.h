@@ -18,7 +18,6 @@
 
 #include "my_dbug.h"
 #include "my_decimal.h"                // my_decimal
-#include "my_sharedlib.h"
 #include "mysql/mysql_lex_string.h"    // LEX_STRING
 #include "mysql_com.h"                 // mysql_enum_shutdown_level
 #include "mysql_time.h"                // MYSQL_TIME
@@ -45,7 +44,7 @@ class Item_param;
 template <class T> class List;
 
 
-class MYSQL_PLUGIN_LEGACY_API Protocol
+class Protocol
 {
 private:
   /// Pointer to the Protocol below on the stack.

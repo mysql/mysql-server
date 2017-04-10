@@ -29,7 +29,6 @@
 #include "my_inttypes.h"
 #include "my_macros.h"
 #include "my_pointer_arithmetic.h"
-#include "my_sharedlib.h"
 #include "my_sys.h"
 #include "mysql/psi/psi_memory.h"
 #include "mysql/service_mysql_alloc.h"
@@ -202,7 +201,7 @@ void reset_root_defaults(MEM_ROOT *mem_root, size_t block_size,
   NULL                      Memory is not available.
 */
 
-MYSQL_PLUGIN_API void *alloc_root(MEM_ROOT *mem_root, size_t length)
+void *alloc_root(MEM_ROOT *mem_root, size_t length)
 {
 #if !defined(PREALLOCATE_MEMORY_CHUNKS)
   USED_MEM *next;
@@ -504,8 +503,7 @@ extern "C" char *safe_strdup_root(MEM_ROOT *root, const char *str)
 }
 
 
-MYSQL_PLUGIN_API char *strmake_root(
-  MEM_ROOT *root, const char *str, size_t len)
+char *strmake_root(MEM_ROOT *root, const char *str, size_t len)
 {
   char *pos;
   if ((pos= static_cast<char*>(alloc_root(root,len+1))))

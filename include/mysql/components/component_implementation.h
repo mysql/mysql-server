@@ -269,9 +269,9 @@ mysql_component_t mysql_component_ ## source_name = { \
   #endif
 #else /*_MSC_VER */
 #ifdef __cplusplus
-  #define DLL_EXPORT extern "C" __attribute__((visibility("default")))
+  #define DLL_EXPORT extern "C"
 #else
-  #define DLL_EXPORT __attribute__((visibility("default")))
+  #define DLL_EXPORT
 #endif
 #endif
 

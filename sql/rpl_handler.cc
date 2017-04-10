@@ -89,8 +89,8 @@ typedef struct Trans_binlog_info {
   char log_file[FN_REFLEN];
 } Trans_binlog_info;
 
-MYSQL_PLUGIN_LEGACY_API int get_user_var_int(
-  const char *name, long long int *value, int *null_value)
+int get_user_var_int(const char *name,
+                     long long int *value, int *null_value)
 {
   bool null_val;
   THD *thd= current_thd;

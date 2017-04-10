@@ -844,7 +844,7 @@ uint default_password_lifetime= 0;
 mysql_mutex_t LOCK_default_password_lifetime;
 
 #if defined(ENABLED_DEBUG_SYNC)
-MYSQL_PLUGIN_API uint    opt_debug_sync_timeout= 0;
+MYSQL_PLUGIN_IMPORT uint    opt_debug_sync_timeout= 0;
 #endif /* defined(ENABLED_DEBUG_SYNC) */
 bool opt_old_style_user_limits= 0, trust_function_creators= 0;
 bool check_proxy_users= 0, mysql_native_password_proxy_users= 0, sha256_password_proxy_users= 0;
@@ -9603,7 +9603,7 @@ PSI_stage_info stage_checking_query_cache_for_query= { 0, "checking query cache 
 PSI_stage_info stage_cleaning_up= { 0, "cleaning up", 0};
 PSI_stage_info stage_closing_tables= { 0, "closing tables", 0};
 PSI_stage_info stage_compressing_gtid_table= { 0, "Compressing gtid_executed table", 0};
-MYSQL_PLUGIN_LEGACY_API PSI_stage_info stage_connecting_to_master= { 0, "Connecting to master", 0};
+PSI_stage_info stage_connecting_to_master= { 0, "Connecting to master", 0};
 PSI_stage_info stage_converting_heap_to_ondisk= { 0, "converting HEAP to ondisk", 0};
 PSI_stage_info stage_copying_to_group_table= { 0, "Copying to group table", 0};
 PSI_stage_info stage_copying_to_tmp_table= { 0, "Copying to tmp table", 0};
@@ -9615,7 +9615,7 @@ PSI_stage_info stage_deleting_from_main_table= { 0, "deleting from main table", 
 PSI_stage_info stage_deleting_from_reference_tables= { 0, "deleting from reference tables", 0};
 PSI_stage_info stage_discard_or_import_tablespace= { 0, "discard_or_import_tablespace", 0};
 PSI_stage_info stage_end= { 0, "end", 0};
-MYSQL_PLUGIN_LEGACY_API PSI_stage_info stage_executing= { 0, "executing", 0};
+PSI_stage_info stage_executing= { 0, "executing", 0};
 PSI_stage_info stage_execution_of_init_command= { 0, "Execution of init_command", 0};
 PSI_stage_info stage_explaining= { 0, "explaining", 0};
 PSI_stage_info stage_finished_reading_one_binlog_switching_to_next_binlog= { 0, "Finished reading one binlog; switching to next binlog", 0};
@@ -9696,7 +9696,7 @@ PSI_stage_info stage_waiting_for_the_slave_thread_to_advance_position= { 0, "Wai
 PSI_stage_info stage_waiting_to_finalize_termination= { 0, "Waiting to finalize termination", 0};
 PSI_stage_info stage_worker_waiting_for_its_turn_to_commit= { 0, "Waiting for preceding transaction to commit", 0};
 PSI_stage_info stage_worker_waiting_for_commit_parent= { 0, "Waiting for dependent transaction to commit", 0};
-MYSQL_PLUGIN_LEGACY_API PSI_stage_info stage_suspending= { 0, "Suspending", 0};
+PSI_stage_info stage_suspending= { 0, "Suspending", 0};
 PSI_stage_info stage_starting= { 0, "starting", 0};
 PSI_stage_info stage_waiting_for_no_channel_reference= { 0, "Waiting for no channel reference.", 0};
 

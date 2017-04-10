@@ -40,7 +40,7 @@
 */
 
 
-MYSQL_PLUGIN_LEGACY_API void get_date(char * to, int flag, time_t date)
+void get_date(char * to, int flag, time_t date)
 {
    struct tm *start_time;
    time_t skr;

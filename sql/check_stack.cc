@@ -61,8 +61,8 @@ long max_stack_used;
     corresponding exec. (Thus we only have to check in fix_fields.)
   - Passing to check_stack_overrun() prevents the compiler from removing it.
 */
-bool MYSQL_PLUGIN_LEGACY_API check_stack_overrun(
-  const THD *thd, long margin, unsigned char *buf MY_ATTRIBUTE((unused)))
+bool check_stack_overrun(const THD *thd, long margin,
+			 unsigned char *buf MY_ATTRIBUTE((unused)))
 {
   DBUG_ASSERT(thd == current_thd);
   long stack_used= used_stack(thd->thread_stack,

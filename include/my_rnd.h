@@ -25,15 +25,13 @@
 #include <stddef.h>
 
 #include "mysql_com.h"  // IWYU pragma: keep
-#include "my_sharedlib.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 double my_rnd_ssl(struct rand_struct *rand_st);
-MYSQL_PLUGIN_LEGACY_API int my_rand_buffer(
-  unsigned char *buffer, size_t buffer_size);
+int my_rand_buffer(unsigned char *buffer, size_t buffer_size);
 
 #ifdef __cplusplus
 }

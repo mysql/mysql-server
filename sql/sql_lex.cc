@@ -203,8 +203,7 @@ void struct_slave_connection::reset()
   the server is processing large multi-statement queries.
 */
 
-MYSQL_PLUGIN_LEGACY_API bool Lex_input_stream::init(
-  THD *thd, const char* buff, size_t length)
+bool Lex_input_stream::init(THD *thd, const char* buff, size_t length)
 {
   DBUG_EXECUTE_IF("bug42064_simulate_oom",
                   DBUG_SET("+d,simulate_out_of_memory"););
@@ -528,7 +527,7 @@ void LEX::reset()
   These objects should rather be created by the parser bottom-up.
 */
 
-MYSQL_PLUGIN_LEGACY_API bool lex_start(THD *thd)
+bool lex_start(THD *thd)
 {
   DBUG_ENTER("lex_start");
 
@@ -834,7 +833,7 @@ void LEX::new_static_query(SELECT_LEX_UNIT *sel_unit, SELECT_LEX *select)
 }
 
 
-MYSQL_PLUGIN_LEGACY_API Yacc_state::~Yacc_state()
+Yacc_state::~Yacc_state()
 {
   if (yacc_yyss)
   {
@@ -2151,8 +2150,7 @@ static int lex_one_token(YYSTYPE *yylval, THD *thd)
 }
 
 
-MYSQL_PLUGIN_LEGACY_API void trim_whitespace(
-  const CHARSET_INFO *cs, LEX_STRING *str)
+void trim_whitespace(const CHARSET_INFO *cs, LEX_STRING *str)
 {
   /*
     TODO:

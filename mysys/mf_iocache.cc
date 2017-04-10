@@ -329,11 +329,10 @@ int init_io_cache(IO_CACHE *info, File file, size_t cachesize,
   in the cache, we are reusing this memory without flushing it to disk.
 */
 
-MYSQL_PLUGIN_LEGACY_API bool reinit_io_cache(
-  IO_CACHE *info, enum cache_type type,
-  my_off_t seek_offset,
-  bool use_async_io MY_ATTRIBUTE((unused)),
-  bool clear_cache)
+bool reinit_io_cache(IO_CACHE *info, enum cache_type type,
+                     my_off_t seek_offset,
+                     bool use_async_io MY_ATTRIBUTE((unused)),
+                     bool clear_cache)
 {
   DBUG_ENTER("reinit_io_cache");
   DBUG_PRINT("enter",("cache: %p type: %d  seek_offset: %lu  clear_cache: %d",
@@ -1528,8 +1527,8 @@ int my_block_write(IO_CACHE *info, const uchar *Buffer, size_t Count,
 #define UNLOCK_APPEND_BUFFER if (need_append_buffer_lock) \
   unlock_append_buffer(info);
 
-MYSQL_PLUGIN_LEGACY_API int my_b_flush_io_cache(
-  IO_CACHE *info, int need_append_buffer_lock)
+int my_b_flush_io_cache(IO_CACHE *info,
+                        int need_append_buffer_lock)
 {
   size_t length;
   my_off_t pos_in_file;

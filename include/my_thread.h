@@ -29,7 +29,6 @@
 #include "my_config.h"
 #include "my_inttypes.h"
 #include "my_macros.h"
-#include "my_sharedlib.h"
 
 #if defined(_WIN32)
 #include <windows.h>
@@ -112,9 +111,7 @@ typedef struct st_my_thread_handle
 #endif
 } my_thread_handle;
 
-// Do not use this API in new plugins; use std::call_once.
-MYSQL_PLUGIN_LEGACY_API int my_thread_once(
-  my_thread_once_t *once_control, void (*init_routine)(void));
+int my_thread_once(my_thread_once_t *once_control, void (*init_routine)(void));
 
 static inline my_thread_t my_thread_self()
 {
@@ -200,21 +197,18 @@ static inline void my_thread_yield()
 #endif
 }
 
-MYSQL_PLUGIN_LEGACY_API int my_thread_create(
-  my_thread_handle *thread, const my_thread_attr_t *attr,
-  my_start_routine func, void *arg);
-MYSQL_PLUGIN_LEGACY_API int my_thread_join(
-  my_thread_handle *thread, void **value_ptr);
-MYSQL_PLUGIN_LEGACY_API int my_thread_cancel(my_thread_handle *thread);
-MYSQL_PLUGIN_LEGACY_API void my_thread_exit(void *value_ptr)
-  MY_ATTRIBUTE((noreturn));
+int my_thread_create(my_thread_handle *thread, const my_thread_attr_t *attr,
+                     my_start_routine func, void *arg);
+int my_thread_join(my_thread_handle *thread, void **value_ptr);
+int my_thread_cancel(my_thread_handle *thread);
+void my_thread_exit(void *value_ptr) MY_ATTRIBUTE((noreturn));
 
 
 extern bool my_thread_global_init();
 extern void my_thread_global_reinit();
 extern void my_thread_global_end();
-extern MYSQL_PLUGIN_LEGACY_API bool my_thread_init();
-extern MYSQL_PLUGIN_LEGACY_API void my_thread_end();
+extern bool my_thread_init();
+extern void my_thread_end();
 
 C_MODE_END
 

@@ -45,7 +45,6 @@
 #include "my_inttypes.h"
 #include "my_io.h"
 #include "my_macros.h"
-#include "my_sharedlib.h"
 #include "my_sys.h"
 #include "my_thread_local.h"   // my_errno
 #include "mysql/psi/psi_table.h"
@@ -2626,8 +2625,8 @@ public:
 
   @return Length of used key parts.
 */
-MYSQL_PLUGIN_API uint calculate_key_len(
-  TABLE *table, uint key, key_part_map keypart_map);
+uint calculate_key_len(TABLE *table, uint key,
+                       key_part_map keypart_map);
 /*
   bitmap with first N+1 bits set
   (keypart_map for a key prefix of [0..N] keyparts)
@@ -3145,7 +3144,7 @@ public:
     get_partition_handler()
 */
 
-class MYSQL_PLUGIN_API handler :public Sql_alloc
+class handler :public Sql_alloc
 {
   friend class Partition_handler;
 public:
@@ -5723,10 +5722,9 @@ void print_keydup_error(TABLE *table, KEY *key, myf errflag);
 void ha_set_normalized_disabled_se_str(const std::string &disabled_se_str);
 bool ha_is_storage_engine_disabled(handlerton *se_engine);
 
-MYSQL_PLUGIN_LEGACY_API bool ha_notify_exclusive_mdl(
-  THD *thd, const MDL_key *mdl_key,
-  ha_notification_type notification_type,
-  bool *victimized);
+bool ha_notify_exclusive_mdl(THD *thd, const MDL_key *mdl_key,
+                             ha_notification_type notification_type,
+                             bool *victimized);
 bool ha_notify_alter_table(THD *thd, const MDL_key *mdl_key,
                            ha_notification_type notification_type);
 

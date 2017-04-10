@@ -18,8 +18,6 @@
 #ifndef CPCD_PARSER_HPP
 #define CPCD_PARSER_HPP
 
-#include "my_sharedlib.h"
-
 #include "Vector.hpp"
 #include "Properties.hpp"
 #include "InputStream.hpp"
@@ -124,7 +122,7 @@ public:
 /**
  * The void* equivalent implementation
  */
-class MYSQL_PLUGIN_LEGACY_API ParserImpl {
+class ParserImpl {
 public:
   class Dummy {};
   typedef ParserRow<Dummy> DummyRow;

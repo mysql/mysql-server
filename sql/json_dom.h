@@ -31,7 +31,6 @@
 #include "my_dbug.h"
 #include "my_decimal.h"         // my_decimal
 #include "my_inttypes.h"
-#include "my_sharedlib.h"
 #include "mysql_time.h"         // MYSQL_TIME
 #include "prealloced_array.h"   // Prealloced_array
 #include "sql_alloc.h"          // Sql_alloc
@@ -139,7 +138,7 @@ enum class enum_json_type
   a clone unless specified in the method, e.g. add_alias hands the
   responsibility for the passed in object over to the object.
 */
-class MYSQL_PLUGIN_LEGACY_API Json_dom
+class Json_dom
 {
   // so that these classes can call set_parent()
   friend class Json_object;
@@ -352,7 +351,7 @@ typedef std::map<std::string, Json_dom *, Json_key_comparator,
   Represents a JSON container value of type "object" (ECMA), type
   J_OBJECT here.
 */
-class MYSQL_PLUGIN_LEGACY_API Json_object : public Json_dom
+class Json_object : public Json_dom
 {
   friend class Json_wrapper;
 private:

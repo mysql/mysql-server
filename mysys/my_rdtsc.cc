@@ -269,7 +269,7 @@ ulonglong my_timer_microseconds(void)
   GetSystemTimeAsFileTime.
 */
 
-MYSQL_PLUGIN_LEGACY_API ulonglong my_timer_milliseconds(void)
+ulonglong my_timer_milliseconds(void)
 {
 #if defined(HAVE_GETTIMEOFDAY)
   {

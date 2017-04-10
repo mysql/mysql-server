@@ -64,10 +64,10 @@ typedef int my_socket;
 #endif
 #endif /* MY_COMPILER_INCLUDED */
 
+
 #include "binary_log_types.h"
 #include "mem_root_fwd.h"
 #include "my_list.h"
-#include "my_sharedlib.h"
 #include "mysql_com.h"
 
 /* Include declarations of plug-in API */
@@ -422,7 +422,7 @@ MYSQL_FIELD_OFFSET STDCALL mysql_field_tell(MYSQL_RES *res);
 unsigned int STDCALL mysql_field_count(MYSQL *mysql);
 my_ulonglong STDCALL mysql_affected_rows(MYSQL *mysql);
 my_ulonglong STDCALL mysql_insert_id(MYSQL *mysql);
-MYSQL_PLUGIN_LEGACY_API unsigned int STDCALL mysql_errno(MYSQL *mysql);
+unsigned int STDCALL mysql_errno(MYSQL *mysql);
 const char * STDCALL mysql_error(MYSQL *mysql);
 const char *STDCALL mysql_sqlstate(MYSQL *mysql);
 unsigned int STDCALL mysql_warning_count(MYSQL *mysql);
@@ -449,9 +449,9 @@ int		STDCALL mysql_select_db(MYSQL *mysql, const char *db);
 int		STDCALL mysql_query(MYSQL *mysql, const char *q);
 int		STDCALL mysql_send_query(MYSQL *mysql, const char *q,
 					 unsigned long length);
-MYSQL_PLUGIN_LEGACY_API int STDCALL mysql_real_query(MYSQL *mysql, const char *q,
+int		STDCALL mysql_real_query(MYSQL *mysql, const char *q,
 					unsigned long length);
-MYSQL_PLUGIN_LEGACY_API MYSQL_RES *STDCALL mysql_store_result(MYSQL *mysql);
+MYSQL_RES *     STDCALL mysql_store_result(MYSQL *mysql);
 MYSQL_RES *     STDCALL mysql_use_result(MYSQL *mysql);
 
 void        STDCALL mysql_get_character_set_info(MYSQL *mysql,
@@ -509,14 +509,14 @@ int		STDCALL mysql_options4(MYSQL *mysql,enum mysql_option option,
                                        const void *arg1, const void *arg2);
 int             STDCALL mysql_get_option(MYSQL *mysql, enum mysql_option option,
                                          const void *arg);
-MYSQL_PLUGIN_LEGACY_API void STDCALL mysql_free_result(MYSQL_RES *result);
+void		STDCALL mysql_free_result(MYSQL_RES *result);
 void		STDCALL mysql_data_seek(MYSQL_RES *result,
 					my_ulonglong offset);
 MYSQL_ROW_OFFSET STDCALL mysql_row_seek(MYSQL_RES *result,
 						MYSQL_ROW_OFFSET offset);
 MYSQL_FIELD_OFFSET STDCALL mysql_field_seek(MYSQL_RES *result,
 					   MYSQL_FIELD_OFFSET offset);
-MYSQL_PLUGIN_LEGACY_API MYSQL_ROW STDCALL mysql_fetch_row(MYSQL_RES *result);
+MYSQL_ROW	STDCALL mysql_fetch_row(MYSQL_RES *result);
 unsigned long * STDCALL mysql_fetch_lengths(MYSQL_RES *result);
 MYSQL_FIELD *	STDCALL mysql_fetch_field(MYSQL_RES *result);
 MYSQL_RES *     STDCALL mysql_list_fields(MYSQL *mysql, const char *table,
@@ -763,7 +763,7 @@ bool STDCALL mysql_autocommit(MYSQL * mysql, bool auto_mode);
 bool STDCALL mysql_more_results(MYSQL *mysql);
 int STDCALL mysql_next_result(MYSQL *mysql);
 int STDCALL mysql_stmt_next_result(MYSQL_STMT *stmt);
-MYSQL_PLUGIN_LEGACY_API void STDCALL mysql_close(MYSQL *sock);
+void STDCALL mysql_close(MYSQL *sock);
 
 
 /* status return codes */

@@ -31,6 +31,7 @@ EXPORTS
   sequence
   avgcost_init
   avgcost_deinit
+  avgcost_reset
   avgcost_add
   avgcost_clear
   avgcost

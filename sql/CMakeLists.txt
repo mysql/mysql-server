@@ -613,7 +613,7 @@ ADD_DEPENDENCIES(sql_main GenDigestServerSource)
 ADD_DEPENDENCIES(sql_main GenBootstrapPriv)
 ADD_DEPENDENCIES(sql_main GenSysSchema)
 TARGET_LINK_LIBRARIES(sql_main ${MYSQLD_STATIC_PLUGIN_LIBS} 
-  ${MYSQLD_STATIC_COMPONENT_LIBS} mysys mysys_ssl dbug strings vio regex
+  ${MYSQLD_STATIC_COMPONENT_LIBS}  mysys mysys_ssl dbug strings vio regex
   binlogevents_static sql_rtree ${LIBWRAP} ${LIBCRYPT} ${LIBDL} ${SSL_LIBRARIES})
 
 ADD_CONVENIENCE_LIBRARY(sql_gis ${SQL_GIS_SOURCES})
@@ -699,6 +699,32 @@ ENDIF()
 
 IF(NOT DISABLE_SHARED)
   SET_TARGET_PROPERTIES(mysqld PROPERTIES ENABLE_EXPORTS TRUE)
+  GET_TARGET_PROPERTY(mysqld_link_flags mysqld LINK_FLAGS)
+  IF(NOT mysqld_link_flags)
+    SET(mysqld_link_flags)
+  ENDIF()
+  IF(MSVC)
+    # Set module definition file.
+    SET_TARGET_PROPERTIES(mysqld PROPERTIES LINK_FLAGS "${mysqld_link_flags} /DEF:mysqld.def")
+
+    FOREACH (CORELIB sql_main binlog slave mysys mysys_ssl dbug regex strings
+        vio binlogevents_static)
+      GET_TARGET_PROPERTY(LOC ${CORELIB} LOCATION)
+      IF (NOT LOC)
+        GET_TARGET_PROPERTY(LOC ${CORELIB} IMPORTED_LOCATION)
+      ENDIF()
+
+
+      FILE(TO_NATIVE_PATH ${LOC} LOC)
+      SET (LIB_LOCATIONS ${LIB_LOCATIONS} ${LOC}) 
+    ENDFOREACH (CORELIB ${MYSQLD_CORE_LIBS})
+    SET(_PLATFORM  x64)
+    ADD_CUSTOM_COMMAND(TARGET mysqld PRE_LINK
+      COMMAND echo ${_PLATFORM} && cscript ARGS //nologo ${PROJECT_SOURCE_DIR}/win/create_def_file.js
+                  ${_PLATFORM}  ${LIB_LOCATIONS} > mysqld.def 
+      WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+    ADD_DEPENDENCIES(sql_main GenError)
+  ENDIF()
 ENDIF()
 
 SET_TARGET_PROPERTIES(mysqld PROPERTIES ENABLE_EXPORTS TRUE) 
@@ -781,7 +807,7 @@ ADD_CUSTOM_COMMAND(
 )
 
 MYSQL_ADD_EXECUTABLE(mysql_tzinfo_to_sql tztime.cc)
-SET_TARGET_PROPERTIES(mysql_tzinfo_to_sql PROPERTIES COMPILE_FLAGS "-DTZINFO2SQL -DMYSQL_NO_PLUGIN_EXPORT")
+SET_TARGET_PROPERTIES(mysql_tzinfo_to_sql PROPERTIES COMPILE_FLAGS "-DTZINFO2SQL")
 TARGET_LINK_LIBRARIES(mysql_tzinfo_to_sql mysys mysys_ssl)
 ADD_DEPENDENCIES(mysql_tzinfo_to_sql GenError)
 

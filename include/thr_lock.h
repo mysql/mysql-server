@@ -152,10 +152,10 @@ extern LIST *thr_lock_thread_list;
 
 void thr_lock_info_init(THR_LOCK_INFO *info, my_thread_id thread_id,
                         mysql_cond_t *suspend);
-MYSQL_PLUGIN_LEGACY_API void thr_lock_init(THR_LOCK *lock);
-MYSQL_PLUGIN_LEGACY_API void thr_lock_delete(THR_LOCK *lock);
-MYSQL_PLUGIN_LEGACY_API void thr_lock_data_init(
-  THR_LOCK *lock,THR_LOCK_DATA *data, void *status_param);
+void thr_lock_init(THR_LOCK *lock);
+void thr_lock_delete(THR_LOCK *lock);
+void thr_lock_data_init(THR_LOCK *lock,THR_LOCK_DATA *data,
+			void *status_param);
 enum enum_thr_lock_result thr_lock(THR_LOCK_DATA *data,
                                    THR_LOCK_INFO *owner,
                                    enum thr_lock_type lock_type,

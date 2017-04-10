@@ -20,7 +20,6 @@
 
 #include "lex_string.h"
 #include "my_inttypes.h"
-#include "my_sharedlib.h"
 #include "mysql/mysql_lex_string.h"   // LEX_STRING
 
 class THD;
@@ -35,9 +34,8 @@ bool trans_commit_implicit(THD *thd, bool ignore_global_read_lock=false);
 bool trans_rollback(THD *thd);
 bool trans_rollback_implicit(THD *thd);
 
-MYSQL_PLUGIN_LEGACY_API bool trans_commit_stmt(
-  THD *thd, bool ignore_global_read_lock=false);
-MYSQL_PLUGIN_LEGACY_API bool trans_rollback_stmt(THD *thd);
+bool trans_commit_stmt(THD *thd, bool ignore_global_read_lock=false);
+bool trans_rollback_stmt(THD *thd);
 bool trans_commit_attachable(THD *thd);
 
 bool trans_savepoint(THD *thd, LEX_STRING name);

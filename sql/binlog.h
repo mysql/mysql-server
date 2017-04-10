@@ -952,7 +952,7 @@ typedef struct st_load_file_info
   bool logged_data_file, log_delayed;
 } LOAD_FILE_INFO;
 
-extern MYSQL_PLUGIN_API MYSQL_BIN_LOG mysql_bin_log;
+extern MYSQL_PLUGIN_IMPORT MYSQL_BIN_LOG mysql_bin_log;
 
 bool trans_has_updated_trans_table(const THD* thd);
 bool stmt_has_updated_trans_table(Ha_trx_info* ha_list);

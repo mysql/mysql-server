@@ -38,7 +38,7 @@
 #ifdef WIN32
 #define PLUGIN_EXPORT extern "C" __declspec(dllexport)
 #else
-#define PLUGIN_EXPORT extern "C" __attribute__((visibility("default")))
+#define PLUGIN_EXPORT extern "C"
 #endif
 
 // This global value is initiated with 1 and the corresponding session

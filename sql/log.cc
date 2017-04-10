@@ -2215,7 +2215,7 @@ void error_log_print(enum loglevel level, const char *format, va_list args)
 }
 
 
-MYSQL_PLUGIN_LEGACY_API void sql_print_error(const char *format, ...)
+void sql_print_error(const char *format, ...)
 {
   va_list args;
   DBUG_ENTER("sql_print_error");
@@ -2228,7 +2228,7 @@ MYSQL_PLUGIN_LEGACY_API void sql_print_error(const char *format, ...)
 }
 
 
-MYSQL_PLUGIN_LEGACY_API void sql_print_warning(const char *format, ...)
+void sql_print_warning(const char *format, ...)
 {
   va_list args;
   DBUG_ENTER("sql_print_warning");
@@ -2241,7 +2241,7 @@ MYSQL_PLUGIN_LEGACY_API void sql_print_warning(const char *format, ...)
 }
 
 
-MYSQL_PLUGIN_LEGACY_API void sql_print_information(const char *format, ...)
+void sql_print_information(const char *format, ...)
 {
   va_list args;
   DBUG_ENTER("sql_print_information");

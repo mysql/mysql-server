@@ -22,7 +22,6 @@
 
 #include "my_macros.h"
 #include "my_psi_config.h"
-#include "my_sharedlib.h"
 #include "mysql/psi/mysql_thread.h"
 #include "mysql/psi/mysql_stage.h"
 #include "mysql/psi/mysql_file.h"
@@ -129,7 +128,7 @@ extern int      my_win_fstat(File fd, struct _stati64 *buf);
 extern int      my_win_fsync(File fd);
 extern File     my_win_dup(File fd);
 extern File     my_win_sopen(const char *path, int oflag, int shflag, int perm);
-extern MYSQL_PLUGIN_LEGACY_API File my_open_osfhandle(HANDLE handle, int oflag);
+extern File     my_open_osfhandle(HANDLE handle, int oflag);
 #endif
 
 #endif /* MYSYS_PRIV_INCLUDED */

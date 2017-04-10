@@ -58,7 +58,7 @@ const char *transaction_write_set_hashing_algorithms[]=
   ,0
 };
 
-MYSQL_PLUGIN_API const char*
+const char*
 get_write_set_algorithm_string(unsigned int algorithm)
 {
   switch(algorithm)

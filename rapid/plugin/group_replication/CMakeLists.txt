@@ -73,10 +73,9 @@ IF(WITH_UNIT_TESTS)
     src/member_version.cc
     src/compatibility_module.cc
   )
-  SET_TARGET_PROPERTIES(
-    gr_unit_test_resource
-    PROPERTIES
-    COMPILE_DEFINITIONS "DISABLE_PSI_MUTEX;MYSQL_NO_PLUGIN_EXPORT")
+  SET_TARGET_PROPERTIES(gr_unit_test_resource
+                        PROPERTIES
+                        COMPILE_DEFINITIONS "DISABLE_PSI_MUTEX")
 ENDIF()
 
 ### Configuration ###

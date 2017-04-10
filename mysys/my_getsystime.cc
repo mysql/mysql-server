@@ -75,7 +75,7 @@ bool win_init_get_system_time_as_file_time()
   @retval current high-resolution time.
 */
 
-extern "C" MYSQL_PLUGIN_LEGACY_API ulonglong my_getsystime()
+extern "C" ulonglong my_getsystime()
 {
 #ifdef HAVE_CLOCK_GETTIME
   struct timespec tp;
@@ -104,7 +104,7 @@ extern "C" MYSQL_PLUGIN_LEGACY_API ulonglong my_getsystime()
   @retval current time.
 */
 
-MYSQL_PLUGIN_LEGACY_API time_t my_time(myf flags)
+time_t my_time(myf flags)
 {
   time_t t;
   /*
@@ -134,7 +134,7 @@ MYSQL_PLUGIN_LEGACY_API time_t my_time(myf flags)
 #define OFFSET_TO_EPOCH 116444736000000000ULL
 #endif
 
-MYSQL_PLUGIN_LEGACY_API ulonglong my_micro_time()
+ulonglong my_micro_time()
 {
 #ifdef _WIN32
   ulonglong newtime;

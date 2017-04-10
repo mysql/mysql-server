@@ -127,8 +127,8 @@ int find_ref_key(KEY *key, uint key_count, uchar *record, Field *field,
   @param key_length  specifies length of all keyparts that will be copied
 */
 
-MYSQL_PLUGIN_LEGACY_API void key_copy(
-  uchar *to_key, uchar *from_record, KEY *key_info, uint key_length)
+void key_copy(uchar *to_key, uchar *from_record, KEY *key_info,
+              uint key_length)
 {
   uint length;
   KEY_PART_INFO *key_part;

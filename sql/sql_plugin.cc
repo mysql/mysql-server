@@ -3546,8 +3546,7 @@ static bool plugin_var_memalloc_session_update(THD *thd,
   Used in plugin.h:THDVAR_SET(thd, name, value) macro.
 */
 
-MYSQL_PLUGIN_API void plugin_thdvar_safe_update(
-  THD *thd, st_mysql_sys_var *var, char **dest, const char *value)
+void plugin_thdvar_safe_update(THD *thd, st_mysql_sys_var *var, char **dest, const char *value)
 {
   DBUG_ASSERT(thd == current_thd);
 

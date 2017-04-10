@@ -326,8 +326,8 @@ Vio *internal_vio_create(uint flags)
 
 /* Create a new VIO for socket or TCP/IP connection. */
 
-MYSQL_PLUGIN_LEGACY_API Vio *mysql_socket_vio_new(
-  MYSQL_SOCKET mysql_socket, enum_vio_type type, uint flags)
+Vio *mysql_socket_vio_new(MYSQL_SOCKET mysql_socket,
+                          enum_vio_type type, uint flags)
 {
   Vio *vio;
   my_socket sd= mysql_socket_getfd(mysql_socket);

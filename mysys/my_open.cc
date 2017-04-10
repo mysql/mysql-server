@@ -81,7 +81,7 @@ File my_open(const char *FileName, int Flags, myf MyFlags)
 
 */
 
-MYSQL_PLUGIN_LEGACY_API int my_close(File fd, myf MyFlags)
+int my_close(File fd, myf MyFlags)
 {
   int err;
   DBUG_ENTER("my_close");

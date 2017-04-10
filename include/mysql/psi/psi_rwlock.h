@@ -310,7 +310,7 @@ typedef struct PSI_placeholder PSI_rwlock_info;
 typedef struct PSI_placeholder PSI_rwlock_locker_state;
 #endif
 
-extern MYSQL_PLUGIN_API PSI_rwlock_service_t *psi_rwlock_service;
+extern MYSQL_PLUGIN_IMPORT PSI_rwlock_service_t *psi_rwlock_service;
 
 /** @} (end of group psi_abi_rwlock) */
 

@@ -26,7 +26,6 @@
 #include <stdlib.h>
 
 #include "my_compiler.h"
-#include "my_sharedlib.h"
 
 #if !defined(DBUG_OFF)
 #include <assert.h>  // IWYU pragma: keep
@@ -47,37 +46,30 @@ struct _db_stack_frame_ {
 
 struct  _db_code_state_;
 
-extern  MYSQL_PLUGIN_API int _db_keyword_(
-  struct _db_code_state_ *, const char *, int);
-extern  MYSQL_PLUGIN_API int _db_explain_(
-  struct _db_code_state_ *cs, char *buf, size_t len);
-extern  MYSQL_PLUGIN_API int _db_explain_init_(
-  char *buf, size_t len);
-extern	MYSQL_PLUGIN_API int _db_is_pushed_(void);
-extern  MYSQL_PLUGIN_API void _db_process_(const char *name);
-extern  MYSQL_PLUGIN_API void _db_push_(const char *control);
-extern  MYSQL_PLUGIN_API void _db_pop_(void);
-extern  MYSQL_PLUGIN_API void _db_set_(const char *control);
-extern  MYSQL_PLUGIN_API void _db_set_init_(const char *control);
-extern  MYSQL_PLUGIN_API void _db_enter_(
-  const char *_func_, const char *_file_, unsigned int _line_,
-  struct _db_stack_frame_ *_stack_frame_);
-extern  MYSQL_PLUGIN_API void _db_return_(
-  unsigned int _line_, struct _db_stack_frame_ *_stack_frame_);
-extern  MYSQL_PLUGIN_API void _db_pargs_(
-  unsigned int _line_,const char *keyword);
-extern  MYSQL_PLUGIN_API int _db_enabled_();
-extern  MYSQL_PLUGIN_API void _db_doprnt_(const char *format,...)
+extern  int _db_keyword_(struct _db_code_state_ *, const char *, int);
+extern  int _db_explain_(struct _db_code_state_ *cs, char *buf, size_t len);
+extern  int _db_explain_init_(char *buf, size_t len);
+extern	int _db_is_pushed_(void);
+extern  void _db_process_(const char *name);
+extern  void _db_push_(const char *control);
+extern  void _db_pop_(void);
+extern  void _db_set_(const char *control);
+extern  void _db_set_init_(const char *control);
+extern void _db_enter_(const char *_func_, const char *_file_, unsigned int _line_,
+                       struct _db_stack_frame_ *_stack_frame_);
+extern  void _db_return_(unsigned int _line_, struct _db_stack_frame_ *_stack_frame_);
+extern  void _db_pargs_(unsigned int _line_,const char *keyword);
+extern  int _db_enabled_();
+extern  void _db_doprnt_(const char *format,...)
   MY_ATTRIBUTE((format(printf, 1, 2)));
-extern  MYSQL_PLUGIN_API void _db_dump_(
-  unsigned int _line_,const char *keyword,
-  const unsigned char *memory, size_t length);
-extern  MYSQL_PLUGIN_API void _db_end_(void);
-extern  MYSQL_PLUGIN_API void _db_lock_file_(void);
-extern  MYSQL_PLUGIN_API void _db_unlock_file_(void);
-extern  MYSQL_PLUGIN_API FILE *_db_fp_(void);
-extern  MYSQL_PLUGIN_API void _db_flush_();
-extern  MYSQL_PLUGIN_API const char* _db_get_func_(void);
+extern  void _db_dump_(unsigned int _line_,const char *keyword,
+                       const unsigned char *memory, size_t length);
+extern  void _db_end_(void);
+extern  void _db_lock_file_(void);
+extern  void _db_unlock_file_(void);
+extern  FILE *_db_fp_(void);
+extern  void _db_flush_();
+extern  const char* _db_get_func_(void);
 
 #define DBUG_ENTER(a) struct _db_stack_frame_ _db_stack_frame_; \
         _db_enter_ (a,__FILE__,__LINE__,&_db_stack_frame_)
@@ -141,8 +133,8 @@ extern  MYSQL_PLUGIN_API const char* _db_get_func_(void);
 #ifdef _WIN32
 #define DBUG_SUICIDE() DBUG_ABORT()
 #else
-extern MYSQL_PLUGIN_API void _db_suicide_() MY_ATTRIBUTE((noreturn));
-extern MYSQL_PLUGIN_API void _db_flush_gcov_();
+extern void _db_suicide_() MY_ATTRIBUTE((noreturn));
+extern void _db_flush_gcov_();
 #define DBUG_SUICIDE() (_db_flush_(), _db_suicide_())
 #endif
 

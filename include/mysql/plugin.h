@@ -29,10 +29,10 @@
 #endif
 
 /*
-  Exports from shared libraries must be marked as such, as everything
-  is hidden by default. Also, on Windows, plugin symbols need to be declared as
-  extern "C", because MSVC, unlike other compilers, uses C++ mangling for
-  not only functions, but also for variables.
+  On Windows, exports from DLL need to be declared.
+  Also, plugin needs to be declared as extern "C" because MSVC 
+  unlike other compilers, uses C++ mangling for variables not only
+  for functions.
 */
 #if defined(_MSC_VER)
 #if defined(MYSQL_DYNAMIC_PLUGIN)
@@ -49,11 +49,7 @@
   #endif
 #endif /*MYSQL_DYNAMIC_PLUGIN */
 #else /*_MSC_VER */
-#define MYSQL_PLUGIN_EXPORT __attribute__((visibility("default")))
-#endif
-
-#ifdef MYSQL_ABI_CHECK
-#define MYSQL_PLUGIN_API
+#define MYSQL_PLUGIN_EXPORT
 #endif
 
 #ifdef __cplusplus
@@ -610,34 +606,26 @@ struct st_mysql_value
 extern "C" {
 #endif
 
-MYSQL_PLUGIN_API int thd_in_lock_tables(
-  const MYSQL_THD thd);
-MYSQL_PLUGIN_API int thd_tablespace_op(
-  const MYSQL_THD thd);
-MYSQL_PLUGIN_API long long thd_test_options(
-  const MYSQL_THD thd, long long test_options);
-MYSQL_PLUGIN_API int thd_sql_command(
-  const MYSQL_THD thd);
-MYSQL_PLUGIN_API const char *set_thd_proc_info(
-  MYSQL_THD thd, const char *info,
-  const char *calling_func,
-  const char *calling_file,
-  const unsigned int calling_line);
-MYSQL_PLUGIN_API void **thd_ha_data(
-  const MYSQL_THD thd, const struct handlerton *hton);
-MYSQL_PLUGIN_API void thd_storage_lock_wait(
-  MYSQL_THD thd, long long value);
-MYSQL_PLUGIN_API int thd_tx_isolation(const MYSQL_THD thd);
-MYSQL_PLUGIN_API int thd_tx_is_read_only(const MYSQL_THD thd);
-MYSQL_PLUGIN_API MYSQL_THD thd_tx_arbitrate(
-  MYSQL_THD requestor, MYSQL_THD holder);
-MYSQL_PLUGIN_API int thd_tx_priority(const MYSQL_THD thd);
-MYSQL_PLUGIN_API int thd_tx_is_dd_trx(const MYSQL_THD thd);
-MYSQL_PLUGIN_API char *thd_security_context(
-  MYSQL_THD thd, char *buffer, size_t length, size_t max_query_len);
+int thd_in_lock_tables(const MYSQL_THD thd);
+int thd_tablespace_op(const MYSQL_THD thd);
+long long thd_test_options(const MYSQL_THD thd, long long test_options);
+int thd_sql_command(const MYSQL_THD thd);
+const char *set_thd_proc_info(MYSQL_THD thd, const char *info,
+                              const char *calling_func,
+                              const char *calling_file,
+                              const unsigned int calling_line);
+void **thd_ha_data(const MYSQL_THD thd, const struct handlerton *hton);
+void thd_storage_lock_wait(MYSQL_THD thd, long long value);
+int thd_tx_isolation(const MYSQL_THD thd);
+int thd_tx_is_read_only(const MYSQL_THD thd);
+MYSQL_THD thd_tx_arbitrate(MYSQL_THD requestor, MYSQL_THD holder);
+int thd_tx_priority(const MYSQL_THD thd);
+int thd_tx_is_dd_trx(const MYSQL_THD thd);
+char *thd_security_context(MYSQL_THD thd, char *buffer, size_t length,
+                           size_t max_query_len);
 /* Increments the row counter, see THD::row_count */
-MYSQL_PLUGIN_API void thd_inc_row_count(MYSQL_THD thd);
-MYSQL_PLUGIN_API int thd_allow_batch(MYSQL_THD thd);
+void thd_inc_row_count(MYSQL_THD thd);
+int thd_allow_batch(MYSQL_THD thd);
 
 
 /**
@@ -648,8 +636,7 @@ MYSQL_PLUGIN_API int thd_allow_batch(MYSQL_THD thd);
   @param all  if all != 0, rollback the main transaction
 */
 
-MYSQL_PLUGIN_API void thd_mark_transaction_to_rollback(
-  MYSQL_THD thd, int all);
+void thd_mark_transaction_to_rollback(MYSQL_THD thd, int all);
 
 /**
   Create a temporary file.
@@ -663,7 +650,7 @@ MYSQL_PLUGIN_API void thd_mark_transaction_to_rollback(
   @retval -1    error
   @retval >= 0  a file handle that can be passed to dup or my_close
 */
-MYSQL_PLUGIN_API int mysql_tmpfile(const char *prefix);
+int mysql_tmpfile(const char *prefix);
 
 /**
   Check the killed state of a connection
@@ -679,14 +666,14 @@ MYSQL_PLUGIN_API int mysql_tmpfile(const char *prefix);
   @retval 0  the connection is active
   @retval 1  the connection has been killed
 */
-MYSQL_PLUGIN_API int thd_killed(const MYSQL_THD thd);
+int thd_killed(const MYSQL_THD thd);
 
 /**
   Set the killed status of the current statement.
 
   @param thd  user thread connection handle
 */
-MYSQL_PLUGIN_API void thd_set_kill_status(const MYSQL_THD thd);
+void thd_set_kill_status(const MYSQL_THD thd);
 
 /**
   Get binary log position for latest written entry.
@@ -699,10 +686,9 @@ MYSQL_PLUGIN_API void thd_set_kill_status(const MYSQL_THD thd);
   @param file_var Pointer to variable that will hold the file name.
   @param pos_var Pointer to variable that will hold the file position.
  */
-MYSQL_PLUGIN_API void thd_binlog_pos(
-  const MYSQL_THD thd,
-  const char **file_var,
-  unsigned long long *pos_var);
+void thd_binlog_pos(const MYSQL_THD thd,
+                    const char **file_var,
+                    unsigned long long *pos_var);
 
 /**
   Return the thread id of a user thread
@@ -710,7 +696,7 @@ MYSQL_PLUGIN_API void thd_binlog_pos(
   @param thd  user thread connection handle
   @return  thread id
 */
-MYSQL_PLUGIN_API unsigned long thd_get_thread_id(const MYSQL_THD thd);
+unsigned long thd_get_thread_id(const MYSQL_THD thd);
 
 /**
   Get the XID for this connection's transaction
@@ -718,7 +704,7 @@ MYSQL_PLUGIN_API unsigned long thd_get_thread_id(const MYSQL_THD thd);
   @param thd  user thread connection handle
   @param xid  location where identifier is stored
 */
-MYSQL_PLUGIN_API void thd_get_xid(const MYSQL_THD thd, MYSQL_XID *xid);
+void thd_get_xid(const MYSQL_THD thd, MYSQL_XID *xid);
 
 /**
   Invalidate the query cache for a given table.
@@ -728,17 +714,15 @@ MYSQL_PLUGIN_API void thd_get_xid(const MYSQL_THD thd, MYSQL_XID *xid);
   @param key_length  length of key in bytes, including the PATH separator
   @param using_trx   flag: TRUE if using transactions, FALSE otherwise
 */
-MYSQL_PLUGIN_API void mysql_query_cache_invalidate4(
-  MYSQL_THD thd,
-  const char *key, unsigned int key_length,
-  int using_trx);
+void mysql_query_cache_invalidate4(MYSQL_THD thd,
+                                   const char *key, unsigned int key_length,
+                                   int using_trx);
 
 
 /**
   Provide a handler data getter to simplify coding
 */
-MYSQL_PLUGIN_API void *thd_get_ha_data(
-  const MYSQL_THD thd, const struct handlerton *hton);
+void *thd_get_ha_data(const MYSQL_THD thd, const struct handlerton *hton);
 
 
 /**
@@ -762,8 +746,8 @@ MYSQL_PLUGIN_API void *thd_get_ha_data(
   If handlerton::close_connection() didn't reset ha_data, server does
   it immediately after calling handlerton::close_connection().
 */
-MYSQL_PLUGIN_API void thd_set_ha_data(
-  MYSQL_THD thd, const struct handlerton *hton, const void *ha_data);
+void thd_set_ha_data(MYSQL_THD thd, const struct handlerton *hton,
+                     const void *ha_data);
 #ifdef __cplusplus
 }
 #endif

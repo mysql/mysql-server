@@ -129,14 +129,6 @@ IF(MSVC)
   #TODO: update the code and remove the disabled warnings
   SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /wd4800 /wd4805 /wd4996")
   SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd4800 /wd4805 /wd4996 /we4099")
-
-  # These are warnings about exported entry points not being complete,
-  # e.g. exporting "Baz *Foo::bar();" without Baz being exported.
-  # As most of these are for legacy export (MYSQL_PLUGIN_LEGACY_API),
-  # we deliberately keep the exported interface minimal, and thus,
-  # we suppress these warnings.
-  SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /wd4251 /wd4275")
-  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd4251 /wd4275")
 ENDIF()
 
 # Always link with socket library

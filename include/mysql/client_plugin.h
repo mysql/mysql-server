@@ -27,8 +27,8 @@
 #endif
 
 /*
-  Exports from plugins need to be declared.
-  Also, on Windows, plugins need to be declared as extern "C" because MSVC
+  On Windows, exports from DLL need to be declared.
+  Also, plugin needs to be declared as extern "C" because MSVC
   unlike other compilers, uses C++ mangling for variables not only
   for functions.
 */
@@ -50,7 +50,7 @@
   #endif
 #endif /*MYSQL_DYNAMIC_PLUGIN */
 #else /*_MSC_VER */
-#define MYSQL_PLUGIN_EXPORT __attribute__((visibility("default")))
+#define MYSQL_PLUGIN_EXPORT
 #endif
 
 

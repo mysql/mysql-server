@@ -328,7 +328,7 @@ typedef struct PSI_placeholder PSI_socket_info;
 typedef struct PSI_placeholder PSI_socket_locker_state;
 #endif
 
-extern MYSQL_PLUGIN_API PSI_socket_service_t *psi_socket_service;
+extern MYSQL_PLUGIN_IMPORT PSI_socket_service_t *psi_socket_service;
 
 /** @} (end of group psi_abi_socket) */
 

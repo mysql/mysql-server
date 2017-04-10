@@ -35,20 +35,18 @@
 #include <stddef.h>
 
 #include "my_macros.h"
-#include "my_sharedlib.h"
 
 int extract_user_salt(char **salt_begin,
                       char **salt_end);
 C_MODE_START
-
-MYSQL_PLUGIN_LEGACY_API char *
+char *
 my_crypt_genhash(char *ctbuffer,
                  size_t ctbufflen,
                  const char *plaintext,
                  size_t plaintext_len,
                  const char *switchsalt,
                  const char **params);
-MYSQL_PLUGIN_LEGACY_API void generate_user_salt(char *buffer, int buffer_len);
+void generate_user_salt(char *buffer, int buffer_len);
 void xor_string(char *to, int to_len, char *pattern, int pattern_len);
 
 C_MODE_END

@@ -38,7 +38,6 @@
 */
 
 #include "m_string.h"
-#include "my_sharedlib.h"
 
 #ifndef ll2str
 
@@ -97,8 +96,7 @@ char *ll2str(longlong val,char *dst,int radix, int upcase)
 #endif
 
 #ifndef longlong10_to_str
-MYSQL_PLUGIN_LEGACY_API char *longlong10_to_str(
-  longlong val,char *dst,int radix)
+char *longlong10_to_str(longlong val,char *dst,int radix)
 {
   char buffer[65];
   char *p;

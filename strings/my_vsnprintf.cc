@@ -543,8 +543,8 @@ start:
     length of result string
 */
 
-MYSQL_PLUGIN_LEGACY_API size_t my_vsnprintf_ex(
-  const CHARSET_INFO *cs, char *to, size_t n, const char* fmt, va_list ap)
+size_t my_vsnprintf_ex(const CHARSET_INFO *cs, char *to, size_t n,
+                       const char* fmt, va_list ap)
 {
   char *start=to, *end=to+n-1;
   size_t length, width;

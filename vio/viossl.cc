@@ -510,9 +510,8 @@ static int ssl_do(struct st_VioSSLFd *ptr, Vio *vio, long timeout,
 }
 
 
-MYSQL_PLUGIN_LEGACY_API int sslaccept(
-  struct st_VioSSLFd *ptr, Vio *vio, long timeout,
-  unsigned long *ssl_errno_holder)
+int sslaccept(struct st_VioSSLFd *ptr, Vio *vio, long timeout,
+              unsigned long *ssl_errno_holder)
 {
   DBUG_ENTER("sslaccept");
   int ret= ssl_do(ptr, vio, timeout, SSL_accept, ssl_errno_holder);

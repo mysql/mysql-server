@@ -55,43 +55,15 @@
 #define dlopen_errno errno
 #endif /* _WIN32 */
 
-/*
-  Symbols declared as MYSQL_PLUGIN_API make up the interface between the server
-  and plugins. When compiling the server, these are exported; when compiling a
-  dynamic plugin, they are imported. When compiling something that is neither,
-  they are neither exported nor imported (which is the default), so you should
-  set MYSQL_NO_PLUGIN_EXPORT; otherwise, one can get into situations where one
-  is including an otherwise unrelated header file that declares a symbol that is
-  taken to be exported (and thus can't be pruned away during linking), which
-  references a symbol from another module which wasn't meant to be linked in,
-  causing a linker error.
+/* 
+  MYSQL_PLUGIN_IMPORT macro is used to export mysqld data
+  (i.e variables) for usage in storage engine loadable plugins.
+  Outside of Windows, it is dummy.
 */
-
-#if !defined(MYSQL_NO_PLUGIN_EXPORT) && (defined(MYSQL_DYNAMIC_PLUGIN) || defined(MYSQL_ABI_CHECK))
-  #if defined(_WIN32)
-    #define MYSQL_PLUGIN_API __declspec(dllimport)
-  #else
-    #define MYSQL_PLUGIN_API
-  #endif
-#elif !defined(MYSQL_NO_PLUGIN_EXPORT)
-  // Don't export plugin symbols from libmysqlclient and standalone binaries.
-  #if defined(_WIN32)
-    #define MYSQL_PLUGIN_API __declspec(dllexport)
-  #else
-    #define MYSQL_PLUGIN_API __attribute__((visibility("default")))
-  #endif
+#if (defined(_WIN32) && defined(MYSQL_DYNAMIC_PLUGIN))
+#define MYSQL_PLUGIN_IMPORT __declspec(dllimport)
 #else
-  #define MYSQL_PLUGIN_API
+#define MYSQL_PLUGIN_IMPORT
 #endif
-
-/*
-  These are symbols that are grandfathered as part of the API, ie., they were
-  used by existing plugins at the time where the API was closed down. New code
-  should not rely on using such symbols, but rather use the service and
-  component APIs. Their use is strongly discouraged and may break at any time;
-  if you want to test that your plugin does not depend on them, compile and
-  test it with this #define set to the empty string.
-*/
-#define MYSQL_PLUGIN_LEGACY_API MYSQL_PLUGIN_API
 
 #endif  // MY_SHAREDLIB_INCLUDED

@@ -321,8 +321,7 @@ extern "C" void *my_memdup(PSI_memory_key key, const void *from,
 }
 
 
-extern "C" MYSQL_PLUGIN_LEGACY_API char *my_strdup(
-  PSI_memory_key key, const char *from, myf my_flags)
+extern "C" char *my_strdup(PSI_memory_key key, const char *from, myf my_flags)
 {
   char *ptr;
   size_t length= strlen(from)+1;

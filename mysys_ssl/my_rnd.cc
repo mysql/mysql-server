@@ -33,7 +33,6 @@
 #include <openssl/err.h>
 #endif /* HAVE_YASSL */
 
-#include "my_sharedlib.h"
 
 /*
   A wrapper to use OpenSSL/yaSSL PRNGs.
@@ -69,7 +68,7 @@ Fill a buffer with random bytes using the SSL library routines
 @retval      1  error occurred.
 @retval      0  OK
 */
-MYSQL_PLUGIN_LEGACY_API int
+int
 my_rand_buffer(unsigned char *buffer, size_t buffer_size)
 {
   int rc;

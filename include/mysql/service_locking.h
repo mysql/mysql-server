@@ -24,8 +24,6 @@
   Implements ::mysql_locking_service_st
 */
 
-#include "my_sharedlib.h"
-
 #ifdef __cplusplus
 class THD;
 #define MYSQL_THD THD*
@@ -114,17 +112,15 @@ extern struct mysql_locking_service_st {
 
 #else
 
-MYSQL_PLUGIN_LEGACY_API int mysql_acquire_locking_service_locks(
-  MYSQL_THD opaque_thd,
-  const char* lock_namespace,
-  const char**lock_names,
-  size_t lock_num,
-  enum enum_locking_service_lock_type lock_type,
-  unsigned long lock_timeout);
+int mysql_acquire_locking_service_locks(MYSQL_THD opaque_thd,
+                                        const char* lock_namespace,
+                                        const char**lock_names,
+                                        size_t lock_num,
+                                        enum enum_locking_service_lock_type lock_type,
+                                        unsigned long lock_timeout);
 
-MYSQL_PLUGIN_LEGACY_API int mysql_release_locking_service_locks(
-  MYSQL_THD opaque_thd,
-  const char* lock_namespace);
+int mysql_release_locking_service_locks(MYSQL_THD opaque_thd,
+                                        const char* lock_namespace);
 
 #endif /* MYSQL_DYNAMIC_PLUGIN */
 

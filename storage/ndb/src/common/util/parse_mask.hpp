@@ -25,8 +25,6 @@
 #include <strings.h>
 #endif
 
-#include "my_sharedlib.h"
-
 #define PARSE_END_ENTRIES 8192
 #define MAX_STRING_SIZE 32
 
@@ -52,7 +50,7 @@ struct ParamValue
   SparseBitmask mask_val;
 };
 
-class MYSQL_PLUGIN_LEGACY_API ParseThreadConfiguration
+class ParseThreadConfiguration
 {
 public:
   ParseThreadConfiguration(const char *str,

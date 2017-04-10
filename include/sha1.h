@@ -32,9 +32,17 @@
 
 C_MODE_START
 
-void compute_sha1_hash(uint8 *digest, const char *buf, size_t len);
+void compute_sha1_hash(uint8 *digest, const char *buf, size_t len)
+#if defined(HAVE_VISIBILITY_HIDDEN)
+  MY_ATTRIBUTE((visibility("hidden")))
+#endif
+;
 void compute_sha1_hash_multi(uint8 *digest, const char *buf1, int len1,
-                             const char *buf2, int len2);
+                             const char *buf2, int len2)
+#if defined(HAVE_VISIBILITY_HIDDEN)
+  MY_ATTRIBUTE((visibility("hidden")))
+#endif
+;
 
 C_MODE_END
 

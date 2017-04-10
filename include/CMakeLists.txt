@@ -24,7 +24,6 @@ SET(HEADERS
   mem_root_fwd.h
   my_command.h
   my_list.h
-  my_sharedlib.h
   mysql.h
   mysql_com.h
   mysql_time.h

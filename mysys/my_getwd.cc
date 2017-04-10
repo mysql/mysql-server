@@ -34,7 +34,6 @@
 #include "my_inttypes.h"
 #include "my_io.h"
 #include "my_macros.h"
-#include "my_sharedlib.h"
 #include "my_static.h"
 #include "my_sys.h"
 #include "my_thread_local.h"
@@ -62,7 +61,7 @@
     #  error
 */
 
-MYSQL_PLUGIN_LEGACY_API int my_getwd(char * buf, size_t size, myf MyFlags)
+int my_getwd(char * buf, size_t size, myf MyFlags)
 {
   char * pos;
   DBUG_ENTER("my_getwd");

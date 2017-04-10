@@ -56,7 +56,7 @@
 #include "mysys_priv.h"
 
 /* Associates a file descriptor with an existing operating-system file handle.*/
-MYSQL_PLUGIN_LEGACY_API File my_open_osfhandle(HANDLE handle, int oflag)
+File my_open_osfhandle(HANDLE handle, int oflag)
 {
   int offset= -1;
   uint i;

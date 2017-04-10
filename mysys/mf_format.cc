@@ -34,9 +34,8 @@
   The arguments should be in unix format.
 */
 
-MYSQL_PLUGIN_LEGACY_API char * fn_format(
-  char * to, const char *name, const char *dir,
-  const char *extension, uint flag)
+char * fn_format(char * to, const char *name, const char *dir,
+		    const char *extension, uint flag)
 {
   char dev[FN_REFLEN], buff[FN_REFLEN], *pos, *startpos;
   const char *ext;

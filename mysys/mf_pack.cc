@@ -25,7 +25,6 @@
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_io.h"
-#include "my_sharedlib.h"
 #include "my_static.h"
 #include "my_sys.h"
 #ifdef HAVE_PWD_H
@@ -133,7 +132,7 @@ void pack_dirname(char * to, const char *from)
     #  length of new name   
 */
 
-MYSQL_PLUGIN_LEGACY_API size_t cleanup_dirname(char *to, const char *from)
+size_t cleanup_dirname(char *to, const char *from)
 {
   size_t length;
   char *pos;

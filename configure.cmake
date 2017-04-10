@@ -519,6 +519,9 @@ ENDIF()
 
 SET(CMAKE_EXTRA_INCLUDE_FILES)
 
+# Support for tagging symbols with __attribute__((visibility("hidden")))
+MY_CHECK_CXX_COMPILER_FLAG("-fvisibility=hidden" HAVE_VISIBILITY_HIDDEN)
+
 #
 # Code tests
 #

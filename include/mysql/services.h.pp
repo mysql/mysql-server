@@ -163,7 +163,6 @@ typedef ulonglong my_off_t;
 typedef ptrdiff_t my_ptrdiff_t;
 typedef int myf;
 #include "my_macros.h"
-#include "my_sharedlib.h"
 typedef enum
 {TRUNCATE=0, HALF_EVEN, HALF_UP, CEILING, FLOOR}
   decimal_round_mode;
@@ -439,8 +438,7 @@ extern void * my_realloc(PSI_memory_key key, void *ptr, size_t size, myf_t flags
 extern void my_claim(const void *ptr);
 extern void my_free(void *ptr);
 extern void * my_memdup(PSI_memory_key key, const void *from, size_t length, myf_t flags);
-extern char * my_strdup(
-  PSI_memory_key key, const char *from, myf_t flags);
+extern char * my_strdup(PSI_memory_key key, const char *from, myf_t flags);
 extern char * my_strndup(PSI_memory_key key, const char *from, size_t length, myf_t flags);
 #include <mysql/service_mysql_password_policy.h>
 extern struct mysql_password_policy_service_st {
@@ -575,7 +573,6 @@ extern struct security_context_service_st {
   my_svc_bool security_context_get_option(void*, const char *name, void *inout_pvalue);
   my_svc_bool security_context_set_option(void*, const char *name, void *pvalue);
 #include <mysql/service_locking.h>
-#include "my_sharedlib.h"
 enum enum_locking_service_lock_type
 { LOCKING_SERVICE_READ, LOCKING_SERVICE_WRITE };
 typedef int (*mysql_acquire_locks_t)(void* opaque_thd,
@@ -590,16 +587,14 @@ extern struct mysql_locking_service_st {
   mysql_acquire_locks_t mysql_acquire_locks;
   mysql_release_locks_t mysql_release_locks;
 } *mysql_locking_service;
- int mysql_acquire_locking_service_locks(
-  void* opaque_thd,
-  const char* lock_namespace,
-  const char**lock_names,
-  size_t lock_num,
-  enum enum_locking_service_lock_type lock_type,
-  unsigned long lock_timeout);
- int mysql_release_locking_service_locks(
-  void* opaque_thd,
-  const char* lock_namespace);
+int mysql_acquire_locking_service_locks(void* opaque_thd,
+                                        const char* lock_namespace,
+                                        const char**lock_names,
+                                        size_t lock_num,
+                                        enum enum_locking_service_lock_type lock_type,
+                                        unsigned long lock_timeout);
+int mysql_release_locking_service_locks(void* opaque_thd,
+                                        const char* lock_namespace);
 #include <mysql/service_mysql_keyring.h>
 extern struct mysql_keyring_service_st
 {

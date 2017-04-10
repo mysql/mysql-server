@@ -41,7 +41,6 @@
 #endif
 
 #include "my_macros.h"
-#include "my_sharedlib.h"
 #include "my_thread.h"
 #include "thr_mutex.h"
 
@@ -139,12 +138,11 @@ static inline int native_cond_broadcast(native_cond_t *cond)
 }
 
 #ifdef SAFE_MUTEX
-MYSQL_PLUGIN_LEGACY_API int safe_cond_wait(
-  native_cond_t *cond, my_mutex_t *mp, const char *file, uint line);
-MYSQL_PLUGIN_LEGACY_API int safe_cond_timedwait(
-  native_cond_t *cond, my_mutex_t *mp,
-  const struct timespec *abstime,
-  const char *file, uint line);
+int safe_cond_wait(native_cond_t *cond, my_mutex_t *mp,
+                   const char *file, uint line);
+int safe_cond_timedwait(native_cond_t *cond, my_mutex_t *mp,
+                        const struct timespec *abstime,
+                        const char *file, uint line);
 #endif
 
 static inline int my_cond_timedwait(native_cond_t *cond, my_mutex_t *mp,

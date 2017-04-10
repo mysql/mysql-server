@@ -66,7 +66,6 @@
 #include "my_dbug.h"
 #include "my_pointer_arithmetic.h"
 #include "my_psi_config.h"
-#include "my_sharedlib.h"
 #include "my_sqlcommand.h"
 #include "myisam.h"                   // TT_FOR_UPGRADE
 #include "mysql/plugin.h"
@@ -7902,8 +7901,8 @@ int handler::index_read_idx_map(uchar * buf, uint index, const uchar * key,
 }
 
 
-MYSQL_PLUGIN_API uint
-calculate_key_len(TABLE *table, uint key, key_part_map keypart_map)
+uint calculate_key_len(TABLE *table, uint key,
+                       key_part_map keypart_map)
 {
   /* works only with key prefixes */
   DBUG_ASSERT(((keypart_map + 1) & keypart_map) == 0);
@@ -8917,7 +8916,6 @@ notify_exclusive_mdl_helper(THD *thd, plugin_ref plugin, void *arg)
           True - if it has failed/lock should not be acquired.
 */
 
-MYSQL_PLUGIN_LEGACY_API
 bool ha_notify_exclusive_mdl(THD *thd, const MDL_key *mdl_key,
                              ha_notification_type notification_type,
                              bool *victimized)

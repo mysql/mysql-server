@@ -27,7 +27,6 @@
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_macros.h"
-#include "my_sharedlib.h"
 #include "my_sys.h"
 #include "typelib.h"
 
@@ -76,8 +75,7 @@ int find_type_or_exit(const char *x, TYPELIB *typelib, const char *option)
 */
 
 
-MYSQL_PLUGIN_LEGACY_API int find_type(
-  const char *x, const TYPELIB *typelib, uint flags)
+int find_type(const char *x, const TYPELIB *typelib, uint flags)
 {
   int find,pos;
   int findpos= 0;                       /* guarded by find */

@@ -29,7 +29,6 @@
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_io.h"
-#include "my_sharedlib.h"
 #include "my_sys.h"
 #include "my_thread_local.h"
 #include "mysys_err.h"
@@ -57,8 +56,7 @@
     0	Ok
     1	Error 
 */
-MYSQL_PLUGIN_LEGACY_API int my_chsize(
-  File fd, my_off_t newlength, int filler, myf MyFlags)
+int my_chsize(File fd, my_off_t newlength, int filler, myf MyFlags)
 {
   my_off_t oldsize;
   uchar buff[IO_SIZE];

@@ -176,8 +176,7 @@ C_MODE_START
 #define GETDATE_FIXEDLENGTH	16
 
 	/* defines when allocating data */
-extern MYSQL_PLUGIN_LEGACY_API void *my_multi_malloc(
-  PSI_memory_key key, myf flags, ...);
+extern void *my_multi_malloc(PSI_memory_key key, myf flags, ...);
 
 /*
   Switch to my_malloc() if the memory block to be allocated is bigger than
@@ -243,7 +242,7 @@ extern void (*fatal_error_handler_hook)(uint my_err, const char *str,
 extern void (*local_message_hook)(enum loglevel ll,
                                   const char *format, va_list args);
 extern uint my_file_limit;
-extern MYSQL_PLUGIN_API ulong my_thread_stack_size;
+extern MYSQL_PLUGIN_IMPORT ulong my_thread_stack_size;
 
 /*
   Hooks for reporting execution stage information. The server implementation
@@ -272,8 +271,8 @@ extern int (*is_killed_hook)(const void *opaque_thd);
 
 /* charsets */
 #define MY_ALL_CHARSETS_SIZE 2048
-extern MYSQL_PLUGIN_API CHARSET_INFO *default_charset_info;
-extern MYSQL_PLUGIN_API CHARSET_INFO *all_charsets[MY_ALL_CHARSETS_SIZE];
+extern MYSQL_PLUGIN_IMPORT CHARSET_INFO *default_charset_info;
+extern MYSQL_PLUGIN_IMPORT CHARSET_INFO *all_charsets[MY_ALL_CHARSETS_SIZE];
 extern CHARSET_INFO compiled_charsets[];
 
 /* statistics */
@@ -281,7 +280,7 @@ extern ulong	my_file_opened,my_stream_opened, my_tmp_file_created;
 extern ulong    my_file_total_opened;
 extern bool	my_init_done;
 
-extern MYSQL_PLUGIN_API int my_umask;		/* Default creation mask  */
+extern MYSQL_PLUGIN_IMPORT int my_umask;		/* Default creation mask  */
 extern int my_umask_dir;
 
 extern ulong	my_default_record_cache_size;
@@ -541,24 +540,23 @@ typedef uint32 ha_checksum;
 
 extern int my_copy(const char *from,const char *to,myf MyFlags);
 extern int my_delete(const char *name,myf MyFlags);
-extern MYSQL_PLUGIN_LEGACY_API int my_getwd(char * buf,size_t size,myf MyFlags);
+extern int my_getwd(char * buf,size_t size,myf MyFlags);
 extern int my_setwd(const char *dir,myf MyFlags);
 extern void *my_once_alloc(size_t Size,myf MyFlags);
 extern void my_once_free(void);
 extern char *my_once_strdup(const char *src,myf myflags);
 extern void *my_once_memdup(const void *src, size_t len, myf myflags);
-extern MYSQL_PLUGIN_LEGACY_API File my_open(const char *FileName,int Flags,myf MyFlags);
+extern File my_open(const char *FileName,int Flags,myf MyFlags);
 extern File my_register_filename(File fd, const char *FileName,
 				 enum file_type type_of_file,
 				 uint error_message_number, myf MyFlags);
 extern File my_create(const char *FileName,int CreateFlags,
 		      int AccessFlags, myf MyFlags);
-extern MYSQL_PLUGIN_LEGACY_API int my_close(File Filedes,myf MyFlags);
-extern MYSQL_PLUGIN_LEGACY_API int my_mkdir(const char *dir, int Flags, myf MyFlags);
+extern int my_close(File Filedes,myf MyFlags);
+extern int my_mkdir(const char *dir, int Flags, myf MyFlags);
 extern int my_readlink(char *to, const char *filename, myf MyFlags);
 extern int my_is_symlink(const char *filename);
-extern MYSQL_PLUGIN_LEGACY_API int my_realpath(
-  char *to, const char *filename, myf MyFlags);
+extern int my_realpath(char *to, const char *filename, myf MyFlags);
 extern File my_create_with_symlink(const char *linkname, const char *filename,
 				   int createflags, int access_flags,
 				   myf MyFlags);
@@ -567,16 +565,14 @@ extern int my_rename_with_symlink(const char *from,const char *to,myf MyFlags);
 #ifndef _WIN32
 extern int my_symlink(const char *content, const char *linkname, myf MyFlags);
 #endif
-extern MYSQL_PLUGIN_LEGACY_API size_t my_read(
-  File Filedes,uchar *Buffer,size_t Count,myf MyFlags);
-extern MYSQL_PLUGIN_LEGACY_API size_t my_pread(
-  File Filedes,uchar *Buffer,size_t Count,my_off_t offset, myf MyFlags);
-extern MYSQL_PLUGIN_LEGACY_API int my_rename(
-  const char *from, const char *to, myf MyFlags);
-extern MYSQL_PLUGIN_LEGACY_API my_off_t my_seek(File fd,my_off_t pos,int whence,myf MyFlags);
-extern MYSQL_PLUGIN_LEGACY_API my_off_t my_tell(File fd,myf MyFlags);
-extern MYSQL_PLUGIN_LEGACY_API size_t my_write(
-  File Filedes,const uchar *Buffer,size_t Count, myf MyFlags);
+extern size_t my_read(File Filedes,uchar *Buffer,size_t Count,myf MyFlags);
+extern size_t my_pread(File Filedes,uchar *Buffer,size_t Count,my_off_t offset,
+		     myf MyFlags);
+extern int my_rename(const char *from,const char *to,myf MyFlags);
+extern my_off_t my_seek(File fd,my_off_t pos,int whence,myf MyFlags);
+extern my_off_t my_tell(File fd,myf MyFlags);
+extern size_t my_write(File Filedes,const uchar *Buffer,size_t Count,
+		     myf MyFlags);
 extern size_t my_pwrite(File Filedes,const uchar *Buffer,size_t Count,
 		      my_off_t offset,myf MyFlags);
 extern size_t my_fread(FILE *stream,uchar *Buffer,size_t Count,myf MyFlags);
@@ -603,7 +599,7 @@ int my_closelog();
 int my_syslog(const CHARSET_INFO *cs, enum loglevel level, const char *msg);
 
 #ifdef _WIN32
-extern MYSQL_PLUGIN_LEGACY_API int my_access(const char *path, int amode);
+extern int      my_access(const char *path, int amode);
 #else
 #define my_access access
 #endif
@@ -627,8 +623,8 @@ extern int nt_share_delete(const char *name,myf MyFlags);
 
 #ifdef _WIN32
 /* Windows-only functions (CRT equivalents)*/
-extern MYSQL_PLUGIN_LEGACY_API HANDLE   my_get_osfhandle(File fd);
-extern MYSQL_PLUGIN_LEGACY_API void     my_osmaperr(unsigned long last_error);
+extern HANDLE   my_get_osfhandle(File fd);
+extern void     my_osmaperr(unsigned long last_error);
 #endif
 
 extern const char* get_global_errmsg(int nr);
@@ -638,16 +634,15 @@ extern FILE *my_fdopen(File Filedes,const char *name, int Flags,myf MyFlags);
 extern FILE *my_freopen(const char *path, const char *mode, FILE *stream);
 extern int my_fclose(FILE *fd,myf MyFlags);
 extern File my_fileno(FILE *fd);
-extern MYSQL_PLUGIN_LEGACY_API int my_chsize(
-  File fd, my_off_t newlength, int filler, myf MyFlags);
+extern int my_chsize(File fd,my_off_t newlength, int filler, myf MyFlags);
 extern void thr_set_sync_wait_callback(void (*before_sync)(void),
                                        void (*after_sync)(void));
-extern MYSQL_PLUGIN_LEGACY_API int my_sync(File fd, myf my_flags);
+extern int my_sync(File fd, myf my_flags);
 extern int my_sync_dir(const char *dir_name, myf my_flags);
 extern int my_sync_dir_by_file(const char *file_name, myf my_flags);
-extern MYSQL_PLUGIN_LEGACY_API char *my_strerror(char *buf, size_t len, int errnum);
-extern MYSQL_PLUGIN_LEGACY_API const char *my_get_err_msg(int nr);
-extern MYSQL_PLUGIN_LEGACY_API void my_error(int nr,myf MyFlags, ...);
+extern char *my_strerror(char *buf, size_t len, int errnum);
+extern const char *my_get_err_msg(int nr);
+extern void my_error(int nr,myf MyFlags, ...);
 extern void my_printf_error(uint my_err, const char *format,
                             myf MyFlags, ...)
   MY_ATTRIBUTE((format(printf, 2, 4)));
@@ -656,15 +651,14 @@ extern void my_printv_error(uint error, const char *format, myf MyFlags,
 extern int my_error_register(const char* (*get_errmsg) (int),
                              int first, int last);
 extern bool my_error_unregister(int first, int last);
-extern MYSQL_PLUGIN_LEGACY_API void my_message(
-  uint my_err, const char *str,myf MyFlags);
+extern void my_message(uint my_err, const char *str,myf MyFlags);
 extern void my_message_stderr(uint my_err, const char *str, myf MyFlags);
 void my_message_local_stderr(enum loglevel ll,
                              const char *format, va_list args);
 extern void my_message_local(enum loglevel ll, const char *format, ...);
 extern bool my_init(void);
 extern void my_end(int infoflag);
-extern MYSQL_PLUGIN_LEGACY_API char * my_filename(File fd);
+extern char * my_filename(File fd);
 extern MY_MODE get_file_perm(ulong perm_flags);
 extern bool my_chmod(const char *filename, ulong perm_flags, myf my_flags);
 
@@ -675,11 +669,10 @@ void my_print_open_files(void);
 #endif
 
 extern bool init_tmpdir(MY_TMPDIR *tmpdir, const char *pathlist);
-extern MYSQL_PLUGIN_LEGACY_API char *my_tmpdir(MY_TMPDIR *tmpdir);
+extern char *my_tmpdir(MY_TMPDIR *tmpdir);
 extern void free_tmpdir(MY_TMPDIR *tmpdir);
 
-extern MYSQL_PLUGIN_LEGACY_API size_t dirname_part(
-  char * to,const char *name, size_t *to_res_length);
+extern size_t dirname_part(char * to,const char *name, size_t *to_res_length);
 extern size_t dirname_length(const char *name);
 #define base_name(A) (A+dirname_length(A))
 extern int test_if_hard_path(const char *dir_name);
@@ -688,14 +681,13 @@ extern char *convert_dirname(char *to, const char *from, const char *from_end);
 extern void to_unix_path(char * name);
 extern char * fn_ext(const char *name);
 extern char * fn_same(char * toname,const char *name,int flag);
-extern MYSQL_PLUGIN_LEGACY_API char * fn_format(
-  char * to,const char *name,const char *dir, const char *form, uint flag);
+extern char * fn_format(char * to,const char *name,const char *dir,
+			   const char *form, uint flag);
 extern size_t strlength(const char *str);
 extern void pack_dirname(char * to,const char *from);
 extern size_t normalize_dirname(char * to, const char *from);
 extern size_t unpack_dirname(char * to,const char *from);
-extern MYSQL_PLUGIN_LEGACY_API size_t cleanup_dirname(
-  char * to,const char *from);
+extern size_t cleanup_dirname(char * to,const char *from);
 extern size_t system_filename(char * to,const char *from);
 extern size_t unpack_filename(char * to,const char *from);
 extern char * intern_filename(char * to,const char *from);
@@ -706,8 +698,7 @@ extern char * my_load_path(char * to, const char *path,
 			      const char *own_path_prefix);
 extern bool array_append_string_unique(const char *str,
                                           const char **array, size_t size);
-extern MYSQL_PLUGIN_LEGACY_API void get_date(
-  char *to, int timeflag, time_t use_time);
+extern void get_date(char * to,int timeflag,time_t use_time);
 
 extern bool radixsort_is_appliccable(uint n_items, size_t size_of_element);
 extern void radixsort_for_str_ptr(uchar* base[], uint number_of_elements,
@@ -725,10 +716,9 @@ extern int init_io_cache_ext(IO_CACHE *info,File file,size_t cachesize,
 extern int init_io_cache(IO_CACHE *info,File file,size_t cachesize,
                          enum cache_type type,my_off_t seek_offset,
                          bool use_async_io, myf cache_myflags);
-extern MYSQL_PLUGIN_LEGACY_API bool reinit_io_cache(
-  IO_CACHE *info,enum cache_type type,
-  my_off_t seek_offset,bool use_async_io,
-  bool clear_cache);
+extern bool reinit_io_cache(IO_CACHE *info,enum cache_type type,
+                            my_off_t seek_offset,bool use_async_io,
+                            bool clear_cache);
 extern void setup_io_cache(IO_CACHE* info);
 extern int _my_b_read(IO_CACHE *info,uchar *Buffer,size_t Count);
 extern int _my_b_read_r(IO_CACHE *info,uchar *Buffer,size_t Count);
@@ -744,25 +734,23 @@ extern int my_b_safe_write(IO_CACHE *info,const uchar *Buffer,size_t Count);
 
 extern int my_block_write(IO_CACHE *info, const uchar *Buffer,
 			  size_t Count, my_off_t pos);
-extern MYSQL_PLUGIN_LEGACY_API int my_b_flush_io_cache(
-  IO_CACHE *info, int need_append_buffer_lock);
+extern int my_b_flush_io_cache(IO_CACHE *info, int need_append_buffer_lock);
 
 #define flush_io_cache(info) my_b_flush_io_cache((info),1)
 
 extern int end_io_cache(IO_CACHE *info);
-extern MYSQL_PLUGIN_LEGACY_API size_t my_b_fill(IO_CACHE *info);
+extern size_t my_b_fill(IO_CACHE *info);
 extern void my_b_seek(IO_CACHE *info,my_off_t pos);
 extern size_t my_b_gets(IO_CACHE *info, char *to, size_t max_length);
 extern my_off_t my_b_filelength(IO_CACHE *info);
 extern size_t my_b_printf(IO_CACHE *info, const char* fmt, ...)
   MY_ATTRIBUTE((format(printf, 2, 3)));
 extern size_t my_b_vprintf(IO_CACHE *info, const char* fmt, va_list ap);
-extern MYSQL_PLUGIN_LEGACY_API bool open_cached_file(
-  IO_CACHE *cache,const char *dir,
-  const char *prefix, size_t cache_size,
-  myf cache_myflags);
+extern bool open_cached_file(IO_CACHE *cache,const char *dir,
+			     const char *prefix, size_t cache_size,
+			     myf cache_myflags);
 extern bool real_open_cached_file(IO_CACHE *cache);
-extern MYSQL_PLUGIN_LEGACY_API void close_cached_file(IO_CACHE *cache);
+extern void close_cached_file(IO_CACHE *cache);
 File create_temp_file(char *to, const char *dir, const char *pfx,
 		      int mode, myf MyFlags);
 
@@ -807,7 +795,7 @@ extern void dynstr_free(DYNAMIC_STRING *str);
 extern void init_alloc_root(PSI_memory_key key,
                             MEM_ROOT *mem_root, size_t block_size,
 			    size_t pre_alloc_size);
-extern MYSQL_PLUGIN_API void *alloc_root(MEM_ROOT *mem_root, size_t Size);
+extern void *alloc_root(MEM_ROOT *mem_root, size_t Size);
 extern void *multi_alloc_root(MEM_ROOT *mem_root, ...);
 extern void claim_root(MEM_ROOT *root);
 extern void free_root(MEM_ROOT *root, myf MyFLAGS);
@@ -815,8 +803,7 @@ extern void reset_root_defaults(MEM_ROOT *mem_root, size_t block_size,
                                 size_t prealloc_size);
 extern char *strdup_root(MEM_ROOT *root,const char *str);
 extern char *safe_strdup_root(MEM_ROOT *root, const char *str);
-extern MYSQL_PLUGIN_API char *strmake_root(
-  MEM_ROOT *root,const char *str,size_t len);
+extern char *strmake_root(MEM_ROOT *root,const char *str,size_t len);
 extern void *memdup_root(MEM_ROOT *root,const void *str, size_t len);
 extern void set_memroot_max_capacity(MEM_ROOT *mem_root, size_t size);
 extern void set_memroot_error_reporting(MEM_ROOT *mem_root,
@@ -844,8 +831,8 @@ static inline void my_sleep(time_t m_seconds)
 extern uint my_set_max_open_files(uint files);
 void my_free_open_file_info(void);
 
-extern MYSQL_PLUGIN_LEGACY_API time_t my_time(myf flags);
-extern MYSQL_PLUGIN_LEGACY_API ulonglong my_micro_time();
+extern time_t my_time(myf flags);
+extern ulonglong my_micro_time();
 extern bool my_gethwaddr(uchar *to);
 
 #ifdef HAVE_SYS_MMAN_H
@@ -909,7 +896,6 @@ extern CHARSET_INFO *get_charset(uint cs_number, myf flags);
 extern CHARSET_INFO *get_charset_by_name(const char *cs_name, myf flags);
 extern CHARSET_INFO *my_collation_get_by_name(MY_CHARSET_LOADER *loader,
                                               const char *name, myf flags);
-MYSQL_PLUGIN_LEGACY_API
 extern CHARSET_INFO *get_charset_by_csname(const char *cs_name,
 					   uint cs_flags, myf my_flags);
 extern CHARSET_INFO *my_charset_get_by_name(MY_CHARSET_LOADER *loader,
@@ -927,10 +913,9 @@ extern bool my_charset_same(const CHARSET_INFO *cs1,
                             const CHARSET_INFO *cs2);
 extern bool init_compiled_charsets(myf flags);
 extern void add_compiled_collation(CHARSET_INFO *cs);
-extern MYSQL_PLUGIN_LEGACY_API size_t escape_string_for_mysql(
-  const CHARSET_INFO *charset_info,
-  char *to, size_t to_length,
-  const char *from, size_t length);
+extern size_t escape_string_for_mysql(const CHARSET_INFO *charset_info,
+                                      char *to, size_t to_length,
+                                      const char *from, size_t length);
 #ifdef _WIN32
 /* File system character set */
 extern CHARSET_INFO *fs_character_set(void);
@@ -964,35 +949,35 @@ void my_init_mysys_psi_keys(void);
 #endif /* HAVE_PSI_INTERFACE */
 
 #ifdef HAVE_PSI_INTERFACE
-extern MYSQL_PLUGIN_API struct PSI_thread_bootstrap *psi_thread_hook;
+extern MYSQL_PLUGIN_IMPORT struct PSI_thread_bootstrap *psi_thread_hook;
 extern void set_psi_thread_service(PSI_thread_service_t *psi);
-extern MYSQL_PLUGIN_API struct PSI_mutex_bootstrap *psi_mutex_hook;
+extern MYSQL_PLUGIN_IMPORT struct PSI_mutex_bootstrap *psi_mutex_hook;
 extern void set_psi_mutex_service(PSI_mutex_service_t *psi);
-extern MYSQL_PLUGIN_API struct PSI_rwlock_bootstrap *psi_rwlock_hook;
+extern MYSQL_PLUGIN_IMPORT struct PSI_rwlock_bootstrap *psi_rwlock_hook;
 extern void set_psi_rwlock_service(PSI_rwlock_service_t *psi);
-extern MYSQL_PLUGIN_API struct PSI_cond_bootstrap *psi_cond_hook;
+extern MYSQL_PLUGIN_IMPORT struct PSI_cond_bootstrap *psi_cond_hook;
 extern void set_psi_cond_service(PSI_cond_service_t *psi);
-extern MYSQL_PLUGIN_API struct PSI_file_bootstrap *psi_file_hook;
+extern MYSQL_PLUGIN_IMPORT struct PSI_file_bootstrap *psi_file_hook;
 extern void set_psi_file_service(PSI_file_service_t *psi);
-extern MYSQL_PLUGIN_API struct PSI_socket_bootstrap *psi_socket_hook;
+extern MYSQL_PLUGIN_IMPORT struct PSI_socket_bootstrap *psi_socket_hook;
 extern void set_psi_socket_service(PSI_socket_service_t *psi);
-extern MYSQL_PLUGIN_API struct PSI_table_bootstrap *psi_table_hook;
+extern MYSQL_PLUGIN_IMPORT struct PSI_table_bootstrap *psi_table_hook;
 extern void set_psi_table_service(PSI_table_service_t *psi);
-extern MYSQL_PLUGIN_API struct PSI_mdl_bootstrap *psi_mdl_hook;
+extern MYSQL_PLUGIN_IMPORT struct PSI_mdl_bootstrap *psi_mdl_hook;
 extern void set_psi_mdl_service(PSI_mdl_service_t *psi);
-extern MYSQL_PLUGIN_API struct PSI_idle_bootstrap *psi_idle_hook;
+extern MYSQL_PLUGIN_IMPORT struct PSI_idle_bootstrap *psi_idle_hook;
 extern void set_psi_idle_service(PSI_idle_service_t *psi);
-extern MYSQL_PLUGIN_API struct PSI_stage_bootstrap *psi_stage_hook;
+extern MYSQL_PLUGIN_IMPORT struct PSI_stage_bootstrap *psi_stage_hook;
 extern void set_psi_stage_service(PSI_stage_service_t *psi);
-extern MYSQL_PLUGIN_API struct PSI_statement_bootstrap *psi_statement_hook;
+extern MYSQL_PLUGIN_IMPORT struct PSI_statement_bootstrap *psi_statement_hook;
 extern void set_psi_statement_service(PSI_statement_service_t *psi);
-extern MYSQL_PLUGIN_API struct PSI_transaction_bootstrap *psi_transaction_hook;
+extern MYSQL_PLUGIN_IMPORT struct PSI_transaction_bootstrap *psi_transaction_hook;
 extern void set_psi_transaction_service(PSI_transaction_service_t *psi);
-extern MYSQL_PLUGIN_API struct PSI_memory_bootstrap *psi_memory_hook;
+extern MYSQL_PLUGIN_IMPORT struct PSI_memory_bootstrap *psi_memory_hook;
 extern void set_psi_memory_service(PSI_memory_service_t *psi);
-extern MYSQL_PLUGIN_API struct PSI_error_bootstrap *psi_error_hook;
+extern MYSQL_PLUGIN_IMPORT struct PSI_error_bootstrap *psi_error_hook;
 extern void set_psi_error_service(PSI_error_service_t *psi);
-extern MYSQL_PLUGIN_API struct PSI_data_lock_bootstrap *psi_data_lock_hook;
+extern MYSQL_PLUGIN_IMPORT struct PSI_data_lock_bootstrap *psi_data_lock_hook;
 extern void set_psi_data_lock_service(PSI_data_lock_service_t *psi);
 #endif /* HAVE_PSI_INTERFACE */
 

@@ -120,7 +120,7 @@ typedef struct PSI_error_service_v1 PSI_error_service_t;
 typedef struct PSI_placeholder PSI_error_service_t;
 #endif
 
-extern MYSQL_PLUGIN_API PSI_error_service_t* psi_error_service;
+extern MYSQL_PLUGIN_IMPORT PSI_error_service_t* psi_error_service;
 
 /** @} (end of group psi_abi_error) */
 

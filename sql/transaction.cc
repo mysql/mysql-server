@@ -480,8 +480,7 @@ bool trans_rollback_implicit(THD *thd)
   @retval TRUE   Failure
 */
 
-MYSQL_PLUGIN_LEGACY_API bool trans_commit_stmt(
-  THD *thd, bool ignore_global_read_lock)
+bool trans_commit_stmt(THD *thd, bool ignore_global_read_lock)
 {
   DBUG_ENTER("trans_commit_stmt");
   int res= FALSE;
@@ -531,7 +530,7 @@ MYSQL_PLUGIN_LEGACY_API bool trans_commit_stmt(
   @retval FALSE  Success
   @retval TRUE   Failure
 */
-MYSQL_PLUGIN_LEGACY_API bool trans_rollback_stmt(THD *thd)
+bool trans_rollback_stmt(THD *thd)
 {
   DBUG_ENTER("trans_rollback_stmt");
 

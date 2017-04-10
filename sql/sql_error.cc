@@ -379,7 +379,7 @@ Diagnostics_area::~Diagnostics_area()
 }
 
 
-MYSQL_PLUGIN_LEGACY_API void Diagnostics_area::reset_diagnostics_area()
+void Diagnostics_area::reset_diagnostics_area()
 {
   DBUG_ENTER("reset_diagnostics_area");
 #ifdef DBUG_OFF
@@ -744,7 +744,6 @@ Diagnostics_area *Diagnostics_area::pop_diagnostics_area()
   @param message_text  Clear error message
 */
 
-MYSQL_PLUGIN_LEGACY_API
 void push_warning(THD *thd, Sql_condition::enum_severity_level severity,
                   uint code, const char *message_text)
 {

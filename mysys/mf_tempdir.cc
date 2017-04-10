@@ -84,7 +84,7 @@ bool init_tmpdir(MY_TMPDIR *tmpdir, const char *pathlist)
 }
 
 
-MYSQL_PLUGIN_LEGACY_API char *my_tmpdir(MY_TMPDIR *tmpdir)
+char *my_tmpdir(MY_TMPDIR *tmpdir)
 {
   if (0 == tmpdir->max)
     return tmpdir->list[0];

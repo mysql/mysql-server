@@ -157,7 +157,7 @@ typedef struct PSI_placeholder PSI_idle_service_t;
 typedef struct PSI_placeholder PSI_idle_locker_state;
 #endif
 
-extern MYSQL_PLUGIN_API PSI_idle_service_t *psi_idle_service;
+extern MYSQL_PLUGIN_IMPORT PSI_idle_service_t *psi_idle_service;
 
 /** @} (end of group psi_abi_idle) */
 

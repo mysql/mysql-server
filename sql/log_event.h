@@ -110,7 +110,7 @@ extern "C" {
 extern PSI_memory_key key_memory_Incident_log_event_message;
 extern PSI_memory_key key_memory_Rows_query_log_event_rows_query;
 }
-extern "C" MYSQL_PLUGIN_API ulong server_id;
+extern "C" MYSQL_PLUGIN_IMPORT ulong server_id;
 
 /* Forward declarations */
 using binary_log::enum_binlog_checksum_alg;
@@ -123,7 +123,7 @@ using binary_log::Format_description_event;
 
 typedef ulonglong sql_mode_t;
 typedef struct st_db_worker_hash_entry db_worker_hash_entry;
-extern "C" MYSQL_PLUGIN_API char server_version[SERVER_VERSION_LENGTH];
+extern "C" MYSQL_PLUGIN_IMPORT char server_version[SERVER_VERSION_LENGTH];
 #if defined(MYSQL_SERVER)
 int ignored_error_code(int err_code);
 #endif
@@ -504,7 +504,7 @@ typedef struct st_mts_db_names
   unless otherwise specified.
 
 */
-class MYSQL_PLUGIN_LEGACY_API Log_event
+class Log_event
 {
 public:
   /**
@@ -715,12 +715,11 @@ public:
     we detect the event's type, then call the specific event's
     constructor and pass description_event as an argument.
   */
-  static Log_event* read_log_event(
-    IO_CACHE* file,
-    mysql_mutex_t* log_lock,
-    const Format_description_log_event
-    *description_event,
-    bool crc_check);
+  static Log_event* read_log_event(IO_CACHE* file,
+                                   mysql_mutex_t* log_lock,
+                                   const Format_description_log_event
+                                   *description_event,
+                                   bool crc_check);
 
   /*
    This function will read the common header into the buffer.
@@ -792,13 +791,12 @@ public:
     @retval LOG_READ_TRUNC      only a partial event could be read
     @retval LOG_READ_TOO_LARGE  event too large
    */
-  static int read_log_event(
-    IO_CACHE* file, String* packet,
-    mysql_mutex_t* log_lock,
-    enum_binlog_checksum_alg checksum_alg_arg,
-    const char *log_file_name_arg= NULL,
-    bool* is_binlog_active= NULL,
-    char *event_header= NULL);
+  static int read_log_event(IO_CACHE* file, String* packet,
+                            mysql_mutex_t* log_lock,
+                            enum_binlog_checksum_alg checksum_alg_arg,
+                            const char *log_file_name_arg= NULL,
+                            bool* is_binlog_active= NULL,
+                            char *event_header= NULL);
 
   /*
     init_show_field_list() prepares the column names and types for the
@@ -1403,7 +1401,6 @@ public:
 
 #ifdef MYSQL_SERVER
 
-  MYSQL_PLUGIN_LEGACY_API
   Query_log_event(THD* thd_arg, const char* query_arg, size_t query_length,
                   bool using_trans, bool immediate, bool suppress_use,
                   int error, bool ignore_command= FALSE);
@@ -1573,7 +1570,7 @@ class Start_log_event_v3: public virtual binary_log::Start_event_v3, public Log_
 public:
 #ifdef MYSQL_SERVER
   Start_log_event_v3();
-  MYSQL_PLUGIN_LEGACY_API int pack_info(Protocol* protocol);
+  int pack_info(Protocol* protocol);
 #else
   Start_log_event_v3()
   : Log_event(header(), footer())
@@ -1647,8 +1644,8 @@ protected:
   @section Format_description_log_event_binary_format Binary Format
 */
 
-class MYSQL_PLUGIN_LEGACY_API Format_description_log_event
-  : public Format_description_event, public Start_log_event_v3
+class Format_description_log_event: public Format_description_event,
+                                    public Start_log_event_v3
 {
 public:
   /*
@@ -3801,8 +3798,7 @@ extern TYPELIB binlog_checksum_typelib;
   B_l: Namespace Binary_log
   @endinternal
 */
-class MYSQL_PLUGIN_LEGACY_API Gtid_log_event
-  : public binary_log::Gtid_event, public Log_event
+class Gtid_log_event : public binary_log::Gtid_event, public Log_event
 {
 public:
 #ifdef MYSQL_SERVER
@@ -3828,7 +3824,6 @@ public:
 #ifdef MYSQL_SERVER
   int pack_info(Protocol*);
 #endif
-
   Gtid_log_event(const char *buffer, uint event_len,
                  const Format_description_event *description_event);
 
@@ -4157,11 +4152,10 @@ private:
 public:
 
 #ifdef MYSQL_SERVER
-  MYSQL_PLUGIN_LEGACY_API Transaction_context_log_event(
-    const char *server_uuid_arg,
-    bool using_trans,
-    my_thread_id thread_id_arg,
-    bool is_gtid_specified_arg);
+  Transaction_context_log_event(const char *server_uuid_arg,
+                                bool using_trans,
+                                my_thread_id thread_id_arg,
+                                bool is_gtid_specified_arg);
 #endif
 
   Transaction_context_log_event(const char *buffer,
@@ -4190,7 +4184,7 @@ public:
 
     @param[in] hash  row identifier
    */
-  MYSQL_PLUGIN_LEGACY_API void add_write_set(const char *hash);
+  void add_write_set(const char *hash);
 
   /**
     Return a pointer to write-set list.
@@ -4215,7 +4209,7 @@ public:
     since its required locks will collide with the server gtid state
     initialization procedure.
    */
-  MYSQL_PLUGIN_LEGACY_API bool read_snapshot_version();
+  bool read_snapshot_version();
 
   /**
     Return the transaction snapshot timestamp.
@@ -4281,10 +4275,10 @@ private:
 
 public:
 
-  MYSQL_PLUGIN_LEGACY_API View_change_log_event(char* view_id);
+  View_change_log_event(char* view_id);
 
-  MYSQL_PLUGIN_LEGACY_API View_change_log_event(
-    const char *buffer, const Format_description_event *descr_event);
+  View_change_log_event(const char *buffer,
+                        const Format_description_event *descr_event);
 
   virtual ~View_change_log_event();
 
@@ -4311,8 +4305,7 @@ public:
   /**
     Sets the certification info
   */
-  MYSQL_PLUGIN_LEGACY_API void set_certification_info(
-    std::map<std::string, std::string> *info);
+  void set_certification_info(std::map<std::string, std::string> *info);
 
   /**
     Returns the certification info

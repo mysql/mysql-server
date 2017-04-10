@@ -157,7 +157,7 @@ bool show_create_trigger(THD *thd, const sp_name *trg_name);
 void view_store_options(THD *thd, TABLE_LIST *table, String *buff);
 
 void init_fill_schema_files_row(TABLE* table);
-MYSQL_PLUGIN_LEGACY_API bool schema_table_store_record(THD *thd, TABLE *table);
+bool schema_table_store_record(THD *thd, TABLE *table);
 
 /**
   Store record to I_S table, convert HEAP table to InnoDB table if necessary.

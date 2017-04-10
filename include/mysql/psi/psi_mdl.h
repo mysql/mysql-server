@@ -185,7 +185,7 @@ typedef struct PSI_placeholder PSI_mdl_service_t;
 typedef struct PSI_placeholder PSI_metadata_locker_state;
 #endif
 
-extern MYSQL_PLUGIN_API PSI_mdl_service_t *psi_mdl_service;
+extern MYSQL_PLUGIN_IMPORT PSI_mdl_service_t *psi_mdl_service;
 
 /** @} (end of group psi_abi_mdl) */
 

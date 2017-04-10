@@ -42,7 +42,6 @@
 #include "byteorder.h"
 #include "debug_vars.h"
 #include "my_io.h"
-#include "my_sharedlib.h"
 #include "wrapper_functions.h"
 
 #if defined(_WIN32)
@@ -742,7 +741,7 @@ public:
   is documented separately.
 
 */
-class MYSQL_PLUGIN_LEGACY_API Binary_log_event
+class Binary_log_event
 {
 public:
 

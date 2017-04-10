@@ -30,7 +30,6 @@
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_psi_config.h"
-#include "my_sharedlib.h"
 #include "my_sys.h"
 #include "mysql/psi/psi_base.h"
 #include "mysql/psi/psi_cond.h"
@@ -364,20 +363,20 @@ THD* Global_THD_manager::find_thd(Find_thd_with_id *func)
 }
 
 
-MYSQL_PLUGIN_LEGACY_API void inc_thread_created()
+void inc_thread_created()
 {
   Global_THD_manager::get_instance()->inc_thread_created();
 }
 
 
-MYSQL_PLUGIN_LEGACY_API void thd_lock_thread_count()
+void thd_lock_thread_count()
 {
   for (int i= 0; i < Global_THD_manager::NUM_PARTITIONS; i++)
     mysql_mutex_lock(&Global_THD_manager::get_instance()->LOCK_thd_list[i]);
 }
 
 
-MYSQL_PLUGIN_LEGACY_API void thd_unlock_thread_count()
+void thd_unlock_thread_count()
 {
   Global_THD_manager *thd_manager= Global_THD_manager::get_instance();
   for (int i= 0; i < Global_THD_manager::NUM_PARTITIONS; i++)
@@ -406,7 +405,7 @@ private:
 };
 
 
-MYSQL_PLUGIN_LEGACY_API void do_for_all_thd(do_thd_impl_uint64 f, uint64 v)
+void do_for_all_thd(do_thd_impl_uint64 f, uint64 v)
 {
   Run_free_function<uint64> runner(f, v);
   Global_THD_manager::get_instance()->do_for_all_thd(&runner);

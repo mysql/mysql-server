@@ -164,7 +164,7 @@ inline size_t String::next_realloc_exp_size(size_t sz)
 
   @see mem_realloc.
  */
-MYSQL_PLUGIN_LEGACY_API bool String::mem_realloc_exp(size_t alloc_length)
+bool String::mem_realloc_exp(size_t alloc_length)
 {
   if (mem_realloc(next_realloc_exp_size(alloc_length)))
     return true;
@@ -255,8 +255,7 @@ bool String::copy(const String &str)
   return false;
 }
 
-MYSQL_PLUGIN_LEGACY_API bool String::copy(
-  const char *str, size_t arg_length, const CHARSET_INFO *cs)
+bool String::copy(const char *str, size_t arg_length, const CHARSET_INFO *cs)
 {
   if (alloc(arg_length))
     return true;
@@ -519,7 +518,7 @@ bool String::append(const String &s)
   Append an ASCII string to the a string of the current character set
 */
 
-MYSQL_PLUGIN_LEGACY_API bool String::append(const char *s, size_t arg_length)
+bool String::append(const char *s, size_t arg_length)
 {
   if (!arg_length)
     return false;

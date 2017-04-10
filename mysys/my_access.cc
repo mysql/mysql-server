@@ -23,7 +23,6 @@
 #include "m_string.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
-#include "my_sharedlib.h"
 #include "my_sys.h"  // IWYU pragma: keep
 
 #ifdef _WIN32
@@ -46,7 +45,7 @@
   -1   error  (We use -1 as my_access is mapped to access on other platforms)
 */
 
-MYSQL_PLUGIN_LEGACY_API int my_access(const char *path, int amode)
+int my_access(const char *path, int amode) 
 { 
   WIN32_FILE_ATTRIBUTE_DATA fileinfo;
   BOOL result;

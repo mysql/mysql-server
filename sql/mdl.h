@@ -26,7 +26,6 @@
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_psi_config.h"
-#include "my_sharedlib.h"
 #include "my_sys.h"
 #include "mysql/psi/mysql_cond.h"
 #include "mysql/psi/mysql_mutex.h"
@@ -67,7 +66,7 @@ struct PSI_metadata_lock;
    server code.
  */
 
-class MYSQL_PLUGIN_LEGACY_API MDL_context_owner
+class MDL_context_owner
 {
 public:
   virtual ~MDL_context_owner() {}
@@ -526,7 +525,6 @@ public:
                               const std::nothrow_t&) throw ()
   {}
 
-  MYSQL_PLUGIN_LEGACY_API
   void init_with_source(MDL_key::enum_mdl_namespace namespace_arg,
             const char *db_arg, const char *name_arg,
             enum_mdl_type mdl_type_arg,

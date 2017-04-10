@@ -20,7 +20,6 @@
 #ifdef EXTRA_CODE_FOR_UNIT_TESTING
 #include "mysqld_error.h"
 #endif
-#include "my_sharedlib.h"
 
 class THD;
 
@@ -76,7 +75,7 @@ public:
 };
 
 const char* ER_DEFAULT(int mysql_errno);
-MYSQL_PLUGIN_LEGACY_API const char* ER_THD(const THD *thd, int mysql_errno);
+const char* ER_THD(const THD *thd, int mysql_errno);
 
 /**
   Read the error message file, initialize and register error messages

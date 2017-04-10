@@ -37,7 +37,6 @@
 #include <sql_profile.h>
 #include <table.h>
 #include "field.h"
-#include "my_sharedlib.h"
 #include "sql_thd_internal_api.h"
 #include <set>
 
@@ -83,21 +82,21 @@ struct Connection_handler_functions
 };
 
 /* create thd from channel_info object */
-MYSQL_PLUGIN_LEGACY_API THD* create_thd(Channel_info* channel_info);
+THD* create_thd(Channel_info* channel_info);
 /* destroy channel_info object */
-MYSQL_PLUGIN_LEGACY_API void destroy_channel_info(Channel_info* channel_info);
+void destroy_channel_info(Channel_info* channel_info);
 /* Decrement connection counter */
-MYSQL_PLUGIN_LEGACY_API void dec_connection_count();
+void dec_connection_count();
 /*
   thread_created is maintained by thread pool when activated since
   user threads are created by the thread pool (and also special
   threads to maintain the thread pool). This is done through
   inc_thread_created.
 */
-MYSQL_PLUGIN_LEGACY_API void inc_thread_created();
+void inc_thread_created();
 
-MYSQL_PLUGIN_LEGACY_API void thd_lock_thread_count();
-MYSQL_PLUGIN_LEGACY_API void thd_unlock_thread_count();
+void thd_lock_thread_count();
+void thd_unlock_thread_count();
 
 #ifdef __cplusplus
 }
@@ -108,29 +107,29 @@ MYSQL_PLUGIN_LEGACY_API void thd_unlock_thread_count();
   Executes a function with signature 'void f(THD*, uint64)' for all THDs.
 */
 typedef void (do_thd_impl_uint64)(THD*, uint64);
-MYSQL_PLUGIN_LEGACY_API void do_for_all_thd(do_thd_impl_uint64, uint64);
+void do_for_all_thd(do_thd_impl_uint64, uint64);
 
 /* Needed to get access to scheduler variables */
-MYSQL_PLUGIN_LEGACY_API void* thd_get_scheduler_data(THD *thd);
-MYSQL_PLUGIN_LEGACY_API void thd_set_scheduler_data(THD *thd, void *data);
-MYSQL_PLUGIN_LEGACY_API PSI_thread* thd_get_psi(THD *thd);
-MYSQL_PLUGIN_LEGACY_API void thd_set_psi(THD *thd, PSI_thread *psi);
+void* thd_get_scheduler_data(THD *thd);
+void thd_set_scheduler_data(THD *thd, void *data);
+PSI_thread* thd_get_psi(THD *thd);
+void thd_set_psi(THD *thd, PSI_thread *psi);
 
 /* Interface to THD variables and functions */
-MYSQL_PLUGIN_LEGACY_API void thd_set_killed(THD *thd);
-MYSQL_PLUGIN_LEGACY_API void thd_clear_errors(THD *thd);
-MYSQL_PLUGIN_LEGACY_API void thd_close_connection(THD *thd);
-MYSQL_PLUGIN_LEGACY_API THD *thd_get_current_thd();
-MYSQL_PLUGIN_LEGACY_API void thd_lock_data(THD *thd);
-MYSQL_PLUGIN_LEGACY_API void thd_unlock_data(THD *thd);
-MYSQL_PLUGIN_LEGACY_API bool thd_is_transaction_active(THD *thd);
-MYSQL_PLUGIN_LEGACY_API int thd_connection_has_data(THD *thd);
-MYSQL_PLUGIN_LEGACY_API void thd_set_net_read_write(THD *thd, uint val);
-MYSQL_PLUGIN_LEGACY_API uint thd_get_net_read_write(THD *thd);
-MYSQL_PLUGIN_LEGACY_API void thd_set_not_killable(THD *thd);
-MYSQL_PLUGIN_LEGACY_API ulong  thd_get_net_wait_timeout(THD *thd);
-MYSQL_PLUGIN_LEGACY_API my_socket thd_get_fd(THD *thd);
-MYSQL_PLUGIN_LEGACY_API int thd_store_globals(THD* thd);
+void thd_set_killed(THD *thd);
+void thd_clear_errors(THD *thd);
+void thd_close_connection(THD *thd);
+THD *thd_get_current_thd();
+void thd_lock_data(THD *thd);
+void thd_unlock_data(THD *thd);
+bool thd_is_transaction_active(THD *thd);
+int thd_connection_has_data(THD *thd);
+void thd_set_net_read_write(THD *thd, uint val);
+uint thd_get_net_read_write(THD *thd);
+void thd_set_not_killable(THD *thd);
+ulong  thd_get_net_wait_timeout(THD *thd);
+my_socket thd_get_fd(THD *thd);
+int thd_store_globals(THD* thd);
 
 /* Print to the MySQL error log */
 void sql_print_error(const char *format, ...);
@@ -138,14 +137,14 @@ void sql_print_warning(const char *format, ...);
 void sql_print_information(const char *format, ...);
 
 /* Store a table record */
-MYSQL_PLUGIN_LEGACY_API bool schema_table_store_record(THD *thd, TABLE *table);
+bool schema_table_store_record(THD *thd, TABLE *table);
 
 /*
   The thread pool must be able to execute statements using the connection
   state in THD object. This is the main objective of the thread pool to
   schedule the start of these commands.
 */
-MYSQL_PLUGIN_LEGACY_API bool do_command(THD *thd);
+bool do_command(THD *thd);
 
 /*
   The thread pool requires an interface to the connection logic in the
@@ -156,30 +155,30 @@ MYSQL_PLUGIN_LEGACY_API bool do_command(THD *thd);
   executed.
 */
 /* Prepare connection as part of connection set-up */
-MYSQL_PLUGIN_LEGACY_API bool thd_prepare_connection(THD *thd);
+bool thd_prepare_connection(THD *thd);
 /* Release auditing before executing statement */
 void mysql_audit_release(THD *thd);
 /* Check if connection is still alive */
-MYSQL_PLUGIN_LEGACY_API bool thd_connection_alive(THD *thd);
+bool thd_connection_alive(THD *thd);
 /* Close connection with possible error code */
-MYSQL_PLUGIN_LEGACY_API void close_connection(
-  THD *thd, uint sql_errno, bool server_shutdown, bool generate_event);
+void close_connection(THD *thd, uint sql_errno,
+                      bool server_shutdown, bool generate_event);
 /* End the connection before closing it */
-MYSQL_PLUGIN_LEGACY_API void end_connection(THD *thd);
+void end_connection(THD *thd);
 /* Reset thread globals */
-MYSQL_PLUGIN_LEGACY_API void reset_thread_globals(THD *thd);
+void reset_thread_globals(THD *thd);
 
 /*
   max_connections is needed to calculate the maximum number of threads
   that is allowed to be started by the thread pool. The method
   get_max_connections() gets reference to this variable.
 */
-MYSQL_PLUGIN_LEGACY_API ulong get_max_connections(void);
+ulong get_max_connections(void);
 /*
   connection_attrib is the thread attributes for connection threads,
   the method get_connection_attrib provides a reference to these
   attributes.
 */
-MYSQL_PLUGIN_API my_thread_attr_t *get_connection_attrib(void);
+my_thread_attr_t *get_connection_attrib(void);
 
 #endif // THREAD_POOL_PRIV_INCLUDED

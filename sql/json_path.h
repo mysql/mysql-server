@@ -27,7 +27,6 @@
 #include <stddef.h>
 #include <string>
 
-#include "my_sharedlib.h"
 #include "prealloced_array.h"                   // Prealloced_array
 
 class String;
@@ -84,7 +83,7 @@ public:
   A path expression which can be used to seek to
   a position inside a JSON value.
 */
-class MYSQL_PLUGIN_LEGACY_API Json_seekable_path
+class Json_seekable_path
 {
 public:
   virtual ~Json_seekable_path() {}
@@ -143,7 +142,7 @@ public:
 
   </pre></code>
 */
-class MYSQL_PLUGIN_LEGACY_API Json_path : public Json_seekable_path
+class Json_path : public Json_seekable_path
 {
 private:
   typedef Prealloced_array<Json_path_leg, 8> Path_leg_vector;
