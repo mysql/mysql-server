@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -401,9 +401,11 @@ static int run_tool(char *tool_path, DYNAMIC_STRING *ds_res, ...)
 
   va_end(args);
 
+#if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
   /* If given --ssl-mode=REQUIRED propagate it to the tool. */
-  if (opt_ssl_required)
+  if (opt_ssl_mode == SSL_MODE_REQUIRED)
     dynstr_append(&ds_cmdline, "--ssl-mode=REQUIRED");
+#endif
 
 #ifdef __WIN__
   dynstr_append(&ds_cmdline, "\"");
