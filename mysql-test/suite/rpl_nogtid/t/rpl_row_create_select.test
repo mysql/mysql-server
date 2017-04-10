@@ -1,17 +1,6 @@
 # Testing table creations for row-based replication.
 
 --source include/have_binlog_format_row.inc
-
-########################################
-##### WL#7554 Force schema `test` to character set latin1
-##### This test should be migrated to utf8mb4
---disable_query_log
-let $testdbcs377=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
-alter schema default character set latin1;
-use test;
---enable_query_log
-########################################
-
 --source include/master-slave.inc
 
 --echo #
@@ -36,11 +25,3 @@ DROP TABLE t1;
 DROP TABLE t2;
 SET sql_mode = default;
 --source include/rpl_end.inc
-
-
-########################################
-##### WL#7554 set schema `test` back to what it was
---disable_query_log
---eval alter schema test default character set $testdbcs377;
---enable_query_log
-########################################
