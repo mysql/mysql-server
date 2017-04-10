@@ -1545,7 +1545,7 @@ public:
   /* purecov: begin deadcode */
   virtual bool val_json(Json_wrapper *result MY_ATTRIBUTE((unused)))
   {
-    DBUG_ABORT();
+    DBUG_ASSERT(false);
     my_error(ER_NOT_SUPPORTED_YET, MYF(0), "item type for JSON");
     return error_json();
   }
@@ -5058,7 +5058,7 @@ public:
   /* purecov: begin deadcode */
   bool val_json(Json_wrapper *) override
   {
-    DBUG_ABORT();
+    DBUG_ASSERT(false);
     my_error(ER_NOT_SUPPORTED_YET, MYF(0), "item type for JSON");
     return error_json();
   }

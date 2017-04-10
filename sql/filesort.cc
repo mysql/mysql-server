@@ -1383,7 +1383,7 @@ make_json_sort_key(Item *item, uchar *to, uchar *null_indicator,
     /* purecov: begin inspected */
     DBUG_PRINT("warning",
                ("Got null on something that shouldn't be null"));
-    DBUG_ABORT();
+    DBUG_ASSERT(false);
     return 0;
     /* purecov: end */
   }

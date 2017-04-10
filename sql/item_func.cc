@@ -8757,7 +8757,7 @@ bool Item_func_sp::val_json(Json_wrapper *result)
   }
 
   /* purecov: begin deadcode */
-  DBUG_ABORT();
+  DBUG_ASSERT(false);
   my_error(ER_INVALID_CAST_TO_JSON, MYF(0));
   return error_json();
   /* purecov: end */

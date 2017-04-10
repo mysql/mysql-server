@@ -269,7 +269,7 @@ public:
       Array and object should override this method. Not expected to be
       called on other DOM objects.
     */
-    DBUG_ABORT();
+    DBUG_ASSERT(false);
   }
   /* purecov: end */
 

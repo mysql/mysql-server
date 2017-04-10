@@ -385,7 +385,7 @@ bool Json_dom::find_child_doms(const Json_path_leg *path_leg,
   }
 
   /* purecov: begin deadcode */
-  DBUG_ABORT();
+  DBUG_ASSERT(false);
   return true;
   /* purecov: end */
 }
@@ -527,7 +527,7 @@ private:
       }
     default:
       /* purecov: begin inspected */
-      DBUG_ABORT();
+      DBUG_ASSERT(false);
       return false;
       /* purecov: end */
     }
@@ -1552,7 +1552,7 @@ enum_json_type Json_datetime::json_type() const
   default: ;
   }
   /* purecov: begin inspected */
-  DBUG_ABORT();
+  DBUG_ASSERT(false);
   return enum_json_type::J_NULL;
   /* purecov: end inspected */
 }
@@ -2009,7 +2009,7 @@ static bool wrapper_to_string(const Json_wrapper &wr, String *buffer,
     }
   default:
     /* purecov: begin inspected */
-    DBUG_ABORT();
+    DBUG_ASSERT(false);
     my_error(ER_INTERNAL_ERROR, MYF(0), "JSON wrapper: unexpected type");
     return true;
     /* purecov: end inspected */
@@ -2226,7 +2226,7 @@ void Json_wrapper::get_datetime(MYSQL_TIME *t) const
     ftyp= MYSQL_TYPE_TIME;
     break;
   default:
-    DBUG_ABORT();                               /* purecov: inspected */
+    DBUG_ASSERT(false);                         /* purecov: inspected */
   }
 
   if (m_is_dom)
@@ -2483,7 +2483,7 @@ bool Json_wrapper::seek_no_ellipsis(const Json_seekable_path &path,
 
   default:
     // should never be called on a path which contains an ellipsis
-    DBUG_ABORT();                               /* purecov: inspected */
+    DBUG_ASSERT(false);                         /* purecov: inspected */
     return true;                                /* purecov: inspected */
   } // end outer switch on leg type
 }
@@ -2512,7 +2512,7 @@ bool Json_wrapper::seek(const Json_seekable_path &path,
   if (empty())
   {
     /* purecov: begin inspected */
-    DBUG_ABORT();
+    DBUG_ASSERT(false);
     return false;
     /* purecov: end */
   }
@@ -2676,7 +2676,7 @@ static int compare_json_decimal_double(const my_decimal &a, double b)
       E_DEC_OK, E_DEC_OVERFLOW or E_DEC_TRUNCATED, so this should
       never happen.
     */
-    DBUG_ABORT();                             /* purecov: inspected */
+    DBUG_ASSERT(false);                       /* purecov: inspected */
     return 1;                                 /* purecov: inspected */
   }
 }
@@ -3094,7 +3094,7 @@ int Json_wrapper::compare(const Json_wrapper &other) const
     break;
   }
 
-  DBUG_ABORT();                               /* purecov: inspected */
+  DBUG_ASSERT(false);                         /* purecov: inspected */
   return 1;                                   /* purecov: inspected */
 }
 
@@ -3889,7 +3889,7 @@ ulonglong Json_wrapper::make_hash_key(ulonglong *hash_val)
       break;
     }
   case enum_json_type::J_ERROR:
-    DBUG_ABORT();                               /* purecov: inspected */
+    DBUG_ASSERT(false);                         /* purecov: inspected */
     break;                                      /* purecov: inspected */
   }
 

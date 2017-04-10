@@ -916,7 +916,7 @@ serialize_json_value(const THD *thd, const Json_dom *dom, size_t type_pos,
     break;
   default:
     /* purecov: begin deadcode */
-    DBUG_ABORT();
+    DBUG_ASSERT(false);
     my_error(ER_INTERNAL_ERROR, MYF(0), "JSON serialization failed");
     return FAILURE;
     /* purecov: end */
@@ -1558,7 +1558,7 @@ bool Value::raw_binary(const THD *thd, String *buf) const
   }
 
   /* purecov: begin deadcode */
-  DBUG_ABORT();
+  DBUG_ASSERT(false);
   return true;
   /* purecov: end */
 }
