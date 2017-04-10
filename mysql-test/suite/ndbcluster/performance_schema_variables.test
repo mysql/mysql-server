@@ -1,0 +1,142 @@
+--source include/have_ndb.inc
+
+#
+# Check that session and global status variables returned from
+# performance schema are properly prefixed with Ndb_(using that
+# exact case) and that the number of global and session status
+# variables match
+#
+# Expected output:
+# select * from performance_schema.global_status
+#     where VARIABLE_NAME LIKE 'Ndb\_%';
+# VARIABLE_NAME VARIABLE_VALUE
+# Ndb_api_wait_exec_complete_count	2
+# Ndb_api_wait_scan_result_count	3
+# Ndb_api_wait_meta_request_count	94
+# ...
+
+# Count number of global ndb_ status variables(ignoring case)
+let $num_global_status_vars =
+  `select count(*) from performance_schema.global_status
+     where VARIABLE_NAME LIKE 'Ndb\_%'`;
+#echo num_global_status_vars: $num_global_status_vars;
+
+# Count number of global Ndb_ status variables(using case sensitive
+# like to find those which start with Ndb_ exactly).
+let $num_global_status_vars_case =
+  `select count(*) from performance_schema.global_status
+     where VARIABLE_NAME LIKE binary 'Ndb\_%'`;
+#echo num_global_status_vars_case: $num_global_status_vars_case;
+
+# Check that all variables have proper prefix Ndb_
+if ($num_global_status_vars != $num_global_status_vars_case)
+{
+  die Faulty prefix of some global Ndb_ status variables;
+}
+
+# Count number of session ndb_ status variables(ignoring case)
+let $num_session_status_vars =
+  `select count(*) from performance_schema.session_status
+     where VARIABLE_NAME LIKE 'Ndb\_%'`;
+#echo num_session_status_vars: $num_session_status_vars;
+
+# Count number of session Ndb_ status variables(using case sensitive
+# like to find those which start with Ndb_ exactly).
+let $num_session_status_vars_case =
+  `select count(*) from performance_schema.session_status
+     where VARIABLE_NAME LIKE binary 'Ndb\_%'`;
+#echo num_session _status_vars_case: $num_session_status_vars_case;
+
+# Check that all variables have proper prefix Ndb_
+if ($num_session_status_vars != $num_session_status_vars_case)
+{
+  die Faulty prefix of some session Ndb_ status variables;
+}
+
+# Check that the number of status variables match between session and global
+if ($num_session_status_vars != $num_global_status_vars)
+{
+  die Difference in number of sesssion and global status variables;
+}
+
+# Check that one arbitrary global status variable can be selected
+--replace_column 2 <value>
+select VARIABLE_NAME, VARIABLE_VALUE
+  from performance_schema.global_status
+  where VARIABLE_NAME = 'Ndb_sorted_scan_count';
+
+# Check that one arbitrary session status variable can be selected
+--replace_column 2 <value>
+select VARIABLE_NAME, VARIABLE_VALUE
+  from performance_schema.session_status
+  where VARIABLE_NAME = 'Ndb_config_from_host';
+
+
+#
+# Check that session and global variables returned from
+# performance schema are properly prefixed with ndb_(using that
+# exact case) and that the number of global and session variables match
+#
+# Expected output:
+# select * from performance_schema.global_variables
+#     where VARIABLE_NAME LIKE 'ndb\_%';
+# VARIABLE_NAME VARIABLE_VALUE
+# ndb_allow_copying_alter_table	ON
+# ndb_autoincrement_prefetch_sz	1
+# ...
+
+# Count number of global ndb_ status variables(ignoring case)
+let $num_global_variables_vars =
+  `select count(*) from performance_schema.global_variables
+     where VARIABLE_NAME LIKE 'ndb\_%'`;
+#echo num_global_variables_vars: $num_global_variables_vars;
+
+# Count number of global ndb_ variables(using case sensitive
+# like to find those which start with Ndb_ exactly).
+let $num_global_variables_vars_case =
+  `select count(*) from performance_schema.global_variables
+     where VARIABLE_NAME LIKE binary 'ndb\_%'`;
+#echo num_global_variables_vars_case: $num_global_variables_vars_case;
+
+# Check that all variables have proper prefix ndb_
+if ($num_global_variables_vars != $num_global_variables_vars_case)
+{
+  die Faulty prefix of some global ndb_ variables;
+}
+
+# Count number of session ndb_ status variables(ignoring case)
+let $num_session_variables_vars =
+  `select count(*) from performance_schema.session_variables
+     where VARIABLE_NAME LIKE 'ndb\_%'`;
+#echo num_session_variables_vars: $num_session_variables_vars;
+
+# Count number of session ndb_ variables(using case sensitive
+# like to find those which start with ndb_ exactly).
+let $num_session_variables_vars_case =
+  `select count(*) from performance_schema.session_variables
+     where VARIABLE_NAME LIKE binary 'ndb\_%'`;
+#echo num_session _status_vars_case: $num_session_variables_vars_case;
+
+# Check that all variables have proper prefix ndb_
+if ($num_session_variables_vars != $num_session_variables_vars_case)
+{
+  die Faulty prefix of some session ndb_ variables;
+}
+
+# Check that the number of status variables match between session and global
+if ($num_session_variables_vars != $num_global_variables_vars)
+{
+  die Difference in number of sesssion and global variables;
+}
+
+# Check that one arbitrary global variable can be selected
+--replace_column 2 <value>
+select VARIABLE_NAME, VARIABLE_VALUE
+  from performance_schema.global_variables
+  where VARIABLE_NAME = 'ndb_version_string';
+
+# Check that one arbitrary status variable can be selected
+--replace_column 2 <value>
+select VARIABLE_NAME, VARIABLE_VALUE
+  from performance_schema.session_variables
+  where VARIABLE_NAME = 'ndb_nodeid';
