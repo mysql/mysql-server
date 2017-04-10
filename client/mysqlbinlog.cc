@@ -2790,6 +2790,7 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
                                        MYF(MY_WME))))
           {
             error("Could not create log file '%s'", log_file_name);
+            reset_temp_buf_and_delete(ev);
             DBUG_RETURN(ERROR_STOP);
           }
           DBUG_EXECUTE_IF("simulate_result_file_write_error_for_FD_event",
@@ -2798,6 +2799,7 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
                         BIN_LOG_HEADER_SIZE, MYF(MY_NABP)))
           {
             error("Could not write into log file '%s'", log_file_name);
+            reset_temp_buf_and_delete(ev);
             DBUG_RETURN(ERROR_STOP);
           }
           /*
@@ -2851,7 +2853,10 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
       File file;
 
       if ((file= load_processor.prepare_new_file_for_old_format(le,fname)) < 0)
+      {
+        reset_temp_buf_and_delete(ev);
         DBUG_RETURN(ERROR_STOP);
+      }
 
       retval= process_event(print_event_info, ev, old_off, logname);
       if (retval != OK_CONTINUE)
