@@ -272,7 +272,7 @@ static inline uint32 load32be(const char *ptr)
   return ntohl(val);
 }
 
-static inline char *store16be(char *ptr, uint16 val)
+static ALWAYS_INLINE char *store16be(char *ptr, uint16 val)
 {
 #if defined(_MSC_VER)
   // _byteswap_ushort is an intrinsic on MSVC, but htons is not.
@@ -303,7 +303,7 @@ static inline uint32 load32be(const uchar *ptr)
   return load32be(pointer_cast<const char *>(ptr));
 }
 
-static inline uchar *store16be(uchar *ptr, uint16 val)
+static ALWAYS_INLINE uchar *store16be(uchar *ptr, uint16 val)
 {
   return pointer_cast<uchar *>(store16be(pointer_cast<char *>(ptr), val));
 }

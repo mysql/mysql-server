@@ -8071,7 +8071,7 @@ my_strnxfrmlen_utf8mb4(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
 } // extern "C"
 
 
-static inline int
+static ALWAYS_INLINE int
 my_valid_mbcharlen_utf8mb4(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
                            const uchar *s, const uchar *e)
 {
@@ -8104,12 +8104,18 @@ size_t my_well_formed_len_utf8mb4(const CHARSET_INFO *cs,
   return (size_t) (b - b_start);
 }
 
+static uint ALWAYS_INLINE
+my_ismbchar_utf8mb4_inl(const CHARSET_INFO *cs, const char *b, const char *e)
+{
+  int res = my_valid_mbcharlen_utf8mb4(cs, (const uchar*)b, (const uchar*)e);
+  return (res > 1) ? res : 0;
+}
+
 
 static uint
 my_ismbchar_utf8mb4(const CHARSET_INFO *cs, const char *b, const char *e)
 {
-  int res= my_valid_mbcharlen_utf8mb4(cs, (const uchar*)b, (const uchar*)e);
-  return (res > 1) ? res : 0;
+  return my_ismbchar_utf8mb4_inl(cs, b, e);
 }
 
 
@@ -8121,7 +8127,7 @@ size_t my_charpos_mb4(const CHARSET_INFO *cs,
   while (length && pos < end)
   {
     uint mb_len;
-    pos+= (mb_len= my_ismbchar_utf8mb4(cs, pos, end)) ? mb_len : 1;
+    pos+= (mb_len= my_ismbchar_utf8mb4_inl(cs, pos, end)) ? mb_len : 1;
     length--;
   }
   return (size_t) (length ? end+2-start : pos-start);
