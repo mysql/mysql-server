@@ -17213,7 +17213,8 @@ enum_alter_inplace_result
           Refuse if Max_rows has been used before...
           Workaround is to use ALTER ONLINE TABLE <t> MAX_ROWS=<bigger>;
        */
-       if (old_tab->getMaxRows() != 0)
+       const ulonglong curr_max_rows = table_share->max_rows;
+       if (curr_max_rows != 0)
        {
          push_warning(current_thd,
                       Sql_condition::WARN_LEVEL_WARN, ER_UNKNOWN_ERROR,

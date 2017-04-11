@@ -1,0 +1,81 @@
+--echo # Setup table t1
+CREATE TABLE t1(
+  a INT PRIMARY KEY,
+  b VARCHAR(255),
+  c DATETIME,
+  KEY(b),
+  INDEX(a,b,c)
+)
+ENGINE=ndb;
+
+INSERT INTO t1 VALUES
+  (1,'1','2015-03-01 00:00:01'),
+  (2,'1','2015-03-02 00:00:02'),
+  (3,'1','2015-03-03 00:00:03'),
+  (4,'1','2015-03-04 00:00:04'),
+  (5,'1','2015-03-05 00:00:05');
+
+#
+# Check that inplace ALTER TABLE ... MAX_ROWS=0 which does
+# not cause reduction in number of fragments is allowed
+#
+ALTER TABLE t1
+  algorithm=copy,
+  max_rows=33333 /* Small enough to get default number of frags */;
+ALTER TABLE t1
+  algorithm=inplace,
+  max_rows=33332 /* Small enough to still be at default number of frags */;
+ALTER TABLE t1
+  algorithm=inplace,
+  max_rows=0 /* Back to zero without changing number of frags */;
+
+--echo Note! The value of MAX_ROWS in NDB is still 33333
+--let $ndb_desc_opts= -d ndb_ddl_test t1
+--source suite/ndb/include/ndb_desc_print.inc
+
+# Check that MySQL says MAX_ROWS=0
+if (`select LOCATE("MAX_ROWS=", CREATE_OPTIONS)
+       from information_schema.tables where
+         TABLE_SCHEMA='ndb_ddl_test' and TABLE_NAME = 't1'`)
+{
+  die MySQL Still reported a MAX_ROWS value for t1;
+}
+
+#
+# Check that inplace ALTER TABLE ... REORGANIZE PARTITION is ok
+# now when the table is back to MAX_ROWS=0
+#
+ALTER ONLINE TABLE t1
+  reorganize partition;
+INSERT INTO t1 VALUES(37, "MySQL Cluster", '2015-12-15');
+SELECT b FROM t1 WHERE a > 10;
+DELETE FROM t1 WHERE a = 37;
+
+#
+# Check that copying ALTER TABLE ... MAX_ROWS=0 yields a table
+# which can be reorganized
+#
+ALTER TABLE t1
+  algorithm=copy,
+  max_rows=444444444 /* Large with many frags */;
+--error ER_ALTER_OPERATION_NOT_SUPPORTED
+ALTER TABLE t1
+  algorithm=inplace,
+  max_rows=0 /* Not allowed since number of frags reduced */;
+ALTER TABLE t1
+  algorithm=copy,
+  max_rows=0 /* Back to zero by using copying */;
+
+#
+# Check that inplace ALTER TABLE ... REORGANIZE PARTITION is ok
+# now when the table is back to MAX_ROWS=0
+#
+ALTER ONLINE TABLE t1
+  reorganize partition;
+INSERT INTO t1 VALUES(37, "MySQL Cluster", '2015-12-15');
+SELECT b FROM t1 WHERE a > 10;
+DELETE FROM t1 WHERE a = 37;
+
+
+--echo #Cleanup
+DROP TABLE t1;
