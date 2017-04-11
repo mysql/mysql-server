@@ -18393,9 +18393,11 @@ ha_ndbcluster::check_inplace_alter_supported(TABLE *altered_table,
     if (create_info->used_fields & HA_CREATE_USED_MAX_ROWS)
     {
       DBUG_PRINT("info", ("The MAX_ROWS value changed"));
+
       max_rows_changed= true;
 
-      if (old_tab->getMaxRows() == 0)
+      const ulonglong curr_max_rows = table_share->max_rows;
+      if (curr_max_rows == 0)
       {
         // Don't support setting MAX_ROWS on a table without MAX_ROWS
         DBUG_RETURN(inplace_unsupported(ha_alter_info,
@@ -18539,7 +18541,8 @@ ha_ndbcluster::check_inplace_alter_supported(TABLE *altered_table,
 
      if (alter_flags & Alter_inplace_info::ALTER_TABLE_REORG)
      {
-       if (old_tab->getMaxRows() != 0)
+       const ulonglong curr_max_rows = table_share->max_rows;
+       if (curr_max_rows != 0)
        {
          // No inplace REORGANIZE PARTITION for table with MAX_ROWS
          DBUG_RETURN(inplace_unsupported(ha_alter_info,
@@ -18586,8 +18589,15 @@ ha_ndbcluster::check_inplace_alter_supported(TABLE *altered_table,
        if (reported_frags < old_tab->getFragmentCount())
        {
          DBUG_RETURN(inplace_unsupported(ha_alter_info,
-                                         "Online reduction in number of fragments "
-                                         "not supported"));
+                                         "Online reduction in number of "
+                                         "fragments not supported"));
+       }
+       else if (rows == 0)
+       {
+         /* Dont support setting MAX_ROWS to 0 inplace */
+         DBUG_RETURN(inplace_unsupported(ha_alter_info,
+                                         "Setting MAX_ROWS to 0 is "
+                                         "not supported online"));
        }
        new_tab.setFragmentCount(reported_frags);
        new_tab.setDefaultNoPartitionsFlag(false);
