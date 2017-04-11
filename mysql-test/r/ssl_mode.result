@@ -37,8 +37,8 @@ DROP TABLE t1;
 # mysql
 Unknown value to --ssl-mode: ''. Use --ssl-mode=REQUIRED
 Unknown value to --ssl-mode: 'DERIUQER'. Use --ssl-mode=REQUIRED
-ERROR 2026 (HY000): --ssl-mode=REQUIRED option forbids non SSL connections
-ERROR 2026 (HY000): --ssl-mode=REQUIRED option forbids non SSL connections
-ERROR 2026 (HY000): --ssl-mode=REQUIRED option forbids non SSL connections
+ERROR 2026 (HY000): SSL connection error: Client is not configured to use SSL
+ERROR 2026 (HY000): SSL connection error: Client is not configured to use SSL
+ERROR 2026 (HY000): SSL connection error: Client is not configured to use SSL
 
 End of tests
