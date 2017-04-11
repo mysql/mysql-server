@@ -1826,11 +1826,10 @@ public:
 
   void execSTORED_PROCREQ(Signal* signal);
 
-  void prepare_lcp_scan(Uint32 tableId,
-                        Uint32 fragmentId,
-                        Uint32 & max_page_cnt);
-  void restart_lcp_scan(Uint32 tableId, Uint32 fragmentId);
-  void release_lcp_scan(Uint32 tableId, Uint32 fragmentId);
+  void start_lcp_scan(Uint32 tableId,
+                      Uint32 fragmentId,
+                      Uint32 & max_page_cnt);
+  void stop_lcp_scan(Uint32 tableId, Uint32 fragmentId);
   void lcp_frag_watchdog_print(Uint32 tableId, Uint32 fragmentId);
 
   void set_lcp_start_gci(Uint32 fragPtrI, Uint32 startGci);

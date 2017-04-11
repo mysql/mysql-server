@@ -105,6 +105,7 @@ class LcpFragOrd {
   friend class Lgman;
   friend class Pgman;
   friend class Dbtup;
+  friend class Backup;
 
   /**
    * Sender(s) / Receiver(s)
