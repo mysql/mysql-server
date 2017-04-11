@@ -844,6 +844,39 @@ int ndb_to_mysql_error(const NdbError *ndberr)
   return error;
 }
 
+/**
+  Report error using my_error() and the values extracted from the NdbError.
+  If a proper mysql_code mapping is not available, the error message
+  from the ndbError is pushed to my_error.
+  If a proper mapping is available, the ndb error message is pushed as a
+  warning and the mapped mysql error code is pushed as the error.
+
+  @param    ndberr            The NdbError object with error information
+*/
+void ndb_my_error(const NdbError *ndberr)
+{
+  if (ndberr->mysql_code == -1)
+  {
+    /* No mysql_code mapping present - print ndb error message */
+    const int error_number = (ndberr->status == NdbError::TemporaryError)
+                         ? ER_GET_TEMPORARY_ERRMSG
+                         : ER_GET_ERRMSG;
+    my_error(error_number, MYF(0), ndberr->code, ndberr->message, "NDB");
+  }
+  else
+  {
+    /* MySQL error code mapping is present.
+     * Now call ndb_to_mysql_error() with the ndberr object.
+     * This will check the validity of the mysql error code
+     * and convert it into a more proper error if required.
+     * It will also push the ndb error message as a warning.
+     */
+    const int error_number = ndb_to_mysql_error(ndberr);
+    /* Now push the relevant mysql error to my_error */
+    my_error(error_number, MYF(0));
+  }
+}
+
 ulong opt_ndb_slave_conflict_role;
 
 #ifdef HAVE_NDB_BINLOG
@@ -17383,9 +17416,24 @@ enum_alter_inplace_result
   DBUG_RETURN(result);
 }
 
+
+/**
+   Updates the internal structures and prepares them for the inplace alter.
+
+   @note Function is responsible for reporting any errors by
+   calling my_error()/print_error()
+
+   @param    altered_table     TABLE object for new version of table.
+   @param    ha_alter_info     Structure describing changes to be done
+                               by ALTER TABLE and holding data used
+                               during in-place alter.
+
+   @retval   true              Error
+   @retval   false             Success
+*/
 bool
 ha_ndbcluster::prepare_inplace_alter_table(TABLE *altered_table,
-                                              Alter_inplace_info *ha_alter_info)
+                                           Alter_inplace_info *ha_alter_info)
 {
   int error= 0;
   uint i;
@@ -17443,8 +17491,7 @@ ha_ndbcluster::prepare_inplace_alter_table(TABLE *altered_table,
   {
     DBUG_PRINT("info", ("Failed to start schema transaction"));
     ERR_PRINT(dict->getNdbError());
-    error= ndb_to_mysql_error(&dict->getNdbError());
-    table->file->print_error(error, MYF(0));
+    ndb_my_error(&dict->getNdbError());
     goto err;
   }
 
@@ -17575,12 +17622,11 @@ ha_ndbcluster::prepare_inplace_alter_table(TABLE *altered_table,
       new_tab->setDefaultNoPartitionsFlag(false);
       new_tab->setFragmentData(0, 0);
     }
-    
+
     int res= dict->prepareHashMap(*old_tab, *new_tab);
     if (res == -1)
     {
-      const NdbError err= dict->getNdbError();
-      my_errno= ndb_to_mysql_error(&err);
+      ndb_my_error(&dict->getNdbError());
       goto abort;
     }
   }
