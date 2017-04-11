@@ -15778,14 +15778,6 @@ static struct TraceLCP {
 template class Vector<TraceLCP::Sig>;
 #endif
 
-Uint64
-Dblqh::get_current_lcp_lsn()
-{
-  lcpPtr.i = 0;
-  ptrCheckGuard(lcpPtr, clcpFileSize, lcpRecord);
-  return lcpPtr.p->m_current_lcp_lsn;
-}
-
 void Dblqh::perform_fragment_checkpoint(Signal *signal)
 {
   lcpPtr.p->lcpRunState = LcpRecord::LCP_CHECKPOINTING;
@@ -15798,24 +15790,6 @@ void Dblqh::perform_fragment_checkpoint(Signal *signal)
    *    ACTIVATING THE FRAGMENT AGAIN.
    * --------------------------------------------------------------------- */
   ndbrequire(lcpPtr.p->currentRunFragment.lcpFragOrd.lcpNo < MAX_LCP_STORED);
-  fragptr.p->maxGciInLcp = fragptr.p->newestGci;
-  fragptr.p->maxGciCompletedInLcp = cnewestCompletedGci;
-    
-  {
-    LcpFragOrd *ord= (LcpFragOrd*)signal->getDataPtrSend();
-    *ord = lcpPtr.p->currentRunFragment.lcpFragOrd;
-    {
-      Logfile_client lgman(this, c_lgman, 0);
-      lcpPtr.p->m_current_lcp_lsn = lgman.exec_lcp_frag_ord(signal,
-                                                            m_curr_local_lcp_id);
-      DEB_LCP(("(%u)Start LCP of tab(%u,%u),current_lcp_lsn: %llu",
-              instance(),
-              fragptr.p->tabRef,
-              fragptr.p->fragId,
-              lcpPtr.p->m_current_lcp_lsn));
-    }
-    jamEntry();
-  }
     
   BackupFragmentReq* req= (BackupFragmentReq*)signal->getDataPtr();
   req->tableId = lcpPtr.p->currentRunFragment.lcpFragOrd.tableId;
@@ -15899,21 +15873,27 @@ void
 Dblqh::get_lcp_frag_stats(Uint64 & row_count,
                           Uint64 & row_change_count,
                           Uint64 & memory_used_in_bytes,
-                          Uint32 & max_page_cnt,
-                          bool reset_flag)
+                          Uint32 & max_page_cnt)
 {
+  /**
+   * Now the LCP is actually starting, we set the maxGciInLcp and
+   * maxGciCompletedInLcp at this point and we get the row count
+   * change row counts to calculate various values for the LCP.
+   */
   lcpPtr.i = 0;
   ptrCheckGuard(lcpPtr, clcpFileSize, lcpRecord);
   ndbrequire(lcpPtr.p->lcpRunState == LcpRecord::LCP_CHECKPOINTING);
   fragptr.i = lcpPtr.p->currentRunFragment.fragPtrI;
   c_fragment_pool.getPtr(fragptr);
+  fragptr.p->maxGciInLcp = fragptr.p->newestGci;
+  fragptr.p->maxGciCompletedInLcp = cnewestCompletedGci;
   c_tup->get_lcp_frag_stats(fragptr.p->tupFragptr,
                             fragptr.p->newestGci,
                             max_page_cnt,
                             row_count,
                             row_change_count,
                             memory_used_in_bytes,
-                            reset_flag);
+                            true);
 }
 
 void
@@ -23420,7 +23400,6 @@ void Dblqh::initialiseLcpRec(Signal* signal)
       lcpPtr.p->reportEmpty = false;
       lcpPtr.p->firstFragmentFlag = false;
       lcpPtr.p->lastFragmentFlag = false;
-      lcpPtr.p->m_current_lcp_lsn = 0;
     }//for
   }//if
 }//Dblqh::initialiseLcpRec()

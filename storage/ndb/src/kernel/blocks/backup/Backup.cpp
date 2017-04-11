@@ -4998,7 +4998,7 @@ Backup::handle_dropped_table_during_lcp_scan(Signal *signal,
   FragmentPtr fragPtr;
   ptr.p->tables.first(tabPtr);
   tabPtr.p->fragments.getPtr(fragPtr, 0);
-  c_tup->release_lcp_scan(tabPtr.p->tableId, fragPtr.p->fragmentId);
+  c_tup->stop_lcp_scan(tabPtr.p->tableId, fragPtr.p->fragmentId);
   ptr.p->slaveState.forceState(DEFINED);
 }
 
@@ -5137,9 +5137,9 @@ Backup::execGET_TABINFO_CONF(Signal* signal)
   else
   {
     jam();
+    ndbrequire(filePtr.i == ptr.p->prepareDataFilePtr);
     lcp_open_data_file_done(signal,
-                            ptr,
-                            (filePtr.i == ptr.p->prepareDataFilePtr));
+                            ptr);
     return;
   }
 }
@@ -5605,24 +5605,12 @@ Backup::start_lcp_scan(Signal *signal,
                        FragmentPtr fragPtr,
                        BackupFilePtr filePtr)
 {
-  DEB_EXTRA_LCP(("(%u)Start lcp scan, round: %u",
-                 instance(),
-                 ptr.p->m_current_lcp_round));
+  DEB_EXTRA_LCP(("(%u)Start lcp scan",
+                 instance()));
 
-  if (ptr.p->m_current_lcp_round == 0)
-  {
-    jam();
-    c_tup->prepare_lcp_scan(tabPtr.p->tableId,
-                            fragPtr.p->fragmentId,
-                            ptr.p->m_lcp_max_page_cnt);
-  }
-  else
-  {
-    jam();
-    c_tup->restart_lcp_scan(tabPtr.p->tableId,
-                            fragPtr.p->fragmentId);
-    ndbrequire(filePtr.p->operation.newScan());
-  }
+  c_tup->start_lcp_scan(tabPtr.p->tableId,
+                        fragPtr.p->fragmentId,
+                        ptr.p->m_lcp_max_page_cnt);
   ptr.p->m_is_lcp_scan_active = true;
   /**
    * Start file thread now that we will start writing also
@@ -6389,11 +6377,10 @@ Backup::init_lcp_scan(Uint32 & scanGCI,
   BackupRecordPtr ptr;
   jamEntry();
   c_backupPool.getPtr(ptr, m_lcp_ptr_i);
-  Uint32 curr_lcp_round = ptr.p->m_current_lcp_round;
   ptr.p->m_lcp_current_page_scanned = 0;
   Uint32 part_id = hash_lcp_part(0);
   get_page_info(ptr,
-                curr_lcp_round,
+                0,
                 part_id,
                 scanGCI,
                 skip_page,
@@ -6419,87 +6406,44 @@ Backup::is_page_lcp_scanned(Uint32 page_id, bool & all_part)
     jam();
     return +1; /* Page will never be scanned */
   }
-  Uint32 curr_lcp_round = ptr.p->m_current_lcp_round;
+  Uint32 curr_lcp_round = 0;
   Uint32 part_id = hash_lcp_part(page_id);
-  for (Uint32 i = 0; i < ptr.p->m_lcp_rounds; i++)
   {
+    Uint32 i = curr_lcp_round;
     jam();
     if (check_if_in_page_range(part_id,
                    ptr.p->m_scan_info[i].m_start_all_part,
                    ptr.p->m_scan_info[i].m_num_all_parts))
     {
       all_part = true;
-      if (i < curr_lcp_round)
+      if (!ptr.p->m_is_lcp_scan_active)
+      {
+        /**
+         * LCP scan is already completed.
+         */
+        jam();
+        return +1;
+      }
+      if (page_id < ptr.p->m_lcp_current_page_scanned)
       {
         jam();
-        return +1; /* Page scanned in previous LCP scan round */
+        return +1; /* Page have been scanned in this LCP scan round */
       }
-      else if (i > curr_lcp_round)
+      else if (page_id > ptr.p->m_lcp_current_page_scanned)
       {
         jam();
-        return -1; /* Page to be scanned in later LCP scan round */
+        return -1; /* Page to be scanned this LCP scan round, not done yet */
       }
-      else /* i == curr_lcp_round */
+      else
       {
-        if (!ptr.p->m_is_lcp_scan_active)
-        {
-          /**
-           * LCP scan is already completed.
-           */
-          jam();
-          return +1;
-        }
-        if (page_id < ptr.p->m_lcp_current_page_scanned)
-        {
-          jam();
-          return +1; /* Page have been scanned in this LCP scan round */
-        }
-        else if (page_id > ptr.p->m_lcp_current_page_scanned)
-        {
-          jam();
-          return -1; /* Page to be scanned this LCP scan round, not done yet */
-        }
-        else
-        {
-          jam();
-          return 0; /* Page is currently being scanned. Need more info */
-        }
+        jam();
+        return 0; /* Page is currently being scanned. Need more info */
       }
     }
   }
   /* Must be in CHANGED ROWS page range if not in ALL ROWS pages */
-  ndbassert(is_partial_lcp_enabled());
-  ndbrequire(check_if_in_page_range(part_id,
-                                    ptr.p->m_scan_info[0].m_start_change_part,
-                                    ptr.p->m_scan_info[0].m_num_change_parts));
-
-  /**
-   * Not in all parts part, now check if the page has been scanned as part of
-   * changed rows part yet.
-   */
-  if (curr_lcp_round > 0)
-  {
-    jam();
-    return +1; /* All pages in changed part is handled in first LCP round */
-  }
-  if (!ptr.p->m_is_lcp_scan_active)
-  {
-    jam();
-    ndbrequire(false); /* Should never happen */
-    return -1; /* First round not started, thus page isn't scanned yet. */
-  }
-  if (page_id > ptr.p->m_lcp_current_page_scanned)
-  {
-    return -1; /* Page not yet scanned */
-  }
-  else if (page_id < ptr.p->m_lcp_current_page_scanned)
-  {
-    return +1; /* Page already scanned */
-  }
-  else
-  {
-    return 0; /* Page is being scanned */
-  }
+  ndbrequire(false); /* Code not ready yet */
+  return +1; /* All pages in changed part is handled in first LCP round */
 }
 
 void
@@ -6526,10 +6470,9 @@ Backup::update_lcp_pages_scanned(Signal *signal,
    */
   c_backupPool.getPtr(ptr, m_lcp_ptr_i);
   Uint32 part_id = hash_lcp_part(scanned_pages);
-  Uint32 curr_lcp_round = ptr.p->m_current_lcp_round;
   ptr.p->m_lcp_current_page_scanned = scanned_pages;
   get_page_info(ptr,
-                curr_lcp_round,
+                0,
                 part_id,
                 scanGCI,
                 skip_page,
@@ -6539,7 +6482,7 @@ Backup::update_lcp_pages_scanned(Signal *signal,
           instance(),
           scanned_pages,
           part_id,
-          curr_lcp_round,
+          0,
           skip_page ? "SKIP page" :
             changed_row_page_flag ? "CHANGED ROWS page" : " ALL ROWS page"));
 }
@@ -6839,15 +6782,8 @@ Backup::fragmentCompleted(Signal* signal,
      * the next file part.
      */
 
-    ptr.p->m_current_lcp_round++;
     ptr.p->m_is_lcp_scan_active = false;
     filePtr.p->operation.dataBuffer.eof();
-    if (ptr.p->m_current_lcp_round < ptr.p->m_lcp_rounds && errCode == 0)
-    {
-      jam();
-      DEB_LCP(("(%u)fragmentCompleted, more lcp rounds needed", instance()));
-      return;
-    }
     /* Maintain LCP totals */
     ptr.p->noOfRecords+= op.noOfRecords;
     ptr.p->noOfBytes+= op.noOfBytes;
@@ -6857,10 +6793,8 @@ Backup::fragmentCompleted(Signal* signal,
       FragmentPtr fragPtr;
       ptr.p->tables.first(tabPtr);
       tabPtr.p->fragments.getPtr(fragPtr, 0);
-      c_tup->release_lcp_scan(tabPtr.p->tableId, fragPtr.p->fragmentId);
+      c_tup->stop_lcp_scan(tabPtr.p->tableId, fragPtr.p->fragmentId);
     }
-    /* Ensure that we quit immediately in drop table situations */
-    ptr.p->m_current_lcp_round = ptr.p->m_lcp_rounds;
     ptr.p->slaveState.setState(STOPPING);
 
     /**
@@ -9755,6 +9689,7 @@ Backup::execLCP_PREPARE_REQ(Signal* signal)
     ndbrequire(ptr.p->m_first_fragment == false);
     ptr.p->m_first_fragment = true;
     ptr.p->m_is_lcp_scan_active = false;
+    ptr.p->m_current_lcp_lsn = 0;
     DEB_LCP(("(%u)TAGS Start new LCP, id: %u", instance(), req.backupId));
     LocalDeleteLcpFile_list queue(c_deleteLcpFilePool,
                                   m_delete_lcp_file_head);
@@ -10433,13 +10368,12 @@ Backup::lcp_close_prepare_ctl_file_done(Signal* signal,
    * number of the data file to be used in this LCP. We will now open this
    * data file to be used by this LCP.
    */
-  lcp_open_data_file(signal, ptr, true);
+  lcp_open_data_file(signal, ptr);
 }
 
 void
 Backup::lcp_open_data_file(Signal* signal,
-                           BackupRecordPtr ptr,
-                           bool prepare_phase)
+                           BackupRecordPtr ptr)
 {
   FsOpenReq * req = (FsOpenReq *)signal->getDataPtrSend();
   req->userReference = reference();
@@ -10464,25 +10398,13 @@ Backup::lcp_open_data_file(Signal* signal,
   BackupFilePtr filePtr;
   Uint32 dataFileNumber;
 
-  if (prepare_phase)
-  {
-    jam();
-    ndbrequire(ptr.p->prepare_table.first(tabPtr));
-    tabPtr.p->fragments.getPtr(fragPtr, 0);
+  ndbrequire(ptr.p->prepare_table.first(tabPtr));
+  tabPtr.p->fragments.getPtr(fragPtr, 0);
 
-    c_backupFilePool.getPtr(filePtr, ptr.p->prepareDataFilePtr);
-    dataFileNumber = ptr.p->prepareDataFileNumber;
-    ndbrequire(ptr.p->prepareState == PREPARE_READ_CTL_FILES);
-    ptr.p->prepareState = PREPARE_OPEN_DATA_FILE;
-  }
-  else
-  {
-    jam();
-    ndbrequire(ptr.p->tables.first(tabPtr));
-    tabPtr.p->fragments.getPtr(fragPtr, 0);
-    dataFileNumber = ptr.p->m_current_data_file_number;
-    c_backupFilePool.getPtr(filePtr, ptr.p->dataFilePtr);
-  }
+  c_backupFilePool.getPtr(filePtr, ptr.p->prepareDataFilePtr);
+  dataFileNumber = ptr.p->prepareDataFileNumber;
+  ndbrequire(ptr.p->prepareState == PREPARE_READ_CTL_FILES);
+  ptr.p->prepareState = PREPARE_OPEN_DATA_FILE;
   /**
    * Lcp file
    */
@@ -10500,23 +10422,10 @@ Backup::lcp_open_data_file(Signal* signal,
 
 void
 Backup::lcp_open_data_file_done(Signal* signal,
-                                BackupRecordPtr ptr,
-                                bool prepare_phase)
+                                BackupRecordPtr ptr)
 {
   TablePtr tabPtr;
   FragmentPtr fragPtr;
-
-  if (!prepare_phase)
-  {
-    jam();
-    BackupFilePtr filePtr;
-    c_backupFilePool.getPtr(filePtr, ptr.p->dataFilePtr);  
-    filePtr.p->m_flags &= ~(Uint32)BackupFile::BF_LCP_META;
-    ndbrequire(ptr.p->tables.first(tabPtr));
-    tabPtr.p->fragments.getPtr(fragPtr, 0);
-    start_lcp_scan(signal, ptr, tabPtr, fragPtr, filePtr);
-    return;
-  }
 
   ndbrequire(ptr.p->prepare_table.first(tabPtr));
   tabPtr.p->fragments.getPtr(fragPtr, 0);
@@ -10651,7 +10560,6 @@ Backup::handle_idle_lcp(Signal *signal, BackupRecordPtr ptr)
   ptr.p->m_empty_lcp = true;
   ptr.p->m_lcp_rounds = 1;
   ptr.p->m_handle_dropped_table_during_lcp_scan = false;
-  ptr.p->m_current_lcp_round = 1;
   lcp_copy_ctl_page(ptr);
   lcp_update_ctl_page(ptr, page_ptr, file_ptr);
   ptr.p->deleteDataFileNumber = RNIL;
@@ -10705,7 +10613,6 @@ Backup::prepare_ranges_for_parts(BackupRecordPtr ptr,
   /* TODO RONM: Temporary workaround */
   num_lcp_rounds = 1;
 
-  ptr.p->m_current_lcp_round = 0;
   ptr.p->m_lcp_rounds = num_lcp_rounds;
   
   Uint32 num_parts_per_round = parts / num_lcp_rounds;
@@ -11197,6 +11104,32 @@ Backup::copy_lcp_info_from_prepare(BackupRecordPtr ptr)
 }
 
 /**
+ * An important part of starting an LCP is to insert a record in the
+ * UNDO log record indicating start of the LCP. This is used to ensure
+ * that main memory rows restored and the disk data restored is in
+ * perfect synch with each other. This UNDO log record must be
+ * completely synchronised with start of LCP scanning.
+ */
+void
+Backup::lcp_write_undo_log(Signal *signal,
+                           BackupRecordPtr ptr)
+{
+  LcpFragOrd *ord = (LcpFragOrd*)signal->getDataPtr();
+  TablePtr tabPtr;
+  FragmentPtr fragPtr;
+  ptr.p->tables.first(tabPtr);
+  tabPtr.p->fragments.getPtr(fragPtr, 0);
+  ord->tableId = tabPtr.p->tableId;
+  ord->fragmentId = fragPtr.p->fragmentId;
+  ord->lcpId = ptr.p->backupId;
+  {
+    Logfile_client lgman(this, c_lgman, 0);
+    ptr.p->m_current_lcp_lsn = lgman.exec_lcp_frag_ord(signal,
+                                                       0);
+  }
+}
+
+/**
  * Start execution of LCP after receiving BACKUP_FRAGMENT_REQ
  *
  * When executing this method we know that there is no
@@ -11225,6 +11158,7 @@ Backup::start_execute_lcp(Signal *signal,
   lcp_swap_data_file(ptr);
   lcp_swap_ctl_file(ptr);
 
+  lcp_write_undo_log(signal, ptr);
   /**
    * With the introduction of Partial LCPs we need to calculate how
    * many parts that should be part of this LCP.
@@ -11253,8 +11187,7 @@ Backup::start_execute_lcp(Signal *signal,
   c_lqh->get_lcp_frag_stats(ptr.p->m_row_count,
                             ptr.p->m_row_change_count,
                             ptr.p->m_memory_used_in_bytes,
-                            ptr.p->m_lcp_max_page_cnt,
-                            true);
+                            ptr.p->m_lcp_max_page_cnt);
 
   if (ptr.p->m_row_change_count == 0 &&
       ptr.p->preparePrevLcpId != 0)
@@ -11383,7 +11316,7 @@ Backup::lcp_start_complete_processing(Signal *signal, BackupRecordPtr ptr)
   Logfile_client::Request req;
   {
     jam();
-    Uint64 lcp_lsn = c_lqh->get_current_lcp_lsn();
+    Uint64 lcp_lsn = ptr.p->m_current_lcp_lsn;
     if (lcp_lsn == 0)
     {
       /**
@@ -11539,19 +11472,6 @@ Backup::lcp_close_data_file_conf(Signal* signal, BackupRecordPtr ptr)
   {
     jam();
     finalize_lcp_processing(signal, ptr);
-    return;
-  }
-  if (ptr.p->m_current_lcp_round < ptr.p->m_lcp_rounds)
-  {
-    jam();
-    /**
-     * Step forward to next data file number.
-     */
-    DEB_LCP(("(%u)Start next lcp round by open data file", instance()));
-    ptr.p->m_current_data_file_number++;
-    ndbassert(false); /* Partial LCP code */
-    ptr.p->m_current_data_file_number %= BackupFormat::NDB_MAX_LCP_FILES;
-    lcp_open_data_file(signal, ptr, false);
     return;
   }
   ndbrequire(ptr.p->wait_data_file_close);

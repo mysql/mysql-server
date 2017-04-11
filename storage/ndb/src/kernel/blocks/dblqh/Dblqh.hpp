@@ -1142,8 +1142,6 @@ public:
 
     Uint64 m_no_of_records;
     Uint64 m_no_of_bytes;
-
-    Uint64 m_current_lcp_lsn;
   };
   typedef Ptr<LcpRecord> LcpRecordPtr;
 
@@ -2947,12 +2945,10 @@ protected:
 public:
   void lcp_max_completed_gci(Uint32 & maxCompletedGci);
   void lcp_complete_scan(Uint32 & newestGci);
-  Uint64 get_current_lcp_lsn(void);
   void get_lcp_frag_stats(Uint64 & commit_count,
                           Uint64 & row_count,
                           Uint64 & memory_used_in_bytes,
-                          Uint32 & max_page_cnt,
-                          bool reset_flag);
+                          Uint32 & max_page_cnt);
   void get_redo_size(Uint64 &size_in_bytes);
   void get_redo_usage(Uint64 &used_in_bytes);
 

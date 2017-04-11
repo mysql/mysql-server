@@ -598,10 +598,10 @@ public:
     Uint32 m_lcp_rounds;
     Uint32 m_lcp_current_page_scanned;
     Uint32 m_lcp_max_page_cnt;
-    Uint32 m_current_lcp_round;
     Uint32 m_scan_change_gci;
     Uint32 m_lcp_remove_files;
     Uint32 m_current_data_file_number;
+    Uint64 m_current_lcp_lsn;
     BackupFormat::PartPair m_part_info[BackupFormat::NDB_MAX_LCP_PARTS];
     LcpScanInfo m_scan_info[BackupFormat::NDB_MAX_FILES_PER_LCP];
 
@@ -1098,8 +1098,8 @@ public:
   void lcp_close_ctl_file(Signal*, BackupRecordPtr, Uint32 closeLcpNo);
   void lcp_close_prepare_ctl_file_done(Signal*, BackupRecordPtr);
   void lcp_read_ctl_page(BackupFilePtr, Page32Ptr&);
-  void lcp_open_data_file(Signal*, BackupRecordPtr, bool);
-  void lcp_open_data_file_done(Signal*, BackupRecordPtr, bool);
+  void lcp_open_data_file(Signal*, BackupRecordPtr);
+  void lcp_open_data_file_done(Signal*, BackupRecordPtr);
   void lcp_close_data_file(Signal*, BackupRecordPtr, bool remove_flag);
   void lcp_close_data_file_conf(Signal* signal, BackupRecordPtr);
   void read_lcp_descriptor(Signal*, BackupRecordPtr, TablePtr);
@@ -1108,6 +1108,7 @@ public:
   void sync_page_cache_callback(Signal*, Uint32 ptrI, Uint32 res);
   void finalize_lcp_processing(Signal*, BackupRecordPtr);
   void lcp_one_part_completed(Signal*, BackupRecordPtr);
+  void lcp_write_undo_log(Signal *signal, BackupRecordPtr);
 
   void delete_lcp_file_processing(Signal*, Uint32 ptrI);
   void lcp_remove_file(Signal*,
