@@ -714,8 +714,16 @@ bool Trigger_loader::load_triggers(THD *thd,
 
     // Set timeval to use for Created field.
     timeval timestamp_value;
-    timestamp_value.tv_sec= static_cast<long>(*created_timestamp / 100);
-    timestamp_value.tv_usec= (*created_timestamp % 100) * 10000;
+    if (created_timestamp)
+    {
+      timestamp_value.tv_sec= static_cast<long>(*created_timestamp / 100);
+      timestamp_value.tv_usec= (*created_timestamp % 100) * 10000;
+    }
+    else
+    {
+      // Trigger created before 5.7.2, set created value.
+      timestamp_value= thd->query_start_timeval_trunc(2);
+    }
 
     // Create temporary Trigger name to be fixed while parsing.
     // parse_triggers() will fix this.

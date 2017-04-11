@@ -51,6 +51,28 @@ let $MYSQLD_DATADIR1 = $MYSQL_TMP_DIR/data57;
 --echo # Unzip the zip file.
 --exec unzip -qo $MYSQL_TMP_DIR/data57.zip -d $MYSQL_TMP_DIR
 
+--echo #
+--echo # BUG#25805260: MYSQL 8.0.X CRASHES WHEN OLD-STYLE TRIGGER MISSES THE
+--echo # "CREATED" LINE IN .TRG.
+--echo #
+
+--echo # Create a trigger without 'created' line. Without patch,
+--echo # the server exits during upgrade of trigger.
+--write_file $MYSQL_TMP_DIR/data57/test/vt2.TRG
+TYPE=TRIGGERS
+triggers='CREATE DEFINER=`root`@`localhost` TRIGGER tr1_bi BEFORE INSERT ON vt2 FOR EACH ROW SET @a:=1'
+sql_modes=1073741824 1073741824
+definers='root@localhost' 'root@localhost'
+client_cs_names='latin1' 'latin1'
+connection_cl_names='latin1_swedish_ci' 'latin1_swedish_ci'
+db_cl_names='latin1_swedish_ci' 'latin1_swedish_ci'
+EOF
+
+--write_file $MYSQL_TMP_DIR/data57/test/tr1_bi.TRN
+TYPE=TRIGGERNAME
+trigger_table=vt2
+EOF
+
 # Create a table as same as mysql.proc to repeat Bug#24805140
 # We need to add an entry in mysql.proc table of the zipped
 # data data directory before upgrade starts.
@@ -363,6 +385,9 @@ SHOW CREATE TRIGGER triggers.trg1;
 
 --replace_column 7 #
 SHOW CREATE TRIGGER triggers.t1_bi;
+
+--replace_column 7 #
+SHOW CREATE TRIGGER test.tr1_bi;
 
 #I_S query to check Foreign_keys
 SELECT * FROM INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS WHERE
