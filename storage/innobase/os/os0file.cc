@@ -3484,7 +3484,7 @@ os_file_create_func(
 
 	ut_a(type == OS_LOG_FILE
 	     || type == OS_DATA_FILE
-	     || type == OS_DATA_TEMP_FILE);
+	     || type == OS_BUFFERED_FILE);
 
 	ut_a(purpose == OS_FILE_AIO || purpose == OS_FILE_NORMAL);
 
@@ -3531,7 +3531,7 @@ os_file_create_func(
 
 	if (!read_only
 	    && *success
-	    && (type != OS_LOG_FILE && type != OS_DATA_TEMP_FILE)
+	    && (type != OS_LOG_FILE && type != OS_BUFFERED_FILE)
 	    && (srv_unix_file_flush_method == SRV_UNIX_O_DIRECT
 		|| srv_unix_file_flush_method == SRV_UNIX_O_DIRECT_NO_FSYNC)) {
 
@@ -4586,7 +4586,8 @@ os_file_create_func(
 #ifdef UNIV_NON_BUFFERED_IO
 	// TODO: Create a bug, this looks wrong. The flush log
 	// parameter is dynamic.
-	if (type == OS_LOG_FILE && srv_flush_log_at_trx_commit == 2) {
+	if ((type == OS_BUFFERED_FILE)
+	     || (type == OS_LOG_FILE && srv_flush_log_at_trx_commit == 2)) {
 
 		/* Do not use unbuffered i/o for the log files because
 		value 2 denotes that we do not flush the log at every

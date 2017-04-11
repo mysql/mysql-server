@@ -1467,4 +1467,7 @@ fil_tablespace_open_for_recovery(space_id_t space_id);
 void
 fil_tablespace_open_clear();
 
+/** Create tablespaces.open.* files */
+void
+fil_tablespace_open_create();
 #endif /* fil0fil_h */

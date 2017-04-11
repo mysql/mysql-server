@@ -150,7 +150,11 @@ static const ulint OS_FILE_NORMAL = 62;
 /** Types for file create @{ */
 static const ulint OS_DATA_FILE = 100;
 static const ulint OS_LOG_FILE = 101;
-static const ulint OS_DATA_TEMP_FILE = 102;
+/* Don't use this for Data files, Log files. Use it for smaller files
+or if number of bytes to write are not multiple of sector size.
+With this flag, writes to file will be always buffered and ignores the value
+of innodb_flush_method. */
+static const ulint OS_BUFFERED_FILE = 102;
 /* @} */
 
 /** Error codes from os_file_get_last_error @{ */

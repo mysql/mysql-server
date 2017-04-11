@@ -3949,6 +3949,8 @@ recv_recovery_from_checkpoint_finish(bool aborting)
 		fil_block_check_type(block, FIL_PAGE_TYPE_SYS, &mtr);
 
 		mtr.commit();
+
+		fil_tablespace_open_create();
 	}
 
 	/* Free up the flush_rbt. */

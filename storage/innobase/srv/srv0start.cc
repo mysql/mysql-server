@@ -439,6 +439,7 @@ create_log_files(
 	}
 
 	fil_open_log_and_system_tablespace_files();
+	fil_tablespace_open_create();
 
 	/* Create a log checkpoint. */
 	log_mutex_enter();

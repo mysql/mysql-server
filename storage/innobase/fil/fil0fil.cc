@@ -214,8 +214,19 @@ struct Char_Ptr_Compare {
 	}
 };
 
+/** Maximum number of tablespaces.open.* files */
+static const uint32_t	MAX_TABLESPACE_OPEN_FILES = 2;
+
 using Names = std::unordered_map<
 	const char*, fil_space_t*, Char_Ptr_Hash, Char_Ptr_Compare>;
+
+/* File Handle for tablespaces.open.* file */
+struct Fil_Open_Hdl {
+	/** Path to tablespace open file */
+	std::string	path;
+	/** File handle for tablespace open state files. */
+	pfs_os_file_t	handle;
+};
 
 /** For tracking space ID to physical filename during recovery */
 struct Fil_Open {
@@ -378,6 +389,9 @@ struct Fil_Open {
 		m_next()
 	{
 		mutex_create(LATCH_ID_FILE_OPEN, &m_mutex);
+		for (Fil_Open_Hdl& hdl : m_handles) {
+			hdl.handle.m_file = OS_FILE_CLOSED;
+		}
 	}
 
 	/** Copy constructor
@@ -389,12 +403,23 @@ struct Fil_Open {
 		m_next(other.m_next)
 	{
 		mutex_create(LATCH_ID_FILE_OPEN, &m_mutex);
+
+		for (uint32_t i = 0; i < MAX_TABLESPACE_OPEN_FILES; i++) {
+			m_handles.at(i) = other.m_handles.at(i);
+		}
 	}
 
 	/** Destructor */
 	~Fil_Open()
 	{
 		mutex_free(&m_mutex);
+
+		for (Fil_Open_Hdl& hdl : m_handles) {
+			if (hdl.handle.m_file != OS_FILE_CLOSED) {
+				os_file_close(hdl.handle);
+				hdl.handle.m_file = OS_FILE_CLOSED;
+			}
+		}
 	}
 
 	/** Acquire the mutex. */
@@ -408,6 +433,9 @@ struct Fil_Open {
 	{
 		mutex_exit(&m_mutex);
 	}
+
+	/** Create tablespaces.open.* files */
+	void create_open_files();
 
 	/** Redo log an open file request.
 	@param[in]	space_id	Tablespace ID being opened
@@ -492,13 +520,11 @@ struct Fil_Open {
 	bool parse(std::istream& is, lsn_t& max_lsn, bool recovery);
 
 	/** Write the data to the file.
-	@param[in]	path		Filename - where to write
 	@param[in]	version		File format version
 	@param[in]	original_len	Uncompressed data len
 	@param[in]	compressed_len	Compressed data len
 	@param[in]	data		The data to write */
-	static void write(
-		const char*	path,
+	void write(
 		size_t		version,
 		size_t		original_len,
 		size_t		compressed_len,
@@ -537,6 +563,9 @@ struct Fil_Open {
 
 	/** Next file number from PATHS. */
 	size_t			m_next;
+
+	/** Paths to tablespace open files. */
+	std::array<Fil_Open_Hdl, MAX_TABLESPACE_OPEN_FILES>	m_handles;
 };
 
 /** Tablespace open state files. */
@@ -647,6 +676,74 @@ Fil_Open::Nodes::rename(const std::string& from, const std::string& to)
 	it->m_state = OPEN;
 
 	return(true);
+}
+
+/** Create tablespaces.open.* files */
+void
+Fil_Open::create_open_files()
+{
+
+	for (uint32_t i = 0; i < MAX_TABLESPACE_OPEN_FILES; i++) {
+
+		if (m_handles.at(i).handle.m_file != OS_FILE_CLOSED) {
+			continue;
+		}
+
+		const std::string&	filename = PATHS[i];
+
+		std::string	path_filename(srv_log_group_home_dir);
+
+		/* Append PATH separator */
+		if ((path_filename.length() != 0)
+		    && (*path_filename.rbegin() != OS_PATH_SEPARATOR)) {
+			path_filename += OS_PATH_SEPARATOR;
+		}
+
+		path_filename.append(filename);
+
+		const char*	path = path_filename.c_str();
+		bool		success;
+
+		pfs_os_file_t	file;
+
+		file = os_file_create(innodb_tablespace_open_file_key, path,
+					  OS_FILE_CREATE | OS_FILE_ON_ERROR_NO_EXIT,
+					  OS_FILE_NORMAL,
+					  OS_BUFFERED_FILE,
+					  srv_read_only_mode,
+					  &success);
+
+		if (!success) {
+			ulint	error = os_file_get_last_error(false);
+			bool	success_open;
+
+			if (error == OS_FILE_ALREADY_EXISTS) {
+				/* Open the file now. */
+				file = os_file_create(
+					innodb_tablespace_open_file_key, path,
+					OS_FILE_OPEN | OS_FILE_ON_ERROR_NO_EXIT,
+					OS_FILE_NORMAL,
+					OS_BUFFERED_FILE,
+					srv_read_only_mode,
+					&success_open);
+
+				if (!success_open) {
+					/* print msg to stderr */
+					os_file_get_last_error(true);
+					ib::fatal() << "Failed to open: " << path;
+				}
+			} else {
+				os_file_get_last_error(true);
+				ib::fatal() << "Failed to create: " << path;
+			}
+		}
+
+		ut_ad(file.m_file != OS_FILE_CLOSED);
+		ut_ad(path_filename.length() >= PATHS[0].length());
+
+		m_handles.at(i).handle = file;
+		m_handles.at(i).path.assign(path_filename);
+	}
 }
 
 /** Rename a file for a given tablespace ID.
@@ -7622,53 +7719,28 @@ Fil_Open::to_string() const
 }
 
 /** Write the data to the file.
-@param[in]	path		Filename - where to write
 @param[in]	version		File format version
 @param[in]	original_len	Uncompressed data len
 @param[in]	compressed_len	Compressed data len
 @param[in]	data		The data to write */
 void
 Fil_Open::write(
-	const char*	path,
 	size_t		version,
 	size_t		original_len,
 	size_t		compressed_len,
 	const byte*	data)
 {
-	pfs_os_file_t		pfs_file;
-#ifdef UNIV_PFS_IO
-	PSI_file_locker_state	state;
-	PSI_file_locker*	locker = nullptr;
+	pfs_os_file_t	file =
+		m_handles.at(m_next % MAX_TABLESPACE_OPEN_FILES).handle;
+	std::string	file_path =
+		m_handles.at(m_next % MAX_TABLESPACE_OPEN_FILES).path;
+	++m_next;
 
-	/* Register the file open. */
-	register_pfs_file_open_begin(
-		&state, locker, innodb_tablespace_open_file_key,
-		PSI_FILE_OPEN, path, __FILE__, __LINE__);
-#endif /* UNIV_PFS_IO */
+	const char*	path = file_path.c_str();
 
-	/* Can't use std::ofstream because there is no method to sync the
-	contents to disk. */
+	ut_ad(file.m_file != OS_FILE_CLOSED);
 
-	FILE*   fp = fopen(path, "w+b");
-
-	if (fp == nullptr) {
-
-		ib::fatal()
-			<< "Failed to create: '" << path << "' : '"
-			<< strerror(errno) << "'";
-	}
-
-	pfs_file.m_psi = nullptr;
-
-#ifdef _WIN32
-	pfs_file.m_file = OS_FILE_FROM_FD(_fileno(fp));
-#else
-	pfs_file.m_file = fileno(fp);
-#endif /* _WIN32 */
-
-#ifdef UNIV_PFS_IO
-	register_pfs_file_open_end(locker, pfs_file, 0);
-#endif /* UNIV_PFS_IO */
+	os_file_truncate(path, file, 0);
 
 	char	header[sizeof(uint32_t) * 3];
 	byte*	ptr = reinterpret_cast<byte*>(header);
@@ -7684,122 +7756,87 @@ Fil_Open::write(
 	/* Write out the compressed length. */
 	mach_write_to_4(ptr, compressed_len);
 
-#ifdef UNIV_PFS_IO
-	locker = nullptr;
 
-	/* Register the write I/O. */
-	register_pfs_file_io_begin(
-		&state, locker, pfs_file, sizeof(header) + compressed_len,
-		PSI_FILE_WRITE, __FILE__, __LINE__);
+	IORequest               request(IORequest::WRITE);
 
-#endif /* UNIV_PFS_IO */
+	os_offset_t	offset = 0;
+	ulint		len = 0;
 
-	for (;;) {
+	/* Simulate a crash before having written anything
+	to disk at all. */
+	DBUG_EXECUTE_IF(
+		"ib_tablespace_open_crash_before_write",
+		DBUG_SUICIDE(););
 
-		rewind(fp);
+	/* Simulate a massive corruption of the data written to disk.
+	~ temporary or permanent hardware failure. */
+	DBUG_EXECUTE_IF(
+		"ib_tablespace_open_write_corrupt_0",
+		char buf[]="0123456789AB";
+		len = strlen(buf);
+		os_file_write(request, path, file, buf, offset, len);
+		offset += len;
 
-		/* Simulate a powerloss before having written anything
-		to disk at all. */
-		DBUG_EXECUTE_IF(
-			"ib_tablespace_open_crash_before_write",
-			DBUG_SUICIDE(););
+		char buf1[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+		len = strlen(buf1);
+		os_file_write(request, path, file, buf1, offset, len);
+		offset += len;
 
-		/* Simulate a massive corruption of the data written to disk.
-		~ temporary or permanent hardware failure. */
-		DBUG_EXECUTE_IF(
-			"ib_tablespace_open_write_corrupt_0",
-			fwrite("0123456789AB", 12, 1, fp);
-			fwrite("ABCDEFGHIJKLMNOPQRSTUVWXYZ", 26, 1, fp);
-			fflush(fp);
-			DBUG_SUICIDE(););
+		os_file_flush(file);
+		DBUG_SUICIDE(););
 
-		/* Simulate that a powerloss during write to disk causes
-		that the header is incomplete and what remains is lost
-		anyway. */
-		DBUG_EXECUTE_IF(
-			"ib_tablespace_open_write_corrupt_1",
-			fwrite(header, sizeof(header) - 1, 1, fp);
-			fflush(fp);
-			DBUG_SUICIDE(););
+	/* Simulate that a powerloss during write to disk causes
+	that the header is incomplete and what remains is lost
+	anyway. */
+	DBUG_EXECUTE_IF(
+		"ib_tablespace_open_write_corrupt_1",
+		len = sizeof(header) - 1;
+		os_file_write(request, path, file, header, offset, len);
+		offset += len;
 
-		size_t	ret = fwrite(header, sizeof(header), 1, fp);
+		os_file_flush(file);
+		DBUG_SUICIDE(););
 
-		if (ret != 1) {
+	len = sizeof(header);
+	dberr_t	err = os_file_write(request, path, file, header, offset, len);
+	if (err != DB_SUCCESS) {
+		/* print msg to stderr */
+		os_file_get_last_error(true);
 
-			ib::fatal()
-				<< "fwrite() failed to write header : '"
-				<< path << "' : " << strerror(errno);
-		}
-
-		/* Simulate that a powerloss during write to disk causes
-		that the compressed data is incomplete. */
-		DBUG_EXECUTE_IF(
-			"ib_tablespace_open_write_corrupt_2",
-			fwrite(data, compressed_len - 1, 1, fp);
-			fflush(fp);
-			DBUG_SUICIDE(););
-
-		/* Write out the compressed data. */
-		ret = fwrite(data, compressed_len, 1, fp);
-
-		if (ret != 1) {
-
-			ib::fatal()
-				<< "fwrite() failed to write data: '"
-				<< path << "' : " << strerror(errno);
-		}
-
-#ifdef UNIV_PFS_IO
-		register_pfs_file_io_end(
-			locker, sizeof(header) + compressed_len);
-#endif /* UNIV_PFS_IO */
-
-		/* Crash before writing out the file. */
-		DBUG_EXECUTE_IF(
-			"ib_tablespace_open_flush_crash",
-			DBUG_SUICIDE(););
-
-		/* Flush the IO buffer to disk. */
-		if (fflush(fp) == 0) {
-
-			/* Simulate an EINTR error (retry). */
-			DBUG_EXECUTE_IF(
-				"ib_tablespace_open_flush_eintr",
-				continue; );
-
-			break;
-		}
-
-		switch (errno) {
-		case EINTR:
-		case EAGAIN:
-			break;
-
-		default:
-			ib::fatal()
-				<< "fflush() failed: '"
-				<< path << "' : " << strerror(errno);
-		}
+		ib::fatal() << "write() failed to write header : " << path;
+	} else {
+		offset += len;
 	}
 
+	/* Simulate that a powerloss during write to disk causes
+	that the compressed data is incomplete. */
+	DBUG_EXECUTE_IF(
+		"ib_tablespace_open_write_corrupt_2",
+		len = compressed_len - 1;
+		os_file_write(request, path, file, data, offset , len);
+		os_file_flush(file);
+		DBUG_SUICIDE(););
+
+	/* Write out the compressed data. */
+	len = compressed_len;
+	err = os_file_write(request, path, file, data, offset, len);
+
+	if (err != DB_SUCCESS) {
+		/* print msg to stderr */
+		os_file_get_last_error(true);
+
+		ib::fatal() << "write() failed to write header : " << path;
+	} else {
+		offset += len;
+	}
+
+	/* Crash before writing out the file. */
+	DBUG_EXECUTE_IF(
+		"ib_tablespace_open_flush_crash",
+		DBUG_SUICIDE(););
+
 	/** Flush the OS buffer to disk. */
-	auto	success = os_file_flush(pfs_file);
-
-#ifdef UNIV_PFS_IO
-	locker = nullptr;
-
-	register_pfs_file_close_begin(
-		&state, locker, innodb_tablespace_open_file_key,
-		PSI_FILE_CLOSE, path, __FILE__, __LINE__);
-
-#endif /* UNIV_PFS_IO */
-
-	int	ret = fclose(fp);
-	ut_a(ret == 0);
-
-#ifdef UNIV_PFS_IO
-	register_pfs_file_close_end(locker, 0);
-#endif /* UNIV_PFS_IO */
+	bool	success = os_file_flush(file);
 
 	if (!success) {
 
@@ -7847,11 +7884,6 @@ Fil_Open::to_file()
 	if (!m_needs_flush) {
 		return;
 	}
-
-	const std::string&	filename = PATHS[m_next % PATHS.size()];
-
-	++m_next;
-
 
 	std::ostringstream	os;
 
@@ -7959,9 +7991,7 @@ Fil_Open::to_file()
 		break;
 	}
 
-	std::string abs_path = get_path(srv_log_group_home_dir, filename);
-
-	write(abs_path.c_str(), VERSION_1, data.length(), zlen, dst);
+	write(VERSION_1, data.length(), zlen, dst);
 
 	ut_free(dst);
 
@@ -9207,3 +9237,11 @@ fil_scan_for_tablespaces(const std::string& directories)
 	return(err);
 }
 
+/** Create tablespaces.open.* files. */
+void
+fil_tablespace_open_create()
+{
+	if (!srv_read_only_mode) {
+		fil_system->m_open.create_open_files();
+	}
+}
