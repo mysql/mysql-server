@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -224,7 +224,9 @@ public:
         Add an 'update row' entry to the transaction.
       */
       int update_row(server_id_type sid, table tbl, 
-                     MY_BITMAP const *cols, size_t colcnt,
+                     MY_BITMAP const *before_cols,
+                     MY_BITMAP const *after_cols,
+                     size_t colcnt,
                      record_type before, record_type after,
                      const uchar* extra_row_info);
       int update_row(server_id_type sid, table tbl,
