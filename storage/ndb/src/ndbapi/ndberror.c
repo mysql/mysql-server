@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -731,6 +731,7 @@ ErrorBundle ErrorCodes[] = {
   { 4402, DMEC, AE, "No schema operation defined before calling execute" },
   { 4410, DMEC, AE, "Schema transaction is already started" },
   { 4411, DMEC, AE, "Schema transaction not possible until upgrade complete" },
+  { 4412, DMEC, AE, "Schema transaction is not started" },
 
   { 4501, DMEC, AE, "Insert in hash table failed when getting table information from Ndb" },
   { 4502, DMEC, AE, "GetValue not allowed in Update operation" },
