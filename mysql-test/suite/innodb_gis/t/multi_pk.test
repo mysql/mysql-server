@@ -1,10 +1,6 @@
 # WL#6745 InnoDB R-tree support
 # This test case will test R-tree split.
 
-# WL#7554: Added setting --bootstrap --character-set-server=latin1
-# in the opt file. This test should be migrated to utf8mb4.
-
-
 --source include/have_debug.inc
 --source include/big_test.inc
 --source include/not_valgrind.inc
