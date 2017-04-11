@@ -7961,9 +7961,16 @@ Fil_Open::to_file()
 		break;
 	}
 
-	std::string abs_path = get_path(srv_log_group_home_dir, filename);
+	std::string	path_filename(srv_log_group_home_dir);
+	/* Append PATH separator */
+	if ((path_filename.length() != 0)
+	    && (*path_filename.rbegin() != OS_PATH_SEPARATOR)) {
+		path_filename += OS_PATH_SEPARATOR;
+	}
 
-	write(abs_path.c_str(), VERSION_1, data.length(), zlen, dst);
+	path_filename.append(filename);
+
+	write(path_filename.c_str(), VERSION_1, data.length(), zlen, dst);
 
 	ut_free(dst);
 
