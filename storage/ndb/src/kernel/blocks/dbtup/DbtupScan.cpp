@@ -918,10 +918,6 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
                  * We will scan it, set scanned bit, will be reset again below
                  * in the code when we discover that the page is already scanned.
                  */
-                g_eventLogger->info("scan.m_endPage = %u, frag_max_page_cnt = %u, page_no: %u",
-                  scan.m_endPage,
-                  frag.m_max_page_cnt,
-                  key.m_page_no);
                 set_lcp_scanned_bit(fragPtr.p, key.m_page_no);
               }
               scan.m_last_seen = __LINE__;
@@ -2303,8 +2299,6 @@ Dbtup::start_lcp_scan(Uint32 tableId,
   scanPtr.p->m_last_seen = __LINE__;
   scanPtr.p->m_endPage = frag.m_max_page_cnt;
   max_page_cnt = frag.m_max_page_cnt;
-  g_eventLogger->info("start_lcp_scan: scan.m_endPage = %u, max_page_cnt = %u",
-    scanPtr.p->m_endPage, max_page_cnt);
 
   ndbassert(frag.m_lcp_keep_list_head.isNull());
   ndbassert(frag.m_lcp_keep_list_tail.isNull());
