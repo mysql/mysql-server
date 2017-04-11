@@ -132,5 +132,8 @@ sleep 10;
 
 --exec $NDB_SELECT_ALL -d mysqltest t1 -o PRIMARY
 
+# Wait for MySQLD to reconnect to cluster...
+--source include/ndb_not_readonly.inc
+
 DROP TABLE t1;
 DROP DATABASE mysqltest;
