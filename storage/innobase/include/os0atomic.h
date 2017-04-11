@@ -1,5 +1,5 @@
 /*****************************************************************************
-Copyright (c) 1995, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2017, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -326,7 +326,15 @@ amount to decrement. */
 #define CAS(l, o, n)		os_atomic_val_compare_and_swap((l), (o), (n))
 
 /** barrier definitions for memory ordering */
-#ifdef HAVE_IB_GCC_ATOMIC_THREAD_FENCE
+#if defined(HAVE_IB_MACHINE_BARRIER_SOLARIS)
+# define HAVE_MEMORY_BARRIER
+# include <mbarrier.h>
+# define os_rmb	__machine_r_barrier()
+# define os_wmb	__machine_w_barrier()
+# define IB_MEMORY_BARRIER_STARTUP_MSG \
+	"Solaris memory ordering functions are used for memory barrier"
+
+#elif defined HAVE_IB_GCC_ATOMIC_THREAD_FENCE
 # define HAVE_MEMORY_BARRIER
 # define os_rmb	__atomic_thread_fence(__ATOMIC_ACQUIRE)
 # define os_wmb	__atomic_thread_fence(__ATOMIC_RELEASE)
@@ -339,14 +347,6 @@ amount to decrement. */
 # define os_wmb	__sync_synchronize()
 # define IB_MEMORY_BARRIER_STARTUP_MSG \
 	"GCC builtin __sync_synchronize() is used for memory barrier"
-
-#elif defined(HAVE_IB_MACHINE_BARRIER_SOLARIS)
-# define HAVE_MEMORY_BARRIER
-# include <mbarrier.h>
-# define os_rmb	__machine_r_barrier()
-# define os_wmb	__machine_w_barrier()
-# define IB_MEMORY_BARRIER_STARTUP_MSG \
-	"Solaris memory ordering functions are used for memory barrier"
 
 #elif defined(HAVE_WINDOWS_MM_FENCE) && defined(_WIN64)
 # define HAVE_MEMORY_BARRIER
