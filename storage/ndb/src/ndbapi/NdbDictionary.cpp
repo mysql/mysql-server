@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2075,6 +2075,8 @@ NdbDictionary::Dictionary::prepareHashMap(const Table& oldTableF,
 {
   if (!hasSchemaTrans())
   {
+    //Schema transaction is not started
+    m_impl.m_error.code = 4412;
     return -1;
   }
 
@@ -2091,6 +2093,7 @@ NdbDictionary::Dictionary::prepareHashMap(const Table& oldTableF,
 
     if (oldmap.getObjectVersion() != (int)oldTable.m_hash_map_version)
     {
+      m_impl.m_error.code = 241;
       return -1;
     }
 
@@ -2140,14 +2143,14 @@ NdbDictionary::Dictionary::prepareHashMap(const Table& oldTableF,
                                                  newTable.getPartitionBalance());
       if (ret)
       {
-        return ret;
+        return -1;
       }
 
       HashMap hm;
       ret = m_impl.m_receiver.get_hashmap(NdbHashMapImpl::getImpl(hm), tmp.getObjectId());
       if (ret)
       {
-        return ret;
+        return -1;
       }
       Uint32 zero = 0;
       Vector<Uint32> values;
