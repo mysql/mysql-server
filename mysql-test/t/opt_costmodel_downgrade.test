@@ -1,0 +1,26 @@
+-- source include/no_valgrind_without_big.inc
+-- source include/mysql_upgrade_preparation.inc
+
+--echo
+--echo Bug#25650399: DOWNGRADE FROM MYSQL 8.0 WITH WL#10128 TO 5.7
+--echo               WILL CRASH SERVER
+--echo
+
+# Add columns and check that upgrade script drops them
+ALTER TABLE mysql.server_cost
+  ADD COLUMN default_value FLOAT GENERATED ALWAYS AS (cost_name) VIRTUAL;
+ALTER TABLE mysql.engine_cost
+  ADD COLUMN default_value FLOAT GENERATED ALWAYS AS (cost_name) VIRTUAL;
+
+# This will crash server without fix
+FLUSH OPTIMIZER_COSTS;
+
+--exec $MYSQL_UPGRADE --skip-verbose --force 2>&1
+
+# Mask out the content of the last_update column
+--replace_column 3 #
+SELECT * FROM mysql.server_cost;
+--replace_column 5 #
+SELECT * FROM mysql.engine_cost;
+
+--source include/mysql_upgrade_cleanup.inc
