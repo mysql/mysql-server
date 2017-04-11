@@ -2951,6 +2951,80 @@ void Dblqh::removeTable(Uint32 tableId)
   }//for
 }//Dblqh::removeTable()
 
+/**
+ * When adding a set of new columns to a table the row size grows.
+ * This can have a bad effect on ongoing LCP scans. So therefore
+ * we need to wait to change the table metadata until we are sure
+ * that it is safe to change this parameter.
+ *
+ * It is safe if no LCP execution is ongoing on the table.
+ *
+ * It is safe when returning from executing an LCP since only one
+ * at a time can execute an LCP (we can have another LCP in prepare
+ * phase, but only one at a time in execution phase).
+ *
+ * We have also made it safe as soon as the LCP scan returns
+ * a SCAN_FRAGCONF. We will check if it is necessary to change
+ * the max record size of the table before we decide whether to
+ * continue executing an LCP scan.
+ *
+ * The max record size is used to ensure that the LCP scan have
+ * buffer space to receive at least 16 rows with maximum size.
+ * This is checked before executing the next SCAN_FRAGREQ, so changing
+ * the max record size immediately after receiving SCAN_FRAGCONF
+ * is a working solution. This means that at most we have to wait
+ * for a scan of 16 rows, so normally the wait here should be very
+ * small and practically unnoticeable for all practical purposes.
+ *
+ * The real-time break should not constitute any issue here since
+ * we don't perform any action until it is safe to execute all
+ * actions.
+ */
+bool
+Dblqh::handleLCPSurfacing(Signal *signal)
+{
+  if (!c_wait_lcp_surfacing)
+  {
+    jam();
+    return false;
+  }
+  jam();
+  c_wait_lcp_surfacing = false;
+
+  AlterTabReq *req = (AlterTabReq*)signal->getDataPtr();
+  *req = c_keep_alter_tab_req;
+  const Uint32 tableId = req->tableId;
+  const Uint32 newTableVersion = req->newTableVersion;
+  const Uint32 senderRef = req->senderRef;
+  const Uint32 senderData = req->senderData;
+
+  TablerecPtr tablePtr;
+  tablePtr.i = tableId;
+  ptrCheckGuard(tablePtr, ctabrecFileSize, tablerec);
+
+  tablePtr.p->schemaVersion = newTableVersion;
+  if (AlterTableReq::getReorgFragFlag(req->changeMask))
+  {
+    jam();
+    commit_reorg(tablePtr);
+  }
+  Uint32 len = c_keep_alter_tab_req_len;
+  EXECUTE_DIRECT(DBTUP, GSN_ALTER_TAB_REQ, signal, len);
+  jamEntry();
+
+  Uint32 errCode = signal->theData[0];
+  Uint32 connectPtr = signal->theData[1];
+  ndbrequire(errCode == 0);
+
+  AlterTabConf* conf = (AlterTabConf*)signal->getDataPtrSend();
+  conf->senderRef = reference();
+  conf->senderData = senderData;
+  conf->connectPtr = connectPtr;
+  sendSignal(senderRef, GSN_ALTER_TAB_CONF, signal,
+             AlterTabConf::SignalLength, JBB);
+  return true;
+}
+
 void
 Dblqh::execALTER_TAB_REQ(Signal* signal)
 {
@@ -2985,6 +3059,20 @@ Dblqh::execALTER_TAB_REQ(Signal* signal)
     break;
   case AlterTabReq::AlterTableCommit:
     jam();
+    if (AlterTableReq::getAddAttrFlag(req->changeMask))
+    {
+      if (lcpPtr.p->lcpRunState == LcpRecord::LCP_CHECKPOINTING &&
+          tableId == lcpPtr.p->currentRunFragment.lcpFragOrd.tableId)
+      {
+        jam();
+        /* See comment above on handleLCPSurfacing */
+        ndbrequire(!c_wait_lcp_surfacing);
+        c_wait_lcp_surfacing = true;
+        c_keep_alter_tab_req = copy;
+        c_keep_alter_tab_req_len = len;
+        return;
+      }
+    }
     tablePtr.p->schemaVersion = newTableVersion;
     if (AlterTableReq::getReorgFragFlag(req->changeMask))
     {
@@ -15973,6 +16061,7 @@ void Dblqh::execBACKUP_FRAGMENT_CONF(Signal* signal)
    * ----------------------------------------------------------------------- */
 
   completed_fragment_checkpoint(signal, lcpPtr.p->currentRunFragment);
+  handleLCPSurfacing(signal);
 
   if (lcpPtr.p->reportEmpty)
   {

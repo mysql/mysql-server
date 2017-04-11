@@ -67,6 +67,7 @@
 
 #include <NdbTick.h>
 #include <dbtup/Dbtup.hpp>
+#include <dbtup/Dbtup.hpp>
 
 #include <EventLogger.hpp>
 extern EventLogger * g_eventLogger;
@@ -5283,6 +5284,8 @@ Backup::parseTableDescription(Signal* signal,
 
   if (lcp)
   {
+    jam();
+    c_lqh->handleLCPSurfacing(signal);
     Dbtup* tup = (Dbtup*)globalData.getBlock(DBTUP, instance());
     tabPtr.p->maxRecordSize = 1 + tup->get_max_lcp_record_size(tmpTab.TableId);
   }
@@ -6718,16 +6721,27 @@ Backup::execSCAN_FRAGCONF(Signal* signal)
 
   CRASH_INSERTION((10017));
 
-  ScanFragConf * conf = (ScanFragConf*)signal->getDataPtr();
+  ScanFragConf conf = *(ScanFragConf*)signal->getDataPtr();
   
-  const Uint32 filePtrI = conf->senderData;
+  const Uint32 filePtrI = conf.senderData;
   BackupFilePtr filePtr;
   c_backupFilePool.getPtr(filePtr, filePtrI);
 
   OperationRecord & op = filePtr.p->operation;
-  
-  op.scanConf(conf->completedOps, conf->total_len);
-  const Uint32 completed = conf->fragmentCompleted;
+
+  if (c_lqh->handleLCPSurfacing(signal))
+  {
+    jam();
+    BackupRecordPtr ptr;
+    TablePtr tabPtr;
+    c_backupPool.getPtr(ptr, filePtr.p->backupPtr);
+    ptr.p->tables.first(tabPtr);
+    Dbtup* tup = (Dbtup*)globalData.getBlock(DBTUP, instance());
+    op.maxRecordSize = tabPtr.p->maxRecordSize =
+      1 + tup->get_max_lcp_record_size(tabPtr.p->tableId);
+  }
+  op.scanConf(conf.completedOps, conf.total_len);
+  const Uint32 completed = conf.fragmentCompleted;
   if(completed != 2) {
     jam();
     

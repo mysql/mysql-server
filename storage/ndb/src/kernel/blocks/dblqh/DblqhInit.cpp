@@ -34,6 +34,7 @@ void Dblqh::initData()
 #endif
 
   c_is_io_lag_reported = false;
+  c_wait_lcp_surfacing = false;
 
   caddfragrecFileSize = ZADDFRAGREC_FILE_SIZE;
   cgcprecFileSize = ZGCPREC_FILE_SIZE;
