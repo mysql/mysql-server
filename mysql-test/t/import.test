@@ -597,6 +597,7 @@ DROP TABLE t_case;
 --echo # Delete expect files
 --remove_files_wildcard $MYSQL_TMP_DIR *.expect
 
+--remove_files_wildcard $EXPORT_DIR t_case*
 
 --echo #
 --echo # Bug#25792649: SDI DESERIALIZE MISSING COLUMNIMPL::M_NUMERIC_SCALE_NULL
@@ -625,3 +626,7 @@ SELECT * FROM t1;
 DROP TABLE t1;
 --echo # Clean SDI files in \$EXPORT_DIR
 --remove_files_wildcard $EXPORT_DIR t*
+
+
+--echo # Remove 'export' folder created at the beginning of test file.
+--force-rmdir $EXPORT_DIR

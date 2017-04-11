@@ -476,3 +476,4 @@ i	dt	de	j
 42	2017-03-28 18:48:03.000	1.50	84
 DROP TABLE t1;
 # Clean SDI files in $EXPORT_DIR
+# Remove 'export' folder created at the beginning of test file.
