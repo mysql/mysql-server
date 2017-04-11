@@ -3667,6 +3667,11 @@ public:
 
   void sendFireTrigConfTc(Signal* signal, BlockReference ref, Uint32 Tdata[]);
   bool check_fire_trig_pass(Uint32 op, Uint32 pass);
+
+  bool handleLCPSurfacing(Signal *signal);
+  AlterTabReq c_keep_alter_tab_req;
+  Uint32 c_keep_alter_tab_req_len;
+  bool c_wait_lcp_surfacing;
 #endif
 };
 
