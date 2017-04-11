@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2001, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2001, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -115,13 +115,15 @@ enum options_client
 /**
   Wrapper for mysql_real_connect() that checks if SSL connection is establised.
 
-  The function calls mysql_real_connect() first, then if given ssl_required==TRUE
-  argument (i.e. --ssl-mode=REQUIRED option used) checks current SSL chiper to
-  ensure that SSL is used for current connection.
-  Otherwise it returns NULL and sets errno to CR_SSL_CONNECTION_ERROR.
+  The function calls mysql_real_connect() first. Then, if the ssl_required
+  argument is TRUE (i.e., the --ssl-mode=REQUIRED option was specified), it
+  checks the current SSL cipher to ensure that SSL is used for the current
+  connection. Otherwise, it returns NULL and sets errno to
+  CR_SSL_CONNECTION_ERROR.
 
-  All clients (except mysqlbinlog which disregards SSL options) use this function
-  instead of mysql_real_connect() to handle --ssl-mode=REQUIRED option.
+  All clients (except mysqlbinlog, which disregards SSL options) use this
+  function instead of mysql_real_connect() to handle the --ssl-mode=REQUIRED
+  option.
 */
 MYSQL *mysql_connect_ssl_check(MYSQL *mysql_arg, const char *host,
                                const char *user, const char *passwd,
@@ -129,8 +131,22 @@ MYSQL *mysql_connect_ssl_check(MYSQL *mysql_arg, const char *host,
                                const char *unix_socket, ulong client_flag,
                                my_bool ssl_required __attribute__((unused)))
 {
-  MYSQL *mysql= mysql_real_connect(mysql_arg, host, user, passwd, db, port,
-                                   unix_socket, client_flag);
+  MYSQL *mysql;
+
+#if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
+  enum mysql_ssl_mode opt_ssl_mode= SSL_MODE_REQUIRED;
+  if (ssl_required &&
+      mysql_options(mysql_arg, MYSQL_OPT_SSL_MODE, (char *) &opt_ssl_mode))
+  {
+    NET *net= &mysql_arg->net;
+    net->last_errno= CR_SSL_CONNECTION_ERROR;
+    strmov(net->last_error, "Client library doesn't support MYSQL_SSL_REQUIRED option");
+    strmov(net->sqlstate, "HY000");
+    return NULL;
+  }
+#endif
+  mysql= mysql_real_connect(mysql_arg, host, user, passwd, db, port,
+                            unix_socket, client_flag);
 #if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
   if (mysql &&                                   /* connection established. */
       ssl_required &&                            /* --ssl-mode=REQUIRED. */
