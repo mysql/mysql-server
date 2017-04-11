@@ -217,6 +217,8 @@ start_again:
 			" increase your buffer pool size. Cannot continue"
 			" operation.";
 
+		mtr_commit(&mtr);
+		buf_dblwr_being_created = FALSE;
 		return(false);
 	}
 
@@ -237,6 +239,8 @@ start_again:
 		/* We exit without committing the mtr to prevent
 		its modifications to the database getting to disk */
 
+		mtr_commit(&mtr);
+		buf_dblwr_being_created = FALSE;
 		return(false);
 	}
 
@@ -252,6 +256,8 @@ start_again:
 				" you must increase your tablespace size."
 				" Cannot continue operation.";
 
+			mtr_commit(&mtr);
+			buf_dblwr_being_created = FALSE;
 			return(false);
 		}
 
