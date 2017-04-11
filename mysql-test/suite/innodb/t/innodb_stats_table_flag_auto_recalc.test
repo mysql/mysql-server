@@ -4,16 +4,6 @@
 
 -- source include/no_valgrind_without_big.inc
 
-########################################
-##### WL#7554 Force schema `test` to character set latin1
-##### This test should be migrated to utf8mb4
---disable_query_log
-let $testdbcs71=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
-alter schema default character set latin1;
-use test;
---enable_query_log
-########################################
-
 -- vertical_results
 
 CREATE TABLE test_ps_auto_recalc (a INT, PRIMARY KEY (a)) ENGINE=INNODB;
@@ -89,10 +79,3 @@ SELECT create_options FROM information_schema.tables
 WHERE table_name='test_ps_auto_recalc';
 
 DROP TABLE test_ps_auto_recalc;
-
-########################################
-##### WL#7554 set schema `test` back to what it was
---disable_query_log
---eval alter schema test default character set $testdbcs71;
---enable_query_log
-########################################

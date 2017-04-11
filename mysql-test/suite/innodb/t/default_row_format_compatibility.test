@@ -23,16 +23,6 @@ let $MYSQLD_DATADIR = `SELECT @@datadir`;
 # The following tescases works with page_size=16k only
 --source include/no_valgrind_without_big.inc
 
-########################################
-##### WL#7554 Force schema `test` to character set latin1
-##### This test should be migrated to utf8mb4
---disable_query_log
-let $testdbcs42=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
-alter schema default character set latin1;
-use test;
---enable_query_log
-########################################
-
 # Check storage engine InnoDB
 SELECT @@internal_tmp_disk_storage_engine;
 
@@ -154,7 +144,7 @@ SET GLOBAL innodb_default_row_format=Dynamic;
 
 SELECT @@innodb_default_row_format;
 
-CREATE TABLE tab(a INT PRIMARY KEY, b VARCHAR(5000), KEY idx1(b(3070))) ENGINE= InnoDB;
+CREATE TABLE tab(a INT PRIMARY KEY, b VARCHAR(5000), KEY idx1(b(3070))) ENGINE= InnoDB charset latin1;
 
 INSERT INTO tab(a,b) VALUES(1,'Check with max column size');
 
@@ -180,7 +170,7 @@ SET GLOBAL innodb_default_row_format=Default;
 # Change row_format to Dynamic
 SELECT @@innodb_default_row_format;
 
-CREATE TABLE tab(a INT PRIMARY KEY, b VARCHAR(5000), KEY idx1(b(767))) ENGINE= InnoDB;
+CREATE TABLE tab(a INT PRIMARY KEY, b VARCHAR(5000), KEY idx1(b(767))) ENGINE= InnoDB charset latin1;
 
 INSERT INTO tab(a,b) VALUES(1,'Check with max column size');
 
@@ -216,11 +206,3 @@ ALTER TABLE tab ROW_FORMAT=Dynamic;
 
 # Cleanup
 DROP TABLE tab;
-
-
-########################################
-##### WL#7554 set schema `test` back to what it was
---disable_query_log
---eval alter schema test default character set $testdbcs42;
---enable_query_log
-########################################

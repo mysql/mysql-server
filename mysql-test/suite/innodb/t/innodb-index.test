@@ -1,15 +1,5 @@
 -- source include/no_valgrind_without_big.inc
 
-########################################
-##### WL#7554 Force schema `test` to character set latin1
-##### This test should be migrated to utf8mb4
---disable_query_log
-let $testdbcs51=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
-alter schema default character set latin1;
-use test;
---enable_query_log
-########################################
-
 let $MYSQLD_DATADIR= `select @@datadir`;
 
 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS;
@@ -577,7 +567,7 @@ insert into t480 select 0 from t480;
 insert into t480 select 0 from t480;
 create table t1(f1 int auto_increment not null,
 		f2 char(200) not null, f3 char(200) not null,
-		f4 char(200) not null,primary key(f1))engine=innodb;
+		f4 char(200) not null,primary key(f1))engine=innodb charset latin1;
 insert into t1 select NULL,'aaa','bbb','ccc' from t480;
 insert into t1 select NULL,'aaaa','bbbb','cccc' from t480;
 insert into t1 select NULL,'aaaaa','bbbbb','ccccc' from t480;
@@ -1058,10 +1048,3 @@ DROP TABLE t1;
 
 # no skip sort cases
 --source suite/innodb/include/alter_table_pk_no_sort.inc
-
-########################################
-##### WL#7554 set schema `test` back to what it was
---disable_query_log
---eval alter schema test default character set $testdbcs51;
---enable_query_log
-########################################

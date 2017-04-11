@@ -12,15 +12,6 @@
 # #############################################################
 --source include/have_debug.inc
 
-########################################
-##### WL#7554 Force schema `test` to character set latin1
-##### This test should be migrated to utf8mb4
---disable_query_log
-let $testdbcs34=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
-alter schema test default character set latin1;
---enable_query_log
-########################################
-
 --disable_query_log
 set @old_internal_tmp_disk_storage_engine = @@internal_tmp_disk_storage_engine;
 --enable_query_log
@@ -31,7 +22,7 @@ set global internal_tmp_disk_storage_engine = MyISAM;
 # Check index merge threshold by create index on all datatypes
 
 CREATE TABLE tab(a BIGINT PRIMARY KEY,c1 TINYTEXT,c2 TEXT,c3 MEDIUMTEXT,
-c4 TINYBLOB,c5 BLOB,c6 MEDIUMBLOB,c7 LONGBLOB) ENGINE=InnoDB STATS_PERSISTENT=0;
+c4 TINYBLOB,c5 BLOB,c6 MEDIUMBLOB,c7 LONGBLOB) charset latin1 ENGINE=InnoDB STATS_PERSISTENT=0;
 
 # check index merge threshold on all datatypes
 CREATE INDEX index1 ON tab(c1(255)) COMMENT 'Check index level merge MERGE_THRESHOLD=51';
@@ -220,10 +211,3 @@ DROP TABLE tab1;
 --disable_query_log
 set global internal_tmp_disk_storage_engine = @old_internal_tmp_disk_storage_engine;
 --enable_query_log
-
-########################################
-##### WL#7554 set schema `test` back to what it was
---disable_query_log
---eval alter schema test default character set $testdbcs34;
---enable_query_log
-########################################

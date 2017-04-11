@@ -1,15 +1,5 @@
 --source include/no_valgrind_without_big.inc
 
-########################################
-##### WL#7554 Force schema `test` to character set latin1
-##### This test should be migrated to utf8mb4
---disable_query_log
-let $testdbcs53=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
-alter schema default character set latin1;
-use test;
---enable_query_log
-########################################
-
 
 --disable_query_log
 call mtr.add_suppression("\\[Warning\\] InnoDB: Cannot calculate statistics for table `test`\.`t1` because the \.ibd file is missing");
@@ -914,10 +904,3 @@ DROP TABLESPACE s_def;
 --remove_file $MYSQLTEST_VARDIR/tmp/t1.ibd
 
 eval SET GLOBAL INNODB_FILE_PER_TABLE=$innodb_file_per_table;
-
-########################################
-##### WL#7554 set schema `test` back to what it was
---disable_query_log
---eval alter schema test default character set $testdbcs53;
---enable_query_log
-########################################

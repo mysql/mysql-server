@@ -4,17 +4,6 @@
 
 --source include/no_valgrind_without_big.inc
 
-
-########################################
-##### WL#7554 Force schema `test` to character set latin1
-##### This test should be migrated to utf8mb4
---disable_query_log
-let $testdbcs55=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
-alter schema default character set latin1;
-use test;
---enable_query_log
-########################################
-
 # These values can change during the test
 LET $innodb_file_per_table_orig=`select @@innodb_file_per_table`;
 
@@ -708,11 +697,3 @@ call mtr.add_suppression("\\[Warning\\] InnoDB: Ignoring tablespace .* because i
 call mtr.add_suppression("\\[Warning\\] InnoDB: Tablespace for table .* is set as discarded");
 call mtr.add_suppression("\\[ERROR\\] InnoDB: Unable to open tablespace .* \\(flags=.*, filename=");
 -- enable_query_log
-
-
-########################################
-##### WL#7554 set schema `test` back to what it was
---disable_query_log
---eval alter schema test default character set $testdbcs55;
---enable_query_log
-########################################

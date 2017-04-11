@@ -1,16 +1,6 @@
 --source include/no_valgrind_without_big.inc
 --source include/have_innodb_max_16k.inc
 
-########################################
-##### WL#7554 Force schema `test` to character set latin1
-##### This test should be migrated to utf8mb4
---disable_query_log
-let $testdbcs83=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
-alter schema default character set latin1;
-use test;
---enable_query_log
-########################################
-
 --source include/count_sessions.inc
 
 --disable_query_log
@@ -475,7 +465,7 @@ CREATE TABLE `t` (
   KEY `m3` (`m3`),
   KEY `c` (`c`(100)),
   KEY `e` (`e`,`d`(20))
-) ENGINE=InnoDB;
+) ENGINE=InnoDB charset latin1;
 
 INSERT INTO t VALUES (1, 2, DEFAULT, 3, "aaa", DEFAULT, REPEAT('g', 10000), REPEAT('x', 2800), DEFAULT, DEFAULT, DEFAULT, 1);
 
@@ -1531,10 +1521,3 @@ INSERT INTO t1(a) VALUES ('');
 ALTER TABLE t1 CHANGE COLUMN a a VARCHAR(85);
 SELECT * FROM t1;
 DROP TABLE t1;
-
-########################################
-##### WL#7554 set schema `test` back to what it was
---disable_query_log
---eval alter schema test default character set $testdbcs83;
---enable_query_log
-########################################

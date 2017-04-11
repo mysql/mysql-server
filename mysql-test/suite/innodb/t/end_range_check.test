@@ -3,9 +3,6 @@
 --echo # Bug #23481444	OPTIMISER CALL ROW_SEARCH_MVCC() AND READ
 --echo #		THE INDEX APPLIED BY UNCOMMITTED ROWS.
 
-# WL#7554: Added setting --bootstrap --character-set-server=latin1
-# in the opt file. This test should be migrated to utf8mb4.
-
 CREATE TABLE t1(f1 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
 		f2 INT NOT NULL, f3 INT NOT NULL,
 		KEY(f2, f3))ENGINE=INNODB;

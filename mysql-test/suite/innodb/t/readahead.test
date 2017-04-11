@@ -1,20 +1,10 @@
 --source include/have_innodb_max_16k.inc
 --echo # Bug#25330449 ASSERT SIZE==SPACE->SIZE DURING BUF_READ_AHEAD_RANDOM
 
-########################################
-##### WL#7554 Force schema `test` to character set latin1
-##### This test should be migrated to utf8mb4
---disable_query_log
-let $testdbcs78=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
-alter schema default character set latin1;
-use test;
---enable_query_log
-########################################
-
 let $MYSQLD_DATADIR=`SELECT @@datadir`;
 CREATE TABLE t1 (a INT NOT NULL, d INT NOT NULL, b BLOB NOT NULL, c
 TEXT, INDEX(d), INDEX(a),  KEY (b(10), a, d), INDEX(c(120), b(120)),
-INDEX(b(5), c(10), a) ) ENGINE=INNODB  ROW_FORMAT=COMPRESSED
+INDEX(b(5), c(10), a) ) charset latin1 ENGINE=INNODB  ROW_FORMAT=COMPRESSED
 KEY_BLOCK_SIZE=1;
 
 --source include/shutdown_mysqld.inc
@@ -28,10 +18,3 @@ SET GLOBAL innodb_random_read_ahead = 1;
 
 DROP TABLE t1;
 SET GLOBAL innodb_random_read_ahead = default;
-
-########################################
-##### WL#7554 set schema `test` back to what it was
---disable_query_log
---eval alter schema test default character set $testdbcs78;
---enable_query_log
-########################################

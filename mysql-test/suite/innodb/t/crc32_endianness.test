@@ -1,13 +1,3 @@
-########################################
-##### WL#7554 Force schema `test` to character set latin1
-##### This test should be migrated to utf8mb4
---disable_query_log
-let $testdbcs37=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
-alter schema default character set latin1;
-use test;
---enable_query_log
-########################################
-
 #
 # Make sure that files created with --innodb-checksum-algorithm=crc32
 # on both big and little endian machines are readable. The two .ibd files
@@ -20,9 +10,9 @@ use test;
 # Schema mismatch (Tablespace to be imported has a different page size than
 # this server. Server page size is 4096, whereas tablespace page size is 16384)
 
-CREATE TABLE crc32_big_endian (a VARCHAR(16)) ENGINE=INNODB
+CREATE TABLE crc32_big_endian (a VARCHAR(16)) ENGINE=INNODB charset latin1
 ROW_FORMAT=COMPACT;
-CREATE TABLE crc32_little_endian (a VARCHAR(16)) ENGINE=INNODB
+CREATE TABLE crc32_little_endian (a VARCHAR(16)) ENGINE=INNODB charset latin1
 ROW_FORMAT=COMPACT;
 
 ALTER TABLE crc32_big_endian DISCARD TABLESPACE;
@@ -45,10 +35,3 @@ SELECT * FROM crc32_little_endian;
 
 DROP TABLE crc32_big_endian;
 DROP TABLE crc32_little_endian;
-
-########################################
-##### WL#7554 set schema `test` back to what it was
---disable_query_log
---eval alter schema test default character set $testdbcs37;
---enable_query_log
-########################################
