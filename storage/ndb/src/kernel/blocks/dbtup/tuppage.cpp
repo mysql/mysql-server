@@ -40,7 +40,7 @@ extern EventLogger *g_eventLogger;
 #if defined(VM_TRACE) || defined(ERROR_INSERT)
 #define loc_assert(x) \
 { \
-  if ((x)) \
+  if (!(x)) \
   { \
     g_eventLogger->info("Crash on page_idx = %u", page_idx); \
     require((x)); \
