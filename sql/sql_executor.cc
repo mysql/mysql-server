@@ -4022,6 +4022,13 @@ static size_t compute_field_lengths(Field **first_field, size_t *field_lengths)
     size_t length= (*field)->sort_length();
     const CHARSET_INFO *cs= (*field)->sort_charset();
     length= cs->coll->strnxfrmlen(cs, length);
+
+    if ((*field)->sort_key_is_varlen())
+    {
+      // Make room for the length.
+      length+= sizeof(uint32);
+    }
+
     *field_length= length;
     total_length+= length;
   }
@@ -4252,7 +4259,18 @@ static bool remove_dup_with_hash_index(THD *thd, TABLE *table,
     const size_t *field_length= field_lengths;
     for (Field **ptr= first_field ; *ptr ; ptr++)
     {
-      (*ptr)->make_sort_key(key_pos,*field_length);
+      size_t len= (*ptr)->make_sort_key(key_pos,*field_length);
+      // TODO: Use a variable-length hash table instead of padding.
+      if ((*ptr)->sort_key_is_varlen())
+      {
+        DBUG_ASSERT(len + sizeof(uint32) <= *field_length);
+        memset(key_pos + len, 0, *field_length - len - sizeof(uint32));
+        int4store(key_pos + *field_length - sizeof(uint32), len);
+      }
+      else
+      {
+        DBUG_ASSERT(len == *field_length);
+      }
       key_pos+= *field_length++;
     }
     /* Check if it exists before */
