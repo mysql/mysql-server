@@ -734,6 +734,7 @@ ErrorBundle ErrorCodes[] = {
   { 4402, DMEC, AE, "No schema operation defined before calling execute" },
   { 4410, DMEC, AE, "Schema transaction is already started" },
   { 4411, DMEC, AE, "Schema transaction not possible until upgrade complete" },
+  { 4412, DMEC, AE, "Schema transaction is not started" },
 
   { 4501, DMEC, AE, "Insert in hash table failed when getting table information from Ndb" },
   { 4502, DMEC, AE, "GetValue not allowed in Update operation" },
