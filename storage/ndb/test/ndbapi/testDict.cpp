@@ -1936,11 +1936,13 @@ runTableAddAttrs(NDBT_Context* ctx, NDBT_Step* step){
       }
     }
 
+    ndbout << "Load table" << endl;
     // Load table
     HugoTransactions beforeTrans(*ctx->getTab());
     if (beforeTrans.loadTable(pNdb, records) != 0){
       return NDBT_FAILED;
     }
+    ndbout << "Load table completed" << endl;
 
     // Add attributes to table.
     BaseString pTabName(pTab2->getName());
@@ -1975,6 +1977,7 @@ runTableAddAttrs(NDBT_Context* ctx, NDBT_Step* step){
       result = NDBT_FAILED;
     }
 
+    ndbout << "Altered table completed" << endl;
     {
       const NdbDictionary::Table* pTab = dict->getTable(pTabName.c_str());
       CHECK2(pTab != NULL, "Table not found");
