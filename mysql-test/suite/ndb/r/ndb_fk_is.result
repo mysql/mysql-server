@@ -25,7 +25,7 @@ create table emp (
 id int primary key auto_increment,
 manager int,
 key (manager),
-foreign key fk1 (manager) references emp (id))
+foreign key emp_fk1 (manager) references emp (id))
 engine=innodb;
 select *
 from information_schema.table_constraints
@@ -33,11 +33,11 @@ where table_schema = 'test'
 order by table_name, constraint_type, constraint_name;
 CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	TABLE_SCHEMA	TABLE_NAME	CONSTRAINT_TYPE
 def	test	PRIMARY	test	customer	PRIMARY KEY
-def	test	emp_ibfk_1	test	emp	FOREIGN KEY
+def	test	emp_fk1	test	emp	FOREIGN KEY
 def	test	PRIMARY	test	emp	PRIMARY KEY
 def	test	PRIMARY	test	product	PRIMARY KEY
-def	test	product_order_ibfk_1	test	product_order	FOREIGN KEY
-def	test	product_order_ibfk_2	test	product_order	FOREIGN KEY
+def	test	fk1	test	product_order	FOREIGN KEY
+def	test	fk2	test	product_order	FOREIGN KEY
 def	test	PRIMARY	test	product_order	PRIMARY KEY
 COL	ORDINAL_POSITION	POSITION_IN_UNIQUE_CONSTRAINT	REFERENCED_COL
 customer.id	1	NULL	
@@ -58,12 +58,16 @@ b1 int not null,
 primary key using hash (a1),
 unique key xb1 (b1)
 ) engine=innodb;
+Warnings:
+Note	3502	This storage engine does not support the HASH index algorithm, storage engine default was used instead.
 create table mydb2.t2 (
 a2 int not null,
 b2 int not null,
 primary key using hash (a2),
 unique key xb2 (b2)
 ) engine=innodb;
+Warnings:
+Note	3502	This storage engine does not support the HASH index algorithm, storage engine default was used instead.
 alter table mydb1.t1
 add constraint fk_b1a1 foreign key (b1) references mydb1.t1 (a1),
 add constraint fk_b1b2 foreign key (b1) references mydb2.t2 (b2);
@@ -141,7 +145,7 @@ create table emp (
 id int primary key auto_increment,
 manager int,
 key (manager),
-foreign key fk1 (manager) references emp (id))
+foreign key emp_fk1 (manager) references emp (id))
 engine=ndb;
 select *
 from information_schema.table_constraints
@@ -149,7 +153,7 @@ where table_schema = 'test'
 order by table_name, constraint_type, constraint_name;
 CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	TABLE_SCHEMA	TABLE_NAME	CONSTRAINT_TYPE
 def	test	PRIMARY	test	customer	PRIMARY KEY
-def	test	fk1	test	emp	FOREIGN KEY
+def	test	emp_fk1	test	emp	FOREIGN KEY
 def	test	PRIMARY	test	emp	PRIMARY KEY
 def	test	PRIMARY	test	product	PRIMARY KEY
 def	test	fk1	test	product_order	FOREIGN KEY
