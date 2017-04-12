@@ -15990,6 +15990,17 @@ Dblqh::get_lcp_frag_stats(Uint64 & row_count,
                             true);
 }
 
+Uint32
+Dblqh::get_lcp_newest_gci(void)
+{
+  lcpPtr.i = 0;
+  ptrCheckGuard(lcpPtr, clcpFileSize, lcpRecord);
+  ndbrequire(lcpPtr.p->lcpRunState == LcpRecord::LCP_CHECKPOINTING);
+  fragptr.i = lcpPtr.p->currentRunFragment.fragPtrI;
+  c_fragment_pool.getPtr(fragptr);
+  return fragptr.p->newestGci;
+}
+
 void
 Dblqh::lcp_complete_scan(Uint32 & newestGci)
 {

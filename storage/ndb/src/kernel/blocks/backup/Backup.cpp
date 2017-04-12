@@ -10034,6 +10034,7 @@ Backup::lcp_read_ctl_file_done(Signal* signal, BackupRecordPtr ptr)
   FragmentPtr fragPtr;
   ndbrequire(ptr.p->prepare_table.first(tabPtr));
   tabPtr.p->fragments.getPtr(fragPtr, 0);
+  ptr.p->prepareMaxGciWritten = maxGciWritten;
 
   Uint32 maxGci = MAX(maxGciCompleted, maxGciWritten);
   if (maxGci < fragPtr.p->createGci &&
@@ -11202,14 +11203,20 @@ Backup::start_execute_lcp(Signal *signal,
                             ptr.p->m_row_change_count,
                             ptr.p->m_memory_used_in_bytes,
                             ptr.p->m_lcp_max_page_cnt);
+  Uint32 newestGci = c_lqh->get_lcp_newest_gci();
 
   if (ptr.p->m_row_change_count == 0 &&
-      ptr.p->preparePrevLcpId != 0)
+      ptr.p->preparePrevLcpId != 0 &&
+      ptr.p->prepareMaxGciWritten != newestGci)
   {
     /**
      * We don't handle it as an idle LCP when it is the first LCP
      * executed on the fragment. In this case we need to run a normal
      * LCP even if it produces an empty LCP data file.
+     *
+     * Also if someone has committed a transaction on the fragment
+     * we will not treat as an idle LCP even if row change count
+     * hasn't changed.
      */
     jam();
     handle_idle_lcp(signal, ptr);
