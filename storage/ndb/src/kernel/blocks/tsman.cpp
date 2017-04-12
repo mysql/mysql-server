@@ -1255,6 +1255,16 @@ Tsman::execFSOPENCONF(Signal* signal)
       else if (file_size > calc_file_size_v1)
       {
         jam();
+        g_eventLogger->info("file_size = %llu, calc_file_size: %llu, calc_file_size_v1: %llu"
+                            "num data_pages: %llu, num extent_pages: %llu"
+                            "extent_size: %llu, num_extents: %llu",
+                            file_size,
+                            calc_file_size,
+                            calc_file_size_v1,
+                            data_pages,
+                            extent_pages,
+                            extent_size,
+                            num_extents);
         ptr.p->m_create.m_error_code = CreateFileImplRef::FileSizeTooLarge;
       }
       else
