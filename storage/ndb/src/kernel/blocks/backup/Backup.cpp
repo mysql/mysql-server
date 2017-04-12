@@ -11207,7 +11207,8 @@ Backup::start_execute_lcp(Signal *signal,
 
   if (ptr.p->m_row_change_count == 0 &&
       ptr.p->preparePrevLcpId != 0 &&
-      ptr.p->prepareMaxGciWritten != newestGci)
+      (ptr.p->prepareMaxGciWritten == newestGci &&
+       m_our_node_started))
   {
     /**
      * We don't handle it as an idle LCP when it is the first LCP

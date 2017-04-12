@@ -292,6 +292,15 @@ Dbtup::dealloc_tuple(Signal* signal,
       store_extra_row_bits(attrId, regTabPtr, ptr, gci_lo, /* truncate */true);
     }
   }
+  else
+  {
+    /**
+     * This should be dead code, but we ensure that we don't miss those
+     * updates even for those tables.
+     */
+    jam();
+    regFragPtr->m_lcp_changed_rows++;
+  }
   setInvalidChecksum(ptr, regTabPtr);
 }
 
@@ -763,17 +772,30 @@ Dbtup::commit_operation(Signal* signal,
   tuple_ptr->m_header_bits= copy_bits;
   tuple_ptr->m_operation_ptr_i= save;
 
-  if (regTabPtr->m_bits & Tablerec::TR_RowGCI  &&
+  if (regTabPtr->m_bits & Tablerec::TR_RowGCI &&
       update_gci_at_commit)
   {
     jam();
     update_gci(regFragPtr, regTabPtr, tuple_ptr, gci_hi);
     if (regTabPtr->m_bits & Tablerec::TR_ExtraRowGCIBits)
     {
+      jam();
       Uint32 attrId = regTabPtr->getExtraAttrId<Tablerec::TR_ExtraRowGCIBits>();
       store_extra_row_bits(attrId, regTabPtr, tuple_ptr, gci_lo,
                            /* truncate */true);
     }
+  }
+  else
+  {
+    /**
+     * This should be dead code, but we ensure that we don't miss those
+     * updates even for those tables.
+     *
+     * In case of an explicit GCI update we always increment number of changed rows
+     * to ensure we don't miss any updates.
+     */
+    jam();
+    regFragPtr->m_lcp_changed_rows++;
   }
   setChecksum(tuple_ptr, regTabPtr);
 }
