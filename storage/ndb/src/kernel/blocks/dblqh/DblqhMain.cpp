@@ -15619,6 +15619,7 @@ void Dblqh::execLCP_FRAG_ORD(Signal* signal)
   {
     jam();
     lcpPtr.p->lastFragmentFlag = true;
+    DEB_LCP(("(%u)Received last fragment flag", instance()));
     CRASH_INSERTION(5054);
     if (lcpPtr.p->lcpPrepareState == LcpRecord::LCP_IDLE &&
         lcpPtr.p->lcpRunState == LcpRecord::LCP_IDLE)
@@ -16260,6 +16261,7 @@ restart:
  * ------------------------------------------------------------------------- */
 void Dblqh::completeLcpRoundLab(Signal* signal, Uint32 lcpId)
 {
+  DEB_LCP(("(%u)Start complete LCP %u", instance(), lcpId));
   clcpCompletedState = LCP_CLOSE_STARTED;
   EndLcpReq* req= (EndLcpReq*)signal->getDataPtr();
   req->senderData= lcpId;

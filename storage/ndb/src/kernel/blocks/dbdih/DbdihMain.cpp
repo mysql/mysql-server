@@ -95,6 +95,13 @@ static const Uint32 WaitTableStateChangeMillis = 10;
 
 extern EventLogger * g_eventLogger;
 
+#define DEBUG_LCP 1
+#ifdef DEBUG_LCP
+#define DEB_LCP(arglist) do { g_eventLogger->info arglist ; } while (0)
+#else
+#define DEB_LCP(arglist) do { } while (0)
+#endif
+
 #define SYSFILE ((Sysfile *)&sysfileData[0])
 #define ZINIT_CREATE_GCI Uint32(0)
 #define ZINIT_REPLICA_LAST_GCI Uint32(-1)
@@ -20696,8 +20703,18 @@ void Dbdih::sendLastLCP_FRAG_ORD(Signal* signal)
       }
 
       CRASH_INSERTION(7193);
+      DEB_LCP(("Send last LCP_FRAG_ORD to node %u", nodePtr.i));
       BlockReference ref = calcLqhBlockRef(nodePtr.i);
       sendSignal(ref, GSN_LCP_FRAG_ORD, signal,LcpFragOrd::SignalLength, JBB);
+    }
+    else
+    {
+      DEB_LCP(("Still waiting for sending last LCP_FRAG_ORD to node %u,"
+               " queued: %u, started: %u, waiting_for: %u",
+               nodePtr.i,
+               nodePtr.p->noOfQueuedChkpt,
+               nodePtr.p->noOfStartedChkpt,
+               c_lcpState.m_LAST_LCP_FRAG_ORD.isWaitingFor(nodePtr.i)));
     }
   }
   if(ERROR_INSERTED(7075))

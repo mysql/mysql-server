@@ -12114,6 +12114,7 @@ Backup::execEND_LCPREQ(Signal* signal)
   ptr.p->slaveState.setState(DEFINING);
   ptr.p->slaveState.setState(DEFINED);
 
+  DEB_LCP(("(%u)TAGE Send SYNC_EXTENT_PAGES_REQ", instance()));
   /**
    * As part of ending the LCP we need to ensure that the extent pages
    * are synchronised. This is to ensure that the case with dropped
