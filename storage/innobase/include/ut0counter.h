@@ -30,6 +30,7 @@ Created 2012/04/12 by Sunny Bains
 #include <my_rdtsc.h>
 #include "univ.i"
 #include "os0thread.h"
+#include "ut0rnd.h"
 
 /** CPU cache line size */
 #ifdef __powerpc__
@@ -51,6 +52,22 @@ struct generic_indexer_t {
 	{
                 return(((index % N) + 1) * (CACHE_LINE_SIZE / sizeof(Type)));
         }
+};
+
+/** Use random numbers to index into the counter array. */
+template <typename Type=ulint, int N=1>
+struct get_rand_indexer_t : public generic_indexer_t<Type, N> {
+	/** Default constructor/destructor should be OK. */
+
+	enum { fast = 1 };
+
+	/* @return result from ut_rnd_gen_ulint(). */
+	static size_t get_rnd_index() UNIV_NOTHROW {
+
+		ulint	idx = ut_rnd_gen_ulint();
+
+		return(size_t(idx));
+	}
 };
 
 /** Use the result of my_timer_cycles(), which mainly uses RDTSC for cycles,
@@ -106,7 +123,11 @@ struct single_indexer_t {
 	}
 };
 
-#define	default_indexer_t	counter_indexer_t
+#if defined(__aarch64__) && defined(UNIV_LINUX)
+# define default_indexer_t	get_rand_indexer_t
+#else
+# define default_indexer_t	counter_indexer_t
+#endif
 
 /** Class for using fuzzy counters. The counter is not protected by any
 mutex and the results are not guaranteed to be 100% accurate but close
