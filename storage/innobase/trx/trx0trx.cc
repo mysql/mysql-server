@@ -1462,6 +1462,10 @@ trx_start_low(
 		trx->start_time = ut_time();
 	}
 
+	trx->dep_size = 0;
+	trx->size_updated = false;
+	trx->seq = 0;
+
 	ut_a(trx->error_state == DB_SUCCESS);
 
 	MONITOR_INC(MONITOR_TRX_ACTIVE);
