@@ -20625,13 +20625,27 @@ static MYSQL_SYSVAR_BOOL(
   opt_ndb_log_update_as_write,       /* var */
   PLUGIN_VAR_OPCMDARG,
   "For efficiency log only after image as a write event. "
-  "Ignore before image. This may cause compatability problems if "
+  "Ignore before image. This may cause compatibility problems if "
   "replicating to other storage engines than ndbcluster.",
   NULL,                              /* check func. */
   NULL,                              /* update func. */
   1                                  /* default */
 );
 
+my_bool opt_ndb_log_update_minimal;
+static MYSQL_SYSVAR_BOOL(
+  log_update_minimal,                  /* name */
+  opt_ndb_log_update_minimal,          /* var */
+  PLUGIN_VAR_OPCMDARG,
+  "For efficiency, log updates in a minimal format"
+  "Log only the primary key value(s) in the before "
+  "image. Log only the changed columns in the after "
+  "image. This may cause compatibility problems if "
+  "replicating to other storage engines than ndbcluster.",
+  NULL,                              /* check func. */
+  NULL,                              /* update func. */
+  0                                  /* default */
+);
 
 my_bool opt_ndb_log_updated_only;
 static MYSQL_SYSVAR_BOOL(
@@ -20640,7 +20654,7 @@ static MYSQL_SYSVAR_BOOL(
   PLUGIN_VAR_OPCMDARG,
   "For efficiency log only updated columns. Columns are considered "
   "as \"updated\" even if they are updated with the same value. "
-  "This may cause compatability problems if "
+  "This may cause compatibility problems if "
   "replicating to other storage engines than ndbcluster.",
   NULL,                              /* check func. */
   NULL,                              /* update func. */
@@ -20973,6 +20987,7 @@ static struct st_mysql_sys_var* system_variables[]= {
   MYSQL_SYSVAR(eventbuffer_free_percent),
   MYSQL_SYSVAR(log_update_as_write),
   MYSQL_SYSVAR(log_updated_only),
+  MYSQL_SYSVAR(log_update_minimal),
   MYSQL_SYSVAR(log_empty_update),
   MYSQL_SYSVAR(log_orig),
   MYSQL_SYSVAR(distribution),
