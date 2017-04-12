@@ -559,6 +559,7 @@ public:
      */
     Uint32 prepareNextLcpCtlFileNumber;
     Uint32 prepareDeleteCtlFileNumber;
+    Uint32 prepareMaxGciWritten;
     PrepareState prepareState;
     Uint32 prepareDataFileNumber;
     Uint32 preparePrevLcpId;

@@ -2945,6 +2945,7 @@ protected:
 public:
   void lcp_max_completed_gci(Uint32 & maxCompletedGci);
   void lcp_complete_scan(Uint32 & newestGci);
+  Uint32 get_lcp_newest_gci(void);
   void get_lcp_frag_stats(Uint64 & commit_count,
                           Uint64 & row_count,
                           Uint64 & memory_used_in_bytes,
