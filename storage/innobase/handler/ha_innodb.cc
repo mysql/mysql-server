@@ -117,7 +117,7 @@ enum_tx_isolation thd_get_trx_isolation(const THD* thd);
 
 /* for ha_innopart, Native InnoDB Partitioning. */
 #include "ha_innopart.h"
-
+extern thread_local_key_t ut_rnd_ulint_counter_key;
 /** to protect innobase_open_files */
 static mysql_mutex_t innobase_share_mutex;
 /** to force correct commit order in binlog */
@@ -3495,6 +3495,11 @@ innobase_init(
 	ulong		num_pll_degree;
 
 	DBUG_ENTER("innobase_init");
+
+	/* Create key for setting ut_rnd_ulint_counter for spin lock
+	delay as thread local. */
+	my_create_thread_local_key(&ut_rnd_ulint_counter_key,NULL);
+
 	handlerton* innobase_hton= (handlerton*) p;
 	innodb_hton_ptr = innobase_hton;
 
@@ -4167,6 +4172,7 @@ innobase_end(
 		mysql_cond_destroy(&commit_cond);
 	}
 
+	my_delete_thread_local_key(ut_rnd_ulint_counter_key);
 	DBUG_RETURN(err);
 }
 

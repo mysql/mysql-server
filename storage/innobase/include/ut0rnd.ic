@@ -38,9 +38,10 @@ Created 5/30/1994 Heikki Tuuri
 #define UT_XOR_RND1		187678878
 #define UT_XOR_RND2		143537923
 
-/** Seed value of ut_rnd_gen_ulint() */
-extern	ulint	 ut_rnd_ulint_counter;
+#include <my_thread_local.h>
+#include <my_thread_os_id.h>
 
+extern thread_local_key_t ut_rnd_ulint_counter_key;
 /********************************************************//**
 This is used to set the random number seed. */
 UNIV_INLINE
@@ -49,11 +50,13 @@ ut_rnd_set_seed(
 /*============*/
 	ulint	 seed)		 /*!< in: seed */
 {
-	ut_rnd_ulint_counter = seed;
+	/* Setting the seed value as thread local */
+	my_set_thread_local(ut_rnd_ulint_counter_key,(void *)seed);
 }
 
 /********************************************************//**
 The following function generates a series of 'random' ulint integers.
+This function is now based on thread local variables.
 @return the next 'random' number */
 UNIV_INLINE
 ulint
@@ -81,6 +84,7 @@ The following function generates 'random' ulint integers which
 enumerate the value space of ulint integers in a pseudo random
 fashion. Note that the same integer is repeated always after
 2 to power 32 calls to the generator (if ulint is 32-bit).
+This function is now based on thread local variables.
 @return the 'random' number */
 UNIV_INLINE
 ulint
@@ -88,16 +92,36 @@ ut_rnd_gen_ulint(void)
 /*==================*/
 {
 	ulint	rnd;
+	void*	rnd_count_value;
 
-	ut_rnd_ulint_counter = UT_RND1 * ut_rnd_ulint_counter + UT_RND2;
+	rnd_count_value = my_get_thread_local(ut_rnd_ulint_counter_key);
 
-	rnd = ut_rnd_gen_next_ulint(ut_rnd_ulint_counter);
+	if(UNIV_UNLIKELY(!rnd_count_value)) {
+		/* Reset the value if we recieve NULL rnd value i.e.
+		coming from new thread */
+		rnd = static_cast<ulint>(my_thread_os_id());
+
+		if (UNIV_UNLIKELY(!rnd)) {
+
+			rnd = 65654363;
+		}
+	} else {
+		/* Set otherwise rnd to non null recieved from the
+		existing thread */
+		rnd = (ulint) rnd_count_value;
+        }
+
+	rnd = UT_RND1 * rnd + UT_RND2;
+	/* Setting the rnd value as thread local */
+	my_set_thread_local(ut_rnd_ulint_counter_key,(void *)rnd);
+	rnd = ut_rnd_gen_next_ulint(rnd);
 
 	return(rnd);
 }
 
 /********************************************************//**
 Generates a random integer from a given interval.
+This function is now based on thread local variables.
 @return the 'random' number */
 UNIV_INLINE
 ulint
