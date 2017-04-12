@@ -822,7 +822,7 @@ static char **opt_argv;
 static mysql_mutex_t LOCK_handler_count;
 static mysql_cond_t COND_handler_count;
 static HANDLE hEventShutdown;
-char *shared_memory_base_name= default_shared_memory_base_name;
+char *shared_memory_base_name= (char*)default_shared_memory_base_name;
 my_bool opt_enable_shared_memory;
 static char shutdown_event_name[40];
 #include "nt_servc.h"
@@ -7110,7 +7110,7 @@ static int mysql_init_variables(void)
 #endif /* ! EMBEDDED_LIBRARY */
 #endif /* HAVE_OPENSSL */
 #if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
-  shared_memory_base_name= default_shared_memory_base_name;
+  shared_memory_base_name= (char*)default_shared_memory_base_name;
 #endif
 
 #if defined(_WIN32)

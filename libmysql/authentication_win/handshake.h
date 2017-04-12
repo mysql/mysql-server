@@ -100,7 +100,7 @@ public:
   Handshake(const char *ssp, side_t side);
   virtual ~Handshake();
 
-  int Handshake::packet_processing_loop();
+  int packet_processing_loop();
 
   bool virtual is_complete() const
   {

@@ -508,7 +508,7 @@ BOOL NTService::IsService(LPCSTR ServiceName)
 }
 /* ------------------------------------------------------------------------
  -------------------------------------------------------------------------- */
-BOOL NTService::got_service_option(char **argv, char *service_option)
+BOOL NTService::got_service_option(char **argv, const char *service_option)
 {
   char *option;
   for (option= argv[1]; *option; option++)

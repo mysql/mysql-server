@@ -123,7 +123,7 @@ public:
 class My_xp_cond_win : public My_xp_cond
 {
 private:
-  static DWORD My_xp_cond_win::get_milliseconds(const struct timespec *abstime);
+  static DWORD get_milliseconds(const struct timespec *abstime);
   /*
     Disabling the copy constructor and assignment operator.
   */
