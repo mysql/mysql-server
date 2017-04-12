@@ -94,3 +94,4 @@ SHOW TABLES FROM db1;                   # t1 was dropped, t2 remains
 # Cleanup
 DROP TABLE t3;
 DROP DATABASE db1;
+RESET MASTER;

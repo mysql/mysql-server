@@ -85,6 +85,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	use `db1`; DROP TABLE IF EXISTS `t1`
 DROP TABLE t3;
 DROP DATABASE db1;
+RESET MASTER;
 set binlog_format=mixed;
 reset master;
 create database testing_1;
@@ -172,6 +173,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	use `db1`; DROP TABLE IF EXISTS `t1`
 DROP TABLE t3;
 DROP DATABASE db1;
+RESET MASTER;
 set binlog_format=row;
 reset master;
 create database testing_1;
@@ -260,6 +262,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	use `db1`; DROP TABLE IF EXISTS `t1`
 DROP TABLE t3;
 DROP DATABASE db1;
+RESET MASTER;
 show databases;
 Database
 information_schema
