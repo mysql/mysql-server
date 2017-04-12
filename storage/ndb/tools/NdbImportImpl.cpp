@@ -3132,8 +3132,8 @@ NdbImportImpl::DiagTeam::read_old_diags()
       // runno
       {
         const Attr& attr = table.get_attr("runno");
-        const void* p = attr.get_value(row);
-        uint32 x = *(uint32*)p;
+        uint32 x;
+        attr.get_value(row, x);
         if (runno == Inval_uint32 || runno < x)
           runno = x;
       }
@@ -3164,8 +3164,8 @@ NdbImportImpl::DiagTeam::read_old_diags()
       // runno
       {
         const Attr& attr = table.get_attr("runno");
-        const void* p = attr.get_value(row);
-        uint32 runno = *(uint32*)p;
+        uint32 runno;
+        attr.get_value(row, runno);
         if (runno != job.m_runno - 1)
         {
           m_util.free_row(row);
@@ -3175,32 +3175,27 @@ NdbImportImpl::DiagTeam::read_old_diags()
       // start
       {
         const Attr& attr = table.get_attr("start");
-        const void* p = attr.get_value(row);
-        range.m_start = *(uint64*)p;
+        attr.get_value(row, range.m_start);
       }
       // end
       {
         const Attr& attr = table.get_attr("end");
-        const void* p = attr.get_value(row);
-        range.m_end = *(uint64*)p;
+        attr.get_value(row, range.m_end);
       }
       // startpos
       {
         const Attr& attr = table.get_attr("startpos");
-        const void* p = attr.get_value(row);
-        range.m_startpos = *(uint64*)p;
+        attr.get_value(row, range.m_startpos);
       }
       // endpos
       {
         const Attr& attr = table.get_attr("endpos");
-        const void* p = attr.get_value(row);
-        range.m_endpos = *(uint64*)p;
+        attr.get_value(row, range.m_endpos);
       }
       // reject
       {
         const Attr& attr = table.get_attr("reject");
-        const void* p = attr.get_value(row);
-        range.m_reject = *(uint64*)p;
+        attr.get_value(row, range.m_reject);
       }
       m_util.free_row(row);
       // add to old rowmap
