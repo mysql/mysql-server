@@ -1,0 +1,57 @@
+--echo #
+--echo # Bug 1634932: Assertion failure in thread x in
+--echo # file fts0que.cc
+--echo #
+
+--source include/have_innodb.inc
+--source include/have_debug.inc
+
+SET @saved_innodb_ft_result_cache_limit= @@global.innodb_ft_result_cache_limit;
+
+CREATE TABLE `t1` (
+	`FTS_DOC_ID` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+	`text_content` MEDIUMTEXT, PRIMARY KEY (`FTS_DOC_ID`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+
+CREATE UNIQUE INDEX FTS_DOC_ID_INDEX ON t1(FTS_DOC_ID);
+
+SET autocommit=0;
+
+DELIMITER //;
+CREATE PROCEDURE populate_t1()
+BEGIN
+        DECLARE i INT DEFAULT 1;
+        WHILE (i <= 250) DO
+          INSERT INTO t1 (text_content) VALUES ("some_text_1234 aaa");
+          SET i = i + 1;
+        END WHILE;
+END//
+
+DELIMITER ;//
+
+CALL populate_t1;
+SET autocommit=1;
+
+SET SESSION debug="+d,fts_instrument_result_cache_limit";
+
+ALTER TABLE t1 ADD FULLTEXT INDEX `text_content_idx` (`text_content`);
+
+# HA_ERR_FTS_EXCEED_RESULT_CACHE_LIMIT = 188
+--error 188
+SELECT FTS_DOC_ID, text_content
+FROM t1
+WHERE MATCH text_content AGAINST ('+some_text_1234' IN BOOLEAN MODE);
+
+--error 188
+UPDATE t1
+SET text_content='some_text_12345'
+where MATCH text_content AGAINST ('+some_text_1234' IN BOOLEAN MODE);
+
+--error 188
+DELETE FROM t1
+WHERE MATCH text_content AGAINST ('+some_text_1234' IN BOOLEAN MODE);
+
+SET GLOBAL innodb_ft_result_cache_limit = @saved_innodb_ft_result_cache_limit;
+
+DROP TABLE t1;
+DROP PROCEDURE populate_t1;

@@ -953,6 +953,18 @@ fts_query_free_doc_ids(
 	query->total_size -= SIZEOF_RBT_CREATE;
 }
 
+/**
+Free the query intersection
+@param[in] query	query instance */
+static
+void
+fts_query_free_intersection(
+	fts_query_t*	query)
+{
+	fts_query_free_doc_ids(query, query->intersection);
+	query->intersection = NULL;
+}
+
 /*******************************************************************//**
 Add the word to the documents "list" of matching words from
 the query. We make a copy of the word from the query heap. */
@@ -1311,6 +1323,7 @@ fts_query_intersect(
 		/* error is passed by 'query->error' */
 		if (query->error != DB_SUCCESS) {
 			ut_ad(query->error == DB_FTS_EXCEED_RESULT_CACHE_LIMIT);
+			fts_query_free_intersection(query);
 			return(query->error);
 		}
 
@@ -1339,6 +1352,8 @@ fts_query_intersect(
 
 			ut_a(!query->multi_exist || (query->multi_exist
 			     && rbt_size(query->doc_ids) <= n_doc_ids));
+		} else if (query->intersection != NULL) {
+			fts_query_free_intersection(query);
 		}
 	}
 
@@ -1557,6 +1572,11 @@ fts_merge_doc_ids(
 				query, ranking->doc_id, ranking->rank);
 
 		if (query->error != DB_SUCCESS) {
+			if (query->intersection != NULL)
+			{
+				ut_a(query->oper == FTS_EXIST);
+				fts_query_free_intersection(query);
+			}
 			DBUG_RETURN(query->error);
 		}
 

@@ -745,9 +745,10 @@ JOIN::optimize()
 
   /* Perform FULLTEXT search before all regular searches */
   if (!(select_options & SELECT_DESCRIBE) &&
-      !select_lex->materialized_table_count)
+      !select_lex->materialized_table_count && select_lex->has_ft_funcs())
   {
-    init_ftfuncs(thd, select_lex, order);
+    if (init_ftfuncs(thd, select_lex, order))
+      DBUG_RETURN(1);
     optimize_fts_query();
   }
 

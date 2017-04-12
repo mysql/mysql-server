@@ -632,3 +632,17 @@ DEALLOCATE PREPARE stmt;
 DROP TABLE t1;
 
 --echo End of 5.1 tests
+
+--echo # Bug#21140111: Explain ... match against: Assertion failed: ret ...
+
+CREATE TABLE z(a INTEGER) engine=innodb;
+CREATE TABLE q(b TEXT CHARSET latin1, fulltext(b)) engine=innodb;
+
+let $query=
+SELECT 1 FROM q
+WHERE (SELECT MATCH(b) AGAINST ('*') FROM z);
+
+--error ER_WRONG_ARGUMENTS
+eval explain format=json $query;
+
+DROP TABLE z, q;

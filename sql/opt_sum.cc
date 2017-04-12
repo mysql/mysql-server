@@ -362,8 +362,7 @@ int opt_sum_query(THD *thd,
                  !((Item_sum_count*) item)->get_arg(0)->maybe_null)       // 4
         {
           Item_func_match* fts_item= static_cast<Item_func_match*>(conds); 
-          fts_item->init_search(true);
-          if (thd->is_error())
+          if (fts_item->init_search(thd, true))
             break;
           count= fts_item->get_count();
         }
