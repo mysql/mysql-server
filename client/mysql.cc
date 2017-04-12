@@ -35,6 +35,7 @@
 #include <m_ctype.h>
 #include <stdarg.h>
 #include <my_dir.h>
+#include <my_rdtsc.h>
 #ifndef __GNU_LIBRARY__
 #define __GNU_LIBRARY__		      // Skip warnings in getopt.h
 #endif
@@ -5534,12 +5535,7 @@ void tee_putc(int c, FILE *file)
 
 static ulong start_timer(void)
 {
-#if defined(_WIN32)
-  return clock();
-#else
-  struct tms tms_tmp;
-  return times(&tms_tmp);
-#endif
+  return my_timer_microseconds();
 }
 
 
@@ -5550,6 +5546,7 @@ static ulong start_timer(void)
 */
 static void nice_time(double sec,char *buff,bool part_second)
 {
+  sec = sec / 10000;
   ulong tmp;
   if (sec >= 3600.0*24)
   {
@@ -5573,7 +5570,7 @@ static void nice_time(double sec,char *buff,bool part_second)
     buff=my_stpcpy(buff," min ");
   }
   if (part_second)
-    sprintf(buff,"%.2f sec",sec);
+    sprintf(buff,"%.3f sec",sec);
   else
     sprintf(buff,"%d sec",(int) sec);
 }
