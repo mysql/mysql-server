@@ -168,7 +168,7 @@ void System_table_access::drop_thd(THD *thd)
   DBUG_ENTER("System_table_access::drop_thd");
 
   delete thd;
-  my_thread_set_THR_THD(NULL);
+  current_thd= nullptr;
 
   DBUG_VOID_RETURN;
 }

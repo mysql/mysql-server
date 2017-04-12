@@ -273,7 +273,7 @@ PFS_system_variable_cache::set_mem_root(void)
       PSI_INSTRUMENT_ME, &m_mem_sysvar, SYSVAR_MEMROOT_BLOCK_SIZE, 0);
     m_mem_sysvar_ptr = &m_mem_sysvar;
   }
-  m_mem_thd = my_thread_get_THR_MALLOC(); /* pointer to current THD mem_root */
+  m_mem_thd = THR_MALLOC;                 /* pointer to current THD mem_root */
   m_mem_thd_save = *m_mem_thd;            /* restore later */
   *m_mem_thd = &m_mem_sysvar;             /* use temporary mem_root */
 }

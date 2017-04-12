@@ -1073,8 +1073,7 @@ SHOW_COMP_OPTION have_statement_timeout= SHOW_OPTION_DISABLED;
 
 /* Thread specific variables */
 
-thread_local_key_t THR_MALLOC;
-bool THR_MALLOC_initialized= false;
+thread_local MEM_ROOT **THR_MALLOC= nullptr;
 
 mysql_mutex_t
   LOCK_status, LOCK_uuid_generator,
@@ -1912,18 +1911,6 @@ static void clean_up(bool print_message)
     where all dependencies are still ok.
   */
   component_infrastructure_deinit();
-
-  if (THR_THD_initialized)
-  {
-    THR_THD_initialized= false;
-    (void) my_delete_thread_local_key(THR_THD);
-  }
-
-  if (THR_MALLOC_initialized)
-  {
-    THR_MALLOC_initialized= false;
-    (void) my_delete_thread_local_key(THR_MALLOC);
-  }
 
   if (have_statement_timeout == SHOW_OPTION_YES)
     my_timer_deinitialize();
@@ -3737,16 +3724,6 @@ static int init_thread_environment()
   pthread_attr_setscope(&connection_attrib, PTHREAD_SCOPE_SYSTEM);
 #endif
 
-  DBUG_ASSERT(! THR_THD_initialized);
-  DBUG_ASSERT(! THR_MALLOC_initialized);
-  if (my_create_thread_local_key(&THR_THD,NULL) ||
-      my_create_thread_local_key(&THR_MALLOC,NULL))
-  {
-    sql_print_error("Can't create thread-keys");
-    return 1;
-  }
-  THR_THD_initialized= true;
-  THR_MALLOC_initialized= true;
   return 0;
 }
 

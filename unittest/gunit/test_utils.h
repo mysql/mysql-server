@@ -33,10 +33,8 @@
 class THD;
 class my_decimal;
 
-extern thread_local_key_t THR_MALLOC;
-extern thread_local_key_t THR_THD;
-extern bool THR_THD_initialized;
-extern bool THR_MALLOC_initialized;
+extern thread_local THD *current_thd;
+extern thread_local MEM_ROOT **THR_MALLOC;
 extern mysql_mutex_t LOCK_open;
 extern uint    opt_debug_sync_timeout;
 extern "C" void sql_alloc_error_handler(void);

@@ -361,7 +361,7 @@ ndb_binlog_open_shadow_table(THD *thd, NDB_SHARE *share,
   Ndb_event_data *event_data= share->event_data= new Ndb_event_data(share);
   DBUG_ENTER("ndb_binlog_open_shadow_table");
 
-  MEM_ROOT **root_ptr= my_thread_get_THR_MALLOC();
+  MEM_ROOT **root_ptr= THR_MALLOC;
   MEM_ROOT *old_root= *root_ptr;
   init_sql_alloc(PSI_INSTRUMENT_ME, &event_data->mem_root, 1024, 0);
   *root_ptr= &event_data->mem_root;
@@ -7111,7 +7111,7 @@ restart_cluster_failure:
       break;
     }
 
-    MEM_ROOT **root_ptr= my_thread_get_THR_MALLOC();
+    MEM_ROOT **root_ptr= THR_MALLOC;
     MEM_ROOT *old_root= *root_ptr;
     MEM_ROOT mem_root;
     init_sql_alloc(PSI_INSTRUMENT_ME, &mem_root, 4096, 0);

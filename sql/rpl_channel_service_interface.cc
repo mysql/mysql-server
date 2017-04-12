@@ -136,7 +136,7 @@ static void delete_surrogate_thread(THD *thd)
 {
   thd->release_resources();
   delete thd;
-  my_thread_set_THR_THD(NULL);
+  current_thd= nullptr;
 }
 
 void

@@ -2751,7 +2751,7 @@ static bool grant_load_procs_priv(TABLE *p_table)
   bool return_val= 1;
   int error;
   bool check_no_resolve= specialflag & SPECIAL_NO_RESOLVE;
-  MEM_ROOT **save_mem_root_ptr= my_thread_get_THR_MALLOC();
+  MEM_ROOT **save_mem_root_ptr= THR_MALLOC;
   DBUG_ENTER("grant_load_procs_priv");
   (void) my_hash_init(&proc_priv_hash, &my_charset_utf8_bin,
                       0, 0, get_grant_table,
@@ -2788,7 +2788,7 @@ static bool grant_load_procs_priv(TABLE *p_table)
   else
   {
     memex_ptr= &memex;
-    my_thread_set_THR_MALLOC(&memex_ptr);
+    THR_MALLOC= &memex_ptr;
     do
     {
       GRANT_NAME *mem_check;
@@ -2856,7 +2856,7 @@ static bool grant_load_procs_priv(TABLE *p_table)
 
 end_unlock:
   p_table->file->ha_index_end();
-  my_thread_set_THR_MALLOC(save_mem_root_ptr);
+  THR_MALLOC= save_mem_root_ptr;
   DBUG_RETURN(return_val);
 }
 
@@ -2883,7 +2883,7 @@ static bool grant_load(THD *thd, TABLE_LIST *tables)
   int error;
   TABLE *t_table= 0, *c_table= 0;
   bool check_no_resolve= specialflag & SPECIAL_NO_RESOLVE;
-  MEM_ROOT **save_mem_root_ptr= my_thread_get_THR_MALLOC();
+  MEM_ROOT **save_mem_root_ptr= THR_MALLOC;
   sql_mode_t old_sql_mode= thd->variables.sql_mode;
   DBUG_ENTER("grant_load");
 
@@ -2926,7 +2926,7 @@ static bool grant_load(THD *thd, TABLE_LIST *tables)
   else
   {
     memex_ptr= &memex;
-    my_thread_set_THR_MALLOC(&memex_ptr);
+    THR_MALLOC= &memex_ptr;
     do
     {
       GRANT_TABLE *mem_check;
@@ -2986,7 +2986,7 @@ static bool grant_load(THD *thd, TABLE_LIST *tables)
 
 end_unlock:
   t_table->file->ha_index_end();
-  my_thread_set_THR_MALLOC(save_mem_root_ptr);
+  THR_MALLOC= save_mem_root_ptr;
 end_index_init:
   thd->variables.sql_mode= old_sql_mode;
   DBUG_RETURN(return_val);

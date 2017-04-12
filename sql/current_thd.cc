@@ -15,12 +15,11 @@
 
 #include "current_thd.h"
 
-thread_local_key_t THR_THD;
-bool THR_THD_initialized= false;
+thread_local THD *current_thd= nullptr;
 
 #if defined(_WIN32)
-extern "C"   THD *_current_thd_noinline(void)
+extern "C" THD *_current_thd_noinline(void)
 {
-  return my_thread_get_THR_THD();
+  return current_thd;
 }
 #endif

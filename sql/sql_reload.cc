@@ -208,7 +208,7 @@ bool reload_acl_and_cache(THD *thd, unsigned long options,
     {
       delete tmp_thd;
       /* Remember that we don't have a THD */
-      my_thread_set_THR_THD(NULL);
+      current_thd= nullptr;
       thd= 0;
     }
   }

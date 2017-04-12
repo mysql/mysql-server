@@ -45,7 +45,7 @@
 #include "my_double2ulonglong.h"
 #include "my_sys.h"
 #include "mysql/psi/mysql_statement.h"
-#include "mysqld.h"                        // my_thread_get_THR_MALLOC
+#include "mysqld.h"
 #include "mysqld_error.h"
 #include "parse_tree_helpers.h"            // PT_item_list
 #include "parse_tree_nodes.h"              // PT_order_list
@@ -3669,7 +3669,7 @@ Item_func_group_concat::Item_func_group_concat(const POS &pos,
                        String *separator_arg)
   :super(pos), tmp_table_param(0), separator(separator_arg), tree(0),
    unique_filter(NULL), table(0),
-   order_array(*my_thread_get_THR_MALLOC()),
+   order_array(*THR_MALLOC),
    arg_count_order(opt_order_list ? opt_order_list->value.elements : 0),
    arg_count_field(select_list->elements()),
    row_count(0),

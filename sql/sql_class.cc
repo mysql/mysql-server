@@ -1424,9 +1424,8 @@ bool THD::store_globals()
   */
   DBUG_ASSERT(thread_stack);
 
-  if (my_thread_set_THR_THD(this) ||
-      my_thread_set_THR_MALLOC(&mem_root))
-    return true;
+  current_thd= this;
+  THR_MALLOC= &mem_root;
   /*
     is_killable is concurrently readable by a killer thread.
     It is protected by LOCK_thd_data, it is not needed to lock while the
@@ -1460,8 +1459,8 @@ void THD::restore_globals()
   DBUG_ASSERT(thread_stack);
 
   /* Undocking the thread specific data. */
-  my_thread_set_THR_THD(NULL);
-  my_thread_set_THR_MALLOC(NULL);
+  current_thd= nullptr;
+  THR_MALLOC= nullptr;
 }
 
 

@@ -153,7 +153,7 @@ static void deinit_thd(THD *thd)
   thd->release_resources();
   thd->restore_globals();
   delete thd;
-  my_thread_set_THR_THD(NULL);
+  current_thd= nullptr;
   DBUG_VOID_RETURN;
 }
 

@@ -2142,7 +2142,7 @@ static void print_buffer_to_file(enum loglevel level, const char *buffer,
     If the thread system is up and running and we're in a connection,
     add the connection ID to the log-line, otherwise 0.
   */
-  if (THR_THD_initialized && (current_thd != NULL))
+  if (current_thd != NULL)
     thread_id= current_thd->thread_id();
 
   make_iso8601_timestamp(my_timestamp, my_micro_time());

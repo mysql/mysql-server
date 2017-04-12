@@ -1825,10 +1825,10 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
         and flushes tables.
       */
       bool res;
-      my_thread_set_THR_THD(NULL);
+      current_thd= nullptr;
       res= reload_acl_and_cache(NULL, options | REFRESH_FAST,
                                 NULL, &not_used);
-      my_thread_set_THR_THD(thd);
+      current_thd= thd;
       if (res)
         break;
     }

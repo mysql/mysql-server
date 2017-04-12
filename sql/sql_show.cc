@@ -484,7 +484,7 @@ find_files(THD *thd, List<LEX_STRING> *files, const char *db,
 
   if (tmp_mem_root)
   {
-    root_ptr= my_thread_get_THR_MALLOC();
+    root_ptr= THR_MALLOC;
     old_root= *root_ptr;
     *root_ptr= tmp_mem_root;
   }

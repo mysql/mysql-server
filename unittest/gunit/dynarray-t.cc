@@ -248,9 +248,7 @@ protected:
   virtual void SetUp()
   {
     init_sql_alloc(PSI_NOT_INSTRUMENTED, &m_mem_root, 1024, 0);
-    ASSERT_EQ(0, my_set_thread_local(THR_MALLOC, &m_mem_root_p));
-    MEM_ROOT *root= *static_cast<MEM_ROOT**>(my_get_thread_local(THR_MALLOC));
-    ASSERT_EQ(root, m_mem_root_p);
+    THR_MALLOC= &m_mem_root_p;
 
     m_array_mysys.reserve(num_elements);
     m_array_std.reserve(num_elements);
@@ -265,18 +263,12 @@ protected:
   static void SetUpTestCase()
   {
     generate_test_data(test_data, table_list, num_elements);
-    ASSERT_EQ(0, my_create_thread_local_key(&THR_THD, NULL));
-    THR_THD_initialized= true;
-    ASSERT_EQ(0, my_create_thread_local_key(&THR_MALLOC, NULL));
-    THR_MALLOC_initialized= true;
+    THR_MALLOC= nullptr;
   }
 
   static void TearDownTestCase()
   {
-    my_delete_thread_local_key(THR_THD);
-    THR_THD_initialized= false;
-    my_delete_thread_local_key(THR_MALLOC);
-    THR_MALLOC_initialized= false;
+    THR_MALLOC= nullptr;
   }
 
   void insert_and_sort_mysys()

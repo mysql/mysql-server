@@ -8067,7 +8067,7 @@ static bool read_frm_file(THD *thd,
           return false;
        }
        int error;
-       root_ptr= my_thread_get_THR_MALLOC();
+       root_ptr= THR_MALLOC;
        old_root= *root_ptr;
        *root_ptr= &share->mem_root;
 

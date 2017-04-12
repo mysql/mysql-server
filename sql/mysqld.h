@@ -326,24 +326,7 @@ extern bool persisted_globals_load;
 
 extern LEX_CSTRING sql_statement_names[(uint) SQLCOM_END + 1];
 
-/*
-  THR_MALLOC is a key which will be used to set/get MEM_ROOT** for a thread,
-  using my_set_thread_local()/my_get_thread_local().
-*/
-extern thread_local_key_t THR_MALLOC;
-extern bool THR_MALLOC_initialized;
-
-static inline MEM_ROOT ** my_thread_get_THR_MALLOC()
-{
-  DBUG_ASSERT(THR_MALLOC_initialized);
-  return (MEM_ROOT**) my_get_thread_local(THR_MALLOC);
-}
-
-static inline int my_thread_set_THR_MALLOC(MEM_ROOT ** hdl)
-{
-  DBUG_ASSERT(THR_MALLOC_initialized);
-  return my_set_thread_local(THR_MALLOC, hdl);
-}
+extern thread_local MEM_ROOT **THR_MALLOC;
 
 extern PSI_file_key key_file_binlog_cache;
 extern PSI_file_key key_file_binlog_index_cache;
