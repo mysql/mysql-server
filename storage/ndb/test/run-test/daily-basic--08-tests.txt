@@ -56,8 +56,8 @@ args: -n ScanReadAndPkRead T6 D1 D2
 max-time: 180
 
 cmd: testDict
-args: -r 30000 -n TableAddAttrsDuring T1 T6
-max-time: 180
+args: -r 10000 -n TableAddAttrsDuring T1 T6
+max-time: 1800
 
 cmd: testScan
 args: -n ScanRead240

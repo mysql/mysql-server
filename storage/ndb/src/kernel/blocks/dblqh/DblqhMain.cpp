@@ -2991,6 +2991,7 @@ Dblqh::handleLCPSurfacing(Signal *signal)
   jam();
   c_wait_lcp_surfacing = false;
 
+  DEB_LCP(("(%u)LCP surfaced, continue", instance()));
   AlterTabReq *req = (AlterTabReq*)signal->getDataPtr();
   *req = c_keep_alter_tab_req;
   const Uint32 tableId = req->tableId;
@@ -3061,11 +3062,15 @@ Dblqh::execALTER_TAB_REQ(Signal* signal)
     jam();
     if (AlterTableReq::getAddAttrFlag(req->changeMask))
     {
+      jam();
+      lcpPtr.i = 0;
+      ptrAss(lcpPtr, lcpRecord);
       if (lcpPtr.p->lcpRunState == LcpRecord::LCP_CHECKPOINTING &&
           tableId == lcpPtr.p->currentRunFragment.lcpFragOrd.tableId)
       {
         jam();
         /* See comment above on handleLCPSurfacing */
+        DEB_LCP(("(%u)Wait for LCP to surface again", instance()));
         ndbrequire(!c_wait_lcp_surfacing);
         c_wait_lcp_surfacing = true;
         c_keep_alter_tab_req = copy;
