@@ -2298,6 +2298,19 @@ bool show_binlogs(THD* thd)
       file_length= cur.pos;  /* The active log, use the active position */
     else
     {
+     
+      // bug fix for http://bugs.mysql.com/bug.php?id=71879
+      // if bin file path starts with ./ then we will prepend to it full path of binlog directory
+      if(fname[0] == '.' && fname[1] == '/') 
+      {
+        std::string ofname(fname);
+        std::string bin_log_value(mysql_bin_log.get_name());
+        std::size_t lpos = bin_log_value.find_last_of("/");
+        std::string dir_path = bin_log_value.substr(0, lpos);
+        std::string full_path = dir_path + ofname.substr(1, ofname.length());
+        strcpy(fname, full_path.c_str());
+      }
+	    
       /* this is an old log, open it and find the size */
       if ((file= mysql_file_open(key_file_binlog,
                                  fname, O_RDONLY | O_SHARE | O_BINARY,
