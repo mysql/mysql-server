@@ -35,7 +35,6 @@ Created 9/5/1995 Heikki Tuuri
 #define sync0sync_h
 
 #include "univ.i"
-#include "ut0counter.h"
 
 #if defined UNIV_PFS_MUTEX || defined UNIV_PFS_RWLOCK
 
