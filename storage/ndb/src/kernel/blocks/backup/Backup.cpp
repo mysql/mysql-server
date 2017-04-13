@@ -5615,6 +5615,7 @@ Backup::start_lcp_scan(Signal *signal,
                         fragPtr.p->fragmentId,
                         ptr.p->m_lcp_max_page_cnt);
   ptr.p->m_is_lcp_scan_active = true;
+  ptr.p->m_lcp_current_page_scanned = 0;
   /**
    * Start file thread now that we will start writing also
    * fragment checkpoint data.
@@ -6364,23 +6365,35 @@ Backup::init_lcp_scan(Uint32 & scanGCI,
                       bool & changed_row_page_flag)
 {
   /**
-   * Here we come to get what to do with page 0 and also
-   * to store the number of pages seen at start of the
-   * scan, this will be stored in the LCP to ensure that
-   * we can remove rowid's that have been deleted before
-   * the next LCP starts. The next LCP will never see
-   * any deleted rowid's, so those need to be deleted
-   * before applying the rest of the LCP.
-   * The actual LCP contains DELETE by ROWID for all
-   * rowid's in the range of pages still existing, but
-   * for those removed we need to delete all those rows
-   * in one go at start of restore by using the number
-   * of pages that is part of LCP.
+   * Here we come to get what to do with page 0.
+   *
+   * The number of pages seen at start of LCP scan was set in the method
+   * start_lcp_scan. It is of vital importance that this happens
+   * synchronised with the insertion of the LCP record in the UNDO log
+   * record. There cannot be any signal breaks between setting the
+   * max page count, initialising the LCP scan variable in TUP and
+   * initialising the variables in this block and finally to insert a
+   * start LCP record in UNDO log to allow for proper
+   * handling of commits after start of LCP scan (to ensure that we
+   * set LCP_SKIP and LCP_DELETE bits when necessary). It is important
+   * that we retain exactly the set of rows committed before the start
+   * of the LCP scan (the commit point is when the signal TUP_COMMITREQ
+   * returns to DBLQH) and that rows inserted after this point is not
+   * part of the LCP, this will guarantee that we get synchronisation
+   * between the LCP main memory data and the disk data parts after
+   * executing the UNDO log.
+   *
+   * The number of pages will be stored in the LCP to ensure that we can
+   * remove rowid's that have been deleted before the next LCP starts.
+   * The next LCP will never see any deleted rowid's, so those need to be
+   * deleted before applying the rest of the LCP. The actual LCP contains
+   * DELETE by ROWID for all rowid's in the range of pages still existing,
+   * but for those removed we need to delete all those rows in one go at
+   * start of restore by using the number of pages that is part of LCP.
    */
   BackupRecordPtr ptr;
   jamEntry();
   c_backupPool.getPtr(ptr, m_lcp_ptr_i);
-  ptr.p->m_lcp_current_page_scanned = 0;
   Uint32 part_id = hash_lcp_part(0);
   get_page_info(ptr,
                 0,
