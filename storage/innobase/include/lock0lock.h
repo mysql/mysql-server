@@ -40,6 +40,17 @@ Created 5/7/1996 Heikki Tuuri
 #include "gis0rtree.h"
 #include "lock0prdt.h"
 
+/** Alternatives for innodb_lock_schedule_algorithm, which can be changed by
+    setting innodb_lock_schedule_algorithm. */
+enum innodb_lock_schedule_algorithm_t {
+    /*!< First Come First Served */
+    INNODB_LOCK_SCHEDULE_ALGORITHM_FCFS,
+    /*!< Variance-Aware-Transaction-Scheduling */
+    INNODB_LOCK_SCHEDULE_ALGORITHM_VATS
+};
+
+extern ulong innodb_lock_schedule_algorithm;
+
 // Forward declaration
 class ReadView;
 
