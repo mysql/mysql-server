@@ -233,6 +233,8 @@ Dbtup::dealloc_tuple(Signal* signal,
     memcpy(&disk, ptr->get_disk_ref_ptr(regTabPtr), sizeof(disk));
     PagePtr tmpptr;
     ndbrequire(pagePtr.i != RNIL);
+    Local_key rowid = regOperPtr->m_tuple_location;
+    rowid.m_page_no = page->frag_page_id;
     tmpptr.i = pagePtr.i;
     tmpptr.p = reinterpret_cast<Page*>(pagePtr.p);
     disk_page_free(signal,
@@ -241,7 +243,7 @@ Dbtup::dealloc_tuple(Signal* signal,
 		   &disk,
                    tmpptr,
                    gci_hi,
-                   &regOperPtr->m_tuple_location);
+                   &rowid);
   }
   
   if (! (bits & (Tuple_header::LCP_SKIP |
@@ -670,13 +672,15 @@ Dbtup::commit_operation(Signal* signal,
     if(copy_bits & Tuple_header::DISK_ALLOC)
     {
       jam();
+      Local_key rowid = regOperPtr->m_tuple_location;
+      rowid.m_page_no = pagePtr.p->frag_page_id;
       disk_page_alloc(signal,
                       regTabPtr,
                       regFragPtr,
                       &key,
                       diskPagePtr,
                       gci_hi,
-                      &regOperPtr->m_tuple_location);
+                      &rowid);
     }
     
     if(regTabPtr->m_attributes[DD].m_no_of_varsize == 0)
