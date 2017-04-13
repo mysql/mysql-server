@@ -10985,6 +10985,7 @@ innodb_base_col_setup_for_stored(
 
 
 /** Create a table definition to an InnoDB database.
+@param[in]	dd_table	dd::Table or nullptr for intrinsic table
 @return ER_* level error */
 inline MY_ATTRIBUTE((warn_unused_result))
 int
@@ -11070,7 +11071,8 @@ create_table_info_t::create_table_def(
 		ut_ad(m_tablespace != NULL && m_tablespace[0] != '\0');
 
 		space_id = fil_space_get_id_by_name(m_tablespace);
-		dd_space_id = dd_table->tablespace_id();
+		dd_space_id = (dd_table != nullptr ? dd_table->tablespace_id() :
+			       dd::INVALID_OBJECT_ID);
 	}
 
 	/* Adjust the number of columns for the FTS hidden field */
@@ -13139,7 +13141,7 @@ create_table_info_t::prepare_create_table(
 }
 
 /** Create the internal innodb table.
-@param[in]	dd_table	dd::Table
+@param[in]	dd_table	dd::Table or nullptr for intrinsic table
 @return 0 or error number */
 int
 create_table_info_t::create_table(
@@ -13312,6 +13314,7 @@ create_table_info_t::create_table(
 	/* There is no concept of foreign key for intrinsic tables. */
 	if (handler == NULL
 	    && stmt != NULL
+	    && dd_table != nullptr
 	    && !dd_table->foreign_keys().empty()
 	) {
 		dberr_t	err = DB_SUCCESS;
@@ -13986,7 +13989,8 @@ ha_innobase::create_table_impl(
 		dict_locked = true;
 	}
 
-	if ((error = info.create_table(&dd_tab->table()))) {
+	if ((error = info.create_table(
+		dd_tab != nullptr ? &dd_tab->table() : nullptr))) {
 		goto cleanup;
 	}
 

@@ -901,7 +901,7 @@ public:
 	void set_tablespace_type(bool table_being_altered_is_file_per_table);
 
 	/** Create the internal innodb table.
-	@param[in]	dd_table	dd::Table
+	@param[in]	dd_table	dd::Table or nullptr for intrinsic table
 	@return 0 or error number */
 	int create_table(const dd::Table*	dd_table);
 
@@ -1006,7 +1006,9 @@ private:
 	parse_table_name(
 		const char*	name);
 
-	/** Create the internal innodb table definition. */
+	/** Create the internal innodb table definition.
+	@param[in]	dd_table	dd::Table or nullptr for intrinsic table
+	@return ER_* level error */
 	int create_table_def(const dd::Table*	dd_table);
 
 	/** Initialize the autoinc of this table if necessary, which should

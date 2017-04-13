@@ -3,6 +3,8 @@
 --echo # covering combinations of different ALGORITHM and LOCK.
 --echo #
 
+CALL mtr.add_suppression('Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT.');
+
 CREATE TABLE t1 (
   id INT NOT NULL AUTO_INCREMENT,
   name VARCHAR(50),
@@ -22,7 +24,9 @@ CREATE TABLE t (
 
 CREATE TABLE t2 ( id INT NOT NULL AUTO_INCREMENT, name VARCHAR(50), purchased DATE, KEY(id)) PARTITION BY HASH( YEAR(purchased) ) PARTITIONS 4;
 
+--disable_warnings
 INSERT INTO t2 SELECT * FROM t1;
+--enable_warnings
 
 --echo # Test ALGORITHM = COPY, LOCK = * for operations
 
