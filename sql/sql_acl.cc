@@ -12267,12 +12267,19 @@ private:
       /* For public key, read key file content into a char buffer. */
       if (!is_priv_key)
       {
-        int filesize;
+        int filesize, filesize_read;
         fseek(key_file, 0, SEEK_END);
         filesize= ftell(key_file);
         fseek(key_file, 0, SEEK_SET);
         *key_text_buffer= new char[filesize+1];
-        (void) fread(*key_text_buffer, filesize, 1, key_file);
+        filesize_read= fread(*key_text_buffer, 1, filesize, key_file);
+        if (filesize_read != filesize)
+        {
+          sql_print_error("Failure to %d bytes from file, only %d bytes read:",
+                          filesize, filesize_read);
+          fclose(key_file);
+          return true;
+        }
         (*key_text_buffer)[filesize]= '\0';
       }
       fclose(key_file);
