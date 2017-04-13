@@ -18,6 +18,7 @@
 # BUG#25316086 MYSQL 8.0 ASSUME TRX BEING APPLIED WITH 5.7- MYSQLBINLOG DUMP AS
 #              ORIGINAL
 
+--source include/mysqlbinlog_have_debug.inc
 --source include/have_debug.inc
 --source include/have_log_bin.inc
 
