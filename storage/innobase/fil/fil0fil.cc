@@ -3451,6 +3451,14 @@ fil_create_new_single_table_tablespace(
 		remote directory, let's create the subdirectories
 		in the path, if they are not there already. */
 		success = os_file_create_subdirs_if_needed(path);
+		
+		// bug fix for http://bugs.mysql.com/bug.php?id=79151
+                if(!success && errno) {
+                        my_error(ER_GET_ERRNO, MYF(0), errno);
+                        mem_free(path);
+                        return(DB_ERROR);
+                }
+		
 		if (!success) {
 			err = DB_ERROR;
 			goto error_exit_3;
