@@ -1,0 +1,22 @@
+--source include/have_gtid.inc
+--source include/force_restart.inc
+
+RESET MASTER;
+USE test;
+CREATE TABLE t1 (id SERIAL);
+FLUSH LOGS;
+PURGE BINARY LOGS BEFORE NOW();
+INSERT INTO t1 VALUES(NULL),(NULL),(NULL);
+--exec $MYSQL_DUMP --all-databases --triggers --routines --events --master-data=2 > $MYSQLTEST_VARDIR/tmp/bug82848.sql 2> /dev/null
+
+RESET MASTER;
+--exec $MYSQL --force < $MYSQLTEST_VARDIR/tmp/bug82848.sql
+--let $gtid_executed_before= `SELECT @@GLOBAL.GTID_EXECUTED`
+
+--source include/restart_mysqld.inc
+--let $gtid_executed_after= `SELECT @@GLOBAL.GTID_EXECUTED`
+
+--let $gtid_diff= `SELECT '$gtid_executed_before' = '$gtid_executed_after'`
+--echo $gtid_diff
+
+DROP TABLE t1;
