@@ -11226,13 +11226,22 @@ Backup::start_execute_lcp(Signal *signal,
   else
   {
     jam();
-    DEB_LCP(("(%u)TAGY Row_count: %llu, row_change_count: %llu, "
-             "memory_used_in_bytes: %llu, max_page_cnt: %u",
+#ifdef DEBUG_LCP
+    TablePtr tabPtr;
+    FragmentPtr fragPtr;
+    ptr.p->tables.first(tabPtr);
+    tabPtr.p->fragments.getPtr(fragPtr, 0);
+    DEB_LCP(("(%u)TAGY LCP_Start: tab(%u,%u), row_count: %llu, row_change_count: %llu, "
+             "memory_used_in_bytes: %llu, max_page_cnt: %u, LCP lsn: %llu",
              instance(),
+             tabPtr.p->tableId,
+             fragPtr.p->fragmentId,
              ptr.p->m_row_count,
              ptr.p->m_row_change_count,
              ptr.p->m_memory_used_in_bytes,
-             ptr.p->m_lcp_max_page_cnt));
+             ptr.p->m_lcp_max_page_cnt,
+             ptr.p->m_current_lcp_lsn));
+#endif
     prepare_parts_for_lcp(signal, ptr);
   }
 }

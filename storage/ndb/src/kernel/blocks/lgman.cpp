@@ -40,7 +40,7 @@ extern EventLogger * g_eventLogger;
 
 #define JAM_FILE_ID 441
 
-//#define DEBUG_LGMAN 1
+#define DEBUG_LGMAN 1
 #ifdef DEBUG_LGMAN
 #define DEB_LGMAN(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
@@ -3179,12 +3179,7 @@ Lgman::execFSWRITECONF(Signal* signal)
     lg_ptr.p->m_next_reply_ptr_i = ptr.i;
     lg_ptr.p->m_last_synced_lsn = lsn;
 
-    /*
-    DEB_LGMAN(("LSN(%u,%u) Synched",
-              Uint32(Uint64(lsn >> 32)),
-              Uint32(Uint64(lsn & 0xFFFFFFFF))
-              ));
-    */
+    DEB_LGMAN(("LSN(%llu) Synched", lsn));
     if(! (lg_ptr.p->m_state & Logfile_group::LG_SYNC_WAITERS_THREAD))
     {
       jam();
