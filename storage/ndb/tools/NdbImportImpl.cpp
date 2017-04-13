@@ -1027,6 +1027,12 @@ NdbImportImpl::Team::stop_worker(Worker* w)
     w->m_dostop = true;
     w->signal();
     break;
+  case WorkerState::State_stop:
+    /*
+     * Worker is about to stop, allow it to do so.  It is either
+     * ready or it is reacting to m_dostop.
+     */
+    break;
   case WorkerState::State_stopped:
     break;
   default:

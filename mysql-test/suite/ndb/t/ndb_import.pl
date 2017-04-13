@@ -285,7 +285,6 @@ sub run_import {
   my $fter = $test->{csvfmt}{fields_terminated_by};
   my $fenc = $test->{csvfmt}{fields_enclosed_by};
   my @cmd = ();
-  push(@cmd, "--exec");
   push(@cmd, "\$NDB_IMPORT");
   push(@cmd, "--state-dir='$test->{statedir}'");
   push(@cmd, "--input-type=csv");
@@ -305,6 +304,7 @@ sub run_import {
   if ($opts->{resume}) {
     push(@cmd, "--resume");
   }
+  push(@cmd, "--verbose=1");
   push(@cmd, $test->{database});
   my $tables = $test->{tables};
   for my $table (@$tables) {
@@ -312,8 +312,13 @@ sub run_import {
     push(@cmd, $csvfile);
   }
   # runs mainly on unix/linux so stderr goes to stdout
-  push(@cmd, ">>\$NDB_TOOLS_OUTPUT 2>&1");
-  return "@cmd\n";
+  my $log = '>>$NDB_TOOLS_OUTPUT 2>&1';
+  my @cmd1 = ("--exec", "echo", @cmd, $log);
+  my @cmd2 = ("--exec", @cmd, $log);
+  if (defined($opts->{error})) {
+    unshift(@cmd2, "--error $opts->{error}\n");
+  }
+  return "@cmd1\n@cmd2\n";
 }
 
 sub select_count {
@@ -410,11 +415,9 @@ sub make_test {
   if (!$test->{resume}) {
     push @txt, run_import($test, {});
   } else {
-    push @txt, "--error 1\n";
-    push @txt, run_import($test, {});
+    push @txt, run_import($test, { error => "1" });
     for (my $i = 1; $i <= $test->{rejects}; $i++) {
-      push @txt, "--error 0,1\n";
-      push @txt, run_import($test, { resume => $i });
+      push @txt, run_import($test, { resume => $i, error => "0,1" });
     }
   }
   push @txt, select_counts($test, {});
