@@ -85,7 +85,7 @@ main(	int	argc MY_ATTRIBUTE((unused)),
 	/* ----------------------------------------------- */
 	/* Now we have TCP conncetion. Start SSL negotiation. */
 	read(client_vio->sd,xbuf, sizeof(xbuf));
-        sslconnect(ssl_connector,client_vio,60L,&ssl_error);
+        sslconnect(ssl_connector,client_vio,60L,&ssl_error, "the_hostname");
 	err = vio_read(client_vio,xbuf, sizeof(xbuf));
 	if (err<=0) {
 		my_free(ssl_connector);

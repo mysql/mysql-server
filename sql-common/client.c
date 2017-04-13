@@ -3515,7 +3515,7 @@ Establishes SSL if requested and supported.
 @retval 1       failure
 */
 static int
-cli_establish_ssl(MYSQL *mysql)
+cli_establish_ssl(MYSQL *mysql, const char *host)
 {
 #ifdef HAVE_OPENSSL
   NET *net= &mysql->net;
@@ -3605,7 +3605,7 @@ cli_establish_ssl(MYSQL *mysql)
     DBUG_PRINT("info", ("IO layer change in progress..."));
     MYSQL_TRACE(SSL_CONNECT, mysql, ());
     if (sslconnect(ssl_fd, net->vio,
-      (long) (mysql->options.connect_timeout), &ssl_error))
+      (long) (mysql->options.connect_timeout), &ssl_error, (const char *)host))
     {
       char buf[512];
       ERR_error_string_n(ssl_error, buf, 512);
@@ -4787,7 +4787,7 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
     scramble_buffer= scramble_data;
   }
 
-  if (cli_establish_ssl(mysql))
+  if (cli_establish_ssl(mysql, host))
     goto error;
 
   /*

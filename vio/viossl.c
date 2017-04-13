@@ -20,6 +20,10 @@
   the file descriptior.
 */
 
+#include <string.h>
+
+#include <openssl/ssl.h>
+
 #include "vio_priv.h"
 
 #ifdef HAVE_OPENSSL
@@ -376,7 +380,7 @@ static int ssl_handshake_loop(Vio *vio, SSL *ssl,
 
 static int ssl_do(struct st_VioSSLFd *ptr, Vio *vio, long timeout,
                   ssl_handshake_func_t func,
-                  unsigned long *ssl_errno_holder)
+                  unsigned long *ssl_errno_holder, const char *host)
 {
   int r;
   SSL *ssl;
@@ -399,6 +403,19 @@ static int ssl_do(struct st_VioSSLFd *ptr, Vio *vio, long timeout,
   }
   DBUG_PRINT("info", ("ssl: 0x%lx timeout: %ld", (long) ssl, timeout));
   SSL_clear(ssl);
+
+#if defined(HAVE_OPENSSL)
+  if (host)
+  {
+    if (!SSL_set_tlsext_host_name(ssl, host))
+    {
+      DBUG_PRINT("error", ("SSL_set_tlsext_host_name failure"));
+      *ssl_errno_holder= ERR_get_error();
+      DBUG_RETURN(1);
+    }
+  }
+#endif
+
   SSL_SESSION_set_timeout(SSL_get_session(ssl), timeout);
   SSL_set_fd(ssl, sd);
 #if !defined(HAVE_YASSL) && defined(SSL_OP_NO_COMPRESSION)
@@ -491,15 +508,15 @@ int sslaccept(struct st_VioSSLFd *ptr, Vio *vio, long timeout,
               unsigned long *ssl_errno_holder)
 {
   DBUG_ENTER("sslaccept");
-  DBUG_RETURN(ssl_do(ptr, vio, timeout, SSL_accept, ssl_errno_holder));
+  DBUG_RETURN(ssl_do(ptr, vio, timeout, SSL_accept, ssl_errno_holder, NULL));
 }
 
 
 int sslconnect(struct st_VioSSLFd *ptr, Vio *vio, long timeout,
-               unsigned long *ssl_errno_holder)
+               unsigned long *ssl_errno_holder, const char *host)
 {
   DBUG_ENTER("sslconnect");
-  DBUG_RETURN(ssl_do(ptr, vio, timeout, SSL_connect, ssl_errno_holder));
+  DBUG_RETURN(ssl_do(ptr, vio, timeout, SSL_connect, ssl_errno_holder, host));
 }
 
 

@@ -208,7 +208,7 @@ struct st_VioSSLFd
 };
 
 int sslaccept(struct st_VioSSLFd*, Vio *, long timeout, unsigned long *errptr);
-int sslconnect(struct st_VioSSLFd*, Vio *, long timeout, unsigned long *errptr);
+int sslconnect(struct st_VioSSLFd*, Vio *, long timeout, unsigned long *errptr, const char *host);
 
 struct st_VioSSLFd
 *new_VioSSLConnectorFd(const char *key_file, const char *cert_file,
