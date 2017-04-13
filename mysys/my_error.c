@@ -257,7 +257,14 @@ void my_printf_warning(const char *format, ...)
   va_start(args,format);
   (void) my_vsnprintf (wbuff, sizeof(wbuff), format, args);
   va_end(args);
-  (*sql_print_warning_hook)(wbuff);
+  if(sql_print_warning_hook)
+  {
+    (*sql_print_warning_hook)(wbuff);
+  }
+  else
+  {
+    fprintf(stderr, "%s\n", wbuff);
+  }
   DBUG_VOID_RETURN;
 }
 
@@ -379,7 +386,7 @@ const char **my_error_unregister(int first, int last)
   /* Save the return value and free the header. */
   errmsgs= meh_p->get_errmsgs();
   my_free(meh_p);
-  
+
   return errmsgs;
 }
 
