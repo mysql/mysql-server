@@ -44,6 +44,65 @@ const handler::Table_flags	HA_INNOPART_DISABLED_TABLE_FLAGS =
 	| HA_DUPLICATE_POS
 	| HA_READ_BEFORE_WRITE_REMOVAL);
 
+/** A simple bitset wrapper class, whose size is dynamic */
+class Bitset {
+public:
+	/** Constructor */
+	Bitset() : m_bitset(nullptr), m_width(0) {}
+
+	/** Destructor */
+	~Bitset() {}
+
+	/** Initialize the bitset with a byte array and width
+	@param[in]	bitset	byte array for this bitset
+	@param[in]	width	width of the byte array */
+	void init(byte* bitset, size_t width)
+	{
+		m_bitset = bitset;
+		m_width = width;
+	}
+
+	/** Set the specified bit to the value 'bit'
+	@param[in]	pos	Specified bit
+	@param[in]	v	True or false */
+	void set(size_t pos, bool v = true)
+	{
+		ut_ad(pos / 8 < m_width);
+		m_bitset[pos / 8] &= ~(0x1 << (pos & 0x7));
+		m_bitset[pos / 8] |= (static_cast<uint>(v) << (pos & 0x7));
+	}
+
+	/** Set all bits to true */
+	void set()
+	{
+		memset(m_bitset, 0xFF, m_width);
+	}
+
+	/** Set all bits to false */
+	void reset()
+	{
+		memset(m_bitset, 0, m_width);
+	}
+
+	/** Test if the specified bit is set or not
+	@param[in]	pos	The specified bit
+	@return True if this bit is set, otherwise false */
+	bool test(size_t pos) const
+	{
+		ut_ad(pos / 8 < m_width);
+		return((m_bitset[pos / 8] >> (pos & 0x7)) & 0x1);
+	}
+
+private:
+	/** Bitset bytes */
+	byte*		m_bitset;
+
+	/** Bitset width in bytes */
+	size_t		m_width;
+};
+
+typedef Bitset  Sql_stat_start_parts;
+
 /** InnoDB partition specific Handler_share. */
 class Ha_innopart_share : public Partition_share
 {
@@ -119,18 +178,42 @@ public:
 		const dict_index_t*	index);
 
 	/** Initialize the share with table and indexes per partition.
+	@param[in,out]	thd		Thread context
+	@param[in]	table		MySQL table definition
+	@param[in]	dd_table	Global DD table object
 	@param[in]	part_info	Partition info (partition names to use)
 	@param[in]	table_name	Table name (db/table_name)
 	@return false on success else true. */
 	bool
 	open_table_parts(
-		partition_info*	part_info,
-		const char*	table_name);
+		THD*			thd,
+		const TABLE*		table,
+		const dd::Table&	dd_table,
+		partition_info*		part_info,
+		const char*		table_name);
 
 	/** Close the table partitions.
-	If all instances are closed, also release the resources. */
+	If all instances are closed, also release the resources.
+	@param[in]	only_free	true if the tables have already been
+					closed, which happens during inplace
+					DDL, and we just need to release the
+					resources */
 	void
-	close_table_parts();
+	close_table_parts(bool only_free);
+
+	/** @return the TABLE SHARE object */
+	const TABLE_SHARE* get_table_share() const
+	{
+		return(m_table_share);
+	}
+
+	/** Get the number of partitions
+	@return number of partitions */
+	uint get_num_parts() const
+	{
+		ut_ad(m_tot_parts != 0);
+		return(m_tot_parts);
+	}
 
 	/* Static helper functions. */
 	/** Fold to lower case if windows or lower_case_table_names == 1.
@@ -165,19 +248,51 @@ public:
 		dict_table_t*	ib_table,
 		const char*	name);
 
+	/** Create the postfix of a partitioned table name
+	@param[in,out]	partition_name	Buffer to write the postfix
+	@param[in]	size		Size of the buffer
+	@param[in]	dd_part		Partition
+	@return	the length of written postfix. */
+	static
+	size_t
+	create_partition_postfix(
+		char*			partition_name,
+		size_t			size,
+		const dd::Partition*	dd_part);
+
 private:
 	/** Disable default constructor. */
 	Ha_innopart_share() {};
 
-	/** Open one partition (lower lever innodb table).
-	@param[in]	part_id	Partition to open.
-	@param[in]	partition_name	Name of partition.
-	@return false on success else true. */
+	/** Open one partition
+	@param[in,out]	client		Data dictionary client
+	@param[in]	thd		Thread THD
+	@param[in]	table		MySQL table definition
+	@param[in]	dd_part		dd::Partition
+	@param[in]	part_name	Table name of this partition
+	@param[in]	part_id		Partition id
+	@retval	False	On success
+	@retval	True	On failure */
 	bool
 	open_one_table_part(
-		uint		part_id,
-		const char*	partition_name);
+		dd::cache::Dictionary_client*	client,
+		THD*				thd,
+		const TABLE*			table,
+		const dd::Partition*		dd_part,
+		const char*			part_name,
+		uint				part_id);
 };
+
+/** Get explicit specified tablespace for one (sub)partition, checking
+from lowest level
+@param[in]	tablespace	table-level tablespace if specified
+@param[in]	part		Partition to check
+@param[in]	sub_part	Sub-partition to check, if no, just NULL
+@return Tablespace name, if [0] = '\0' then nothing specified */
+const char* partition_get_tablespace(
+	const char*			tablespace,
+	const partition_element*	part,
+	const partition_element*	sub_part);
 
 /** The class defining a partitioning aware handle to an InnoDB table.
 Based on ha_innobase and extended with
@@ -309,7 +424,8 @@ public:
 	blocked during prepare, but might not be during commit).
 	@param[in]	altered_table	TABLE object for new version of table.
 	@param[in,out]	ha_alter_info	Structure describing changes to be done
-	by ALTER TABLE and holding data used during in-place alter.
+					by ALTER TABLE and holding data used
+					during in-place alter.
 	@param[in]	commit		true => Commit, false => Rollback.
 	@param[in]	old_table_def	dd::Table object describing old
 	version of the table.
@@ -328,12 +444,80 @@ public:
 		dd::Table*		new_table_def);
 	/** @} */
 
+	/** Allows InnoDB to update internal structures with concurrent
+	writes blocked (given that check_if_supported_inplace_alter()
+	did not return HA_ALTER_INPLACE_NO_LOCK).
+	This is for 'ALTER TABLE ... PARTITION' and a corresponding function
+	to prepare_inplace_alter_table().
+	This will be invoked before inplace_alter_partition().
+
+	@param[in,out]	altered_table	TABLE object for new version of table
+	@param[in,out]	ha_alter_info	Structure describing changes to be done
+					by ALTER TABLE and holding data used
+					during in-place alter.
+	@param[in]	old_dd_tab	Table definition before the ALTER
+	@param[in,out]	new_dd_tab	Table definition after the ALTER
+	@retval	true	Failure
+	@retval	false	Success */
+	bool prepare_inplace_alter_partition(
+		TABLE*			altered_table,
+		Alter_inplace_info*	ha_alter_info,
+		const dd::Table*	old_dd_tab,
+		dd::Table*		new_dd_tab);
+
+	/** Alter the table structure in-place with operations
+	specified using HA_ALTER_FLAGS and Alter_inplace_information.
+	This is for 'ALTER TABLE ... PARTITION' and a corresponding function
+	to inplace_alter_table().
+	The level of concurrency allowed during this operation depends
+	on the return value from check_if_supported_inplace_alter().
+
+	@param[in,out]	altered_table	TABLE object for new version of table
+	@param[in,out]	ha_alter_info	Structure describing changes to be done
+					by ALTER TABLE and holding data used
+					during in-place alter.
+	@param[in]	old_dd_tab	Table definition before the ALTER
+	@param[in,out]	new_dd_tab	Table definition after the ALTER
+	@retval	true	Failure
+	@retval	false	Success */
+	bool inplace_alter_partition(
+		TABLE*			altered_table,
+		Alter_inplace_info*	ha_alter_info,
+		const dd::Table*	old_dd_tab,
+		dd::Table*		new_dd_tab);
+
+	/** Prepare to commit or roll back ALTER TABLE...ALGORITHM=INPLACE.
+	This is for 'ALTER TABLE ... PARTITION' and a corresponding function
+	to commit_inplace_alter_table().
+	@param[in,out]	altered_table	TABLE object for new version of table.
+	@param[in,out]	ha_alter_info	ALGORITHM=INPLACE metadata
+	@param[in]	commit		true=Commit, false=Rollback.
+	@param[in]	old_dd_tab	old table
+	@param[in,out]	new_dd_tab	new table
+	@retval	true	on failure (my_error() will have been called)
+	@retval	false	on success */
+	bool commit_inplace_alter_partition(
+		TABLE*			altered_table,
+		Alter_inplace_info*	ha_alter_info,
+		bool			commit,
+		const dd::Table*	old_dd_tab,
+		dd::Table*		new_dd_tab);
+
 	// TODO: should we implement init_table_handle_for_HANDLER() ?
 	// (or is sql_stat_start handled correctly anyway?)
 	int
 	optimize(
 		THD*		thd,
 		HA_CHECK_OPT*	check_opt);
+
+	/** Set DD discard attribute for tablespace.
+	@param[in]	table_def	dd table
+	@param[in]	discard		True if this table is discarded
+	@return	0 or error number. */
+	int
+	set_dd_discard_attribute(
+		dd::Table*	table_def,
+		bool		discard);
 
 	int
 	discard_or_import_tablespace(
@@ -404,8 +588,30 @@ public:
 		HA_CREATE_INFO*		create_info,
 		dd::Table*		table_def);
 
+	/** Drop a table.
+	@param[in]	name		table name
+	@param[in,out]	dd_table	data dictionary table
+	@return error number
+	@retval 0 on success */
+	int delete_table(
+		const char*		name,
+		const dd::Table*	dd_table);
+
 	int
 	truncate(dd::Table *table_def);
+
+	/** Rename a table.
+	@param[in]	from		table name before rename
+	@param[in]	to		table name after rename
+	@param[in]	from_table	data dictionary table before rename
+	@param[in,out]	to_table	data dictionary table after rename
+	@return	error number
+	@retval	0 on success */
+	int rename_table(
+		const char*		from,
+		const char*		to,
+		const dd::Table*	from_table,
+		dd::Table*		to_table);
 
 	int
 	check(
@@ -633,7 +839,7 @@ public:
 		uint	flags MY_ATTRIBUTE((unused))) const
 	{
 		return(HA_PARTITION_FUNCTION_SUPPORTED
-		       | HA_FAST_CHANGE_PARTITION);
+		       | HA_INPLACE_CHANGE_PARTITION);
 	}
 
 	Partition_handler*
@@ -689,8 +895,11 @@ private:
 	/** row_read_type per partition. */
 	ulint*			m_row_read_type_parts;
 
+	/** byte array for sql_stat_start bitset */
+	byte*			m_bitset;
+
 	/** sql_stat_start per partition. */
-	uchar*			m_sql_stat_start_parts;
+	Sql_stat_start_parts	m_sql_stat_start_parts;
 
 	/** persistent cursors per partition. */
 	btr_pcur_t*		m_pcur_parts;
@@ -812,6 +1021,13 @@ private:
 	void
 	destroy_record_priority_queue_for_parts();
 
+	/** Create the Altered_partitoins object
+	@param[in]	ha_alter_info	thd DDL operation
+	@retval true	On failure
+	@retval false	On success */
+	bool
+	prepare_for_copy_partitions(Alter_inplace_info* ha_alter_info);
+
 	/** Prepare for creating new partitions during ALTER TABLE ...
 	PARTITION.
 	@param[in]	num_partitions	Number of new partitions to be created.
@@ -821,7 +1037,11 @@ private:
 	int
 	prepare_for_new_partitions(
 		uint	num_partitions,
-		bool	only_create);
+		bool	only_create)
+	{
+		ut_ad(0);
+		return(HA_ERR_WRONG_COMMAND);
+	}
 
 	/** Create a new partition to be filled during ALTER TABLE ...
 	PARTITION.
@@ -837,11 +1057,16 @@ private:
 		HA_CREATE_INFO*		create_info,
 		const char*		part_name,
 		uint			new_part_id,
-		partition_element*	part_elem);
+		partition_element*	part_elem)
+	{
+		/* This API is now disabled */
+		ut_ad(0);
+		return(HA_ERR_WRONG_COMMAND);
+	}
 
 	/** Close and finalize new partitions. */
 	void
-	close_new_partitions();
+	close_new_partitions() { ut_ad(0); }
 
 	/** write row to new partition.
 	@param[in]	new_part	New partition to write to.
@@ -1179,9 +1404,12 @@ private:
 	/** @} */
 
 	/** Truncate partition.
-	Called from Partition_handler::trunctate_partition(). */
+	Called from Partition_handler::trunctate_partition() or truncate().
+	@param[in,out]	dd_table	data dictionary table
+	@retval	error number
+	@retval	0 on success */
 	int
-	truncate_partition_low(dd::Table *table_def);
+	truncate_partition_low(dd::Table *dd_table);
 
 	/** Change partitions according to ALTER TABLE ... PARTITION ...
 	Called from Partition_handler::change_partitions().
@@ -1197,16 +1425,29 @@ private:
 		ulonglong* const	copied,
 		ulonglong* const	deleted)
 	{
-		/* TODO: Refactor fast_alter_partition_table or verify that
-		this is correct design! */
-		if (!trx_is_registered_for_2pc(m_prebuilt->trx)) {
-			innobase_register_trx(ht, ha_thd(), m_prebuilt->trx);
-		}
-		return(Partition_helper::change_partitions(
-						create_info,
-						path,
-						deleted));
+		ut_ad(0);
+		return(0);
 	}
+
+	/** Exchange partition.
+	Low-level primitive which implementation is provided here.
+	@param[in]	part_table_path	data file path of the
+					partitioned table
+	@param[in]	swap_table_path	data file path of the to be
+					swapped table
+	@param[in]	part_id		The id of the partition to
+					be exchanged
+	@param[in,out]	part_table	partitioned table to be
+					exchanged
+	@param[in,out]	swap_table	table to be exchanged
+	@return	error number
+	@retval	0	on success */
+        int exchange_partition_low(
+		const char*	part_table_path,
+		const char*	swap_table_path,
+		uint		part_id,
+		dd::Table*	part_table,
+		dd::Table*	swap_table);
 
 	/** Access methods to protected areas in handler to avoid adding
 	friend class Partition_helper in class handler.

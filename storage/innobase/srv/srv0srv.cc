@@ -73,6 +73,13 @@ Created 10/8/1995 Heikki Tuuri
 #include "ut0crc32.h"
 #include "ut0mem.h"
 
+#ifdef INNODB_DD_TABLE
+/* true when upgrading. */
+bool	srv_is_upgrade_mode = false;
+bool	srv_downgrade_logs = false;
+bool	srv_upgrade_old_undo_found = false;
+#endif /* INNODB_DD_TABLE */
+
 /* The following is the maximum allowed duration of a lock wait. */
 ulint	srv_fatal_semaphore_wait_threshold = 600;
 
@@ -137,6 +144,7 @@ const page_no_t SRV_UNDO_TABLESPACE_SIZE_IN_PAGES =
 recovery and open all tables in RO mode instead of RW mode. We don't
 sync the max trx id to disk either. */
 bool	srv_read_only_mode;
+
 /** store to its own file each table created by an user; data
 dictionary tables are in the system tablespace 0 */
 bool	srv_file_per_table;
@@ -2410,6 +2418,8 @@ srv_master_thread()
 
 	my_thread_init();
 
+	THD*	thd = create_thd(false, true, true, 0);
+
 	ut_ad(!srv_read_only_mode);
 
 	srv_main_thread_process_no = os_proc_get_number();
@@ -2468,6 +2478,7 @@ suspend_thread:
 		goto loop;
 	}
 
+	destroy_thd(thd);
 	my_thread_end();
 }
 
@@ -2545,10 +2556,7 @@ srv_worker_thread()
 	ut_ad(!srv_read_only_mode);
 	ut_a(srv_force_recovery < SRV_FORCE_NO_BACKGROUND);
 
-#ifdef UNIV_PFS_THREAD
 	THD*	thd = create_thd(false, true, true, srv_worker_thread_key.m_value);
-#endif /* UNIV_PFS_THREAD */
-
 	slot = srv_reserve_slot(SRV_WORKER);
 
 	ut_a(srv_n_purge_threads > 1);
@@ -2590,9 +2598,7 @@ srv_worker_thread()
 
 	rw_lock_x_unlock(&purge_sys->latch);
 
-#ifdef UNIV_PFS_THREAD
 	destroy_thd(thd);
-#endif /* UNIV_PFS_THREAD */
 
 	my_thread_end();
 }
@@ -2793,10 +2799,9 @@ srv_purge_coordinator_thread()
 {
 	srv_slot_t*	slot;
 
-#ifdef UNIV_PFS_THREAD
 	THD*	thd = create_thd(false, true, true,
 				 srv_purge_thread_key.m_value);
-#endif /* UNIV_PFS_THREAD */
+
 	ulint	n_total_purged = ULINT_UNDEFINED;
 
 	my_thread_init();
@@ -2897,9 +2902,7 @@ srv_purge_coordinator_thread()
 		srv_release_threads(SRV_WORKER, srv_n_purge_threads - 1);
 	}
 
-#ifdef UNIV_PFS_THREAD
 	destroy_thd(thd);
-#endif /* UNIV_PFS_THREAD */
 
 	my_thread_end();
 }

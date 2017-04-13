@@ -42,6 +42,7 @@
 #include "dd/string_type.h"
 #include "dd/types/abstract_table.h"
 #include "dd/types/schema.h"
+#include "dd/upgrade/upgrade.h"         // dd::upgrade::in_progress
 #include "debug_sync.h"      // DEBUG_SYNC
 #include "derror.h"          // ER_THD
 #include "error_handler.h"   // Drop_table_error_handler
@@ -290,7 +291,8 @@ bool mysql_create_db(THD *thd, const char *db, HA_CREATE_INFO *create_info)
   bool store_in_dd= true;
   bool schema_exists= (mysql_file_stat(key_file_misc,
                                        path, &stat_info, MYF(0)) != NULL);
-  if (thd->is_dd_system_thread() && (!opt_initialize || dd_upgrade_flag) &&
+  if (thd->is_dd_system_thread() &&
+      (!opt_initialize || dd::upgrade::in_progress()) &&
       dd::get_dictionary()->is_dd_schema_name(db))
   {
     /*
@@ -958,6 +960,15 @@ static bool find_db_tables(THD *thd, const dd::Schema &schema,
 
   for (const dd::Abstract_table *table : sch_tables)
   {
+    /*
+      Skip tables which are implicitly created and dropped by SE (e.g.
+      InnoDB's auxiliary tables for FTS). Other hidden tables (e.g.
+      left-over #sql... tables from crashed non-atomic ALTER TABLEs)
+      should be dropped by DROP DATABASE.
+    */
+    if (table->hidden() == dd::Abstract_table::HT_HIDDEN_SE)
+      continue;
+
     TABLE_LIST *table_list=(TABLE_LIST*)
       thd->mem_calloc(sizeof(*table_list));
 

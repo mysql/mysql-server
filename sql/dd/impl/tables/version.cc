@@ -58,7 +58,7 @@ Version::Version()
 
 ///////////////////////////////////////////////////////////////////////////
 
-uint Version::get_actual_dd_version(THD *thd, bool *exists) const
+uint Version::get_actual_dd_version(THD *thd) const
 {
   // Start a DD transaction to get the version number.
   // Please note that we must do this read using isolation
@@ -66,7 +66,6 @@ uint Version::get_actual_dd_version(THD *thd, bool *exists) const
   // be available.
   Transaction_ro trx(thd, ISO_READ_UNCOMMITTED);
   uint version= 0;
-  *exists= false;
 
   trx.otx.add_table<Version>();
 
@@ -85,7 +84,6 @@ uint Version::get_actual_dd_version(THD *thd, bool *exists) const
       version= t->field[FIELD_VERSION]->val_int();
 
     t->file->ha_rnd_end();
-    *exists= true;
   }
   return version;
 }

@@ -19,5 +19,3 @@
 # current header, valid checkpoint 1, all-zero (invalid) checkpoint 2
 # Test a corrupted record.
 # valid header, invalid checkpoint 1, valid checkpoint 2
-# Upgrade: valid 5.7.9 header, valid checkpoint 1, logically empty
-# redo log

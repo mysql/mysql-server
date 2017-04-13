@@ -93,6 +93,27 @@ public:
   { };
 
 public:
+  /**
+    Enumeration type which indicates whether the table is hidden,
+    and if yes then which type of hidden table it is.
+  */
+  enum enum_hidden_type
+  {
+    /* Normal, user-visible table. */
+    HT_VISIBLE= 1,
+    /* Hidden. System (e.g. data-dictionary) table. */
+    HT_HIDDEN_SYSTEM,
+    /*
+      Hidden. Table which is implicitly created and dropped by SE.
+      For example, InnoDB's auxiliary table for FTS.
+    */
+    HT_HIDDEN_SE,
+    /*
+      Hidden. Temporary table created by ALTER TABLE implementation.
+    */
+    HT_HIDDEN_DDL
+  };
+
   /////////////////////////////////////////////////////////////////////////
   // schema.
   /////////////////////////////////////////////////////////////////////////
@@ -136,8 +157,8 @@ public:
   // hidden.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual bool hidden() const = 0;
-  virtual void set_hidden(bool hidden) = 0;
+  virtual enum_hidden_type hidden() const = 0;
+  virtual void set_hidden(enum_hidden_type hidden) = 0;
 
   /////////////////////////////////////////////////////////////////////////
   // Column collection.

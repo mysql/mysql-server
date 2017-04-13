@@ -31,6 +31,7 @@
 #include "dd/impl/tables/character_sets.h"   // create_name_key()
 #include "dd/impl/tables/collations.h"       // create_name_key()
 #include "dd/impl/tables/events.h"           // create_name_key()
+#include "dd/impl/tables/foreign_keys.h"
 #include "dd/impl/tables/index_stats.h"      // dd::Index_stats
 #include "dd/impl/tables/routines.h"         // create_name_key()
 #include "dd/impl/tables/schemata.h"         // create_name_key()
@@ -565,7 +566,9 @@ bool is_component_hidden(dd::Raw_record*)
 
 template <>
 bool is_component_hidden<dd::Abstract_table>(dd::Raw_record *r)
-{ return r->read_bool(dd::tables::Tables::FIELD_HIDDEN); }
+{ return static_cast<dd::Abstract_table::enum_hidden_type>(
+            r->read_int(dd::tables::Tables::FIELD_HIDDEN)) !=
+         dd::Abstract_table::HT_VISIBLE; }
 
 }
 
@@ -2071,6 +2074,89 @@ bool Dictionary_client::fetch_referencing_views_object_id(
 }
 
 
+bool Dictionary_client::fetch_fk_children_uncached(
+    const String_type &parent_schema,
+    const String_type &parent_name,
+    std::vector<String_type> *children_schemas,
+    std::vector<String_type> *children_names)
+{
+  dd::Transaction_ro trx(m_thd, ISO_READ_COMMITTED);
+
+  trx.otx.register_tables<Foreign_key>();
+  Raw_table *foreign_keys_table= trx.otx.get_table<Foreign_key>();
+  DBUG_ASSERT(foreign_keys_table);
+
+  if (trx.otx.open_tables())
+  {
+    DBUG_ASSERT(m_thd->is_system_thread() ||
+                m_thd->killed ||
+                m_thd->is_error());
+    return true;
+  }
+
+  // Create the key based on the parent table name.
+  std::unique_ptr<Object_key> object_key(
+    tables::Foreign_keys::create_key_by_referenced_name(
+      String_type(Dictionary_impl::default_catalog_name()),
+                  parent_schema, parent_name));
+
+  std::unique_ptr<Raw_record_set> rs;
+  if (foreign_keys_table->open_record_set(object_key.get(), rs))
+  {
+    DBUG_ASSERT(m_thd->is_system_thread() ||
+                m_thd->killed ||
+                m_thd->is_error());
+    return true;
+  }
+
+  Raw_record *r= rs->current_record();
+  while (r)
+  {
+    /* READ TABLE ID */
+    Object_id id= r->read_int(tables::Foreign_keys::FIELD_TABLE_ID);
+
+    dd::Table *table= nullptr;
+    dd::Schema *schema= nullptr;
+    dd::cache::Dictionary_client::Auto_releaser releaser(this);
+    if (acquire_uncached(id, &table))
+    {
+      DBUG_ASSERT(m_thd->is_system_thread() ||
+                  m_thd->killed ||
+                  m_thd->is_error());
+      return true;
+    }
+
+    if (table)
+    {
+      if (acquire_uncached(table->schema_id(), &schema))
+      {
+        DBUG_ASSERT(m_thd->is_system_thread() ||
+                    m_thd->killed ||
+                    m_thd->is_error());
+        return true;
+      }
+      if (schema)
+      {
+        children_schemas->push_back(schema->name());
+        children_names->push_back(table->name());
+      }
+    }
+    // If table/schema is not found, it was deleted since we retrieved the ID.
+    // That can happen since we don't have a lock and is not an error.
+
+    if (rs->next(r))
+    {
+      DBUG_ASSERT(m_thd->is_system_thread() ||
+                  m_thd->killed ||
+                  m_thd->is_error());
+      return true;
+    }
+  }
+
+  return false;
+}
+
+
 // Mark all objects acquired by this client as not being used anymore.
 size_t Dictionary_client::release()
 { return release(&m_registry_committed); }
@@ -2583,6 +2669,12 @@ template bool Dictionary_client::fetch_global_components(
 template bool Dictionary_client::fetch_global_components(
     std::vector<const Schema*>*) const;
 
+template bool Dictionary_client::fetch_global_components(
+    std::vector<const Tablespace*>*) const;
+
+template bool Dictionary_client::fetch_global_components(
+    std::vector<const Table*>*) const;
+
 template bool Dictionary_client::fetch_schema_component_names<Abstract_table>(
     const Schema*,
     std::vector<String_type>*) const;
@@ -2693,8 +2785,6 @@ template bool Dictionary_client::acquire_uncached(Object_id,
                                                   Tablespace**);
 template bool Dictionary_client::acquire(const String_type&,
                                          const Tablespace**);
-
-
 template bool Dictionary_client::acquire_for_modification(const String_type&,
                                                           Tablespace**);
 template bool Dictionary_client::acquire(Object_id,

@@ -2568,7 +2568,7 @@ ibuf_merge_space(
 	dtuple_t*	tuple = ibuf_search_tuple_build(space, 0, heap);
 	ulint		n_pages = 0;
 
-	ut_ad(space < SRV_LOG_SPACE_FIRST_ID);
+	ut_ad(!dict_sys_t::is_reserved(space));
 
 	ibuf_mtr_start(&mtr);
 

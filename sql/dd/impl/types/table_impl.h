@@ -345,9 +345,9 @@ public:
   { return Abstract_table_impl::get_column(name); }
   virtual bool update_aux_key(aux_key_type *key) const
   { return Table::update_aux_key(key); }
-  virtual bool hidden() const
+  virtual enum_hidden_type hidden() const
   { return Abstract_table_impl::hidden(); }
-  virtual void set_hidden(bool hidden)
+  virtual void set_hidden(enum_hidden_type hidden)
   { Abstract_table_impl::set_hidden(hidden); }
 
   /////////////////////////////////////////////////////////////////////////

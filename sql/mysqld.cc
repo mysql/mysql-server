@@ -567,6 +567,7 @@
 #include "dd/dd.h"                      // dd::shutdown
 #include "dd/dd_kill_immunizer.h"       // dd::DD_kill_immunizer
 #include "dd/dictionary.h"              // dd::get_dictionary
+#include "dd/upgrade/upgrade.h"         // dd::upgrade::in_progress
 #include "srv_session.h"
 #include "dynamic_privileges_impl.h" 
 
@@ -1296,6 +1297,7 @@ static char *get_relative_path(const char *path);
 static int fix_paths(void);
 static int test_if_case_insensitive(const char *dir_name);
 static void end_ssl();
+static void delete_dictionary_tablespace();
 
 extern "C" void *signal_hand(void *arg);
 static bool pid_file_created= false;
@@ -1849,6 +1851,10 @@ static void clean_up(bool print_message)
     tc_log->close();
     tc_log= NULL;
   }
+
+  if (dd::upgrade::in_progress())
+    delete_dictionary_tablespace();
+
   delegates_destroy();
   transaction_cache_free();
   table_def_free();
@@ -4594,14 +4600,16 @@ a file name for --log-bin-index option", opt_binlog_index_name);
                                PLUGIN_INIT_SKIP_PLUGIN_TABLE) : 0)))
   {
     // Delete all DD tables in case of error in initializing plugins.
-    (void)dd::init(dd::enum_dd_init_type::DD_DELETE);
+    if (dd::upgrade::in_progress())
+      (void)dd::init(dd::enum_dd_init_type::DD_DELETE);
+
     sql_print_error("Failed to initialize dynamic plugins.");
     unireg_abort(MYSQLD_ABORT_EXIT);
   }
   dynamic_plugins_are_initialized= true;  /* Don't separate from init function */
 
   // Store meta data of plugin schema tables into new DD
-  if (!opt_help && (opt_initialize || dd_upgrade_flag) &&
+  if (!opt_help && (opt_initialize || dd::upgrade::in_progress()) &&
       dd::get_dictionary()->install_plugin_IS_table_metadata())
   {
     sql_print_error("Failed to store plugin metadata into dictionary tables.");
@@ -4609,7 +4617,7 @@ a file name for --log-bin-index option", opt_binlog_index_name);
   }
 
   // Populate DD tables with meta data from 5.7 in case of upgrade
-  if (!opt_help && dd_upgrade_flag &&
+  if (!opt_help && dd::upgrade::in_progress() &&
       dd::init(dd::enum_dd_init_type::DD_POPULATE_UPGRADE))
   {
     sql_print_error("Failed to Populate DD tables.");
@@ -5605,7 +5613,6 @@ int mysqld_main(int argc, char **argv)
   /* Save pid of this process in a file */
   if (!opt_initialize)
     create_pid_file();
-
 
   /* Read the optimizer cost model configuration tables */
   if (!opt_initialize)
@@ -9197,6 +9204,21 @@ static void delete_pid_file(myf flags)
   return;
 }
 
+/**
+  Delete mysql.ibd after aborting upgrade.
+*/
+static void delete_dictionary_tablespace()
+{
+  char path[FN_REFLEN+1];
+  bool not_used;
+
+  build_table_filename(path, sizeof(path) - 1, "",
+                       "mysql",".ibd", 0, &not_used);
+  (void) mysql_file_delete(key_file_misc, path, MYF(MY_WME));
+
+  // Drop file which tracks progress of upgrade.
+  dd::upgrade::Upgrade_status().remove();
+}
 
 /**
   Returns the current state of the server : booting, operational or shutting

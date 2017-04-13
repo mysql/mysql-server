@@ -1904,6 +1904,32 @@ bool PT_show_fields_and_keys::contextualize(Parse_context *pc)
 
 bool PT_show_fields::contextualize(Parse_context *pc)
 {
-  pc->thd->lex->verbose= m_verbose;
+  pc->thd->lex->verbose= false;
+  pc->thd->lex->m_extended_show= false;
+
+  switch (m_show_fields_type)
+  {
+  case Show_fields_type::STANDARD:
+    break;
+  case Show_fields_type::FULL_SHOW:
+    pc->thd->lex->verbose= true;
+    break;
+  case Show_fields_type::EXTENDED_SHOW:
+    pc->thd->lex->m_extended_show= true;
+    break;
+  case Show_fields_type::EXTENDED_FULL_SHOW:
+    pc->thd->lex->verbose= true;
+    pc->thd->lex->m_extended_show= true;
+    break;
+  default:
+    DBUG_ASSERT(false);
+  }
+  return super::contextualize(pc);
+}
+
+
+bool PT_show_keys::contextualize(Parse_context *pc)
+{
+  pc->thd->lex->m_extended_show= m_extended_show;
   return super::contextualize(pc);
 }

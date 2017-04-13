@@ -651,7 +651,7 @@ tab3	CREATE TABLE `tab3` (
   `c6` multipolygon DEFAULT NULL,
   `c7` geometrycollection DEFAULT NULL,
   `c8` geometry DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=8
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=key_block_size
 ALTER TABLE tab3 KEY_BLOCK_SIZE=16 ROW_FORMAT=Dynamic;
 #check file format
 SHOW CREATE TABLE tab3;
@@ -665,7 +665,7 @@ tab3	CREATE TABLE `tab3` (
   `c6` multipolygon DEFAULT NULL,
   `c7` geometrycollection DEFAULT NULL,
   `c8` geometry DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC KEY_BLOCK_SIZE=16
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
 #check information schema for all the columns refer to 14, except POINT which is 15
 SELECT sc.name, sc.pos, sc.mtype
 FROM information_schema.innodb_sys_columns sc
@@ -798,7 +798,7 @@ tab3	CREATE TABLE `tab3` (
   UNIQUE KEY `idx2` (`c8`(5)),
   KEY `idx1` (`c2`(5) DESC) USING BTREE,
   KEY `idx3` (`c3`(5)) USING BTREE
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC KEY_BLOCK_SIZE=16
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
 #check index with  WKB function
 EXPLAIN SELECT ST_ASText(c1),ST_AsText(c2),ST_AsText(c8)
 FROM tab3 WHERE c2=ST_LineStringFromWKB(ST_AsWKB(ST_LineFromText('LINESTRING(10 10,20 20,30 30)')));

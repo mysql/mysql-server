@@ -39,6 +39,7 @@ InnoDB Native API
 #include "fsp0fsp.h"
 #include "ha_prototypes.h"
 #include "lob0lob.h"
+#include "dict0dd.h"
 #include "lock0lock.h"
 #include "lock0types.h"
 #include "my_inttypes.h"
@@ -119,6 +120,8 @@ struct ib_cursor_t {
 	ib_qry_proc_t	q_proc;		/*!< Query processing info */
 
 	ib_match_mode_t	match_mode;	/*!< ib_cursor_moveto match mode */
+
+	MDL_ticket*	mdl;		/*!< meta-data lock on the table */
 
 	row_prebuilt_t*	prebuilt;	/*!< For reading rows */
 
@@ -219,27 +222,6 @@ ib_btr_cursor_is_positioned(
 	return(pcur->old_stored
 	       && (pcur->pos_state == BTR_PCUR_IS_POSITIONED
 	           || pcur->pos_state == BTR_PCUR_WAS_POSITIONED));
-}
-
-/********************************************************************//**
-Open a table using the table name, if found then increment table ref count.
-@return table instance if found */
-static
-dict_table_t*
-ib_open_table_by_name(
-/*==================*/
-	const char*	name)		/*!< in: table name to lookup */
-{
-	dict_table_t*	table;
-
-	table = dict_table_open_on_name(name, FALSE, FALSE,
-					DICT_ERR_IGNORE_NONE);
-
-	if (table != NULL && table->ibd_file_missing) {
-		table = NULL;
-	}
-
-	return(table);
 }
 
 /********************************************************************//**
@@ -586,8 +568,9 @@ ib_trx_begin(
 	ib_trx_level_t	ib_trx_level,	/*!< in: trx isolation level */
 	ib_bool_t	read_write,     /*!< in: true if read write
 					transaction */
-	ib_bool_t	auto_commit)	/*!< in: auto commit after each
+	ib_bool_t	auto_commit,	/*!< in: auto commit after each
 					single DML */
+	void*		thd)		/*!< in,out: MySQL THD */
 {
 	trx_t*		trx;
 	ib_bool_t	started;
@@ -595,7 +578,7 @@ ib_trx_begin(
 	trx = trx_allocate_for_mysql();
 
 	started = ib_trx_start(static_cast<ib_trx_t>(trx), ib_trx_level,
-			       read_write, auto_commit, NULL);
+			       read_write, auto_commit, thd);
 	ut_a(started);
 
 	return(static_cast<ib_trx_t>(trx));
@@ -891,10 +874,12 @@ ib_cursor_open_index_using_name(
 	*idx_id = 0;
 	*ib_crsr = NULL;
 
-	/* We want to increment the ref count, so we do a redundant search. */
-	table = dict_table_open_on_id(cursor->prebuilt->table->id,
-				      FALSE, DICT_TABLE_OP_NORMAL);
+	table = cursor->prebuilt->table;
 	ut_a(table != NULL);
+
+	mutex_enter(&dict_sys->mutex);
+	table->acquire();
+	mutex_exit(&dict_sys->mutex);
 
 	/* The first index is always the cluster index. */
 	index = table->first_index();
@@ -950,20 +935,22 @@ ib_cursor_open_table(
 	ib_err_t	err;
 	dict_table_t*	table;
 	char*		normalized_name;
+	trx_t*		trx = static_cast<trx_t*>(ib_trx);
+	MDL_ticket*	mdl = nullptr;
 
 	normalized_name = static_cast<char*>(ut_malloc_nokey(ut_strlen(name)
 							     + 1));
 	ib_normalize_table_name(normalized_name, name);
 
-	if (ib_trx != NULL) {
-		if (!ib_schema_lock_is_exclusive(ib_trx)) {
-			table = ib_open_table_by_name(normalized_name);
-		} else {
-			/* NOTE: We do not acquire MySQL metadata lock */
-			table = ib_lookup_table_by_name(normalized_name);
-		}
+	ut_ad(ib_trx != nullptr);
+
+	if (!ib_schema_lock_is_exclusive(ib_trx)) {
+		table = dd_table_open_on_name(
+			trx->mysql_thd, &mdl, normalized_name,
+			false, DICT_ERR_IGNORE_NONE);
 	} else {
-		table = ib_open_table_by_name(normalized_name);
+		/* NOTE: We do not acquire MySQL metadata lock */
+		table = ib_lookup_table_by_name(normalized_name);
 	}
 
 	ut_free(normalized_name);
@@ -979,6 +966,9 @@ ib_cursor_open_table(
 	if (table != NULL) {
 		err = ib_create_cursor_with_clust_index(ib_crsr, table,
 							(trx_t*) ib_trx);
+		if (mdl != nullptr) {
+			(*ib_crsr)->mdl = mdl;
+		}
 	} else {
 		err = DB_TABLE_NOT_FOUND;
 	}
@@ -1113,6 +1103,9 @@ ib_cursor_close(
 		--trx->n_mysql_tables_in_use;
 	}
 
+	if (cursor->mdl != nullptr) {
+		dd_mdl_release(trx->mysql_thd, &cursor->mdl);
+	}
 	row_prebuilt_free(prebuilt, FALSE);
 	cursor->prebuilt = NULL;
 
@@ -3151,38 +3144,6 @@ ib_ut_strerr(
 	return(ut_strerr(num));
 }
 
-/********************************************************************//**
-Open a table using the table id, if found then increment table ref count.
-@return table instance if found */
-static
-dict_table_t*
-ib_open_table_by_id(
-/*================*/
-	ib_id_u64_t	tid,		/*!< in: table id to lookup */
-	ib_bool_t	locked)		/*!< in: TRUE if own dict mutex */
-{
-	dict_table_t*	table;
-	table_id_t	table_id;
-
-	table_id = tid;
-
-	if (!locked) {
-		dict_mutex_enter_for_mysql();
-	}
-
-	table = dict_table_open_on_id(table_id, TRUE, DICT_TABLE_OP_NORMAL);
-
-	if (table != NULL && table->ibd_file_missing) {
-		table = NULL;
-	}
-
-	if (!locked) {
-		dict_mutex_exit_for_mysql();
-	}
-
-	return(table);
-}
-
 /*****************************************************************//**
 Open an InnoDB table and return a cursor handle to it.
 @return DB_SUCCESS or err code */
@@ -3197,10 +3158,9 @@ ib_cursor_open_table_using_id(
 {
 	ib_err_t	err;
 	dict_table_t*	table;
-	const ib_bool_t	locked
-		= ib_trx && ib_schema_lock_is_exclusive(ib_trx);
+	MDL_ticket*	mdl = nullptr;
 
-	table = ib_open_table_by_id(table_id, locked);
+	table = dd_table_open_on_id(table_id, ib_trx->mysql_thd, &mdl, false);
 
 	if (table == NULL) {
 
@@ -3209,6 +3169,7 @@ ib_cursor_open_table_using_id(
 
 	err = ib_create_cursor_with_clust_index(ib_crsr, table,
 						(trx_t*) ib_trx);
+	(*ib_crsr)->mdl = mdl;
 
 	return(err);
 }
@@ -3305,6 +3266,14 @@ ib_sdi_set(
 	ut_ad(ib_sdi_key != NULL);
 	ut_ad(sdi != NULL);
 
+	DBUG_EXECUTE_IF("ib_sdi",
+		ib::info() << "ib_sdi: sdi_set: " << tablespace_id
+			<< "Key: " << ib_sdi_key->sdi_key->id
+			<< " " << ib_sdi_key->sdi_key->type
+			<< " copy_num: " << copy_num
+			<< " input_sdi " << (char*)sdi;
+	);
+
 	ib_crsr_t	ib_crsr = NULL;
 	ib_err_t	err = ib_sdi_open_table(
 		tablespace_id, copy_num, trx, &ib_crsr);
@@ -3323,6 +3292,15 @@ ib_sdi_set(
 	err = ib_cursor_moveto(ib_crsr, key_tpl, IB_CUR_LE, 0);
 
 	if (err == DB_SUCCESS) {
+
+		DBUG_EXECUTE_IF("ib_sdi",
+			ib::info() << "ib_sdi: sdi_set: " << tablespace_id
+			<< "Key: " << ib_sdi_key->sdi_key->id
+			<< " " << ib_sdi_key->sdi_key->type
+			<< " copy_num: " << copy_num
+			<< " Existing row found";
+		);
+
 		/* Existing row found. We should update it. */
 		ib_tpl_t	old_tuple = ib_clust_read_tuple_create(ib_crsr);
 		ib_cursor_stmt_begin(ib_crsr);
@@ -3331,6 +3309,15 @@ ib_sdi_set(
 		err = ib_cursor_update_row(ib_crsr, old_tuple, new_tuple);
 		ib_tuple_delete(old_tuple);
 	} else {
+
+		DBUG_EXECUTE_IF("ib_sdi",
+			ib::info() << "ib_sdi: sdi_set: " << tablespace_id
+			<< "Key: " << ib_sdi_key->sdi_key->id
+			<< " " << ib_sdi_key->sdi_key->type
+			<< " copy_num: " << copy_num
+			<< "Fresh Insert";
+		);
+
 		/* Row not found. This is fresh insert */
 		err = ib_cursor_insert_row(ib_crsr, new_tuple);
 	}

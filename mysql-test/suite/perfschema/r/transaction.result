@@ -246,13 +246,13 @@ INSERT INTO t1 VALUES (602, 'IMPLICIT COMMIT');
 ALTER TABLE t1 ADD KEY (s3);
 ERROR 42000: Key column 's3' doesn't exist in table
 
-## Expect 0 active transactions, 1 committed transaction
+## Expect 0 active transactions, 0 committed transaction
 CALL transaction_verifier(0, @con1_thread_id, 'transaction', 'ACTIVE',    0, '', '', '', '', 'READ WRITE', '', 'NO', 0, 0, 0, 0);
 ACTUAL	EXPECTED
      0	       0
-CALL transaction_verifier(0, @con1_thread_id, 'transaction', 'COMMITTED', 0, '', '', '', '', 'READ WRITE', '', 'NO', 0, 0, 0, 1);
+CALL transaction_verifier(0, @con1_thread_id, 'transaction', 'COMMITTED', 0, '', '', '', '', 'READ WRITE', '', 'NO', 0, 0, 0, 0);
 ACTUAL	EXPECTED
-     1	       1
+     0	       0
 CALL transaction_verifier(1, @con1_thread_id, 'transaction', 'COMMITTED', 0, '', '', '', '', 'READ WRITE', '', 'NO', 0, 0, 0, 1);
 ACTUAL	EXPECTED
      1	       1

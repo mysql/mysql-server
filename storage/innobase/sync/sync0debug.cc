@@ -523,7 +523,6 @@ LatchDebug::LatchDebug()
 	LEVEL_MAP_INSERT(SYNC_TREE_NODE_FROM_HASH);
 	LEVEL_MAP_INSERT(SYNC_TREE_NODE_NEW);
 	LEVEL_MAP_INSERT(SYNC_INDEX_TREE);
-	LEVEL_MAP_INSERT(SYNC_PERSIST_METADATA_BUFFER);
 	LEVEL_MAP_INSERT(SYNC_PERSIST_DIRTY_TABLES);
 	LEVEL_MAP_INSERT(SYNC_PERSIST_AUTOINC);
 	LEVEL_MAP_INSERT(SYNC_PERSIST_CHECKPOINT);
@@ -990,28 +989,20 @@ LatchDebug::check_order(
 		ut_a(find(latches, SYNC_IBUF_PESS_INSERT_MUTEX) == NULL);
 		break;
 
-	case SYNC_PERSIST_METADATA_BUFFER:
-
-		basic_check(latches, level, SYNC_LOG);
-		ut_a(find(latches, SYNC_PERSIST_DIRTY_TABLES) != NULL);
-		break;
-
 	case SYNC_PERSIST_DIRTY_TABLES:
 
 		basic_check(latches, level, SYNC_LOG);
-		ut_a(find(latches, SYNC_PERSIST_METADATA_BUFFER) == NULL);
 		break;
 
 	case SYNC_PERSIST_AUTOINC:
 
 		basic_check(latches, level, SYNC_LOG);
-		ut_a(find(latches, SYNC_PERSIST_METADATA_BUFFER) == NULL);
 		ut_a(find(latches, SYNC_PERSIST_DIRTY_TABLES) == NULL);
+		break;
 
 	case SYNC_PERSIST_CHECKPOINT:
 
 		basic_check(latches, level, SYNC_LOG);
-		ut_a(find(latches, SYNC_PERSIST_METADATA_BUFFER) == NULL);
 		ut_a(find(latches, SYNC_PERSIST_DIRTY_TABLES) == NULL);
 		ut_a(find(latches, SYNC_PERSIST_AUTOINC) == NULL);
 		break;
@@ -1401,10 +1392,6 @@ sync_latch_meta_init()
 
 	LATCH_ADD_MUTEX(DICT_FOREIGN_ERR, SYNC_NO_ORDER_CHECK,
 			dict_foreign_err_mutex_key);
-
-	LATCH_ADD_RWLOCK(PERSIST_METADATA_BUFFER,
-			 SYNC_PERSIST_METADATA_BUFFER,
-			 index_tree_rw_lock_key);
 
 	LATCH_ADD_MUTEX(DICT_PERSIST_DIRTY_TABLES,
 			SYNC_PERSIST_DIRTY_TABLES,

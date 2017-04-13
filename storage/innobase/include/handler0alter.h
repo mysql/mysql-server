@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2005, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2005, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -20,6 +20,9 @@ this program; if not, write to the Free Software Foundation, Inc.,
 @file include/handler0alter.h
 Smart ALTER TABLE
 *******************************************************/
+
+#ifndef handler0alter_h
+#define handler0alter_h
 
 /*************************************************************//**
 Copies an InnoDB record to table->record[0]. */
@@ -103,3 +106,5 @@ struct ib_sequence_t {
 	/** true if no more values left in the sequence */
 	bool		m_eof;
 };
+
+#endif /* handler0alter_h */

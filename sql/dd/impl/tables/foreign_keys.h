@@ -63,6 +63,11 @@ public:
 
 public:
   static Object_key *create_key_by_table_id(Object_id table_id);
+
+  static Object_key *create_key_by_referenced_name(
+    const String_type &referenced_catalog,
+    const String_type &referenced_schema,
+    const String_type &referenced_table);
 };
 
 ///////////////////////////////////////////////////////////////////////////

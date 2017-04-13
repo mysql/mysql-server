@@ -34,7 +34,7 @@ USE sys;
 
 CREATE OR REPLACE DEFINER = 'mysql.sys'@'localhost' SQL SECURITY INVOKER  VIEW version ( sys_version, mysql_version ) AS  SELECT '1.6.0' AS sys_version,  version() AS mysql_version;
 
-CREATE TABLE IF NOT EXISTS sys_config ( variable VARCHAR(128) PRIMARY KEY, value VARCHAR(128), set_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, set_by VARCHAR(128) ) ENGINE = InnoDB;
+CREATE TABLE IF NOT EXISTS sys_config ( variable VARCHAR(128) PRIMARY KEY, value VARCHAR(128), set_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, set_by VARCHAR(128) ) ENGINE = InnoDB TABLESPACE=mysql;
 
 INSERT IGNORE INTO sys.sys_config (variable, value) VALUES ('statement_truncate_len', 64), ('statement_performance_analyzer.limit', 100), ('statement_performance_analyzer.view', NULL), ('diagnostics.allow_i_s_tables', 'OFF'), ('diagnostics.include_raw', 'OFF'), ('ps_thread_trx_info.max_length', 65535);
 

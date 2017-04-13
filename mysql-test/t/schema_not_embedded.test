@@ -15,6 +15,7 @@ CALL mtr.add_suppression("InnoDB: Cannot open datafile");
 CALL mtr.add_suppression("InnoDB: The error means the system cannot find");
 CALL mtr.add_suppression("InnoDB: File ./s/t_innodb.ibd");
 CALL mtr.add_suppression("InnoDB: Operating system error number");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: Unable to open tablespace .* \\(flags=.*, filename=./s/t_innodb.ibd");
 --enable_query_log
 
 # 1. Create schema, remove directory, then try schema statements.

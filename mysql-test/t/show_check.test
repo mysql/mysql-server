@@ -1491,7 +1491,6 @@ CREATE TABLE `t1` (
 
 DROP TABLE t1;
 
-
 --echo #
 --echo # Bug#24800048 - SHOW TABLES FROM DATABASE HANGS ON WINDOWS PLATFORM
 --echo #
@@ -1513,6 +1512,53 @@ SHOW TABLES FROM UNKNOWN;
 SHOW TABLES FROM UNKNOWN;
 
 DROP DATABASE unknown;
+
+--echo #
+--echo # WL#9570 -  Extend SHOW statements to list hidden columns and index
+--echo #            information.
+--echo #
+--echo #            Test case to verify hidden columns, index and index elements
+--echo #            display in INFORMATION_SCHEMA queries and SHOW statements.
+--echo #            EXPECTATION: INFORMATION_SCHEMA.COLUMNS/STATISTICS*/KEY_COLUMN_USAGE
+--echo #                         SHOW [FULL] COLUMNS and SHOW INDEX should not display
+--echo #                         hidden columns, indexes and index elements.
+--echo #                         SHOW EXTENED [FULL] COLUMNS and SHOW EXTENDED INDEX
+--echo #                         should display hidden columns, index and index elements
+--echo #                         too.
+--echo #
+--echo #
+CREATE TABLE t1 (c1 int(11) NOT NULL,
+                 c2 int(11) DEFAULT NULL,
+                 c3 text,
+                 PRIMARY KEY (c1));
+CREATE INDEX c2d ON t1(c2); 
+
+--echo # With fix, following statements should not show the hidden columns.
+--replace_column 3 # 4 # 5 # 6 #
+SHOW COLUMNS FROM t1;
+--replace_column 3 # 4 # 5 # 6 # 7 # 8 # 9 #
+SHOW FULL COLUMNS FROM t1;
+SELECT table_name, column_name, column_type FROM
+       INFORMATION_SCHEMA.COLUMNS WHERE table_name='t1';
+--echo # EXTENDED keyword is introduced to list the hidden columns.
+--replace_column 3 # 4 # 5 # 6 #
+SHOW EXTENDED COLUMNS FROM t1;
+--replace_column 3 # 4 # 5 # 6 # 7 # 8 # 9 #
+SHOW EXTENDED FULL COLUMNS FROM t1;
+
+--echo # With fix, following statements should not show the hidden index and
+--echo # index columns.
+SHOW INDEX FROM t1;
+SELECT table_schema, table_name, index_name, column_name FROM
+       INFORMATION_SCHEMA.STATISTICS WHERE table_name='t1';
+SELECT * FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS WHERE table_name='t1';
+SELECT constraint_schema, constraint_name, table_name, column_name FROM
+       INFORMATION_SCHEMA.KEY_COLUMN_USAGE WHERE table_name='t1';
+
+--echo # EXTENDED keyword is introduced to list the hidden index and index
+--echo # columns.
+SHOW EXTENDED INDEX FROM t1;
+DROP TABLE t1;
 
 # Wait till all disconnects are completed
 --source include/wait_until_count_sessions.inc

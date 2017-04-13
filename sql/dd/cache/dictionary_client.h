@@ -889,6 +889,32 @@ public:
 
 
   /**
+    Fetch the names of tables (children) which have foreign keys
+    defined to the given table (parent).
+
+    @param        parent_schema    Schema name of parent table.
+    @param        parent_name      Table name of parent table.
+    @param[out]   children_schemas Schema names of child tables.
+    @param[out]   children_names   Table names of child tables.
+
+    @return      true   Failure (error is reported).
+    @return      false  Success.
+
+    @note Child tables are identified by matching pairs of names.
+
+    @note This is a temporary workaround until WL#6049. This function will
+          *not* take any locks protecting against DDL changes. So the returned
+          names could become invalid at any time - e.g. due to DROP DATABASE,
+          DROP TABLE or DROP FOREIGN KEY.
+  */
+  bool fetch_fk_children_uncached(
+    const String_type &parent_schema,
+    const String_type &parent_name,
+    std::vector<String_type> *children_schemas,
+    std::vector<String_type> *children_names);
+
+
+  /**
     Mark all objects acquired by this client as not being used anymore.
 
     This function will release all objects from the client's registry.

@@ -53,6 +53,7 @@ let $wait_condition = SELECT stat_value = 10
 --source include/wait_condition.inc
 
 --echo # Cardinality is correct even without ANALYZE.
+--replace_column 7 #
 SHOW KEYS FROM t1 WHERE key_name LIKE 'latest%';
 DROP TABLE t1;
 

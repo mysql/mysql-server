@@ -16,8 +16,8 @@
 #ifndef DD_TABLE_INCLUDED
 #define DD_TABLE_INCLUDED
 
-#include <sys/types.h>
 #include <memory>                    // std:unique_ptr
+#include <sys/types.h>
 #include <string>
 
 #include "binary_log_types.h"        // enum_field_types

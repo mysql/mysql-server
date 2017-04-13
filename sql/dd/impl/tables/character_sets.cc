@@ -69,6 +69,12 @@ Character_sets::Character_sets()
 
   m_target_def.add_index("PRIMARY KEY(id)");
   m_target_def.add_index("UNIQUE KEY(name)");
+  /*
+    Create supporting index for foreign key on default_collation_id in advance
+    So later ALTER TABLE which adds this cyclic foreign key is metadata-only
+    change.
+  */
+  m_target_def.add_index("KEY(default_collation_id)");
 
   m_target_def.add_cyclic_foreign_key("FOREIGN KEY (default_collation_id) "
                                       "REFERENCES collations(id)");

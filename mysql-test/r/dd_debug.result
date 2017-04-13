@@ -24,7 +24,10 @@ DROP TABLE t1;
 #
 ###################################################################
 #
-call mtr.add_suppression("\\[ERROR\\] InnoDB: Table `test`.`t1` .*");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: Operating system error number .* in a file operation");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: The error means the system cannot find the path specified");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: Cannot open datafile for read-only");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: Cannot delete tablespace .* because it is not found in the tablespace memory cache");
 # 1. Schemata
 # 1.1 Fail while storing dd object during create.
 SET DEBUG= '+d, fail_while_storing_dd_object';
@@ -115,8 +118,6 @@ ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 SET DEBUG= '-d, fail_while_dropping_dd_object';
 # Do it for real.
 DROP TABLE IF EXISTS t1;
-Warnings:
-Warning	1146	Table 'test.t1' doesn't exist
 ###################################################################
 #
 # 3. Views
@@ -180,7 +181,6 @@ COUNT(*)
 #       ts1 from mysql.tablespaces.
 # Do it for real.
 DROP TABLESPACE ts1;
-ERROR HY000: Failed to drop TABLESPACE ts1
 SELECT COUNT(*) FROM mysql.tablespaces WHERE name LIKE 'ts1';
 COUNT(*)
 0

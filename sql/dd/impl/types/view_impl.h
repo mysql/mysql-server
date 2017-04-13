@@ -257,9 +257,9 @@ public:
   { return Abstract_table_impl::get_column(name); }
   Column *get_column(const String_type name)
   { return Abstract_table_impl::get_column(name); }
-  virtual bool hidden() const
+  virtual enum_hidden_type hidden() const
   { return Abstract_table_impl::hidden(); }
-  virtual void set_hidden(bool hidden)
+  virtual void set_hidden(enum_hidden_type hidden)
   { Abstract_table_impl::set_hidden(hidden); }
 
 private:

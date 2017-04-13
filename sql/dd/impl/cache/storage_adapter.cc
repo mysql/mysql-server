@@ -39,6 +39,7 @@
 #include "dd/types/table_stat.h"              // Table_stat
 #include "dd/types/tablespace.h"              // Tablespace
 #include "dd/types/view.h"                    // View
+#include "dd/upgrade/upgrade.h"               // allow_sdi_creation
 #include "debug_sync.h"                       // DEBUG_SYNC
 #include "log.h"                              // sql_print_error
 #include "mutex_lock.h"                       // Mutex_lock
@@ -308,7 +309,10 @@ bool Storage_adapter::store(THD *thd, T *object)
     return true;
   }
 
+  // Do not create SDIs for tablespaces and tables while creating
+  // dictionary entry during upgrade.
   if (bootstrap::stage() > bootstrap::BOOTSTRAP_CREATED &&
+      dd::upgrade::allow_sdi_creation() &&
       sdi::store(thd, object))
     return true;
 

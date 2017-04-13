@@ -290,10 +290,10 @@ INSERT INTO t1 VALUES (602, 'IMPLICIT COMMIT');
 ALTER TABLE t1 ADD KEY (s3);
 
 --echo
---echo ## Expect 0 active transactions, 1 committed transaction
+--echo ## Expect 0 active transactions, 0 committed transaction
 --connection default
 CALL transaction_verifier(0, @con1_thread_id, 'transaction', 'ACTIVE',    0, '', '', '', '', 'READ WRITE', '', 'NO', 0, 0, 0, 0);
-CALL transaction_verifier(0, @con1_thread_id, 'transaction', 'COMMITTED', 0, '', '', '', '', 'READ WRITE', '', 'NO', 0, 0, 0, 1);
+CALL transaction_verifier(0, @con1_thread_id, 'transaction', 'COMMITTED', 0, '', '', '', '', 'READ WRITE', '', 'NO', 0, 0, 0, 0);
 CALL transaction_verifier(1, @con1_thread_id, 'transaction', 'COMMITTED', 0, '', '', '', '', 'READ WRITE', '', 'NO', 0, 0, 0, 1);
 CALL clear_transaction_tables();
 

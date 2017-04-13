@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -26,6 +26,7 @@
 #include "dd/impl/bootstrapper.h"          // dd::Bootstrapper
 #include "dd/impl/system_registry.h"       // dd::System_tables
 #include "dd/impl/tables/version.h"        // get_actual_dd_version()
+#include "dd/upgrade/upgrade.h"            // dd::upgrade
 #include "m_ctype.h"
 #include "mdl.h"
 #include "my_dbug.h"
@@ -100,20 +101,20 @@ bool Dictionary_impl::init(enum_dd_init_type dd_init)
   */
   else if (dd_init == enum_dd_init_type::DD_RESTART_OR_UPGRADE)
     result= ::bootstrap::run_bootstrap_thread(NULL,
-                         &bootstrap::upgrade_do_pre_checks_and_initialize_dd,
+                         &upgrade::do_pre_checks_and_initialize_dd,
                          SYSTEM_THREAD_DD_INITIALIZE);
 
   // Populate metadata in DD tables from old data directory and do cleanup.
   else if (dd_init == enum_dd_init_type::DD_POPULATE_UPGRADE)
     result= ::bootstrap::run_bootstrap_thread(NULL,
-                         &bootstrap::upgrade_fill_dd_and_finalize,
+                         &upgrade::fill_dd_and_finalize,
                          SYSTEM_THREAD_DD_INITIALIZE);
 
 
   // Delete DD tables and do cleanup in case of error in upgrade
   else if (dd_init == enum_dd_init_type::DD_DELETE)
     result= ::bootstrap::run_bootstrap_thread(NULL,
-                         &bootstrap::delete_dictionary_and_cleanup,
+                         &upgrade::terminate,
                          SYSTEM_THREAD_DD_INITIALIZE);
 
   /* Now that the dd is initialized, delete the cost model. */
@@ -159,14 +160,8 @@ uint Dictionary_impl::get_target_dd_version()
 
 uint Dictionary_impl::get_actual_dd_version(THD *thd)
 {
-  bool not_used;
-  return dd::tables::Version::instance().get_actual_dd_version(thd, &not_used);
+  return dd::tables::Version::instance().get_actual_dd_version(thd);
 }
-
-///////////////////////////////////////////////////////////////////////////
-
-uint Dictionary_impl::get_actual_dd_version(THD *thd, bool *not_used)
-{ return dd::tables::Version::instance().get_actual_dd_version(thd, not_used); }
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -392,7 +387,7 @@ bool acquire_exclusive_table_mdl(THD *thd,
                                  MDL_ticket **out_mdl_ticket)
 {
   return acquire_mdl(thd, MDL_key::TABLE, schema_name, table_name, no_wait,
-                           MDL_EXCLUSIVE, MDL_EXPLICIT, out_mdl_ticket);
+                           MDL_EXCLUSIVE, MDL_TRANSACTION, out_mdl_ticket);
 }
 
 bool acquire_exclusive_schema_mdl(THD *thd,

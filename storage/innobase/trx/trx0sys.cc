@@ -59,6 +59,13 @@ ReadView::check_trx_id_sanity(
 	trx_id_t		id,
 	const table_name_t&	name)
 {
+	if (&name == &dict_sys->dynamic_metadata->name) {
+		/* The table mysql.innodb_dynamic_metadata uses a
+		constant DB_TRX_ID=~0. */
+		ut_ad(id == (1ULL << 48) - 1);
+		return;
+	}
+
 	if (id >= trx_sys->max_trx_id) {
 
 		ib::warn() << "A transaction id"

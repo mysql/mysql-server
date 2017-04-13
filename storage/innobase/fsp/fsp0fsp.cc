@@ -259,7 +259,7 @@ fsp_is_undo_tablespace(space_id_t space_id)
 {
 	/* Quick elimination.  space_id==0 is most common. */
 	if (fsp_is_system_or_temp_tablespace(space_id)
-	    || space_id >= SRV_LOG_SPACE_FIRST_ID
+	    || dict_sys_t::is_reserved(space_id)
 	    /* Before trx_sys_undo_spaces is set, we do not know
 	    what the undo tablespace ID range is. Assume this is
 	    not an undo space. */

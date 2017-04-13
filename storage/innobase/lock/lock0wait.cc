@@ -282,17 +282,13 @@ lock_wait_suspend_thread(
 
 		DEBUG_SYNC_C("lock_wait_release_s_latch_before_sleep");
 		break;
-	default:
-		/* There should never be a lock wait when the
-		dictionary latch is reserved in X mode.  Dictionary
-		transactions should only acquire locks on dictionary
-		tables, not other tables. All access to dictionary
-		tables should be covered by dictionary
-		transactions. */
-		ut_error;
+	case RW_X_LATCH:
+		/* We may wait for rec lock in dd holding
+		dict_operation_lock for creating FTS AUX table */
+		ut_ad(!mutex_own(&dict_sys->mutex));
+		rw_lock_x_unlock(dict_operation_lock);
+		break;
 	}
-
-	ut_a(trx->dict_operation_lock_mode == 0);
 
 	/* Suspend this thread and wait for the event. */
 
@@ -328,9 +324,10 @@ lock_wait_suspend_thread(
 		srv_conc_force_enter_innodb(trx);
 	}
 
-	if (had_dict_lock) {
-
+	if (had_dict_lock == RW_S_LATCH) {
 		row_mysql_freeze_data_dictionary(trx);
+	} else if (had_dict_lock == RW_X_LATCH) {
+		rw_lock_x_lock(dict_operation_lock);
 	}
 
 	wait_time = ut_difftime(ut_time(), slot->suspend_time);

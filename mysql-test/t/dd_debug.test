@@ -42,9 +42,11 @@ DROP TABLE t1;
 --echo ###################################################################
 --echo #
 
-# InnoDB will complain when trying to drop a table which is not
-# present in the SE.
-call mtr.add_suppression("\\[ERROR\\] InnoDB: Table `test`.`t1` .*");
+# These can be removed after WL#9536 is implemented
+call mtr.add_suppression("\\[ERROR\\] InnoDB: Operating system error number .* in a file operation");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: The error means the system cannot find the path specified");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: Cannot open datafile for read-only");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: Cannot delete tablespace .* because it is not found in the tablespace memory cache");
 
 --echo # 1. Schemata
 --echo # 1.1 Fail while storing dd object during create.
@@ -242,7 +244,6 @@ SELECT COUNT(*) FROM mysql.tablespaces WHERE name LIKE 'ts1';
 --echo # Note: The statement below fails, but removes entry for
 --echo #       ts1 from mysql.tablespaces.
 --echo # Do it for real.
---error ER_DROP_FILEGROUP_FAILED
 DROP TABLESPACE ts1;
 SELECT COUNT(*) FROM mysql.tablespaces WHERE name LIKE 'ts1';
 SET SESSION debug= '-d,skip_dd_table_access_check';

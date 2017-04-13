@@ -649,6 +649,9 @@ static const size_t UNIV_SECTOR_SIZE = 512;
 myisam/sp_defs.h. We only support 2 dimension data */
 #define SPDIMS          2
 
+/** Hard-coded data dictionary entry */
+# define INNODB_DD_TABLE(name, n_indexes) { name, n_indexes }
+
 /** Explicitly call the destructor, this is to get around Clang bug#12350.
 @param[in,out]	p		Instance on which to call the destructor */
 template<typename T>

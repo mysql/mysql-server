@@ -1682,7 +1682,7 @@ fil_mutex_enter_and_prepare_for_io(
 	for (;;) {
 		mutex_enter(&fil_system->mutex);
 
-		if (space_id == 0 || space_id >= SRV_LOG_SPACE_FIRST_ID) {
+		if (space_id == 0 || dict_sys_t::is_reserved(space_id)) {
 			/* We keep log files and system tablespace files always
 			open; this is important in preventing deadlocks in this
 			module, as a page read completion often performs
@@ -1985,7 +1985,8 @@ fil_space_create(
 
 	if (fil_type_is_data(purpose)
 	    && !recv_recovery_on
-	    && id > fil_system->max_assigned_id) {
+	    && id > fil_system->max_assigned_id
+	    && !dict_sys_t::is_reserved(id)) {
 
 		if (!fil_system->space_id_reuse_warned) {
 			fil_system->space_id_reuse_warned = true;
@@ -2027,7 +2028,7 @@ fil_space_create(
 
 	UT_LIST_ADD_LAST(fil_system->space_list, space);
 
-	if (id < SRV_LOG_SPACE_FIRST_ID && id > fil_system->max_assigned_id) {
+	if (!dict_sys_t::is_reserved(id) && id > fil_system->max_assigned_id) {
 
 		fil_system->max_assigned_id = id;
 	}
@@ -2060,16 +2061,17 @@ fil_assign_new_space_id(
 
 	id++;
 
-	if (id > (SRV_LOG_SPACE_FIRST_ID / 2) && (id % 1000000UL == 0)) {
+	space_id_t	reserved_space_id = dict_sys_t::reserved_space_id;
+	if (id > (reserved_space_id / 2) && (id % 1000000UL == 0)) {
 		ib::warn() << "You are running out of new single-table"
 			" tablespace id's. Current counter is " << id
-			<< " and it must not exceed" << SRV_LOG_SPACE_FIRST_ID
+			<< " and it must not exceed " << reserved_space_id
 			<< "! To reset the counter to zero you have to dump"
 			" all your tables and recreate the whole InnoDB"
 			" installation.";
 	}
 
-	success = (id < SRV_LOG_SPACE_FIRST_ID);
+	success = !dict_sys_t::is_reserved(id);
 
 	if (success) {
 		*space_id = fil_system->max_assigned_id = id;
@@ -2516,7 +2518,7 @@ fil_set_max_space_id_if_bigger(
 /*===========================*/
 	space_id_t	max_id)	/*!< in: maximum known id */
 {
-	if (max_id >= SRV_LOG_SPACE_FIRST_ID) {
+	if (dict_sys_t::is_reserved(max_id)) {
 		ib::fatal() << "Max tablespace id is too high, " << max_id;
 	}
 
@@ -2659,9 +2661,6 @@ fil_op_write_log(
 
 	/* TODO: support user-created multi-file tablespaces */
 	ut_ad(first_page_no == 0 || space_id == TRX_SYS_SPACE);
-
-	/* fil_name_parse() requires this */
-	ut_ad(strchr(path, OS_PATH_SEPARATOR) != NULL);
 
 	log_ptr = mlog_open(mtr, 11 + 4 + 2 + 1);
 
@@ -3179,12 +3178,9 @@ fil_space_undo_check_if_opened(
 	need to open now.  If not, maybe the srv_undo_dir has changed. */
 
 	if (!fil_paths_equal(file_name, name.c_str())) {
-
-		ib::error()
-			<< "The undo tablespace '" << file_name << "' cannot"
-			<< " be opened. Have you changed the setting of"
-			<< " --innodb-undo-directory? Last known path for"
-			<< " this undo tablespace was '" << name << "'";
+		/* This is a different space with different name. So
+		this undo tablespace and all following ones don't exist.
+		Just return silently because this is expceted */
 
 		return(DB_ERROR);
 	}
@@ -4019,7 +4015,6 @@ fil_ibd_create(
 
 	ut_ad(!fsp_is_system_or_temp_tablespace(space_id));
 	ut_ad(!srv_read_only_mode);
-	ut_a(space_id < SRV_LOG_SPACE_FIRST_ID);
 	ut_a(size >= FIL_IBD_FILE_INITIAL_SIZE);
 	ut_a(fsp_flags_is_valid(flags));
 
@@ -8351,8 +8346,7 @@ Fil_Open::from_file(bool recovery)
 
 	for (const auto& space : files[i].m_spaces) {
 
-		if (space.first == TRX_SYS_SPACE
-		    || space.first >= SRV_LOG_SPACE_FIRST_ID) {
+		if (space.first == TRX_SYS_SPACE){
 
 			continue;
 		}
@@ -8704,12 +8698,17 @@ fil_tablespace_name_recover(
 
 	os_normalize_path(name);
 
-	if (len > sizeof "/a.ibd"
-	    && !memcmp(end_ptr - 5, DOT_IBD, 5)
-	    && memchr(name, OS_PATH_SEPARATOR, len - 1) != NULL) {
+	if (page_id.space() != TRX_SYS_SPACE
+	    && !memcmp(end_ptr - 5, DOT_IBD, 5)) {
 
 		/* User-defined tablespace (*.ibd file) */
 
+		if (page_id.page_no() != 0) {
+			corrupt = true;
+		}
+
+	} else if (strcmp(name, dict_sys_t::dd_space_file_name) == 0) {
+		/* new dd tablespace (mysql.ibd) */
 		if (page_id.page_no() != 0) {
 			corrupt = true;
 		}

@@ -5001,7 +5001,7 @@ uint prep_alter_part_table(THD *thd, TABLE *table, Alter_info *alter_info,
   }
 
   if (thd->work_part_info &&
-      !(thd->work_part_info= thd->lex->part_info->get_clone(true)))
+      !(thd->work_part_info= thd->lex->part_info->get_clone(thd, true)))
     DBUG_RETURN(TRUE);
 
   /* ALTER_ADMIN_PARTITION is handled in mysql_admin_table */
@@ -5057,7 +5057,7 @@ uint prep_alter_part_table(THD *thd, TABLE *table, Alter_info *alter_info,
       (through handler::set_part_info()). That way it will not get reused
       by next statement, even if the table object is reused due to LOCK TABLE.
     */
-    tab_part_info= table->part_info->get_full_clone();
+    tab_part_info= table->part_info->get_full_clone(thd);
     if (!tab_part_info)
     {
       mem_alloc_error(sizeof(partition_info));
@@ -5905,6 +5905,13 @@ the generated partition syntax in a correct manner.
 
     if (tab_part_info)
     {
+      /*
+        The table must be reopened, this is necessary to avoid situations
+        where a failing ALTER leaves behind a TABLE object which has its
+        partitioning information updated by the SE, as InnoDB is doing in
+        update_create_info().
+      */
+      table->m_needs_reopen= true;
       if (alter_info->flags & Alter_info::ALTER_REMOVE_PARTITIONING)
       {
         DBUG_PRINT("info", ("Remove partitioning"));
@@ -5926,7 +5933,7 @@ the generated partition syntax in a correct manner.
 
           Create a copy of TABLE::part_info to be able to modify it freely.
         */
-        if (!(tab_part_info= tab_part_info->get_clone()))
+        if (!(tab_part_info= tab_part_info->get_clone(thd)))
           DBUG_RETURN(TRUE);
         thd->work_part_info= tab_part_info;
         if (create_info->used_fields & HA_CREATE_USED_ENGINE &&
@@ -6771,7 +6778,7 @@ static bool handle_alter_part_end(ALTER_PARTITION_PARAM_TYPE *lpt,
   DBUG_ASSERT(table->m_needs_reopen);
 
   /* First clone the part_info to save the log entries. */
-  part_info= lpt->part_info->get_clone();
+  part_info= lpt->part_info->get_clone(thd);
 
   DBUG_ASSERT(error ||
               thd->mdl_context.owns_equal_or_stronger_lock(MDL_key::TABLE,

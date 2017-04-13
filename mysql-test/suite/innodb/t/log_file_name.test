@@ -10,6 +10,10 @@
 
 let MYSQLD_DATADIR= `select @@datadir`;
 
+--disable_query_log
+call mtr.add_suppression("\\[ERROR\\] InnoDB: Unable to open tablespace .* \\(flags=.*, filename=");
+--enable_query_log
+
 SET GLOBAL innodb_file_per_table=ON;
 SET GLOBAL innodb_master_thread_disabled_debug=1;
 
@@ -167,6 +171,7 @@ call mtr.add_suppression("InnoDB: Could not find a valid tablespace file for `te
 call mtr.add_suppression("InnoDB: Tablespace open failed for .test.\..u[1-5]., ignored");
 call mtr.add_suppression("InnoDB: Ignoring tablespace `test/u[1-6]` because it could not be opened.");
 call mtr.add_suppression("InnoDB: Failed to find tablespace for table .* in the cache. Attempting to load the tablespace with space id");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: Unable to open tablespace .* \\(flags=.*, filename=");
 --enable_query_log
 
 SET GLOBAL innodb_master_thread_disabled_debug=1;

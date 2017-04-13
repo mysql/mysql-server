@@ -28,6 +28,7 @@ Created 1/8/1996 Heikki Tuuri
 #define dict0dict_h
 
 #include "univ.i"
+#include "dd/object_id.h"
 #include "data0data.h"
 #include "data0type.h"
 #include "dict0mem.h"
@@ -51,6 +52,8 @@ Created 1/8/1996 Heikki Tuuri
 
 #define	DICT_HEAP_SIZE		100	/*!< initial memory heap size when
 					creating a table or index object */
+/* Maximum hardcoded dictionary tables. */
+#define DICT_MAX_DD_TABLES	1024
 
 /** The Maximum number of SDI Indexes in a tablespace
 Note: Increasing this will not increase number of SDI copies stored
@@ -59,6 +62,11 @@ store the SDI Index root page numbers */
 const ulint	MAX_SDI_COPIES	= 2;
 /** Space id of system tablespace */
 const space_id_t	SYSTEM_TABLE_SPACE = TRX_SYS_SPACE;
+
+/* Maximum table id for InnoDB system tables */
+#define INNODB_SYS_TABLE_ID_MAX		16
+/* Maximum index id for InnoDB system tables */
+#define INNODB_SYS_INDEX_ID_MAX		18
 
 /********************************************************************//**
 Get the database name length in a table name.
@@ -419,6 +427,8 @@ dict_foreign_add_to_cache(
 	bool			check_charsets,
 				/*!< in: whether to check charset
 				compatibility */
+	bool			can_free_fk,
+				/*!< in: whether free existing FK */
 	dict_err_ignore_t	ignore_err)
 				/*!< in: error to be ignored */
 	MY_ATTRIBUTE((warn_unused_result));
@@ -1390,12 +1400,28 @@ void
 dict_table_prevent_eviction(
 /*========================*/
 	dict_table_t*	table);	/*!< in: table to prevent eviction */
+
+/** Allow the table to be evicted by moving a table to the LRU list from
+the non-LRU list if it is not already there.
+@param[in]	table	InnoDB table object can be evicted */
+UNIV_INLINE
+void
+dict_table_allow_eviction(
+	dict_table_t*	table);
+
 /**********************************************************************//**
 Move a table to the non LRU end of the LRU list. */
 void
 dict_table_move_from_lru_to_non_lru(
 /*================================*/
 	dict_table_t*	table);	/*!< in: table to move from LRU to non-LRU */
+
+/** Move a table to the LRU end from the non LRU list.
+@param[in]	table	InnoDB table object */
+void
+dict_table_move_from_non_lru_to_lru(
+	dict_table_t*	table);
+
 /**********************************************************************//**
 Move to the most recently used segment of the LRU list. */
 void
@@ -1454,6 +1480,13 @@ struct dict_sys_t{
 	dict_table_t*	sys_fields;	/*!< SYS_FIELDS table */
 	dict_table_t*	sys_virtual;	/*!< SYS_VIRTUAL table */
 
+	/** Permanent handle to mysql.innodb_table_stats */
+	dict_table_t*	table_stats;
+	/** Permanent handle to mysql.innodb_index_stats */
+	dict_table_t*	index_stats;
+	/** Permanent handle to mysql.innodb_dynamic_metadata */
+	dict_table_t*	dynamic_metadata;
+
 	/*=============================*/
 	UT_LIST_BASE_NODE_T(dict_table_t)
 			table_LRU;	/*!< List of tables that can be evicted
@@ -1461,10 +1494,90 @@ struct dict_sys_t{
 	UT_LIST_BASE_NODE_T(dict_table_t)
 			table_non_LRU;	/*!< List of tables that can't be
 					evicted from the cache */
-};
 
-/** Clustered index id of DDTableBuffer */
-#define	DICT_TBL_BUFFER_ID	0xFFFFFFFFFF000000ULL
+	/** Iterate each table.
+	@tparam Functor visitor
+	@param[in,out]  functor to be invoked on each table */
+	template<typename Functor>
+	void for_each_table(Functor& functor)
+	{
+		mutex_enter(&mutex);
+
+		hash_table_t* hash = table_id_hash;
+
+		for (ulint i = 0; i < hash->n_cells; i++) {
+			for (dict_table_t* table = static_cast<dict_table_t*>(
+				     HASH_GET_FIRST(hash, i));
+			     table;
+			     table = static_cast<dict_table_t*>(
+				     HASH_GET_NEXT(id_hash, table))) {
+				functor(table);
+			}
+		}
+
+		mutex_exit(&mutex);
+	}
+
+	/** Check if a tablespace id is a reserved one
+	@param[in]	space	tablespace id to check
+	@return true if a reserved tablespace id, otherwise false */
+	static bool is_reserved(space_id_t space)
+	{ return(space >= dict_sys_t::reserved_space_id); }
+
+	/** Check if a table is hardcoded.
+	@param[in]	id	table ID
+	@retval	true	if the table is a persistent hard-coded table
+			(dict_table_t::is_temporary() will not hold)
+	@retval	false	if the table is not hard-coded
+			(it can be persistent or temporary) */
+	static bool is_hardcoded(table_id_t id)
+	{
+		/* WL#9535 TODO: Remove this 16 once we get rid of SYS_* tables */
+		return(id < NUM_HARD_CODED_TABLES + INNODB_SYS_TABLE_ID_MAX);
+	}
+
+	/** Number of hard coded table */
+	static constexpr table_id_t	NUM_HARD_CODED_TABLES = 30;
+
+	/** The first ID of the redo log pseudo-tablespace */
+	static constexpr space_id_t	log_space_first_id = 0xFFFFFFF0UL;
+
+	/** The first reserved tablespace ID */
+	static constexpr space_id_t	reserved_space_id = log_space_first_id;
+
+	/** The data dictionary tablespace ID. */
+	static constexpr space_id_t	space_id = 0xFFFFFFFE;
+
+	/** The innodb_temporary tablespace ID. */
+	static constexpr space_id_t	temp_space_id = 0xFFFFFFFD;
+
+	/** The dd::Tablespace::id of the dictionary tablespace. */
+	static constexpr dd::Object_id	dd_space_id = 1;
+
+	/** The dd::Tablespace::id of innodb_system. */
+	static constexpr dd::Object_id	dd_sys_space_id = 2;
+
+	/** The dd::Tablespace::id of innodb_temporary. */
+	static constexpr dd::Object_id	dd_temp_space_id = 3;
+
+	/** The name of the data dictionary tablespace. */
+	static const char*		dd_space_name;
+
+	/** The file name of the data dictionary tablespace. */
+	static const char*		dd_space_file_name;
+
+	/** The name of the hard-coded system tablespace. */
+	static const char*		sys_space_name;
+
+	/** The name of the predefined temporary tablespace. */
+	static const char*		temp_space_name;
+
+	/** The file name of the predefined temporary tablespace. */
+	static const char*		temp_space_file_name;
+
+	/** The hard-coded tablespace name innodb_file_per_table. */
+	static const char*		file_per_table_name;
+};
 
 /** Structure for persisting dynamic metadata of data dictionary */
 struct dict_persist_t {
@@ -1543,8 +1656,8 @@ void
 dict_close(void);
 /*============*/
 
-/** Wrapper for the system table used to buffer the persistent dynamic
-metadata.
+/** Wrapper for the mysql.innodb_dynamic_metadata used to buffer the persistent
+dynamic metadata.
 This should be a table with only clustered index, no delete-marked records,
 no locking, no undo logging, no purge, no adaptive hash index.
 We should always use low level btr functions to access and modify the table.
@@ -1616,24 +1729,48 @@ private:
 
 private:
 
-	/** the clustered index of this system table */
+	/** The clustered index of this system table */
 	dict_index_t*		m_index;
 
-	/** the heap used in replace() method only, which should be
-	freed by replace() before return. This is actually protected
-	by dict_persist->mutex */
-	mem_heap_t*		m_replace_heap;
+	/** The heap used for dynamic allocations, which should always
+	be freed before return */
+	mem_heap_t*		m_dynamic_heap;
 
-	/** the heap used to create the search tuple and replace tuple */
+	/** The heap used to create the search tuple and replace tuple */
 	mem_heap_t*		m_heap;
 
-	/** the tuple used to search for specified table, it's protected
+	/** The tuple used to search for specified table, it's protected
 	by dict_persist->mutex */
 	dtuple_t*		m_search_tuple;
 
-	/** the tuple used to replace for specified table, it's protected
+	/** The tuple used to replace for specified table, it's protected
 	by dict_persist->mutex */
 	dtuple_t*		m_replace_tuple;
+
+private:
+
+	/** Column number of mysql.innodb_dynamic_metadata.table_id */
+	static constexpr unsigned	TABLE_ID_COL_NO = 0;
+
+	/** Column number of mysql.innodb_dynamic_metadata.metadata */
+	static constexpr unsigned	METADATA_COL_NO = 1;
+
+	/** Number of user columns */
+	static constexpr unsigned	N_USER_COLS = METADATA_COL_NO + 1;
+
+	/** Number of columns */
+	static constexpr unsigned	N_COLS = N_USER_COLS + DATA_N_SYS_COLS;
+
+	/** Clustered index field number of
+	mysql.innodb_dynamic_metadata.table_id */
+	static constexpr unsigned	TABLE_ID_FIELD_NO = TABLE_ID_COL_NO;
+	/** Clustered index field number of
+	mysql.innodb_dynamic_metadata.metadata
+	Plusing 2 here skips the DATA_TRX_ID and DATA_ROLL_PTR fields */
+	static constexpr unsigned	METADATA_FIELD_NO = METADATA_COL_NO + 2;
+
+	/** Number of fields in the clustered index */
+	static constexpr unsigned	N_FIELDS = METADATA_FIELD_NO + 1;
 };
 
 /** Mark the dirty_status of a table as METADATA_DIRTY, and add it to the
@@ -1966,12 +2103,30 @@ uint32_t
 dict_sdi_get_copy_num(
 	table_id_t	table_id);
 
+/** Check whether the dict_table_t is a partition.
+A partitioned table on the SQL level is composed of InnoDB tables,
+where each InnoDB table is a [sub]partition including its secondary indexes
+which belongs to the partition.
+@param[in]	table	Table to check.
+@return true if the dict_table_t is a partition else false. */
+UNIV_INLINE
+bool
+dict_table_is_partition(
+	const dict_table_t*	table);
+
 /** Allocate memory for intrinsic cache elements in the index
  * @param[in]      index   index object */
 UNIV_INLINE
 void
 dict_allocate_mem_intrinsic_cache(
                 dict_index_t*           index);
+
+/** Evict all tables that are loaded for applying purge.
+Since we move the offset of all table ids during upgrade,
+these tables cannot exist in cache. */
+void
+dict_upgrade_evict_tables_cache();
+
 #endif /* !UNIV_HOTBACKUP */
 
 #include "dict0dict.ic"

@@ -2247,8 +2247,8 @@ public:
 class Item_func_can_access_table : public Item_int_func
 {
 public:
-  Item_func_can_access_table(const POS &pos, Item *a, Item *b)
-    : Item_int_func(pos, a, b)
+  Item_func_can_access_table(const POS &pos, Item *a, Item *b, Item *c)
+    : Item_int_func(pos, a, b, c)
   {}
   longlong val_int() override;
   const char *func_name() const override { return "can_access_table"; }
@@ -2328,8 +2328,9 @@ public:
 class Item_func_can_access_column : public Item_int_func
 {
 public:
-  Item_func_can_access_column(const POS &pos, Item *a, Item *b, Item *c)
-    : Item_int_func(pos, a, b, c)
+  Item_func_can_access_column(const POS &pos, Item *a, Item *b, Item *c,
+                              Item *d)
+    : Item_int_func(pos, a, b, c, d)
   {}
   longlong val_int() override;
   const char *func_name() const override { return "can_access_column"; }

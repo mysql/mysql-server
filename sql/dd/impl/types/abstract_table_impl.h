@@ -130,10 +130,10 @@ public:
   // hidden.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual bool hidden() const
+  virtual enum_hidden_type hidden() const
   { return m_hidden; }
 
-  virtual void set_hidden(bool hidden)
+  virtual void set_hidden(enum_hidden_type hidden)
   { m_hidden= hidden; }
 
   /////////////////////////////////////////////////////////////////////////
@@ -187,7 +187,7 @@ private:
   ulonglong m_created;
   ulonglong m_last_altered;
 
-  bool m_hidden;
+  enum_hidden_type m_hidden;
 
   std::unique_ptr<Properties> m_options;
 

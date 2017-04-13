@@ -46,6 +46,13 @@ Created 2012-02-08 by Sunny Bains.
 #include "row0upd.h"
 #include "srv0start.h"
 #include "ut0new.h"
+#include "dict0crea.h"
+#include "lob0lob.h"
+#include "dict0dd.h"
+
+#include <vector>
+
+#include <my_aes.h>
 
 /** The size of the buffer to use for IO. Note: os_file_read() doesn't expect
 reads to fail. If you set the buffer size to be greater than a multiple of the
@@ -3399,6 +3406,8 @@ row_import_read_encryption_data(
 		return(DB_IO_ERROR);
 	}
 
+	lint old_size = mem_heap_get_size(table->heap);
+
 	table->encryption_key =
 		static_cast<byte*>(mem_heap_alloc(table->heap,
 						  ENCRYPTION_KEY_LEN));
@@ -3406,6 +3415,10 @@ row_import_read_encryption_data(
 	table->encryption_iv =
 		static_cast<byte*>(mem_heap_alloc(table->heap,
 						  ENCRYPTION_KEY_LEN));
+
+	lint	new_size = mem_heap_get_size(table->heap);
+	dict_sys->size += new_size - old_size;
+
 	/* Decrypt tablespace key and iv. */
 	elen = my_aes_decrypt(
 		encryption_key,
@@ -4139,13 +4152,6 @@ row_import_for_mysql(
 
 	/* Update the root pages of the table's indexes. */
 	err = row_import_update_index_root(trx, table, false, true);
-
-	if (err != DB_SUCCESS) {
-		return(row_import_error(prebuilt, trx, err));
-	}
-
-	/* Update the table's discarded flag, unset it. */
-	err = row_import_update_discarded_flag(trx, table->id, false, true);
 
 	if (err != DB_SUCCESS) {
 		return(row_import_error(prebuilt, trx, err));

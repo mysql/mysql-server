@@ -3321,12 +3321,6 @@ a INT GENERATED ALWAYS AS (1) VIRTUAL,
 b INT GENERATED ALWAYS AS (a) VIRTUAL,
 c INT GENERATED ALWAYS AS (1) VIRTUAL
 );
-SELECT a.b FROM t1 AS a
-RIGHT JOIN t1 AS b ON 1
-INNER JOIN t1 AS c ON 1
-WHERE b.b = c.b
-GROUP BY c.c;
-ERROR 42000: Expression #1 of SELECT list is not in GROUP BY clause and contains nonaggregated column 'test.a.b' which is not functionally dependent on columns in GROUP BY clause; this is incompatible with sql_mode=only_full_group_by
 DROP TABLE t1;
 #
 # Bug #22186926 CONVERT_CONSTANT_ITEM(THD*, ITEM_FIELD*, ITEM**): ASSERTION `!RESULT' FAILED.

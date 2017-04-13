@@ -72,7 +72,6 @@ SET(DD_SOURCES
   dd/dd_tablespace.cc
   dd/dd_trigger.cc
   dd/dd_view.cc
-  dd/dd_upgrade.cc
 
   dd/impl/bootstrapper.cc
   dd/impl/dd.cc
@@ -162,6 +161,13 @@ SET(DD_SOURCES
   dd/info_schema/show.cc
   dd/info_schema/show_query_builder.cc
   dd/info_schema/stats.cc
+
+  dd/upgrade/event.cc
+  dd/upgrade/global.cc
+  dd/upgrade/routine.cc
+  dd/upgrade/schema.cc
+  dd/upgrade/table.cc
+  dd/upgrade/upgrade.cc
 )
 
 SET(SQL_GIS_SOURCES

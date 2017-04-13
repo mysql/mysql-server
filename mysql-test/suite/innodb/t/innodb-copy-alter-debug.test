@@ -21,9 +21,6 @@ alter schema test default character set latin1;
 --echo #		ALTER TABLE...ALGORITHM=COPY
 --echo #
 
-CREATE DATABASE alter_db;
-USE alter_db;
-
 CREATE TABLE t(a SERIAL, b INT, c INT, d INT) ENGINE=InnoDB;
 INSERT INTO t(a) VALUES(0),(0),(0),(0),(0),(0),(0),(0),(0),(0),(0),(0),(0),(0),(0),(0);
 INSERT INTO t(a) SELECT a+16 FROM t;
@@ -82,7 +79,6 @@ SELECT * FROM t1 WHERE MATCH(c) AGAINST ("first");
 SELECT * FROM t1 WHERE MATCH(b,c) AGAINST ("column");
 SHOW CREATE TABLE t1;
 DROP TABLE t1;
-DROP DATABASE alter_db;
 
 ########################################
 ##### WL#7554 set schema `test` back to what it was

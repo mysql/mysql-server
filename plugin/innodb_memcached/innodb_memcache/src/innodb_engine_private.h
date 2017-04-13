@@ -1,6 +1,6 @@
 /***********************************************************************
 
-Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify it
 under the terms of the GNU General Public License as published by the
@@ -52,15 +52,6 @@ innodb_initialize(
 	ENGINE_HANDLE*	handle,		/*!< in/out: InnoDB memcached
 					engine */
 	const char*	config_str);	/*!< in: configure string */
-
-/*******************************************************************//**
-Destroy and Free InnoDB Memcached engine */
-static
-void
-innodb_destroy(
-/*===========*/
-	ENGINE_HANDLE*	handle,		/*!< in: Destroy the engine instance */
-	bool		force);		/*!< in: Force to destroy */
 
 /*******************************************************************//**
 Allocate gets a struct item from the slab allocator, and fills in
@@ -188,30 +179,6 @@ innodb_store(
 					engine only */
 
 /*******************************************************************//**
-Support memcached "INCR" and "DECR" command, add or subtract a "delta"
-value from an integer key value
-@return ENGINE_SUCCESS if successfully, otherwise error code */
-static
-ENGINE_ERROR_CODE
-innodb_arithmetic(
-/*==============*/
-	ENGINE_HANDLE*	handle,		/*!< in: Engine Handle */
-	const void*	cookie,		/*!< in: connection cookie */
-	const void*	key,		/*!< in: key for the value to add */
-	const int	nkey,		/*!< in: key length */
-	const bool	increment,	/*!< in: whether to increment
-					or decrement */
-	const bool	create,		/*!< in: whether to create the key
-					value pair if can't find */
-	const uint64_t	delta,		/*!< in: value to add/substract */
-	const uint64_t	initial,	/*!< in: initial */
-	const rel_time_t exptime,	/*!< in: expiration time */
-	uint64_t*	cas,		/*!< out: new cas value */
-	uint64_t*	result,		/*!< out: result out */
-	uint16_t	vbucket);	/*!< in: bucket, used by default
-					engine only */
-
-/*******************************************************************//**
 Support memcached "FLUSH_ALL" command, clean up storage (trunate InnoDB Table)
 @return ENGINE_SUCCESS if successfully, otherwise error code */
 static
@@ -234,18 +201,5 @@ innodb_unknown_command(
 	const void*	cookie,		/*!< in: connection cookie */
 	protocol_binary_request_header *request, /*!< in: request */
 	ADD_RESPONSE	response);	/*!< out: respondse */
-
-/*******************************************************************//**
-Callback functions used by Memcached's process_command() function
-to get the result key/value information
-@return TRUE if info fetched */
-static
-bool
-innodb_get_item_info(
-/*=================*/
-	ENGINE_HANDLE*	handle,		/*!< in: Engine Handle */
-	const void*	cookie,		/*!< in: connection cookie */
-	const item*	item,		/*!< in: item in question */
-	item_info*	item_info);	/*!< out: item info got */
 
 #endif /* innodb_engine_private_h */

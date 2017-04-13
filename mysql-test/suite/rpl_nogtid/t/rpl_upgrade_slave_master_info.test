@@ -92,7 +92,7 @@ CREATE TABLE `slave_master_info` (
   `Ssl_crlpath` TEXT CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The path used for Certificate Revocation List (CRL) files',
   `Enabled_auto_position` TINYINT(1) NOT NULL COMMENT 'Indicates whether GTIDs will be used to retrieve events from the master.',
   PRIMARY KEY (`Host`,`Port`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8 STATS_PERSISTENT=0 COMMENT='Master Information';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 STATS_PERSISTENT=0 COMMENT='Master Information' TABLESPACE=mysql;
 
 --echo # Running mysql_upgrade to update slave_master_info table
 --disable_result_log

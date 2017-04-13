@@ -457,18 +457,19 @@ ib_trx_start(
 					single DML */
 	void*		thd);		/*!< in: THD */
 
-/*****************************************************************//**
-Begin a transaction. This will allocate a new transaction handle and
+/** Begin a transaction. This will allocate a new transaction handle and
 put the transaction in the active state.
+@param[in]	ib_trx_level	trx isolation level
+@param[in]	read_write	true if read write transaction
+@param[in]	auto_commit	auto commit after each single DML
+@param[in,out]	thd		MySQL THD
 @return innobase txn handle */
 ib_trx_t
 ib_trx_begin(
-/*=========*/
-	ib_trx_level_t	ib_trx_level,	/*!< in: trx isolation level */
-	ib_bool_t	read_write,	/*!< in: true if read write
-					transaction */
-	ib_bool_t	auto_commit);	/*!< in: auto commit after each
-					single DML */
+	ib_trx_level_t	ib_trx_level,
+	ib_bool_t	read_write,
+	ib_bool_t	auto_commit,
+	void*		thd);
 
 /*****************************************************************//**
 Check if the transaction is read_only */

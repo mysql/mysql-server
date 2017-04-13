@@ -13,6 +13,7 @@ mysql.help_category                                OK
 mysql.help_keyword                                 OK
 mysql.help_relation                                OK
 mysql.help_topic                                   OK
+mysql.innodb_dynamic_metadata                      OK
 mysql.innodb_index_stats                           OK
 mysql.innodb_table_stats                           OK
 mysql.plugin                                       OK
@@ -66,6 +67,7 @@ mysql.help_category                                OK
 mysql.help_keyword                                 OK
 mysql.help_relation                                OK
 mysql.help_topic                                   OK
+mysql.innodb_dynamic_metadata                      OK
 mysql.innodb_index_stats                           OK
 mysql.innodb_table_stats                           OK
 mysql.plugin                                       OK
@@ -97,7 +99,7 @@ role_edges	CREATE TABLE `role_edges` (
   `TO_USER` char(32) COLLATE utf8_bin NOT NULL DEFAULT '',
   `WITH_ADMIN_OPTION` enum('N','Y') CHARACTER SET utf8 NOT NULL DEFAULT 'N',
   PRIMARY KEY (`FROM_HOST`,`FROM_USER`,`TO_HOST`,`TO_USER`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin STATS_PERSISTENT=0 COMMENT='Role hierarchy and role grants'
+) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin STATS_PERSISTENT=0 COMMENT='Role hierarchy and role grants'
 SHOW CREATE TABLE mysql.default_roles;
 Table	Create Table
 default_roles	CREATE TABLE `default_roles` (
@@ -106,7 +108,7 @@ default_roles	CREATE TABLE `default_roles` (
   `DEFAULT_ROLE_HOST` char(60) COLLATE utf8_bin NOT NULL DEFAULT '%',
   `DEFAULT_ROLE_USER` char(32) COLLATE utf8_bin NOT NULL DEFAULT '',
   PRIMARY KEY (`HOST`,`USER`,`DEFAULT_ROLE_HOST`,`DEFAULT_ROLE_USER`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin STATS_PERSISTENT=0 COMMENT='Default roles'
+) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin STATS_PERSISTENT=0 COMMENT='Default roles'
 CREATE USER u1;
 CREATE ROLE r1;
 GRANT SELECT ON *.* TO r1;

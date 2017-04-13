@@ -8730,6 +8730,17 @@ static bool my_eval_gcolumn_expr_helper(THD *thd, TABLE *table,
 }
 
 
+// Set se_private_id and se_private_data during upgrade
+bool handler::ha_upgrade_table(THD *thd,
+                                     const char* dbname,
+                                     const char* table_name,
+                                     dd::Table *dd_table,
+                                     TABLE *table_arg)
+{
+  table= table_arg;
+  return upgrade_table(thd, dbname, table_name, dd_table);
+}
+
 /**
    Callback to allow InnoDB to prepare a template for generated
    column processing. This function will open the table without

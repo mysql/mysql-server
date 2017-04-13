@@ -37,7 +37,7 @@ SELECT user, authentication_string FROM mysql.user WHERE user like 'user%';
 --let $invert= 0
 
 --echo # Insert an entry in mysql.user table but do not execute FLUSH PRIVILEGES
-CREATE TEMPORARY TABLE mysql.tmp_user LIKE mysql.user;
+CREATE TABLE mysql.tmp_user LIKE mysql.user;
 INSERT INTO mysql.tmp_user SELECT * FROM mysql.user WHERE user LIKE 'userC';
 UPDATE mysql.tmp_user SET user='userZ' WHERE user LIKE 'userC';
 INSERT INTO mysql.user SELECT * FROM mysql.tmp_user;

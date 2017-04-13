@@ -40,6 +40,8 @@ Created 9/20/1997 Heikki Tuuri
 #include "btr0cur.h"
 #include "buf0buf.h"
 #include "buf0flu.h"
+#include "dict0dd.h"
+#include "mtr0mtr.h"
 #include "fil0fil.h"
 #include "ha_prototypes.h"
 #include "ibuf0ibuf.h"
@@ -162,12 +164,6 @@ mysql_pfs_key_t	recv_writer_thread_key;
 /** Flag indicating if recv_writer thread is active. */
 static bool	recv_writer_thread_active = false;
 #endif /* !UNIV_HOTBACKUP */
-
-/** true if we don't have DDTableBuffer in the system tablespace,
-this should be due to we run the server against old data files.
-Please do NOT change this when server is running.
-FIXME: This should be removed away once we can upgrade for new DD. */
-extern bool	srv_missing_dd_table_buffer;
 
 #ifdef UNIV_DEBUG
 /** Return string name of the redo log record type.
@@ -315,25 +311,24 @@ table objects */
 void
 MetadataRecover::apply()
 {
-	if (srv_missing_dd_table_buffer) {
-		return;
-	}
+	PersistentTables::iterator	iter;
 
-	mutex_enter(&dict_sys->mutex);
+	for (iter = m_tables.begin();
+	     iter != m_tables.end();
+	     ++iter) {
 
-	for (auto it = m_tables.begin(); it != m_tables.end(); ++it) {
-
-		table_id_t		table_id = it->first;
-		PersistentTableMetadata*metadata = it->second;
+		table_id_t		table_id = iter->first;
+		PersistentTableMetadata*metadata = iter->second;
 		dict_table_t*		table;
 
-		table = dict_table_open_on_id(
-			table_id, true, DICT_TABLE_OP_LOAD_TABLESPACE);
+		table = dd_table_open_on_id(table_id, NULL, NULL, false);
 
 		/* If the table is nullptr, it might be already dropped */
 		if (table == nullptr) {
 			continue;
 		}
+
+		mutex_enter(&dict_sys->mutex);
 
 		/* At this time, the metadata in DDTableBuffer has
 		already been applied to table object, we can apply
@@ -371,11 +366,10 @@ MetadataRecover::apply()
 		}
 
 		mutex_exit(&dict_persist->mutex);
+		mutex_exit(&dict_sys->mutex);
 
-		dict_table_close(table, true, false);
+		dd_table_close(table, NULL, NULL, false);
 	}
-
-	mutex_exit(&dict_sys->mutex);
 }
 
 /** Creates the recovery system. */
@@ -3723,7 +3717,6 @@ recv_recovery_from_checkpoint_start(lsn_t flush_lsn)
 
 	switch (group->format) {
 	case LOG_HEADER_FORMAT_5_7_9:
-
 		log_mutex_exit();
 		return(recv_log_recover_5_7(checkpoint_lsn));
 

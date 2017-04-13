@@ -65,6 +65,7 @@ TRUNCATE TABLE t3;
 
 # These messages are relevant only when this debug parameter
 # "ib_table_invalid_flags" is enabled
+# In new DD, we don't load table from InnoDB data dictionary.
 --disable_query_log
 call mtr.add_suppression("\\[ERROR\\] InnoDB: Table `test`.`t1` in InnoDB data dictionary contains invalid flags. SYS_TABLES.MIX_LEN=255");
 call mtr.add_suppression("\\[Warning\\] InnoDB: Parent table of FTS auxiliary table test/FTS_.* not found.");
@@ -74,7 +75,7 @@ call mtr.add_suppression("\\[Warning\\] InnoDB: Cannot open table test/t1 from t
 let $restart_parameters = restart: --debug=d,ib_table_invalid_flags;
 --source include/restart_mysqld.inc
 
---error ER_NO_SUCH_TABLE
+#--error ER_NO_SUCH_TABLE
 SELECT * FROM t1;
 
 let $restart_parameters = restart;

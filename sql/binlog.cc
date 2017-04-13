@@ -330,6 +330,7 @@ public:
     DBUG_ASSERT(m_backup_thd != NULL && m_new_thd != NULL);
     // Reset the state of the current thd.
     m_backup_thd->restore_globals();
+
     m_new_thd->thread_stack= m_backup_thd->thread_stack;
 
     int i= 0;

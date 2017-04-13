@@ -132,6 +132,12 @@ struct srv_stats_t {
 	ulint_ctr_64_t		n_rows_inserted;
 };
 
+#ifdef INNODB_DD_TABLE
+extern bool	srv_is_upgrade_mode;
+extern bool	srv_downgrade_logs;
+extern bool	srv_upgrade_old_undo_found;
+#endif /* INNODB_DD_TABLE */
+
 extern const char*	srv_main_thread_op_info;
 
 /* The monitor thread waits on this event. */

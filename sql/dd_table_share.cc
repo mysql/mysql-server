@@ -38,6 +38,7 @@
 #include "dd/types/partition_value.h"         // dd::Partition_value
 #include "dd/types/table.h"                   // dd::Table
 #include "default_values.h"                   // prepare_default_value_buffer...
+#include "error_handler.h"                    // Internal_error_handler
 #include "field.h"
 #include "handler.h"
 #include "hash.h"
@@ -839,7 +840,8 @@ static uint column_preamble_bits(const dd::Column *col_obj)
   object to TABLE_SHARE.
 */
 
-static bool fill_column_from_dd(TABLE_SHARE *share,
+static bool fill_column_from_dd(THD *thd,
+                                TABLE_SHARE *share,
                                 const dd::Column *col_obj,
                                 uchar *null_pos,
                                 uint null_bit_pos,
@@ -910,7 +912,8 @@ static bool fill_column_from_dd(TABLE_SHARE *share,
                     "invalid collation id %llu for table %s, column %s",
                     MYF(0), col_obj->collation_id(), share->table_name.str,
                     name);
-    return true;
+    if (thd->is_error())
+      return true;
   }
 
   // Decimals
@@ -1095,7 +1098,7 @@ static bool fill_column_from_dd(TABLE_SHARE *share,
   from dd::Table object.
 */
 
-static bool fill_columns_from_dd(TABLE_SHARE *share, const dd::Table *tab_obj)
+static bool fill_columns_from_dd(THD *thd, TABLE_SHARE *share, const dd::Table *tab_obj)
 {
   // Allocate space for fields in TABLE_SHARE.
   uint fields_size= ((share->fields+1)*sizeof(Field*));
@@ -1127,7 +1130,7 @@ static bool fill_columns_from_dd(TABLE_SHARE *share, const dd::Table *tab_obj)
     */
     if (!col_obj->is_virtual())
     {
-      if (fill_column_from_dd(share, col_obj, null_pos, null_bit_pos,
+      if (fill_column_from_dd(thd, share, col_obj, null_pos, null_bit_pos,
                               rec_pos, field_nr))
         return true;
 
@@ -1171,7 +1174,7 @@ static bool fill_columns_from_dd(TABLE_SHARE *share, const dd::Table *tab_obj)
       if (col_obj2->is_virtual())
       {
         // Fill details of each column.
-        if (fill_column_from_dd(share, col_obj2, null_pos, null_bit_pos,
+        if (fill_column_from_dd(thd, share, col_obj2, null_pos, null_bit_pos,
                                 rec_pos, field_nr))
           return true;
 
@@ -1272,7 +1275,8 @@ static void fill_index_elements_from_dd(TABLE_SHARE *share,
   the TABLE_SHARE.
 */
 
-static bool fill_index_from_dd(TABLE_SHARE *share, const dd::Index *idx_obj,
+static bool fill_index_from_dd(THD* thd, TABLE_SHARE *share,
+                               const dd::Index *idx_obj,
                                uint key_nr)
 {
   //
@@ -1398,7 +1402,8 @@ static bool fill_index_from_dd(TABLE_SHARE *share, const dd::Index *idx_obj,
     if (! keyinfo->parser)
     {
       my_error(ER_PLUGIN_IS_NOT_LOADED, MYF(0), parser_name.str);
-      return true;
+      if (thd->is_error())
+        return true;
     }
 
     keyinfo->flags|= HA_USES_PARSER;
@@ -1427,7 +1432,8 @@ static bool fill_index_from_dd(TABLE_SHARE *share, const dd::Index *idx_obj,
   from dd::Table object.
 */
 
-static bool fill_indexes_from_dd(TABLE_SHARE *share, const dd::Table *tab_obj)
+static bool fill_indexes_from_dd(THD *thd, TABLE_SHARE *share,
+                                 const dd::Table *tab_obj)
 {
   uint32 primary_key_parts= 0;
 
@@ -1532,7 +1538,7 @@ static bool fill_indexes_from_dd(TABLE_SHARE *share, const dd::Table *tab_obj)
       if (idx_obj->is_hidden())
         continue;
 
-      if (fill_index_from_dd(share, idx_obj, key_nr))
+      if (fill_index_from_dd(thd, share, idx_obj, key_nr))
         return true;
 
       index_at_pos[key_nr]= idx_obj;
@@ -2305,8 +2311,8 @@ bool open_table_def(THD *thd, TABLE_SHARE *share, bool open_view,
 
   // Fill the TABLE_SHARE with details.
   bool error=  (fill_share_from_dd(thd, share, table_def) ||
-                fill_columns_from_dd(share, table_def) ||
-                fill_indexes_from_dd(share, table_def) ||
+                fill_columns_from_dd(thd, share, table_def) ||
+                fill_indexes_from_dd(thd, share, table_def) ||
                 fill_partitioning_from_dd(thd, share, table_def));
 
   thd->mem_root= old_root;
@@ -2323,3 +2329,35 @@ bool open_table_def(THD *thd, TABLE_SHARE *share, bool open_view,
   DBUG_RETURN(true);
 }
 
+
+/*
+  Ignore errors related to invalid collation and missing parser during
+  open_table_def().
+*/
+class Open_table_error_handler : public Internal_error_handler
+{
+public:
+  virtual bool handle_condition(THD *thd,
+                                uint sql_errno,
+                                const char* sqlstate,
+                                Sql_condition::enum_severity_level *level,
+                                const char* msg)
+  {
+    return (sql_errno == ER_UNKNOWN_COLLATION ||
+            sql_errno == ER_PLUGIN_IS_NOT_LOADED);
+  }
+};
+
+
+bool open_table_def_suppress_invalid_meta_data(THD *thd, TABLE_SHARE *share,
+                                               const dd::Table *table_def)
+{
+  Open_table_error_handler error_handler;
+  thd->push_internal_handler(&error_handler);
+  bool error= open_table_def(thd, share, false, table_def);
+  thd->pop_internal_handler();
+  return error;
+}
+
+
+//////////////////////////////////////////////////////////////////////////

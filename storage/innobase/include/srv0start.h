@@ -46,9 +46,6 @@ struct dict_table_t;
 } while (0)
 #endif /* UNIV_DEBUG */
 
-/** Log 'spaces' have id's >= this */
-#define SRV_LOG_SPACE_FIRST_ID		0xFFFFFFF0UL
-
 /** If buffer pool is less than the size,
 only one buffer pool instance is used. */
 #define BUF_POOL_SIZE_THRESHOLD		(1024 * 1024 * 1024)
@@ -88,9 +85,10 @@ any tables (including data dictionary tables) can be accessed. */
 void
 srv_dict_recover_on_restart();
 
-/** Start up the remaining InnoDB service threads. */
+/** Start up the remaining InnoDB service threads.
+@param[in]	bootstrap	True if this is in bootstrap */
 void
-srv_start_threads();
+srv_start_threads(bool	bootstrap);
 
 /** Shut down all InnoDB background tasks that may look up objects in
 the data dictionary. */
@@ -100,6 +98,11 @@ srv_pre_dd_shutdown();
 /** Shut down the InnoDB database. */
 void
 srv_shutdown();
+
+/** Start purge threads. During upgrade we start
+purge threads early to apply purge. */
+void
+srv_start_purge_threads();
 
 /*************************************************************//**
 Copy the file path component of the physical file to parameter. It will

@@ -22,10 +22,12 @@ SQL parser symbol table
 
 Created 12/15/1997 Heikki Tuuri
 *******************************************************/
+#include "current_thd.h"
 
 #include "pars0sym.h"
 
 #include "data0data.h"
+#include "dict0dd.h"
 #include "data0type.h"
 #include "eval0eval.h"
 #include "mem0mem.h"
@@ -68,6 +70,7 @@ sym_tab_free_private(
 {
 	sym_node_t*	sym;
 	func_node_t*	func;
+	THD*		thd = current_thd;
 
 	ut_ad(mutex_own(&dict_sys->mutex));
 
@@ -79,11 +82,18 @@ sym_tab_free_private(
 
 		if (sym->token_type == SYM_TABLE_REF_COUNTED) {
 
-			dict_table_close(sym->table, TRUE, FALSE);
+			if (sym->mdl != nullptr) {
+				dd_table_close(sym->table, thd, &sym->mdl, true);
+			} else {
+				/* TODO: NewDD: Remove with WL#9535. This is only
+				for the InnoDB SYS TABLES */
+				dd_table_close(sym->table, nullptr, nullptr, true);
+			}
 
 			sym->table = NULL;
 			sym->resolved = FALSE;
 			sym->token_type = SYM_UNSET;
+			sym->mdl = nullptr;
 		}
 
 		eval_node_free_val_buf(sym);

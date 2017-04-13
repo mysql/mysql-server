@@ -1087,6 +1087,43 @@ typedef int (*alter_tablespace_t)(handlerton *hton, THD *thd,
                                   const dd::Tablespace *old_ts_def,
                                   dd::Tablespace *new_ts_def);
 
+/**
+  Get the tablespace data from SE and insert it into Data dictionary
+
+  @param    thd         Thread context
+
+  @return Operation status.
+  @retval == 0  Success.
+  @retval != 0  Error (handler error code returned)
+*/
+typedef int (*upgrade_tablespace_t)(THD *thd);
+
+
+/**
+  Finish upgrade process inside storage engines.
+  This includes resetting flags to indicate upgrade process
+  and cleanup after upgrade.
+
+  @param    thd      Thread context
+
+  @return Operation status.
+  @retval == 0  Success.
+  @retval != 0  Error (handler error code returned)
+*/
+typedef int (*finish_upgrade_t)(THD *thd, bool failed_upgrade);
+
+/**
+  Upgrade logs after the checkpoint from where upgrade
+  process can only roll forward.
+
+  @param    thd      Thread context
+
+  @return Operation status.
+  @retval == 0  Success.
+  @retval != 0  Error (handler error code returned)
+*/
+typedef int (*upgrade_logs_t)(THD *thd);
+
 typedef int (*fill_is_table_t)(handlerton *hton, THD *thd, TABLE_LIST *tables,
                                class Item *cond,
                                enum enum_schema_tables);
@@ -1357,6 +1394,7 @@ enum dict_init_mode_t
 {
   DICT_INIT_CREATE_FILES,         //< Create all required SE files
   DICT_INIT_CHECK_FILES,          //< Verify existence of expected files
+  DICT_INIT_UPGRADE_FILES,        //< Used for upgrade from mysql-5.7
   DICT_INIT_IGNORE_FILES          //< Don't care about files at all
 };
 
@@ -1387,6 +1425,20 @@ typedef bool (*dict_init_t)(dict_init_mode_t dict_init_mode,
                             uint version,
                             List<const Plugin_table> *DDSE_tables,
                             List<const Plugin_tablespace> *DDSE_tablespaces);
+
+
+/**
+  Invalidate an entry in the local dictionary cache.
+
+  Needed during bootstrap to make sure the contents in the DDSE
+  dictionary cache is in sync with the global DD.
+
+  @param   schema_name    Schema name.
+  @param   table name     Table name.
+ */
+
+typedef void (*dict_cache_reset_t)(const char* schema_name,
+                                   const char* table_name);
 
 
 /** Mode for data dictionary recovery. */
@@ -1617,8 +1669,12 @@ struct handlerton
   is_valid_tablespace_name_t is_valid_tablespace_name;
   get_tablespace_t get_tablespace;
   alter_tablespace_t alter_tablespace;
+  upgrade_tablespace_t upgrade_tablespace;
+  upgrade_logs_t upgrade_logs;
+  finish_upgrade_t finish_upgrade;
   fill_is_table_t fill_is_table;
   dict_init_t dict_init;
+  dict_cache_reset_t dict_cache_reset;
   dict_recover_t dict_recover;
 
   /** Global handler flags. */
@@ -3844,17 +3900,6 @@ public:
   }
 
   /**
-    Get the row type from the storage engine for upgrade. If this method
-    returns ROW_TYPE_NOT_USED, the information in HA_CREATE_INFO should be
-    used.
-    This function is temporarily added to handle case of upgrade. It should
-    not be used in any other use case. This function will be removed in future.
-    This function was handler::get_row_type() in mysql-5.7.
-  */
-  virtual enum row_type get_row_type_for_upgrade() const
-  { return ROW_TYPE_NOT_USED; }
-
-  /**
     Get default key algorithm for SE. It is used when user has not provided
     algorithm explicitly or when algorithm specified is not supported by SE.
   */
@@ -5156,6 +5201,13 @@ private:
   virtual bool is_record_buffer_wanted(ha_rows *const max_rows) const
   { *max_rows= 0; return false; }
 
+  // Set se_private_id and se_private_data during upgrade
+  virtual bool upgrade_table(THD *thd,
+                             const char* dbname,
+                             const char* table_name,
+                             dd::Table *dd_table)
+  { return false; }
+
   virtual int sample_init();
   virtual int sample_next(uchar *buf);
   virtual int sample_end();
@@ -5418,6 +5470,26 @@ public:
   /* This must be implemented if the handlerton's partition_flags() is set. */
   virtual Partition_handler *get_partition_handler()
   { return NULL; }
+
+  /**
+  Set se_private_id and se_private_data during upgrade
+
+    @param   thd         Pointer of THD
+    @param   dbname      Database name
+    @param   table_name  Table name
+    @param   dd_table    dd::Table for the table
+    @param   table_arg   TABLE object for the table.
+
+    @return Operation status
+      @retval false     Success
+      @retval true      Error
+  */
+
+  bool ha_upgrade_table(THD *thd,
+                         const char* dbname,
+                         const char* table_name,
+                         dd::Table *dd_table,
+                         TABLE *table_arg);
 
 protected:
   Handler_share *get_ha_share_ptr();

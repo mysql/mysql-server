@@ -15,8 +15,8 @@
 
 #include "sql/dd/dd_tablespace.h"
 
-#include <stddef.h>
 #include <memory>
+#include <stddef.h>
 #include <string>
 
 #include "dd/cache/dictionary_client.h"       // dd::cache::Dictionary_client

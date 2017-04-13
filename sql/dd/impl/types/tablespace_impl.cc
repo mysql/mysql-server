@@ -15,8 +15,8 @@
 
 #include "dd/impl/types/tablespace_impl.h"
 
-#include <string.h>
 #include <memory>
+#include <string.h>
 #include <sstream>
 
 #include "dd/impl/properties_impl.h"             // Properties_impl

@@ -257,8 +257,7 @@ SELECT count(*) FROM tab1;
 # Check record count 0
 SELECT count(*) FROM tab2;
 
-# Check table does not exist
---error ER_NO_SUCH_TABLE
+# Check record count 1
 SELECT count(*) FROM tab3;
 
 SET innodb_strict_mode=Default;

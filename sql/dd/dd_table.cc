@@ -60,7 +60,7 @@
 #include "my_sys.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql_com.h"
-#include "mysqld.h"                           // dd_upgrade_skip_se
+#include "mysqld.h"                           // lower_case_table_names
 #include "mysqld_error.h"
 #include "partition_element.h"
 #include "partition_info.h"                   // partition_info
@@ -1334,14 +1334,10 @@ static bool fill_dd_tablespace_id_or_name(THD *thd,
        tables. We store the tablespace name in 'tablespace' table
        option.
 
-    3) Innodb uses predefined/reserved tablespace names started with
-       'innodb_'. New DD does not contain metadata for these tablespaces.
-       WL7141 can decide if they are really needed to be visible to server.
-       So we just store these name in dd::Table::option so as to support
-       old behavior and make SHOW CREATE to display the tablespace name.
-
-    4) Note that we store tablespace name for non-tablespace-capable SEs
-       for compatibility reasons.
+    3) Note that we store tablespace name for non-tablespace-capable SEs
+       for compatibility reasons. This is store in the options field. We
+       also store the innodb_file_per_table tablespace name here since it
+       is not a name of a real tablespace.
   */
   const char *innodb_prefix= "innodb_";
 
@@ -2154,7 +2150,9 @@ static bool create_dd_system_table(THD *thd,
   std::unique_ptr<dd::Table> tab_obj(system_schema.create_table(thd));
 
   // Set to be hidden if appropriate.
-  tab_obj->set_hidden(dd_table.hidden());
+  tab_obj->set_hidden(dd_table.hidden() ?
+                      dd::Abstract_table::HT_HIDDEN_SYSTEM :
+                      dd::Abstract_table::HT_VISIBLE);
 
   if (fill_dd_table_from_create_info(thd, tab_obj.get(), table_name,
                                      create_info, create_fields,
@@ -2162,25 +2160,9 @@ static bool create_dd_system_table(THD *thd,
                                      fk_keyinfo, fk_keys, file))
     return true;
 
-  /*
-    Get the se private data for the DD table
-
-    In upgrade scenario, to check the existence of version table,
-    version table is tried to open. This requires dd::Table object
-    for version table. Creation of version table inside Storage Engine
-    should be avoided during the existance check. We skip fetching
-    se_private_id from SE during this process. This is done as
-    a work around to reset variables in InnoDB as it is done for
-    dictionary cache and dictionary object ids.
-
-    TODO: This should be fixed as preparation for InnoDB dictionary upgrade.
-  */
-  if (!dd_upgrade_skip_se)
-  {
-    if (file->ha_get_se_private_data(tab_obj.get(),
-                                     dd_table.default_dd_version(thd)))
-      return true;
-  }
+  if (file->ha_get_se_private_data(tab_obj.get(),
+                                   dd_table.default_dd_version(thd)))
+    return true;
 
   return thd->dd_client()->store(tab_obj.get());
 }
@@ -2206,7 +2188,9 @@ bool create_dd_user_table(THD *thd,
   std::unique_ptr<dd::Table> tab_obj(sch_obj.create_table(thd));
 
   // Mark the hidden flag.
-  tab_obj->set_hidden(create_info->m_hidden);
+  tab_obj->set_hidden(create_info->m_hidden ?
+                      dd::Abstract_table::HT_HIDDEN_DDL :
+                      dd::Abstract_table::HT_VISIBLE);
 
   if (fill_dd_table_from_create_info(thd, tab_obj.get(), table_name,
                                      create_info, create_fields,
@@ -2543,7 +2527,9 @@ bool rename_table(THD *thd,
   new_tab->set_name(to_table_name);
 
   // Mark the hidden flag.
-  new_tab->set_hidden(mark_as_hidden);
+  new_tab->set_hidden(mark_as_hidden ?
+                      dd::Abstract_table::HT_HIDDEN_DDL :
+                      dd::Abstract_table::HT_VISIBLE);
 
   if (rename_foreign_keys(from_table_name, new_tab))
     return true;

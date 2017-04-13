@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -63,7 +63,7 @@ public:
   static uint get_target_dd_version()
   { return TARGET_DD_VERSION; }
 
-  uint get_actual_dd_version(THD *thd,  bool *exists) const;
+  uint get_actual_dd_version(THD *thd) const;
 };
 
 ///////////////////////////////////////////////////////////////////////////

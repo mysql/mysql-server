@@ -32,6 +32,7 @@ Created 9/17/2000 Heikki Tuuri
 #include "data0data.h"
 #include "que0types.h"
 #include "dict0types.h"
+#include "dict0dd.h"
 #include "trx0types.h"
 #include "row0types.h"
 #include "btr0pcur.h"
@@ -399,6 +400,7 @@ fields than mentioned in the constraint.
 @param[in]	reject_fks	if TRUE, fail with error code
 				DB_CANNOT_ADD_CONSTRAINT if any
 				foreign keys are found.
+@param[in]	dd_table	MySQL dd::Table for the table
 @return error code or DB_SUCCESS */
 dberr_t
 row_table_add_foreign_constraints(
@@ -406,7 +408,8 @@ row_table_add_foreign_constraints(
 	const char*		sql_string,
 	size_t			sql_length,
 	const char*		name,
-	ibool			reject_fks)
+	ibool			reject_fks,
+	const dd::Table*	dd_table)
 	MY_ATTRIBUTE((warn_unused_result));
 
 /*********************************************************************//**
@@ -501,7 +504,7 @@ row_import_tablespace_for_mysql(
 /** Drop a database for MySQL.
 @param[in]	name	database name which ends at '/'
 @param[in]	trx	transaction handle
-@param[out]	found	number of dropped tables/partitions
+@param[out]	found	number of dropped tables
 @return error code or DB_SUCCESS */
 dberr_t
 row_drop_database_for_mysql(
@@ -509,28 +512,20 @@ row_drop_database_for_mysql(
 	trx_t*		trx,
 	ulint*		found);
 
-/*********************************************************************//**
-Renames a table for MySQL.
+/** Renames a table for MySQL.
+@param[in]	old_name	old table name
+@param[in]	new_name	new table name
+@param[in]	dd_table	dd::Table for new table
+@param[in,out]	trx		transaction
+@param[in]	commit		whether to commit trx
 @return error code or DB_SUCCESS */
 dberr_t
 row_rename_table_for_mysql(
-/*=======================*/
-	const char*	old_name,	/*!< in: old table name */
-	const char*	new_name,	/*!< in: new table name */
-	trx_t*		trx,		/*!< in/out: transaction */
-	bool		commit)		/*!< in: whether to commit trx */
-	MY_ATTRIBUTE((warn_unused_result));
-
-/** Renames a partitioned table for MySQL.
-@param[in]	old_name	Old table name.
-@param[in]	new_name	New table name.
-@param[in,out]	trx		Transaction.
-@return error code or DB_SUCCESS */
-dberr_t
-row_rename_partitions_for_mysql(
 	const char*	old_name,
 	const char*	new_name,
-	trx_t*		trx)
+	dd::Table*	dd_table,
+	trx_t*		trx,
+	bool		commit)
 	MY_ATTRIBUTE((warn_unused_result));
 
 /*********************************************************************//**

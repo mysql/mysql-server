@@ -982,4 +982,14 @@ fsp_header_size_update(
 	DBUG_VOID_RETURN;
 }
 
+/** Check if a specified page is inode page or not. This is used for
+index root pages of core DD table, we can safely assume that the passed in
+page number is in the range of pages which are only either index root page
+or inode page
+@param[in]	page	Page number to check
+@return true if it's inode page, otherwise false */
+inline
+bool
+fsp_is_inode_page(page_no_t page);
+
 #endif

@@ -9317,8 +9317,13 @@ bool check_table_and_trigger_access(Item **args,
     In order for INFORMATION_SCHEMA to skip listing table for which
     the user does not have rights, the following UDF's is used.
 
+    CAN_ACCESS_TABLE is invoked from INFORMATION_SCHEMA views even for
+    the hidden database objects. For example, CAN_ACCESS_TABLE is
+    invoked from the INFORMATION_SCHEMA.STATISTICS_BASE. To skip listing
+    for hidden index and index element, parameter "skip_table" is used.
+
   Syntax:
-    int CAN_ACCCESS_TABLE(schema_name, table_name);
+    int CAN_ACCCESS_TABLE(schema_name, table_name, skip_table);
 
   @returns,
     1 - If current user has access.
@@ -9327,6 +9332,23 @@ bool check_table_and_trigger_access(Item **args,
 longlong Item_func_can_access_table::val_int()
 {
   DBUG_ENTER("Item_func_can_access_table::val_int");
+
+  /*
+    If CAN_ACCESS_TABLE is called for the hidden database objects then skip
+    listing those. For example, CAN_ACCESS_TABLE is called from the I_S query
+    STATISTICS_BASE. In this case if index or index column is hidden then
+    skip listing of it.
+    Keyword EXTENDED enables the SHOW INDEX command to list the hidden Indexes
+    and Indexes columns.
+  */
+  THD *thd= current_thd;
+  bool skip_table= args[2]->val_bool();
+  if (args[2]->null_value ||
+      (skip_table && thd->lex->m_extended_show == false))
+  {
+    null_value= args[2]->null_value;
+    DBUG_RETURN(FALSE);
+  }
 
   if (check_table_and_trigger_access(args, false, &null_value))
     DBUG_RETURN(TRUE);
@@ -9495,10 +9517,16 @@ longlong Item_func_can_access_event::val_int()
     In order for INFORMATION_SCHEMA to skip listing column for which
     the user does not have rights, the following UDF's is used.
 
+    CAN_ACCESS_COLUMN is invoked from INFORMATION_SCHEMA views even
+    for the hidden database objects. For example, CAN_ACCESS_COLUMN
+    is invoked from the INFORMATION_SCHEMA.COLUMNS. To skip listing
+    of hiddden columns, parameter skip_column is used.
+
   Syntax:
     int CAN_ACCCESS_COLUMN(schema_name,
                            table_name,
-                           field_name);
+                           field_name,
+                           skip_column);
 
   @returns,
     1 - If current user has access.
@@ -9507,6 +9535,23 @@ longlong Item_func_can_access_event::val_int()
 longlong Item_func_can_access_column::val_int()
 {
   DBUG_ENTER("Item_func_can_access_column::val_int");
+
+  /*
+    If CAN_ACCCESS_COLUMN is called for the hidden database objects then
+    skip listing those. For example,CAN_ACCESS_COLUMN is called from the
+    I_S query COLUMNS. In this case if column is hidden then skip listing
+    of it.
+    Keyword EXTENDED enables the SHOW COLUMNS command to list the hidden
+    columns.
+  */
+  THD *thd= current_thd;
+  bool skip_column= args[3]->val_bool();
+  if (args[3]->null_value ||
+      (skip_column && thd->lex->m_extended_show == false))
+  {
+    null_value= args[3]->null_value;
+    DBUG_RETURN(FALSE);
+  }
 
   // Read schema_name, table_name
   String schema_name;
@@ -9524,7 +9569,6 @@ longlong Item_func_can_access_column::val_int()
   table_name_ptr->c_ptr_safe();
 
   // Check if table is hidden.
-  THD *thd= current_thd;
   if (is_hidden_by_ndb(thd, schema_name_ptr, table_name_ptr))
     DBUG_RETURN(FALSE);
 

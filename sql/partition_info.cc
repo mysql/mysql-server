@@ -64,7 +64,7 @@
 
 // TODO: Create ::get_copy() for getting a deep copy.
 
-partition_info *partition_info::get_clone(bool reset /* = false */)
+partition_info *partition_info::get_clone(THD *thd, bool reset /* = false */)
 {
   DBUG_ENTER("partition_info::get_clone");
   List_iterator<partition_element> part_it(partitions);
@@ -93,6 +93,11 @@ partition_info *partition_info::get_clone(bool reset /* = false */)
       DBUG_RETURN(NULL);
     }
     memcpy(part_clone, part, sizeof(partition_element));
+
+    /* Explicitly copy the tablespace name, use the thd->mem_root. */
+    if (part->tablespace_name != nullptr)
+      part_clone->tablespace_name= strmake_root(thd->mem_root,
+        part->tablespace_name, strlen(part->tablespace_name) + 1);
 
     /*
       Mark that RANGE and LIST values needs to be fixed so that we don't
@@ -123,6 +128,12 @@ partition_info *partition_info::get_clone(bool reset /* = false */)
         DBUG_RETURN(NULL);
       }
       memcpy(subpart_clone, subpart, sizeof(partition_element));
+
+      /* Explicitly copy the tablespace name, use the thd->mem_root. */
+      if (subpart->tablespace_name != nullptr)
+        subpart_clone->tablespace_name= strmake_root(thd->mem_root,
+          subpart->tablespace_name, strlen(subpart->tablespace_name) + 1);
+
       part_clone->subpartitions.push_back(subpart_clone);
     }
     clone->partitions.push_back(part_clone);
@@ -130,11 +141,11 @@ partition_info *partition_info::get_clone(bool reset /* = false */)
   DBUG_RETURN(clone);
 }
 
-partition_info *partition_info::get_full_clone()
+partition_info *partition_info::get_full_clone(THD *thd)
 {
   partition_info *clone;
   DBUG_ENTER("partition_info::get_full_clone");
-  clone= get_clone();
+  clone= get_clone(thd);
   if (!clone)
     DBUG_RETURN(NULL);
   memcpy(&clone->read_partitions, &read_partitions, sizeof(read_partitions));

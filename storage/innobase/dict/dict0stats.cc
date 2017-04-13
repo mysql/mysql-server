@@ -2828,9 +2828,9 @@ dict_stats_fetch_from_ps(
 	index_fetch_arg.table = table;
 	index_fetch_arg.stats_were_modified = false;
 	pars_info_bind_function(pinfo,
-			        "fetch_index_stats_step",
-			        dict_stats_fetch_index_stats_step,
-			        &index_fetch_arg);
+				"fetch_index_stats_step",
+				dict_stats_fetch_index_stats_step,
+				&index_fetch_arg);
 
 	ret = que_eval_sql(pinfo,
 			   "PROCEDURE FETCH_STATS () IS\n"
@@ -3621,6 +3621,34 @@ dict_stats_rename_index(
 	rw_lock_x_unlock(dict_operation_lock);
 
 	return(ret);
+}
+
+/** Evict the stats tables if they loaded in tablespace cache and also
+close the stats .ibd files. We have to close stats tables because
+8.0 stats tables will use the same name. We load the stats from 5.7
+with a suffix "_backup57" and migrate the statistics. */
+void
+dict_stats_evict_tablespaces()
+{
+	ut_ad(srv_is_upgrade_mode);
+
+	space_id_t	space_id_index_stats = fil_space_get_id_by_name(INDEX_STATS_NAME);
+	space_id_t	space_id_table_stats = fil_space_get_id_by_name(TABLE_STATS_NAME);
+	trx_t*		trx = trx_allocate_for_background();
+
+	trx_start_internal(trx);
+
+	if (space_id_index_stats != SPACE_UNKNOWN) {
+		fil_close_tablespace(trx, space_id_index_stats);
+	}
+
+	if (space_id_table_stats != SPACE_UNKNOWN) {
+		fil_close_tablespace(trx, space_id_table_stats);
+	}
+
+	trx_commit_for_mysql(trx);
+
+	trx_free_for_background(trx);
 }
 
 /* tests @{ */

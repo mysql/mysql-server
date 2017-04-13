@@ -52,6 +52,7 @@ t_aux_10	CREATE TABLE `t_aux_10` (
 CALL mtr.add_suppression("InnoDB: File '.*tablespaces.open..*' size is .* Must be at least");
 CALL mtr.add_suppression("InnoDB: File '.*tablespaces.open..*' size is .* should be at least");
 CALL mtr.add_suppression("InnoDB: No space ID to filename mapping file found");
+CALL mtr.add_suppression("InnoDB: Cannot load table db_test_a");
 # Make backups of the existing tablespaces.open.* files.
 # We will use these files later.
 # Generate entries in tablespaces.open.* files and also log by running DDL+DML. The printing of statements is disabled.

@@ -2636,7 +2636,7 @@ static bool fix_fields_gcol_func(THD *thd, Field *field)
   tables.next_name_resolution_table= 0;
   my_stpmov(db_name_string, table->s->normalized_path.str);
   dir_length= dirname_length(db_name_string);
-  db_name_string[dir_length - 1]= 0;
+  db_name_string[dir_length ? dir_length - 1 : 0]= 0;
   home_dir_length= dirname_length(db_name_string);
   db_name= &db_name_string[home_dir_length];
   tables.db= db_name;
@@ -2776,6 +2776,15 @@ bool unpack_gcol_info(THD *thd,
 
   Strict_error_handler strict_handler;
 
+  LEX * const old_lex= thd->lex;
+  LEX new_lex;
+  thd->lex= &new_lex;
+  if (lex_start(thd))
+  {
+    thd->lex= old_lex;
+    DBUG_RETURN(true); // OOM
+  }
+
   if (!(gcol_expr_str= (char*) alloc_root(&table->mem_root,
                                           gcol_expr->length +
                                             PARSE_GCOL_KEYWORD.length + 3)))
@@ -2872,6 +2881,8 @@ bool unpack_gcol_info(THD *thd,
   }
   if (field->gcol_info->register_base_columns(table))
     goto parse_err;
+  lex_end(thd->lex);
+  thd->lex= old_lex;
   thd->stmt_arena= backup_stmt_arena_ptr;
   thd->restore_active_arena(&gcol_arena, &backup_arena);
   field->gcol_info->item_free_list= gcol_arena.free_list;
@@ -2882,6 +2893,8 @@ bool unpack_gcol_info(THD *thd,
 
 parse_err:
   thd->free_items();
+  lex_end(thd->lex);
+  thd->lex= old_lex;
   thd->stmt_arena= backup_stmt_arena_ptr;
   thd->restore_active_arena(&gcol_arena, &backup_arena);
   thd->variables.character_set_client= old_character_set_client;

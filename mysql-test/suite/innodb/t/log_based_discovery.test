@@ -97,7 +97,7 @@ let NEW_CMD = $MYSQLD --no-defaults --innodb_page_size=$START_PAGE_SIZE --innodb
 
 # Search for particular error
 let SEARCH_FILE= $MYSQLTEST_VARDIR/tmp/mysqld_log.err;
-let SEARCH_PATTERN=\[ERROR\] InnoDB: The undo tablespace '.*innodb_undo_data_dir2.*' cannot be opened.*Last known path for this undo tablespace was '.*innodb_undo_data_dir1.*';
+let SEARCH_PATTERN= \[ERROR\] InnoDB: Unable to open undo tablespace;
 --source include/search_pattern_in_file.inc
 --remove_file $MYSQLTEST_VARDIR/tmp/mysqld_log.err
 

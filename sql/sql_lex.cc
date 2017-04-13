@@ -513,6 +513,7 @@ void LEX::reset()
   reparse_common_table_expr_at= 0;
   opt_hints_global= NULL;
   binlog_need_explicit_defaults_ts= false;
+  m_extended_show= false;
 
   clear_privileges();
 }

@@ -28,6 +28,7 @@ Created 2/25/1997 Heikki Tuuri
 #include "btr0btr.h"
 #include "dict0boot.h"
 #include "dict0crea.h"
+#include "dict0dd.h"
 #include "dict0dict.h"
 #include "ibuf0ibuf.h"
 #include "log0log.h"
@@ -116,6 +117,7 @@ row_undo_ins_remove_clust_rec(
 		mem_heap_free(heap);
 	}
 
+#ifdef INNODB_DD_TABLE
 	if (node->table->id == DICT_INDEXES_ID) {
 
 		ut_ad(!online);
@@ -132,6 +134,7 @@ row_undo_ins_remove_clust_rec(
 			BTR_MODIFY_LEAF, &node->pcur, &mtr);
 		ut_a(success);
 	}
+#endif
 
 	if (btr_cur_optimistic_delete(btr_cur, 0, &mtr)) {
 		err = DB_SUCCESS;
@@ -348,12 +351,12 @@ row_undo_ins_parse_undo_rec(
 	node->rec_type = type;
 
 	node->update = NULL;
-	node->table = dict_table_open_on_id(
-		table_id, dict_locked, DICT_TABLE_OP_NORMAL);
+
+	node->table = dd_table_open_on_id_in_mem(table_id, dict_locked);
 
 	/* Skip the UNDO if we can't find the table or the .ibd file. */
-	if (UNIV_UNLIKELY(node->table == NULL)) {
-	} else if (UNIV_UNLIKELY(node->table->ibd_file_missing)) {
+	if (node->table == NULL) {
+	} else if (node->table->ibd_file_missing) {
 close_table:
 		dict_table_close(node->table, dict_locked, FALSE);
 		node->table = NULL;

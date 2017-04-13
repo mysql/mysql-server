@@ -167,7 +167,6 @@ bool acquire_shared_table_mdl(THD *thd,
                               MDL_ticket **out_mdl_ticket)
   MY_ATTRIBUTE((warn_unused_result));
 
-
 /**
   Predicate to check if we have a shared meta data lock on the
   submitted schema qualified table name.
@@ -273,7 +272,7 @@ bool has_exclusive_tablespace_mdl(THD *thd,
 
 /**
   Acquire exclusive metadata lock on the given table name with
-  explicit duration.
+  TRANSACTIONAL duration.
 
   @param[in]  thd              THD to which lock belongs to.
   @param[in]  schema_name      Schema name

@@ -1426,6 +1426,18 @@ RecLock::create(
 
 	lock_t*	lock = lock_alloc(trx, m_index, m_mode, m_rec_id, m_size);
 
+#ifdef UNIV_DEBUG
+	/* GAP lock shouldn't be taken on DD tables */
+	/* Give exemption to spatial_reference table & stats tables (table_id 43 & 44)*/
+	if (m_index->table->is_dd_table
+	    && m_index->table->id != 23
+	    && m_index->table->id != 43
+	    && m_index->table->id != 44) {
+		ut_ad(((m_mode - (LOCK_MODE_MASK & m_mode)) - (LOCK_TYPE_MASK & m_mode) - (LOCK_WAIT & m_mode)) == LOCK_REC_NOT_GAP);
+	}
+#endif /* UNIV_DEBUG */
+
+
 	if (prdt != NULL && (m_mode & LOCK_PREDICATE)) {
 
 		lock_prdt_set_prdt(lock, prdt);
@@ -2565,11 +2577,15 @@ lock_rec_inherit_to_gap(
 	inherited as gap type locks.  But we DO want S-locks/X-locks(taken for
 	replace) set by a consistency constraint to be inherited also then. */
 
+	/* We also dont inherit these locks as gap type locks for DD tables
+	because the serialization is guaranteed by MDL on DD tables. */
+
 	for (lock = lock_rec_get_first(lock_sys->rec_hash, block, heap_no);
 	     lock != NULL;
 	     lock = lock_rec_get_next(heap_no, lock)) {
 
 		if (!lock_rec_get_insert_intention(lock)
+		    && !lock->index->table->is_dd_table
 		    && !(lock->trx->skip_gap_locks()
 			 && lock_get_mode(lock) ==
 			 (lock->trx->duplicates ? LOCK_S : LOCK_X))) {
@@ -4851,18 +4867,20 @@ struct	PrintNotStarted {
 
 	PrintNotStarted(FILE* file) : m_file(file) { }
 
-	void	operator()(const trx_t* trx)
+	void	operator()(trx_t* trx)
 	{
 		ut_ad(trx->in_mysql_trx_list);
 		ut_ad(mutex_own(&trx_sys->mutex));
 
 		/* See state transitions and locking rules in trx0trx.h */
 
+		trx_mutex_enter(trx);
 		if (trx_state_eq(trx, TRX_STATE_NOT_STARTED)) {
 
 			fputs("---", m_file);
 			trx_print_latched(m_file, trx, 600);
 		}
+		trx_mutex_exit(trx);
 	}
 
 	FILE*		m_file;
@@ -7347,6 +7365,18 @@ DeadlockChecker::search()
 
 			notify(lock);
 
+#ifdef UNIV_DEBUG
+			/* We don't expect Deadlocks with DD tables. If
+			we find, we crash early to find the transactions
+			causing deadlock */
+			if ((lock->is_record_lock() && lock->index != nullptr
+			     && lock->index->table->is_dd_table)
+			    || (m_wait_lock->is_record_lock() && m_wait_lock->index != nullptr
+				&& m_wait_lock->index->table->is_dd_table)) {
+				bool	dd_deadlock_found = true;
+				ut_ad(!dd_deadlock_found);
+			}
+#endif /* UNIV_DEBUG */
 			return(select_victim());
 
 		} else if (is_too_deep()) {

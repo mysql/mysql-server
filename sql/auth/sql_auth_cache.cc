@@ -3906,8 +3906,8 @@ static const ulong ACL_CACHE_LOCK_TIMEOUT= 3600UL;
 static const MDL_key ACL_CACHE_KEY(MDL_key::ACL_CACHE, "", "");
 
 /**
-  Internal_error_hanlder subclass to suppress ER_LOCK_DEADLOCK and
-  ER_LOCK_WAIT_TIMEOUT.
+  Internal_error_handler subclass to suppress ER_LOCK_DEADLOCK,
+  ER_LOCK_WAIT_TIMEOUT, ER_QUERY_INTERRUPTED and ER_QUERY_TIMEOUT.
   Instead, we will use Acl_cache_lock_guard::lock()
   to raise ER_CANNOT_LOCK_USER_MANAGEMENT_CACHES error.
 */
@@ -3932,7 +3932,9 @@ public:
                                 const char *msg MY_ATTRIBUTE((unused)))
   {
     return (sql_errno == ER_LOCK_DEADLOCK ||
-            sql_errno == ER_LOCK_WAIT_TIMEOUT);
+            sql_errno == ER_LOCK_WAIT_TIMEOUT ||
+            sql_errno == ER_QUERY_INTERRUPTED ||
+            sql_errno == ER_QUERY_TIMEOUT);
   }
 };
 

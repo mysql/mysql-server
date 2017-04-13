@@ -96,6 +96,9 @@ those defined in mysql file ft_global.h */
 /** The number of FTS index partitions for a fulltext idnex */
 #define FTS_NUM_AUX_INDEX		6
 
+/** The number of FTS AUX common table for a fulltext idnex */
+#define FTS_NUM_AUX_COMMON		5
+
 /** Threshold where our optimize thread automatically kicks in */
 #define FTS_OPTIMIZE_THRESHOLD		10000000
 
@@ -127,6 +130,16 @@ should not exceed FTS_DOC_ID_MAX_STEP */
 /* BLOB COLUMN, 0 means VARIABLE SIZE */
 #define FTS_INDEX_ILIST_LEN		0
 
+extern const char* FTS_PREFIX;
+extern const char* FTS_SUFFIX_BEING_DELETED;
+extern const char* FTS_SUFFIX_BEING_DELETED_CACHE;
+extern const char* FTS_SUFFIX_CONFIG;
+extern const char* FTS_SUFFIX_DELETED;
+extern const char* FTS_SUFFIX_DELETED_CACHE;
+
+extern const char* FTS_PREFIX_5_7;
+extern const char* FTS_SUFFIX_CONFIG_5_7;
+
 /** Variable specifying the FTS parallel sort degree */
 extern ulong		fts_sort_pll_degree;
 
@@ -139,7 +152,13 @@ in the log */
 extern bool		fts_enable_diag_print;
 
 /** FTS rank type, which will be between 0 .. 1 inclusive */
-typedef float 		fts_rank_t;
+typedef float		fts_rank_t;
+
+/** Structure to manage FTS AUX table name and MDL during its drop */
+typedef	struct {
+	/** AUX table name */
+	std::vector<char*>		aux_name;
+} aux_name_vec_t;
 
 /** Type of a row during a transaction. FTS_NOTHING means the row can be
 forgotten from the FTS system's POV, FTS_INVALID is an internal value used
@@ -433,6 +452,14 @@ fts_cache_index_cache_create(
 	dict_table_t*	table,			/*!< in: table with FTS index */
 	dict_index_t*	index);			/*!< in: FTS index */
 
+/** Remove a FTS index cache
+@param[in]	table	table with FTS index
+@param[in]	index	FTS index */
+void
+fts_cache_index_cache_remove(
+	dict_table_t*	table,
+	dict_index_t*	index);
+
 /******************************************************************//**
 Get the next available document id. This function creates a new
 transaction to generate the document id.
@@ -516,32 +543,42 @@ fts_create_common_tables(
 	const char*	name,			/*!< in: table name */
 	bool		skip_doc_id_index)	/*!< in: Skip index on doc id */
 	MY_ATTRIBUTE((warn_unused_result));
-/******************************************************************//**
-Wrapper function of fts_create_index_tables_low(), create auxiliary
-tables for an FTS index
+
+/** Creates the column specific ancillary tables needed for supporting an
+FTS index on the given table. row_mysql_lock_data_dictionary must have
+been called before this.
+
+All FTS AUX Index tables have the following schema.
+CREAT TABLE $FTS_PREFIX_INDEX_[1-6](
+	word		VARCHAR(FTS_MAX_WORD_LEN),
+	first_doc_id	INT NOT NULL,
+	last_doc_id	UNSIGNED NOT NULL,
+	doc_count	UNSIGNED INT NOT NULL,
+	ilist		VARBINARY NOT NULL,
+	UNIQUE CLUSTERED INDEX ON (word, first_doc_id))
+@param[in,out]	trx	transaction
+@param[in]	index	index instance
 @return DB_SUCCESS or error code */
 dberr_t
 fts_create_index_tables(
-/*====================*/
-	trx_t*			trx,		/*!< in: transaction handle */
-	const dict_index_t*	index)		/*!< in: the FTS index
-						instance */
+	trx_t*			trx,
+	dict_index_t*		index)
 	MY_ATTRIBUTE((warn_unused_result));
-/******************************************************************//**
-Creates the column specific ancillary tables needed for supporting an
-FTS index on the given table. row_mysql_lock_data_dictionary must have
-been called before this.
+
+/** Create auxiliary index tables for an FTS index.
+@param[in,out]	trx		transaction
+@param[in]	index		the index instance
+@param[in]	table_name	table name
+@param[in]	table_id	the table id
 @return DB_SUCCESS or error code */
 dberr_t
 fts_create_index_tables_low(
-/*========================*/
-	trx_t*		trx,			/*!< in: transaction handle */
-	const dict_index_t*
-			index,			/*!< in: the FTS index
-						instance */
-	const char*	table_name,		/*!< in: the table name */
-	table_id_t	table_id)		/*!< in: the table id */
+	trx_t*			trx,
+	dict_index_t*		index,
+	const char*		table_name,
+	table_id_t		table_id)
 	MY_ATTRIBUTE((warn_unused_result));
+
 /******************************************************************//**
 Add the FTS document id hidden column. */
 void
@@ -550,17 +587,44 @@ fts_add_doc_id_column(
 	dict_table_t*	table,	/*!< in/out: Table with FTS index */
 	mem_heap_t*	heap);	/*!< in: temporary memory heap, or NULL */
 
-/*********************************************************************//**
-Drops the ancillary tables needed for supporting an FTS index on the
+/** Drops the ancillary tables needed for supporting an FTS index on a
 given table. row_mysql_lock_data_dictionary must have been called before
 this.
+@param[in,out]	trx	transaction
+@param[in]	table	table has the fts index
+@param[in,out]	aux_vec	fts aux table name vector
 @return DB_SUCCESS or error code */
 dberr_t
 fts_drop_tables(
-/*============*/
-	trx_t*		trx,			/*!< in: transaction */
-	dict_table_t*	table);			/*!< in: table has the FTS
-						index */
+	trx_t*			trx,
+	dict_table_t*		table,
+	aux_name_vec_t*		aux_vec);
+
+/** Lock all FTS AUX tables (for dropping table)
+@param[in]	thd	thread locking the AUX table
+@param[in]	table	table has the fts index
+@return DB_SUCCESS or error code */
+dberr_t
+fts_lock_all_aux_tables(
+	THD*			thd,
+	dict_table_t*		table);
+
+/** Drop FTS AUX table DD table objects in vector
+@param[in]	aux_vec		aux table name vector
+@param[in]	file_per_table	whether file per table
+@return true on success, false on failure. */
+bool
+fts_drop_dd_tables(
+	const aux_name_vec_t*	aux_vec,
+	bool			file_per_table);
+
+/** Free FTS AUX table names in vector
+@param[in]	aux_vec		aux table name vector
+@return true on success, false on failure. */
+void
+fts_free_aux_names(
+	aux_name_vec_t*	aux_vec);
+
 /******************************************************************//**
 The given transaction is about to be committed; do whatever is necessary
 from the FTS system's POV.
@@ -716,15 +780,17 @@ void
 fts_optimize_init(void);
 /*====================*/
 
-/****************************************************************//**
-Drops index ancillary tables for a FTS index
+/** Since we do a horizontal split on the index table, we need to drop
+all the split tables.
+@param[in]	trx		transaction
+@param[in]	index		fts index
+@param[out]	aux_vec		dropped table name vector
 @return DB_SUCCESS or error code */
 dberr_t
 fts_drop_index_tables(
-/*==================*/
-	trx_t*		trx,			/*!< in: transaction */
-	dict_index_t*	index)			/*!< in: Index to drop */
-	MY_ATTRIBUTE((warn_unused_result));
+	trx_t*			trx,
+	dict_index_t*		index,
+	aux_name_vec_t*		aux_vec);
 
 /******************************************************************//**
 Remove the table from the OPTIMIZER's list. We do wait for
@@ -991,15 +1057,18 @@ fts_add_index(
 	dict_index_t*	index,			/*!< FTS index to be added */
 	dict_table_t*	table);			/*!< table */
 
-/*******************************************************************//**
-Drop auxiliary tables related to an FTS index
+/** Drop auxiliary tables related to an FTS index
+@param[in]	table		Table where indexes are dropped
+@param[in]	index		Index to be dropped
+@param[in]	trx		Transaction for the drop
+@param[in,out]	aux_vec		Aux table name vector
 @return DB_SUCCESS or error number */
 dberr_t
 fts_drop_index(
-/*===========*/
-	dict_table_t*	table,	/*!< in: Table where indexes are dropped */
-	dict_index_t*	index,	/*!< in: Index to be dropped */
-	trx_t*		trx);	/*!< in: Transaction for the drop */
+	dict_table_t*		table,
+	dict_index_t*		index,
+	trx_t*			trx,
+	aux_name_vec_t*		aux_vec);
 
 /****************************************************************//**
 Rename auxiliary tables for all fts index for a table
@@ -1019,16 +1088,6 @@ ibool
 fts_check_cached_index(
 /*===================*/
 	dict_table_t*	table);  /*!< in: Table where indexes are dropped */
-
-/** Check if the all the auxillary tables associated with FTS index are in
-consistent state. For now consistency is check only by ensuring
-index->page_no != FIL_NULL
-@param[out]	base_table	table has host fts index
-@param[in,out]	trx		trx handler */
-void
-fts_check_corrupt(
-	dict_table_t*	base_table,
-	trx_t*		trx);
 
 /** Fetch the document from tuple, tokenize the text data and
 insert the text data into fts auxiliary table and
@@ -1052,6 +1111,57 @@ fts_add_doc_from_tuple(
 fts_trx_t*
 fts_trx_create(
 	trx_t*	trx);
+
+/** For storing table info when checking for orphaned tables. */
+struct fts_aux_table_t {
+	/** Table id */
+	table_id_t	id;
+
+	/** Parent table id */
+	table_id_t	parent_id;
+
+	/** Table FT index id */
+	table_id_t	index_id;
+
+	/** Name of the table */
+	char*		name;
+};
+
+/** Check if a table is an FTS auxiliary table name.
+@param[out]	table	FTS table info
+@param[in]	name	Table name
+@param[in]	len	Length of table name
+@return true if the name matches an auxiliary table name pattern */
+bool
+fts_is_aux_table_name(
+	fts_aux_table_t*	table,
+	const char*		name,
+	ulint			len);
+
+/** Update DD system table for auxiliary common tables for an FTS index.
+@param[in]	table		dict table instance
+@return true on success, false on failure */
+bool
+fts_create_common_dd_tables(
+	const dict_table_t*     table);
+
+/** Check if a table has FTS index needs to have its auxiliary index
+tables' metadata updated in DD
+@param[in,out]	table		table to check
+@return DB_SUCCESS or error code */
+dberr_t
+fts_create_index_dd_tables(
+	dict_table_t*	table);
+
+/** Upgrade FTS AUX Tables. The FTS common and aux tables are
+renamed because they have table_id in their name. We move table_ids
+by DICT_MAX_DD_TABLES offset. Aux tables are registered into DD
+afer rename.
+@param[in]	table		InnoDB table object
+@return DB_SUCCESS or error code */
+dberr_t
+fts_upgrade_aux_tables(
+	dict_table_t*	table);
 
 #endif /*!< fts0fts.h */
 

@@ -1816,6 +1816,10 @@ enum class Numeric_type : ulong
 };
 
 
+enum class Show_fields_type { STANDARD, FULL_SHOW, EXTENDED_SHOW,
+                              EXTENDED_FULL_SHOW };
+
+
 union YYSTYPE {
   /*
     Hint parser section (sql_hints.yy)
@@ -2061,6 +2065,7 @@ union YYSTYPE {
     LEX_STRING wild;
     Item *where;
   } wild_or_where;
+  Show_fields_type show_fields_type;
   Acl_type acl_type;
   Trivial_array<LEX_CSTRING> *lex_cstring_list;
   class PT_role_or_privilege *role_or_privilege;
@@ -3531,6 +3536,8 @@ public:
   bool drop_if_exists, drop_temporary, local_file;
   bool autocommit;
   bool verbose, no_write_to_binlog;
+  // For show commands to show hidden columns and indexes.
+  bool m_extended_show;
 
   enum enum_yes_no_unknown tx_chain, tx_release;
   bool safe_to_cache_query;

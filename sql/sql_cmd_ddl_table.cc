@@ -154,7 +154,7 @@ bool Sql_cmd_create_table::execute(THD *thd)
     {
       return true;
     }
-    if (part_info && !(part_info= thd->lex->part_info->get_clone(true)))
+    if (part_info && !(part_info= thd->lex->part_info->get_clone(thd, true)))
       return true;
     thd->work_part_info= part_info;
   }

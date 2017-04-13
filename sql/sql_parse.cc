@@ -1992,6 +1992,9 @@ done:
   thd->m_digest= NULL;
 
   thd_manager->dec_thread_running();
+
+  /* Freeing the memroot will leave the THD::work_part_info invalid. */
+  thd->work_part_info= nullptr;
   free_root(thd->mem_root,MYF(MY_KEEP_PREALLOC));
 
   /* SHOW PROFILE instrumentation, end */

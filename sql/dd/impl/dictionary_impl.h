@@ -84,8 +84,6 @@ public:
 
   virtual uint get_actual_dd_version(THD *thd);
 
-  virtual uint get_actual_dd_version(THD *thd, bool *exists);
-
   virtual const Object_table *get_dd_table(
     const String_type &schema_name, const String_type &table_name) const;
 

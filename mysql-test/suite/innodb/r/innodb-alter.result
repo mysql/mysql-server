@@ -447,7 +447,7 @@ ERROR 42000: Incorrect column name 'DB_ROW_ID'
 ALTER TABLE t1o CHANGE c1 DB_TRX_ID INT;
 ERROR 42000: Incorrect column name 'DB_TRX_ID'
 ALTER TABLE t1o CHANGE c1 db_roll_ptr INT;
-ERROR 42000: Incorrect column name 'DB_ROLL_PTR'
+ERROR 42000: Incorrect column name 'db_roll_ptr'
 ALTER TABLE t1o ADD COLUMN DB_TRX_ID INT;
 ERROR 42000: Incorrect column name 'DB_TRX_ID'
 ALTER TABLE t1o ADD COLUMN db_roll_ptr INT;
@@ -468,14 +468,14 @@ Warnings:
 Warning	124	InnoDB rebuilding table to add column FTS_DOC_ID
 ALTER TABLE t1o ADD FULLTEXT INDEX(cu), ADD COLUMN FTS_DOC_ID BIGINT,
 ALGORITHM=INPLACE;
-ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: InnoDB presently supports one FULLTEXT index creation at a time. Try ALGORITHM=COPY.
+ERROR HY000: Column 'FTS_DOC_ID' is of wrong type for an InnoDB FULLTEXT index
 ALTER TABLE t1o ADD FULLTEXT INDEX(cu), ADD COLUMN FTS_DOC_ID BIGINT;
-ERROR 42000: Incorrect column name 'FTS_DOC_ID'
+ERROR HY000: Column 'FTS_DOC_ID' is of wrong type for an InnoDB FULLTEXT index
 ALTER TABLE t1o ADD FULLTEXT INDEX(cu), ADD COLUMN FTS_DOC_ID BIGINT UNSIGNED,
 ALGORITHM=INPLACE;
-ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: InnoDB presently supports one FULLTEXT index creation at a time. Try ALGORITHM=COPY.
+ERROR HY000: Column 'FTS_DOC_ID' is of wrong type for an InnoDB FULLTEXT index
 ALTER TABLE t1o ADD FULLTEXT INDEX(cu), ADD COLUMN FTS_DOC_ID BIGINT UNSIGNED;
-ERROR 42000: Incorrect column name 'FTS_DOC_ID'
+ERROR HY000: Column 'FTS_DOC_ID' is of wrong type for an InnoDB FULLTEXT index
 ALTER TABLE t1o ADD FULLTEXT INDEX(cu),
 ADD COLUMN FTS_DOC_ID BIGINT UNSIGNED NOT NULL, ALGORITHM=INPLACE;
 ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: InnoDB presently supports one FULLTEXT index creation at a time. Try ALGORITHM=COPY.
@@ -488,13 +488,13 @@ ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Cannot drop or rename F
 ALTER TABLE t1o DROP COLUMN FTS_DOC_ID;
 ALTER TABLE t1o ADD FULLTEXT INDEX(ct), CHANGE c1 FTS_DOC_ID INT,
 ALGORITHM=COPY;
-ERROR 42000: Incorrect column name 'FTS_DOC_ID'
+ERROR HY000: Column 'FTS_DOC_ID' is of wrong type for an InnoDB FULLTEXT index
 ALTER TABLE t1o ADD FULLTEXT INDEX(ct), CHANGE c1 FTS_DOC_ID INT,
 ALGORITHM=INPLACE;
-ERROR 42000: Incorrect column name 'FTS_DOC_ID'
+ERROR HY000: Column 'FTS_DOC_ID' is of wrong type for an InnoDB FULLTEXT index
 ALTER TABLE t1o ADD FULLTEXT INDEX(ct), CHANGE c1 FTS_Doc_ID INT,
 ALGORITHM=INPLACE;
-ERROR 42000: Incorrect column name 'FTS_DOC_ID'
+ERROR HY000: Column 'FTS_Doc_ID' is of wrong type for an InnoDB FULLTEXT index
 ALTER TABLE t1o ADD FULLTEXT INDEX(ct),
 CHANGE c1 FTS_DOC_ID BIGINT UNSIGNED NOT NULL,
 ALGORITHM=INPLACE;
@@ -504,9 +504,9 @@ ALTER TABLE t1n ADD FULLTEXT INDEX(ct);
 Warnings:
 Warning	1831	Duplicate index 'ct_2' defined on the table 'test.t1n'. This is deprecated and will be disallowed in a future release.
 ALTER TABLE t1n CHANGE c1 Fts_DOC_ID INT, ALGORITHM=INPLACE;
-ERROR 42000: Incorrect column name 'FTS_DOC_ID'
+ERROR HY000: Column 'Fts_DOC_ID' is of wrong type for an InnoDB FULLTEXT index
 ALTER TABLE t1n CHANGE c1 Fts_DOC_ID INT, ALGORITHM=COPY;
-ERROR 42000: Incorrect column name 'Fts_DOC_ID'
+ERROR HY000: Column 'Fts_DOC_ID' is of wrong type for an InnoDB FULLTEXT index
 ALTER TABLE t1n CHANGE FTS_DOC_ID c11 INT, ALGORITHM=INPLACE;
 ERROR 42S22: Unknown column 'FTS_DOC_ID' in 't1n'
 ALTER TABLE t1n CHANGE c1 FTS_DOC_ïD INT, ALGORITHM=INPLACE;
@@ -640,7 +640,7 @@ ALTER TABLE t1o CHANGE foo_id FTS_DOC_ID BIGINT UNSIGNED NOT NULL,
 ADD FULLTEXT INDEX(ct);
 ALTER TABLE t1o CHANGE FTS_DOC_ID foo_id BIGINT UNSIGNED NOT NULL,
 ALGORITHM=INPLACE;
-ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Cannot drop or rename FTS_DOC_ID. Try ALGORITHM=COPY.
+ERROR HY000: Index 'FTS_DOC_ID_INDEX' is of wrong type for an InnoDB FULLTEXT index
 DROP TABLE sys_indexes;
 CREATE TABLE sys_indexes SELECT i.* FROM INFORMATION_SCHEMA.INNODB_SYS_INDEXES i
 INNER JOIN sys_tables st ON i.TABLE_ID=st.TABLE_ID;
@@ -668,11 +668,11 @@ SELECT SUBSTRING(name, LOCATE('_', name) - 3, 5) AS prefix, name
 FROM INFORMATION_SCHEMA.INNODB_SYS_TABLES
 WHERE name LIKE '%FTS_%' ORDER BY 1, 2;
 prefix	name
-FTS_0	test/FTS_AUX_BEING_DELETED
-FTS_0	test/FTS_AUX_BEING_DELETED_CACHE
-FTS_0	test/FTS_AUX_CONFIG
-FTS_0	test/FTS_AUX_DELETED
-FTS_0	test/FTS_AUX_DELETED_CACHE
+fts_0	test/fts_aux_being_deleted
+fts_0	test/fts_aux_being_deleted_cache
+fts_0	test/fts_aux_config
+fts_0	test/fts_aux_deleted
+fts_0	test/fts_aux_deleted_cache
 SELECT sc.pos, sc.NAME FROM information_schema.innodb_sys_columns sc
 INNER JOIN information_schema.innodb_sys_tables st
 ON sc.TABLE_ID=st.TABLE_ID

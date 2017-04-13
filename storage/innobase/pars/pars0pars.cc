@@ -26,11 +26,20 @@ Created 11/19/1996 Heikki Tuuri
 /* Historical note: Innobase executed its first SQL string (CREATE TABLE)
 on 1/27/1998 */
 
-#include "data0data.h"
-#include "data0type.h"
-#include "dict0crea.h"
+#include "ha_prototypes.h"
+#include "current_thd.h"
+
+#include "pars0pars.h"
+#include "row0sel.h"
+#include "row0ins.h"
+#include "row0upd.h"
 #include "dict0dict.h"
 #include "dict0mem.h"
+#include "dict0crea.h"
+#include "dict0dd.h"
+#include "que0que.h"
+#include "data0data.h"
+#include "data0type.h"
 #include "eval0eval.h"
 #include "ha_prototypes.h"
 #include "lock0lock.h"
@@ -772,8 +781,26 @@ pars_retrieve_table_def(
 		sym_node->resolved = TRUE;
 		sym_node->token_type = SYM_TABLE_REF_COUNTED;
 
-		sym_node->table = dict_table_open_on_name(
-			sym_node->name, TRUE, FALSE, DICT_ERR_IGNORE_NONE);
+		/* TODO: Use dict_table_open for InnoDB system
+		table. To be removed by WL#9535. */
+		if (strstr(sym_node->name, "sys") != nullptr
+		    || strstr(sym_node->name, "SYS") != nullptr) {
+			sym_node->table = dict_table_open_on_name(
+				sym_node->name, TRUE, FALSE,
+				DICT_ERR_IGNORE_NONE);
+		} else {
+			THD*		thd = current_thd;
+
+			sym_node->mdl = nullptr;
+			sym_node->table = dd_table_open_on_name_in_mem(
+				sym_node->name, true);
+
+			if (sym_node->table == nullptr) {
+				sym_node->table = dd_table_open_on_name(
+					thd, &sym_node->mdl, sym_node->name,
+					true, DICT_ERR_IGNORE_NONE);
+			}
+		}
 
 		ut_a(sym_node->table != NULL);
 	}

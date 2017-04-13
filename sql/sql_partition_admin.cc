@@ -679,6 +679,8 @@ bool Sql_cmd_alter_table_exchange_partition::
       TODO: Legacy code to be removed once InnoDB supports exchange of
             partitions using Partition_handler::exchange_partition API.
     */
+    DEBUG_SYNC(thd, "swap_partition_before_rename");
+
     close_all_tables_for_name(thd, swap_table->s, false, NULL);
     close_all_tables_for_name(thd, part_table->s, false, NULL);
 

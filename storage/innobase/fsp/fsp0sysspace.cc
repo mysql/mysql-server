@@ -60,12 +60,6 @@ developer to enable it during debug. */
 bool srv_skip_temp_table_checks_debug = true;
 #endif /* UNIV_DEBUG */
 
-/** TRUE if we don't have DDTableBuffer in the system tablespace,
-this should be due to we run the server against old data files.
-Please do NOT change this when server is running.
-FIXME: This should be removed away once we can upgrade for new DD. */
-extern bool	srv_missing_dd_table_buffer;
-
 /** Put the pointer to the next byte after a valid file name. Note that we must
 step over the ':' in a Windows filepath.
 A Windows path normally looks like "C:\ibdata\ibdata1:1G", but a Windows raw
@@ -530,76 +524,6 @@ SysTablespace::open_file(
 	return(err);
 }
 
-/** Check if the DDTableBuffer exists in this tablespace.
-FIXME: This should be removed away once we can upgrade for new DD
-@return DB_SUCCESS or error code */
-dberr_t
-SysTablespace::check_dd_table_buffer()
-{
-	dberr_t		err;
-
-	ut_ad(space_id() == TRX_SYS_SPACE);
-
-	files_t::iterator it = m_files.begin();
-	ut_a(it->m_exists);
-
-	if (it->m_handle.m_file == OS_FILE_CLOSED) {
-
-		err = it->open_or_create(true);
-
-		if (err != DB_SUCCESS) {
-			return(err);
-		}
-	}
-
-	byte*		unaligned_read_buf;
-	byte*		read_buf;
-
-	unaligned_read_buf = static_cast<byte*>(
-		ut_malloc_nokey(2 * UNIV_PAGE_SIZE));
-
-	read_buf = static_cast<byte*>(
-		ut_align(unaligned_read_buf, UNIV_PAGE_SIZE));
-
-	IORequest	read_request(IORequest::READ);
-
-	read_request.disable_compression();
-
-	err = os_file_read(
-		read_request,
-		it->handle(), read_buf,
-		FSP_TBL_BUFFER_TREE_ROOT_PAGE_NO * UNIV_PAGE_SIZE,
-		UNIV_PAGE_SIZE);
-
-	if (err != DB_SUCCESS) {
-
-		srv_missing_dd_table_buffer = true;
-
-		ib::error()
-			<< "Failed to read the system tablespace page for"
-			<< " the root page of DDTableBuffer.";
-
-		ut_free(unaligned_read_buf);
-
-		return(err);
-	}
-
-	if (mach_read_from_8(read_buf + PAGE_HEADER + PAGE_INDEX_ID)
-	    == DICT_TBL_BUFFER_ID) {
-
-		srv_missing_dd_table_buffer = false;
-	} else {
-
-		srv_missing_dd_table_buffer = true;
-	}
-
-	ut_free(unaligned_read_buf);
-
-	it->close();
-
-	return(DB_SUCCESS);
-}
-
 /** Check the tablespace header for this tablespace.
 @param[out]	flushed_lsn	the value of FIL_PAGE_FILE_FLUSH_LSN
 @return DB_SUCCESS or error code */
@@ -995,18 +919,6 @@ SysTablespace::open_or_create(
 		err = read_lsn_and_check_flags(flush_lsn);
 		if (err != DB_SUCCESS) {
 			return(err);
-		}
-	}
-
-	/* Check if we have DDTableBuffer in the system tablespace. */
-	if (!is_temp) {
-
-		if (create_new_db) {
-
-			srv_missing_dd_table_buffer = false;
-		} else {
-
-			check_dd_table_buffer();
 		}
 	}
 

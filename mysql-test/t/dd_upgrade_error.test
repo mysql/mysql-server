@@ -40,6 +40,9 @@ let $MYSQLD_DATADIR1 = $MYSQL_TMP_DIR/data57;
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 --exec echo $MYSQL_TMP_DIR/bootstrap.log
 
+# Copy mismatch .frms to test_mismatch dir
+--copy_files_wildcard $MYSQL_TMP_DIR/data57/mismatch_frms/ $MYSQL_TMP_DIR/data57/test_mismatch/
+
 --echo # Starting the DB server will fail since the data dir contains
 --echo # tables with non native partitioning.
 let MYSQLD_LOG= $MYSQL_TMP_DIR/server.log;
@@ -48,6 +51,36 @@ let MYSQLD_LOG= $MYSQL_TMP_DIR/server.log;
 
 let SEARCH_FILE= $MYSQLD_LOG;
 --let SEARCH_PATTERN= Error in creating TABLE_SHARE from p4_hash.frm file.
+--source include/search_pattern_in_file.inc
+
+--let SEARCH_PATTERN= Error in fixing SE data for test_mismatch.t1_col_name
+--source include/search_pattern_in_file.inc
+
+--let SEARCH_PATTERN= Error in fixing SE data for test_mismatch.t2_col_type
+--source include/search_pattern_in_file.inc
+
+--let SEARCH_PATTERN= Error in fixing SE data for test_mismatch.t3_col_num
+--source include/search_pattern_in_file.inc
+
+--let SEARCH_PATTERN= Error in fixing SE data for test_mismatch.t4_index_name
+--source include/search_pattern_in_file.inc
+
+--let SEARCH_PATTERN= Error in fixing SE data for test_mismatch.t5_index_cols
+--source include/search_pattern_in_file.inc
+
+--let SEARCH_PATTERN= Error in fixing SE data for test_mismatch.t6_indexes_num
+--source include/search_pattern_in_file.inc
+
+--let SEARCH_PATTERN= Error in fixing SE data for test_mismatch.t7_indexes_unique
+--source include/search_pattern_in_file.inc
+
+--let SEARCH_PATTERN= Error in fixing SE data for test_mismatch.t8_col_type_nulls
+--source include/search_pattern_in_file.inc
+
+--let SEARCH_PATTERN= Error in fixing SE data for test_mismatch.t9_index_prefix_len
+--source include/search_pattern_in_file.inc
+
+--let SEARCH_PATTERN= Table mismatch_frms/t1_col_name is not found in InnoDB dictionary
 --source include/search_pattern_in_file.inc
 
 #Remove copied files

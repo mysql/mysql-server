@@ -472,10 +472,10 @@ String_type Index_stat_range_key::str() const
 }
 
 ///////////////////////////////////////////////////////////////////////////
-// View_usage_range_key
+// Table_reference_range_key
 ///////////////////////////////////////////////////////////////////////////
 
-Raw_key *View_usage_range_key::create_access_key(Raw_table *db_table) const
+Raw_key *Table_reference_range_key::create_access_key(Raw_table *db_table) const
 {
   TABLE *t= db_table->get_table();
 
@@ -504,7 +504,7 @@ Raw_key *View_usage_range_key::create_access_key(Raw_table *db_table) const
 
 ///////////////////////////////////////////////////////////////////////////
 
-String_type View_usage_range_key::str() const
+String_type Table_reference_range_key::str() const
 {
   dd::Stringstream_type ss;
   ss << m_catalog_name_column_no << ":" << m_catalog_name

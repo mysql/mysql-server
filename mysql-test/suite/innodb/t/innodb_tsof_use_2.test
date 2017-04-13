@@ -117,6 +117,11 @@ let $point_after=     '    after';
 let $point_baseline=  ' baseline';
 let $point_list= $point_before, $point_postcrash, $point_after, $point_baseline;
 
+# WL#9535 TODO: Remove this suppression. Currently, some mysql temporary
+# tables could be left during a crashed ALTER TABLE.
+let $p= InnoDB: Cannot load table db_test_a;
+let $suppress_pattern= $p;
+eval CALL mtr.add_suppression("$suppress_pattern");
 
 # For the tablespaces.open.<number> files used by InnoDB.
 eval

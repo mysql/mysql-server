@@ -82,7 +82,7 @@ Tables::Tables()
                          "comment VARCHAR(2048) NOT NULL");
   m_target_def.add_field(FIELD_HIDDEN,
                          "FIELD_HIDDEN",
-                         "hidden BOOL NOT NULL");
+                         "hidden ENUM('Visible', 'System', 'SE', 'DDL') NOT NULL");
   m_target_def.add_field(FIELD_OPTIONS,
                          "FIELD_OPTIONS",
                          "options MEDIUMBLOB");

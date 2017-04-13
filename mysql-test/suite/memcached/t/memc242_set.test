@@ -106,5 +106,5 @@ DROP TABLE t1;
 # Stop plugin befor innodb_memcached configuration
 UNINSTALL PLUGIN daemon_memcached;
 DROP DATABASE innodb_memcache;
- 
+
 SET @@global.tx_isolation= @tx_isolation;

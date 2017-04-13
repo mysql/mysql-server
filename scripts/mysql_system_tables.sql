@@ -58,7 +58,7 @@ Event_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
 Trigger_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
 PRIMARY KEY Host (Host,Db,User), KEY User (User)
 )
-engine=InnoDB STATS_PERSISTENT=0 CHARACTER SET utf8 COLLATE utf8_bin comment='Database privileges';
+engine=InnoDB STATS_PERSISTENT=0 CHARACTER SET utf8 COLLATE utf8_bin comment='Database privileges' TABLESPACE=mysql;
 
 -- Remember for later if db table already existed
 set @had_db_table= @@warning_count != 0;
@@ -113,7 +113,7 @@ account_locked ENUM('N', 'Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
 Create_role_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
 Drop_role_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
 PRIMARY KEY Host (Host,User)
-) engine=InnoDB STATS_PERSISTENT=0 CHARACTER SET utf8 COLLATE utf8_bin comment='Users and global privileges';
+) engine=InnoDB STATS_PERSISTENT=0 CHARACTER SET utf8 COLLATE utf8_bin comment='Users and global privileges' TABLESPACE=mysql;
 
 CREATE TABLE IF NOT EXISTS default_roles
 (
@@ -122,7 +122,7 @@ USER CHAR(32) BINARY DEFAULT '' NOT NULL,
 DEFAULT_ROLE_HOST CHAR(60) BINARY DEFAULT '%' NOT NULL,
 DEFAULT_ROLE_USER CHAR(32) BINARY DEFAULT '' NOT NULL,
 PRIMARY KEY (HOST, USER, DEFAULT_ROLE_HOST, DEFAULT_ROLE_USER)
-) engine=InnoDB STATS_PERSISTENT=0 CHARACTER SET utf8 COLLATE utf8_bin comment='Default roles';
+) engine=InnoDB STATS_PERSISTENT=0 CHARACTER SET utf8 COLLATE utf8_bin comment='Default roles' TABLESPACE=mysql;
 
 CREATE TABLE IF NOT EXISTS role_edges
 (
@@ -132,7 +132,7 @@ TO_HOST CHAR(60) BINARY DEFAULT '' NOT NULL,
 TO_USER CHAR(32) BINARY DEFAULT '' NOT NULL,
 WITH_ADMIN_OPTION ENUM('N', 'Y') COLLATE UTF8_GENERAL_CI DEFAULT 'N' NOT NULL,
 PRIMARY KEY (FROM_HOST,FROM_USER,TO_HOST,TO_USER)
-) engine=InnoDB STATS_PERSISTENT=0 CHARACTER SET utf8 COLLATE utf8_bin comment='Role hierarchy and role grants';
+) engine=InnoDB STATS_PERSISTENT=0 CHARACTER SET utf8 COLLATE utf8_bin comment='Role hierarchy and role grants' TABLESPACE=mysql;
 
 CREATE TABLE IF NOT EXISTS global_grants
 (
@@ -141,54 +141,54 @@ HOST CHAR(60) BINARY DEFAULT '' NOT NULL,
 PRIV CHAR(32) COLLATE UTF8_GENERAL_CI DEFAULT '' NOT NULL,
 WITH_GRANT_OPTION ENUM('N','Y') COLLATE UTF8_GENERAL_CI DEFAULT 'N' NOT NULL,
 PRIMARY KEY (USER,HOST,PRIV)
-) engine=InnoDB STATS_PERSISTENT=0 CHARACTER SET utf8 COLLATE utf8_bin comment='Extended global grants';
+) engine=InnoDB STATS_PERSISTENT=0 CHARACTER SET utf8 COLLATE utf8_bin comment='Extended global grants' TABLESPACE=mysql;
 
 -- Remember for later if user table already existed
 set @had_user_table= @@warning_count != 0;
 
 
-CREATE TABLE IF NOT EXISTS func (  name char(64) binary DEFAULT '' NOT NULL, ret tinyint(1) DEFAULT '0' NOT NULL, dl char(128) DEFAULT '' NOT NULL, type enum ('function','aggregate') COLLATE utf8_general_ci NOT NULL, PRIMARY KEY (name) ) engine=INNODB STATS_PERSISTENT=0 CHARACTER SET utf8 COLLATE utf8_bin   comment='User defined functions';
+CREATE TABLE IF NOT EXISTS func (  name char(64) binary DEFAULT '' NOT NULL, ret tinyint(1) DEFAULT '0' NOT NULL, dl char(128) DEFAULT '' NOT NULL, type enum ('function','aggregate') COLLATE utf8_general_ci NOT NULL, PRIMARY KEY (name) ) engine=INNODB STATS_PERSISTENT=0 CHARACTER SET utf8 COLLATE utf8_bin   comment='User defined functions' TABLESPACE=mysql;
 
 
-CREATE TABLE IF NOT EXISTS plugin ( name varchar(64) DEFAULT '' NOT NULL, dl varchar(128) DEFAULT '' NOT NULL, PRIMARY KEY (name) ) engine=InnoDB STATS_PERSISTENT=0 CHARACTER SET utf8 COLLATE utf8_general_ci comment='MySQL plugins';
+CREATE TABLE IF NOT EXISTS plugin ( name varchar(64) DEFAULT '' NOT NULL, dl varchar(128) DEFAULT '' NOT NULL, PRIMARY KEY (name) ) engine=InnoDB STATS_PERSISTENT=0 CHARACTER SET utf8 COLLATE utf8_general_ci comment='MySQL plugins' TABLESPACE=mysql;
 
 
-CREATE TABLE IF NOT EXISTS servers ( Server_name char(64) NOT NULL DEFAULT '', Host char(64) NOT NULL DEFAULT '', Db char(64) NOT NULL DEFAULT '', Username char(64) NOT NULL DEFAULT '', Password char(64) NOT NULL DEFAULT '', Port INT(4) NOT NULL DEFAULT '0', Socket char(64) NOT NULL DEFAULT '', Wrapper char(64) NOT NULL DEFAULT '', Owner char(64) NOT NULL DEFAULT '', PRIMARY KEY (Server_name)) engine=InnoDB STATS_PERSISTENT=0 CHARACTER SET utf8 comment='MySQL Foreign Servers table';
+CREATE TABLE IF NOT EXISTS servers ( Server_name char(64) NOT NULL DEFAULT '', Host char(64) NOT NULL DEFAULT '', Db char(64) NOT NULL DEFAULT '', Username char(64) NOT NULL DEFAULT '', Password char(64) NOT NULL DEFAULT '', Port INT(4) NOT NULL DEFAULT '0', Socket char(64) NOT NULL DEFAULT '', Wrapper char(64) NOT NULL DEFAULT '', Owner char(64) NOT NULL DEFAULT '', PRIMARY KEY (Server_name)) engine=InnoDB STATS_PERSISTENT=0 CHARACTER SET utf8 comment='MySQL Foreign Servers table' TABLESPACE=mysql;
 
 
-CREATE TABLE IF NOT EXISTS tables_priv ( Host char(60) binary DEFAULT '' NOT NULL, Db char(64) binary DEFAULT '' NOT NULL, User char(32) binary DEFAULT '' NOT NULL, Table_name char(64) binary DEFAULT '' NOT NULL, Grantor char(93) DEFAULT '' NOT NULL, Timestamp timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, Table_priv set('Select','Insert','Update','Delete','Create','Drop','Grant','References','Index','Alter','Create View','Show view','Trigger') COLLATE utf8_general_ci DEFAULT '' NOT NULL, Column_priv set('Select','Insert','Update','References') COLLATE utf8_general_ci DEFAULT '' NOT NULL, PRIMARY KEY (Host,Db,User,Table_name), KEY Grantor (Grantor) ) engine=INNODB STATS_PERSISTENT=0 CHARACTER SET utf8   engine=InnoDB STATS_PERSISTENT=0 CHARACTER SET utf8 COLLATE utf8_bin   comment='Table privileges';
+CREATE TABLE IF NOT EXISTS tables_priv ( Host char(60) binary DEFAULT '' NOT NULL, Db char(64) binary DEFAULT '' NOT NULL, User char(32) binary DEFAULT '' NOT NULL, Table_name char(64) binary DEFAULT '' NOT NULL, Grantor char(93) DEFAULT '' NOT NULL, Timestamp timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, Table_priv set('Select','Insert','Update','Delete','Create','Drop','Grant','References','Index','Alter','Create View','Show view','Trigger') COLLATE utf8_general_ci DEFAULT '' NOT NULL, Column_priv set('Select','Insert','Update','References') COLLATE utf8_general_ci DEFAULT '' NOT NULL, PRIMARY KEY (Host,Db,User,Table_name), KEY Grantor (Grantor) ) engine=INNODB STATS_PERSISTENT=0 CHARACTER SET utf8   engine=InnoDB STATS_PERSISTENT=0 CHARACTER SET utf8 COLLATE utf8_bin   comment='Table privileges' TABLESPACE=mysql;
 
-CREATE TABLE IF NOT EXISTS columns_priv ( Host char(60) binary DEFAULT '' NOT NULL, Db char(64) binary DEFAULT '' NOT NULL, User char(32) binary DEFAULT '' NOT NULL, Table_name char(64) binary DEFAULT '' NOT NULL, Column_name char(64) binary DEFAULT '' NOT NULL, Timestamp timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, Column_priv set('Select','Insert','Update','References') COLLATE utf8_general_ci DEFAULT '' NOT NULL, PRIMARY KEY (Host,Db,User,Table_name,Column_name) ) engine=InnoDB STATS_PERSISTENT=0 CHARACTER SET utf8 COLLATE utf8_bin   comment='Column privileges';
-
-
-CREATE TABLE IF NOT EXISTS help_topic ( help_topic_id int unsigned not null, name char(64) not null, help_category_id smallint unsigned not null, description text not null, example text not null, url text not null, primary key (help_topic_id), unique index (name) ) engine=INNODB STATS_PERSISTENT=0 CHARACTER SET utf8 comment='help topics';
+CREATE TABLE IF NOT EXISTS columns_priv ( Host char(60) binary DEFAULT '' NOT NULL, Db char(64) binary DEFAULT '' NOT NULL, User char(32) binary DEFAULT '' NOT NULL, Table_name char(64) binary DEFAULT '' NOT NULL, Column_name char(64) binary DEFAULT '' NOT NULL, Timestamp timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, Column_priv set('Select','Insert','Update','References') COLLATE utf8_general_ci DEFAULT '' NOT NULL, PRIMARY KEY (Host,Db,User,Table_name,Column_name) ) engine=InnoDB STATS_PERSISTENT=0 CHARACTER SET utf8 COLLATE utf8_bin   comment='Column privileges' TABLESPACE=mysql;
 
 
-CREATE TABLE IF NOT EXISTS help_category ( help_category_id smallint unsigned not null, name  char(64) not null, parent_category_id smallint unsigned null, url text not null, primary key (help_category_id), unique index (name) ) engine=INNODB STATS_PERSISTENT=0 CHARACTER SET utf8 comment='help categories';
+CREATE TABLE IF NOT EXISTS help_topic ( help_topic_id int unsigned not null, name char(64) not null, help_category_id smallint unsigned not null, description text not null, example text not null, url text not null, primary key (help_topic_id), unique index (name) ) engine=INNODB STATS_PERSISTENT=0 CHARACTER SET utf8 comment='help topics' TABLESPACE=mysql;
 
 
-CREATE TABLE IF NOT EXISTS help_relation ( help_topic_id int unsigned not null, help_keyword_id  int unsigned not null, primary key (help_keyword_id, help_topic_id) ) engine=INNODB STATS_PERSISTENT=0 CHARACTER SET utf8 comment='keyword-topic relation';
+CREATE TABLE IF NOT EXISTS help_category ( help_category_id smallint unsigned not null, name  char(64) not null, parent_category_id smallint unsigned null, url text not null, primary key (help_category_id), unique index (name) ) engine=INNODB STATS_PERSISTENT=0 CHARACTER SET utf8 comment='help categories' TABLESPACE=mysql;
 
 
-CREATE TABLE IF NOT EXISTS help_keyword (   help_keyword_id  int unsigned not null, name char(64) not null, primary key (help_keyword_id), unique index (name) ) engine=INNODB STATS_PERSISTENT=0 CHARACTER SET utf8 comment='help keywords';
+CREATE TABLE IF NOT EXISTS help_relation ( help_topic_id int unsigned not null, help_keyword_id  int unsigned not null, primary key (help_keyword_id, help_topic_id) ) engine=INNODB STATS_PERSISTENT=0 CHARACTER SET utf8 comment='keyword-topic relation' TABLESPACE=mysql;
 
 
-CREATE TABLE IF NOT EXISTS time_zone_name (   Name char(64) NOT NULL, Time_zone_id int unsigned NOT NULL, PRIMARY KEY Name (Name) ) engine=INNODB STATS_PERSISTENT=0 CHARACTER SET utf8   comment='Time zone names';
+CREATE TABLE IF NOT EXISTS help_keyword (   help_keyword_id  int unsigned not null, name char(64) not null, primary key (help_keyword_id), unique index (name) ) engine=INNODB STATS_PERSISTENT=0 CHARACTER SET utf8 comment='help keywords' TABLESPACE=mysql;
 
 
-CREATE TABLE IF NOT EXISTS time_zone (   Time_zone_id int unsigned NOT NULL auto_increment, Use_leap_seconds enum('Y','N') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, PRIMARY KEY TzId (Time_zone_id) ) engine=INNODB STATS_PERSISTENT=0 CHARACTER SET utf8   comment='Time zones';
+CREATE TABLE IF NOT EXISTS time_zone_name (   Name char(64) NOT NULL, Time_zone_id int unsigned NOT NULL, PRIMARY KEY Name (Name) ) engine=INNODB STATS_PERSISTENT=0 CHARACTER SET utf8   comment='Time zone names' TABLESPACE=mysql;
 
 
-CREATE TABLE IF NOT EXISTS time_zone_transition (   Time_zone_id int unsigned NOT NULL, Transition_time bigint signed NOT NULL, Transition_type_id int unsigned NOT NULL, PRIMARY KEY TzIdTranTime (Time_zone_id, Transition_time) ) engine=INNODB STATS_PERSISTENT=0 CHARACTER SET utf8   comment='Time zone transitions';
+CREATE TABLE IF NOT EXISTS time_zone (   Time_zone_id int unsigned NOT NULL auto_increment, Use_leap_seconds enum('Y','N') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, PRIMARY KEY TzId (Time_zone_id) ) engine=INNODB STATS_PERSISTENT=0 CHARACTER SET utf8   comment='Time zones' TABLESPACE=mysql;
 
 
-CREATE TABLE IF NOT EXISTS time_zone_transition_type (   Time_zone_id int unsigned NOT NULL, Transition_type_id int unsigned NOT NULL, Offset int signed DEFAULT 0 NOT NULL, Is_DST tinyint unsigned DEFAULT 0 NOT NULL, Abbreviation char(8) DEFAULT '' NOT NULL, PRIMARY KEY TzIdTrTId (Time_zone_id, Transition_type_id) ) engine=INNODB STATS_PERSISTENT=0 CHARACTER SET utf8   comment='Time zone transition types';
+CREATE TABLE IF NOT EXISTS time_zone_transition (   Time_zone_id int unsigned NOT NULL, Transition_time bigint signed NOT NULL, Transition_type_id int unsigned NOT NULL, PRIMARY KEY TzIdTranTime (Time_zone_id, Transition_time) ) engine=INNODB STATS_PERSISTENT=0 CHARACTER SET utf8   comment='Time zone transitions' TABLESPACE=mysql;
 
 
-CREATE TABLE IF NOT EXISTS time_zone_leap_second (   Transition_time bigint signed NOT NULL, Correction int signed NOT NULL, PRIMARY KEY TranTime (Transition_time) ) engine=INNODB STATS_PERSISTENT=0 CHARACTER SET utf8   comment='Leap seconds information for time zones';
+CREATE TABLE IF NOT EXISTS time_zone_transition_type (   Time_zone_id int unsigned NOT NULL, Transition_type_id int unsigned NOT NULL, Offset int signed DEFAULT 0 NOT NULL, Is_DST tinyint unsigned DEFAULT 0 NOT NULL, Abbreviation char(8) DEFAULT '' NOT NULL, PRIMARY KEY TzIdTrTId (Time_zone_id, Transition_type_id) ) engine=INNODB STATS_PERSISTENT=0 CHARACTER SET utf8   comment='Time zone transition types' TABLESPACE=mysql;
 
 
-CREATE TABLE IF NOT EXISTS procs_priv ( Host char(60) binary DEFAULT '' NOT NULL, Db char(64) binary DEFAULT '' NOT NULL, User char(32) binary DEFAULT '' NOT NULL, Routine_name char(64) COLLATE utf8_general_ci DEFAULT '' NOT NULL, Routine_type enum('FUNCTION','PROCEDURE') NOT NULL, Grantor char(93) DEFAULT '' NOT NULL, Proc_priv set('Execute','Alter Routine','Grant') COLLATE utf8_general_ci DEFAULT '' NOT NULL, Timestamp timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, PRIMARY KEY (Host,Db,User,Routine_name,Routine_type), KEY Grantor (Grantor) ) engine=InnoDB STATS_PERSISTENT=0 CHARACTER SET utf8 COLLATE utf8_bin   comment='Procedure privileges';
+CREATE TABLE IF NOT EXISTS time_zone_leap_second (   Transition_time bigint signed NOT NULL, Correction int signed NOT NULL, PRIMARY KEY TranTime (Transition_time) ) engine=INNODB STATS_PERSISTENT=0 CHARACTER SET utf8   comment='Leap seconds information for time zones' TABLESPACE=mysql;
+
+
+CREATE TABLE IF NOT EXISTS procs_priv ( Host char(60) binary DEFAULT '' NOT NULL, Db char(64) binary DEFAULT '' NOT NULL, User char(32) binary DEFAULT '' NOT NULL, Routine_name char(64) COLLATE utf8_general_ci DEFAULT '' NOT NULL, Routine_type enum('FUNCTION','PROCEDURE') NOT NULL, Grantor char(93) DEFAULT '' NOT NULL, Proc_priv set('Execute','Alter Routine','Grant') COLLATE utf8_general_ci DEFAULT '' NOT NULL, Timestamp timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, PRIMARY KEY (Host,Db,User,Routine_name,Routine_type), KEY Grantor (Grantor) ) engine=InnoDB STATS_PERSISTENT=0 CHARACTER SET utf8 COLLATE utf8_bin   comment='Procedure privileges' TABLESPACE=mysql;
 
 -- Create general_log
 CREATE TABLE IF NOT EXISTS general_log (event_time TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6), user_host MEDIUMTEXT NOT NULL, thread_id BIGINT(21) UNSIGNED NOT NULL, server_id INTEGER UNSIGNED NOT NULL, command_type VARCHAR(64) NOT NULL, argument MEDIUMBLOB NOT NULL) engine=CSV CHARACTER SET utf8 comment="General log";
@@ -197,7 +197,7 @@ CREATE TABLE IF NOT EXISTS general_log (event_time TIMESTAMP(6) NOT NULL DEFAULT
 CREATE TABLE IF NOT EXISTS slow_log (start_time TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6), user_host MEDIUMTEXT NOT NULL, query_time TIME(6) NOT NULL, lock_time TIME(6) NOT NULL, rows_sent INTEGER NOT NULL, rows_examined INTEGER NOT NULL, db VARCHAR(512) NOT NULL, last_insert_id INTEGER NOT NULL, insert_id INTEGER NOT NULL, server_id INTEGER UNSIGNED NOT NULL, sql_text MEDIUMBLOB NOT NULL, thread_id BIGINT(21) UNSIGNED NOT NULL) engine=CSV CHARACTER SET utf8 comment="Slow log";
 
 
-CREATE TABLE IF NOT EXISTS component ( component_id int unsigned NOT NULL AUTO_INCREMENT, component_group_id int unsigned NOT NULL, component_urn text NOT NULL, PRIMARY KEY (component_id)) engine=INNODB DEFAULT CHARSET=utf8 COMMENT 'Components';
+CREATE TABLE IF NOT EXISTS component ( component_id int unsigned NOT NULL AUTO_INCREMENT, component_group_id int unsigned NOT NULL, component_urn text NOT NULL, PRIMARY KEY (component_id)) engine=INNODB DEFAULT CHARSET=utf8 COMMENT 'Components' TABLESPACE=mysql;
 
 SET @cmd="CREATE TABLE IF NOT EXISTS slave_relay_log_info (
   Number_of_lines INTEGER UNSIGNED NOT NULL COMMENT 'Number of lines in the file or rows in the table. Used to version table definitions.', 
@@ -211,7 +211,7 @@ SET @cmd="CREATE TABLE IF NOT EXISTS slave_relay_log_info (
   Channel_name CHAR(64) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL COMMENT 'The channel on which the slave is connected to a source. Used in Multisource Replication',
   PRIMARY KEY(Channel_name)) DEFAULT CHARSET=utf8 STATS_PERSISTENT=0 COMMENT 'Relay Log Information'";
 
-SET @str=IF(@have_innodb <> 0, CONCAT(@cmd, ' ENGINE= INNODB;'), CONCAT(@cmd, ' ENGINE= MYISAM;'));
+SET @str=IF(@have_innodb <> 0, CONCAT(@cmd, ' ENGINE= INNODB TABLESPACE=mysql;'), CONCAT(@cmd, ' ENGINE= MYISAM;'));
 PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
@@ -244,7 +244,7 @@ SET @cmd= "CREATE TABLE IF NOT EXISTS slave_master_info (
   Tls_version TEXT CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'Tls version',
   PRIMARY KEY(Channel_name)) DEFAULT CHARSET=utf8 STATS_PERSISTENT=0 COMMENT 'Master Information'";
 
-SET @str=IF(@have_innodb <> 0, CONCAT(@cmd, ' ENGINE= INNODB;'), CONCAT(@cmd, ' ENGINE= MYISAM;'));
+SET @str=IF(@have_innodb <> 0, CONCAT(@cmd, ' ENGINE= INNODB TABLESPACE=mysql;'), CONCAT(@cmd, ' ENGINE= MYISAM;'));
 PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
@@ -265,7 +265,7 @@ SET @cmd= "CREATE TABLE IF NOT EXISTS slave_worker_info (
   Channel_name CHAR(64) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL COMMENT 'The channel on which the slave is connected to a source. Used in Multisource Replication',
   PRIMARY KEY(Channel_name, Id)) DEFAULT CHARSET=utf8 STATS_PERSISTENT=0 COMMENT 'Worker Information'";
 
-SET @str=IF(@have_innodb <> 0, CONCAT(@cmd, ' ENGINE= INNODB;'), CONCAT(@cmd, ' ENGINE= MYISAM;'));
+SET @str=IF(@have_innodb <> 0, CONCAT(@cmd, ' ENGINE= INNODB TABLESPACE=mysql;'), CONCAT(@cmd, ' ENGINE= MYISAM;'));
 PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
@@ -276,7 +276,7 @@ SET @cmd= "CREATE TABLE IF NOT EXISTS gtid_executed (
     interval_end BIGINT NOT NULL COMMENT 'Last number of interval.',
     PRIMARY KEY(source_uuid, interval_start))";
 
-SET @str=IF(@have_innodb <> 0, CONCAT(@cmd, ' ENGINE= INNODB;'), CONCAT(@cmd, ' ENGINE= MYISAM;'));
+SET @str=IF(@have_innodb <> 0, CONCAT(@cmd, ' ENGINE= INNODB TABLESPACE=mysql;'), CONCAT(@cmd, ' ENGINE= MYISAM;'));
 PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
@@ -305,7 +305,7 @@ CREATE TABLE IF NOT EXISTS server_cost (
        ELSE NULL
      END) VIRTUAL,
   PRIMARY KEY (cost_name)
-) ENGINE=InnoDB CHARACTER SET=utf8 COLLATE=utf8_general_ci STATS_PERSISTENT=0;
+) ENGINE=InnoDB CHARACTER SET=utf8 COLLATE=utf8_general_ci STATS_PERSISTENT=0 TABLESPACE=mysql;
 
 INSERT IGNORE INTO server_cost(cost_name) VALUES
   ("row_evaluate_cost"), ("key_compare_cost"),
@@ -328,7 +328,7 @@ CREATE TABLE IF NOT EXISTS engine_cost (
        ELSE NULL
      END) VIRTUAL,
   PRIMARY KEY (cost_name, engine_name, device_type)
-) ENGINE=InnoDB CHARACTER SET=utf8 COLLATE=utf8_general_ci STATS_PERSISTENT=0;
+) ENGINE=InnoDB CHARACTER SET=utf8 COLLATE=utf8_general_ci STATS_PERSISTENT=0 TABLESPACE=mysql;
 
 INSERT IGNORE INTO engine_cost(engine_name, device_type, cost_name) VALUES
   ("default", 0, "memory_block_read_cost"),
@@ -346,7 +346,7 @@ CREATE TABLE IF NOT EXISTS column_stats (
   histogram JSON NOT NULL,
   PRIMARY KEY (database_name, table_name, column_name)
 ) ENGINE=InnoDB CHARACTER SET=utf8 COLLATE=utf8_bin
-COMMENT="Column statistics";
+COMMENT="Column statistics" TABLESPACE=mysql;
 
 
 --
@@ -472,7 +472,8 @@ CREATE OR REPLACE DEFINER=`root`@`localhost` VIEW information_schema.TABLES AS
        LEFT JOIN mysql.collations col ON tbl.collation_id=col.id
        LEFT JOIN mysql.table_stats stat ON tbl.name=stat.table_name
        AND sch.name=stat.schema_name
-  WHERE CAN_ACCESS_TABLE(sch.name, tbl.name) AND NOT tbl.hidden");
+  WHERE CAN_ACCESS_TABLE(sch.name, tbl.name, FALSE) AND
+        tbl.hidden = 'Visible'");
 PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
@@ -527,7 +528,8 @@ CREATE OR REPLACE DEFINER=`root`@`localhost` VIEW information_schema.TABLES_DYNA
   FROM mysql.tables tbl JOIN mysql.schemata sch ON tbl.schema_id=sch.id
        JOIN mysql.catalogs cat ON cat.id=sch.catalog_id
        LEFT JOIN mysql.collations col ON tbl.collation_id=col.id
-  WHERE CAN_ACCESS_TABLE(sch.name, tbl.name) AND NOT tbl.hidden");
+  WHERE CAN_ACCESS_TABLE(sch.name, tbl.name, FALSE) AND
+        tbl.hidden = 'Visible'");
 PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
@@ -593,7 +595,8 @@ CREATE OR REPLACE DEFINER=`root`@`localhost` VIEW information_schema.COLUMNS AS
        JOIN mysql.collations coll ON col.collation_id=coll.id
        JOIN mysql.character_sets cs ON coll.character_set_id= cs.id
   WHERE INTERNAL_GET_VIEW_WARNING_OR_ERROR(sch.name, tbl.name, tbl.type, tbl.options) AND
-        CAN_ACCESS_COLUMN(sch.name, tbl.name, col.name) AND NOT tbl.hidden");
+        CAN_ACCESS_COLUMN(sch.name, tbl.name, col.name, col.hidden) AND
+        tbl.hidden = 'Visible'");
 PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
@@ -672,7 +675,8 @@ CREATE OR REPLACE DEFINER=`root`@`localhost` VIEW information_schema.STATISTICS_
     JOIN mysql.schemata sch ON tbl.schema_id=sch.id
     JOIN mysql.catalogs cat ON cat.id=sch.catalog_id
     JOIN mysql.collations coll ON tbl.collation_id=coll.id
-  WHERE CAN_ACCESS_TABLE(sch.name, tbl.name) AND NOT tbl.hidden)");
+  WHERE CAN_ACCESS_TABLE(sch.name, tbl.name, idx.hidden OR icu.hidden) AND
+        tbl.hidden = 'Visible')");
 PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
@@ -741,7 +745,8 @@ CREATE OR REPLACE DEFINER=`root`@`localhost` VIEW information_schema.TABLE_CONST
          JOIN mysql.schemata sch ON tbl.schema_id= sch.id
          JOIN mysql.catalogs cat ON cat.id=sch.catalog_id
          AND idx.type IN ('PRIMARY', 'UNIQUE')
-    WHERE CAN_ACCESS_TABLE(sch.name, tbl.name) AND NOT tbl.hidden)
+    WHERE CAN_ACCESS_TABLE(sch.name, tbl.name, idx.hidden) AND
+          tbl.hidden = 'Visible')
   UNION
   (SELECT cat.name ", @collate_tolower, " AS CONSTRAINT_CATALOG,
           sch.name ", @collate_tolower, " AS CONSTRAINT_SCHEMA,
@@ -752,7 +757,8 @@ CREATE OR REPLACE DEFINER=`root`@`localhost` VIEW information_schema.TABLE_CONST
     FROM mysql.foreign_keys fk JOIN mysql.tables tbl ON fk.table_id = tbl.id
          JOIN mysql.schemata sch ON fk.schema_id= sch.id
          JOIN mysql.catalogs cat ON cat.id=sch.catalog_id
-    WHERE CAN_ACCESS_TABLE(sch.name, tbl.name) AND NOT tbl.hidden)");
+    WHERE CAN_ACCESS_TABLE(sch.name, tbl.name, FALSE) AND
+          tbl.hidden = 'Visible')");
 PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
@@ -781,7 +787,9 @@ CREATE OR REPLACE DEFINER=`root`@`localhost` VIEW information_schema.KEY_COLUMN_
      JOIN mysql.index_column_usage icu ON icu.index_id=idx.id
      JOIN mysql.columns col ON icu.column_id=col.id
      AND idx.type IN ('PRIMARY', 'UNIQUE')
-   WHERE CAN_ACCESS_COLUMN(sch.name, tbl.name, col.name) AND NOT tbl.hidden)
+   WHERE CAN_ACCESS_COLUMN(sch.name, tbl.name, col.name,
+                           col.hidden OR idx.hidden OR icu.hidden) AND
+         tbl.hidden = 'Visible')
   UNION
   (SELECT cat.name ", @collate_tolower, " AS CONSTRAINT_CATALOG,
      sch.name ", @collate_tolower, " AS CONSTRAINT_SCHEMA,
@@ -800,7 +808,10 @@ CREATE OR REPLACE DEFINER=`root`@`localhost` VIEW information_schema.KEY_COLUMN_
      JOIN mysql.schemata sch ON fk.schema_id= sch.id
      JOIN mysql.catalogs cat ON cat.id=sch.catalog_id
      JOIN mysql.columns col ON fkcu.column_id=col.id
-   WHERE CAN_ACCESS_COLUMN(sch.name, tbl.name, col.name) AND NOT tbl.hidden)");
+   WHERE CAN_ACCESS_COLUMN(sch.name, tbl.name, col.name, col.hidden) AND
+         tbl.hidden = 'Visible')");
+                           
+
 PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
@@ -827,7 +838,7 @@ CREATE OR REPLACE DEFINER=`root`@`localhost` VIEW information_schema.VIEWS AS
        JOIN mysql.collations conn_coll ON conn_coll.id= vw.view_connection_collation_id
        JOIN mysql.collations client_coll ON client_coll.id= vw.view_client_collation_id
        JOIN mysql.character_sets cs ON cs.id= client_coll.character_set_id
-  WHERE vw.type = 'VIEW' AND CAN_ACCESS_TABLE(sch.name, vw.name)");
+  WHERE vw.type = 'VIEW' AND CAN_ACCESS_TABLE(sch.name, vw.name, FALSE)");
 PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
@@ -867,7 +878,8 @@ SELECT cat.name AS TRIGGER_CATALOG,
        JOIN mysql.character_sets cs_client ON cs_client.id=coll_client.character_set_id
        JOIN mysql.collations coll_conn ON coll_conn.id=trg.connection_collation_id
        JOIN mysql.collations coll_db ON coll_db.id=trg.schema_collation_id
-  WHERE tbl.type != 'VIEW' AND CAN_ACCESS_TRIGGER(sch.name, tbl.name) AND NOT tbl.hidden");
+  WHERE tbl.type != 'VIEW' AND CAN_ACCESS_TRIGGER(sch.name, tbl.name) AND
+        tbl.hidden = 'Visible'");
 PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
@@ -3772,7 +3784,7 @@ PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
 
-CREATE TABLE IF NOT EXISTS proxies_priv (Host char(60) binary DEFAULT '' NOT NULL, User char(32) binary DEFAULT '' NOT NULL, Proxied_host char(60) binary DEFAULT '' NOT NULL, Proxied_user char(32) binary DEFAULT '' NOT NULL, With_grant BOOL DEFAULT 0 NOT NULL, Grantor char(93) DEFAULT '' NOT NULL, Timestamp timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, PRIMARY KEY Host (Host,User,Proxied_host,Proxied_user), KEY Grantor (Grantor) ) engine=InnoDB STATS_PERSISTENT=0 CHARACTER SET utf8 COLLATE utf8_bin comment='User proxy privileges';
+CREATE TABLE IF NOT EXISTS proxies_priv (Host char(60) binary DEFAULT '' NOT NULL, User char(32) binary DEFAULT '' NOT NULL, Proxied_host char(60) binary DEFAULT '' NOT NULL, Proxied_user char(32) binary DEFAULT '' NOT NULL, With_grant BOOL DEFAULT 0 NOT NULL, Grantor char(93) DEFAULT '' NOT NULL, Timestamp timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, PRIMARY KEY Host (Host,User,Proxied_host,Proxied_user), KEY Grantor (Grantor) ) engine=InnoDB STATS_PERSISTENT=0 CHARACTER SET utf8 COLLATE utf8_bin comment='User proxy privileges' TABLESPACE=mysql;
 
 -- Remember for later if proxies_priv table already existed
 set @had_proxies_priv_table= @@warning_count != 0;

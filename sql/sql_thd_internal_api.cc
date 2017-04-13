@@ -260,6 +260,11 @@ bool thd_is_strict_mode(const THD *thd)
   return thd->is_strict_mode();
 }
 
+bool thd_is_error(const THD *thd)
+{
+  return thd->is_error();
+}
+
 bool is_mysql_datadir_path(const char *path)
 {
   if (path == NULL || strlen(path) >= FN_REFLEN)

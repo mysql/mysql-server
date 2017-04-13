@@ -47,7 +47,7 @@ t1	CREATE TABLE `t1` (
   `a` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
   `b` char(20) DEFAULT NULL,
   UNIQUE KEY `a` (`a`)
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=latin1
+) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=latin1
 SELECT name, space_type FROM information_schema.innodb_sys_tables WHERE name = 'test/t1';
 name	space_type
 test/t1	System

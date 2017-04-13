@@ -109,12 +109,6 @@ static time_t	log_last_warning_time;
 static bool	log_has_printed_chkp_margine_warning = false;
 static time_t	log_last_margine_warning_time;
 
-/** TRUE if we don't have DDTableBuffer in the system tablespace,
-this should be due to we run the server against old data files.
-Please do NOT change this when server is running.
-FIXME: This should be removed away once we can upgrade for new DD. */
-extern bool	srv_missing_dd_table_buffer;
-
 /* A margin for free space in the log buffer before a log entry is catenated */
 #define LOG_BUF_WRITE_MARGIN	(4 * OS_FILE_LOG_BLOCK_SIZE)
 
@@ -162,6 +156,31 @@ log_buf_pool_get_oldest_modification(void)
 	}
 
 	return(lsn);
+}
+
+/* Note this will work between the two formats 5_7_9 & current because
+the only change is the version number */
+static
+void
+log_downgrade()
+{
+	ulint		nth_file = 0;
+	log_group_t*    group = UT_LIST_GET_FIRST(log_sys->log_groups);
+	byte*		buf = *(group->file_header_bufs + nth_file);
+	lsn_t		dest_offset = nth_file * group->file_size;
+	const page_no_t page_no = static_cast<page_no_t>(
+		dest_offset / univ_page_size.physical());
+
+	/* Write old version */
+	mach_write_to_4(buf + LOG_HEADER_FORMAT, LOG_HEADER_FORMAT_5_7_9);
+
+	log_block_set_checksum(buf, log_block_calc_checksum_crc32(buf));
+
+	fil_io(IORequestLogWrite, true,
+	       page_id_t(group->space_id, page_no),
+	       univ_page_size,
+	       (ulint) (dest_offset % univ_page_size.physical()),
+		OS_FILE_LOG_BLOCK_SIZE, buf, group);
 }
 
 /** Extends the log buffer.
@@ -989,7 +1008,7 @@ log_group_file_header_flush(
 bool
 log_read_encryption()
 {
-	ulint		log_space_id = SRV_LOG_SPACE_FIRST_ID;
+	ulint		log_space_id = dict_sys_t::log_space_first_id;
 	const page_id_t	page_id(log_space_id, 0);
 	byte*		log_block_buf_ptr;
 	byte*		log_block_buf;
@@ -1102,7 +1121,7 @@ log_write_encryption(
 	byte*	iv,
 	bool	is_boot)
 {
-	const page_id_t	page_id(SRV_LOG_SPACE_FIRST_ID, 0);
+	const page_id_t	page_id(dict_sys_t::log_space_first_id, 0);
 	byte*		log_block_buf_ptr;
 	byte*		log_block_buf;
 
@@ -1113,7 +1132,8 @@ log_write_encryption(
 		ut_align(log_block_buf_ptr, OS_FILE_LOG_BLOCK_SIZE));
 
 	if (key == NULL && iv == NULL) {
-		fil_space_t*	space = fil_space_get(SRV_LOG_SPACE_FIRST_ID);
+		fil_space_t*	space = fil_space_get(
+			dict_sys_t::log_space_first_id);
 
 		key = space->encryption_key;
 		iv = space->encryption_iv;
@@ -1154,7 +1174,7 @@ redo log file header.
 @return true if success. */
 bool
 log_rotate_encryption() {
-	fil_space_t* space = fil_space_get(SRV_LOG_SPACE_FIRST_ID);
+	fil_space_t* space = fil_space_get(dict_sys_t::log_space_first_id);
 
 	if (!FSP_FLAGS_GET_ENCRYPTION(space->flags)) {
 		return(true);
@@ -1170,7 +1190,7 @@ redo log file header. */
 void
 log_enable_encryption_if_set()
 {
-	fil_space_t* space = fil_space_get(SRV_LOG_SPACE_FIRST_ID);
+	fil_space_t* space = fil_space_get(dict_sys_t::log_space_first_id);
 
 	if (srv_shutdown_state != SRV_SHUTDOWN_NONE) {
 		return;
@@ -1996,12 +2016,9 @@ log_checkpoint(
 	}
 #endif /* UNIV_DEBUG */
 
-	if (!srv_missing_dd_table_buffer) {
+	rw_lock_x_lock(&dict_persist->lock);
 
-		rw_lock_x_lock(&dict_persist->lock);
-
-		dict_persist_to_dd_table_buffer();
-	}
+	dict_persist_to_dd_table_buffer();
 
 #ifndef _WIN32
 	switch (srv_unix_file_flush_method) {
@@ -2018,10 +2035,7 @@ log_checkpoint(
 
 	log_mutex_enter();
 
-	if (!srv_missing_dd_table_buffer) {
-
-		rw_lock_x_unlock(&dict_persist->lock);
-	}
+	rw_lock_x_unlock(&dict_persist->lock);
 
 	oldest_lsn = log_buf_pool_get_oldest_modification();
 
@@ -2448,6 +2462,12 @@ loop:
 	}
 
 	srv_shutdown_lsn = lsn;
+
+	if (srv_downgrade_logs) {
+		ut_ad(!srv_read_only_mode);
+		log_downgrade();
+		fil_flush_file_spaces(FIL_TYPE_LOG);
+	}
 
 	if (!srv_read_only_mode) {
 		fil_write_flushed_lsn(lsn);

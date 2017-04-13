@@ -46,6 +46,9 @@ Created 3/26/1996 Heikki Tuuri
 #include "trx0trx.h"
 #include "trx0undo.h"
 #include "usr0sess.h"
+#include "os0thread-create.h"
+#include <current_thd.h>
+#include "dict0dd.h"
 
 /** This many pages must be undone before a truncate is tried within
 rollback */
@@ -693,12 +696,16 @@ trx_rollback_active(
 
 		ut_ad(dictionary_locked);
 
+		/* TODO: With Atomic DDL (WL#9536), this should not be
+		happening. Remove the code below */
+
 		/* If the transaction was for a dictionary operation,
 		we drop the relevant table only if it is not flagged
 		as DISCARDED. If it still exists. */
+		MDL_ticket*	mdl;
 
-		table = dict_table_open_on_id(
-			trx->table_id, TRUE, DICT_TABLE_OP_NORMAL);
+		table = dd_table_open_on_id(
+			trx->table_id, current_thd, &mdl, false);
 
 		if (table && !dict_table_is_discarded(table)) {
 			ib::warn() << "Dropping table '" << table->name

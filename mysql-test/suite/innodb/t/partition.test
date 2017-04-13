@@ -431,6 +431,9 @@ DROP TABLESPACE ts1;
 call mtr.add_suppression("\\[Warning\\] InnoDB: Trying to access missing tablespace .*");
 call mtr.add_suppression("\\[Warning\\] InnoDB: Missing .ibd file for table `test`\.`t1` .* ");
 call mtr.add_suppression("\\[Warning\\] InnoDB: Cannot calculate statistics for table .*");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: Operating system error number 2 in a file operation.");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: The error means the system cannot find the path specified.");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: Cannot open datafile for read-only:");
 
 CREATE TABLE t1(c1 INT,c2 CHAR(1)) PARTITION BY KEY(c1) PARTITIONS 4;
 
@@ -794,6 +797,31 @@ PARTITION BY KEY(col1) PARTITIONS 2;
 
 SELECT * FROM t1 WHERE sha(uuid_short());
 
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#25516367 - CRASH IN HA_INNOBASE::COMMIT_INPLACE_ALTER_TABLE_IMPL
+--echo #
+
+CREATE TABLESPACE s1 ADD DATAFILE '1.ibd' ENGINE = InnoDB;
+CREATE TABLE t1 (col1 INT, col2 INT) ENGINE = InnoDB ROW_FORMAT = DYNAMIC TABLESPACE s1;
+
+ALTER TABLE t1 PARTITION BY RANGE(col1)
+( PARTITION p0 VALUES LESS THAN (128), PARTITION p3 VALUES LESS THAN MAXVALUE );
+--error ER_ILLEGAL_HA_CREATE_OPTION
+ALTER TABLE t1 ROW_FORMAT = COMPRESSED;
+
+DROP TABLE t1;
+DROP TABLESPACE s1;
+
+--echo #
+--echo # This checks if operation bit is set properly for REORGANIZE PARTITION
+--echo #
+
+CREATE TABLE t1 (a INTEGER, b INTEGER NOT NULL, KEY(b)) ENGINE = INNODB /*!50100 PARTITION BY KEY(b) PARTITIONS 3 */;
+SHOW CREATE TABLE t1;
+ALTER TABLE t1 REORGANIZE PARTITION;
+SHOW CREATE TABLE t1;
 DROP TABLE t1;
 
 ########################################

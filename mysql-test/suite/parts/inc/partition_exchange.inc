@@ -156,7 +156,7 @@ connect(con1, localhost, root,,);
 --echo # con1
 SET DEBUG_SYNC= 'swap_partition_after_compare_tables SIGNAL swap_in_progress WAIT_FOR goto_verification';
 SET DEBUG_SYNC= 'swap_partition_first_row_read SIGNAL swap_in_progress WAIT_FOR goto_wait';
-SET DEBUG_SYNC= 'swap_partition_after_wait SIGNAL swap_in_progress WAIT_FOR goto_rename';
+SET DEBUG_SYNC= 'swap_partition_after_wait SIGNAL swap_in_progress WAIT_FOR goto_exchange';
 SET DEBUG_SYNC= 'swap_partition_before_exchange SIGNAL swap_in_progress WAIT_FOR test_done';
 send ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t;
 
@@ -273,7 +273,7 @@ SHOW CREATE TABLE tp;
 eval ALTER TABLE t ENGINE = $engine;
 --error ER_LOCK_WAIT_TIMEOUT
 eval ALTER TABLE tp ENGINE = $engine;
-SET DEBUG_SYNC= 'now SIGNAL goto_rename';
+SET DEBUG_SYNC= 'now SIGNAL goto_exchange';
 SET DEBUG_SYNC= 'now WAIT_FOR swap_in_progress';
 --echo # Both tables should now be under exclusive lock
 --error ER_LOCK_WAIT_TIMEOUT

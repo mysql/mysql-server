@@ -503,11 +503,11 @@ ALTER TABLE user MODIFY password_expired ENUM('N', 'Y') COLLATE utf8_general_ci 
 
 -- Need to pre-fill mysql.proxies_priv with access for root even when upgrading from
 -- older versions
-
-CREATE TEMPORARY TABLE tmp_proxies_priv LIKE proxies_priv;
-INSERT INTO tmp_proxies_priv VALUES ('localhost', 'root', '', '', TRUE, '', now());
-INSERT INTO proxies_priv SELECT * FROM tmp_proxies_priv WHERE @had_proxies_priv_table=0;
-DROP TABLE tmp_proxies_priv;
+SET @cmd="INSERT INTO proxies_priv VALUES ('localhost', 'root', '', '', TRUE, '', now())";
+SET @str = IF(@had_proxies_priv_table = 0, @cmd, "SET @dummy = 0");
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
 
 -- Checking for any duplicate hostname and username combination are exists.
 -- If exits we will throw error.

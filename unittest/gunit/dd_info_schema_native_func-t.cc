@@ -160,8 +160,8 @@ TEST_F(ISNativeFuncTest, AllNullArguments)
   item->val_int();
   EXPECT_EQ(1, item->null_value);
 
-  // CAN_ACCESS_TABLE(NULL, NULL)
-  CREATE_ITEM(Item_func_can_access_table, TWO_NULL_ARGS);
+  // CAN_ACCESS_TABLE(NULL, NULL, NULL)
+  CREATE_ITEM(Item_func_can_access_table, THREE_NULL_ARGS);
   item->val_int();
   EXPECT_EQ(1, item->null_value);
 
@@ -170,8 +170,8 @@ TEST_F(ISNativeFuncTest, AllNullArguments)
   item->val_int();
   EXPECT_EQ(1, item->null_value);
 
-  // CAN_ACCESS_COLUMN(NULL, NULL, NULL)
-  CREATE_ITEM(Item_func_can_access_column, THREE_NULL_ARGS);
+  // CAN_ACCESS_COLUMN(NULL, NULL, NULL, NULL)
+  CREATE_ITEM(Item_func_can_access_column, FOUR_NULL_ARGS);
   item->val_int();
   EXPECT_EQ(1, item->null_value);
 

@@ -81,7 +81,6 @@ handler_create_thd(
 		return(NULL);
 	}
 
-	my_thread_init();
 	thd = new THD;
 
 	if (!thd) {

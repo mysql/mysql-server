@@ -1374,8 +1374,6 @@ void
 fil_space_open_if_needed(
 	fil_space_t*	space)
 {
-	ut_ad(recv_recovery_on);
-
 	if (space->size == 0) {
 		/* Initially, size and flags will be set to 0,
 		until the files are opened for the first time.

@@ -16,9 +16,9 @@
 #ifndef SQL_TABLE_INCLUDED
 #define SQL_TABLE_INCLUDED
 
+#include <set>
 #include <stddef.h>
 #include <sys/types.h>
-#include <set>
 
 #include "binary_log_types.h"  // enum_field_types
 #include "my_inttypes.h"

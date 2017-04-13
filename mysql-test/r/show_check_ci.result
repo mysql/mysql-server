@@ -271,7 +271,7 @@ create table t1(n int);
 insert into t1 values (1);
 show open tables;
 Database	Table	In_use	Name_locked
-mysql	columns	0	0
+mysql	index_column_usage	0	0
 mysql	foreign_keys	0	0
 mysql	indexes	0	0
 mysql	foreign_key_column_usage	0	0
@@ -280,12 +280,14 @@ mysql	view_routine_usage	0	0
 test	t1	0	0
 mysql	tables	0	0
 mysql	table_partition_values	0	0
-mysql	triggers	0	0
+mysql	tablespace_files	0	0
 mysql	general_log	0	0
 mysql	view_table_usage	0	0
 mysql	index_partitions	0	0
 mysql	table_partitions	0	0
-mysql	index_column_usage	0	0
+mysql	tablespaces	0	0
+mysql	triggers	0	0
+mysql	columns	0	0
 drop table t1;
 create table t1 (a int not null, b VARCHAR(10), INDEX (b) ) AVG_ROW_LENGTH=10 CHECKSUM=1 COMMENT="test" ENGINE=MYISAM MIN_ROWS=10 MAX_ROWS=100 PACK_KEYS=1 DELAY_KEY_WRITE=1 ROW_FORMAT=fixed;
 show create table t1;
@@ -1717,3 +1719,84 @@ Tables_in_unknown
 SHOW TABLES FROM UNKNOWN;
 Tables_in_unknown
 DROP DATABASE unknown;
+#
+# WL#9570 -  Extend SHOW statements to list hidden columns and index
+#            information.
+#
+#            Test case to verify hidden columns, index and index elements
+#            display in INFORMATION_SCHEMA queries and SHOW statements.
+#            EXPECTATION: INFORMATION_SCHEMA.COLUMNS/STATISTICS*/KEY_COLUMN_USAGE
+#                         SHOW [FULL] COLUMNS and SHOW INDEX should not display
+#                         hidden columns, indexes and index elements.
+#                         SHOW EXTENED [FULL] COLUMNS and SHOW EXTENDED INDEX
+#                         should display hidden columns, index and index elements
+#                         too.
+#
+#
+CREATE TABLE t1 (c1 int(11) NOT NULL,
+c2 int(11) DEFAULT NULL,
+c3 text,
+PRIMARY KEY (c1));
+CREATE INDEX c2d ON t1(c2);
+# With fix, following statements should not show the hidden columns.
+SHOW COLUMNS FROM t1;
+Field	Type	Null	Key	Default	Extra
+c1	int(11)	#	#	#	#
+c2	int(11)	#	#	#	#
+c3	text	#	#	#	#
+SHOW FULL COLUMNS FROM t1;
+Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
+c1	int(11)	#	#	#	#	#	#	#
+c2	int(11)	#	#	#	#	#	#	#
+c3	text	#	#	#	#	#	#	#
+SELECT table_name, column_name, column_type FROM
+INFORMATION_SCHEMA.COLUMNS WHERE table_name='t1';
+TABLE_NAME	COLUMN_NAME	COLUMN_TYPE
+t1	c1	int(11)
+t1	c2	int(11)
+t1	c3	text
+# EXTENDED keyword is introduced to list the hidden columns.
+SHOW EXTENDED COLUMNS FROM t1;
+Field	Type	Null	Key	Default	Extra
+c1	int(11)	#	#	#	#
+c2	int(11)	#	#	#	#
+c3	text	#	#	#	#
+DB_TRX_ID		#	#	#	#
+DB_ROLL_PTR		#	#	#	#
+SHOW EXTENDED FULL COLUMNS FROM t1;
+Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
+c1	int(11)	#	#	#	#	#	#	#
+c2	int(11)	#	#	#	#	#	#	#
+c3	text	#	#	#	#	#	#	#
+DB_TRX_ID		#	#	#	#	#	#	#
+DB_ROLL_PTR		#	#	#	#	#	#	#
+# With fix, following statements should not show the hidden index and
+# index columns.
+SHOW INDEX FROM t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+t1	0	PRIMARY	1	c1	A	NULL	NULL	NULL		BTREE			YES
+t1	1	c2d	1	c2	A	NULL	NULL	NULL	YES	BTREE			YES
+SELECT table_schema, table_name, index_name, column_name FROM
+INFORMATION_SCHEMA.STATISTICS WHERE table_name='t1';
+TABLE_SCHEMA	TABLE_NAME	INDEX_NAME	COLUMN_NAME
+test	t1	c2d	c2
+test	t1	PRIMARY	c1
+SELECT * FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS WHERE table_name='t1';
+CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	TABLE_SCHEMA	TABLE_NAME	CONSTRAINT_TYPE
+def	test	PRIMARY	test	t1	PRIMARY KEY
+SELECT constraint_schema, constraint_name, table_name, column_name FROM
+INFORMATION_SCHEMA.KEY_COLUMN_USAGE WHERE table_name='t1';
+constraint_schema	constraint_name	table_name	column_name
+test	PRIMARY	t1	c1
+# EXTENDED keyword is introduced to list the hidden index and index
+# columns.
+SHOW EXTENDED INDEX FROM t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+t1	0	PRIMARY	1	c1	A	NULL	NULL	NULL		BTREE			YES
+t1	0	PRIMARY	2	DB_TRX_ID	A	NULL	NULL	NULL		BTREE			YES
+t1	0	PRIMARY	3	DB_ROLL_PTR	A	NULL	NULL	NULL		BTREE			YES
+t1	0	PRIMARY	4	c2	A	NULL	NULL	NULL	YES	BTREE			YES
+t1	0	PRIMARY	5	c3	A	NULL	NULL	NULL	YES	BTREE			YES
+t1	1	c2d	1	c2	A	NULL	NULL	NULL	YES	BTREE			YES
+t1	1	c2d	2	c1	A	NULL	NULL	NULL		BTREE			YES
+DROP TABLE t1;

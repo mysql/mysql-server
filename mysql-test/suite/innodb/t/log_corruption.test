@@ -1,6 +1,10 @@
 
 let newdir= $MYSQLTEST_VARDIR/tmp/log_corruption;
 --mkdir $newdir
+--mkdir $newdir/mysql
+write_file $newdir/mysql/plugin.frm;
+EOF
+
 let SEARCH_FILE = $newdir/my_restart.err;
 let $args=--no-defaults --datadir=$newdir --secure-file-priv="" --loose-skip-auto-generate-certs --loose-skip-sha256-password-auto-generate-rsa-keys --loose-console > $SEARCH_FILE 2>&1 ;
 
@@ -154,20 +158,22 @@ let SEARCH_PATTERN= len 22. hex 38000000000012860cb7809781e80006626f67757300. as
 let SEARCH_PATTERN=InnoDB: Set innodb_force_recovery to ignore this error;
 --source include/search_pattern_in_file.inc
 
---echo # Upgrade: valid 5.7.9 header, valid checkpoint 1, logically empty
---echo # redo log
---remove_file $newdir/ib_logfile0
---exec unzip $MYSQL_TEST_DIR/suite/innodb/t/log_corruption7.zip -d $newdir > $SEARCH_FILE
---error 1
---exec $MYSQLD $args
-let SEARCH_PATTERN=InnoDB: Upgrading redo log: 2\\*.* pages, LSN=1213973;
---source include/search_pattern_in_file.inc
+# FIX_ME: NewDD. Re-enable with upgrade worklogs
+#--echo # Upgrade: valid 5.7.9 header, valid checkpoint 1, logically empty
+#--echo # redo log
+#--remove_file $newdir/ib_logfile0
+#--exec unzip $MYSQL_TEST_DIR/suite/innodb/t/log_corruption7.zip -d $newdir > $SEARCH_FILE
+#--error 1
+#--exec $MYSQLD $args
+#let SEARCH_PATTERN=InnoDB: Upgrading redo log: 2\\*.* pages, LSN=1213973;
+#--source include/search_pattern_in_file.inc
 # This was created by the upgrade.
---remove_file $newdir/ib_buffer_pool
+#--remove_file $newdir/ib_buffer_pool
 
 --remove_file $SEARCH_FILE
 --remove_file $newdir/ibdata1
 --remove_file $newdir/ib_logfile0
 --remove_file $newdir/ib_logfile1
---remove_file $newdir/tablespaces.open.1
+#--remove_file $newdir/tablespaces.open.1
+--force-rmdir  $newdir/mysql
 --rmdir $newdir

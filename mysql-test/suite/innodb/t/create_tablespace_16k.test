@@ -642,4 +642,5 @@ call mtr.add_suppression("\\[ERROR\\] InnoDB: Cannot open datafile for read-only
 call mtr.add_suppression("\\[ERROR\\] InnoDB: Cannot delete tablespace .* because it is not found in the tablespace memory cache");
 call mtr.add_suppression("\\[ERROR\\] InnoDB: Failed to find tablespace for table `test`.`t_missing` in the cache. Attempting to load the tablespace with space id .*");
 call mtr.add_suppression("\\[Warning\\] InnoDB: Ignoring tablespace `s_missing` because it could not be opened");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: Unable to open tablespace .* \\(flags=.*, filename=delete_me.ibd\\);");
 --enable_query_log

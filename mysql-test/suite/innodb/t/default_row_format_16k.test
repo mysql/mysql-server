@@ -363,6 +363,12 @@ ALTER TABLE t1 ADD INDEX k2(b);
 ALTER TABLE t1 ADD INDEX k3(c);
 DROP TABLE t1;
 
+CREATE TABLE t1(a VARCHAR(1000)) ROW_FORMAT=DYNAMIC;
+CREATE INDEX ON t1(a);
+--error ER_INDEX_COLUMN_TOO_LONG
+ALTER TABLE t1 ROW_FORMAT=COMPACT;
+DROP TABLE t1;
+
 ########################################
 ##### WL#7554 set schema `test` back to what it was
 --disable_query_log

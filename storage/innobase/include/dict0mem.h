@@ -28,6 +28,7 @@ Created 1/8/1996 Heikki Tuuri
 #define dict0mem_h
 
 #include "univ.i"
+#include "dd/object_id.h"
 #include "dict0types.h"
 #include "data0type.h"
 #include "mem0mem.h"
@@ -232,7 +233,7 @@ ROW_FORMAT=REDUNDANT.  InnoDB engines do not check these flags
 for unknown bits in order to protect backward incompatibility. */
 /* @{ */
 /** Total number of bits in table->flags2. */
-#define DICT_TF2_BITS			9
+#define DICT_TF2_BITS			10
 #define DICT_TF2_UNUSED_BIT_MASK	(~0U << DICT_TF2_BITS)
 #define DICT_TF2_BIT_MASK		~DICT_TF2_UNUSED_BIT_MASK
 
@@ -257,7 +258,8 @@ use its own tablespace instead of the system tablespace. */
 #define DICT_TF2_DISCARDED		32
 
 /** This bit is set if all aux table names (both common tables and
-index tables) of a FTS table are in HEX format. */
+index tables) of a FTS table are in HEX format.
+TODO: NewDD: WL#9535 remove this flag */
 #define DICT_TF2_FTS_AUX_HEX_NAME	64
 
 /** Intrinsic table bit
@@ -269,6 +271,8 @@ it is not created by user and so not visible to end-user. */
 /** Encryption table bit. */
 #define DICT_TF2_ENCRYPTION		256
 
+/** FTS AUX hidden table bit. */
+#define DICT_TF2_AUX			512
 /* @} */
 
 #define DICT_TF2_FLAG_SET(table, flag)		\
@@ -1001,6 +1005,7 @@ struct dict_index_t{
 	bool		has_new_v_col;
 				/*!< whether it has a newly added virtual
 				column in ALTER */
+	bool		hidden; /*!< if the index is an hidden index */
 #ifndef UNIV_HOTBACKUP
 	UT_LIST_NODE_T(dict_index_t)
 			indexes;/*!< list of indexes of the table */
@@ -1064,6 +1069,13 @@ struct dict_index_t{
 				compression failures and successes */
 	rw_lock_t	lock;	/*!< read-write lock protecting the
 				upper levels of the index tree */
+#ifdef INNODB_DD_TABLE
+	bool		skip_step;/*!< Skip certain steps in
+				dict_create_index_step(), will be removed
+				in wl#9535 */
+#endif /* INNNODB_DD_TABLE */
+	bool		fill_dd;/*!< Flag whether need to fill dd tables
+				when it's a fulltext index. */
 
 	/** Determine if the index has been committed to the
 	data dictionary.
@@ -1553,7 +1565,10 @@ struct dict_table_t {
 	id_name_t				tablespace;
 
 	/** Space where the clustered index of the table is placed. */
-	space_id_t			space;
+	space_id_t				space;
+
+	/** dd::Tablespace::id of the table */
+	dd::Object_id				dd_space_id;
 
 	/** Stores information about:
 	1 row format (redundant or compact),
@@ -1578,9 +1593,11 @@ struct dict_table_t {
 	Use DICT_TF2_FLAG_IS_SET() to parse this flag. */
 	unsigned				flags2:DICT_TF2_BITS;
 
-	/** TRUE if the table is a intermediate table during copy alter
-	operation and skip the undo log for insertion of row in the table.
-	This variable will be set and unset during extra(). */
+	/** TRUE if the table is an intermediate table during copy alter
+	operation or a partition/subpartition which is required for copying
+	data and skip the undo log for insertion of row in the table.
+	This variable will be set and unset during extra(), or during the
+	process of altering partitions */
 	unsigned				skip_alter_undo:1;
 
 	/** TRUE if this is in a single-table tablespace and the .ibd file is
@@ -1800,6 +1817,9 @@ struct dict_table_t {
 	/** Approximate size of other indexes in database pages. */
 	ulint					stat_sum_of_other_index_sizes;
 
+	/** If FTS AUX table, parent table id */
+	table_id_t				parent_id;
+
 	/** How many rows are modified since last stats recalc. When a row is
 	inserted, updated, or deleted, we add 1 to this number; we calculate
 	new estimates for the table and the indexes if the table has changed
@@ -1953,6 +1973,17 @@ public:
 	/** encryption iv, it's only for export/import */
 	byte*					encryption_iv;
 
+	/** remove the dict_table_t from cache after DDL operation */
+	bool					discard_after_ddl;
+
+	/** refresh/reload FK info */
+	bool					refresh_fk;
+
+#ifdef INNODB_DD_TABLE
+	/** Skip certain step in dict_create_table_step()
+	Note: will be removed in wl#9535 */
+	bool					skip_step;
+#endif /* INNODB_DD_TABLE */
 	/** multiple cursors can be active on this temporary table */
 	temp_prebuilt_vec*			temp_prebuilt;
 
@@ -2078,6 +2109,13 @@ public:
 	{
 		ut_ad(magic_n == DICT_TABLE_MAGIC_N);
 		return(flags2 & DICT_TF2_TEMPORARY);
+	}
+
+	/** Determine if this is a FTS AUX table. */
+	bool is_fts_aux() const
+	{
+		ut_ad(magic_n == DICT_TABLE_MAGIC_N);
+		return(flags2 & DICT_TF2_AUX);
 	}
 
 	/** Determine whether the table is intrinsic.

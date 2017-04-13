@@ -71,8 +71,8 @@ remove_file $MYSQLD_LOG;
 --echo # 2.1 First start the server with --initialize.
 --exec $MYSQLD $extra_args --initialize-insecure --datadir=$DDIR
 
---echo # 2.2 Delete the physical tablespace file for mysql.version.
-remove_file $DDIR/mysql/version.ibd;
+--echo # 2.2 Delete the physical tablespace file for mysql.ibd.
+remove_file $DDIR/mysql.ibd;
 
 --echo # 2.3 Restart the server against DDIR - should fail.
 --error 1
@@ -83,8 +83,8 @@ perl;
   use strict;
   my $log= $ENV{'MYSQLD_LOG'} or die;
   open(FILE, "$log") or die;
-  my $c_e= grep(/.ERROR. InnoDB: Failed to find tablespace/gi,<FILE>);
-  print "#     Tablespace error found $c_e times.\n";
+  my $c_e= grep(/Data Dictionary initialization failed/gi,<FILE>);
+  print "#     DD initialization error found $c_e times.\n";
   close(FILE);
 EOF
 
@@ -123,7 +123,7 @@ remove_file $MYSQLD_LOG;
 --mkdir $DDIR
 
 --echo # 4.1 Restart the server against existing but empty DDIR - should fail.
---error 3
+--error 1
 --exec $MYSQLD $extra_args --datadir=$DDIR
 
 --echo # 4.2 Look for error.
@@ -131,8 +131,8 @@ perl;
   use strict;
   my $log= $ENV{'MYSQLD_LOG'} or die;
   open(FILE, "$log") or die;
-  my $c_e= grep(/\[ERROR\] InnoDB: File .*ibdata1: 'open' returned OS error \d+/gi,<FILE>);
-  print "#     InnoDB file open error found $c_e times.\n";
+    my $c_e= grep(/Data Dictionary initialization failed/gi,<FILE>);
+  print "#     DD initialization error found $c_e times.\n";
   close(FILE);
 EOF
 
@@ -148,7 +148,7 @@ remove_file $MYSQLD_LOG;
 --mkdir $DDIR/mysql
 
 --echo # 5.1 Restart the server against existing but empty mysql dir - should fail.
---error 3
+--error 1
 --exec $MYSQLD $extra_args --datadir=$DDIR
 
 --echo # 5.2 Look for error.
@@ -156,8 +156,8 @@ perl;
   use strict;
   my $log= $ENV{'MYSQLD_LOG'} or die;
   open(FILE, "$log") or die;
-  my $c_e= grep(/\[ERROR\] InnoDB: File .*ibdata1: 'open' returned OS error \d+/gi,<FILE>);
-  print "#     InnoDB file open error found $c_e times.\n";
+  my $c_e= grep(/Data Dictionary initialization failed/gi,<FILE>);
+  print "#     DD initialization error found $c_e times.\n";
   close(FILE);
 EOF
 

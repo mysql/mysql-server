@@ -461,8 +461,10 @@ ERROR 42000: You have an error in your SQL syntax; check the manual that corresp
 FLUSH STATUS;
 LOCK TABLES t3 WRITE;
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
-Handler_external_lock	1
+Handler_commit	17
+Handler_external_lock	65
+Handler_read_key	32
+Handler_read_next	16
 # No further locks/unlocks until UNLOCK TABLES.
 #
 # Test INSERT with no field specifier list and empty value list
@@ -1635,10 +1637,13 @@ SET sql_mode = default;
 FLUSH STATUS;
 TRUNCATE TABLE t2;
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	2
-Handler_external_lock	24
-Handler_read_key	31
-Handler_update	31
+Handler_commit	
+Handler_delete	
+Handler_external_lock	
+Handler_read_key	
+Handler_read_next	
+Handler_update	
+Handler_write	
 # All partitions needs to be locked
 # 1 commit
 SHOW CREATE TABLE t2;
@@ -1669,10 +1674,13 @@ Handler_write	2
 FLUSH STATUS;
 ALTER TABLE t2 TRUNCATE PARTITION p1;
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	2
-Handler_external_lock	24
-Handler_read_key	31
-Handler_update	31
+Handler_commit	
+Handler_delete	
+Handler_external_lock	
+Handler_read_key	
+Handler_read_next	
+Handler_update	
+Handler_write	
 # Lots of lock acquisitions, reads and updated due to data-dictionary
 # being updated.
 # Warm-up data-dictionary cache.
@@ -2784,12 +2792,12 @@ FLUSH STATUS;
 CREATE TABLE t3 SELECT a, b FROM t1 WHERE a IN (0, 1, 13, 113, 26);
 VARIABLE_NAME	VARIABLE_VALUE
 Handler_commit	7
-Handler_external_lock	102
+Handler_external_lock	106
 Handler_read_first	3
-Handler_read_key	9
+Handler_read_key	18
 Handler_read_next	12
-Handler_update	3
-Handler_write	7
+Handler_update	12
+Handler_write	18
 SELECT * FROM t3 ORDER BY a;
 a	b
 0	First row, p0
@@ -2801,11 +2809,11 @@ FLUSH STATUS;
 CREATE TABLE t3 SELECT a, b FROM t1 WHERE b LIKE 'First%';
 VARIABLE_NAME	VARIABLE_VALUE
 Handler_commit	7
-Handler_external_lock	102
-Handler_read_key	19
+Handler_external_lock	106
+Handler_read_key	28
 Handler_read_next	5
-Handler_update	3
-Handler_write	8
+Handler_update	12
+Handler_write	19
 SELECT * FROM t3 ORDER BY a;
 a	b
 0	First row, p0
@@ -4402,11 +4410,13 @@ INSERT INTO t2 VALUES (0, "Zero"), (1, "One"), (2, "Two"),
 FLUSH STATUS;
 ALTER TABLE t2 EXCHANGE PARTITION p1 WITH TABLE t1;
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	2
-Handler_external_lock	4
+Handler_commit	8
+Handler_external_lock	84
 Handler_read_first	1
-Handler_read_key	1
+Handler_read_key	49
+Handler_read_next	6
 Handler_read_rnd_next	4
+Handler_update	36
 SELECT * FROM t1 ORDER BY a;
 a	b
 1	One
@@ -4613,12 +4623,12 @@ FLUSH STATUS;
 CREATE TABLE t2 SELECT * FROM t1 PARTITION (p1, p2);
 VARIABLE_NAME	VARIABLE_VALUE
 Handler_commit	7
-Handler_external_lock	102
+Handler_external_lock	106
 Handler_read_first	2
-Handler_read_key	7
+Handler_read_key	15
 Handler_read_rnd_next	4
-Handler_update	2
-Handler_write	6
+Handler_update	10
+Handler_write	16
 SELECT * FROM t2;
 a
 1
@@ -4630,12 +4640,12 @@ FLUSH STATUS;
 CREATE TABLE t2 SELECT * FROM t1 WHERE a IN (1, 3, 9);
 VARIABLE_NAME	VARIABLE_VALUE
 Handler_commit	7
-Handler_external_lock	102
+Handler_external_lock	106
 Handler_read_first	2
-Handler_read_key	7
+Handler_read_key	15
 Handler_read_rnd_next	4
-Handler_update	2
-Handler_write	5
+Handler_update	10
+Handler_write	15
 SELECT * FROM t2;
 a
 1
@@ -4724,10 +4734,10 @@ SELECT * FROM t2 WHERE a = (SELECT a FROM t1 WHERE b = '1');
 a	b
 1	1
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	2
-Handler_external_lock	2
-Handler_read_key	4
-Handler_read_next	1
+Handler_commit	8
+Handler_external_lock	26
+Handler_read_key	16
+Handler_read_next	7
 UNLOCK TABLES;
 EXPLAIN PARTITIONS SELECT * FROM t2 WHERE a = 7 + (SELECT a FROM t1 WHERE b = '1');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -4753,10 +4763,10 @@ SELECT * FROM t2 WHERE a = 7 + (SELECT a FROM t1 WHERE b = '1');
 a	b
 8	8
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	2
-Handler_external_lock	2
-Handler_read_key	4
-Handler_read_next	1
+Handler_commit	8
+Handler_external_lock	26
+Handler_read_key	16
+Handler_read_next	7
 UNLOCK TABLES;
 EXPLAIN PARTITIONS SELECT * FROM t2 WHERE a = sf_a_from_t1b('1');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -4782,11 +4792,11 @@ SELECT * FROM t2 WHERE a = sf_a_from_t1b('1');
 a	b
 1	1
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	2
-Handler_external_lock	2
+Handler_commit	8
+Handler_external_lock	26
 Handler_read_first	3
-Handler_read_key	12
-Handler_read_next	6
+Handler_read_key	24
+Handler_read_next	12
 UNLOCK TABLES;
 EXPLAIN PARTITIONS SELECT * FROM t2 WHERE a = sf_a_from_t1b_d('1');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -4811,10 +4821,10 @@ SELECT * FROM t2 WHERE a = sf_a_from_t1b_d('1');
 a	b
 1	1
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	2
-Handler_external_lock	2
-Handler_read_key	10
-Handler_read_next	3
+Handler_commit	8
+Handler_external_lock	26
+Handler_read_key	22
+Handler_read_next	9
 UNLOCK TABLES;
 EXPLAIN PARTITIONS SELECT * FROM t2 WHERE a = 7 + sf_a_from_t1b('1');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -4840,11 +4850,11 @@ SELECT * FROM t2 WHERE a = 7 + sf_a_from_t1b('1');
 a	b
 8	8
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	2
-Handler_external_lock	2
+Handler_commit	8
+Handler_external_lock	26
 Handler_read_first	3
-Handler_read_key	12
-Handler_read_next	6
+Handler_read_key	24
+Handler_read_next	12
 UNLOCK TABLES;
 EXPLAIN PARTITIONS SELECT * FROM t2 WHERE a = 7 + sf_a_from_t1b_d('1');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -4869,10 +4879,10 @@ SELECT * FROM t2 WHERE a = 7 + sf_a_from_t1b_d('1');
 a	b
 8	8
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	2
-Handler_external_lock	2
-Handler_read_key	10
-Handler_read_next	3
+Handler_commit	8
+Handler_external_lock	26
+Handler_read_key	22
+Handler_read_next	9
 UNLOCK TABLES;
 EXPLAIN PARTITIONS SELECT * FROM t2 WHERE a = sf_a_from_t1b('1') AND a = 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -4895,10 +4905,10 @@ LOCK TABLES t1 read, t2 write;
 SELECT * FROM t2 WHERE a = sf_a_from_t1b('1') AND a = 2;
 a	b
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	2
-Handler_external_lock	2
-Handler_read_key	4
-Handler_read_next	1
+Handler_commit	8
+Handler_external_lock	26
+Handler_read_key	16
+Handler_read_next	7
 UNLOCK TABLES;
 EXPLAIN PARTITIONS SELECT * FROM t2 WHERE a = sf_a_from_t1b_d('1') AND a = 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -4921,10 +4931,10 @@ LOCK TABLES t1 read, t2 write;
 SELECT * FROM t2 WHERE a = sf_a_from_t1b_d('1') AND a = 2;
 a	b
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	2
-Handler_external_lock	2
-Handler_read_key	4
-Handler_read_next	1
+Handler_commit	8
+Handler_external_lock	26
+Handler_read_key	16
+Handler_read_next	7
 UNLOCK TABLES;
 EXPLAIN PARTITIONS SELECT * FROM t2 WHERE a = (SELECT a FROM t1 WHERE b = '1') AND a = 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -4948,10 +4958,10 @@ LOCK TABLES t1 read, t2 write;
 SELECT * FROM t2 WHERE a = (SELECT a FROM t1 WHERE b = '1') AND a = 2;
 a	b
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	2
-Handler_external_lock	2
-Handler_read_key	3
-Handler_read_next	1
+Handler_commit	8
+Handler_external_lock	26
+Handler_read_key	15
+Handler_read_next	7
 UNLOCK TABLES;
 EXPLAIN PARTITIONS SELECT * FROM t2 WHERE a = (SELECT a FROM t1 WHERE b = '1') OR a = 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -4980,11 +4990,11 @@ a	b
 1	1
 2	2
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	2
-Handler_external_lock	2
+Handler_commit	8
+Handler_external_lock	26
 Handler_read_first	2
-Handler_read_key	5
-Handler_read_next	4
+Handler_read_key	17
+Handler_read_next	10
 UNLOCK TABLES;
 EXPLAIN PARTITIONS SELECT * FROM t2 WHERE a = (SELECT a FROM t1 WHERE b = '1') AND a = 2 OR a = 8 AND sf_a_from_t1b('2');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -5027,10 +5037,10 @@ SELECT sf_add_1(a) - 1, sf_add_hello(b) FROM t2 WHERE a = (SELECT a FROM t1 WHER
 sf_add_1(a) - 1	sf_add_hello(b)
 1	hello 1
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	2
-Handler_external_lock	2
-Handler_read_key	4
-Handler_read_next	1
+Handler_commit	8
+Handler_external_lock	26
+Handler_read_key	16
+Handler_read_next	7
 UNLOCK TABLES;
 EXPLAIN PARTITIONS SELECT sf_add_1(a) - 1, sf_add_hello(b) FROM t2 WHERE a = 7 + (SELECT a FROM t1 WHERE b = '1');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -5056,10 +5066,10 @@ SELECT sf_add_1(a) - 1, sf_add_hello(b) FROM t2 WHERE a = 7 + (SELECT a FROM t1 
 sf_add_1(a) - 1	sf_add_hello(b)
 8	hello 8
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	2
-Handler_external_lock	2
-Handler_read_key	4
-Handler_read_next	1
+Handler_commit	8
+Handler_external_lock	26
+Handler_read_key	16
+Handler_read_next	7
 UNLOCK TABLES;
 EXPLAIN PARTITIONS SELECT sf_add_1(a) - 1, sf_add_hello(b) FROM t2 WHERE a = sf_a_from_t1b('1');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -5085,11 +5095,11 @@ SELECT sf_add_1(a) - 1, sf_add_hello(b) FROM t2 WHERE a = sf_a_from_t1b('1');
 sf_add_1(a) - 1	sf_add_hello(b)
 1	hello 1
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	2
-Handler_external_lock	2
+Handler_commit	8
+Handler_external_lock	26
 Handler_read_first	3
-Handler_read_key	12
-Handler_read_next	6
+Handler_read_key	24
+Handler_read_next	12
 UNLOCK TABLES;
 EXPLAIN PARTITIONS SELECT sf_add_1(a) - 1, sf_add_hello(b) FROM t2 WHERE a = sf_a_from_t1b_d('1');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -5114,10 +5124,10 @@ SELECT sf_add_1(a) - 1, sf_add_hello(b) FROM t2 WHERE a = sf_a_from_t1b_d('1');
 sf_add_1(a) - 1	sf_add_hello(b)
 1	hello 1
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	2
-Handler_external_lock	2
-Handler_read_key	10
-Handler_read_next	3
+Handler_commit	8
+Handler_external_lock	26
+Handler_read_key	22
+Handler_read_next	9
 UNLOCK TABLES;
 EXPLAIN PARTITIONS SELECT sf_add_1(a) - 1, sf_add_hello(b) FROM t2 WHERE a = 7 + sf_a_from_t1b('1');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -5143,11 +5153,11 @@ SELECT sf_add_1(a) - 1, sf_add_hello(b) FROM t2 WHERE a = 7 + sf_a_from_t1b('1')
 sf_add_1(a) - 1	sf_add_hello(b)
 8	hello 8
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	2
-Handler_external_lock	2
+Handler_commit	8
+Handler_external_lock	26
 Handler_read_first	3
-Handler_read_key	12
-Handler_read_next	6
+Handler_read_key	24
+Handler_read_next	12
 UNLOCK TABLES;
 EXPLAIN PARTITIONS SELECT sf_add_1(a) - 1, sf_add_hello(b) FROM t2 WHERE a = 7 + sf_a_from_t1b_d('1');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -5172,10 +5182,10 @@ SELECT sf_add_1(a) - 1, sf_add_hello(b) FROM t2 WHERE a = 7 + sf_a_from_t1b_d('1
 sf_add_1(a) - 1	sf_add_hello(b)
 8	hello 8
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	2
-Handler_external_lock	2
-Handler_read_key	10
-Handler_read_next	3
+Handler_commit	8
+Handler_external_lock	26
+Handler_read_key	22
+Handler_read_next	9
 UNLOCK TABLES;
 EXPLAIN PARTITIONS SELECT sf_add_1(a) - 1, sf_add_hello(b) FROM t2 WHERE a = sf_a_from_t1b('1') AND a = 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -5198,10 +5208,10 @@ LOCK TABLES t1 read, t2 write;
 SELECT sf_add_1(a) - 1, sf_add_hello(b) FROM t2 WHERE a = sf_a_from_t1b('1') AND a = 2;
 sf_add_1(a) - 1	sf_add_hello(b)
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	2
-Handler_external_lock	2
-Handler_read_key	4
-Handler_read_next	1
+Handler_commit	8
+Handler_external_lock	26
+Handler_read_key	16
+Handler_read_next	7
 UNLOCK TABLES;
 EXPLAIN PARTITIONS SELECT sf_add_1(a) - 1, sf_add_hello(b) FROM t2 WHERE a = sf_a_from_t1b_d('1') AND a = 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -5224,10 +5234,10 @@ LOCK TABLES t1 read, t2 write;
 SELECT sf_add_1(a) - 1, sf_add_hello(b) FROM t2 WHERE a = sf_a_from_t1b_d('1') AND a = 2;
 sf_add_1(a) - 1	sf_add_hello(b)
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	2
-Handler_external_lock	2
-Handler_read_key	4
-Handler_read_next	1
+Handler_commit	8
+Handler_external_lock	26
+Handler_read_key	16
+Handler_read_next	7
 UNLOCK TABLES;
 EXPLAIN PARTITIONS SELECT sf_add_1(a) - 1, sf_add_hello(b) FROM t2 WHERE a = (SELECT a FROM t1 WHERE b = '1') AND a = 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -5251,10 +5261,10 @@ LOCK TABLES t1 read, t2 write;
 SELECT sf_add_1(a) - 1, sf_add_hello(b) FROM t2 WHERE a = (SELECT a FROM t1 WHERE b = '1') AND a = 2;
 sf_add_1(a) - 1	sf_add_hello(b)
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	2
-Handler_external_lock	2
-Handler_read_key	3
-Handler_read_next	1
+Handler_commit	8
+Handler_external_lock	26
+Handler_read_key	15
+Handler_read_next	7
 UNLOCK TABLES;
 EXPLAIN PARTITIONS SELECT sf_add_1(a) - 1, sf_add_hello(b) FROM t2 WHERE a = (SELECT a FROM t1 WHERE b = '1') OR a = 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -5283,11 +5293,11 @@ sf_add_1(a) - 1	sf_add_hello(b)
 1	hello 1
 2	hello 2
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	2
-Handler_external_lock	2
+Handler_commit	8
+Handler_external_lock	26
 Handler_read_first	2
-Handler_read_key	5
-Handler_read_next	4
+Handler_read_key	17
+Handler_read_next	10
 UNLOCK TABLES;
 EXPLAIN PARTITIONS SELECT sf_add_1(a) - 1, sf_add_hello(b) FROM t2 WHERE a = (SELECT a FROM t1 WHERE b = '1') AND a = 2 OR a = 8 AND sf_a_from_t1b('2');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -5332,10 +5342,10 @@ SET autocommit = 0;
 LOCK TABLES t1 read, t2 write;
 UPDATE t2 SET b = CONCAT('+', b) WHERE a = (SELECT a FROM t1 WHERE b = '1');
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	2
-Handler_external_lock	2
-Handler_read_key	4
-Handler_read_next	1
+Handler_commit	8
+Handler_external_lock	26
+Handler_read_key	16
+Handler_read_next	7
 Handler_update	1
 SELECT * FROM t2;
 a	b
@@ -5370,10 +5380,10 @@ SET autocommit = 0;
 LOCK TABLES t1 read, t2 write;
 UPDATE t2 SET b = CONCAT('+', b) WHERE a = 7 + (SELECT a FROM t1 WHERE b = '1');
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	2
-Handler_external_lock	2
-Handler_read_key	4
-Handler_read_next	1
+Handler_commit	8
+Handler_external_lock	26
+Handler_read_key	16
+Handler_read_next	7
 Handler_update	1
 SELECT * FROM t2;
 a	b
@@ -5409,11 +5419,11 @@ SET autocommit = 0;
 LOCK TABLES t1 read, t2 write;
 UPDATE t2 SET b = CONCAT('+', b) WHERE a = sf_a_from_t1b('1');
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	2
-Handler_external_lock	2
+Handler_commit	8
+Handler_external_lock	26
 Handler_read_first	3
-Handler_read_key	12
-Handler_read_next	3
+Handler_read_key	24
+Handler_read_next	9
 Handler_read_rnd_next	3
 Handler_update	1
 SELECT * FROM t2;
@@ -5448,10 +5458,10 @@ SET autocommit = 0;
 LOCK TABLES t1 read, t2 write;
 UPDATE t2 SET b = CONCAT('+', b) WHERE a = sf_a_from_t1b_d('1');
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	2
-Handler_external_lock	2
-Handler_read_key	13
-Handler_read_next	4
+Handler_commit	8
+Handler_external_lock	26
+Handler_read_key	25
+Handler_read_next	10
 Handler_update	1
 SELECT * FROM t2;
 a	b
@@ -5487,11 +5497,11 @@ SET autocommit = 0;
 LOCK TABLES t1 read, t2 write;
 UPDATE t2 SET b = CONCAT('+', b) WHERE a = 7 + sf_a_from_t1b('1');
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	2
-Handler_external_lock	2
+Handler_commit	8
+Handler_external_lock	26
 Handler_read_first	3
-Handler_read_key	12
-Handler_read_next	3
+Handler_read_key	24
+Handler_read_next	9
 Handler_read_rnd_next	3
 Handler_update	1
 SELECT * FROM t2;
@@ -5526,10 +5536,10 @@ SET autocommit = 0;
 LOCK TABLES t1 read, t2 write;
 UPDATE t2 SET b = CONCAT('+', b) WHERE a = 7 + sf_a_from_t1b_d('1');
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	2
-Handler_external_lock	2
-Handler_read_key	13
-Handler_read_next	4
+Handler_commit	8
+Handler_external_lock	26
+Handler_read_key	25
+Handler_read_next	10
 Handler_update	1
 SELECT * FROM t2;
 a	b
@@ -5562,10 +5572,10 @@ SET autocommit = 0;
 LOCK TABLES t1 read, t2 write;
 UPDATE t2 SET b = CONCAT('+', b) WHERE a = sf_a_from_t1b('1') AND a = 2;
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	2
-Handler_external_lock	2
-Handler_read_key	4
-Handler_read_next	1
+Handler_commit	8
+Handler_external_lock	26
+Handler_read_key	16
+Handler_read_next	7
 SELECT * FROM t2;
 a	b
 1	1
@@ -5597,10 +5607,10 @@ SET autocommit = 0;
 LOCK TABLES t1 read, t2 write;
 UPDATE t2 SET b = CONCAT('+', b) WHERE a = sf_a_from_t1b_d('1') AND a = 2;
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	2
-Handler_external_lock	2
-Handler_read_key	4
-Handler_read_next	1
+Handler_commit	8
+Handler_external_lock	26
+Handler_read_key	16
+Handler_read_next	7
 SELECT * FROM t2;
 a	b
 1	1
@@ -5633,10 +5643,10 @@ SET autocommit = 0;
 LOCK TABLES t1 read, t2 write;
 UPDATE t2 SET b = CONCAT('+', b) WHERE a = (SELECT a FROM t1 WHERE b = '1') AND a = 2;
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	2
-Handler_external_lock	2
-Handler_read_key	3
-Handler_read_next	1
+Handler_commit	8
+Handler_external_lock	26
+Handler_read_key	15
+Handler_read_next	7
 SELECT * FROM t2;
 a	b
 1	1
@@ -5670,10 +5680,10 @@ SET autocommit = 0;
 LOCK TABLES t1 read, t2 write;
 UPDATE t2 SET b = CONCAT('+', b) WHERE a = (SELECT a FROM t1 WHERE b = '1') OR a = 2;
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	2
-Handler_external_lock	2
-Handler_read_key	5
-Handler_read_next	1
+Handler_commit	8
+Handler_external_lock	26
+Handler_read_key	17
+Handler_read_next	7
 Handler_update	2
 SELECT * FROM t2;
 a	b
@@ -5729,10 +5739,10 @@ SET autocommit = 0;
 LOCK TABLES t1 read, t2 write;
 UPDATE t2 SET b = sf_add_hello(b) WHERE a = (SELECT a FROM t1 WHERE b = '1');
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	2
-Handler_external_lock	2
-Handler_read_key	4
-Handler_read_next	1
+Handler_commit	8
+Handler_external_lock	26
+Handler_read_key	16
+Handler_read_next	7
 Handler_update	1
 SELECT * FROM t2;
 a	b
@@ -5767,10 +5777,10 @@ SET autocommit = 0;
 LOCK TABLES t1 read, t2 write;
 UPDATE t2 SET b = sf_add_hello(b) WHERE a = 7 + (SELECT a FROM t1 WHERE b = '1');
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	2
-Handler_external_lock	2
-Handler_read_key	4
-Handler_read_next	1
+Handler_commit	8
+Handler_external_lock	26
+Handler_read_key	16
+Handler_read_next	7
 Handler_update	1
 SELECT * FROM t2;
 a	b
@@ -5806,11 +5816,11 @@ SET autocommit = 0;
 LOCK TABLES t1 read, t2 write;
 UPDATE t2 SET b = sf_add_hello(b) WHERE a = sf_a_from_t1b('1');
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	2
-Handler_external_lock	2
+Handler_commit	8
+Handler_external_lock	26
 Handler_read_first	3
-Handler_read_key	12
-Handler_read_next	3
+Handler_read_key	24
+Handler_read_next	9
 Handler_read_rnd_next	3
 Handler_update	1
 SELECT * FROM t2;
@@ -5845,10 +5855,10 @@ SET autocommit = 0;
 LOCK TABLES t1 read, t2 write;
 UPDATE t2 SET b = sf_add_hello(b) WHERE a = sf_a_from_t1b_d('1');
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	2
-Handler_external_lock	2
-Handler_read_key	13
-Handler_read_next	4
+Handler_commit	8
+Handler_external_lock	26
+Handler_read_key	25
+Handler_read_next	10
 Handler_update	1
 SELECT * FROM t2;
 a	b
@@ -5884,11 +5894,11 @@ SET autocommit = 0;
 LOCK TABLES t1 read, t2 write;
 UPDATE t2 SET b = sf_add_hello(b) WHERE a = 7 + sf_a_from_t1b('1');
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	2
-Handler_external_lock	2
+Handler_commit	8
+Handler_external_lock	26
 Handler_read_first	3
-Handler_read_key	12
-Handler_read_next	3
+Handler_read_key	24
+Handler_read_next	9
 Handler_read_rnd_next	3
 Handler_update	1
 SELECT * FROM t2;
@@ -5923,10 +5933,10 @@ SET autocommit = 0;
 LOCK TABLES t1 read, t2 write;
 UPDATE t2 SET b = sf_add_hello(b) WHERE a = 7 + sf_a_from_t1b_d('1');
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	2
-Handler_external_lock	2
-Handler_read_key	13
-Handler_read_next	4
+Handler_commit	8
+Handler_external_lock	26
+Handler_read_key	25
+Handler_read_next	10
 Handler_update	1
 SELECT * FROM t2;
 a	b
@@ -5959,10 +5969,10 @@ SET autocommit = 0;
 LOCK TABLES t1 read, t2 write;
 UPDATE t2 SET b = sf_add_hello(b) WHERE a = sf_a_from_t1b('1') AND a = 2;
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	2
-Handler_external_lock	2
-Handler_read_key	4
-Handler_read_next	1
+Handler_commit	8
+Handler_external_lock	26
+Handler_read_key	16
+Handler_read_next	7
 SELECT * FROM t2;
 a	b
 1	1
@@ -5994,10 +6004,10 @@ SET autocommit = 0;
 LOCK TABLES t1 read, t2 write;
 UPDATE t2 SET b = sf_add_hello(b) WHERE a = sf_a_from_t1b_d('1') AND a = 2;
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	2
-Handler_external_lock	2
-Handler_read_key	4
-Handler_read_next	1
+Handler_commit	8
+Handler_external_lock	26
+Handler_read_key	16
+Handler_read_next	7
 SELECT * FROM t2;
 a	b
 1	1
@@ -6030,10 +6040,10 @@ SET autocommit = 0;
 LOCK TABLES t1 read, t2 write;
 UPDATE t2 SET b = sf_add_hello(b) WHERE a = (SELECT a FROM t1 WHERE b = '1') AND a = 2;
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	2
-Handler_external_lock	2
-Handler_read_key	3
-Handler_read_next	1
+Handler_commit	8
+Handler_external_lock	26
+Handler_read_key	15
+Handler_read_next	7
 SELECT * FROM t2;
 a	b
 1	1
@@ -6067,10 +6077,10 @@ SET autocommit = 0;
 LOCK TABLES t1 read, t2 write;
 UPDATE t2 SET b = sf_add_hello(b) WHERE a = (SELECT a FROM t1 WHERE b = '1') OR a = 2;
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	2
-Handler_external_lock	2
-Handler_read_key	5
-Handler_read_next	1
+Handler_commit	8
+Handler_external_lock	26
+Handler_read_key	17
+Handler_read_next	7
 Handler_update	2
 SELECT * FROM t2;
 a	b
@@ -6128,11 +6138,11 @@ SET autocommit = 0;
 LOCK TABLES t1 read, t2 write;
 UPDATE t2 SET a = sf_add_1(a) + 4 WHERE a = (SELECT a FROM t1 WHERE b = '1');
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	2
+Handler_commit	8
 Handler_delete	1
-Handler_external_lock	2
-Handler_read_key	5
-Handler_read_next	1
+Handler_external_lock	26
+Handler_read_key	17
+Handler_read_next	7
 Handler_read_rnd	1
 Handler_write	1
 SELECT * FROM t2;
@@ -6170,11 +6180,11 @@ SET autocommit = 0;
 LOCK TABLES t1 read, t2 write;
 UPDATE t2 SET a = sf_add_1(a) + 4 WHERE a = 7 + (SELECT a FROM t1 WHERE b = '1');
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	2
+Handler_commit	8
 Handler_delete	1
-Handler_external_lock	2
-Handler_read_key	5
-Handler_read_next	1
+Handler_external_lock	26
+Handler_read_key	17
+Handler_read_next	7
 Handler_read_rnd	1
 Handler_write	1
 SELECT * FROM t2;
@@ -6212,12 +6222,12 @@ SET autocommit = 0;
 LOCK TABLES t1 read, t2 write;
 UPDATE t2 SET a = sf_add_1(a) + 4 WHERE a = sf_a_from_t1b('1');
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	2
+Handler_commit	8
 Handler_delete	1
-Handler_external_lock	2
+Handler_external_lock	26
 Handler_read_first	3
-Handler_read_key	13
-Handler_read_next	6
+Handler_read_key	25
+Handler_read_next	12
 Handler_read_rnd	1
 Handler_write	1
 SELECT * FROM t2;
@@ -6254,11 +6264,11 @@ SET autocommit = 0;
 LOCK TABLES t1 read, t2 write;
 UPDATE t2 SET a = sf_add_1(a) + 4 WHERE a = sf_a_from_t1b_d('1');
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	2
+Handler_commit	8
 Handler_delete	1
-Handler_external_lock	2
-Handler_read_key	14
-Handler_read_next	4
+Handler_external_lock	26
+Handler_read_key	26
+Handler_read_next	10
 Handler_read_rnd	1
 Handler_write	1
 SELECT * FROM t2;
@@ -6296,12 +6306,12 @@ SET autocommit = 0;
 LOCK TABLES t1 read, t2 write;
 UPDATE t2 SET a = sf_add_1(a) + 4 WHERE a = 7 + sf_a_from_t1b('1');
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	2
+Handler_commit	8
 Handler_delete	1
-Handler_external_lock	2
+Handler_external_lock	26
 Handler_read_first	3
-Handler_read_key	13
-Handler_read_next	6
+Handler_read_key	25
+Handler_read_next	12
 Handler_read_rnd	1
 Handler_write	1
 SELECT * FROM t2;
@@ -6338,11 +6348,11 @@ SET autocommit = 0;
 LOCK TABLES t1 read, t2 write;
 UPDATE t2 SET a = sf_add_1(a) + 4 WHERE a = 7 + sf_a_from_t1b_d('1');
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	2
+Handler_commit	8
 Handler_delete	1
-Handler_external_lock	2
-Handler_read_key	14
-Handler_read_next	4
+Handler_external_lock	26
+Handler_read_key	26
+Handler_read_next	10
 Handler_read_rnd	1
 Handler_write	1
 SELECT * FROM t2;
@@ -6376,10 +6386,10 @@ SET autocommit = 0;
 LOCK TABLES t1 read, t2 write;
 UPDATE t2 SET a = sf_add_1(a) + 4 WHERE a = sf_a_from_t1b('1') AND a = 2;
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	2
-Handler_external_lock	2
-Handler_read_key	4
-Handler_read_next	1
+Handler_commit	8
+Handler_external_lock	26
+Handler_read_key	16
+Handler_read_next	7
 SELECT * FROM t2;
 a	b
 1	1
@@ -6411,10 +6421,10 @@ SET autocommit = 0;
 LOCK TABLES t1 read, t2 write;
 UPDATE t2 SET a = sf_add_1(a) + 4 WHERE a = sf_a_from_t1b_d('1') AND a = 2;
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	2
-Handler_external_lock	2
-Handler_read_key	4
-Handler_read_next	1
+Handler_commit	8
+Handler_external_lock	26
+Handler_read_key	16
+Handler_read_next	7
 SELECT * FROM t2;
 a	b
 1	1
@@ -6447,10 +6457,10 @@ SET autocommit = 0;
 LOCK TABLES t1 read, t2 write;
 UPDATE t2 SET a = sf_add_1(a) + 4 WHERE a = (SELECT a FROM t1 WHERE b = '1') AND a = 2;
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	2
-Handler_external_lock	2
-Handler_read_key	3
-Handler_read_next	1
+Handler_commit	8
+Handler_external_lock	26
+Handler_read_key	15
+Handler_read_next	7
 SELECT * FROM t2;
 a	b
 1	1
@@ -6486,11 +6496,11 @@ SET autocommit = 0;
 LOCK TABLES t1 read, t2 write;
 UPDATE t2 SET a = sf_add_1(a) + 4 WHERE a = (SELECT a FROM t1 WHERE b = '1') OR a = 2;
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	2
+Handler_commit	8
 Handler_delete	2
-Handler_external_lock	2
-Handler_read_key	7
-Handler_read_next	1
+Handler_external_lock	26
+Handler_read_key	19
+Handler_read_next	7
 Handler_read_rnd	2
 Handler_write	2
 SELECT * FROM t2;
@@ -6548,11 +6558,11 @@ SET autocommit = 0;
 LOCK TABLES t1 read, t2 write;
 DELETE FROM t2 WHERE a = (SELECT a FROM t1 WHERE b = '1');
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	2
+Handler_commit	8
 Handler_delete	1
-Handler_external_lock	2
-Handler_read_key	4
-Handler_read_next	1
+Handler_external_lock	26
+Handler_read_key	16
+Handler_read_next	7
 SELECT * FROM t2;
 a	b
 2	2
@@ -6584,11 +6594,11 @@ SET autocommit = 0;
 LOCK TABLES t1 read, t2 write;
 DELETE FROM t2 WHERE a = 7 + (SELECT a FROM t1 WHERE b = '1');
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	2
+Handler_commit	8
 Handler_delete	1
-Handler_external_lock	2
-Handler_read_key	4
-Handler_read_next	1
+Handler_external_lock	26
+Handler_read_key	16
+Handler_read_next	7
 SELECT * FROM t2;
 a	b
 1	1
@@ -6621,12 +6631,12 @@ SET autocommit = 0;
 LOCK TABLES t1 read, t2 write;
 DELETE FROM t2 WHERE a = sf_a_from_t1b('1');
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	2
+Handler_commit	8
 Handler_delete	1
-Handler_external_lock	2
+Handler_external_lock	26
 Handler_read_first	3
-Handler_read_key	12
-Handler_read_next	3
+Handler_read_key	24
+Handler_read_next	9
 Handler_read_rnd_next	3
 SELECT * FROM t2;
 a	b
@@ -6658,11 +6668,11 @@ SET autocommit = 0;
 LOCK TABLES t1 read, t2 write;
 DELETE FROM t2 WHERE a = sf_a_from_t1b_d('1');
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	2
+Handler_commit	8
 Handler_delete	1
-Handler_external_lock	2
-Handler_read_key	13
-Handler_read_next	4
+Handler_external_lock	26
+Handler_read_key	25
+Handler_read_next	10
 SELECT * FROM t2;
 a	b
 2	2
@@ -6695,12 +6705,12 @@ SET autocommit = 0;
 LOCK TABLES t1 read, t2 write;
 DELETE FROM t2 WHERE a = 7 + sf_a_from_t1b('1');
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	2
+Handler_commit	8
 Handler_delete	1
-Handler_external_lock	2
+Handler_external_lock	26
 Handler_read_first	3
-Handler_read_key	12
-Handler_read_next	3
+Handler_read_key	24
+Handler_read_next	9
 Handler_read_rnd_next	3
 SELECT * FROM t2;
 a	b
@@ -6732,11 +6742,11 @@ SET autocommit = 0;
 LOCK TABLES t1 read, t2 write;
 DELETE FROM t2 WHERE a = 7 + sf_a_from_t1b_d('1');
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	2
+Handler_commit	8
 Handler_delete	1
-Handler_external_lock	2
-Handler_read_key	13
-Handler_read_next	4
+Handler_external_lock	26
+Handler_read_key	25
+Handler_read_next	10
 SELECT * FROM t2;
 a	b
 1	1
@@ -6767,10 +6777,10 @@ SET autocommit = 0;
 LOCK TABLES t1 read, t2 write;
 DELETE FROM t2 WHERE a = sf_a_from_t1b('1') AND a = 2;
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	2
-Handler_external_lock	2
-Handler_read_key	4
-Handler_read_next	1
+Handler_commit	8
+Handler_external_lock	26
+Handler_read_key	16
+Handler_read_next	7
 SELECT * FROM t2;
 a	b
 1	1
@@ -6802,10 +6812,10 @@ SET autocommit = 0;
 LOCK TABLES t1 read, t2 write;
 DELETE FROM t2 WHERE a = sf_a_from_t1b_d('1') AND a = 2;
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	2
-Handler_external_lock	2
-Handler_read_key	4
-Handler_read_next	1
+Handler_commit	8
+Handler_external_lock	26
+Handler_read_key	16
+Handler_read_next	7
 SELECT * FROM t2;
 a	b
 1	1
@@ -6838,10 +6848,10 @@ SET autocommit = 0;
 LOCK TABLES t1 read, t2 write;
 DELETE FROM t2 WHERE a = (SELECT a FROM t1 WHERE b = '1') AND a = 2;
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	2
-Handler_external_lock	2
-Handler_read_key	3
-Handler_read_next	1
+Handler_commit	8
+Handler_external_lock	26
+Handler_read_key	15
+Handler_read_next	7
 SELECT * FROM t2;
 a	b
 1	1
@@ -6873,11 +6883,11 @@ SET autocommit = 0;
 LOCK TABLES t1 read, t2 write;
 DELETE FROM t2 WHERE a = (SELECT a FROM t1 WHERE b = '1') OR a = 2;
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	2
+Handler_commit	8
 Handler_delete	2
-Handler_external_lock	2
-Handler_read_key	5
-Handler_read_next	1
+Handler_external_lock	26
+Handler_read_key	17
+Handler_read_next	7
 SELECT * FROM t2;
 a	b
 8	8

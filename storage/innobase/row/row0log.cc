@@ -725,10 +725,13 @@ row_log_table_delete(
 
 		/* log virtual columns */
 		if (ventry->n_v_fields > 0) {
-                        rec_convert_dtuple_to_temp(
-                                b, new_index, NULL, 0, ventry);
-                        b += mach_read_from_2(b);
-                }
+			rec_convert_dtuple_to_temp(
+				b, new_index, NULL, 0, ventry);
+			b += mach_read_from_2(b);
+		} else if (index->table->n_v_cols) {
+			mach_write_to_2(b, 2);
+			b += 2;
+		}
 
 		row_log_table_close(
 			index->online_log, b, mrec_size, avail_size);
@@ -825,7 +828,7 @@ row_log_table_low_redundant(
 		if (o_ventry) {
 			ulint	v_extra = 0;
 			mrec_size += rec_get_converted_size_temp(
-				index, NULL, 0, o_ventry, &v_extra);
+				new_index, NULL, 0, o_ventry, &v_extra);
 		}
 	} else if (index->table->n_v_cols) {
 		mrec_size += 2;
@@ -2456,7 +2459,7 @@ row_log_table_apply_op(
 		rec_init_offsets_temp(mrec, new_index, offsets);
 		next_mrec = mrec + rec_offs_data_size(offsets) + ext_size;
 		if (log->table->n_v_cols) {
-			if (next_mrec + 2 >= mrec_end) {
+			if (next_mrec + 2 > mrec_end) {
 				return(NULL);
 			}
 
@@ -2642,12 +2645,13 @@ row_log_table_apply_op(
 			ulint		n_v_size = 0;
 			n_v_size = mach_read_from_2(next_mrec);
 			next_mrec += n_v_size;
+
 			if (next_mrec > mrec_end) {
 				return(NULL);
 			}
 
 			/* if there is more than 2 bytes length info */
-			if (n_v_size > 2) {
+			if (n_v_size > 2 && mrec_end > next_mrec) {
 				trx_undo_read_v_cols(
 					log->table, const_cast<byte*>(
 					next_mrec), old_pk, false,
@@ -2987,7 +2991,12 @@ all_done:
 	mrec_end = next_mrec_end;
 
 	while (!trx_is_interrupted(trx)) {
+		if (next_mrec == next_mrec_end && has_index_lock) {
+			goto all_done;
+		}
+
 		mrec = next_mrec;
+
 		ut_ad(mrec < mrec_end);
 
 		if (!has_index_lock) {

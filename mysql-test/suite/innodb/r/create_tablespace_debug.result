@@ -11,6 +11,7 @@ Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 # MYSQLD_DATADIR/
+mysql.ibd
 DROP TABLESPACE s_def;
 ERROR HY000: Tablespace s_def doesn't exist.
 #
@@ -33,6 +34,7 @@ ALTER TABLE t3 TABLESPACE=s1;
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/t1	s1	161	4	Dynamic	0	General
 # MYSQLD_DATADIR/
+mysql.ibd
 s1.ibd
 show tables;
 Tables_in_test

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -64,24 +64,6 @@ enum dict_table_info_t {
 	DICT_TABLE_LOAD_FROM_CACHE = 1	/*!< Check first whether dict_table_t
 					is in the cache, if so, return it */
 };
-
-/** Check each tablespace found in the data dictionary.
-Look at each table defined in SYS_TABLES that has a space_id > 0.
-If the tablespace is not yet in the fil_system cache, look up the
-tablespace in SYS_DATAFILES to ensure the correct path.
-
-In a crash recovery we already have some tablespace objects created from
-processing the REDO log.  Any other tablespace in SYS_TABLESPACES not
-previously used in recovery will be opened here.  We will compare the
-space_id information in the data dictionary to what we find in the
-tablespace file. In addition, more validation will be done if recovery
-was needed and force_recovery is not set.
-
-We also scan the biggest space id, and store it to fil_system.
-@param[in]	validate	true if recovery was needed */
-void
-dict_check_tablespaces_and_store_max_id(
-	bool		validate);
 
 /********************************************************************//**
 Finds the first table name in the given database.
@@ -336,6 +318,20 @@ dict_replace_tablespace_and_filepath(
 	const char*	name,
 	const char*	filepath,
 	ulint		fsp_flags);
+
+/** Opens a tablespace for dict_load_table_one()
+@param[in,out]	table		A table that refers to the tablespace to open
+@param[in,out]	heap		A memory heap
+@param[in]	ignore_err	Whether to ignore an error. */
+void
+dict_load_tablespace(
+	dict_table_t*		table,
+	mem_heap_t*		heap,
+	dict_err_ignore_t	ignore_err);
+
+/** Load all tablespaces during upgrade */
+void
+dict_load_tablespaces_for_upgrade();
 
 #include "dict0load.ic"
 

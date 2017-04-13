@@ -38,6 +38,7 @@ call mtr.add_suppression("InnoDB: Unable to delete statistics for table mysql.")
 call mtr.add_suppression("Column count of performance_schema.replication_applier_status_by_worker is wrong. Expected 16, found 8.");
 call mtr.add_suppression("Column count of performance_schema.replication_applier_status_by_coordinator is wrong. Expected 15, found 6.");
 call mtr.add_suppression("Column count of performance_schema.replication_connection_status is wrong. Expected 20, found 11.");
+call mtr.add_suppression("\\[Warning\\] InnoDB: Parent table of FTS auxiliary table.*");
 # Set different paths for --datadir
 let $MYSQLD_DATADIR1 = $MYSQL_TMP_DIR/data57;
 
@@ -206,6 +207,7 @@ DROP TABLE test.proc;
 # Remove myisam partitioned tables. There are used for negative testing.
 --remove_files_wildcard $MYSQL_TMP_DIR/data57/partitions *
 --rmdir $MYSQL_TMP_DIR/data57/partitions
+--force-rmdir $MYSQL_TMP_DIR/data57/mismatch_frms
 
 #Copy table and view files as test case for Bug#24580586
 --copy_file $MYSQLTEST_VARDIR/std_data/initial_t@1o.frm $MYSQL_TMP_DIR/data57/test/initial_t@1o.frm
@@ -403,6 +405,21 @@ SHOW CREATE VIEW view_with_column_names.v3;
 SELECT * FROM view_with_column_names.v3;
 SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE
 TABLE_SCHEMA='view_with_column_names';
+
+# restart on the upgraded data dir
+--replace_result $MYSQLD_DATADIR1 MYSQLD_DATADIR1
+let $restart_parameters = "restart: --loose-skip-log-bin --innodb_undo_tablespaces=0 --datadir=$MYSQLD_DATADIR1";
+--source include/restart_mysqld.inc
+let $restart_parameters =;
+
+# execute FTS queries that modify FTS pages
+select count(*) from sakila.film_text;
+#set global innodb_ft_aux_table='sakila/film_text';
+select * from sakila.film_text where film_id = 984;
+select * from sakila.film_text where match(title,description) against("SCISSORHANDS");
+delete from sakila.film_text where film_id = 984;
+SET GLOBAL innodb_optimize_fulltext_only=ON;
+optimize table sakila.film_text;
 
 --echo # Stop the server
 --source include/shutdown_mysqld.inc

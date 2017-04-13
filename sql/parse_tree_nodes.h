@@ -3811,20 +3811,20 @@ class PT_show_fields : public PT_show_fields_and_keys
 {
 public:
   PT_show_fields(const POS &pos,
-                 bool verbose,
+                 Show_fields_type show_field_types,
                  Table_ident *table,
                  const LEX_STRING &wild)
     : PT_show_fields_and_keys(pos, SHOW_FIELDS, table, wild, nullptr),
-      m_verbose(verbose)
+      m_show_fields_type(show_field_types)
   {}
 
   PT_show_fields(const POS &pos,
-                 bool verbose,
+                 Show_fields_type show_field_types,
                  Table_ident *table_ident,
                  Item *where_condition= nullptr)
     : PT_show_fields_and_keys(pos, SHOW_FIELDS, table_ident, NULL_STR,
                               where_condition),
-      m_verbose(verbose)
+      m_show_fields_type(show_field_types)
   {}
 
   virtual bool contextualize(Parse_context *pc);
@@ -3832,8 +3832,8 @@ public:
 private:
   typedef PT_show_fields_and_keys super;
 
-  // Flag to indicate FULL keyword usage in the statement.
-  bool m_verbose;
+  // Show fields type: EXTENDED, FULL OR EXTENDED FULL.
+  Show_fields_type m_show_fields_type;
 };
 
 
@@ -3844,9 +3844,19 @@ class PT_show_keys : public PT_show_fields_and_keys
 {
 public:
   PT_show_keys(const POS &pos,
+               bool extended_show,
                Table_ident *table,
                Item *where_condition)
-    : PT_show_fields_and_keys(pos, SHOW_KEYS, table, NULL_STR, where_condition)
+    : PT_show_fields_and_keys(pos, SHOW_KEYS, table, NULL_STR, where_condition),
+      m_extended_show(extended_show)
   {}
+
+  virtual bool contextualize(Parse_context *pc);
+
+private:
+  typedef PT_show_fields_and_keys super;
+
+  // Flag to indicate EXTENDED keyword usage in the statement.
+  bool m_extended_show;
 };
 #endif /* PARSE_TREE_NODES_INCLUDED */

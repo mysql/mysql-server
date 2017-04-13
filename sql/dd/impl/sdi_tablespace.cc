@@ -42,7 +42,9 @@ using namespace dd::sdi_utils;
 namespace {
 bool is_valid(const dd::Tablespace *ts)
 {
-  return ts && ts->se_private_data().exists("id");
+  // return ts && ts->se_private_data().exists("id");
+  // TODO: WL#9538  Remove this when SDI is enabled for InnoDB
+  return false;
 }
 
 bool lock_tablespace(THD *thd, const dd::Table *table)

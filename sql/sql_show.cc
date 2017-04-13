@@ -5575,6 +5575,17 @@ static bool do_fill_table(THD *thd,
                           TABLE_LIST *table_list,
                           QEP_TAB *qep_tab)
 {
+  /*
+    Return if there is already an error reported.
+
+    This situation occurs because there are few functions
+    that return success, even after reporting error as
+    mentioned in Bug#25642468. The following check would
+    be removed by fix for Bug#25642468.
+  */
+  if (thd->is_error())
+    return true;
+
   // NOTE: fill_table() may generate many "useless" warnings, which will be
   // ignored afterwards. On the other hand, there might be "useful"
   // warnings, which should be presented to the user. Diagnostics_area usually

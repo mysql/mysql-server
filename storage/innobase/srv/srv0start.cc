@@ -115,12 +115,6 @@ extern bool srv_lzo_disabled;
 /** Recovered persistent metadata */
 static MetadataRecover* srv_dict_metadata;
 
-/** TRUE if we don't have DDTableBuffer in the system tablespace,
-this should be due to we run the server against old data files.
-Please do NOT change this when server is running.
-FIXME: This should be removed away once we can upgrade for new DD. */
-bool	srv_missing_dd_table_buffer = true;
-
 /** Log sequence number immediately after startup */
 lsn_t	srv_start_lsn;
 /** Log sequence number at shutdown */
@@ -392,7 +386,7 @@ create_log_files(
 	/* Disable the doublewrite buffer for log files, not required */
 
 	fil_space_t*	log_space = fil_space_create(
-		"innodb_redo_log", SRV_LOG_SPACE_FIRST_ID,
+		"innodb_redo_log", dict_sys_t::log_space_first_id,
 		fsp_flags_set_page_size(0, univ_page_size),
 		FIL_TYPE_LOG);
 	ut_a(fil_validate());
@@ -440,7 +434,7 @@ create_log_files(
 
 	if (!log_group_init(0, srv_n_log_files,
 			    srv_log_file_size * UNIV_PAGE_SIZE,
-			    SRV_LOG_SPACE_FIRST_ID)) {
+			    dict_sys_t::log_space_first_id)) {
 		return(DB_ERROR);
 	}
 
@@ -478,7 +472,7 @@ create_log_files_rename(
 {
 	/* If innodb_flush_method=O_DSYNC,
 	we need to explicitly flush the log buffers. */
-	fil_flush(SRV_LOG_SPACE_FIRST_ID);
+	fil_flush(dict_sys_t::log_space_first_id);
 	/* Close the log files, so that we can rename
 	the first one. */
 	fil_close_log_files(false);
@@ -1245,11 +1239,8 @@ srv_open_tmp_tablespace(
 	ib::info() << "Creating shared tablespace for temporary tables";
 
 	bool		create_new_temp_space = true;
-	space_id_t	temp_space_id = SPACE_UNKNOWN;
 
-	dict_hdr_get_new_id(NULL, NULL, &temp_space_id, NULL, true);
-
-	tmp_space->set_space_id(temp_space_id);
+	tmp_space->set_space_id(dict_sys_t::temp_space_id);
 
 	RECOVERY_CRASH(100);
 
@@ -1278,9 +1269,6 @@ srv_open_tmp_tablespace(
 
 		mtr_t		mtr;
 		page_no_t	size = tmp_space->get_sum_of_sizes();
-
-		ut_a(temp_space_id != SPACE_UNKNOWN);
-		ut_a(tmp_space->space_id() == temp_space_id);
 
 		/* Open this shared temp tablespace in the fil_system so that
 		it stays open until shutdown. */
@@ -1529,7 +1517,7 @@ srv_prepare_to_delete_redo_log_files(
 
 		/* If innodb_flush_method=O_DSYNC,
 		we need to explicitly flush the log buffers. */
-		fil_flush(SRV_LOG_SPACE_FIRST_ID);
+		fil_flush(dict_sys_t::log_space_first_id);
 
 		ut_ad(flushed_lsn == log_get_lsn());
 
@@ -1665,6 +1653,10 @@ srv_start(bool create_new_db, const char* scan_directories)
 	/* Register performance schema stages before any real work has been
 	started which may need to be instrumented. */
 	mysql_stage_register("innodb", srv_stages, UT_ARR_SIZE(srv_stages));
+
+	/* Switch latching order checks on in sync0debug.cc, if
+	--innodb-sync-debug=false (default) */
+	ut_d(sync_check_enable());
 
 	srv_boot();
 
@@ -2031,7 +2023,7 @@ srv_start(bool create_new_db, const char* scan_directories)
 		/* Disable the doublewrite buffer for log files. */
 		fil_space_t*	log_space = fil_space_create(
 			"innodb_redo_log",
-			SRV_LOG_SPACE_FIRST_ID,
+			dict_sys_t::log_space_first_id,
 			fsp_flags_set_page_size(0, univ_page_size),
 			FIL_TYPE_LOG);
 
@@ -2054,7 +2046,7 @@ srv_start(bool create_new_db, const char* scan_directories)
 		}
 
 		if (!log_group_init(0, i, srv_log_file_size * UNIV_PAGE_SIZE,
-				    SRV_LOG_SPACE_FIRST_ID)) {
+				    dict_sys_t::log_space_first_id)) {
 			return(srv_init_abort(DB_ERROR));
 		}
 
@@ -2073,12 +2065,6 @@ files_checked:
 	shutdown */
 
 	fil_open_log_and_system_tablespace_files();
-
-	/* Initialize objects used by dict stats gathering thread, which
-	can also be used by recovery if it tries to drop some table */
-	if (!srv_read_only_mode) {
-		dict_stats_thread_init();
-	}
 
 	if (create_new_db) {
 		ut_a(!srv_read_only_mode);
@@ -2328,6 +2314,11 @@ files_checked:
 
 		purge_queue = trx_sys_init_at_db_start();
 
+		if (srv_is_upgrade_mode && !purge_queue->empty()) {
+			ib::info() << "Undo from 5.7 found. It will be purged";
+			srv_upgrade_old_undo_found = true;
+		}
+
 		DBUG_EXECUTE_IF("check_no_undo",
 				ut_ad(purge_queue->empty());
 				);
@@ -2520,16 +2511,50 @@ files_checked:
 	return(DB_SUCCESS);
 }
 
+/** Applier of dynamic metadata */
+struct metadata_applier
+{
+        /** Default constructor */
+        metadata_applier() {}
+        /** Visitor.
+        @param[in]      table   table to visit */
+        void operator()(dict_table_t* table) const
+        {
+                ut_ad(dict_sys->dynamic_metadata != NULL);
+		ib_uint64_t	autoinc = table->autoinc;
+                dict_table_load_dynamic_metadata(table);
+		/* For those tables which were not opened by
+		ha_innobase::open() and not initialized by
+		innobase_initialize_autoinc(), the next counter should be
+		advanced properly */
+		if (autoinc != table->autoinc && table->autoinc != ~0ULL) {
+			++table->autoinc;
+		}
+        }
+};
+
+/** Apply the dynamic metadata to all tables */
+static
+void
+apply_dynamic_metadata()
+{
+        const metadata_applier  applier;
+
+        dict_sys->for_each_table(applier);
+
+        if (srv_dict_metadata != NULL) {
+                srv_dict_metadata->apply();
+                UT_DELETE(srv_dict_metadata);
+                srv_dict_metadata = NULL;
+        }
+}
+
 /** On a restart, initialize the remaining InnoDB subsystems so that
 any tables (including data dictionary tables) can be accessed. */
 void
 srv_dict_recover_on_restart()
 {
-	if (srv_dict_metadata != NULL) {
-		srv_dict_metadata->apply();
-		UT_DELETE(srv_dict_metadata);
-		srv_dict_metadata = NULL;
-	}
+	apply_dynamic_metadata();
 
 	trx_resurrect_locks();
 
@@ -2547,34 +2572,8 @@ srv_dict_recover_on_restart()
 		found. */
 		srv_sys_tablespaces_open = true;
 		dberr_t	err = dict_create_or_check_sys_tablespace();
-		ut_a(err == DB_SUCCESS);
 
-		/* The following call is necessary for the insert
-		buffer to work with multiple tablespaces. We must
-		know the mapping between space id's and .ibd file
-		names.
-
-		In a crash recovery, we check that the info in data
-		dictionary is consistent with what we already know
-		about space id's from the calls to fil_ibd_load().
-
-		In a normal startup, we create the space objects for
-		every table in the InnoDB data dictionary that has
-		an .ibd file.
-
-		We also determine the maximum tablespace ID used. */
-
-		/* This flag indicates that when a tablespace
-		is opened, we also read the header page and
-		validate the contents to the data
-		dictionary. This is time consuming, especially
-		for databases with lots of ibd files.  So only
-		do it after a crash and not forcing recovery.
-		Open rw transactions at this point is not a
-		good reason to validate. */
-		bool validate = recv_needed_recovery
-			&& srv_force_recovery == 0;
-		dict_check_tablespaces_and_store_max_id(validate);
+		ut_a(err == DB_SUCCESS); // FIXME: remove in WL#9535
 	}
 
 	/* We can't start any (DDL) transactions if UNDO logging has
@@ -2594,9 +2593,40 @@ srv_dict_recover_on_restart()
 	}
 }
 
-/** Start up the remaining InnoDB service threads. */
+/** Start purge threads. During upgrade we start
+purge threads early to apply purge. */
 void
-srv_start_threads()
+srv_start_purge_threads()
+{
+	/* Start purge threads only if they are not started
+	earlier. */
+	if (srv_start_state_is_set(SRV_START_STATE_PURGE)) {
+		ut_ad(srv_is_upgrade_mode);
+		return;
+	}
+
+	os_thread_create(
+		srv_purge_thread_key,
+		srv_purge_coordinator_thread);
+
+	/* We've already created the purge coordinator thread above. */
+	for (ulong i = 1; i < srv_n_purge_threads; ++i) {
+
+		os_thread_create(
+			srv_worker_thread_key,
+			srv_worker_thread);
+	}
+
+	srv_start_wait_for_purge_to_start();
+
+	srv_start_state_set(SRV_START_STATE_PURGE);
+}
+
+/** Start up the remaining InnoDB service threads.
+@param[in]	bootstrap	True if this is in bootstrap */
+void
+srv_start_threads(
+	bool	bootstrap)
 {
 	os_thread_create(buf_resize_thread_key, buf_resize_thread);
 
@@ -2605,7 +2635,7 @@ srv_start_threads()
 		return;
 	}
 
-	if (srv_force_recovery < SRV_FORCE_NO_TRX_UNDO
+	if (!bootstrap && srv_force_recovery < SRV_FORCE_NO_TRX_UNDO
 	    && trx_sys_need_rollback()) {
 		/* Rollback all recovered transactions that are
 		not in committed nor in XA PREPARE state. */
@@ -2625,22 +2655,7 @@ srv_start_threads()
 	srv_start_state_set(SRV_START_STATE_MASTER);
 
 	if (srv_force_recovery < SRV_FORCE_NO_BACKGROUND) {
-
-		os_thread_create(
-			srv_purge_thread_key,
-			srv_purge_coordinator_thread);
-
-		/* We've already created the purge coordinator thread above. */
-		for (ulong i = 1; i < srv_n_purge_threads; ++i) {
-
-			os_thread_create(
-				srv_worker_thread_key,
-				srv_worker_thread);
-		}
-
-		srv_start_wait_for_purge_to_start();
-
-		srv_start_state_set(SRV_START_STATE_PURGE);
+		srv_start_purge_threads();
 	} else {
 		purge_sys->state = PURGE_STATE_DISABLED;
 	}
@@ -2657,10 +2672,10 @@ srv_start_threads()
 	/* Create the buffer pool dump/load thread */
 	os_thread_create(buf_dump_thread_key, buf_dump_thread);
 
+	dict_stats_thread_init();
 
 	/* Create the dict stats gathering thread */
 	os_thread_create(dict_stats_thread_key, dict_stats_thread);
-
 
 	/* Create the thread that will optimize the FTS sub-system. */
 	fts_optimize_init();
@@ -2737,7 +2752,10 @@ srv_pre_dd_shutdown()
 
 	srv_shutdown_state = SRV_SHUTDOWN_CLEANUP;
 	srv_purge_wakeup();
-	os_event_set(dict_stats_event);
+
+	if (srv_start_state_is_set(SRV_START_STATE_STAT)) {
+		os_event_set(dict_stats_event);
+	}
 
 	for (ulint count = 1;;) {
 		bool	wait = srv_purge_threads_active();
@@ -2778,6 +2796,10 @@ srv_pre_dd_shutdown()
 
 		count++;
 		os_thread_sleep(100000);
+	}
+
+	if (srv_start_state_is_set(SRV_START_STATE_STAT)) {
+		dict_stats_thread_deinit();
 	}
 
 	ut_d(srv_is_being_shutdown = true);
@@ -2824,10 +2846,6 @@ srv_shutdown()
 		fclose(srv_misc_tmpfile);
 		srv_misc_tmpfile = 0;
 		mutex_free(&srv_misc_tmpfile_mutex);
-	}
-
-	if (!srv_read_only_mode) {
-		dict_stats_thread_deinit();
 	}
 
 	/* This must be disabled before closing the buffer pool

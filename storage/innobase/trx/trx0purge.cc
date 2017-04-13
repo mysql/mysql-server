@@ -2002,7 +2002,11 @@ run_synchronously:
 	rw_lock_x_unlock(&purge_sys->latch);
 #endif /* UNIV_DEBUG */
 
-	if (truncate) {
+	/* During upgrade, to know whether purge is empty,
+	we rely on purge history length. So truncate the
+	undo logs during upgrade to update purge history
+	length. */
+	if (truncate || srv_upgrade_old_undo_found) {
 		trx_purge_truncate();
 	}
 
