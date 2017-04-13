@@ -1395,7 +1395,8 @@ Dbtup::disk_page_alloc(Signal* signal,
     pagePtr.p->uncommitted_used_space--;
     key->m_page_idx= ((Fix_page*)pagePtr.p)->alloc_record();
     jamLine(Uint16(key->m_page_idx));
-    DEB_PGMAN(("page(%u,%u).%u",
+    DEB_PGMAN(("(%u)page(%u,%u).%u",
+               instance(),
                key->m_file_no,
                key->m_page_no,
                key->m_page_idx));
