@@ -2858,6 +2858,13 @@ void Qmgr::sendHeartbeat(Signal* signal)
      *-----------------------------------------------------------------------*/
     return;
   }//if
+
+  if(ERROR_INSERTED(946))
+  {
+    sleep(180);
+    return;
+  }
+
   ptrCheckGuard(localNodePtr, MAX_NDB_NODES, nodeRec);
   signal->theData[0] = getOwnNodeId();
 
@@ -3472,6 +3479,7 @@ void Qmgr::execDISCONNECT_REP(Signal* signal)
     CRASH_INSERTION(932);
     CRASH_INSERTION(938);
     CRASH_INSERTION(944);
+    CRASH_INSERTION(946);
     BaseString::snprintf(buf, 100, "Node %u disconnected", nodeId);    
     progError(__LINE__, NDBD_EXIT_SR_OTHERNODEFAILED, buf);
     ndbrequire(false);
@@ -4233,7 +4241,17 @@ void Qmgr::failReportLab(Signal* signal, Uint16 aFailedNode,
     CRASH_INSERTION(932);
     CRASH_INSERTION(938);
     char buf[100];
-    BaseString::snprintf(buf, 100, "Node failure during restart");
+    switch(aFailCause)
+    {
+      case FailRep::ZHEARTBEAT_FAILURE:
+        BaseString::snprintf(buf, 100 ,"Node %d heartbeat failure",
+                             failedNodePtr.i);
+        CRASH_INSERTION(947);
+        break;
+      default:
+        BaseString::snprintf(buf, 100 , "Node %d failed",
+                             failedNodePtr.i);
+    }
     progError(__LINE__, NDBD_EXIT_SR_OTHERNODEFAILED, buf);
     ndbrequire(false);
   }
