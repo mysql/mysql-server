@@ -16,15 +16,18 @@ insert into rows(a)
         mysql.user e, 
         mysql.user f, 
         mysql.user g 
-   limit 2000;
+   limit 1000;
 
 create table p1 (name varchar(255),
                  id int(11) auto_increment,
                  parent_id int,
+                 parent_c1 int,
+                 parent_c2 int,
                  primary key(id),
                  unique(name),
-                 key k2(parent_id))
-engine = ndb;
+                 key k2(parent_id),
+                 unique(parent_c1, parent_c2)
+)engine = ndb;
 
 create table c1(c1 varchar(100),
                 id int(11),
@@ -32,6 +35,20 @@ create table c1(c1 varchar(100),
                 unique key abc (id),
                 key (c1),
                 constraint fk1 foreign key (id) references p1 (id)
+) engine=ndb;
+
+create table c2(c2 varchar(100),
+                id int(11),
+                parent_temp int,
+                parent_rc1 int,
+                parent_rc2 int,
+                parent_rc3 int,
+                primary key(c2),
+                unique key abc(c2),
+                unique key abd(parent_temp),
+                constraint fk1 foreign key (id) references p1 (id),
+                constraint fk2 foreign key (parent_rc1, parent_rc2) references p1(parent_c1, parent_c2),
+                constraint fk3 foreign key (parent_rc3) references c1(id)
 ) engine=ndb;
 
 # Populate parent table
@@ -145,6 +162,7 @@ delete from test.c1;
 
 delete from test.p1;
 
+drop table test.c2;
 drop table test.c1;
 drop table test.p1;
 drop table test.rows;
