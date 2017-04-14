@@ -463,64 +463,6 @@ void Dbtup::execTUP_ADD_ATTRREQ(Signal* signal)
     goto error;
   }
 
-#if 0
-  ndbout << *regTabPtr.p << endl;
-  Uint32 idx= regTabPtr.p->tabDescriptor;
-  for(Uint32 i = 0; i<regTabPtr.p->m_no_of_attributes; i++)
-  {
-    ndbout << i << ": " << endl;
-    ndbout << *(AttributeDescriptor*)(tableDescriptor+idx) << endl;
-    ndbout << *(AttributeOffset*)(tableDescriptor+idx+1) << endl;
-    idx += 2;
-  }
-#endif
-  
-#ifdef SYNC_TABLE
-  if (regTabPtr.p->m_no_of_disk_attributes)
-  {
-    jam();
-    if(!(getNodeState().startLevel == NodeState::SL_STARTING && 
-	 getNodeState().starting.startPhase <= 4))
-    {
-      CallbackPtr cb;
-      jam();
-
-      cb.m_callbackData= fragOperPtr.i;
-      cb.m_callbackIndex = UNDO_CREATETABLE_CALLBACK;
-      Uint32 sz= sizeof(Disk_undo::Create) >> 2;
-      int res;
-     
-      {
-        D("Logfile_client - execTUP_ADD_ATTRREQ");
-        Logfile_client lgman(this, c_lgman, regFragPtr.p->m_logfile_group_id);
-        if ((terrorCode = lgman.alloc_log_space(sz, jamBuffer())))
-        {
-          jamEntry();
-          addattrrefuseLab(signal, regFragPtr, fragOperPtr, regTabPtr.p, fragId);
-          return;
-        }
-      
-        jamEntry();
-        res= lgman.get_log_buffer(signal, sz, &cb);
-      }
-      jamEntry();
-      switch(res){
-      case 0:
-        jam();
-	signal->theData[0] = 1;
-	return;
-      case -1:
-        g_eventLogger->warning("Out of space in RG_TRANSACTION_MEMORY resource,"
-                              " increase config parameter GlobalSharedMemory");
-	ndbrequire("NOT YET IMPLEMENTED" == 0);
-	break;
-      }
-      execute(signal, cb, regFragPtr.p->m_logfile_group_id);
-      return;
-    }
-  }
-#endif
-
   if (store_default_record(regTabPtr) < 0)
   {
     jam();
@@ -777,17 +719,6 @@ void Dbtup::execTUPFRAGREQ(Signal* signal)
   }
 
   {
-#ifdef MIN_ROWS_NOT_SUPPORTED
-    Uint32 fix_tupheader = regTabPtr.p->m_offsets[MM].m_fix_header_size;
-    ndbassert(fix_tupheader > 0);
-    Uint32 noRowsPerPage = ZWORDS_ON_PAGE / fix_tupheader;
-    Uint32 noAllocatedPages = (minRows + noRowsPerPage - 1 )/ noRowsPerPage;
-    if (minRows == 0)
-      noAllocatedPages = 2;
-    else if (noAllocatedPages == 0)
-      noAllocatedPages = 2;
-#endif
-
     Uint32 noAllocatedPages = 1; //allocFragPage(regFragPtr.p);
 
     if (noAllocatedPages == 0)
@@ -1013,7 +944,7 @@ void Dbtup::getFragmentrec(FragrecordPtr& regFragPtr,
                            Uint32 fragId,
                            Tablerec* const regTabPtr)
 {
-#if defined VM_TRACE || defined ERROR_INSERT
+#if defined(VM_TRACE) || defined(ERROR_INSERT)
   EmulatedJamBuffer* const jamBuf = getThrJamBuf();
 #endif
 
@@ -2019,7 +1950,7 @@ Dbtup::execDROP_TAB_REQ(Signal* signal)
 {
   jamEntry();
   if (ERROR_INSERTED(4013)) {
-#if defined VM_TRACE || defined ERROR_INSERT
+#if defined(VM_TRACE) || defined(ERROR_INSERT)
     verifytabdes();
 #endif
   }
@@ -2279,36 +2210,8 @@ Dbtup::drop_fragment_free_extent(Signal *signal,
         CallbackPtr cb;
 	cb.m_callbackData= fragPtr.i;
 	cb.m_callbackIndex = DROP_FRAGMENT_FREE_EXTENT_LOG_BUFFER_CALLBACK;
-#ifdef NOT_YET_UNDO_FREE_EXTENT
-	Uint32 sz= sizeof(Disk_undo::FreeExtent) >> 2;
-	(void) c_lgman->alloc_log_space(fragPtr.p->m_logfile_group_id,
-                                        sz,
-                                        jamBuffer());
-        jamEntry();
-        int res;
-        {
-	  Logfile_client lgman(this, c_lgman, fragPtr.p->m_logfile_group_id);
-	  res= lgman.get_log_buffer(signal, sz, &cb);
-        }
-        jamEntry();
-	switch(res){
-	case 0:
-	  jam();
-	  return;
-	case -1:
-          g_eventLogger->warning("Out of space in RG_TRANSACTION_MEMORY resource,"
-                             " increase config parameter GlobalSharedMemory");
-	  ndbrequire("NOT YET IMPLEMENTED" == 0);
-	  break;
-	default:
-          jam();
-	  execute(signal, cb, fragPtr.p->m_logfile_group_id);
-	  return;
-	}
-#else
 	execute(signal, cb, fragPtr.p->m_logfile_group_id);	
 	return;
-#endif
       }
     }
     
@@ -2415,28 +2318,7 @@ Dbtup::drop_fragment_free_extent_log_buffer_callback(Signal* signal,
       Ptr<Extent_info> ext_ptr;
       list.first(ext_ptr);
 
-#ifdef NOT_YET_UNDO_FREE_EXTENT
-#error "This code is complete"
-#error "but not needed until we do dealloc of empty extents"
-      Disk_undo::FreeExtent free;
-      free.m_table = tabPtr.i;
-      free.m_fragment = fragPtr.p->fragmentId;
-      free.m_file_no = ext_ptr.p->m_key.m_file_no;
-      free.m_page_no = ext_ptr.p->m_key.m_page_no;
-      free.m_type_length = 
-	(Disk_undo::UNDO_FREE_EXTENT << 16) | (sizeof(free) >> 2);
-      
-      Logfile_client::Change c[1] = {{ &free, sizeof(free) >> 2 } };
-      Uint64 lsn;
-      {
-        Logfile_client lgman(this, c_lgman, fragPtr.p->m_logfile_group_id);
-        lsn = lgman.add_entry(c, 1);
-      }
-      jamEntry();
-#else
       Uint64 lsn = 0;
-#endif
-      
       D("Tablespace_client - drop_fragment_free_extent_log_buffer_callback");
       Tablespace_client tsman(signal, this, c_tsman, tabPtr.i, 
 			      fragPtr.p->fragmentId,
@@ -3443,7 +3325,7 @@ Dbtup::execDROP_FRAG_REQ(Signal* signal)
 {
   jamEntry();
   if (ERROR_INSERTED(4013)) {
-#if defined VM_TRACE || defined ERROR_INSERT
+#if defined(VM_TRACE) || defined(ERROR_INSERT)
     verifytabdes();
 #endif
   }

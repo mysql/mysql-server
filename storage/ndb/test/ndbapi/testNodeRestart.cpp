@@ -575,6 +575,7 @@ int runScanUpdateUntilStopped(NDBT_Context* ctx, NDBT_Step* step){
   
   int i = 0;
   HugoTransactions hugoTrans(*ctx->getTab());
+  ndbout_c("Set RetryMax to %u", retry_max);
   hugoTrans.setRetryMax(retry_max);
   while (ctx->isTestStopped() == false) {
     g_info << i << ": ";
