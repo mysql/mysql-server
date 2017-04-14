@@ -5036,14 +5036,30 @@ compare_errors:
         !ignored_error_code(actual_error) &&
         !ignored_error_code(expected_error))
     {
-      rli->report(ERROR_LEVEL, ER_INCONSISTENT_ERROR,
-                  ER_THD(thd, ER_INCONSISTENT_ERROR),
-                  ER_THD(thd, expected_error), expected_error,
-                  (actual_error ?
-                   thd->get_stmt_da()->message_text() :
-                   "no error"),
-                  actual_error, print_slave_db_safe(db), query_arg);
-      thd->is_slave_error= 1;
+      if (!ignored_error_code(ER_INCONSISTENT_ERROR))
+      {
+        rli->report(ERROR_LEVEL, ER_INCONSISTENT_ERROR,
+                    ER_THD(thd, ER_INCONSISTENT_ERROR),
+                    ER_THD(thd, expected_error), expected_error,
+                    (actual_error ?
+                     thd->get_stmt_da()->message_text() :
+                     "no error"),
+                    actual_error, print_slave_db_safe(db), query_arg);
+        thd->is_slave_error= 1;
+      }
+      else
+      {
+        rli->report(INFORMATION_LEVEL, actual_error,
+                    "The actual error and expected error on slave are"
+                    " different that will result in ER_INCONSISTENT_ERROR but"
+                    " that is passed as an argument to slave_skip_errors so no"
+                    " error is thrown. "
+                    "The expected error was %s with, Error_code: %d. "
+                    "The actual error is %s with ",
+                    ER_THD(thd, expected_error), expected_error,
+                    thd->get_stmt_da()->message_text());
+        clear_all_errors(thd, const_cast<Relay_log_info*>(rli));
+      }
     }
     /*
       If we get the same error code as expected and it is not a concurrency
