@@ -356,6 +356,7 @@ ErrorBundle ErrorCodes[] = {
   { 230,  DMEC, IE, "230" },
   { 232,  DMEC, IE, "232" },
   { 238,  DMEC, IE, "238" },
+  { 240,  DMEC, IE, "Invalid data encountered during foreign key trigger execution" },
   { 271,  DMEC, IE, "Simple Read transaction without any attributes to read" },
   { 272,  DMEC, IE, "Update operation without any attributes to update" },
   { 276,  DMEC, IE, "276" },
