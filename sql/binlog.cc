@@ -1973,7 +1973,6 @@ static void exec_binlog_error_action_abort(const char* err_string)
   my_error(ER_BINLOG_LOGGING_IMPOSSIBLE, MYF(ME_ERRORLOG + ME_FATALERROR),
            err_string);
   thd->send_statement_status();
-  DBUG_EXECUTE_IF("binlog_expect_suicide", DBUG_SUICIDE(););
   abort();
 }
 
@@ -6860,7 +6859,12 @@ int MYSQL_BIN_LOG::new_file_impl(bool need_lock_log, Format_description_log_even
     close_on_error= TRUE;
     goto end;
   }
-  else
+
+  /*
+    Make sure that the log_file is initialized before writing
+    Rotate_log_event into it.
+  */
+  if (log_file.alloced_buffer)
   {
     /*
       We log the whole file name for log file as the user may decide
@@ -6890,12 +6894,12 @@ int MYSQL_BIN_LOG::new_file_impl(bool need_lock_log, Format_description_log_even
       goto end;
     }
     bytes_written += r.common_header->data_written;
-  }
 
-  if ((error= flush_io_cache(&log_file)))
-  {
-    close_on_error= true;
-    goto end;
+    if ((error= flush_io_cache(&log_file)))
+    {
+      close_on_error= true;
+      goto end;
+    }
   }
 
   DEBUG_SYNC(current_thd, "after_rotate_event_appended");
