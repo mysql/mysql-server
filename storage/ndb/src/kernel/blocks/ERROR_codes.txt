@@ -1,4 +1,4 @@
-# Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -13,7 +13,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-Next QMGR 946
+Next QMGR 948
 Next NDBCNTR 1006
 Next NDBFS 2002
 Next DBACC 3005
@@ -246,7 +246,16 @@ LQH
 
 QMGR
 942:  (See above) 
-
+946:  Make node inactive for 180s during node restart, which results in missed
+      heartbeats when HeartbeatIntervalDbDb is set to around 40s or lesser and
+      TimeBetweenWatchDogCheck is set to its max. value (to prevent termination
+      due to watchdog timeout)
+      Steps to make, say, data node 2 miss heartbeats:
+      1) Start cluster
+      2) ndb_mgm -e "all restart -n"
+      3) ndb_mgm -e "2 error 946"
+      4) ndb_mgm -e "all start"
+947:  Treat restart error due to a node disconnection as CRASH_INSERTION.
 
 ERROR CODES FOR TESTING NODE FAILURE, FAILURE IN COPY FRAGMENT PROCESS:
 -----------------------------------------------------------------------
