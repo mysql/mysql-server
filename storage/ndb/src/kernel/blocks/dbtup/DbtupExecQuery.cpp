@@ -4141,7 +4141,7 @@ Dbtup::prepare_read(KeyReqStruct* req_struct,
       src_len = 0;
       dst->m_max_var_offset = 0;
       dst->m_dyn_part_len = 0;
-#if defined VM_TRACE || defined ERROR_INSERT
+#if defined(VM_TRACE) || defined(ERROR_INSERT)
       bzero(dst, sizeof(* dst));
 #endif
     }

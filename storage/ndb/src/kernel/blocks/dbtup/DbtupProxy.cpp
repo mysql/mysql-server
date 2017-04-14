@@ -333,16 +333,6 @@ DbtupProxy::disk_restart_undo(Signal* signal, Uint64 lsn,
     undo.m_actions |= Proxy_undo::SendUndoNext;
     break;
   }
-#ifdef NOT_YET_UNDO_ALLOC_EXTENT
-  case File_formats::Undofile::UNDO_TUP_ALLOC_EXTENT:
-    ndbrequire(false);
-    break;
-#endif
-#ifdef NOT_YET_UNDO_FREE_EXTENT
-  case File_formats::Undofile::UNDO_TUP_FREE_EXTENT:
-    ndbrequire(false);
-    break;
-#endif
   case File_formats::Undofile::UNDO_END:
     {
       undo.m_actions |= Proxy_undo::SendToAll;
