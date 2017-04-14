@@ -4530,24 +4530,38 @@ fil_ibd_open_for_recovery(
 
 		/* Compare the filename we are trying to open with the
 		filename from the first node of the tablespace we opened
-		previously. Fail if it is different. */
+		previously. Fail if it is different if it is not system
+		tablespace. */
 
 		fil_node_t* node = UT_LIST_GET_FIRST(space->chain);
+		fil_node_t* node1 = node;
 
-		if (0 != strcmp(filename, node->name)) {
-
-			ib::info()
-				<< "Ignoring data file '" << filename
-				<< "' with space ID " << space->id
-				<< ". Another data file called " << node->name
-				<< " exists with the same space ID.";
-
-			space = NULL;
-			return(FIL_LOAD_ID_CHANGED);
-
+		if (0 == strcmp(filename, node->name)) {
+			return (FIL_LOAD_OK);
 		}
 
-		return(FIL_LOAD_OK);
+		/* Same space id can be mapped to many ibdata* files.
+		It depends on the innodb_data_file_path configuration.
+		In this case, traverse all the chain from the fil_node_t */
+		if (space_id == TRX_SYS_SPACE) {
+
+			for (; node1 != NULL;
+			     node1 = UT_LIST_GET_NEXT(chain, node1)) {
+
+				if (0 == strcmp(filename, node1->name)) {
+					return (FIL_LOAD_OK);
+				}
+			}
+		}
+
+		ib::info()
+			<< "Ignoring data file '" << filename
+			<< "' with space ID " << space->id
+			<< ". Another data file called " << node->name
+			<< " exists with the same space ID.";
+
+		space = NULL;
+		return(FIL_LOAD_ID_CHANGED);
 	}
 
 	Datafile	file;
