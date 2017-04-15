@@ -2271,6 +2271,18 @@ NdbImportImpl::RelayOpWorker::do_run()
                                      opt.m_ai_increment,
                                      opt.m_ai_offset) == -1)
     {
+      const NdbError& ndberror = m_ndb->getNdbError();
+      require(ndberror.code != 0);
+      if (ndberror.status == NdbError::TemporaryError)
+      {
+        log1("getAutoIncrementValue: " << ndberror);
+        rows_in.lock();
+        log1("push back to input: rowid " << row->m_rowid);
+        rows_in.push_back_force(row);
+        rows_in.unlock();
+        NdbSleep_MilliSleep(opt.m_tempdelay);
+        return;
+      }
       m_util.set_error_ndb(m_error, __LINE__, m_ndb->getNdbError(),
                            "table %s: get autoincrement failed",
                            table.m_tab->getName());
