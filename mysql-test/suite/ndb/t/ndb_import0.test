@@ -118,4 +118,45 @@ select count(*) from t2 x, t2ver y
 where x.a = y.a
 and (x.b = y.b or (x.b is null and y.b is null));
 
-drop table t1, t2, t2ver;
+--echo # simple hidden-pk test
+
+perl;
+use strict;
+use Symbol;
+my $vardir = $ENV{MYSQLTEST_VARDIR}
+  or die "need MYSQLTEST_VARDIR";
+my $file = "$vardir/tmp/t3.csv";
+my $fh = gensym();
+open($fh, ">$file")
+  or die "$file: open for write failed: $!";
+for my $i (1..1000) {
+  print $fh 10*$i, "\n";
+}
+close($fh)
+  or die "$file: close after write failed: $!";
+exit(0);
+EOF
+
+create table t3 (
+  b int not null,
+  # unique key would turn into pk
+  key bx (b)
+) engine=ndb;
+
+create table t3ver like t3;
+
+exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp
+     test $MYSQLTEST_VARDIR/tmp/t3.csv >> $NDB_TOOLS_OUTPUT 2>&1;
+
+--disable_query_log
+eval load data infile '$MYSQLTEST_VARDIR/tmp/t3.csv'
+into table t3ver;
+--enable_query_log
+
+select count(*) from t3;
+select count(*) from t3ver;
+
+select count(*) from t3 x, t3ver y
+where x.b = y.b;
+
+drop table t1, t2, t2ver, t3, t3ver;
