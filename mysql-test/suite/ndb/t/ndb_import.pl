@@ -292,6 +292,7 @@ sub run_import {
   push(@cmd, "--output-type=ndb");
   push(@cmd, "--output-workers=2");
   push(@cmd, "--db-workers=2");
+  push(@cmd, "--temperrors=100");
   push(@cmd, "--fields-terminated-by='$fter'");
   if (defined($fenc)) {
     push(@cmd, "--fields-optionally-enclosed-by='$fenc'");

@@ -30,4 +30,21 @@ where x.a = y.a
 and (x.b = y.b or (x.b is null and y.b is null));
 count(*)
 4
-drop table t1, t2, t2ver;
+# simple hidden-pk test
+create table t3 (
+b int not null,
+# unique key would turn into pk
+key bx (b)
+) engine=ndb;
+create table t3ver like t3;
+select count(*) from t3;
+count(*)
+1000
+select count(*) from t3ver;
+count(*)
+1000
+select count(*) from t3 x, t3ver y
+where x.b = y.b;
+count(*)
+1000
+drop table t1, t2, t2ver, t3, t3ver;
