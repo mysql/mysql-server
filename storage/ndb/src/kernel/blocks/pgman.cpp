@@ -3324,28 +3324,6 @@ Page_cache_client::init_page_entry(Request& req)
  *
  * The scanning of extent pages happens after the UNDO log execution phase.
  *
- * UNDO_TUP_CREATE undo log entry handling
- * ---------------------------------------
- * We could discover during this undo log phase that the fragment creation
- * had to be undone. This happens when we execute an UNDO_TUP_CREATE undo
- * log entry, this entry is inserted when a table is created. What this
- * means is that the LCP we are restoring for that table is empty. Thus
- * any information about extents it has allocated can be forgotten, only
- * when we have completed an LCP for the fragment can we keep the extent
- * information.
- *
- * The UNDO_TUP_CREATE log record is found only for tables. When we reach
- * this record we might actually already have found the end of the UNDO
- * log record for some of the fragments with the Partial LCP design. This
- * means that we will only set the state of the fragment to newly created
- * if it hasn't reached the end of its UNDO log execution yet.
- *
- * So there are two reasons for an extent to be free'd at restart although
- * it was allocated according to the extent page. Number one is that the
- * table has been dropped, this could happen even while our node is down.
- * The second case is that we have allocated an extent but we are restarting
- * from a state where there is no LCP existing.
- *
  * Allocate an extent handling
  * ---------------------------
  * When we allocate an extent we don't UNDO log this, this means that if the

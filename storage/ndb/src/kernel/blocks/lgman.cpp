@@ -4545,10 +4545,7 @@ Lgman::execute_undo_record(Signal* signal)
     case File_formats::Undofile::UNDO_TUP_ALLOC:
     case File_formats::Undofile::UNDO_TUP_UPDATE:
     case File_formats::Undofile::UNDO_TUP_FREE:
-    case File_formats::Undofile::UNDO_TUP_CREATE:
     case File_formats::Undofile::UNDO_TUP_DROP:
-    case File_formats::Undofile::UNDO_TUP_ALLOC_EXTENT:
-    case File_formats::Undofile::UNDO_TUP_FREE_EXTENT:
       {
         jam();
         jamLine(mask);

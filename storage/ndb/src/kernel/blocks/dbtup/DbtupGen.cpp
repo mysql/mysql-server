@@ -164,36 +164,26 @@ Dbtup::Dbtup(Block_context& ctx, Uint32 instanceNumber)
     ce.m_flags = 0;
   }
   { // 1
-    CallbackEntry& ce = m_callbackEntry[UNDO_CREATETABLE_LOGSYNC_CALLBACK];
-    ce.m_function = safe_cast(&Dbtup::undo_createtable_logsync_callback);
-    ce.m_flags = 0;
-  }
-  { // 2
     CallbackEntry& ce = m_callbackEntry[DROP_TABLE_LOGSYNC_CALLBACK];
     ce.m_function = safe_cast(&Dbtup::drop_table_logsync_callback);
     ce.m_flags = 0;
   }
-  { // 3
-    CallbackEntry& ce = m_callbackEntry[UNDO_CREATETABLE_CALLBACK];
-    ce.m_function = safe_cast(&Dbtup::undo_createtable_callback);
-    ce.m_flags = 0;
-  }
-  { // 4
+  { // 2
     CallbackEntry& ce = m_callbackEntry[DROP_TABLE_LOG_BUFFER_CALLBACK];
     ce.m_function = safe_cast(&Dbtup::drop_table_log_buffer_callback);
     ce.m_flags = 0;
   }
-  { // 5
+  { // 3
     CallbackEntry& ce = m_callbackEntry[DROP_FRAGMENT_FREE_EXTENT_LOG_BUFFER_CALLBACK];
     ce.m_function = safe_cast(&Dbtup::drop_fragment_free_extent_log_buffer_callback);
     ce.m_flags = 0;
   }
-  { // 6
+  { // 4
     CallbackEntry& ce = m_callbackEntry[NR_DELETE_LOG_BUFFER_CALLBACK];
     ce.m_function = safe_cast(&Dbtup::nr_delete_log_buffer_callback);
     ce.m_flags = 0;
   }
-  { // 7
+  { // 5
     CallbackEntry& ce = m_callbackEntry[DISK_PAGE_LOG_BUFFER_CALLBACK];
     ce.m_function = safe_cast(&Dbtup::disk_page_log_buffer_callback);
     ce.m_flags = CALLBACK_ACK;
