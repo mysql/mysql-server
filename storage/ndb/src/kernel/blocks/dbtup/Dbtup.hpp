@@ -272,14 +272,12 @@ public:
 
   enum CallbackIndex {
     // lgman
-    UNDO_CREATETABLE_LOGSYNC_CALLBACK = 1,
-    DROP_TABLE_LOGSYNC_CALLBACK = 2,
-    UNDO_CREATETABLE_CALLBACK = 3,
-    DROP_TABLE_LOG_BUFFER_CALLBACK = 4,
-    DROP_FRAGMENT_FREE_EXTENT_LOG_BUFFER_CALLBACK = 5,
-    NR_DELETE_LOG_BUFFER_CALLBACK = 6,
-    DISK_PAGE_LOG_BUFFER_CALLBACK = 7,
-    COUNT_CALLBACKS = 8
+    DROP_TABLE_LOGSYNC_CALLBACK = 1,
+    DROP_TABLE_LOG_BUFFER_CALLBACK = 2,
+    DROP_FRAGMENT_FREE_EXTENT_LOG_BUFFER_CALLBACK = 3,
+    NR_DELETE_LOG_BUFFER_CALLBACK = 4,
+    DISK_PAGE_LOG_BUFFER_CALLBACK = 5,
+    COUNT_CALLBACKS = 6
   };
   CallbackEntry m_callbackEntry[COUNT_CALLBACKS];
   CallbackTable m_callbackTable;
@@ -1178,10 +1176,7 @@ TupTriggerData_pool c_triggerPool;
       UNDO_ALLOC = File_formats::Undofile::UNDO_TUP_ALLOC
       ,UNDO_UPDATE = File_formats::Undofile::UNDO_TUP_UPDATE
       ,UNDO_FREE = File_formats::Undofile::UNDO_TUP_FREE
-      ,UNDO_CREATE = File_formats::Undofile::UNDO_TUP_CREATE
       ,UNDO_DROP = File_formats::Undofile::UNDO_TUP_DROP
-      ,UNDO_ALLOC_EXTENT = File_formats::Undofile::UNDO_TUP_ALLOC_EXTENT
-      ,UNDO_FREE_EXTENT = File_formats::Undofile::UNDO_TUP_FREE_EXTENT
     };
     
     struct Alloc 
@@ -3536,7 +3531,6 @@ private:
 			     const Uint32*, Uint32 sz,
 			     Uint32 gci, Uint32 logfile_group_id);
 
-  void undo_createtable_callback(Signal* signal, Uint32 opPtrI, Uint32 unused);
   void undo_createtable_logsync_callback(Signal* signal, Uint32, Uint32);
 
   void drop_table_log_buffer_callback(Signal*, Uint32, Uint32);

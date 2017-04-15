@@ -1718,53 +1718,6 @@ Dbtup::computeTableMetaData(Tablerec *regTabPtr)
 }
 
 void
-Dbtup::undo_createtable_callback(Signal* signal, Uint32 opPtrI, Uint32 unused)
-{
-  FragrecordPtr regFragPtr;
-  FragoperrecPtr fragOperPtr;
-  TablerecPtr regTabPtr;
-
-  fragOperPtr.i= opPtrI;
-  ptrCheckGuard(fragOperPtr, cnoOfFragoprec, fragoperrec);
-
-  regTabPtr.i= fragOperPtr.p->tableidFrag;
-  ptrCheckGuard(regTabPtr, cnoOfTablerec, tablerec);
-
-  getFragmentrec(regFragPtr, fragOperPtr.p->fragidFrag, regTabPtr.p);
-  ndbrequire(regFragPtr.i != RNIL);
- 
-  Logfile_client::Request req;
-  {
-    D("Logfile_client - undo_createtable_callback");
-    Logfile_client lgman(this, c_lgman, regFragPtr.p->m_logfile_group_id);
-
-    Disk_undo::Create create;
-    create.m_type_length= Disk_undo::UNDO_CREATE << 16 | (sizeof(create) >> 2);
-    create.m_table = regTabPtr.i;
-  
-    Logfile_client::Change c[1] = {{ &create, sizeof(create) >> 2 } };
-   
-    Uint64 lsn= lgman.add_entry(c, 1);
-    jamEntry();
-    DEB_TUP_META(("Add UNDO_TUP_CREATE in lsn: %llu for tab: %u",
-                  lsn, regTabPtr.i));
-
-    req.m_callback.m_callbackData= fragOperPtr.i;
-    req.m_callback.m_callbackIndex = UNDO_CREATETABLE_LOGSYNC_CALLBACK;
-  
-    int ret = lgman.sync_lsn(signal, lsn, &req, 0);
-    jamEntry();
-    switch(ret){
-    case 0:
-      return;
-    case -1:
-      warningEvent("Failed to sync log for create of table: %u", regTabPtr.i);
-    }
-  }
-  execute(signal, req.m_callback, regFragPtr.p->m_logfile_group_id);
-}
-
-void
 Dbtup::undo_createtable_logsync_callback(Signal* signal, Uint32 ptrI, 
 					 Uint32 res)
 {

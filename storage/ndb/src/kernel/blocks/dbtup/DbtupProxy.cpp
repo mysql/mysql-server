@@ -238,85 +238,60 @@ DbtupProxy::disk_restart_undo(Signal* signal, Uint64 lsn,
   switch (undo.m_type) {
   case File_formats::Undofile::UNDO_LOCAL_LCP_FIRST:
   case File_formats::Undofile::UNDO_LOCAL_LCP:
-    {
-      undo.m_table_id = ptr[2] >> 16;
-      undo.m_fragment_id = ptr[2] & 0xFFFF;
-      undo.m_actions |= Proxy_undo::SendToAll;
-      undo.m_actions |= Proxy_undo::SendUndoNext;
-    }
-    break;
-  case File_formats::Undofile::UNDO_LCP_FIRST:
-  case File_formats::Undofile::UNDO_LCP:
-    {
-      /**
-       * This is the start of the UNDO log, this is the synchronisation
-       * point, so we will UNDO information back to here. After this
-       * we don't need any more UNDO logging, we do still however need
-       * to use the UNDO logs to synchronize the extent bits with the
-       * page information.
-       */
-      undo.m_table_id = ptr[1] >> 16;
-      undo.m_fragment_id = ptr[1] & 0xFFFF;
-      undo.m_actions |= Proxy_undo::SendToAll;
-      undo.m_actions |= Proxy_undo::SendUndoNext;
-    }
-    break;
-  case File_formats::Undofile::UNDO_TUP_ALLOC:
-    {
-      const Dbtup::Disk_undo::Alloc* rec =
-        (const Dbtup::Disk_undo::Alloc*)ptr;
-      undo.m_key.m_file_no = rec->m_file_no_page_idx >> 16;
-      undo.m_key.m_page_no = rec->m_page_no;
-      undo.m_key.m_page_idx = rec->m_file_no_page_idx & 0xFFFF;
-      undo.m_actions |= Proxy_undo::ReadTupPage;
-      undo.m_actions |= Proxy_undo::GetInstance;
-    }
-    break;
-  case File_formats::Undofile::UNDO_TUP_UPDATE:
-    {
-      const Dbtup::Disk_undo::Update* rec =
-        (const Dbtup::Disk_undo::Update*)ptr;
-      undo.m_key.m_file_no = rec->m_file_no_page_idx >> 16;
-      undo.m_key.m_page_no = rec->m_page_no;
-      undo.m_key.m_page_idx = rec->m_file_no_page_idx & 0xFFFF;
-      undo.m_actions |= Proxy_undo::ReadTupPage;
-      undo.m_actions |= Proxy_undo::GetInstance;
-    }
-    break;
-  case File_formats::Undofile::UNDO_TUP_FREE:
-    {
-      const Dbtup::Disk_undo::Free* rec =
-        (const Dbtup::Disk_undo::Free*)ptr;
-      undo.m_key.m_file_no = rec->m_file_no_page_idx >> 16;
-      undo.m_key.m_page_no = rec->m_page_no;
-      undo.m_key.m_page_idx = rec->m_file_no_page_idx & 0xFFFF;
-      undo.m_actions |= Proxy_undo::ReadTupPage;
-      undo.m_actions |= Proxy_undo::GetInstance;
-    }
-    break;
-
-  case File_formats::Undofile::UNDO_TUP_CREATE:
   {
-    jam();
-    /**
-     * A table was created, if this happens before the start of the
-     * LCP, then not much should happen since the table was still
-     * existing at the time of the start of the LCP.
-     *
-     * If this happens before any LCP synch point, then this is a
-     * sort of start of an LCP. In fact the LCP in this case is
-     * an empty one, so no records should be remaining after UNDO
-     * and also no extents should be attached to the table.
-     * However this entry is per table and LCPs is per fragment,
-     * the local DBTUP instance will decide how this relates to
-     * the LCP per fragment.
-     * For sure no UNDO logs happening before this point is needed
-     * to pass by, not even to synchronize the extent bits since they
-     * should all be zero at this point in time.
-     */
-    
+    undo.m_table_id = ptr[2] >> 16;
+    undo.m_fragment_id = ptr[2] & 0xFFFF;
     undo.m_actions |= Proxy_undo::SendToAll;
     undo.m_actions |= Proxy_undo::SendUndoNext;
+    break;
+  }
+  case File_formats::Undofile::UNDO_LCP_FIRST:
+  case File_formats::Undofile::UNDO_LCP:
+  {
+    /**
+     * This is the start of the UNDO log, this is the synchronisation
+     * point, so we will UNDO information back to here. After this
+     * we don't need any more UNDO logging, we do still however need
+     * to use the UNDO logs to synchronize the extent bits with the
+     * page information.
+     */
+    undo.m_table_id = ptr[1] >> 16;
+    undo.m_fragment_id = ptr[1] & 0xFFFF;
+    undo.m_actions |= Proxy_undo::SendToAll;
+    undo.m_actions |= Proxy_undo::SendUndoNext;
+    break;
+  }
+  case File_formats::Undofile::UNDO_TUP_ALLOC:
+  {
+    const Dbtup::Disk_undo::Alloc* rec =
+      (const Dbtup::Disk_undo::Alloc*)ptr;
+    undo.m_key.m_file_no = rec->m_file_no_page_idx >> 16;
+    undo.m_key.m_page_no = rec->m_page_no;
+    undo.m_key.m_page_idx = rec->m_file_no_page_idx & 0xFFFF;
+    undo.m_actions |= Proxy_undo::ReadTupPage;
+    undo.m_actions |= Proxy_undo::GetInstance;
+    break;
+  }
+  case File_formats::Undofile::UNDO_TUP_UPDATE:
+  {
+    const Dbtup::Disk_undo::Update* rec =
+      (const Dbtup::Disk_undo::Update*)ptr;
+    undo.m_key.m_file_no = rec->m_file_no_page_idx >> 16;
+    undo.m_key.m_page_no = rec->m_page_no;
+    undo.m_key.m_page_idx = rec->m_file_no_page_idx & 0xFFFF;
+    undo.m_actions |= Proxy_undo::ReadTupPage;
+    undo.m_actions |= Proxy_undo::GetInstance;
+    break;
+  }
+  case File_formats::Undofile::UNDO_TUP_FREE:
+  {
+    const Dbtup::Disk_undo::Free* rec =
+      (const Dbtup::Disk_undo::Free*)ptr;
+    undo.m_key.m_file_no = rec->m_file_no_page_idx >> 16;
+    undo.m_key.m_page_no = rec->m_page_no;
+    undo.m_key.m_page_idx = rec->m_file_no_page_idx & 0xFFFF;
+    undo.m_actions |= Proxy_undo::ReadTupPage;
+    undo.m_actions |= Proxy_undo::GetInstance;
     break;
   }
   case File_formats::Undofile::UNDO_TUP_DROP:
@@ -334,10 +309,10 @@ DbtupProxy::disk_restart_undo(Signal* signal, Uint64 lsn,
     break;
   }
   case File_formats::Undofile::UNDO_END:
-    {
-      undo.m_actions |= Proxy_undo::SendToAll;
-    }
+  {
+    undo.m_actions |= Proxy_undo::SendToAll;
     break;
+  }
   default:
     ndbrequire(false);
     break;

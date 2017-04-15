@@ -1854,53 +1854,6 @@ Dbtup::disk_restart_undo(Signal* signal,
     preq.m_page.m_page_idx = rec->m_file_no_page_idx & 0xFFFF;
     break;
   }
-  case File_formats::Undofile::UNDO_TUP_CREATE:
-    /**
-     * 
-     */
-  {
-    jam();
-    Disk_undo::Create* rec= (Disk_undo::Create*)ptr;
-    Ptr<Tablerec> tabPtr;
-    tabPtr.i= rec->m_table;
-    if (tabPtr.i < cnoOfTablerec)
-    {
-      jam();
-      ptrAss(tabPtr, tablerec);
-      /**
-       * We could come here in a number of situations.
-       * 1) It is the first record we reach before finding any DROP
-       *    or LCP record of this fragment. In this case we treat it
-       *    as if it was the end of the LCP, we set undo_complete to
-       *    UC_CREATE to ensure that no extents are allocated to us
-       *    since we should start with an empty set of extents.
-       * 2) It is a record that have been preceded by UNDO_TUP_DROP,
-       *    in this case we can simply ignore the record.
-       * 3) It could be a record that is preceded by the fragment
-       *    LCP record. In this case the LCP happened after the
-       *    create of the table and we can also safely ignore the
-       *    this record.
-       */
-      DEB_UNDO(("(%u)UNDO_TUP_CREATE: lsn: %llu, tab: %u",
-                instance(),
-                lsn,
-                tabPtr.i));
-      for(Uint32 i = 0; i<NDB_ARRAY_SIZE(tabPtr.p->fragrec); i++)
-      {
-        jam();
-        if (tabPtr.p->fragrec[i] != RNIL)
-        {
-          jam();
-          jamLine(Uint16(tabPtr.p->fragid[i]));
-          disk_restart_undo_lcp(tabPtr.i, tabPtr.p->fragid[i],
-                                 Fragrecord::UC_CREATE, 0, 0);
-        }
-      }
-    }
-    if (!isNdbMtLqh())
-      disk_restart_undo_next(signal);
-    return;
-  }
   case File_formats::Undofile::UNDO_TUP_DROP:
   {
     jam();
@@ -1911,14 +1864,9 @@ Dbtup::disk_restart_undo(Signal* signal,
      * 1) It could be a record that belongs to a table that we are not
      *    restoring, in this case we won't find the table in the search
      *    below.
-     * 2) It could be a record that have been preceded by a UNDO_TUP_CREATE
-     *    record. In this case we should simply ignore this record since
-     *    we know that this is belonging to an old table.
-     * 3) It could be a record that is not preceded by any UNDO_TUP_CREATE
-     *    record and in this case it must be the case that we have created
-     *    a table, but the crash occurred before we got to write the
-     *    UNDO_TUP_CREATE record. In this case we can treat this as if it
-     *    was an UNDO_TUP_CREATE record.
+     * 2) It could belong to a table we are restoring, but this is a
+     *    drop of a previous incarnation of this table. Definitely no
+     *    more log records should be executed for this table.
      * 
      * Coming here after we reached the end of the fragment LCP should not
      * happen, so we insert an ndbrequire to ensure this doesn't happen.
@@ -1948,13 +1896,6 @@ Dbtup::disk_restart_undo(Signal* signal,
       disk_restart_undo_next(signal);
     return;
   }
-  case File_formats::Undofile::UNDO_TUP_ALLOC_EXTENT:
-    jam();
-  case File_formats::Undofile::UNDO_TUP_FREE_EXTENT:
-    jam();
-    disk_restart_undo_next(signal);
-    return;
-
   case File_formats::Undofile::UNDO_END:
     jam();
     f_undo_done = true;
@@ -2079,7 +2020,7 @@ Dbtup::disk_restart_undo_lcp(Uint32 tableId,
         /**
          * In this case we have decided to start with a table.
          * If the table was dropped it must have been another table
-         * that was dropped. Given that UNDO_TUP_CREATE isn't always
+         * that was dropped. Given that UNDO_TUP_CREATE isn't
          * logged we can find this at times. We should not look
          * any more at log records from this table going backwards
          * since they are belonging to an old table.

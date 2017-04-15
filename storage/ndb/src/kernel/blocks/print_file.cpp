@@ -460,44 +460,10 @@ print_undo_page(int count, void* ptr, Uint32 sz)
 		   req->m_gci);
 	  }
 	  break;
-	case File_formats::Undofile::UNDO_TUP_CREATE:
-	{
-	  Dbtup::Disk_undo::Create *req = (Dbtup::Disk_undo::Create*)src;
-	  printf("[ %lld Create %d ]", lsn, req->m_table);
-	  if(g_verbosity <= 3)
-	    printf("\n");
-	  break;
-	}
 	case File_formats::Undofile::UNDO_TUP_DROP:
 	{
 	  Dbtup::Disk_undo::Drop *req = (Dbtup::Disk_undo::Drop*)src;
 	  printf("[ %lld Drop %d ]", lsn, req->m_table);
-	  if(g_verbosity <= 3)
-	    printf("\n");
-	  break;
-	}
-	case File_formats::Undofile::UNDO_TUP_ALLOC_EXTENT:
-	{
-	  Dbtup::Disk_undo::AllocExtent *req = (Dbtup::Disk_undo::AllocExtent*)src;
-	  printf("[ %lld AllocExtent tab: %d frag: %d file: %d page: %d ]", 
-		 lsn, 
-		 req->m_table,
-		 req->m_fragment,
-		 req->m_file_no,
-		 req->m_page_no);
-	  if(g_verbosity <= 3)
-	    printf("\n");
-	  break;
-	}
-	case File_formats::Undofile::UNDO_TUP_FREE_EXTENT:
-	{
-	  Dbtup::Disk_undo::FreeExtent *req = (Dbtup::Disk_undo::FreeExtent*)src;
-	  printf("[ %lld FreeExtent tab: %d frag: %d file: %d page: %d ]", 
-		 lsn, 
-		 req->m_table,
-		 req->m_fragment,
-		 req->m_file_no,
-		 req->m_page_no);
 	  if(g_verbosity <= 3)
 	    printf("\n");
 	  break;
