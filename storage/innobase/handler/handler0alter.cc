@@ -5416,6 +5416,10 @@ op_ok:
 	dropped by the database administrator. */
 	trx_commit_for_mysql(ctx->trx);
 
+	if (build_fts_common || fts_index) {
+		fts_freeze_aux_tables(ctx->new_table);
+	}
+
 	row_mysql_unlock_data_dictionary(ctx->prebuilt->trx);
 	ctx->trx->dict_operation_lock_mode = 0;
 	dict_locked = false;
@@ -5439,6 +5443,11 @@ op_ok:
 	}
 
 error_handling:
+
+	if (build_fts_common || fts_index) {
+		fts_detach_aux_tables(ctx->new_table, dict_locked);
+	}
+
 	/* After an error, remove all those index definitions from the
 	dictionary which were defined. */
 

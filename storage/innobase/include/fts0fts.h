@@ -1138,6 +1138,22 @@ fts_is_aux_table_name(
 	const char*		name,
 	ulint			len);
 
+/** Freeze all auiliary tables to be not evictable if exist, with dict_mutex
+held
+@param[in]	table		InnoDB table object */
+void
+fts_freeze_aux_tables(
+	const dict_table_t*	table);
+
+/** Allow all the auxiliary tables of specified base table to be evictable
+if they exist, if not exist just ignore
+@param[in]	table		InnoDB table object
+@param[in]	dict_locked	True if we have dict_sys mutex */
+void
+fts_detach_aux_tables(
+	const dict_table_t*	table,
+	bool			dict_locked);
+
 /** Update DD system table for auxiliary common tables for an FTS index.
 @param[in]	table		dict table instance
 @return true on success, false on failure */

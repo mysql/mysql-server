@@ -406,8 +406,8 @@ dd_mdl_acquire(
 		if (innobase_get_lower_case_table_names() == 1) {
 			ulint	len = strlen(table);
 			ut_memcpy(table_name, table, len);
-			innobase_casedn_str(table_name);
 			table_name[len] = '\0';
+			innobase_casedn_str(table_name);
 			namep = table_name;
 		}
 #endif /* !_WIN32 */

@@ -2332,6 +2332,146 @@ fts_create_one_index_table(
 	return(new_table);
 }
 
+/** Freeze all auiliary tables to be not evictable if exist, with dict_mutex
+held
+@param[in]	table		InnoDB table object */
+void
+fts_freeze_aux_tables(
+	const dict_table_t*	table)
+{
+	fts_table_t	fts_table;
+	char		table_name[MAX_FULL_NAME_LEN];
+
+	FTS_INIT_FTS_TABLE(&fts_table, nullptr, FTS_COMMON_TABLE, table);
+
+	for (ulint i = 0; fts_common_tables[i] != nullptr; ++i) {
+		fts_table.suffix = fts_common_tables[i];
+		fts_get_table_name(&fts_table, table_name);
+
+		dict_table_t*	common;
+		common = dd_table_open_on_name_in_mem(table_name, true);
+		if (common != nullptr && common->can_be_evicted) {
+			dict_table_prevent_eviction(common);
+		}
+
+		if (common != nullptr) {
+			dd_table_close(common, nullptr, nullptr, true);
+		}
+	}
+
+	fts_t*	fts = table->fts;
+	if (fts == nullptr) {
+		return;
+	}
+
+	for (ulint i = 0;
+	     fts->indexes != 0 && i < ib_vector_size(fts->indexes);
+	     ++i) {
+
+		dict_index_t*	index;
+		index = static_cast<dict_index_t*>(
+			ib_vector_getp(fts->indexes, i));
+
+		FTS_INIT_INDEX_TABLE(&fts_table, nullptr, FTS_INDEX_TABLE,
+				     index);
+
+		for (ulint j = 0; j < FTS_NUM_AUX_INDEX; ++j) {
+			fts_table.suffix = fts_get_suffix(j);
+			fts_get_table_name(&fts_table, table_name);
+
+			dict_table_t*	index_table;
+			index_table = dd_table_open_on_name_in_mem(
+				table_name, true);
+			if (index_table != nullptr
+			    && index_table->can_be_evicted) {
+				dict_table_prevent_eviction(index_table);
+			}
+
+			if (index_table != nullptr) {
+				dd_table_close(index_table, nullptr, nullptr,
+					       true);
+			}
+		}
+	}
+}
+
+/** Allow all the auxiliary tables of specified base table to be evictable
+if they exist, if not exist just ignore
+@param[in]	table		InnoDB table object
+@param[in]	dict_locked	True if we have dict_sys mutex */
+void
+fts_detach_aux_tables(
+	const dict_table_t*	table,
+	bool			dict_locked)
+{
+	fts_table_t	fts_table;
+	char		table_name[MAX_FULL_NAME_LEN];
+
+	if (!dict_locked) {
+		mutex_enter(&dict_sys->mutex);
+	}
+
+	FTS_INIT_FTS_TABLE(&fts_table, nullptr, FTS_COMMON_TABLE, table);
+
+	for (ulint i = 0; fts_common_tables[i] != nullptr; ++i) {
+		fts_table.suffix = fts_common_tables[i];
+		fts_get_table_name(&fts_table, table_name);
+
+		dict_table_t*	common;
+		common = dd_table_open_on_name_in_mem(table_name, true);
+		if (common != nullptr && !common->can_be_evicted) {
+			dict_table_allow_eviction(common);
+		}
+
+		if (common != nullptr) {
+			dd_table_close(common, nullptr, nullptr, true);
+		}
+	}
+
+	fts_t*	fts = table->fts;
+	if (fts == nullptr) {
+		if (!dict_locked) {
+			mutex_exit(&dict_sys->mutex);
+		}
+
+		return;
+	}
+
+	for (ulint i = 0;
+	     fts->indexes != 0 && i < ib_vector_size(fts->indexes);
+	     ++i) {
+
+		dict_index_t*	index;
+		index = static_cast<dict_index_t*>(
+			ib_vector_getp(fts->indexes, i));
+
+		FTS_INIT_INDEX_TABLE(&fts_table, nullptr, FTS_INDEX_TABLE,
+				     index);
+
+		for (ulint j = 0; j < FTS_NUM_AUX_INDEX; ++j) {
+			fts_table.suffix = fts_get_suffix(j);
+			fts_get_table_name(&fts_table, table_name);
+
+			dict_table_t*	index_table;
+			index_table = dd_table_open_on_name_in_mem(
+				table_name, true);
+			if (index_table != nullptr
+			    && !index_table->can_be_evicted) {
+				dict_table_allow_eviction(index_table);
+			}
+
+			if (index_table != nullptr) {
+				dd_table_close(index_table, nullptr, nullptr,
+					       true);
+			}
+		}
+	}
+
+	if (!dict_locked) {
+		mutex_exit(&dict_sys->mutex);
+	}
+}
+
 /** Update DD system table for auxiliary common tables for an FTS index.
 @param[in]	table		dict table instance
 @return true on success, false on failure */

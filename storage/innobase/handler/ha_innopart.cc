@@ -2818,7 +2818,9 @@ end:
 			Ha_innopart_share::create_partition_postfix(
 				table_name_end, FN_REFLEN - table_name_len,
 				dd_part);
-			info.detach(false);
+			/* Partition tables are not working with FTS, so
+			only base table is cared here */
+			info.detach(true, false);
 		}
 	}
 
@@ -2846,7 +2848,9 @@ cleanup:
 			Ha_innopart_share::create_partition_postfix(
 				table_name_end, FN_REFLEN - table_name_len,
 				dd_part);
-			info.detach(true);
+			/* Partition tables are not working with FTS, so
+			only base table is cared here */
+			info.detach(true, true);
 		}
 	}
 

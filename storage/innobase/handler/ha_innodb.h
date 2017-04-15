@@ -973,17 +973,20 @@ public:
 		return((m_flags2 & DICT_TF2_INTRINSIC) != 0);
 	}
 
-	/** Prevent the created table to be evicted from cache.
+	/** Prevent the created table to be evicted from cache, also all
+	auxiliary tables.
 	Call this if the DD would be updated after dict_sys mutex is released,
 	since all opening table functions require metadata updated to DD.
-	@return	True	The eviction is changed, so detach should be called
-	@return	False	Already not evicted table */
+	@return	True	The eviction of base table is changed,
+			so detach should handle it
+	@return	False	Already not evicted base table */
 	bool prevent_eviction();
 
-	/** Detach the just created table, without holding dict_sys mutex.
-	Call this if prevent_eviction() was called with return value 'true'.
+	/** Detach the just created table and its auxiliary tables.
+	@param[in]	prevented	True if the base table was prevented
+					to be evicted by prevent_eviction()
 	@param[in]	dict_locked	True if dict_sys mutex is held */
-	void detach(bool dict_locked);
+	void detach(bool prevented, bool dict_locked);
 
 	/** Normalizes a table name string.
 	A normalized name consists of the database name catenated to '/' and

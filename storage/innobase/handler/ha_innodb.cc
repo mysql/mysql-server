@@ -12733,11 +12733,11 @@ index_bad:
 	DBUG_RETURN(true);
 }
 
-/** Prevent the created table to be evicted from cache
+/** Prevent the created table to be evicted from cache, also all auxiliary tables.
 Call this if the DD would be updated after dict_sys mutex is released,
 since all opening table functions require metadata updated to DD.
-@return	True	The eviction is changed, so detach should be called
-@return	False	Already not evicted table */
+@return	True	The eviction of base table is changed, so detach should handle it
+@return	False	Already not evicted base table */
 bool
 create_table_info_t::prevent_eviction()
 {
@@ -12758,16 +12758,22 @@ create_table_info_t::prevent_eviction()
 		prevent = false;
 	}
 
+	if ((table->flags2 & (DICT_TF2_FTS | DICT_TF2_FTS_ADD_DOC_ID))
+	    || table->fts != nullptr) {
+		fts_freeze_aux_tables(table);
+	}
+
 	dd_table_close(table, NULL, NULL, true);
 
 	return(prevent);
 }
 
-/** Detach the just created table, without holding dict_sys mutex.
-Call this if prevent_eviction() was called with return value 'true'.
+/** Detach the just created table and its auxiliary tables
+@param[in]	prevented	True if the base table was prevented
+				to be evicted by prevent_eviction()
 @param[in]	dict_locked	True if dict_sys mutex is held */
 void
-create_table_info_t::detach(bool dict_locked)
+create_table_info_t::detach(bool prevented, bool dict_locked)
 {
 	if (!dict_locked) {
 		mutex_enter(&dict_sys->mutex);
@@ -12777,8 +12783,13 @@ create_table_info_t::detach(bool dict_locked)
 		m_table_name, true);
 	ut_ad(table != NULL);
 
-	if (!table->can_be_evicted) {
+	if (prevented && !table->can_be_evicted) {
 		dict_table_allow_eviction(table);
+	}
+
+	if ((table->flags2 & (DICT_TF2_FTS | DICT_TF2_FTS_ADD_DOC_ID))
+	    || table->fts != nullptr) {
+		fts_detach_aux_tables(table, true);
 	}
 
 	dd_table_close(table, NULL, NULL, true);
@@ -13970,6 +13981,7 @@ ha_innobase::create_table_impl(
 
 	bool	dict_locked = false;
 	bool	prevent_eviction = false;
+	bool	prevented = false;
 	/* Latch the InnoDB data dictionary exclusively so that no deadlocks
 	or lock waits can happen in it during a table create operation.
 	Drop table etc. do this latching in row0mysql.cc.
@@ -14001,6 +14013,7 @@ ha_innobase::create_table_impl(
 
 		/* Prevent eviction before releasing dict_sys mutex */
 		prevent_eviction = info.prevent_eviction();
+		prevented = true;
 
 		if (thd_trx) {
 			row_mysql_unlock_data_dictionary(thd_trx);
@@ -14022,8 +14035,8 @@ ha_innobase::create_table_impl(
 
 	error = info.create_table_update_dict();
 
-	if (prevent_eviction) {
-		info.detach(false);
+	if (prevent_eviction || prevented) {
+		info.detach(prevent_eviction, false);
 	}
 
 	/* Tell the InnoDB server that there might be work for
@@ -14036,9 +14049,8 @@ ha_innobase::create_table_impl(
 	DBUG_RETURN(error);
 
 cleanup:
-	if (prevent_eviction) {
-		ut_ad(!info.is_intrinsic_temp_table());
-		info.detach(dict_locked);
+	if (prevent_eviction || prevented) {
+		info.detach(prevent_eviction, dict_locked);
 	}
 
 	trx_rollback_for_mysql(trx);

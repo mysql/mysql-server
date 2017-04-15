@@ -4824,7 +4824,8 @@ lock_print_info_summary(
 	switch (purge_sys->state){
 	case PURGE_STATE_INIT:
 		/* Should never be in this state while the system is running. */
-		ut_error;
+		fprintf(file, "initializing");
+		break;
 
 	case PURGE_STATE_EXIT:
 		fprintf(file, "exited");

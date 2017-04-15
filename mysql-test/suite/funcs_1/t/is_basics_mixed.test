@@ -27,9 +27,6 @@ let $engine_type = InnoDB;
 #          '.../var/master-data/information_schema/tables.frm~
 --source include/not_embedded.inc
 
-# Skip it on MacOS for bug#25882809.
---source include/not_macos.inc
-
 --source suite/funcs_1/datadict/datadict.pre
 
 
