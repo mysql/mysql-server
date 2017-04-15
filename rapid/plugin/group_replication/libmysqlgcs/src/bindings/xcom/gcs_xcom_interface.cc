@@ -75,7 +75,7 @@ void      cb_xcom_receive_global_view(synode_no config_id,
                                       synode_no message_id, node_set nodes);
 void      do_cb_xcom_receive_global_view(synode_no config_id,
                                          synode_no message_id,
-                                         Gcs_xcom_nodes *nodes);
+                                         Gcs_xcom_nodes *xcom_nodes);
 void      cb_xcom_comms(int status);
 void      cb_xcom_ready(int status);
 void      cb_xcom_exit(int status);
@@ -113,11 +113,20 @@ void Gcs_xcom_interface::cleanup()
 
 
 Gcs_xcom_interface::Gcs_xcom_interface()
-  :m_group_interfaces(), m_xcom_configured_groups(), m_local_node_information(NULL),
-  m_xcom_peers(), m_is_initialized(false), m_boot(false), m_socket_util(NULL),
-  m_gcs_xcom_app_cfg(), m_initialization_parameters(), m_default_logger(NULL),
-  m_ip_whitelist(), m_ssl_init_state(-1), m_wait_for_ssl_init_cond(),
-  m_wait_for_ssl_init_mutex()
+  :m_group_interfaces(),
+   m_xcom_configured_groups(),
+   m_node_address(NULL),
+   m_xcom_peers(),
+   m_is_initialized(false),
+   m_boot(false),
+   m_socket_util(NULL),
+   m_gcs_xcom_app_cfg(),
+   m_initialization_parameters(),
+   m_default_logger(NULL),
+   m_ip_whitelist(),
+   m_ssl_init_state(-1),
+   m_wait_for_ssl_init_cond(),
+   m_wait_for_ssl_init_mutex()
 {
   // Initialize random seed
   srand(static_cast<unsigned int>(time(0)));
@@ -382,14 +391,15 @@ Gcs_xcom_interface::configure(const Gcs_interface_parameters &interface_params)
 
   if(local_node_str != NULL)
   {
+/* purecov: begin tested */
     // Changing local_node
-    delete m_local_node_information;
-    m_local_node_information=
-      new Gcs_xcom_group_member_information(local_node_str->c_str());
-    xcom_local_port= m_local_node_information->get_member_port();
-    xcom_control->set_local_node_info(m_local_node_information);
+    delete m_node_address;
+    m_node_address= new Gcs_xcom_node_address(local_node_str->c_str());
+    xcom_local_port= m_node_address->get_member_port();
+    xcom_control->set_node_address(m_node_address);
 
     reconfigured |= true;
+/* purecov: end */
   }
 
   if (peer_nodes_str != NULL)
@@ -481,8 +491,8 @@ enum_gcs_error Gcs_xcom_interface::finalize()
   m_is_initialized= false;
 
   // Delete references...
-  delete m_local_node_information;
-  m_local_node_information= NULL;
+  delete m_node_address;
+  m_node_address= NULL;
 
   clean_group_references();
 
@@ -611,11 +621,16 @@ get_group_interfaces(const Gcs_group_identifier &group_identifier)
     Gcs_xcom_state_exchange_interface *se=
       new Gcs_xcom_state_exchange(group_interface->communication_interface);
 
+    Gcs_xcom_group_management *xcom_group_management=
+      new Gcs_xcom_group_management(xcom_proxy, group_identifier);
+    group_interface->management_interface= xcom_group_management;
+
     Gcs_xcom_control *xcom_control=
-      new Gcs_xcom_control(m_local_node_information,
+      new Gcs_xcom_control(m_node_address,
                            m_xcom_peers,
                            group_identifier,
                            xcom_proxy,
+                           xcom_group_management,
                            gcs_engine,
                            se,
                            vce,
@@ -632,9 +647,6 @@ get_group_interfaces(const Gcs_group_identifier &group_identifier)
     configure_suspicions_mgr(m_initialization_parameters,
       static_cast<Gcs_xcom_control*>(group_interface->control_interface)
         ->get_suspicions_manager());
-
-    group_interface->management_interface=
-      new Gcs_xcom_group_management(xcom_proxy, vce, group_identifier);
 
     // Store the created objects for later deletion
     group_interface->vce= vce;
@@ -709,7 +721,6 @@ void Gcs_xcom_interface::initialize_ssl()
 }
 
 
-
 bool Gcs_xcom_interface::
 initialize_xcom(const Gcs_interface_parameters &interface_params)
 {
@@ -754,9 +765,9 @@ initialize_xcom(const Gcs_interface_parameters &interface_params)
     "Configured total number of peers: " << m_xcom_peers.size()
   )
 
-  m_local_node_information=
-    new Gcs_xcom_group_member_information(local_node_str->c_str());
-  xcom_local_port= m_local_node_information->get_member_port();
+  m_node_address=
+    new Gcs_xcom_node_address(local_node_str->c_str());
+  xcom_local_port= m_node_address->get_member_port();
 
   MYSQL_GCS_LOG_DEBUG(
     "Configured Local member: " << *local_node_str
@@ -872,12 +883,13 @@ initialize_xcom(const Gcs_interface_parameters &interface_params)
   return false;
 
 error:
+/* purecov: begin deadcode */
   assert(xcom_proxy != NULL);
   assert(gcs_engine != NULL);
   xcom_proxy->xcom_set_ssl_mode(0); /* SSL_DISABLED */
 
-  delete m_local_node_information;
-  m_local_node_information= NULL;
+  delete m_node_address;
+  m_node_address= NULL;
 
   clear_peer_nodes();
 
@@ -901,6 +913,7 @@ error:
   gcs_engine= NULL;
 
   return true;
+/* purecov: end */
 }
 
 void Gcs_xcom_interface::initialize_peer_nodes(const std::string *peer_nodes)
@@ -919,7 +932,7 @@ void Gcs_xcom_interface::initialize_peer_nodes(const std::string *peer_nodes)
       ++processed_peers_it)
   {
     m_xcom_peers.push_back
-                 (new Gcs_xcom_group_member_information(*processed_peers_it));
+                 (new Gcs_xcom_node_address(*processed_peers_it));
 
     MYSQL_GCS_LOG_TRACE(
       "::initialize_peer_nodes():: Configured Peer "
@@ -930,7 +943,7 @@ void Gcs_xcom_interface::initialize_peer_nodes(const std::string *peer_nodes)
 
 void Gcs_xcom_interface::clear_peer_nodes()
 {
-  std::vector<Gcs_xcom_group_member_information *>::iterator it;
+  std::vector<Gcs_xcom_node_address *>::iterator it;
   for (it= m_xcom_peers.begin(); it != m_xcom_peers.end(); ++it)
     delete (*it);
 
@@ -984,11 +997,12 @@ Gcs_xcom_interface::get_xcom_group_information(const u_long xcom_group_id)
   return retval;
 }
 
+
 /* purecov: begin deadcode */
-Gcs_xcom_group_member_information *
-Gcs_xcom_interface::get_xcom_local_information()
+Gcs_xcom_node_address *
+Gcs_xcom_interface::get_node_address()
 {
-  return m_local_node_information;
+  return m_node_address;
 }
 /* purecov: end*/
 
@@ -1239,7 +1253,8 @@ void do_cb_xcom_receive_data(synode_no message_id, Gcs_xcom_nodes *xcom_nodes,
   }
   free(p.swap_buffer(NULL, 0));
 
-  Gcs_member_identifier origin(xcom_nodes->get_addresses()[message_id.node]);
+  const Gcs_xcom_node_information *node= xcom_nodes->get_node(message_id.node);
+  Gcs_member_identifier origin(node->get_member_id());
   Gcs_message *message= new Gcs_message(origin, *destination, message_data);
 
   /*
@@ -1333,9 +1348,8 @@ void do_cb_xcom_receive_global_view(synode_no config_id, synode_no message_id,
 
   MYSQL_GCS_TRACE_EXECUTE(
     unsigned int node_no= xcom_nodes->get_node_no();
-    unsigned int size= xcom_nodes->get_size();
-    const std::vector<std::string> &addresses= xcom_nodes->get_addresses();
-    const std::vector<bool> &statuses= xcom_nodes->get_statuses();
+    const std::vector<Gcs_xcom_node_information> &nodes= xcom_nodes->get_nodes();
+    std::vector<Gcs_xcom_node_information>::const_iterator nodes_it;
 
     MYSQL_GCS_LOG_TRACE("Received global view:"
                         << " My node_id is " << node_no
@@ -1348,12 +1362,14 @@ void do_cb_xcom_receive_global_view(synode_no config_id, synode_no message_id,
     )
 
     MYSQL_GCS_LOG_TRACE("Received global view: node set:")
-    for (unsigned int i= 0; i < size; i++)
+
+    for (nodes_it= nodes.begin(); nodes_it != nodes.end(); ++nodes_it)
     {
       MYSQL_GCS_LOG_TRACE(
-        "My node_id is " << node_no << " peer: " << i
-         << " address: " << addresses[i]
-         << " flag: " << (statuses[i] ? "Active": "Failed")
+        "My node_id is " << node_no
+        << "peer: " << (*nodes_it).get_node_no()
+        << " address: " << (*nodes_it).get_member_id().get_member_id()
+        << " flag: " << ((*nodes_it).is_alive() ? "Active": "Failed")
       )
     }
   )

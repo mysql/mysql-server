@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -139,7 +139,7 @@ TEST_F(XComStateExchangeTest, StateExchangeBroadcastJoinerTest)
                                                data_to_exchange,
                                                NULL,
                                                &group_name,
-                                               mi);
+                                               *mi);
 
   ASSERT_FALSE(leaving);
 
@@ -205,7 +205,7 @@ TEST_F(XComStateExchangeTest, StateExchangeProcessStatesPhase)
                                                data_to_exchange,
                                                NULL,
                                                &group_name,
-                                               member_id_1);
+                                               *member_id_1);
   ASSERT_FALSE(leaving);
 
   /*
@@ -484,7 +484,7 @@ TEST_F(XComStateExchangeTest, StateExchangeDiscardSynodes)
                                  data_to_exchange,
                                  NULL,
                                  &group_name,
-                                 member_id_1);
+                                 *member_id_1);
 
   /*
     If the synode does not match, the state exchange message is

@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -66,7 +66,7 @@ public:
   MOCK_CONST_METHOD1(on_message_received, void(const Gcs_message &message));
 };
 
-class mock_gcs_xcom_proxy : public Gcs_xcom_proxy
+class mock_gcs_xcom_proxy : public Gcs_xcom_proxy_base
 {
 public:
 

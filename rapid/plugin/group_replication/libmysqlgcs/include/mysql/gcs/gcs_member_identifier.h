@@ -17,62 +17,6 @@
 #define GCS_MEMBER_IDENTIFIER_INCLUDED
 
 #include <string>
-#include <stdint.h>
-
-#include "gcs_types.h"
-
-/*
-  Internal GCS unique identifier.
-*/
-class Gcs_uuid
-{
-public:
-  /*
-    Create a GCS unique identifier.
-  */
-
-  static Gcs_uuid create_uuid();
-
-
-  /*
-    Size of the current identifier when not serialized.
-  */
-  static const unsigned int uuid_size;
-
-
-  /*
-    Copies the internal buffer which is used to store a uuid to an
-    external buffer. If the parameters buffer or size point to NULL,
-    nothing is returned.
-
-    @param [out] buffer storage buffer
-    @param [out] size data size
-    @return Whether the data was returned or not.
-  */
-
-  bool encode(uchar **buffer, unsigned int *size) const;
-
-
-  /*
-    Copies the external buffer to an internal buffer. If the
-    parameter buffer points to NULL, nothing is returned.
-
-    @param [in] buffer storage buffer
-    @param [in] size data size
-    @return Whether the data was copied or not.
-  */
-
-  bool decode(const uchar *buffer, const unsigned int size);
-
-
-  /*
-    Unique identifier which currently only accommodates 64 bits but
-    can easily be extended to 128 bits and become a truly UUID in
-    the future.
-  */
-  std::string actual_value;
-};
-
 
 /**
   @class Gcs_member_identifier
@@ -97,17 +41,6 @@ public:
   explicit Gcs_member_identifier(const std::string &member_id);
 
 
-  /**
-    Gcs_member_identifier constructor.
-
-    @param[in] member_id the member identifier
-    @param[in] uuid the member uuid
-  */
-
-  explicit Gcs_member_identifier(const std::string &member_id,
-                                 const Gcs_uuid &uuid);
-
-
   virtual ~Gcs_member_identifier() {}
 
 
@@ -116,19 +49,6 @@ public:
   */
 
   const std::string& get_member_id() const;
-
-  /**
-    @return the member uuid
-  */
-
-  const Gcs_uuid& get_member_uuid() const;
-
-
-  /**
-    Regenerate the member uuid
-  */
-
-  void regenerate_member_uuid();
 
 
   /**
@@ -157,7 +77,5 @@ public:
 
 private:
   std::string m_member_id;
-  Gcs_uuid m_uuid;
 };
-
 #endif // GCS_MEMBER_IDENTIFIER_INCLUDED

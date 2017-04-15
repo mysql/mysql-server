@@ -38,6 +38,7 @@
 #include "gcs_xcom_state_exchange.h"
 #include "gcs_xcom_group_management.h"
 #include "gcs_xcom_utils.h"
+#include "gcs_xcom_group_member_information.h"
 #include "gcs_xcom_networking.h"
 
 class Gcs_suspicions_manager;
@@ -75,6 +76,7 @@ private:
     XCom binding private constructor.
   */
   explicit Gcs_xcom_interface();
+
 public:
   /**
     Since one wants that a single instance exists, the interface implementation
@@ -133,7 +135,7 @@ public:
 
   Gcs_group_identifier *get_xcom_group_information(const u_long group_id);
 
-  Gcs_xcom_group_member_information *get_xcom_local_information();
+  Gcs_xcom_node_address *get_node_address();
 
   /**
    This member function shall return the set of parameters that configure
@@ -245,8 +247,15 @@ private:
 
   std::map<u_long, Gcs_group_identifier *> m_xcom_configured_groups;
 
-  Gcs_xcom_group_member_information *m_local_node_information;
-  std::vector<Gcs_xcom_group_member_information *> m_xcom_peers;
+  /*
+    The address associated with the current node.
+  */
+  Gcs_xcom_node_address *m_node_address;
+
+  /*
+    The addresses associated with current node's peers.
+  */
+  std::vector<Gcs_xcom_node_address *> m_xcom_peers;
 
   // States if this interface is initialized
   bool m_is_initialized;

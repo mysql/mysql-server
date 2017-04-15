@@ -20,7 +20,6 @@
 #include "gcs_xcom_notification.h"
 #include "gcs_xcom_utils.h"
 #include "gcs_xcom_view_identifier.h"
-
 #include "node_no.h"
 
 using std::map;
@@ -30,8 +29,6 @@ using std::string;
 #include <assert.h>
 #include <iostream>
 #include <list>
-
-#include "node_no.h"
 
 /*
   This is used to disable the arbitrator hack in XCOM just
@@ -60,64 +57,6 @@ static bool is_terminate_suspicion_thread()
 }
 
 
-static void expel_nodes_from_group(nodes_to_kill *ntk)
-{
-  unsigned int len= 0;
-  char **addrs= NULL;
-  blob *uuids= NULL;
-
-  len= static_cast<unsigned int>(ntk->nodes->size());
-  addrs= static_cast<char **>(malloc(len * sizeof(char *)));
-  uuids= static_cast<blob *>(malloc(len * sizeof(blob)));
-  node_list nl;
-
-  std::vector<Gcs_member_identifier *>::const_iterator nodes_it=
-    ntk->nodes->begin();
-  std::vector<Gcs_member_identifier *>::const_iterator nodes_end=
-    ntk->nodes->end();
-
-  for (int i= 0; nodes_it != nodes_end; i++, ++nodes_it)
-  {
-    const Gcs_uuid &uuid= (*nodes_it)->get_member_uuid();
-    const std::string &member_id= (*nodes_it)->get_member_id();
-
-    addrs[i]= const_cast<char *>(member_id.c_str());
-    uuids[i].data.data_val= static_cast<char *>(malloc(uuid.actual_value.size()));
-    (*nodes_it)->get_member_uuid().encode(
-      reinterpret_cast<uchar **>(&uuids[i].data.data_val),
-      &uuids[i].data.data_len
-    );
-
-    MYSQL_GCS_LOG_TRACE(
-      "expel_nodes_from_group():: Node[" << i << "]=(address="
-      << addrs[i] << ", uuid=" << uuid.actual_value.c_str()
-      << ")"
-    );
-  }
-
-  nl.node_list_len= len;
-  nl.node_list_val= ntk->proxy->new_node_address_uuid(len, addrs, uuids);
-  free(addrs);
-  free(uuids);
-
-  MYSQL_GCS_LOG_TRACE(
-    "::expel_nodes_from_group():: "
-    << "Killing " << ntk->nodes->size() << " suspect nodes..."
-  )
-  ntk->proxy->xcom_client_remove_node(&nl, ntk->group_id_hash);
-  MYSQL_GCS_LOG_TRACE(
-    "::expel_member_from_group():: "
-    << "Killed " << ntk->nodes->size() << " suspect nodes."
-  )
-
-  nodes_it= ntk->nodes->begin();
-  for (; nodes_it != nodes_end; ++nodes_it)
-    delete (*nodes_it);
-
-  ntk->proxy->delete_node_address(nl.node_list_len, nl.node_list_val);
-}
-
-
 static void *suspicions_processing_thread(void *ptr)
 {
   Gcs_xcom_control *gcs_ctrl= (Gcs_xcom_control *) ptr;
@@ -142,7 +81,7 @@ static void *xcom_taskmain_startup(void *ptr)
 {
   Gcs_xcom_control *gcs_ctrl= (Gcs_xcom_control *) ptr;
   Gcs_xcom_proxy *proxy= gcs_ctrl->get_xcom_proxy();
-  xcom_port port= gcs_ctrl->get_local_member_info()->get_member_port();
+  xcom_port port= gcs_ctrl->get_node_address()->get_member_port();
 
   proxy->xcom_init(port);
 
@@ -162,10 +101,11 @@ Gcs_xcom_control::get_event_listeners()
 
 
 Gcs_xcom_control::
-Gcs_xcom_control(Gcs_xcom_group_member_information *group_member_information,
-                 std::vector<Gcs_xcom_group_member_information *> &xcom_peers,
+Gcs_xcom_control(Gcs_xcom_node_address *xcom_node_address,
+                 std::vector<Gcs_xcom_node_address *> &xcom_peers,
                  Gcs_group_identifier m_group_identifier,
                  Gcs_xcom_proxy *xcom_proxy,
+                 Gcs_xcom_group_management *xcom_group_management,
                  Gcs_xcom_engine *gcs_engine,
                  Gcs_xcom_state_exchange_interface *state_exchange,
                  Gcs_xcom_view_change_control_interface *view_control,
@@ -174,12 +114,12 @@ Gcs_xcom_control(Gcs_xcom_group_member_information *group_member_information,
   :m_gid(NULL),
   m_gid_hash(0),
   m_xcom_proxy(xcom_proxy),
+  m_xcom_group_management(xcom_group_management),
   event_listeners(),
-  m_local_member_id(NULL),
-  m_state_exchange(state_exchange),
   m_local_node_info(NULL),
+  m_local_node_address(NULL),
+  m_state_exchange(state_exchange),
   m_xcom_thread(),
-  m_node_list_me(),
   m_socket_util(socket_util),
   m_join_attempts(0),
   m_join_sleep_time(0),
@@ -191,9 +131,8 @@ Gcs_xcom_control(Gcs_xcom_group_member_information *group_member_information,
   m_view_control(view_control),
   m_gcs_engine(gcs_engine)
 {
-  set_local_node_info(group_member_information);
+  set_node_address(xcom_node_address);
 
-  m_node_list_me.node_list_len= 0;
   m_gid= new Gcs_group_identifier(m_group_identifier.get_group_id());
   m_gid_hash= Gcs_xcom_utils::
                     mhash((unsigned char *) m_gid->get_group_id().c_str(),
@@ -213,27 +152,19 @@ Gcs_xcom_control(Gcs_xcom_group_member_information *group_member_information,
 Gcs_xcom_control::~Gcs_xcom_control()
 {
   delete m_gid;
-  delete m_local_member_id;
+  delete m_local_node_info;
   delete m_suspicions_manager;
 
   set_terminate_suspicion_thread(true);
-
   m_suspicions_manager= NULL;
-
-  if (m_node_list_me.node_list_len != 0)
-  {
-    m_xcom_proxy->delete_node_address(m_node_list_me.node_list_len,
-                                      m_node_list_me.node_list_val);
-    m_node_list_me.node_list_len= 0;
-  }
 
   clear_peer_nodes();
 }
 
 
-Gcs_xcom_group_member_information *Gcs_xcom_control::get_local_member_info()
+Gcs_xcom_node_address *Gcs_xcom_control::get_node_address()
 {
-  return m_local_node_info;
+  return m_local_node_address;
 }
 
 
@@ -285,36 +216,6 @@ void Gcs_xcom_control::set_join_behavior(unsigned int join_attempts,
   MYSQL_GCS_LOG_DEBUG(
     "Configured time between attempts to join: " << m_join_sleep_time
   )
-}
-
-
-/**
-  Initializes address list.
-*/
-void Gcs_xcom_control::init_me()
-{
-  blob uuid;
-  Gcs_xcom_group_member_information *node= m_local_node_info;
-  char *addr= const_cast<char *>(node->get_member_address().c_str());
-
-  if (m_node_list_me.node_list_len != 0)
-  {
-    m_xcom_proxy->delete_node_address(m_node_list_me.node_list_len,
-                                      m_node_list_me.node_list_val);
-    m_node_list_me.node_list_len= 0;
-  }
-
-  uuid.data.data_val=
-    static_cast<char *>(malloc(m_local_member_id->get_member_uuid().actual_value.size() *
-                        sizeof(char)));
-  m_local_member_id->get_member_uuid().encode(
-      reinterpret_cast<uchar **>(&uuid.data.data_val),
-      &uuid.data.data_len
-  );
-
-  m_node_list_me.node_list_len= 1;
-  m_node_list_me.node_list_val= m_xcom_proxy->new_node_address_uuid(
-                                    m_node_list_me.node_list_len, &addr, &uuid);
 }
 
 
@@ -404,9 +305,10 @@ enum_gcs_error Gcs_xcom_control::do_join(bool retry)
     if (retry && m_join_attempts != 0 && ret == GCS_NOK && retry_join_count >= 1)
     {
       MYSQL_GCS_LOG_DEBUG(
-        "Sleeping for 5 seconds before retrying to join the group. "
-        "There are " << retry_join_count << " more attempt(s) before "
-        "giving up.");
+        "Sleeping for " << m_join_sleep_time << " seconds before "
+        "retrying to join the group. There are " << retry_join_count
+        << " more attempt(s) before giving up."
+      );
       My_xp_util::sleep_seconds(m_join_sleep_time);
     }
     else
@@ -424,7 +326,7 @@ enum_gcs_error Gcs_xcom_control::do_join(bool retry)
 enum_gcs_error Gcs_xcom_control::retry_do_join()
 {
   /* Used to initialize xcom */
-  int local_port= m_local_node_info->get_member_port();
+  int local_port= m_local_node_address->get_member_port();
   connection_descriptor* con= NULL;
   int comm_status= XCOM_COMM_STATUS_UNDEFINED;
   enum_gcs_error is_xcom_ready= GCS_NOK;
@@ -457,15 +359,14 @@ enum_gcs_error Gcs_xcom_control::retry_do_join()
     goto err;
   }
 
-  // Initialize the node_list
   init_me();
 
   /*
     Connect to the local xcom instance.
     This is needed to push data to consensus.
   */
-  if (m_xcom_proxy->xcom_open_handlers(m_local_node_info->get_member_ip(),
-                                       m_local_node_info->get_member_port()))
+  if (m_xcom_proxy->xcom_open_handlers(m_local_node_address->get_member_ip(),
+                                       m_local_node_address->get_member_port()))
   {
     MYSQL_GCS_LOG_ERROR("Error connecting to the local group communication" <<
                         " engine instance.")
@@ -477,12 +378,12 @@ enum_gcs_error Gcs_xcom_control::retry_do_join()
   {
     MYSQL_GCS_LOG_TRACE(
       "::join():: I am the boot node. " <<  local_port << " "  <<
-      m_local_member_id->get_member_uuid().actual_value.c_str() <<
+      m_local_node_info->get_member_uuid().actual_value.c_str() <<
       ". Calling xcom_client_boot"
     )
 
     int error= 0;
-    if ((error= m_xcom_proxy->xcom_client_boot(&m_node_list_me, m_gid_hash))
+    if ((error= m_xcom_proxy->xcom_boot_node(*m_local_node_info, m_gid_hash))
         <= 0)
     {
       MYSQL_GCS_LOG_ERROR(
@@ -502,9 +403,9 @@ enum_gcs_error Gcs_xcom_control::retry_do_join()
     int n= 0;
     xcom_port port=  0;
     char *addr= NULL;
-    std::vector<Gcs_xcom_group_member_information *>::iterator it;
+    std::vector<Gcs_xcom_node_address *>::iterator it;
     std::string *local_node_info_str=
-      m_local_node_info->get_member_representation();
+      m_local_node_address->get_member_representation();
 
     while(con == NULL && n < Gcs_xcom_proxy::connection_attempts)
     {
@@ -512,7 +413,7 @@ enum_gcs_error Gcs_xcom_control::retry_do_join()
           con == NULL && it != m_initial_peers.end();
           it++)
       {
-        Gcs_xcom_group_member_information *peer= *(it);
+        Gcs_xcom_node_address *peer= *(it);
         std::string *peer_rep= peer->get_member_representation();
 
         if(peer_rep->compare(*local_node_info_str) == 0)
@@ -559,11 +460,11 @@ enum_gcs_error Gcs_xcom_control::retry_do_join()
       }
       MYSQL_GCS_LOG_TRACE(
         "::join():: Calling xcom_client_add_node " << local_port << " "
-        << m_local_member_id->get_member_uuid().actual_value.c_str() <<
+        << m_local_node_info->get_member_uuid().actual_value.c_str() <<
         " connected to " << addr << ":" << port << " to join"
       )
-      if (!m_xcom_proxy->xcom_client_add_node(con, &m_node_list_me,
-                                              m_gid_hash))
+
+      if (!m_xcom_proxy->xcom_add_node(*con, *m_local_node_info, m_gid_hash))
       {
         m_xcom_proxy->xcom_client_close_connection(con);
         goto err;
@@ -632,14 +533,6 @@ err:
 
   /* Cleanup - close handlers */
   m_xcom_proxy->xcom_close_handlers();
-
-  /* Free memory */
-  if (m_node_list_me.node_list_len != 0)
-  {
-    m_xcom_proxy->delete_node_address(m_node_list_me.node_list_len,
-                                      m_node_list_me.node_list_val);
-    m_node_list_me.node_list_len= 0;
-  }
 
   MYSQL_GCS_LOG_ERROR("The member was unable to join the group. Local port: "
                       << local_port)
@@ -718,7 +611,10 @@ enum_gcs_error Gcs_xcom_control::do_leave()
     return GCS_NOK;
   }
 
-  m_xcom_proxy->xcom_client_remove_node(&m_node_list_me, m_gid_hash);
+  /*
+    Request other nodes to remove this one from the membership.
+  */
+  m_xcom_proxy->xcom_remove_node(*m_local_node_info, m_gid_hash);
 
   /*
     Wait until the XCOM's thread exits.
@@ -753,16 +649,6 @@ enum_gcs_error Gcs_xcom_control::do_leave()
       "Error on closing a connection to a group member while leaving "
       "the group."
     )
-  }
-
-  /*
-    Clean up local structures so that it can be reused next time.
-  */
-  if (m_node_list_me.node_list_len != 0)
-  {
-    m_xcom_proxy->delete_node_address(m_node_list_me.node_list_len,
-                                      m_node_list_me.node_list_val);
-    m_node_list_me.node_list_len= 0;
   }
 
   m_xcom_running= false;
@@ -844,7 +730,7 @@ Gcs_view *Gcs_xcom_control::get_current_view()
 
 const Gcs_member_identifier Gcs_xcom_control::get_local_member_identifier() const
 {
-  return *m_local_member_id;
+  return m_local_node_info->get_member_id();
 }
 
 
@@ -875,16 +761,16 @@ struct Gcs_member_identifier_pointer_comparator
 {
   explicit
   Gcs_member_identifier_pointer_comparator(const Gcs_member_identifier &one)
-    :one(one)
+    :m_one(one)
   {}
 
   bool operator()(Gcs_member_identifier *other)
   {
-    return one == *other;
+    return m_one == *other;
   }
 
 private:
-  const Gcs_member_identifier &one;
+  const Gcs_member_identifier &m_one;
 };
 
 
@@ -894,22 +780,22 @@ build_total_members(Gcs_xcom_nodes *xcom_nodes,
                     std::vector<Gcs_member_identifier *> &alive_members,
                     std::vector<Gcs_member_identifier *> &failed_members)
 {
-  const std::vector<std::string> &addresses= xcom_nodes->get_addresses();
-  const std::vector<bool> &statuses= xcom_nodes->get_statuses();
-  unsigned int size= xcom_nodes->get_size();
+  const std::vector<Gcs_xcom_node_information> &nodes= xcom_nodes->get_nodes();
 
-  for (unsigned int i= 0; i < size; i++)
+  std::vector<Gcs_xcom_node_information>::const_iterator nodes_it;
+  for (nodes_it= nodes.begin(); nodes_it != nodes.end(); ++nodes_it)
   {
     /*
       Build the member identifier from the address reported.
     */
-    Gcs_member_identifier *member_id=
-      new Gcs_member_identifier(addresses[i], xcom_nodes->get_uuids()[i]);
+    Gcs_member_identifier *member_id= new Gcs_member_identifier(
+      (*nodes_it).get_member_id()
+    );
 
     /*
       Check whether the node is reported as alive or faulty.
     */
-    if (statuses[i])
+    if ((*nodes_it).is_alive())
     {
       alive_members.push_back(member_id);
     }
@@ -1093,18 +979,15 @@ bool
 Gcs_xcom_control::
 xcom_receive_local_view(Gcs_xcom_nodes *xcom_nodes)
 {
-  unsigned int i= 0;
   std::map<int, const Gcs_control_event_listener &>::const_iterator callback_it;
   std::vector<Gcs_member_identifier> members;
   std::vector<Gcs_member_identifier> unreachable;
   Gcs_view *current_view= m_view_control->get_unsafe_current_view();
-  unsigned int size= xcom_nodes->get_size();
-  const std::vector<std::string> &addresses= xcom_nodes->get_addresses();
-  const std::vector<Gcs_uuid> &uuids= xcom_nodes->get_uuids();
-  const std::vector<bool> &statuses= xcom_nodes->get_statuses();
+  const std::vector<Gcs_xcom_node_information> &nodes= xcom_nodes->get_nodes();
+  std::vector<Gcs_xcom_node_information>::const_iterator nodes_it;
 
   // ignore
-  if (size <= 0)
+  if (xcom_nodes->get_size() <= 0)
     goto end;
 
   // if I am not aware of any view at all
@@ -1113,10 +996,12 @@ xcom_receive_local_view(Gcs_xcom_nodes *xcom_nodes)
     const std::vector<Gcs_member_identifier>& cv_members=
       current_view->get_members();
 
-    // build the sets of servers
-    for (i= 0; i < size; i++)
+    for (nodes_it= nodes.begin(); nodes_it != nodes.end(); ++nodes_it)
     {
-      Gcs_member_identifier gcs_id(addresses[i], uuids[i]);
+      /*
+        Build the member identifier from the address reported.
+      */
+      Gcs_member_identifier member_id((*nodes_it).get_member_id());
 
       // filter out those that are not yet in the current view
       // delivered to the application. For example, they might
@@ -1126,12 +1011,12 @@ xcom_receive_local_view(Gcs_xcom_nodes *xcom_nodes)
       // members that are not yet visible to upper layers.
       if (std::find(cv_members.begin(),
                     cv_members.end(),
-                    gcs_id) != cv_members.end())
+                    member_id) != cv_members.end())
       {
-        members.push_back(gcs_id);
+        members.push_back(member_id);
 
-        if (!statuses[i])
-          unreachable.push_back(gcs_id);
+        if (!(*nodes_it).is_alive())
+          unreachable.push_back(member_id);
       }
     }
 
@@ -1166,7 +1051,7 @@ void Gcs_xcom_control::install_leave_view(Gcs_view::Gcs_view_error_code error_co
   joined= new set<Gcs_member_identifier *>();
 
   // Build left... just me...
-  left->insert(new Gcs_member_identifier(*m_local_member_id));
+  left->insert(new Gcs_member_identifier(m_local_node_info->get_member_id()));
 
   // Build total... all but me...
   std::vector<Gcs_member_identifier>::const_iterator old_total_it;
@@ -1174,7 +1059,7 @@ void Gcs_xcom_control::install_leave_view(Gcs_view::Gcs_view_error_code error_co
       old_total_it != current_view->get_members().end();
       old_total_it++)
   {
-    if (*old_total_it == *m_local_member_id)
+    if (*old_total_it == m_local_node_info->get_member_id())
       continue;
 
     total->insert(new Gcs_member_identifier(*old_total_it));
@@ -1215,7 +1100,7 @@ bool Gcs_xcom_control::is_considered_faulty(
 
   for (it= failed_members->begin(); it != failed_members->end() && !is_faulty; ++it)
   {
-    is_faulty= (*(*it) == *m_local_member_id);
+    is_faulty= (*(*it) == m_local_node_info->get_member_id());
   }
 
   return is_faulty;
@@ -1312,7 +1197,8 @@ xcom_receive_global_view(synode_no message_id, Gcs_xcom_nodes *xcom_nodes,
                         current_members);
 
   // Remove and add suspicions
-  m_suspicions_manager->process_view(alive_members,
+  m_suspicions_manager->process_view(xcom_nodes,
+                                     alive_members,
                                      expel_members,
                                      suspect_members);
 
@@ -1336,27 +1222,29 @@ xcom_receive_global_view(synode_no message_id, Gcs_xcom_nodes *xcom_nodes,
         "Removing members that have failed while processing new view."
       )
 
-      // Using thread to remove nodes
-      nodes_to_kill *args= (nodes_to_kill *) malloc(sizeof(nodes_to_kill));
-      args->nodes= new std::vector<Gcs_member_identifier *>();
+      Gcs_xcom_nodes nodes_to_remove;
 
+      const Gcs_xcom_node_information *node= NULL;
       std::vector<Gcs_member_identifier *>::iterator members_failed_it;
       for (members_failed_it= failed_members.begin();
            members_failed_it != failed_members.end();
            ++members_failed_it)
       {
-        args->nodes->push_back(new Gcs_member_identifier(*(*members_failed_it)));
+        node= xcom_nodes->get_node((*members_failed_it)->get_member_id());
+        nodes_to_remove.add_node(*node);
       }
 
-      args->group_id_hash= m_gid_hash;
-      args->proxy=         m_xcom_proxy;
-
-      expel_nodes_from_group(args);
-
-      delete args->nodes;
-      free(args);
+      m_xcom_proxy->xcom_remove_nodes(nodes_to_remove, m_gid_hash);
     }
   }
+
+  /*
+    We save the information on the nodes reported by the global view.
+    This is necessary if want to reconfigure the group. In the future,
+    we should revisit this decision and check whether we should copy
+    such information to the view.
+  */
+  m_xcom_group_management->set_xcom_nodes(*xcom_nodes);
 
   MYSQL_GCS_TRACE_EXECUTE(
     unsigned int node_no= xcom_nodes->get_node_no();
@@ -1499,7 +1387,7 @@ xcom_receive_global_view(synode_no message_id, Gcs_xcom_nodes *xcom_nodes,
                                    exchange_data,
                                    current_view,
                                    &group_name,
-                                   m_local_member_id);
+                                   m_local_node_info->get_member_id());
 
   MYSQL_GCS_LOG_TRACE("::xcom_receive_global_view():: state exchange started.")
 
@@ -1556,7 +1444,7 @@ void Gcs_xcom_control::process_control_message(Gcs_message *msg)
     "::process_control_message():: From: "
     << msg->get_origin().get_member_id().c_str() << " regarding view_id:"
     << ms_info->get_view_id()->get_representation().c_str() << " in " <<
-    get_local_member_info()->get_member_address()
+    get_node_address()->get_member_address()
   )
 
   /*
@@ -1586,8 +1474,9 @@ void Gcs_xcom_control::process_control_message(Gcs_message *msg)
     << configuration_id.node << ")."
   )
 
+  Gcs_member_identifier pid(msg->get_origin());
   bool can_install_view=
-    m_state_exchange->process_member_state(ms_info, msg->get_origin());
+    m_state_exchange->process_member_state(ms_info, pid);
 
   // If state exchange has finished
   if (can_install_view)
@@ -1619,7 +1508,7 @@ void Gcs_xcom_control::process_control_message(Gcs_message *msg)
     MYSQL_GCS_LOG_TRACE(
       "::process_control_message()::"
       << "Still waiting for more State Exchange messages: " <<
-      m_local_member_id->get_member_id().c_str()
+      m_local_node_info->get_member_id().get_member_id()
     )
   }
 
@@ -1636,7 +1525,6 @@ install_view(Gcs_xcom_view_identifier *new_view_id,
              set<Gcs_member_identifier *> *left,
              set<Gcs_member_identifier *> *join,
              Gcs_view::Gcs_view_error_code error_code)
-
 {
   // Build all sets of all, left and joined members
   std::vector<Gcs_member_identifier> members;
@@ -1752,37 +1640,43 @@ build_member_list(set<Gcs_member_identifier *> *origin,
   }
 }
 
-
-void Gcs_xcom_control::set_local_node_info(Gcs_xcom_group_member_information *group_member_information)
+void Gcs_xcom_control::init_me()
 {
-  m_local_node_info= group_member_information;
-  string address= group_member_information->get_member_address();
-  delete m_local_member_id;
+  assert(m_local_node_info != NULL);
+  m_local_node_info->regenerate_member_uuid();
+}
+
+void Gcs_xcom_control::set_node_address(Gcs_xcom_node_address *xcom_node_address)
+{
+  m_local_node_address= xcom_node_address;
+  string address= xcom_node_address->get_member_address();
+  delete m_local_node_info;
   /*
     We don't care at this point about the unique identifier associated to
     this object because it will be changed while joining a group by the
     init_me() method.
   */
-  m_local_member_id= new Gcs_member_identifier(address);
+  m_local_node_info= new Gcs_xcom_node_information(address);
 }
 
-void Gcs_xcom_control::set_peer_nodes(std::vector<Gcs_xcom_group_member_information *> &xcom_peers)
+void Gcs_xcom_control::set_peer_nodes(std::vector<Gcs_xcom_node_address *> &xcom_peers)
 {
   clear_peer_nodes();
 
-  std::vector<Gcs_xcom_group_member_information *>::iterator it;
+  std::vector<Gcs_xcom_node_address *>::iterator it;
   for (it= xcom_peers.begin(); it != xcom_peers.end(); ++it)
   {
     m_initial_peers.push_back(
-      new Gcs_xcom_group_member_information((*it)->get_member_address()));
+      new Gcs_xcom_node_address((*it)->get_member_address()));
   }
 }
+
 
 void Gcs_xcom_control::clear_peer_nodes()
 {
   if (!m_initial_peers.empty())
   {
-    std::vector<Gcs_xcom_group_member_information *>::iterator it;
+    std::vector<Gcs_xcom_node_address *>::iterator it;
     for (it= m_initial_peers.begin(); it != m_initial_peers.end(); ++it)
       delete (*it);
 
@@ -1790,47 +1684,6 @@ void Gcs_xcom_control::clear_peer_nodes()
   }
 }
 
-
-Gcs_node_suspicion::Gcs_node_suspicion(Gcs_member_identifier id, uint64_t ts)
-  : m_suspect_id(id), m_timestamp(ts) {}
-
-
-Gcs_node_suspicion::~Gcs_node_suspicion() {}
-
-
-bool Gcs_node_suspicion::has_timed_out(uint64_t now_ts, uint64_t timeout)
-{
-  return (m_timestamp + timeout) < now_ts;
-}
-
-
-bool Gcs_node_suspicion::equals(Gcs_member_identifier id)
-{
-  return (m_suspect_id == id);
-}
-
-
-Gcs_member_identifier Gcs_node_suspicion::get_member_id()
-{
-  return m_suspect_id;
-}
-
-
-struct Gcs_node_suspicion_comparator
-{
-  explicit
-  Gcs_node_suspicion_comparator(const Gcs_member_identifier *id)
-    :m_one(id)
-  {}
-
-  bool operator()(Gcs_node_suspicion other)
-  {
-    return other.equals(*m_one);
-  }
-
-private:
-  const Gcs_member_identifier *m_one;
-};
 
 Gcs_suspicions_manager::Gcs_suspicions_manager(Gcs_xcom_proxy *proxy)
   : m_proxy(proxy),
@@ -1853,31 +1706,28 @@ Gcs_suspicions_manager::~Gcs_suspicions_manager()
 void Gcs_suspicions_manager::remove_suspicions(
   std::vector<Gcs_member_identifier *> nodes)
 {
+  const Gcs_xcom_node_information *xcom_node= NULL;
   std::vector<Gcs_member_identifier *>::iterator non_suspect_it;
-  std::vector<Gcs_node_suspicion>::iterator existing_susp_it;
 
   // Foreach received node
   for(non_suspect_it= nodes.begin();
       non_suspect_it != nodes.end();
-      non_suspect_it++)
+      ++non_suspect_it)
   {
-    existing_susp_it= std::find_if(
-      m_suspicions.begin(), m_suspicions.end(),
-      Gcs_node_suspicion_comparator(*non_suspect_it));
-
-    if(existing_susp_it != m_suspicions.end())
+    const Gcs_xcom_node_information node_to_remove((*non_suspect_it)->get_member_id());
+    if((xcom_node= m_suspicions.get_node(*(*non_suspect_it))) != NULL)
     {
-      existing_susp_it= m_suspicions.erase(existing_susp_it);
-
+      m_suspicions.remove_node(node_to_remove);
       MYSQL_GCS_LOG_DEBUG(
         "Removed suspicion on node " << (*non_suspect_it)->get_member_id()
-      )
+      );
     }
   }
 }
 
 
 void Gcs_suspicions_manager::process_view(
+  Gcs_xcom_nodes *xcom_nodes,
   std::vector<Gcs_member_identifier *> alive_nodes,
   std::vector<Gcs_member_identifier *> expel_nodes,
   std::vector<Gcs_member_identifier *> suspect_nodes)
@@ -1898,37 +1748,33 @@ void Gcs_suspicions_manager::process_view(
   }
 
   if(!suspect_nodes.empty())
-    add_suspicions(suspect_nodes);
+    add_suspicions(xcom_nodes, suspect_nodes);
 
   m_suspicions_mutex.unlock();
 }
 
 
 void Gcs_suspicions_manager::add_suspicions(
+  Gcs_xcom_nodes *xcom_nodes,
   std::vector<Gcs_member_identifier *> suspect_nodes)
 {
   // Get current timestamp
   uint64_t current_ts= My_xp_util::getsystime();
-
+  const Gcs_xcom_node_information *xcom_node= NULL;
   std::vector<Gcs_member_identifier *>::iterator susp_it;
-  std::vector<Gcs_node_suspicion>::iterator existing_susp_it;
 
   for (susp_it= suspect_nodes.begin();
        susp_it != suspect_nodes.end();
-       susp_it++)
+       ++susp_it)
   {
-
-    existing_susp_it= std::find_if(
-      m_suspicions.begin(), m_suspicions.end(),
-      Gcs_node_suspicion_comparator(*susp_it));
-
-    if(existing_susp_it == m_suspicions.end())
+    if((xcom_node= m_suspicions.get_node(*(*susp_it))) == NULL)
     {
       MYSQL_GCS_LOG_DEBUG(
         "add_suspicions: Adding suspicion for " << (*susp_it)->get_member_id()
       )
-      Gcs_node_suspicion new_node_suspicion(**susp_it, current_ts);
-      m_suspicions.push_back(new_node_suspicion);
+      xcom_node= xcom_nodes->get_node(*(*susp_it));
+      const_cast<Gcs_xcom_node_information *>(xcom_node)->set_timestamp(current_ts);
+      m_suspicions.add_node(*xcom_node);
     }
     else
     {
@@ -1954,33 +1800,32 @@ void Gcs_suspicions_manager::process_suspicions()
   }
 
   // List of nodes to remove
-  nodes_to_kill *ntk= (nodes_to_kill *) malloc(sizeof(nodes_to_kill));
-  ntk->nodes= new std::vector<Gcs_member_identifier *>();
+  Gcs_xcom_nodes nodes_to_remove;
 
   // Get current timestamp
   uint64_t current_ts= My_xp_util::getsystime();
 
   // Cycle through the suspicions
-  std::vector<Gcs_node_suspicion>::iterator susp_it;
+  std::vector<Gcs_xcom_node_information>::iterator susp_it;
+  std::vector<Gcs_xcom_node_information> nodes= m_suspicions.get_nodes();
 
-  for (susp_it= m_suspicions.begin();
-       susp_it != m_suspicions.end();
-    )
+  for (susp_it= nodes.begin(); susp_it != nodes.end(); ++susp_it)
   {
     /*
       For each timed out suspicion, add node to expel list
       and remove suspicion object from list.
     */
-    if(susp_it->has_timed_out(current_ts, m_timeout))
+    if((*susp_it).has_timed_out(current_ts, m_timeout))
     {
+/* purecov: begin tested */
       MYSQL_GCS_LOG_TRACE(
         "process_suspicions: Suspect "
-        << susp_it->get_member_id().get_member_id()
+        << (*susp_it).get_member_id().get_member_id()
         << " has timed out! Expelling..."
       )
-      ntk->nodes->push_back(new Gcs_member_identifier(
-        susp_it->get_member_id()));
-      susp_it= m_suspicions.erase(susp_it);
+      nodes_to_remove.add_node(*susp_it);
+      m_suspicions.remove_node(*susp_it);
+/* purecov: end */
     }
     else
     {
@@ -1989,27 +1834,17 @@ void Gcs_suspicions_manager::process_suspicions()
         << susp_it->get_member_id().get_member_id()
         << " hasn't timed out."
       )
-      susp_it++;
     }
   }
 
   m_suspicions_mutex.unlock();
 
-  if(!ntk->nodes->empty())
-  {
-    ntk->proxy= m_proxy;
-    ntk->group_id_hash= m_gid_hash;
-
-    // Ask XCom to expel suspect nodes
-    expel_nodes_from_group(ntk);
-  }
-
-  delete ntk->nodes;
-  free(ntk);
+  if (nodes_to_remove.get_size() > 0)
+    m_proxy->xcom_remove_nodes(nodes_to_remove, m_gid_hash);
 }
 
 
-unsigned int Gcs_suspicions_manager::get_period()
+unsigned int Gcs_suspicions_manager::get_period() const
 {
   return m_period;
 }
@@ -2023,10 +1858,12 @@ void Gcs_suspicions_manager::set_period(unsigned int sec)
 }
 
 
-uint64_t Gcs_suspicions_manager::get_timeout()
+/* purecov: begin deadcode */
+uint64_t Gcs_suspicions_manager::get_timeout() const
 {
   return m_timeout;
 }
+/* purecov: end */
 
 
 void Gcs_suspicions_manager::set_timeout_seconds(unsigned long sec)
@@ -2042,7 +1879,10 @@ void Gcs_suspicions_manager::set_groupid_hash(unsigned int gid_h)
   m_gid_hash= gid_h;
 }
 
-std::vector<Gcs_node_suspicion> Gcs_suspicions_manager::get_suspicions()
+
+/* purecov: begin tested */
+const Gcs_xcom_nodes& Gcs_suspicions_manager::get_suspicions() const
 {
   return m_suspicions;
 }
+/* purecov: end */

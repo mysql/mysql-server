@@ -32,45 +32,7 @@ using ::testing::Eq;
 namespace gcs_xcom_groupmanagement_unittest
 {
 
-class mock_gcs_xcom_view_change_control_interface
-  : public Gcs_xcom_view_change_control_interface
-{
-public:
-  mock_gcs_xcom_view_change_control_interface()
-    :m_current_view(NULL)
-  {
-  }
-
-  MOCK_METHOD0(start_view_exchange, void());
-  MOCK_METHOD0(end_view_exchange, void());
-  MOCK_METHOD0(wait_for_view_change_end, void());
-  MOCK_METHOD0(is_view_changing, bool());
-  MOCK_METHOD0(start_leave, bool());
-  MOCK_METHOD0(end_leave, void());
-  MOCK_METHOD0(is_leaving, bool());
-  MOCK_METHOD0(start_join, bool());
-  MOCK_METHOD0(end_join, void());
-  MOCK_METHOD0(is_joining, bool());
-  MOCK_METHOD0(belongs_to_group, bool());
-  MOCK_METHOD1(set_belongs_to_group, void(bool));
-  MOCK_METHOD1(set_unsafe_current_view, void(Gcs_view*));
-  MOCK_METHOD0(get_unsafe_current_view, Gcs_view *());
-
-  void set_current_view(Gcs_view *view)
-  {
-    m_current_view= view;
-  }
-
-  Gcs_view *get_current_view()
-  {
-    return m_current_view;
-  }
-
-private:
-  Gcs_view *m_current_view;
-};
-
-class mock_gcs_xcom_proxy : public Gcs_xcom_proxy
+class mock_gcs_xcom_proxy : public Gcs_xcom_proxy_base
 {
 public:
   mock_gcs_xcom_proxy()
@@ -150,9 +112,8 @@ protected:
   virtual void SetUp()
   {
     group_id= new Gcs_group_identifier("only_group");
-    mock_vce= new mock_gcs_xcom_view_change_control_interface();
     xcom_group_mgmt_if=
-      new Gcs_xcom_group_management(&proxy, mock_vce, *group_id);
+      new Gcs_xcom_group_management(&proxy, *group_id);
 
     logger= new Gcs_simple_ext_logger_impl();
     Gcs_logger::initialize(logger);
@@ -161,7 +122,6 @@ protected:
   virtual void TearDown()
   {
     delete xcom_group_mgmt_if;
-    delete mock_vce;
     delete group_id;
 
     Gcs_logger::finalize();
@@ -170,7 +130,6 @@ protected:
 
   Gcs_group_identifier *group_id;
   Gcs_xcom_state_exchange *state_exchange;
-  mock_gcs_xcom_view_change_control_interface *mock_vce;
 
   mock_gcs_xcom_proxy proxy;
   Gcs_xcom_group_management *xcom_group_mgmt_if;
@@ -217,68 +176,45 @@ bool operator==(const node_list& first, const node_list& second)
 }
 
 
-TEST_F(XcomGroupManagementTest, ErrorNoViewTest)
-{
-  Gcs_interface_parameters forced_group;
-  forced_group.add_parameter("peer_nodes", "127.0.0.1:12345,127.0.0.1:123456");
-
-  enum_gcs_error result= xcom_group_mgmt_if->modify_configuration(forced_group);
-
-  ASSERT_EQ(GCS_NOK, result);
-}
-
-
 MATCHER_P(node_list_pointer_matcher, other_nl, "Derreference pointer")
                                                   { return other_nl == (*arg);}
 
 TEST_F(XcomGroupManagementTest, TestListContent)
 {
+  Gcs_xcom_node_information node_1("127.0.0.1:12345");
+  Gcs_xcom_node_information node_2("127.0.0.1:12346");
+
+  Gcs_xcom_nodes nodes;
+  nodes.add_node(node_1);
+  nodes.add_node(node_2);
+
   node_list nl;
   nl.node_list_len= 2;
-  const char *address_1= "127.0.0.1:12345";
-  const char *address_2= "127.0.0.1:12346";
-  const char *node_addrs[]= {address_1, address_2};
-  Gcs_uuid uuid_1= Gcs_uuid::create_uuid();
-  Gcs_uuid uuid_2= Gcs_uuid::create_uuid();
+  const char *node_addrs[]= {
+    node_1.get_member_id().get_member_id().c_str(),
+    node_2.get_member_id().get_member_id().c_str()
+  };
   blob blobs[] = {
      {{
        0,
-       static_cast<char *>(malloc(uuid_1.actual_value.size()))
+       static_cast<char *>(malloc(node_1.get_member_uuid().actual_value.size()))
      }},
      {{
        0,
-       static_cast<char *>(malloc(uuid_2.actual_value.size()))
+       static_cast<char *>(malloc(node_2.get_member_uuid().actual_value.size()))
      }}
   };
-  uuid_1.encode(
+  node_1.get_member_uuid().encode(
     reinterpret_cast<uchar **>(&blobs[0].data.data_val),
     &blobs[0].data.data_len
   );
-  uuid_2.encode(
+  node_2.get_member_uuid().encode(
     reinterpret_cast<uchar **>(&blobs[1].data.data_val),
     &blobs[1].data.data_len
   );
 
-  Gcs_xcom_view_identifier view_id(0, 0);
-
-  Gcs_member_identifier member_1(address_1, uuid_1);
-  Gcs_member_identifier member_2(address_2, uuid_2);
-  std::vector<Gcs_member_identifier> members;
-  members.push_back(member_1);
-  members.push_back(member_2);
-
-  std::vector<Gcs_member_identifier> left_members;
-
-  std::vector<Gcs_member_identifier> joined_members;
-  joined_members.push_back(member_2);
-  joined_members.push_back(member_2);
-
-  // Create the new view
-  Gcs_view *current_view=
-    new Gcs_view(members, view_id, left_members, joined_members, *group_id);
-  mock_vce->set_current_view(current_view);
-
   nl.node_list_val= ::new_node_address_uuid(nl.node_list_len, const_cast<char**>(node_addrs), blobs);
+
 
   EXPECT_CALL(proxy, xcom_client_force_config(node_list_pointer_matcher(nl),_))
                       .Times(1)
@@ -287,6 +223,7 @@ TEST_F(XcomGroupManagementTest, TestListContent)
   Gcs_interface_parameters forced_group;
   forced_group.add_parameter("peer_nodes", "127.0.0.1:12345,127.0.0.1:12346");
 
+  xcom_group_mgmt_if->set_xcom_nodes(nodes);
   enum_gcs_error result= xcom_group_mgmt_if->modify_configuration(forced_group);
 
   ASSERT_EQ(GCS_OK, result);
@@ -295,6 +232,9 @@ TEST_F(XcomGroupManagementTest, TestListContent)
   ASSERT_STREQ("127.0.0.1:12346", nl.node_list_val[1].address);
 
   ::delete_node_address(nl.node_list_len, nl.node_list_val);
+
+  free(blobs[0].data.data_val);
+  free(blobs[1].data.data_val);
 }
 
 }

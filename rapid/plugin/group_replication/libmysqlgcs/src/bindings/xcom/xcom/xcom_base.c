@@ -3459,6 +3459,12 @@ static u_int is_reincarnation_adding(app_data_ptr a)
 			to the system where there is an old incarnation will
 			not fix this problem since other changes are required.
 			*/
+			G_MESSAGE("Old incarnation found while trying to "
+                                  "add node %s %.*s.",
+                                  nodes_to_change[i].address,
+                                  nodes_to_change[i].uuid.data.data_len,
+                                  nodes_to_change[i].uuid.data.data_val
+                                  );
 			return 1;
 		}
 	}
@@ -3485,7 +3491,15 @@ static u_int is_reincarnation_removing(app_data_ptr a)
 			We cannot allow an upper-layer to remove a new incarnation
 			of a node, when it tries to remove an old one.
 			*/
+/* purecov: begin inspected */
+			G_MESSAGE("Old incarnation found while trying to "
+                                  "remove node %s %.*s.",
+                                  nodes_to_change[i].address,
+                                  nodes_to_change[i].uuid.data.data_len,
+                                  nodes_to_change[i].uuid.data.data_val
+                                  );
 			return 1;
+/* purecov: end */
 		}
 	}
 

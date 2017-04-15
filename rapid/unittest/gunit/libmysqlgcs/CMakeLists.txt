@@ -59,6 +59,7 @@ SET(GCS_XCOM_TESTS
     xcom/gcs_xcom_communication_interface
     xcom/gcs_xcom_interface_unit
     xcom/gcs_xcom_statistics_interface
+    xcom/gcs_xcom_group_member_information
    )
 
 ###

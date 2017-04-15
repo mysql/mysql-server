@@ -403,8 +403,8 @@ bool Gcs_xcom_proxy_impl::xcom_open_handlers(std::string saddr, xcom_port port)
         // This is a hack. It forces a protocol negotiation in
         // the current connection with the local xcom, so that
         // it does not happen later on.
-        if ((xcom_client_enable_arbitrator(con) <= 0) ||
-            (xcom_client_disable_arbitrator(con) <= 0))
+        if ((::xcom_client_enable_arbitrator(con) <= 0) ||
+            (::xcom_client_disable_arbitrator(con) <= 0))
           success= false;
       }
 
@@ -893,60 +893,143 @@ Gcs_xcom_proxy_impl::xcom_client_force_config(node_list *nl,
     connection_descriptor* fd= m_xcom_handlers[index]->get_fd();
 
     if (fd != NULL)
-      res= this->xcom_client_force_config(fd, nl, group_id);
+      res= ::xcom_client_force_config(fd, nl, group_id);
   }
   xcom_release_handler(index);
   return res;
 }
 
-Gcs_xcom_nodes::Gcs_xcom_nodes(const site_def *site, node_set &nodes)
-  : m_node_no(site->nodeno), m_addresses(), m_uuids(), m_statuses(),
-    m_size(nodes.node_set_len)
+
+int Gcs_xcom_proxy_base::xcom_remove_nodes(Gcs_xcom_nodes &nodes,
+                                           uint32_t group_id_hash)
 {
-  Gcs_uuid uuid;
-  for (unsigned int i= 0; i < nodes.node_set_len; ++i)
+  node_list nl;
+  int ret= 1;
+
+  if (serialize_nodes_information(nodes, nl))
   {
-    /* Get member address and save it. */
-    std::string address(site->nodes.node_list_val[i].address);
-    m_addresses.push_back(address);
-
-    /* Get member uuid and save it. */
-    uuid.decode(
-      reinterpret_cast<uchar *>(site->nodes.node_list_val[i].uuid.data.data_val),
-      site->nodes.node_list_val[i].uuid.data.data_len
-    );
-    m_uuids.push_back(uuid);
-
-    /* Get member status and save it */
-    m_statuses.push_back(nodes.node_set_val[i] ? true: false);
+    MYSQL_GCS_LOG_DEBUG("Removing " << nl.node_list_len << " nodes at "
+                        << nl.node_list_val);
+    ret= xcom_client_remove_node(&nl, group_id_hash);
   }
-  assert(m_size == m_addresses.size());
-  assert(m_size == m_statuses.size());
+  free_nodes_information(nl);
+
+  return ret;
 }
 
-unsigned int Gcs_xcom_nodes::get_node_no() const
+
+int Gcs_xcom_proxy_base::xcom_remove_node(const Gcs_xcom_node_information &node,
+                                          uint32_t group_id_hash)
 {
-   return m_node_no;
+  Gcs_xcom_nodes nodes_to_remove;
+  nodes_to_remove.add_node(node);
+
+  return xcom_remove_nodes(nodes_to_remove, group_id_hash);
 }
 
-const std::vector<std::string> &Gcs_xcom_nodes::get_addresses() const
+
+int Gcs_xcom_proxy_base::xcom_force_nodes(Gcs_xcom_nodes &nodes,
+                                          uint32_t group_id_hash)
 {
-  return m_addresses;
+  node_list nl;
+  int ret= 1;
+
+  if (serialize_nodes_information(nodes, nl))
+  {
+    MYSQL_GCS_LOG_DEBUG("Forcing " << nl.node_list_len << " nodes at "
+                        << nl.node_list_val);
+    ret= xcom_client_force_config(&nl, group_id_hash);
+  }
+  free_nodes_information(nl);
+
+  return ret;
 }
 
-const std::vector<Gcs_uuid> &Gcs_xcom_nodes::get_uuids() const
+
+bool Gcs_xcom_proxy_base::serialize_nodes_information(Gcs_xcom_nodes &nodes,
+                                                      node_list &nl)
 {
-  return m_uuids;
+  unsigned int len= 0;
+  char **addrs= NULL;
+  blob *uuids= NULL;
+  nl.node_list_len= 0;
+
+  if (nodes.get_size() == 0)
+  {
+    MYSQL_GCS_LOG_DEBUG("There aren't nodes to be reported.");
+    return true;
+  }
+
+  if (!nodes.encode(&len, &addrs, &uuids))
+  {
+    MYSQL_GCS_LOG_DEBUG("Could not encode " << nodes.get_size() << " nodes.");
+    return false;
+  }
+
+  nl.node_list_len= len;
+  nl.node_list_val= new_node_address_uuid(len, addrs, uuids);
+
+  MYSQL_GCS_LOG_DEBUG("Prepared " << nl.node_list_len << " nodes at "
+                      << nl.node_list_val);
+  return true;
 }
 
-const std::vector<bool> &Gcs_xcom_nodes::get_statuses() const
+
+void Gcs_xcom_proxy_base::free_nodes_information(node_list& nl)
 {
-  return m_statuses;
+  MYSQL_GCS_LOG_DEBUG("Unprepared " << nl.node_list_len << " nodes at "
+                      << nl.node_list_val);
+  delete_node_address(nl.node_list_len, nl.node_list_val);
 }
 
-unsigned int Gcs_xcom_nodes::get_size() const
+
+int Gcs_xcom_proxy_base::xcom_boot_node(Gcs_xcom_node_information &node,
+                                        uint32_t group_id_hash)
 {
-  return m_size;
+  Gcs_xcom_nodes nodes_to_boot;
+  nodes_to_boot.add_node(node);
+  node_list nl;
+  int ret= 1;
+
+  if (serialize_nodes_information(nodes_to_boot, nl))
+  {
+    MYSQL_GCS_LOG_DEBUG("Booting up " << nl.node_list_len << " nodes at "
+                        << nl.node_list_val);
+    ret= xcom_client_boot(&nl, group_id_hash);
+  }
+  free_nodes_information(nl);
+
+  return ret;
+}
+
+
+int Gcs_xcom_proxy_base::xcom_add_nodes(connection_descriptor& con,
+                                        Gcs_xcom_nodes &nodes,
+                                        uint32_t group_id_hash)
+{
+  node_list nl;
+  int ret= 1;
+
+  if (serialize_nodes_information(nodes, nl))
+  {
+    MYSQL_GCS_LOG_DEBUG("Adding " << nl.node_list_len << " nodes at "
+                        << nl.node_list_val);
+    ret= xcom_client_add_node(&con, &nl, group_id_hash);
+  }
+  free_nodes_information(nl);
+
+  return ret;
+}
+
+
+int Gcs_xcom_proxy_base::xcom_add_node(connection_descriptor& con,
+                                       const Gcs_xcom_node_information &node,
+                                       uint32_t group_id_hash)
+{
+  Gcs_xcom_nodes nodes_to_add;
+  nodes_to_add.add_node(node);
+
+  return xcom_add_nodes(con, nodes_to_add, group_id_hash);
 }
 
 bool
