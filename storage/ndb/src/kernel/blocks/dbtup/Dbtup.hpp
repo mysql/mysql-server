@@ -1177,6 +1177,10 @@ TupTriggerData_pool c_triggerPool;
       ,UNDO_UPDATE = File_formats::Undofile::UNDO_TUP_UPDATE
       ,UNDO_FREE = File_formats::Undofile::UNDO_TUP_FREE
       ,UNDO_DROP = File_formats::Undofile::UNDO_TUP_DROP
+      ,UNDO_UPDATE_PART = File_formats::Undofile::UNDO_TUP_UPDATE_PART
+      ,UNDO_FIRST_UPDATE_PART =
+        File_formats::Undofile::UNDO_TUP_FIRST_UPDATE_PART
+      ,UNDO_FREE_PART = File_formats::Undofile::UNDO_TUP_FREE_PART
     };
     
     struct Alloc 
@@ -1195,6 +1199,16 @@ TupTriggerData_pool c_triggerPool;
       Uint32 m_type_length; // 16 bit type, 16 bit length
     };
     
+    struct UpdatePart
+    {
+      Uint32 m_file_no_page_idx; // 16 bit file_no, 16 bit page_idx
+      Uint32 m_page_no;
+      Uint32 m_gci;
+      Uint32 m_offset;
+      Uint32 m_data[1];
+      Uint32 m_type_length; // 16 bit type, 16 bit length
+    };
+
     struct Free
     {
       Uint32 m_file_no_page_idx; // 16 bit file_no, 16 bit page_idx
@@ -1203,7 +1217,7 @@ TupTriggerData_pool c_triggerPool;
       Uint32 m_data[1];
       Uint32 m_type_length; // 16 bit type, 16 bit length
     };
-    
+
     struct Create
     {
       Uint32 m_table;
@@ -3586,7 +3600,9 @@ public:
 
   struct Apply_undo 
   {
-    Uint32 m_type, m_len;
+    Uint32 m_type;
+    Uint32 m_len;
+    Uint32 m_offset;
     const Uint32* m_ptr;
     Uint64 m_lsn;
     Ptr<Tablerec> m_table_ptr;
@@ -3617,7 +3633,7 @@ private:
   void disk_restart_undo_callback(Signal* signal, Uint32, Uint32);
   void disk_restart_undo_alloc(Apply_undo*);
   void disk_restart_undo_update(Apply_undo*);
-  void disk_restart_undo_free(Apply_undo*);
+  void disk_restart_undo_free(Apply_undo*, bool);
   void disk_restart_undo_page_bits(Signal*, Apply_undo*);
 
 #ifdef VM_TRACE

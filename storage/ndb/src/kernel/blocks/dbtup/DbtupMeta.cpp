@@ -2202,7 +2202,7 @@ Dbtup::drop_table_log_buffer_callback(Signal* signal, Uint32 tablePtrI,
     Logfile_client lgman(this, c_lgman, logfile_group_id);
   
     Logfile_client::Change c[1] = {{ &drop, sizeof(drop) >> 2 } };
-    Uint64 lsn = lgman.add_entry(c, 1);
+    Uint64 lsn = lgman.add_entry_simple(c, 1);
     jamEntry();
 
     DEB_TUP_META(("Add UNDO_TUP_DROP in lsn: %llu for tab: %u",
