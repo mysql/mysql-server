@@ -2547,6 +2547,17 @@ sub environment_setup {
                         "$basedir/myisam/myisampack"));
 
   # ----------------------------------------------------
+  # mysqlaccess
+  # ----------------------------------------------------
+  my $mysqlaccess=
+    mtr_pl_maybe_exists("$bindir/scripts/mysqlaccess") ||
+    mtr_pl_maybe_exists("$path_client_bindir/mysqlaccess");
+  if ($mysqlaccess)
+  {
+    $ENV{'MYSQLACCESS'}= $mysqlaccess;
+  }
+
+  # ----------------------------------------------------
   # mysqlhotcopy
   # ----------------------------------------------------
   my $mysqlhotcopy=
