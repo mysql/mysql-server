@@ -306,6 +306,7 @@ private:
   void free_logbuffer_memory(Ptr<Logfile_group>);
   Uint32 compute_free_file_pages(Ptr<Logfile_group>,
                                  EmulatedJamBuffer *jamBuf);
+  Uint32 get_remaining_page_space(Uint32);
   Uint32* get_log_buffer(Ptr<Logfile_group>,
                          Uint32 sz,
                          EmulatedJamBuffer *jamBuf);
@@ -440,8 +441,8 @@ public:
     Uint32 len;
   };
 
-  Uint64 add_entry(const Change*,
-                   Uint32 cnt);
+  Uint64 add_entry_simple(const Change*, Uint32 cnt);
+  Uint64 add_entry_complex(const Change*, Uint32 cnt, bool);
 
   /**
    * Check for space in log buffer

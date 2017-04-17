@@ -2451,6 +2451,21 @@ Lgman::process_log_sync_waiters(Signal* signal, Ptr<Logfile_group> ptr)
   }
 }
 
+Uint32
+Lgman::get_remaining_page_space(Uint32 ref)
+{
+  Logfile_group key;
+  key.m_logfile_group_id = ref;
+  Ptr<Logfile_group> lg_ptr;
+  if (m_logfile_group_hash.find(lg_ptr, key))
+  {
+    Uint32 pos= lg_ptr.p->m_pos[PRODUCER].m_current_pos.m_idx;
+    Uint32 free = get_undo_page_words(lg_ptr) - pos;
+    return free;
+  }
+  ndbrequire(false);
+  return 0; //Will never reach here
+}
 
 Uint32*
 Lgman::get_log_buffer(Ptr<Logfile_group> ptr,
@@ -3468,7 +3483,68 @@ Lgman::free_log_space(Uint32 ref,
 }
 
 Uint64
-Logfile_client::add_entry(const Change* src, Uint32 cnt)
+Logfile_client::add_entry_complex(const Change* src,
+                                  Uint32 cnt,
+                                  bool is_update)
+{
+  Uint32 tot = 0;
+  require(cnt == 3);
+  Uint32 remaining_page_space = m_lgman->get_remaining_page_space(m_logfile_group_id);
+  for(Uint32 i= 0; i<cnt; i++)
+  {
+    tot += src[i].len;
+  }
+  if (tot <= remaining_page_space ||
+      remaining_page_space < 4)
+  {
+    jamBlock(m_client_block);
+    return add_entry_simple(src, cnt);
+  }
+  Uint32 sz_first_part = remaining_page_space - 4;
+  Uint32 type_length;
+  {
+    if (is_update)
+    {
+      type_length =
+        (Dbtup::Disk_undo::UNDO_FIRST_UPDATE_PART << 16 | remaining_page_space);
+    }
+    else
+    {
+      type_length =
+        (Dbtup::Disk_undo::UNDO_FREE_PART << 16 | remaining_page_space);
+    }
+    Logfile_client::Change c[3] =
+    {
+      { src[0].ptr, src[0].len},
+      { src[1].ptr, sz_first_part},
+      { &type_length, 1}
+    };
+    jamBlock(m_client_block);
+    add_entry_simple(c, 3);
+  }
+  Uint32 *offset_ptr = (Uint32*)src[1].ptr;
+  const void *ptr = (const void *)&offset_ptr[sz_first_part];
+  Dbtup::Disk_undo::UpdatePart update_part;
+  memcpy(&update_part, src[0].ptr, 3*4);
+  Uint32 offset = sz_first_part;
+  update_part.m_offset = offset;
+  update_part.m_type_length =
+    (Dbtup::Disk_undo::UNDO_UPDATE_PART << 16 |
+     (5  + src[1].len - sz_first_part));
+  {
+    Logfile_client::Change c[3] =
+    {
+      { &update_part, 4},
+      { ptr, src[1].len - sz_first_part},
+      { &update_part.m_type_length, 1}
+    };
+    jamBlock(m_client_block);
+    return add_entry_simple(c, 3);
+  }
+}
+
+Uint64
+Logfile_client::add_entry_simple(const Change* src, Uint32 cnt)
 {
   Uint32 i, tot= 0;
   jamBlock(m_client_block);
@@ -3489,11 +3565,7 @@ Logfile_client::add_entry(const Change* src, Uint32 cnt)
       jamBlock(m_client_block);
       Uint32 callback_buffer = ptr.p->m_callback_buffer_words;
       Uint64 next_lsn_filegroup= ptr.p->m_next_lsn;
-      if(next_lsn_filegroup == next_lsn
-#ifdef VM_TRACE
-	 && ((rand() % 100) > 50)
-#endif
-	 )
+      require(next_lsn_filegroup == next_lsn);
       {
         jamBlock(m_client_block);
 	dst= m_lgman->get_log_buffer(ptr, tot, m_client_block->jamBuffer());
@@ -3507,20 +3579,6 @@ Logfile_client::add_entry(const Change* src, Uint32 cnt)
 	m_lgman->validate_logfile_group(ptr,
                                         (const char*)0,
                                         m_client_block->jamBuffer());
-      }
-      else
-      {
-        jamBlock(m_client_block);
-	dst= m_lgman->get_log_buffer(ptr,
-                                     tot + 2,
-                                     m_client_block->jamBuffer());
-	* dst++ = (Uint32)(next_lsn >> 32);
-	* dst++ = (Uint32)(next_lsn & 0xFFFFFFFF);
-	for(i= 0; i<cnt; i++)
-	{
-	  memcpy(dst, src[i].ptr, 4*src[i].len);
-	  dst += src[i].len;
-	}
       }
       /**
        * for callback_buffer, always allocates 2 extra...
