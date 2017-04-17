@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -40,7 +40,7 @@ struct Group_member_info_pointer_comparator
   bool operator()(Group_member_info* one,
                   Group_member_info* other) const
   {
-    return *one < *other;
+    return other->has_greater_uuid(one);
   }
 };
 
@@ -131,6 +131,32 @@ private:
           and sets it on secondary nodes
   */
   void handle_leader_election_if_needed() const;
+
+  /**
+    Sort lower version members based on uuid
+
+    @param all_members_info   the vector with members info
+
+    @return first iterator position where members version increase.
+   */
+  void sort_members_for_election(
+       std::vector<Group_member_info*>* all_members_info,
+       std::vector<Group_member_info*>::iterator lowest_version_end) const;
+
+  /**
+    Sort members based on member_version and get first iterator position
+    where member version differs.
+
+    @param all_members_info    the vector with members info
+    @param lowest_version_end  first iterator position where members version
+                               increases.
+
+    @note from the start of the list to the returned iterator, all members have
+          the lowest version in the group.
+   */
+  std::vector<Group_member_info*>::iterator
+  sort_and_get_lowest_version_member_position(
+    std::vector<Group_member_info*>* all_members_info) const;
 
   int
   process_local_exchanged_data(const Exchanged_data &exchanged_data) const;
