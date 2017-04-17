@@ -1,3 +1,4 @@
+RESET MASTER;
 SET SESSION GTID_NEXT= 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1';
 CREATE TABLE t1 (a INT);
 SET SESSION GTID_NEXT= 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:2';

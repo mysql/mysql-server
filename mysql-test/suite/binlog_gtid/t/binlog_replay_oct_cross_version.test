@@ -22,6 +22,8 @@
 --source include/have_debug.inc
 --source include/have_log_bin.inc
 
+RESET MASTER;
+
 # Run some transactions on the master
 --let $uuid=aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa
 
