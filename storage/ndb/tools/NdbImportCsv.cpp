@@ -1783,6 +1783,7 @@ NdbImportCsv::Eval::eval_field(Row* row, Line* line, Field* field)
       uint bytelength = (attr.m_length + 7) / 8;
       require(bytelength <= 8);
       uchar val[8];
+      memset(val, 0, sizeof(val));
       uint i = 0;
       uint j = Inval_uint;      // highest non-zero byte
       while (i < length)
@@ -1792,11 +1793,6 @@ NdbImportCsv::Eval::eval_field(Row* row, Line* line, Field* field)
           j = i;
         if (i < bytelength)
           val[i] = b;
-        i++;
-      }
-      while (i < bytelength)
-      {
-        val[i] = 0;
         i++;
       }
       if (j != Inval_uint)
@@ -1819,7 +1815,13 @@ NdbImportCsv::Eval::eval_field(Row* row, Line* line, Field* field)
           break;
         }
       }
-      attr.set_value(row, val, bytelength);
+#if defined(WORDS_BIGENDIAN)
+      std::swap(val[0], val[3]);
+      std::swap(val[1], val[2]);
+      std::swap(val[4], val[7]);
+      std::swap(val[5], val[6]);
+#endif
+      attr.set_value(row, val, attr.m_size);
     }
     break;
   case NdbDictionary::Column::Year:
