@@ -398,12 +398,6 @@ bool Group_member_info::is_conflict_detection_enabled()
 }
 
 bool
-Group_member_info::operator <(Group_member_info& other)
-{
-  return this->get_uuid().compare(other.get_uuid()) < 0;
-}
-
-bool
 Group_member_info::operator ==(Group_member_info& other)
 {
   return this->get_uuid().compare(other.get_uuid()) == 0;
@@ -471,12 +465,34 @@ Group_member_info::get_configuration_flags_string(const uint32 configuation_flag
 }
 
 bool
-Group_member_info::comparator_group_member_info(Group_member_info *m1,
-                                                Group_member_info *m2)
+Group_member_info::comparator_group_member_version(Group_member_info *m1,
+                                                   Group_member_info *m2)
 {
-  return *m1 < *m2;
+  return m2->has_greater_version(m1);
 }
 
+bool
+Group_member_info::comparator_group_member_uuid(Group_member_info *m1,
+                                                Group_member_info *m2)
+{
+  return m2->has_greater_uuid(m1);
+}
+
+bool
+Group_member_info::has_greater_version(Group_member_info *other)
+{
+  if (this->member_version->get_major_version() >
+        other->member_version->get_major_version())
+    return true;
+
+  return false;
+}
+
+bool
+Group_member_info::has_greater_uuid(Group_member_info *other)
+{
+  return this->get_uuid().compare(other->get_uuid()) < 0;
+}
 
 Group_member_info_manager::
 Group_member_info_manager(Group_member_info* local_member_info)

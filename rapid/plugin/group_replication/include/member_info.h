@@ -291,9 +291,29 @@ public:
   static std::string get_configuration_flags_string(const uint32 configuation_flags);
 
   /**
-    @return Compare two members using "operator <"
+    @return Compare two members using member version
    */
-  static bool comparator_group_member_info(Group_member_info *m1, Group_member_info *m2);
+  static bool comparator_group_member_version(Group_member_info *m1, Group_member_info *m2);
+
+  /**
+    @return Compare two members using server uuid
+   */
+  static bool comparator_group_member_uuid(Group_member_info *m1, Group_member_info *m2);
+
+  /**
+    Return true if member version is higher than other member version
+   */
+  bool has_greater_version(Group_member_info *other);
+
+  /**
+    Return true if server uuid is higher than other member server uuid
+   */
+  bool has_greater_uuid(Group_member_info *other);
+
+  /**
+    Return true if server uuid is equal than other member server uuid
+   */
+  bool has_equal_uuid(Group_member_info *other);
 
   /**
    Redefinition of operate == and <. They operate upon the uuid

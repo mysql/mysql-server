@@ -403,6 +403,55 @@ Plugin_gcs_events_handler::was_member_expelled_from_group(const Gcs_view& view) 
   DBUG_RETURN(result);
 }
 
+std::vector<Group_member_info*>::iterator
+Plugin_gcs_events_handler::sort_and_get_lowest_version_member_position(
+  std::vector<Group_member_info*>* all_members_info) const
+{
+  std::vector<Group_member_info*>::iterator it;
+
+  // sort in ascending order of lower member version
+  std::sort(all_members_info->begin(), all_members_info->end(),
+            Group_member_info::comparator_group_member_version);
+
+  /* if vector contains only single version then leader should be picked from
+     all members
+   */
+  std::vector<Group_member_info*>::iterator lowest_version_end=
+    all_members_info->end();
+
+  /* first member will have lowest version as members are already
+     sorted above using member_version.
+   */
+  it= all_members_info->begin();
+  Group_member_info* first_member= *it;
+  uint32 lowest_major_version=
+    first_member->get_member_version().get_major_version();
+
+  /* to avoid read compatibility issue leader should be picked only from lowest
+     version members so save position where member version differs
+   */
+  for(it= all_members_info->begin() + 1; it != all_members_info->end(); it++)
+  {
+    if (lowest_major_version != (*it)->get_member_version().get_major_version())
+    {
+      lowest_version_end= it;
+      break;
+    }
+  }
+
+  return lowest_version_end;
+}
+
+void Plugin_gcs_events_handler::sort_members_for_election(
+       std::vector<Group_member_info*>* all_members_info,
+       std::vector<Group_member_info*>::iterator lowest_version_end) const
+{
+  // sort only lower version members as they only will be needed to pick leader
+  std::sort(all_members_info->begin(), lowest_version_end,
+            Group_member_info::comparator_group_member_uuid);
+
+}
+
 void Plugin_gcs_events_handler::handle_leader_election_if_needed() const
 {
   // take action if in single leader mode
@@ -418,8 +467,16 @@ void Plugin_gcs_events_handler::handle_leader_election_if_needed() const
     group_member_mgr->get_all_members();
 
   std::vector<Group_member_info*>::iterator it;
-  std::sort(all_members_info->begin(), all_members_info->end(),
-            Group_member_info::comparator_group_member_info);
+  std::vector<Group_member_info*>::iterator lowest_version_end;
+
+  /* sort members based on member_version and get first iterator position
+     where member version differs
+   */
+  lowest_version_end=
+    sort_and_get_lowest_version_member_position(all_members_info);
+
+  // sort lower version members based on uuid
+  sort_members_for_election(all_members_info, lowest_version_end);
 
   /*
    1. Iterate over the list of all members and check if there is a primary
@@ -482,11 +539,14 @@ void Plugin_gcs_events_handler::handle_leader_election_if_needed() const
 
      The assumption is that std::sort(...) is deterministic
      on all members.
+
+     To pick leaders from only lowest version members loop
+     till lowest_version_end.
     */
     if (the_primary == NULL)
     {
       for (it= all_members_info->begin();
-           it != all_members_info->end() && the_primary == NULL;
+           it != lowest_version_end && the_primary == NULL;
            it++)
       {
         Group_member_info* mi= *it;
