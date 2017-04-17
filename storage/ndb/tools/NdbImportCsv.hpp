@@ -24,6 +24,8 @@
 #include <NdbImport.hpp>
 #include "NdbImportUtil.hpp"
 #include <my_regex.h>
+// STL
+#include <algorithm>
 
 /*
  * CSV helper class.  There is one Csv instance attached to the Impl
