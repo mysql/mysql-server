@@ -305,7 +305,8 @@ ENDIF()
 IF(NOT WITHOUT_SERVER)
   OPTION (WITH_UNIT_TESTS "Compile MySQL with unit tests" ON)
 ENDIF()
-
+OPTION(WITH_AUTHENTICATION_LDAP
+       "Report error if the LDAP authentication plugin cannot be built." OFF)
 
 include(CheckCSourceCompiles)
 include(CheckCXXSourceCompiles)
