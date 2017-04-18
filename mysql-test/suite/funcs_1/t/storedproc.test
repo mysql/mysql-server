@@ -16,9 +16,6 @@ if(`SELECT CONVERT(@@version_compile_os using latin1) IN ("Win64")`)
 
 
 
-# This test cannot be used for the embedded server because we check here
-# privileges.
---source include/not_embedded.inc
 
 # It is assumed that the storage engine used for some tables has no impact on
 # the outcome of this test.

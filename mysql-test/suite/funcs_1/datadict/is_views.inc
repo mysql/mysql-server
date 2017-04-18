@@ -16,7 +16,6 @@
 #                   Create this script based on older scripts and new code.
 # Last Change:
 # 2008-06-11 mleich Move t/is_views.test to this file and
-#                   create variants for embedded/non embedded server.
 #
 
 let $is_table = VIEWS;
@@ -282,9 +281,7 @@ let $my_error_message =
 ##### The previous statement must fail ######
 # Server type  | expected error name      | expected error message
 # --------------------------------------------------------------------------------------------------------------------
-# not embedded | ER_DBACCESS_DENIED_ERROR | ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
-# embedded     | ER_NON_UPDATABLE_TABLE   | ERROR HY000: The target table views of the UPDATE is not updatable
-#              | or similar               |              or similar
+# MySQL | ER_DBACCESS_DENIED_ERROR | ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
 ;
 --disable_abort_on_error
 UPDATE information_schema.views SET table_schema = 'test'

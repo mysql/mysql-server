@@ -6,11 +6,6 @@
 #
 # Test KILL and KILL QUERY statements.
 #
-# Killing a connection in an embedded server does not work like in a normal
-# server, if it is waiting for a new statement. In an embedded server, the
-# connection does not read() from a socket, but returns control to the
-# application. 'mysqltest' does not handle the kill request.
-#
 
 -- source include/have_debug_sync.inc
 -- source include/not_threadpool.inc

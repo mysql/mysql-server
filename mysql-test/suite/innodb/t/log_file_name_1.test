@@ -1,5 +1,4 @@
 --source include/have_debug.inc
---source include/not_embedded.inc
 
 SET GLOBAL innodb_limit_optimistic_insert_debug = 2;
 SET GLOBAL innodb_file_per_table = 0;

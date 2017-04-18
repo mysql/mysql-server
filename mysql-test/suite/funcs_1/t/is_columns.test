@@ -16,9 +16,6 @@
 #                   Create this script based on older scripts and new code.
 #
 
-# This test cannot be used for the embedded server because we check here
-# privileges.
---source include/not_embedded.inc
 
 # Result differences depending on FS case sensitivity.
 if (!$require_case_insensitive_file_system)

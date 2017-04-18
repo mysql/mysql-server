@@ -4,8 +4,6 @@
 --source include/not_log_bin.inc
 
 --source include/not_valgrind.inc
-# Embedded server does not support restarting
---source include/not_embedded.inc
 
 # Can be 0, depends on where the mysqld process was killed
 call mtr.add_suppression("InnoDB: File '.*tablespaces.open..*' size is 0 bytes. Must be at least 12 bytes");

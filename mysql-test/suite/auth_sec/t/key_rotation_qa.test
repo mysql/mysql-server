@@ -3,7 +3,6 @@
 # ALTER INSTANCE ROTATE <key_type> MASTER KEY statement
 # and key rotation testing.
 
---source include/not_embedded.inc
 --source include/no_valgrind_without_big.inc
 call mtr.add_suppression("\\[Error\\] InnoDB: Encryption can't find master key, please check the keyring plugin is loaded.");
 call mtr.add_suppression("\\[Error\\] Plugin keyring_file reported: 'keyring_file initialization failure.");

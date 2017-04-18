@@ -11,7 +11,6 @@
 # in the opt file. This test should be migrated to utf8mb4.
 
 --source include/no_valgrind_without_big.inc
---source include/not_embedded.inc
 --source include/big_test.inc
 # Avoid CrashReporter popup on Mac
 --source include/not_crashrep.inc

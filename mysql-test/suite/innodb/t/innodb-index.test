@@ -415,8 +415,6 @@ SET FOREIGN_KEY_CHECKS=0;
 
 # mysqltest first does replace_regex, then replace_result
 --replace_regex /#sql-[0-9a-f_]*'/#sql-temporary'/
-# Embedded server doesn't chdir to data directory
---replace_result $MYSQLD_DATADIR ./ master-data/ ''
 --error ER_CANNOT_ADD_FOREIGN
 ALTER TABLE t2 ADD CONSTRAINT fk_t2_ca
  FOREIGN KEY (c3,c2) REFERENCES t1(c1,c1), ALGORITHM=COPY;
@@ -425,8 +423,6 @@ ALTER TABLE t2 ADD CONSTRAINT fk_t2_ca
  FOREIGN KEY (c3,c2) REFERENCES t1(c1,c1);
 # mysqltest first does replace_regex, then replace_result
 --replace_regex /#sql-[0-9a-f_]*'/#sql-temporary'/
-# Embedded server doesn't chdir to data directory
---replace_result $MYSQLD_DATADIR ./ master-data/ ''
 --error ER_CANNOT_ADD_FOREIGN
 ALTER TABLE t2 ADD CONSTRAINT fk_t2_ca
  FOREIGN KEY (c3,c2) REFERENCES t1(c1,c2), ALGORITHM=COPY;
@@ -440,8 +436,6 @@ ALTER TABLE t2 ADD CONSTRAINT fk_t2_ca
 
 # mysqltest first does replace_regex, then replace_result
 --replace_regex /#sql-[0-9a-f_]*'/#sql-temporary'/
-# Embedded server doesn't chdir to data directory
---replace_result $MYSQLD_DATADIR ./ master-data/ ''
 --error ER_CANNOT_ADD_FOREIGN
 ALTER TABLE t2 ADD CONSTRAINT fk_t2_ca
  FOREIGN KEY (c3,c2) REFERENCES t1(c2,c1), ALGORITHM=COPY;
@@ -449,8 +443,6 @@ ALTER TABLE t2 ADD CONSTRAINT fk_t2_ca
 ALTER TABLE t1 MODIFY COLUMN c2 BIGINT(12) NOT NULL;
 # mysqltest first does replace_regex, then replace_result
 --replace_regex /#sql-[0-9a-f_]*'/#sql-temporary'/
-# Embedded server doesn't chdir to data directory
---replace_result $MYSQLD_DATADIR ./ master-data/ ''
 --error ER_CANNOT_ADD_FOREIGN
 ALTER TABLE t2 ADD CONSTRAINT fk_t2_ca
  FOREIGN KEY (c3,c2) REFERENCES t1(c1,c2), ALGORITHM=COPY;

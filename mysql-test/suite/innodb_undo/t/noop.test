@@ -7,7 +7,6 @@
 --source include/have_undo_tablespaces.inc
 
 # The test is restarting the server to force undo truncation.
---source include/not_embedded.inc
 --source include/big_test.inc
 
 select SLEEP(10);

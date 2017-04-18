@@ -56,7 +56,6 @@
 --let $rpl_gtid_utils= 1
 --source include/rpl_init.inc
 --source include/rpl_default_connections.inc
---source include/not_embedded.inc
 --source include/have_binlog_format_mixed.inc
 
 --source include/rpl_reset.inc

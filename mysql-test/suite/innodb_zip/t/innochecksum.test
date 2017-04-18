@@ -3,8 +3,6 @@
 #************************************************************
 --source include/have_innodb_max_16k.inc
 --source include/no_valgrind_without_big.inc
-# Embedded server does not support crashing.
---source include/not_embedded.inc
 
 # Avoid CrashReporter popup on Mac.
 --source include/not_crashrep.inc

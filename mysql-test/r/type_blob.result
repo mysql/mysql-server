@@ -83,17 +83,17 @@ update t1 set c="",b=null where c="1";
 lock tables t1 READ;
 show full fields from t1;
 Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
-t	text	utf8mb4_0900_ai_ci	YES		NULL		#	
-c	char(10)	utf8mb4_0900_ai_ci	YES		NULL		#	
-b	blob	NULL	YES		NULL		#	
-d	varbinary(10)	NULL	YES		NULL		#	
+t	text	utf8mb4_0900_ai_ci	YES		NULL		select,insert,update,references	
+c	char(10)	utf8mb4_0900_ai_ci	YES		NULL		select,insert,update,references	
+b	blob	NULL	YES		NULL		select,insert,update,references	
+d	varbinary(10)	NULL	YES		NULL		select,insert,update,references	
 lock tables t1 WRITE;
 show full fields from t1;
 Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
-t	text	utf8mb4_0900_ai_ci	YES		NULL		#	
-c	char(10)	utf8mb4_0900_ai_ci	YES		NULL		#	
-b	blob	NULL	YES		NULL		#	
-d	varbinary(10)	NULL	YES		NULL		#	
+t	text	utf8mb4_0900_ai_ci	YES		NULL		select,insert,update,references	
+c	char(10)	utf8mb4_0900_ai_ci	YES		NULL		select,insert,update,references	
+b	blob	NULL	YES		NULL		select,insert,update,references	
+d	varbinary(10)	NULL	YES		NULL		select,insert,update,references	
 unlock tables;
 select t from t1 where t like "hello";
 t
@@ -532,7 +532,7 @@ drop table t1;
 create table t1 select load_file('MYSQLTEST_VARDIR/std_data/words.dat') l;
 show full fields from t1;
 Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
-l	longblob	NULL	YES		NULL		#	
+l	longblob	NULL	YES		NULL		select,insert,update,references	
 drop table t1;
 create table t1 (id integer primary key auto_increment, txt text not null, unique index txt_index (txt (20))) charset latin1;
 insert into t1 (txt) values ('Chevy'), ('Chevy ');

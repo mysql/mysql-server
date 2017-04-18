@@ -16,7 +16,6 @@
 # ################################################################
 
 --source include/not_valgrind.inc
---source include/not_embedded.inc
 
 let $MYSQLD_BASEDIR= `select @@basedir`;
 

@@ -1371,10 +1371,6 @@ drop table if exists t1;drop table if exists t1;";
 select * from performance_schema.global_variables where variable_name='init_connect';
 set global init_connect="";
 
-#
-# Bug#34517 SHOW GLOBAL STATUS does not work properly in embedded server.
-#
-
 --disable_warnings
 create table t0 select * from performance_schema.global_status where VARIABLE_NAME='COM_SELECT';
 SELECT 1;

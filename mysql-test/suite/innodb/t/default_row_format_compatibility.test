@@ -21,7 +21,6 @@ let $MYSQLD_TMPDIR = `SELECT @@tmpdir`;
 let $MYSQLD_DATADIR = `SELECT @@datadir`;
 
 # The following tescases works with page_size=16k only
---source include/not_embedded.inc
 --source include/no_valgrind_without_big.inc
 
 ########################################

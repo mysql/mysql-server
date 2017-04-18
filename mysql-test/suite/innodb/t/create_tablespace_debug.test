@@ -3,8 +3,6 @@
 #
 
 --source include/have_debug.inc
-# Restarting and killing mysqld is not supported in embedded
---source include/not_embedded.inc
 # Disabled in --log-bin runs until atomic DDL is properly supported
 --source include/not_log_bin.inc
 

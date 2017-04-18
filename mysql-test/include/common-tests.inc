@@ -1798,12 +1798,8 @@ select period as "Nuvarande period" from t1 group by "Nuvarande period" limit 1;
 show tables;
 show tables from test like "s%";
 show tables from test like "t?";
-# We mask out the Privileges column because it differs with embedded server
---replace_column 8 #
 show full columns from t2;
---replace_column 8 #
 show full columns from t2 from test like 'f%';
---replace_column 8 #
 show full columns from t2 from test like 's%';
 analyze table t2;
 --replace_column 7 #

@@ -11,7 +11,6 @@
 #   --source include/have_group_replication_plugin_base.inc
 #
 
---source include/not_embedded.inc
 --source include/have_log_bin.inc
 --source include/have_binlog_format_row.inc
 

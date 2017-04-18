@@ -5,7 +5,6 @@
 # in the opt file. This test should be migrated to utf8mb4.
 
 --source include/no_valgrind_without_big.inc
---source include/not_embedded.inc
 
 #Suppress following messages from myslqd log
 --disable_query_log

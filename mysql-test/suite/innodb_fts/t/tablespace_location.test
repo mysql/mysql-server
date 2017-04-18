@@ -8,8 +8,6 @@
 # Create a table with FTS columns and make sure the auxilliary
 # table are created in the same tablespace.
 
-# Embedded mode doesn't support restarting
---source include/not_embedded.inc
 
 SET DEFAULT_STORAGE_ENGINE=InnoDB;
 

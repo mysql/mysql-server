@@ -2,8 +2,6 @@
 # Test CREATE TABLE ... STATS_SAMPLE_PAGES=N|default
 #
 
-# include/restart_mysqld.inc does not work in embedded mode 
--- source include/not_embedded.inc 
 
 ########################################
 ##### WL#7554 Force schema `test` to character set latin1

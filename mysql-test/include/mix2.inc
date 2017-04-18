@@ -1219,9 +1219,6 @@ drop table t2;
 
 # Test error handling
 
-# Clean up filename -- embedded server reports whole path without .frm,
-# regular server reports relative path with .frm (argh!)
---replace_result \\ / $MYSQL_TEST_DIR . /var/master-data/ / t2.frm t2
 --error 1005
 eval create table t2 (id int(11) not null, id2 int(11) not null, constraint t1_id_fk foreign key (id2,id) references t1 (id)) engine = $engine_type;
 
@@ -1469,9 +1466,6 @@ source include/varchar.inc;
 # Some errors/warnings on create
 #
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-# Clean up filename -- embedded server reports whole path without .frm,
-# regular server reports relative path with .frm (argh!)
---replace_result \\ / $MYSQL_TEST_DIR . /var/master-data/ / t1.frm t1
 create table t1 (v varchar(65530), key(v)) charset latin1;
 drop table t1;
 create table t1 (v varchar(65536));

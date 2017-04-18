@@ -3,7 +3,6 @@
 #but needs to be kept for tests that would need MyISAM in future.
 --source include/force_myisam_default.inc
 
--- source include/not_embedded.inc
 -- source include/have_ndb.inc
 -- source include/have_log_bin.inc
 

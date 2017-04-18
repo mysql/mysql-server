@@ -754,7 +754,6 @@ DROP DATABASE mysqltest;
 #           it results in NULL p/w
 #
 
-# Can't test with embedded server that doesn't support grants
 
 GRANT USAGE ON *.* TO user19857@localhost IDENTIFIED BY 'meow';
 GRANT SELECT, INSERT, UPDATE, DELETE, CREATE ROUTINE, ALTER ROUTINE ON test.* TO

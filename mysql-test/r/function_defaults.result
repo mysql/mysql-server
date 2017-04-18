@@ -1,5 +1,5 @@
 #
-# Test of function defaults for any server, including embedded.
+# Test of function defaults for any server.
 # We run the same tests with different settings for better coverage.
 #
 #

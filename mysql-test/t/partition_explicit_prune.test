@@ -142,7 +142,7 @@ DROP TABLE t1;
 --echo # Original tests for WL#5217
 
 --echo # Must have InnoDB as engine to get the same statistics results.
---echo # embedded uses MyISAM as default. CREATE SELECT uses the default engine.
+--echo # CREATE SELECT uses the default engine.
 SET @old_default_storage_engine = @@default_storage_engine;
 SET @@default_storage_engine = 'InnoDB';
 

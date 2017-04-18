@@ -6,8 +6,6 @@
 # Must have debug code to use SET SESSION debug
 --source include/have_debug.inc
 
-# Embedded server does not support restarting
---source include/not_embedded.inc
 
 # Avoid CrashReporter popup on Mac
 --source include/not_crashrep.inc

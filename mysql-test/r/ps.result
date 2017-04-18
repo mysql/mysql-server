@@ -2921,24 +2921,6 @@ ERROR 21000: Subquery returns more than 1 row
 deallocate prepare stmt;
 drop table t1, t2;
 #
-# Bug#27430 Crash in subquery code when in PS and table DDL changed
-# after PREPARE
-#
-# This part of the test doesn't work in embedded server, this is
-# why it's here. For the main test see ps_ddl*.test
-
-drop table if exists t1;
-create table t1 (a int);
-prepare stmt from "show events where (1) in (select * from t1)";
-execute stmt;
-Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator	character_set_client	collation_connection	Database Collation
-drop table t1;
-create table t1 (x int);
-execute stmt;
-Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator	character_set_client	collation_connection	Database Collation
-drop table t1;
-deallocate prepare stmt;
-#
 # Bug#49141: Encode function is significantly slower in 5.1 compared to 5.0
 #
 prepare encode from "select encode(?, ?) into @ciphertext";

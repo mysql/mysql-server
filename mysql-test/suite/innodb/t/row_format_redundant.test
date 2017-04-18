@@ -1,6 +1,4 @@
 --source include/have_debug.inc
-# Embedded mode doesn't allow restarting
---source include/not_embedded.inc
 
 --echo #
 --echo # Bug#21644827 - FTS, ASSERT !SRV_READ_ONLY_MODE || M_IMPL.M_LOG_MODE ==

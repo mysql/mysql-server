@@ -1,8 +1,6 @@
 # Truncate a fts table with hidden fts doc id index but without
 # fts index, the hidden index should be kept.
 
---source include/not_embedded.inc
-
 --echo # Case 1 : CREATE FULLTEXT/ID + TRUNCATE
 CREATE TABLE articles (
        id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,

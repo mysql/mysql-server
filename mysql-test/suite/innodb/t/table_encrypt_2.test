@@ -5,7 +5,6 @@
 # in the opt file. This test should be migrated to utf8mb4.
 
 --source include/no_valgrind_without_big.inc
---source include/not_embedded.inc
 
 call mtr.add_suppression("\\[Error\\] InnoDB: Can't generate new master key for tablespace encryption, please check the keyring plugin is loaded.");
 call mtr.add_suppression("\\[Error\\] InnoDB: Encryption can't find master key, please check the keyring plugin is loaded.");

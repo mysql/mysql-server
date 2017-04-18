@@ -1,7 +1,5 @@
 --source include/have_debug.inc
 
-# Embedded server does not support crashing
---source include/not_embedded.inc
 
 --echo #
 --echo # Bug#21801423 INNODB REDO LOG DOES NOT INDICATE WHEN

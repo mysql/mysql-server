@@ -2,8 +2,6 @@
 --echo # BUG#21816041 - ROW_FORMAT=DYNAMIC IS RESTRICTIVE THAN ROW_FORMAT=COMPACT
 --echo #
 --source include/no_valgrind_without_big.inc
-# This test use $MYSQL client, so this cannot be used in embedded mode
---source include/not_embedded.inc
 
 ########################################
 ##### WL#7554 Force schema `test` to character set latin1

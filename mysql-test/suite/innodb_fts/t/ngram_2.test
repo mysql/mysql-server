@@ -3,7 +3,6 @@
 #
 #
 
---source include/not_embedded.inc
 
 #Test 3 scenarios:
 #1. CREATE a CJK fulltext index with ngram parser when ngram parser is loaded,

@@ -45,8 +45,6 @@ SET @max_row = 20;
 let $more_trigger_tests= 0;
 let $more_pk_ui_tests= 0;
 
-# Does not work with --embedded
---source include/not_embedded.inc
 
 #------------------------------------------------------------------------------#
 # Engine specific settings and requirements

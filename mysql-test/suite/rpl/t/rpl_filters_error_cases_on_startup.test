@@ -20,7 +20,6 @@
 ###############################################################################
 --source include/not_group_replication_plugin.inc
 --source include/not_windows.inc
---source include/not_embedded.inc
 --source include/big_test.inc
 # Test in this file is binlog format agnostic, thus no need
 # to rerun it for every format.

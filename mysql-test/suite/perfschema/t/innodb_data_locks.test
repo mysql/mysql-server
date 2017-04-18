@@ -1,4 +1,3 @@
-
 drop table if exists t1_min;
 drop table if exists t1_max;
 drop table if exists t1_part;

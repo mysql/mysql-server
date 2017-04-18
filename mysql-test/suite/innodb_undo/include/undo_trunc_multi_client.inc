@@ -3,7 +3,6 @@
 #
 
 # This test is restarting the server.
---source include/not_embedded.inc
 --source include/have_undo_tablespaces.inc
 --source include/big_test.inc
 

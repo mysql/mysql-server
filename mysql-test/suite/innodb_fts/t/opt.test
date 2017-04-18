@@ -564,7 +564,7 @@ INSERT INTO t1 (title, text) VALUES
   ('MySQL databases are relational', 'A relational database stores data in separate tables rather than putting all the data in one big storeroom...'),
   ('MySQL software is Open Source', 'Open Source means that it is possible for anyone to use and modify the software...'),
   ('The MySQL Database Server is very fast, reliable, scalable, and easy to use', 'MySQL Server can run comfortably on a desktop or laptop...'),
-  ('MySQL Server works in client/server or embedded systems', 'The MySQL Database Software is a client/server system...'),
+  ('MySQL Server works in client/server enviornment ......', 'The MySQL Database Software is a client/server system...'),
   ('MyISAM', 'MyISAM is based on the older (and no longer available) ISAM storage engine but has many useful extensions'),
   ('A large amount of contributed MySQL software is available', 'MySQL Server has a practical set of features developed in close cooperation with our users'),
   (NULL,NULL);

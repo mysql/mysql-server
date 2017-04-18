@@ -1,5 +1,4 @@
 --source include/have_null_audit_plugin.inc
---source include/not_embedded.inc
 --source include/have_debug.inc
 
 call mtr.add_suppression("Event 'MYSQL_AUDIT_GENERAL_ERROR' cannot be aborted.");

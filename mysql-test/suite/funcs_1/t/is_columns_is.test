@@ -2,9 +2,6 @@
 #
 # Check the content of information_schema.columns about tables within
 # the database information_schema.
-# Variant for the non embedded server
-#    The expected results must equal is_columns_is_embedded except that
-#    columns.privileges are not empty.
 #
 # Note: The INFORMATION_SCHEMA table PROFILING is optional (exists in MySQL
 #       Community version only) and therefore we exclude it from retrieval.
@@ -15,7 +12,6 @@
 #                   Create this script based on older scripts and new code.
 #
 
---source include/not_embedded.inc
 
 # Result differences depending on FS case sensitivity.
 if (!$require_case_insensitive_file_system)

@@ -32,8 +32,6 @@
 # in the opt file. This test should be migrated to utf8mb4.
 
 --source include/big_test.inc
-# We go with "--send" and "--reap" and that fails with the embedded server.
---source include/not_embedded.inc
 # Its intentional to not take the risk that a run with valgrind times out.
 --source include/not_valgrind.inc
 

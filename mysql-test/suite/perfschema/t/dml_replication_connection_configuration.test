@@ -2,7 +2,6 @@
 
 # This test verifies the correct behaviour in case of invalid
 # usage of DMLs on the table replication_connection_configuration.
-
 --disable_result_log
 SELECT * FROM performance_schema.replication_connection_configuration
   LIMIT 1;

@@ -2,7 +2,6 @@
 # Testing Bug#17719439 THREAD INTERLEAVING IN NDB::INIT CAN CAUSE CRASH AT SIGNAL RECEPTION
 ###########################################################################################
 
--- source include/not_embedded.inc
 -- source include/have_ndb.inc
 # We are using some debug-only features in this test
 --source include/have_debug.inc

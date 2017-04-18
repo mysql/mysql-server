@@ -3,8 +3,6 @@
 #but needs to be kept for tests that would need MyISAM in future.
 --source include/force_myisam_default.inc
 
-# test uses multiple mysqld by necessity, hence not in embedded
--- source include/not_embedded.inc
 -- source include/have_multi_ndb.inc
 
 --disable_warnings

@@ -1,8 +1,6 @@
 # Test resizing the InnoDB redo log.
 
 
-# Embedded server does not support crashing
---source include/not_embedded.inc
 # Avoid CrashReporter popup on Mac
 --source include/not_crashrep.inc
 # innodb-force-recovery-crash needs debug

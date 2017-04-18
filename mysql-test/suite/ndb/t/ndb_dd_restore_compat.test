@@ -11,7 +11,6 @@ let $backup_data_dir=$MYSQL_TEST_DIR/suite/ndb/backups;
 --exec $NDB_RESTORE --no-defaults -b 1 -n 1 -p 1 -m -r $backup_data_dir/51_dd >> $NDB_TOOLS_OUTPUT
 --exec $NDB_RESTORE --no-defaults -e -b 1 -n 2 -p 1 -r $backup_data_dir/51_dd >> $NDB_TOOLS_OUTPUT
 
-# (priviliges differ on embedded and server so replace)
 --replace_column 19 #
 select * from information_schema.columns
 where table_name = "t1";

@@ -1,8 +1,6 @@
 # FTS aux tables inherit row format and key block size
 # from its parent table.
 
---source include/not_embedded.inc
-
 CREATE TABLE articles (
        id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
        title VARCHAR(200),

@@ -2,7 +2,6 @@
 # This test case will test basic undo encryption support features.
 
 --source include/no_valgrind_without_big.inc
---source include/not_embedded.inc
 --source include/have_innodb_max_16k.inc
 #--source include/have_debug.inc
 

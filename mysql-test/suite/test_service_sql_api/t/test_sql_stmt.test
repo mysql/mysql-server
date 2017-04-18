@@ -1,4 +1,3 @@
-
 --echo ------ Run plugin ------------------------------------------------
 --replace_result $TEST_SQL_STMT TEST_SQL_STMT
 eval INSTALL PLUGIN test_sql_stmt SONAME '$TEST_SQL_STMT';

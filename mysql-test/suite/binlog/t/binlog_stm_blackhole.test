@@ -1,6 +1,5 @@
 --source include/have_myisam.inc
 --source include/force_myisam_default.inc
---source include/not_embedded.inc
 --source include/have_binlog_format_statement.inc
 
 # This test checks Full Text Search in a MyISAM table, the results for which are different with an innodb table.

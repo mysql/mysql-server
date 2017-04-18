@@ -34,8 +34,6 @@ USE INFORMATION_SCHEMA;
 --replace_result InnoDB TMP_TABLE_ENGINE MyISAM TMP_TABLE_ENGINE 
 SHOW CREATE TABLE INFORMATION_SCHEMA.PARAMETERS;
 
-# embedded server does not display privileges
---replace_column 19 #
 # The below query results in two difference collations like
 # 'utf8_tolower_ci' or 'utf8_bin' depending on l_c_t_n for
 # 'mysql.schemata.name' column. In order to get consistent

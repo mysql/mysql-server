@@ -1,5 +1,4 @@
 --source include/have_semisync_plugin.inc
---source include/not_embedded.inc
 
 --let rpl_topology= 1->2,1->3
 --source include/rpl_init.inc

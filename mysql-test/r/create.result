@@ -1908,4 +1908,4 @@ ENGINE = InnoDB
 PARTITION BY RANGE (id) (
 PARTITION p0 VALUES LESS THAN (10) INDEX DIRECTORY = 'test'
 );
-Got one of the listed errors
+ERROR HY000: Incorrect path value: 'test'

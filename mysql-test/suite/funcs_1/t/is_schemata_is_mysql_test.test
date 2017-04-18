@@ -9,9 +9,6 @@
 #                   Create this script based on older scripts and new code.
 #
 
-# This test cannot be used for the embedded server because we check here
-# privileges.
---source include/not_embedded.inc
 
 --echo #################################################################################
 --echo # Testcases 3.2.9.2 + 3.2.9.3: INFORMATION_SCHEMA.SCHEMATA accessible information

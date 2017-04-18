@@ -1,4 +1,3 @@
---source include/not_embedded.inc
 
 --echo # Setting general_log to initial state empty
 TRUNCATE TABLE mysql.general_log;

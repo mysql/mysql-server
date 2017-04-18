@@ -4,8 +4,6 @@
 # after a crash with active user tranactions.
 
 #
-# Restarting is not supported in embedded.
---source include/not_embedded.inc
 
 # Disabled in --log-bin runs until atomic DDL is properly supported in
 # binary log.

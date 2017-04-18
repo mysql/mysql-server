@@ -1,8 +1,6 @@
 # Alter a fts table non-rebuilt with hidden fts doc id index
 # but without fts index, the hidden index should be kept.
 
---source include/not_embedded.inc
-
 --echo # Case 1 : WITHOUT FTS_DOC_ID
 CREATE TABLE t1 (
        id INT,

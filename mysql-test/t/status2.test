@@ -1,4 +1,3 @@
-
 --echo #
 --echo # Bug#24289 Status Variable "Questions" gets wrong values with Stored Routines
 --echo #

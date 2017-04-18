@@ -19,8 +19,6 @@ use test;
 #                                                                    #
 ######################################################################
 
-# Embedded server does not support restarting
---source include/not_embedded.inc
 
 #------------------------------------------------------------------------------
 # Stop the server in between when prefix index are created and see if state is

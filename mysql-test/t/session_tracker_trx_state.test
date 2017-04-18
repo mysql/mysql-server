@@ -1,4 +1,3 @@
-
 # Skipping the test temporarily when log-bin is enabled as the test contains a
 # statement accessing mysql.general_log in an trxn. The trxn status tracker
 # (@@session_track_transaction_info) marks it unsafe only when logbin is on

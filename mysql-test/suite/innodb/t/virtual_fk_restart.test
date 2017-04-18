@@ -1,4 +1,3 @@
--- source include/not_embedded.inc
 
 --disable_query_log
 call mtr.add_suppression("\\[ERROR\\] InnoDB: Unable to open tablespace .* \\(flags=.*, filename=");

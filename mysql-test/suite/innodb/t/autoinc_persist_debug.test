@@ -1,5 +1,4 @@
 --source include/have_debug.inc
---source include/not_embedded.inc
 
 ########################################
 ##### WL#7554 Force schema `test` to character set latin1

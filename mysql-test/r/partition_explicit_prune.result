@@ -146,7 +146,7 @@ DROP VIEW v1;
 DROP TABLE t1;
 # Original tests for WL#5217
 # Must have InnoDB as engine to get the same statistics results.
-# embedded uses MyISAM as default. CREATE SELECT uses the default engine.
+# CREATE SELECT uses the default engine.
 SET @old_default_storage_engine = @@default_storage_engine;
 SET @@default_storage_engine = 'InnoDB';
 # Test to show if I_S affects HANDLER_ counts

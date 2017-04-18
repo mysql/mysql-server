@@ -1,4 +1,3 @@
---source include/not_windows_embedded.inc
 --source include/have_example_plugin.inc
 
 --error ER_PLUGIN_IS_PERMANENT

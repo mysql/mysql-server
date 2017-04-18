@@ -3,8 +3,6 @@
 # --innodb-stats-persistent=1 is specified in -master.opt
 #
 
-# include/restart_mysqld.inc does not work in embedded mode
--- source include/not_embedded.inc
 
 ########################################
 ##### WL#7554 Force schema `test` to character set latin1

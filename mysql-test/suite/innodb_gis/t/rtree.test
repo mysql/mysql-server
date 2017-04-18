@@ -11,8 +11,6 @@ use test;
 # WL#6745 InnoDB R-tree support
 # This test case will test basic R-tree support features.
 
-# Not supported in embedded
---source include/not_embedded.inc
 
 
 # Create table with R-tree index.

@@ -8,7 +8,6 @@ use test;
 --enable_query_log
 ########################################
 
---source include/not_embedded.inc
 
 --echo #
 --echo # Bug #19027905 ASSERT RET.SECOND DICT_CREATE_FOREIGN_CONSTRAINTS_LOW

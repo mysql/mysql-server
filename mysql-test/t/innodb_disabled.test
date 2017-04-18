@@ -27,12 +27,6 @@ eval CALL mtr.add_suppression("$SEARCH_PATTERN");
 
 SELECT support FROM INFORMATION_SCHEMA.ENGINES WHERE engine = 'innodb';
 
-# In case of the embedded server the server error log will not contain
-# the warnings.
-if (`select version() like '%embedded%' = 1`)
-{
-exit;
-}
 perl;
     use strict;
     my $search_file=     $ENV{'SEARCH_FILE'}     or die "SEARCH_FILE not set";

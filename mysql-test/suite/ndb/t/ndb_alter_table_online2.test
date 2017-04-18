@@ -14,8 +14,6 @@
 #          and some original test cleanup and additions
 ##############################################################
 -- source include/have_multi_ndb.inc
-# test uses mysqlslap, hence not in embedded
--- source include/not_embedded.inc
 # mysqlslap seems to be not_windows. remove this when removed from mysqlslap.test
 -- source include/not_windows.inc
 # -- source include/have_log_bin.inc

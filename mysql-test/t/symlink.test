@@ -75,7 +75,6 @@ create database mysqltest;
 create table mysqltest.t9 (a int not null auto_increment, b char(16) not null, primary key (a)) 
 engine=myisam index directory="/this-dir-does-not-exist";
 
-# temporarily disabled as it returns different result in the embedded server
 --error ER_WRONG_VALUE
 create table mysqltest.t9 (a int not null auto_increment, b char(16) not null, primary key (a)) 
 engine=myisam index directory="not-hard-path";

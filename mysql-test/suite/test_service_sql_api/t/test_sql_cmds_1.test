@@ -1,5 +1,4 @@
 #--source include/have_daemon_example_plugin.inc
---source include/not_embedded.inc
 
 call mtr.add_suppression("This is a warning from test plugin");
 call mtr.add_suppression("This is an error from test plugin");

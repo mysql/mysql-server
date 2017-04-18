@@ -1845,8 +1845,7 @@ PARTITION p0 VALUES LESS THAN (10) INDEX DIRECTORY = 'a#########################
 --error ER_WRONG_VALUE
 CREATE TABLE t3 (id INT) INDEX DIRECTORY = 'test';
 
-# The statememnt fails differently with embedded and non-embedded server.
---error ER_WRONG_VALUE, ER_ILLEGAL_HA
+--error ER_WRONG_VALUE
 CREATE TABLE t4 (id INT NOT NULL, name VARCHAR(30))
 ENGINE = InnoDB
 PARTITION BY RANGE (id) (

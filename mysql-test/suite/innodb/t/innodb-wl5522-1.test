@@ -7,9 +7,6 @@ alter schema test default character set latin1;
 --enable_query_log
 ########################################
 
-# Not supported in embedded
---source include/not_embedded.inc
-
 
 --source suite/innodb/include/innodb_import.inc
 

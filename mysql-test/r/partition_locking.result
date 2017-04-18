@@ -2,10 +2,6 @@
 SET @old_innodb_stats_persistent= @@global.innodb_stats_persistent;
 SET @@global.innodb_stats_persistent= 0;
 # Original tests for WL#4443
-# Must have InnoDB as engine to get the same statistics results.
-# embedded uses MyISAM as default. CREATE SELECT uses the default engine.
-SET @old_default_storage_engine = @@default_storage_engine;
-SET @@default_storage_engine = 'InnoDB';
 create table thread_to_monitor(thread_id int);
 insert into thread_to_monitor(thread_id)
 SELECT THREAD_ID FROM performance_schema.threads

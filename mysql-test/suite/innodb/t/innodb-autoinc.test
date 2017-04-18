@@ -8,7 +8,6 @@ use test;
 --enable_query_log
 ########################################
 
--- source include/not_embedded.inc
 
 --disable_warnings
 drop table if exists t1;

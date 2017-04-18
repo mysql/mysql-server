@@ -1,7 +1,6 @@
 ## Various test cases for the mysqlxsys@localhost creation by the plugin
 
 source include/have_mysqlx_plugin.inc;
-source include/not_embedded.inc;
 
 SELECT password_last_changed into @passwordchanged from mysql.user where host='localhost' and user='root';
 

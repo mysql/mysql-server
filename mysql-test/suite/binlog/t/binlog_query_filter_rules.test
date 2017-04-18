@@ -5,7 +5,6 @@
 # applying of row-events on master via mysqlbinlog
 
 -- source include/have_log_bin.inc
--- source include/not_embedded.inc
 -- source include/have_binlog_format_row.inc
 
 --disable_warnings

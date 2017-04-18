@@ -5,8 +5,6 @@ source include/have_memcached_plugin.inc;
 source include/have_debug.inc;
 # This test uses external $MYSQL client tool to create table
 # with large number of columns(999) from a .sql file.
-# This will not work in embedded mode
-source include/not_embedded.inc;
 
 ########################################
 ##### WL#7554 Force schema `test` to character set latin1

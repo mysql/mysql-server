@@ -20,7 +20,6 @@
 # ==== References ====
 # WL#9556: Writeset-based MTS dependency tracking on master
 ################################################################################
---source include/not_embedded.inc
 --source include/big_test.inc
 --source include/have_binlog_format_row.inc
 

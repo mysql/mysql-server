@@ -1,5 +1,3 @@
-# Embedded mode doesn't support restarting
---source include/not_embedded.inc
 
 --echo # Testcase for the following bugs
 --echo # Bug#16691130 - ASSERT WHEN INNODB_LOG_GROUP_HOME_DIR DOES NOT EXIST

@@ -1,7 +1,5 @@
 # innodb_change_buffering_debug option is debug only
 --source include/have_debug.inc
-# Embedded server does not support crashing
---source include/not_embedded.inc
 
 call mtr.add_suppression("InnoDB: Failed to find tablespace for table .* in the cache. Attempting to load the tablespace with space id");
 

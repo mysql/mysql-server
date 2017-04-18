@@ -2,7 +2,6 @@
 # WL#6205 - A series of tests to show the correct behavior for
 # CREATE TABLESPACE and associated SQL statements for 64k page size.
 #
---source include/not_embedded.inc
 
 --echo #
 --echo # CREATE TABLESPACE related tests for 32k page sizes.

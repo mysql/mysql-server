@@ -1,4 +1,3 @@
-
 # Need debug server do enable updating mysql.triggers. The stuff before that
 # section in the test below is in a --disable_parsing/--enable_parsing block,
 # so we can require debug for the entire test without splitting it.

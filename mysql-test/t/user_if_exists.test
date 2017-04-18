@@ -2,7 +2,6 @@
 # Test behavior of IF [NOT] EXISTS clause
 # in CREATE / ALTER / DROP USER commands.
 #
-
 CALL mtr.add_suppression('Following users were specified in CREATE USER IF NOT EXISTS but they already exist');
 CALL mtr.add_suppression('Following users were specified in ALTER USER IF EXISTS but they do not exist');
 

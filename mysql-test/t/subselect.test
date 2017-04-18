@@ -1,4 +1,3 @@
-
 #
 # BUG#10308: purge log with subselect
 # Bug#28553: mysqld crash in "purge master log before(select time from information_schema)"

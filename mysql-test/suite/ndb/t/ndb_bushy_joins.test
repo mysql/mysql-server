@@ -21,7 +21,6 @@
 #
 ########################################################
 
---source include/not_embedded.inc
 --source include/have_ndb.inc
 --source include/have_multi_ndb.inc
 

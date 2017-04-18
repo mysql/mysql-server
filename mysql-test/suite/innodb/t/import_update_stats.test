@@ -2,7 +2,6 @@
 # BUG#20125349 - PERSISTANT STATS IS NOT UPDATED WHEN TTS IS IMPORTED.
 #
 
---source include/not_embedded.inc
 
 ########################################
 ##### WL#7554 Force schema `test` to character set latin1

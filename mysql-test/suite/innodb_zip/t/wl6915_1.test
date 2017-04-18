@@ -2,8 +2,6 @@
 --source include/have_no_undo_tablespaces.inc
 --source include/big_test.inc
 
-# Embedded server does not support restarting
---source include/not_embedded.inc
 # Avoid CrashReporter popup on Mac
 --source include/not_crashrep.inc
 # run for page size >= 8k

@@ -16497,6 +16497,10 @@ WHERE col_time_not_null_key <= col_timestamp_6_key
 AND col_time_2_key > SUBTIME('2006-07-16', '05:05:02.040778')
 ORDER BY col_datetime_5_not_null_key, col_time_1;
 c1
+Warnings:
+Warning	1292	Truncated incorrect time value: '2006-07-16'
+Warning	1292	Truncated incorrect time value: '2006-07-16'
+Warning	1292	Truncated incorrect time value: '2006-07-16'
 DROP TABLE t1;
 CREATE TABLE t1 (
 col_timestamp_3_not_null_key timestamp(3) NULL DEFAULT '0000-00-00 00:00:00.000',

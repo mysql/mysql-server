@@ -38,7 +38,6 @@ let $test_debug= 0;
 
 --echo # 0. Check and generate prerequites
 #-----------------------------------------
---source include/not_embedded.inc
 
 # InnoDb page size values in 2011-11
 # - supported: 4k, 8k, 16k
