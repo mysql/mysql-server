@@ -135,9 +135,9 @@ private:
   /**
     Sort lower version members based on uuid
 
-    @param all_members_info   the vector with members info
-
-    @return first iterator position where members version increase.
+    @param all_members_info    the vector with members info
+    @param lowest_version_end  first iterator position where members version
+                               increases.
    */
   void sort_members_for_election(
        std::vector<Group_member_info*>* all_members_info,
@@ -148,8 +148,8 @@ private:
     where member version differs.
 
     @param all_members_info    the vector with members info
-    @param lowest_version_end  first iterator position where members version
-                               increases.
+
+    @return  the first iterator position where members version increase.
 
     @note from the start of the list to the returned iterator, all members have
           the lowest version in the group.
