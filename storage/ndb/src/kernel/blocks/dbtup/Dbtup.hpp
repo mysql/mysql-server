@@ -272,12 +272,11 @@ public:
 
   enum CallbackIndex {
     // lgman
-    DROP_TABLE_LOGSYNC_CALLBACK = 1,
-    DROP_TABLE_LOG_BUFFER_CALLBACK = 2,
-    DROP_FRAGMENT_FREE_EXTENT_LOG_BUFFER_CALLBACK = 3,
-    NR_DELETE_LOG_BUFFER_CALLBACK = 4,
-    DISK_PAGE_LOG_BUFFER_CALLBACK = 5,
-    COUNT_CALLBACKS = 6
+    DROP_TABLE_LOG_BUFFER_CALLBACK = 1,
+    DROP_FRAGMENT_FREE_EXTENT_LOG_BUFFER_CALLBACK = 2,
+    NR_DELETE_LOG_BUFFER_CALLBACK = 3,
+    DISK_PAGE_LOG_BUFFER_CALLBACK = 4,
+    COUNT_CALLBACKS = 5
   };
   CallbackEntry m_callbackEntry[COUNT_CALLBACKS];
   CallbackTable m_callbackTable;
@@ -3546,8 +3545,8 @@ private:
 
   void undo_createtable_logsync_callback(Signal* signal, Uint32, Uint32);
 
-  void drop_table_log_buffer_callback(Signal*, Uint32, Uint32);
   void drop_table_logsync_callback(Signal*, Uint32, Uint32);
+  void drop_table_log_buffer_callback(Signal*, Uint32, Uint32);
 
   void disk_page_set_dirty(Ptr<Page>);
   void restart_setup_page(Ptr<Fragrecord> fragPtr,
