@@ -1563,7 +1563,7 @@ row_ins_check_foreign_constraint(
 {
 	dberr_t		err;
 	upd_node_t*	upd_node;
-	dict_table_t*	check_table;
+	dict_table_t*	check_table = nullptr;
 	dict_index_t*	check_index;
 	ulint		n_fields_cmp;
 	btr_pcur_t	pcur;
@@ -1578,7 +1578,7 @@ row_ins_check_foreign_constraint(
 	MDL_ticket*     mdl = nullptr;
 	THD*		thd = current_thd;
 	bool		tmp_open = false;
-	dict_foreign_t*	tmp_foreign;
+	dict_foreign_t*	tmp_foreign = nullptr;
 
 
 	/* GAP locks are not needed on DD tables because serializability between different
