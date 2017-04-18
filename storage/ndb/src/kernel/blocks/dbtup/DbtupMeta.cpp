@@ -2198,7 +2198,6 @@ Dbtup::drop_table_log_buffer_callback(Signal* signal, Uint32 tablePtrI,
   drop.m_type_length = 
     (Disk_undo::UNDO_DROP << 16) | sz;
   D("Logfile_client - drop_table_log_buffer_callback");
-  Logfile_client::Request req;
   {
     Logfile_client lgman(this, c_lgman, logfile_group_id);
   
@@ -2208,19 +2207,33 @@ Dbtup::drop_table_log_buffer_callback(Signal* signal, Uint32 tablePtrI,
 
     DEB_TUP_META(("Add UNDO_TUP_DROP in lsn: %llu for tab: %u",
                   lsn, tabPtr.i));
-    req.m_callback.m_callbackData= tablePtrI;
-    req.m_callback.m_callbackIndex = DROP_TABLE_LOGSYNC_CALLBACK;
-  
-    int ret = lgman.sync_lsn(signal, lsn, &req, 0);
-    jamEntry();
-    switch(ret){
-    case 0:
-      return;
-    case -1:
-      warningEvent("Failed to sync log for drop of table: %u", tablePtrI);
-    }
+
+    /**
+     * Normally we would eventually want a sync_lsn for this log entry
+     * to ensure that this entry have reached the UNDO log.
+     * This is not necessary here though and here is the reasoning why.
+     * 1) The reason for writing this entry is to ensure that we don't
+     *    apply any old UNDO log records towards new pages.
+     *
+     * An UNDO log record can only be applied if the page have a new
+     * table id, fragment id and create table version. If the table id,
+     * fragment id and table version belongs to the old table then
+     * it won't be applied since this table is not being restored.
+     *
+     * Now a page cannot be written with a new table id, fragment id
+     * and create table version unless it was first written to disk
+     * and before this happened it was necessary to call sync_lsn
+     * with the maximum LSN write of the page. This LSN is obviously
+     * higher than the LSN received here, so we're safe that if a
+     * page of an old table have been reused then also the
+     * DROP TABLE undo log record is sync:ed to the UNDO log.
+     *
+     * So the conclusion is that we need to write the UNDO log record,
+     * but there is no need to sync it right now, it will be sync:ed
+     * before it is of any use.
+     */
   }
-  execute(signal, req.m_callback, logfile_group_id);
+  drop_table_logsync_callback(signal, tabPtr.i, logfile_group_id);
 }
 
 void

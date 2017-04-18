@@ -164,26 +164,21 @@ Dbtup::Dbtup(Block_context& ctx, Uint32 instanceNumber)
     ce.m_flags = 0;
   }
   { // 1
-    CallbackEntry& ce = m_callbackEntry[DROP_TABLE_LOGSYNC_CALLBACK];
-    ce.m_function = safe_cast(&Dbtup::drop_table_logsync_callback);
-    ce.m_flags = 0;
-  }
-  { // 2
     CallbackEntry& ce = m_callbackEntry[DROP_TABLE_LOG_BUFFER_CALLBACK];
     ce.m_function = safe_cast(&Dbtup::drop_table_log_buffer_callback);
     ce.m_flags = 0;
   }
-  { // 3
+  { // 2
     CallbackEntry& ce = m_callbackEntry[DROP_FRAGMENT_FREE_EXTENT_LOG_BUFFER_CALLBACK];
     ce.m_function = safe_cast(&Dbtup::drop_fragment_free_extent_log_buffer_callback);
     ce.m_flags = 0;
   }
-  { // 4
+  { // 3
     CallbackEntry& ce = m_callbackEntry[NR_DELETE_LOG_BUFFER_CALLBACK];
     ce.m_function = safe_cast(&Dbtup::nr_delete_log_buffer_callback);
     ce.m_flags = 0;
   }
-  { // 5
+  { // 4
     CallbackEntry& ce = m_callbackEntry[DISK_PAGE_LOG_BUFFER_CALLBACK];
     ce.m_function = safe_cast(&Dbtup::disk_page_log_buffer_callback);
     ce.m_flags = CALLBACK_ACK;
