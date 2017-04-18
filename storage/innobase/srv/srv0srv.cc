@@ -2230,7 +2230,7 @@ void
 srv_enable_undo_encryption_if_set()
 {
 	fil_space_t*	space;
-	ulint		space_id;
+	space_id_t	space_id;
 
 	if (srv_shutdown_state != SRV_SHUTDOWN_NONE) {
 		return;

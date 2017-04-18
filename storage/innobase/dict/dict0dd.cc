@@ -964,7 +964,7 @@ format_validate(
 	bool			strict,
 	bool*			is_redundant,
 	bool*			blob_prefix,
-	unsigned*		zip_ssize,
+	ulint*			zip_ssize,
 	bool			is_implicit)
 {
 	bool	is_temporary = false;
@@ -973,7 +973,7 @@ format_validate(
 
 	/* 1+log2(compressed_page_size), or 0 if not compressed */
 	*zip_ssize			= 0;
-	const unsigned	zip_ssize_max	= std::min(
+	const ulint	zip_ssize_max	= std::min(
 		(ulint)UNIV_PAGE_SSIZE_MAX, (ulint)PAGE_ZIP_SSIZE_MAX);
 	const char*	zip_refused	= zip_allowed
 		? nullptr
@@ -982,7 +982,7 @@ format_validate(
 		: "innodb_page_size>16k";
 	bool		invalid		= false;
 
-	if (unsigned key_block_size = m_form->s->key_block_size) {
+	if (auto key_block_size = m_form->s->key_block_size) {
 		unsigned	valid_zssize = 0;
 		char		kbs[MY_INT32_NUM_DECIMAL_DIGITS
 				    + sizeof "KEY_BLOCK_SIZE=" + 1];
@@ -1488,7 +1488,8 @@ dd_write_tablespace(
 {
 	dd::Properties& p = dd_space->se_private_data();
 	p.set_uint32(dd_space_key_strings[DD_SPACE_ID], tablespace.space_id());
-	p.set_uint32(dd_space_key_strings[DD_SPACE_FLAGS], tablespace.flags());
+	p.set_uint32(dd_space_key_strings[DD_SPACE_FLAGS],
+		     static_cast<uint32>(tablespace.flags()));
 }
 
 /** Add fts doc id column and index to new table
@@ -2151,9 +2152,9 @@ dd_fill_dict_table(
 
 	const unsigned	n_cols = n_mysql_cols + add_doc_id;
 
-	bool		is_redundant;
-	bool		blob_prefix;
-	unsigned	zip_ssize;
+	bool	is_redundant;
+	bool	blob_prefix;
+	ulint	zip_ssize;
 
 	/* Validate the table format options */
 	if (format_validate(m_thd, m_form, zip_allowed, strict,
@@ -2255,8 +2256,7 @@ dd_fill_dict_table(
 	/* Fill out each column info */
 	for (unsigned i = 0; i < n_mysql_cols; i++) {
 		const Field*	field = m_form->field[i];
-		unsigned	mtype;
-		unsigned	prtype = 0;
+		ulint		prtype = 0;
 		unsigned	col_len = field->pack_length();
 
 		/* The MySQL type code has to fit in 8 bits
@@ -2271,7 +2271,7 @@ dd_fill_dict_table(
 		ulint	binary_type;
 		ulint	long_true_varchar;
 		ulint	charset_no;
-		mtype = get_innobase_type_from_mysql_type(
+		ulint	mtype = get_innobase_type_from_mysql_type(
 			&unsigned_type, field);
 
 		nulls_allowed = field->real_maybe_null() ? 0 : DATA_NOT_NULL;
@@ -2412,7 +2412,8 @@ create_dd_tablespace(
 	dd::Properties& p       = dd_space->se_private_data();
 	p.set_uint32(dd_space_key_strings[DD_SPACE_ID],
 		     static_cast<uint32>(space_id));
-	p.set_uint32(dd_space_key_strings[DD_SPACE_FLAGS], flags);
+	p.set_uint32(dd_space_key_strings[DD_SPACE_FLAGS],
+		     static_cast<uint32>(flags));
 	dd::Tablespace_file*    dd_file = dd_space->add_file();
 	dd_file->set_filename(filename);
 

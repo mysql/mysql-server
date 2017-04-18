@@ -1043,7 +1043,7 @@ ha_innobase::prepare_inplace_alter_table(
 	    && innobase_need_rebuild(ha_alter_info)) {
 		ut_ad(!m_prebuilt->table->is_temporary());
 		my_error(ER_NOT_ALLOWED_COMMAND, MYF(0));
-		DBUG_RETURN(HA_ERR_UNSUPPORTED);
+		DBUG_RETURN(true);
 	}
 
 	if (altered_table->found_next_number_field != NULL) {

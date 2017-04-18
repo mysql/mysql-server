@@ -1564,7 +1564,7 @@ row_ins_check_foreign_constraint(
 	dberr_t		err;
 	upd_node_t*	upd_node;
 	dict_table_t*	check_table = nullptr;
-	dict_index_t*	check_index;
+	dict_index_t*	check_index = nullptr;
 	ulint		n_fields_cmp;
 	btr_pcur_t	pcur;
 	int		cmp;

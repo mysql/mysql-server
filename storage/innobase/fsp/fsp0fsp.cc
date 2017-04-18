@@ -911,7 +911,7 @@ fsp_header_get_encryption_offset(
 @return true if success. */
 bool
 fsp_header_write_encryption(
-	ulint			space_id,
+	space_id_t		space_id,
 	ulint			space_flags,
 	byte*			encrypt_info,
 	bool			update_fsp_flags,

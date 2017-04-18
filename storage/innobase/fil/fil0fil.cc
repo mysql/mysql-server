@@ -7725,7 +7725,7 @@ Fil_Open::write(
 			fflush(fp);
 			DBUG_SUICIDE(););
 
-		int	ret = fwrite(header, sizeof(header), 1, fp);
+		size_t	ret = fwrite(header, sizeof(header), 1, fp);
 
 		if (ret != 1) {
 
@@ -7936,11 +7936,12 @@ Fil_Open::to_file()
 	const std::string&	data = os.str();
 
 	/* See compress2() man page for the magic number 9. */
-	uLongf	zlen = compressBound(data.length());
+	uLongf	zlen = compressBound(static_cast<uLong>(data.length()));
 	auto	dst = static_cast<byte*>(ut_malloc_nokey(zlen));
 	auto	src = reinterpret_cast<const Bytef*>(data.c_str());
 
-	switch(compress2(dst, &zlen, src, data.length(), 6)) {
+	switch(compress2(dst, &zlen, src,
+			 static_cast<uLong>(data.length()), 6)) {
 	case Z_BUF_ERROR:
 		ib::fatal() << "Compression failed, Z_BUF_ERROR";
 		break;
@@ -8156,7 +8157,7 @@ Fil_Open::from_file(bool recovery)
 		/* Get the file size. */
 		ifs.seekg (0, ifs.end);
 
-		int	n_bytes = ifs.tellg();
+		std::streampos	n_bytes = ifs.tellg();
 
 		ifs.seekg (0, ifs.beg);
 

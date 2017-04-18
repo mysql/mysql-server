@@ -68,9 +68,9 @@ int
 innobase_mysql_cmp(
 	ulint		prtype,
 	const byte*	a,
-	unsigned int	a_length,
+	size_t		a_length,
 	const byte*	b,
-	unsigned int	b_length)
+	size_t		b_length)
 {
 #ifdef UNIV_DEBUG
 	switch (prtype & DATA_MYSQL_TYPE_MASK) {

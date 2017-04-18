@@ -1008,7 +1008,7 @@ log_group_file_header_flush(
 bool
 log_read_encryption()
 {
-	ulint		log_space_id = dict_sys_t::log_space_first_id;
+	space_id_t	log_space_id = dict_sys_t::log_space_first_id;
 	const page_id_t	page_id(log_space_id, 0);
 	byte*		log_block_buf_ptr;
 	byte*		log_block_buf;
