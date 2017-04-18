@@ -1229,24 +1229,6 @@ TupTriggerData_pool c_triggerPool;
       Uint32 m_table;
       Uint32 m_type_length; // 16 bit type, 16 bit length
     };
-
-    struct AllocExtent
-    {
-      Uint32 m_table;
-      Uint32 m_fragment;
-      Uint32 m_page_no;
-      Uint32 m_file_no;
-      Uint32 m_type_length;
-    };
-
-    struct FreeExtent
-    {
-      Uint32 m_table;
-      Uint32 m_fragment;
-      Uint32 m_page_no;
-      Uint32 m_file_no;
-      Uint32 m_type_length;
-    };
   };
   
   Extent_info_pool c_extent_pool;
