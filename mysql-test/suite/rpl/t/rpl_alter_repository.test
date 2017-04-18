@@ -262,7 +262,7 @@ perl;
   use strict;
   my $outf= $ENV{'OUTF'} or die "OUTF not set";
   open(FILE, "$outf") or die("Unable to open $outf: $!\n");
-  my $count = () = grep(/CREATE TABLE `slave_master_info`/gi,<FILE>);
+  my $count = () = grep(/CREATE TABLE IF NOT EXISTS `slave_master_info`/gi,<FILE>);
   print "- Occurrences: $count\n";
   close(FILE);
 EOF
