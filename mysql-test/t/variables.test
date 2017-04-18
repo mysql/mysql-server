@@ -1733,9 +1733,11 @@ SET @@session.relay_log_basename= 'x';
 SET @@global.relay_log_basename= 'x';
 #
 --echo #
+--replace_column 2 #
 SHOW VARIABLES like 'log_bin_basename';
 --error ER_INCORRECT_GLOBAL_LOCAL_VAR
 SELECT @@session.log_bin_basename;
+--replace_column 2 #
 SELECT @@global.log_bin_basename;
 --error ER_INCORRECT_GLOBAL_LOCAL_VAR
 SET @@session.log_bin_basename= 'x';
@@ -1755,9 +1757,11 @@ SET @@session.relay_log_index= 'x';
 SET @@global.relay_log_index= 'x';
 #
 --echo #
+--replace_column 2 #
 SHOW VARIABLES like 'log_bin_index';
 --error ER_INCORRECT_GLOBAL_LOCAL_VAR
 SELECT @@session.log_bin_index;
+--replace_column 2 #
 SELECT @@global.log_bin_index;
 --error ER_INCORRECT_GLOBAL_LOCAL_VAR
 SET @@session.log_bin_index= 'x';

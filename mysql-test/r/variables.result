@@ -1897,12 +1897,12 @@ ERROR HY000: Variable 'relay_log_basename' is a read only variable
 #
 SHOW VARIABLES like 'log_bin_basename';
 Variable_name	Value
-log_bin_basename	
+log_bin_basename	#
 SELECT @@session.log_bin_basename;
 ERROR HY000: Variable 'log_bin_basename' is a GLOBAL variable
 SELECT @@global.log_bin_basename;
 @@global.log_bin_basename
-NULL
+/home/parakh/mysql-git/mysql-trunk-wl10185/mysql-test/var/mysqld.1/data/0
 SET @@session.log_bin_basename= 'x';
 ERROR HY000: Variable 'log_bin_basename' is a read only variable
 SET @@global.log_bin_basename= 'x';
@@ -1923,12 +1923,12 @@ ERROR HY000: Variable 'relay_log_index' is a read only variable
 #
 SHOW VARIABLES like 'log_bin_index';
 Variable_name	Value
-log_bin_index	
+log_bin_index	#
 SELECT @@session.log_bin_index;
 ERROR HY000: Variable 'log_bin_index' is a GLOBAL variable
 SELECT @@global.log_bin_index;
 @@global.log_bin_index
-NULL
+/home/parakh/mysql-git/mysql-trunk-wl10185/mysql-test/var/mysqld.1/data/0.index
 SET @@session.log_bin_index= 'x';
 ERROR HY000: Variable 'log_bin_index' is a read only variable
 SET @@global.log_bin_index= 'x';
