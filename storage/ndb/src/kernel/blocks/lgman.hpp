@@ -212,6 +212,7 @@ public:
     Uint64 m_next_lsn;
     Uint64 m_last_sync_req_lsn; // Outstanding
     Uint64 m_last_synced_lsn;   // 
+    Uint64 m_max_pre_sync_lsn;  // Max pre sync LSN received from LCP code
     Uint64 m_max_sync_req_lsn;  // User requested lsn
     union {
       Uint64 m_last_read_lsn;
@@ -432,6 +433,12 @@ public:
                Uint64,
                Request*,
                Uint32 flags);
+
+  /**
+   * Get the last lsn stored, also ensure that this lsn is
+   * stored next time we call sync_lsn from LCP code.
+   */
+  Uint64 pre_sync_lsn(Uint64 lsn);
 
   /**
    * Undolog entries

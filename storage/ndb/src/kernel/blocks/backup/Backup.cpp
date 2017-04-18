@@ -11377,7 +11377,7 @@ Backup::lcp_start_complete_processing(Signal *signal, BackupRecordPtr ptr)
     req.m_callback.m_callbackData = ptr.i;
     req.m_callback.m_callbackIndex = SYNC_LOG_LCP_LSN;
     Logfile_client lgman(this, c_lgman, 0);
-    ret = lgman.sync_lsn(signal, lcp_lsn, &req, 0);
+    ret = lgman.sync_lsn(signal, lcp_lsn, &req, 1);
     jamEntry();
   }
   switch (ret)

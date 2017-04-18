@@ -468,6 +468,12 @@ extern EventLogger * g_eventLogger;
  * 4) m_max_sync_req_lsn
  * This is the highest LSN which have been requested for sync to disk by a call
  * to sync_lsn.
+ * 5) m_max_pre_sync_lsn
+ *    Whenever we perform an LCP we will call pre_sync_lsn to check if the LSN
+ *    have already been flushed to disk. At the same time we will also ensure
+ *    that sync_lsn from LCP code will flush as much as possible when it is
+ *    necessary to flush. So next sync_lsn from LCP code will flush up to
+ *    maximum of the LSN provided in the previous calls to pre_sync_lsn.
  *
  * The condition:
  * m_next_lsn > m_max_sync_req_lsn >= m_last_sync_req_lsn >= m_last_synced_lsn
@@ -2002,6 +2008,7 @@ Lgman::Logfile_group::Logfile_group(const CreateFilegroupImplReq* req)
    */
   m_next_lsn = 0;
   m_last_synced_lsn = 0;
+  m_max_pre_sync_lsn = 0;
   m_last_sync_req_lsn = 0;
   m_max_sync_req_lsn = 0;
   m_last_read_lsn = 0;
@@ -2268,6 +2275,25 @@ Logfile_client::~Logfile_client()
     m_lgman->client_unlock(m_block, 0, m_client_block);
 }
 
+Uint64
+Logfile_client::pre_sync_lsn(Uint64 lsn)
+{
+  Ptr<Lgman::Logfile_group> ptr;
+  jamBlock(m_client_block);
+  if (m_lgman->m_logfile_group_list.first(ptr))
+  {
+    if (lsn > ptr.p->m_max_pre_sync_lsn)
+    {
+      jamBlock(m_client_block);
+      ptr.p->m_max_pre_sync_lsn = lsn;
+    }
+    return ptr.p->m_last_synced_lsn;
+  }
+  jamBlock(m_client_block);
+  m_lgman->block_require();
+  return Uint64(-1); //Will never reach this code
+}
+
 int
 Logfile_client::sync_lsn(Signal* signal, 
 			 Uint64 lsn, Request* req, Uint32 flags)
@@ -2276,6 +2302,11 @@ Logfile_client::sync_lsn(Signal* signal,
   if(m_lgman->m_logfile_group_list.first(ptr))
   {
     jamBlock(m_client_block);
+    if (((flags & 1) == 1) && lsn < ptr.p->m_max_pre_sync_lsn)
+    {
+      jamBlock(m_client_block);
+      lsn = ptr.p->m_max_pre_sync_lsn;
+    }
     if(ptr.p->m_last_synced_lsn >= lsn)
     {
       jamBlock(m_client_block);
