@@ -225,8 +225,7 @@ table_ees_by_account_by_error::rnd_pos(const void *pos)
 }
 
 int
-table_ees_by_account_by_error::index_init(uint idx MY_ATTRIBUTE((unused)),
-                                          bool)
+table_ees_by_account_by_error::index_init(uint idx MY_ATTRIBUTE((unused)), bool)
 {
   PFS_index_ees_by_account_by_error *result = NULL;
   DBUG_ASSERT(idx == 0);

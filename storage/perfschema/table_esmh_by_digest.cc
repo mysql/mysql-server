@@ -333,7 +333,7 @@ table_esmh_by_digest::read_row_values(TABLE *table,
     in the table.
   */
   DBUG_ASSERT(table->s->null_bytes == 1);
-  buf[0]= 0;
+  buf[0] = 0;
 
   for (; (f = *fields); fields++)
   {

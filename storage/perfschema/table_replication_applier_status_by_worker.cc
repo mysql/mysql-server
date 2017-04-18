@@ -126,8 +126,7 @@ static const TABLE_FIELD_TYPE field_types[]=
 /* clang-format on */
 
 TABLE_FIELD_DEF
-table_replication_applier_status_by_worker::m_field_def=
-{ 16, field_types };
+table_replication_applier_status_by_worker::m_field_def = {16, field_types};
 
 PFS_engine_table_share table_replication_applier_status_by_worker::m_share = {
   {C_STRING_WITH_LEN("replication_applier_status_by_worker")},
@@ -190,7 +189,7 @@ PFS_index_rpl_applier_status_by_worker_by_thread::match(Master_info *mi)
       /* MTS will have to check each channel worker for a match */
       else
       {
-        for (int index = mi->rli->get_worker_count()-1; index >= 0; index--)
+        for (int index = mi->rli->get_worker_count() - 1; index >= 0; index--)
         {
           Slave_worker *worker = mi->rli->get_worker(index);
           if (worker)
@@ -508,12 +507,13 @@ table_replication_applier_status_by_worker::make_row(Master_info *mi)
       m_row.last_error_message, temp_store, m_row.last_error_message_length);
 
     /** time in microsecond since epoch */
-    m_row.last_error_timestamp= (ulonglong)mi->rli->last_error().skr;
+    m_row.last_error_timestamp = (ulonglong)mi->rli->last_error().skr;
   }
 
   mysql_mutex_unlock(&mi->rli->err_lock);
 
-  populate_trx_info(mi->rli->get_last_processed_trx(), mi->rli->get_processing_trx());
+  populate_trx_info(mi->rli->get_last_processed_trx(),
+                    mi->rli->get_processing_trx());
 
   mysql_mutex_unlock(&mi->rli->data_lock);
 
@@ -560,9 +560,9 @@ table_replication_applier_status_by_worker::make_row(Slave_worker *w)
     m_row.service_state = PS_RPL_NO;
   }
 
-  m_row.last_error_number= (unsigned int) w->last_error().number;
-  m_row.last_error_message_length= 0;
-  m_row.last_error_timestamp= 0;
+  m_row.last_error_number = (unsigned int)w->last_error().number;
+  m_row.last_error_message_length = 0;
+  m_row.last_error_timestamp = 0;
 
   /** if error, set error message and timestamp */
   if (m_row.last_error_number)
@@ -574,7 +574,7 @@ table_replication_applier_status_by_worker::make_row(Slave_worker *w)
            m_row.last_error_message_length);
 
     /** time in microsecond since epoch */
-    m_row.last_error_timestamp= (ulonglong)w->last_error().skr;
+    m_row.last_error_timestamp = (ulonglong)w->last_error().skr;
   }
 
   mysql_mutex_lock(&w->data_lock);
@@ -593,26 +593,27 @@ table_replication_applier_status_by_worker::make_row(Slave_worker *w)
   @param[in] last_processed_trx information on the last processed transaction
   @param[in] processing_trx     information on the processing transaction
 */
-void table_replication_applier_status_by_worker
-     ::populate_trx_info(trx_monitoring_info* last_processed_trx,
-                         trx_monitoring_info* processing_trx)
+void
+table_replication_applier_status_by_worker::populate_trx_info(
+  trx_monitoring_info *last_processed_trx, trx_monitoring_info *processing_trx)
 {
-  last_processed_trx->copy_to_ps_table(m_row.last_applied_trx,
-                                       m_row.last_applied_trx_length,
-                                       m_row.last_applied_trx_original_commit_timestamp,
-                                       m_row.last_applied_trx_immediate_commit_timestamp,
-                                       m_row.last_applied_trx_start_apply_timestamp,
-                                       m_row.last_applied_trx_end_apply_timestamp,
-                                       global_sid_map);
+  last_processed_trx->copy_to_ps_table(
+    m_row.last_applied_trx,
+    m_row.last_applied_trx_length,
+    m_row.last_applied_trx_original_commit_timestamp,
+    m_row.last_applied_trx_immediate_commit_timestamp,
+    m_row.last_applied_trx_start_apply_timestamp,
+    m_row.last_applied_trx_end_apply_timestamp,
+    global_sid_map);
 
-  processing_trx->copy_to_ps_table(m_row.applying_trx,
-                                   m_row.applying_trx_length,
-                                   m_row.applying_trx_original_commit_timestamp,
-                                   m_row.applying_trx_immediate_commit_timestamp,
-                                   m_row.applying_trx_start_apply_timestamp,
-                                   global_sid_map);
+  processing_trx->copy_to_ps_table(
+    m_row.applying_trx,
+    m_row.applying_trx_length,
+    m_row.applying_trx_original_commit_timestamp,
+    m_row.applying_trx_immediate_commit_timestamp,
+    m_row.applying_trx_start_apply_timestamp,
+    global_sid_map);
 }
-
 
 int
 table_replication_applier_status_by_worker::read_row_values(
@@ -655,16 +656,19 @@ table_replication_applier_status_by_worker::read_row_values(
         set_field_ulong(f, m_row.last_error_number);
         break;
       case 5: /*last_error_message*/
-        set_field_varchar_utf8(f, m_row.last_error_message, m_row.last_error_message_length);
+        set_field_varchar_utf8(
+          f, m_row.last_error_message, m_row.last_error_message_length);
         break;
       case 6: /*last_error_timestamp*/
         set_field_timestamp(f, m_row.last_error_timestamp);
         break;
       case 7: /*last_applied_trx*/
-        set_field_char_utf8(f, m_row.last_applied_trx, m_row.last_applied_trx_length);
+        set_field_char_utf8(
+          f, m_row.last_applied_trx, m_row.last_applied_trx_length);
         break;
       case 8: /*last_applied_trx_original_commit_timestamp*/
-        set_field_timestamp(f, m_row.last_applied_trx_original_commit_timestamp);
+        set_field_timestamp(f,
+                            m_row.last_applied_trx_original_commit_timestamp);
         break;
       case 9: /*last_applied_trx_immediate_commit_timestamp*/
         set_field_timestamp(f,

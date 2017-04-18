@@ -73,13 +73,13 @@ struct st_row_worker
   char last_error_message[MAX_SLAVE_ERRMSG];
   uint last_error_message_length;
   ulonglong last_error_timestamp;
-  char last_applied_trx[Gtid::MAX_TEXT_LENGTH+1];
+  char last_applied_trx[Gtid::MAX_TEXT_LENGTH + 1];
   uint last_applied_trx_length;
   ulonglong last_applied_trx_original_commit_timestamp;
   ulonglong last_applied_trx_immediate_commit_timestamp;
   ulonglong last_applied_trx_start_apply_timestamp;
   ulonglong last_applied_trx_end_apply_timestamp;
-  char applying_trx[Gtid::MAX_TEXT_LENGTH+1];
+  char applying_trx[Gtid::MAX_TEXT_LENGTH + 1];
   uint applying_trx_length;
   ulonglong applying_trx_original_commit_timestamp;
   ulonglong applying_trx_immediate_commit_timestamp;

@@ -461,7 +461,8 @@ struct PFS_ALIGNED PFS_thread : PFS_connection_slice
   ulonglong m_thread_internal_id;
   /** Parent internal thread identifier. */
   ulonglong m_parent_thread_internal_id;
-  /** External (@code SHOW PROCESSLIST @endcode) thread identifier, not unique. */
+  /** External (@code SHOW PROCESSLIST @endcode) thread identifier, not unique.
+   */
   ulong m_processlist_id;
   /** External (Operating system) thread identifier, if any. */
   my_thread_os_id_t m_thread_os_id;

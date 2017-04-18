@@ -36,9 +36,7 @@
 
 THR_LOCK table_replication_applier_filters::m_table_lock;
 
-/*
-  numbers in varchar count utf8 characters.
-*/
+/* clang-format off */
 static const TABLE_FIELD_TYPE field_types[]=
 {
   {
@@ -77,15 +75,13 @@ static const TABLE_FIELD_TYPE field_types[]=
     {NULL, 0}
   }
 };
+/* clang-format on */
 
 TABLE_FIELD_DEF
-table_replication_applier_filters::m_field_def=
-{ 6, field_types };
+table_replication_applier_filters::m_field_def = {6, field_types};
 
-PFS_engine_table_share
-table_replication_applier_filters::m_share=
-{
-  { C_STRING_WITH_LEN("replication_applier_filters") },
+PFS_engine_table_share table_replication_applier_filters::m_share = {
+  {C_STRING_WITH_LEN("replication_applier_filters")},
   &pfs_readonly_acl,
   table_replication_applier_filters::create,
   NULL, /* write_row */
@@ -98,50 +94,52 @@ table_replication_applier_filters::m_share=
   false  /* perpetual */
 };
 
-PFS_engine_table* table_replication_applier_filters::create(void)
+PFS_engine_table *
+table_replication_applier_filters::create(void)
 {
   return new table_replication_applier_filters();
 }
 
-table_replication_applier_filters
-  ::table_replication_applier_filters()
+table_replication_applier_filters::table_replication_applier_filters()
   : PFS_engine_table(&m_share, &m_pos),
-    m_row_exists(false), m_pos(0), m_next_pos(0)
+    m_row_exists(false),
+    m_pos(0),
+    m_next_pos(0)
 {
 }
 
-table_replication_applier_filters
-  ::~table_replication_applier_filters()
+table_replication_applier_filters::~table_replication_applier_filters()
 {
 }
 
-void table_replication_applier_filters::reset_position(void)
+void
+table_replication_applier_filters::reset_position(void)
 {
-  m_pos.m_index= 0;
-  m_next_pos.m_index= 0;
+  m_pos.m_index = 0;
+  m_next_pos.m_index = 0;
 }
 
-
-ha_rows table_replication_applier_filters::get_row_count()
+ha_rows
+table_replication_applier_filters::get_row_count()
 {
   rpl_filter_map.rdlock();
-  uint count= rpl_filter_map.get_filter_count();
+  uint count = rpl_filter_map.get_filter_count();
   rpl_filter_map.unlock();
 
   return count;
 }
 
-
-int table_replication_applier_filters::rnd_next(void)
+int
+table_replication_applier_filters::rnd_next(void)
 {
-  int res= HA_ERR_END_OF_FILE;
-  Rpl_pfs_filter* rpl_pfs_filter= NULL;
+  int res = HA_ERR_END_OF_FILE;
+  Rpl_pfs_filter *rpl_pfs_filter = NULL;
 
   rpl_filter_map.wrlock();
   for (m_pos.set_at(&m_next_pos); res != 0; m_pos.next())
   {
     /* Get ith rpl_pfs_filter from rpl_filter_map. */
-    rpl_pfs_filter= rpl_filter_map.get_filter_at_pos(m_pos.m_index);
+    rpl_pfs_filter = rpl_filter_map.get_filter_at_pos(m_pos.m_index);
 
     if (rpl_pfs_filter == NULL)
     {
@@ -151,7 +149,7 @@ int table_replication_applier_filters::rnd_next(void)
     {
       make_row(rpl_pfs_filter);
       m_next_pos.set_after(&m_pos);
-      res= 0;
+      res = 0;
     }
   }
   rpl_filter_map.unlock();
@@ -159,59 +157,61 @@ int table_replication_applier_filters::rnd_next(void)
   return res;
 }
 
-
-int table_replication_applier_filters::rnd_pos(const void *pos)
+int
+table_replication_applier_filters::rnd_pos(const void *pos)
 {
-  Rpl_pfs_filter* rpl_pfs_filter= NULL;
-  int ret= HA_ERR_RECORD_DELETED;
+  Rpl_pfs_filter *rpl_pfs_filter = NULL;
+  int ret = HA_ERR_RECORD_DELETED;
 
   set_position(pos);
 
   rpl_filter_map.wrlock();
   /* Get ith rpl_pfs_filter from rpl_filter_map. */
-  rpl_pfs_filter= rpl_filter_map.get_filter_at_pos(m_pos.m_index - 1);
+  rpl_pfs_filter = rpl_filter_map.get_filter_at_pos(m_pos.m_index - 1);
   if (rpl_pfs_filter)
   {
     make_row(rpl_pfs_filter);
-    ret= 0;
+    ret = 0;
   }
   rpl_filter_map.unlock();
 
   return ret;
 }
 
-
-void table_replication_applier_filters::make_row(Rpl_pfs_filter* rpl_pfs_filter)
+void
+table_replication_applier_filters::make_row(Rpl_pfs_filter *rpl_pfs_filter)
 {
-  m_row_exists= false;
+  m_row_exists = false;
 
-  m_row.channel_name_length= strlen(rpl_pfs_filter->get_channel_name());
-  memcpy(m_row.channel_name, rpl_pfs_filter->get_channel_name(),
+  m_row.channel_name_length = strlen(rpl_pfs_filter->get_channel_name());
+  memcpy(m_row.channel_name,
+         rpl_pfs_filter->get_channel_name(),
          m_row.channel_name_length);
 
-  m_row.filter_name_length= strlen(rpl_pfs_filter->get_filter_name());
-  memcpy(m_row.filter_name, rpl_pfs_filter->get_filter_name(),
+  m_row.filter_name_length = strlen(rpl_pfs_filter->get_filter_name());
+  memcpy(m_row.filter_name,
+         rpl_pfs_filter->get_filter_name(),
          m_row.filter_name_length);
 
   if (!rpl_pfs_filter->get_filter_rule().is_empty())
     m_row.filter_rule.copy(rpl_pfs_filter->get_filter_rule());
 
-  m_row.configured_by=
+  m_row.configured_by =
     rpl_pfs_filter->m_rpl_filter_statistics.get_configured_by();
 
-  m_row.active_since=
+  m_row.active_since =
     rpl_pfs_filter->m_rpl_filter_statistics.get_active_since();
 
-  m_row.counter= rpl_pfs_filter->m_rpl_filter_statistics.get_counter();
+  m_row.counter = rpl_pfs_filter->m_rpl_filter_statistics.get_counter();
 
-  m_row_exists= true;
+  m_row_exists = true;
 }
 
-
-int table_replication_applier_filters::read_row_values(TABLE *table,
-                                                       unsigned char *buf,
-                                                       Field **fields,
-                                                       bool read_all)
+int
+table_replication_applier_filters::read_row_values(TABLE *table,
+                                                   unsigned char *buf,
+                                                   Field **fields,
+                                                   bool read_all)
 {
   Field *f;
 
@@ -220,13 +220,13 @@ int table_replication_applier_filters::read_row_values(TABLE *table,
 
   /* Set the null bits */
   DBUG_ASSERT(table->s->null_bytes == 0);
-  buf[0]= 0;
+  buf[0] = 0;
 
-  for (; (f= *fields) ; fields++)
+  for (; (f = *fields); fields++)
   {
     if (read_all || bitmap_is_set(table->read_set, f->field_index))
     {
-      switch(f->field_index)
+      switch (f->field_index)
       {
       case 0: /* channel_name */
         set_field_char_utf8(f, m_row.channel_name, m_row.channel_name_length);
@@ -236,8 +236,8 @@ int table_replication_applier_filters::read_row_values(TABLE *table,
         break;
       case 2: /* filter_rule */
         if (!m_row.filter_rule.is_empty())
-          set_field_longtext_utf8(f, m_row.filter_rule.ptr(),
-                                  m_row.filter_rule.length());
+          set_field_longtext_utf8(
+            f, m_row.filter_rule.ptr(), m_row.filter_rule.length());
         break;
       case 3: /* configured_by */
         set_field_enum(f, m_row.configured_by);

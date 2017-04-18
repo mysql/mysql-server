@@ -187,7 +187,7 @@ static const TABLE_FIELD_TYPE field_types[]=
 /* clang-format on */
 
 TABLE_FIELD_DEF
-table_replication_connection_status::m_field_def= { 20, field_types };
+table_replication_connection_status::m_field_def = {20, field_types};
 
 PFS_engine_table_share table_replication_connection_status::m_share = {
   {C_STRING_WITH_LEN("replication_connection_status")},
@@ -472,24 +472,24 @@ table_replication_connection_status::make_row(Master_info *mi)
     }
   }
 
-  m_row.count_received_heartbeats= mi->received_heartbeats;
+  m_row.count_received_heartbeats = mi->received_heartbeats;
   // Time in microseconds since epoch.
-  m_row.last_heartbeat_timestamp= (ulonglong)mi->last_heartbeat;
+  m_row.last_heartbeat_timestamp = (ulonglong)mi->last_heartbeat;
 
   {
-    const Gtid_set* io_gtid_set= mi->rli->get_gtid_set();
-    Checkable_rwlock *sid_lock= mi->rli->get_sid_lock();
+    const Gtid_set *io_gtid_set = mi->rli->get_gtid_set();
+    Checkable_rwlock *sid_lock = mi->rli->get_sid_lock();
 
     sid_lock->wrlock();
-    m_row.received_transaction_set_length=
+    m_row.received_transaction_set_length =
       io_gtid_set->to_string(&m_row.received_transaction_set);
     sid_lock->unlock();
 
     if (m_row.received_transaction_set_length < 0)
     {
       my_free(m_row.received_transaction_set);
-      m_row.received_transaction_set_length= 0;
-      error= true;
+      m_row.received_transaction_set_length = 0;
+      error = true;
       goto end;
     }
   }
@@ -510,25 +510,27 @@ table_replication_connection_status::make_row(Master_info *mi)
       m_row.last_error_message, temp_store, m_row.last_error_message_length);
 
     // Time in microsecond since epoch
-    m_row.last_error_timestamp= (ulonglong)mi->last_error().skr;
+    m_row.last_error_timestamp = (ulonglong)mi->last_error().skr;
   }
   mysql_mutex_unlock(&mi->rli->err_lock);
   mysql_mutex_unlock(&mi->err_lock);
 
-  mi->get_last_queued_trx()->copy_to_ps_table(m_row.last_queued_trx,
-                                              m_row.last_queued_trx_length,
-                                              m_row.last_queued_trx_original_commit_timestamp,
-                                              m_row.last_queued_trx_immediate_commit_timestamp,
-                                              m_row.last_queued_trx_start_queue_timestamp,
-                                              m_row.last_queued_trx_end_queue_timestamp,
-                                              mi->rli->get_sid_map());
+  mi->get_last_queued_trx()->copy_to_ps_table(
+    m_row.last_queued_trx,
+    m_row.last_queued_trx_length,
+    m_row.last_queued_trx_original_commit_timestamp,
+    m_row.last_queued_trx_immediate_commit_timestamp,
+    m_row.last_queued_trx_start_queue_timestamp,
+    m_row.last_queued_trx_end_queue_timestamp,
+    mi->rli->get_sid_map());
 
-  mi->get_queueing_trx()->copy_to_ps_table(m_row.queueing_trx,
-                                           m_row.queueing_trx_length,
-                                           m_row.queueing_trx_original_commit_timestamp,
-                                           m_row.queueing_trx_immediate_commit_timestamp,
-                                           m_row.queueing_trx_start_queue_timestamp,
-                                           mi->rli->get_sid_map());
+  mi->get_queueing_trx()->copy_to_ps_table(
+    m_row.queueing_trx,
+    m_row.queueing_trx_length,
+    m_row.queueing_trx_original_commit_timestamp,
+    m_row.queueing_trx_immediate_commit_timestamp,
+    m_row.queueing_trx_start_queue_timestamp,
+    mi->rli->get_sid_map());
 
 end:
   mysql_mutex_unlock(&mi->rli->data_lock);
@@ -618,13 +620,15 @@ table_replication_connection_status::read_row_values(
         set_field_timestamp(f, m_row.last_error_timestamp);
         break;
       case 11: /*last_queued_trx*/
-        set_field_char_utf8(f, m_row.last_queued_trx, m_row.last_queued_trx_length);
+        set_field_char_utf8(
+          f, m_row.last_queued_trx, m_row.last_queued_trx_length);
         break;
       case 12: /*last_queued_trx_original_commit_timestamp*/
         set_field_timestamp(f, m_row.last_queued_trx_original_commit_timestamp);
         break;
       case 13: /*last_queued_trx_immediate_commit_timestamp*/
-        set_field_timestamp(f, m_row.last_queued_trx_immediate_commit_timestamp);
+        set_field_timestamp(f,
+                            m_row.last_queued_trx_immediate_commit_timestamp);
         break;
       case 14: /*last_queued_trx_start_queue_timestamp*/
         set_field_timestamp(f, m_row.last_queued_trx_start_queue_timestamp);

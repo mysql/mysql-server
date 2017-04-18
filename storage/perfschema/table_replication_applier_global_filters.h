@@ -14,7 +14,6 @@
   along with this program; if not, write to the Free Software
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-
 #ifndef TABLE_REPLICATION_APPLIER_DEFAULT_FILTERS_H
 #define TABLE_REPLICATION_APPLIER_DEFAULT_FILTERS_H
 
@@ -35,7 +34,8 @@
 #include "table_helper.h"
 
 /** A row in the table */
-struct st_row_applier_global_filters {
+struct st_row_applier_global_filters
+{
   /*
     REPLICATE_DO_DB, REPLICATE_IGNORE_DB, REPLICATE_DO_TABLE,
     REPLICATE_IGNORE_TABLE, REPLICATE_WILD_DO_TABLE,
@@ -64,7 +64,7 @@ struct st_row_applier_global_filters {
 };
 
 /** Table PERFORMANCE_SCHEMA.replication_applier_global_filters */
-class table_replication_applier_global_filters: public PFS_engine_table
+class table_replication_applier_global_filters : public PFS_engine_table
 {
 private:
   /**
@@ -72,7 +72,7 @@ private:
 
     @param rpl_pfs_filter a pointer to a Rpl_pfs_filter object.
   */
-  void make_row(Rpl_pfs_filter* rpl_pfs_filter);
+  void make_row(Rpl_pfs_filter *rpl_pfs_filter);
 
   /** Table share lock. */
   static THR_LOCK m_table_lock;
@@ -109,7 +109,7 @@ public:
 
   /** Table share. */
   static PFS_engine_table_share m_share;
-  static PFS_engine_table* create();
+  static PFS_engine_table *create();
   /**
     Get the table count.
 
