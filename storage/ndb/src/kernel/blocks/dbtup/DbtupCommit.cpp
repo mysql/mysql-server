@@ -243,7 +243,8 @@ Dbtup::dealloc_tuple(Signal* signal,
 		   &disk,
                    tmpptr,
                    gci_hi,
-                   &rowid);
+                   &rowid,
+                   regOperPtr->m_undo_buffer_space);
   }
   
   if (! (bits & (Tuple_header::LCP_SKIP |
@@ -680,7 +681,8 @@ Dbtup::commit_operation(Signal* signal,
                       &key,
                       diskPagePtr,
                       gci_hi,
-                      &rowid);
+                      &rowid,
+                      regOperPtr->m_undo_buffer_space);
     }
     
     if(regTabPtr->m_attributes[DD].m_no_of_varsize == 0)
@@ -708,7 +710,8 @@ Dbtup::commit_operation(Signal* signal,
                               dst,
                               sz,
                               gci_hi,
-                              logfile_group_id);
+                              logfile_group_id,
+                              regOperPtr->m_undo_buffer_space);
       DEB_PGMAN(("disk_page_undo_update: page(%u,%u,%u).%u, LSN(%u,%u), gci: %u",
                 instance(),
                 key.m_file_no,

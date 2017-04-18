@@ -276,7 +276,8 @@ private:
    *   2) free_log_space
    */
   int alloc_log_space(Uint32 logfile_ref,
-                      Uint32 words,
+                      Uint32 & words,
+                      bool add_extra_words,
                       EmulatedJamBuffer *jamBuf);
   int free_log_space(Uint32 logfile_ref,
                       Uint32 words,
@@ -441,8 +442,8 @@ public:
     Uint32 len;
   };
 
-  Uint64 add_entry_simple(const Change*, Uint32 cnt);
-  Uint64 add_entry_complex(const Change*, Uint32 cnt, bool);
+  Uint64 add_entry_simple(const Change*, Uint32 cnt, Uint32 alloc_size);
+  Uint64 add_entry_complex(const Change*, Uint32 cnt, bool, Uint32 alloc_size);
 
   /**
    * Check for space in log buffer
@@ -454,10 +455,12 @@ public:
   int get_log_buffer(Signal*, Uint32 sz, SimulatedBlock::CallbackPtr*);
 
   int alloc_log_space(Uint32 words,
+                      bool add_extra_words,
                       EmulatedJamBuffer *jamBuf)
   {
     return m_lgman->alloc_log_space(m_logfile_group_id,
                                     words,
+                                    add_extra_words,
                                     jamBuf);
   }
 
