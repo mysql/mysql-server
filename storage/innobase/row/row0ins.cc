@@ -2653,8 +2653,8 @@ row_ins_clust_index_entry_low(
 	mtr_t		mtr;
 	AutoIncLogMtr	autoinc_mtr(&mtr);
 	mem_heap_t*	offsets_heap	= NULL;
-	ulint           offsets_[REC_OFFS_NORMAL_SIZE];
-	ulint*          offsets         = offsets_;
+	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
+	ulint*		offsets		= offsets_;
 	rec_offs_init(offsets_);
 
 	DBUG_ENTER("row_ins_clust_index_entry_low");
@@ -2924,8 +2924,8 @@ row_ins_sorted_clust_index_entry(
 	const bool	commit_mtr	= mode == BTR_MODIFY_TREE;
 
 	mem_heap_t*	offsets_heap	= NULL;
-	ulint           offsets_[REC_OFFS_NORMAL_SIZE];
-	ulint*          offsets         = offsets_;
+	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
+	ulint*		offsets		= offsets_;
 	rec_offs_init(offsets_);
 
 	DBUG_ENTER("row_ins_sorted_clust_index_entry");
@@ -3131,8 +3131,8 @@ row_ins_sec_index_entry_low(
 	dberr_t		err		= DB_SUCCESS;
 	ulint		n_unique;
 	mtr_t		mtr;
-	ulint           offsets_[REC_OFFS_NORMAL_SIZE];
-	ulint*          offsets         = offsets_;
+	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
+	ulint*		offsets		= offsets_;
 	rec_offs_init(offsets_);
 	rtr_info_t	rtr_info;
 
@@ -3599,8 +3599,8 @@ row_ins_sec_index_entry(
 		ut_ad(thr_get_trx(thr)->id != 0);
 
 		flags = index->table->is_temporary()
-                        ? BTR_NO_LOCKING_FLAG
-                        : 0;
+			? BTR_NO_LOCKING_FLAG
+			: 0;
 		/* For intermediate table during copy alter table,
 		skip the undo log and record lock checking for
 		insertion operation. */

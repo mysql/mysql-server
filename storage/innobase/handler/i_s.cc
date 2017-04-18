@@ -3103,7 +3103,7 @@ i_s_fts_index_table_fill_selected(
 	fetch.total_memory = 0;
 
 	DBUG_EXECUTE_IF("fts_instrument_result_cache_limit",
-	        fts_result_cache_limit = 8192;
+		fts_result_cache_limit = 8192;
 	);
 
 	trx = trx_allocate_for_background();
@@ -3551,7 +3551,7 @@ static const char* fts_config_key[] = {
 	FTS_SYNCED_DOC_ID,
 	FTS_STOPWORD_TABLE_NAME,
 	FTS_USE_STOPWORD,
-        NULL
+	NULL
 };
 
 /*******************************************************************//**
@@ -3652,10 +3652,10 @@ i_s_fts_config_fill(
 		}
 
 		OK(field_store_string(
-                        fields[FTS_CONFIG_KEY], fts_config_key[i]));
+			fields[FTS_CONFIG_KEY], fts_config_key[i]));
 
 		OK(field_store_string(
-                        fields[FTS_CONFIG_VALUE], (const char*) value.f_str));
+			fields[FTS_CONFIG_VALUE], (const char*) value.f_str));
 
 		OK(schema_table_store_record(thd, table));
 
@@ -7922,8 +7922,8 @@ static ST_FIELD_INFO	innodb_sys_tablespaces_fields_info[] =
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONGLONG),
 	 STRUCT_FLD(value,		0),
 	 STRUCT_FLD(field_flags,	MY_I_S_UNSIGNED),
-	 STRUCT_FLD(old_name,           ""),
-	 STRUCT_FLD(open_method,        SKIP_OPEN_TABLE)},
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
 	END_OF_ST_FIELD_INFO
 

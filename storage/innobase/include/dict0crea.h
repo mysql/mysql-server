@@ -355,21 +355,21 @@ dict_create_v_col_pos(
 
 /** Get the column number for a virtual column (the column position in
 original table), stored in the "POS" field of Sys_columns
-@param[in]      pos             virtual column position
+@param[in]	pos		virtual column position
 @return column position in original table */
 UNIV_INLINE
 ulint
 dict_get_v_col_mysql_pos(
-        ulint   pos);
+	ulint	pos);
 
 /** Get a virtual column sequence (the "nth" virtual column) for a
 virtual column, stord in the "POS" field of Sys_columns
-@param[in]      pos             virtual column position
+@param[in]	pos		virtual column position
 @return virtual column sequence */
 UNIV_INLINE
 ulint
 dict_get_v_col_pos(
-        ulint   pos);
+	ulint	pos);
 
 /* Index create node states */
 #define	INDEX_BUILD_INDEX_DEF	1

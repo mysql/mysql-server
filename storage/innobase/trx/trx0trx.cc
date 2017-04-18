@@ -825,7 +825,7 @@ trx_resurrect_locks()
 }
 
 /****************************************************************//**
-Resurrect the transactions that were doing inserts the time of the
+Resurrect the transactions that were doing inserts at the time of the
 crash, they need to be undone.
 @return trx_t instance */
 static

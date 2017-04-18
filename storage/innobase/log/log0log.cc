@@ -1462,8 +1462,8 @@ log_write_up_to(
 #ifdef UNIV_DEBUG
 	ulint		loop_count	= 0;
 #endif /* UNIV_DEBUG */
-	byte*           write_buf;
-	lsn_t           write_lsn;
+	byte*	write_buf;
+	lsn_t	write_lsn;
 
 	ut_ad(!srv_read_only_mode);
 

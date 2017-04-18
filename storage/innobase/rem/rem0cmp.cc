@@ -395,7 +395,7 @@ cmp_whole_field(
 	case DATA_MYSQL:
 		cmp = innobase_mysql_cmp(prtype,
 					 a, a_length, b, b_length);
-                break;
+		break;
 	case DATA_POINT:
 	case DATA_VAR_POINT:
 	case DATA_GEOMETRY:
@@ -403,7 +403,7 @@ cmp_whole_field(
 				b_length));
 	default:
 		ib::fatal() << "Unknown data type number " << mtype;
-                cmp = 0;
+		cmp = 0;
 	}
 	if (!is_asc) {
 		cmp = -cmp;
@@ -803,8 +803,8 @@ cmp_get_pad_char(
 		strings, and starting from 5.0.3, also for TEXT strings. */
 		return(0x20);
 	case DATA_GEOMETRY:
-                /* DATA_GEOMETRY is binary data, not ASCII-based. */
-	        return(ULINT_UNDEFINED);
+		/* DATA_GEOMETRY is binary data, not ASCII-based. */
+		return(ULINT_UNDEFINED);
 	case DATA_BLOB:
 		if (!(type->prtype & DATA_BINARY_TYPE)) {
 			return(0x20);

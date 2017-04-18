@@ -254,13 +254,13 @@ void
 ib_wake_master_thread(void)
 /*=======================*/
 {
-        static ulint    ib_signal_counter = 0;
+	static ulint	ib_signal_counter = 0;
 
-        ++ib_signal_counter;
+	++ib_signal_counter;
 
-        if ((ib_signal_counter % INNOBASE_WAKE_INTERVAL) == 0) {
-                srv_active_wake_master_thread();
-        }
+	if ((ib_signal_counter % INNOBASE_WAKE_INTERVAL) == 0) {
+		srv_active_wake_master_thread();
+	}
 }
 
 /*****************************************************************//**
@@ -659,8 +659,8 @@ ib_trx_rollback(
 
 	err = static_cast<ib_err_t>(trx_rollback_for_mysql(trx));
 
-        /* It should always succeed */
-        ut_a(err == DB_SUCCESS);
+	/* It should always succeed */
+	ut_a(err == DB_SUCCESS);
 
 	return(err);
 }
@@ -1036,9 +1036,9 @@ ib_cursor_new_trx(
 	ib_crsr_t	ib_crsr,	/*!< in/out: InnoDB cursor */
 	ib_trx_t	ib_trx)		/*!< in: transaction */
 {
-	ib_err_t        err = DB_SUCCESS;
-	ib_cursor_t*    cursor = (ib_cursor_t*) ib_crsr;
-	trx_t*          trx = (trx_t*) ib_trx;
+	ib_err_t	err = DB_SUCCESS;
+	ib_cursor_t*	cursor = (ib_cursor_t*) ib_crsr;
+	trx_t*		trx = (trx_t*) ib_trx;
 
 	row_prebuilt_t*	prebuilt = cursor->prebuilt;
 
@@ -1064,8 +1064,8 @@ ib_cursor_commit_trx(
 	ib_crsr_t	ib_crsr,	/*!< in/out: InnoDB cursor */
 	ib_trx_t	ib_trx)		/*!< in: transaction */
 {
-	ib_err_t        err = DB_SUCCESS;
-	ib_cursor_t*    cursor = (ib_cursor_t*) ib_crsr;
+	ib_err_t	err = DB_SUCCESS;
+	ib_cursor_t*	cursor = (ib_cursor_t*) ib_crsr;
 #ifdef UNIV_DEBUG
 	row_prebuilt_t*	prebuilt = cursor->prebuilt;
 
@@ -1705,7 +1705,7 @@ ib_cursor_delete_row(
 		ib_bool_t	page_format;
 		mtr_t		mtr;
 		rec_t*		copy = NULL;
-	        byte		ptr[UNIV_PAGE_SIZE_MAX];
+		byte		ptr[UNIV_PAGE_SIZE_MAX];
 
 		page_format = static_cast<ib_bool_t>(
 			dict_table_is_comp(index->table));
@@ -1872,20 +1872,20 @@ Move cursor to the next user record in the table.
 ib_err_t
 ib_cursor_next(
 /*===========*/
-        ib_crsr_t       ib_crsr)        /*!< in: InnoDB cursor instance */
+	ib_crsr_t	ib_crsr)	/*!< in: InnoDB cursor instance */
 {
-        ib_err_t	err;
-        ib_cursor_t*    cursor = (ib_cursor_t*) ib_crsr;
-        row_prebuilt_t* prebuilt = cursor->prebuilt;
+	ib_err_t	err;
+	ib_cursor_t*	cursor = (ib_cursor_t*) ib_crsr;
+	row_prebuilt_t* prebuilt = cursor->prebuilt;
 	byte		buf[UNIV_PAGE_SIZE_MAX];
 
-        /* We want to move to the next record */
-        dtuple_set_n_fields(prebuilt->search_tuple, 0);
+	/* We want to move to the next record */
+	dtuple_set_n_fields(prebuilt->search_tuple, 0);
 
-        err = static_cast<ib_err_t>(row_search_for_mysql(
+	err = static_cast<ib_err_t>(row_search_for_mysql(
 		buf, PAGE_CUR_G, prebuilt, 0, ROW_SEL_NEXT));
 
-        return(err);
+	return(err);
 }
 
 /*****************************************************************//**
@@ -2351,14 +2351,14 @@ Get a column name from the tuple.
 const char*
 ib_col_get_name(
 /*============*/
-	ib_crsr_t       ib_crsr,        /*!< in: InnoDB cursor instance */
+	ib_crsr_t	ib_crsr,	/*!< in: InnoDB cursor instance */
 	ib_ulint_t	i)		/*!< in: column index in tuple */
 {
 	const char*	name;
-	ib_cursor_t*    cursor = (ib_cursor_t*) ib_crsr;
+	ib_cursor_t*	cursor = (ib_cursor_t*) ib_crsr;
 	dict_table_t*	table = cursor->prebuilt->table;
-	dict_col_t*     col = table->get_col(i);
-	ulint           col_no = dict_col_get_no(col);
+	dict_col_t*	col = table->get_col(i);
+	ulint		col_no = dict_col_get_no(col);
 
 	name = table->get_col_name(col_no);
 
@@ -3841,7 +3841,7 @@ ib_memc_sdi_set(
 
 	if (err == DB_SUCCESS) {
 		err = ib_sdi_set(tablespace_id, &sk, sdi,
-			         *sdi_len, 1, trx);
+				 *sdi_len, 1, trx);
 	}
 
 	return(err);

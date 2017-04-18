@@ -423,8 +423,8 @@ dict_build_tablespace(
 	ut_ad(mutex_own(&dict_sys->mutex));
 	ut_ad(tablespace);
 
-        DBUG_EXECUTE_IF("out_of_tablespace_disk",
-                         return(DB_OUT_OF_FILE_SPACE););
+	DBUG_EXECUTE_IF("out_of_tablespace_disk",
+			return(DB_OUT_OF_FILE_SPACE););
 	/* Get a new space id. */
 	dict_hdr_get_new_id(NULL, NULL, &space, NULL, false);
 	if (space == SPACE_UNKNOWN) {

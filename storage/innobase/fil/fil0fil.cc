@@ -2823,7 +2823,7 @@ fil_rename_validate(fil_space_t* space, const char* name, Datafile& file)
 	ib::error()
 		<< "Cannot rename '" << name << "' to '" << file.filepath()
 		<< "'. The File '" << file.filepath() << " already exists on"
-	        << " disk. You will need to verify and move either file"
+		<< " disk. You will need to verify and move either file"
 		<< " manually and retry recovery!";
 
 	return(DB_ERROR);
@@ -3171,8 +3171,8 @@ fil_space_undo_check_if_opened(
 	}
 
 	/* NOTE: This check should be eliminated. It prevents the user from
-	moving tablespaces around. It doesn't really help, instead gets in
-	the way. */
+	moving undo tablespaces around. It doesn't really help, instead gets
+	in the way. */
 
 	/* The file_name that we opened before must be the same as what we
 	need to open now.  If not, maybe the srv_undo_dir has changed. */
@@ -8486,7 +8486,7 @@ fil_tablespace_open_for_recovery(
 			ib::error()
 				<< "Redo log refers to a system tablespace"
 				<< " file '" << path << "', which disagrees"
-			        << " with innodb_data_file_path or the"
+				<< " with innodb_data_file_path or the"
 				<< " directory settings. Check the startup"
 				<< " parameters or ignore this error by setting"
 				<< " --innodb-force-recovery.";

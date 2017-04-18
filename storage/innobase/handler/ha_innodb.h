@@ -351,7 +351,7 @@ public:
 
 	void init_table_handle_for_HANDLER();
 
-        virtual void get_auto_increment(
+	virtual void get_auto_increment(
 		ulonglong		offset,
 		ulonglong		increment,
 		ulonglong		nb_desired_values,
@@ -744,7 +744,7 @@ protected:
 	ulint			m_stored_select_lock_type;
 
 	/** If mysql has locked with external_lock() */
-	bool                    m_mysql_has_locked;
+	bool			m_mysql_has_locked;
 };
 
 struct trx_t;
@@ -998,9 +998,9 @@ public:
 	@param[in]	set_lower_case	True if we want to set name to lower
 					case. */
 	static void normalize_table_name_low(
-		char*           norm_name,
-		const char*     name,
-		ibool           set_lower_case);
+		char*		norm_name,
+		const char*	name,
+		ibool		set_lower_case);
 
 private:
 	/** Parses the table name into normal name and either temp path or
@@ -1230,8 +1230,8 @@ the table virtual columns' template
 @param[in,out]	ib_table	InnoDB dict_table_t */
 void
 innobase_build_v_templ_callback(
-        const TABLE*	table,
-        void*		ib_table);
+	const TABLE*	table,
+	void*		ib_table);
 
 /** Callback function definition, used by MySQL server layer to initialized
 the table virtual columns' template */

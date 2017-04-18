@@ -768,7 +768,6 @@ srv_undo_tablespace_open(space_id_t space_id)
 
 	/* Check if it was already opened during redo discovery.. */
 	err = fil_space_undo_check_if_opened(file_name, undo_name, space_id);
-
 	if (err != DB_TABLESPACE_NOT_FOUND) {
 		return(err);
 	}
@@ -982,7 +981,7 @@ srv_undo_tablespaces_create()
 		err = srv_undo_tablespace_create(space_id);
 		if (err != DB_SUCCESS) {
 			ib::info() << "Could not create undo tablespace"
-				"number " << num;
+				" number " << num;
 			break;
 		}
 

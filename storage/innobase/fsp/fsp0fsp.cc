@@ -1412,7 +1412,7 @@ fsp_init_xdes_free_frag(
 	xdes_t*		descr,
 	mtr_t*		mtr)
 {
-	ulint           n_used;
+	ulint		n_used;
 
 	/* The first page in the extent is a extent descriptor page
 	and the second is an ibuf bitmap page: mark them used */
@@ -1996,7 +1996,7 @@ fsp_free_extent(
 
 	case XDES_FREE:
 	case XDES_NOT_INITED:
-                ut_error;
+		ut_error;
 	}
 }
 
@@ -3041,7 +3041,7 @@ take_hinted_page:
 		} else if (xdes_get_state(ret_descr, mtr) == XDES_FSEG_FRAG) {
 			ret_page += xdes_find_bit(
 				ret_descr, XDES_FREE_BIT, TRUE, 0, mtr);
-                }
+		}
 
 		ut_ad(!has_done_reservation || ret_page != FIL_NULL);
 		/*-----------------------------------------------------------*/
@@ -4380,7 +4380,7 @@ fsp_check_tablespace_size(space_id_t space_id)
 
 	mtr_x_lock_space(space, &mtr);
 
-        const page_size_t       page_size(space->flags);
+	const page_size_t page_size(space->flags);
 
 	fsp_header_t* space_header = fsp_get_space_header(
 		space_id, page_size, &mtr);
@@ -4388,9 +4388,9 @@ fsp_check_tablespace_size(space_id_t space_id)
 	xdes_t* descr = xdes_get_descriptor_with_space_hdr(
 		space_header, space->id, 0, &mtr);
 
-        ulint	n_used = xdes_get_n_used(descr, &mtr);
-        ulint	size = mach_read_from_4(space_header + FSP_SIZE);
-        ut_a(n_used <= size);
+	ulint	n_used = xdes_get_n_used(descr, &mtr);
+	ulint	size = mach_read_from_4(space_header + FSP_SIZE);
+	ut_a(n_used <= size);
 
 	mtr_commit(&mtr);
 

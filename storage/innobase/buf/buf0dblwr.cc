@@ -181,6 +181,10 @@ buf_dblwr_create(void)
 	ulint		i;
 	mtr_t		mtr;
 
+	static const char* cannot_continue =
+		"Cannot create doublewrite buffer: you must increase"
+		" your buffer pool size. Cannot continue operation.";
+
 	if (buf_dblwr) {
 		/* Already inited */
 
@@ -213,9 +217,7 @@ start_again:
 		  + 100)
 		* UNIV_PAGE_SIZE);
 	if (buf_pool_get_curr_size() <  min_doublewrite_size) {
-		ib::error() << "Cannot create doublewrite buffer: you must"
-			" increase your buffer pool size. Cannot continue"
-			" operation.";
+		ib::error() << cannot_continue;
 
 		mtr_commit(&mtr);
 		buf_dblwr_being_created = FALSE;
@@ -232,9 +234,7 @@ start_again:
 	buf_block_dbg_add_level(block2, SYNC_NO_ORDER_CHECK);
 
 	if (block2 == NULL) {
-		ib::error() << "Cannot create doublewrite buffer: you must"
-			" increase your tablespace size."
-			" Cannot continue operation.";
+		ib::error() << cannot_continue;
 
 		/* We exit without committing the mtr to prevent
 		its modifications to the database getting to disk */
@@ -252,9 +252,7 @@ start_again:
 		new_block = fseg_alloc_free_page(
 			fseg_header, prev_page_no + 1, FSP_UP, &mtr);
 		if (new_block == NULL) {
-			ib::error() << "Cannot create doublewrite buffer: "
-				" you must increase your tablespace size."
-				" Cannot continue operation.";
+			ib::error() << cannot_continue;
 
 			mtr_commit(&mtr);
 			buf_dblwr_being_created = FALSE;

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -164,7 +164,7 @@ trx_rseg_get_on_id(
 
 	/*  MySQL versions before v5.7.2 used the first 32 slots in the
 	TRX_SYS page for redo rollback segments. v5.7.2 uses these seg_ids
-	for no-redo rollback segments in the temproary tablespace.
+	for no-redo rollback segments in the temporary tablespace.
 	v8 will once again use them for durable/redo rollback segments.
 	Upgrade from v5.7 to v8.0 requires empty UNDO logs. */
 	if (is_temp) {
@@ -205,4 +205,3 @@ trx_rseg_get_on_id(
 
 	return(nullptr);
 }
-

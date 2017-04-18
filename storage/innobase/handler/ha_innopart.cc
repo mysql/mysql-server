@@ -988,7 +988,7 @@ share_error:
 	}
 
 	if (!thd_tablespace_op(thd) && no_tablespace) {
-                set_my_errno(ENOENT);
+		set_my_errno(ENOENT);
 
 		lock_shared_ha_data();
 		m_part_share->close_table_parts(false);
@@ -4388,7 +4388,7 @@ ha_innopart::external_lock(
 	m_prebuilt->table = m_part_share->get_table_part(0);
 	error = ha_innobase::external_lock(thd, lock_type);
 
-        for (uint i = 0; i < m_tot_parts; i++) {
+	for (uint i = 0; i < m_tot_parts; i++) {
 		dict_table_t* table = m_part_share->get_table_part(i);
 
 		switch (table->quiesce) {

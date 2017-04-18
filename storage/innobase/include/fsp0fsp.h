@@ -736,7 +736,7 @@ bool
 fsp_is_system_or_temp_tablespace(space_id_t space_id)
 {
 	return(space_id == TRX_SYS_SPACE
-		|| fsp_is_system_temporary(space_id));
+	       || fsp_is_system_temporary(space_id));
 }
 
 /** Determine if the space ID is an IBD tablespace, either file_per_table
@@ -763,7 +763,7 @@ fsp_is_file_per_table(
 	ulint		fsp_flags)
 {
 	return(!fsp_is_shared_tablespace(fsp_flags)
-		&& fsp_is_ibd_tablespace(space_id));
+	       && fsp_is_ibd_tablespace(space_id));
 }
 
 /** Determine if the tablespace is compressed from tablespace flags.

@@ -415,7 +415,7 @@ dict_mem_foreign_fill_vcol_set(
 @param[in,out]	table	innodb table object. */
 void
 dict_mem_table_fill_foreign_vcol_set(
-        dict_table_t*	table);
+	dict_table_t*	table);
 
 /** Free the vcol_set from all foreign key constraint on the table.
 @param[in,out]	table	innodb table object. */
@@ -1625,13 +1625,13 @@ struct dict_table_t {
 	unsigned				n_t_cols:10;
 
 	/** Number of total columns defined so far. */
-	unsigned                                n_t_def:10;
+	unsigned				n_t_def:10;
 
 	/** Number of virtual columns defined so far. */
-	unsigned                                n_v_def:10;
+	unsigned				n_v_def:10;
 
 	/** Number of virtual columns. */
-	unsigned                                n_v_cols:10;
+	unsigned				n_v_cols:10;
 
 	/** TRUE if it's not an InnoDB system table or a table that has no FK
 	relationships. */
@@ -2274,7 +2274,7 @@ public:
 	@param[out]	metadata	metadata where we store the read data
 	@param[in]	buffer		buffer to read
 	@param[in]	size		size of buffer
-        @param[out]	corrupt		true if we found something wrong in
+	@param[out]	corrupt		true if we found something wrong in
 					the buffer except incomplete buffer,
 					otherwise false
 	@return the bytes we read from the buffer if the buffer data
@@ -2343,9 +2343,9 @@ class AutoIncPersister : public Persister {
 public:
 	/** Write the autoinc counter of a table, we can pre-calculate
 	the size by calling get_write_size()
-        @param[in]	metadata	persistent metadata
-        @param[out]	buffer		write buffer
-        @param[in]	size		size of write buffer, should be
+	@param[in]	metadata	persistent metadata
+	@param[out]	buffer		write buffer
+	@param[in]	size		size of write buffer, should be
 					at least get_write_size()
 	@return the length of bytes written */
 	ulint write(

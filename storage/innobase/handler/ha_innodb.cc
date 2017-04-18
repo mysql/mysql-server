@@ -4186,7 +4186,7 @@ innodb_init_params()
 	/* The default dir for data files is the datadir of MySQL */
 
 	srv_data_home = innobase_data_home_dir
-		? innobase_data_home_dir : default_path;
+			? innobase_data_home_dir : default_path;
 
 	if (srv_undo_dir == nullptr) {
 		srv_undo_dir = default_path;
@@ -4850,7 +4850,7 @@ innobase_init_files(
 		DBUG_RETURN(innodb_init_abort());
 	}
 
-	srv_is_upgrade_mode = dict_init_mode == DICT_INIT_UPGRADE_FILES;
+	srv_is_upgrade_mode = (dict_init_mode == DICT_INIT_UPGRADE_FILES);
 
 	err = srv_start(create, innobase_scan_directories);
 
@@ -12321,7 +12321,7 @@ innobase_dict_init(
 		"  database_name VARCHAR(64) NOT NULL, \n"
 		"  table_name VARCHAR(" NAME_CHAR_LEN_PARTITIONS_STR
 		") NOT NULL, \n"
-		"  last_update TIMESTAMP NOT NULL NOT NULL \n"
+		"  last_update TIMESTAMP NOT NULL \n"
 		"  DEFAULT CURRENT_TIMESTAMP \n"
 		"  ON UPDATE CURRENT_TIMESTAMP, \n"
 		"  n_rows BIGINT UNSIGNED NOT NULL, \n"

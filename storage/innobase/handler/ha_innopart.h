@@ -239,9 +239,9 @@ public:
 
 	/** Set up the virtual column template for partition table, and points
 	all m_table_parts[]->vc_templ to it.
-	@param[in]      table           MySQL TABLE object
-	@param[in]      ib_table        InnoDB dict_table_t
-	@param[in]      name		Table name (db/table_name) */
+	@param[in]	table		MySQL TABLE object
+	@param[in]	ib_table	InnoDB dict_table_t
+	@param[in]	name		Table name (db/table_name) */
 	void
 	set_v_templ(
 		TABLE*		table,
@@ -1442,7 +1442,7 @@ private:
 	@param[in,out]	swap_table	table to be exchanged
 	@return	error number
 	@retval	0	on success */
-        int exchange_partition_low(
+	int exchange_partition_low(
 		const char*	part_table_path,
 		const char*	swap_table_path,
 		uint		part_id,

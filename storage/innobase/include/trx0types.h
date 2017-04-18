@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -161,10 +161,8 @@ typedef byte	trx_usegf_t;
 typedef byte	trx_ulogf_t;
 /** Undo log page header */
 typedef byte	trx_upagef_t;
-
 /** Undo log record */
 typedef	byte	trx_undo_rec_t;
-
 /* @} */
 
 typedef ib_mutex_t RsegMutex;
