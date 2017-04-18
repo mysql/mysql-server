@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -152,6 +152,10 @@ void Mysqldump_tool_chain_maker_options::process_positional_options(
       "mysql", "general_log"));
     m_object_filter.m_tables_excluded.push_back(std::make_pair(
       "mysql", "slow_log"));
+    m_object_filter.m_tables_excluded.push_back(std::make_pair(
+      "mysql", "slave_master_info"));
+    m_object_filter.m_tables_excluded.push_back(std::make_pair(
+      "mysql", "slave_relay_log_info"));
     /*
       We filter out all the tables which store account and privilge
       information. ex: mysql.user, mysql.db, mysql.tables_priv,
