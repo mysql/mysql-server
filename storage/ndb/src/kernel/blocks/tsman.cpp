@@ -718,7 +718,7 @@ Tsman::execCREATE_FILE_IMPL_REQ(Signal* signal)
   client_unlock(number(), __LINE__);
 }
 
-static inline Uint64 DIV(Uint64 a, Uint64 b){ return (a + b - 1) / b;}
+static inline Uint64 DIV(Uint64 a, Uint64 b){ return (a + b - Uint64(1)) / b;}
 
 void
 Tsman::release_extent_pages(Signal* signal, Ptr<Datafile> ptr)
@@ -858,7 +858,7 @@ Tsman::calculate_extent_pages_in_file(Uint64 extents,
   ndbrequire(eh_words < File_formats::Datafile::extent_page_words(v2));
   Uint64 extents_per_page = (Uint64)
     File_formats::Datafile::extent_page_words(v2) / eh_words;
-  return (extents + extents_per_page - 1) / extents_per_page;
+  return (extents + extents_per_page - Uint64(1)) / extents_per_page;
 }
 
 int
@@ -942,11 +942,11 @@ Tsman::open_file(Signal* signal,
   req->file_size_hi = hi;
   req->file_size_lo = lo;
 
-  Uint64 pages = (Uint64(hi) << 32 | lo) / File_formats::NDB_PAGE_SIZE;
+  Uint64 pages = (Uint64(hi) << 32 | Uint64(lo)) / Uint64(File_formats::NDB_PAGE_SIZE);
   Uint32 extent_size = ts_ptr.p->m_extent_size; // Extent size in #pages
-  Uint64 extents = (pages + extent_size - 1) / extent_size;
-  extents = extents ? extents : 1;
-  Uint64 data_pages = extents * extent_size;
+  Uint64 extents = (pages + Uint64(extent_size) - Uint64(1)) / Uint64(extent_size);
+  extents = extents ? extents : Uint64(1);
+  Uint64 data_pages = extents * Uint64(extent_size);
 
   /**
    * We always calculate the file size by using the v1 format to ensure
@@ -956,7 +956,7 @@ Tsman::open_file(Signal* signal,
                                                        extent_size,
                                                        data_pages,
                                                        v2);
-  Uint64 tot_pages = 1 + extent_pages + data_pages;
+  Uint64 tot_pages = Uint64(1) + extent_pages + data_pages;
 
   // TODO check overflow in cast
   ptr.p->m_create.m_extent_pages = Uint32(extent_pages);
@@ -965,7 +965,7 @@ Tsman::open_file(Signal* signal,
   /**
    * Update file size
    */
-  Uint64 bytes = tot_pages * File_formats::NDB_PAGE_SIZE;
+  Uint64 bytes = tot_pages * Uint64(File_formats::NDB_PAGE_SIZE);
   hi = (Uint32)(bytes >> 32);
   lo = (Uint32)(bytes & 0xFFFFFFFF);
   req->file_size_hi = hi;
@@ -1202,8 +1202,10 @@ Tsman::execFSOPENCONF(Signal* signal)
     Uint64 file_size_lo = conf->file_size_lo;
     Uint64 file_size = (file_size_hi << 32) + file_size_lo;
     Uint64 calc_file_size =
-      (1 + ptr.p->m_create.m_data_pages + ptr.p->m_create.m_extent_pages) *
-      File_formats::NDB_PAGE_SIZE;
+      (Uint64(1) +
+       Uint64(ptr.p->m_create.m_data_pages) +
+       Uint64(ptr.p->m_create.m_extent_pages)) *
+      Uint64(File_formats::NDB_PAGE_SIZE);
     if (file_size != calc_file_size)
     {
       /**
@@ -1218,7 +1220,7 @@ Tsman::execFSOPENCONF(Signal* signal)
                                                            data_pages,
                                                            false);
       Uint64 calc_file_size_v1 =
-        (1 + data_pages + extent_pages) * File_formats::NDB_PAGE_SIZE;
+        (Uint64(1) + data_pages + extent_pages) * Uint64(File_formats::NDB_PAGE_SIZE);
       if (file_size == calc_file_size_v1)
       {
         jam();
