@@ -124,5 +124,40 @@ DROP DATABASE db1_1gb;
 --exec $MYSQL_PUMP --version 2>&1 > $MYSQLTEST_VARDIR/tmp/output_file.txt
 --remove_file $MYSQLTEST_VARDIR/tmp/output_file.txt
 
+#
+# Bug #25469190: MYSQLPUMP SHOULD EXCLUDE REPLICATION
+#                REPOSITORY METADATA TABLES
+#
+
+SHOW VARIABLES LIKE "master_info_repository";
+SHOW VARIABLES LIKE "relay_log_info_repository";
+
+SET GLOBAL master_info_repository= 'TABLE';
+SET GLOBAL relay_log_info_repository= 'TABLE';
+
+SHOW VARIABLES LIKE "master_info_repository";
+SHOW VARIABLES LIKE "relay_log_info_repository";
+
+--exec $MYSQL_PUMP --include-databases=mysql > $MYSQLTEST_VARDIR/tmp/bug25469190.sql
+
+# Search for mysql.slave_master_info in the dump file
+--let SEARCH_FILE= $MYSQLTEST_VARDIR/tmp/bug25469190.sql
+--let SEARCH_PATTERN= CREATE TABLE `mysql`.`slave_master_info`
+--source include/search_pattern.inc
+
+# Search for mysql.slave_relay_log_info in the dump file
+--let SEARCH_FILE= $MYSQLTEST_VARDIR/tmp/bug25469190.sql
+--let SEARCH_PATTERN= CREATE TABLE `mysql`.`slave_relay_log_info`
+--source include/search_pattern.inc
+
+SET GLOBAL master_info_repository= 'FILE';
+SET GLOBAL relay_log_info_repository= 'FILE';
+
+SHOW VARIABLES LIKE "master_info_repository";
+SHOW VARIABLES LIKE "relay_log_info_repository";
+
+# Cleanup
+--remove_file $SEARCH_FILE
+
 
 # END OF TEST
