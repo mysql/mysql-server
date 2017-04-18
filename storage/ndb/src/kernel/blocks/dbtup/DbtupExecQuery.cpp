@@ -1415,13 +1415,15 @@ int Dbtup::handleUpdateReq(Signal* signal,
       jam();
       operPtrP->op_struct.bit_field.m_wait_log_buffer = 1;
       operPtrP->op_struct.bit_field.m_load_diskpage_on_commit = 1;
-      Uint32 sz= operPtrP->m_undo_buffer_space= 
+      operPtrP->m_undo_buffer_space= 
 	(sizeof(Dbtup::Disk_undo::Update) >> 2) + sizes[DD] - 1;
 
       {
         D("Logfile_client - handleUpdateReq");
         Logfile_client lgman(this, c_lgman, regFragPtr->m_logfile_group_id);
-        terrorCode= lgman.alloc_log_space(sz, jamBuffer());
+        terrorCode= lgman.alloc_log_space(operPtrP->m_undo_buffer_space,
+                                          true,
+                                          jamBuffer());
       }
       if(unlikely(terrorCode))
       {
@@ -1993,6 +1995,7 @@ int Dbtup::handleInsertReq(Signal* signal,
       D("Logfile_client - handleInsertReq");
       Logfile_client lgman(this, c_lgman, regFragPtr->m_logfile_group_id);
       res= lgman.alloc_log_space(regOperPtr.p->m_undo_buffer_space,
+                                 true,
                                  jamBuffer());
     }
     if(unlikely(res))
@@ -2391,14 +2394,16 @@ int Dbtup::handleDeleteReq(Signal* signal,
     jam();
     regOperPtr->op_struct.bit_field.m_wait_log_buffer = 1;
     regOperPtr->op_struct.bit_field.m_load_diskpage_on_commit = 1;
-    Uint32 sz= regOperPtr->m_undo_buffer_space= 
+    regOperPtr->m_undo_buffer_space= 
       (sizeof(Dbtup::Disk_undo::Free) >> 2) + 
       regTabPtr->m_offsets[DD].m_fix_header_size - 1;
 
     {
       D("Logfile_client - handleDeleteReq");
       Logfile_client lgman(this, c_lgman, regFragPtr->m_logfile_group_id);
-      terrorCode= lgman.alloc_log_space(sz, jamBuffer());
+      terrorCode= lgman.alloc_log_space(regOperPtr->m_undo_buffer_space,
+                                        true,
+                                        jamBuffer());
     }
     if(unlikely(terrorCode))
     {
@@ -4718,7 +4723,7 @@ Dbtup::nr_delete(Signal* signal, Uint32 senderData,
     {
     D("Logfile_client - nr_delete");
     Logfile_client lgman(this, c_lgman, fragPtr.p->m_logfile_group_id);
-    res = lgman.alloc_log_space(sz, jamBuffer());
+    res = lgman.alloc_log_space(sz, false, jamBuffer());
     ndbrequire(res == 0);
     
     /**
@@ -4802,7 +4807,8 @@ Dbtup::nr_delete(Signal* signal, Uint32 senderData,
 		   &disk,
                    *(PagePtr*)&disk_page,
                    gci,
-                   key);
+                   key,
+                   sz);
     return 0;
   }
   
@@ -4861,7 +4867,8 @@ Dbtup::nr_delete_page_callback(Signal* signal,
 		 &op.m_disk_ref,
                  pagePtr,
                  op.m_gci_hi,
-                 &op.m_row_id);
+                 &op.m_row_id,
+                 sz);
   
   c_lqh->nr_delete_complete(signal, &op);
   return;
@@ -4884,6 +4891,9 @@ Dbtup::nr_delete_log_buffer_callback(Signal* signal,
   tablePtr.i = fragPtr.p->fragTableId;
   ptrCheckGuard(tablePtr, cnoOfTablerec, tablerec);
 
+  Uint32 sz = (sizeof(Dbtup::Disk_undo::Free) >> 2) + 
+    tablePtr.p->m_offsets[DD].m_fix_header_size - 1;
+  
   Ptr<GlobalPage> gpage;
   m_global_page_pool.getPtr(gpage, op.m_page_id);
   PagePtr pagePtr((Tup_page*)gpage.p, gpage.i);
@@ -4898,7 +4908,8 @@ Dbtup::nr_delete_log_buffer_callback(Signal* signal,
 		 &op.m_disk_ref,
                  pagePtr,
                  op.m_gci_hi,
-                 &op.m_row_id);
+                 &op.m_row_id,
+                 sz);
   
   c_lqh->nr_delete_complete(signal, &op);
 }

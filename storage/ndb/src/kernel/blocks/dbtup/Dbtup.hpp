@@ -3518,14 +3518,16 @@ private:
                        Local_key*,
                        PagePtr,
                        Uint32,
-                       const Local_key*);
+                       const Local_key*,
+                       Uint32 alloc_size);
   void disk_page_free(Signal*,
 		      Tablerec*,
                       Fragrecord*,
                       Local_key*,
                       PagePtr,
                       Uint32,
-                      const Local_key*);
+                      const Local_key*,
+                      Uint32 alloc_size);
   
   void disk_page_commit_callback(Signal*, Uint32 opPtrI, Uint32 page_id);  
   
@@ -3534,16 +3536,31 @@ private:
   void disk_page_alloc_extent_log_buffer_callback(Signal*, Uint32, Uint32);
   void disk_page_free_extent_log_buffer_callback(Signal*, Uint32, Uint32);
   
-  Uint64 disk_page_undo_alloc(Signal *signal, Page*, const Local_key*,
-			      Uint32 sz, Uint32 gci, Uint32 logfile_group_id);
+  Uint64 disk_page_undo_alloc(Signal *signal,
+                              Page*,
+                              const Local_key*,
+			      Uint32 sz,
+                              Uint32 gci,
+                              Uint32 logfile_group_id,
+                              Uint32 alloc_size);
 
-  Uint64 disk_page_undo_update(Signal *signal, Page*, const Local_key*,
-			       const Uint32*, Uint32,
-			       Uint32 gci, Uint32 logfile_group_id);
+  Uint64 disk_page_undo_update(Signal *signal,
+                               Page*,
+                               const Local_key*,
+			       const Uint32*,
+                               Uint32 sz,
+			       Uint32 gci,
+                               Uint32 logfile_group_id,
+                               Uint32 alloc_size);
   
-  Uint64 disk_page_undo_free(Signal *signal, Page*, const Local_key*,
-			     const Uint32*, Uint32 sz,
-			     Uint32 gci, Uint32 logfile_group_id);
+  Uint64 disk_page_undo_free(Signal *signal,
+                             Page*,
+                             const Local_key*,
+			     const Uint32*,
+                             Uint32 sz,
+			     Uint32 gci,
+                             Uint32 logfile_group_id,
+                             Uint32 alloc_size);
 
   void undo_createtable_logsync_callback(Signal* signal, Uint32, Uint32);
 

@@ -1380,7 +1380,8 @@ Dbtup::disk_page_alloc(Signal* signal,
 		       Local_key* key,
                        PagePtr pagePtr,
                        Uint32 gci,
-                       const Local_key *row_id)
+                       const Local_key *row_id,
+                       Uint32 alloc_size)
 {
   jam();
   Uint32 logfile_group_id= fragPtrP->m_logfile_group_id;
@@ -1413,7 +1414,8 @@ Dbtup::disk_page_alloc(Signal* signal,
                               key,
                               1,
                               gci,
-                              logfile_group_id);
+                              logfile_group_id,
+                              alloc_size);
     DEB_PGMAN(("(%u)page(%u,%u).%u, lsn=%llu",
                instance(),
                key->m_file_no,
@@ -1435,7 +1437,8 @@ Dbtup::disk_page_alloc(Signal* signal,
                               key,
                               sz,
                               gci,
-                              logfile_group_id);
+                              logfile_group_id,
+                              alloc_size);
   }
 }
 
@@ -1446,7 +1449,8 @@ Dbtup::disk_page_free(Signal *signal,
 		      Local_key* key,
                       PagePtr pagePtr,
                       Uint32 gci,
-                      const Local_key *row_id)
+                      const Local_key *row_id,
+                      Uint32 alloc_size)
 {
   jam();
   if (DBG_DISK)
@@ -1484,9 +1488,14 @@ Dbtup::disk_page_free(Signal *signal,
       ndbrequire(((*(src + 1)) & Tup_fixsize_page::FREE_RECORD) !=
                  Tup_fixsize_page::FREE_RECORD);
     }
-    lsn= disk_page_undo_free(signal, pagePtr.p, key,
-			     src, tabPtrP->m_offsets[DD].m_fix_header_size,
-			     gci, logfile_group_id);
+    lsn= disk_page_undo_free(signal,
+                             pagePtr.p,
+                             key,
+			     src,
+                             tabPtrP->m_offsets[DD].m_fix_header_size,
+			     gci,
+                             logfile_group_id,
+                             alloc_size);
     
     DEB_PGMAN((
       "(%u)disk_page_free:tab(%u,%u):%u,page(%u,%u).%u.%u,gci:%u,rowid(%u,%u)"
@@ -1510,9 +1519,14 @@ Dbtup::disk_page_free(Signal *signal,
   {
     const Uint32 *src= ((Var_page*)pagePtr.p)->get_ptr(page_idx);
     sz= ((Var_page*)pagePtr.p)->get_entry_len(page_idx);
-    lsn= disk_page_undo_free(signal, pagePtr.p, key,
-			     src, sz,
-			     gci, logfile_group_id);
+    lsn= disk_page_undo_free(signal,
+                             pagePtr.p,
+                             key,
+			     src,
+                             sz,
+			     gci,
+                             logfile_group_id,
+                             alloc_size);
     
     ((Var_page*)pagePtr.p)->free_record(page_idx, 0);
   }    
@@ -1654,7 +1668,8 @@ Dbtup::disk_page_undo_alloc(Signal *signal,
                             const Local_key* key,
 			    Uint32 sz,
                             Uint32 gci,
-                            Uint32 logfile_group_id)
+                            Uint32 logfile_group_id,
+                            Uint32 alloc_size)
 {
   jam();
   Disk_undo::Alloc alloc;
@@ -1668,7 +1683,7 @@ Dbtup::disk_page_undo_alloc(Signal *signal,
   {
     D("Logfile_client - disk_page_undo_alloc");
     Logfile_client lgman(this, c_lgman, logfile_group_id);
-    lsn= lgman.add_entry_simple(c, 1);
+    lsn= lgman.add_entry_simple(c, 1, alloc_size);
   }
   jamEntry();
   {
@@ -1687,7 +1702,8 @@ Dbtup::disk_page_undo_update(Signal *signal,
 			     const Uint32* src,
                              Uint32 sz,
 			     Uint32 gci,
-                             Uint32 logfile_group_id)
+                             Uint32 logfile_group_id,
+                             Uint32 alloc_size)
 {
   jam();
 
@@ -1711,7 +1727,7 @@ Dbtup::disk_page_undo_update(Signal *signal,
   {
     D("Logfile_client - disk_page_undo_update");
     Logfile_client lgman(this, c_lgman, logfile_group_id);
-    lsn= lgman.add_entry_complex(c, 3, true);
+    lsn= lgman.add_entry_complex(c, 3, true, alloc_size);
   }
   jamEntry();
   {
@@ -1730,7 +1746,8 @@ Dbtup::disk_page_undo_free(Signal *signal,
 			   const Uint32* src,
                            Uint32 sz,
 			   Uint32 gci,
-                           Uint32 logfile_group_id)
+                           Uint32 logfile_group_id,
+                           Uint32 alloc_size)
 {
   jam();
 
@@ -1754,7 +1771,7 @@ Dbtup::disk_page_undo_free(Signal *signal,
   {
     D("Logfile_client - disk_page_undo_free");
     Logfile_client lgman(this, c_lgman, logfile_group_id);
-    lsn= lgman.add_entry_complex(c, 3, false);
+    lsn= lgman.add_entry_complex(c, 3, false, alloc_size);
   }
   jamEntry();
   {

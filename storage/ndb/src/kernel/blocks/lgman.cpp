@@ -3433,12 +3433,21 @@ Lgman::execSUB_GCP_COMPLETE_REP(Signal* signal)
 
 int
 Lgman::alloc_log_space(Uint32 ref,
-                       Uint32 words,
+                       Uint32 & words,
+                       bool add_extra_words,
                        EmulatedJamBuffer *jamBuf)
 {
-  thrjamEntry(jamBuf);
   ndbrequire(words);
-  words += 2; // lsn
+  if (add_extra_words)
+  {
+    thrjamEntry(jamBuf);
+    Uint32 extra_words = ((words + 1023) / 1024);
+    words += extra_words;
+  }
+  else
+  {
+    thrjamEntry(jamBuf);
+  }
   Logfile_group key;
   key.m_logfile_group_id= ref;
   Ptr<Logfile_group> ptr;
@@ -3485,7 +3494,8 @@ Lgman::free_log_space(Uint32 ref,
 Uint64
 Logfile_client::add_entry_complex(const Change* src,
                                   Uint32 cnt,
-                                  bool is_update)
+                                  bool is_update,
+                                  Uint32 alloc_size)
 {
   Uint32 tot = 0;
   require(cnt == 3);
@@ -3494,12 +3504,14 @@ Logfile_client::add_entry_complex(const Change* src,
   {
     tot += src[i].len;
   }
+  require(alloc_size >= tot);
   if (tot <= remaining_page_space ||
       remaining_page_space < 4)
   {
     jamBlock(m_client_block);
-    return add_entry_simple(src, cnt);
+    return add_entry_simple(src, cnt, alloc_size);
   }
+  Uint32 over_allocated_size = (alloc_size - tot);
   Uint32 sz_first_part = remaining_page_space - 4;
   Uint32 type_length;
   {
@@ -3520,17 +3532,17 @@ Logfile_client::add_entry_complex(const Change* src,
       { &type_length, 1}
     };
     jamBlock(m_client_block);
-    add_entry_simple(c, 3);
+    add_entry_simple(c, 3, (remaining_page_space + over_allocated_size));
   }
   Uint32 *offset_ptr = (Uint32*)src[1].ptr;
   const void *ptr = (const void *)&offset_ptr[sz_first_part];
   Dbtup::Disk_undo::UpdatePart update_part;
   memcpy(&update_part, src[0].ptr, 3*4);
   Uint32 offset = sz_first_part;
+  Uint32 sz_last_part = 5 + src[1].len - sz_first_part;
   update_part.m_offset = offset;
   update_part.m_type_length =
-    (Dbtup::Disk_undo::UNDO_UPDATE_PART << 16 |
-     (5  + src[1].len - sz_first_part));
+    ((Dbtup::Disk_undo::UNDO_UPDATE_PART << 16) | sz_last_part);
   {
     Logfile_client::Change c[3] =
     {
@@ -3539,12 +3551,14 @@ Logfile_client::add_entry_complex(const Change* src,
       { &update_part.m_type_length, 1}
     };
     jamBlock(m_client_block);
-    return add_entry_simple(c, 3);
+    return add_entry_simple(c, 3, sz_last_part);
   }
 }
 
 Uint64
-Logfile_client::add_entry_simple(const Change* src, Uint32 cnt)
+Logfile_client::add_entry_simple(const Change* src,
+                                 Uint32 cnt,
+                                 Uint32 alloc_size)
 {
   Uint32 i, tot= 0;
   jamBlock(m_client_block);
@@ -3553,16 +3567,18 @@ Logfile_client::add_entry_simple(const Change* src, Uint32 cnt)
   {
     tot += src[i].len;
   }
-  
+  require(tot <= alloc_size);
+
   Uint32 *dst;
   Uint64 next_lsn= m_lgman->m_next_lsn;
   {
     Lgman::Logfile_group key;
     key.m_logfile_group_id= m_logfile_group_id;
     Ptr<Lgman::Logfile_group> ptr;
-    if(m_lgman->m_logfile_group_hash.find(ptr, key))
+    require(m_lgman->m_logfile_group_hash.find(ptr, key));
     {
       jamBlock(m_client_block);
+      ptr.p->m_free_file_words += (alloc_size - tot);
       Uint32 callback_buffer = ptr.p->m_callback_buffer_words;
       Uint64 next_lsn_filegroup= ptr.p->m_next_lsn;
       require(next_lsn_filegroup == next_lsn);
@@ -3575,17 +3591,10 @@ Logfile_client::add_entry_simple(const Change* src, Uint32 cnt)
 	  dst += src[i].len;
 	}
 	* (dst - 1) |= (File_formats::Undofile::UNDO_NEXT_LSN << 16);
-	ptr.p->m_free_file_words += 2;
 	m_lgman->validate_logfile_group(ptr,
                                         (const char*)0,
                                         m_client_block->jamBuffer());
       }
-      /**
-       * for callback_buffer, always allocates 2 extra...
-       *   not knowing if LSN must be added or not
-       */
-      tot += 2;
-
       if (unlikely(! (tot <= callback_buffer)))
       {
         jamBlock(m_client_block);

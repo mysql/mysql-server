@@ -2000,7 +2000,7 @@ void Dbtup::releaseFragment(Signal* signal, Uint32 tableId,
     Uint32 sz= sizeof(Disk_undo::Drop) >> 2;
     D("Logfile_client - releaseFragment");
     Logfile_client lgman(this, c_lgman, logfile_group_id);
-    int r0 = lgman.alloc_log_space(sz, jamBuffer());
+    int r0 = lgman.alloc_log_space(sz, false, jamBuffer());
     jamEntry();
     if (r0)
     {
@@ -2194,15 +2194,16 @@ Dbtup::drop_table_log_buffer_callback(Signal* signal, Uint32 tablePtrI,
 
   Disk_undo::Drop drop;
   drop.m_table = tabPtr.i;
+  Uint32 sz = sizeof(drop) >> 2;
   drop.m_type_length = 
-    (Disk_undo::UNDO_DROP << 16) | (sizeof(drop) >> 2);
+    (Disk_undo::UNDO_DROP << 16) | sz;
   D("Logfile_client - drop_table_log_buffer_callback");
   Logfile_client::Request req;
   {
     Logfile_client lgman(this, c_lgman, logfile_group_id);
   
     Logfile_client::Change c[1] = {{ &drop, sizeof(drop) >> 2 } };
-    Uint64 lsn = lgman.add_entry_simple(c, 1);
+    Uint64 lsn = lgman.add_entry_simple(c, 1, sz);
     jamEntry();
 
     DEB_TUP_META(("Add UNDO_TUP_DROP in lsn: %llu for tab: %u",
