@@ -488,7 +488,7 @@ dd_check_corrupted(dict_table_t*& table)
 
 	if (table->is_corrupted()) {
 		if (dict_table_is_sdi(table->id)
-		    || table->id <= INNODB_SYS_TABLE_ID_MAX) {
+		    || dict_table_is_system(table->id)) {
 			my_error(ER_TABLE_CORRUPT, MYF(0),
 				 "", table->name.m_name);
 		} else {

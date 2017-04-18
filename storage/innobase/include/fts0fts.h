@@ -92,6 +92,7 @@ those defined in mysql file ft_global.h */
 #define FTS_OPT_RANKING	64
 
 #define FTS_INDEX_TABLE_IND_NAME	"FTS_INDEX_TABLE_IND"
+#define FTS_COMMON_TABLE_IND_NAME	"FTS_COMMON_TABLE_IND"
 
 /** The number of FTS index partitions for a fulltext idnex */
 #define FTS_NUM_AUX_INDEX		6
@@ -180,8 +181,11 @@ enum fts_table_type_t {
 					specific to a particular FTS index
 					on a table */
 
-	FTS_COMMON_TABLE		/*!< FTS auxiliary table that is common
+	FTS_COMMON_TABLE,		/*!< FTS auxiliary table that is common
 					for all FTS index on a table */
+
+	FTS_OBSELETED_TABLE		/*!< FTS obseleted tables like DOC_ID,
+					ADDED, STOPWORDS */
 };
 
 struct fts_doc_t;
@@ -1125,6 +1129,9 @@ struct fts_aux_table_t {
 
 	/** Name of the table */
 	char*		name;
+
+	/** FTS table type */
+	fts_table_type_t	type;
 };
 
 /** Check if a table is an FTS auxiliary table name.
@@ -1180,4 +1187,3 @@ fts_upgrade_aux_tables(
 	dict_table_t*	table);
 
 #endif /*!< fts0fts.h */
-

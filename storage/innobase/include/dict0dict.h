@@ -2123,9 +2123,26 @@ dict_allocate_mem_intrinsic_cache(
 
 /** Evict all tables that are loaded for applying purge.
 Since we move the offset of all table ids during upgrade,
-these tables cannot exist in cache. */
+these tables cannot exist in cache. Also change table_ids
+of SYS_* tables if they are upgraded from earlier versions */
 void
 dict_upgrade_evict_tables_cache();
+
+/** @return true if table is InnoDB SYS_* table
+@param[in]	table_id	table id  */
+bool
+dict_table_is_system(table_id_t table_id);
+
+/** Build the table_id array of SYS_* tables. This
+array is used to determine if a table is InnoDB SYSTEM
+table or not. */
+void
+dict_sys_table_id_build();
+
+/** Change the table_id of SYS_* tables if they have been created after
+an earlier upgrade. This will update the table_id by adding DICT_MAX_DD_TABLES */
+void
+dict_table_change_id_sys_tables();
 
 #endif /* !UNIV_HOTBACKUP */
 

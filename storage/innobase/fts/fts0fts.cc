@@ -6610,6 +6610,7 @@ fts_is_aux_table_name(
 			if (strncmp(ptr, fts_common_tables[i], len) == 0
 			    || strncmp(ptr, fts_common_tables_5_7[i],
 				       len) == 0) {
+				table->type = FTS_COMMON_TABLE;
 				return(true);
 			}
 		}
@@ -6617,6 +6618,7 @@ fts_is_aux_table_name(
 		/* Could be obsolete common tables. */
 		if (native_strncasecmp(ptr, "ADDED", len) == 0
 		    || native_strncasecmp(ptr, "STOPWORDS", len) == 0) {
+			table->type = FTS_OBSELETED_TABLE;
 			return(true);
 		}
 
@@ -6642,12 +6644,14 @@ fts_is_aux_table_name(
 
 			if (strncmp(ptr, fts_get_suffix(i), len) == 0
 			    || strncmp(ptr, fts_get_suffix_5_7(i), len) == 0) {
+				table->type = FTS_INDEX_TABLE;
 				return(true);
 			}
 		}
 
 		/* Other FT index specific table(s). */
 		if (native_strncasecmp(ptr, "DOC_ID", len) == 0) {
+			table->type = FTS_OBSELETED_TABLE;
 			return(true);
 		}
 	}

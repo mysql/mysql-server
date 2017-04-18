@@ -54,10 +54,11 @@ Created 4/24/1996 Heikki Tuuri
 #include "rem0cmp.h"
 #include "srv0srv.h"
 #include "srv0start.h"
+#include "fts0fts.h"
 
 /** Following are the InnoDB system tables. The positions in
 this array are referenced by enum dict_system_table_id. */
-static const char* SYSTEM_TABLE_NAME[] = {
+const char* SYSTEM_TABLE_NAME[] = {
 	"SYS_TABLES",
 	"SYS_INDEXES",
 	"SYS_COLUMNS",
@@ -68,6 +69,24 @@ static const char* SYSTEM_TABLE_NAME[] = {
 	"SYS_DATAFILES",
 	"SYS_VIRTUAL"
 };
+
+/** This variant is based on name comparision and is used because
+system table id array is not built yet.
+@param[in]	name	InnoDB table name
+@return true if table name is InnoDB SYSTEM table */
+static
+bool
+dict_load_is_system_table(const char* name)
+{
+	ut_ad(name != NULL);
+	uint32_t	size = sizeof(SYSTEM_TABLE_NAME) / sizeof(char*);
+	for (uint32_t i = 0; i < size; i++) {
+		if (strcmp(name, SYSTEM_TABLE_NAME[i]) == 0) {
+			return(true);
+		}
+	}
+	return(false);
+}
 
 /** Loads a table definition and also all its index definitions.
 
@@ -512,6 +531,26 @@ err_len:
 		if (strcmp(name_buf, innobase_index_reserve_name) == 0) {
 			/* Data dictinory uses PRIMARY instead of GEN_CLUST_INDEX. */
 			name_buf = "PRIMARY";
+		}
+	}
+
+	if (srv_is_upgrade_mode) {
+		fts_aux_table_t	fts_table;
+		bool	is_fts = fts_is_aux_table_name(&fts_table,
+			table_name, strlen(table_name));
+
+		if (is_fts) {
+			switch (fts_table.type) {
+			case FTS_INDEX_TABLE:
+				name_buf= FTS_INDEX_TABLE_IND_NAME;
+				break;
+			case FTS_COMMON_TABLE:
+				name_buf= FTS_COMMON_TABLE_IND_NAME;
+				break;
+			case FTS_OBSELETED_TABLE:
+				break;
+				/* do nothing */
+			}
 		}
 	}
 
@@ -3034,19 +3073,9 @@ err_exit:
 		: ignore_err;
 	err = dict_load_indexes(table, heap, index_load_err);
 
-	/* TODO: NewDD: WL#9535 : Remove this variable  when InnoDB SYS Tables
-	are removed. */
-	bool is_innodb_system_table= false;
-	if (strcmp(name.m_name, "SYS_DATAFILES") == 0 ||
-	    strcmp(name.m_name, "SYS_FOREIGN") == 0 ||
-	    strcmp(name.m_name, "SYS_FOREIGN_COLS") == 0 ||
-	    strcmp(name.m_name, "SYS_TABLESPACES") == 0 ||
-	    strcmp(name.m_name, "SYS_VIRTUAL") == 0) {
-		is_innodb_system_table = true;
-	}
-
 	if (err == DB_SUCCESS) {
-		if (srv_is_upgrade_mode && !is_innodb_system_table && !srv_upgrade_old_undo_found) {
+		if (srv_is_upgrade_mode && !srv_upgrade_old_undo_found
+		    && !dict_load_is_system_table(table->name.m_name)) {
 			table->id = table->id + DICT_MAX_DD_TABLES;
 		}
 		if (cached) {

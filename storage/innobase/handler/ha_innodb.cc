@@ -4853,6 +4853,10 @@ innobase_init_files(
 		DBUG_RETURN(innodb_init_abort());
 	}
 
+	/* TODO: WL#9535: Move this under srv_is_upgrade_mode */
+	/* Build the table_id array for INNODB_SYS_* */
+	dict_sys_table_id_build();
+
 	if (srv_is_upgrade_mode) {
 		/* Disable AHI when we start loading tables for purge.
 		These tables are evicted anyway after purge. */
@@ -4888,6 +4892,14 @@ innobase_init_files(
 		dict_stats_evict_tablespaces();
 
 		btr_search_enabled = old_btr_search_value;
+	} else {
+		/* TODO: WL#9535: Remove the else part */
+		/* Check if table_id of SYS_* needs adjustment */
+		mutex_enter(&dict_sys->mutex);
+
+		dict_table_change_id_sys_tables();
+
+		mutex_exit(&dict_sys->mutex);
 	}
 
 	bool	ret;

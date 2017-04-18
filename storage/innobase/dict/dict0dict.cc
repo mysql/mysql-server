@@ -138,6 +138,9 @@ ulong	zip_pad_max = 50;
 /** Identifies generated InnoDB foreign key names */
 static char	dict_ibfk[] = "_ibfk_";
 
+/** Array to store table_ids of INNODB_SYS_* TABLES */
+static table_id_t	dict_sys_table_id[SYS_NUM_SYSTEM_TABLES];
+
 /** Tries to find column names for the index and sets the col field of the
 index.
 @param[in]	table	table
@@ -7910,20 +7913,66 @@ dict_sdi_remove_from_cache(
 	}
 }
 
+/** Change the table_id of SYS_* tables if they have been created after
+an earlier upgrade. This will update the table_id by adding DICT_MAX_DD_TABLES */
+void
+dict_table_change_id_sys_tables()
+{
+	ut_ad(mutex_own(&dict_sys->mutex));
+
+	for (uint32_t i = 0; i < SYS_NUM_SYSTEM_TABLES; i++) {
+		dict_table_t*	system_table = dict_table_get_low(SYSTEM_TABLE_NAME[i]);
+		ut_a(system_table != nullptr);
+		ut_ad(dict_sys_table_id[i] == system_table->id);
+
+		if (system_table->id >= INNODB_SYS_TABLE_ID_MAX) {
+
+			/* During upgrade, table_id of user tables is also
+			moved by DICT_MAX_DD_TABLES. See dict_load_table_one()*/
+			table_id_t	new_table_id = system_table->id
+				+ DICT_MAX_DD_TABLES;
+
+			dict_table_change_id_in_cache(system_table, new_table_id);
+
+			dict_sys_table_id[i] = system_table->id;
+		}
+	}
+}
+
 /** Evict all tables that are loaded for applying purge.
 Since we move the offset of all table ids during upgrade,
-these tables cannot exist in cache. */
+these tables cannot exist in cache. Also change table_ids
+of SYS_* tables if they are upgraded from earlier versions */
 void
 dict_upgrade_evict_tables_cache()
 {
 	dict_table_t*	table;
-	ulint		n_evicted = 0;
 
 	rw_lock_x_lock(dict_operation_lock);
 	mutex_enter(&dict_sys->mutex);
 
 	ut_ad(dict_lru_validate());
 	ut_ad(srv_is_upgrade_mode);
+
+	/* Move all tables from non-LRU to LRU */
+	for (table = UT_LIST_GET_LAST(dict_sys->table_non_LRU);
+	     table != NULL;) {
+
+		dict_table_t*	prev_table;
+
+		prev_table = UT_LIST_GET_PREV(table_LRU, table);
+
+		if (!dict_table_is_system(table->id)) {
+			DBUG_EXECUTE_IF("dd_upgrade",
+				ib::info() << "Moving table " << table->name
+					<< " from non-LRU to LRU";
+			);
+
+			dict_table_move_from_non_lru_to_lru(table);
+		}
+
+		table = prev_table;
+	}
 
 	for (table = UT_LIST_GET_LAST(dict_sys->table_LRU);
 	     table != NULL;) {
@@ -7935,7 +7984,7 @@ dict_upgrade_evict_tables_cache()
 		ut_ad(dict_table_can_be_evicted(table));
 
 		DBUG_EXECUTE_IF("dd_upgrade",
-			ib::info() << "Evicting table: LRU" << table->name;
+			ib::info() << "Evicting table: LRU: " << table->name;
 		);
 
 		dict_table_remove_from_cache_low(table, TRUE);
@@ -7943,27 +7992,36 @@ dict_upgrade_evict_tables_cache()
 		table = prev_table;
 	}
 
-	for (table = UT_LIST_GET_LAST(dict_sys->table_non_LRU);
-	     table != NULL;) {
-
-		dict_table_t*	prev_table;
-
-		prev_table = UT_LIST_GET_PREV(table_LRU, table);
-
-		if (table->id > 15) {
-
-			DBUG_EXECUTE_IF("dd_upgrade",
-				ib::info() << "Evicting table:NON_LRU " << table->name;
-			);
-
-			ut_ad(dict_table_can_be_evicted(table));
-			dict_table_remove_from_cache_low(table, TRUE);
-			++n_evicted;
-		}
-
-		table = prev_table;
-	}
+	dict_table_change_id_sys_tables();
 
 	mutex_exit(&dict_sys->mutex);
 	rw_lock_x_unlock(dict_operation_lock);
+}
+
+/** Build the table_id array of SYS_* tables. This
+array is used to determine if a table is InnoDB SYSTEM
+table or not. */
+void
+dict_sys_table_id_build()
+{
+	mutex_enter(&dict_sys->mutex);
+	for (uint32_t i = 0; i < SYS_NUM_SYSTEM_TABLES; i++) {
+		dict_table_t*	system_table = dict_table_get_low(SYSTEM_TABLE_NAME[i]);
+		ut_a(system_table != nullptr);
+		dict_sys_table_id[i] = system_table->id;
+	}
+	mutex_exit(&dict_sys->mutex);
+}
+
+/** @return true if table is InnoDB SYS_* table
+@param[in]	table_id	table id  */
+bool
+dict_table_is_system(table_id_t table_id)
+{
+	for (uint32_t i = 0; i < SYS_NUM_SYSTEM_TABLES; i++) {
+		if (table_id == dict_sys_table_id[i]) {
+			return(true);
+		}
+	}
+	return(false);
 }

@@ -65,6 +65,8 @@ enum dict_table_info_t {
 					is in the cache, if so, return it */
 };
 
+extern const char* SYSTEM_TABLE_NAME[];
+
 /********************************************************************//**
 Finds the first table name in the given database.
 @return own: table name, NULL if does not exist; the caller must free

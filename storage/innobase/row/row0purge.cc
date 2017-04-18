@@ -890,8 +890,9 @@ try_again:
 #endif /* INNODB_DD_VC_SUPPORT */
 
 	/* Cannot call dd_table_open_on_id() before server is fully up */
-	if (!srv_upgrade_old_undo_found) {
-		while (table_id >= INNODB_SYS_TABLE_ID_MAX && !mysqld_server_started) {
+	if (!srv_upgrade_old_undo_found
+	    && !dict_table_is_system(table_id)) {
+		while (!mysqld_server_started) {
 			if (srv_shutdown_state != SRV_SHUTDOWN_NONE) {
 				return(false);
 			}
@@ -902,7 +903,7 @@ try_again:
 	/* SDI tables are hidden tables and are not registered with global
 	dictionary. Open the table internally. Also acquire dict_operation
 	lock for SDI table to prevent concurrent DROP TABLE and purge */
-	if (table_id < INNODB_SYS_TABLE_ID_MAX
+	if (dict_table_is_system(table_id)
 	    || dict_table_is_sdi(table_id)
 	    || srv_upgrade_old_undo_found) {
 		if (dict_table_is_sdi(table_id)) {
@@ -967,7 +968,7 @@ try_again:
 		/* Need server fully up for virtual column computation */
 		if (!mysqld_server_started) {
 
-			if (node->table->id < INNODB_SYS_TABLE_ID_MAX
+			if (dict_table_is_system(node->table->id)
 			    || dict_table_is_sdi(node->table->id)) {
 				dict_table_close(node->table, FALSE, FALSE);
 				node->table = nullptr;
@@ -1002,7 +1003,7 @@ try_again:
 	if (node->table->ibd_file_missing) {
 		/* We skip purge of missing .ibd files */
 
-		if (node->table->id < INNODB_SYS_TABLE_ID_MAX
+		if (dict_table_is_system(node->table->id)
 		    || dict_table_is_sdi(node->table->id)) {
 			dict_table_close(node->table, FALSE, FALSE);
 			node->table = NULL;
@@ -1029,7 +1030,7 @@ try_again:
 		we do not have an index to call it with. */
 close_exit:
 		/* Purge requires no changes to indexes: we may return */
-		if (node->table->id < INNODB_SYS_TABLE_ID_MAX
+		if (dict_table_is_system(node->table->id)
 		    || dict_table_is_sdi(node->table->id)
 		    || srv_upgrade_old_undo_found) {
 			dict_table_close(node->table, FALSE, FALSE);
@@ -1145,7 +1146,7 @@ row_purge_record_func(
                         node->mysql_table = nullptr;
                 }
 
-		if (node->table->id < INNODB_SYS_TABLE_ID_MAX
+		if (dict_table_is_system(node->table->id)
 		    || dict_table_is_sdi(node->table->id)) {
 			dict_table_close(node->table, FALSE, FALSE);
 			node->table = NULL;
