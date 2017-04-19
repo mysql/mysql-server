@@ -54,9 +54,10 @@ let NEW_CMD = $MYSQLD --no-defaults --initialize-insecure --innodb_log_group_hom
 --exec $NEW_CMD
 
 --echo # Start the DB server with datadir1
---replace_result $MYSQLD_HOME_DATA_DIR1 MYSQLD_HOME_DATA_DIR1 $MYSQLD_UNDO_DATA_DIR1 MYSQLD_UNDO_DATA_DIR1 $MYSQLD_DATA_DIR1 MYSQLD_DATA_DIR1 $START_PAGE_SIZE PAGE_SIZE $LOG_FILE_SIZE LOG_FILE_SIZE $MYSQLD_REDO_DIR1 MYSQLD_REDO_DIR1
+--disable_result_log
 --let $restart_parameters="restart: --innodb_page_size=$START_PAGE_SIZE --innodb_log_group_home_dir=$MYSQLD_REDO_DIR1 --innodb_log_file_size=$LOG_FILE_SIZE --innodb_undo_tablespaces=5 --innodb_data_home_dir=$MYSQLD_HOME_DATA_DIR1 --innodb_undo_directory=$MYSQLD_UNDO_DATA_DIR1 --datadir=$MYSQLD_DATA_DIR1"
 --source include/start_mysqld.inc
+--enable_result_log
 
 CREATE TABLE tab1(c1 INT, c2 VARCHAR(30));
 
@@ -74,9 +75,10 @@ let NEW_CMD = $MYSQLD --no-defaults --initialize-insecure --innodb_page_size=$ST
 --exec $NEW_CMD
 
 --echo # Start the DB server with datadir2
---replace_result $MYSQLD_HOME_DATA_DIR2 MYSQLD_HOME_DATA_DIR2 $MYSQLD_UNDO_DATA_DIR2 MYSQLD_UNDO_DATA_DIR2 $MYSQLD_DATA_DIR2 MYSQLD_DATA_DIR2 $START_PAGE_SIZE PAGE_SIZE $LOG_FILE_SIZE LOG_FILE_SIZE $MYSQLD_REDO_DIR2 MYSQLD_REDO_DIR2
+--disable_result_log
 --let $restart_parameters="restart: --innodb_page_size=$START_PAGE_SIZE --innodb_log_group_home_dir=$MYSQLD_REDO_DIR2 --innodb_log_file_size=$LOG_FILE_SIZE --innodb_undo_tablespaces=5 --innodb_data_home_dir=$MYSQLD_HOME_DATA_DIR2 --innodb_undo_directory=$MYSQLD_UNDO_DATA_DIR2 --datadir=$MYSQLD_DATA_DIR2"
 --source include/start_mysqld.inc
+--enable_result_log
 
 CREATE TABLE tab2(c1 INT, c2 VARCHAR(30));
 
@@ -102,9 +104,10 @@ let SEARCH_PATTERN= \[ERROR\] InnoDB: Unable to open undo tablespace;
 --remove_file $MYSQLTEST_VARDIR/tmp/mysqld_log.err
 
 --echo # Start the DB server with right path, expect no recovery errors
---replace_result $MYSQLD_HOME_DATA_DIR1 MYSQLD_HOME_DATA_DIR1 $MYSQLD_UNDO_DATA_DIR1 MYSQLD_UNDO_DATA_DIR1 $MYSQLD_DATA_DIR1 MYSQLD_DATA_DIR1 $START_PAGE_SIZE PAGE_SIZE $LOG_FILE_SIZE LOG_FILE_SIZE $MYSQLD_REDO_DIR1 MYSQLD_REDO_DIR1
+--disable_result_log
 --let $restart_parameters="restart: --innodb_page_size=$START_PAGE_SIZE --innodb_log_group_home_dir=$MYSQLD_REDO_DIR1 --innodb_log_file_size=$LOG_FILE_SIZE --innodb_undo_tablespaces=5 --innodb_data_home_dir=$MYSQLD_HOME_DATA_DIR1 --innodb_undo_directory=$MYSQLD_UNDO_DATA_DIR1 --datadir=$MYSQLD_DATA_DIR1"
 --source include/start_mysqld.inc
+--enable_result_log
 
 # Check datadir1 consistency
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
@@ -124,9 +127,10 @@ DROP TABLE tab1;
 --source include/shutdown_mysqld.inc
 
 --echo # Start the DB server with datadir2 for cleanup
---replace_result $MYSQLD_HOME_DATA_DIR2 MYSQLD_HOME_DATA_DIR2 $MYSQLD_UNDO_DATA_DIR2 MYSQLD_UNDO_DATA_DIR2 $MYSQLD_DATA_DIR2 MYSQLD_DATA_DIR2 $START_PAGE_SIZE PAGE_SIZE $LOG_FILE_SIZE LOG_FILE_SIZE $MYSQLD_REDO_DIR2 MYSQLD_REDO_DIR2
+--disable_result_log
 --let $restart_parameters="restart: --innodb_page_size=$START_PAGE_SIZE --innodb_log_group_home_dir=$MYSQLD_REDO_DIR2 --innodb_log_file_size=$LOG_FILE_SIZE --innodb_undo_tablespaces=5 --innodb_data_home_dir=$MYSQLD_HOME_DATA_DIR2 --innodb_undo_directory=$MYSQLD_UNDO_DATA_DIR2 --datadir=$MYSQLD_DATA_DIR2"
 --source include/start_mysqld.inc
+--enable_result_log
 
 SELECT * FROM tab2;
 
