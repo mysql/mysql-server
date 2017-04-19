@@ -92,7 +92,7 @@ MI_CHECK check_param;
 /* myisamchk can create multiple threads (see sort.c) */
 extern st_keycache_thread_var *keycache_thread_var()
 {
-  return (st_keycache_thread_var*)my_get_thread_local(keycache_tls_key);
+  return keycache_tls;
 }
 
 	/* Main program */
@@ -106,8 +106,7 @@ int main(int argc, char **argv)
   mysql_cond_init(PSI_NOT_INSTRUMENTED,
                   &main_thread_keycache_var.suspend);
 
-  (void)my_create_thread_local_key(&keycache_tls_key, NULL);
-  my_set_thread_local(keycache_tls_key, &main_thread_keycache_var);
+  keycache_tls= &main_thread_keycache_var;
 
   my_progname_short= my_progname+dirname_length(my_progname);
 
@@ -158,7 +157,6 @@ int main(int argc, char **argv)
   ft_free_stopwords();
   my_end(check_param.testflag & T_INFO ? MY_CHECK_ERROR | MY_GIVE_INFO : MY_CHECK_ERROR);
   mysql_cond_destroy(&main_thread_keycache_var.suspend);
-  my_delete_thread_local_key(keycache_tls_key);
   exit(error);
 } /* main */
 
@@ -700,7 +698,7 @@ get_one_option(int optid,
   case OPT_STATS_METHOD:
   {
     int method;
-    enum_mi_stats_method method_conv= 0;
+    enum_mi_stats_method method_conv= MI_STATS_METHOD_NULLS_NOT_EQUAL;
     myisam_stats_method_str= argument;
     if ((method= find_type(argument, &myisam_stats_method_typelib,
                            FIND_TYPE_BASIC)) <= 0)

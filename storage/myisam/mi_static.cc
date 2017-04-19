@@ -47,8 +47,8 @@ ulong    myisam_data_pointer_size=4;
 ulonglong    myisam_mmap_size= SIZE_T_MAX, myisam_mmap_used= 0;
 /* Keycache thread state for the main thread or single threaded programs. */
 st_keycache_thread_var main_thread_keycache_var;
-/* Key used by myisamchk */
-thread_local_key_t keycache_tls_key;
+/* Used by myisamchk */
+thread_local st_keycache_thread_var *keycache_tls= nullptr;
 
 static int always_valid(const char *filename MY_ATTRIBUTE((unused)))
 {

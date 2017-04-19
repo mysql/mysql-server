@@ -204,7 +204,7 @@ const ulong mts_worker_underrun_level= 10;
 
 int disconnect_slave_event_count = 0, abort_slave_event_count = 0;
 
-static thread_local_key_t RPL_MASTER_INFO;
+static thread_local Master_info *RPL_MASTER_INFO= nullptr;
 
 enum enum_slave_reconnect_actions
 {
@@ -463,8 +463,7 @@ int init_slave()
   */
   channel_map.wrlock();
 
-  if (my_create_thread_local_key(&RPL_MASTER_INFO, NULL))
-    DBUG_RETURN(1);
+  RPL_MASTER_INFO= nullptr;
 
   /*
     Create slave info objects by reading repositories of individual
@@ -5712,7 +5711,7 @@ extern "C" void *handle_slave_io(void *arg)
                             llstr(mi->get_master_log_pos(), llbuff)));
 
   /* This must be called before run any binlog_relay_io hooks */
-  my_set_thread_local(RPL_MASTER_INFO, mi);
+  RPL_MASTER_INFO= mi;
 
   if (RUN_HOOK(binlog_relay_io, thread_start, (thd, mi)))
   {

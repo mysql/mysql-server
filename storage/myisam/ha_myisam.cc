@@ -2233,7 +2233,7 @@ extern "C" st_keycache_thread_var *keycache_thread_var()
       It will then be the main thread during startup/shutdown or
       extra threads created for thr_find_all_keys().
     */
-    return (st_keycache_thread_var*)my_get_thread_local(keycache_tls_key);
+    return keycache_tls;
   }
 
   /*
@@ -2307,8 +2307,7 @@ static int myisam_init(void *p)
   main_thread_keycache_var= st_keycache_thread_var();
   mysql_cond_init(mi_keycache_thread_var_suspend,
                   &main_thread_keycache_var.suspend);
-  (void)my_create_thread_local_key(&keycache_tls_key, NULL);
-  my_set_thread_local(keycache_tls_key, &main_thread_keycache_var);
+  keycache_tls= &main_thread_keycache_var;
   return 0;
 }
 
@@ -2316,7 +2315,7 @@ static int myisam_init(void *p)
 static int myisam_deinit(void*)
 {
   mysql_cond_destroy(&main_thread_keycache_var.suspend);
-  my_delete_thread_local_key(keycache_tls_key);
+  keycache_tls= nullptr;
   return 0;
 }
 

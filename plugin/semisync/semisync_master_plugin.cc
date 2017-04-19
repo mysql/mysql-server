@@ -40,17 +40,11 @@ enum enum_wait_point {
 
 static ulong rpl_semi_sync_master_wait_point= WAIT_AFTER_COMMIT;
 
-static bool SEMI_SYNC_DUMP= true;
-
-thread_local_key_t THR_RPL_SEMI_SYNC_DUMP;
+thread_local bool THR_RPL_SEMI_SYNC_DUMP= false;
 
 static inline bool is_semi_sync_dump()
 {
-  /*
-    The key is only set for semisync dump threads, so it just checks if
-    the key is not NULL.
-  */
-  return my_get_thread_local(THR_RPL_SEMI_SYNC_DUMP) != NULL;
+  return THR_RPL_SEMI_SYNC_DUMP;
 }
 
 C_MODE_START
@@ -140,7 +134,7 @@ static int repl_semi_binlog_dump_start(Binlog_transmit_param *param,
       return -1;
     }
 
-    my_set_thread_local(THR_RPL_SEMI_SYNC_DUMP, &SEMI_SYNC_DUMP);
+    THR_RPL_SEMI_SYNC_DUMP= true;
 
     /* One more semi-sync slave */
     repl_semisync.add_slave();
@@ -176,7 +170,7 @@ static int repl_semi_binlog_dump_end(Binlog_transmit_param *param)
     ack_receiver.remove_slave(current_thd);
     /* One less semi-sync slave */
     repl_semisync.remove_slave();
-    my_set_thread_local(THR_RPL_SEMI_SYNC_DUMP, NULL);
+    THR_RPL_SEMI_SYNC_DUMP= false;
   }
   return 0;
 }
@@ -589,7 +583,7 @@ static int semi_sync_master_plugin_init(void *p)
   init_semisync_psi_keys();
 #endif
 
-  my_create_thread_local_key(&THR_RPL_SEMI_SYNC_DUMP, NULL);
+  THR_RPL_SEMI_SYNC_DUMP= false;
 
   if (repl_semisync.initObject())
     return 1;
@@ -607,7 +601,7 @@ static int semi_sync_master_plugin_init(void *p)
 static int semi_sync_master_plugin_deinit(void *p)
 {
   ack_receiver.stop();
-  my_delete_thread_local_key(THR_RPL_SEMI_SYNC_DUMP);
+  THR_RPL_SEMI_SYNC_DUMP= false;
 
   if (unregister_trans_observer(&trans_observer, p))
   {

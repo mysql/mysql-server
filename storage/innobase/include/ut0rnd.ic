@@ -38,9 +38,8 @@ Created 5/30/1994 Heikki Tuuri
 
 #include <my_thread_local.h>
 
-extern thread_local_key_t ut_rnd_ulint_counter_key;
 /** Seed value of ut_rnd_gen_ulint() */
-extern	ulint	 ut_rnd_ulint_counter;
+extern thread_local ulint ut_rnd_ulint_counter;
 
 /********************************************************//**
 This is used to set the random number seed. */
@@ -50,8 +49,7 @@ ut_rnd_set_seed(
 /*============*/
 	ulint	 seed)		 /*!< in: seed */
 {
-	/* Setting the seed value as thread local */
-	my_set_thread_local(ut_rnd_ulint_counter_key,(void *)seed);
+	ut_rnd_ulint_counter = seed;
 }
 
 /********************************************************//**
@@ -87,17 +85,14 @@ fashion. Note that the same integer is repeated always after
 ulint
 ut_rnd_gen_ulint()
 {
-	ulint	rnd;
-
-	void*   ptr;
-
-	ptr = my_get_thread_local(ut_rnd_ulint_counter_key);
-
-	rnd = (ptr == nullptr) ? 65654363 : (ulint) ptr;
+	ulint	rnd = ut_rnd_ulint_counter;
+	if (rnd == 0) {
+		rnd = 65654363;
+	}
 
 	rnd = UT_RND1 * rnd + UT_RND2;
 
-	my_set_thread_local(ut_rnd_ulint_counter_key, (void *) rnd);
+	ut_rnd_ulint_counter = rnd;
 
 	return(ut_rnd_gen_next_ulint(rnd));
 }

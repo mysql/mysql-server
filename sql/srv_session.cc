@@ -69,8 +69,8 @@
 
 extern void thd_clear_errors(THD *thd);
 
-static thread_local_key_t THR_stack_start_address;
-static thread_local_key_t THR_srv_session_thread;
+static thread_local const char *THR_stack_start_address= nullptr;
+static thread_local const st_plugin_int *THR_srv_session_thread= nullptr;
 static bool srv_session_THRs_initialized= false;
 
 class Thread_to_plugin_map
@@ -687,14 +687,16 @@ static void set_psi(THD *thd)
 */
 bool Srv_session::init_thread(const void *plugin)
 {
-  int stack_start;
-  if (my_thread_init() ||
-      my_set_thread_local(THR_srv_session_thread, const_cast<void*>(plugin)) ||
-      my_set_thread_local(THR_stack_start_address, &stack_start))
+  char stack_start;
+  if (my_thread_init())
   {
     connection_errors_internal++;
     return true;
   }
+
+  THR_srv_session_thread=
+    reinterpret_cast<st_plugin_int *>(const_cast<void *>(plugin));
+  THR_stack_start_address= &stack_start;
 
   server_session_threads.add(my_thread_self(), plugin);
 
@@ -750,8 +752,7 @@ static void close_all_sessions_of_plugin_if_any(const st_plugin_int *plugin)
 */
 void Srv_session::deinit_thread()
 {
-  const st_plugin_int *plugin= static_cast<const st_plugin_int *>(
-                                my_get_thread_local(THR_srv_session_thread));
+  const st_plugin_int *plugin= THR_srv_session_thread;
   if (plugin)
     close_currently_attached_session_if_any(plugin);
 
@@ -761,10 +762,10 @@ void Srv_session::deinit_thread()
   if (!server_session_threads.count(plugin))
     close_all_sessions_of_plugin_if_any(plugin);
 
-  my_set_thread_local(THR_srv_session_thread, NULL);
+  THR_srv_session_thread= nullptr;
 
-  DBUG_ASSERT(my_get_thread_local(THR_stack_start_address));
-  my_set_thread_local(THR_stack_start_address, NULL);
+  DBUG_ASSERT(THR_stack_start_address);
+  THR_stack_start_address= nullptr;
   my_thread_end();
 }
 
@@ -805,14 +806,9 @@ bool Srv_session::module_init()
 {
   if (srv_session_THRs_initialized)
     return false;
-
-  if (my_create_thread_local_key(&THR_stack_start_address, NULL) ||
-      my_create_thread_local_key(&THR_srv_session_thread, NULL))
-  {
-    sql_print_error("Can't create thread key for SQL session service");
-    return true;
-  }
   srv_session_THRs_initialized= true;
+  THR_stack_start_address= nullptr;
+  THR_srv_session_thread= nullptr;
 
   server_session_list.init();
   server_session_threads.init();
@@ -833,9 +829,8 @@ bool Srv_session::module_deinit()
 {
   if (srv_session_THRs_initialized)
   {
-    srv_session_THRs_initialized= false;
-    (void) my_delete_thread_local_key(THR_stack_start_address);
-    (void) my_delete_thread_local_key(THR_srv_session_thread);
+    THR_stack_start_address= nullptr;
+    THR_srv_session_thread= nullptr;
 
     server_session_list.clear();
     server_session_list.deinit();
@@ -945,7 +940,7 @@ bool Srv_session::open()
 
   Global_THD_manager::get_instance()->add_thd(&thd);
 
-  const void *plugin= my_get_thread_local(THR_srv_session_thread);
+  const void *plugin= THR_srv_session_thread;
 
   server_session_list.add(&thd, plugin, this);
 
@@ -997,8 +992,8 @@ bool Srv_session::attach()
 
   DBUG_PRINT("info",("current_thd=%p", current_thd));
 
-  const char *new_stack= my_get_thread_local(THR_srv_session_thread)?
-        (const char*)my_get_thread_local(THR_stack_start_address):
+  const char *new_stack= THR_srv_session_thread ?
+        THR_stack_start_address :
         (old_thd? old_thd->thread_stack : NULL);
 
   /*

@@ -336,7 +336,7 @@ void *thr_find_all_keys(void *arg)
   memset(&thread_keycache_var, 0, sizeof(st_keycache_thread_var));
   mysql_cond_init(PSI_NOT_INSTRUMENTED,
                   &thread_keycache_var.suspend);
-  my_set_thread_local(keycache_tls_key, &thread_keycache_var);
+  keycache_tls= &thread_keycache_var;
 
   { /* Add extra block since DBUG_ENTER declare variables */
     DBUG_ENTER("thr_find_all_keys");
@@ -587,7 +587,7 @@ int thr_write_keys(MI_SORT_PARAM *sort_param)
         length= (size_t)param->sort_buffer_length;
         while (length >= MIN_SORT_BUFFER)
         {
-          if ((mergebuf= my_malloc(PSI_NOT_INSTRUMENTED,
+          if ((mergebuf= (uchar *)my_malloc(PSI_NOT_INSTRUMENTED,
                                    length, MYF(0))))
               break;
           length=length*3/4;
