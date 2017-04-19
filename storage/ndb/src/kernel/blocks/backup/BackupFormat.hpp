@@ -107,6 +107,7 @@ struct BackupFormat {
   {
     struct FileHeader fileHeader;
     Uint32 Checksum;
+    Uint32 ValidFlag;
     Uint32 TableId;
     Uint32 FragmentId;
     Uint32 MaxGciCompleted;

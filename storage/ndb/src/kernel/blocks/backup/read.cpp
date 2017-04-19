@@ -471,6 +471,7 @@ NdbOut & operator<<(NdbOut& ndbout,
 {
   ndbout << "-- LCP Control file part:" << endl;
   ndbout << "Checksum: " << hex << lcf.Checksum << endl;
+  ndbout << "ValidFlag: " << lcf.ValidFlag << endl;
   ndbout << "TableId: " << lcf.TableId << endl;
   ndbout << "FragmentId: " << lcf.FragmentId << endl;
   ndbout << "MaxGciCompleted: " << lcf.MaxGciCompleted << endl;
@@ -503,6 +504,7 @@ readLCPCtlFile(ndbzio_stream* f, BackupFormat::LCPCtlFile *ret)
     RETURN_FALSE();
 
   theData.LCPCtlFile.Checksum = ntohl(theData.LCPCtlFile.Checksum);
+  theData.LCPCtlFile.ValidFlag = ntohl(theData.LCPCtlFile.ValidFlag);
   theData.LCPCtlFile.TableId = ntohl(theData.LCPCtlFile.TableId);
   theData.LCPCtlFile.FragmentId = ntohl(theData.LCPCtlFile.FragmentId);
   theData.LCPCtlFile.MaxGciCompleted =

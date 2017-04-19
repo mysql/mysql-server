@@ -212,7 +212,6 @@ public:
     Uint64 m_next_lsn;
     Uint64 m_last_sync_req_lsn; // Outstanding
     Uint64 m_last_synced_lsn;   // 
-    Uint64 m_max_pre_sync_lsn;  // Max pre sync LSN received from LCP code
     Uint64 m_max_sync_req_lsn;  // User requested lsn
     union {
       Uint64 m_last_read_lsn;

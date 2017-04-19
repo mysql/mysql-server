@@ -256,12 +256,14 @@ public:
 
   struct DeleteLcpFile
   {
+    Uint64 lcpLsn;
     Uint32 tableId;
     Uint32 fragmentId;
     Uint32 firstFileId;
     Uint32 lastFileId;
     Uint32 waitCompletedGci;
     Uint32 lcpCtlFileNumber;
+    Uint32 validFlag;
     union
     {
       Uint32 nextPool;
@@ -611,10 +613,10 @@ public:
     Uint32 deleteDataFileNumber;
 
     /* State variables for finalisation of LCP processing of a fragment. */
+    bool m_disk_data_exist;
     bool wait_data_file_close;
-    bool wait_sync_log_lcp_lsn;
-    bool wait_sync_page_cache;
-    bool wait_sync_extent;
+    bool wait_disk_data_sync;
+    bool m_lcp_lsn_synced;
 
     /* Data for delete LCP file process */
     Uint32 deleteFilePtr;
@@ -1105,13 +1107,30 @@ public:
   void lcp_close_data_file_conf(Signal* signal, BackupRecordPtr);
   void read_lcp_descriptor(Signal*, BackupRecordPtr, TablePtr);
   void lcp_start_complete_processing(Signal *signal, BackupRecordPtr ptr);
-  void sync_log_lcp_lsn_callback(Signal*, Uint32 ptrI, Uint32 res);
   void sync_page_cache_callback(Signal*, Uint32 ptrI, Uint32 res);
   void finalize_lcp_processing(Signal*, BackupRecordPtr);
   void lcp_one_part_completed(Signal*, BackupRecordPtr);
   void lcp_write_undo_log(Signal *signal, BackupRecordPtr);
 
   void delete_lcp_file_processing(Signal*, Uint32 ptrI);
+
+  void sync_log_lcp_lsn(Signal*, DeleteLcpFilePtr, Uint32 ptrI);
+  void sync_log_lcp_lsn_callback(Signal*, Uint32 ptrI, Uint32 res);
+  void lcp_open_ctl_file_for_rewrite(Signal*,
+                                     DeleteLcpFilePtr,
+                                     BackupRecordPtr);
+  void lcp_open_ctl_file_for_rewrite_done(Signal*, BackupFilePtr);
+  void lcp_read_ctl_file_for_rewrite(Signal*, BackupFilePtr);
+  void lcp_read_ctl_file_for_rewrite_done(Signal*, BackupFilePtr);
+  void lcp_update_ctl_file_for_rewrite(Signal*, BackupFilePtr, Page32Ptr);
+  void lcp_update_ctl_file_for_rewrite_done(Signal*,
+                                            BackupRecordPtr,
+                                            BackupFilePtr);
+  void lcp_close_ctl_file_for_rewrite(Signal*, BackupRecordPtr, BackupFilePtr);
+  void lcp_close_ctl_file_for_rewrite_done(Signal*,
+                                           BackupRecordPtr,
+                                           BackupFilePtr);
+
   void lcp_remove_file(Signal*,
                        BackupRecordPtr,
                        DeleteLcpFilePtr);
