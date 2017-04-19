@@ -1,0 +1,593 @@
+#Performance schema upgrade/downgrade tests
+-- source include/big_test.inc
+#Memory checks will be done by ASAN builds, valgrind timeout on this test.
+--source include/not_valgrind.inc
+-- source include/mysql_upgrade_preparation.inc
+
+--echo #
+--echo # Upgrading of sys schema tests
+--echo #
+
+# Save a copy of the user/tables_priv tables, to restore later
+# Otherwise the final mysql_upgrade will REPLACE and update timestamps etc.
+--let $backup= 1
+--source include/backup_tables_priv_and_users.inc
+
+--echo # Remove the sys schema, and check the --skip-sys-schema option
+DROP DATABASE sys;
+--exec $MYSQL_UPGRADE --skip-verbose --skip-sys-schema --force
+SHOW DATABASES;
+
+--echo # Now run it normally, to ensure the sys schema is created
+--exec $MYSQL_UPGRADE --skip-verbose --force
+SHOW DATABASES;
+
+--echo # Now drop procedures and make sure re-install is done
+DROP PROCEDURE sys.ps_setup_save;
+DROP PROCEDURE sys.ps_setup_reload_saved;
+--exec $MYSQL_UPGRADE --skip-verbose --force
+SELECT ROUTINE_NAME FROM INFORMATION_SCHEMA.ROUTINES WHERE ROUTINE_SCHEMA = 'sys' AND ROUTINE_TYPE = 'PROCEDURE';
+
+--echo # Now drop functions and make sure re-install is done
+DROP FUNCTION sys.format_bytes;
+DROP FUNCTION sys.format_time;
+--exec $MYSQL_UPGRADE --skip-verbose --force
+SELECT ROUTINE_NAME FROM INFORMATION_SCHEMA.ROUTINES WHERE ROUTINE_SCHEMA = 'sys' AND ROUTINE_TYPE = 'FUNCTION';
+
+--echo # Now drop views and make sure re-install is done
+DROP VIEW sys.host_summary;
+DROP VIEW sys.processlist;
+--exec $MYSQL_UPGRADE --skip-verbose --force
+SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = 'sys' AND TABLE_TYPE = 'VIEW';
+
+--echo # Now drop triggers and make sure re-install is done
+DROP TRIGGER sys.sys_config_insert_set_user;
+DROP TRIGGER sys.sys_config_update_set_user;
+--exec $MYSQL_UPGRADE --skip-verbose --force
+SELECT TRIGGER_NAME FROM INFORMATION_SCHEMA.TRIGGERS WHERE TRIGGER_SCHEMA = 'sys';
+
+--echo # Now drop the sys_config table and make sure re-install is done
+DROP TABLE sys.sys_config;
+--exec $MYSQL_UPGRADE --skip-verbose --force
+SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = 'sys' AND TABLE_TYPE = 'BASE TABLE';
+
+--echo #
+--echo # WL#2284: Increase the length of a user name
+--echo #
+
+
+--echo # First downgrade all tables with user name columnd to 5.6
+
+SET @orig_sql_mode= @@sql_mode;
+SET sql_mode= (SELECT replace(@@sql_mode,'NO_ZERO_DATE',''));
+SET sql_mode= (SELECT replace(@@sql_mode,'STRICT_TRANS_TABLES',''));
+CREATE TABLE mysql.db_backup SELECT * FROM mysql.db;
+
+ALTER TABLE mysql.tables_priv
+  MODIFY User char(16) NOT NULL default '',
+  MODIFY Grantor char(77) DEFAULT '' NOT NULL;
+ALTER TABLE mysql.columns_priv
+  MODIFY User char(16) NOT NULL default '';
+ALTER TABLE mysql.user
+  MODIFY User char(16) NOT NULL default '';
+ALTER TABLE mysql.db
+  MODIFY User char(16) NOT NULL default '';
+ALTER TABLE mysql.procs_priv
+  MODIFY User char(16) binary DEFAULT '' NOT NULL,
+  MODIFY Grantor char(77) DEFAULT '' NOT NULL;
+
+--echo #
+--echo # Downgrade performance_schema tables
+--echo #
+
+set @have_pfs= (select count(engine) from information_schema.engines where engine='PERFORMANCE_SCHEMA' and support != 'NO');
+
+--echo #
+--echo # TABLE USERS
+--echo #
+
+SET @cmd="DROP TABLE IF EXISTS performance_schema.users;";
+
+SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+SET @cmd="CREATE TABLE performance_schema.users("
+  "USER CHAR(16) collate utf8_bin default null,"
+  "CURRENT_CONNECTIONS bigint not null,"
+  "TOTAL_CONNECTIONS bigint not null"
+  ")ENGINE=PERFORMANCE_SCHEMA;";
+
+SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+--echo #
+--echo # TABLE ACCOUNTS
+--echo #
+
+SET @cmd="DROP TABLE IF EXISTS performance_schema.accounts;";
+
+SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+SET @cmd="CREATE TABLE performance_schema.accounts("
+  "USER CHAR(16) collate utf8_bin default null,"
+  "HOST CHAR(60) collate utf8_bin default null,"
+  "CURRENT_CONNECTIONS bigint not null,"
+  "TOTAL_CONNECTIONS bigint not null"
+  ")ENGINE=PERFORMANCE_SCHEMA;";
+
+SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+--echo #
+--echo # TABLE SETUP_ACTORS
+--echo #
+
+SET @cmd="DROP TABLE IF EXISTS performance_schema.setup_actors;";
+
+SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+SET @cmd="CREATE TABLE performance_schema.setup_actors("
+  "HOST CHAR(60) collate utf8_bin default '%' not null,"
+  "USER CHAR(16) collate utf8_bin default '%' not null,"
+  "`ROLE` CHAR(16) collate utf8_bin default '%' not null,"
+  "ENABLED ENUM ('YES', 'NO') not null default 'YES',"
+  "HISTORY ENUM ('YES', 'NO') not null default 'YES'"
+  ")ENGINE=PERFORMANCE_SCHEMA;";
+
+SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+--echo #
+--echo # TABLE EVENTS_STAGES_SUMMARY_BY_USER_BY_EVENT_NAME
+--echo #
+
+SET @cmd="DROP TABLE IF EXISTS performance_schema.events_stages_summary_by_user_by_event_name;";
+
+SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+SET @cmd="CREATE TABLE performance_schema.events_stages_summary_by_user_by_event_name("
+  "USER CHAR(16) collate utf8_bin default null,"
+  "EVENT_NAME VARCHAR(128) not null,"
+  "COUNT_STAR BIGINT unsigned not null,"
+  "SUM_TIMER_WAIT BIGINT unsigned not null,"
+  "MIN_TIMER_WAIT BIGINT unsigned not null,"
+  "AVG_TIMER_WAIT BIGINT unsigned not null,"
+  "MAX_TIMER_WAIT BIGINT unsigned not null"
+  ")ENGINE=PERFORMANCE_SCHEMA;";
+
+SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+--echo #
+--echo # TABLE EVENTS_WAITS_SUMMARY_BY_USER_BY_EVENT_NAME
+--echo #
+
+SET @cmd="DROP TABLE IF EXISTS performance_schema.events_waits_summary_by_user_by_event_name;";
+
+SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+SET @cmd="CREATE TABLE performance_schema.events_waits_summary_by_user_by_event_name("
+  "USER CHAR(16) collate utf8_bin default null,"
+  "EVENT_NAME VARCHAR(128) not null,"
+  "COUNT_STAR BIGINT unsigned not null,"
+  "SUM_TIMER_WAIT BIGINT unsigned not null,"
+  "MIN_TIMER_WAIT BIGINT unsigned not null,"
+  "AVG_TIMER_WAIT BIGINT unsigned not null,"
+  "MAX_TIMER_WAIT BIGINT unsigned not null"
+  ")ENGINE=PERFORMANCE_SCHEMA;";
+
+SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+--echo #
+--echo # TABLE EVENTS_WAITS_SUMMARY_BY_ACCOUNT_BY_EVENT_NAME
+--echo #
+
+SET @cmd="DROP TABLE IF EXISTS performance_schema.events_waits_summary_by_account_by_event_name;";
+
+SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+SET @cmd="CREATE TABLE performance_schema.events_waits_summary_by_account_by_event_name("
+  "USER CHAR(16) collate utf8_bin default null,"
+  "HOST CHAR(60) collate utf8_bin default null,"
+  "EVENT_NAME VARCHAR(128) not null,"
+  "COUNT_STAR BIGINT unsigned not null,"
+  "SUM_TIMER_WAIT BIGINT unsigned not null,"
+  "MIN_TIMER_WAIT BIGINT unsigned not null,"
+  "AVG_TIMER_WAIT BIGINT unsigned not null,"
+  "MAX_TIMER_WAIT BIGINT unsigned not null"
+  ")ENGINE=PERFORMANCE_SCHEMA;";
+
+SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+--echo #
+--echo # TABLE EVENTS_STATEMENTS_SUMMARY_BY_ACCOUNT_BY_EVENT_NAME
+--echo #
+
+SET @cmd="DROP TABLE IF EXISTS performance_schema.events_statements_summary_by_account_by_event_name;";
+
+SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+SET @cmd="CREATE TABLE performance_schema.events_statements_summary_by_account_by_event_name("
+  "USER CHAR(16) collate utf8_bin default null,"
+  "HOST CHAR(60) collate utf8_bin default null,"
+  "EVENT_NAME VARCHAR(128) not null,"
+  "COUNT_STAR BIGINT unsigned not null,"
+  "SUM_TIMER_WAIT BIGINT unsigned not null,"
+  "MIN_TIMER_WAIT BIGINT unsigned not null,"
+  "AVG_TIMER_WAIT BIGINT unsigned not null,"
+  "MAX_TIMER_WAIT BIGINT unsigned not null,"
+  "SUM_LOCK_TIME BIGINT unsigned not null,"
+  "SUM_ERRORS BIGINT unsigned not null,"
+  "SUM_WARNINGS BIGINT unsigned not null,"
+  "SUM_ROWS_AFFECTED BIGINT unsigned not null,"
+  "SUM_ROWS_SENT BIGINT unsigned not null,"
+  "SUM_ROWS_EXAMINED BIGINT unsigned not null,"
+  "SUM_CREATED_TMP_DISK_TABLES BIGINT unsigned not null,"
+  "SUM_CREATED_TMP_TABLES BIGINT unsigned not null,"
+  "SUM_SELECT_FULL_JOIN BIGINT unsigned not null,"
+  "SUM_SELECT_FULL_RANGE_JOIN BIGINT unsigned not null,"
+  "SUM_SELECT_RANGE BIGINT unsigned not null,"
+  "SUM_SELECT_RANGE_CHECK BIGINT unsigned not null,"
+  "SUM_SELECT_SCAN BIGINT unsigned not null,"
+  "SUM_SORT_MERGE_PASSES BIGINT unsigned not null,"
+  "SUM_SORT_RANGE BIGINT unsigned not null,"
+  "SUM_SORT_ROWS BIGINT unsigned not null,"
+  "SUM_SORT_SCAN BIGINT unsigned not null,"
+  "SUM_NO_INDEX_USED BIGINT unsigned not null,"
+  "SUM_NO_GOOD_INDEX_USED BIGINT unsigned not null"
+  ")ENGINE=PERFORMANCE_SCHEMA;";
+
+SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+--echo #
+--echo # TABLE EVENTS_STATEMENTS_SUMMARY_BY_USER_BY_EVENT_NAME
+--echo #
+
+SET @cmd="DROP TABLE IF EXISTS performance_schema.events_statements_summary_by_user_by_event_name;";
+
+SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+SET @cmd="CREATE TABLE performance_schema.events_statements_summary_by_user_by_event_name("
+  "USER CHAR(16) collate utf8_bin default null,"
+  "EVENT_NAME VARCHAR(128) not null,"
+  "COUNT_STAR BIGINT unsigned not null,"
+  "SUM_TIMER_WAIT BIGINT unsigned not null,"
+  "MIN_TIMER_WAIT BIGINT unsigned not null,"
+  "AVG_TIMER_WAIT BIGINT unsigned not null,"
+  "MAX_TIMER_WAIT BIGINT unsigned not null,"
+  "SUM_LOCK_TIME BIGINT unsigned not null,"
+  "SUM_ERRORS BIGINT unsigned not null,"
+  "SUM_WARNINGS BIGINT unsigned not null,"
+  "SUM_ROWS_AFFECTED BIGINT unsigned not null,"
+  "SUM_ROWS_SENT BIGINT unsigned not null,"
+  "SUM_ROWS_EXAMINED BIGINT unsigned not null,"
+  "SUM_CREATED_TMP_DISK_TABLES BIGINT unsigned not null,"
+  "SUM_CREATED_TMP_TABLES BIGINT unsigned not null,"
+  "SUM_SELECT_FULL_JOIN BIGINT unsigned not null,"
+  "SUM_SELECT_FULL_RANGE_JOIN BIGINT unsigned not null,"
+  "SUM_SELECT_RANGE BIGINT unsigned not null,"
+  "SUM_SELECT_RANGE_CHECK BIGINT unsigned not null,"
+  "SUM_SELECT_SCAN BIGINT unsigned not null,"
+  "SUM_SORT_MERGE_PASSES BIGINT unsigned not null,"
+  "SUM_SORT_RANGE BIGINT unsigned not null,"
+  "SUM_SORT_ROWS BIGINT unsigned not null,"
+  "SUM_SORT_SCAN BIGINT unsigned not null,"
+  "SUM_NO_INDEX_USED BIGINT unsigned not null,"
+  "SUM_NO_GOOD_INDEX_USED BIGINT unsigned not null"
+  ")ENGINE=PERFORMANCE_SCHEMA;";
+
+SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+--echo #
+--echo # TABLE EVENTS_STAGES_SUMMARY_BY_ACCOUNT_BY_EVENT_NAME
+--echo #
+
+SET @cmd="DROP TABLE IF EXISTS performance_schema.events_stages_summary_by_account_by_event_name;";
+
+SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+SET @cmd="CREATE TABLE performance_schema.events_stages_summary_by_account_by_event_name("
+  "USER CHAR(16) collate utf8_bin default null,"
+  "HOST CHAR(60) collate utf8_bin default null,"
+  "EVENT_NAME VARCHAR(128) not null,"
+  "COUNT_STAR BIGINT unsigned not null,"
+  "SUM_TIMER_WAIT BIGINT unsigned not null,"
+  "MIN_TIMER_WAIT BIGINT unsigned not null,"
+  "AVG_TIMER_WAIT BIGINT unsigned not null,"
+  "MAX_TIMER_WAIT BIGINT unsigned not null"
+  ")ENGINE=PERFORMANCE_SCHEMA;";
+
+SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+--echo #
+--echo # TABLE EVENTS_STAGES_SUMMARY_BY_USER_BY_EVENT_NAME
+--echo #
+
+SET @cmd="DROP TABLE IF EXISTS performance_schema.events_stages_summary_by_user_by_event_name;";
+
+SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+SET @cmd="CREATE TABLE performance_schema.events_stages_summary_by_user_by_event_name("
+  "USER CHAR(16) collate utf8_bin default null,"
+  "EVENT_NAME VARCHAR(128) not null,"
+  "COUNT_STAR BIGINT unsigned not null,"
+  "SUM_TIMER_WAIT BIGINT unsigned not null,"
+  "MIN_TIMER_WAIT BIGINT unsigned not null,"
+  "AVG_TIMER_WAIT BIGINT unsigned not null,"
+  "MAX_TIMER_WAIT BIGINT unsigned not null"
+  ")ENGINE=PERFORMANCE_SCHEMA;";
+
+SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+--echo #
+--echo # TABLE THREADS
+--echo #
+
+SET @cmd="DROP TABLE IF EXISTS performance_schema.threads;";
+
+SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+SET @cmd="CREATE TABLE performance_schema.threads("
+  "THREAD_ID BIGINT unsigned not null,"
+  "NAME VARCHAR(128) not null,"
+  "TYPE VARCHAR(10) not null,"
+  "PROCESSLIST_ID BIGINT unsigned,"
+  "PROCESSLIST_USER VARCHAR(16),"
+  "PROCESSLIST_HOST VARCHAR(60),"
+  "PROCESSLIST_DB VARCHAR(64),"
+  "PROCESSLIST_COMMAND VARCHAR(16),"
+  "PROCESSLIST_TIME BIGINT,"
+  "PROCESSLIST_STATE VARCHAR(64),"
+  "PROCESSLIST_INFO LONGTEXT,"
+  "PARENT_THREAD_ID BIGINT unsigned,"
+  "`ROLE` VARCHAR(64),"
+  "INSTRUMENTED ENUM ('YES', 'NO') not null,"
+  "HISTORY ENUM ('YES', 'NO') not null"
+  ")ENGINE=PERFORMANCE_SCHEMA;";
+
+SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+--echo #
+--echo # TABLE MEMORY_SUMMARY_BY_USER_BY_EVENT_NAME
+--echo #
+
+SET @cmd="DROP TABLE IF EXISTS performance_schema.memory_summary_by_user_by_event_name;";
+
+SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+
+SET @cmd="CREATE TABLE performance_schema.memory_summary_by_user_by_event_name("
+  "USER CHAR(16) collate utf8_bin default null,"
+  "EVENT_NAME VARCHAR(128) not null,"
+  "COUNT_ALLOC BIGINT unsigned not null,"
+  "COUNT_FREE BIGINT unsigned not null,"
+  "SUM_NUMBER_OF_BYTES_ALLOC BIGINT unsigned not null,"
+  "SUM_NUMBER_OF_BYTES_FREE BIGINT unsigned not null,"
+  "LOW_COUNT_USED BIGINT not null,"
+  "CURRENT_COUNT_USED BIGINT not null,"
+  "HIGH_COUNT_USED BIGINT not null,"
+  "LOW_NUMBER_OF_BYTES_USED BIGINT not null,"
+  "CURRENT_NUMBER_OF_BYTES_USED BIGINT not null,"
+  "HIGH_NUMBER_OF_BYTES_USED BIGINT not null"
+  ")ENGINE=PERFORMANCE_SCHEMA;";
+
+SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+--echo #
+--echo # TABLE MEMORY_SUMMARY_BY_ACCOUNT_BY_EVENT_NAME
+--echo #
+
+SET @cmd="DROP TABLE IF EXISTS performance_schema.memory_summary_by_account_by_event_name;";
+
+SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+SET @cmd="CREATE TABLE performance_schema.memory_summary_by_account_by_event_name("
+  "USER CHAR(16) collate utf8_bin default null,"
+  "HOST CHAR(60) collate utf8_bin default null,"
+  "EVENT_NAME VARCHAR(128) not null,"
+  "COUNT_ALLOC BIGINT unsigned not null,"
+  "COUNT_FREE BIGINT unsigned not null,"
+  "SUM_NUMBER_OF_BYTES_ALLOC BIGINT unsigned not null,"
+  "SUM_NUMBER_OF_BYTES_FREE BIGINT unsigned not null,"
+  "LOW_COUNT_USED BIGINT not null,"
+  "CURRENT_COUNT_USED BIGINT not null,"
+  "HIGH_COUNT_USED BIGINT not null,"
+  "LOW_NUMBER_OF_BYTES_USED BIGINT not null,"
+  "CURRENT_NUMBER_OF_BYTES_USED BIGINT not null,"
+  "HIGH_NUMBER_OF_BYTES_USED BIGINT not null"
+  ")ENGINE=PERFORMANCE_SCHEMA;";
+
+SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+--echo #
+--echo # TABLE EVENTS_TRANSACTIONS_SUMMARY_BY_USER_BY_EVENT_NAME
+--echo #
+
+SET @cmd="DROP TABLE IF EXISTS performance_schema.events_transactions_summary_by_user_by_event_name;";
+
+SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+SET @cmd="CREATE TABLE performance_schema.events_transactions_summary_by_user_by_event_name("
+  "USER CHAR(16) collate utf8_bin default null,"
+  "EVENT_NAME VARCHAR(128) not null,"
+  "COUNT_STAR BIGINT unsigned not null,"
+  "SUM_TIMER_WAIT BIGINT unsigned not null,"
+  "MIN_TIMER_WAIT BIGINT unsigned not null,"
+  "AVG_TIMER_WAIT BIGINT unsigned not null,"
+  "MAX_TIMER_WAIT BIGINT unsigned not null,"
+  "COUNT_READ_WRITE BIGINT unsigned not null,"
+  "SUM_TIMER_READ_WRITE BIGINT unsigned not null,"
+  "MIN_TIMER_READ_WRITE BIGINT unsigned not null,"
+  "AVG_TIMER_READ_WRITE BIGINT unsigned not null,"
+  "MAX_TIMER_READ_WRITE BIGINT unsigned not null,"
+  "COUNT_READ_ONLY BIGINT unsigned not null,"
+  "SUM_TIMER_READ_ONLY BIGINT unsigned not null,"
+  "MIN_TIMER_READ_ONLY BIGINT unsigned not null,"
+  "AVG_TIMER_READ_ONLY BIGINT unsigned not null,"
+  "MAX_TIMER_READ_ONLY BIGINT unsigned not null"
+  ")ENGINE=PERFORMANCE_SCHEMA;";
+
+SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+--echo #
+--echo # TABLE EVENTS_TRANSACTIONS_SUMMARY_BY_ACCOUNT_BY_EVENT_NAME
+--echo #
+
+SET @cmd="DROP TABLE IF EXISTS performance_schema.events_transactions_summary_by_account_by_event_name;";
+
+SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+SET @cmd="CREATE TABLE performance_schema.events_transactions_summary_by_account_by_event_name("
+  "USER CHAR(16) collate utf8_bin default null,"
+  "HOST CHAR(60) collate utf8_bin default null,"
+  "EVENT_NAME VARCHAR(128) not null,"
+  "COUNT_STAR BIGINT unsigned not null,"
+  "SUM_TIMER_WAIT BIGINT unsigned not null,"
+  "MIN_TIMER_WAIT BIGINT unsigned not null,"
+  "AVG_TIMER_WAIT BIGINT unsigned not null,"
+  "MAX_TIMER_WAIT BIGINT unsigned not null,"
+  "COUNT_READ_WRITE BIGINT unsigned not null,"
+  "SUM_TIMER_READ_WRITE BIGINT unsigned not null,"
+  "MIN_TIMER_READ_WRITE BIGINT unsigned not null,"
+  "AVG_TIMER_READ_WRITE BIGINT unsigned not null,"
+  "MAX_TIMER_READ_WRITE BIGINT unsigned not null,"
+  "COUNT_READ_ONLY BIGINT unsigned not null,"
+  "SUM_TIMER_READ_ONLY BIGINT unsigned not null,"
+  "MIN_TIMER_READ_ONLY BIGINT unsigned not null,"
+  "AVG_TIMER_READ_ONLY BIGINT unsigned not null,"
+  "MAX_TIMER_READ_ONLY BIGINT unsigned not null"
+  ")ENGINE=PERFORMANCE_SCHEMA;";
+
+SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+--echo #
+--echo # Bug #21762656 AFTER RUNNING MYSQL_UPGRADE PROXIES_PRIV USER COLUMNS
+--echo # ARE NOT UPDATED TO 32
+--echo #
+
+ALTER TABLE mysql.proxies_priv MODIFY User char(16) binary DEFAULT '' NOT NULL;
+ALTER TABLE mysql.proxies_priv MODIFY Proxied_user char(16) binary DEFAULT '' NOT NULL;
+ALTER TABLE mysql.proxies_priv MODIFY Grantor char(77) DEFAULT '' NOT NULL;
+
+--echo # Tables with user name column downgraded to 5.6, now run mysql_upgrade
+
+--exec $MYSQL_UPGRADE --skip-verbose --force 2>&1
+
+--echo # After downgrading all tables with user columns to 5.6 schema and then
+--echo # running mysql_upgrade check if all tables have correct 5.7 structure
+
+SHOW CREATE TABLE performance_schema.users;
+SHOW CREATE TABLE performance_schema.accounts;
+SHOW CREATE TABLE performance_schema.setup_actors;
+SHOW CREATE TABLE performance_schema.events_stages_summary_by_user_by_event_name;
+SHOW CREATE TABLE performance_schema.events_waits_summary_by_user_by_event_name;
+SHOW CREATE TABLE performance_schema.events_waits_summary_by_account_by_event_name;
+SHOW CREATE TABLE performance_schema.events_statements_summary_by_account_by_event_name;
+SHOW CREATE TABLE performance_schema.events_statements_summary_by_user_by_event_name;
+SHOW CREATE TABLE performance_schema.events_stages_summary_by_account_by_event_name;
+SHOW CREATE TABLE performance_schema.events_stages_summary_by_user_by_event_name;
+SHOW CREATE TABLE performance_schema.threads;
+SHOW CREATE TABLE performance_schema.memory_summary_by_user_by_event_name;
+SHOW CREATE TABLE performance_schema.memory_summary_by_account_by_event_name;
+SHOW CREATE TABLE performance_schema.events_transactions_summary_by_user_by_event_name;
+SHOW CREATE TABLE performance_schema.events_transactions_summary_by_account_by_event_name;
+
+
+# Restore the saved contents of mysql.user and mysql.tables_priv
+--let $restore= 1
+--source include/backup_tables_priv_and_users.inc
+
+#Restore mysql.db table
+TRUNCATE TABLE mysql.db;
+INSERT INTO mysql.db SELECT * FROM mysql.db_backup;
+DROP TABLE mysql.db_backup;
+
+SET sql_mode= @orig_sql_mode;
+
+--source include/mysql_upgrade_cleanup.inc
+
