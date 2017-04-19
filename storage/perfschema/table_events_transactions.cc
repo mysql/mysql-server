@@ -594,7 +594,7 @@ table_events_transactions_common::read_row_values(TABLE *table,
 }
 
 PFS_engine_table *
-table_events_transactions_current::create(void)
+table_events_transactions_current::create(PFS_engine_table_share *)
 {
   return new table_events_transactions_current();
 }
@@ -718,7 +718,7 @@ table_events_transactions_current::get_row_count(void)
 }
 
 PFS_engine_table *
-table_events_transactions_history::create(void)
+table_events_transactions_history::create(PFS_engine_table_share *)
 {
   return new table_events_transactions_history();
 }
@@ -899,7 +899,7 @@ table_events_transactions_history::get_row_count(void)
 }
 
 PFS_engine_table *
-table_events_transactions_history_long::create(void)
+table_events_transactions_history_long::create(PFS_engine_table_share *)
 {
   return new table_events_transactions_history_long();
 }

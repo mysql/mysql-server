@@ -181,7 +181,7 @@ PFS_index_metadata_locks_by_owner::match(const PFS_metadata_lock *pfs)
 }
 
 PFS_engine_table *
-table_metadata_locks::create(void)
+table_metadata_locks::create(PFS_engine_table_share *)
 {
   return new table_metadata_locks();
 }

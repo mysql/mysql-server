@@ -84,7 +84,7 @@ PFS_engine_table_share table_session_variables::m_share = {
 };
 
 PFS_engine_table *
-table_session_variables::create(void)
+table_session_variables::create(PFS_engine_table_share *)
 {
   return new table_session_variables();
 }

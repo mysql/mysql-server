@@ -119,7 +119,7 @@ private:
 class PFS_engine_table
 {
 public:
-  static const PFS_engine_table_share *find_engine_table_share(
+  static PFS_engine_table_share *find_engine_table_share(
     const char *name);
 
   int read_row(TABLE *table, unsigned char *buf, Field **fields);
@@ -276,7 +276,7 @@ protected:
 };
 
 /** Callback to open a table. */
-typedef PFS_engine_table *(*pfs_open_table_t)(void);
+typedef PFS_engine_table *(*pfs_open_table_t)(PFS_engine_table_share *);
 /** Callback to write a row. */
 typedef int (*pfs_write_row_t)(TABLE *table,
                                unsigned char *buf,

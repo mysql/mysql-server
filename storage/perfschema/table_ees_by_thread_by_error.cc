@@ -126,7 +126,7 @@ PFS_engine_table_share table_ees_by_thread_by_error::m_share = {
 };
 
 PFS_engine_table *
-table_ees_by_thread_by_error::create(void)
+table_ees_by_thread_by_error::create(PFS_engine_table_share *)
 {
   return new table_ees_by_thread_by_error();
 }

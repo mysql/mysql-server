@@ -239,7 +239,7 @@ PFS_index_esms_by_digest::match(PFS_statements_digest_stat *pfs)
 }
 
 PFS_engine_table *
-table_esms_by_digest::create(void)
+table_esms_by_digest::create(PFS_engine_table_share *)
 {
   return new table_esms_by_digest();
 }

@@ -197,7 +197,7 @@ PFS_index_uvar_by_thread::match(const User_variable *pfs)
 }
 
 PFS_engine_table *
-table_uvar_by_thread::create(void)
+table_uvar_by_thread::create(PFS_engine_table_share *)
 {
   return new table_uvar_by_thread();
 }

@@ -112,7 +112,7 @@ PFS_index_setup_actors::match(PFS_setup_actor *pfs)
 }
 
 PFS_engine_table *
-table_setup_actors::create()
+table_setup_actors::create(PFS_engine_table_share *)
 {
   return new table_setup_actors();
 }

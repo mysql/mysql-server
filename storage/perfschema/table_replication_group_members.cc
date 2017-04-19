@@ -146,7 +146,7 @@ PFS_engine_table_share table_replication_group_members::m_share = {
 };
 
 PFS_engine_table*
-table_replication_group_members::create(void)
+table_replication_group_members::create(PFS_engine_table_share*)
 {
   return new table_replication_group_members();
 }

@@ -114,7 +114,7 @@ PFS_engine_table_share table_data_lock_waits::m_share = {
 };
 
 PFS_engine_table *
-table_data_lock_waits::create(void)
+table_data_lock_waits::create(PFS_engine_table_share *)
 {
   return new table_data_lock_waits();
 }

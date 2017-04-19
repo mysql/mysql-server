@@ -93,7 +93,7 @@ PFS_engine_table_share table_ews_by_thread_by_event_name::m_share = {
 };
 
 PFS_engine_table *
-table_ews_by_thread_by_event_name::create(void)
+table_ews_by_thread_by_event_name::create(PFS_engine_table_share *)
 {
   return new table_ews_by_thread_by_event_name();
 }

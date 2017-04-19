@@ -95,7 +95,7 @@ PFS_index_setup_instruments::match(PFS_instr_class *klass)
 }
 
 PFS_engine_table *
-table_setup_instruments::create(void)
+table_setup_instruments::create(PFS_engine_table_share *)
 {
   return new table_setup_instruments();
 }

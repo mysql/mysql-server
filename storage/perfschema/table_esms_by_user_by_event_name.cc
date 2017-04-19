@@ -220,7 +220,7 @@ PFS_index_esms_by_user_by_event_name::match(PFS_instr_class *instr_class)
 }
 
 PFS_engine_table *
-table_esms_by_user_by_event_name::create(void)
+table_esms_by_user_by_event_name::create(PFS_engine_table_share *)
 {
   return new table_esms_by_user_by_event_name();
 }

@@ -224,7 +224,8 @@ PFS_index_rpl_applier_status_by_worker_by_thread::match(Master_info *mi)
 }
 
 PFS_engine_table *
-table_replication_applier_status_by_worker::create(void)
+table_replication_applier_status_by_worker::create(
+  PFS_engine_table_share *)
 {
   return new table_replication_applier_status_by_worker();
 }

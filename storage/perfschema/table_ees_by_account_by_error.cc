@@ -139,7 +139,7 @@ PFS_index_ees_by_account_by_error::match_error_index(uint error_index)
 }
 
 PFS_engine_table *
-table_ees_by_account_by_error::create(void)
+table_ees_by_account_by_error::create(PFS_engine_table_share *)
 {
   return new table_ees_by_account_by_error();
 }

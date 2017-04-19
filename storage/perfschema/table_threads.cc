@@ -141,7 +141,7 @@ PFS_engine_table_share table_threads::m_share = {
 };
 
 PFS_engine_table *
-table_threads::create()
+table_threads::create(PFS_engine_table_share *)
 {
   return new table_threads();
 }
@@ -526,7 +526,7 @@ table_threads::read_row_values(TABLE *table,
         break;
       case 10: /* PROCESSLIST_INFO */
         if (m_row.m_processlist_info_length > 0)
-          set_field_longtext_utf8(
+          set_field_blob(
             f, m_row.m_processlist_info_ptr, m_row.m_processlist_info_length);
         else
         {

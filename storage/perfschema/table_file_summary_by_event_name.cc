@@ -191,7 +191,7 @@ PFS_index_file_summary_by_event_name::match(const PFS_file_class *pfs)
 }
 
 PFS_engine_table *
-table_file_summary_by_event_name::create(void)
+table_file_summary_by_event_name::create(PFS_engine_table_share *)
 {
   return new table_file_summary_by_event_name();
 }

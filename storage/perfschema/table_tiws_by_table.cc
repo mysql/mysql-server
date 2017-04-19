@@ -279,7 +279,7 @@ PFS_index_tiws_by_table::match(const PFS_table_share *share)
 }
 
 PFS_engine_table *
-table_tiws_by_table::create(void)
+table_tiws_by_table::create(PFS_engine_table_share *)
 {
   return new table_tiws_by_table();
 }

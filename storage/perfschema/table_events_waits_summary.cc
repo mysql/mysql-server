@@ -248,7 +248,7 @@ PFS_index_events_waits_summary_by_event_name::match_view(uint view)
 }
 
 PFS_engine_table *
-table_events_waits_summary_by_instance::create(void)
+table_events_waits_summary_by_instance::create(PFS_engine_table_share *)
 {
   return new table_events_waits_summary_by_instance();
 }

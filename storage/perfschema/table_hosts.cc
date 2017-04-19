@@ -88,7 +88,7 @@ PFS_index_hosts_by_host::match(PFS_host *pfs)
 }
 
 PFS_engine_table *
-table_hosts::create()
+table_hosts::create(PFS_engine_table_share *)
 {
   return new table_hosts();
 }

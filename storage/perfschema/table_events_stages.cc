@@ -377,7 +377,7 @@ table_events_stages_common::read_row_values(TABLE *table,
 }
 
 PFS_engine_table *
-table_events_stages_current::create(void)
+table_events_stages_current::create(PFS_engine_table_share *)
 {
   return new table_events_stages_current();
 }
@@ -497,7 +497,7 @@ table_events_stages_current::get_row_count(void)
 }
 
 PFS_engine_table *
-table_events_stages_history::create(void)
+table_events_stages_history::create(PFS_engine_table_share *)
 {
   return new table_events_stages_history();
 }
@@ -677,7 +677,7 @@ table_events_stages_history::get_row_count(void)
 }
 
 PFS_engine_table *
-table_events_stages_history_long::create(void)
+table_events_stages_history_long::create(PFS_engine_table_share *)
 {
   return new table_events_stages_history_long();
 }

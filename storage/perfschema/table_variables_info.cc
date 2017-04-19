@@ -99,7 +99,7 @@ PFS_engine_table_share table_variables_info::m_share = {
 };
 
 PFS_engine_table *
-table_variables_info::create(void)
+table_variables_info::create(PFS_engine_table_share *)
 {
   return new table_variables_info();
 }

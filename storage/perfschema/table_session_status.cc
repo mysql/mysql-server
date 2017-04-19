@@ -84,7 +84,7 @@ PFS_engine_table_share table_session_status::m_share = {
 };
 
 PFS_engine_table *
-table_session_status::create(void)
+table_session_status::create(PFS_engine_table_share *)
 {
   return new table_session_status();
 }

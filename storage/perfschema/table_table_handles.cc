@@ -166,7 +166,7 @@ PFS_index_table_handles_by_owner::match(PFS_table *pfs)
 }
 
 PFS_engine_table *
-table_table_handles::create(void)
+table_table_handles::create(PFS_engine_table_share *)
 {
   return new table_table_handles();
 }

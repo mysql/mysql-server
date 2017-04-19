@@ -124,7 +124,7 @@ PFS_index_esmh_by_digest::match_bucket(ulong bucket_index)
 }
 
 PFS_engine_table *
-table_esmh_by_digest::create(void)
+table_esmh_by_digest::create(PFS_engine_table_share *)
 {
   return new table_esmh_by_digest();
 }

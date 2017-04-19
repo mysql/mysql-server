@@ -219,7 +219,7 @@ PFS_index_esms_by_thread_by_event_name::match(PFS_statement_class *klass)
 }
 
 PFS_engine_table *
-table_esms_by_thread_by_event_name::create(void)
+table_esms_by_thread_by_event_name::create(PFS_engine_table_share *)
 {
   return new table_esms_by_thread_by_event_name();
 }

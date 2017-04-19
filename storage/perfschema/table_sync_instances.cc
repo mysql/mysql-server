@@ -113,7 +113,7 @@ PFS_index_mutex_instances_by_thread_id::match(PFS_mutex *pfs)
 }
 
 PFS_engine_table *
-table_mutex_instances::create(void)
+table_mutex_instances::create(PFS_engine_table_share *)
 {
   return new table_mutex_instances();
 }
@@ -374,7 +374,7 @@ PFS_index_rwlock_instances_by_thread_id::match(PFS_rwlock *pfs)
 }
 
 PFS_engine_table *
-table_rwlock_instances::create(void)
+table_rwlock_instances::create(PFS_engine_table_share *)
 {
   return new table_rwlock_instances();
 }
@@ -622,7 +622,7 @@ PFS_index_cond_instances_by_name::match(PFS_cond *pfs)
 }
 
 PFS_engine_table *
-table_cond_instances::create(void)
+table_cond_instances::create(PFS_engine_table_share *)
 {
   return new table_cond_instances();
 }

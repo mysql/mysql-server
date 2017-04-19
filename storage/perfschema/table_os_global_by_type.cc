@@ -158,7 +158,7 @@ PFS_index_os_global_by_type::match(PFS_program *pfs)
 }
 
 PFS_engine_table *
-table_os_global_by_type::create(void)
+table_os_global_by_type::create(PFS_engine_table_share *)
 {
   return new table_os_global_by_type();
 }

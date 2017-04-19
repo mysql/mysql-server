@@ -144,7 +144,7 @@ class table_events_stages_current : public table_events_stages_common
 public:
   /** Table share */
   static PFS_engine_table_share m_share;
-  static PFS_engine_table *create();
+  static PFS_engine_table *create(PFS_engine_table_share *);
   static int delete_all_rows();
   static ha_rows get_row_count();
 
@@ -192,7 +192,7 @@ class table_events_stages_history : public table_events_stages_common
 public:
   /** Table share */
   static PFS_engine_table_share m_share;
-  static PFS_engine_table *create();
+  static PFS_engine_table *create(PFS_engine_table_share *);
   static int delete_all_rows();
   static ha_rows get_row_count();
 
@@ -231,7 +231,7 @@ class table_events_stages_history_long : public table_events_stages_common
 public:
   /** Table share */
   static PFS_engine_table_share m_share;
-  static PFS_engine_table *create();
+  static PFS_engine_table *create(PFS_engine_table_share *);
   static int delete_all_rows();
   static ha_rows get_row_count();
 

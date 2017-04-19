@@ -97,7 +97,7 @@ PFS_index_esmh_global::match_bucket(ulong bucket_index)
 }
 
 PFS_engine_table *
-table_esmh_global::create(void)
+table_esmh_global::create(PFS_engine_table_share *)
 {
   table_esmh_global *table = new table_esmh_global();
   table->materialize();

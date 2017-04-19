@@ -83,7 +83,7 @@ PFS_engine_table_share table_replication_applier_global_filters::m_share = {
 };
 
 PFS_engine_table *
-table_replication_applier_global_filters::create(void)
+table_replication_applier_global_filters::create(PFS_engine_table_share *)
 {
   return new table_replication_applier_global_filters();
 }

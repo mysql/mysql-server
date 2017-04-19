@@ -290,7 +290,7 @@ private:
   /** MySQL lock */
   THR_LOCK_DATA m_thr_lock;
   /** Performance schema table share for this table handler. */
-  const PFS_engine_table_share *m_table_share;
+  PFS_engine_table_share *m_table_share;
   /** Performance schema table cursor. */
   PFS_engine_table *m_table;
 };

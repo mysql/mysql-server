@@ -249,7 +249,7 @@ PFS_index_esms_by_program::match(PFS_program *pfs)
 }
 
 PFS_engine_table *
-table_esms_by_program::create(void)
+table_esms_by_program::create(PFS_engine_table_share *)
 {
   return new table_esms_by_program();
 }

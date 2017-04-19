@@ -158,7 +158,7 @@ PFS_index_setup_objects::match(row_setup_objects *row)
 }
 
 PFS_engine_table *
-table_setup_objects::create(void)
+table_setup_objects::create(PFS_engine_table_share *)
 {
   return new table_setup_objects();
 }

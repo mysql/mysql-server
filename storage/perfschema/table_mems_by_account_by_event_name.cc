@@ -158,7 +158,7 @@ PFS_index_mems_by_account_by_event_name::match(PFS_instr_class *instr_class)
 }
 
 PFS_engine_table *
-table_mems_by_account_by_event_name::create(void)
+table_mems_by_account_by_event_name::create(PFS_engine_table_share *)
 {
   return new table_mems_by_account_by_event_name();
 }

@@ -145,7 +145,7 @@ PFS_index_mems_by_thread_by_event_name::match(PFS_memory_class *klass)
 }
 
 PFS_engine_table *
-table_mems_by_thread_by_event_name::create(void)
+table_mems_by_thread_by_event_name::create(PFS_engine_table_share *)
 {
   return new table_mems_by_thread_by_event_name();
 }

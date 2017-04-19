@@ -71,7 +71,7 @@ public:
   /** Table share */
   static PFS_engine_table_share m_share;
   /** Table builder */
-  static PFS_engine_table *create();
+  static PFS_engine_table *create(PFS_engine_table_share *);
   static int delete_all_rows();
 
 protected:

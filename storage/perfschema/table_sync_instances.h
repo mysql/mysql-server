@@ -126,7 +126,7 @@ class table_mutex_instances : public PFS_engine_table
 public:
   /** Table share. */
   static PFS_engine_table_share m_share;
-  static PFS_engine_table *create();
+  static PFS_engine_table *create(PFS_engine_table_share *);
   static ha_rows get_row_count();
 
   virtual void reset_position(void);
@@ -259,7 +259,7 @@ class table_rwlock_instances : public PFS_engine_table
 public:
   /** Table share */
   static PFS_engine_table_share m_share;
-  static PFS_engine_table *create();
+  static PFS_engine_table *create(PFS_engine_table_share *);
   static ha_rows get_row_count();
 
   virtual void reset_position(void);
@@ -367,7 +367,7 @@ class table_cond_instances : public PFS_engine_table
 public:
   /** Table share. */
   static PFS_engine_table_share m_share;
-  static PFS_engine_table *create();
+  static PFS_engine_table *create(PFS_engine_table_share *);
   static ha_rows get_row_count();
 
   virtual void reset_position(void);

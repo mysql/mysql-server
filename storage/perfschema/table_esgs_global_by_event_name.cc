@@ -102,7 +102,7 @@ PFS_index_esgs_global_by_event_name::match(PFS_instr_class *instr_class)
 }
 
 PFS_engine_table *
-table_esgs_global_by_event_name::create(void)
+table_esgs_global_by_event_name::create(PFS_engine_table_share *)
 {
   return new table_esgs_global_by_event_name();
 }

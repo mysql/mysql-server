@@ -88,7 +88,7 @@ PFS_index_users_by_user::match(PFS_user *pfs)
 }
 
 PFS_engine_table *
-table_users::create()
+table_users::create(PFS_engine_table_share *)
 {
   return new table_users();
 }

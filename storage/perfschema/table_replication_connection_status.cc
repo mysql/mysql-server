@@ -263,7 +263,7 @@ PFS_index_rpl_connection_status_by_thread::match(Master_info *mi)
 }
 
 PFS_engine_table *
-table_replication_connection_status::create(void)
+table_replication_connection_status::create(PFS_engine_table_share *)
 {
   return new table_replication_connection_status();
 }

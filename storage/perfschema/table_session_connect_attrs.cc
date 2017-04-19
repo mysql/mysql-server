@@ -39,7 +39,7 @@ PFS_engine_table_share table_session_connect_attrs::m_share = {
 };
 
 PFS_engine_table*
-table_session_connect_attrs::create()
+table_session_connect_attrs::create(PFS_engine_table_share*)
 {
   return new table_session_connect_attrs();
 }

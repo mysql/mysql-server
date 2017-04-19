@@ -94,7 +94,7 @@ PFS_index_rpl_applier_config::match(Master_info *mi)
 }
 
 PFS_engine_table *
-table_replication_applier_configuration::create(void)
+table_replication_applier_configuration::create(PFS_engine_table_share *)
 {
   return new table_replication_applier_configuration();
 }

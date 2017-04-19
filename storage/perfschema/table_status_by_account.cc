@@ -115,7 +115,7 @@ PFS_index_status_by_account::match(const Status_variable *pfs)
 }
 
 PFS_engine_table *
-table_status_by_account::create(void)
+table_status_by_account::create(PFS_engine_table_share *)
 {
   return new table_status_by_account();
 }

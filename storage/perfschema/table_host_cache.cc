@@ -224,7 +224,7 @@ PFS_index_host_cache_by_host::match(const row_host_cache *row)
 }
 
 PFS_engine_table *
-table_host_cache::create(void)
+table_host_cache::create(PFS_engine_table_share *)
 {
   table_host_cache *t = new table_host_cache();
   if (t != NULL)

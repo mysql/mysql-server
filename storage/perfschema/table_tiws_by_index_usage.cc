@@ -315,7 +315,7 @@ PFS_index_tiws_by_index_usage::match(PFS_table_share *share, uint index)
 }
 
 PFS_engine_table *
-table_tiws_by_index_usage::create(void)
+table_tiws_by_index_usage::create(PFS_engine_table_share *)
 {
   return new table_tiws_by_index_usage();
 }

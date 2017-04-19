@@ -78,7 +78,7 @@ PFS_engine_table_share table_performance_timers::m_share = {
 };
 
 PFS_engine_table *
-table_performance_timers::create(void)
+table_performance_timers::create(PFS_engine_table_share *)
 {
   return new table_performance_timers();
 }

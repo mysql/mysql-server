@@ -1237,7 +1237,7 @@ compare_database_names(const char *name1, const char *name2)
   return strcmp(name1, name2);
 }
 
-static const PFS_engine_table_share *
+static PFS_engine_table_share *
 find_table_share(const char *db, const char *name)
 {
   DBUG_ENTER("find_table_share");
@@ -1247,7 +1247,7 @@ find_table_share(const char *db, const char *name)
     DBUG_RETURN(NULL);
   }
 
-  const PFS_engine_table_share *result;
+  PFS_engine_table_share *result;
   result = PFS_engine_table::find_engine_table_share(name);
   DBUG_RETURN(result);
 }
@@ -1578,7 +1578,7 @@ ha_perfschema::rnd_init(bool scan)
   stats.records = 0;
   if (m_table == NULL)
   {
-    m_table = m_table_share->m_open_table();
+    m_table = m_table_share->m_open_table(NULL);
   }
   else
   {
@@ -1839,7 +1839,7 @@ ha_perfschema::index_init(uint idx, bool sorted)
 
   if (m_table == NULL)
   {
-    m_table = m_table_share->m_open_table();
+    m_table = m_table_share->m_open_table(NULL);
   }
   else
   {
@@ -1892,7 +1892,7 @@ ha_perfschema::index_read(uchar *buf,
 
   if (m_table == NULL)
   {
-    m_table = m_table_share->m_open_table();
+    m_table = m_table_share->m_open_table(NULL);
   }
   else
   {

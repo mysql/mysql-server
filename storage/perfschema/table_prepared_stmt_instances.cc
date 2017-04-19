@@ -328,7 +328,7 @@ PFS_index_prepared_stmt_instances_by_owner_object::match(
 }
 
 PFS_engine_table *
-table_prepared_stmt_instances::create(void)
+table_prepared_stmt_instances::create(PFS_engine_table_share *)
 {
   return new table_prepared_stmt_instances();
 }

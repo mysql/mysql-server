@@ -84,7 +84,7 @@ PFS_engine_table_share table_global_status::m_share = {
 };
 
 PFS_engine_table *
-table_global_status::create(void)
+table_global_status::create(PFS_engine_table_share *)
 {
   return new table_global_status();
 }

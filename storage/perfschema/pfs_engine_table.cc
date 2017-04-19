@@ -874,7 +874,7 @@ compare_table_names(const char *name1, const char *name2)
   @param name             The table name
   @return table share
 */
-const PFS_engine_table_share *
+PFS_engine_table_share *
 PFS_engine_table::find_engine_table_share(const char *name)
 {
   DBUG_ENTER("PFS_engine_table::find_table_share");

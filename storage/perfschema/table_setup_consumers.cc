@@ -143,7 +143,7 @@ PFS_index_setup_consumers::match(row_setup_consumers *row)
 }
 
 PFS_engine_table *
-table_setup_consumers::create(void)
+table_setup_consumers::create(PFS_engine_table_share *)
 {
   return new table_setup_consumers();
 }

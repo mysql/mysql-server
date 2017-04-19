@@ -80,7 +80,7 @@ PFS_engine_table_share table_persisted_variables::m_share = {
 };
 
 PFS_engine_table *
-table_persisted_variables::create(void)
+table_persisted_variables::create(PFS_engine_table_share *)
 {
   return new table_persisted_variables();
 }

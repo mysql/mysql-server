@@ -176,7 +176,8 @@ PFS_index_rpl_connection_config::match(Master_info *mi)
 }
 
 PFS_engine_table *
-table_replication_connection_configuration::create(void)
+table_replication_connection_configuration::create(
+  PFS_engine_table_share *)
 {
   return new table_replication_connection_configuration();
 }

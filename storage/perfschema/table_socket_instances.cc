@@ -153,7 +153,7 @@ PFS_index_socket_instances_by_ip_port::match(const PFS_socket *pfs)
 }
 
 PFS_engine_table *
-table_socket_instances::create(void)
+table_socket_instances::create(PFS_engine_table_share *)
 {
   return new table_socket_instances();
 }

@@ -91,7 +91,7 @@ PFS_index_setup_timers::match(row_setup_timers *row)
 }
 
 PFS_engine_table *
-table_setup_timers::create(void)
+table_setup_timers::create(PFS_engine_table_share *)
 {
   return new table_setup_timers();
 }

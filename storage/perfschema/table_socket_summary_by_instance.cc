@@ -211,7 +211,7 @@ PFS_index_socket_summary_by_instance_by_event_name::match(const PFS_socket *pfs)
 }
 
 PFS_engine_table *
-table_socket_summary_by_instance::create(void)
+table_socket_summary_by_instance::create(PFS_engine_table_share *)
 {
   return new table_socket_summary_by_instance();
 }

@@ -103,7 +103,7 @@ PFS_engine_table_share table_status_by_thread::m_share = {
 };
 
 PFS_engine_table *
-table_status_by_thread::create(void)
+table_status_by_thread::create(PFS_engine_table_share *)
 {
   return new table_status_by_thread();
 }
