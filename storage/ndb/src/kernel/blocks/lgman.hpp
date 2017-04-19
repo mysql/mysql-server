@@ -209,6 +209,8 @@ public:
    
     Uint32 m_applied;
 
+    Uint64 m_space_limit;
+
     Uint64 m_next_lsn;
     Uint64 m_last_sync_req_lsn; // Outstanding
     Uint64 m_last_synced_lsn;   // 
@@ -278,6 +280,7 @@ private:
   int alloc_log_space(Uint32 logfile_ref,
                       Uint32 & words,
                       bool add_extra_words,
+                      bool abortable,
                       EmulatedJamBuffer *jamBuf);
   int free_log_space(Uint32 logfile_ref,
                       Uint32 words,
@@ -295,6 +298,7 @@ private:
   Logfile_group_list m_logfile_group_list;
   Logfile_group_hash m_logfile_group_hash;
   Uint32 m_end_lcp_senderdata;
+  bool m_node_restart_ongoing;
 
   Uint64 m_records_applied; // Track number of records applied
   Uint64 m_pages_applied; // Track number of pages applied
@@ -307,6 +311,7 @@ private:
   void free_logbuffer_memory(Ptr<Logfile_group>);
   Uint32 compute_free_file_pages(Ptr<Logfile_group>,
                                  EmulatedJamBuffer *jamBuf);
+  void calculate_space_limit(Ptr<Logfile_group> lg_ptr);
   Uint32 get_remaining_page_space(Uint32);
   Uint32* get_log_buffer(Ptr<Logfile_group>,
                          Uint32 sz,
@@ -462,11 +467,13 @@ public:
 
   int alloc_log_space(Uint32 words,
                       bool add_extra_words,
+                      bool abortable,
                       EmulatedJamBuffer *jamBuf)
   {
     return m_lgman->alloc_log_space(m_logfile_group_id,
                                     words,
                                     add_extra_words,
+                                    abortable,
                                     jamBuf);
   }
 

@@ -2000,7 +2000,7 @@ void Dbtup::releaseFragment(Signal* signal, Uint32 tableId,
     Uint32 sz= sizeof(Disk_undo::Drop) >> 2;
     D("Logfile_client - releaseFragment");
     Logfile_client lgman(this, c_lgman, logfile_group_id);
-    int r0 = lgman.alloc_log_space(sz, false, jamBuffer());
+    int r0 = lgman.alloc_log_space(sz, false, false, jamBuffer());
     jamEntry();
     if (r0)
     {
