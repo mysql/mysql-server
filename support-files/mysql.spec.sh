@@ -1,4 +1,4 @@
-# Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -1105,7 +1105,7 @@ echo "====="                                                       >> $STATUS_HI
 %doc %attr(644, root, man) %{_mandir}/man1/ndb_show_tables.1*
 %doc %attr(644, root, man) %{_mandir}/man1/ndb_size.pl.1*
 %doc %attr(644, root, man) %{_mandir}/man1/ndb_waiter.1*
-%doc %attr(644, root, man) %{_mandir}/man1/ndbd_redo_log_reader.1*
+%doc %attr(644, root, man) %{_mandir}/man1/ndb_redo_log_reader.1*
 %doc %attr(644, root, man) %{_mandir}/man8/ndb_mgmd.8*
 %doc %attr(644, root, man) %{_mandir}/man8/ndbd.8*
 %doc %attr(644, root, man) %{_mandir}/man8/ndbmtd.8*
