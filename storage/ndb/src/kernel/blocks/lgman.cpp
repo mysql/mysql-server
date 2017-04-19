@@ -763,10 +763,25 @@ Lgman::execSTTOR(Signal* signal)
   Uint32 startPhase = signal->theData[1];
   switch (startPhase) {
   case 1:
+  {
     jam();
     m_tup = globalData.getBlock(DBTUP);
+    m_node_restart_ongoing = true;
     ndbrequire(m_tup != 0);
     break;
+  }
+  case 50:
+  {
+    jam();
+    m_node_restart_ongoing = false;
+    Ptr<Logfile_group> lg_ptr;
+    m_logfile_group_list.first(lg_ptr);
+    if (lg_ptr.p != NULL)
+    {
+      jam();
+      calculate_space_limit(lg_ptr);
+    }
+  }
   }
   sendSTTORRY(signal);
 }
@@ -776,8 +791,9 @@ Lgman::sendSTTORRY(Signal* signal)
 {
   signal->theData[0] = 0;
   signal->theData[3] = 1;
-  signal->theData[4] = 255; // No more start phases from missra
-  sendSignal(NDBCNTR_REF, GSN_STTORRY, signal, 5, JBB);
+  signal->theData[4] = 50;
+  signal->theData[5] = 255; // No more start phases from missra
+  sendSignal(NDBCNTR_REF, GSN_STTORRY, signal, 6, JBB);
 }
 
 void
@@ -1907,6 +1923,7 @@ Lgman::create_file_commit(Signal* signal,
   }
 
   validate_logfile_group(lg_ptr, "create_file_commit", jamBuffer());
+  calculate_space_limit(lg_ptr);
 
   CreateFileImplConf* conf= (CreateFileImplConf*)signal->getDataPtr();
   conf->senderData = senderData;
@@ -2151,6 +2168,54 @@ Lgman::reinit_logbuffer_words(Ptr<Logfile_group> lg_ptr)
     lg_ptr.p->m_free_buffer_words = pages * get_undo_page_words(lg_ptr);
 }
 
+/**
+ * There is a set of actions in the UNDO log that we don't have complete
+ * control over. This is when sync_lsn is called, we could potentially
+ * lose some log space, up to one log page. We avoid this by ensuring
+ * that we only call sync_lsn on pages that are the oldest and need
+ * to be flushed, by ensuring that we wait for 2 GCPs when we write a
+ * LCP UNDO log entry before we call sync_lsn, by ensuring that we don't
+ * even use sync_lsn for DROP TABLE of fragments. Finally when we call
+ * SYNC_PAGE_CACHE_REQ for a fragment we will always start with the
+ * most recently updated page, so normally there would be at most one
+ * extra page written per fragment LCP. Also hot pages will generate
+ * some extra log pages being wasted, but there is a limit on the amount
+ * of hot pages.
+ *
+ * We use a heuristic to calculate the space we save for handling
+ * LCPs and writing of dirty pages during node restarts.
+ *
+ * During node restart we save 25% of the log space for fragment
+ * copy operations and during normal operation we save 33% of the
+ * log space for sync_lsn's.
+ *
+ * The reason we save more during normal operation is that we need
+ * some extra space during recovery, so it is not a good idea to
+ * use up all space during normal operation such that the restart
+ * has to use a lot of UNDO log space just to go through the 
+ * execution of the REDO log. After executing the REDO log we want
+ * to ensure that we still have space to execute the copy fragment
+ * phase as well.
+ */
+void
+Lgman::calculate_space_limit(Ptr<Logfile_group> lg_ptr)
+{
+  Uint64 total_space = compute_free_file_pages(lg_ptr, jamBuffer()) *
+                       Uint64(get_undo_page_words(lg_ptr));
+  Uint64 limit;
+  if (m_node_restart_ongoing)
+  {
+    jam();
+    limit = total_space / Uint64(4);
+  }
+  else
+  {
+    jam();
+    limit = total_space / Uint64(3);
+  }
+  lg_ptr.p->m_space_limit = limit;
+}
+                             
 /**
  * Cannot use jam on this method since it is used before jam buffers
  * have been properly set up.
@@ -3449,14 +3514,17 @@ int
 Lgman::alloc_log_space(Uint32 ref,
                        Uint32 & words,
                        bool add_extra_words,
+                       bool abortable,
                        EmulatedJamBuffer *jamBuf)
 {
   ndbrequire(words);
+  Uint64 words_64 = Uint64(words);
   if (add_extra_words)
   {
     thrjamEntry(jamBuf);
-    Uint32 extra_words = ((words + 1023) / 1024);
-    words += extra_words;
+    Uint64 extra_words = ((words_64 + Uint64(511)) / Uint64(512));
+    words_64 += extra_words;
+    words = Uint32(words_64);
   }
   else
   {
@@ -3465,22 +3533,27 @@ Lgman::alloc_log_space(Uint32 ref,
   Logfile_group key;
   key.m_logfile_group_id= ref;
   Ptr<Logfile_group> ptr;
-  if(m_logfile_group_hash.find(ptr, key) && 
-     ptr.p->m_free_file_words >= (words + (4 * get_undo_page_words(ptr))))
+  if (m_logfile_group_hash.find(ptr, key))
   {
+    Uint64 limit = ptr.p->m_space_limit;
+    if (!abortable)
+    {
+      thrjamEntry(jamBuf);
+      limit = Uint64(4) * Uint64(get_undo_page_words(ptr));
+    }
+    if (ptr.p->m_free_file_words >= (words_64 + limit))
+    {
+      thrjam(jamBuf);
+      ptr.p->m_free_file_words -= words_64;
+      validate_logfile_group(ptr, "alloc_log_space", jamBuf);
+      return 0;
+    }
     thrjam(jamBuf);
-    ptr.p->m_free_file_words -= words;
-    validate_logfile_group(ptr, "alloc_log_space", jamBuf);
-    return 0;
-  }
-  
-  if(ptr.isNull())
-  {
-    thrjam(jamBuf);
-    return -1;
+    return 1501;
   }
   thrjam(jamBuf);
-  return 1501;
+  ndbrequire(false);
+  return -1;
 }
 
 int
@@ -3493,10 +3566,11 @@ Lgman::free_log_space(Uint32 ref,
   Logfile_group key;
   key.m_logfile_group_id= ref;
   Ptr<Logfile_group> ptr;
+  Uint64 words_64 = Uint64(words);
   if(m_logfile_group_hash.find(ptr, key))
   {
     thrjam(jamBuf);
-    ptr.p->m_free_file_words += (words + 2);
+    ptr.p->m_free_file_words += words_64;
     DEB_LGMAN(("Line(%u): free_file_words: %llu", __LINE__, ptr.p->m_free_file_words));
     validate_logfile_group(ptr, "free_log_space", jamBuf);
     return 0;
@@ -5082,6 +5156,7 @@ Lgman::stop_run_undo_log(Signal* signal)
       
       ptr.p->m_free_file_words = (Uint64)get_undo_page_words(ptr) *
 	(Uint64)compute_free_file_pages(ptr, jamBuffer());
+      calculate_space_limit(ptr);
       DEB_LGMAN(("Line(%u): free_file_words: %llu",
                  __LINE__,
                  ptr.p->m_free_file_words));
