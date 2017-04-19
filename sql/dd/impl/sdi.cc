@@ -198,7 +198,9 @@ String_type generic_serialize(THD *thd, const char *dd_object_type,
 }
 
 
-const String_type &lookup_tablespace_name(Sdi_wcontext *wctx, dd::Object_id id)
+const String_type&
+lookup_tablespace_name(Sdi_wcontext *wctx MY_ATTRIBUTE((unused)),
+                       dd::Object_id id MY_ATTRIBUTE((unused)))
 {
   // TODO: WL#9538  Remove this when SDI is enabled for InnoDB
   return empty_;

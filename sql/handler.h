@@ -5202,10 +5202,10 @@ private:
   { *max_rows= 0; return false; }
 
   // Set se_private_id and se_private_data during upgrade
-  virtual bool upgrade_table(THD *thd,
-                             const char* dbname,
-                             const char* table_name,
-                             dd::Table *dd_table)
+  virtual bool upgrade_table(THD *thd MY_ATTRIBUTE((unused)),
+                             const char* dbname MY_ATTRIBUTE((unused)),
+                             const char* table_name MY_ATTRIBUTE((unused)),
+                             dd::Table *dd_table MY_ATTRIBUTE((unused)))
   { return false; }
 
   virtual int sample_init();

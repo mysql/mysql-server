@@ -1019,7 +1019,7 @@ bool myfunc_argument_name_init(UDF_INIT *initid, UDF_ARGS *args,
   return 0;
 }
 
-char *myfunc_argument_name(UDF_INIT *initid,
+char *myfunc_argument_name(UDF_INIT *,
                            UDF_ARGS *args, char *result,
                            unsigned long *length, char *null_value,
                            char *)

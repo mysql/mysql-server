@@ -6324,7 +6324,7 @@ handle_data_event(THD* thd, Ndb *ndb, NdbEventOperation *pOp,
 
         ret = trans.update_row(logged_server_id,
                                injector::transaction::table(table, true),
-                               &col_bitmap_before_update, &b, n_fields,
+                               &col_bitmap_before_update, &b,
                                table->record[1], // before values
                                table->record[0], // after values
                                extra_row_info_ptr);

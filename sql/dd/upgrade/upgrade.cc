@@ -108,10 +108,9 @@ static bool check_file_extension(const String_type &extn)
   will be created from scratch with other dictionary tables. Data from
   5.7 stats table will be inserted in new created stats table
   via INSERT...SELECT statement.
-
-  @param[in]  thd        Thread handle.
 */
-void rename_stats_tables(THD *thd)
+
+static void rename_stats_tables()
 {
   /*
     Rename mysql/innodb_index_stats.ibd and mysql/innodb_table_stats.ibd.
@@ -393,7 +392,8 @@ void rename_back_stats_tables(THD *thd)
 /**
   Drop all .SDI files created during upgrade.
 */
-void drop_sdi_files(THD *thd)
+
+static void drop_sdi_files()
 {
   uint i, j;
   // Iterate in data directory and delete all .SDI files
@@ -745,7 +745,7 @@ bool terminate(THD *thd)
   rename_back_stats_tables(thd);
 
   // Drop SDI files.
-  drop_sdi_files(thd);
+  drop_sdi_files();
 
   return false;
 }
@@ -756,14 +756,13 @@ bool terminate(THD *thd)
 
   @param[in]    thd         Thread Handle
   @param[in]    plugin      Handlerton Plugin
-  @param[in]    unused      unused parameter list
 
   @retval false  ON SUCCESS
   @retval true   ON FAILURE
 */
 static bool ha_migrate_tablespaces(THD *thd,
                                    plugin_ref plugin,
-                                   void *unused)
+                                   void*)
 {
   handlerton *hton= plugin_data<handlerton*>(plugin);
 
@@ -873,15 +872,13 @@ static bool restart_dictionary(THD *thd)
 
   @param[in]    thd         Thread Handle
   @param[in]    plugin      Handlerton Plugin
-  @param[in]    unused      unused parameter list
-
 
   @retval false  ON SUCCESS
   @retval true   ON FAILURE
 */
 static bool upgrade_logs(THD *thd,
-                                   plugin_ref plugin,
-                                   void *unused)
+                         plugin_ref plugin,
+                         void*)
 {
   handlerton *hton= plugin_data<handlerton*>(plugin);
 
@@ -905,7 +902,7 @@ static bool upgrade_logs(THD *thd,
 static bool ha_upgrade_engine_logs(THD *thd)
 {
   if (plugin_foreach(thd, upgrade_logs,
-                          MYSQL_STORAGE_ENGINE_PLUGIN, 0))
+                     MYSQL_STORAGE_ENGINE_PLUGIN, 0))
     return true;
 
   return false;
@@ -1186,7 +1183,7 @@ bool do_pre_checks_and_initialize_dd(THD *thd)
   sql_print_information("Created Data Dictionary for upgrade");
 
   // Rename .ibd files for innodb stats tables
-  rename_stats_tables(thd);
+  rename_stats_tables();
 
   // Mark opt_initiazlize false after creating dictionary tables.
   opt_initialize= false;

@@ -236,7 +236,6 @@ int injector::transaction::delete_row(server_id_type sid, table tbl,
 int injector::transaction::update_row(server_id_type sid, table tbl,
                                       MY_BITMAP const* before_cols,
                                       MY_BITMAP const* after_cols,
-                                      size_t colcnt,
                                       record_type before, record_type after,
                                       const uchar* extra_row_info)
 {
@@ -258,10 +257,10 @@ int injector::transaction::update_row(server_id_type sid, table tbl,
 }
 
 int injector::transaction::update_row(server_id_type sid, table tbl,
-                                      MY_BITMAP const* cols, size_t colcnt,
+                                      MY_BITMAP const* cols,
                                       record_type before, record_type after)
 {
-  return update_row(sid, tbl, cols, cols, colcnt, before, after, NULL);
+  return update_row(sid, tbl, cols, cols, before, after, NULL);
 }
 
 injector::transaction::binlog_pos injector::transaction::start_pos() const

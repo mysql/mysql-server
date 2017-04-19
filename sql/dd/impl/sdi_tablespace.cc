@@ -40,7 +40,7 @@
 using namespace dd::sdi_utils;
 
 namespace {
-bool is_valid(const dd::Tablespace *ts)
+bool is_valid(const dd::Tablespace *ts MY_ATTRIBUTE((unused)))
 {
   // return ts && ts->se_private_data().exists("id");
   // TODO: WL#9538  Remove this when SDI is enabled for InnoDB

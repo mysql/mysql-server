@@ -231,11 +231,10 @@ public:
       int update_row(server_id_type sid, table tbl, 
                      MY_BITMAP const *before_cols,
                      MY_BITMAP const *after_cols,
-                     size_t colcnt,
                      record_type before, record_type after,
                      const uchar* extra_row_info);
       int update_row(server_id_type sid, table tbl,
-                     MY_BITMAP const *cols, size_t colcnt,
+                     MY_BITMAP const *cols,
                      record_type before, record_type after);
 
       /*
