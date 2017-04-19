@@ -2668,10 +2668,10 @@ ha_ndbcluster::copy_fk_for_offline_alter(THD * thd, Ndb* ndb, NDBTAB* _dsttab)
 }
 
 int
-ha_ndbcluster::drop_fk_for_online_alter(THD * thd, Ndb* ndb, NDBDICT * dict,
-                                        const NDBTAB* tab)
+ha_ndbcluster::inplace__drop_fks(THD * thd, Ndb* ndb, NDBDICT * dict,
+                                const NDBTAB* tab)
 {
-  DBUG_ENTER("ha_ndbcluster::drop_fk_for_online_alter");
+  DBUG_ENTER("ha_ndbcluster::inplace__drop_fks");
   if (thd->lex == 0)
   {
     assert(false);

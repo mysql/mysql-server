@@ -395,7 +395,7 @@ void notify_table_changed(Alter_inplace_info *ha_alter_info);
 
 private:
   void prepare_inplace__drop_index(uint key_num);
-  int final_drop_index(TABLE *table_arg);
+  int inplace__final_drop_index(TABLE *table_arg);
 
   enum_alter_inplace_result
     check_inplace_alter_supported(TABLE *altered_table,
@@ -437,8 +437,8 @@ private:
   int create_indexes(THD *thd, Ndb *ndb, TABLE *tab) const;
   int open_indexes(Ndb *ndb, TABLE *tab);
   void release_indexes(NdbDictionary::Dictionary* dict, int invalidate);
-  void renumber_indexes(uint dropped_index_num);
-  int drop_indexes(Ndb *ndb, TABLE *tab);
+  void inplace__renumber_indexes(uint dropped_index_num);
+  int inplace__drop_indexes(Ndb *ndb, TABLE *tab);
   int add_index_handle(NdbDictionary::Dictionary *dict,
                        KEY *key_info, const char *key_name, uint index_no);
   int add_table_ndb_record(NdbDictionary::Dictionary *dict);
@@ -449,8 +449,8 @@ private:
   void release_fk_data();
   int create_fks(THD *thd, Ndb *ndb);
   int copy_fk_for_offline_alter(THD * thd, Ndb*, NdbDictionary::Table* _dsttab);
-  int drop_fk_for_online_alter(THD*, Ndb*, NdbDictionary::Dictionary*,
-                               const NdbDictionary::Table*);
+  int inplace__drop_fks(THD*, Ndb*, NdbDictionary::Dictionary*,
+                       const NdbDictionary::Table*);
   static int get_fk_data_for_truncate(NdbDictionary::Dictionary*,
                                       const NdbDictionary::Table*,
                                       Ndb_fk_list&);

@@ -2831,9 +2831,9 @@ ha_ndbcluster::release_indexes(NdbDictionary::Dictionary *dict,
   Renumber indexes in index list by shifting out
   the index that was dropped
  */
-void ha_ndbcluster::renumber_indexes(uint dropped_index_num)
+void ha_ndbcluster::inplace__renumber_indexes(uint dropped_index_num)
 {
-  DBUG_ENTER("ha_ndbcluster::renumber_indexes");
+  DBUG_ENTER("ha_ndbcluster::inplace__renumber_indexes");
 
   // Shift the dropped index out of list
   for(uint i= dropped_index_num + 1;
@@ -2850,14 +2850,14 @@ void ha_ndbcluster::renumber_indexes(uint dropped_index_num)
 /*
   Drop all indexes that are marked for deletion
 */
-int ha_ndbcluster::drop_indexes(Ndb *ndb, TABLE *tab)
+int ha_ndbcluster::inplace__drop_indexes(Ndb *ndb, TABLE *tab)
 {
   uint i;
   int error= 0;
   const char *index_name;
   KEY* key_info= tab->key_info;
   NDBDICT *dict= ndb->getDictionary();
-  DBUG_ENTER("ha_ndbcluster::drop_indexes");
+  DBUG_ENTER("ha_ndbcluster::inplace__drop_indexes");
   
   for (i= 0; i < tab->s->keys; i++, key_info++)
   {
@@ -2907,7 +2907,7 @@ int ha_ndbcluster::drop_indexes(Ndb *ndb, TABLE *tab)
         DBUG_RETURN(error);
       }
       // Renumber the indexes by shifting out the dropped index
-      renumber_indexes(i);
+      inplace__renumber_indexes(i);
       // clear the dropped index at last now
       ndb_clear_index(dict, m_index[tab->s->keys]);
     }
@@ -11988,15 +11988,15 @@ void ha_ndbcluster::prepare_inplace__drop_index(uint key_num)
 /*
   Really drop all indexes marked for deletion
 */
-int ha_ndbcluster::final_drop_index(TABLE *table_arg)
+int ha_ndbcluster::inplace__final_drop_index(TABLE *table_arg)
 {
   int error;
-  DBUG_ENTER("ha_ndbcluster::final_drop_index");
+  DBUG_ENTER("ha_ndbcluster::inplace__final_drop_index");
   // Really drop indexes
   THD *thd= current_thd;
   Thd_ndb *thd_ndb= get_thd_ndb(thd);
   Ndb *ndb= thd_ndb->ndb;
-  error= drop_indexes(ndb, table_arg);
+  error= inplace__drop_indexes(ndb, table_arg);
   DBUG_RETURN(error);
 }
 
@@ -18947,12 +18947,12 @@ err:
 
 static
 int
-inplace_set_sdi_and_alter_in_ndb(THD *thd,
-                                 const NDB_ALTER_DATA* alter_data,
-                                 dd::Table* new_table_def,
-                                 const char* schema_name)
+inplace__set_sdi_and_alter_in_ndb(THD *thd,
+                                  const NDB_ALTER_DATA* alter_data,
+                                  dd::Table* new_table_def,
+                                  const char* schema_name)
 {
-  DBUG_ENTER("inplace_set_sdi_and_alter_in_ndb");
+  DBUG_ENTER("inplace__set_sdi_and_alter_in_ndb");
 
 #ifndef BUG25487493
   /*
@@ -18991,6 +18991,7 @@ inplace_set_sdi_and_alter_in_ndb(THD *thd,
   {
     DBUG_RETURN(1);
   }
+
 
   NdbDictionary::Table* new_tab= alter_data->new_table;
   const int set_result =
@@ -19055,7 +19056,7 @@ ha_ndbcluster::inplace_alter_table(TABLE *altered_table,
   if (alter_flags & dropping)
   {
     /* Tell the handler to finally drop the indexes. */
-    if ((error= final_drop_index(table)))
+    if ((error= inplace__final_drop_index(table)))
     {
       print_error(error, MYF(0));
       goto abort;
@@ -19065,7 +19066,7 @@ ha_ndbcluster::inplace_alter_table(TABLE *altered_table,
   if (alter_flags & Alter_inplace_info::DROP_FOREIGN_KEY)
   {
     const NDBTAB* tab= alter_data->old_table;
-    if ((error= drop_fk_for_online_alter(thd, thd_ndb->ndb, dict, tab)) != 0)
+    if ((error= inplace__drop_fks(thd, thd_ndb->ndb, dict, tab)) != 0)
     {
       print_error(error, MYF(0));
       goto abort;
@@ -19074,8 +19075,8 @@ ha_ndbcluster::inplace_alter_table(TABLE *altered_table,
 
   DBUG_ASSERT(m_table != 0);
 
-  error= inplace_set_sdi_and_alter_in_ndb(thd, alter_data,
-                                          new_table_def, m_dbname);
+  error= inplace__set_sdi_and_alter_in_ndb(thd, alter_data,
+                                           new_table_def, m_dbname);
   if (!error)
   {
     /*
