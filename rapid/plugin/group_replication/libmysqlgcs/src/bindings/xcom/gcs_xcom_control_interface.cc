@@ -1562,11 +1562,11 @@ install_view(Gcs_xcom_view_identifier *new_view_id,
 
       Xcom_member_state *data_exchanged= (*states_it).second;
 
-      Gcs_message_data *data_exchanged_holder=
-        new Gcs_message_data(data_exchanged->get_data_size());
+      Gcs_message_data *data_exchanged_holder= NULL;
 
-      if (data_exchanged != NULL)
+      if (data_exchanged != NULL && data_exchanged->get_data_size() != 0)
       {
+        data_exchanged_holder= new Gcs_message_data(data_exchanged->get_data_size());
         data_exchanged_holder->decode(
           data_exchanged->get_data(), data_exchanged->get_data_size()
         );
