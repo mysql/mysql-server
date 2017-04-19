@@ -72,7 +72,7 @@
 
   This section shows the guidelines that MySQL developers
   follow when writing new code. In general, MySQL development
-  uses the Google coding style:
+  uses the Google coding style (See https://google.github.io/styleguide/cppguide.html):
 
   - For new projects/components, use Google coding style wherever
     possible.
