@@ -4703,6 +4703,13 @@
       <tt>`--testcase-timeout`=<b>minutes</b></tt>
 
       Specify the maximum test case runtime in minutes.
+
+      @note
+      When a test case is run with <b>valgrind</b> option enabled, the
+      test case timeout value becomes 10 times the specified value.
+      For example, running a test case with timeout value
+      <b>1 minute</b> and <b>valgrind</b> enabled will increase the
+      timeout value to <b>10 minutes</b>.
     </li>
 
     <li>
@@ -4791,6 +4798,13 @@
       is reported as failed if any such shutdown warnings were
       produced by valgrind. Pass or failure of this test is also added
       to the total test count reported.
+
+      @note
+      When a test case is run with <b>valgrind</b> option enabled, the
+      test case timeout value becomes 10 times the specified value.
+      For example, running a test case with timeout value
+      <b>1 minute</b> and <b>valgrind</b> enabled will increase the
+      timeout value to <b>10 minutes</b>.
     </li>
 
     <li>
