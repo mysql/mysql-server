@@ -489,6 +489,7 @@ Restore::lcp_create_ctl_done_open(Signal *signal, FilePtr file_ptr)
 
   lcpCtlFilePtr->MaxPartPairs = BackupFormat::NDB_MAX_LCP_PARTS;
   lcpCtlFilePtr->MaxNumberDataFiles = BackupFormat::NDB_MAX_LCP_FILES;
+  lcpCtlFilePtr->ValidFlag = 0;
   lcpCtlFilePtr->TableId = file_ptr.p->m_table_id;
   lcpCtlFilePtr->FragmentId = file_ptr.p->m_fragment_id;
   /**
@@ -530,6 +531,7 @@ Restore::lcp_create_ctl_done_open(Signal *signal, FilePtr file_ptr)
     ndbrequire(file_ptr.p->m_upgrade_case);
     ndbrequire(file_ptr.p->m_dih_lcp_no == 0 ||
                file_ptr.p->m_dih_lcp_no == 1);
+    lcpCtlFilePtr->ValidFlag = 1;
     lcpCtlFilePtr->MaxGciWritten = file_ptr.p->m_restored_gcp_id;
     lcpCtlFilePtr->MaxGciCompleted = file_ptr.p->m_max_gci_completed;
     lcpCtlFilePtr->LastDataFileNumber = file_ptr.p->m_dih_lcp_no;
@@ -1114,6 +1116,7 @@ Restore::read_ctl_file_done(Signal *signal, FilePtr file_ptr, Uint32 bytesRead)
   }
   if (lcpCtlFilePtr->MaxGciWritten == 0 &&
       lcpCtlFilePtr->MaxGciCompleted == 0 &&
+      lcpCtlFilePtr->ValidFlag == 0 &&
       lcpCtlFilePtr->LcpId == 0 &&
       lcpCtlFilePtr->LocalLcpId == 0 &&
       lcpCtlFilePtr->LastDataFileNumber == 0 &&
@@ -1161,13 +1164,15 @@ Restore::read_ctl_file_done(Signal *signal, FilePtr file_ptr, Uint32 bytesRead)
    * Now we are ready to read the parts of the LCP control file that we need
    * to know to handle the restore correctly.
    */
+  Uint32 validFlag = lcpCtlFilePtr->ValidFlag;
   Uint32 maxGciCompleted = lcpCtlFilePtr->MaxGciCompleted;
   Uint32 maxGciWritten = lcpCtlFilePtr->MaxGciWritten;
   Uint32 lcpId = lcpCtlFilePtr->LcpId;
   Uint32 localLcpId = lcpCtlFilePtr->LocalLcpId;
   Uint32 maxPageCnt = lcpCtlFilePtr->MaxPageCount;
 
-  if (maxGciWritten > file_ptr.p->m_restored_gcp_id)
+  if (maxGciWritten > file_ptr.p->m_restored_gcp_id ||
+      validFlag == 0)
   {
     jam();
     /**
@@ -1185,12 +1190,17 @@ Restore::read_ctl_file_done(Signal *signal, FilePtr file_ptr, Uint32 bytesRead)
      * the very first LCP for this table it could even be that this is the
      * only LCP control file we have. This is a case that even DIH can
      * discover and thus m_dih_lcp_no in this case is equal to ZNIL.
+     *
+     * It is also a normal case where we have written LCP control file
+     * but not yet had time to sync the LSN for the LCP. This is flagged
+     * by the validFlag not being set in the LCP control file.
      */
     g_eventLogger->info("LCP Control file ok, but not recoverable, tab(%u,%u)"
-                        ", CTL file: %u",
+                        ", CTL file: %u, validFlag: %u",
                         file_ptr.p->m_table_id,
                         file_ptr.p->m_fragment_id,
-                        file_ptr.p->m_ctl_file_no);
+                        file_ptr.p->m_ctl_file_no,
+                        validFlag);
     ndbrequire(!file_ptr.p->m_found_not_restorable);
     file_ptr.p->m_found_not_restorable = true;
     file_ptr.p->m_remove_ctl_file_no = file_ptr.p->m_ctl_file_no;
