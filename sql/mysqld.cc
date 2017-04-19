@@ -1894,7 +1894,6 @@ static void clean_up(bool print_message)
   deinit_errmessage(); // finish server errs
   DBUG_PRINT("quit", ("Error messages freed"));
 
-  free_charsets();
   sys_var_end();
   Global_THD_manager::destroy_instance();
 

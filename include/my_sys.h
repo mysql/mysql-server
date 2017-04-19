@@ -907,7 +907,6 @@ extern bool resolve_charset(const char *cs_name,
 extern bool resolve_collation(const char *cl_name,
                               const CHARSET_INFO *default_cl,
                               const CHARSET_INFO **cl);
-extern void free_charsets(void);
 extern char *get_charsets_dir(char *buf);
 extern bool my_charset_same(const CHARSET_INFO *cs1,
                             const CHARSET_INFO *cs2);

@@ -80,7 +80,6 @@ static inline int is_timeout(int e) {
 C_MODE_START
 
 #ifdef _WIN32
-typedef volatile LONG    my_thread_once_t;
 typedef DWORD            my_thread_t;
 typedef struct thread_attr
 {
@@ -90,17 +89,12 @@ typedef struct thread_attr
 #define MY_THREAD_CREATE_JOINABLE 0
 #define MY_THREAD_CREATE_DETACHED 1
 typedef void * (__cdecl *my_start_routine)(void *);
-#define MY_THREAD_ONCE_INIT       0
-#define MY_THREAD_ONCE_INPROGRESS 1
-#define MY_THREAD_ONCE_DONE       2
 #else
-typedef pthread_once_t   my_thread_once_t;
 typedef pthread_t        my_thread_t;
 typedef pthread_attr_t   my_thread_attr_t;
 #define MY_THREAD_CREATE_JOINABLE PTHREAD_CREATE_JOINABLE
 #define MY_THREAD_CREATE_DETACHED PTHREAD_CREATE_DETACHED
 typedef void *(* my_start_routine)(void *);
-#define MY_THREAD_ONCE_INIT       PTHREAD_ONCE_INIT
 #endif
 
 typedef struct st_my_thread_handle
@@ -110,8 +104,6 @@ typedef struct st_my_thread_handle
   HANDLE handle;
 #endif
 } my_thread_handle;
-
-int my_thread_once(my_thread_once_t *once_control, void (*init_routine)(void));
 
 static inline my_thread_t my_thread_self()
 {

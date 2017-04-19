@@ -204,7 +204,6 @@ void STDCALL mysql_server_end()
   }
   else
   {
-    free_charsets();
     mysql_thread_end();
   }
 
