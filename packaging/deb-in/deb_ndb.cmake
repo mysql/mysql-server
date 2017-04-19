@@ -129,7 +129,7 @@ Description: memcached
 /usr/share/man/man1/ndb_show_tables.1*
 /usr/share/man/man1/ndb_size.pl.1*
 /usr/share/man/man1/ndb_waiter.1*
-/usr/share/man/man1/ndbd_redo_log_reader.1*
+/usr/share/man/man1/ndb_redo_log_reader.1*
 /usr/share/man/man1/ndbinfo_select_all.1*
 ")
 
