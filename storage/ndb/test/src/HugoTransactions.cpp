@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -543,7 +543,14 @@ restart:
         if (err.code == 499 || err.code == 631 ||   // Scan lock take over errors
             err.status == NdbError::TemporaryError) // Other temporary errors
         {
-	  NdbSleep_MilliSleep(50);
+          if (err.code == 410)
+          {
+	    NdbSleep_MilliSleep(1000);
+          }
+          else
+          {
+	    NdbSleep_MilliSleep(50);
+          }
 	  goto restart;
 	}
 	setNdbError(err);

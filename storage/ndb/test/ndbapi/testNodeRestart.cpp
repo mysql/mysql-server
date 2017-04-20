@@ -4761,14 +4761,41 @@ runBug48474(NDBT_Context* ctx, NDBT_Step* step)
   ndbout_c("starting uncommitted transaction %u minutes", minutes);
   for (Uint32 m = 0; m < minutes; m++)
   {
-    if (hugoOps.startTransaction(pNdb) != 0)
-      return NDBT_FAILED;
+    int retry = 0;
+    while (retry < 300)
+    {
+      if (hugoOps.startTransaction(pNdb) != 0)
+      {
+        ndbout_c("startTransaction failed");
+        return NDBT_FAILED;
+      }
 
-    if (hugoOps.pkUpdateRecord(pNdb, 0, 50, rand()) != 0)
-      return NDBT_FAILED;
-
-    if (hugoOps.execute_NoCommit(pNdb) != 0)
-      return NDBT_FAILED;
+      if (hugoOps.pkUpdateRecord(pNdb, 0, 50, rand()) != 0)
+      {
+        ndbout_c("pkUpdateRecord failed");
+        return NDBT_FAILED;
+      }
+      int ret_code;
+      if ((ret_code = hugoOps.execute_NoCommit(pNdb)) != 0)
+      {
+        if (ret_code == 410)
+        {
+          hugoOps.closeTransaction(pNdb);
+          NdbSleep_MilliSleep(100);
+          ndbout_c("410 on main node, wait a 100ms");
+          retry++;
+          continue;
+        }
+        ndbout_c("Prepare failed error: %u", ret_code);
+        return NDBT_FAILED;
+      }
+      break;
+    }
+    if (retry >= 300)
+    {
+      ndbout_c("Test stopped due to problems with 410");
+      break;
+    }
 
 
     ndbout_c("sleeping 60s");
@@ -4779,16 +4806,22 @@ runBug48474(NDBT_Context* ctx, NDBT_Step* step)
     }
 
     if (hugoOps.execute_Commit(pNdb) != 0)
+    {
+      ndbout_c("Transaction commit failed");
       return NDBT_FAILED;
+    }
 
     hugoOps.closeTransaction(pNdb);
 
     if (ctx->isTestStopped())
       break;
   }
-
-
   res.dumpStateAllNodes(minlcp, 2); // reset min time between LCP
+  if (res.waitClusterStarted() != 0)
+  {
+    ndbout_c("Failed to start cluster");
+    return NDBT_FAILED;
+  }
 
   ctx->stopTest();
   return NDBT_OK;
@@ -8957,7 +8990,6 @@ TESTCASE("Bug44952",
 }
 TESTCASE("Bug48474", "")
 {
-  TC_PROPERTY("RetryMax", Uint32(10000));
   INITIALIZER(runLoadTable);
   INITIALIZER(initBug48474);
   STEP(runBug48474);

@@ -109,6 +109,20 @@ extern EventLogger * g_eventLogger;
 #define DEB_LCP(arglist) do { } while (0)
 #endif
 
+#define DEBUG_GCP
+#ifdef DEBUG_GCP
+#define DEB_GCP(arglist) do { g_eventLogger->info arglist ; } while (0)
+#else
+#define DEB_GCP(arglist) do { } while (0)
+#endif
+
+#define DEBUG_CUT_REDO
+#ifdef DEBUG_CUT_REDO
+#define DEB_CUT_REDO(arglist) do { g_eventLogger->info arglist ; } while (0)
+#else
+#define DEB_CUT_REDO(arglist) do { } while (0)
+#endif
+
 //#define DEBUG_REDO_FLAG
 #ifdef DEBUG_REDO_FLAG
 #define DEB_REDO(arglist) do { g_eventLogger->info arglist ; } while (0)
@@ -15116,6 +15130,13 @@ void Dblqh::execCOPY_ACTIVEREQ(Signal* signal)
     jam();
     log_fragment_copied(signal);
   }
+  else
+  {
+    DEB_LCP(("(%u)Activate REDO log of tab(%u,%u)",
+             instance(),
+             tabptr.i,
+             fragId));
+  }
 
   /**
    * 1st phase (CAR_NO_LOGGING & CAR_NO_WAIT)
@@ -16272,6 +16293,7 @@ restart:
  * ------------------------------------------------------------------------- */
 void Dblqh::completeLcpRoundLab(Signal* signal, Uint32 lcpId)
 {
+  startLcpFragWatchdog(signal);
   DEB_LCP(("(%u)Start complete LCP %u", instance(), lcpId));
   clcpCompletedState = LCP_CLOSE_STARTED;
   EndLcpReq* req= (EndLcpReq*)signal->getDataPtr();
@@ -16308,7 +16330,8 @@ void Dblqh::execEND_LCPCONF(Signal* signal)
     sendSignal(TSMAN_REF, GSN_END_LCPREQ, signal, 
 	       EndLcpReq::SignalLength, JBA);
     return;
-  }
+  } 
+  stopLcpFragWatchdog();
   lcpPtr.i = 0;
   ptrAss(lcpPtr, lcpRecord);
   sendLCP_COMPLETE_REP(signal,
@@ -16527,6 +16550,34 @@ retry:
                            sltLogPartPtr.p->logTailMbyte};
       Uint64 mb = free_log(head, tail, sltLogPartPtr.p->noLogFiles,
                            clogFileSize);
+
+#ifdef DEBUG_CUT_REDO
+      {
+        TcConnectionrecPtr tmp;
+        tmp.i = sltLogPartPtr.p->firstLogTcrec;
+        Uint32 fileNo = -1;
+        Uint32 mbyte = -1;
+        if (tmp.i != RNIL)
+        {
+          jam();
+          ptrCheckGuard(tmp, ctcConnectrecFileSize, tcConnectionrec);
+          fileNo = tmp.p->logStartFileNo;
+          mbyte = tmp.p->logStartPageNo >> ZTWOLOG_NO_PAGES_IN_MBYTE;
+        }
+        DEB_CUT_REDO(("(%u)Logpart: %u, gci: %u, tail(%u,%u), old_tail(%u,%u)"
+                      ", tc_tail(%u,%u), mb: %llu",
+                      instance(),
+                      sltLogPartPtr.p->logPartNo,
+                      keepGci,
+                      sltLogPartPtr.p->logTailFileNo,
+                     sltLogPartPtr.p->logTailMbyte,
+                      ToldTailFileNo,
+                      ToldTailMByte,
+                      fileNo,
+                      mbyte,
+                      mb));
+      }
+#endif
 
       if (mb <= c_free_mb_force_lcp_limit)
       {
@@ -16761,7 +16812,9 @@ void Dblqh::execGCP_SAVEREQ(Signal* signal)
   m_gcp_monitor = gci;
 #endif
   
-  if(getNodeState().startLevel >= NodeState::SL_STOPPING_4){
+  if(getNodeState().startLevel >= NodeState::SL_STOPPING_4)
+  {
+    DEB_GCP(("(%u)SL_STOPPING_4: gci = %u", instance(), gci));
     GCPSaveRef * const saveRef = (GCPSaveRef*)&signal->theData[0];
     saveRef->dihPtr = dihPtr;
     saveRef->nodeId = getOwnNodeId();
@@ -16777,6 +16830,7 @@ void Dblqh::execGCP_SAVEREQ(Signal* signal)
 
   if (cstartRecReq < SRR_REDO_COMPLETE)
   {
+    DEB_GCP(("(%u)!SRR_REDO_COMPLETE: gci = %u", instance(), gci));
     /**
      * REDO running is not complete
      */
@@ -16798,6 +16852,7 @@ void Dblqh::execGCP_SAVEREQ(Signal* signal)
 /* GLOBAL CHECKPOINT HAVE ALREADY BEEN HANDLED. REQUEST MUST HAVE BEEN SENT  */
 /* FROM NEW MASTER DIH.                                                      */
 /*---------------------------------------------------------------------------*/
+    DEB_GCP(("(%u)GCP already sent: gci = %u", instance(), gci));
     if (ccurrentGcprec == RNIL) {
       jam();
 /*---------------------------------------------------------------------------*/
@@ -16832,11 +16887,33 @@ void Dblqh::execGCP_SAVEREQ(Signal* signal)
     cnewestGci = gci;
   }//if
 
+  if (c_is_first_gcp_save_started)
+  {
+    jam();
+    /**
+     * Report completed GCI (one less than the one we are now saving), to
+     * give the Backup block a chance to remove old LCP files.
+     * Without this signal arriving to Backup block the node restart will
+     * be blocked waiting for the proper GCI to delete the old files
+     * and also waiting for this to ensure that it will validate the
+     * LCP control files.
+     */
+    signal->theData[0] = gci - 1;
+    sendSignal(numberToRef(BACKUP, instance(), getOwnNodeId()),
+               GSN_RESTORABLE_GCI_REP, signal, 1, JBB);
+  }
+  else
+  {
+    DEB_GCP(("(%u)!c_first_gcp_save_started: gci = %u", instance(), gci));
+  }
+  c_is_first_gcp_save_started = true;
+
   if(cstartRecReq < SRR_FIRST_LCP_DONE)
   {
     /**
      * First LCP has not been done
      */
+    DEB_GCP(("(%u)!SRR_FIRST_LCP_DONE: gci = %u", instance(), gci));
     GCPSaveRef * const saveRef = (GCPSaveRef*)&signal->theData[0];
     saveRef->dihPtr = dihPtr;
     saveRef->nodeId = getOwnNodeId();
@@ -16859,19 +16936,6 @@ void Dblqh::execGCP_SAVEREQ(Signal* signal)
 #ifdef GCP_TIMER_HACK
   globalData.gcp_timer_save[0] = NdbTick_getCurrentTicks();
 #endif
-
-  if (c_is_first_gcp_save_started)
-  {
-    jam();
-    /**
-     * Report completed GCI (one less than the one we are now saving), to
-     * give the Backup block a chance to remove old LCP files.
-     */
-    signal->theData[0] = gci - 1;
-    sendSignal(numberToRef(BACKUP, instance(), getOwnNodeId()),
-               GSN_RESTORABLE_GCI_REP, signal, 1, JBB);
-  }
-  c_is_first_gcp_save_started = true;
 
   ccurrentGcprec = 0;
   gcpPtr.i = ccurrentGcprec;
