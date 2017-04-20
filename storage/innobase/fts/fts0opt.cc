@@ -2051,6 +2051,11 @@ fts_optimize_purge_deleted_doc_ids(
 	dberr_t		error = DB_SUCCESS;
 	char		deleted[MAX_FULL_NAME_LEN];
 	char		deleted_cache[MAX_FULL_NAME_LEN];
+	dict_table_t*	deleted_tbl = nullptr;
+	dict_table_t*	deleted_cache_tbl = nullptr;
+	MDL_ticket*	deleted_cache_mdl = nullptr;
+	MDL_ticket*	deleted_mdl = nullptr;
+	THD*		thd = current_thd;
 
 	info = pars_info_create();
 
@@ -2076,6 +2081,21 @@ fts_optimize_purge_deleted_doc_ids(
 	optim->fts_common_table.suffix = FTS_SUFFIX_DELETED_CACHE;
 	fts_get_table_name(&optim->fts_common_table, deleted_cache);
 	pars_info_bind_id(info, true, FTS_SUFFIX_DELETED_CACHE, deleted_cache);
+
+	deleted_tbl = dd_table_open_on_name(
+		thd, &deleted_mdl, deleted, false, DICT_ERR_IGNORE_NONE);
+
+	if (deleted_tbl == nullptr) {
+		goto func_exit;
+	}
+
+	deleted_cache_tbl = dd_table_open_on_name(
+		thd, &deleted_cache_mdl, deleted_cache,
+		false, DICT_ERR_IGNORE_NONE);
+
+	if (deleted_cache_tbl == nullptr) {
+		goto func_exit;
+	}
 
 	graph = fts_parse_sql(NULL, info, fts_delete_doc_ids_sql);
 
@@ -2104,6 +2124,16 @@ fts_optimize_purge_deleted_doc_ids(
 
 	fts_que_graph_free(graph);
 
+func_exit:
+	if (deleted_cache_tbl != nullptr) {
+		dd_table_close(deleted_cache_tbl, thd,
+			       &deleted_cache_mdl, false);
+	}
+
+	if (deleted_tbl != nullptr) {
+		dd_table_close(deleted_tbl, thd, &deleted_mdl, false);
+	}
+
 	return(error);
 }
 
@@ -2116,11 +2146,16 @@ fts_optimize_purge_deleted_doc_id_snapshot(
 /*=======================================*/
 	fts_optimize_t*	optim)	/*!< in: optimize instance */
 {
-	dberr_t		error;
+	dberr_t		error = DB_SUCCESS;
 	que_t*		graph;
 	pars_info_t*	info;
 	char		being_deleted[MAX_FULL_NAME_LEN];
 	char		being_deleted_cache[MAX_FULL_NAME_LEN];
+	MDL_ticket*	being_deleted_mdl = nullptr;
+	MDL_ticket*	being_deleted_cache_mdl = nullptr;
+	dict_table_t*	being_deleted_cache_tbl = nullptr;
+	dict_table_t*	being_deleted_tbl = nullptr;
+	THD*		thd = current_thd;
 
 	info = pars_info_create();
 
@@ -2135,12 +2170,41 @@ fts_optimize_purge_deleted_doc_id_snapshot(
 	pars_info_bind_id(info, true, FTS_SUFFIX_BEING_DELETED_CACHE,
 			  being_deleted_cache);
 
+	being_deleted_tbl = dd_table_open_on_name(
+		thd, &being_deleted_mdl, being_deleted,
+		false, DICT_ERR_IGNORE_NONE);
+
+	if (being_deleted_tbl == nullptr) {
+		error = DB_ERROR;
+		goto func_exit;
+	}
+
+	being_deleted_cache_tbl = dd_table_open_on_name(
+		thd, &being_deleted_cache_mdl, being_deleted_cache,
+		false, DICT_ERR_IGNORE_NONE);
+
+	if (being_deleted_cache_tbl == nullptr) {
+		error = DB_ERROR;
+		goto func_exit;
+	}
+
 	/* Delete the doc ids that were copied to delete pending state at
 	the start of optimize. */
 	graph = fts_parse_sql(NULL, info, fts_end_delete_sql);
 
 	error = fts_eval_sql(optim->trx, graph);
 	fts_que_graph_free(graph);
+
+func_exit:
+	if (being_deleted_cache_tbl != nullptr) {
+		dd_table_close(being_deleted_cache_tbl, thd,
+			       &being_deleted_cache_mdl, false);
+	}
+
+	if (being_deleted_tbl != nullptr) {
+		dd_table_close(being_deleted_tbl, thd,
+			       &being_deleted_mdl, false);
+	}
 
 	return(error);
 }
@@ -2175,13 +2239,22 @@ fts_optimize_create_deleted_doc_id_snapshot(
 /*========================================*/
 	fts_optimize_t*	optim)	/*!< in: optimize instance */
 {
-	dberr_t		error;
+	dberr_t		error = DB_SUCCESS;
 	que_t*		graph;
 	pars_info_t*	info;
 	char		being_deleted[MAX_FULL_NAME_LEN];
 	char		deleted[MAX_FULL_NAME_LEN];
 	char		being_deleted_cache[MAX_FULL_NAME_LEN];
 	char		deleted_cache[MAX_FULL_NAME_LEN];
+	dict_table_t*	being_deleted_tbl = nullptr;
+	dict_table_t*	deleted_tbl = nullptr;
+	dict_table_t*	being_deleted_cache_tbl = nullptr;
+	dict_table_t*	deleted_cache_tbl = nullptr;
+	MDL_ticket*	being_deleted_mdl = nullptr;
+	MDL_ticket*	deleted_mdl = nullptr;
+	MDL_ticket*	being_deleted_cache_mdl = nullptr;
+	MDL_ticket*	deleted_cache_mdl = nullptr;
+	THD*		thd = current_thd;
 
 	info = pars_info_create();
 
@@ -2191,18 +2264,49 @@ fts_optimize_create_deleted_doc_id_snapshot(
 	fts_get_table_name(&optim->fts_common_table, being_deleted);
 	pars_info_bind_id(info, true, FTS_SUFFIX_BEING_DELETED, being_deleted);
 
+	being_deleted_tbl = dd_table_open_on_name(
+		thd, &being_deleted_mdl, being_deleted,
+		false, DICT_ERR_IGNORE_NONE);
+
+	if (being_deleted_tbl == nullptr) {
+		goto func_exit;
+	}
+
 	optim->fts_common_table.suffix = FTS_SUFFIX_DELETED;
 	fts_get_table_name(&optim->fts_common_table, deleted);
 	pars_info_bind_id(info, true, FTS_SUFFIX_DELETED, deleted);
+
+	deleted_tbl = dd_table_open_on_name(
+		thd, &deleted_mdl, deleted, false, DICT_ERR_IGNORE_NONE);
+
+	if (deleted_tbl == nullptr) {
+		goto func_exit;
+	}
 
 	optim->fts_common_table.suffix = FTS_SUFFIX_BEING_DELETED_CACHE;
 	fts_get_table_name(&optim->fts_common_table, being_deleted_cache);
 	pars_info_bind_id(info, true, FTS_SUFFIX_BEING_DELETED_CACHE,
 			  being_deleted_cache);
 
+	being_deleted_cache_tbl = dd_table_open_on_name(
+		thd, &being_deleted_cache_mdl, being_deleted_cache,
+		false, DICT_ERR_IGNORE_NONE);
+
+	if (being_deleted_cache_tbl == nullptr) {
+		goto func_exit;
+	}
+
 	optim->fts_common_table.suffix = FTS_SUFFIX_DELETED_CACHE;
 	fts_get_table_name(&optim->fts_common_table, deleted_cache);
 	pars_info_bind_id(info, true, FTS_SUFFIX_DELETED_CACHE, deleted_cache);
+
+	deleted_cache_tbl = dd_table_open_on_name(
+		thd, &deleted_cache_mdl, deleted_cache,
+		false, DICT_ERR_IGNORE_NONE);
+
+	if (deleted_cache_tbl == nullptr) {
+		goto func_exit;
+	}
 
 	/* Move doc_ids that are to be deleted to state being deleted. */
 	graph = fts_parse_sql(NULL, info, fts_init_delete_sql);
@@ -2218,6 +2322,26 @@ fts_optimize_create_deleted_doc_id_snapshot(
 	}
 
 	optim->del_list_regenerated = TRUE;
+
+func_exit:
+	if (being_deleted_tbl != nullptr) {
+		dd_table_close(being_deleted_tbl, thd,
+			       &being_deleted_mdl, false);
+	}
+
+	if (deleted_tbl != nullptr) {
+		dd_table_close(deleted_tbl, thd, &deleted_mdl, false);
+	}
+
+	if (being_deleted_cache_tbl != nullptr) {
+		dd_table_close(being_deleted_cache_tbl, thd,
+			       &being_deleted_cache_mdl, false);
+	}
+
+	if (deleted_cache_tbl != nullptr) {
+		dd_table_close(deleted_cache_tbl, thd,
+			       &deleted_cache_mdl, false);
+	}
 
 	return(error);
 }
