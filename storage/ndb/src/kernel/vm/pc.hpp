@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -26,6 +26,20 @@
 
 #define JAM_FILE_ID 282
 
+/* Jam buffer pointer. */
+struct EmulatedJamBuffer;
+extern thread_local EmulatedJamBuffer* NDB_THREAD_TLS_JAM;
+
+/* Thread self pointer. */
+struct thr_data;
+extern thread_local thr_data* NDB_THREAD_TLS_THREAD;
+
+#ifdef NDB_DEBUG_RES_OWNERSHIP
+
+/* (Debug only) Shared resource owner. */
+extern thread_local Uint32 NDB_THREAD_TLS_RES_OWNER;
+
+#endif
 
 #ifdef NO_EMULATED_JAM
 
@@ -61,8 +75,7 @@
     jamBuffer->theEmulatedJam[jamIndex++] = JamEvent((JAM_FILE_ID), (line)); \
     jamBuffer->theEmulatedJamIndex = jamIndex & JAM_MASK; \
     /* Occasionally check that the jam buffer belongs to this thread.*/ \
-    assert((jamIndex & 3) != 0 || \
-           jamBuffer == NdbThread_GetTlsKey(NDB_THREAD_TLS_JAM));       \
+    assert((jamIndex & 3) != 0 || jamBuffer == NDB_THREAD_TLS_JAM);       \
     /* Occasionally check that jamFileNames[JAM_FILE_ID] matches __FILE__.*/ \
     assert((jamIndex & 0xff) != 0 ||                     \
            JamEvent::verifyId((JAM_FILE_ID), __FILE__)); \
@@ -79,8 +92,7 @@
 #define jamEntry() jamEntryLine(__LINE__)
 
 #define jamNoBlockLine(line) \
-    thrjamLine((EmulatedJamBuffer *)NdbThread_GetTlsKey(NDB_THREAD_TLS_JAM), \
-               (line))
+    thrjamLine(NDB_THREAD_TLS_JAM, line)
 #define jamNoBlock() jamNoBlockLine(__LINE__)
 
 #define thrjamEntryLine(buf, line) thrjamEntryBlockLine(buf, number(), line)
@@ -260,8 +272,7 @@
 // Get the jam buffer for the current thread.
 inline EmulatedJamBuffer* getThrJamBuf()
 {
-  return reinterpret_cast<EmulatedJamBuffer*>
-    (NdbThread_GetTlsKey(NDB_THREAD_TLS_JAM));
+  return NDB_THREAD_TLS_JAM;
 }
 
 #undef JAM_FILE_ID

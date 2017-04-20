@@ -22,7 +22,7 @@ IF(WIN32)
 ENDIF(WIN32)
 ADD_CONVENIENCE_LIBRARY(ndbportlib
             NdbCondition.c NdbMutex.c ndb_socket.cpp
-            NdbEnv.c NdbThread.c NdbHost.c NdbTCP.cpp
+            NdbEnv.c NdbThread.cpp NdbHost.c NdbTCP.cpp
             NdbMem.c NdbConfig.c NdbTick.cpp NdbDir.cpp
             ndb_daemon.cc ${EXTRA_SRC}
             NdbNuma.cpp NdbMutex_DeadlockDetector.cpp

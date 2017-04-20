@@ -19,7 +19,6 @@
 #define NDB_THREAD_H
 
 #include <ndb_global.h>
-#include <my_thread_local.h>
 
 #ifdef	__cplusplus
 extern "C" {
@@ -43,13 +42,13 @@ typedef enum NDB_THREAD_PRIO_ENUM {
   NDB_THREAD_PRIO_LOWEST
 } NDB_THREAD_PRIO;
 
-typedef enum NDB_THREAD_TLS_ENUM {
-  NDB_THREAD_TLS_JAM,           /* Jam buffer pointer. */
-  NDB_THREAD_TLS_THREAD,        /* Thread self pointer. */
-  NDB_THREAD_TLS_NDB_THREAD,    /* NDB thread pointer */
-  NDB_THREAD_TLS_RES_OWNER,     /* (Debug only) Shared resource owner */
-  NDB_THREAD_TLS_MAX
-} NDB_THREAD_TLS;
+#ifdef __cplusplus
+
+/* NDB thread pointer. */
+struct NdbThread;
+extern thread_local NdbThread* NDB_THREAD_TLS_NDB_THREAD;
+
+#endif
 
 typedef void* (NDB_THREAD_FUNC)(void*);
 typedef void* NDB_THREAD_ARG;
@@ -245,11 +244,6 @@ void NdbThread_UnassignFromCPUSet(struct NdbThread*,
 const struct processor_set_handler*
   NdbThread_LockGetCPUSetKey(struct NdbThread*);
 
-/**
- * Fetch and set thread-local storage entry.
- */
-void *NdbThread_GetTlsKey(NDB_THREAD_TLS key);
-void NdbThread_SetTlsKey(NDB_THREAD_TLS key, void *value);
 /* Get my own NdbThread pointer */
 struct NdbThread *NdbThread_GetNdbThread();
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -5839,8 +5839,8 @@ init_thread(thr_data *selfptr)
   selfptr->m_buffer_full_micros_sleep = 0;
   selfptr->m_measured_spintime = 0;
 
-  NdbThread_SetTlsKey(NDB_THREAD_TLS_JAM, &selfptr->m_jam);
-  NdbThread_SetTlsKey(NDB_THREAD_TLS_THREAD, selfptr);
+  NDB_THREAD_TLS_JAM = &selfptr->m_jam;
+  NDB_THREAD_TLS_THREAD= selfptr;
 
   unsigned thr_no = selfptr->m_thr_no;
   globalEmulatorData.theWatchDog->
@@ -7684,8 +7684,7 @@ FastScheduler::traceDumpPrepare(NdbShutdownType& nst)
    * because it does not receive signals it does not really influence dumps in
    * any case).
    */
-  void *value= NdbThread_GetTlsKey(NDB_THREAD_TLS_THREAD);
-  const thr_data *selfptr = reinterpret_cast<const thr_data *>(value);
+  const thr_data *selfptr = NDB_THREAD_TLS_THREAD;
   /* The selfptr might be NULL, or pointer to thread that crashed. */
 
   Uint32 waitFor_count = 0;
@@ -7817,8 +7816,7 @@ ErrorReporter::prepare_to_crash(bool first_phase, bool error_insert_crash)
 
 void mt_execSTOP_FOR_CRASH()
 {
-  void *value= NdbThread_GetTlsKey(NDB_THREAD_TLS_THREAD);
-  const thr_data *selfptr = reinterpret_cast<const thr_data *>(value);
+  const thr_data *selfptr = NDB_THREAD_TLS_THREAD;
   require(selfptr != NULL);
 
   NdbMutex_Lock(&g_thr_repository->stop_for_crash_mutex);
@@ -7835,8 +7833,7 @@ void mt_execSTOP_FOR_CRASH()
 void
 FastScheduler::dumpSignalMemory(Uint32 thr_no, FILE* out)
 {
-  void *value= NdbThread_GetTlsKey(NDB_THREAD_TLS_THREAD);
-  thr_data *selfptr = reinterpret_cast<thr_data *>(value);
+  thr_data *selfptr = NDB_THREAD_TLS_THREAD;
   const thr_repository *rep = g_thr_repository;
   /*
    * The selfptr might be NULL, or pointer to thread that is doing the crash
@@ -8054,8 +8051,7 @@ FastScheduler::dumpSignalMemory(Uint32 thr_no, FILE* out)
 int
 FastScheduler::traceDumpGetCurrentThread()
 {
-  void *value= NdbThread_GetTlsKey(NDB_THREAD_TLS_THREAD);
-  const thr_data *selfptr = reinterpret_cast<const thr_data *>(value);
+  const thr_data *selfptr = NDB_THREAD_TLS_THREAD;
 
   /* The selfptr might be NULL, or pointer to thread that crashed. */
   if (selfptr == 0)
