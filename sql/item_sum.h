@@ -1678,7 +1678,8 @@ class Item_func_group_concat final : public Item_sum
   bool warning_for_row;
   bool always_null;
   bool force_copy_fields;
-  bool no_appended;
+  /** True if result has been written to output buffer. */
+  bool m_result_finalized;
   /*
     Following is 0 normal object and pointer to original one for copy
     (to correctly free resources)
