@@ -625,9 +625,10 @@ Upgrade_status::enum_stage Upgrade_status::read()
   DBUG_ASSERT(m_file);
 
   enum_stage stage= enum_stage::NONE;
+  size_t items_read MY_ATTRIBUTE((unused));
 
   if (!feof(m_file))
-    fread(&stage, sizeof(int), 1, m_file);
+    items_read= fread(&stage, sizeof(int), 1, m_file);
 
   return stage;
 }
