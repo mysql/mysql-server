@@ -112,6 +112,7 @@ Pgman::Pgman(Block_context& ctx, Uint32 instanceNumber) :
 
   // LCP variables
   m_sync_extent_pages_ongoing = false;
+  m_lcp_loop_ongoing = false;
   m_lcp_outstanding = 0;
   m_lcp_table_id = RNIL;
   m_lcp_fragment_id = 0;

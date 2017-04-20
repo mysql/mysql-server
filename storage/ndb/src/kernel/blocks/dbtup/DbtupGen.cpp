@@ -227,6 +227,7 @@ Dbtup::~Dbtup()
 
 Dbtup::Apply_undo::Apply_undo()
 {
+  m_in_intermediate_log_record = false;
   m_type = 0;
   m_len = 0;
   m_ptr = 0;

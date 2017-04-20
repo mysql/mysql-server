@@ -9741,6 +9741,7 @@ Backup::execLCP_PREPARE_REQ(Signal* signal)
        * no need to start it.
        */
       DEB_LCP(("Wait delete LCP file processing before starting LCP"));
+      ndbrequire(false);
       m_wait_delete_lcp_file_processing = true;
       return;
     }
@@ -11546,6 +11547,7 @@ Backup::lcp_write_ctl_file(Signal *signal, BackupRecordPtr ptr)
        * before will be sync:ed to disk.
        */
       valid_flag = 0;
+      DEB_LCP(("(%u)Writing first with ValidFlag = 0", instance()));
     }
   }
 
@@ -11755,7 +11757,8 @@ Backup::finalize_lcp_processing(Signal *signal, BackupRecordPtr ptr)
    * LCP on a new fragment when it is ready to do so.
    */
   if (ptr.p->deleteDataFileNumber != RNIL ||
-      ptr.p->deleteCtlFileNumber != RNIL)
+      ptr.p->deleteCtlFileNumber != RNIL ||
+      !ptr.p->m_lcp_lsn_synced)
   {
     /**
      * We insert a record into the list for files to delete that will ensure
@@ -11784,14 +11787,20 @@ Backup::finalize_lcp_processing(Signal *signal, BackupRecordPtr ptr)
       ptr.p->deleteCtlFileNumber,
       ptr.p->newestGci));
 
-    bool ready_for_delete = ((ptr.p->newestGci + 1) <= m_newestRestorableGci);
+    Uint32 wait_for_gci = ptr.p->newestGci;
+    if (m_our_node_started)
+    {
+      jam();
+      wait_for_gci++;
+    }
+    bool ready_for_delete = (wait_for_gci <= m_newestRestorableGci);
     Uint32 lastDeleteFileNumber= get_file_add(ptr.p->deleteDataFileNumber,
                           (ptr.p->m_lcp_remove_files - 1));
     deleteLcpFilePtr.p->tableId = tableId;
     deleteLcpFilePtr.p->fragmentId = fragmentId;
     deleteLcpFilePtr.p->firstFileId = ptr.p->deleteDataFileNumber;
     deleteLcpFilePtr.p->lastFileId = lastDeleteFileNumber;
-    deleteLcpFilePtr.p->waitCompletedGci = ptr.p->newestGci + 1;
+    deleteLcpFilePtr.p->waitCompletedGci = wait_for_gci;
     deleteLcpFilePtr.p->lcpCtlFileNumber = ptr.p->deleteCtlFileNumber;
     deleteLcpFilePtr.p->validFlag = ptr.p->m_lcp_lsn_synced;
     deleteLcpFilePtr.p->lcpLsn = ptr.p->m_current_lcp_lsn;
@@ -11888,6 +11897,12 @@ Backup::delete_lcp_file_processing(Signal *signal, Uint32 ptrI)
   if (queue.isEmpty())
   {
     jam();
+    if (ptr.p->m_wait_end_lcp)
+    {
+      jam();
+      ptr.p->m_wait_end_lcp = false;
+      sendEND_LCPCONF(signal, ptr);
+    }
     m_delete_lcp_files_ongoing = false;
     if ((m_wait_delete_lcp_file_processing &&
          ptr.p->prepareState != PREPARE_DROP_CLOSE) ||
@@ -11908,6 +11923,7 @@ Backup::delete_lcp_file_processing(Signal *signal, Uint32 ptrI)
        * LCP_PREPARE_REQ handling for both cases.
        */
       jam();
+      ndbrequire(false);
       m_wait_delete_lcp_file_processing = false;
       ptr.p->prepareState = PREPARE_READ_CTL_FILES;
       DEB_LCP(("(%u)TAGT Completed wait delete files for new LCP or"
@@ -12098,6 +12114,7 @@ Backup::lcp_read_ctl_file_for_rewrite(Signal *signal,
   req->operationFlag = 0;
   FsReadWriteReq::setFormatFlag(req->operationFlag,
                                 FsReadWriteReq::fsFormatMemAddress);
+  FsReadWriteReq::setPartialReadFlag(req->operationFlag, 1);
 
   Uint32 mem_offset = Uint32(((char*)pagePtr.p) - ((char*)c_startOfPages));
   req->data.memoryAddress.memoryOffset = mem_offset;
@@ -12146,6 +12163,14 @@ Backup::lcp_close_ctl_file_for_rewrite(Signal *signal,
 {
   ndbrequire(ptr.p->errorCode == 0);
   closeFile(signal, ptr, filePtr, false, false);
+#ifdef DEBUG_LCP
+  DeleteLcpFilePtr deleteLcpFilePtr;
+  c_deleteLcpFilePool.getPtr(deleteLcpFilePtr, ptr.p->currentDeleteLcpFile);
+  DEB_LCP(("(%u)Completed writing with ValidFlag = 1 for tab(%u,%u)",
+           instance(),
+           deleteLcpFilePtr.p->tableId,
+           deleteLcpFilePtr.p->fragmentId));
+#endif
 }
 
 void
@@ -12162,13 +12187,19 @@ Backup::lcp_close_ctl_file_for_rewrite_done(Signal *signal,
   {
     jam();
     ptr.p->m_delete_data_file_ongoing = true;
+    lcp_remove_file(signal, ptr, deleteLcpFilePtr);
+  }
+  else if (deleteLcpFilePtr.p->lcpCtlFileNumber != RNIL)
+  {
+    jam();
+    ptr.p->m_delete_data_file_ongoing = false;
+    lcp_remove_file(signal, ptr, deleteLcpFilePtr);
   }
   else
   {
     jam();
-    ptr.p->m_delete_data_file_ongoing = false;
+    finished_removing_files(signal, ptr);
   }
-  lcp_remove_file(signal, ptr, deleteLcpFilePtr);
 }
 
 void
@@ -12259,18 +12290,26 @@ Backup::lcp_remove_file_conf(Signal *signal, BackupRecordPtr ptr)
      * execute at a time and that this LCP will remove all the files
      * of the old LCP before the next one is allowed to start.
      */
-    DeleteLcpFilePtr deleteLcpFilePtr;
     jam();
-    LocalDeleteLcpFile_list queue(c_deleteLcpFilePool,
-                                  m_delete_lcp_file_head);
-    c_deleteLcpFilePool.getPtr(deleteLcpFilePtr, ptr.p->currentDeleteLcpFile);
-    ndbrequire(queue.removeFirst(deleteLcpFilePtr));
-    c_deleteLcpFilePool.release(deleteLcpFilePtr);
-    ptr.p->currentDeleteLcpFile = RNIL;
-    signal->theData[0] = BackupContinueB::ZDELETE_LCP_FILE;
-    signal->theData[1] = ptr.i;
-    sendSignal(reference(), GSN_CONTINUEB, signal, 2, JBB);
+    finished_removing_files(signal, ptr);
   }
+}
+
+void
+Backup::finished_removing_files(Signal *signal,
+                                BackupRecordPtr ptr)
+{
+  DeleteLcpFilePtr deleteLcpFilePtr;
+  jam();
+  LocalDeleteLcpFile_list queue(c_deleteLcpFilePool,
+                                m_delete_lcp_file_head);
+  c_deleteLcpFilePool.getPtr(deleteLcpFilePtr, ptr.p->currentDeleteLcpFile);
+  ndbrequire(queue.removeFirst(deleteLcpFilePtr));
+  c_deleteLcpFilePool.release(deleteLcpFilePtr);
+  ptr.p->currentDeleteLcpFile = RNIL;
+  signal->theData[0] = BackupContinueB::ZDELETE_LCP_FILE;
+  signal->theData[1] = ptr.i;
+  sendSignal(reference(), GSN_CONTINUEB, signal, 2, JBB);
 }
 
 void
@@ -12444,6 +12483,32 @@ Backup::execEND_LCPREQ(Signal* signal)
 void
 Backup::finish_end_lcp(Signal *signal, BackupRecordPtr ptr)
 {
+  DEB_LCP(("(%u)TAGE SYNC_EXTENT_PAGES_CONF: lcpId: %u",
+          instance(),
+          ptr.p->backupId));
+
+  LocalDeleteLcpFile_list queue(c_deleteLcpFilePool,
+                                m_delete_lcp_file_head);
+  if (!queue.isEmpty())
+  {
+    jam();
+    ptr.p->m_wait_end_lcp = true;
+    return;
+  }
+  /**
+   * The delete LCP file queue is empty, this means that we are sure
+   * that all reported LCP_FRAG_REP's are actually completed. DIH
+   * will not think that any LCP_FRAG_REP is ok to use until we have
+   * received LCP_COMPLETE_REP and so we need to wait with sending
+   * this signal until we have emptied the queue and thus completed
+   * the full LCP.
+   */
+  sendEND_LCPCONF(signal, ptr);
+}
+
+void
+Backup::sendEND_LCPCONF(Signal *signal, BackupRecordPtr ptr)
+{
   DEB_LCP(("(%u)TAGE END_LCPREQ: lcpId: %u",
           instance(),
           ptr.p->backupId));
@@ -12544,7 +12609,8 @@ Backup::execLCP_STATUS_REQ(Signal* signal)
       found_lcp = true;
       
       LcpStatusConf::LcpState state = LcpStatusConf::LCP_IDLE;
-      if (m_wait_delete_lcp_file_processing)
+      if (m_wait_delete_lcp_file_processing ||
+          ptr.p->m_wait_end_lcp)
       {
         jam();
         state = LcpStatusConf::LCP_WAIT_GCI_TO_DELETE_FILES;

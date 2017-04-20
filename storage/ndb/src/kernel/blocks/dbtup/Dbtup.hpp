@@ -3596,8 +3596,10 @@ public:
                          const Uint32 * ptr,
                          Uint32 len);
 
+  void verify_undo_log_execution();
   struct Apply_undo 
   {
+    bool m_in_intermediate_log_record;
     Uint32 m_type;
     Uint32 m_len;
     Uint32 m_offset;
@@ -3631,6 +3633,8 @@ private:
   void disk_restart_undo_callback(Signal* signal, Uint32, Uint32);
   void disk_restart_undo_alloc(Apply_undo*);
   void disk_restart_undo_update(Apply_undo*);
+  void disk_restart_undo_update_first_part(Apply_undo*);
+  void disk_restart_undo_update_part(Apply_undo*);
   void disk_restart_undo_free(Apply_undo*, bool);
   void disk_restart_undo_page_bits(Signal*, Apply_undo*);
 

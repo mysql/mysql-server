@@ -531,6 +531,7 @@ public:
       , masterData(b), backup(b)
 
       {
+        m_wait_end_lcp = false;
         /*
           report of backup status uses these variables to keep track
           if backup ia running and current state
@@ -542,6 +543,7 @@ public:
     /* prev time backup status was reported */
     NDB_TICKS m_prev_report;
 
+    bool m_wait_end_lcp;
     Uint32 m_gsn;
     Uint32 m_lastSignalId;
     Uint32 m_prioA_scan_batches_to_execute;
@@ -1113,6 +1115,8 @@ public:
   void lcp_write_undo_log(Signal *signal, BackupRecordPtr);
 
   void delete_lcp_file_processing(Signal*, Uint32 ptrI);
+  void finished_removing_files(Signal*, BackupRecordPtr);
+  void sendEND_LCPCONF(Signal*, BackupRecordPtr);
 
   void sync_log_lcp_lsn(Signal*, DeleteLcpFilePtr, Uint32 ptrI);
   void sync_log_lcp_lsn_callback(Signal*, Uint32 ptrI, Uint32 res);

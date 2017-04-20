@@ -505,7 +505,8 @@ Restore::lcp_create_ctl_done_open(Signal *signal, FilePtr file_ptr)
    *    CTL file, so thus there is no data file both according to DIH
    *    and according to the non-presence of correct CTL files.
    */
-  if (file_ptr.p->m_dih_lcp_no == ZNIL)
+  if (file_ptr.p->m_dih_lcp_no == ZNIL ||
+      file_ptr.p->m_used_ctl_file_no == Uint32(~0))
   {
     /**
      * We have no checkpointed data file yet, so we will write an initial
@@ -582,7 +583,8 @@ Restore::lcp_create_ctl_done_write(Signal *signal, FilePtr file_ptr)
 void
 Restore::lcp_create_ctl_done_close(Signal *signal, FilePtr file_ptr)
 {
-  if (file_ptr.p->m_dih_lcp_no == ZNIL)
+  if (file_ptr.p->m_dih_lcp_no == ZNIL ||
+      file_ptr.p->m_used_ctl_file_no == Uint32(~0))
   {
     /**
      * We have created an LCP control file, DIH knew not about any
@@ -763,7 +765,7 @@ Restore::lcp_remove_old_file_done(Signal *signal, FilePtr file_ptr)
        * 0 first.
        */
       DEB_RES(("(%u)start_restore_lcp", instance()));
-      if (file_ptr.p->m_dih_lcp_no == ZNIL)
+      if (file_ptr.p->m_used_ctl_file_no == Uint32(~0))
       {
         jam();
         lcp_create_ctl_open(signal, file_ptr);
@@ -815,12 +817,19 @@ Restore::open_ctl_file_done_ref(Signal *signal, FilePtr file_ptr)
        * We are done reading the LCP control files. If no one was found we will
        * assume that this is an LCP produced by an older version without LCP
        * control files.
+       *
        * In the new format we always have a control file, even when there is
        * no LCP executed yet. We create this control file indicating an empty
        * set of LCP files before we continue restoring the data.
        *
        * We could come here also with a too new LCP completed and we create
        * an empty one also in this case since it will overwrite the old one.
+       *
+       * We could also come here when we have completed the LCP, but the LCP
+       * control file is still invalid since we haven't ensured that the
+       * LCP is safe yet by calling sync_lsn. In this case we can even have
+       * a case where DIH thinks we have completed an LCP but we haven't
+       * actually done so yet.
        */
       if (file_ptr.p->m_upgrade_case)
       {
@@ -836,7 +845,6 @@ Restore::open_ctl_file_done_ref(Signal *signal, FilePtr file_ptr)
         file_ptr.p->m_remove_data_file_no = 0;
         file_ptr.p->m_num_remove_data_files = BackupFormat::NDB_MAX_FILES_PER_LCP;
         file_ptr.p->m_status = File::REMOVE_LCP_DATA_FILE;
-        ndbrequire(file_ptr.p->m_dih_lcp_no == ZNIL);
         lcp_remove_old_file(signal,
                             file_ptr,
                             file_ptr.p->m_remove_data_file_no,
@@ -1188,8 +1196,7 @@ Restore::read_ctl_file_done(Signal *signal, FilePtr file_ptr, Uint32 bytesRead)
      * This is a perfectly normal case although not so common. The LCP was
      * completed but had writes in it that rendered it useless. If this is
      * the very first LCP for this table it could even be that this is the
-     * only LCP control file we have. This is a case that even DIH can
-     * discover and thus m_dih_lcp_no in this case is equal to ZNIL.
+     * only LCP control file we have.
      *
      * It is also a normal case where we have written LCP control file
      * but not yet had time to sync the LSN for the LCP. This is flagged
@@ -1205,8 +1212,7 @@ Restore::read_ctl_file_done(Signal *signal, FilePtr file_ptr, Uint32 bytesRead)
     file_ptr.p->m_found_not_restorable = true;
     file_ptr.p->m_remove_ctl_file_no = file_ptr.p->m_ctl_file_no;
     if (file_ptr.p->m_ctl_file_no == 1 &&
-        (file_ptr.p->m_dih_lcp_no != ZNIL ||
-         file_ptr.p->m_used_ctl_file_no != Uint32(~0)))
+         file_ptr.p->m_used_ctl_file_no != Uint32(~0))
     {
       jam();
       calculate_remove_new_data_files(file_ptr);
