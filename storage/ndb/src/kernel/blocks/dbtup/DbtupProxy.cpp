@@ -273,6 +273,7 @@ DbtupProxy::disk_restart_undo(Signal* signal, Uint64 lsn,
     break;
   }
   case File_formats::Undofile::UNDO_TUP_UPDATE:
+  case File_formats::Undofile::UNDO_TUP_FIRST_UPDATE_PART:
   {
     const Dbtup::Disk_undo::Update* rec =
       (const Dbtup::Disk_undo::Update*)ptr;
@@ -284,7 +285,6 @@ DbtupProxy::disk_restart_undo(Signal* signal, Uint64 lsn,
     break;
   }
   case File_formats::Undofile::UNDO_TUP_UPDATE_PART:
-  case File_formats::Undofile::UNDO_TUP_FIRST_UPDATE_PART:
   {
     const Dbtup::Disk_undo::UpdatePart* rec =
       (const Dbtup::Disk_undo::UpdatePart*)ptr;
