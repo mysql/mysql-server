@@ -3170,7 +3170,6 @@ private:
   void set_last_lcp_state(Uint32*, bool);
   bool get_lcp_scanned_bit(Uint32 *next_ptr);
   void reset_lcp_scanned_bit(Uint32 *next_ptr);
-  void set_lcp_scanned_bit(Fragrecord*, Uint32);
   void reset_lcp_scanned_bit(Fragrecord*, Uint32);
   bool get_last_lcp_state(Uint32 *prev_ptr);
 

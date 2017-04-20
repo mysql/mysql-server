@@ -269,11 +269,12 @@ public:
       Uint32 nextPool;
       Uint32 nextList;
     };
+    Uint32 prevList;
   };
   typedef Ptr<DeleteLcpFile> DeleteLcpFilePtr;
-  typedef SLFifoList<DeleteLcpFile, ArrayPool<DeleteLcpFile> >
+  typedef DLCFifoList<DeleteLcpFile, ArrayPool<DeleteLcpFile> >
     DeleteLcpFile_list;
-  typedef LocalSLFifoList<DeleteLcpFile, ArrayPool<DeleteLcpFile> >
+  typedef LocalDLCFifoList<DeleteLcpFile, ArrayPool<DeleteLcpFile> >
     LocalDeleteLcpFile_list;
   DeleteLcpFile_list::Head m_delete_lcp_file_head;
 
