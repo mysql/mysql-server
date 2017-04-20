@@ -8842,7 +8842,7 @@ void Dbdih::toCopyCompletedLab(Signal * signal, TakeOverRecordPtr takeOverPtr)
    * One take over thread has completed its work. We will have to wait for
    * all of the threads to complete here before we can proceed.
    */
-  g_eventLogger->debug("Thread %u copy completed", takeOverPtr.i);
+  g_eventLogger->info("Thread %u copy completed", takeOverPtr.i);
   if (!thread_takeover_copy_completed(signal, takeOverPtr))
   {
     jam();
