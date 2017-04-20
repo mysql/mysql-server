@@ -51,7 +51,8 @@ innodb_initialize(
 /*==============*/
 	ENGINE_HANDLE*	handle,		/*!< in/out: InnoDB memcached
 					engine */
-	const char*	config_str);	/*!< in: configure string */
+	const char*	config_str	/*!< in: configure string */
+);
 
 /*******************************************************************//**
 Allocate gets a struct item from the slab allocator, and fills in
@@ -69,7 +70,8 @@ innodb_allocate(
 	const size_t	nkey,		/*!< in: key length */
 	const size_t	nbytes,		/*!< in: value length */
 	const int	flags,		/*!< in: flag */
-	const rel_time_t exptime);	/*!< in: expiration time */
+	const rel_time_t exptime	/*!< in: expiration time */
+);
 
 /*******************************************************************//**
 Cleanup connections
@@ -83,8 +85,9 @@ innodb_remove(
 	const void*	key,		/*!< in: key value */
 	const size_t	nkey,		/*!< in: key length */
 	uint64_t	cas,		/*!< in: cas */
-	uint16_t	vbucket);	/*!< in: bucket, used by default
+	uint16_t	vbucket 	/*!< in: bucket, used by default
 					engine only */
+);
 
 /*******************************************************************//**
 bind table
@@ -96,7 +99,8 @@ innodb_bind(
 	ENGINE_HANDLE*	handle,		/*!< in: Engine handle */
 	const void*	cookie,		/*!< in: connection cookie */
 	const void*	name,		/*!< in: table ID name */
-        const size_t	name_len);	/*!< in: name length */
+        const size_t	name_len	/*!< in: name length */
+);
 
 /*******************************************************************//**
 release */
@@ -106,7 +110,8 @@ innodb_release(
 /*===========*/
 	ENGINE_HANDLE*	handle,		/*!< in: Engine handle */
 	const void*	cookie,		/*!< in: connection cookie */
-	item*		item);		/*!< in: item to free */
+	item*		item		/*!< in: item to free */
+);
 
 /*******************************************************************//**
 release */
@@ -116,7 +121,8 @@ innodb_clean_engine(
 /*================*/
 	ENGINE_HANDLE*	handle,		/*!< in: Engine handle */
 	const void*	cookie,		/*!< in: connection cookie */
-	void*		conn);		/*!< in: item to free */
+	void*		conn		/*!< in: item to free */
+);
 /*******************************************************************//**
 Free value assocaited with key */
 static
@@ -136,8 +142,9 @@ innodb_get(
 	item**		item,		/*!< out: item to fill */
 	const void*	key,		/*!< in: search key */
 	const int	nkey,		/*!< in: key length */
-	uint16_t	vbucket);	/*!< in: bucket, used by default
+	uint16_t	vbucket 	/*!< in: bucket, used by default
 					engine only */
+);
 
 /*******************************************************************//**
 Get statistics info
@@ -150,7 +157,8 @@ innodb_get_stats(
 	const void*	cookie,		/*!< in: connection cookie */
 	const char*	stat_key,	/*!< in: statistics key */
 	int		nkey,		/*!< in: key length */
-	ADD_STAT	add_stat);	/*!< out: stats to fill */
+	ADD_STAT	add_stat	/*!< out: stats to fill */
+);
 
 /*******************************************************************//**
 reset statistics
@@ -160,7 +168,8 @@ void
 innodb_reset_stats(
 /*===============*/
 	ENGINE_HANDLE*	handle,		/*!< in: Engine Handle */
-	const void*	cookie);	/*!< in: connection cookie */
+	const void*	cookie  	/*!< in: connection cookie */
+);
 
 /*******************************************************************//**
 API interface for memcached's "SET", "ADD", "REPLACE", "APPEND"
@@ -175,8 +184,9 @@ innodb_store(
 	item*		item,		/*!< out: result to fill */
 	uint64_t*	cas,		/*!< in: cas value */
 	ENGINE_STORE_OPERATION  op,	/*!< in: type of operation */
-	uint16_t	vbucket);	/*!< in: bucket, used by default
+	uint16_t	vbucket 	/*!< in: bucket, used by default
 					engine only */
+);
 
 /*******************************************************************//**
 Support memcached "FLUSH_ALL" command, clean up storage (trunate InnoDB Table)
@@ -187,8 +197,9 @@ innodb_flush(
 /*=========*/
 	ENGINE_HANDLE*	handle,		/*!< in: Engine Handle */
 	const void*	cookie,		/*!< in: connection cookie */
-	time_t		when);		/*!< in: when to flush, not used by
+	time_t		when		/*!< in: when to flush, not used by
 					InnoDB */
+);
 
 /*******************************************************************//**
 Deal with unknown command. Currently not used
@@ -200,6 +211,7 @@ innodb_unknown_command(
 	ENGINE_HANDLE*	handle,		/*!< in: Engine Handle */
 	const void*	cookie,		/*!< in: connection cookie */
 	protocol_binary_request_header *request, /*!< in: request */
-	ADD_RESPONSE	response);	/*!< out: respondse */
+	ADD_RESPONSE	response	/*!< out: respondse */
+);
 
 #endif /* innodb_engine_private_h */

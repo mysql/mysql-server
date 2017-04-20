@@ -246,7 +246,8 @@ bool
 innodb_verify(
 /*==========*/
 	meta_cfg_info_t*	info,	/*!< in: meta info structure */
-	void*			thd);	/*!< in/out: MySQL THD */
+	void*			thd	/*!< in/out: MySQL THD */
+);
 
 /**********************************************************************//**
 This function frees meta info structure */

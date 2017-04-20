@@ -1,6 +1,6 @@
 /***********************************************************************
 
-Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify it
 under the terms of the GNU General Public License as published by the
@@ -690,7 +690,7 @@ innodb_api_search(
 	ib_tpl_t*		r_tpl,	/*!< in: tpl for other DML
 					operations */
 	bool			sel_only, /*!< in: for select only */
-	innodb_range_key_t*	range_key)/* search mode if not exact search */
+	innodb_range_key_t*	range_key)/*!< in: search mode if not exact search */
 {
 	ib_err_t	err = DB_SUCCESS;
 	meta_cfg_info_t* meta_info = cursor_data->conn_meta;
