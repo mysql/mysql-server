@@ -180,27 +180,23 @@ private:
     // surrounding code calling this function only if '!thd->is_dd_system_thread'
     // i.e., this is not a bootstrapping thread.
     DBUG_ASSERT(!thd->is_dd_system_thread());
+    DBUG_ASSERT(schema);
 
     // We must take l_c_t_n into account when reconstructing the
     // MDL key from the table name.
     char table_name_buf[NAME_LEN + 1];
 
-    if (schema)
-    {
-      if (!my_strcasecmp(system_charset_info,
-                         schema->name().c_str(),
-                         "information_schema"))
-        return is_locked(thd, schema->name().c_str(), table->name().c_str(),
-                         MDL_key::TABLE, lock_type);
-      else
-        return is_locked(thd, schema->name().c_str(),
-                         dd::Object_table_definition_impl::fs_name_case(
-                                                             table->name(),
-                                                             table_name_buf),
-                         MDL_key::TABLE, lock_type);
-    }
+    if (!my_strcasecmp(system_charset_info,
+                       schema->name().c_str(),
+                       "information_schema"))
+      return is_locked(thd, schema->name().c_str(), table->name().c_str(),
+                       MDL_key::TABLE, lock_type);
 
-    return false;
+    return is_locked(thd, schema->name().c_str(),
+                     dd::Object_table_definition_impl::fs_name_case(
+                                                         table->name(),
+                                                         table_name_buf),
+                     MDL_key::TABLE, lock_type);
   }
 
 
@@ -230,21 +226,14 @@ private:
     if (thd->dd_client()->acquire(event->schema_id(), &schema))
       return false;
 
+    DBUG_ASSERT(schema);
+
     char lc_event_name[NAME_LEN + 1];
     my_stpcpy(lc_event_name, event->name().c_str());
     my_casedn_str(&my_charset_utf8_tolower_ci, lc_event_name);
 
-    // Likewise, if there is no schema, we cannot have a proper lock.
-    // @todo This may happen during bootstrapping since the meta data for the
-    // system schema is not stored yet. To be fixed in wl#6394. TODO_WL6394.
-    if (schema)
-      return is_locked(thd, schema->name().c_str(), lc_event_name,
-                       MDL_key::EVENT, lock_type);
-    else if (event->schema_id() == 1)
-      return is_locked(thd, MYSQL_SCHEMA_NAME.str, lc_event_name,
-                       MDL_key::EVENT, lock_type);
-
-    return false;
+    return is_locked(thd, schema->name().c_str(), lc_event_name,
+                     MDL_key::EVENT, lock_type);
   }
 
 
@@ -274,6 +263,8 @@ private:
     if (thd->dd_client()->acquire(routine->schema_id(), &schema))
       return false;
 
+    DBUG_ASSERT(schema);
+
     MDL_key::enum_mdl_namespace mdl_namespace= MDL_key::FUNCTION;
     if (routine->type() == dd::Routine::RT_PROCEDURE)
       mdl_namespace= MDL_key::PROCEDURE;
@@ -284,17 +275,8 @@ private:
     my_stpcpy(lc_routine_name, routine->name().c_str());
     my_casedn_str(system_charset_info, lc_routine_name);
 
-    // Likewise, if there is no schema, we cannot have a proper lock.
-    // @todo This may happen during bootstrapping since the meta data for the
-    // system schema is not stored yet. To be fixed in wl#6394. TODO_WL6394.
-    if (schema)
-      return is_locked(thd, schema->name().c_str(), lc_routine_name,
-                       mdl_namespace, lock_type);
-    else if (routine->schema_id() == 1)
-      return is_locked(thd, MYSQL_SCHEMA_NAME.str, lc_routine_name,
-                       mdl_namespace, lock_type);
-
-    return false;
+    return is_locked(thd, schema->name().c_str(), lc_routine_name,
+                     mdl_namespace, lock_type);
   }
 
 
