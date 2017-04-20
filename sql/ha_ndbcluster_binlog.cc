@@ -3662,7 +3662,12 @@ class Ndb_schema_event_handler {
     // Participant never takes GSL
     assert(get_thd_ndb(m_thd)->check_option(Thd_ndb::IS_SCHEMA_DIST_PARTICIPANT));
 
-    if (check_if_local_tables_in_db(schema->db))
+    if (check_if_local_tables_in_db(schema->db) ||
+        // Refuse to drop the performance_schema database
+        // on the participant, this should be protectd by the check
+        // for "local tables" but since that check is currently broken
+        // it can be hardcoded for now.
+        strcmp(schema->db,  "performance_schema") == 0)
     {
       /* Tables exists as a local table, print error and leave it */
       sql_print_error("NDB Binlog: Skipping drop database '%s' since "
