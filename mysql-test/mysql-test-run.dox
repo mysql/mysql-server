@@ -6662,7 +6662,7 @@
     </li>
 
     <li>
-      <tt>replace_numberic_round <b>precision</b></tt>
+      <tt>replace_numeric_round <b>precision</b></tt>
 
       Rounds off floating point numbers. <b>precision</b> is the
       number of digits after the decimal point to which the result will
@@ -6678,11 +6678,11 @@
       exponential notation after they are rounded off.
 
      @verbatim
-  --replace_numberic_round 6
+  --replace_numeric_round 6
   SELECT 12379.79459775333;
   12379.794598
 
-  replace_numberic_round 0;
+  replace_numeric_round 0;
   SELECT 876.87302;
   877
      @endverbatim

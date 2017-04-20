@@ -1506,8 +1506,8 @@ SELECT 20;
 20
 20
 # An error is thrown if parameter count is 0
-mysqltest: At line 1: Missing required argument 'precision' to command 'replace_numberic_round'
+mysqltest: At line 1: Missing required argument 'precision' to command 'replace_numeric_round'
 # The maximum value which can be passed is 16
-mysqltest: At line 1: A number between 0 and 16 is required for the precision in replace_numberic_round
+mysqltest: At line 1: A number between 0 and 16 is required for the precision in replace_numeric_round
 # The minimum value which can be passed is 0
-mysqltest: At line 1: A number between 0 and 16 is required for the precision in replace_numberic_round
+mysqltest: At line 1: A number between 0 and 16 is required for the precision in replace_numeric_round
