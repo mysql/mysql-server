@@ -1473,33 +1473,19 @@ static inline int mysql_mutex_lock(...)
   @ingroup performance_schema_implementation
 */
 
-thread_local_key_t THR_PFS;
-thread_local_key_t THR_PFS_VG;   // global_variables
-thread_local_key_t THR_PFS_SV;   // session_variables
-thread_local_key_t THR_PFS_VBT;  // variables_by_thread
-thread_local_key_t THR_PFS_SG;   // global_status
-thread_local_key_t THR_PFS_SS;   // session_status
-thread_local_key_t THR_PFS_SBT;  // status_by_thread
-thread_local_key_t THR_PFS_SBU;  // status_by_user
-thread_local_key_t THR_PFS_SBH;  // status_by_host
-thread_local_key_t THR_PFS_SBA;  // status_by_account
-
-bool THR_PFS_initialized = false;
+thread_local PFS_thread *THR_PFS= nullptr;
+thread_local PFS_table_context *THR_PFS_contexts[THR_PFS_NUM_KEYS];
 
 static inline PFS_thread *
 my_thread_get_THR_PFS()
 {
-  DBUG_ASSERT(THR_PFS_initialized);
-  PFS_thread *thread = static_cast<PFS_thread *>(my_get_thread_local(THR_PFS));
-  DBUG_ASSERT(thread == NULL || sanitize_thread(thread) != NULL);
-  return thread;
+  return THR_PFS;
 }
 
 static inline void
 my_thread_set_THR_PFS(PFS_thread *pfs)
 {
-  DBUG_ASSERT(THR_PFS_initialized);
-  my_set_thread_local(THR_PFS, pfs);
+  THR_PFS= pfs;
 }
 
 /**

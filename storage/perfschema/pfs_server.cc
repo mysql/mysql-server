@@ -51,10 +51,6 @@ PFS_global_param pfs_param;
 
 PFS_table_stat PFS_table_stat::g_reset_template;
 
-C_MODE_START
-static void destroy_pfs_thread(void* key);
-C_MODE_END
-
 static void cleanup_performance_schema(void);
 void cleanup_instrument_config(void);
 
@@ -72,48 +68,17 @@ pre_initialize_performance_schema()
   g_histogram_pico_timers.init();
   global_statements_histogram.reset();
 
-  if (my_create_thread_local_key(&THR_PFS, destroy_pfs_thread))
+  /*
+    There is no automatic cleanup. Please either use:
+    - my_thread_end()
+    - or PSI_server->delete_current_thread()
+    in the instrumented code, to explicitly cleanup the instrumentation.
+  */
+  THR_PFS= nullptr;
+  for (int i = 0; i < THR_PFS_NUM_KEYS; ++i)
   {
-    return;
+     THR_PFS_contexts[i]= nullptr;
   }
-  if (my_create_thread_local_key(&THR_PFS_VG, NULL))  // global_variables
-  {
-    return;
-  }
-  if (my_create_thread_local_key(&THR_PFS_SV, NULL))  // session_variables
-  {
-    return;
-  }
-  if (my_create_thread_local_key(&THR_PFS_VBT, NULL))  // variables_by_thread
-  {
-    return;
-  }
-  if (my_create_thread_local_key(&THR_PFS_SG, NULL))  // global_status
-  {
-    return;
-  }
-  if (my_create_thread_local_key(&THR_PFS_SS, NULL))  // session_status
-  {
-    return;
-  }
-  if (my_create_thread_local_key(&THR_PFS_SBT, NULL))  // status_by_thread
-  {
-    return;
-  }
-  if (my_create_thread_local_key(&THR_PFS_SBU, NULL))  // status_by_user
-  {
-    return;
-  }
-  if (my_create_thread_local_key(&THR_PFS_SBH, NULL))  // status_by_host
-  {
-    return;
-  }
-  if (my_create_thread_local_key(&THR_PFS_SBA, NULL))  // status_by_account
-  {
-    return;
-  }
-
-  THR_PFS_initialized = true;
 }
 
 int
@@ -149,12 +114,6 @@ initialize_performance_schema(PFS_global_param* param,
   *memory_bootstrap = NULL;
   *error_bootstrap = NULL;
   *data_lock_bootstrap = NULL;
-
-  if (!THR_PFS_initialized)
-  {
-    /* Pre-initialization failed. */
-    return 1;
-  }
 
   pfs_enabled = param->m_enabled;
 
@@ -277,29 +236,6 @@ initialize_performance_schema(PFS_global_param* param,
 }
 
 static void
-destroy_pfs_thread(void* key)
-{
-  PFS_thread* pfs = reinterpret_cast<PFS_thread*>(key);
-  DBUG_ASSERT(pfs);
-  /*
-    This automatic cleanup is a last resort and best effort to avoid leaks,
-    and may not work on windows due to the implementation of
-    pthread_key_create().
-    Please either use:
-    - my_thread_end()
-    - or PSI_server->delete_current_thread()
-    in the instrumented code, to explicitly cleanup the instrumentation.
-
-    Avoid invalid writes when the main() thread completes after shutdown:
-    the memory pointed by pfs is already released.
-  */
-  if (pfs_initialized)
-  {
-    destroy_thread(pfs);
-  }
-}
-
-static void
 cleanup_performance_schema(void)
 {
   /*
@@ -400,36 +336,6 @@ shutdown_performance_schema(void)
   global_transaction_class.m_enabled = false;
 
   cleanup_performance_schema();
-  /*
-    Be careful to not delete un-initialized keys,
-    this would affect key 0, which is THR_KEY_mysys,
-  */
-  if (THR_PFS_initialized)
-  {
-    my_set_thread_local(THR_PFS, NULL);
-    my_set_thread_local(THR_PFS_VG, NULL);   // global_variables
-    my_set_thread_local(THR_PFS_SV, NULL);   // session_variables
-    my_set_thread_local(THR_PFS_VBT, NULL);  // variables_by_thread
-    my_set_thread_local(THR_PFS_SG, NULL);   // global_status
-    my_set_thread_local(THR_PFS_SS, NULL);   // session_status
-    my_set_thread_local(THR_PFS_SBT, NULL);  // status_by_thread
-    my_set_thread_local(THR_PFS_SBU, NULL);  // status_by_user
-    my_set_thread_local(THR_PFS_SBH, NULL);  // status_by_host
-    my_set_thread_local(THR_PFS_SBA, NULL);  // status_by_account
-
-    my_delete_thread_local_key(THR_PFS);
-    my_delete_thread_local_key(THR_PFS_VG);
-    my_delete_thread_local_key(THR_PFS_SV);
-    my_delete_thread_local_key(THR_PFS_VBT);
-    my_delete_thread_local_key(THR_PFS_SG);
-    my_delete_thread_local_key(THR_PFS_SS);
-    my_delete_thread_local_key(THR_PFS_SBT);
-    my_delete_thread_local_key(THR_PFS_SBU);
-    my_delete_thread_local_key(THR_PFS_SBH);
-    my_delete_thread_local_key(THR_PFS_SBA);
-
-    THR_PFS_initialized = false;
-  }
 }
 
 /**

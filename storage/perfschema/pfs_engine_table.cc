@@ -456,8 +456,7 @@ PFS_table_context::initialize(void)
   if (m_restore)
   {
     /* Restore context from TLS. */
-    PFS_table_context *context =
-      static_cast<PFS_table_context *>(my_get_thread_local(m_thr_key));
+    PFS_table_context *context = THR_PFS_contexts[m_thr_key];
     DBUG_ASSERT(context != NULL);
 
     if (context)
@@ -472,9 +471,7 @@ PFS_table_context::initialize(void)
   else
   {
     /* Check that TLS is not in use. */
-    PFS_table_context *context =
-      static_cast<PFS_table_context *>(my_get_thread_local(m_thr_key));
-    // DBUG_ASSERT(context == NULL);
+    PFS_table_context *context = THR_PFS_contexts[m_thr_key];
 
     context = this;
 
@@ -495,7 +492,7 @@ PFS_table_context::initialize(void)
 #endif
 
     /* Write to TLS. */
-    my_set_thread_local(m_thr_key, static_cast<void *>(context));
+    THR_PFS_contexts[m_thr_key] = context;
   }
 
   m_initialized = (m_map_size > 0) ? (m_map != NULL) : true;
@@ -506,7 +503,7 @@ PFS_table_context::initialize(void)
 /* Constructor for global or single thread tables, map size = 0.  */
 PFS_table_context::PFS_table_context(ulonglong current_version,
                                      bool restore,
-                                     thread_local_key_t key)
+                                     THR_PFS_key key)
   : m_thr_key(key),
     m_current_version(current_version),
     m_last_version(0),
@@ -525,7 +522,7 @@ PFS_table_context::PFS_table_context(ulonglong current_version,
 PFS_table_context::PFS_table_context(ulonglong current_version,
                                      ulong map_size,
                                      bool restore,
-                                     thread_local_key_t key)
+                                     THR_PFS_key key)
   : m_thr_key(key),
     m_current_version(current_version),
     m_last_version(0),
@@ -541,11 +538,6 @@ PFS_table_context::PFS_table_context(ulonglong current_version,
 
 PFS_table_context::~PFS_table_context(void)
 {
-  /* Clear TLS after final use. */
-  //  if (m_restore)
-  //  {
-  //    my_set_thread_local(m_thr_key, NULL);
-  //  }
 }
 
 void

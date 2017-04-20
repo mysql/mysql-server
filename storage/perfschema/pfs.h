@@ -28,6 +28,9 @@
 #include <mysql/psi/psi_base.h>
 #include <mysql/psi/psi_data_lock.h>
 
+struct PFS_thread;
+class PFS_table_context;
+
 /**
   Entry point to the performance schema implementation.
   This singleton is used to discover the performance schema services.
@@ -48,21 +51,24 @@ extern struct PSI_memory_bootstrap pfs_memory_bootstrap;
 extern struct PSI_error_bootstrap pfs_error_bootstrap;
 extern struct PSI_data_lock_bootstrap pfs_data_lock_bootstrap;
 
-/** Performance schema Thread Local Storage key.  */
-extern thread_local_key_t THR_PFS;
-extern thread_local_key_t THR_PFS_VG;   // global_variables
-extern thread_local_key_t THR_PFS_SV;   // session_variables
-extern thread_local_key_t THR_PFS_VBT;  // variables_by_thread
-extern thread_local_key_t THR_PFS_SG;   // global_status
-extern thread_local_key_t THR_PFS_SS;   // session_status
-extern thread_local_key_t THR_PFS_SBT;  // status_by_thread
-extern thread_local_key_t THR_PFS_SBU;  // status_by_user
-extern thread_local_key_t THR_PFS_SBH;  // status_by_host
-extern thread_local_key_t THR_PFS_SBA;  // status_by_account
+/** Performance schema Thread Local Storage.  */
+extern thread_local PFS_thread *THR_PFS;
 
-/** True when @c THR_PFS and all other Performance Schema TLS keys are
- * initialized. */
-extern bool THR_PFS_initialized;
+/**
+  Performance schema Thread Local Storage keys; indexes into THR_PFS_contexts.
+*/
+enum THR_PFS_key {
+	THR_PFS_SV,   // session_variables
+	THR_PFS_VG,   // global_variables
+	THR_PFS_VBT,  // variables_by_thread
+	THR_PFS_SG,   // global_status
+	THR_PFS_SS,   // session_status
+	THR_PFS_SBT,  // status_by_thread
+	THR_PFS_SBU,  // status_by_user
+	THR_PFS_SBH,  // status_by_host
+	THR_PFS_NUM_KEYS
+};
+extern thread_local PFS_table_context *THR_PFS_contexts[THR_PFS_NUM_KEYS];
 
 /* Only Innodb so far */
 #define COUNT_DATA_LOCK_ENGINES 1
