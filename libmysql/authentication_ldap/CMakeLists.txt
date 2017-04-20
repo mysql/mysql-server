@@ -28,11 +28,14 @@ ENDIF()
 
 # LDAP authentication SASL client will not build on windows, as windows don't have cyrus sasl.
 # IF someone like can build the cyrus sasl library on windows and build LDAP authentication sasl client as well.
-SET(HEADERS_CLIENT auth_ldap_sasl_client.h log_client.h)
-SET(PLUGIN_CLIENT_SOURCES auth_ldap_sasl_client.cc log_client.cc)
-ADD_CONVENIENCE_LIBRARY(authentication_ldap_sasl_client ${PLUGIN_CLIENT_SOURCES} ${HEADERS_CLIENT})
 IF (CMAKE_SYSTEM_NAME MATCHES "SunOS")
-  TARGET_LINK_LIBRARIES(authentication_ldap_sasl_client sasl)
+  SET(SASL_LIBRARY "sasl")
 ELSE ()
-  TARGET_LINK_LIBRARIES(authentication_ldap_sasl_client sasl2)
+  SET(SASL_LIBRARY "sasl2")
 ENDIF ()
+
+MYSQL_ADD_PLUGIN(authentication_ldap_sasl_client
+                 auth_ldap_sasl_client.cc log_client.cc
+                 LINK_LIBRARIES ${SASL_LIBRARY}
+                 MODULE_ONLY
+                 MODULE_OUTPUT_NAME "authentication_ldap_sasl_client")
