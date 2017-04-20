@@ -58,6 +58,7 @@ BuildRequires:  perl
 BuildRequires:  perl(Time::HiRes)
 BuildRequires:  perl(Env)
 BuildRequires:  time
+BuildRequires:  cyrus-sasl-devel
 BuildRequires:  libaio-devel
 BuildRequires:  ncurses-devel
 BuildRequires:  numactl-devel
@@ -248,6 +249,7 @@ rm -r $(readlink var) var
 %dir %{_libdir}/mysql/plugin
 %attr(755, root, root) %{_libdir}/mysql/plugin/adt_null.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/auth_socket.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/authentication_ldap_sasl_client.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/group_replication.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/connection_control.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/innodb_engine.so

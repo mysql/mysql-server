@@ -19,6 +19,7 @@ debian/extra/server-binary
 debian/extra/adt_null-plugin
 debian/extra/auth-plugin
 debian/extra/auth_socket-plugin
+debian/extra/authentication_ldap_sasl_client-plugin
 debian/extra/auth_test_plugin-plugin
 debian/extra/component_example_component1-plugin
 debian/extra/component_example_component2-plugin
