@@ -18592,6 +18592,7 @@ Dbdih::resetReplicaSr(TabRecordPtr tabPtr){
   
   for(Uint32 i = 0; i<tabPtr.p->totalfragments; i++)
   {
+    jam();
     FragmentstorePtr fragPtr;
     getFragstore(tabPtr.p, i, fragPtr);
     
@@ -18632,6 +18633,7 @@ Dbdih::resetReplicaSr(TabRecordPtr tabPtr){
       if (nodePtr.p->nodeStatus == NodeRecord::ALIVE)
       {
 	jam();
+        jamLine(Uint16(nodePtr.i));
 	switch (nodePtr.p->activeStatus) {
 	case Sysfile::NS_Active:
 	case Sysfile::NS_ActiveMissed_1:
@@ -18799,6 +18801,7 @@ Dbdih::resetReplicaLcp(ReplicaRecord * replicaP, Uint32 stopGci){
       if (replicaP->maxGciStarted[lcpNo] <= stopGci)
       {
         jam();
+        jamLine(Uint16(lcpNo));
 	/* ----------------------------------------------------------------- */
 	/*   WE HAVE FOUND A USEFUL LOCAL CHECKPOINT THAT CAN BE USED FOR    */
 	/*   RESTARTING THIS FRAGMENT REPLICA.                               */
@@ -18806,7 +18809,8 @@ Dbdih::resetReplicaLcp(ReplicaRecord * replicaP, Uint32 stopGci){
         return ;
       }//if
     }//if
-    
+    jam();
+    jamLine(Uint16(lcpNo));
     /**
      * WE COULD  NOT USE THIS LOCAL CHECKPOINT. IT WAS TOO
      * RECENT OR SIMPLY NOT A VALID CHECKPOINT.
@@ -23196,6 +23200,8 @@ bool Dbdih::findStartGci(ConstPtr<ReplicaRecord> replicaPtr,
   /*       THE TABLE WAS CREATED.                                          */
   /* --------------------------------------------------------------------- */
   startGci = replicaPtr.p->initialGci;
+  jam();
+  jamLine(Uint16(replicaPtr.p->nextLcp));
   ndbrequire(replicaPtr.p->nextLcp == 0);
   return false;
 }//Dbdih::findStartGci()
@@ -24415,6 +24421,7 @@ void Dbdih::newCrashedReplica(ReplicaRecordPtr ncrReplicaPtr)
   }
   else
   {
+    jam();
     /**
      * This can happen if createGci is set
      *   (during sendUpdateFragStateReq(COMMIT_STORED))
@@ -24507,9 +24514,10 @@ Dbdih::mergeCrashedReplicas(ReplicaRecordPtr replicaPtr)
   /**
    * merge adjacent redo-intervals
    */
+  jam();
+  jamLine(Uint16(replicaPtr.p->noCrashedReplicas));
   for (Uint32 i = replicaPtr.p->noCrashedReplicas; i > 0; i--)
   {
-    jam();
     if (replicaPtr.p->createGci[i] == 1 + replicaPtr.p->replicaLastGci[i-1])
     {
       jam();
