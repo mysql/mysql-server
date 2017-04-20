@@ -3553,8 +3553,22 @@ Logfile_client::add_entry_complex(const Change* src,
   }
   require(alloc_size >= tot);
   if (tot <= remaining_page_space ||
-      remaining_page_space < 4)
+      remaining_page_space < (4 + 2 + 4))
   {
+    /**
+     * Header is 3 + 1 words, we need to make sure that the size of the first
+     * part is at least 2 words long. The reason is that the UNDO_FREE_PART
+     * will expect to find the record in the free list. The free list
+     * uses the first word of the record. Since the UNDO_UPDATE_PART is
+     * applied before the UNDO_FREE_PART it is important that this part
+     * doesn't overwrite the next reference. To ensure that we don't
+     * run into problems if we later on decide for a double linked list
+     * we will protect 4 more words. Thus we will skip the remainder of
+     * the page if we don't have at least space to fit a 4 word header
+     * plus 2 words to protect free list information and 4 extra words
+     * of protection for future use (either longer headers or more
+     * free list information to protect.
+     */
     jamBlock(m_client_block);
     return add_entry_simple(src, cnt, alloc_size, true);
   }
