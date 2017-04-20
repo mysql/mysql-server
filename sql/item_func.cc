@@ -2584,6 +2584,7 @@ Item_func_latlongfromgeohash::check_geohash_argument_valid_type(Item *item)
   {
   case MYSQL_TYPE_VARCHAR:
   case MYSQL_TYPE_VAR_STRING:
+  case MYSQL_TYPE_STRING:
   case MYSQL_TYPE_BLOB:
   case MYSQL_TYPE_TINY_BLOB:
   case MYSQL_TYPE_MEDIUM_BLOB:
