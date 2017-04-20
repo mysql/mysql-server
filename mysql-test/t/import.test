@@ -630,3 +630,14 @@ DROP TABLE t1;
 
 --echo # Remove 'export' folder created at the beginning of test file.
 --force-rmdir $EXPORT_DIR
+
+--echo #
+--echo # Bug#25914953 ASSERTION FAILED: M_THD->GET_TRANSACTION()->
+--echo # IS_EMPTY(TRANSACTION_CTX::STMT)
+--echo #
+--echo # Need to commit any existing txn before using Disable_autocommit_guard
+
+START TRANSACTION WITH CONSISTENT SNAPSHOT;
+--error ER_IMP_NO_FILES_MATCHED
+IMPORT TABLE FROM '';
+

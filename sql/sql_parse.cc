@@ -388,6 +388,7 @@ void init_update_queries(void)
   sql_command_flags[SQLCOM_CREATE_EVENT]=   CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_ALTER_EVENT]=    CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_DROP_EVENT]=     CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
+  sql_command_flags[SQLCOM_IMPORT]=         CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
 
   sql_command_flags[SQLCOM_UPDATE]=	    CF_CHANGES_DATA | CF_REEXECUTION_FRAGILE |
                                             CF_CAN_GENERATE_ROW_EVENTS |
@@ -735,6 +736,7 @@ void init_update_queries(void)
   sql_command_flags[SQLCOM_INSTALL_COMPONENT]|= CF_DISALLOW_IN_RO_TRANS;
   sql_command_flags[SQLCOM_UNINSTALL_COMPONENT]|= CF_DISALLOW_IN_RO_TRANS;
   sql_command_flags[SQLCOM_ALTER_INSTANCE]|=   CF_DISALLOW_IN_RO_TRANS;
+  sql_command_flags[SQLCOM_IMPORT]|=           CF_DISALLOW_IN_RO_TRANS;
 
   /*
     Mark statements that are allowed to be executed by the plugins.
@@ -881,6 +883,7 @@ void init_update_queries(void)
   sql_command_flags[SQLCOM_GRANT_ROLE]|=              CF_ALLOW_PROTOCOL_PLUGIN;
   sql_command_flags[SQLCOM_REVOKE_ROLE]|=             CF_ALLOW_PROTOCOL_PLUGIN;
   sql_command_flags[SQLCOM_ALTER_USER_DEFAULT_ROLE]|= CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_IMPORT]|=                  CF_ALLOW_PROTOCOL_PLUGIN;
   sql_command_flags[SQLCOM_END]|=                     CF_ALLOW_PROTOCOL_PLUGIN;
 
   /*
