@@ -231,15 +231,8 @@ IF(WIN32)
 ENDIF()
 
 # LDAP authentication SASL client plugin
-INCLUDE(CheckIncludeFiles)
-CHECK_INCLUDE_FILES(sasl/sasl.h HAVE_SASL_H)
-CHECK_INCLUDE_FILES(lber.h HAVE_LBER_H)
-IF (HAVE_SASL_H AND HAVE_LBER_H)
-  MESSAGE(STATUS "Adding LDAP authentication SASL client.")
-  ADD_DEFINITIONS(-DAUTHENTICATION_LDAP_SASL_CLIENT)
-  ADD_SUBDIRECTORY(authentication_ldap)
-  LIST(APPEND LIBS authentication_ldap_sasl_client)
-ENDIF()
+MESSAGE(STATUS "Creating LDAP authentication SASL client library.")
+ADD_SUBDIRECTORY(authentication_ldap)
   
 # Merge several convenience libraries into one big mysqlclient
 MERGE_LIBRARIES(mysqlclient STATIC ${LIBS} COMPONENT Development)

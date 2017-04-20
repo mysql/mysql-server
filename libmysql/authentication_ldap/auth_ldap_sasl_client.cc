@@ -11,7 +11,6 @@
 #include <mysql/client_plugin.h>
 #include <mysql.h>
 
-MYSQL_PLUGIN g_ldap_plugin_info = NULL;
 Ldap_logger *g_logger_client;
 
 void Sasl_client::interact(sasl_interact_t *ilist) {

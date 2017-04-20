@@ -71,6 +71,7 @@ usr/share/mysql/*.sql
 # plugins
 usr/lib/mysql/plugin/adt_null.so
 usr/lib/mysql/plugin/auth_socket.so
+usr/lib/mysql/plugin/authentication_ldap_sasl_client.so
 usr/lib/mysql/plugin/group_replication.so
 usr/lib/mysql/plugin/connection_control.so
 usr/lib/mysql/plugin/innodb_engine.so
@@ -89,6 +90,7 @@ usr/lib/mysql/plugin/validate_password.so
 usr/lib/mysql/plugin/version_token.so
 usr/lib/mysql/plugin/debug/adt_null.so
 usr/lib/mysql/plugin/debug/auth_socket.so
+usr/lib/mysql/plugin/debug/authentication_ldap_sasl_client.so
 usr/lib/mysql/plugin/debug/group_replication.so
 usr/lib/mysql/plugin/debug/connection_control.so
 usr/lib/mysql/plugin/debug/innodb_engine.so
