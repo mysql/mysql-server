@@ -210,6 +210,7 @@ public:
     Uint32 m_applied;
 
     Uint64 m_space_limit;
+    Uint64 m_total_log_space;
 
     Uint64 m_next_lsn;
     Uint64 m_last_sync_req_lsn; // Outstanding
@@ -292,7 +293,6 @@ private:
 
   Page_map::DataBufferPool m_data_buffer_pool;
 
-  Uint64 m_next_lsn;
   Uint32 m_latest_lcp;
   Uint32 m_latest_local_lcp;
   Logfile_group_list m_logfile_group_list;
@@ -453,7 +453,10 @@ public:
     Uint32 len;
   };
 
-  Uint64 add_entry_simple(const Change*, Uint32 cnt, Uint32 alloc_size);
+  Uint64 add_entry_simple(const Change*,
+                          Uint32 cnt,
+                          Uint32 alloc_size,
+                          bool update_callback_buffer_words = true);
   Uint64 add_entry_complex(const Change*, Uint32 cnt, bool, Uint32 alloc_size);
 
   /**

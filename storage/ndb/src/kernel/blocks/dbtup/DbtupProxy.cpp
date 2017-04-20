@@ -283,7 +283,20 @@ DbtupProxy::disk_restart_undo(Signal* signal, Uint64 lsn,
     undo.m_actions |= Proxy_undo::GetInstance;
     break;
   }
+  case File_formats::Undofile::UNDO_TUP_UPDATE_PART:
+  case File_formats::Undofile::UNDO_TUP_FIRST_UPDATE_PART:
+  {
+    const Dbtup::Disk_undo::UpdatePart* rec =
+      (const Dbtup::Disk_undo::UpdatePart*)ptr;
+    undo.m_key.m_file_no = rec->m_file_no_page_idx >> 16;
+    undo.m_key.m_page_no = rec->m_page_no;
+    undo.m_key.m_page_idx = rec->m_file_no_page_idx & 0xFFFF;
+    undo.m_actions |= Proxy_undo::ReadTupPage;
+    undo.m_actions |= Proxy_undo::GetInstance;
+    break;
+  }
   case File_formats::Undofile::UNDO_TUP_FREE:
+  case File_formats::Undofile::UNDO_TUP_FREE_PART:
   {
     const Dbtup::Disk_undo::Free* rec =
       (const Dbtup::Disk_undo::Free*)ptr;

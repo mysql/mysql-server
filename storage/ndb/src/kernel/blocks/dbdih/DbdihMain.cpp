@@ -20709,12 +20709,17 @@ void Dbdih::sendLastLCP_FRAG_ORD(Signal* signal)
     }
     else
     {
-      DEB_LCP(("Still waiting for sending last LCP_FRAG_ORD to node %u,"
-               " queued: %u, started: %u, waiting_for: %u",
-               nodePtr.i,
-               nodePtr.p->noOfQueuedChkpt,
-               nodePtr.p->noOfStartedChkpt,
-               c_lcpState.m_LAST_LCP_FRAG_ORD.isWaitingFor(nodePtr.i)));
+#ifdef DEBUG_LCP
+      if (c_lcpState.m_LAST_LCP_FRAG_ORD.isWaitingFor(nodePtr.i))
+      {
+        DEB_LCP(("Still waiting for sending last LCP_FRAG_ORD to node %u,"
+                 " queued: %u, started: %u, waiting_for: %u",
+                 nodePtr.i,
+                 nodePtr.p->noOfQueuedChkpt,
+                 nodePtr.p->noOfStartedChkpt,
+                 c_lcpState.m_LAST_LCP_FRAG_ORD.isWaitingFor(nodePtr.i)));
+      }
+#endif
     }
   }
   if(ERROR_INSERTED(7075))

@@ -19888,6 +19888,7 @@ void Dblqh::execSTART_RECCONF(Signal* signal)
     break;
   case LGMAN:
     jam();
+    c_tup->verify_undo_log_execution();
     lcpPtr.p->m_outstanding++;
     if (!isNdbMtLqh())
     {
