@@ -2547,6 +2547,23 @@ public:
   }
 };
 
+class Item_func_get_dd_index_sub_part_length final : public Item_int_func
+{
+public:
+  Item_func_get_dd_index_sub_part_length(const POS &pos, PT_item_list *list)
+    :Item_int_func(pos, list)
+  {}
+  longlong val_int() override;
+  bool resolve_type(THD *) override
+  {
+    max_length= 21;
+    maybe_null= true;
+    return false;
+  }
+  const char *func_name() const override
+  { return "get_dd_index_sub_part_length"; }
+};
+
 /**
   Common class for:
     Item_func_get_system_var

@@ -42,6 +42,7 @@
 #include "dd/info_schema/stats.h" // dd::info_schema::Statistics_cache
 #include "dd/object_id.h"
 #include "dd/properties.h"       // dd::Properties
+#include "dd/types/index.h"      // Index::enum_index_type
 #include "dd_sql_view.h"         // push_view_warning_or_error
 #include "dd_table_share.h"      // dd_get_old_field_type
 #include "debug_sync.h"          // DEBUG_SYNC
@@ -10110,4 +10111,66 @@ longlong Item_func_internal_get_view_warning_or_error::val_int()
   }
 
   DBUG_RETURN(TRUE);
+}
+
+
+/**
+  @brief
+    INFORMATION_SCHEMA picks metadata from DD using system views.
+    INFORMATION_SCHEMA.STATISTICS.SUB_PART represents index sub part length.
+    This internal function is used to get index sub part length.
+
+  Syntax:
+    int GET_DD_INDEX_SUB_PART_LENGTH(
+          index_column_usage_length,
+          column_type,
+          column_length,
+          column_collation_id,
+          index_type);
+
+  @returns Index sub part length.
+*/
+longlong Item_func_get_dd_index_sub_part_length::val_int()
+{
+  DBUG_ENTER("Item_func_get_dd_index_sub_part_length::val_int");
+  null_value= true;
+
+  // Read arguments
+  uint key_part_length= args[0]->val_int();
+  dd::enum_column_types col_type=
+    static_cast<dd::enum_column_types>(args[1]->val_int());
+  uint column_length= args[2]->val_int();
+  uint csid= args[3]->val_int();
+  dd::Index::enum_index_type idx_type=
+    static_cast<dd::Index::enum_index_type>(args[4]->val_int());
+  if (args[0]->null_value ||
+      args[1]->null_value ||
+      args[2]->null_value ||
+      args[3]->null_value ||
+      args[4]->null_value)
+    DBUG_RETURN(0);
+
+  // Read server col_type and check if we have key part.
+  enum_field_types field_type= dd_get_old_field_type(col_type);
+  if (!Field::type_can_have_key_part(field_type))
+    DBUG_RETURN(0);
+
+  // Read column charset id from args[3]
+  const CHARSET_INFO *column_charset= &my_charset_latin1;
+  if (csid)
+  {
+    column_charset= get_charset(csid, MYF(0));
+    DBUG_ASSERT(column_charset);
+  }
+
+  if ((idx_type != dd::Index::IT_FULLTEXT) &&
+      (key_part_length != column_length))
+  {
+
+    longlong sub_part_length= key_part_length / column_charset->mbmaxlen;
+    null_value= false;
+    DBUG_RETURN(sub_part_length);
+  }
+
+  DBUG_RETURN(0);
 }

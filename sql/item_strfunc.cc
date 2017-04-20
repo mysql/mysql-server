@@ -5079,66 +5079,6 @@ String *Item_func_get_dd_column_privileges::val_str(String *str)
 }
 
 
-String *Item_func_get_dd_index_sub_part_length::val_str(String *str)
-{
-  DBUG_ENTER("Item_func_get_dd_index_sub_part_length::val_str");
-  null_value= TRUE;
-
-  // Read arguments
-  uint key_part_length= args[0]->val_int();
-  dd::enum_column_types col_type= (dd::enum_column_types) args[1]->val_int();
-  uint column_length= args[2]->val_int();
-  uint csid= args[3]->val_int();
-  if (args[0]->null_value ||
-      args[1]->null_value ||
-      args[2]->null_value ||
-      args[3]->null_value)
-    DBUG_RETURN(nullptr);
-
-  // Read server col_type and check if we have key part.
-  enum_field_types field_type= dd_get_old_field_type(col_type);
-  if (!Field::type_can_have_key_part(field_type))
-    DBUG_RETURN(nullptr);
-
-  // Read column charset id from args[3]
-  const CHARSET_INFO *column_charset= &my_charset_latin1;
-  if (csid)
-  {
-    column_charset= get_charset(csid, MYF(0));
-    DBUG_ASSERT(column_charset);
-  }
-
-  // Read col_options from args[4]
-  uint idx_flags= 0;
-  String option_buf;
-  String *option_str= args[4]->val_str(&option_buf);
-  if (option_str != nullptr)
-  {
-    // Read required values from properties
-    std::unique_ptr<dd::Properties> p
-      (dd::Properties::parse_properties(option_str->c_ptr_safe()));
-
-    // Read idx_flags from options.
-    p->get_uint32("flags", &idx_flags);
-  }
-
-  if (!(idx_flags & HA_FULLTEXT) &&
-      (key_part_length != column_length))
-  {
-    std::ostringstream oss("");
-
-    uint sub_part_length= key_part_length / column_charset->mbmaxlen;
-    oss << sub_part_length;
-    str->copy(oss.str().c_str(), oss.str().length(), system_charset_info);
-
-    null_value= FALSE;
-    DBUG_RETURN(str);
-  }
-
-  DBUG_RETURN(nullptr);
-}
-
-
 /**
   @brief
     This function prepares string representing create_options for table.

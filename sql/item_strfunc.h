@@ -1461,34 +1461,6 @@ public:
   String *val_str(String *) override;
 };
 
-
-class Item_func_get_dd_index_sub_part_length final : public Item_str_func
-{
-public:
-  Item_func_get_dd_index_sub_part_length(
-    const POS &pos, Item *a, Item *b, Item *c, Item *d, Item *e)
-    :Item_str_func(pos, a, b, c, d, e)
-  {}
-
-  bool resolve_type(THD *) override
-  {
-    /**
-      maximum number of chars in length of uint value is max 11 so setting
-      max_length to 11+1.
-    */
-    max_length= 12;
-    maybe_null= 1;
-
-    return false;
-  }
-
-  const char *func_name() const override
-  { return "get_dd_index_sub_part_length"; }
-
-  String *val_str(String *) override;
-};
-
-
 class Item_func_get_dd_create_options final : public Item_str_func
 {
 public:

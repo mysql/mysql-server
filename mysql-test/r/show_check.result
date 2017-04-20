@@ -76,7 +76,7 @@ def	mysql	index_column_usage	SHOW_STATISTICS	Seq_in_index	Seq_in_index	3	10	1	N	
 def			SHOW_STATISTICS	Column_name	Column_name	253	64	1	Y	0	0	8
 def			SHOW_STATISTICS	Collation	Collation	253	1	1	Y	0	0	8
 def	mysql	index_stats	SHOW_STATISTICS	Cardinality	Cardinality	8	20	1	Y	32800	0	63
-def			SHOW_STATISTICS	Sub_part	Sub_part	253	12	0	Y	128	0	63
+def			SHOW_STATISTICS	Sub_part	Sub_part	8	21	0	Y	32768	0	63
 def					Packed	6	0	0	Y	32896	0	63
 def			SHOW_STATISTICS	Null	Null	253	3	0	N	1	0	8
 def			SHOW_STATISTICS	Index_type	Index_type	253	11	5	N	129	0	8
@@ -718,7 +718,7 @@ def	mysql	index_column_usage	SHOW_STATISTICS	Seq_in_index	Seq_in_index	3	10	1	N	
 def			SHOW_STATISTICS	Column_name	Column_name	253	64	6	Y	0	0	63
 def			SHOW_STATISTICS	Collation	Collation	253	1	1	Y	0	0	63
 def	mysql	index_stats	SHOW_STATISTICS	Cardinality	Cardinality	8	20	0	Y	32800	0	63
-def			SHOW_STATISTICS	Sub_part	Sub_part	253	12	3	Y	128	0	63
+def			SHOW_STATISTICS	Sub_part	Sub_part	8	21	3	Y	32768	0	63
 def					Packed	6	0	0	Y	32896	0	63
 def			SHOW_STATISTICS	Null	Null	253	3	0	N	1	0	63
 def			SHOW_STATISTICS	Index_type	Index_type	253	11	5	N	129	0	63
@@ -983,7 +983,7 @@ def	mysql	index_column_usage	SHOW_STATISTICS	Seq_in_index	Seq_in_index	3	10	1	N	
 def			SHOW_STATISTICS	Column_name	Column_name	253	192	1	Y	0	0	33
 def			SHOW_STATISTICS	Collation	Collation	253	3	1	Y	0	0	33
 def	mysql	index_stats	SHOW_STATISTICS	Cardinality	Cardinality	8	20	0	Y	32800	0	63
-def			SHOW_STATISTICS	Sub_part	Sub_part	253	12	0	Y	128	0	63
+def			SHOW_STATISTICS	Sub_part	Sub_part	8	21	0	Y	32768	0	63
 def					Packed	6	0	0	Y	32896	0	63
 def			SHOW_STATISTICS	Null	Null	253	9	0	N	1	0	33
 def			SHOW_STATISTICS	Index_type	Index_type	253	33	5	N	129	0	33

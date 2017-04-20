@@ -142,8 +142,9 @@ TEST_F(ISNativeFuncTest, AllNullArguments)
   EXPECT_EQ(1, item->null_value);
 
   // GET_DD_INDEX_SUB_PART_LENGTH(NULL, NULL, NULL, NULL, NULL)
-  CREATE_ITEM(Item_func_get_dd_index_sub_part_length, FIVE_NULL_ARGS);
-  EXPECT_EQ(nullptr, item->val_str(&str));
+  CREATE_ITEM(Item_func_get_dd_index_sub_part_length,
+              prepare_null_list(null_list, null, 5));
+  item->val_int();
   EXPECT_EQ(1, item->null_value);
 
   // GET_DD_COLUMN_PRIVILEGES(NULL, NULL, NULL)

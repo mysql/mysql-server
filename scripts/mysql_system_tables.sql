@@ -653,7 +653,7 @@ CREATE OR REPLACE DEFINER=`root`@`localhost` VIEW information_schema.STATISTICS_
          WHEN icu.order = 'ASC'  THEN 'A'
          ELSE NULL END AS COLLATION,
     GET_DD_INDEX_SUB_PART_LENGTH(icu.length, col.type, col.char_length,
-                                 col.collation_id, idx.options) AS SUB_PART,
+                                 col.collation_id, idx.type) AS SUB_PART,
     NULL AS PACKED,
     if (col.is_nullable = 1, 'YES','') AS NULLABLE,
     CASE WHEN idx.type = 'SPATIAL' THEN 'SPATIAL'
