@@ -188,7 +188,7 @@ public:
 	open_table_parts(
 		THD*			thd,
 		const TABLE*		table,
-		const dd::Table&	dd_table,
+		const dd::Table*	dd_table,
 		partition_info*		part_info,
 		const char*		table_name);
 

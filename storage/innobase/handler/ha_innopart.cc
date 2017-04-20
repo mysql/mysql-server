@@ -333,7 +333,7 @@ bool
 Ha_innopart_share::open_table_parts(
 	THD*			thd,
 	const TABLE*		table,
-	const dd::Table&	dd_table,
+	const dd::Table*	dd_table,
 	partition_info*		part_info,
 	const char*		table_name)
 {
@@ -383,7 +383,7 @@ Ha_innopart_share::open_table_parts(
 	dd::cache::Dictionary_client::Auto_releaser	releaser(client);
 	uint		i = 0;
 
-	for (const auto dd_part : dd_table.partitions()) {
+	for (const auto dd_part : dd_table->partitions()) {
 		if (!dd_part_is_stored(dd_part)) {
 			continue;
 		}
@@ -908,7 +908,7 @@ share_error:
 		}
 		set_ha_share_ptr(static_cast<Handler_share*>(m_part_share));
 	}
-	if (m_part_share->open_table_parts(thd, table, *table_def, m_part_info,
+	if (m_part_share->open_table_parts(thd, table, table_def, m_part_info,
 					   norm_name)
 	    || m_part_share->populate_partition_name_hash(m_part_info)) {
 		goto share_error;
