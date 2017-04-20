@@ -215,7 +215,7 @@ DROP TABLE t1;
 
 # Create a table with 2 virtual column, one (vbidxcol) is indexed and
 # the other one (vbcol) is not
-create table ibstd_14 (a int not null, d int not null, b varchar(198) not null, c char(181), vadcol int as (a+length(d)) stored, vbcol char(2) as (substr(b,2,2)) virtual, vbidxcol char(3) as (substr(b,1,3)) virtual , index(d), index(a), index(vbidxcol), index(a,vbidxcol), index(vbidxcol,d), unique key (b(10), a, d), index(c(99), b(31)), index(b(5), c(10), a) , index(a,d)) engine=InnoDB stats_persistent=1 row_format=dynamic;
+create table ibstd_14 (a int not null, d int not null, b varchar(198) not null, c char(181), vadcol int as (a+length(d)) stored, vbcol char(2) as (substr(b,2,2)) virtual, vbidxcol char(3) as (substr(b,1,3)) virtual , index(d), index(a), index(vbidxcol), index(a,vbidxcol), index(vbidxcol,d), unique key (b(10), a, d), index(c(99), b(31)), index(b(5), c(10), a) , index(a,d)) engine=InnoDB stats_persistent=1 row_format=dynamic charset latin1;
 
 # Do an alter table rebuild table and also create a new index on this
 # non-indexed virtual column

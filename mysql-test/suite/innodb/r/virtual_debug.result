@@ -190,7 +190,7 @@ DROP TABLE t1;
 #
 #  Bug#22951879 - ASSERTS RELATED TO ONLINE DDL AND GCOL
 #
-create table ibstd_14 (a int not null, d int not null, b varchar(198) not null, c char(181), vadcol int as (a+length(d)) stored, vbcol char(2) as (substr(b,2,2)) virtual, vbidxcol char(3) as (substr(b,1,3)) virtual , index(d), index(a), index(vbidxcol), index(a,vbidxcol), index(vbidxcol,d), unique key (b(10), a, d), index(c(99), b(31)), index(b(5), c(10), a) , index(a,d)) engine=InnoDB stats_persistent=1 row_format=dynamic;
+create table ibstd_14 (a int not null, d int not null, b varchar(198) not null, c char(181), vadcol int as (a+length(d)) stored, vbcol char(2) as (substr(b,2,2)) virtual, vbidxcol char(3) as (substr(b,1,3)) virtual , index(d), index(a), index(vbidxcol), index(a,vbidxcol), index(vbidxcol,d), unique key (b(10), a, d), index(c(99), b(31)), index(b(5), c(10), a) , index(a,d)) engine=InnoDB stats_persistent=1 row_format=dynamic charset latin1;
 SET DEBUG_SYNC = 'innodb_inplace_alter_table_enter SIGNAL start_create WAIT_FOR go_ahead';
 alter table ibstd_14  row_format=compressed key_block_size=4,add  key kn3 (d,c,vbcol,b);;
 SET DEBUG_SYNC = 'now WAIT_FOR start_create';

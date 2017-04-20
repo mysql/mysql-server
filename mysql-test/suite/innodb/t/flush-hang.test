@@ -12,7 +12,7 @@ CREATE TABLE t1 (
 	c4 VARCHAR(2048),
 	INDEX idx1(c2),
 	INDEX idx2(c3(512)),
-	INDEX idx3(c4(512))) Engine=InnoDB;
+	INDEX idx3(c4(512))) Engine=InnoDB charset latin1;
 
 CREATE TABLE t2 ( f1 int PRIMARY KEY) engine=innodb;
 

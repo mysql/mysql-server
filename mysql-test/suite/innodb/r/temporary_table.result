@@ -259,7 +259,7 @@ drop table t1;
 # restart: --innodb_temp_data_file_path=ibtmp1:32M
 create temporary table t1
 (keyc int, c1 char(250), c2 char(250), c3 char(250),
-primary key(keyc, c1, c2, c3)) engine = innodb;
+primary key(keyc, c1, c2, c3)) engine = innodb charset latin1;
 CREATE PROCEDURE populate_t1()
 BEGIN
 DECLARE i INT DEFAULT 1;

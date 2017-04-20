@@ -191,7 +191,7 @@ CREATE TABLE t1 (
    col_char2 VARCHAR(30),
    col_char3 VARCHAR(30),
    col_char4 VARCHAR(30)
-) ENGINE = InnoDB;
+) ENGINE = InnoDB charset latin1;
 
 # Use many indexes with mostly significant size in order to cause
 # some heavy use of sx locks during data generation.
