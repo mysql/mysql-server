@@ -72,6 +72,12 @@ public:
     m_atomic_counter= counter;
     m_active_since= active_since;
   }
+
+  void reset()
+  {
+    set_all(CONFIGURED_BY_STARTUP_OPTIONS, 0, 0);
+  }
+
   enum_configured_by get_configured_by()
   {
     return m_configured_by;
@@ -389,6 +395,8 @@ public:
   {
     attached= true;
   }
+
+  void reset();
 
   Rpl_filter_statistics do_table_statistics;
   Rpl_filter_statistics ignore_table_statistics;

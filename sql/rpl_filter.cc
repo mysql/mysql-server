@@ -126,26 +126,45 @@ Rpl_filter::Rpl_filter() :
 
 Rpl_filter::~Rpl_filter()
 {
+  reset();
+  delete m_rpl_filter_lock;
+}
+
+void Rpl_filter::reset()
+{
   if (do_table_hash_inited)
     my_hash_free(&do_table_hash);
+
   if (ignore_table_hash_inited)
     my_hash_free(&ignore_table_hash);
+
+  do_table_hash_inited= false;
+  ignore_table_hash_inited= false;
+  do_table_array_inited= false;
+  ignore_table_array_inited= false;
+  wild_do_table_inited= false;
+  wild_ignore_table_inited= false;
+  table_rules_on= false;
 
   free_string_array(&do_table_array);
   free_string_array(&ignore_table_array);
   free_string_array(&wild_do_table);
   free_string_array(&wild_ignore_table);
-
   free_string_list(&do_db);
   free_string_list(&ignore_db);
   free_string_pair_list(&rewrite_db);
 
-  delete m_rpl_filter_lock;
-
   if (rpl_pfs_global_filter_vec.size() > 0)
     cleanup_rpl_pfs_global_filter_vec();
-}
 
+  do_table_statistics.reset();
+  ignore_table_statistics.reset();
+  wild_do_table_statistics.reset();
+  wild_ignore_table_statistics.reset();
+  do_db_statistics.reset();
+  ignore_db_statistics.reset();
+  rewrite_db_statistics.reset();
+}
 
 bool Rpl_filter::is_empty()
 {

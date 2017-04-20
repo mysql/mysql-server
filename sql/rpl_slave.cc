@@ -6234,7 +6234,6 @@ static void *handle_slave_worker(void *arg)
   #ifdef HAVE_PSI_THREAD_INTERFACE
   struct PSI_thread *psi;
   #endif
-  Rpl_filter* rpl_filter;
 
   my_thread_init();
   DBUG_ENTER("handle_slave_worker");
@@ -6267,13 +6266,7 @@ static void *handle_slave_worker(void *arg)
   thd->rli_slave= w;
   thd->init_query_mem_roots();
 
-  /*
-    Get and set replication filter from filter map by channel name
-    for the slave worker when starting slave threads to make sure
-    they can get the newest filter of the channel.
-  */
-  rpl_filter= rpl_filter_map.get_channel_filter(w->get_channel());
-  w->set_filter(rpl_filter);
+  w->set_filter(rli->rpl_filter);
 
   if ((w->deferred_events_collecting= w->rpl_filter->is_on()))
     w->deferred_events= new Deferred_log_events();
@@ -7257,7 +7250,6 @@ extern "C" void *handle_slave_sql(void *arg)
   bool mts_inited= false;
   Global_THD_manager *thd_manager= Global_THD_manager::get_instance();
   Commit_order_manager *commit_order_mngr= NULL;
-  Rpl_filter *rpl_filter;
 
   // needs to call my_thread_init(), otherwise we get a coredump in DBUG_ stuff
   my_thread_init();
@@ -7315,14 +7307,6 @@ extern "C" void *handle_slave_sql(void *arg)
     goto err;
   }
   thd->init_query_mem_roots();
-
-  /*
-    Get and set replication filter from filter map by channel name
-    for the slave coordinator or applier when starting slave threads
-    to make sure they can get the newest filter of the channel.
-  */
-  rpl_filter= rpl_filter_map.get_channel_filter(rli->get_channel());
-  rli->set_filter(rpl_filter);
 
   if ((rli->deferred_events_collecting= rli->rpl_filter->is_on()))
     rli->deferred_events= new Deferred_log_events();
@@ -11046,7 +11030,6 @@ int change_master(THD* thd, Master_info* mi, LEX_MASTER_INFO* lex_mi,
       my_error(ER_MTS_RESET_WORKERS, MYF(0));
       goto err;
     }
-
 err:
 
   unlock_slave_threads(mi);
@@ -11263,14 +11246,15 @@ bool change_master_cmd(THD *thd)
 
   if (mi)
   {
+    bool configure_filters= !Master_info::is_configured(mi);
+
     if (!(res= change_master(thd, mi, &thd->lex->mi)))
     {
       /*
-        If the channel was not properly configured before this "CHANGE MASTER"
-        (it had no rpl_filter object yet), and it was properly configured now
-        (MASTER_HOST was set), we can create the channel rpl_filter object.
+        If the channel was just created or not configured before this
+        "CHANGE MASTER", we need to configure rpl_filter for it.
       */
-      if (mi->rli->rpl_filter == NULL && Master_info::is_configured(mi))
+      if (configure_filters)
       {
         if ((res= Rpl_info_factory::configure_channel_replication_filters(
                     mi->rli, lex->mi.channel)))

@@ -219,6 +219,7 @@ Relay_log_info *Rpl_info_factory::create_rli(uint rli_option,
   const char *msg= NULL;
   const char *msg_alloc= "Failed to allocate memory for the relay log info "
     "structure";
+  Rpl_filter *rpl_filter= NULL;
 
   DBUG_ENTER("Rpl_info_factory::create_rli");
 
@@ -294,8 +295,20 @@ Relay_log_info *Rpl_info_factory::create_rli(uint rli_option,
       which is channel_name
     */
     delete handler_src;
-
+    handler_src= NULL;
   }
+
+  /* Set filters here to guarantee that any rli object has a valid filter */
+  rpl_filter= rpl_filter_map.get_channel_filter(channel);
+  if (rpl_filter == NULL)
+  {
+    sql_print_error("Slave: failed in creating filter for channel '%s'",
+                    channel);
+    msg= msg_alloc;
+    goto err;
+  }
+  rli->set_filter(rpl_filter);
+  rpl_filter->set_attached();
 
   DBUG_RETURN(rli);
 
@@ -994,34 +1007,24 @@ bool Rpl_info_factory::configure_channel_replication_filters(
        Relay_log_info *rli, const char* channel_name)
 {
   DBUG_ENTER("configure_channel_replication_filters");
+
   /*
     GROUP REPLICATION channels should not be configurable using
     --replicate* nor CHANGE REPLICATION FILTER, and should not
     inherit from global filters.
   */
-  if (!channel_map.is_group_replication_channel_name(channel_name))
-  {
-    /*
-      By this time, mi's and rli's are created including for msr.
-      Now, create/get and set per-channel replication filters.
-    */
-    Rpl_filter *rpl_filter= NULL;
-    if ((rpl_filter= rpl_filter_map.get_channel_filter(channel_name)) == NULL)
-    {
-      sql_print_error("Slave: failed in creating filter for channel '%s'",
-                      channel_name);
-      DBUG_RETURN(true);
-    }
+  if (channel_map.is_group_replication_channel_name(channel_name))
+    DBUG_RETURN(false);
 
-    rli->set_filter(rpl_filter);
-    rpl_filter->set_attached();
+  if (Master_info::is_configured(rli->mi))
+  {
     /*
       A slave replication channel would copy global replication filters
       to its per-channel replication filters if there are no per-channel
       replication filters and there are global filters on the filter type
       when it is being configured.
     */
-    if (rpl_filter->copy_global_replication_filters())
+    if (rli->rpl_filter->copy_global_replication_filters())
     {
       sql_print_error("Slave: failed in copying the global filters to "
                       "its own per-channel filters on configuration "
@@ -1029,7 +1032,22 @@ bool Rpl_info_factory::configure_channel_replication_filters(
       DBUG_RETURN(true);
     }
   }
-
+  else
+  {
+    /*
+      When starting server, users may set rpl filter options on an
+      uninitialzied channel. The filter options will be reset with an
+      warning.
+    */
+    if (!rli->rpl_filter->is_empty())
+    {
+      sql_print_warning("There are per-channel replication filter(s) "
+                        "configured for channel '%.192s' which does not "
+                        "exist. The filter(s) have been discarded.",
+                        channel_name);
+      rli->rpl_filter->reset();
+    }
+  }
   DBUG_RETURN(false);
 }
 
@@ -1234,11 +1252,13 @@ bool Rpl_info_factory::create_slave_info_objects(uint mi_option,
       channel_error= load_mi_and_rli_from_repositories(mi,
                                                        ignore_if_no_info,
                                                        thread_mask);
-      if (Master_info::is_configured(mi))
-        error= configure_channel_replication_filters(mi->rli, cname);
     }
 
-    if (channel_error)
+    if (!channel_error)
+    {
+      error= configure_channel_replication_filters(mi->rli, cname);
+    }
+    else
     {
       LogErr(ERROR_LEVEL,
              ER_RPL_SLAVE_FAILED_TO_INIT_A_MASTER_INFO_STRUCTURE, cname);

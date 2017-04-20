@@ -5649,6 +5649,11 @@ int mysqld_main(int argc, char **argv)
   {
     // Make @@slave_skip_errors show the nice human-readable value.
     set_slave_skip_errors(&opt_slave_skip_errors);
+    /*
+      Group replication filters should be discarded before init_slave(), otherwise
+      the pre-configured filters will be referenced by group replication channels.
+    */
+    rpl_filter_map.discard_group_replication_filters();
 
     /*
       init_slave() must be called after the thread keys are created.

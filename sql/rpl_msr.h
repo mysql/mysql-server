@@ -473,6 +473,10 @@ public:
   */
   void discard_all_unattached_filters();
   /**
+     discard filters on group replication channels.
+  */
+  void discard_group_replication_filters();
+  /**
     Get a replication filter of a channel.
 
     @param channel_name A name of a channel.
