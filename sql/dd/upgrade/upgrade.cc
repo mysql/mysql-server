@@ -934,16 +934,15 @@ bool do_pre_checks_and_initialize_dd(THD *thd)
   bool exists_plugin_frm= (!my_access(path, F_OK));
 
   /*
-    If mysql.ibd and mysql/plugin.frm does not exist,
-    it is neither restart nor in place upgrade case.
+    If mysql.ibd and mysql/plugin.frm do not exist,
+    this is neither a restart nor an in-place upgrade case.
     Upgrade process has dependency on mysql.plugin table.
     Server restart is not possible without mysql.ibd.
     Exit with an error.
   */
   if(!exists_mysql_tablespace && !exists_plugin_frm)
   {
-    sql_print_error("Failed to find validate data directory. Server "
-                    "will try to restart dictionary.");
+    sql_print_error("Failed to find valid data directory.");
     return true;
   }
 
