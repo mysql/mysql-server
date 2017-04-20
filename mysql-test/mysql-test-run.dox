@@ -6662,6 +6662,34 @@
     </li>
 
     <li>
+      <tt>replace_numberic_round <b>precision</b></tt>
+
+      Rounds off floating point numbers. <b>precision</b> is the
+      number of digits after the decimal point to which the result will
+      be rounded off to. It can only be a number between
+      0 and 16.
+
+      If the precision is 0, then the value is rounded off to the
+      nearest whole number. Trailing zeroes after the decimal point are
+      removed from the numbers.
+
+      Numbers which are <b>greater than <em>1e10</em></b> or <b> lesser
+      than <em> -1e10 </em></b> are represented using the
+      exponential notation after they are rounded off.
+
+     @verbatim
+  --replace_numberic_round 6
+  SELECT 12379.79459775333;
+  12379.794598
+
+  replace_numberic_round 0;
+  SELECT 876.87302;
+  877
+     @endverbatim
+    </li>
+
+
+    <li>
       <tt>replace_regex <b>/pattern/replacement/</b>[i] ...</tt>
 
       In the output from the next statement, find strings within
