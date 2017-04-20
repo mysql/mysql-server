@@ -12304,7 +12304,7 @@ Backup::finished_removing_files(Signal *signal,
   LocalDeleteLcpFile_list queue(c_deleteLcpFilePool,
                                 m_delete_lcp_file_head);
   c_deleteLcpFilePool.getPtr(deleteLcpFilePtr, ptr.p->currentDeleteLcpFile);
-  ndbrequire(queue.removeFirst(deleteLcpFilePtr));
+  queue.remove(deleteLcpFilePtr);
   c_deleteLcpFilePool.release(deleteLcpFilePtr);
   ptr.p->currentDeleteLcpFile = RNIL;
   signal->theData[0] = BackupContinueB::ZDELETE_LCP_FILE;

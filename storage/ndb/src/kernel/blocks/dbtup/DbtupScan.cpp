@@ -895,7 +895,7 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
                * frag.m_max_page_cnt < scan.m_endPage. In this case
                * it is still ok to finish the LCP scan. The missing
                * pages are handled when they are dropped, so before
-               * we drop it we record all entries that needs
+               * we drop a page we record all entries that needs
                * recording for the LCP. These have been sent to the
                * LCP keep list. Since when we come here the LCP keep
                * list is empty we are done with the scan.
@@ -903,29 +903,18 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
                * We will however continue the scan for LCP scans. The
                * reason is that we might have set the LCP_SCANNED_BIT
                * on pages already dropped. So we need to continue scanning
-               * to ensure that all the lcp scanned bit is reset.
+               * to ensure that all the lcp scanned bits are reset.
                */
-              if (skip_flag)
-              {
-                jam();
-                /* We will not scan this page, so reset flag immediately */
-                reset_lcp_scanned_bit(fragPtr.p, key.m_page_no);
-              }
-              else
-              {
-                jam();
-                /**
-                 * We will scan it, set scanned bit, will be reset again below
-                 * in the code when we discover that the page is already scanned.
-                 */
-                set_lcp_scanned_bit(fragPtr.p, key.m_page_no);
-              }
+              jam();
+              /* We will not scan this page, so reset flag immediately */
+              reset_lcp_scanned_bit(fragPtr.p, key.m_page_no);
               scan.m_last_seen = __LINE__;
             }
             else
             {
               // no more pages, scan ends
               pos.m_get = ScanPos::Get_undef;
+              scan.m_last_seen = __LINE__;
               scan.m_state = ScanOp::Last;
               return true;
             }
@@ -955,6 +944,9 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
            * one part should exist for scan to run.
            */
         } while (skip_flag);
+        pos.m_get = ScanPos::Get_next_page_mm;
+        scan.m_last_seen = __LINE__;
+        break; // incr loop count
     cont:
         key.m_page_idx = first;
         pos.m_get = ScanPos::Get_page_mm;

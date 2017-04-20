@@ -380,17 +380,6 @@ Dbtup::reset_lcp_scanned_bit(Fragrecord *regFragPtr, Uint32 logicalPageId)
 }
 
 void
-Dbtup::set_lcp_scanned_bit(Fragrecord *regFragPtr, Uint32 logicalPageId)
-{
-  DynArr256 map(c_page_map_pool, regFragPtr->m_page_map);
-  Uint32 *ptr = map.set(2 * logicalPageId);
-  ndbassert(ptr != 0);
-  ndbassert((*ptr) != RNIL);
-  (*ptr) = (*ptr) | (Uint32)LCP_SCANNED_BIT;
-  do_check_page_map(regFragPtr);
-}
-
-void
 Dbtup::reset_lcp_scanned_bit(Uint32 *next_ptr)
 {
   if (next_ptr == 0)
