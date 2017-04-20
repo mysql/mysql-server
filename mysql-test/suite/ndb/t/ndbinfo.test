@@ -263,12 +263,20 @@ select count(*) from table_fragments;
 select count(*) from ndb$table_fragments_all;
 select count(*) from table_replicas;
 select count(*) from ndb$table_replicas_all;
+
+# DESCRIBE columns of the views
 desc table_distribution_status;
-desc ndb$table_distribution_status_all;
 desc table_fragments;
-desc ndb$table_fragments_all;
 desc table_replicas;
+
+# DESCRIBE columns of the hidden table
+# (turn show_hidden on since otherwise columns
+#  of the table is supposed to be hidden)
+set @@ndbinfo_show_hidden=TRUE;
+desc ndb$table_distribution_status_all;
+desc ndb$table_fragments_all;
 desc ndb$table_replicas_all;
+set @@ndbinfo_show_hidden=default;
 
 create table t1 (a int primary key) engine = ndb;
 begin;

@@ -742,12 +742,12 @@ ha_ndbinfo::unpack_record(uchar *dst_row)
 
 
 static int
-ndbinfo_find_files(handlerton *hton, THD *thd,
-                   const char *db, const char *path,
-                   const char *wild, bool dir, List<LEX_STRING> *files)
+ndbinfo_find_files(handlerton*, THD* thd,
+                   const char *db, const char*,
+                   const char*, bool dir, List<LEX_STRING> *files)
 {
   DBUG_ENTER("ndbinfo_find_files");
-  DBUG_PRINT("enter", ("db: '%s', dir: %d, path: '%s'", db, dir, path));
+  DBUG_PRINT("enter", ("db: '%s', dir: %d", db, dir));
 
   const bool show_hidden = THDVAR(thd, show_hidden);
 
@@ -767,7 +767,7 @@ ndbinfo_find_files(handlerton *hton, THD *thd,
       if (strcmp(dir_name->str, opt_ndbinfo_dbname))
         continue;
 
-      DBUG_PRINT("info", ("Hiding own databse '%s'", dir_name->str));
+      DBUG_PRINT("info", ("Hiding own database '%s'", dir_name->str));
       it.remove();
     }
 

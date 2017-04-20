@@ -684,6 +684,7 @@ count(*)
 select count(*) from ndb$table_replicas_all;
 count(*)
 224
+
 desc table_distribution_status;
 Field	Type	Null	Key	Default	Extra
 node_id	int(10) unsigned	YES		NULL	
@@ -698,39 +699,7 @@ tab_fragments	int(10) unsigned	YES		NULL
 current_scan_count	int(10) unsigned	YES		NULL	
 scan_count_wait	int(10) unsigned	YES		NULL	
 is_reorg_ongoing	int(10) unsigned	YES		NULL	
-desc ndb$table_distribution_status_all;
-Field	Type	Null	Key	Default	Extra
-node_id	int(10) unsigned	YES		NULL	
-table_id	int(10) unsigned	YES		NULL	
-tab_copy_status	int(10) unsigned	YES		NULL	
-tab_update_status	int(10) unsigned	YES		NULL	
-tab_lcp_status	int(10) unsigned	YES		NULL	
-tab_status	int(10) unsigned	YES		NULL	
-tab_storage	int(10) unsigned	YES		NULL	
-tab_type	int(10) unsigned	YES		NULL	
-tab_partitions	int(10) unsigned	YES		NULL	
-tab_fragments	int(10) unsigned	YES		NULL	
-current_scan_count	int(10) unsigned	YES		NULL	
-scan_count_wait	int(10) unsigned	YES		NULL	
-is_reorg_ongoing	int(10) unsigned	YES		NULL	
 desc table_fragments;
-Field	Type	Null	Key	Default	Extra
-node_id	int(10) unsigned	YES		NULL	
-table_id	int(10) unsigned	YES		NULL	
-partition_id	int(10) unsigned	YES		NULL	
-fragment_id	int(10) unsigned	YES		NULL	
-partition_order	int(10) unsigned	YES		NULL	
-log_part_id	int(10) unsigned	YES		NULL	
-no_of_replicas	int(10) unsigned	YES		NULL	
-current_primary	int(10) unsigned	YES		NULL	
-preferred_primary	int(10) unsigned	YES		NULL	
-current_first_backup	int(10) unsigned	YES		NULL	
-current_second_backup	int(10) unsigned	YES		NULL	
-current_third_backup	int(10) unsigned	YES		NULL	
-num_alive_replicas	int(10) unsigned	YES		NULL	
-num_dead_replicas	int(10) unsigned	YES		NULL	
-num_lcp_replicas	int(10) unsigned	YES		NULL	
-desc ndb$table_fragments_all;
 Field	Type	Null	Key	Default	Extra
 node_id	int(10) unsigned	YES		NULL	
 table_id	int(10) unsigned	YES		NULL	
@@ -765,6 +734,40 @@ prev_max_gci_completed	int(10) unsigned	YES		NULL
 last_create_gci	int(10) unsigned	YES		NULL	
 last_replica_gci	int(10) unsigned	YES		NULL	
 is_replica_alive	int(10) unsigned	YES		NULL	
+
+set @@ndbinfo_show_hidden=TRUE;
+desc ndb$table_distribution_status_all;
+Field	Type	Null	Key	Default	Extra
+node_id	int(10) unsigned	YES		NULL	
+table_id	int(10) unsigned	YES		NULL	
+tab_copy_status	int(10) unsigned	YES		NULL	
+tab_update_status	int(10) unsigned	YES		NULL	
+tab_lcp_status	int(10) unsigned	YES		NULL	
+tab_status	int(10) unsigned	YES		NULL	
+tab_storage	int(10) unsigned	YES		NULL	
+tab_type	int(10) unsigned	YES		NULL	
+tab_partitions	int(10) unsigned	YES		NULL	
+tab_fragments	int(10) unsigned	YES		NULL	
+current_scan_count	int(10) unsigned	YES		NULL	
+scan_count_wait	int(10) unsigned	YES		NULL	
+is_reorg_ongoing	int(10) unsigned	YES		NULL	
+desc ndb$table_fragments_all;
+Field	Type	Null	Key	Default	Extra
+node_id	int(10) unsigned	YES		NULL	
+table_id	int(10) unsigned	YES		NULL	
+partition_id	int(10) unsigned	YES		NULL	
+fragment_id	int(10) unsigned	YES		NULL	
+partition_order	int(10) unsigned	YES		NULL	
+log_part_id	int(10) unsigned	YES		NULL	
+no_of_replicas	int(10) unsigned	YES		NULL	
+current_primary	int(10) unsigned	YES		NULL	
+preferred_primary	int(10) unsigned	YES		NULL	
+current_first_backup	int(10) unsigned	YES		NULL	
+current_second_backup	int(10) unsigned	YES		NULL	
+current_third_backup	int(10) unsigned	YES		NULL	
+num_alive_replicas	int(10) unsigned	YES		NULL	
+num_dead_replicas	int(10) unsigned	YES		NULL	
+num_lcp_replicas	int(10) unsigned	YES		NULL	
 desc ndb$table_replicas_all;
 Field	Type	Null	Key	Default	Extra
 node_id	int(10) unsigned	YES		NULL	
@@ -783,6 +786,7 @@ prev_max_gci_completed	int(10) unsigned	YES		NULL
 last_create_gci	int(10) unsigned	YES		NULL	
 last_replica_gci	int(10) unsigned	YES		NULL	
 is_replica_alive	int(10) unsigned	YES		NULL	
+set @@ndbinfo_show_hidden=default;
 
 create table t1 (a int primary key) engine = ndb;
 begin;
@@ -916,7 +920,7 @@ Verify there are no ndbinfo views without 'root@localhost' as definer
 select table_schema, table_name, definer from information_schema.views
   where table_schema = 'ndbinfo' and
         definer != 'root@localhost';
-table_schema	table_name	definer
+TABLE_SCHEMA	TABLE_NAME	DEFINER
 
 set @@optimizer_switch='block_nested_loop=off';
 
@@ -1221,11 +1225,11 @@ tot_key_keyinfo_bytes	3200
 tot_key_prog_bytes	0
 tot_key_inst_exec	0
 tot_key_bytes_returned	0
-tot_frag_scans	24
+tot_frag_scans	32
 tot_scan_rows_examined	0
 tot_scan_rows_returned	0
 tot_scan_bytes_returned	0
-tot_scan_prog_bytes	64
+tot_scan_prog_bytes	96
 tot_scan_bound_bytes	0
 tot_scan_inst_exec	0
 conc_qd_frag_scans	0
@@ -1397,11 +1401,11 @@ tot_key_keyinfo_bytes	3760
 tot_key_prog_bytes	0
 tot_key_inst_exec	0
 tot_key_bytes_returned	4220
-tot_frag_scans	56
+tot_frag_scans	64
 tot_scan_rows_examined	306
 tot_scan_rows_returned	215
-tot_scan_bytes_returned	5564
-tot_scan_prog_bytes	288
+tot_scan_bytes_returned	7116
+tot_scan_prog_bytes	320
 tot_scan_bound_bytes	0
 tot_scan_inst_exec	305
 conc_qd_frag_scans	0
