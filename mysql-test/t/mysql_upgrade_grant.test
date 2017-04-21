@@ -11,6 +11,9 @@
 CREATE USER mysqltest1@'%' IDENTIFIED by 'sakila';
 GRANT ALL ON *.* TO mysqltest1@'%';
 --echo Run mysql_upgrade with password protected account
+# Filter out ndb_binlog_index to mask differences due to running with or
+# without ndb.
+--replace_regex /mysql.ndb_binlog_index.*$//
 --exec $MYSQL_UPGRADE --skip-verbose --force --user=mysqltest1 --password=sakila 2>&1
 
 DROP USER mysqltest1@'%';
@@ -27,6 +30,9 @@ GRANT USAGE ON *.* TO 'user3'@'%';
 SET sql_mode= @orig_sql_mode;
 GRANT ALL PRIVILEGES ON `roelt`.`test2` TO 'user3'@'%';
 --echo Run mysql_upgrade with all privileges on a user
+# Filter out ndb_binlog_index to mask differences due to running with or
+# without ndb.
+--replace_regex /mysql.ndb_binlog_index.*$//
 --exec $MYSQL_UPGRADE --skip-verbose --force 2>&1
 SHOW GRANTS FOR 'user3'@'%';
 
@@ -84,6 +90,9 @@ let SEARCH_FILE= $server_log;
 --echo # end of check for the presense of the warning
 
 --echo # repair the user's plugin
+# Filter out ndb_binlog_index to mask differences due to running with or
+# without ndb.
+--replace_regex /mysql.ndb_binlog_index.*$//
 --exec $MYSQL_UPGRADE --skip-verbose --force 2>&1
 
 --echo # expect mysql_native_password
@@ -238,6 +247,9 @@ connection default;
 --echo #column and 4.1 hash password. After mysql_upgrade finishes the
 --echo #mysql.user table should have 5.7 layout thus no need to restore the
 --echo #dropped columns from the begining of the test
+# Filter out ndb_binlog_index to mask differences due to running with or
+# without ndb.
+--replace_regex /mysql.ndb_binlog_index.*$//
 --exec $MYSQL_UPGRADE --skip-verbose --force --user=user_nat_pass_pn --password=lala 2>&1
 
 call mtr.add_suppression("User entry 'user_old_pass_pn'@'%' has an empty plugin value. The user will be ignored and no one can login with this user anymore.");
@@ -328,7 +340,9 @@ let SEARCH_FILE= $server_log;
 --source include/search_pattern_in_file.inc
 
 --echo # end of check for the presense of the warning
-
+# Filter out ndb_binlog_index to mask differences due to running with or
+# without ndb.
+--replace_regex /mysql.ndb_binlog_index.*$//
 --exec $MYSQL_UPGRADE --skip-verbose --force 2>&1
 
 call mtr.add_suppression("User entry 'B20614545'@'localhost' has an empty plugin value. The user will be ignored and no one can login with this user anymore.");

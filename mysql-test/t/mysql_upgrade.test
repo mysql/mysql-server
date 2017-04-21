@@ -6,6 +6,9 @@
 # expected binaries it uses.
 #
 --echo Run mysql_upgrade once
+# Filter out ndb_binlog_index to mask differences due to running with or
+# without ndb.
+--replace_regex /mysql.ndb_binlog_index.*$//
 --exec $MYSQL_UPGRADE --skip-verbose --force 2>&1
 
 # It should have created a file in the MySQL Servers datadir
@@ -21,6 +24,9 @@ file_exists $MYSQLD_DATADIR/mysql_upgrade_info;
 file_exists $MYSQLD_DATADIR/mysql_upgrade_info;
 
 --echo Force should run it regardless of wether it's been run before
+# Filter out ndb_binlog_index to mask differences due to running with or
+# without ndb.
+--replace_regex /mysql.ndb_binlog_index.*$//
 --exec $MYSQL_UPGRADE --skip-verbose --force 2>&1
 
 # It should have created a file in the MySQL Servers datadir
@@ -48,6 +54,9 @@ file_exists $MYSQLD_DATADIR/mysql_upgrade_info;
 # for the session to make sure the SQL is legal.
 
 # Test by setting sql_mode before running mysql_upgrade
+# Filter out ndb_binlog_index to mask differences due to running with or
+# without ndb.
+--replace_regex /mysql.ndb_binlog_index.*$//
 --exec $MYSQL_UPGRADE --skip-verbose --force 2>&1
 
 
