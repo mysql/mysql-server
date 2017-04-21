@@ -439,8 +439,8 @@ public:
 
     m_ptr[0]= (char) mdl_namespace;
     memcpy(m_ptr + 1, part_key, part_key_length);
-    m_length= part_key_length + 1;
-    m_db_name_length= db_length;
+    m_length= static_cast<uint16>(part_key_length + 1);
+    m_db_name_length= static_cast<uint16>(db_length);
   }
   void mdl_key_init(const MDL_key *rhs)
   {
