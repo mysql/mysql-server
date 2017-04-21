@@ -2123,12 +2123,18 @@ true	BOOLEAN
 "2010-12-02 02:01:00.000000"	TIMESTAMP
 "2010-12-02 02:01:00.000000"	DATETIME
 "9999-12-31 23:59:59.999999"	DATETIME
-"base64:type253:MTIzNGFiY2Q="	BLOB
+"base64:type15:MTIzNGFiY2Q="	BLOB
+Warnings:
+Warning	1235	This version of MySQL doesn't yet support 'sorting of non-scalar JSON values'
+SELECT j, JSON_TYPE(j) AS tp FROM t ORDER BY j, id limit 2 offset 2;
+j	tp
+null	NULL
+-1e308	DOUBLE
 Warnings:
 Warning	1235	This version of MySQL doesn't yet support 'sorting of non-scalar JSON values'
 SELECT j, JSON_TYPE(j) AS tp FROM t ORDER BY j DESC, id;
 j	tp
-"base64:type253:MTIzNGFiY2Q="	BLOB
+"base64:type15:MTIzNGFiY2Q="	BLOB
 "9999-12-31 23:59:59.999999"	DATETIME
 "2010-12-02 02:01:00.000000"	TIMESTAMP
 "2010-12-02 02:01:00.000000"	DATETIME
@@ -2494,6 +2500,12 @@ false	BOOLEAN
 null	NULL
 NULL	NULL
 NULL	NULL
+Warnings:
+Warning	1235	This version of MySQL doesn't yet support 'sorting of non-scalar JSON values'
+SELECT j, JSON_TYPE(j) AS tp FROM t ORDER BY j DESC, id limit 2 offset 2;
+j	tp
+"2010-12-02 02:01:00.000000"	TIMESTAMP
+"2010-12-02 02:01:00.000000"	DATETIME
 Warnings:
 Warning	1235	This version of MySQL doesn't yet support 'sorting of non-scalar JSON values'
 SELECT JSON_EXTRACT(j, '$') AS je, JSON_TYPE(j) AS tp FROM t ORDER BY je, id;
@@ -2863,10 +2875,10 @@ true	BOOLEAN
 "2010-12-02 02:01:00.000000"	TIMESTAMP
 "2010-12-02 02:01:00.000000"	DATETIME
 "9999-12-31 23:59:59.999999"	DATETIME
-"base64:type253:MTIzNGFiY2Q="	BLOB
+"base64:type15:MTIzNGFiY2Q="	BLOB
 Warnings:
 Warning	1235	This version of MySQL doesn't yet support 'sorting of non-scalar JSON values'
-SET @@max_sort_length=4;
+SET @@max_sort_length=8;
 SELECT j, JSON_TYPE(j) AS tp FROM t ORDER BY j, id;
 j	tp
 NULL	NULL
@@ -3159,12 +3171,12 @@ null	NULL
 1e306	DOUBLE
 1e307	DOUBLE
 1e308	DOUBLE
-"abc"	STRING
 ""	STRING
 "abcd"	STRING
-"bc"	STRING
 "abc\u0000\u0000"	STRING
 "abc\u0000"	STRING
+"abc"	STRING
+"bc"	STRING
 {"an": "object"}	OBJECT
 {"another": "object"}	OBJECT
 {"type": "Point", "coordinates": [0, 0]}	OBJECT
@@ -3234,7 +3246,13 @@ true	BOOLEAN
 "2010-12-02 01:02:03.000000"	DATETIME
 "2010-12-02 02:01:00.000000"	DATETIME
 "9999-12-31 23:59:59.999999"	DATETIME
-"base64:type253:MTIzNGFiY2Q="	BLOB
+"base64:type15:MTIzNGFiY2Q="	BLOB
+Warnings:
+Warning	1235	This version of MySQL doesn't yet support 'sorting of non-scalar JSON values'
+SELECT j, JSON_TYPE(j) AS tp FROM t ORDER BY j, id limit 2 offset 2;
+j	tp
+null	NULL
+-1e308	DOUBLE
 Warnings:
 Warning	1235	This version of MySQL doesn't yet support 'sorting of non-scalar JSON values'
 SET @@max_sort_length=default;
@@ -3417,7 +3435,7 @@ true	1
 "2010-1202 01:02:03000"	2
 "2010-1202 02:01:00000"	2
 "9999-12-31 23:59:59.999999"	1
-"base64:type253:MTIzNGFiY2Q="	1
+"base64:type15:MTIzNGFiY2Q="	1
 Warnings:
 Warning	1235	This version of MySQL doesn't yet support 'sorting of non-scalar JSON values'
 SELECT JSON_EXTRACT(j, '$') AS je, COUNT(*) FROM t GROUP BY je ORDER BY je;
@@ -3586,7 +3604,7 @@ true	1
 "2010-1202 01:02:03000"	2
 "2010-1202 02:01:00000"	2
 "9999-12-31 23:59:59.999999"	1
-"base64:type253:MTIzNGFiY2Q="	1
+"base64:type15:MTIzNGFiY2Q="	1
 Warnings:
 Warning	1235	This version of MySQL doesn't yet support 'sorting of non-scalar JSON values'
 SELECT j, COUNT(*) FROM t GROUP BY j WITH ROLLUP;
@@ -3755,7 +3773,7 @@ true	1
 "2010-1202 01:02:03000"	2
 "2010-1202 02:01:00000"	2
 "9999-12-31 23:59:59.999999"	1
-"base64:type253:MTIzNGFiY2Q="	1
+"base64:type15:MTIzNGFiY2Q="	1
 NULL	366
 Warnings:
 Warning	1235	This version of MySQL doesn't yet support 'sorting of non-scalar JSON values'
@@ -3925,7 +3943,7 @@ true	1
 "2010-1202 01:02:03000"	2
 "2010-1202 02:01:00000"	2
 "9999-12-31 23:59:59.999999"	1
-"base64:type253:MTIzNGFiY2Q="	1
+"base64:type15:MTIzNGFiY2Q="	1
 NULL	366
 Warnings:
 Warning	1235	This version of MySQL doesn't yet support 'sorting of non-scalar JSON values'
@@ -5797,7 +5815,7 @@ blob_col
 from blob_table
 ) dt;
 json_type( dt.a )	a
-ARRAY	["OBJECT", "ARRAY", "STRING", "BOOLEAN", "INTEGER", "DECIMAL", "DATETIME", "TIME", "DATE", "BIT", "BLOB"]
+ARRAY	["OBJECT", "ARRAY", "STRING", "BOOLEAN", "INTEGER", "DECIMAL", "DATETIME", "TIME", "DATE", "BLOB", "BLOB"]
 drop table blob_table;
 drop function get_types;
 create procedure merge_docs
@@ -5888,7 +5906,7 @@ end//
 call merge_doc_types( @in_types, @inout_types, @out_types );
 select @in_types, @inout_types, @out_types;
 @in_types	@inout_types	@out_types
-["OBJECT", "ARRAY", "STRING", "BOOLEAN"]	["OBJECT", "ARRAY", "STRING", "BOOLEAN"]	["OBJECT", "ARRAY", "STRING", "BOOLEAN", "INTEGER", "DECIMAL", "DATETIME", "TIME", "DATE", "BIT"]
+["OBJECT", "ARRAY", "STRING", "BOOLEAN"]	["OBJECT", "ARRAY", "STRING", "BOOLEAN"]	["OBJECT", "ARRAY", "STRING", "BOOLEAN", "INTEGER", "DECIMAL", "DATETIME", "TIME", "DATE", "BLOB"]
 drop procedure merge_doc_types;
 drop procedure merge_docs;
 drop function get_types;
@@ -8950,32 +8968,58 @@ drop table t_varchar;
 # Bug#21193273 CREATE TABLE SELECT JSN_QUOTE() RESULTS
 # IN TRUNCATED DATA
 #
+set names latin1;
 SELECT JSON_QUOTE('table') AS field1;
 field1
 "table"
 CREATE TABLE t SELECT JSON_QUOTE('table') AS field1;
-SHOW WARNINGS;
-Level	Code	Message
 SELECT * FROM t;
 field1
 "table"
 DESCRIBE t;
 Field	Type	Null	Key	Default	Extra
 field1	varchar(32)	YES		NULL	
-drop table t;
-select json_unquote( '"table"' ) as field1;
+DROP TABLE t;
+SELECT JSON_UNQUOTE( '"table"' ) AS field1;
 field1
 table
-create table t1 select json_unquote( '"table"' ) as field1;
-SHOW WARNINGS;
-Level	Code	Message
+CREATE TABLE t1 SELECT JSON_unquote( '"table"' ) AS field1;
 SELECT * FROM t1;
 field1
 table
 DESCRIBE t1;
 Field	Type	Null	Key	Default	Extra
 field1	varchar(7)	YES		NULL	
-drop table t1;
+DROP TABLE t1;
+set names default;
+#
+# Bug#25455065 JSON_QUOTE AND JSON_UNQUOTE
+#              ARE WRONG FOR MULTIBYTE CHARSETS
+#
+set names utf8mb4;
+SELECT JSON_QUOTE('table') AS field1;
+field1
+"table"
+CREATE TABLE t SELECT JSON_QUOTE('table') AS field1;
+SELECT * FROM t;
+field1
+"table"
+DESCRIBE t;
+Field	Type	Null	Key	Default	Extra
+field1	varchar(32)	YES		NULL	
+DROP TABLE t;
+SELECT JSON_UNQUOTE( '"table"' ) AS field1;
+field1
+table
+CREATE TABLE t1 SELECT JSON_unquote( '"table"' ) AS field1;
+SELECT * FROM t1;
+field1
+table
+DESCRIBE t1;
+Field	Type	Null	Key	Default	Extra
+field1	varchar(7)	YES		NULL	
+DROP TABLE t1;
+set names default;
 #
 # Bug#21230644 JSON_MERGE MEMORY USAGE
 #
@@ -9296,13 +9340,13 @@ Warnings:
 Note	1003	/* select#1 */ select json_extract(`test`.`t1`.`f1`,'$.a') AS `f1->"$.a"`,json_extract(`test`.`t1`.`f1`,'$.b') AS `f1->"$.b"` from `test`.`t1` order by `test`.`t1`.`autopk`
 SELECT MAX(f1->"$.a"), f1->"$.b" FROM t1 GROUP BY f1->"$.b";
 MAX(f1->"$.a")	f1->"$.b"
+11	3
+22	2
 3	NULL
 33	1
-22	2
-11	3
 EXPLAIN SELECT MAX(f1->"$.a"), f1->"$.b" FROM t1 GROUP BY f1->"$.b";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	6	100.00	Using temporary; Using filesort
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	6	100.00	Using temporary
 Warnings:
 Note	1003	/* select#1 */ select max(json_extract(`test`.`t1`.`f1`,'$.a')) AS `MAX(f1->"$.a")`,json_extract(`test`.`t1`.`f1`,'$.b') AS `f1->"$.b"` from `test`.`t1` group by json_extract(`test`.`t1`.`f1`,'$.b')
 SELECT JSON_OBJECT("c",f1->"$.b") AS f2
@@ -9653,6 +9697,118 @@ j
 {"a": "b"}
 {"a": "b"}
 DROP TABLE t;
+#
+# Bug#22366102: EMPTY STRINGS AS KEYS PROBABLY NOT HANDLED CORRECTLY
+#               BY JSON_EXTRACT()
+#
+CREATE TABLE t(j JSON);
+Warnings:
+Warning	1478	Table storage engine 'ndbcluster' does not support the create option 'Binlog of table with BLOB attribute and no PK'
+INSERT INTO t VALUES ('{"":"a"}'), ('{"":{"":"a"}}'), ('{"a":{"":{"b":"a"}}}');
+SELECT JSON_UNQUOTE(JSON_SEARCH(j, 'one', 'a')) AS path FROM t;
+path
+$.""
+$."".""
+$.a."".b
+SELECT j->'$.""' AS c1, j->'$."".""' AS c2, j->'$.a."".b' AS c3 FROM t;
+c1	c2	c3
+"a"	NULL	NULL
+NULL	NULL	"a"
+{"": "a"}	"a"	NULL
+DROP TABLE t;
+SELECT JSON_EXTRACT('[1]', '$.');
+ERROR 42000: Invalid JSON path expression. The error is around character position 2.
+SELECT JSON_EXTRACT('[1]', '$..');
+ERROR 42000: Invalid JSON path expression. The error is around character position 2.
+SELECT JSON_EXTRACT('[1]', '$.a..b');
+ERROR 42000: Invalid JSON path expression. The error is around character position 4.
+#
+# Bug#22477046: HANDLE_FATAL_SIGNAL (SIG=6) IN ITEM_FUNC_SP::VAL_JSON
+#
+CREATE TABLE t1(j JSON);
+Warnings:
+Warning	1478	Table storage engine 'ndbcluster' does not support the create option 'Binlog of table with BLOB attribute and no PK'
+CREATE TABLE t2(vc VARCHAR(10));
+CREATE FUNCTION f1(i INT) RETURNS INT RETURN i;
+INSERT INTO t1 SELECT f1(3);
+ERROR 22032: Invalid JSON text: "not a JSON text, may need CAST" at position 0 in value for column 't1.j'.
+INSERT INTO t2 SELECT f1(3);
+CREATE FUNCTION f2(vc VARCHAR(10)) RETURNS VARCHAR(10) RETURN vc;
+INSERT INTO t1 SELECT f2('[1,2,3]');
+INSERT INTO t2 SELECT f2('[1,2,3]');
+CREATE FUNCTION f3(j JSON) RETURNS JSON RETURN j;
+INSERT INTO t1 SELECT f3('[4,5,6]');
+INSERT INTO t2 SELECT f3('[4,5,6]');
+SELECT * FROM t1;
+j
+[1, 2, 3]
+[4, 5, 6]
+SELECT * FROM t2;
+vc
+3
+[1,2,3]
+[4, 5, 6]
+DROP TABLE t1, t2;
+DROP FUNCTION f1;
+DROP FUNCTION f2;
+DROP FUNCTION f3;
+# Bug#22522073: Assertion failed: !thd->is_error() in optimize_cond()
+CREATE TABLE s(a INTEGER, b CHAR(1));
+INSERT INTO s VALUES (1,0), (1,0), (1,0);
+CREATE TABLE t(c JSON);
+Warnings:
+Warning	1478	Table storage engine 'ndbcluster' does not support the create option 'Binlog of table with BLOB attribute and no PK'
+INSERT INTO t VALUES (), (), ();
+SELECT 1
+FROM s WHERE a NOT IN (SELECT 1
+FROM s WHERE (SELECT c FROM t) = b);
+ERROR 21000: Subquery returns more than 1 row
+DROP TABLE s, t;
+#
+# Bug#22546013: REMOVE DEPENDENCY ON BOOST IN ITEM_JSON_FUNC.CC
+#
+CREATE TABLE t(j JSON, vc VARCHAR(99));
+Warnings:
+Warning	1478	Table storage engine 'ndbcluster' does not support the create option 'Binlog of table with BLOB attribute and no PK'
+INSERT INTO t VALUES ('"abc"', REPEAT('abc', 33)), ('"abc"', 'abc');
+INSERT INTO t SELECT * FROM t;
+SELECT * FROM t WHERE j = vc;
+j	vc
+"abc"	abc
+"abc"	abc
+DROP TABLE t;
+#
+# Bug#22816576: ASSERTION FAILED: !THD->IS_ERROR() IN OPTIMIZE_COND()
+#
+CREATE TABLE t(a DATE);
+SELECT 1 FROM t WHERE 1 <>
+(
+SELECT 1 FROM
+(
+SELECT 1 FROM t e
+JOIN t ON t.a <=> JSON_REPLACE(JSON_OBJECT('', ''), '', '')
+WHERE e.a
+) w
+);
+ERROR 42000: Invalid JSON path expression. The error is around character position 0.
+DROP TABLE t;
+#
+# Bug#23209914: ASSERTION FAILED: THIS_TYPE != ENUM_JSON_TYPE::J_ERROR
+#
+CREATE PROCEDURE p(a JSON) SELECT 1 WHERE a = 1;
+CALL p(NULL);
+1
+DROP PROCEDURE p;
+CREATE TABLE t1 (pk INT AUTO_INCREMENT KEY, f1 INT, fj JSON);
+INSERT INTO t1 VALUES(1, NULL, JSON_OBJECT('aaa','bbb'));
+INSERT INTO t1 VALUES(2, NULL, JSON_OBJECT('bbb','aaa'));
+SELECT * FROM t1 ORDER BY f1, pk, fj;
+pk	f1	fj
+1	NULL	{"aaa": "bbb"}
+2	NULL	{"bbb": "aaa"}
+Warnings:
+Warning	1235	This version of MySQL doesn't yet support 'sorting of non-scalar JSON values'
+DROP TABLE t1;
 #
 # WL#9191: JSON_PRETTY function
 #
