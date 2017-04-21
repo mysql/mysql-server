@@ -1741,14 +1741,20 @@ static void exec_binlog_error_action_abort(const char* err_string)
     Hence we clear the previous errors and push one critical error message to
     clients.
    */
-  thd->clear_error();
-  /*
-    Adding ME_ERRORLOG flag will ensure that the error is sent to both
-    client and to the server error log as well.
-   */
-  my_error(ER_BINLOG_LOGGING_IMPOSSIBLE, MYF(ME_ERRORLOG + ME_FATALERROR),
-           err_string);
-  thd->send_statement_status();
+  if (thd)
+  {
+    if (thd->is_error())
+      thd->clear_error();
+    /*
+      Adding ME_ERRORLOG flag will ensure that the error is sent to both
+      client and to the server error log as well.
+    */
+    my_error(ER_BINLOG_LOGGING_IMPOSSIBLE, MYF(ME_ERRORLOG + ME_FATALERROR),
+             err_string);
+    thd->send_statement_status();
+  }
+  else
+    sql_print_error("%s",err_string);
   abort();
 }
 
