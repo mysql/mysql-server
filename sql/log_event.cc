@@ -13163,19 +13163,24 @@ int Gtid_log_event::do_apply_event(Relay_log_info const *rli)
   DBUG_ASSERT(rli->info_thd == thd);
 
   /*
-    In rare cases it is possible that we already own a GTID. This can
-    happen if a transaction is truncated in the middle in the relay
-    log and then next relay log begins with a Gtid_log_events without
-    closing the transaction context from the previous relay log.  In
-    this case the only sensible thing to do is to discard the
+    In rare cases it is possible that we already own a GTID (either
+    ANONYMOUS or GTID_GROUP). This can happen if a transaction was truncated
+    in the middle in the relay log and then next relay log begins with a
+    Gtid_log_events without closing the transaction context from the previous
+    relay log. In this case the only sensible thing to do is to discard the
     truncated transaction and move on.
+
+    Note that when the applier is "GTID skipping" a transactions it
+    owns nothing, but its gtid_next->type == GTID_GROUP.
   */
-  if (!thd->owned_gtid.is_empty())
+  const Gtid_specification *gtid_next= &thd->variables.gtid_next;
+  if (!thd->owned_gtid.is_empty() ||
+      (thd->owned_gtid.is_empty() && gtid_next->type == GTID_GROUP))
   {
     /*
       Slave will execute this code if a previous Gtid_log_event was applied
-      but the GTID wasn't consumed yet (the transaction was not committed
-      nor rolled back).
+      but the GTID wasn't consumed yet (the transaction was not committed,
+      nor rolled back, nor skipped).
       On a client session we cannot do consecutive SET GTID_NEXT without
       a COMMIT or a ROLLBACK in the middle.
       Applying this event without rolling back the current transaction may
