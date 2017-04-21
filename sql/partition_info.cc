@@ -998,8 +998,7 @@ partition_element *partition_info::get_part_elem(const char *partition_name,
           if (file_name)
             create_subpartition_name(file_name, "",
                                      part_elem->partition_name,
-                                     partition_name,
-                                     NORMAL_PART_NAME);
+                                     partition_name);
           *part_id= j + (i * num_subparts);
           DBUG_RETURN(sub_part_elem);
         }
@@ -1014,8 +1013,7 @@ partition_element *partition_info::get_part_elem(const char *partition_name,
                             part_elem->partition_name, partition_name))
     {
       if (file_name)
-        create_partition_name(file_name, "", partition_name,
-                              NORMAL_PART_NAME, TRUE);
+        create_partition_name(file_name, "", partition_name, TRUE);
       *part_id= i;
       DBUG_RETURN(part_elem);
     }

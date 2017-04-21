@@ -6000,7 +6000,7 @@ ER_PARTITION_FUNCTION_IS_NOT_ALLOWED
         eng "This partition function is not allowed"
         ger "Diese Partitionierungsfunktion ist nicht erlaubt"
         swe "Denna partitioneringsfunktion är inte tillåten"
-ER_DDL_LOG_ERROR
+OBSOLETE_ER_DDL_LOG_ERROR_UNUSED
         eng "Error in DDL log"
         ger "Fehler im DDL-Log"
 ER_NULL_IN_VALUES_LESS_THAN

@@ -100,10 +100,6 @@ select count(name) from mutex_instances
 select count(name) from mutex_instances
  where name like "wait/synch/mutex/sql/LOCK_plugin";
 
-# Not a global variable, may be destroyed already.
-# select count(name) from mutex_instances
-#  where name like "wait/synch/mutex/sql/LOCK_gdl";
-
 select count(name) from mutex_instances
  where name like "wait/synch/mutex/sql/tz_LOCK";
 

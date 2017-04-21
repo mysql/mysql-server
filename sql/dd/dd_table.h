@@ -480,40 +480,6 @@ bool fix_row_type(THD *thd, TABLE_SHARE *share);
 bool fix_row_type(THD *thd, TABLE_SHARE *share, row_type correct_row_type);
 
 /**
-  Move all triggers from a table to another.
-
-  @param[in]    thd              Thread context
-  @param[in]    from_schema_name Name of the schema
-  @param[in]    from_name        Name of the table
-  @param[in]    to_schema_name   Name of the schema
-  @param[in]    to_name          Name of the table
-  @param[in]    commit_dd_changes   Indicates whether change to the data
-                                    dictionary needs to be committed.
-
-  Triggers from from_schema_name.from_table_name will be moved
-  into to_schema_name.to_table_name. And the transaction will be
-  committed.
-
-  @note In case when commit_dd_changes is false, the caller must rollback
-        both statement and transaction on failure, before any further
-        accesses to DD. This is because such a failure might be caused by
-        a deadlock, which requires rollback before any other operations on
-        SE (including reads using attachable transactions) can be done.
-        If case when commit_dd_changes is true this function will handle
-        transaction rollback itself.
-
-  @retval       false       Success
-  @retval       true        Error
-*/
-
-bool move_triggers(THD *thd,
-                   const char *from_schema_name,
-                   const char *from_name,
-                   const char *to_schema_name,
-                   const char *to_name,
-                   bool commit_dd_changes);
-
-/**
   Add column objects to dd::Abstract_table objects according to the
   list of Create_field objects.
 

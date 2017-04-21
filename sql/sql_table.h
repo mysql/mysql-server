@@ -42,84 +42,9 @@ class FOREIGN_KEY;
 
 typedef struct st_ha_check_opt HA_CHECK_OPT;
 typedef struct st_ha_create_information HA_CREATE_INFO;
-typedef struct st_lock_param_type ALTER_PARTITION_PARAM_TYPE;
 typedef struct charset_info_st CHARSET_INFO;
 typedef struct st_mysql_mutex mysql_mutex_t;
 template<typename T> class List;
-
-
-enum ddl_log_entry_code
-{
-  /*
-    DDL_LOG_EXECUTE_CODE:
-      This is a code that indicates that this is a log entry to
-      be executed, from this entry a linked list of log entries
-      can be found and executed.
-    DDL_LOG_ENTRY_CODE:
-      An entry to be executed in a linked list from an execute log
-      entry.
-    DDL_IGNORE_LOG_ENTRY_CODE:
-      An entry that is to be ignored
-  */
-  DDL_LOG_EXECUTE_CODE = 'e',
-  DDL_LOG_ENTRY_CODE = 'l',
-  DDL_IGNORE_LOG_ENTRY_CODE = 'i'
-};
-
-enum ddl_log_action_code
-{
-  /*
-    The type of action that a DDL_LOG_ENTRY_CODE entry is to
-    perform.
-    DDL_LOG_DELETE_ACTION:
-      Delete an entity
-    DDL_LOG_RENAME_ACTION:
-      Rename an entity
-    DDL_LOG_REPLACE_ACTION:
-      Rename an entity after removing the previous entry with the
-      new name, that is replace this entry.
-    DDL_LOG_EXCHANGE_ACTION:
-      Exchange two entities by renaming them a -> tmp, b -> a, tmp -> b.
-  */
-  DDL_LOG_DELETE_ACTION = 'd',
-  DDL_LOG_RENAME_ACTION = 'r',
-  DDL_LOG_REPLACE_ACTION = 's',
-  DDL_LOG_EXCHANGE_ACTION = 'e'
-};
-
-enum enum_ddl_log_exchange_phase {
-  EXCH_PHASE_NAME_TO_TEMP= 0,
-  EXCH_PHASE_FROM_TO_NAME= 1,
-  EXCH_PHASE_TEMP_TO_FROM= 2
-};
-
-
-typedef struct st_ddl_log_entry
-{
-  const char *name;
-  const char *from_name;
-  const char *handler_name;
-  const char *tmp_name;
-  uint next_entry;
-  uint entry_pos;
-  enum ddl_log_entry_code entry_type;
-  enum ddl_log_action_code action_type;
-  /*
-    Most actions have only one phase. REPLACE does however have two
-    phases. The first phase removes the file with the new name if
-    there was one there before and the second phase renames the
-    old name to the new name. EXCHANGE have three phases.
-  */
-  char phase;
-} DDL_LOG_ENTRY;
-
-typedef struct st_ddl_log_memory_entry
-{
-  uint entry_pos;
-  struct st_ddl_log_memory_entry *next_log_entry;
-  struct st_ddl_log_memory_entry *prev_log_entry;
-  struct st_ddl_log_memory_entry *next_active_log_entry;
-} DDL_LOG_MEMORY_ENTRY;
 
 
 enum enum_explain_filename_mode
@@ -131,8 +56,6 @@ enum enum_explain_filename_mode
 
 /* Maximum length of GEOM_POINT Field */
 #define MAX_LEN_GEOM_POINT_FIELD   25
-
-#define WSDI_WRITE_SHADOW 1
 
 /* Flags for conversion functions. */
 static const uint FN_FROM_IS_TMP=  1 << 0;
@@ -166,8 +89,6 @@ size_t inline build_table_filename(char *buff, size_t bufflen, const char *db,
     return build_table_filename(buff, bufflen, db, table, ext, flags,
                                 &truncated_not_used);
 }
-size_t build_table_shadow_filename(char *buff, size_t bufflen,
-                                   ALTER_PARTITION_PARAM_TYPE *lpt);
 size_t build_tmptable_filename(THD* thd, char *buff, size_t bufflen);
 bool mysql_create_table(THD *thd, TABLE_LIST *create_table,
                         HA_CREATE_INFO *create_info,
@@ -285,21 +206,9 @@ const CHARSET_INFO* get_sql_field_charset(const Create_field *sql_field,
 bool validate_comment_length(THD *thd, const char *comment_str,
                              size_t *comment_len, uint max_len,
                              uint err_code, const char *comment_name);
-bool mysql_update_dd(ALTER_PARTITION_PARAM_TYPE *lpt, uint flags);
 int write_bin_log(THD *thd, bool clear_error,
                   const char *query, size_t query_length,
                   bool is_trans= FALSE);
-bool write_ddl_log_entry(DDL_LOG_ENTRY *ddl_log_entry,
-                         DDL_LOG_MEMORY_ENTRY **active_entry);
-bool write_execute_ddl_log_entry(uint first_entry,
-                                 bool complete,
-                                 DDL_LOG_MEMORY_ENTRY **active_entry);
-bool deactivate_ddl_log_entry(uint entry_no);
-void release_ddl_log_memory_entry(DDL_LOG_MEMORY_ENTRY *log_entry);
-void release_ddl_log();
-void execute_ddl_log_recovery();
-bool execute_ddl_log_entry(THD *thd, uint first_entry);
-
 void promote_first_timestamp_column(List<Create_field> *column_definitions);
 
 
@@ -374,7 +283,6 @@ void parse_filename(const char *filename, size_t filename_length,
                     const char ** subpartition_name, size_t *subpartition_name_length);
 
 extern MYSQL_PLUGIN_IMPORT const char *primary_key_name;
-extern mysql_mutex_t LOCK_gdl;
 
 
 /**

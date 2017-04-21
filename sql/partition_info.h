@@ -285,10 +285,6 @@ public:
 
   Item *item_free_list;
 
-  struct st_ddl_log_memory_entry *first_log_entry;
-  struct st_ddl_log_memory_entry *exec_log_entry;
-  struct st_ddl_log_memory_entry *frm_log_entry;
-
   /*
     Bitmaps of partitions used by the current query.
     * read_partitions  - partitions to be used for reading.
@@ -420,7 +416,6 @@ public:
     part_field_buffers(NULL), subpart_field_buffers(NULL),
     restore_part_field_ptrs(NULL), restore_subpart_field_ptrs(NULL),
     part_expr(NULL), subpart_expr(NULL), item_free_list(NULL),
-    first_log_entry(NULL), exec_log_entry(NULL), frm_log_entry(NULL),
     bitmaps_are_initialized(FALSE),
     list_array(NULL), err_value(0),
     part_info_string(NULL),

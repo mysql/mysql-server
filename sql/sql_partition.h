@@ -77,26 +77,6 @@ template <class T> class List;
 */
 #define HA_CANNOT_PARTITION_FK (1 << 5)
 
-#define NORMAL_PART_NAME 0
-#define TEMP_PART_NAME 1
-#define RENAMED_PART_NAME 2
-
-typedef struct st_lock_param_type
-{
-  TABLE_LIST *table_list;
-  ulonglong copied;
-  ulonglong deleted;
-  THD *thd;
-  HA_CREATE_INFO *create_info;
-  Alter_info *alter_info;
-  TABLE *table;
-  KEY *key_info_buffer;
-  const char *db;
-  const char *table_name;
-  uint key_count;
-  partition_info *part_info;
-} ALTER_PARTITION_PARAM_TYPE;
-
 typedef struct {
   uint32 start_part;
   uint32 end_part;
@@ -147,14 +127,6 @@ void append_row_to_str(String &str, const uchar *row, TABLE *table);
 void mem_alloc_error(size_t size);
 void truncate_partition_filename(MEM_ROOT* root, const char **path);
 
-bool fast_alter_partition_table(THD *thd,
-                                TABLE *table,
-                                Alter_info *alter_info,
-                                HA_CREATE_INFO *create_info,
-                                TABLE_LIST *table_list,
-                                char *db,
-                                const char *table_name,
-                                partition_info *new_part_info);
 bool set_part_state(Alter_info *alter_info,
                     partition_info *tab_part_info,
                     enum partition_state part_state,
@@ -165,7 +137,6 @@ uint prep_alter_part_table(THD *thd, TABLE *table, Alter_info *alter_info,
                            HA_CREATE_INFO *create_info,
                            Alter_table_ctx *alter_ctx,
                            bool *partition_changed,
-                           bool *fast_alter_part_table,
                            partition_info **new_part_info);
 int expr_to_string(String *val_conv,
                    Item *item_expr,
@@ -185,36 +156,9 @@ bool compare_partition_options(HA_CREATE_INFO *table_create_info,
                                partition_element *part_elem);
 
 void create_partition_name(char *out, const char *in1,
-                           const char *in2, uint name_variant,
-                           bool translate);
+                           const char *in2, bool translate);
 void create_subpartition_name(char *out, const char *in1,
-                              const char *in2, const char *in3,
-                              uint name_variant);
-/** Set up table for creating a partition.
-Copy info from partition to the table share so the created partition
-has the correct info.
-  @param thd               THD object
-  @param share             Table share to be updated.
-  @param partition_name_with_path Partition name, including the path.
-  @param info              Create info to be updated.
-  @param part_elem         partition_element containing the info.
-
-  @return    status
-    @retval  TRUE  Error
-    @retval  FALSE Success
-
-  @details
-    Set up
-    1) Comment on partition
-    2) MAX_ROWS, MIN_ROWS on partition
-    3) Index file name on partition
-    4) Data file name on partition
-*/
-bool set_up_table_before_create(THD *thd,
-                                TABLE_SHARE *share,
-                                const char *partition_name_with_path,
-                                HA_CREATE_INFO *info,
-                                partition_element *part_elem);
+                              const char *in2, const char *in3);
 
 enum enum_partition_keywords
 {

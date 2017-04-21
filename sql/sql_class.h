@@ -2097,14 +2097,10 @@ public:
   { return system_thread != NON_SYSTEM_THREAD; }
 
   // Check if this THD belongs to a dd bootstrap system thread.
-  // For now we also count the thread (or rather THD) that is used
-  // during DDL log recovery as a DD system thread as we do not
-  // need to take MDL locks during this phase either.
   bool is_dd_system_thread() const
   {
     return system_thread == SYSTEM_THREAD_DD_INITIALIZE ||
-           system_thread == SYSTEM_THREAD_DD_RESTART ||
-           system_thread == SYSTEM_THREAD_DDL_LOG_RECOVERY;
+           system_thread == SYSTEM_THREAD_DD_RESTART;
   }
 
   // Check if this THD belongs to the initialize system thread. The

@@ -54,7 +54,6 @@ extern PSI_memory_key key_memory_DATE_TIME_FORMAT;
 extern PSI_memory_key key_memory_DD_default_values;
 extern PSI_memory_key key_memory_DD_import;
 extern PSI_memory_key key_memory_DD_String_type;
-extern PSI_memory_key key_memory_DDL_LOG_MEMORY_ENTRY;
 extern PSI_memory_key key_memory_Event_queue_element_for_exec_names;
 extern PSI_memory_key key_memory_Event_scheduler_scheduler_param;
 extern PSI_memory_key key_memory_File_query_log_name;

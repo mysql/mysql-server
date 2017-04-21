@@ -487,7 +487,7 @@
 #include "sql_servers.h"
 #include "sql_show.h"
 #include "sql_string.h"
-#include "sql_table.h"                  // execute_ddl_log_recovery
+#include "sql_table.h"                  // build_table_filename
 #include "sql_test.h"                   // mysql_print_status
 #include "sql_time.h"                   // Date_time_format
 #include "sql_udf.h"
@@ -1811,7 +1811,6 @@ static void clean_up(bool print_message)
   dd::shutdown();
 
   stop_handle_manager();
-  release_ddl_log();
 
   memcached_shutdown();
 
@@ -5689,7 +5688,6 @@ int mysqld_main(int argc, char **argv)
 
   initialize_information_schema_acl();
 
-  execute_ddl_log_recovery();
   (void) RUN_HOOK(server_state, after_recovery, (NULL));
 
   if (Events::init(opt_noacl || opt_initialize))
@@ -9269,7 +9267,6 @@ void refresh_status()
 PSI_mutex_key key_LOCK_tc;
 PSI_mutex_key key_hash_filo_lock;
 PSI_mutex_key key_LOCK_error_log;
-PSI_mutex_key key_LOCK_gdl;
 PSI_mutex_key key_LOCK_thd_data;
 PSI_mutex_key key_LOCK_thd_sysvar;
 PSI_mutex_key key_LOG_LOCK_log;
@@ -9346,7 +9343,6 @@ static PSI_mutex_info all_server_mutexes[]=
   { &Gtid_set::key_gtid_executed_free_intervals_mutex, "Gtid_set::gtid_executed::free_intervals_mutex", 0, 0},
   { &key_LOCK_crypt, "LOCK_crypt", PSI_FLAG_GLOBAL, 0},
   { &key_LOCK_error_log, "LOCK_error_log", PSI_FLAG_GLOBAL, 0},
-  { &key_LOCK_gdl, "LOCK_gdl", PSI_FLAG_GLOBAL, 0},
   { &key_LOCK_global_system_variables, "LOCK_global_system_variables", PSI_FLAG_GLOBAL, 0},
 #if defined(_WIN32)
   { &key_LOCK_handler_count, "LOCK_handler_count", PSI_FLAG_GLOBAL, 0},
@@ -9533,13 +9529,11 @@ PSI_file_key key_file_ERRMSG;
 PSI_file_key key_select_to_file;
 PSI_file_key key_file_fileparser;
 PSI_file_key key_file_frm;
-PSI_file_key key_file_global_ddl_log;
 PSI_file_key key_file_load;
 PSI_file_key key_file_loadfile;
 PSI_file_key key_file_log_event_data;
 PSI_file_key key_file_log_event_info;
 PSI_file_key key_file_misc;
-PSI_file_key key_file_partition_ddl_log;
 PSI_file_key key_file_tclog;
 PSI_file_key key_file_trg;
 PSI_file_key key_file_trn;
@@ -9570,13 +9564,11 @@ static PSI_file_info all_server_files[]=
   { &key_select_to_file, "select_to_file", 0},
   { &key_file_fileparser, "file_parser", 0},
   { &key_file_frm, "FRM", 0},
-  { &key_file_global_ddl_log, "global_ddl_log", 0},
   { &key_file_load, "load", 0},
   { &key_file_loadfile, "LOAD_FILE", 0},
   { &key_file_log_event_data, "log_event_data", 0},
   { &key_file_log_event_info, "log_event_info", 0},
   { &key_file_misc, "misc", 0},
-  { &key_file_partition_ddl_log, "partition_ddl_log", 0},
   { &key_file_pid, "pid", 0},
   { &key_file_general_log, "query_log", 0},
   { &key_file_slow_log, "slow_log", 0},

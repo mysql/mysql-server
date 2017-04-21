@@ -301,8 +301,7 @@ Based on ha_innobase and extended with
 Generic partitioning functions are implemented in Partition_helper.
 Lower level storage functions are implemented in ha_innobase.
 Partition_handler is inherited for implementing the handler level interface
-for partitioning specific functions, like change_partitions and
-truncate_partition.
+for partitioning specific functions, like truncate_partition.
 InnoDB specific functions related to partitioning is implemented here. */
 class ha_innopart:
 	public ha_innobase,
@@ -1028,46 +1027,6 @@ private:
 	bool
 	prepare_for_copy_partitions(Alter_inplace_info* ha_alter_info);
 
-	/** Prepare for creating new partitions during ALTER TABLE ...
-	PARTITION.
-	@param[in]	num_partitions	Number of new partitions to be created.
-	@param[in]	only_create	True if only creating the partition
-	(no open/lock is needed).
-	@return 0 for success else error code. */
-	int
-	prepare_for_new_partitions(
-		uint	num_partitions,
-		bool	only_create)
-	{
-		ut_ad(0);
-		return(HA_ERR_WRONG_COMMAND);
-	}
-
-	/** Create a new partition to be filled during ALTER TABLE ...
-	PARTITION.
-	@param[in]	table		Table to create the partition in.
-	@param[in]	create_info	Table/partition specific create info.
-	@param[in]	part_name	Partition name.
-	@param[in]	new_part_id	Partition id in new table.
-	@param[in]	part_elem	Partition element.
-	@return 0 for success else error code. */
-	int
-	create_new_partition(
-		TABLE*			table,
-		HA_CREATE_INFO*		create_info,
-		const char*		part_name,
-		uint			new_part_id,
-		partition_element*	part_elem)
-	{
-		/* This API is now disabled */
-		ut_ad(0);
-		return(HA_ERR_WRONG_COMMAND);
-	}
-
-	/** Close and finalize new partitions. */
-	void
-	close_new_partitions() { ut_ad(0); }
-
 	/** write row to new partition.
 	@param[in]	new_part	New partition to write to.
 	@return 0 for success else error code. */
@@ -1410,24 +1369,6 @@ private:
 	@retval	0 on success */
 	int
 	truncate_partition_low(dd::Table *dd_table);
-
-	/** Change partitions according to ALTER TABLE ... PARTITION ...
-	Called from Partition_handler::change_partitions().
-	@param[in]	create_info	Table create info.
-	@param[in]	path		Path including db/table_name.
-	@param[out]	copied		Number of copied rows.
-	@param[out]	deleted		Number of deleted rows.
-	@return	0 for success or error code. */
-	int
-	change_partitions_low(
-		HA_CREATE_INFO*		create_info,
-		const char*		path,
-		ulonglong* const	copied,
-		ulonglong* const	deleted)
-	{
-		ut_ad(0);
-		return(0);
-	}
 
 	/** Exchange partition.
 	Low-level primitive which implementation is provided here.
