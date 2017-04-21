@@ -70,7 +70,6 @@
 #include "../src/mgmsrv/ConfigInfo.hpp"
 #include <NdbAutoPtr.hpp>
 #include <NdbTCP.h>
-#include "my_stacktrace.h" // my_safe_itoa
 
 static int g_verbose = 0;
 
@@ -442,7 +441,8 @@ print_diff(const Iter& iter)
           parse_str[len] = '\0';
           def_value = atoi(parse_str);
           memory_convert = memory_convert * def_value;
-          if (!strcmp(str, my_safe_itoa(10, memory_convert, parse_str)))
+          BaseString::snprintf(parse_str, 299, "%llu", memory_convert);
+          if (!strcmp(str, parse_str))
           {
             continue;
           }
