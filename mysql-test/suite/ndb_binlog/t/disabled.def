@@ -12,3 +12,8 @@
 
 ndb_binlog_restore: Need WL#10167 On the fly frm translation
 ndb_binlog_ddl_multi: : Bug#25858461 FAILURE TO DROP DATAFILE FROM TABLESPACES WITH MULTIPLE DATAFILES
+
+# Problem with altering table back and forth to another engine
+ndb_binlog_purge: : Need WL#9185 MySQL Cluster support for new DD
+ndb_binlog_purge_upgrade: : Need WL#9185 MySQL Cluster support for new DD
+ndb_binlog_purge_lock: : Need WL#9185 MySQL Cluster support for new DD
