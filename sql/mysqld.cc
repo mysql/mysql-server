@@ -8966,14 +8966,14 @@ static bool check_secure_file_priv_path()
 
 static int fix_paths(void)
 {
-  char buff[FN_REFLEN],*pos;
+  char buff[FN_REFLEN];
   bool secure_file_priv_nonempty= false;
   convert_dirname(mysql_home,mysql_home,NullS);
   /* Resolve symlinks to allow 'mysql_home' to be a relative symlink */
   my_realpath(mysql_home,mysql_home,MYF(0));
   /* Ensure that mysql_home ends in FN_LIBCHAR */
-  pos=strend(mysql_home);
-  if (pos[-1] != FN_LIBCHAR)
+  char *pos= strend(mysql_home);
+  if (pos == mysql_home || pos[-1] != FN_LIBCHAR)
   {
     pos[0]= FN_LIBCHAR;
     pos[1]= 0;
