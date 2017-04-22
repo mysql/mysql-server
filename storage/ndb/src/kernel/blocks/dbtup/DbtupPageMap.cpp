@@ -690,8 +690,7 @@ Dbtup::handle_new_page(EmulatedJamBuffer *jamBuf,
   handle_lcp_skip_bit(jamBuf, fragPtrP, pagePtr, page_no);
   convertThPage((Fix_page*)pagePtr.p, tabPtrP, MM);
   {
-    LocalDLFifoList<Page, ArrayPool<Page> >
-      free_pages(c_page_pool, fragPtrP->thFreeFirst);
+    LocalDLFifoList<Page_pool> free_pages(c_page_pool, fragPtrP->thFreeFirst);
     pagePtr.p->page_state = ZTH_MM_FREE;
     free_pages.addFirst(pagePtr);
   }

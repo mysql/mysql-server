@@ -985,7 +985,7 @@ protected:
     Uint32 prevList;
   };
   typedef ArrayPool<FragmentSendInfo> FragmentSendInfo_pool;
-  typedef DLList<FragmentSendInfo, FragmentSendInfo_pool> FragmentSendInfo_list;
+  typedef DLList<FragmentSendInfo_pool> FragmentSendInfo_list;
   
   /**
    * sendFirstFragment
@@ -1300,7 +1300,7 @@ public:
     };
     typedef Ptr<ActiveMutex> ActiveMutexPtr;
     typedef ArrayPool<ActiveMutex> ActiveMutex_pool;
-    typedef DLList<ActiveMutex, ActiveMutex_pool> ActiveMutex_list;
+    typedef DLList<ActiveMutex_pool> ActiveMutex_list;
     
     bool seize(ActiveMutexPtr& ptr);
     void release(Uint32 activeMutexPtrI);

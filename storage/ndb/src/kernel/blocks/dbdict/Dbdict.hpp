@@ -239,8 +239,8 @@ public:
   typedef Ptr<AttributeRecord> AttributeRecordPtr;
   typedef ArrayPool<AttributeRecord> AttributeRecord_pool;
   typedef DLMHashTable<AttributeRecord_pool, AttributeRecord> AttributeRecord_hash;
-  typedef DLFifoList<AttributeRecord, AttributeRecord_pool, AttributeRecord> AttributeRecord_list;
-  typedef LocalDLFifoList<AttributeRecord, AttributeRecord_pool, AttributeRecord> LocalAttributeRecord_list;
+  typedef DLFifoList<AttributeRecord_pool> AttributeRecord_list;
+  typedef LocalDLFifoList<AttributeRecord_pool> LocalAttributeRecord_list;
 
   AttributeRecord_pool c_attributeRecordPool;
   AttributeRecord_hash c_attributeRecordHash;
@@ -253,8 +253,8 @@ public:
   struct TableRecord;
   typedef Ptr<TableRecord> TableRecordPtr;
   typedef ArrayPool<TableRecord> TableRecord_pool;
-  typedef DLFifoList<TableRecord, TableRecord_pool, TableRecord> TableRecord_list;
-  typedef LocalDLFifoList<TableRecord, TableRecord_pool, TableRecord> LocalTableRecord_list;
+  typedef DLFifoList<TableRecord_pool> TableRecord_list;
+  typedef LocalDLFifoList<TableRecord_pool> LocalTableRecord_list;
 
   struct TableRecord {
     TableRecord(){
@@ -647,8 +647,8 @@ public:
   };
   typedef Ptr<File> FilePtr;
   typedef RecordPool<RWPool<File> > File_pool;
-  typedef DLList<File, File_pool> File_list;
-  typedef LocalDLList<File, File_pool> Local_file_list;
+  typedef DLList<File_pool> File_list;
+  typedef LocalDLList<File_pool> Local_file_list;
 
   struct Filegroup {
     Filegroup(){}
@@ -761,7 +761,7 @@ public:
   typedef ArrayPool<DictObject> DictObject_pool;
   typedef DLMHashTable<DictObject_pool, DictObject, HashedByName<DictObject> > DictObjectName_hash;
   typedef DLMHashTable<DictObject_pool, DictObject, HashedById<DictObject> > DictObjectId_hash;
-  typedef SLList<DictObject, DictObject_pool> DictObject_list;
+  typedef SLList<DictObject_pool> DictObject_list;
 
   DictObjectName_hash c_obj_name_hash; // Name (not temporary TableRecords)
   DictObjectId_hash c_obj_id_hash; // Schema file id / Trigger id
@@ -2053,8 +2053,8 @@ private:
 
   typedef RecordPool<ArenaPool<SchemaOp> > SchemaOp_pool;
   typedef DLMHashTable<SchemaOp_pool, SchemaOp> SchemaOp_hash;
-  typedef DLFifoList<SchemaOp, SchemaOp_pool>::Head  SchemaOp_head;
-  typedef LocalDLFifoList<SchemaOp, SchemaOp_pool> LocalSchemaOp_list;
+  typedef DLFifoList<SchemaOp_pool>::Head  SchemaOp_head;
+  typedef LocalDLFifoList<SchemaOp_pool> LocalSchemaOp_list;
 
   SchemaOp_pool c_schemaOpPool;
   SchemaOp_hash c_schemaOpHash;
@@ -2420,7 +2420,7 @@ private:
 
   typedef RecordPool<ArenaPool<SchemaTrans> > SchemaTrans_pool;
   typedef DLMHashTable<SchemaTrans_pool, SchemaTrans> SchemaTrans_hash;
-  typedef DLFifoList<SchemaTrans, SchemaTrans_pool> SchemaTrans_list;
+  typedef DLFifoList<SchemaTrans_pool> SchemaTrans_list;
 
   SchemaTrans_pool c_schemaTransPool;
   SchemaTrans_hash c_schemaTransHash;

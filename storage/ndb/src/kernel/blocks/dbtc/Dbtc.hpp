@@ -403,7 +403,7 @@ public:
   };
   typedef Ptr<TcDefinedTriggerData> DefinedTriggerPtr;
   typedef ArrayPool<TcDefinedTriggerData> TcDefinedTriggerData_pool;
-  typedef DLList<TcDefinedTriggerData, TcDefinedTriggerData_pool> TcDefinedTriggerData_list;
+  typedef DLList<TcDefinedTriggerData_pool> TcDefinedTriggerData_list;
   
   /**
    * Pool of trigger data record
@@ -516,8 +516,8 @@ public:
   };
   typedef Ptr<TcFiredTriggerData> FiredTriggerPtr;
   typedef ArrayPool<TcFiredTriggerData> TcFiredTriggerData_pool;
-  typedef DLFifoList<TcFiredTriggerData, TcFiredTriggerData_pool> TcFiredTriggerData_fifo;
-  typedef LocalDLFifoList<TcFiredTriggerData, TcFiredTriggerData_pool> Local_TcFiredTriggerData_fifo;
+  typedef DLFifoList<TcFiredTriggerData_pool> TcFiredTriggerData_fifo;
+  typedef LocalDLFifoList<TcFiredTriggerData_pool> Local_TcFiredTriggerData_fifo;
   typedef DLHashTable<TcFiredTriggerData_pool, TcFiredTriggerData> TcFiredTriggerData_hash;
   
   /**
@@ -604,7 +604,7 @@ public:
   
   typedef Ptr<TcIndexData> TcIndexDataPtr;
   typedef ArrayPool<TcIndexData> TcIndexData_pool;
-  typedef DLList<TcIndexData, TcIndexData_pool> TcIndexData_list;
+  typedef DLList<TcIndexData_pool> TcIndexData_list;
 
   /**
    * Pool of index data record
@@ -669,8 +669,8 @@ public:
   
   typedef Ptr<TcIndexOperation> TcIndexOperationPtr;
   typedef ArrayPool<TcIndexOperation> TcIndexOperation_pool;
-  typedef SLList<TcIndexOperation, TcIndexOperation_pool> TcIndexOperation_sllist;
-  typedef DLList<TcIndexOperation, TcIndexOperation_pool> TcIndexOperation_dllist;
+  typedef SLList<TcIndexOperation_pool> TcIndexOperation_sllist;
+  typedef DLList<TcIndexOperation_pool> TcIndexOperation_dllist;
 
   /**
    * Pool of index data record
@@ -1254,8 +1254,8 @@ public:
 
   typedef Ptr<ScanFragLocationRec> ScanFragLocationPtr;
   typedef RecordPool<RWPool<ScanFragLocationRec> > ScanFragLocation_pool;
-  typedef SLFifoList<ScanFragLocationRec, ScanFragLocation_pool> ScanFragLocation_list;
-  typedef LocalSLFifoList<ScanFragLocationRec, ScanFragLocation_pool> Local_ScanFragLocation_list;
+  typedef SLFifoList<ScanFragLocation_pool> ScanFragLocation_list;
+  typedef LocalSLFifoList<ScanFragLocation_pool> Local_ScanFragLocation_list;
 
   ScanFragLocation_pool m_fragLocationPool;
 
@@ -1340,9 +1340,9 @@ public:
   
   typedef Ptr<ScanFragRec> ScanFragRecPtr;
   typedef UnsafeArrayPool<ScanFragRec> ScanFragRec_pool;
-  typedef SLList<ScanFragRec, ScanFragRec_pool> ScanFragRec_sllist;
-  typedef DLList<ScanFragRec, ScanFragRec_pool> ScanFragRec_dllist;
-  typedef LocalDLList<ScanFragRec, ScanFragRec_pool> Local_ScanFragRec_dllist;
+  typedef SLList<ScanFragRec_pool> ScanFragRec_sllist;
+  typedef DLList<ScanFragRec_pool> ScanFragRec_dllist;
+  typedef LocalDLList<ScanFragRec_pool> Local_ScanFragRec_dllist;
 
   /**
    * Each scan allocates one ScanRecord to store information 

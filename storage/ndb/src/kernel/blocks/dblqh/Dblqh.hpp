@@ -602,10 +602,10 @@ public:
   };
   typedef Ptr<ScanRecord> ScanRecordPtr;
   typedef ArrayPool<ScanRecord> ScanRecord_pool;
-  typedef DLCList<ScanRecord, ScanRecord_pool> ScanRecord_list;
-  typedef LocalDLCList<ScanRecord, ScanRecord_pool> Local_ScanRecord_list;
-  typedef DLCFifoList<ScanRecord, ScanRecord_pool> ScanRecord_fifo;
-  typedef LocalDLCFifoList<ScanRecord, ScanRecord_pool> Local_ScanRecord_fifo;
+  typedef DLCList<ScanRecord_pool> ScanRecord_list;
+  typedef LocalDLCList<ScanRecord_pool> Local_ScanRecord_list;
+  typedef DLCFifoList<ScanRecord_pool> ScanRecord_fifo;
+  typedef LocalDLCFifoList<ScanRecord_pool> Local_ScanRecord_fifo;
   typedef DLHashTable<ScanRecord_pool, ScanRecord> ScanRecord_hash;
 
 /**
@@ -1021,8 +1021,8 @@ public:
   };
   typedef Ptr<Fragrecord> FragrecordPtr;
   typedef ArrayPool<Fragrecord> Fragrecord_pool;
-  typedef SLList<Fragrecord, Fragrecord_pool> Fragrecord_list;
-  typedef DLFifoList<Fragrecord, Fragrecord_pool> Fragrecord_fifo;
+  typedef SLList<Fragrecord_pool> Fragrecord_list;
+  typedef DLFifoList<Fragrecord_pool> Fragrecord_fifo;
   
   /* $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$ */
   /* $$$$$$$                GLOBAL CHECKPOINT RECORD                  $$$$$$ */
@@ -1886,7 +1886,7 @@ public:
   }; // Size 288 bytes
   typedef Ptr<LogFileRecord> LogFileRecordPtr;
   typedef ArrayPool<LogFileRecord> LogFileRecord_pool;
-  typedef DLCFifoList<LogFileRecord, LogFileRecord_pool> LogFileRecord_fifo;
+  typedef DLCFifoList<LogFileRecord_pool> LogFileRecord_fifo;
 
   /* $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$ */
   /* $$$$$$$                      LOG OPERATION RECORD                $$$$$$$ */
@@ -3556,7 +3556,7 @@ private:
   };
   typedef ArrayPool<RedoCacheLogPageRecord> RedoCacheLogPageRecord_pool;
   typedef DLHashTable<RedoCacheLogPageRecord_pool, RedoCacheLogPageRecord> RedoCacheLogPageRecord_hash;
-  typedef DLCFifoList<RedoCacheLogPageRecord, RedoCacheLogPageRecord_pool> RedoCacheLogPageRecord_fifo;
+  typedef DLCFifoList<RedoCacheLogPageRecord_pool> RedoCacheLogPageRecord_fifo;
 
   struct RedoPageCache
   {
