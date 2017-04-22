@@ -238,7 +238,7 @@ public:
   };
   typedef Ptr<AttributeRecord> AttributeRecordPtr;
   typedef ArrayPool<AttributeRecord> AttributeRecord_pool;
-  typedef DLMHashTable<AttributeRecord_pool, AttributeRecord> AttributeRecord_hash;
+  typedef DLMHashTable<AttributeRecord_pool> AttributeRecord_hash;
   typedef DLFifoList<AttributeRecord_pool> AttributeRecord_list;
   typedef LocalDLFifoList<AttributeRecord_pool> LocalAttributeRecord_list;
 
@@ -759,8 +759,8 @@ public:
 
   typedef Ptr<DictObject> DictObjectPtr;
   typedef ArrayPool<DictObject> DictObject_pool;
-  typedef DLMHashTable<DictObject_pool, DictObject, HashedByName<DictObject> > DictObjectName_hash;
-  typedef DLMHashTable<DictObject_pool, DictObject, HashedById<DictObject> > DictObjectId_hash;
+  typedef DLMHashTable<DictObject_pool, HashedByName<DictObject> > DictObjectName_hash;
+  typedef DLMHashTable<DictObject_pool, HashedById<DictObject> > DictObjectId_hash;
   typedef SLList<DictObject_pool> DictObject_list;
 
   DictObjectName_hash c_obj_name_hash; // Name (not temporary TableRecords)
@@ -2052,7 +2052,7 @@ private:
   };
 
   typedef RecordPool<ArenaPool<SchemaOp> > SchemaOp_pool;
-  typedef DLMHashTable<SchemaOp_pool, SchemaOp> SchemaOp_hash;
+  typedef DLMHashTable<SchemaOp_pool> SchemaOp_hash;
   typedef DLFifoList<SchemaOp_pool>::Head  SchemaOp_head;
   typedef LocalDLFifoList<SchemaOp_pool> LocalSchemaOp_list;
 
@@ -2419,7 +2419,7 @@ private:
   Uint32 check_write_obj(Uint32, Uint32, SchemaFile::EntryState, ErrorInfo&);
 
   typedef RecordPool<ArenaPool<SchemaTrans> > SchemaTrans_pool;
-  typedef DLMHashTable<SchemaTrans_pool, SchemaTrans> SchemaTrans_hash;
+  typedef DLMHashTable<SchemaTrans_pool> SchemaTrans_hash;
   typedef DLFifoList<SchemaTrans_pool> SchemaTrans_list;
 
   SchemaTrans_pool c_schemaTransPool;
@@ -2729,7 +2729,7 @@ private:
   };
 
   typedef ArrayPool<TxHandle> TxHandle_pool;
-  typedef DLMHashTable<TxHandle_pool, TxHandle> TxHandle_hash;
+  typedef DLMHashTable<TxHandle_pool> TxHandle_hash;
 
   TxHandle_pool c_txHandlePool;
   TxHandle_hash c_txHandleHash;

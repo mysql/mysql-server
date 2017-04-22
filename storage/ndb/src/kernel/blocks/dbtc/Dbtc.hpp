@@ -518,7 +518,7 @@ public:
   typedef ArrayPool<TcFiredTriggerData> TcFiredTriggerData_pool;
   typedef DLFifoList<TcFiredTriggerData_pool> TcFiredTriggerData_fifo;
   typedef LocalDLFifoList<TcFiredTriggerData_pool> Local_TcFiredTriggerData_fifo;
-  typedef DLHashTable<TcFiredTriggerData_pool, TcFiredTriggerData> TcFiredTriggerData_hash;
+  typedef DLHashTable<TcFiredTriggerData_pool> TcFiredTriggerData_hash;
   
   /**
    * Pool of trigger data record
@@ -2336,7 +2336,7 @@ public:
 private:
   typedef Ptr<CommitAckMarker> CommitAckMarkerPtr;
   typedef ArrayPool<CommitAckMarker> CommitAckMarker_pool;
-  typedef DLHashTable<CommitAckMarker_pool, CommitAckMarker> CommitAckMarker_hash;
+  typedef DLHashTable<CommitAckMarker_pool> CommitAckMarker_hash;
   typedef CommitAckMarker_hash::Iterator CommitAckMarkerIterator;
   
   CommitAckMarker_pool m_commitAckMarkerPool;

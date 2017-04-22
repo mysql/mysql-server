@@ -336,7 +336,7 @@ public:
   typedef ArrayPool<Subscription> Subscription_pool;
   typedef DLList<Subscription_pool> Subscription_list;
   typedef LocalDLList<Subscription_pool> Local_Subscription_list;
-  typedef DLHashTable<Subscription_pool, Subscription> Subscription_hash;
+  typedef DLHashTable<Subscription_pool> Subscription_hash;
   typedef KeyTable<Subscription_pool, Subscription> Subscription_keyhash;
 
   struct Table {

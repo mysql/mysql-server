@@ -606,7 +606,7 @@ public:
   typedef LocalDLCList<ScanRecord_pool> Local_ScanRecord_list;
   typedef DLCFifoList<ScanRecord_pool> ScanRecord_fifo;
   typedef LocalDLCFifoList<ScanRecord_pool> Local_ScanRecord_fifo;
-  typedef DLHashTable<ScanRecord_pool, ScanRecord> ScanRecord_hash;
+  typedef DLHashTable<ScanRecord_pool> ScanRecord_hash;
 
 /**
  * Constants for scan_direct_count
@@ -3555,7 +3555,7 @@ private:
     }
   };
   typedef ArrayPool<RedoCacheLogPageRecord> RedoCacheLogPageRecord_pool;
-  typedef DLHashTable<RedoCacheLogPageRecord_pool, RedoCacheLogPageRecord> RedoCacheLogPageRecord_hash;
+  typedef DLHashTable<RedoCacheLogPageRecord_pool> RedoCacheLogPageRecord_hash;
   typedef DLCFifoList<RedoCacheLogPageRecord_pool> RedoCacheLogPageRecord_fifo;
 
   struct RedoPageCache
@@ -3633,7 +3633,7 @@ public:
 
   typedef Ptr<CommitAckMarker> CommitAckMarkerPtr;
   typedef ArrayPool<CommitAckMarker> CommitAckMarker_pool;
-  typedef DLHashTable<CommitAckMarker_pool, CommitAckMarker> CommitAckMarker_hash;
+  typedef DLHashTable<CommitAckMarker_pool> CommitAckMarker_hash;
 
   CommitAckMarker_pool m_commitAckMarkerPool;
   CommitAckMarker_hash m_commitAckMarkerHash;

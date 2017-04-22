@@ -1284,8 +1284,8 @@ private:
   typedef RecordPool<ArenaPool<Request> > Request_pool;
   typedef DLList<Request_pool> Request_list;
   typedef LocalDLList<Request_pool> Local_Request_list;
-  typedef DLHashTable<Request_pool, Request> Request_hash;
-  typedef DLHashTable<Request_pool, Request>::Iterator Request_iterator;
+  typedef DLHashTable<Request_pool> Request_hash;
+  typedef DLHashTable<Request_pool>::Iterator Request_iterator;
 
   ArenaAllocator m_arenaAllocator;
   Request_pool m_request_pool;

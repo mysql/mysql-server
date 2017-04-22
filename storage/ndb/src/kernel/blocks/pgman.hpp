@@ -410,7 +410,7 @@ private:
   };
 
   typedef ArrayPool<Page_entry> Page_entry_pool;
-  typedef DLCHashTable<Page_entry_pool, Page_entry> Page_hashlist;
+  typedef DLCHashTable<Page_entry_pool> Page_hashlist;
   typedef DLCFifoList<Page_entry_pool, Page_entry_stack_ptr> Page_stack;
   typedef DLCFifoList<Page_entry_pool, Page_entry_queue_ptr> Page_queue;
   typedef DLCFifoList<Page_entry_pool, Page_entry_sublist_ptr> Page_sublist;
