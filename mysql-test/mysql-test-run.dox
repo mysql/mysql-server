@@ -4921,6 +4921,30 @@
 
       Run only test cases that have <b>ndb</b> in their name.
     </li>
+
+    <li>
+      <tt>`--xml-report`=<b>file_name</b></tt>
+
+      Generate an xml file containing result of the test run and write
+      it to the file named as the option argument. It includes
+      suite-wise and overall statistics like the number of tests run,
+      number of failures, number of disabled and skipped tests along
+      with information about each individual test according to its
+      outcome.
+
+      The xml report's structure can be found below :
+
+      @verbatim
+  <testsuites ... >
+    <testsuite ... >
+       <testcase ... />
+       <testcase ... >
+           <failure ... > ... </failure>
+       </testcase>
+    </testsuite>
+  </testsuites>
+      @endverbatim
+    </li>
   </ul>
 
   @note
