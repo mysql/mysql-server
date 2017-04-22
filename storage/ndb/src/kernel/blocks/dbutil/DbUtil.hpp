@@ -476,7 +476,7 @@ public:
   typedef Ptr<LockQueueInstance> LockQueuePtr;
   typedef ArrayPool<LockQueueInstance> LockQueueInstance_pool;
   typedef KeyTable<LockQueueInstance_pool, LockQueueInstance> LockQueueInstance_keyhash;
-  typedef DLHashTable<LockQueueInstance_pool, LockQueueInstance> LockQueueInstance_hash;
+  typedef DLHashTable<LockQueueInstance_pool> LockQueueInstance_hash;
 
   LockQueueInstance_pool c_lockQueuePool;
   LockQueueInstance_keyhash c_lockQueues;
