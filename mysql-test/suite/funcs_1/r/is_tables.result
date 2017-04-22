@@ -47,8 +47,8 @@ UPDATE_TIME	timestamp	YES		NULL
 CHECK_TIME	timestamp	YES		NULL	
 TABLE_COLLATION	varchar(64)	YES		NULL	
 CHECKSUM	bigint(20) unsigned	YES		NULL	
-CREATE_OPTIONS	varbinary(256)	YES		NULL	
-TABLE_COMMENT	varbinary(256)	YES		NULL	
+CREATE_OPTIONS	varchar(256)	YES		NULL	
+TABLE_COMMENT	varchar(256)	YES		NULL	
 SHOW CREATE TABLE information_schema.TABLES;
 View	Create View	character_set_client	collation_connection
 TABLES	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `information_schema`.`TABLES` AS select `cat`.`name` AS `TABLE_CATALOG`,`sch`.`name` AS `TABLE_SCHEMA`,`tbl`.`name` AS `TABLE_NAME`,`tbl`.`type` AS `TABLE_TYPE`,if((`tbl`.`type` = 'BASE TABLE'),`tbl`.`engine`,NULL) AS `ENGINE`,if((`tbl`.`type` = 'VIEW'),NULL,10) AS `VERSION`,`tbl`.`row_format` AS `ROW_FORMAT`,`stat`.`table_rows` AS `TABLE_ROWS`,`stat`.`avg_row_length` AS `AVG_ROW_LENGTH`,`stat`.`data_length` AS `DATA_LENGTH`,`stat`.`max_data_length` AS `MAX_DATA_LENGTH`,`stat`.`index_length` AS `INDEX_LENGTH`,`stat`.`data_free` AS `DATA_FREE`,`stat`.`auto_increment` AS `AUTO_INCREMENT`,`tbl`.`created` AS `CREATE_TIME`,`stat`.`update_time` AS `UPDATE_TIME`,`stat`.`check_time` AS `CHECK_TIME`,`col`.`name` AS `TABLE_COLLATION`,`stat`.`checksum` AS `CHECKSUM`,if((`tbl`.`type` = 'VIEW'),NULL,get_dd_create_options(`tbl`.`options`,if((ifnull(`tbl`.`partition_expression`,'NOT_PART_TBL') = 'NOT_PART_TBL'),0,1))) AS `CREATE_OPTIONS`,internal_get_comment_or_error(`sch`.`name`,`tbl`.`name`,`tbl`.`type`,`tbl`.`options`,`tbl`.`comment`) AS `TABLE_COMMENT` from ((((`mysql`.`tables` `tbl` join `mysql`.`schemata` `sch` on((`tbl`.`schema_id` = `sch`.`id`))) join `mysql`.`catalogs` `cat` on((`cat`.`id` = `sch`.`catalog_id`))) left join `mysql`.`collations` `col` on((`tbl`.`collation_id` = `col`.`id`))) left join `mysql`.`table_stats` `stat` on(((`tbl`.`name` = `stat`.`table_name`) and (`sch`.`name` = `stat`.`schema_name`)))) where (can_access_table(`sch`.`name`,`tbl`.`name`,FALSE) and (`tbl`.`hidden` = 'Visible'))	utf8	utf8_general_ci
@@ -73,8 +73,8 @@ UPDATE_TIME	timestamp	YES		NULL
 CHECK_TIME	timestamp	YES		NULL	
 TABLE_COLLATION	varchar(64)	YES		NULL	
 CHECKSUM	bigint(20) unsigned	YES		NULL	
-CREATE_OPTIONS	varbinary(256)	YES		NULL	
-TABLE_COMMENT	varbinary(256)	YES		NULL	
+CREATE_OPTIONS	varchar(256)	YES		NULL	
+TABLE_COMMENT	varchar(256)	YES		NULL	
 SELECT table_catalog, table_schema, table_name
 FROM information_schema.tables WHERE table_catalog IS NULL OR table_catalog <> 'def';
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME

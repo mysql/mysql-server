@@ -2235,3 +2235,17 @@ SELECT * FROM INFORMATION_SCHEMA.SHOW_STATISTICS;
 --error ER_NO_SYSTEM_VIEW_ACCESS
 SELECT * FROM INFORMATION_SCHEMA.SHOW_STATISTICS_DYNAMIC;
 
+--echo #
+--echo # Bug#25793429 CAN'T RETURN
+--echo # INFORMATION_SCHEMA.TABLES.CREATE_OPTION IN UPPERCASE
+--echo #
+--echo # The UPPER() function fails to convert strings without the fix.
+--echo #
+CREATE TABLE t1 (a CHAR(40) NOT NULL, UNIQUE idx1(a(2)))
+  COMMENT="testing a fix" MAX_ROWS=10;
+SELECT create_options, UPPER(create_options),
+       table_comment, UPPER(table_comment)
+  FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 't1';
+SELECT privileges, UPPER(privileges)
+  FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 't1';
+DROP TABLE t1;

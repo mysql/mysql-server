@@ -46,7 +46,7 @@ COLLATION_NAME	varchar(64)	YES		NULL
 COLUMN_TYPE	mediumtext	NO		NULL	
 COLUMN_KEY	enum('','PRI','UNI','MUL')	NO		NULL	
 EXTRA	varchar(57)	YES		NULL	
-PRIVILEGES	varbinary(154)	YES		NULL	
+PRIVILEGES	varchar(154)	YES		NULL	
 COLUMN_COMMENT	text	NO		NULL	
 GENERATION_EXPRESSION	longtext	NO		NULL	
 SHOW CREATE TABLE information_schema.COLUMNS;
@@ -72,7 +72,7 @@ COLLATION_NAME	varchar(64)	YES		NULL
 COLUMN_TYPE	mediumtext	NO		NULL	
 COLUMN_KEY	enum('','PRI','UNI','MUL')	NO		NULL	
 EXTRA	varchar(57)	YES		NULL	
-PRIVILEGES	varbinary(154)	YES		NULL	
+PRIVILEGES	varchar(154)	YES		NULL	
 COLUMN_COMMENT	text	NO		NULL	
 GENERATION_EXPRESSION	longtext	NO		NULL	
 SELECT table_catalog, table_schema, table_name, column_name

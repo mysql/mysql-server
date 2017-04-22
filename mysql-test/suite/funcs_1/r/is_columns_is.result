@@ -39,7 +39,7 @@ def	information_schema	COLUMNS	COLLATION_NAME	15	NULL	YES	varchar	64	192	NULL	NU
 def	information_schema	COLUMNS	COLUMN_TYPE	16	NULL	NO	mediumtext	16777215	16777215	NULL	NULL	NULL	utf8	utf8_bin	mediumtext			select		
 def	information_schema	COLUMNS	COLUMN_KEY	17	NULL	NO	enum	3	9	NULL	NULL	NULL	utf8	utf8_bin	enum('','PRI','UNI','MUL')			select		
 def	information_schema	COLUMNS	EXTRA	18	NULL	YES	varchar	57	171	NULL	NULL	NULL	utf8	utf8_bin	varchar(57)			select		
-def	information_schema	COLUMNS	PRIVILEGES	19	NULL	YES	varbinary	154	154	NULL	NULL	NULL	NULL	NULL	varbinary(154)			select		
+def	information_schema	COLUMNS	PRIVILEGES	19	NULL	YES	varchar	154	462	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(154)			select		
 def	information_schema	COLUMNS	COLUMN_COMMENT	20	NULL	NO	text	65535	65535	NULL	NULL	NULL	utf8	utf8_bin	text			select		
 def	information_schema	COLUMNS	GENERATION_EXPRESSION	21	NULL	NO	longtext	4294967295	4294967295	NULL	NULL	NULL	utf8	utf8_bin	longtext			select		
 def	information_schema	COLUMN_PRIVILEGES	GRANTEE	1		NO	varchar	27	81	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(81)			select		
@@ -294,8 +294,8 @@ def	information_schema	TABLES	UPDATE_TIME	16	NULL	YES	timestamp	NULL	NULL	NULL	N
 def	information_schema	TABLES	CHECK_TIME	17	NULL	YES	timestamp	NULL	NULL	NULL	NULL	0	NULL	NULL	timestamp			select		
 def	information_schema	TABLES	TABLE_COLLATION	18	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select		
 def	information_schema	TABLES	CHECKSUM	19	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select		
-def	information_schema	TABLES	CREATE_OPTIONS	20	NULL	YES	varbinary	256	256	NULL	NULL	NULL	NULL	NULL	varbinary(256)			select		
-def	information_schema	TABLES	TABLE_COMMENT	21	NULL	YES	varbinary	256	256	NULL	NULL	NULL	NULL	NULL	varbinary(256)			select		
+def	information_schema	TABLES	CREATE_OPTIONS	20	NULL	YES	varchar	256	768	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(256)			select		
+def	information_schema	TABLES	TABLE_COMMENT	21	NULL	YES	varchar	256	768	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(256)			select		
 def	information_schema	TABLESPACES	TABLESPACE_NAME	1		NO	varchar	21	64	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select		
 def	information_schema	TABLESPACES	ENGINE	2		NO	varchar	21	64	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select		
 def	information_schema	TABLESPACES	TABLESPACE_TYPE	3		YES	varchar	21	64	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select		
@@ -367,7 +367,6 @@ AND table_name <> 'PROFILING' AND table_name not like 'INNODB_%' AND table_name 
 AND CHARACTER_OCTET_LENGTH / CHARACTER_MAXIMUM_LENGTH = 1
 ORDER BY CHARACTER_SET_NAME, COLLATION_NAME, COL_CML, DATA_TYPE;
 COL_CML	DATA_TYPE	CHARACTER_SET_NAME	COLLATION_NAME
-1.0000	varbinary	NULL	NULL
 1.0000	longtext	utf8	utf8_bin
 1.0000	mediumtext	utf8	utf8_bin
 1.0000	text	utf8	utf8_bin
@@ -460,7 +459,7 @@ NULL	information_schema	COLUMNS	DATETIME_PRECISION	int	NULL	NULL	NULL	NULL	int(1
 1.0000	information_schema	COLUMNS	COLUMN_TYPE	mediumtext	16777215	16777215	utf8	utf8_bin	mediumtext
 3.0000	information_schema	COLUMNS	COLUMN_KEY	enum	3	9	utf8	utf8_bin	enum('','PRI','UNI','MUL')
 3.0000	information_schema	COLUMNS	EXTRA	varchar	57	171	utf8	utf8_bin	varchar(57)
-1.0000	information_schema	COLUMNS	PRIVILEGES	varbinary	154	154	NULL	NULL	varbinary(154)
+3.0000	information_schema	COLUMNS	PRIVILEGES	varchar	154	462	utf8	utf8_general_ci	varchar(154)
 1.0000	information_schema	COLUMNS	COLUMN_COMMENT	text	65535	65535	utf8	utf8_bin	text
 1.0000	information_schema	COLUMNS	GENERATION_EXPRESSION	longtext	4294967295	4294967295	utf8	utf8_bin	longtext
 3.0000	information_schema	COLUMN_PRIVILEGES	GRANTEE	varchar	27	81	utf8	utf8_general_ci	varchar(81)
@@ -715,8 +714,8 @@ NULL	information_schema	TABLES	UPDATE_TIME	timestamp	NULL	NULL	NULL	NULL	timesta
 NULL	information_schema	TABLES	CHECK_TIME	timestamp	NULL	NULL	NULL	NULL	timestamp
 3.0000	information_schema	TABLES	TABLE_COLLATION	varchar	64	192	utf8	utf8_general_ci	varchar(64)
 NULL	information_schema	TABLES	CHECKSUM	bigint	NULL	NULL	NULL	NULL	bigint(20) unsigned
-1.0000	information_schema	TABLES	CREATE_OPTIONS	varbinary	256	256	NULL	NULL	varbinary(256)
-1.0000	information_schema	TABLES	TABLE_COMMENT	varbinary	256	256	NULL	NULL	varbinary(256)
+3.0000	information_schema	TABLES	CREATE_OPTIONS	varchar	256	768	utf8	utf8_general_ci	varchar(256)
+3.0000	information_schema	TABLES	TABLE_COMMENT	varchar	256	768	utf8	utf8_general_ci	varchar(256)
 3.0476	information_schema	TABLESPACES	TABLESPACE_NAME	varchar	21	64	utf8	utf8_general_ci	varchar(64)
 3.0476	information_schema	TABLESPACES	ENGINE	varchar	21	64	utf8	utf8_general_ci	varchar(64)
 3.0476	information_schema	TABLESPACES	TABLESPACE_TYPE	varchar	21	64	utf8	utf8_general_ci	varchar(64)
