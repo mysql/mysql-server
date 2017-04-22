@@ -299,6 +299,9 @@ bool recreate_table(THD *thd, const char *schema_name,
 String_type get_sql_type_by_field_info(THD *thd,
                                        enum_field_types field_type,
                                        uint32 field_length,
+                                       uint32 decimals,
+                                       bool maybe_null,
+                                       bool is_unsigned,
                                        const CHARSET_INFO *field_charset);
 
 /**

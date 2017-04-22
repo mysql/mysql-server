@@ -4639,6 +4639,7 @@ bool SELECT_LEX::validate_outermost_option(LEX *lex,
           OPTION_BUFFER_RESULT
           OPTION_FOUND_ROWS
           OPTION_TO_QUERY_CACHE
+          OPTION_SELECT_FOR_SHOW
   DELETE: OPTION_QUICK
           LOW_PRIORITY
   INSERT: LOW_PRIORITY
@@ -4658,7 +4659,8 @@ bool SELECT_LEX::validate_base_options(LEX *lex, ulonglong options_arg) const
                                 SELECT_BIG_RESULT |
                                 OPTION_BUFFER_RESULT |
                                 OPTION_FOUND_ROWS |
-                                OPTION_TO_QUERY_CACHE)));
+                                OPTION_TO_QUERY_CACHE |
+                                OPTION_SELECT_FOR_SHOW)));
 
   if (options_arg & SELECT_DISTINCT &&
       options_arg & SELECT_ALL)

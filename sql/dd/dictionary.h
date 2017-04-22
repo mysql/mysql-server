@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -52,15 +52,6 @@ public:
   virtual const Object_table *get_dd_table(
     const String_type &schema_name,
     const String_type &table_name) const = 0;
-
-  /**
-    Store metadata of plugin's information schema tables into
-    DD tables.
-
-    @return false - On success
-    @return true - On error
-  */
-  virtual bool install_plugin_IS_table_metadata() = 0;
 
 public:
   /////////////////////////////////////////////////////////////////////////
@@ -126,6 +117,24 @@ public:
 
   /**
     Check if given table name is a system view name.
+
+    @param schema_name              Schema name to check.
+    @param table_name               Table name to check.
+    @param[out] hidden              Pointer to boolean flag indicating
+                                    if the object is hidden.
+
+    @returns true -  If given table name is a system view.
+    @returns false - If table name is not a system view.
+  */
+  virtual bool is_system_view_name(const char *schema_name,
+                                   const char *table_name,
+                                   bool *hidden) const = 0;
+
+  /**
+    Check if given table name is a system view name.
+
+    @param schema_name              Schema name to check.
+    @param table_name               Table name to check.
 
     @returns true -  If given table name is a system view.
     @returns false - If table name is not a system view.

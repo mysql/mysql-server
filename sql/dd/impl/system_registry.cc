@@ -17,11 +17,29 @@
 
 #include <stddef.h>
 
+#include "dd/impl/system_views/character_sets.h"     // Character_sets
+#include "dd/impl/system_views/collations.h"         // Collations
+#include "dd/impl/system_views/columns.h"            // Columns
+#include "dd/impl/system_views/collation_charset_applicability.h" // Collati...
+#include "dd/impl/system_views/events.h"             // Events
+#include "dd/impl/system_views/key_column_usage.h"   // key_column_usage
+#include "dd/impl/system_views/parameters.h"         // Parameters
+#include "dd/impl/system_views/routines.h"           // Routines
+#include "dd/impl/system_views/schemata.h"           // Schemata
+#include "dd/impl/system_views/st_spatial_reference_systems.h" // St_spatial...
+#include "dd/impl/system_views/st_geometry_columns.h"// st_geometry_columns
+#include "dd/impl/system_views/statistics.h"         // Statistics
+#include "dd/impl/system_views/tables.h"             // Tables
+#include "dd/impl/system_views/table_constraints.h"  // Table_constraints
+#include "dd/impl/system_views/triggers.h"           // Triggers
+#include "dd/impl/system_views/views.h"              // Views
+
 #include "dd/impl/tables/catalogs.h"                 // Catalog
 #include "dd/impl/tables/character_sets.h"           // Character_sets
 #include "dd/impl/tables/collations.h"               // Collations
 #include "dd/impl/tables/column_type_elements.h"     // Column_type_elements
 #include "dd/impl/tables/columns.h"                  // Columns
+#include "dd/impl/tables/dd_properties.h"            // DD_properties
 #include "dd/impl/tables/events.h"                   // Events
 #include "dd/impl/tables/foreign_key_column_usage.h" // Foreign_key_column_usage
 #include "dd/impl/tables/foreign_keys.h"             // Foreign_keys
@@ -41,7 +59,6 @@
 #include "dd/impl/tables/tablespace_files.h"         // Tablespace_files
 #include "dd/impl/tables/tablespaces.h"              // Tablespaces
 #include "dd/impl/tables/triggers.h"                 // Triggers
-#include "dd/impl/tables/version.h"                  // Version
 #include "dd/impl/tables/view_routine_usage.h"       // View_routine_usage
 #include "dd/impl/tables/view_table_usage.h"         // View_table_usage
 #include "lex_string.h"
@@ -59,6 +76,20 @@ void register_table(dd::System_tables::Types type)
   dd::System_tables::instance()->add(MYSQL_SCHEMA_NAME.str,
                                      X::instance().table_name(),
                                      type, &X::instance());
+}
+
+template <typename X>
+void register_view(dd::System_views::Types type)
+{
+  DBUG_EXECUTE_IF("test_i_s_metadata_version",
+                  {
+                    if (X::view_name() == "EVENTS")
+                      return;
+                  });
+
+  dd::System_views::instance()->add(INFORMATION_SCHEMA_NAME.str,
+                                    X::instance().name(),
+                                    type, &X::instance());
 }
 }
 
@@ -91,7 +122,7 @@ void System_tables::init()
   dd::System_tables::Types second= dd::System_tables::Types::SECOND;
 
   // Order below is dictated by the foreign key constraints.
-  register_table<Version>(inert);
+  register_table<DD_properties>(inert);
 
   register_table<Character_sets>(core);
   register_table<Collations>(core);
@@ -124,34 +155,30 @@ void System_tables::init()
 
 void System_views::init()
 {
-  static const char *system_view_names[]=
-  {
-    "CHARACTER_SETS",
-    "COLLATIONS",
-    "COLLATION_CHARACTER_SET_APPLICABILITY",
-    "COLUMNS",
-    "KEY_COLUMN_USAGE",
-    "SCHEMATA",
-    "SHOW_STATISTICS",
-    "SHOW_STATISTICS_DYNAMIC",
-    "STATISTICS_BASE",
-    "STATISTICS_DYNAMIC",
-    "STATISTICS",
-    "ST_GEOMETRY_COLUMNS",
-    "ST_SPATIAL_REFERENCE_SYSTEMS",
-    "TABLE_CONSTRAINTS",
-    "TABLES",
-    "TABLES_DYNAMIC",
-    "VIEWS",
-    "TRIGGERS",
-    "ROUTINES",
-    "PARAMETERS",
-    "EVENTS",
-    nullptr
-  };
-  for (int i= 0; system_view_names[i] != NULL; ++i)
-    System_views::instance()->add(INFORMATION_SCHEMA_NAME.str,
-                                  system_view_names[i],
-                                  System_views::Types::INFORMATION_SCHEMA);
+  // Register system views with the server.
+  dd::System_views::Types is=  dd::System_views::Types::INFORMATION_SCHEMA;
+
+  register_view<dd::system_views::Character_sets>(is);
+  register_view<dd::system_views::Collations>(is);
+  register_view<dd::system_views::Collation_charset_applicability>(is);
+  register_view<dd::system_views::Columns>(is);
+  register_view<dd::system_views::Events>(is);
+  register_view<dd::system_views::Key_column_usage>(is);
+  register_view<dd::system_views::Parameters>(is);
+  register_view<dd::system_views::Routines>(is);
+  register_view<dd::system_views::Schemata>(is);
+  register_view<dd::system_views::Show_statistics>(is);
+  register_view<dd::system_views::Show_statistics_dynamic>(is);
+  register_view<dd::system_views::St_spatial_reference_systems>(is);
+  register_view<dd::system_views::St_geometry_columns>(is);
+  register_view<dd::system_views::Statistics>(is);
+  register_view<dd::system_views::Statistics_dynamic>(is);
+  register_view<dd::system_views::Table_constraints>(is);
+  register_view<dd::system_views::Tables>(is);
+  register_view<dd::system_views::Tables_dynamic>(is);
+  register_view<dd::system_views::Triggers>(is);
+  register_view<dd::system_views::Views>(is);
 }
-}
+
+} // namespace dd
+

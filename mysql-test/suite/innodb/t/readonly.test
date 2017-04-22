@@ -25,6 +25,10 @@ DROP TABLE t2;
 --echo # Bug#20578834 - INNODB READ ONLY MODE AND NON EXISTENT TMP DIR CRASHES SERVER
 --echo #
 
+--disable_query_log
+call mtr.add_suppression("Skip updating I_S metadata in InnoDB read-only mode.");
+--enable_query_log
+
 CREATE TABLE t1(a int PRIMARY KEY) ENGINE=InnoDB;
 
 INSERT INTO t1 VALUES(1);

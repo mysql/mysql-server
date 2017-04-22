@@ -4540,10 +4540,19 @@ a file name for --log-bin-index option", opt_binlog_index_name);
   */
   if (opt_initialize)
   {
-    if(!opt_help && dd::init(dd::enum_dd_init_type::DD_INITIALIZE))
+    if (!opt_help)
     {
-      sql_print_error("Data Dictionary initialization failed.");
-      unireg_abort(1);
+      if (dd::init(dd::enum_dd_init_type::DD_INITIALIZE))
+      {
+        sql_print_error("Data Dictionary initialization failed.");
+        unireg_abort(1);
+      }
+
+      if (dd::init(dd::enum_dd_init_type::DD_INITIALIZE_SYSTEM_VIEWS))
+      {
+        sql_print_error("System views initialization failed.");
+        unireg_abort(1);
+      }
     }
   }
   else
@@ -4583,20 +4592,23 @@ a file name for --log-bin-index option", opt_binlog_index_name);
   }
   dynamic_plugins_are_initialized= true;  /* Don't separate from init function */
 
-  // Store meta data of plugin schema tables into new DD
-  if (!opt_help && (opt_initialize || dd::upgrade::in_progress()) &&
-      dd::get_dictionary()->install_plugin_IS_table_metadata())
-  {
-    sql_print_error("Failed to store plugin metadata into dictionary tables.");
-    unireg_abort(1);
-  }
-
   // Populate DD tables with meta data from 5.7 in case of upgrade
   if (!opt_help && dd::upgrade::in_progress() &&
       dd::init(dd::enum_dd_init_type::DD_POPULATE_UPGRADE))
   {
     sql_print_error("Failed to Populate DD tables.");
     unireg_abort(1);
+  }
+
+  /*
+    Store server and plugin IS tables metadata into new DD.
+    This is done after all the plugins are registered.
+  */
+  if (!opt_help && !opt_initialize && !dd::upgrade::in_progress() &&
+      dd::init(dd::enum_dd_init_type::DD_UPDATE_I_S_METADATA))
+  {
+    sql_print_error("Failed to update plugin metadata in dictionary tables.");
+    unireg_abort(MYSQLD_ABORT_EXIT);
   }
 
   Session_tracker session_track_system_variables_check;

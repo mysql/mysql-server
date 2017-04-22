@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -33,11 +33,12 @@
 #include "dd/impl/system_registry.h"          // dd::System_tables
 #include "dd/impl/tables/character_sets.h"    // dd::tables::Character_sets
 #include "dd/impl/tables/collations.h"        // dd::tables::Collations
-#include "dd/impl/tables/version.h"           // dd::tables::Version
+#include "dd/impl/tables/dd_properties.h"     // dd::tables::DD_properties
 #include "dd/impl/types/plugin_table_impl.h"  // dd::Plugin_table_impl
 #include "dd/impl/types/schema_impl.h"        // dd::Schema_impl
 #include "dd/impl/types/table_impl.h"         // dd::Table_impl
 #include "dd/impl/types/tablespace_impl.h"    // dd::Table_impl
+#include "dd/info_schema/metadata.h"          // dd::info_schema::install_IS...
 #include "dd/object_id.h"
 #include "dd/properties.h"                    // dd::Properties
 #include "dd/types/column.h"                  // dd::Column
@@ -64,11 +65,10 @@
 #include "mysql/plugin.h"
 #include "mysqld.h"
 #include "mysqld_error.h"
+#include "sql_base.h"                         // close_thread_tables
 #include "sql_class.h"                        // THD
 #include "sql_error.h"
 #include "sql_list.h"
-#include "sql_plugin.h"                       // plugin_foreach
-#include "sql_plugin_ref.h"
 #include "sql_prepare.h"                      // Ed_connection
 #include "sql_profile.h"
 #include "sql_show.h"                         // get_schema_table()
@@ -90,10 +90,7 @@ using namespace dd;
 
 ///////////////////////////////////////////////////////////////////////////
 
-namespace {
-  bootstrap::enum_bootstrap_stage bootstrap_stage=
-          dd::bootstrap::BOOTSTRAP_NOT_STARTED;
-
+namespace dd {
 
 // Helper function to do rollback or commit, depending on error.
 bool end_transaction(THD *thd, bool error)
@@ -111,175 +108,16 @@ bool end_transaction(THD *thd, bool error)
   }
 
   // Close tables etc. and release MDL locks, regardless of error.
+  close_thread_tables(thd);
   thd->mdl_context.release_transactional_locks();
   return error;
 }
 
+} // end namespace dd
 
-bool store_single_schema_table_meta_data(THD *thd,
-                                         const dd::Schema *IS_schema_obj,
-                                         ST_SCHEMA_TABLE *schema_table)
-{
-  // Skip I_S tables that are hidden from users.
-  if (schema_table->hidden)
-    return false;
-
-  MDL_request db_mdl_request;
-  MDL_REQUEST_INIT(&db_mdl_request,
-                   MDL_key::SCHEMA, IS_schema_obj->name().c_str(), "",
-                   MDL_INTENTION_EXCLUSIVE,
-                   MDL_TRANSACTION);
-  if (thd->mdl_context.acquire_lock(&db_mdl_request,
-                                    thd->variables.lock_wait_timeout))
-    return true;
-
-  std::unique_ptr<dd::View> view_obj(IS_schema_obj->create_system_view(thd));
-
-  // column_type_utf8
-  const CHARSET_INFO* cs=
-    get_charset(system_charset_info->number, MYF(0));
-
-  // Set view properties
-  view_obj->set_client_collation_id(IS_schema_obj->default_collation_id());
-
-  view_obj->set_connection_collation_id(IS_schema_obj->default_collation_id());
-
-  view_obj->set_name(schema_table->table_name);
-
-  //
-  // Fill columns details
-  //
-  ST_FIELD_INFO *fields_info= schema_table->fields_info;
-  for (; fields_info->field_name; fields_info++)
-  {
-    dd::Column *col_obj= view_obj->add_column();
-
-    col_obj->set_name(fields_info->field_name);
-
-    /*
-      The 5.7 create_schema_table() creates Item_empty_string() item for
-      MYSQL_TYPE_STRING. Item_empty_string->field_type() maps to
-      MYSQL_TYPE_VARCHAR. So, we map MYSQL_TYPE_STRING to
-      MYSQL_TYPE_VARCHAR when storing metadata into DD.
-    */
-    enum_field_types ft= fields_info->field_type;
-    uint32 fl= fields_info->field_length;
-    if (fields_info->field_type == MYSQL_TYPE_STRING)
-    {
-      ft= MYSQL_TYPE_VARCHAR;
-      fl= fields_info->field_length * cs->mbmaxlen;
-    }
-
-    col_obj->set_type(dd::get_new_field_type(ft));
-
-    col_obj->set_char_length(fields_info->field_length);
-
-    col_obj->set_nullable(fields_info->field_flags & MY_I_S_MAYBE_NULL);
-
-    col_obj->set_unsigned(fields_info->field_flags & MY_I_S_UNSIGNED);
-
-    col_obj->set_zerofill(false);
-
-    // Collation ID
-    col_obj->set_collation_id(system_charset_info->number);
-
-    col_obj->set_column_type_utf8(
-               dd::get_sql_type_by_field_info(
-                 thd, ft, fl, cs));
-
-    col_obj->set_default_value_utf8(dd::String_type(STRING_WITH_LEN("")));
-  }
-
-  // Acquire MDL on the view name.
-  MDL_request mdl_request;
-  MDL_REQUEST_INIT(&mdl_request, MDL_key::TABLE,
-                   IS_schema_obj->name().c_str(), view_obj->name().c_str(),
-                   MDL_EXCLUSIVE,
-                   MDL_TRANSACTION);
-  if (thd->mdl_context.acquire_lock(&mdl_request,
-                                    thd->variables.lock_wait_timeout))
-    return true;
-
-  // Store the metadata into DD
-  if (thd->dd_client()->store(view_obj.get()))
-    return true;
-
-  return false;
-}
-
-
-/**
-  @brief
-    Store metadata of schema tables into DD.
-
-  @param THD
-
-  @param plugin_ref
-    This function is invoked in two cases,
-    1) To store schema tables of MySQL server
-       - Pass plugin_ref as nullptr in this case.
-
-    2) To store schema tables of plugins
-       - plugin_foreach() function passes proper
-         plugin_ref.
-
-  @param p_trx
-    Read/Write DD transaction.
-
-  @return
-    false on success
-    true when fails to store the metadata.
-*/
-bool store_schema_table_meta_data(THD *thd, plugin_ref plugin, void*)
-{
-  // Fetch schema ID of IS schema.
-  const dd::Schema *IS_schema_obj= nullptr;
-  if (thd->dd_client()->acquire(INFORMATION_SCHEMA_NAME.str,
-                                &IS_schema_obj))
-  {
-    return true;
-  }
-
-  if (plugin)
-  {
-    ST_SCHEMA_TABLE *schema_table= plugin_data<ST_SCHEMA_TABLE*>(plugin);
-    return store_single_schema_table_meta_data(thd,
-                                               IS_schema_obj,
-                                               schema_table);
-  }
-
-  ST_SCHEMA_TABLE *schema_tables= get_schema_table(SCH_FIRST);
-  for (; schema_tables->table_name; schema_tables++)
-  {
-    if(store_single_schema_table_meta_data(thd,
-                                           IS_schema_obj,
-                                           schema_tables))
-      return true;
-  }
-
-  return false;
-}
-
-
-/**
-  This function stores the meta data of IS tables into the DD tables.
-  Some IS tables are created as system views on DD tables,
-  for which meta data is populated automatically when the
-  view is created. This function handles the rest of the IS tables
-  that are not system views, i.e., elements in the ST_SCHEMA_TABLES
-  schema_tables[] array.
-
-  @param[in] thd      Thread context
-
-  @retval true        Error
-  @retval false       Success
-*/
-bool store_server_I_S_table_meta_data(THD *thd)
-{
-  bool error= store_schema_table_meta_data(thd, nullptr, nullptr);
-  return end_transaction(thd, error);
-}
-
+namespace {
+  bootstrap::enum_bootstrap_stage bootstrap_stage=
+          dd::bootstrap::BOOTSTRAP_NOT_STARTED;
 
 // Initialize recovery in the DDSE.
 bool DDSE_dict_recover(THD *thd,
@@ -297,7 +135,7 @@ bool DDSE_dict_recover(THD *thd,
     case, tablespace meta data is added.
   */
   if (dict_recovery_mode == DICT_RECOVERY_INITIALIZE_TABLESPACES)
-    return end_transaction(thd, error);
+    return dd::end_transaction(thd, error);
 
   return error;
 }
@@ -371,15 +209,15 @@ bool create_tables(THD *thd)
   // Iterate over DD tables, create tables.
   System_tables::Const_iterator it= System_tables::instance()->begin();
 
-  // Make sure the version table is the first element.
+  // Make sure the dd_properties table is the first element.
 #ifndef DBUG_OFF
-  const Object_table_definition *version_def=
-          dd::tables::Version::instance().table_definition(thd);
+  const Object_table_definition *dd_properties_def=
+          dd::tables::DD_properties::instance().table_definition(thd);
   DBUG_ASSERT(*it != nullptr);
   const Object_table_definition *first_def=
           (*it)->entity()->table_definition(thd);
-  DBUG_ASSERT(version_def != nullptr && first_def != nullptr &&
-          first_def == version_def);
+  DBUG_ASSERT(dd_properties_def != nullptr && first_def != nullptr &&
+          first_def == dd_properties_def);
 #endif
 
   bool error= false;
@@ -484,7 +322,7 @@ bool flush_meta_data(THD *thd)
                                   &dd_schema) ||
         thd->dd_client()->acquire(dd::String_type(MYSQL_TABLESPACE_NAME.str),
                                   &dd_tspace))
-      return end_transaction(thd, true);
+      return dd::end_transaction(thd, true);
 
     // Acquire the DD table objects.
     for (System_tables::Const_iterator it= System_tables::instance()->begin();
@@ -493,7 +331,7 @@ bool flush_meta_data(THD *thd)
       const dd::Table *dd_table= nullptr;
       if (thd->dd_client()->acquire(MYSQL_SCHEMA_NAME.str,
                                     (*it)->entity()->name(), &dd_table))
-        return end_transaction(thd, true);
+        return dd::end_transaction(thd, true);
     }
 
     /*
@@ -524,7 +362,7 @@ bool flush_meta_data(THD *thd)
     dd_schema_clone->set_id(INVALID_OBJECT_ID);
     if (dd::cache::Storage_adapter::instance()->store(thd,
           static_cast<Schema*>(dd_schema_clone.get())))
-      return end_transaction(thd, true);
+      return dd::end_transaction(thd, true);
 
     // Make sure the registry of the core DD objects is updated.
     dd::cache::Storage_adapter::instance()->core_drop(thd, dd_schema);
@@ -545,7 +383,7 @@ bool flush_meta_data(THD *thd)
       dd_tspace_clone->set_id(INVALID_OBJECT_ID);
       if (dd::cache::Storage_adapter::instance()->store(thd,
             static_cast<Tablespace*>(dd_tspace_clone.get())))
-        return end_transaction(thd, true);
+        return dd::end_transaction(thd, true);
 
       // Make sure the registry of the core DD objects is updated.
       dd::cache::Storage_adapter::instance()->core_drop(thd, dd_tspace);
@@ -563,7 +401,7 @@ bool flush_meta_data(THD *thd)
       const dd::Table *dd_table= nullptr;
       if (thd->dd_client()->acquire(MYSQL_SCHEMA_NAME.str,
                                     (*it)->entity()->name(), &dd_table))
-        return end_transaction(thd, true);
+        return dd::end_transaction(thd, true);
 
       std::unique_ptr<Table_impl> dd_table_clone(
               dynamic_cast<Table_impl*>(dd_table->clone()));
@@ -578,7 +416,7 @@ bool flush_meta_data(THD *thd)
         dd_table_clone->set_tablespace_id(dd_tspace_clone->id());
       if (dd::cache::Storage_adapter::instance()->store(thd,
             static_cast<Table*>(dd_table_clone.get())))
-        return end_transaction(thd, true);
+        return dd::end_transaction(thd, true);
 
       // No need to keep non-core dd tables in the core registry.
       (void) dd::cache::Storage_adapter::instance()->core_drop(thd, dd_table);
@@ -600,7 +438,7 @@ bool flush_meta_data(THD *thd)
     {
       const dd::Tablespace *tspace= nullptr;
       if (thd->dd_client()->acquire((*it)->key().second, &tspace))
-        return end_transaction(thd, true);
+        return dd::end_transaction(thd, true);
 
       std::unique_ptr<Tablespace_impl> tspace_clone(
               dynamic_cast<Tablespace_impl*>(tspace->clone()));
@@ -609,7 +447,7 @@ bool flush_meta_data(THD *thd)
       tspace_clone->set_id(INVALID_OBJECT_ID);
       if (dd::cache::Storage_adapter::instance()->store(thd,
             static_cast<Tablespace*>(tspace_clone.get())))
-        return end_transaction(thd, true);
+        return dd::end_transaction(thd, true);
 
       // Only the DD tablespace is needed to handle cache misses, so we can
       // just drop the predefined tablespaces from the core registry now that
@@ -623,7 +461,7 @@ bool flush_meta_data(THD *thd)
   dd::cache::Shared_dictionary_cache::instance()->reset(true);
   bootstrap_stage= bootstrap::BOOTSTRAP_SYNCED;
 
-  return end_transaction(thd, false);
+  return dd::end_transaction(thd, false);
 }
 
 
@@ -646,7 +484,7 @@ bool sync_meta_data(THD *thd)
                                   &dd_schema) ||
         thd->dd_client()->acquire(dd::String_type(MYSQL_TABLESPACE_NAME.str),
                                   &dd_tspace))
-      return end_transaction(thd, true);
+      return dd::end_transaction(thd, true);
 
     // Acquire the DD table objects.
     for (System_tables::Const_iterator it= System_tables::instance()->begin();
@@ -655,7 +493,7 @@ bool sync_meta_data(THD *thd)
       const dd::Table *dd_table= nullptr;
       if (thd->dd_client()->acquire(MYSQL_SCHEMA_NAME.str,
                                     (*it)->entity()->name(), &dd_table))
-        return end_transaction(thd, true);
+        return dd::end_transaction(thd, true);
     }
 
     /*
@@ -673,7 +511,7 @@ bool sync_meta_data(THD *thd)
     dd_schema->update_name_key(&schema_key);
     if (dd::cache::Storage_adapter::instance()->core_sync(thd, schema_key,
                                                           dd_schema))
-      return end_transaction(thd, true);
+      return dd::end_transaction(thd, true);
 
     if (dd_tspace)
     {
@@ -681,7 +519,7 @@ bool sync_meta_data(THD *thd)
       dd_tspace->update_name_key(&tspace_key);
       if (dd::cache::Storage_adapter::instance()->core_sync(thd, tspace_key,
                                                             dd_tspace))
-        return end_transaction(thd, true);
+        return dd::end_transaction(thd, true);
     }
 
     // Get the synced DD schema object id. Needed for the DD table name keys.
@@ -696,7 +534,7 @@ bool sync_meta_data(THD *thd)
       const dd::Table *dd_table= nullptr;
       if (thd->dd_client()->acquire(MYSQL_SCHEMA_NAME.str,
                                     (*it)->entity()->name(), &dd_table))
-        return end_transaction(thd, true);
+        return dd::end_transaction(thd, true);
 
       Abstract_table::update_name_key(&table_key, dd_schema_id,
                                       dd_table->name());
@@ -704,7 +542,7 @@ bool sync_meta_data(THD *thd)
       if ((*it)->property() == System_tables::Types::CORE)
         if (dd::cache::Storage_adapter::instance()->core_sync(thd, table_key,
                                                               dd_table))
-          return end_transaction(thd, true);
+          return dd::end_transaction(thd, true);
     }
 
     /*
@@ -721,7 +559,7 @@ bool sync_meta_data(THD *thd)
     {
       const Tablespace *tspace= nullptr;
       if (thd->dd_client()->acquire((*it)->entity()->get_name(), &tspace))
-        return end_transaction(thd, true);
+        return dd::end_transaction(thd, true);
 
       dd::cache::Storage_adapter::instance()->core_drop(thd, tspace);
     }
@@ -763,7 +601,7 @@ bool populate_tables(THD *thd)
     const Object_table_definition *table_def=
             (*it)->entity()->table_definition(thd);
     if (table_def == nullptr)
-      return end_transaction(thd, true);
+      return dd::end_transaction(thd, true);
 
     std::vector<dd::String_type> stmt= table_def->dml_populate_statements();
     for (std::vector<dd::String_type>::iterator stmt_it= stmt.begin();
@@ -771,13 +609,13 @@ bool populate_tables(THD *thd)
       error= execute_query(thd, *stmt_it);
 
     // Commit the statement based population.
-    error= end_transaction(thd, error);
+    error= dd::end_transaction(thd, error);
 
     // If no error, call the low level table population method, and commit it.
     if (!error)
     {
       error= (*it)->entity()->populate(thd);
-      error= end_transaction(thd, error);
+      error= dd::end_transaction(thd, error);
     }
   }
   bootstrap_stage= bootstrap::BOOTSTRAP_POPULATED;
@@ -813,9 +651,9 @@ bool add_cyclic_foreign_keys(THD *thd)
                         dd::Abstract_table::HT_HIDDEN_SYSTEM:
                         dd::Abstract_table::HT_VISIBLE);
       if (thd->dd_client()->update(table))
-        return end_transaction(thd, true);
+        return dd::end_transaction(thd, true);
     }
-    end_transaction(thd, false);
+    dd::end_transaction(thd, false);
   }
   return false;
 }
@@ -860,7 +698,7 @@ bool repopulate_charsets_and_collations(THD *thd)
     We must commit the re-population before executing a new query, which
     expects the transaction to be empty, and finally, turn FK checks back on.
   */
-  error|= end_transaction(thd, error);
+  error|= dd::end_transaction(thd, error);
   error|= execute_query(thd, "SET FOREIGN_KEY_CHECKS= 1");
   bootstrap_stage= bootstrap::BOOTSTRAP_POPULATED;
 
@@ -885,7 +723,7 @@ bool verify_core_objects_present(THD *thd)
   {
     sql_print_error("Unable to start server. The data dictionary schema "
                     "'%s' does not exist.", MYSQL_SCHEMA_NAME.str);
-    return end_transaction(thd, true);
+    return dd::end_transaction(thd, true);
   }
   DBUG_ASSERT(cache::Storage_adapter::instance()->
           core_size<Schema>() == 1);
@@ -914,7 +752,7 @@ bool verify_core_objects_present(THD *thd)
     {
       sql_print_error("Unable to start server. The data dictionary table "
                       "'%s' does not exist.", (*it)->entity()->name().c_str());
-      return end_transaction(thd, true);
+      return dd::end_transaction(thd, true);
     }
   }
   DBUG_ASSERT(cache::Storage_adapter::instance()->
@@ -937,7 +775,7 @@ bool verify_core_objects_present(THD *thd)
   {
     sql_print_error("Unable to start server. The data dictionary tablespace "
                     "'%s' does not exist.", MYSQL_TABLESPACE_NAME.str);
-    return end_transaction(thd, true);
+    return dd::end_transaction(thd, true);
   }
   */
 
@@ -946,7 +784,7 @@ bool verify_core_objects_present(THD *thd)
 
   bootstrap_stage= bootstrap::BOOTSTRAP_FINISHED;
 
-  return end_transaction(thd, false);
+  return dd::end_transaction(thd, false);
 }
 } // namespace anonymoous
 
@@ -1071,7 +909,6 @@ bool initialize_dictionary(THD *thd, bool is_dd_upgrade,
                         d->get_target_dd_version()) ||
       populate_tables(thd) ||
       add_cyclic_foreign_keys(thd) ||
-      store_server_I_S_table_meta_data(thd) ||
       execute_query(thd, "SET FOREIGN_KEY_CHECKS= 1") ||
       verify_core_objects_present(thd))
     return true;
@@ -1147,26 +984,6 @@ bool restart(THD *thd)
   sql_print_information("Found data dictionary with version %d",
                         d->get_actual_dd_version(thd));
   return false;
-}
-
-
-bool store_plugin_IS_table_metadata(THD *thd)
-{
-  /*
-    Set tx_read_only to false to allow installing DD tables even
-    if the server is started with --transaction-read-only=true.
-  */
-  thd->variables.tx_read_only= false;
-  thd->tx_read_only= false;
-
-  Disable_autocommit_guard autocommit_guard(thd);
-
-  cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
-
-  bool  error= plugin_foreach(thd, store_schema_table_meta_data,
-                              MYSQL_INFORMATION_SCHEMA_PLUGIN, nullptr);
-
-  return end_transaction(thd, error);
 }
 
 

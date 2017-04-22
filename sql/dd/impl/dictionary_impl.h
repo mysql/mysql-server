@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -84,10 +84,16 @@ public:
 
   virtual uint get_actual_dd_version(THD *thd);
 
+  virtual uint get_actual_dd_version(THD *thd, bool *exists);
+
+  static uint get_target_I_S_version();
+
+  virtual uint get_actual_I_S_version(THD *thd);
+
+  uint set_I_S_version(THD *thd, uint version);
+
   virtual const Object_table *get_dd_table(
     const String_type &schema_name, const String_type &table_name) const;
-
-  virtual bool install_plugin_IS_table_metadata();
 
 public:
   virtual bool is_dd_schema_name(const String_type &schema_name) const
@@ -107,7 +113,15 @@ public:
                                           const char *table_name) const;
 
   virtual bool is_system_view_name(const char *schema_name,
-                                   const char *table_name) const;
+                                   const char *table_name,
+                                   bool *hidden) const;
+
+  virtual bool is_system_view_name(const char *schema_name,
+                                   const char *table_name) const
+  {
+    bool hidden;
+    return is_system_view_name(schema_name, table_name, &hidden);
+  }
 
 public:
   static Object_id default_catalog_id()

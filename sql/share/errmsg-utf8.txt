@@ -7883,7 +7883,6 @@ ER_INVALID_OPTION_KEY_VALUE_PAIR 22023
 
 ER_INVALID_OPTION_START_CHARACTER 22023
   eng "The options argument in function %.192s starts with the invalid character '%c'."
-
 ER_INVALID_OPTION_END_CHARACTER 22023
   eng "The options argument in function %.192s ends with the invalid character '%c'."
 
@@ -7910,7 +7909,6 @@ ER_DUPLICATE_TABLE_LOCK
 
 ER_BINLOG_UNSAFE_SKIP_LOCKED
   eng "Statement is unsafe because it uses SKIP LOCKED. The set of inserted values is non-deterministic."
-
 ER_BINLOG_UNSAFE_NOWAIT
   eng "Statement is unsafe because it uses NOWAIT. Whether the command will succeed or fail is not deterministic."
 
@@ -7991,6 +7989,9 @@ ER_NOT_IMPLEMENTED_FOR_GEOGRAPHIC_SRS 22S00
 
 ER_ILLEGAL_PRIVILEGE_LEVEL
   eng "Illegal privilege level specified for %s"
+
+ER_NO_SYSTEM_VIEW_ACCESS
+  eng "Access to system view INFORMATION_SCHEMA.'%.64s' is rejected."
 
 #
 #  End of 8.0 error messages.

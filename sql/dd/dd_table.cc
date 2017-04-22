@@ -2468,15 +2468,21 @@ bool recreate_table(THD *thd, const char *schema_name,
   @param[in]   thd             The thread handle.
   @param[in]   field_type      Column type.
   @param[in]   field_length    Column length.
+  @param[in]   decimals        Decimals.
+  @param[in]   maybe_null      Column is null.
+  @param[in]   is_unsigned     Column is unsigned.
   @param[in]   field_charset   Column charset.
 
   @return dd::String_type representing column type.
 */
 
 dd::String_type get_sql_type_by_field_info(THD *thd,
-                                       enum_field_types field_type,
-                                       uint32 field_length,
-                                       const CHARSET_INFO *field_charset)
+                                           enum_field_types field_type,
+                                           uint32 field_length,
+                                           uint32 decimals,
+                                           bool maybe_null,
+                                           bool is_unsigned,
+                                           const CHARSET_INFO *field_charset)
 {
   DBUG_ENTER("get_sql_type_by_field_info");
 
@@ -2490,7 +2496,7 @@ dd::String_type get_sql_type_by_field_info(THD *thd,
   Create_field field;
   // Initializing field using field_type and field_length.
   field.init_for_tmp_table(field_type, field_length,
-                           0, false, false, 0);
+                           decimals, maybe_null, is_unsigned, 0);
   field.charset= field_charset;
 
   DBUG_RETURN(get_sql_type_by_create_field(&table, &field));

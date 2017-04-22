@@ -1,5 +1,4 @@
-/*
-   Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2017 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -27,6 +26,10 @@
 #include "auth_acls.h"
 #include "auth_common.h"       // check_table_access
 #include "current_thd.h"
+#include "dd/dd_schema.h"                // dd::Schema_MDL_locker
+#include "dd/cache/dictionary_client.h"  // dd::cache::Dictionary_client
+#include "dd/info_schema/metadata.h"     // dd::info_schema::store_dynamic_p...
+#include "dd/string_type.h"    // dd::String_type
 #include "debug_sync.h"        // DEBUG_SYNC
 #include "derror.h"            // ER_THD
 #include "error_handler.h"     // No_such_table_error_handler
@@ -408,6 +411,7 @@ mysql_mutex_t LOCK_plugin_delete;
   We are always manipulating ref count, so a rwlock here is unneccessary.
 */
 mysql_mutex_t LOCK_plugin;
+mysql_mutex_t LOCK_plugin_install;
 static Prealloced_array<st_plugin_dl*, 16> *plugin_dl_array;
 static Prealloced_array<st_plugin_int*, 16> *plugin_array;
 static HASH plugin_hash[MYSQL_MAX_PLUGIN_TYPE_NUM];
@@ -1514,11 +1518,13 @@ static inline void convert_underscore_to_dash(char *str, size_t len)
 #ifdef HAVE_PSI_INTERFACE
 static PSI_mutex_key key_LOCK_plugin;
 static PSI_mutex_key key_LOCK_plugin_delete;
+static PSI_mutex_key key_LOCK_plugin_install;
 
 static PSI_mutex_info all_plugin_mutexes[]=
 {
   { &key_LOCK_plugin, "LOCK_plugin", PSI_FLAG_GLOBAL, 0},
-  { &key_LOCK_plugin_delete, "LOCK_plugin_delete", PSI_FLAG_GLOBAL, 0}
+  { &key_LOCK_plugin_delete, "LOCK_plugin_delete", PSI_FLAG_GLOBAL, 0},
+  { &key_LOCK_plugin_install, "LOCK_plugin_install", PSI_FLAG_GLOBAL, 0}
 };
 
 
@@ -1574,6 +1580,7 @@ static bool plugin_init_internals()
 
   mysql_mutex_init(key_LOCK_plugin, &LOCK_plugin, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_LOCK_plugin_delete, &LOCK_plugin_delete, MY_MUTEX_INIT_FAST);
+  mysql_mutex_init(key_LOCK_plugin_install, &LOCK_plugin_install, MY_MUTEX_INIT_FAST);
 
   plugin_dl_array= new (std::nothrow)
     Prealloced_array<st_plugin_dl*, 16>(key_memory_mysql_plugin_dl);
@@ -2219,6 +2226,27 @@ void plugin_shutdown(void)
 }
 
 
+// Helper function to do rollback or commit, depending on error.
+static bool end_transaction(THD *thd, bool error)
+{
+  if (error)
+  {
+    // Rollback the statement before we can rollback the real transaction.
+    trans_rollback_stmt(thd);
+    trans_rollback(thd);
+  }
+  else if (trans_commit_stmt(thd) || trans_commit(thd))
+  {
+    error= true;
+    trans_rollback(thd);
+  }
+
+  // Close tables regardless of error.
+  close_thread_tables(thd);
+  return error;
+}
+
+
 static bool mysql_install_plugin(THD *thd, const LEX_STRING *name,
                                  const LEX_STRING *dl)
 {
@@ -2229,8 +2257,12 @@ static bool mysql_install_plugin(THD *thd, const LEX_STRING *name,
   char **argv= orig_argv;
   st_plugin_int *tmp;
   LEX_CSTRING name_cstr= {name->str, name->length};
+  bool store_infoschema_metadata= false;
+  dd::Schema_MDL_locker mdl_handler(thd);
 
   DBUG_ENTER("mysql_install_plugin");
+
+  Disable_autocommit_guard autocommit_guard(thd);
 
   tables.init_one_table("mysql", 5, "plugin", 6, "plugin", TL_WRITE);
 
@@ -2265,6 +2297,8 @@ static bool mysql_install_plugin(THD *thd, const LEX_STRING *name,
   mysql_audit_acquire_plugins(thd, MYSQL_AUDIT_GENERAL_CLASS,
                               MYSQL_AUDIT_GENERAL_ALL);
 
+  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+  mysql_mutex_lock(&LOCK_plugin_install);
   mysql_mutex_lock(&LOCK_plugin);
   DEBUG_SYNC(thd, "acquired_LOCK_plugin");
   mysql_rwlock_wrlock(&LOCK_system_variables_hash);
@@ -2274,6 +2308,7 @@ static bool mysql_install_plugin(THD *thd, const LEX_STRING *name,
   {
     mysql_rwlock_unlock(&LOCK_system_variables_hash);
     report_error(REPORT_TO_USER, ER_PLUGIN_IS_NOT_LOADED, name->str);
+    mysql_mutex_unlock(&LOCK_plugin);
     goto err;
   }
   error= plugin_add(thd->mem_root, name, dl, &argc, argv, REPORT_TO_USER);
@@ -2282,8 +2317,12 @@ static bool mysql_install_plugin(THD *thd, const LEX_STRING *name,
   mysql_rwlock_unlock(&LOCK_system_variables_hash);
 
   if (error || !(tmp= plugin_find_internal(name_cstr, MYSQL_ANY_PLUGIN)))
+  {
+    mysql_mutex_unlock(&LOCK_plugin);
     goto err;
+  }
 
+  error= false;
   if (tmp->state == PLUGIN_IS_DISABLED)
   {
     push_warning_printf(thd, Sql_condition::SL_WARNING,
@@ -2295,49 +2334,79 @@ static bool mysql_install_plugin(THD *thd, const LEX_STRING *name,
   {
     if (plugin_initialize(tmp))
     {
-      mysql_mutex_unlock(&LOCK_plugin);
       my_error(ER_CANT_INITIALIZE_UDF, MYF(0), name->str,
                "Plugin initialization function failed.");
-      goto deinit;
+      error= true;
     }
   }
+
+  // Check if we need to store I_S plugin metadata in DD.
+  store_infoschema_metadata=
+    (tmp->plugin->type == MYSQL_INFORMATION_SCHEMA_PLUGIN &&
+     tmp->state != PLUGIN_IS_DISABLED);
   mysql_mutex_unlock(&LOCK_plugin);
 
+  // Acquire MDL lock if we are storing metadata in DD.
+  if (store_infoschema_metadata)
   {
-    /*
-      We do not replicate the INSTALL PLUGIN statement. Disable binlogging
-      of the insert into the plugin table, so that it is not replicated in
-      row based mode.
-    */
+    if (!mdl_handler.ensure_locked(INFORMATION_SCHEMA_NAME.str))
+    {
+      MDL_request mdl_request;
+      MDL_REQUEST_INIT(&mdl_request, MDL_key::TABLE,
+                       INFORMATION_SCHEMA_NAME.str, tmp->name.str,
+                       MDL_EXCLUSIVE,
+                       MDL_TRANSACTION);
+      if (thd->mdl_context.acquire_lock(&mdl_request,
+                                        thd->variables.lock_wait_timeout))
+        error= true;
+    }
+    else
+      error= true;
+  }
+
+  /*
+    We do not replicate the INSTALL PLUGIN statement. Disable binlogging
+    of the insert into the plugin table, so that it is not replicated in
+    row based mode.
+  */
+  if (!error)
+  {
     Disable_binlog_guard binlog_guard(thd);
     table->use_all_columns();
     restore_record(table, s->default_values);
     table->field[0]->store(name->str, name->length, system_charset_info);
     table->field[1]->store(dl->str, dl->length, files_charset_info);
     error= table->file->ha_write_row(table->record[0]);
+    if (error)
+    {
+      table->file->print_error(error, MYF(0));
+    }
+    else
+    {
+      mysql_mutex_lock(&LOCK_plugin);
+      /*
+        Store plugin I_S table metadata into DD tables. The
+        tables are closed before the function returns.
+       */
+      error= thd->transaction_rollback_request;
+      if (!error && store_infoschema_metadata)
+        error= dd::info_schema::store_dynamic_plugin_I_S_metadata(thd, tmp);
+      mysql_mutex_unlock(&LOCK_plugin);
+    }
   }
+
   if (error)
   {
-    table->file->print_error(error, MYF(0));
-    trans_rollback_stmt(thd);
-    goto deinit;
+    mysql_mutex_lock(&LOCK_plugin);
+    tmp->state= PLUGIN_IS_DELETED;
+    reap_needed= true;
+    reap_plugins();
+    mysql_mutex_unlock(&LOCK_plugin);
   }
-  else
-    trans_commit_stmt(thd);
 
-  close_mysql_tables(thd);
-  DBUG_RETURN(false);
-deinit:
-  mysql_mutex_lock(&LOCK_plugin);
-  tmp->state= PLUGIN_IS_DELETED;
-  reap_needed= true;
-  reap_plugins();
 err:
-  mysql_mutex_unlock(&LOCK_plugin);
-  trans_rollback_stmt(thd);
-  close_mysql_tables(thd);
-
-  DBUG_RETURN(true);
+  mysql_mutex_unlock(&LOCK_plugin_install);
+  DBUG_RETURN(end_transaction(thd, error));
 }
 
 
@@ -2348,6 +2417,10 @@ static bool mysql_uninstall_plugin(THD *thd, const LEX_STRING *name)
   st_plugin_int *plugin;
   LEX_CSTRING name_cstr={name->str, name->length};
   bool error= true;
+  int rc= 0;
+  bool remove_IS_metadata_from_dd= false;
+  dd::Schema_MDL_locker mdl_handler(thd);
+  dd::String_type orig_plugin_name;
 
   DBUG_ENTER("mysql_uninstall_plugin");
 
@@ -2355,19 +2428,26 @@ static bool mysql_uninstall_plugin(THD *thd, const LEX_STRING *name)
 
   if (!opt_noacl &&
       check_table_access(thd, DELETE_ACL, &tables, false, 1, false))
+  {
+    DBUG_ASSERT(thd->is_error());
     DBUG_RETURN(true);
+  }
 
+  Disable_autocommit_guard autocommit_guard(thd);
+  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
   /* need to open before acquiring LOCK_plugin or it will deadlock */
   if (! (table= open_ltable(thd, &tables, TL_WRITE, MYSQL_LOCK_IGNORE_TIMEOUT)))
+  {
+    DBUG_ASSERT(thd->is_error());
     DBUG_RETURN(true);
+  }
 
+  mysql_mutex_lock(&LOCK_plugin_install);
   if (!table->key_info)
   {
     my_error(ER_TABLE_CORRUPT, MYF(0), table->s->db.str,
              table->s->table_name.str);
-    trans_rollback_stmt(thd);
-    close_thread_tables(thd);
-    DBUG_RETURN(true);
+    goto err;
   }
 
   /*
@@ -2472,6 +2552,13 @@ static bool mysql_uninstall_plugin(THD *thd, const LEX_STRING *name)
                  WARN_PLUGIN_BUSY, ER_THD(thd, WARN_PLUGIN_BUSY));
   else
     reap_needed= true;
+
+  // Check if we need to remove I_S plugin metadata from DD.
+  remove_IS_metadata_from_dd=
+    (plugin->plugin->type == MYSQL_INFORMATION_SCHEMA_PLUGIN &&
+     plugin->load_option != PLUGIN_OFF);
+
+  orig_plugin_name= dd::String_type(plugin->name.str, plugin->name.length);
   reap_plugins();
   mysql_mutex_unlock(&LOCK_plugin);
 
@@ -2481,37 +2568,50 @@ static bool mysql_uninstall_plugin(THD *thd, const LEX_STRING *name)
   key_copy(user_key, table->record[0], table->key_info,
            table->key_info->key_length);
 
-  if (! table->file->ha_index_read_idx_map(table->record[0], 0, user_key,
-                                           HA_WHOLE_KEY, HA_READ_KEY_EXACT))
+  if ((rc=table->file->ha_index_read_idx_map(table->record[0], 0,
+                                             user_key,
+                                             HA_WHOLE_KEY,
+                                             HA_READ_KEY_EXACT)) == 0)
   {
     /*
       We do not replicate the UNINSTALL PLUGIN statement. Disable binlogging
       of the delete from the plugin table, so that it is not replicated in
       row based mode.
     */
+    DBUG_ASSERT(!thd->is_error());
     Disable_binlog_guard binlog_guard(thd);
-    error= table->file->ha_delete_row(table->record[0]);
-    if (error)
-      table->file->print_error(error, MYF(0));
+    rc= table->file->ha_delete_row(table->record[0]);
+    if (rc)
+    {
+      table->file->print_error(rc, MYF(0));
+      DBUG_ASSERT(thd->is_error());
+    }
+    else
+      error= false;
   }
-  else
+  else if (rc != HA_ERR_KEY_NOT_FOUND && rc != HA_ERR_END_OF_FILE)
   {
+    table->file->print_error(rc, MYF(0));
+    DBUG_ASSERT(thd->is_error());
+  }
+  else
     error= false;
+
+  if (!error &&
+      !thd->transaction_rollback_request &&
+      remove_IS_metadata_from_dd)
+  {
+    error= dd::info_schema::remove_I_S_view_metadata(
+             thd, dd::String_type(orig_plugin_name.c_str(),
+                                  orig_plugin_name.length()));
+    if (error)
+      DBUG_ASSERT(thd->is_error());
   }
 
-  if (error)
-    trans_rollback_stmt(thd);
-  else
-    trans_commit_stmt(thd);
-
-  close_mysql_tables(thd);
-
-  DBUG_RETURN(error);
 err:
-  trans_rollback_stmt(thd);
-  close_mysql_tables(thd);
-
-  DBUG_RETURN(true);
+  mysql_mutex_unlock(&LOCK_plugin_install);
+  DBUG_RETURN(end_transaction(thd, error ||
+                              thd->transaction_rollback_request));
 }
 
 bool plugin_foreach_with_mask(THD *thd, plugin_foreach_func **funcs,

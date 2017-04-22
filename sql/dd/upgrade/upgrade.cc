@@ -34,6 +34,7 @@
 #include "dd/impl/dictionary_impl.h"          // dd::Dictionary_impl
 #include "dd/impl/sdi.h"                      // sdi::store()
 #include "dd/impl/system_registry.h"          // dd::System_tables
+#include "dd/info_schema/metadata.h"          // dd::info_schema::install_IS...
 #include "error_handler.h"                    // Dummy_error_handler
 #include "log.h"                              // sql_print_warning
 #include "my_inttypes.h"
@@ -1167,7 +1168,9 @@ bool do_pre_checks_and_initialize_dd(THD *thd)
   Key_length_error_handler key_error_handler;
   thd->push_internal_handler(&key_error_handler);
 
-  if (bootstrap::initialize_dictionary(thd, in_progress(), d))
+  if (bootstrap::initialize_dictionary(thd, in_progress(), d) ||
+      dd::info_schema::create_system_views(thd) ||
+      dd::info_schema::store_server_I_S_metadata(thd))
   {
     thd->pop_internal_handler();
     terminate(thd);

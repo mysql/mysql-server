@@ -25,6 +25,7 @@
 
 #include "dd/string_type.h"                    // dd::String_type
 #include "dd/types/object_table.h"
+#include "dd/types/system_view.h"
 #include "my_dbug.h"
 #include "mysqld_error.h"                      // ER_NO_SYSTEM_TABLE_...
 
@@ -476,9 +477,6 @@ public:
 class System_views
 {
 public:
-  // Dummy class acting as meta data placeholder in liu of WL#6599.
-  class System_view
-  { };
 
   // Classification of system views.
   enum class Types
@@ -500,7 +498,8 @@ private:
   // The actual registry is referred and delegated to rather than
   // being inherited from.
   typedef Entity_registry<std::pair<const String_type, const String_type>,
-          System_view, Types, type_name, true> System_view_registry_type;
+                          const system_views::System_view,
+                          Types, type_name, true> System_view_registry_type;
   System_view_registry_type m_registry;
 
 public:
@@ -514,15 +513,14 @@ public:
 
   // Add a new system view by delegation to the wrapped registry.
   void add(const String_type &schema_name, const String_type &view_name,
-           Types type)
+           Types type, const system_views::System_view *view)
   {
-    m_registry.add(schema_name, view_name, type,
-                   new (std::nothrow) System_view());
+    m_registry.add(schema_name, view_name, type, view);
   }
 
   // Find a system view by delegation to the wrapped registry.
-  const System_view *find(const String_type &schema_name,
-                          const String_type &view_name) const
+  const system_views::System_view *find(const String_type &schema_name,
+                                        const String_type &view_name) const
   { return m_registry.find_entity(schema_name, view_name); }
 
   Const_iterator begin() const

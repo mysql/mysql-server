@@ -5,6 +5,7 @@ call mtr.add_suppression("InnoDB: Failed to find tablespace for table .* in the 
 
 --disable_query_log
 call mtr.add_suppression("Skip re-populating collations and character sets tables in InnoDB read-only mode.");
+call mtr.add_suppression("Skip updating I_S metadata in InnoDB read-only mode.");
 --enable_query_log
 
 CREATE TABLE t1(

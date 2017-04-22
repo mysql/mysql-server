@@ -65,7 +65,7 @@ remove_file $MYSQLD_LOG;
 --force-rmdir $DDIR
 
 --echo #
---echo # 2. Try restart after deleting the version tablespace.
+--echo # 2. Try restart after deleting the mysql dd tablespace.
 --echo # -----------------------------------------------------
 
 --echo # 2.1 First start the server with --initialize.

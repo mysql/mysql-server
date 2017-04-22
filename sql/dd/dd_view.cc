@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -661,9 +661,17 @@ bool update_view(THD *thd, dd::View *new_view, TABLE_LIST *view)
 bool create_view(THD *thd, const dd::Schema &schema, TABLE_LIST *view)
 {
   // Create dd::View object.
+  bool hidden_system_view= false;
   std::unique_ptr<dd::View> view_obj;
-  if (dd::get_dictionary()->is_system_view_name(view->db, view->table_name))
+  if (dd::get_dictionary()->is_system_view_name(view->db, view->table_name,
+                                                &hidden_system_view))
+  {
     view_obj.reset(schema.create_system_view(thd));
+
+    // Mark the internal system views as hidden from users.
+    if (hidden_system_view)
+      view_obj->set_hidden(dd::Abstract_table::HT_HIDDEN_SYSTEM);
+  }
   else
     view_obj.reset(schema.create_view(thd));
 

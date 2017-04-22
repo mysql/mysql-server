@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2017 Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -98,12 +98,30 @@ SET(DD_SOURCES
   dd/impl/raw/raw_record_set.cc
   dd/impl/raw/raw_table.cc
 
+  dd/impl/system_views/character_sets.cc
+  dd/impl/system_views/collations.cc
+  dd/impl/system_views/collation_charset_applicability.cc
+  dd/impl/system_views/columns.cc
+  dd/impl/system_views/events.cc
+  dd/impl/system_views/key_column_usage.cc
+  dd/impl/system_views/parameters.cc
+  dd/impl/system_views/routines.cc
+  dd/impl/system_views/schemata.cc
+  dd/impl/system_views/statistics.cc
+  dd/impl/system_views/st_spatial_reference_systems.cc
+  dd/impl/system_views/st_geometry_columns.cc
+  dd/impl/system_views/tables.cc
+  dd/impl/system_views/table_constraints.cc
+  dd/impl/system_views/triggers.cc
+  dd/impl/system_views/views.cc
+
   dd/impl/tables/table_stats.cc
   dd/impl/tables/index_stats.cc
   dd/impl/tables/character_sets.cc
   dd/impl/tables/collations.cc
   dd/impl/tables/columns.cc
   dd/impl/tables/column_type_elements.cc
+  dd/impl/tables/dd_properties.cc
   dd/impl/tables/events.cc
   dd/impl/tables/foreign_key_column_usage.cc
   dd/impl/tables/foreign_keys.cc
@@ -121,7 +139,6 @@ SET(DD_SOURCES
   dd/impl/tables/tablespace_files.cc
   dd/impl/tables/tablespaces.cc
   dd/impl/tables/triggers.cc
-  dd/impl/tables/version.cc
   dd/impl/tables/view_routine_usage.cc
   dd/impl/tables/view_table_usage.cc
 
@@ -158,6 +175,7 @@ SET(DD_SOURCES
   dd/impl/types/view_table_impl.cc
   dd/impl/types/weak_object_impl.cc
 
+  dd/info_schema/metadata.cc
   dd/info_schema/show.cc
   dd/info_schema/show_query_builder.cc
   dd/info_schema/stats.cc

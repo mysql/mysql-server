@@ -1231,7 +1231,8 @@ update_hidden:
   else if (blob_count ||                        // 1
            (thd->variables.big_tables &&        // 2
             !(select_options & SELECT_SMALL_RESULT)) ||
-           (param->allow_scan_from_position && using_unique_constraint)) // 3
+           (param->allow_scan_from_position && using_unique_constraint) || //3
+           opt_initialize) // 4
   {
     /*
       1: MEMORY doesn't support BLOBs
@@ -1251,6 +1252,9 @@ update_hidden:
       ha_index_read (hp_rkey) which modifies another member of the cursor:
       HEAP_INFO::current_record, which rnd_pos cannot restore. In that case,
       rnd_pos will work, but rnd_next won't. Thus we switch to InnoDB.
+      4: During bootstrap, the heap engine is not available, so we force using
+      InnoDB. This is especially hit when creating a I_S system view
+      definition with a UNION in it.
 
       Except for special conditions, tmp table engine will be chosen by user.
     */

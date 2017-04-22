@@ -295,6 +295,19 @@ bool initialize_dictionary(THD *thd, bool is_dd_upgrade,
 
 
 }
-}
 
+/**
+  Helper function to do rollback or commit, depending on
+  error. Also closes tables and releases transactional
+  locks, regardless of error.
+
+  @param thd   Thread
+  @param error If true, the transaction will be rolledback.
+               otherwise, it is committed.
+
+  @returns false on success, otherwise true.
+*/
+bool end_transaction(THD *thd, bool error);
+
+}
 #endif // DD__BOOTSTRAPPER_INCLUDED

@@ -928,6 +928,8 @@ void init_update_queries(void)
                                                CF_POTENTIAL_ATOMIC_DDL;
   sql_command_flags[SQLCOM_IMPORT]|=           CF_NEEDS_AUTOCOMMIT_OFF |
                                                CF_POTENTIAL_ATOMIC_DDL;
+  sql_command_flags[SQLCOM_INSTALL_PLUGIN]|=   CF_NEEDS_AUTOCOMMIT_OFF;
+  sql_command_flags[SQLCOM_UNINSTALL_PLUGIN]|= CF_NEEDS_AUTOCOMMIT_OFF;
 }
 
 bool sqlcom_can_generate_row_events(enum enum_sql_command command)
@@ -5972,8 +5974,10 @@ TABLE_LIST *SELECT_LEX::add_table_to_list(THD *thd,
                        const_cast<char*>(ptr->db),
                        const_cast<char*>(ptr->table_name));
 
+    bool hidden_system_view= false;
     ptr->is_system_view=
-      dd::get_dictionary()->is_system_view_name(ptr->db, ptr->table_name);
+      dd::get_dictionary()->is_system_view_name(ptr->db, ptr->table_name,
+                                                &hidden_system_view);
 
     ST_SCHEMA_TABLE *schema_table;
     if (ptr->updating &&
@@ -5990,14 +5994,27 @@ TABLE_LIST *SELECT_LEX::add_table_to_list(THD *thd,
     }
     if (ptr->is_system_view)
     {
-      /**
-        Pick the right IS system view definition based on session
-        variables information_schema_stats.
-      */
-      if (thd->lex->sql_command != SQLCOM_CREATE_VIEW &&
-          thd->variables.information_schema_stats ==
-          static_cast<ulong>(dd::info_schema::enum_stats::LATEST))
+      if (thd->lex->sql_command != SQLCOM_CREATE_VIEW)
       {
+        /*
+          Stop users from using hidden system views, unless
+          it is used by SHOW commands.
+        */
+        if (thd->lex->select_lex && hidden_system_view &&
+            !(thd->lex->select_lex->active_options() &
+              OPTION_SELECT_FOR_SHOW))
+        {
+          my_error(ER_NO_SYSTEM_VIEW_ACCESS, MYF(0), ptr->table_name);
+          DBUG_RETURN(0);
+        }
+
+        /*
+          Pick the right IS system view definition based on session
+          variable information_schema_stats.
+        */
+        if (thd->variables.information_schema_stats ==
+            static_cast<ulong>(dd::info_schema::enum_stats::LATEST))
+        {
           if(!my_strcasecmp(system_charset_info, ptr->table_name, "TABLES"))
           {
             ptr->table_name= thd->mem_strdup("TABLES_DYNAMIC");
@@ -6012,6 +6029,7 @@ TABLE_LIST *SELECT_LEX::add_table_to_list(THD *thd,
           {
             ptr->table_name= thd->mem_strdup("SHOW_STATISTICS_DYNAMIC");
           }
+        }
       }
     }
     else
