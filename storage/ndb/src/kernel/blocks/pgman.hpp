@@ -264,7 +264,7 @@ private:
     Uint32 m_file_no;
     Uint32 nextPool;
   };
-  typedef RecordPool<File_entry, RWPool<File_entry> > File_entry_pool;
+  typedef RecordPool<RWPool<File_entry> > File_entry_pool;
   File_entry_pool m_file_entry_pool;
 
   struct Page_request {
@@ -295,7 +295,7 @@ private:
     Uint32 m_magic;
   };
 
-  typedef RecordPool<Page_request, WOPool<Page_request> > Page_request_pool;
+  typedef RecordPool<WOPool<Page_request> > Page_request_pool;
   typedef SLFifoList<Page_request, Page_request_pool> Page_request_list;
   typedef LocalSLFifoList<Page_request, Page_request_pool> Local_page_request_list;
   

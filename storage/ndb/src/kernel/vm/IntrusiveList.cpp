@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -417,7 +417,7 @@ main(int argc, char **argv)
   pool.setSize(10 * scale);
 #else
   Pool_context pc = test_context(1 * scale);
-  RecordPool<T, RWPool<T> > pool;
+  RecordPool<RWPool<T> > pool;
   pool.init(1, pc);
 #endif
 

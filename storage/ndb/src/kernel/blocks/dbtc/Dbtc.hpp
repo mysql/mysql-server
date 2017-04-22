@@ -718,7 +718,7 @@ public:
     }
   };
 
-  typedef RecordPool<TcFKData, RWPool<TcFKData> > FK_pool;
+  typedef RecordPool<RWPool<TcFKData> > FK_pool;
   typedef KeyTable<FK_pool, TcFKData> FK_hash;
 
   FK_pool c_fk_pool;
@@ -1253,7 +1253,7 @@ public:
   };
 
   typedef Ptr<ScanFragLocationRec> ScanFragLocationPtr;
-  typedef RecordPool<ScanFragLocationRec, RWPool<ScanFragLocationRec> > ScanFragLocation_pool;
+  typedef RecordPool<RWPool<ScanFragLocationRec> > ScanFragLocation_pool;
   typedef SLFifoList<ScanFragLocationRec, ScanFragLocation_pool> ScanFragLocation_list;
   typedef LocalSLFifoList<ScanFragLocationRec, ScanFragLocation_pool> Local_ScanFragLocation_list;
 
