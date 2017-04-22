@@ -608,7 +608,7 @@ public:
   };
   typedef Ptr<ReplicaRecord> ReplicaRecordPtr;
   typedef ArrayPool<ReplicaRecord> ReplicaRecord_pool;
-  typedef DLFifoList<ReplicaRecord, ReplicaRecord_pool> ReplicaRecord_fifo;
+  typedef DLFifoList<ReplicaRecord_pool> ReplicaRecord_fifo;
 
   ReplicaRecord_pool c_replicaRecordPool;
   ReplicaRecord_fifo c_queued_lcp_frag_rep;
@@ -898,8 +898,8 @@ public:
   };
   typedef Ptr<TakeOverRecord> TakeOverRecordPtr;
   typedef ArrayPool<TakeOverRecord> TakeOverRecord_pool;
-  typedef DLList<TakeOverRecord, TakeOverRecord_pool> TakeOverRecord_list;
-  typedef SLFifoList<TakeOverRecord, TakeOverRecord_pool> TakeOverRecord_fifo;
+  typedef DLList<TakeOverRecord_pool> TakeOverRecord_list;
+  typedef SLFifoList<TakeOverRecord_pool> TakeOverRecord_fifo;
 
 
   virtual bool getParam(const char * param, Uint32 * retVal) { 
@@ -2540,7 +2540,7 @@ private:
   };
   typedef Ptr<WaitGCPProxyRecord> WaitGCPProxyPtr;
   typedef ArrayPool<WaitGCPProxyRecord> WaitGCPProxyRecord_pool;
-  typedef DLList<WaitGCPProxyRecord, WaitGCPProxyRecord_pool> WaitGCPProxyRecord_list;
+  typedef DLList<WaitGCPProxyRecord_pool> WaitGCPProxyRecord_list;
   /**
    * Wait GCP (master)
    */
@@ -2565,7 +2565,7 @@ private:
    * Pool/list of WaitGCPMasterRecord record
    */
   WaitGCPMasterRecord_pool waitGCPMasterPool;
-  typedef DLList<WaitGCPMasterRecord, WaitGCPMasterRecord_pool> WaitGCPList;
+  typedef DLList<WaitGCPMasterRecord_pool> WaitGCPList;
   WaitGCPList c_waitGCPMasterList;
   WaitGCPList c_waitEpochMasterList;
 

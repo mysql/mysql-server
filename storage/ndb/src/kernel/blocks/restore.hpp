@@ -170,7 +170,7 @@ private:
   };
   typedef Ptr<File> FilePtr;
   typedef ArrayPool<File> File_pool;
-  typedef DLList<File, File_pool> File_list;
+  typedef DLList<File_pool> File_list;
   typedef KeyTable<File_pool, File> File_hash;
 
   /* Methods to handle UPGRADE from old LCP format to new LCP format. */

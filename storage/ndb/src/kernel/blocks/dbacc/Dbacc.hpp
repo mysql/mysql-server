@@ -329,8 +329,8 @@ struct Page32
 
 typedef Ptr<Page32> Page32Ptr;
 typedef ArrayPool<Page32> Page32_pool;
-typedef DLCList<Page32, Page32_pool> Page32_list;
-typedef LocalDLCList<Page32, Page32_pool> LocalPage32_list;
+typedef DLCList<Page32_pool> Page32_list;
+typedef LocalDLCList<Page32_pool> LocalPage32_list;
 
   class Page32Lists {
     Page32_list::Head lists[16];
@@ -358,6 +358,7 @@ public:
 class Page8_pool
 {
 public:
+  typedef Page8 Type;
   explicit Page8_pool(Page32_pool& pool): m_page_pool(pool) { }
   void getPtr(Ptr<Page8>& page) const;
   void getPtrForce(Ptr<Page8>& page) const;
@@ -365,10 +366,10 @@ private:
   Page32_pool& m_page_pool;
 };
 
-typedef SLCFifoList<Page8,Page8_pool,Page8,Page8SLinkMethods> Page8List;
-typedef LocalSLCFifoList<Page8,Page8_pool,Page8,Page8SLinkMethods> LocalPage8List;
-typedef DLCFifoList<Page8,Page8_pool,Page8,ContainerPageLinkMethods> ContainerPageList;
-typedef LocalDLCFifoList<Page8,Page8_pool,Page8,ContainerPageLinkMethods> LocalContainerPageList;
+typedef SLCFifoList<Page8_pool,Page8,Page8SLinkMethods> Page8List;
+typedef LocalSLCFifoList<Page8_pool,Page8,Page8SLinkMethods> LocalPage8List;
+typedef DLCFifoList<Page8_pool,Page8,ContainerPageLinkMethods> ContainerPageList;
+typedef LocalDLCFifoList<Page8_pool,Page8,ContainerPageLinkMethods> LocalContainerPageList;
 
 /* --------------------------------------------------------------------------------- */
 /* FRAGMENTREC. ALL INFORMATION ABOUT FRAMENT AND HASH TABLE IS SAVED IN FRAGMENT    */

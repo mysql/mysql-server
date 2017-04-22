@@ -357,10 +357,10 @@ typedef Ptr<Fragoperrec> FragoperrecPtr;
   typedef Tup_page Page;
   typedef Ptr<Page> PagePtr;
   typedef ArrayPool<Page> Page_pool;
-  typedef DLList<Page, Page_pool> Page_list;
-  typedef LocalDLList<Page, Page_pool> Local_Page_list;
-  typedef DLFifoList<Page, Page_pool> Page_fifo;
-  typedef LocalDLFifoList<Page, Page_pool> Local_Page_fifo;
+  typedef DLList<Page_pool> Page_list;
+  typedef LocalDLList<Page_pool> Local_Page_list;
+  typedef DLFifoList<Page_pool> Page_fifo;
+  typedef LocalDLFifoList<Page_pool> Local_Page_fifo;
 
   // Scan position
   struct ScanPos {
@@ -404,8 +404,8 @@ typedef Ptr<Fragoperrec> FragoperrecPtr;
   };
   typedef Ptr<ScanLock> ScanLockPtr;
   typedef ArrayPool<ScanLock> ScanLock_pool;
-  typedef DLFifoList<ScanLock, ScanLock_pool> ScanLock_fifo;
-  typedef LocalDLFifoList<ScanLock, ScanLock_pool> Local_ScanLock_fifo;
+  typedef DLFifoList<ScanLock_pool> ScanLock_fifo;
+  typedef LocalDLFifoList<ScanLock_pool> Local_ScanLock_fifo;
 
   ScanLock_pool c_scanLockPool;
 
@@ -481,8 +481,8 @@ typedef Ptr<Fragoperrec> FragoperrecPtr;
   };
   typedef Ptr<ScanOp> ScanOpPtr;
   typedef ArrayPool<ScanOp> ScanOp_pool;
-  typedef DLList<ScanOp, ScanOp_pool> ScanOp_list;
-  typedef LocalDLList<ScanOp, ScanOp_pool> Local_ScanOp_list;
+  typedef DLList<ScanOp_pool> ScanOp_list;
+  typedef LocalDLList<ScanOp_pool> Local_ScanOp_list;
   ScanOp_pool c_scanOpPool;
 
   void scanReply(Signal*, ScanOpPtr scanPtr);
@@ -517,8 +517,8 @@ typedef Ptr<Fragoperrec> FragoperrecPtr;
   }; // 32 bytes
   
   typedef RecordPool<WOPool<Page_request> > Page_request_pool;
-  typedef DLFifoList<Page_request, Page_request_pool> Page_request_list;
-  typedef LocalDLFifoList<Page_request, Page_request_pool> Local_page_request_list;
+  typedef DLFifoList<Page_request_pool> Page_request_list;
+  typedef LocalDLFifoList<Page_request_pool> Local_page_request_list;
 
   STATIC_CONST( EXTENT_SEARCH_MATRIX_COLS = 4 ); // Guarantee size
   STATIC_CONST( EXTENT_SEARCH_MATRIX_ROWS = 5 ); // Total size
@@ -557,11 +557,11 @@ typedef Ptr<Fragoperrec> FragoperrecPtr;
   }; // 40 bytes
 
   typedef RecordPool<RWPool<Extent_info> > Extent_info_pool;
-  typedef DLList<Extent_info, Extent_info_pool> Extent_info_list;
-  typedef LocalDLList<Extent_info, Extent_info_pool> Local_extent_info_list;
+  typedef DLList<Extent_info_pool> Extent_info_list;
+  typedef LocalDLList<Extent_info_pool> Local_extent_info_list;
   typedef DLHashTable<Extent_info_pool, Extent_info> Extent_info_hash;
-  typedef SLList<Extent_info, Extent_info_pool, Extent_list_t> Fragment_extent_list;
-  typedef LocalSLList<Extent_info, Extent_info_pool, Extent_list_t> Local_fragment_extent_list;
+  typedef SLList<Extent_info_pool, Extent_list_t> Fragment_extent_list;
+  typedef LocalSLList<Extent_info_pool, Extent_list_t> Local_fragment_extent_list;
   struct Tablerec;
   struct Disk_alloc_info 
   {
@@ -945,7 +945,7 @@ struct TupTriggerData {
 
 typedef Ptr<TupTriggerData> TriggerPtr;
 typedef ArrayPool<TupTriggerData> TupTriggerData_pool;
-typedef DLList<TupTriggerData, TupTriggerData_pool> TupTriggerData_list;
+typedef DLList<TupTriggerData_pool> TupTriggerData_list;
 
 /**
  * Pool of trigger data record
@@ -1381,7 +1381,7 @@ typedef Ptr<HostBuffer> HostBufferPtr;
   };
   typedef Ptr<BuildIndexRec> BuildIndexPtr;
   typedef ArrayPool<BuildIndexRec> BuildIndexRec_pool;
-  typedef DLList<BuildIndexRec, BuildIndexRec_pool> BuildIndexRec_list;
+  typedef DLList<BuildIndexRec_pool> BuildIndexRec_list;
   BuildIndexRec_pool c_buildIndexPool;
   BuildIndexRec_list c_buildIndexList;
   Uint32 c_noOfBuildIndexRec;
