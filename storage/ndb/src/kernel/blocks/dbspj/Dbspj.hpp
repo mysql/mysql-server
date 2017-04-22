@@ -702,7 +702,7 @@ public:
     };
   };
 
-  typedef RecordPool<ScanFragHandle, ArenaPool<ScanFragHandle> > ScanFragHandle_pool;
+  typedef RecordPool<ArenaPool<ScanFragHandle> > ScanFragHandle_pool;
   typedef SLFifoList<ScanFragHandle, ScanFragHandle_pool> ScanFragHandle_list;
   typedef LocalSLFifoList<ScanFragHandle, ScanFragHandle_pool> Local_ScanFragHandle_list;
 
@@ -1071,7 +1071,7 @@ public:
 
   static const Ptr<TreeNode> NullTreeNodePtr;
 
-  typedef RecordPool<TreeNode, ArenaPool<TreeNode> > TreeNode_pool;
+  typedef RecordPool<ArenaPool<TreeNode> > TreeNode_pool;
   typedef DLFifoList<TreeNode, TreeNode_pool> TreeNode_list;
   typedef LocalDLFifoList<TreeNode, TreeNode_pool> Local_TreeNode_list;
 
@@ -1281,7 +1281,7 @@ private:
 
   } c_Counters;
 
-  typedef RecordPool<Request, ArenaPool<Request> > Request_pool;
+  typedef RecordPool<ArenaPool<Request> > Request_pool;
   typedef DLList<Request, Request_pool> Request_list;
   typedef LocalDLList<Request, Request_pool> Local_Request_list;
   typedef DLHashTable<Request_pool, Request> Request_hash;
