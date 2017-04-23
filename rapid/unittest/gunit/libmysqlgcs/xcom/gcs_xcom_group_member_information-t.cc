@@ -168,7 +168,13 @@ TEST_F(GcsUUIDTest, TestGcsUUID)
     Try to check that if we decode the buffer objects will have the
     same value. Note, howerver, that the parameters will make the
     operation fail.
+
+
+    We are using the machine clock as UUID and nodes are created
+    one after the other and the UUIDs may be equal. So we let the
+    time pass by for just one second.
   */
+  My_xp_util::sleep_seconds(1);
   Gcs_xcom_uuid uuid_2= Gcs_xcom_uuid::create_uuid();
   ASSERT_FALSE(uuid_2.decode(static_cast<uchar *>(NULL), size));
 
@@ -268,6 +274,12 @@ TEST_F(GcsNodeInformationTest, TestGcsNodeInformation)
   */
   ASSERT_EQ(node_5.get_node_no(), 1);
   ASSERT_TRUE(node_5.get_member_uuid().actual_value == uuid_5.actual_value);
+  /*
+    We are using the machine clock as UUID and nodes are created
+    one after the other and the UUIDs may be equal. So we let the
+    time pass by for just one second.
+  */
+  My_xp_util::sleep_seconds(1);
   node_5.regenerate_member_uuid();
   ASSERT_TRUE(node_5.get_member_uuid().actual_value != uuid_5.actual_value);
 }
@@ -466,6 +478,15 @@ TEST_F(GcsNodesTest, TestGcsNodesEncoding)
   node_2.set_node_no(2);
   nodes.add_node(node_2);
 
+  /*
+    Enconding the list of nodes in a format that can be used
+    by XCOM and checking if the encode method is producing the
+    expected result:
+
+    length   -> Has the number of addresses and uuids.
+    addrs[n] -> Pointer to the member identifier as string.
+    uuids[n] -> data.data_len and data.data_val.
+  */
   const Gcs_xcom_node_information *ret= NULL;
   const Gcs_xcom_node_information *ret_1= NULL;
   const Gcs_xcom_node_information *ret_2= NULL;
@@ -477,17 +498,6 @@ TEST_F(GcsNodesTest, TestGcsNodesEncoding)
   char **addrs= NULL;
   blob *uuids= NULL;
 
-  /*
-    Enconding the list of nodes in a format that can be used
-    by XCOM and checking if the encode method is producing the
-    expected result:
-
-    length   -> Has the number of addresses and uuids.
-    addrs[n] -> Pointer to the member identifier as string.
-    uuids[n] -> data.data_len and data.data_val.
-  */
-  ret= nodes.get_node(node_1.get_member_id());
-  const_cast<Gcs_xcom_node_information *>(ret)->regenerate_member_uuid();
   nodes.encode(&length, &addrs, &uuids);
 
   ASSERT_EQ(length, 2);
