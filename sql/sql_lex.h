@@ -2098,6 +2098,11 @@ public:
     */
     BINLOG_STMT_UNSAFE_FULLTEXT_PLUGIN,
 
+    /**
+      XA transactions and statements.
+    */
+    BINLOG_STMT_UNSAFE_XA,
+
     /* The last element of this enumeration type. */
     BINLOG_STMT_UNSAFE_COUNT
   };
