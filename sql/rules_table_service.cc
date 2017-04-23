@@ -83,7 +83,7 @@ Cursor::Cursor(THD *mysql_thd) :
 
   m_table_list->updating= true;
 
-  if (open_and_lock_tables(m_thd, m_table_list, 0))
+  if (open_and_lock_tables(m_thd, m_table_list, MYSQL_LOCK_IGNORE_GLOBAL_READ_ONLY))
     return; // Error
 
   TABLE *table= m_table_list->table;
