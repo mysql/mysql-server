@@ -10476,6 +10476,11 @@ int THD::decide_logging_format(TABLE_LIST *tables)
     else if (multi_access_engine && flags_access_some_set & HA_HAS_OWN_BINLOGGING)
       lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_MULTIPLE_ENGINES_AND_SELF_LOGGING_ENGINE);
 
+    /* XA is unsafe for statements */
+    if (is_write &&
+        !get_transaction()->xid_state()->has_state(XID_STATE::XA_NOTR))
+      lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_XA);
+
     /* both statement-only and row-only engines involved */
     if ((flags_write_all_set & (HA_BINLOG_STMT_CAPABLE | HA_BINLOG_ROW_CAPABLE)) == 0)
     {
