@@ -8871,6 +8871,35 @@ ha_innobase::commit_inplace_alter_table_impl(
 	}
 
 	trx_start_for_ddl(trx, TRX_DICT_OP_INDEX);
+
+	/* Generate the temporary name for old table, and acquire mdl
+	lock on it. */
+	THD*            thd = current_thd;
+	for (inplace_alter_handler_ctx** pctx = ctx_array;
+	     *pctx && !fail; pctx++) {
+		ha_innobase_inplace_ctx*	ctx
+			= static_cast<ha_innobase_inplace_ctx*>(*pctx);
+
+		if (ctx->need_rebuild()) {
+			char            db_buf[NAME_LEN + 1];
+			char            tbl_buf[NAME_LEN + 1];
+			MDL_ticket*	mdl_ticket= NULL;
+
+			ctx->tmp_name = dict_mem_create_temporary_tablename(
+				ctx->heap, ctx->new_table->name.m_name,
+				ctx->new_table->id);
+
+			/* Acquire mdl lock on the temporary table name. */
+			dd_parse_tbl_name(ctx->tmp_name, db_buf,
+					  tbl_buf, nullptr);
+
+			if (dd::acquire_exclusive_table_mdl(thd, db_buf,
+				tbl_buf, false, &mdl_ticket)) {
+				DBUG_RETURN(true);
+			}
+		}
+	}
+
 	/* Latch the InnoDB data dictionary exclusively so that no deadlocks
 	or lock waits can happen in it during the data dictionary operation. */
 	row_mysql_lock_data_dictionary(trx);
@@ -8918,10 +8947,6 @@ ha_innobase::commit_inplace_alter_table_impl(
 			ha_alter_info, ctx, altered_table, table);
 
 		if (ctx->need_rebuild()) {
-			ctx->tmp_name = dict_mem_create_temporary_tablename(
-				ctx->heap, ctx->new_table->name.m_name,
-				ctx->new_table->id);
-
 			fail = commit_try_rebuild(
 				ha_alter_info, ctx, altered_table, table,
 				trx, table_share->table_name.str);
