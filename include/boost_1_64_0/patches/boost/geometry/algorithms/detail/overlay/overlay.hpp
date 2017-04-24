@@ -3,10 +3,11 @@
 // Copyright (c) 2007-2015 Barend Gehrels, Amsterdam, the Netherlands.
 // Copyright (c) 2013-2015 Adam Wulkiewicz, Lodz, Poland
 
-// This file was modified by Oracle on 2015.
-// Modifications copyright (c) 2015, Oracle and/or its affiliates.
+// This file was modified by Oracle on 2015, 2017.
+// Modifications copyright (c) 2015-2017, Oracle and/or its affiliates.
 
 // Contributed and/or modified by Menelaos Karavelas, on behalf of Oracle
+// Contributed and/or modified by Adam Wulkiewicz, on behalf of Oracle
 
 // Use, modification and distribution is subject to the Boost Software License,
 // Version 1.0. (See accompanying file LICENSE_1_0.txt or copy at
@@ -184,11 +185,12 @@ template
 class overlay
 {
 private:
-    template <typename RobustPolicy, typename OutputIterator, typename Strategy, typename Visitor>    static inline OutputIterator do_overlay(
+    template <typename RobustPolicy, typename OutputIterator, typename Strategy, typename Visitor>
+    static inline OutputIterator do_overlay(
                 Geometry1 const& geometry1, Geometry2 const& geometry2,
                 RobustPolicy const& robust_policy,
                 OutputIterator out,
-                Strategy const& ,
+                Strategy const& strategy,
                 Visitor& visitor)
     {
         bool const is_empty1 = geometry::is_empty(geometry1);
@@ -237,7 +239,7 @@ std::cout << "get turns" << std::endl;
             <
                 Reverse1, Reverse2,
                 detail::overlay::assign_null_policy
-            >(geometry1, geometry2, robust_policy, turns, policy);
+            >(geometry1, geometry2, strategy, robust_policy, turns, policy);
 
         visitor.visit_turns(1, turns);
 
@@ -266,6 +268,7 @@ std::cout << "traverse" << std::endl;
         traverse<Reverse1, Reverse2, Geometry1, Geometry2, OverlayType>::apply
                 (
                     geometry1, geometry2,
+                    strategy,
                     robust_policy,
                     turns, rings,
                     clusters,
@@ -286,7 +289,7 @@ std::cout << "traverse" << std::endl;
                 selected_ring_properties);
 
         // split the rings into simple rings
-        split_rings<OverlayType>::apply(rings, robust_policy);
+        split_rings<OverlayType>::apply(rings, strategy, robust_policy);
 
         // Add rings created during traversal
         {
@@ -334,11 +337,13 @@ public:
         Geometry1 modified_geometry1;
         bool modified1 = insert_touch_interior_turns(geometry1,
                                                      modified_geometry1,
+                                                     strategy,
                                                      robust_policy);
 
         Geometry2 modified_geometry2;
         bool modified2 = insert_touch_interior_turns(geometry2,
                                                      modified_geometry2,
+                                                     strategy,
                                                      robust_policy);
 
         overlay_null_visitor visitor;

@@ -312,9 +312,10 @@ struct insert_maa_turns<MultiPolygon, multi_polygon_tag>
 
 // returns true if the input geometry has been modified (in which case
 // the modified geometry is stored in geometry_out), false otherwise
-template <typename GeometryIn, typename GeometryOut, typename RobustPolicy>
+template <typename GeometryIn, typename GeometryOut, typename IntersectionStrategy, typename RobustPolicy>
 inline bool insert_touch_interior_turns(GeometryIn const& geometry_in,
                                         GeometryOut& geometry_out,
+                                        IntersectionStrategy const& intersection_strategy,
                                         RobustPolicy const& robust_policy)
 {
     typedef turn_info
@@ -335,7 +336,7 @@ inline bool insert_touch_interior_turns(GeometryIn const& geometry_in,
     geometry::self_turns
         <
             get_turn_info<assign_null_policy>
-        >(geometry_in, robust_policy, turns, interrupt_policy);
+        >(geometry_in, intersection_strategy, robust_policy, turns, interrupt_policy);
 
     // select touch interior turns
     typedef std::set<turn_type, maa_turn_less<turn_type> > maa_turn_set;

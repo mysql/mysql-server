@@ -156,15 +156,16 @@ public:
 template <overlay_type OverlayType, typename Ring, typename RobustPolicy>
 struct split_ring
 {
-    template <typename RingCollection>
+    template <typename RingCollection, typename IntersectionStrategy>
     static inline void apply(Ring const& ring,
                              RingCollection& collection,
+                             IntersectionStrategy const& intersection_strategy,
                              RobustPolicy const& robust_policy)
     {
         split_ring
             <
                 overlay_union, Ring, RobustPolicy
-            >::apply(ring, collection, robust_policy);
+            >::apply(ring, collection, intersection_strategy, robust_policy);
     }
 };
 
@@ -257,23 +258,26 @@ class split_ring<overlay_union, Ring, RobustPolicy>
         }
     };
 
-    template <typename InterruptPolicy>
+    template <typename IntersectionStrategy, typename InterruptPolicy>
     static inline void get_self_turns(Ring const& ring,
                                       turns_container_type& turns,
+                                      IntersectionStrategy const& intersection_strategy,
                                       RobustPolicy const& robust_policy,
                                       InterruptPolicy const& policy)
     {  
         geometry::self_turns
             <
                 get_turn_info<assign_null_policy>
-            >(ring, robust_policy, turns, policy);
+            >(ring, intersection_strategy, robust_policy, turns, policy);
     }
 
+    template <typename IntersectionStrategy>
     static inline void get_self_turns(Ring const& ring,
                                       turns_container_type& turns,
+                                      IntersectionStrategy const& intersection_strategy,
                                       RobustPolicy const& robust_policy)
     {
-        get_self_turns(ring, turns, robust_policy, no_interrupt_policy());
+        get_self_turns(ring, turns, intersection_strategy, robust_policy, no_interrupt_policy());
     }
 
     template <typename MAA_Turns, typename RingOut>
@@ -370,9 +374,10 @@ class split_ring<overlay_union, Ring, RobustPolicy>
     }
 
 public:
-    template <typename RingCollection>
+    template <typename RingCollection, typename IntersectionStrategy>
     static inline void apply(Ring const& ring,
                              RingCollection& collection,
+                             IntersectionStrategy const& intersection_strategy,
                              RobustPolicy const& robust_policy)
     {
         typedef std::set<turn_type, maa_turn_less<turn_type> > maa_turn_set;
@@ -384,7 +389,7 @@ public:
 
         // compute the ring's self turns
         turns_container_type turns;
-        get_self_turns(ring, turns, robust_policy);
+        get_self_turns(ring, turns, intersection_strategy, robust_policy);
 
         // collect the ring's m:u/u and m:i/i turns (the latter can
         // appear when we perform an intersection and the intersection
@@ -428,8 +433,9 @@ public:
 template <overlay_type OverlayType>
 struct split_rings
 {
-    template <typename RingCollection, typename RobustPolicy>
+    template <typename RingCollection, typename IntersectionStrategy, typename RobustPolicy>
     static inline void apply(RingCollection& collection,
+                             IntersectionStrategy const& intersection_strategy,
                              RobustPolicy const& robust_policy)
     {
         typedef typename boost::range_iterator
@@ -447,7 +453,7 @@ struct split_rings
                     OverlayType,
                     typename boost::range_value<RingCollection>::type,
                     RobustPolicy
-                >::apply(*rit, new_collection, robust_policy);
+                >::apply(*rit, new_collection, intersection_strategy, robust_policy);
         }
         collection.swap(new_collection);
     }
@@ -458,8 +464,9 @@ struct split_rings
 template <>
 struct split_rings<overlay_union>
 {
-    template <typename RingCollection, typename RobustPolicy>
+    template <typename RingCollection, typename IntersectionStrategy, typename RobustPolicy>
     static inline void apply(RingCollection& collection,
+                             IntersectionStrategy const& intersection_strategy,
                              RobustPolicy const& robust_policy)
     {
         typedef typename boost::range_iterator
@@ -477,7 +484,7 @@ struct split_rings<overlay_union>
                     overlay_union,
                     typename boost::range_value<RingCollection>::type,
                     RobustPolicy
-                >::apply(*rit, new_collection, robust_policy);
+                >::apply(*rit, new_collection, intersection_strategy, robust_policy);
         }
         collection.swap(new_collection);
     }
