@@ -12,7 +12,6 @@ Warnings:
 Warning	1296	Got error 4009 'Cluster Failure' from NDB. Could not acquire global schema lock
 CREATE TABLE t1(a int not null primary key);
 Warnings:
-Warning	1296	Got error 4009 'Cluster Failure' from NDB
 Warning	1296	Got error 4009 'Cluster Failure' from NDB. Could not acquire global schema lock
 Warning	1296	Got error 4009 'Cluster Failure' from NDB
 RENAME TABLE t1 TO t2;
@@ -20,7 +19,6 @@ Warnings:
 Warning	1296	Got error 4009 'Cluster Failure' from NDB. Could not acquire global schema lock
 CREATE TABLE t3 LIKE t2;
 Warnings:
-Warning	1296	Got error 4009 'Cluster Failure' from NDB
 Warning	1296	Got error 4009 'Cluster Failure' from NDB. Could not acquire global schema lock
 Warning	1296	Got error 4009 'Cluster Failure' from NDB
 ALTER TABLE t3 ADD COLUMN b int default NULL;
@@ -33,7 +31,6 @@ Warnings:
 Warning	1296	Got error 4009 'Cluster Failure' from NDB. Could not acquire global schema lock
 CREATE TABLE t4 AS SELECT * FROM t2;
 Warnings:
-Warning	1296	Got error 4009 'Cluster Failure' from NDB
 Warning	1296	Got error 4009 'Cluster Failure' from NDB. Could not acquire global schema lock
 Warning	1296	Got error 4009 'Cluster Failure' from NDB
 DROP TABLE t2;

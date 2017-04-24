@@ -13514,7 +13514,6 @@ int ndbcluster_discover(handlerton*, THD* thd,
     // to the caller.
     DBUG_PRINT("error", ("Got unexpected error when trying to open table "
                          "from NDB, error %u", err.code));
-    DBUG_ASSERT(false);
     DBUG_RETURN(1);
   }
 
