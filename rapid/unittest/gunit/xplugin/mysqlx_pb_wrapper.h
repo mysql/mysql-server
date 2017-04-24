@@ -18,8 +18,10 @@
 
 #include <cstddef>
 
+#include <initializer_list>
 #include <map>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "ngs_common/protocol_protobuf.h"
@@ -37,7 +39,7 @@ class Identifier : public Mysqlx::Expr::Identifier {
   Identifier(const std::string &name = "", const std::string &schema_name = "");
 };
 
-using Document_path_item =::Mysqlx::Expr::DocumentPathItem;
+using Document_path_item = ::Mysqlx::Expr::DocumentPathItem;
 
 class Document_path
     : public ::google::protobuf::RepeatedPtrField<Document_path_item> {
@@ -162,23 +164,23 @@ class Expr : public Mysqlx::Expr::Expr {
 
   template <typename T>
   Expr(T value) {
-    Expr::initialize(*this, value);
+    Expr::initialize(this, value);
   }
 
-  static void initialize(Mysqlx::Expr::Expr &expr, const Scalar &value);
-  static void initialize(Mysqlx::Expr::Expr &expr, Operator *oper);
-  static void initialize(Mysqlx::Expr::Expr &expr, const Operator &oper);
-  static void initialize(Mysqlx::Expr::Expr &expr, const Identifier &ident);
-  static void initialize(Mysqlx::Expr::Expr &expr, FunctionCall *func);
-  static void initialize(Mysqlx::Expr::Expr &expr, const FunctionCall &func);
-  static void initialize(Mysqlx::Expr::Expr &expr, ColumnIdentifier *id);
-  static void initialize(Mysqlx::Expr::Expr &expr, const ColumnIdentifier &id);
-  static void initialize(Mysqlx::Expr::Expr &expr, Object *obj);
-  static void initialize(Mysqlx::Expr::Expr &expr, const Object &obj);
-  static void initialize(Mysqlx::Expr::Expr &expr, Array *arr);
-  static void initialize(Mysqlx::Expr::Expr &expr, const Array &arr);
-  static void initialize(Mysqlx::Expr::Expr &expr, const Placeholder &ph);
-  static void initialize(Mysqlx::Expr::Expr &expr, const Variable &var);
+  static void initialize(Mysqlx::Expr::Expr *expr, const Scalar &value);
+  static void initialize(Mysqlx::Expr::Expr *expr, Operator *oper);
+  static void initialize(Mysqlx::Expr::Expr *expr, const Operator &oper);
+  static void initialize(Mysqlx::Expr::Expr *expr, const Identifier &ident);
+  static void initialize(Mysqlx::Expr::Expr *expr, FunctionCall *func);
+  static void initialize(Mysqlx::Expr::Expr *expr, const FunctionCall &func);
+  static void initialize(Mysqlx::Expr::Expr *expr, ColumnIdentifier *id);
+  static void initialize(Mysqlx::Expr::Expr *expr, const ColumnIdentifier &id);
+  static void initialize(Mysqlx::Expr::Expr *expr, Object *obj);
+  static void initialize(Mysqlx::Expr::Expr *expr, const Object &obj);
+  static void initialize(Mysqlx::Expr::Expr *expr, Array *arr);
+  static void initialize(Mysqlx::Expr::Expr *expr, const Array &arr);
+  static void initialize(Mysqlx::Expr::Expr *expr, const Placeholder &ph);
+  static void initialize(Mysqlx::Expr::Expr *expr, const Variable &var);
 };
 
 class Operator : public Mysqlx::Expr::Operator {
@@ -290,7 +292,7 @@ class FunctionCall : public Mysqlx::Expr::FunctionCall {
 
   template <typename T>
   void add_param(T value) {
-    Expr::initialize(*Mysqlx::Expr::FunctionCall::add_param(), value);
+    Expr::initialize(Mysqlx::Expr::FunctionCall::add_param(), value);
   }
 
   void add_param(Expr *value) { mutable_param()->AddAllocated(value); }
@@ -298,28 +300,21 @@ class FunctionCall : public Mysqlx::Expr::FunctionCall {
 
 class Object : public Mysqlx::Expr::Object {
  public:
-  class Values : private std::map<std::string, Expr> {
-   public:
-    Values() {}
-    Values(const std::string &key, const Expr &value);
-    Values &operator()(const std::string &key, const Expr &value);
-    friend class Object;
+  struct Fld {
+    std::string key;
+    Expr value;
   };
 
-  Object(const Values &values);
   Object() {}
   Object(const std::string &key, Expr *value);
-  Object(const std::string &key, const Expr &value);
+  Object(std::initializer_list<Fld> list);
 };
 
 class Array : public Mysqlx::Expr::Array {
  public:
   Array() {}
-
-  template <int size>
-  Array(Expr (&values)[size]) {
-    for (Expr *i = values; i != values + size; ++i)
-      mutable_value()->Add()->CopyFrom(*i);
+  Array(std::initializer_list<Expr> list) {
+    for (const Expr &e : list) *mutable_value()->Add() = e;
   }
 };
 
@@ -335,7 +330,7 @@ class Collection : public ::Mysqlx::Crud::Collection {
   Collection(const std::string &name, const std::string &schema = "");
 };
 
-using Data_model = ::Mysqlx::Crud::DataModel;
+typedef ::Mysqlx::Crud::DataModel Data_model;
 
 class Projection : public ::Mysqlx::Crud::Projection {
  public:

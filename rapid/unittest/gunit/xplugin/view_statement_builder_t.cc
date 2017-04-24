@@ -37,7 +37,7 @@ class View_statement_builder_impl : public View_statement_builder {
 class View_statement_builder_test : public ::testing::Test {
  public:
   View_statement_builder_test()
-      : expr_gen(query, args, schema, true), builder(expr_gen) {
+      : expr_gen(&query, args, schema, true), builder(expr_gen) {
     *find.mutable_collection() = Collection("A");
   }
 
@@ -108,7 +108,7 @@ TEST_F(View_statement_builder_test, add_check_option_local) {
 }
 
 TEST_F(View_statement_builder_test, build_create_view_two_columns) {
-  ASSERT_NO_THROW(builder.add_columns(Column_list{"one","two","three"}));
+  ASSERT_NO_THROW(builder.add_columns(Column_list{"one", "two", "three"}));
   EXPECT_STREQ(" (`one`,`two`,`three`)", query.get().c_str());
 }
 

@@ -80,7 +80,7 @@ void Crud_command_handler::notice_handling_common(
 // -- Insert
 ngs::Error_code Crud_command_handler::execute_crud_insert(
     Session &session, const Mysqlx::Crud::Insert &msg) {
-  Expression_generator gen(m_qb, msg.args(), msg.collection().schema(),
+  Expression_generator gen(&m_qb, msg.args(), msg.collection().schema(),
                            is_table_data_model(msg));
   Empty_resultset rset;
   return execute(session, Insert_statement_builder(gen), msg, rset,
@@ -125,7 +125,7 @@ void Crud_command_handler::notice_handling(
 // -- Update
 ngs::Error_code Crud_command_handler::execute_crud_update(
     Session &session, const Mysqlx::Crud::Update &msg) {
-  Expression_generator gen(m_qb, msg.args(), msg.collection().schema(),
+  Expression_generator gen(&m_qb, msg.args(), msg.collection().schema(),
                            is_table_data_model(msg));
   Empty_resultset rset;
   return execute(session, Update_statement_builder(gen), msg, rset,
@@ -139,6 +139,10 @@ ngs::Error_code Crud_command_handler::error_handling(
   if (is_table_data_model(msg)) return error;
 
   switch (error.error) {
+    case ER_BAD_NULL_ERROR:
+      return ngs::Error(ER_X_DOC_ID_MISSING,
+                        "Document is missing a required field");
+
     case ER_INVALID_JSON_TEXT_IN_PARAM:
       return ngs::Error(ER_X_BAD_UPDATE_DATA,
                         "Invalid data for update operation on "
@@ -158,7 +162,7 @@ void Crud_command_handler::notice_handling(
 // -- Delete
 ngs::Error_code Crud_command_handler::execute_crud_delete(
     Session &session, const Mysqlx::Crud::Delete &msg) {
-  Expression_generator gen(m_qb, msg.args(), msg.collection().schema(),
+  Expression_generator gen(&m_qb, msg.args(), msg.collection().schema(),
                            is_table_data_model(msg));
   Empty_resultset rset;
   return execute(session, Delete_statement_builder(gen), msg, rset,
@@ -177,7 +181,7 @@ void Crud_command_handler::notice_handling(
 // -- Find
 ngs::Error_code Crud_command_handler::execute_crud_find(
     Session &session, const Mysqlx::Crud::Find &msg) {
-  Expression_generator gen(m_qb, msg.args(), msg.collection().schema(),
+  Expression_generator gen(&m_qb, msg.args(), msg.collection().schema(),
                            is_table_data_model(msg));
   Streaming_resultset rset(&session.proto(), false);
   return execute(session, Find_statement_builder(gen), msg, rset,
@@ -219,7 +223,7 @@ ngs::Error_code Crud_command_handler::error_handling(
 // -- View
 ngs::Error_code Crud_command_handler::execute_create_view(
     Session &session, const Mysqlx::Crud::CreateView &msg) {
-  Expression_generator gen(m_qb, Expression_generator::Args(),
+  Expression_generator gen(&m_qb, Expression_generator::Args(),
                            msg.collection().schema(), true);
   Empty_resultset rset;
   return execute(session, View_statement_builder(gen), msg, rset,
@@ -229,7 +233,7 @@ ngs::Error_code Crud_command_handler::execute_create_view(
 
 ngs::Error_code Crud_command_handler::execute_modify_view(
     Session &session, const Mysqlx::Crud::ModifyView &msg) {
-  Expression_generator gen(m_qb, Expression_generator::Args(),
+  Expression_generator gen(&m_qb, Expression_generator::Args(),
                            msg.collection().schema(), true);
   Empty_resultset rset;
   return execute(session, View_statement_builder(gen), msg, rset,
@@ -239,7 +243,7 @@ ngs::Error_code Crud_command_handler::execute_modify_view(
 
 ngs::Error_code Crud_command_handler::execute_drop_view(
     Session &session, const Mysqlx::Crud::DropView &msg) {
-  Expression_generator gen(m_qb, Expression_generator::Args(),
+  Expression_generator gen(&m_qb, Expression_generator::Args(),
                            msg.collection().schema(), true);
   Empty_resultset rset;
   return execute(session, View_statement_builder(gen), msg, rset,

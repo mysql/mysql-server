@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -20,6 +20,7 @@
 #ifndef XPL_MYSQL_FUNCTION_NAMES_H_
 #define XPL_MYSQL_FUNCTION_NAMES_H_
 
+#include <algorithm>
 #include <cstring>
 #include <string>
 
@@ -34,6 +35,13 @@ struct Is_less {
 template <typename T, unsigned size>
 inline const T *get_array_end(T (&array)[size]) {
   return array + size;
+}
+
+inline std::string to_upper(const std::string &value) {
+  std::string source;
+  source.resize(value.size());
+  std::transform(value.begin(), value.end(), source.begin(), ::toupper);
+  return source;
 }
 
 bool is_native_mysql_function(const std::string &name);

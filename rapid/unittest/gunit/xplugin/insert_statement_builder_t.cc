@@ -16,7 +16,6 @@
  */
 
 #include <gtest/gtest.h>
-
 #include "insert_statement_builder.h"
 #include "mysqlx_pb_wrapper.h"
 
@@ -36,7 +35,7 @@ class Insert_statement_builder_stub : public Insert_statement_builder {
 class Insert_statement_builder_test : public ::testing::Test {
  public:
   Insert_statement_builder_stub &builder() {
-    expr_gen.reset(new Expression_generator(query, args, schema,
+    expr_gen.reset(new Expression_generator(&query, args, schema,
                                             is_table_data_model(msg)));
     stub.reset(new Insert_statement_builder_stub(expr_gen.get()));
     return *stub;

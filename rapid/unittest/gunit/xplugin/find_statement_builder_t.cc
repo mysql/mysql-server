@@ -46,7 +46,7 @@ class Find_statement_builder_test : public ::testing::Test
 public:
   Find_statement_builder_test()
   : args(*msg.mutable_args()),
-    expr_gen(query, args, schema, true),
+    expr_gen(&query, args, schema, true),
     builder(expr_gen)
     {}
   Find_statement_builder::Find msg;

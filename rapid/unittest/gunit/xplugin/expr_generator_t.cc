@@ -662,69 +662,60 @@ TEST(xpl_expr_generator, object_empty) {
 }
 
 TEST(xpl_expr_generator, object_empty_key) {
-  EXPECT_THROW(generate_expression(Object(Object::Values("", 1)), EMPTY_SCHEMA,
-                                   DM_TABLE),
+  EXPECT_THROW(generate_expression(Object{{"", 1}}, EMPTY_SCHEMA, DM_TABLE),
                Expression_generator::Error);
 }
 
 TEST(xpl_expr_generator, object_empty_value) {
   EXPECT_THROW(
-      generate_expression(Object("first", NULL), EMPTY_SCHEMA, DM_TABLE),
+      generate_expression(Object("first", nullptr), EMPTY_SCHEMA, DM_TABLE),
       Expression_generator::Error);
 }
 
 TEST(xpl_expr_generator, object_one_scalar) {
   EXPECT_EQ("JSON_OBJECT('first',1)",
-            generate_expression(Object(Object::Values("first", 1)),
-                                EMPTY_SCHEMA, DM_TABLE));
+            generate_expression(Object{{"first", 1}}, EMPTY_SCHEMA, DM_TABLE));
 }
 
 TEST(xpl_expr_generator, object_two_scalars) {
-  EXPECT_EQ(
-      "JSON_OBJECT('first',1,'second','two')",
-      generate_expression(Object(Object::Values("first", 1)("second", "two")),
-                          EMPTY_SCHEMA, DM_TABLE));
+  EXPECT_EQ("JSON_OBJECT('first',1,'second','two')",
+            generate_expression(Object{{"first", 1}, {"second", "two"}},
+                                EMPTY_SCHEMA, DM_TABLE));
 }
 
 TEST(xpl_expr_generator, object_object) {
   EXPECT_EQ("JSON_OBJECT('second',JSON_OBJECT('first',1))",
-            generate_expression(
-                Object(Object::Values("second", Object::Values("first", 1))),
-                EMPTY_SCHEMA, DM_TABLE));
+            generate_expression(Object{{"second", Object{{"first", 1}}}},
+                                EMPTY_SCHEMA, DM_TABLE));
 }
 
 TEST(xpl_expr_generator, object_as_expr) {
   EXPECT_EQ("JSON_OBJECT('first',1)",
-            generate_expression(Expr(Object(Object::Values("first", 1))),
-                                EMPTY_SCHEMA, DM_TABLE));
+            generate_expression(Object{{"first", 1}}, EMPTY_SCHEMA, DM_TABLE));
 }
 
 TEST(xpl_expr_generator, object_operator) {
-  EXPECT_EQ(
-      "JSON_OBJECT('sum',(1 + 2))",
-      generate_expression(Object(Object::Values("sum", Operator("+", 1, 2))),
-                          EMPTY_SCHEMA, DM_TABLE));
+  EXPECT_EQ("JSON_OBJECT('sum',(1 + 2))",
+            generate_expression(Object{{"sum", Operator("+", 1, 2)}},
+                                EMPTY_SCHEMA, DM_TABLE));
 }
 
 TEST(xpl_expr_generator, object_function) {
   EXPECT_EQ("JSON_OBJECT('result',foo('bar'))",
-            generate_expression(
-                Object(Object::Values("result", FunctionCall("foo", "bar"))),
-                EMPTY_SCHEMA, DM_TABLE));
+            generate_expression(Object{{"result", FunctionCall("foo", "bar")}},
+                                EMPTY_SCHEMA, DM_TABLE));
 }
 
 TEST(xpl_expr_generator, object_array) {
-  Expr va[] = {1, 2};
   EXPECT_EQ("JSON_OBJECT('tab',JSON_ARRAY(1,2))",
-            generate_expression(Object(Object::Values("tab", Array(va))),
-                                EMPTY_SCHEMA, DM_TABLE));
+            generate_expression(Object{{"tab", Array{1, 2}}}, EMPTY_SCHEMA,
+                                DM_TABLE));
 }
 
 TEST(xpl_expr_generator, object_in_function) {
   EXPECT_EQ("foo(JSON_OBJECT('first',1))",
-            generate_expression(
-                Expr(FunctionCall("foo", Object(Object::Values("first", 1)))),
-                EMPTY_SCHEMA, DM_TABLE));
+            generate_expression(FunctionCall("foo", Object{{"first", 1}}),
+                                EMPTY_SCHEMA, DM_TABLE));
 }
 
 TEST(xpl_expr_generator, object_real_example) {
@@ -734,10 +725,9 @@ TEST(xpl_expr_generator, object_real_example) {
       "JSON_UNQUOTE(JSON_EXTRACT(doc,'$.first_name')),' ',"
       "JSON_UNQUOTE(JSON_EXTRACT(doc,'$.last_name'))),'number',(1 + 1))",
       generate_expression(
-          Object(Object::Values(
-              "name", FunctionCall("concat", ColumnIdentifier(path1), " ",
-                                   ColumnIdentifier(path2)))(
-              "number", Operator("+", 1, 1))),
+          Object{{"name", FunctionCall("concat", ColumnIdentifier(path1), " ",
+                                       ColumnIdentifier(path2))},
+                 {"number", Operator("+", 1, 1)}},
           EMPTY_SCHEMA, DM_TABLE));
 }
 
@@ -747,88 +737,71 @@ TEST(xpl_expr_generator, array_empty) {
 }
 
 TEST(xpl_expr_generator, array_one_scalar) {
-  Expr v[] = {1};
-
   EXPECT_EQ("JSON_ARRAY(1)",
-            generate_expression(Array(v), EMPTY_SCHEMA, DM_TABLE));
+            generate_expression(Array{1}, EMPTY_SCHEMA, DM_TABLE));
 }
 
 TEST(xpl_expr_generator, array_two_scalars) {
-  Expr v[] = {1, "two"};
-
   EXPECT_EQ("JSON_ARRAY(1,'two')",
-            generate_expression(Array(v), EMPTY_SCHEMA, DM_TABLE));
+            generate_expression(Array{1, "two"}, EMPTY_SCHEMA, DM_TABLE));
 }
 
 TEST(xpl_expr_generator, array_as_expr) {
-  Expr v[] = {1};
-
   EXPECT_EQ("JSON_ARRAY(1)",
-            generate_expression(Expr(Array(v)), EMPTY_SCHEMA, DM_TABLE));
+            generate_expression(Expr(Array{1}), EMPTY_SCHEMA, DM_TABLE));
 }
 
 TEST(xpl_expr_generator, array_array) {
-  Expr v1[] = {1, 2};
-  Expr v[] = {"one", Array(v1)};
-
-  EXPECT_EQ("JSON_ARRAY('one',JSON_ARRAY(1,2))",
-            generate_expression(Array(v), EMPTY_SCHEMA, DM_TABLE));
+  EXPECT_EQ(
+      "JSON_ARRAY('one',JSON_ARRAY(1,2))",
+      generate_expression(Array{"one", Array{1, 2}}, EMPTY_SCHEMA, DM_TABLE));
 }
 
 TEST(xpl_expr_generator, array_object) {
-  Expr v[] = {Object(Object::Values("first", 1)), "two"};
-
   EXPECT_EQ("JSON_ARRAY(JSON_OBJECT('first',1),'two')",
-            generate_expression(Array(v), EMPTY_SCHEMA, DM_TABLE));
+            generate_expression(Array{Object{{"first", 1}}, "two"},
+                                EMPTY_SCHEMA, DM_TABLE));
 }
 
 TEST(xpl_expr_generator, array_operator) {
-  Expr v[] = {Operator("+", 1, 2), "two"};
-
   EXPECT_EQ("JSON_ARRAY((1 + 2),'two')",
-            generate_expression(Array(v), EMPTY_SCHEMA, DM_TABLE));
+            generate_expression(Array{Operator("+", 1, 2), "two"}, EMPTY_SCHEMA,
+                                DM_TABLE));
 }
 
 TEST(xpl_expr_generator, array_function) {
-  Expr v[] = {FunctionCall("foo", "bar"), "two"};
-
   EXPECT_EQ("JSON_ARRAY(foo('bar'),'two')",
-            generate_expression(Array(v), EMPTY_SCHEMA, DM_TABLE));
+            generate_expression(Array{FunctionCall("foo", "bar"), "two"},
+                                EMPTY_SCHEMA, DM_TABLE));
 }
 
 TEST(xpl_expr_generator, array_in_function) {
-  Expr v[] = {"foo", "bar"};
-
   EXPECT_EQ("fun(JSON_ARRAY('foo','bar'))",
-            generate_expression(FunctionCall("fun", Array(v)), EMPTY_SCHEMA,
-                                DM_TABLE));
+            generate_expression(FunctionCall("fun", Array{"foo", "bar"}),
+                                EMPTY_SCHEMA, DM_TABLE));
 }
 
 TEST(xpl_expr_generator, array_in_operator) {
-  Expr v[] = {1, 2};
-  EXPECT_EQ(
-      "JSON_CONTAINS(JSON_ARRAY(1,2),CAST(1 AS JSON))",
-      generate_expression(Operator("in", 1, Array(v)), EMPTY_SCHEMA, DM_TABLE));
+  EXPECT_STREQ("JSON_CONTAINS(JSON_ARRAY(1,2),CAST(1 AS JSON))",
+               generate_expression(Operator("in", 1, Array{1, 2}), EMPTY_SCHEMA,
+                                   DM_TABLE).c_str());
 }
 
 TEST(xpl_expr_generator, array_not_in_operator) {
-  Expr v[] = {1, 2};
   EXPECT_EQ("NOT JSON_CONTAINS(JSON_ARRAY(1,2),CAST(1 AS JSON))",
-            generate_expression(Operator("not_in", 1, Array(v)), EMPTY_SCHEMA,
-                                DM_TABLE));
+            generate_expression(Operator("not_in", 1, Array{1, 2}),
+                                EMPTY_SCHEMA, DM_TABLE));
 }
 
 TEST(xpl_expr_generator, array_in_operator_string) {
-  Expr v[] = {"foo", "bar"};
   EXPECT_EQ("JSON_CONTAINS(JSON_ARRAY('foo','bar'),JSON_QUOTE('foo'))",
-            generate_expression(Operator("in", "foo", Array(v)), EMPTY_SCHEMA,
-                                DM_TABLE));
+            generate_expression(Operator("in", "foo", Array{"foo", "bar"}),
+                                EMPTY_SCHEMA, DM_TABLE));
 }
 
 TEST(xpl_expr_generator, array_not_in_operator_string) {
-  Expr v[] = {"foo", "bar"};
   EXPECT_EQ("NOT JSON_CONTAINS(JSON_ARRAY('foo','bar'),JSON_QUOTE('foo'))",
-            generate_expression(Operator("not_in", "foo", Array(v)),
+            generate_expression(Operator("not_in", "foo", Array{"foo", "bar"}),
                                 EMPTY_SCHEMA, DM_TABLE));
 }
 
@@ -876,5 +849,175 @@ TEST(xpl_expr_generator, scalar_octets_unknown) {
                Expression_generator::Error);
 }
 
+TEST(xpl_expr_generator, cont_in_expression_literals) {
+  EXPECT_STREQ("JSON_CONTAINS(CAST(1 AS JSON),CAST(2 AS JSON))",
+               generate_expression(Operator("cont_in", 2, 1), EMPTY_SCHEMA,
+                                   DM_TABLE).c_str());
+  EXPECT_STREQ("JSON_CONTAINS(CAST(1.2 AS JSON),CAST(2.1 AS JSON))",
+               generate_expression(Operator("cont_in", 2.1, 1.2), EMPTY_SCHEMA,
+                                   DM_TABLE).c_str());
+  EXPECT_STREQ("JSON_CONTAINS(CAST(FALSE AS JSON),CAST(TRUE AS JSON))",
+               generate_expression(Operator("cont_in", true, false),
+                                   EMPTY_SCHEMA, DM_TABLE).c_str());
+  EXPECT_STREQ(
+      "JSON_CONTAINS(CAST('null' AS JSON),CAST('null' AS JSON))",
+      generate_expression(Operator("cont_in", Scalar::Null(), Scalar::Null()),
+                          EMPTY_SCHEMA, DM_TABLE).c_str());
+  EXPECT_STREQ("JSON_CONTAINS(JSON_QUOTE('white'),JSON_QUOTE('black'))",
+               generate_expression(Operator("cont_in", Scalar::String("black"),
+                                            Scalar::String("white")),
+                                   EMPTY_SCHEMA, DM_TABLE).c_str());
+  EXPECT_STREQ(
+      "JSON_CONTAINS(JSON_QUOTE('white'),JSON_QUOTE('black'))",
+      generate_expression(
+          Operator("cont_in",
+                   Scalar::Octets("black", Expression_generator::CT_PLAIN),
+                   Scalar::Octets("white", Expression_generator::CT_PLAIN)),
+          EMPTY_SCHEMA, DM_TABLE).c_str());
+  EXPECT_STREQ(
+      "JSON_CONTAINS(CAST('{\\\"white\\\":2}' AS JSON),"
+      "CAST('{\\\"black\\\":1}' AS JSON))",
+      generate_expression(
+          Operator(
+              "cont_in",
+              Scalar::Octets("{\"black\":1}", Expression_generator::CT_JSON),
+              Scalar::Octets("{\"white\":2}", Expression_generator::CT_JSON)),
+          EMPTY_SCHEMA, DM_TABLE).c_str());
+  EXPECT_STREQ(
+      "JSON_CONTAINS(JSON_QUOTE('<a>white</a>'),JSON_QUOTE('<a>black</a>'))",
+      generate_expression(
+          Operator(
+              "cont_in",
+              Scalar::Octets("<a>black</a>", Expression_generator::CT_XML),
+              Scalar::Octets("<a>white</a>", Expression_generator::CT_XML)),
+          EMPTY_SCHEMA, DM_TABLE).c_str());
+  EXPECT_STREQ(
+      "JSON_CONTAINS(JSON_QUOTE(ST_GEOMETRYFROMWKB('101')),"
+      "JSON_QUOTE(ST_GEOMETRYFROMWKB('010')))",
+      generate_expression(
+          Operator("cont_in",
+                   Scalar::Octets("010", Expression_generator::CT_GEOMETRY),
+                   Scalar::Octets("101", Expression_generator::CT_GEOMETRY)),
+          EMPTY_SCHEMA, DM_TABLE).c_str());
+}
+
+TEST(xpl_expr_generator, cont_in_expression_arrays) {
+  EXPECT_STREQ(
+      "JSON_CONTAINS(JSON_ARRAY(3,4),JSON_ARRAY(1,2))",
+      generate_expression(Operator("cont_in", Array{1, 2}, Array{3, 4}),
+                          EMPTY_SCHEMA, DM_TABLE).c_str());
+  EXPECT_STREQ(
+      "JSON_CONTAINS(JSON_ARRAY(3,FALSE,'white'),JSON_ARRAY(1,TRUE,'black'))",
+      generate_expression(Operator("cont_in", Array{1, true, "black"},
+                                   Array{3, false, "white"}),
+                          EMPTY_SCHEMA, DM_TABLE).c_str());
+  EXPECT_STREQ(
+      "JSON_CONTAINS(JSON_ARRAY(CAST('{\\\"white\\\":2}' AS JSON)),"
+      "JSON_ARRAY(CAST('{\\\"black\\\":1}' AS JSON)))",
+      generate_expression(
+          Operator("cont_in",
+                   Array{Scalar::Octets("{\"black\":1}",
+                                        Expression_generator::CT_JSON)},
+                   Array{Scalar::Octets("{\"white\":2}",
+                                        Expression_generator::CT_JSON)}),
+          EMPTY_SCHEMA, DM_TABLE).c_str());
+}
+
+TEST(xpl_expr_generator, cont_in_expression_objects) {
+  EXPECT_STREQ("JSON_CONTAINS(JSON_OBJECT('second',2),JSON_OBJECT('first',1))",
+               generate_expression(Operator("cont_in", Object{{"first", 1}},
+                                            Object{{"second", 2}}),
+                                   EMPTY_SCHEMA, DM_TABLE).c_str());
+  EXPECT_STREQ(
+      "JSON_CONTAINS(JSON_OBJECT('second',CAST('{\\\"white\\\":2}' AS JSON)),"
+      "JSON_OBJECT('first',CAST('{\\\"black\\\":1}' AS JSON)))",
+      generate_expression(
+          Operator(
+              "cont_in",
+              Object{{"first", Scalar::Octets("{\"black\":1}",
+                                              Expression_generator::CT_JSON)}},
+              Object{
+                  {"second", Scalar::Octets("{\"white\":2}",
+                                            Expression_generator::CT_JSON)}}),
+          EMPTY_SCHEMA, DM_TABLE).c_str());
+}
+
+TEST(xpl_expr_generator, cont_in_expression_operators) {
+  Operator plus("+", 1, 2), minus("-", 2, 1);
+  EXPECT_THROW(generate_expression(Operator("cont_in", plus, minus),
+                                   EMPTY_SCHEMA, DM_TABLE),
+               Expression_generator::Error);
+  EXPECT_STREQ(
+      "JSON_CONTAINS(CAST((2 - 1) AS JSON),CAST((1 + 2) AS JSON))",
+      generate_expression(Operator("cont_in", Operator("cast", plus, "JSON"),
+                                   Operator("cast", minus, "JSON")),
+                          EMPTY_SCHEMA, DM_TABLE).c_str());
+  EXPECT_THROW(generate_expression(
+                   Operator("cont_in", plus, Operator("cast", minus, "JSON")),
+                   EMPTY_SCHEMA, DM_TABLE),
+               Expression_generator::Error);
+  EXPECT_THROW(generate_expression(
+                   Operator("cont_in", Operator("cast", plus, "JSON"), minus),
+                   EMPTY_SCHEMA, DM_TABLE),
+               Expression_generator::Error);
+  EXPECT_THROW(
+      generate_expression(Operator("cont_in", Operator("cast", plus, "SIGNED"),
+                                   Operator("cast", minus, "JSON")),
+                          EMPTY_SCHEMA, DM_TABLE),
+      Expression_generator::Error);
+  EXPECT_THROW(
+      generate_expression(Operator("cont_in", Operator("cast", plus, "JSON"),
+                                   Operator("cast", minus, "SIGNED")),
+                          EMPTY_SCHEMA, DM_TABLE),
+      Expression_generator::Error);
+}
+
+TEST(xpl_expr_generator, cont_in_expression_functions) {
+  FunctionCall concat("concat", "foo", "bar");
+  EXPECT_THROW(generate_expression(Operator("cont_in", concat, concat),
+                                   EMPTY_SCHEMA, DM_TABLE),
+               Expression_generator::Error);
+  EXPECT_STREQ(
+      "JSON_CONTAINS(json_quote(concat('foo','bar')),"
+      "json_quote(concat('foo','bar')))",
+      generate_expression(
+          Operator("cont_in", FunctionCall("json_quote", concat),
+                   FunctionCall("json_quote", concat)),
+          EMPTY_SCHEMA, DM_TABLE).c_str());
+  EXPECT_THROW(generate_expression(Operator("cont_in", concat,
+                                            FunctionCall("json_quote", concat)),
+                                   EMPTY_SCHEMA, DM_TABLE),
+               Expression_generator::Error);
+  EXPECT_THROW(
+      generate_expression(
+          Operator("cont_in", FunctionCall("json_quote", concat), concat),
+          EMPTY_SCHEMA, DM_TABLE),
+      Expression_generator::Error);
+}
+
+TEST(xpl_expr_generator, cont_in_expression_placeholders) {
+  EXPECT_STREQ("JSON_CONTAINS(CAST(2 AS JSON),CAST(1 AS JSON))",
+               generate_expression(
+                   Operator("cont_in", Placeholder(0), Placeholder(1)),
+                   Expression_args({1, 2}), EMPTY_SCHEMA, DM_TABLE).c_str());
+  EXPECT_STREQ(
+      "JSON_CONTAINS(JSON_QUOTE('bar'),JSON_QUOTE('foo'))",
+      generate_expression(Operator("cont_in", Placeholder(0), Placeholder(1)),
+                          Expression_args({"foo", "bar"}), EMPTY_SCHEMA,
+                          DM_TABLE).c_str());
+  EXPECT_STREQ(
+      "JSON_CONTAINS(CAST('{\\\"white\\\":2}' AS JSON),"
+      "CAST('{\\\"black\\\":1}' AS JSON))",
+      generate_expression(
+          Operator("cont_in", Placeholder(0), Placeholder(1)),
+          Expression_args(
+              {Scalar::Octets("{\"black\":1}", Expression_generator::CT_JSON),
+               Scalar::Octets("{\"white\":2}", Expression_generator::CT_JSON)}),
+          EMPTY_SCHEMA, DM_TABLE).c_str());
+  EXPECT_THROW(
+      generate_expression(Operator("cont_in", Placeholder(0), Placeholder(1)),
+                          EMPTY_SCHEMA, DM_TABLE),
+      Expression_generator::Error);
+}
 }  // namespace test
 }  // namespace xpl
