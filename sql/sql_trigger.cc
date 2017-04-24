@@ -258,10 +258,8 @@ bool reload_triggers_for_table(THD *thd,
 
   DBUG_ASSERT(my_strcasecmp(table_alias_charset, table_alias, new_table_name));
 
-  Table_trigger_dispatcher tbl_trg_dsp(new_db_name, new_table_name);
-
-  return tbl_trg_dsp.check_n_load(thd, true) ||
-         tbl_trg_dsp.check_for_broken_triggers();
+  return Table_trigger_dispatcher::check_n_load(thd, *table,
+                                                new_db_name, new_table_name);
 }
 
 

@@ -2248,77 +2248,24 @@ static bool fill_partitioning_from_dd(THD *thd, TABLE_SHARE *share,
 }
 
 
-bool open_table_def(THD *thd, TABLE_SHARE *share, bool open_view,
-                    const dd::Table *table_def)
+bool open_table_def(THD *thd, TABLE_SHARE *share, const dd::Table &table_def)
 {
   DBUG_ENTER("open_table_def");
-
-  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
-
-  if (!table_def)
-  {
-    // Make sure the schema exists.
-    bool exists= false;
-    if (dd::schema_exists(thd, share->db.str, &exists))
-      DBUG_RETURN(true);
-
-    if (!exists)
-    {
-      my_error(ER_BAD_DB_ERROR, MYF(0), share->db.str);
-      DBUG_RETURN(true);
-    }
-
-    const dd::Abstract_table *abstract_table= nullptr;
-    if (thd->dd_client()->acquire(share->db.str, share->table_name.str,
-                                  &abstract_table))
-      DBUG_RETURN(true);
-
-    if (abstract_table == nullptr)
-    {
-      my_error(ER_NO_SUCH_TABLE, MYF(0), share->db.str, share->table_name.str);
-      DBUG_RETURN(true);
-    }
-
-    if (abstract_table->type() == dd::enum_table_type::USER_VIEW ||
-        abstract_table->type() == dd::enum_table_type::SYSTEM_VIEW)
-    {
-      if (!open_view)
-      {
-        // We found a view but were trying to open table only.
-        my_error(ER_NO_SUCH_TABLE, MYF(0), share->db.str, share->table_name.str);
-        DBUG_RETURN(true);
-      }
-      /*
-        Clone the view reference object and hold it in TABLE_SHARE member view_object.
-      */
-      share->is_view= true;
-      const dd::View *tmp_view= dynamic_cast<const dd::View*>(abstract_table);
-      share->view_object= tmp_view->clone();
-
-      share->table_category= get_table_category(share->db, share->table_name);
-      thd->status_var.opened_shares++;
-      DBUG_RETURN(false);
-    }
-
-    DBUG_ASSERT(abstract_table->type() == dd::enum_table_type::BASE_TABLE);
-    table_def= dynamic_cast<const dd::Table*>(abstract_table);
-    DBUG_ASSERT(table_def != nullptr);
-  }
 
   MEM_ROOT *old_root= thd->mem_root;
   thd->mem_root= &share->mem_root; // Needed for make_field()++
   share->blob_fields= 0; // HACK
 
   // Fill the TABLE_SHARE with details.
-  bool error=  (fill_share_from_dd(thd, share, table_def) ||
-                fill_columns_from_dd(thd, share, table_def) ||
-                fill_indexes_from_dd(thd, share, table_def) ||
-                fill_partitioning_from_dd(thd, share, table_def));
+  bool error=  (fill_share_from_dd(thd, share, &table_def) ||
+                fill_columns_from_dd(thd, share, &table_def) ||
+                fill_indexes_from_dd(thd, share, &table_def) ||
+                fill_partitioning_from_dd(thd, share, &table_def));
 
   thd->mem_root= old_root;
 
   if (!error)
-    error= prepare_share(thd, share, table_def);
+    error= prepare_share(thd, share, &table_def);
 
   if (!error)
   {
@@ -2350,11 +2297,11 @@ public:
 
 
 bool open_table_def_suppress_invalid_meta_data(THD *thd, TABLE_SHARE *share,
-                                               const dd::Table *table_def)
+                                               const dd::Table &table_def)
 {
   Open_table_error_handler error_handler;
   thd->push_internal_handler(&error_handler);
-  bool error= open_table_def(thd, share, false, table_def);
+  bool error= open_table_def(thd, share, table_def);
   thd->pop_internal_handler();
   return error;
 }

@@ -1445,7 +1445,6 @@ bool Dictionary_client::acquire_uncached_table_by_se_private_id(
 }
 
 // Retrieve a table object by its partition se private id.
-/* purecov: begin deadcode */
 bool Dictionary_client::acquire_uncached_table_by_partition_se_private_id(
                           const String_type &engine,
                           Object_id se_partition_id,
@@ -1478,7 +1477,6 @@ bool Dictionary_client::acquire_uncached_table_by_partition_se_private_id(
 
   return false;
 }
-/* purecov: end */
 
 
 // Get names of index and column names from index statistics entries.
@@ -1692,7 +1690,6 @@ bool Dictionary_client::get_table_name_by_se_private_id(
 
 
 // Retrieve a schema- and table name by the se private id of the partition.
-/* purecov: begin deadcode */
 bool Dictionary_client::get_table_name_by_partition_se_private_id(
                                       const String_type &engine,
                                       Object_id se_partition_id,
@@ -1737,7 +1734,7 @@ bool Dictionary_client::get_table_name_by_partition_se_private_id(
 
   return false;
 }
-/* purecov: end */
+
 
 bool Dictionary_client::get_table_name_by_trigger_name(
                           const Schema &schema,

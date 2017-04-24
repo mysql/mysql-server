@@ -255,6 +255,7 @@ static Event::enum_interval_field get_enum_interval_field(
   DBUG_ASSERT(false);
 
   return Event::IF_YEAR;
+  /* purecov: end deadcode */
 }
 
 

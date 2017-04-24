@@ -128,7 +128,7 @@ void table_def_start_shutdown(void);
 void assign_new_table_id(TABLE_SHARE *share);
 uint cached_table_definitions(void);
 size_t get_table_def_key(const TABLE_LIST *table_list, const char **key);
-TABLE_SHARE *get_table_share(THD *thd, TABLE_LIST *table_list,
+TABLE_SHARE *get_table_share(THD *thd, const char *db, const char *table_name,
                              const char *key, size_t key_length,
                              bool open_view, my_hash_value_type hash_value);
 void release_table_share(TABLE_SHARE *share);
@@ -204,7 +204,7 @@ TABLE *open_table_uncached(THD *thd, const char *path, const char *db,
 			   const char *table_name,
                            bool add_to_temporary_tables_list,
                            bool open_in_engine,
-                           const dd::Table *table_def);
+                           const dd::Table &table_def);
 TABLE *find_locked_table(TABLE *list, const char *db, const char *table_name);
 thr_lock_type read_lock_type_for_table(THD *thd,
                                        Query_tables_list *prelocking_ctx,
@@ -324,9 +324,6 @@ OPEN_TABLE_LIST *list_open_tables(THD *thd, const char *db, const char *wild);
 void tdc_remove_table(THD *thd, enum_tdc_remove_table_type remove_type,
                       const char *db, const char *table_name,
                       bool has_lock);
-bool tdc_open_view(THD *thd, TABLE_LIST *table_list,
-                   const char *cache_key, size_t cache_key_length,
-                   bool check_metadata_version, bool no_parse);
 void tdc_flush_unused_tables();
 TABLE *find_table_for_mdl_upgrade(THD *thd, const char *db,
                                   const char *table_name,

@@ -375,8 +375,8 @@ TABLE_CATEGORY get_table_category(const LEX_STRING &db,
 /**
   Allocate and setup a TABLE_SHARE structure
 
-  @param table_list  structure from which database and table 
-                     name can be retrieved
+  @param db          schema name.
+  @param table_name  table name.
   @param key         table cache key (db \0 table_name \0...)
   @param key_length  length of the key
 
@@ -384,7 +384,9 @@ TABLE_CATEGORY get_table_category(const LEX_STRING &db,
     @retval NULL     error (out of memory, too long path name)
 */
 
-TABLE_SHARE *alloc_table_share(TABLE_LIST *table_list, const char *key,
+TABLE_SHARE *alloc_table_share(const char *db,
+                               const char *table_name,
+                               const char *key,
                                size_t key_length)
 {
   MEM_ROOT mem_root;
@@ -396,7 +398,7 @@ TABLE_SHARE *alloc_table_share(TABLE_LIST *table_list, const char *key,
   bool was_truncated= false;
   DBUG_ENTER("alloc_table_share");
   DBUG_PRINT("enter", ("table: '%s'.'%s'",
-                       table_list->db, table_list->table_name));
+                       db, table_name));
 
   /*
     There are FN_REFLEN - reg_ext_length bytes available for the 
@@ -405,8 +407,7 @@ TABLE_SHARE *alloc_table_share(TABLE_LIST *table_list, const char *key,
     path length does not include the trailing '\0'.
   */
   path_length= build_table_filename(path, sizeof(path) - 1 - reg_ext_length,
-                                    table_list->db,
-                                    table_list->table_name, "", 0,
+                                    db, table_name, "", 0,
                                     &was_truncated);
 
   /*
@@ -3307,9 +3308,9 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
     if (!table_def && !(prgflag & OPEN_NO_DD_TABLE))
     {
 
-      if (thd->dd_client()->acquire<dd::Table>(share->db.str,
-                                               share->table_name.str,
-                                               &table_def))
+      if (thd->dd_client()->acquire(share->db.str,
+                                    share->table_name.str,
+                                    &table_def))
       {
         error_reported= true;
         goto err;

@@ -18,6 +18,7 @@
 #include <mysql/psi/mysql_thread.h>
 
 #include "binlog.h"
+#include "dd/cache/dictionary_client.h"
 #include "dd/types/abstract_table.h"
 #include "dd_table_share.h"
 #include "ha_ndbcluster.h"
@@ -356,10 +357,11 @@ static int
 ndb_binlog_open_shadow_table(THD *thd, NDB_SHARE *share,
                              const dd::Table* table_def = NULL)
 {
-  int error;
+  int error= 0;
   DBUG_ASSERT(share->event_data == 0);
   Ndb_event_data *event_data= share->event_data= new Ndb_event_data(share);
   DBUG_ENTER("ndb_binlog_open_shadow_table");
+  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
 
   MEM_ROOT **root_ptr= THR_MALLOC;
   MEM_ROOT *old_root= *root_ptr;
@@ -375,7 +377,20 @@ ndb_binlog_open_shadow_table(THD *thd, NDB_SHARE *share,
                        share->db, 0,
                        share->table_name,
                        share->key_string(), nullptr);
-  if ((error= open_table_def(thd, shadow_table_share, false, table_def)) ||
+
+  if (table_def == nullptr)
+  {
+    if (thd->dd_client()->acquire(share->db, share->table_name, &table_def))
+      error= 1;
+    else if (table_def == nullptr)
+    {
+      my_error(ER_NO_SUCH_TABLE, MYF(0), share->db, share->table_name);
+      error= 1;
+    }
+  }
+
+  if (error ||
+      (error= open_table_def(thd, shadow_table_share, *table_def)) ||
       (error= open_table_from_share(thd, shadow_table_share, "", 0,
                                     (uint) (OPEN_FRM_FILE_ONLY | DELAYED_OPEN | READ_ALL),
                                     0, shadow_table, false, table_def)))

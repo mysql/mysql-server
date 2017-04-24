@@ -1592,9 +1592,9 @@ static bool migrate_table_to_dd(THD *thd,
 
   fill_create_info_for_upgrade(&create_info, table);
 
-  if (prepare_fields_and_keys(thd, table, &create_info,
+  if (prepare_fields_and_keys(thd, nullptr, table, &create_info,
                               &alter_info, &alter_ctx,
-                              create_info.used_fields, true))
+                              create_info.used_fields))
   {
     thd->mem_root= mem_root_backup;
     return true;

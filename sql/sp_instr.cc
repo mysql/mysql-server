@@ -644,7 +644,7 @@ LEX *sp_lex_instr::parse_expr(THD *thd, sp_head *sp)
            trg_fld;
            trg_fld= trg_fld->next_trg_field)
       {
-        trg_fld->setup_field(sp->m_trg_list->get_trigger_field_support(),
+        trg_fld->setup_field(sp->m_trg_list,
                              t->get_subject_table_grant());
       }
 

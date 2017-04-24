@@ -2314,48 +2314,6 @@ bool rename_foreign_keys(const char *old_table_name,
 }
 
 
-bool rename_table(THD *thd, dd::Table *table_def,
-                  const char *from_table_name,
-                  const char *to_schema_name,
-                  const char *to_table_name)
-{
-  DBUG_ASSERT(table_def != nullptr);
-
-  // We must make sure the schema is released and unlocked in the right order.
-  dd::Schema_MDL_locker to_mdl_locker(thd);
-
-  // Check if destination schema exist.
-  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
-  const dd::Schema *to_sch= NULL;
-
-  if (to_mdl_locker.ensure_locked(to_schema_name) ||
-      thd->dd_client()->acquire(to_schema_name, &to_sch))
-  {
-    // Error is reported by the dictionary subsystem.
-    return true;
-  }
-
-  if (!to_sch)
-  {
-    my_error(ER_BAD_DB_ERROR, MYF(0), to_schema_name);
-    return true;
-  }
-
-  // Set schema id and table name.
-  table_def->set_schema_id(to_sch->id());
-  table_def->set_name(to_table_name);
-
-  // Mark the hidden flag.
-  table_def->set_hidden(dd::Abstract_table::HT_VISIBLE);
-
-  if (rename_foreign_keys(from_table_name, table_def))
-    return true;
-
-  // Do the update. Errors will be reported by the dictionary subsystem.
-  return thd->dd_client()->update(table_def);
-}
-
-
 // Only used by NDB
 /* purecov: begin deadcode */
 bool table_legacy_db_type(THD *thd, const char *schema_name,
@@ -2503,35 +2461,8 @@ dd::String_type get_sql_type_by_field_info(THD *thd,
 }
 
 
-bool fix_row_type(THD *thd, TABLE_SHARE *share)
+bool fix_row_type(THD *thd, dd::Table *table_def, row_type correct_row_type)
 {
-  HA_CREATE_INFO create_info;
-  create_info.row_type= share->row_type;
-  create_info.table_options= share->db_options_in_use;
-
-  handler *file= get_new_handler(share, share->m_part_info != NULL,
-                                 thd->mem_root, share->db_type());
-  if (!file)
-    return true;
-
-  row_type correct_row_type= file->get_real_row_type(&create_info);
-
-  bool error= fix_row_type(thd, share, correct_row_type);
-
-  delete file;
-  return error;
-}
-
-
-bool fix_row_type(THD *thd, TABLE_SHARE *share, row_type correct_row_type)
-{
-  dd::Table *table_def= nullptr;
-
-  if (thd->dd_client()->acquire_for_modification(share->db.str,
-                                                 share->table_name.str,
-                                                 &table_def))
-    return true;
-
   DBUG_ASSERT(table_def != nullptr);
 
   table_def->set_row_format(dd_get_new_row_format(correct_row_type));

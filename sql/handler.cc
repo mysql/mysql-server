@@ -5365,15 +5365,16 @@ int ha_create_table(THD *thd, const char *path,
 
   init_tmp_table_share(thd, &share, db, 0, table_name, path, nullptr);
 
-  if (open_table_def(thd, &share, false, table_def))
+  if (open_table_def(thd, &share, *table_def))
     goto err;
 
 #ifdef HAVE_PSI_TABLE_INTERFACE
   share.m_psi= PSI_TABLE_CALL(get_table_share)(temp_table, &share);
 #endif
 
+  // When db_stat is 0, we can pass nullptr as dd::Table since it won't be used.
   if (open_table_from_share(thd, &share, "", 0, (uint) READ_ALL, 0, &table,
-                            TRUE, table_def))
+                            TRUE, nullptr))
   {
 #ifdef HAVE_PSI_TABLE_INTERFACE
     PSI_TABLE_CALL(drop_table_share)
@@ -5466,12 +5467,23 @@ int ha_create_table_from_engine(THD* thd, const char *db, const char *name)
 
   build_table_filename(path, sizeof(path) - 1, db, name, "", 0);
   init_tmp_table_share(thd, &share, db, 0, name, path, nullptr);
-  if (open_table_def(thd, &share, false, NULL))
+
+  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+  const dd::Table *table_def= nullptr;
+  if (thd->dd_client()->acquire(db, name, &table_def))
+    DBUG_RETURN(3);
+
+  if (table_def == nullptr)
   {
+    my_error(ER_NO_SUCH_TABLE, MYF(0), db, name);
     DBUG_RETURN(3);
   }
 
-  if (open_table_from_share(thd, &share, "" ,0, 0, 0, &table, FALSE, NULL))
+  if (open_table_def(thd, &share, *table_def))
+    DBUG_RETURN(3);
+
+  // When db_stat is 0, we can pass nullptr as dd::Table since it won't be used.
+  if (open_table_from_share(thd, &share, "" ,0, 0, 0, &table, FALSE, nullptr))
   {
     free_table_share(&share);
     DBUG_RETURN(3);
@@ -8775,12 +8787,21 @@ bool handler::my_prepare_gcolumn_template(THD *thd,
            thd, db_name, table_name, false, &mdl_ticket))
     return true;
 
-  // Note! The last argument to open_table_uncached() must be false,
-  // since the table already exists in the TDC. Allowing the table to
-  // be opened in the SE in this case is dangerous as the two shares
-  // could get conflicting SE private data.
-  TABLE *table= open_table_uncached(thd, path, db_name, table_name,
-                                    false, false, NULL);
+  TABLE *table= nullptr;
+  {
+    dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+    const dd::Table *tab_obj= nullptr;
+    if (thd->dd_client()->acquire(db_name, table_name, &tab_obj))
+      return true;
+    DBUG_ASSERT(tab_obj);
+
+    // Note! The second-to-last argument to open_table_uncached() must be false,
+    // since the table already exists in the TDC. Allowing the table to
+    // be opened in the SE in this case is dangerous as the two shares
+    // could get conflicting SE private data.
+    table= open_table_uncached(thd, path, db_name, table_name,
+                               false, false, *tab_obj);
+  }
 
   dd::release_mdl(thd, mdl_ticket);
 
@@ -8802,7 +8823,7 @@ bool handler::my_prepare_gcolumn_template(THD *thd,
   handler::my_eval_gcolumn_expr() but is intended for use when no TABLE
   object already exists - e.g. from purge threads.
 
-  Note! The call to open_table_uncached() must be made with the last
+  Note! The call to open_table_uncached() must be made with the second-to-last
   argument (open_in_engine) set to false. Failing to do so will cause
   deadlocks and incorrect behavior.
 
@@ -8835,8 +8856,17 @@ bool handler::my_eval_gcolumn_expr_with_open(THD *thd,
                                    thd, db_name, table_name, false, &mdl_ticket))
     return true;
 
-  TABLE *table= open_table_uncached(thd, path, db_name, table_name,
-                                    false, false, NULL);
+  TABLE *table= nullptr;
+  {
+    dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+    const dd::Table *tab_obj= nullptr;
+    if (thd->dd_client()->acquire(db_name, table_name, &tab_obj))
+      return true;
+    DBUG_ASSERT(tab_obj);
+
+    table= open_table_uncached(thd, path, db_name, table_name,
+                               false, false, *tab_obj);
+  }
 
   dd::release_mdl(thd, mdl_ticket);
 

@@ -39,6 +39,10 @@ struct TABLE_LIST;
 struct handlerton;
 class KEY;
 class FOREIGN_KEY;
+namespace dd {
+  class Schema;
+  class Table;
+}
 
 typedef struct st_ha_check_opt HA_CHECK_OPT;
 typedef struct st_ha_create_information HA_CREATE_INFO;
@@ -61,15 +65,13 @@ enum enum_explain_filename_mode
 static const uint FN_FROM_IS_TMP=  1 << 0;
 static const uint FN_TO_IS_TMP=    1 << 1;
 static const uint FN_IS_TMP=       FN_FROM_IS_TMP | FN_TO_IS_TMP;
-/** Don't remove table in engine. Remove only .FRM and maybe .PAR files. */
-static const uint NO_HA_TABLE=     1 << 2;
 /** Don't check foreign key constraints while renaming table */
-static const uint NO_FK_CHECKS=    1 << 3;
+static const uint NO_FK_CHECKS=    1 << 2;
 /**
   Don't commit transaction after updating data-dictionary while renaming
   the table.
 */
-static const uint NO_DD_COMMIT=    1 << 4;
+static const uint NO_DD_COMMIT=    1 << 3;
 
 
 size_t filename_to_tablename(const char *from, char *to, size_t to_length
@@ -132,6 +134,8 @@ const char* find_fk_supporting_index(Alter_info *alter_info,
   Prepare Create_field and Key_spec objects for ALTER and upgrade.
   @param[in,out]  thd          thread handle. Used as a memory pool
                                and source of environment information.
+  @param[in]      src_table    DD table object. Will be nullptr for temporary
+                               tables and during upgrade.
   @param[in]      table        the source table, open and locked
                                Used as an interface to the storage engine
                                to acquire additional information about
@@ -146,22 +150,22 @@ const char* find_fk_supporting_index(Alter_info *alter_info,
                                around two structures.
   @param[in,out]  alter_ctx    Runtime context for ALTER TABLE.
   @param[in]      used_fields  used_fields from HA_CREATE_INFO.
-  @param[in]      upgrade_flag True if upgrading data directory.
 
   @retval TRUE   error, out of memory or a semantical error in ALTER
                  TABLE instructions
   @retval FALSE  success
 
 */
-bool prepare_fields_and_keys(THD *thd, TABLE *table,
+bool prepare_fields_and_keys(THD *thd,
+                             const dd::Table *src_table,
+                             TABLE *table,
                              HA_CREATE_INFO *create_info,
                              Alter_info *alter_info,
                              Alter_table_ctx *alter_ctx,
-                             const uint &used_fields,
-                             bool upgrade_flag);
+                             const uint &used_fields);
 
-bool mysql_prepare_alter_table(THD *thd, TABLE *table,
-                               HA_CREATE_INFO *create_info,
+bool mysql_prepare_alter_table(THD *thd, const dd::Table *src_table,
+                               TABLE *table, HA_CREATE_INFO *create_info,
                                Alter_info *alter_info,
                                Alter_table_ctx *alter_ctx);
 bool mysql_trans_prepare_alter_copy_data(THD *thd);
@@ -179,8 +183,8 @@ bool mysql_create_like_table(THD *thd, TABLE_LIST *table,
                              TABLE_LIST *src_table,
                              HA_CREATE_INFO *create_info);
 bool mysql_rename_table(THD *thd, handlerton *base, const char *old_db,
-                        const char * old_name, const char *new_db,
-                        const char * new_name, uint flags);
+                        const char * old_name, const dd::Schema &new_schema,
+                        const char *new_db, const char * new_name, uint flags);
 
 bool mysql_checksum_table(THD* thd, TABLE_LIST* table_list,
                           HA_CHECK_OPT* check_opt);

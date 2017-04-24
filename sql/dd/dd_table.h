@@ -24,7 +24,6 @@
 #include "dd/types/column.h"         // dd::enum_column_types
 #include "handler.h"                 // legacy_db_type
 #include "my_inttypes.h"
-#include "prealloced_array.h"        // Prealloced_array
 #include "sql_alter.h"               // Alter_info::enum_enable_or_disable
 
 
@@ -32,17 +31,13 @@ class Create_field;
 class KEY;
 class FOREIGN_KEY;
 class THD;
-struct TABLE_LIST;
-struct TABLE_SHARE;
 typedef struct st_ha_create_information HA_CREATE_INFO;
 template <class T> class List;
 
 namespace dd {
   class Abstract_table;
-  class Trigger;
   class Table;
 
-  enum class enum_table_type;
   namespace cache {
     class Dictionary_client;
   }
@@ -193,30 +188,6 @@ bool table_exists(dd::cache::Dictionary_client *client,
                   bool *exists);
 
 /**
-  Rename a table in the data-dictionary.
-
-  @param  thd                  The dictionary client.
-  @param  table_def            Table definition of table to rename.
-  @param  from_name            Table name to rename.
-  @param  to_schema_name       New schema name.
-  @param  to_name              New table name.
-
-  @note The caller must rollback both statement and transaction on failure,
-        before any further accesses to DD. This is because such a failure
-        might be caused by a deadlock, which requires rollback before any
-        other operations on SE (including reads using attachable transactions)
-        can be done.
-
-  @retval      true         Failure (error has been reported).
-  @retval      false        Success.
-*/
-bool rename_table(THD *thd,
-                  dd::Table *table_def,
-                  const char *from_name,
-                  const char *to_schema_name,
-                  const char *to_name);
-
-/**
   Rename foreign keys which have generated names to
   match the new name of the table.
 
@@ -317,33 +288,19 @@ String_type get_sql_type_by_field_info(THD *thd,
 enum_column_types get_new_field_type(enum_field_types type);
 
 /**
-  Update real row format for the table in the data-dictionary with
-  value from the storage engine.
-
-  @pre There must be an exclusive MDL lock on the table.
-
-  @param[in]    thd         Thread context.
-  @param[in]    share       TABLE_SHARE for the table.
-
-  @retval       false       Success
-  @retval       true        Error
-*/
-bool fix_row_type(THD *thd, TABLE_SHARE *share);
-
-/**
   Update row format for the table with the value
   value supplied by caller function.
 
   @pre There must be an exclusive MDL lock on the table.
 
   @param[in]    thd              Thread context.
-  @param[in]    share            TABLE_SHARE for the table.
+  @param[in]    table            Table object for the table.
   @param[in]    correct_row_type row_type to be set.
 
   @retval       false       Success
   @retval       true        Error
 */
-bool fix_row_type(THD *thd, TABLE_SHARE *share, row_type correct_row_type);
+bool fix_row_type(THD *thd, dd::Table *table, row_type correct_row_type);
 
 /**
   Add column objects to dd::Abstract_table objects according to the

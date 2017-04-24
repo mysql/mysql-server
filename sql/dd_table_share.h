@@ -23,6 +23,8 @@
 #include "my_inttypes.h"
 #include "my_sys.h"                  // get_charset
 
+class Field;
+class KEY_PART_INFO;
 class THD;
 struct TABLE_SHARE;
 
@@ -38,11 +40,9 @@ namespace dd {
 
   @param thd        Thread handler
   @param share      Fill this with table definition
-  @param open_view  Allow open of view
-  @param table_def  If not NULL: a data-dictionary Table-object describing
+  @param table_def  A data-dictionary Table-object describing
                     table to be used for opening, instead of reading
-                    information from DD. If NULL, a new dd::Table-object
-                    will be constructed and read from the Data Dictionary.
+                    information from DD.
 
   @note
     This function is called when the table definition is not cached in
@@ -54,8 +54,7 @@ namespace dd {
    false   OK
    true    Error
 */
-bool open_table_def(THD *thd, TABLE_SHARE *share, bool open_view,
-                    const dd::Table *table_def);
+bool open_table_def(THD *thd, TABLE_SHARE *share, const dd::Table &table_def);
 
 
 /**
@@ -63,10 +62,8 @@ bool open_table_def(THD *thd, TABLE_SHARE *share, bool open_view,
 
   @param thd        Thread handler
   @param share      Fill this with table definition
-  @param table_def  If not NULL: a data-dictionary Table-object describing
-                    table to be used for opening, instead of reading
-                    information from DD. If NULL, a new dd::Table-object
-                    will be constructed and read from the Data Dictionary.
+  @param table_def  A data-dictionary Table-object describing
+                    table to be used for opening.
 
   @note
     This function is called from InnoDB, and will suppress errors
@@ -79,7 +76,7 @@ bool open_table_def(THD *thd, TABLE_SHARE *share, bool open_view,
    true    Error
 */
 bool open_table_def_suppress_invalid_meta_data(THD *thd, TABLE_SHARE *share,
-                                               const dd::Table *table_def);
+                                               const dd::Table &table_def);
 
 
 /* Map from new to old field type. */
@@ -90,10 +87,8 @@ static inline CHARSET_INFO *dd_get_mysql_charset(dd::Object_id dd_cs_id)
   return get_charset(static_cast<uint> (dd_cs_id), MYF(0));
 }
 
-class Field;
-class KEY_PART_INFO;
 
-/*
+/**
   Check if the given key_part is suitable to be promoted as part of
   primary key.
 

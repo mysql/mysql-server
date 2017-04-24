@@ -341,7 +341,6 @@ static TABLE_LIST *reverse_table_list(TABLE_LIST *table_list)
 
   @note Unless int_commit_done is true failure of this call requires
         rollback of transaction before doing anything else.
-        @sa dd::rename_table().
 
   @return False on success, True if rename failed.
 */
@@ -366,26 +365,22 @@ do_rename(THD *thd, TABLE_LIST *ren_table,
 
   // Fail if the target table already exists
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
-  const dd::Abstract_table *target_table= nullptr;
-  if (thd->dd_client()->acquire(new_db, new_alias, &target_table))
+  const dd::Schema *from_schema= nullptr;
+  const dd::Schema *to_schema= nullptr;
+  dd::Abstract_table *from_at= nullptr;
+  const dd::Abstract_table *to_table= nullptr;
+  if (thd->dd_client()->acquire(ren_table->db, &from_schema) ||
+      thd->dd_client()->acquire(new_db, &to_schema) ||
+      thd->dd_client()->acquire(new_db, new_alias, &to_table) ||
+      thd->dd_client()->acquire_for_modification(ren_table->db,
+                                                 ren_table->table_name,
+                                                 &from_at))
     DBUG_RETURN(true);                         // This error cannot be skipped
 
-  if (target_table != nullptr)
+  if (to_table != nullptr)
   {
     my_error(ER_TABLE_EXISTS_ERROR, MYF(0), new_alias);
     DBUG_RETURN(true);                         // This error cannot be skipped
-  }
-
-  dd::Abstract_table *abstract_table= nullptr;
-  const dd::Schema *from_schema= nullptr;
-
-  if (thd->dd_client()->acquire(ren_table->db, &from_schema) ||
-      thd->dd_client()->acquire_for_modification(ren_table->db,
-                                                 ren_table->table_name,
-                                                 &abstract_table))
-  {
-    // Error is reported by the dictionary subsystem.
-    DBUG_RETURN(true);
   }
 
   if (from_schema == nullptr)
@@ -394,7 +389,13 @@ do_rename(THD *thd, TABLE_LIST *ren_table,
     DBUG_RETURN(!skip_error);
   }
 
-  if (abstract_table == nullptr)
+  if (to_schema == nullptr)
+  {
+    my_error(ER_BAD_DB_ERROR, MYF(0), new_db);
+    DBUG_RETURN(!skip_error);
+  }
+
+  if (from_at == nullptr)
   {
     my_error(ER_NO_SUCH_TABLE, MYF(0), ren_table->db, old_alias);
     DBUG_RETURN(!skip_error);
@@ -402,12 +403,12 @@ do_rename(THD *thd, TABLE_LIST *ren_table,
 
   // So here we know the source table exists and the target table does
   // not exist. Next is to act based on the table type.
-  switch (abstract_table->type())
+  switch (from_at->type())
   {
   case dd::enum_table_type::BASE_TABLE:
     {
       handlerton *hton= NULL;
-      dd::Table *from_table= dynamic_cast<dd::Table*>(abstract_table);
+      dd::Table *from_table= dynamic_cast<dd::Table*>(from_at);
       // If the engine is not found, my_error() has already been called
       if (dd::table_storage_engine(thd, from_table, &hton))
         DBUG_RETURN(!skip_error);
@@ -431,8 +432,9 @@ do_rename(THD *thd, TABLE_LIST *ren_table,
         DBUG_RETURN(!skip_error);
 
       // If renaming fails, my_error() has already been called
-      if (mysql_rename_table(thd, hton, ren_table->db, old_alias, new_db,
-                             new_alias, (*int_commit_done ? 0 : NO_DD_COMMIT)))
+      if (mysql_rename_table(thd, hton, ren_table->db, old_alias, *to_schema,
+                             new_db, new_alias,
+                             (*int_commit_done ? 0 : NO_DD_COMMIT)))
         DBUG_RETURN(!skip_error);
 
       break;
@@ -451,10 +453,10 @@ do_rename(THD *thd, TABLE_LIST *ren_table,
       Disable_gtid_state_update_guard disabler(thd);
 
       // Set schema id and view name.
-      abstract_table->set_name(new_alias);
+      from_at->set_name(new_alias);
 
       // Do the update. Errors will be reported by the dictionary subsystem.
-      if (thd->dd_client()->update(abstract_table))
+      if (thd->dd_client()->update(from_at))
       {
         if (*int_commit_done)
         {
@@ -509,7 +511,6 @@ do_rename(THD *thd, TABLE_LIST *ren_table,
 
   @note Unless int_commit_done is true failure of this call requires
         rollback of transaction before doing anything else.
-        @sa dd::rename_table().
 
   @return 0 - on success, pointer to problematic entry if something
           goes wrong.

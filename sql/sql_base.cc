@@ -28,6 +28,7 @@
 #include "binlog.h"                   // mysql_bin_log
 #include "check_stack.h"
 #include "dd/cache/dictionary_client.h"
+#include "dd/dd_schema.h"
 #include "dd/dd_table.h"              // dd::table_exists
 #include "dd/dd_tablespace.h"         // dd::fill_table_and_parts_tablespace_name
 #include "dd/types/abstract_table.h"
@@ -279,11 +280,14 @@ static bool table_def_shutdown_in_progress= false;
 
 static bool check_and_update_table_version(THD *thd, TABLE_LIST *tables,
                                            TABLE_SHARE *table_share);
-static bool open_table_entry_fini(THD *thd, TABLE_SHARE *share, TABLE *entry);
+static bool open_table_entry_fini(THD *thd, TABLE_SHARE *share,
+                                  const dd::Table *table, TABLE *entry);
 static bool auto_repair_table(THD *thd, TABLE_LIST *table_list);
 static TABLE *find_temporary_table(THD *thd,
                                    const char *table_key,
                                    size_t table_key_length);
+static bool tdc_open_view(THD *thd, TABLE_LIST *table_list,
+                          const char *cache_key, size_t cache_key_length);
 
 /**
   Create a table cache/table definition cache key
@@ -479,6 +483,61 @@ uint cached_table_definitions(void)
 }
 
 
+static TABLE_SHARE *process_found_table_share(THD *thd, TABLE_SHARE *share,
+                                              bool open_view)
+{
+  DBUG_ENTER("process_found_table_share");
+  mysql_mutex_assert_owner(&LOCK_open);
+#if defined(ENABLED_DEBUG_SYNC)
+  if (!thd->is_attachable_ro_transaction_active())
+    DEBUG_SYNC(thd, "get_share_found_share");
+#endif
+  /*
+     We found an existing table definition. Return it if we didn't get
+     an error when reading the table definition from file.
+  */
+  if (share->error)
+  {
+    /*
+      Table definition contained an error.
+      Note that we report ER_NO_SUCH_TABLE regardless of which error occured
+      when the other thread tried to open the table definition (e.g. OOM).
+    */
+    my_error(ER_NO_SUCH_TABLE, MYF(0), share->db.str, share->table_name.str);
+    DBUG_RETURN(NULL);
+  }
+  if (share->is_view && !open_view)
+  {
+    my_error(ER_NO_SUCH_TABLE, MYF(0), share->db.str, share->table_name.str);
+    DBUG_RETURN(NULL);
+  }
+
+  ++share->ref_count;
+
+  if (share->ref_count == 1 && share->prev)
+  {
+    /*
+      Share was not used before and it was in the old_unused_share list
+      Unlink share from this list
+    */
+    DBUG_PRINT("info", ("Unlinking from not used list"));
+    *share->prev= share->next;
+    share->next->prev= share->prev;
+    share->next= 0;
+    share->prev= 0;
+  }
+
+   /* Free cache if too big */
+  while (table_def_cache.records > table_def_size &&
+         oldest_unused_share->next)
+    my_hash_delete(&table_def_cache, (uchar*) oldest_unused_share);
+
+  DBUG_PRINT("exit", ("share: %p ref_count: %u",
+                      share, share->ref_count));
+  DBUG_RETURN(share);
+}
+
+
 /**
   Get the TABLE_SHARE for a table.
 
@@ -505,7 +564,8 @@ uint cached_table_definitions(void)
         Otherwise, we may end up in deadlocks that will not be detected.
 
   @param thd                thread handle
-  @param table_list         table that should be opened
+  @param db                 schema name
+  @param table_name         table name
   @param key                table cache key
   @param key_length         length of key
   @param open_view          allow open of view
@@ -514,7 +574,8 @@ uint cached_table_definitions(void)
   @return Pointer to the new TABLE_SHARE, or NULL if there was an error
 */
 
-TABLE_SHARE *get_table_share(THD *thd, TABLE_LIST *table_list,
+TABLE_SHARE *get_table_share(THD *thd, const char *db,
+                             const char *table_name,
                              const char *key, size_t key_length,
                              bool open_view, my_hash_value_type hash_value)
 {
@@ -530,8 +591,8 @@ TABLE_SHARE *get_table_share(THD *thd, TABLE_LIST *table_list,
     some kind of metadata lock on it.
   */
   DBUG_ASSERT(thd->mdl_context.owns_equal_or_stronger_lock(MDL_key::TABLE,
-                                 table_list->db, table_list->table_name,
-                                 MDL_SHARED));
+                                                           db, table_name,
+                                                           MDL_SHARED));
 
   /*
     Read table definition from the cache. If the share is being opened,
@@ -546,7 +607,7 @@ TABLE_SHARE *get_table_share(THD *thd, TABLE_LIST *table_list,
                        key_length))))
   {
     if (!share->m_open_in_progress)
-      goto found;
+      DBUG_RETURN(process_found_table_share(thd, share, open_view));
 
     mysql_cond_wait(&COND_open, &LOCK_open);
   }
@@ -556,7 +617,7 @@ TABLE_SHARE *get_table_share(THD *thd, TABLE_LIST *table_list,
     thread will be waiting for m_open_in_progress. Hence, a broadcast is
     not necessary.
   */
-  if (!(share= alloc_table_share(table_list, key, key_length)))
+  if (!(share= alloc_table_share(db, table_name, key, key_length)))
   {
     DBUG_RETURN(NULL);
   }
@@ -606,7 +667,50 @@ TABLE_SHARE *get_table_share(THD *thd, TABLE_LIST *table_list,
     DEBUG_SYNC(thd, "get_share_before_open");
 #endif
 
-  open_table_err= open_table_def(thd, share, open_view, NULL);
+  {
+    // We must make sure the schema is released and unlocked in the right order.
+    dd::Schema_MDL_locker mdl_handler(thd);
+    dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+    const dd::Schema *sch= nullptr;
+    const dd::Abstract_table *abstract_table= nullptr;
+    open_table_err= true; // Assume error to simplify code below.
+    if (mdl_handler.ensure_locked(share->db.str) ||
+        thd->dd_client()->acquire(share->db.str, &sch) ||
+        thd->dd_client()->acquire(share->db.str, share->table_name.str, &
+                                  abstract_table))
+    { }
+    else if (sch == nullptr)
+      my_error(ER_BAD_DB_ERROR, MYF(0), share->db.str);
+    else if (abstract_table == nullptr)
+      my_error(ER_NO_SUCH_TABLE, MYF(0), share->db.str, share->table_name.str);
+    else if (abstract_table->type() == dd::enum_table_type::USER_VIEW ||
+             abstract_table->type() == dd::enum_table_type::SYSTEM_VIEW)
+    {
+      if (!open_view) // We found a view but were trying to open table only.
+        my_error(ER_NO_SUCH_TABLE, MYF(0), share->db.str, share->table_name.str);
+      else
+      {
+        /*
+          Clone the view reference object and hold it in
+          TABLE_SHARE member view_object.
+        */
+        share->is_view= true;
+        const dd::View *tmp_view= dynamic_cast<const dd::View*>(abstract_table);
+        share->view_object= tmp_view->clone();
+
+        share->table_category= get_table_category(share->db, share->table_name);
+        thd->status_var.opened_shares++;
+        open_table_err= false;
+      }
+    }
+    else
+    {
+      DBUG_ASSERT(abstract_table->type() == dd::enum_table_type::BASE_TABLE);
+      open_table_err=
+        open_table_def(thd, share,
+                       *dynamic_cast<const dd::Table*>(abstract_table));
+    }
+  }
 
   /*
     Get back LOCK_open before continuing. Notify all waiters that the
@@ -663,55 +767,6 @@ TABLE_SHARE *get_table_share(THD *thd, TABLE_LIST *table_list,
                              key_length));
 #endif
   DBUG_RETURN(share);
-
-found:
-#if defined(ENABLED_DEBUG_SYNC)
-  if (!thd->is_attachable_ro_transaction_active())
-    DEBUG_SYNC(thd, "get_share_found_share");
-#endif
-  /*
-     We found an existing table definition. Return it if we didn't get
-     an error when reading the table definition from file.
-  */
-  if (share->error)
-  {
-    /*
-      Table definition contained an error.
-      Note that we report ER_NO_SUCH_TABLE regardless of which error occured
-      when the other thread tried to open the table definition (e.g. OOM).
-    */
-    my_error(ER_NO_SUCH_TABLE, MYF(0), share->db.str, share->table_name.str);
-    DBUG_RETURN(NULL);
-  }
-  if (share->is_view && !open_view)
-  {
-    my_error(ER_NO_SUCH_TABLE, MYF(0), share->db.str, share->table_name.str);
-    DBUG_RETURN(NULL);
-  }
-
-  ++share->ref_count;
-
-  if (share->ref_count == 1 && share->prev)
-  {
-    /*
-      Share was not used before and it was in the old_unused_share list
-      Unlink share from this list
-    */
-    DBUG_PRINT("info", ("Unlinking from not used list"));
-    *share->prev= share->next;
-    share->next->prev= share->prev;
-    share->next= 0;
-    share->prev= 0;
-  }
-
-   /* Free cache if too big */
-  while (table_def_cache.records > table_def_size &&
-         oldest_unused_share->next)
-    my_hash_delete(&table_def_cache, (uchar*) oldest_unused_share);
-
-  DBUG_PRINT("exit", ("share: %p ref_count: %u",
-                      share, share->ref_count));
-  DBUG_RETURN(share);
 }
 
 
@@ -731,8 +786,8 @@ get_table_share_with_discover(THD *thd, TABLE_LIST *table_list,
   bool exists;
   DBUG_ENTER("get_table_share_with_create");
 
-  share= get_table_share(thd, table_list, key, key_length, true,
-                         hash_value);
+  share= get_table_share(thd, table_list->db, table_list->table_name,
+                         key, key_length, true, hash_value);
   /*
     If share is not NULL, we found an existing share.
 
@@ -3026,8 +3081,7 @@ bool open_table(THD *thd, TABLE_LIST *table_list, Open_table_context *ot_ctx)
           DBUG_RETURN(true);
         }
 
-        // Check metadata version and don't skip view defintion parsing.
-        if (!tdc_open_view(thd, table_list, key, key_length, true, false))
+        if (!tdc_open_view(thd, table_list, key, key_length))
         {
           DBUG_ASSERT(table_list->is_view());
           DBUG_RETURN(FALSE); // VIEW
@@ -3288,31 +3342,24 @@ retry_share:
   */
   if (share->is_view)
   {
+    bool view_open_result= true;
     /*
       If parent_l of the table_list is non null then a merge table
       has this view as child table, which is not supported.
     */
     if (table_list->parent_l)
-    {
       my_error(ER_WRONG_MRG_TABLE, MYF(0));
-      goto err_unlock;
-    }
-
     /*
       This table is a view. Validate its metadata version: in particular,
       that it was a view when the statement was prepared.
     */
-    if (check_and_update_table_version(thd, table_list, share))
-      goto err_unlock;
-    if (table_list->i_s_requested_object & OPEN_TABLE_ONLY)
-    {
+    else if (check_and_update_table_version(thd, table_list, share))
+      ;
+    else if (table_list->i_s_requested_object & OPEN_TABLE_ONLY)
       my_error(ER_NO_SUCH_TABLE, MYF(0), table_list->db,
                table_list->table_name);
-      goto err_unlock;
-    }
-
-    /* Open view */
-    bool view_open_result= open_and_read_view(thd, share, table_list);
+    else /* Open view */
+      view_open_result= open_and_read_view(thd, share, table_list);
 
     /* TODO: Don't free this */
     release_table_share(share);
@@ -3395,61 +3442,73 @@ share_found:
   }
 
   mysql_mutex_unlock(&LOCK_open);
-  DEBUG_SYNC(thd, "open_table_found_share");
 
   DEBUG_SYNC(thd, "open_table_found_share");
 
-  /* make a new table */
-  if (!(table= (TABLE*) my_malloc(key_memory_TABLE,
-                                  sizeof(*table), MYF(MY_WME))))
-    goto err_lock;
-
-  error= open_table_from_share(thd, share, alias,
-                               ((flags & MYSQL_OPEN_NO_NEW_TABLE_IN_SE) ?
-                                0 :
-                                ((uint) (HA_OPEN_KEYFILE |
-                                         HA_OPEN_RNDFILE |
-                                         HA_GET_INDEX |
-                                         HA_TRY_READ_ONLY))),
-                                       EXTRA_RECORD,
-                               thd->open_options, table, false,
-                               nullptr);
-
-  if (error)
   {
-    my_free(table);
-
-    if (error == 7)
-      (void) ot_ctx->request_backoff_action(Open_table_context::OT_DISCOVER,
-                                            table_list);
-    else if (error == 8)
-      (void) ot_ctx->request_backoff_action(Open_table_context::OT_FIX_ROW_TYPE,
-                                            table_list);
-    else if (share->crashed)
-      (void) ot_ctx->request_backoff_action(Open_table_context::OT_REPAIR,
-                                            table_list);
-    goto err_lock;
-  }
-  else if (share->crashed)
-  {
-    switch (thd->lex->sql_command) {
-    case SQLCOM_ALTER_TABLE:
-    case SQLCOM_REPAIR:
-    case SQLCOM_CHECK:
-    case SQLCOM_SHOW_CREATE:
-      break;
-    default:
-      closefrm(table, 0);
-      my_free(table);
-      my_error(ER_CRASHED_ON_USAGE, MYF(0), share->table_name.str);
+    dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+    const dd::Table *table_def= nullptr;
+    if (!(flags & MYSQL_OPEN_NO_NEW_TABLE_IN_SE) &&
+        thd->dd_client()->acquire(share->db.str, share->table_name.str,
+                                  &table_def))
+    {
+      // Error is reported by the dictionary subsystem.
       goto err_lock;
     }
-  }
-  if (open_table_entry_fini(thd, share, table))
-  {
-    closefrm(table, 0);
-    my_free(table);
-    goto err_lock;
+
+    /* make a new table */
+    if (!(table= (TABLE*) my_malloc(key_memory_TABLE,
+                                    sizeof(*table), MYF(MY_WME))))
+      goto err_lock;
+
+    error= open_table_from_share(thd, share, alias,
+                                 ((flags & MYSQL_OPEN_NO_NEW_TABLE_IN_SE) ?
+                                  0 :
+                                  ((uint) (HA_OPEN_KEYFILE |
+                                           HA_OPEN_RNDFILE |
+                                           HA_GET_INDEX |
+                                           HA_TRY_READ_ONLY))),
+                                 EXTRA_RECORD,
+                                 thd->open_options, table, false,
+                                 table_def);
+
+    if (error)
+    {
+      my_free(table);
+
+      if (error == 7)
+        (void) ot_ctx->request_backoff_action(Open_table_context::OT_DISCOVER,
+                                              table_list);
+      else if (error == 8)
+        (void) ot_ctx->request_backoff_action(Open_table_context::OT_FIX_ROW_TYPE,
+                                              table_list);
+      else if (share->crashed)
+        (void) ot_ctx->request_backoff_action(Open_table_context::OT_REPAIR,
+                                              table_list);
+      goto err_lock;
+    }
+    else if (share->crashed)
+    {
+      switch (thd->lex->sql_command) {
+      case SQLCOM_ALTER_TABLE:
+      case SQLCOM_REPAIR:
+      case SQLCOM_CHECK:
+      case SQLCOM_SHOW_CREATE:
+        break;
+      default:
+        closefrm(table, 0);
+        my_free(table);
+        my_error(ER_CRASHED_ON_USAGE, MYF(0), share->table_name.str);
+        goto err_lock;
+      }
+    }
+
+    if (open_table_entry_fini(thd, share, table_def, table))
+    {
+      closefrm(table, 0);
+      my_free(table);
+      goto err_lock;
+    }
   }
   {
     /* Add new TABLE object to table cache for this connection. */
@@ -3513,7 +3572,6 @@ table_found:
 
 err_lock:
   mysql_mutex_lock(&LOCK_open);
-err_unlock:
   release_table_share(share);
   mysql_mutex_unlock(&LOCK_open);
 
@@ -4177,8 +4235,6 @@ check_and_update_routine_version(THD *thd, Sroutine_hash_entry *rt,
    @param table_list        TABLE_LIST with db, table_name & belong_to_view
    @param cache_key         Key for table definition cache
    @param cache_key_length  Length of cache_key
-   @param check_metadata_version  Check the TABLE_SHARE-version.
-   @param no_parse          Don't parse the view definition.
 
    @todo This function is needed for special handling of views under
          LOCK TABLES. We probably should get rid of it in long term.
@@ -4186,9 +4242,8 @@ check_and_update_routine_version(THD *thd, Sroutine_hash_entry *rt,
    @return FALSE if success, TRUE - otherwise.
 */
 
-bool tdc_open_view(THD *thd, TABLE_LIST *table_list,
-                   const char *cache_key, size_t cache_key_length,
-                   bool check_metadata_version, bool no_parse)
+static bool tdc_open_view(THD *thd, TABLE_LIST *table_list,
+                          const char *cache_key, size_t cache_key_length)
 {
   my_hash_value_type hash_value;
   TABLE_SHARE *share;
@@ -4197,31 +4252,28 @@ bool tdc_open_view(THD *thd, TABLE_LIST *table_list,
                            cache_key_length);
   mysql_mutex_lock(&LOCK_open);
 
-  if (!(share= get_table_share(thd, table_list, cache_key,
-                               cache_key_length,
+  if (!(share= get_table_share(thd, table_list->db, table_list->table_name,
+                               cache_key, cache_key_length,
                                true, hash_value)))
   {
     mysql_mutex_unlock(&LOCK_open);
     return true;
   }
 
-  if (check_metadata_version)
-  {
-    /*
-      Check TABLE_SHARE-version of view only if we have been instructed to do
-      so. We do not need to check the version if we're executing CREATE VIEW or
-      ALTER VIEW statements.
+  /*
+    Check TABLE_SHARE-version of view only if we have been instructed to do
+    so. We do not need to check the version if we're executing CREATE VIEW or
+    ALTER VIEW statements.
 
-      In the future, this functionality should be moved out from
-      tdc_open_view(), and  tdc_open_view() should became a part of a clean
-      table-definition-cache interface.
-    */
-    if (check_and_update_table_version(thd, table_list, share))
-    {
-      release_table_share(share);
-      mysql_mutex_unlock(&LOCK_open);
-      return true;
-    }
+    In the future, this functionality should be moved out from
+    tdc_open_view(), and  tdc_open_view() should became a part of a clean
+    table-definition-cache interface.
+  */
+  if (check_and_update_table_version(thd, table_list, share))
+  {
+    release_table_share(share);
+    mysql_mutex_unlock(&LOCK_open);
+    return true;
   }
 
   if (share->is_view)
@@ -4234,8 +4286,6 @@ bool tdc_open_view(THD *thd, TABLE_LIST *table_list,
     if (view_open_result)
       return true;
 
-    if (no_parse)
-      return false;
     return parse_view_definition(thd, table_list);
   }
 
@@ -4251,22 +4301,14 @@ bool tdc_open_view(THD *thd, TABLE_LIST *table_list,
    and taking action if a HEAP table content was emptied implicitly.
 */
 
-static bool open_table_entry_fini(THD *thd, TABLE_SHARE *share, TABLE *entry)
+static bool open_table_entry_fini(THD *thd, TABLE_SHARE *share,
+                                  const dd::Table *table, TABLE *entry)
 {
-  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
-
-  const dd::Table *table= nullptr;
-  if (thd->dd_client()->acquire(share->db.str, share->table_name.str, &table))
-  {
-    // Error is reported by the dictionary subsystem.
-    return true;
-  }
-
   if (table != nullptr && table->has_trigger())
   {
     Table_trigger_dispatcher *d= Table_trigger_dispatcher::create(entry);
 
-    if (!d || d->check_n_load(thd, false))
+    if (!d || d->check_n_load(thd, *table))
     {
       delete d;
       return true;
@@ -4334,8 +4376,8 @@ static bool auto_repair_table(THD *thd, TABLE_LIST *table_list)
                            cache_key_length);
   mysql_mutex_lock(&LOCK_open);
 
-  if (!(share= get_table_share(thd, table_list, cache_key,
-                               cache_key_length,
+  if (!(share= get_table_share(thd, table_list->db, table_list->table_name,
+                               cache_key, cache_key_length,
                                true, hash_value)))
     goto end_unlock;
 
@@ -4439,8 +4481,8 @@ static bool fix_row_type(THD *thd, TABLE_LIST *table_list)
     No_such_table_error_handler no_such_table_handler;
     thd->push_internal_handler(&no_such_table_handler);
 
-    share= get_table_share(thd, table_list, cache_key, cache_key_length,
-                           true, hash_value);
+    share= get_table_share(thd, table_list->db, table_list->table_name,
+                           cache_key, cache_key_length, true, hash_value);
 
     thd->pop_internal_handler();
 
@@ -4473,6 +4515,16 @@ static bool fix_row_type(THD *thd, TABLE_LIST *table_list)
     }
   }
 
+  int error= 0;
+  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+  dd::Table *table_def= nullptr;
+  if (thd->dd_client()->acquire_for_modification(share->db.str,
+                                                 share->table_name.str,
+                                                 &table_def))
+    error= 1;
+
+  DBUG_ASSERT(table_def != nullptr);
+
   /*
     Silence expected HA_ERR_ROW_FORMAT_CHANGED errors.
   */
@@ -4480,35 +4532,45 @@ static bool fix_row_type(THD *thd, TABLE_LIST *table_list)
   thd->push_internal_handler(&err_handler);
 
   TABLE tmp_table;
-  int error= open_table_from_share(thd, share, table_list->alias,
-                                   (uint) (HA_OPEN_KEYFILE | HA_OPEN_RNDFILE |
-                                           HA_GET_INDEX | HA_TRY_READ_ONLY),
-                                   EXTRA_RECORD, ha_open_options, &tmp_table,
-                                   false, NULL);
+  if (error == 0)
+    error= open_table_from_share(thd, share, table_list->alias,
+                                  (uint) (HA_OPEN_KEYFILE | HA_OPEN_RNDFILE |
+                                          HA_GET_INDEX | HA_TRY_READ_ONLY),
+                                  EXTRA_RECORD, ha_open_options, &tmp_table,
+                                  false, table_def);
 
   thd->pop_internal_handler();
 
-  bool result;
   if (error == 8)
   {
     Disable_autocommit_guard autocommit_guard(thd);
-    dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
-    result= dd::fix_row_type(thd, share);
-    if (result)
+    HA_CREATE_INFO create_info;
+    create_info.row_type= share->row_type;
+    create_info.table_options= share->db_options_in_use;
+
+    handler *file= get_new_handler(share, share->m_part_info != NULL,
+                                   thd->mem_root, share->db_type());
+    if (file != nullptr)
     {
-      trans_rollback_stmt(thd);
-      trans_rollback(thd);
+      row_type correct_row_type= file->get_real_row_type(&create_info);
+      bool result= dd::fix_row_type(thd, table_def, correct_row_type);
+      delete file;
+
+      if (result)
+      {
+        trans_rollback_stmt(thd);
+        trans_rollback(thd);
+      }
+      else
+      {
+        result= trans_commit_stmt(thd) || trans_commit(thd);
+        if (!result)
+          error= 0;
+      }
     }
-    else
-      result= trans_commit_stmt(thd) || trans_commit(thd);
   }
-  else if (!error)
-  {
+  else if (error == 0)
     closefrm(&tmp_table, 0);
-    result= false;
-  }
-  else
-    result= true;
 
   table_cache_manager.lock_all_and_tdc();
   release_table_share(share);
@@ -4520,7 +4582,7 @@ static bool fix_row_type(THD *thd, TABLE_LIST *table_list)
                    table_list->db, table_list->table_name,
                    TRUE);
   table_cache_manager.unlock_all_and_tdc();
-  return result;
+  return error != 0;
 }
 
 
@@ -6968,12 +7030,8 @@ void close_tables_for_reopen(THD *thd, TABLE_LIST **tables,
   @param open_in_engine               Indicates that we need to open table
                                       in storage engine in addition to
                                       constructing TABLE object for it.
-  @param table_def                    If not NULL: a data-dictionary
-                                      Table-object describing table to be
-                                      used for opening, instead of reading
-                                      information from DD. If NULL, a new
-                                      dd::Table-object will be constructed
-                                      and read from the Data Dictionary.
+  @param table_def                    A data-dictionary Table-object describing
+                                      table to be used for opening.
 
   @note This function is used:
     - by alter_table() to open a temporary table;
@@ -6987,7 +7045,7 @@ TABLE *open_table_uncached(THD *thd, const char *path, const char *db,
                            const char *table_name,
                            bool add_to_temporary_tables_list,
                            bool open_in_engine,
-                           const dd::Table *table_def)
+                           const dd::Table &table_def)
 {
   TABLE *tmp_table;
   TABLE_SHARE *share;
@@ -7039,7 +7097,7 @@ TABLE *open_table_uncached(THD *thd, const char *path, const char *db,
   init_tmp_table_share(thd, share, saved_cache_key, key_length,
                        strend(saved_cache_key)+1, tmp_path, nullptr);
 
-  if (open_table_def(thd, share, false, table_def))
+  if (open_table_def(thd, share, table_def))
   {
     /* No need to lock share->mutex as this is not needed for tmp tables */
     free_table_share(share);
@@ -7064,7 +7122,7 @@ TABLE *open_table_uncached(THD *thd, const char *path, const char *db,
                               Set "is_create_table" if the table does not
                               exist in SE
                             */
-                            (open_in_engine ? false : true) , table_def))
+                            (open_in_engine ? false : true) , &table_def))
   {
     /* No need to lock share->mutex as this is not needed for tmp tables */
     free_table_share(share);

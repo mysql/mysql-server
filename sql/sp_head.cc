@@ -76,9 +76,6 @@
 #include "transaction.h"       // trans_commit_stmt
 #include "trigger_def.h"
 
-class Table_trigger_field_support;
-struct PSI_statement_locker;
-
 /**
   @page stored_programs Stored Programs
 

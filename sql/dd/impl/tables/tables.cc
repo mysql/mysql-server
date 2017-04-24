@@ -267,42 +267,5 @@ Object_id Tables::read_se_private_id(const Raw_record &r)
   return r.read_uint(Tables::FIELD_SE_PRIVATE_ID, -1);
 }
 
-///////////////////////////////////////////////////////////////////////////
-
-/**
-  @brief
-  Retrieve max se_private_id for a given engine name
-  stored in mysql.tables DD tables.
-
-  @param       otx     The context for opening the DD tables.
-  @param       engine  The engine name within which we get max se_private_id.
-  @param [out] max_id  The resulting max id found.
-*/
-/* purecov: begin deadcode */
-bool Tables::max_se_private_id(Open_dictionary_tables_ctx *otx,
-                               const String_type &engine,
-                               ulonglong *max_id)
-{
-  std::unique_ptr<Object_key> key(
-    create_se_private_key(engine, INVALID_OBJECT_ID));
-
-  Raw_table *t= otx->get_table(table_name());
-  DBUG_ASSERT(t);
-
-  // Find record by the object-key.
-  *max_id= 0;
-  std::unique_ptr<Raw_record> r;
-  if (t->find_last_record(*key, r))
-    return true;
-
-  if (r.get())
-    *max_id= read_se_private_id(*r.get());
-
-  return false;
-}
-/* purecov: end */
-
-///////////////////////////////////////////////////////////////////////////
-
 }
 }

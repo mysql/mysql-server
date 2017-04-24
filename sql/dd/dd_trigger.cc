@@ -306,28 +306,12 @@ bool load_triggers(THD *thd,
                    MEM_ROOT *mem_root,
                    const char *schema_name,
                    const char *table_name,
+                   const dd::Table &table,
                    List<::Trigger> *triggers)
 {
   DBUG_ENTER("dd::load_triggers");
 
-  cache::Dictionary_client *dd_client= thd->dd_client();
-  cache::Dictionary_client::Auto_releaser releaser(dd_client);
-
-  const Table *table= nullptr;
-  if (dd_client->acquire(schema_name, table_name, &table))
-  {
-    // Error is reported by the dictionary subsystem.
-    DBUG_RETURN(true);
-  }
-
-  if (table == nullptr)
-  {
-    my_error(ER_NO_SUCH_TABLE, MYF(0),
-             schema_name, table_name);
-    DBUG_RETURN(true);
-  }
-
-  for (const auto &trigger : table->triggers())
+  for (const auto &trigger : table.triggers())
   {
     LEX_CSTRING db_name_str= { schema_name, strlen(schema_name) };
     LEX_CSTRING subject_table_name= { table_name, strlen(table_name) };

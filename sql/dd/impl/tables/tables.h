@@ -108,10 +108,6 @@ public:
 
   static Object_key *create_key_by_tablespace_id(Object_id tablespace_id);
 
-  static bool max_se_private_id(Open_dictionary_tables_ctx *otx,
-                                const String_type &engine,
-                                ulonglong *max_id);
-
   static ulonglong read_se_private_id(const Raw_record &r);
 };
 

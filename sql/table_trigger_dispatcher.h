@@ -36,14 +36,11 @@
 
 class Field;
 class THD;
-template <class T> class List;
-
-///////////////////////////////////////////////////////////////////////////
-
 class Query_tables_list;
 class String;
 class Trigger;
 class Trigger_chain;
+template <class T> class List;
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -57,18 +54,17 @@ class Table_trigger_dispatcher : public Sql_alloc,
 public:
   static Table_trigger_dispatcher *create(TABLE *subject_table);
 
-  bool check_n_load(THD *thd, bool names_only);
+  // Only used by NDB - see reload_triggers_for_table().
+  static bool check_n_load(THD *thd, const dd::Table &table,
+                           const char *db_name, const char *table_name);
+
+  bool check_n_load(THD *thd, const dd::Table &table);
 
 private:
   Table_trigger_dispatcher(TABLE *subject_table);
 
 public:
-  Table_trigger_dispatcher(const char *db_name, const char *table_name);
   ~Table_trigger_dispatcher();
-
-  Table_trigger_field_support *get_trigger_field_support()
-  { return this; }
-
 
   /**
     Checks if there is a broken trigger for this table.
@@ -141,10 +137,8 @@ public:
   void parse_triggers(THD *thd, List<Trigger> *triggers, bool is_upgrade);
 
 private:
-  MEM_ROOT *get_mem_root()
-  { return m_subject_table ? &m_subject_table->mem_root : &m_mem_root; }
-
   Trigger_chain *create_trigger_chain(
+    MEM_ROOT *mem_root,
     enum_trigger_event_type event,
     enum_trigger_action_time_type action_time);
 
@@ -188,46 +182,11 @@ private:
 private:
   /**
     TABLE instance for which this triggers list object was created.
-
-    @note TABLE-instance can be NULL in case when "simple" loading of triggers
-    is requested.
   */
   TABLE *m_subject_table;
 
-  /**
-    Memory root to allocate all the data of this class.
-
-    It either points to the subject table memory root (in case of "full"
-    trigger loading), or it can be a separate mem-root that will be destroyed
-    after trigger loading.
-
-    @note never use this attribute directly! Use get_mem_root() instead.
-  */
-  MEM_ROOT m_mem_root;
-
-  /**
-    Schema (database) name.
-
-    If m_subject_table is not NULL, it should be equal to
-    m_subject_table->s->db. The thing is that m_subject_table can be NULL, so
-    there should be a place to store the schema name.
-  */
-  LEX_STRING m_db_name;
-
-  /**
-    Subject table name.
-
-    If m_subject_table is not NULL, it should be equal to
-    m_subject_table->s->table_name. The thing is that m_subject_table can be
-    NULL, so there should be a place to store the subject table name.
-  */
-  LEX_STRING m_subject_table_name;
-
   /// Triggers grouped by event, action_time.
   Trigger_chain *m_trigger_map[TRG_EVENT_MAX][TRG_ACTION_MAX];
-
-  /// Special trigger chain to store triggers with parse errors.
-  Trigger_chain *m_unparseable_triggers;
 
   /**
     Copy of TABLE::Field array with field pointers set to TABLE::record[1]
@@ -252,11 +211,6 @@ private:
     not safe to add triggers since it is unknown if the broken trigger has the
     same name or event type. Nor is it safe to invoke any trigger. The only
     safe operations are drop_trigger() and drop_all_triggers().
-
-    @note if a trigger is badly damaged its Trigger-object will be destroyed
-    right after parsing, so that it will not get into m_unparseable_triggers
-    list. So, we need this and other similar attributes to preserve error
-    message about bad trigger.
 
     We can't use the value of m_parse_error_message as a flag to inform that
     a trigger has a parse error since for multi-byte locale the first byte of

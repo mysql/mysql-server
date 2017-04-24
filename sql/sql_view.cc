@@ -267,22 +267,43 @@ static void make_valid_column_names(LEX *lex)
     TRUE                 can't open table
     FALSE                success
 */
-static bool
-fill_defined_view_parts (THD *thd, TABLE_LIST *view)
+static bool fill_defined_view_parts(THD *thd, TABLE_LIST *view)
 {
-  const char *key;
-  size_t key_length;
-  LEX *lex= thd->lex;
+  const char *cache_key;
+  size_t cache_key_length= get_table_def_key(view, &cache_key);
+  my_hash_value_type hash_value= my_calc_hash(&table_def_cache,
+                                              (uchar*) cache_key,
+                                              cache_key_length);
   TABLE_LIST decoy;
-
   memcpy (&decoy, view, sizeof (TABLE_LIST));
 
-  key_length= get_table_def_key(view, &key);
+  mysql_mutex_lock(&LOCK_open);
 
-  // No need to check metadata version nor parse the view definition.
-  if (tdc_open_view(thd, &decoy, key, key_length, false, true))
-    return TRUE;
+  TABLE_SHARE *share;
+  if (!(share= get_table_share(thd, view->db, view->table_name, cache_key,
+                               cache_key_length, true, hash_value)))
+  {
+    mysql_mutex_unlock(&LOCK_open);
+    return true;
+  }
 
+  if (!share->is_view)
+  {
+    my_error(ER_WRONG_OBJECT, MYF(0), view->db, view->table_name, "VIEW");
+    release_table_share(share);
+    mysql_mutex_unlock(&LOCK_open);
+    return true;
+  }
+
+  bool view_open_result= open_and_read_view(thd, share, &decoy);
+
+  release_table_share(share);
+  mysql_mutex_unlock(&LOCK_open);
+
+  if (view_open_result)
+    return true;
+
+  LEX *lex= thd->lex;
   if (!lex->definer)
   {
     view->definer.host= decoy.definer.host;

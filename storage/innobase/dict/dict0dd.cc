@@ -281,7 +281,7 @@ dd_table_open_on_dd_obj(
 			     dd_table.name().c_str(), ""/* file name */,
 			     nullptr);
 
-	error = open_table_def_suppress_invalid_meta_data(thd, &ts, &dd_table);
+	error = open_table_def_suppress_invalid_meta_data(thd, &ts, dd_table);
 
 	if (error == 0) {
 		TABLE	td;
@@ -3279,7 +3279,7 @@ dd_open_table_one_on_name(
 			""/* file name */, nullptr);
 
 		ulint error = open_table_def_suppress_invalid_meta_data(
-				thd, &ts, dd_table);
+				thd, &ts, *dd_table);
 
 		if (error != 0) {
 			dd_mdl_release(thd, &mdl);
