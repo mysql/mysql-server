@@ -49,8 +49,8 @@ static inline bool operator<(const Key_use &a, const Key_use &b)
     return a.key < b.key;
   if (a.keypart != b.keypart)
     return a.keypart < b.keypart;
-  const bool atab = MY_TEST((a.used_tables & ~OUTER_REF_TABLE_BIT));
-  const bool btab = MY_TEST((b.used_tables & ~OUTER_REF_TABLE_BIT));
+  const bool atab = ((a.used_tables & ~OUTER_REF_TABLE_BIT));
+  const bool btab = ((b.used_tables & ~OUTER_REF_TABLE_BIT));
   if (atab != btab)
     return atab < btab;
   return

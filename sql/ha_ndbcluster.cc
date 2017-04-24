@@ -12446,9 +12446,9 @@ ha_ndbcluster::drop_table_and_related(THD* thd, Ndb* ndb, NdbDictionary::Diction
 {
   DBUG_ENTER("drop_table_and_related");
   DBUG_PRINT("enter", ("cascade_constraints: %d dropdb: %d skip_related: %d",
-                       MY_TEST(drop_flags & NDBDICT::DropTableCascadeConstraints),
-                       MY_TEST(drop_flags & NDBDICT::DropTableCascadeConstraintsDropDB),
-                       skip_related));
+    static_cast<bool>(drop_flags & NDBDICT::DropTableCascadeConstraints),
+    static_cast<bool>(drop_flags & NDBDICT::DropTableCascadeConstraintsDropDB),
+    skip_related));
 
   /*
     Build list of objects which should be dropped after the table
@@ -16334,7 +16334,7 @@ int ha_ndbcluster::multi_range_read_init(RANGE_SEQ_IF *seq_funcs,
 
   m_disable_multi_read= FALSE;
 
-  mrr_is_output_sorted= MY_TEST(mode & HA_MRR_SORTED);
+  mrr_is_output_sorted= (mode & HA_MRR_SORTED);
   /*
     Copy arguments into member variables
   */
@@ -16343,7 +16343,7 @@ int ha_ndbcluster::multi_range_read_init(RANGE_SEQ_IF *seq_funcs,
   mrr_iter= mrr_funcs.init(seq_init_param, n_ranges, mode);
   ranges_in_seq= n_ranges;
   m_range_res= mrr_funcs.next(mrr_iter, &mrr_cur_range);
-  mrr_need_range_assoc = !MY_TEST(mode & HA_MRR_NO_ASSOCIATION);
+  mrr_need_range_assoc = !(mode & HA_MRR_NO_ASSOCIATION);
   if (mrr_need_range_assoc)
   {
     ha_statistic_increment(&System_status_var::ha_multi_range_read_init_count);

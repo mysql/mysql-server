@@ -3531,7 +3531,7 @@ static uint32 get_list_array_idx_for_endpoint(partition_info *part_info,
     }
     else
     {
-      DBUG_RETURN(list_index + MY_TEST(left_endpoint ^ include_endpoint));
+      DBUG_RETURN(list_index + ((left_endpoint ^ include_endpoint) ? 1 : 0));
     }
   } while (max_list_index >= min_list_index);
 notfound:
@@ -6709,7 +6709,7 @@ get_part_iter_for_interval_via_mapping(partition_info *part_info,
         index-in-ordered-array-of-list-constants (for LIST) space.
       */
       store_key_image_to_rec(field, min_value, field_len);
-      bool include_endp= !MY_TEST(flags & NEAR_MIN);
+      bool include_endp= !(flags & NEAR_MIN);
       part_iter->part_nums.start= get_endpoint(part_info, 1, include_endp);
       if (!can_match_multiple_values && part_info->part_expr->null_value)
       {
@@ -6744,7 +6744,7 @@ get_part_iter_for_interval_via_mapping(partition_info *part_info,
   else
   {
     store_key_image_to_rec(field, max_value, field_len);
-    bool include_endp= !MY_TEST(flags & NEAR_MAX);
+    bool include_endp= !(flags & NEAR_MAX);
     part_iter->part_nums.end= get_endpoint(part_info, 0, include_endp);
     if (check_zero_dates &&
         !zero_in_start_date &&
@@ -6911,8 +6911,10 @@ static int get_part_iter_for_interval_via_walking(partition_info *part_info,
   if ((ulonglong)b - (ulonglong)a == ~0ULL)
     DBUG_RETURN(-1);
 
-  a += MY_TEST(flags & NEAR_MIN);
-  b += MY_TEST(!(flags & NEAR_MAX));
+  if (flags & NEAR_MIN)
+    ++a;
+  if (!(flags & NEAR_MAX))
+    ++b;
   ulonglong n_values= b - a;
 
   /*

@@ -607,7 +607,7 @@ public:
     m_top_view(top_view), m_handling(false),
     m_view_access_denied_message_ptr(NULL)
   {
-    m_sctx = MY_TEST(m_top_view->security_ctx) ?
+    m_sctx = (m_top_view->security_ctx != nullptr) ?
       m_top_view->security_ctx : thd->security_context();
   }
 
@@ -4285,7 +4285,7 @@ static int get_schema_tmp_table_columns_record(THD *thd, TABLE_LIST *tables,
     // PRIVILEGES
     uint col_access;
     check_access(thd,SELECT_ACL, db_name->str,
-                 &tables->grant.privilege, 0, 0, MY_TEST(tables->schema_table));
+                 &tables->grant.privilege, 0, 0, tables->schema_table != nullptr);
     col_access= get_column_grant(thd, &tables->grant,
                                  db_name->str, table_name->str,
                                  field->field_name) & COL_ACLS;

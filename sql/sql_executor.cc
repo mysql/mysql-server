@@ -1716,7 +1716,7 @@ evaluate_join_record(JOIN *join, QEP_TAB *const qep_tab)
 
   if (condition)
   {
-    found= MY_TEST(condition->val_int());
+    found= condition->val_int();
 
     if (join->thd->killed)
     {

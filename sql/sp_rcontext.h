@@ -442,7 +442,7 @@ public:
   bool close();
 
   bool is_open() const
-  { return MY_TEST(m_server_side_cursor); }
+  { return m_server_side_cursor != nullptr; }
 
   bool fetch(List<sp_variable> *vars);
 

@@ -1928,7 +1928,7 @@ bool create_ref_for_key(JOIN *join, JOIN_TAB *j, Key_use *org_keyuse,
     for (uint part_no= 0 ; part_no < keyparts ; part_no++)
     {
       keyuse= chosen_keyuses[part_no];
-      uint maybe_null= MY_TEST(keyinfo->key_part[part_no].null_bit);
+      bool maybe_null= keyinfo->key_part[part_no].null_bit;
 
       if (keyuse->val->type() == Item::FIELD_ITEM)
       {
@@ -2188,7 +2188,7 @@ static Item *make_cond_for_index(Item *cond, TABLE *table, uint keyno,
           new_cond->argument_list()->push_back(fix);
           used_tables|= fix->used_tables();
         }
-        n_marked += MY_TEST(item->marker == ICP_COND_USES_INDEX_ONLY);
+        n_marked += (item->marker == ICP_COND_USES_INDEX_ONLY);
       }
       if (n_marked ==((Item_cond*)cond)->argument_list()->elements)
         cond->marker= ICP_COND_USES_INDEX_ONLY;
@@ -2217,7 +2217,7 @@ static Item *make_cond_for_index(Item *cond, TABLE *table, uint keyno,
         if (!fix)
           return NULL;
         new_cond->argument_list()->push_back(fix);
-        n_marked += MY_TEST(item->marker == ICP_COND_USES_INDEX_ONLY);
+        n_marked += (item->marker == ICP_COND_USES_INDEX_ONLY);
       }
       if (n_marked ==((Item_cond*)cond)->argument_list()->elements)
         cond->marker= ICP_COND_USES_INDEX_ONLY;
@@ -3554,7 +3554,7 @@ test_if_subpart(ORDER *a,ORDER *b)
     else
       return 0;
   }
-  return MY_TEST(!b);
+  return !b;
 }
 
 /**

@@ -994,9 +994,8 @@ uint32 Partition_helper::ph_calculate_key_hash_value(Field **field_array)
 {
   ulong nr1= 1;
   ulong nr2= 4;
-  bool use_51_hash;
-  use_51_hash= MY_TEST((*field_array)->table->part_info->key_algorithm ==
-                       enum_key_algorithm::KEY_ALGORITHM_51);
+  bool use_51_hash= (*field_array)->table->part_info->key_algorithm ==
+                       enum_key_algorithm::KEY_ALGORITHM_51;
 
   do
   {

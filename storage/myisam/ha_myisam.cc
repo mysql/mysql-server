@@ -479,8 +479,8 @@ int check_definition(MI_KEYDEF *t1_keyinfo, MI_COLUMNDEF *t1_recinfo,
     {
        DBUG_PRINT("error", ("Key %d has different definition", i));
        DBUG_PRINT("error", ("t1_fulltext= %d, t2_fulltext=%d",
-                            MY_TEST(t1_keyinfo[i].flag & HA_FULLTEXT),
-                            MY_TEST(t2_keyinfo[i].flag & HA_FULLTEXT)));
+         static_cast<bool>(t1_keyinfo[i].flag & HA_FULLTEXT),
+         static_cast<bool>(t2_keyinfo[i].flag & HA_FULLTEXT)));
        DBUG_RETURN(1);
     }
     if (t1_keyinfo[i].flag & HA_SPATIAL && t2_keyinfo[i].flag & HA_SPATIAL)
@@ -490,8 +490,8 @@ int check_definition(MI_KEYDEF *t1_keyinfo, MI_COLUMNDEF *t1_recinfo,
     {
        DBUG_PRINT("error", ("Key %d has different definition", i));
        DBUG_PRINT("error", ("t1_spatial= %d, t2_spatial=%d",
-                            MY_TEST(t1_keyinfo[i].flag & HA_SPATIAL),
-                            MY_TEST(t2_keyinfo[i].flag & HA_SPATIAL)));
+         static_cast<bool>(t1_keyinfo[i].flag & HA_SPATIAL),
+         static_cast<bool>(t2_keyinfo[i].flag & HA_SPATIAL)));
        DBUG_RETURN(1);
     }
     if (!(t1_keyinfo[i].key_alg == t2_keyinfo[i].key_alg ||
@@ -1175,7 +1175,7 @@ int ha_myisam::repair(THD *thd, MI_CHECK &param, bool do_optimize)
 			mi_get_mask_all_keys_active(share->base.keys) :
 			share->state.key_map);
     uint testflag=param.testflag;
-    bool remap= MY_TEST(share->file_map);
+    bool remap= (share->file_map);
     /*
       mi_repair*() functions family use file I/O even if memory
       mapping is available.

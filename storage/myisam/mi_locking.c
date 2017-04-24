@@ -576,5 +576,5 @@ int _mi_decrement_open_count(MI_INFO *info)
     if (!lock_error)
       lock_error=mi_lock_database(info,old_lock);
   }
-  return MY_TEST(lock_error || write_error);
+  return (lock_error || write_error);
 }

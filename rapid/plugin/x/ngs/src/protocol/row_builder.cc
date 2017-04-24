@@ -191,7 +191,7 @@ static int __decimal2string(const decimal_t *from, char *to, int *to_len,
   if (!(intg_len = fixed_precision ? fixed_intg : intg))
     intg_len = 1;
   frac_len = fixed_precision ? fixed_decimals : frac;
-  len = from->sign + intg_len + MY_TEST(frac) + frac_len;
+  len = from->sign + intg_len + (frac != 0 ? 1 : 0) + frac_len;
   if (fixed_precision)
   {
     if (frac > fixed_decimals)
@@ -225,7 +225,7 @@ static int __decimal2string(const decimal_t *from, char *to, int *to_len,
     else
       frac -= j;
     frac_len = frac;
-    len = from->sign + intg_len + MY_TEST(frac) + frac_len;
+    len = from->sign + intg_len + (frac != 0 ? 1 : 0) + frac_len;
   }
   *to_len = len;
   s[len] = 0;

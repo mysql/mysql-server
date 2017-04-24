@@ -285,14 +285,14 @@ static int run_test(const char *filename)
 	if (verbose || (flags[j] >= 1 ||
 			(error && my_errno != HA_ERR_KEY_NOT_FOUND)))
 	  printf("key: '%.*s'  mi_rkey:  %3d  errno: %3d\n",
-		 (int) key_length,key+MY_TEST(null_fields),error,my_errno);
+		 (int) key_length,key+null_fields,error,my_errno);
       }
       else
       {
 	error=mi_delete(file,read_record);
 	if (verbose || error)
 	  printf("key: '%.*s'  mi_delete: %3d  errno: %3d\n",
-		 (int) key_length, key+MY_TEST(null_fields), error, my_errno);
+		 (int) key_length, key+null_fields, error, my_errno);
 	if (! error)
 	{
 	  deleted++;
@@ -313,7 +313,7 @@ static int run_test(const char *filename)
 	(error && (flags[i] != 0 || my_errno != HA_ERR_KEY_NOT_FOUND)))
     {
       printf("key: '%.*s'  mi_rkey: %3d  errno: %3d  record: %s\n",
-	     (int) key_length,key+MY_TEST(null_fields),error,my_errno,record+1);
+	     (int) key_length,key+null_fields,error,my_errno,record+1);
     }
   }
 

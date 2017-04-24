@@ -661,7 +661,7 @@ public:
   THD *thd;
   int read_keys_and_merge();
 
-  bool clustered_pk_range() { return MY_TEST(pk_quick_select); }
+  bool clustered_pk_range() { return pk_quick_select; }
 
   virtual bool is_valid()
   {

@@ -560,7 +560,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
     }
   }
 
-  if (!(error=MY_TEST(read_info.error)))
+  if (!(error= read_info.error))
   {
 
     table->next_number_field=table->found_next_number_field;
@@ -926,7 +926,7 @@ read_fixed_length(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
     thd->get_stmt_da()->inc_current_row_for_condition();
 continue_loop:;
   }
-  DBUG_RETURN(MY_TEST(read_info.error));
+  DBUG_RETURN(read_info.error);
 }
 
 
@@ -1185,7 +1185,7 @@ read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
     thd->get_stmt_da()->inc_current_row_for_condition();
 continue_loop:;
   }
-  DBUG_RETURN(MY_TEST(read_info.error));
+  DBUG_RETURN(read_info.error);
 }
 
 
@@ -1363,7 +1363,7 @@ read_xml_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
     thd->get_stmt_da()->inc_current_row_for_condition();
     continue_loop:;
   }
-  DBUG_RETURN(MY_TEST(read_info.error) || thd->is_error());
+  DBUG_RETURN(read_info.error || thd->is_error());
 } /* load xml end */
 
 

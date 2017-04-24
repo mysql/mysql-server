@@ -650,7 +650,7 @@ bool PT_delete::contextualize(Parse_context *pc)
 
   DBUG_ASSERT(lex->select_lex == select);
   lex->sql_command= is_multitable() ? SQLCOM_DELETE_MULTI : SQLCOM_DELETE;
-  lex->set_ignore(MY_TEST(opt_delete_options & DELETE_IGNORE));
+  lex->set_ignore(opt_delete_options & DELETE_IGNORE);
   select->init_order();
   if (opt_delete_options & DELETE_QUICK)
     select->add_base_options(OPTION_QUICK);

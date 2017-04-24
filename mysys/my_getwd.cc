@@ -170,12 +170,12 @@ int test_if_hard_path(const char *dir_name)
 
 bool has_path(const char *name)
 {
-  return MY_TEST(strchr(name, FN_LIBCHAR)) 
+  return (strchr(name, FN_LIBCHAR) != nullptr)
 #if FN_LIBCHAR != '/'
-    || MY_TEST(strchr(name,'/'))
+    || (strchr(name,'/') != nullptr)
 #endif
 #ifdef FN_DEVCHAR
-    || MY_TEST(strchr(name, FN_DEVCHAR))
+    || (strchr(name, FN_DEVCHAR) != nullptr)
 #endif
     ;
 }

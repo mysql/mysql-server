@@ -328,8 +328,8 @@ bool Query_result_export::prepare(List<Item> &list, SELECT_LEX_UNIT *u)
     escape_char= (int) (uchar) (*exchange->field.escaped)[0];
   else
     escape_char= -1;
-  is_ambiguous_field_sep= MY_TEST(strchr(ESCAPE_CHARS, field_sep_char));
-  is_unsafe_field_sep= MY_TEST(strchr(NUMERIC_CHARS, field_sep_char));
+  is_ambiguous_field_sep= (strchr(ESCAPE_CHARS, field_sep_char) != nullptr);
+  is_unsafe_field_sep= (strchr(NUMERIC_CHARS, field_sep_char) != nullptr);
   line_sep_char= (exchange->line.line_term->length() ?
                  (int) (uchar) (*exchange->line.line_term)[0] : INT_MAX);
   if (!field_term_length)

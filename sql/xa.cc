@@ -403,8 +403,7 @@ bool Sql_cmd_xa_commit::trans_xa_commit(THD *thd)
     }
 
     /* Do not execute gtid wrapper whenever 'res' is true (rm error) */
-    gtid_error= MY_TEST(commit_owned_gtids(thd,
-                                           true, &need_clear_owned_gtid));
+    gtid_error= commit_owned_gtids(thd, true, &need_clear_owned_gtid);
     if (gtid_error)
       my_error(ER_XA_RBROLLBACK, MYF(0));
     res= res || gtid_error;
@@ -427,7 +426,7 @@ bool Sql_cmd_xa_commit::trans_xa_commit(THD *thd)
            m_xa_opt == XA_ONE_PHASE)
   {
     int r= ha_commit_trans(thd, true);
-    if ((res= MY_TEST(r)))
+    if ((res= r))
       my_error(r == 1 ? ER_XA_RBROLLBACK : ER_XAER_RMERR, MYF(0));
   }
   else if (xid_state->has_state(XID_STATE::XA_PREPARED) &&
@@ -457,7 +456,7 @@ bool Sql_cmd_xa_commit::trans_xa_commit(THD *thd)
       DBUG_RETURN(true);
     }
 
-    gtid_error= MY_TEST(commit_owned_gtids(thd, true, &need_clear_owned_gtid));
+    gtid_error= commit_owned_gtids(thd, true, &need_clear_owned_gtid);
     if (gtid_error)
     {
       res= true;
@@ -482,9 +481,9 @@ bool Sql_cmd_xa_commit::trans_xa_commit(THD *thd)
       DEBUG_SYNC(thd, "trans_xa_commit_after_acquire_commit_lock");
 
       if (tc_log)
-        res= MY_TEST(tc_log->commit(thd, /* all */ true));
+        res= tc_log->commit(thd, /* all */ true);
       else
-        res= MY_TEST(ha_commit_low(thd, /* all */ true));
+        res= ha_commit_low(thd, /* all */ true);
 
       DBUG_EXECUTE_IF("simulate_xa_commit_log_failure", { res= true; });
 
@@ -653,8 +652,7 @@ bool Sql_cmd_xa_rollback::trans_xa_rollback(THD *thd)
     DBUG_RETURN(true);
   }
 
-  bool gtid_error= MY_TEST(commit_owned_gtids(thd, true,
-                                              &need_clear_owned_gtid));
+  bool gtid_error= commit_owned_gtids(thd, true, &need_clear_owned_gtid);
   bool res= xa_trans_force_rollback(thd) || gtid_error;
   gtid_state_commit_or_rollback(thd, need_clear_owned_gtid, !gtid_error);
   // todo: report a bug in that the raised rm_error in this branch

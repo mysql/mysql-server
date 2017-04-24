@@ -2194,7 +2194,7 @@ type_conversion_status Field::store_time(MYSQL_TIME *ltime, uint8 dec_arg)
 
 bool Field::optimize_range(uint idx, uint part)
 {
-  return MY_TEST(table->file->index_flags(idx, part, 1) & HA_READ_RANGE);
+  return table->file->index_flags(idx, part, 1) & HA_READ_RANGE;
 }
 
 
@@ -10410,7 +10410,7 @@ void Create_field::create_length_to_internal_length(void)
     {
       pack_length= length / 8;
       /* We need one extra byte to store the bits we save among the null bits */
-      key_length= pack_length + MY_TEST(length & 7);
+      key_length= pack_length + (length & 7 ? 1 : 0);
     }
     break;
   case MYSQL_TYPE_NEWDECIMAL:
@@ -10459,7 +10459,7 @@ uint32 calc_key_length(enum_field_types sql_type, uint32 length,
   case MYSQL_TYPE_SET:
     return get_set_pack_length(elements);
   case MYSQL_TYPE_BIT:
-    return length / 8 + MY_TEST(length & 7);
+    return length / 8 + (length & 7 ? 1 : 0);
     break;
   case MYSQL_TYPE_NEWDECIMAL:
     return my_decimal_get_binary_size(my_decimal_length_to_precision(length,

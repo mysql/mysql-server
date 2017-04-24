@@ -1198,7 +1198,7 @@ public:
       TABLE::has_null_row().
     */
     if (real_maybe_null())
-      return MY_TEST(m_null_ptr[row_offset] & null_bit);
+      return (m_null_ptr[row_offset] & null_bit);
 
     if (is_tmp_nullable())
       return m_is_tmp_null;
@@ -1215,7 +1215,7 @@ public:
   bool is_real_null(my_ptrdiff_t row_offset= 0) const
   {
     if (real_maybe_null())
-      return MY_TEST(m_null_ptr[row_offset] & null_bit);
+      return (m_null_ptr[row_offset] & null_bit);
 
     if (is_tmp_nullable())
       return m_is_tmp_null;
@@ -1233,7 +1233,7 @@ public:
   bool is_null_in_record(const uchar *record) const
   {
     if (real_maybe_null())
-      return MY_TEST(record[null_offset()] & null_bit);
+      return (record[null_offset()] & null_bit);
 
     return is_tmp_nullable() ? m_is_tmp_null : false;
   }
@@ -4378,10 +4378,11 @@ public:
   int cmp(const uchar *a, const uchar *b)
   {
     DBUG_ASSERT(ptr == a || ptr == b);
+    const uint cmp_len= bytes_in_rec + (bit_len != 0 ? 1 : 0);
     if (ptr == a)
-      return Field_bit::key_cmp(b, bytes_in_rec+MY_TEST(bit_len));
+      return Field_bit::key_cmp(b, cmp_len);
     else
-      return Field_bit::key_cmp(a, bytes_in_rec+MY_TEST(bit_len)) * -1;
+      return -Field_bit::key_cmp(a, cmp_len);
   }
   int cmp_binary_offset(uint row_offset)
   { return cmp_offset(row_offset); }

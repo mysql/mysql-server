@@ -2388,7 +2388,7 @@ public:
     if (is_expensive_cache < 0)
       is_expensive_cache= walk(&Item::is_expensive_processor, WALK_POSTFIX,
                                NULL);
-    return MY_TEST(is_expensive_cache);
+    return is_expensive_cache;
   }
   virtual bool can_be_evaluated_now() const;
 
@@ -3735,7 +3735,7 @@ public:
   void print(String *str, enum_query_type query_type) override;
   Item_num *neg() override { value= -value; return this; }
   uint decimal_precision() const override
-  { return (uint)(max_length - MY_TEST(value < 0)); }
+  { return (uint)(max_length - (value < 0)); }
   bool eq(const Item *, bool) const override;
   bool check_partition_func_processor(uchar *) override { return false; }
   bool check_gcol_func_processor(uchar *) override { return false; }
@@ -5620,7 +5620,7 @@ public:
 
   virtual bool cache_value()= 0;
   bool basic_const_item() const override
-  { return MY_TEST(example && example->basic_const_item());}
+  { return (example != nullptr && example->basic_const_item());}
   bool walk(Item_processor processor, enum_walk walk, uchar *arg) override;
   virtual void clear() { null_value= TRUE; value_cached= FALSE; }
   bool is_null() override

@@ -766,7 +766,8 @@ bool SELECT_LEX_UNIT::prepare(THD *thd_arg, Query_result *sel_result,
     if (fake_select_lex && fake_select_lex->ftfunc_list->elements)
       create_options|= TMP_TABLE_FORCE_MYISAM;
 
-    if (union_result->create_result_table(thd, &types, MY_TEST(union_distinct),
+    if (union_result->create_result_table(thd, &types,
+                                          union_distinct != nullptr,
                                           create_options, "", false,
                                           instantiate_tmp_table))
       goto err;

@@ -1488,7 +1488,7 @@ prepare_for_next_key_part:
         ptr was incremented by 1. Since store_length still counts null-byte,
         we need to subtract 1 from store_length.
       */
-      ptr+= store_length - MY_TEST(key_part->null_bit);
+      ptr+= store_length - (key_part->null_bit ? 1 : 0);
       if (tmp.append(STRING_WITH_LEN(" AND ")))
         goto err;
 
@@ -2130,7 +2130,7 @@ int ha_federated::update_row(const uchar *old_data, uchar*)
     this? Because we only are updating one record, and LIMIT enforces
     this.
   */
-  bool has_a_primary_key= MY_TEST(table->s->primary_key != MAX_KEY);
+  bool has_a_primary_key= (table->s->primary_key != MAX_KEY);
   
   /*
     buffers for following strings

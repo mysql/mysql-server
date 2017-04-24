@@ -2601,8 +2601,8 @@ public:
 
   inline bool is_strict_mode() const
   {
-    return MY_TEST(variables.sql_mode & (MODE_STRICT_TRANS_TABLES |
-                                         MODE_STRICT_ALL_TABLES));
+    return (variables.sql_mode & (MODE_STRICT_TRANS_TABLES |
+                                  MODE_STRICT_ALL_TABLES));
   }
   inline const CHARSET_INFO *collation()
   {

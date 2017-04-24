@@ -262,8 +262,8 @@ static bool execute_buffer_conversion_done= 0;
   The same is true for stderr.
 */
 static uint win_is_console_cache= 
-  (MY_TEST(my_win_is_console(stdout)) * (1 << _fileno(stdout))) |
-  (MY_TEST(my_win_is_console(stderr)) * (1 << _fileno(stderr)));
+  ((my_win_is_console(stdout)) * (1 << _fileno(stdout))) |
+  ((my_win_is_console(stderr)) * (1 << _fileno(stderr)));
 
 static inline bool
 my_win_is_console_cached(FILE *file)

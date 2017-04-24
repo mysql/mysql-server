@@ -496,7 +496,7 @@ public:
   }
 
   bool is_null() override
-  { return MY_TEST(args[0]->is_null() || args[1]->is_null()); }
+  { return args[0]->is_null() || args[1]->is_null(); }
   const CHARSET_INFO *compare_collation() const override
   { return cmp.cmp_collation.collation; }
   void top_level_item() override { abort_on_null= true; }

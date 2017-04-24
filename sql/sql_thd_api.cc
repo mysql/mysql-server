@@ -378,7 +378,7 @@ int mysql_tmpfile(const char *prefix)
 extern "C"
 int thd_in_lock_tables(const MYSQL_THD thd)
 {
-  return MY_TEST(thd->in_lock_tables);
+  return thd->in_lock_tables;
 }
 
 

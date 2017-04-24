@@ -124,7 +124,7 @@ int ha_heap::open(const char *name, int mode, uint test_if_locked,
     if (rc)
       goto end;
 
-    implicit_emptied= MY_TEST(created_new_share);
+    implicit_emptied= created_new_share;
     if (single_instance)
       file= heap_open_from_share(internal_share, mode);
     else // open and register in list, so future opens can find it

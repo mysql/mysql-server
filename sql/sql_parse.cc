@@ -5901,7 +5901,7 @@ TABLE_LIST *SELECT_LEX::add_table_to_list(THD *thd,
   DBUG_ENTER("add_table_to_list");
 
   DBUG_ASSERT(table_name != nullptr);
-  if (!MY_TEST(table_options & TL_OPTION_ALIAS))
+  if (!(table_options & TL_OPTION_ALIAS))
   {
     Ident_name_check ident_check_status=
       check_table_name(table_name->table.str, table_name->table.length);
@@ -5964,10 +5964,10 @@ TABLE_LIST *SELECT_LEX::add_table_to_list(THD *thd,
 
   ptr->set_tableno(0);
   ptr->set_lock({lock_type, THR_DEFAULT});
-  ptr->updating=    MY_TEST(table_options & TL_OPTION_UPDATING);
+  ptr->updating= (table_options & TL_OPTION_UPDATING);
   /* TODO: remove TL_OPTION_FORCE_INDEX as it looks like it's not used */
-  ptr->force_index= MY_TEST(table_options & TL_OPTION_FORCE_INDEX);
-  ptr->ignore_leaves= MY_TEST(table_options & TL_OPTION_IGNORE_LEAVES);
+  ptr->force_index= (table_options & TL_OPTION_FORCE_INDEX);
+  ptr->ignore_leaves= (table_options & TL_OPTION_IGNORE_LEAVES);
   ptr->set_derived_unit(table_name->sel);
   if (!ptr->is_derived() && is_infoschema_db(ptr->db, ptr->db_length))
   {
@@ -6104,7 +6104,7 @@ TABLE_LIST *SELECT_LEX::add_table_to_list(THD *thd,
   lex->add_to_query_tables(ptr);
 
   // Pure table aliases do not need to be locked:
-  if (!MY_TEST(table_options & TL_OPTION_ALIAS))
+  if (!(table_options & TL_OPTION_ALIAS))
   {
     MDL_REQUEST_INIT(& ptr->mdl_request,
                      MDL_key::TABLE, ptr->db, ptr->table_name, mdl_type,

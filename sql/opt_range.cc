@@ -693,7 +693,7 @@ public:
     SEL_ROOT. Most code seems to assume the latter, but a few select places,
     non-root nodes appear to be modified.
   */
-  uint8 maybe_flag{0};
+  bool maybe_flag{false};
 
   /*
     Which key part. TODO: This is the same for all values in a SEL_ROOT,
@@ -774,7 +774,7 @@ public:
   SEL_ARG(SEL_ARG &);
   SEL_ARG(Field *,const uchar *, const uchar *, bool asc);
   SEL_ARG(Field *field, uint8 part, uchar *min_value, uchar *max_value,
-	  uint8 min_flag, uint8 max_flag, uint8 maybe_flag, bool asc);
+	  uint8 min_flag, uint8 max_flag, bool maybe_flag, bool asc);
   /**
     Note that almost all SEL_ARGs are created on the MEM_ROOT,
     so this destructor will only rarely be called.
@@ -796,7 +796,7 @@ public:
   }
 
   inline void merge_flags(SEL_ARG *arg) { maybe_flag|=arg->maybe_flag; }
-  inline void maybe_smaller() { maybe_flag=1; }
+  inline void maybe_smaller() { maybe_flag= true; }
   /* Return true iff it's a single-point null interval */
   inline bool is_null_interval() { return maybe_null() && max_value[0] == 1; }
   inline int cmp_min_to_min(const SEL_ARG* arg) const
@@ -836,19 +836,19 @@ public:
       new_max=arg->max_value; flag_max=arg->max_flag;
     }
     return new (mem_root) SEL_ARG(field, part, new_min, new_max, flag_min, flag_max,
-		       MY_TEST(maybe_flag && arg->maybe_flag), is_ascending);
+		       maybe_flag && arg->maybe_flag, is_ascending);
   }
   SEL_ARG *clone_first(SEL_ARG *arg, MEM_ROOT *mem_root)
   {                                             // arg->min <= X < arg->min
     return new (mem_root) SEL_ARG(field,part, min_value, arg->min_value,
 		       min_flag, arg->min_flag & NEAR_MIN ? 0 : NEAR_MAX,
-		       maybe_flag | arg->maybe_flag, is_ascending);
+		       maybe_flag || arg->maybe_flag, is_ascending);
   }
   SEL_ARG *clone_last(SEL_ARG *arg, MEM_ROOT *mem_root)
   {                                             // arg->min <= X <= key_max
     return new (mem_root) SEL_ARG(field, part, min_value, arg->max_value,
 		       min_flag, arg->max_flag,
-                       maybe_flag | arg->maybe_flag, is_ascending);
+                       maybe_flag || arg->maybe_flag, is_ascending);
   }
   SEL_ARG *clone(RANGE_OPT_PARAM *param, SEL_ARG *new_parent, SEL_ARG **next);
 
@@ -2537,7 +2537,7 @@ SEL_ARG::SEL_ARG(Field *f,const uchar *min_value_arg,
 
 SEL_ARG::SEL_ARG(Field *field_,uint8 part_,
                  uchar *min_value_, uchar *max_value_,
-		 uint8 min_flag_,uint8 max_flag_,uint8 maybe_flag_,
+		 uint8 min_flag_,uint8 max_flag_,bool maybe_flag_,
                  bool asc)
   :min_flag(min_flag_),max_flag(max_flag_),maybe_flag(maybe_flag_), part(part_),
   rkey_func_flag(HA_READ_INVALID),
@@ -3689,7 +3689,7 @@ free_mem:
     Assume that if the user is using 'limit' we will only need to scan
     limit rows if we are using a key
   */
-  DBUG_RETURN(records ? MY_TEST(*quick) : -1);
+  DBUG_RETURN(records ? (*quick != nullptr) : -1);
 }
 
 /****************************************************************************
@@ -4725,7 +4725,7 @@ process_next_key_part:
         ppar->mark_full_partition_used(ppar->part_info, part_id);
         found= TRUE;
       }
-      res= MY_TEST(found);
+      res= found;
     }
     /*
       Restore the "used partitions iterator" to the default setting that
@@ -5786,8 +5786,7 @@ static double ror_scan_selectivity(const ROR_INTERSECT_INFO *info,
   SEL_ARG *tuple_arg= NULL;
   key_part_map keypart_map= 0;
   bool cur_covered;
-  bool prev_covered= MY_TEST(bitmap_is_set(&info->covered_fields,
-                                           key_part->fieldnr-1));
+  bool prev_covered= bitmap_is_set(&info->covered_fields, key_part->fieldnr-1);
   key_range min_range;
   key_range max_range;
   min_range.key= key_val;
@@ -5801,8 +5800,8 @@ static double ror_scan_selectivity(const ROR_INTERSECT_INFO *info,
        sel_root= sel_root->root->next_key_part)
   {
     DBUG_PRINT("info",("sel_root step"));
-    cur_covered= MY_TEST(bitmap_is_set(&info->covered_fields,
-                                       key_part[sel_root->root->part].fieldnr - 1));
+    cur_covered= bitmap_is_set(
+      &info->covered_fields, key_part[sel_root->root->part].fieldnr - 1);
     if (cur_covered != prev_covered)
     {
       /* create (part1val, ..., part{n-1}val) tuple. */
@@ -11010,12 +11009,12 @@ get_quick_select(PARAM *param, uint idx, SEL_ROOT *key_tree, uint mrr_flags,
   if (param->table->key_info[param->real_keynr[idx]].flags & HA_SPATIAL)
     quick=new QUICK_RANGE_SELECT_GEOM(param->thd, param->table,
                                       param->real_keynr[idx],
-                                      MY_TEST(parent_alloc),
+                                      parent_alloc != nullptr,
                                       parent_alloc, &create_err);
   else
     quick=new QUICK_RANGE_SELECT(param->thd, param->table,
                                  param->real_keynr[idx],
-                                 MY_TEST(parent_alloc), NULL, &create_err);
+                                 parent_alloc != nullptr, NULL, &create_err);
 
   if (quick)
   {

@@ -3391,7 +3391,7 @@ bool Item_func_round::resolve_type(THD *)
   case INT_RESULT:
     if ((!decimals_to_set && truncate) || (args[0]->decimal_precision() < DECIMAL_LONGLONG_DIGITS))
     {
-      int length_can_increase= MY_TEST(!truncate && (val1 < 0) && !val1_unsigned);
+      bool length_can_increase= (!truncate && (val1 < 0) && !val1_unsigned);
       max_length= args[0]->max_length + length_can_increase;
       /* Here we can keep INT_RESULT */
       set_data_type(MYSQL_TYPE_LONGLONG);
@@ -5953,7 +5953,7 @@ longlong Item_func_is_free_lock::val_int()
     return 0;
 
   null_value= FALSE;
-  return MY_TEST(get_owner_visitor.get_owner_id() == 0);
+  return (get_owner_visitor.get_owner_id() == 0);
 }
 
 
@@ -6253,7 +6253,7 @@ longlong Item_func_sleep::val_int()
 
   mysql_cond_destroy(&cond);
 
-  return MY_TEST(!error); 		// Return 1 killed
+  return (error == 0); 		// Return 1 killed
 }
 
 /*
@@ -6464,7 +6464,7 @@ bool user_var_entry::store(const void *from, size_t length, Item_result type)
   assert_locked();
 
   // Store strings with end \0
-  if (mem_realloc(length + MY_TEST(type == STRING_RESULT)))
+  if (mem_realloc(length + (type == STRING_RESULT)))
     return true;
   if (type == STRING_RESULT)
     m_ptr[length]= 0;     // Store end \0
@@ -8766,7 +8766,7 @@ bool Item_func_sp::resolve_type(THD *)
   max_length= sp_result_field->field_length;
   collation.set(sp_result_field->charset());
   maybe_null= true;
-  unsigned_flag= MY_TEST(sp_result_field->flags & UNSIGNED_FLAG);
+  unsigned_flag= (sp_result_field->flags & UNSIGNED_FLAG);
 
   DBUG_RETURN(false);
 }

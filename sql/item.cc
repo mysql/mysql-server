@@ -2766,7 +2766,7 @@ void Item_field::set_field(Field *field_par)
   table_name= *field_par->table_name;
   field_name= field_par->field_name;
   db_name= field_par->table->s->db.str;
-  unsigned_flag= MY_TEST(field_par->flags & UNSIGNED_FLAG);
+  unsigned_flag= field_par->flags & UNSIGNED_FLAG;
   collation.set(field_par->charset(), field_par->derivation(),
                 field_par->repertoire());
   set_data_type(field_par->type());

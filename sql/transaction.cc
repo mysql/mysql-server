@@ -129,7 +129,7 @@ bool trans_check_state(THD *thd)
 
 bool trans_begin(THD *thd, uint flags)
 {
-  int res= FALSE;
+  bool res= false;
   Transaction_state_tracker *tst= NULL;
 
   DBUG_ENTER("trans_begin");
@@ -152,7 +152,7 @@ bool trans_begin(THD *thd, uint flags)
     thd->server_status&=
       ~(SERVER_STATUS_IN_TRANS | SERVER_STATUS_IN_TRANS_READONLY);
     DBUG_PRINT("info", ("clearing SERVER_STATUS_IN_TRANS"));
-    res= MY_TEST(ha_commit_trans(thd, TRUE));
+    res= ha_commit_trans(thd, TRUE);
   }
 
   thd->variables.option_bits&= ~OPTION_BEGIN;
@@ -237,7 +237,7 @@ bool trans_begin(THD *thd, uint flags)
   }
 #endif
 
-  DBUG_RETURN(MY_TEST(res));
+  DBUG_RETURN(res);
 }
 
 
@@ -297,7 +297,7 @@ bool trans_commit(THD *thd, bool ignore_global_read_lock)
 
   thd->dd_client()->commit_modified_objects();
 
-  DBUG_RETURN(MY_TEST(res));
+  DBUG_RETURN(res);
 }
 
 
@@ -340,7 +340,7 @@ bool trans_commit_implicit(THD *thd, bool ignore_global_read_lock)
     thd->server_status&=
       ~(SERVER_STATUS_IN_TRANS | SERVER_STATUS_IN_TRANS_READONLY);
     DBUG_PRINT("info", ("clearing SERVER_STATUS_IN_TRANS"));
-    res= MY_TEST(ha_commit_trans(thd, TRUE, ignore_global_read_lock));
+    res= ha_commit_trans(thd, TRUE, ignore_global_read_lock);
   }
   else if (tc_log)
     tc_log->commit(thd, true);
@@ -406,7 +406,7 @@ bool trans_rollback(THD *thd)
 
   thd->dd_client()->rollback_modified_objects();
 
-  DBUG_RETURN(MY_TEST(res));
+  DBUG_RETURN(res);
 }
 
 
@@ -456,7 +456,7 @@ bool trans_rollback_implicit(THD *thd)
 
   thd->dd_client()->rollback_modified_objects();
 
-  DBUG_RETURN(MY_TEST(res));
+  DBUG_RETURN(res);
 }
 
 
@@ -518,7 +518,7 @@ bool trans_commit_stmt(THD *thd, bool ignore_global_read_lock)
 
   thd->get_transaction()->reset(Transaction_ctx::STMT);
 
-  DBUG_RETURN(MY_TEST(res));
+  DBUG_RETURN(res);
 }
 
 
@@ -644,7 +644,7 @@ bool trans_commit_attachable(THD *thd)
 
   thd->get_transaction()->reset(Transaction_ctx::STMT);
 
-  DBUG_RETURN(MY_TEST(res));
+  DBUG_RETURN(res);
 }
 
 
@@ -808,7 +808,7 @@ bool trans_rollback_to_savepoint(THD *thd, LEX_STRING name)
         ->rollback_to_savepoint(name.str);
   }
 
-  DBUG_RETURN(MY_TEST(res));
+  DBUG_RETURN(res);
 }
 
 
@@ -852,5 +852,5 @@ bool trans_release_savepoint(THD *thd, LEX_STRING name)
         ->del_savepoint(name.str);
   }
 
-  DBUG_RETURN(MY_TEST(res));
+  DBUG_RETURN(res);
 }

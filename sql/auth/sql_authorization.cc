@@ -2258,9 +2258,9 @@ bool is_granted_table_access(THD *thd, ulong required_acl,
 static bool test_if_create_new_users(THD *thd)
 {
   Security_context *sctx= thd->security_context();
-  bool create_new_users= MY_TEST(sctx->check_access(INSERT_ACL)) ||
+  bool create_new_users= sctx->check_access(INSERT_ACL) ||
                          (!opt_safe_user_create &&
-                          MY_TEST(sctx->check_access(CREATE_USER_ACL)));
+                          sctx->check_access(CREATE_USER_ACL));
   if (!create_new_users)
   {
     TABLE_LIST tl;
@@ -3326,7 +3326,7 @@ bool check_grant(THD *thd, ulong want_access, TABLE_LIST *tables,
   {
     TABLE_LIST *const t_ref=
       tl->correspondent_table ? tl->correspondent_table : tl;
-    sctx = MY_TEST(t_ref->security_ctx) ? t_ref->security_ctx :
+    sctx = (t_ref->security_ctx != nullptr) ? t_ref->security_ctx :
                                           thd->security_context();
 
     const ACL_internal_table_access *access=
@@ -3644,7 +3644,7 @@ bool check_column_grant_in_table_ref(THD *thd, TABLE_LIST * table_ref,
   GRANT_INFO *grant;
   const char *db_name;
   const char *table_name;
-  Security_context *sctx= MY_TEST(table_ref->security_ctx) ?
+  Security_context *sctx= (table_ref->security_ctx != nullptr) ?
                           table_ref->security_ctx : thd->security_context();
 
   DBUG_ASSERT(want_privilege);

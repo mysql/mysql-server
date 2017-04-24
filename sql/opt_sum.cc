@@ -332,9 +332,8 @@ int opt_sum_query(THD *thd,
     }
     else
     {
-      maybe_exact_count&= MY_TEST(table_filled &&
-                                  (tl->table->file->ha_table_flags() &
-                                   HA_HAS_RECORDS));
+      maybe_exact_count&= (table_filled &&
+                           (tl->table->file->ha_table_flags() & HA_HAS_RECORDS));
       is_exact_count= FALSE;
       count= 1;                                 // ensure count != 0
       force_index|= tl->table->force_index;
@@ -427,7 +426,7 @@ int opt_sum_query(THD *thd,
       case Item_sum::MIN_FUNC:
       case Item_sum::MAX_FUNC:
       {
-        int is_max= MY_TEST(item_sum->sum_func() == Item_sum::MAX_FUNC);
+        int is_max= (item_sum->sum_func() == Item_sum::MAX_FUNC);
         /*
           If MIN/MAX(expr) is the first part of a key or if all previous
           parts of the key is found in the COND, then we can use
@@ -906,7 +905,7 @@ static bool matching_cond(bool max_fl, TABLE_REF *ref, KEY *keyinfo,
         DBUG_RETURN(false);
 
       if (part->null_bit) 
-        *key_ptr++= (uchar) MY_TEST(part->field->is_null());
+        *key_ptr++= (uchar) (part->field->is_null());
       part->field->get_key_image(key_ptr, part->length, Field::itRAW);
     }
     if (is_field_part)
@@ -926,7 +925,7 @@ static bool matching_cond(bool max_fl, TABLE_REF *ref, KEY *keyinfo,
   else if (eq_type)
   {
     if ((!is_null && !cond->val_int()) ||
-        (is_null && !MY_TEST(part->field->is_null())))
+        (is_null && !part->field->is_null()))
      DBUG_RETURN(FALSE);                       // Impossible test
   }
   else if (is_field_part)

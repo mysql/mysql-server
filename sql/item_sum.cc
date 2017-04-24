@@ -4003,7 +4003,7 @@ bool Item_func_group_concat::setup(THD *thd)
   List<Item> list;
   DBUG_ASSERT(thd->lex->current_select() == aggr_select);
 
-  const bool order_or_distinct= MY_TEST(arg_count_order > 0 || distinct);
+  const bool order_or_distinct= (arg_count_order > 0 || distinct);
 
   /*
     Currently setup() can be called twice. Please add

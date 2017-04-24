@@ -304,7 +304,7 @@ public:
     message(message_arg), rows(rows_arg)
   {
     if (can_walk_clauses())
-      order_list= MY_TEST(select_lex_arg->order_list.elements);
+      order_list= (select_lex_arg->order_list.elements != 0);
   }
 
 protected:
@@ -332,7 +332,7 @@ public:
     DBUG_ASSERT(select_lex_arg ==
                 select_lex_arg->master_unit()->fake_select_lex);
     // Use optimized values from fake_select_lex's join
-    order_list= MY_TEST(select_lex_arg->join->order);
+    order_list= (select_lex_arg->join->order != nullptr);
     // A plan exists so the reads above are safe:
     DBUG_ASSERT(select_lex_arg->join->get_plan_state() != JOIN::NO_PLAN);
   }
@@ -419,7 +419,7 @@ public:
     DBUG_ASSERT(join->get_plan_state() == JOIN::PLAN_READY);
     /* it is not UNION: */
     DBUG_ASSERT(join->select_lex != join->unit->fake_select_lex);
-    order_list= MY_TEST(join->order);
+    order_list= (join->order != nullptr);
   }
 
 private:
@@ -488,7 +488,7 @@ public:
     tab= tab_arg;
     usable_keys= table->possible_quick_keys;
     if (can_walk_clauses())
-      order_list= MY_TEST(select_lex_arg->order_list.elements);
+      order_list= (select_lex_arg->order_list.elements != 0);
   }
 
   virtual bool explain_modify_flags();

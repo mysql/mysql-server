@@ -1648,7 +1648,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share,
   }
   share->db_record_offset= 1;
   /* Set temporarily a good value for db_low_byte_first */
-  share->db_low_byte_first= MY_TEST(legacy_db_type != DB_TYPE_ISAM);
+  share->db_low_byte_first= (legacy_db_type != DB_TYPE_ISAM);
   error=4;
   share->max_rows= uint4korr(head+18);
   share->min_rows= uint4korr(head+22);
@@ -3405,9 +3405,9 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
   else if (outparam->file)
   {
     handler::Table_flags flags= outparam->file->ha_table_flags();
-    outparam->no_replicate= ! MY_TEST(flags & (HA_BINLOG_STMT_CAPABLE
-                                               | HA_BINLOG_ROW_CAPABLE))
-                            || MY_TEST(flags & HA_HAS_OWN_BINLOGGING);
+    outparam->no_replicate=
+      !(flags & (HA_BINLOG_STMT_CAPABLE | HA_BINLOG_ROW_CAPABLE))
+      || (flags & HA_HAS_OWN_BINLOGGING);
   }
   else
   {

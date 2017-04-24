@@ -760,7 +760,7 @@ create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
   DBUG_PRINT("enter",
              ("distinct: %d  save_sum_fields: %d  rows_limit: %lu  group: %d",
               (int) distinct, (int) save_sum_fields,
-              (ulong) rows_limit, MY_TEST(group)));
+              (ulong) rows_limit, static_cast<bool>(group)));
 
   DBUG_ASSERT(sizeof(my_thread_id) == 4);
   sprintf(path,"%s%lx_%x_%x", tmp_file_prefix, current_pid,
@@ -1528,7 +1528,7 @@ update_hidden:
 
       cur_group->buff= (char*) group_buff;
       cur_group->field= field->new_key_field(thd->mem_root, table,
-                                             group_buff + MY_TEST(maybe_null));
+                                             group_buff + maybe_null);
 
       if (!cur_group->field)
         goto err; /* purecov: inspected */

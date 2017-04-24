@@ -319,8 +319,8 @@ scramble(char *to, const char *message, const char *password)
     All params are IN.
 
   RETURN VALUE
-    0  password is correct
-    !0  password is invalid
+    false  password is correct
+    true   password is invalid
 */
 
 static bool
@@ -339,7 +339,7 @@ check_scramble_sha1(const uchar *scramble_arg, const char *message,
   /* now buf supposedly contains hash_stage1: so we can get hash_stage2 */
   compute_sha1_hash(hash_stage2_reassured, (const char *) buf, SHA1_HASH_SIZE);
 
-  return MY_TEST(memcmp(hash_stage2, hash_stage2_reassured, SHA1_HASH_SIZE));
+  return (memcmp(hash_stage2, hash_stage2_reassured, SHA1_HASH_SIZE) != 0);
 }
 
 bool

@@ -1077,7 +1077,7 @@ static bool parse_com_change_user_packet(THD *thd, MPVIO_EXT *mpvio,
   if (passwd >= end)
   {
     my_error(ER_UNKNOWN_COM_ERROR, MYF(0));
-    DBUG_RETURN (1);
+    DBUG_RETURN (true);
   }
 
   /*
@@ -1096,7 +1096,7 @@ static bool parse_com_change_user_packet(THD *thd, MPVIO_EXT *mpvio,
   if (db >= end)
   {
     my_error(ER_UNKNOWN_COM_ERROR, MYF(0));
-    DBUG_RETURN (1);
+    DBUG_RETURN (true);
   }
 
   size_t db_len= strlen(db);
@@ -1106,7 +1106,7 @@ static bool parse_com_change_user_packet(THD *thd, MPVIO_EXT *mpvio,
   if (ptr + 1 < end)
   {
     if (mpvio->charset_adapter->init_client_charset(uint2korr(ptr)))
-      DBUG_RETURN(1);
+      DBUG_RETURN(true);
   }
 
   /* Convert database and user names to utf8 */
@@ -1124,12 +1124,12 @@ static bool parse_com_change_user_packet(THD *thd, MPVIO_EXT *mpvio,
   /* we should not free mpvio->user here: it's saved by dispatch_command() */
   if (!(mpvio->auth_info.user_name= my_strndup(key_memory_MPVIO_EXT_auth_info,
                                                user_buff, user_len, MYF(MY_WME))))
-    DBUG_RETURN(1);
+    DBUG_RETURN(true);
   mpvio->auth_info.user_name_length= user_len;
 
   if (make_lex_string_root(mpvio->mem_root,
                            &mpvio->db, db_buff, db_len, 0) == 0)
-    DBUG_RETURN(1); /* The error is set by make_lex_string(). */
+    DBUG_RETURN(true); /* The error is set by make_lex_string(). */
 
   if (!initialized)
   {
@@ -1138,12 +1138,12 @@ static bool parse_com_change_user_packet(THD *thd, MPVIO_EXT *mpvio,
             mpvio->auth_info.user_name, USERNAME_LENGTH);
 
     mpvio->status= MPVIO_EXT::SUCCESS;
-    DBUG_RETURN(0);
+    DBUG_RETURN(false);
   }
 
   if (find_mpvio_user(thd, mpvio))
   {
-    DBUG_RETURN(1);
+    DBUG_RETURN(true);
   }
 
   const char *client_plugin;
@@ -1159,7 +1159,7 @@ static bool parse_com_change_user_packet(THD *thd, MPVIO_EXT *mpvio,
     if (client_plugin >= end)
     {
       my_error(ER_UNKNOWN_COM_ERROR, MYF(0));
-      DBUG_RETURN(1);
+      DBUG_RETURN(true);
     }
   }
   else
@@ -1169,7 +1169,7 @@ static bool parse_com_change_user_packet(THD *thd, MPVIO_EXT *mpvio,
 
   if (protocol->has_client_capability(CLIENT_CONNECT_ATTRS) &&
       read_client_connect_attrs(&ptr, &bytes_remaining_in_packet, mpvio))
-    DBUG_RETURN(MY_TEST(packet_error));
+    DBUG_RETURN(packet_error);
 
   DBUG_PRINT("info", ("client_plugin=%s, restart", client_plugin));
   /*
@@ -1181,7 +1181,7 @@ static bool parse_com_change_user_packet(THD *thd, MPVIO_EXT *mpvio,
   mpvio->cached_client_reply.plugin= client_plugin;
   mpvio->status= MPVIO_EXT::RESTART;
 
-  DBUG_RETURN (0);
+  DBUG_RETURN (false);
 }
 
 
@@ -2462,7 +2462,7 @@ acl_authenticate(THD *thd, enum_server_command command)
           sctx->has_global_grant(STRING_WITH_LEN("CONNECTION_ADMIN")).first))
     {
       mysql_mutex_lock(&LOCK_offline_mode);
-      bool tmp_offline_mode= MY_TEST(offline_mode);
+      bool tmp_offline_mode= offline_mode;
       mysql_mutex_unlock(&LOCK_offline_mode);
 
       if (tmp_offline_mode)
@@ -3723,8 +3723,7 @@ bool create_x509_certificate(RSA_generator_func &rsa_gen,
     goto end;
   }
 
-  if (MY_TEST(my_chmod(key_filename.c_str(),
-      USER_READ|USER_WRITE, MYF(MY_FAE+MY_WME))))
+  if (my_chmod(key_filename.c_str(), USER_READ|USER_WRITE, MYF(MY_FAE+MY_WME)))
   {
     sql_print_error("Could not set file permission for %s",
                     key_filename.c_str());
@@ -3799,9 +3798,9 @@ bool create_x509_certificate(RSA_generator_func &rsa_gen,
     goto end;
   }
 
-  if (MY_TEST(my_chmod(cert_filename.c_str(),
+  if (my_chmod(cert_filename.c_str(),
                USER_READ|USER_WRITE|GROUP_READ|OTHERS_READ,
-               MYF(MY_FAE+MY_WME))))
+               MYF(MY_FAE+MY_WME)))
   {
     sql_print_error("Could not set file permission for %s",
                     cert_filename.c_str());
@@ -3883,8 +3882,8 @@ bool create_RSA_key_pair(RSA_generator_func &rsa_gen,
     ret_val= false;
     goto end;
   }
-  if (MY_TEST(my_chmod(priv_key_filename.c_str(),
-               USER_READ|USER_WRITE, MYF(MY_FAE+MY_WME))))
+  if (my_chmod(priv_key_filename.c_str(),
+               USER_READ|USER_WRITE, MYF(MY_FAE+MY_WME)))
   {
     sql_print_error("Could not set file permission for %s",
                     priv_key_filename.c_str());
@@ -3905,9 +3904,9 @@ bool create_RSA_key_pair(RSA_generator_func &rsa_gen,
     ret_val= false;
     goto end;
   }
-  if (MY_TEST(my_chmod(pub_key_filename.c_str(),
+  if (my_chmod(pub_key_filename.c_str(),
                USER_READ|USER_WRITE|GROUP_READ|OTHERS_READ,
-               MYF(MY_FAE+MY_WME))))
+               MYF(MY_FAE+MY_WME)))
   {
     sql_print_error("Could not set file permission for %s",
                     pub_key_filename.c_str());

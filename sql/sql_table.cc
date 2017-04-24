@@ -4299,7 +4299,7 @@ static bool prepare_key_column(THD *thd, HA_CREATE_INFO *create_info,
       with length (unlike blobs, where ft code takes data length from a
       data prefix, ignoring column->length).
     */
-    column_length= MY_TEST(is_blob(sql_field->sql_type));
+    column_length= is_blob(sql_field->sql_type);
   }
   else
   {
@@ -9809,7 +9809,7 @@ bool prepare_fields_and_keys(THD *thd,
       new_key_list.push_back(new Key_spec(thd->mem_root, key_type,
                                           to_lex_cstring(key_name),
                                           &key_create_info,
-                                          MY_TEST(key_info->flags & HA_GENERATED_KEY),
+                                          (key_info->flags & HA_GENERATED_KEY),
                                           index_column_dropped,
                                           key_parts));
     }
@@ -12662,7 +12662,7 @@ static bool check_engine(THD *thd, const char *db_name,
   handlerton **new_engine= &create_info->db_type;
   handlerton *req_engine= *new_engine;
   bool no_substitution=
-        MY_TEST(thd->variables.sql_mode & MODE_NO_ENGINE_SUBSTITUTION);
+        (thd->variables.sql_mode & MODE_NO_ENGINE_SUBSTITUTION);
   if (!(*new_engine= ha_checktype(thd, ha_legacy_type(req_engine),
                                   no_substitution, 1)))
     DBUG_RETURN(true);

@@ -2017,7 +2017,7 @@ void mysql_read_default_options(struct st_mysql_options *options,
           /* this is a no-op */
           break;
         case OPT_report_data_truncation:
-          options->report_data_truncation= opt_arg ? MY_TEST(atoi(opt_arg)) : 1;
+          options->report_data_truncation= opt_arg ? (atoi(opt_arg) != 0) : 1;
           break;
         case OPT_plugin_dir:
           {
@@ -5808,7 +5808,7 @@ mysql_options(MYSQL *mysql,enum mysql_option option, const void *arg)
     mysql->options.protocol=MYSQL_PROTOCOL_PIPE; /* Force named pipe */
     break;
   case MYSQL_OPT_LOCAL_INFILE:			/* Allow LOAD DATA LOCAL ?*/
-    if (!arg || MY_TEST(*(uint*) arg))
+    if (!arg || (*(uint*) arg != 0))
       mysql->options.client_flag|= CLIENT_LOCAL_FILES;
     else
       mysql->options.client_flag&= ~CLIENT_LOCAL_FILES;
@@ -5868,7 +5868,7 @@ mysql_options(MYSQL *mysql,enum mysql_option option, const void *arg)
       DBUG_RETURN(1);
     break;
   case MYSQL_REPORT_DATA_TRUNCATION:
-    mysql->options.report_data_truncation= MY_TEST(*(bool *) arg);
+    mysql->options.report_data_truncation= *(bool *) arg;
     break;
   case MYSQL_OPT_RECONNECT:
     mysql->reconnect= *(bool *) arg;

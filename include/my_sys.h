@@ -469,7 +469,8 @@ typedef struct st_io_cache		/* Used when cacheing files */
     "hard" error, and the actual number of I/O-ed bytes if the read/write was
     partial.
   */
-  int	seek_not_done,error;
+  bool seek_not_done;
+  int error;
   /* buffer_length is memory size allocated for buffer or write_buffer */
   size_t	buffer_length;
   /* read_length is the same as buffer_length except when we use async io */
