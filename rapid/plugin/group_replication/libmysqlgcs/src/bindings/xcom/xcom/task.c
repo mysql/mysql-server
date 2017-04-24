@@ -69,7 +69,7 @@
 #include "task_os.h"
 #include "xcom_cfg.h"
 #ifndef USE_SELECT
-#include <sys/poll.h>
+#include <poll.h>
 #endif
 
 #include "retry.h"
