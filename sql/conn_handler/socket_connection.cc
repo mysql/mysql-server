@@ -928,12 +928,13 @@ Channel_info* Mysqld_socket_listener::listen_for_connection_event()
       if (req.sink)
         ((void (*)(int))req.sink)(req.fd);
 #endif
-      mysql_socket_shutdown(listen_sock, SHUT_RDWR);
-      mysql_socket_close(listen_sock);
       /*
         The connection was refused by TCP wrappers.
         There are no details (by client IP) available to update the host_cache.
       */
+      mysql_socket_shutdown(connect_sock, SHUT_RDWR);
+      mysql_socket_close(connect_sock);
+
       connection_errors_tcpwrap++;
       return NULL;
     }
