@@ -487,7 +487,6 @@ TEST_F(GcsNodesTest, TestGcsNodesEncoding)
     addrs[n] -> Pointer to the member identifier as string.
     uuids[n] -> data.data_len and data.data_val.
   */
-  const Gcs_xcom_node_information *ret= NULL;
   const Gcs_xcom_node_information *ret_1= NULL;
   const Gcs_xcom_node_information *ret_2= NULL;
 
