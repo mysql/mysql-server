@@ -48,6 +48,10 @@ ndb_fk_restore: Need WL#9185 MySQL Cluster support for new DD
 ndb_wl946_main: Need WL#9185 MySQL Cluster support for new DD
 ndb_restore_schema_tolerance: Bug#25860404 CREATE TABLE DOES NOT CHECK EXISTENCE OF TABLESPACE IN NDB
 
+# Problem with sync during reconnect, table not in NDB are not deleted from DD 
+ndb_reconnect: Need WL#9185 MySQL Cluster support for new DD
+
+
 # Test which timeout most likley due to mismatches in shares etc.
 ndb.ndb_spj_dict: Need WL#9185 MySQL Cluster support for new DD
 
@@ -78,3 +82,7 @@ ndb_fk_no_fk: Bug#25915132 INPLACE ALTER TABLE WITH FOREIGN KEYS CAUSES TABLE DE
 
 # Inplace alter table and index problem(same problem as above)
 ndb_alter_table3: Bug#25915132 INPLACE ALTER TABLE WITH FOREIGN KEYS CAUSES TABLE DEFINITION MISMATCH
+
+# Problem with alter table leaving table with old name behind
+ndb_trigger: Need WL#9185 MySQL Cluster support for new DD
+ndb_rename: Need WL#9185 MySQL Cluster support for new DD
