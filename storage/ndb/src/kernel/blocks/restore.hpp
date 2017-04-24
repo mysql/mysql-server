@@ -171,7 +171,7 @@ private:
   typedef Ptr<File> FilePtr;
   typedef ArrayPool<File> File_pool;
   typedef DLList<File_pool> File_list;
-  typedef KeyTable<File_pool, File> File_hash;
+  typedef KeyTable<File_pool> File_hash;
 
   /* Methods to handle UPGRADE from old LCP format to new LCP format. */
   void lcp_create_ctl_open(Signal*, FilePtr);

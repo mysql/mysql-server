@@ -337,7 +337,7 @@ public:
   typedef DLList<Subscription_pool> Subscription_list;
   typedef LocalDLList<Subscription_pool> Local_Subscription_list;
   typedef DLHashTable<Subscription_pool> Subscription_hash;
-  typedef KeyTable<Subscription_pool, Subscription> Subscription_keyhash;
+  typedef KeyTable<Subscription_pool> Subscription_keyhash;
 
   struct Table {
     Table() { m_tableId = ~0; }
@@ -384,7 +384,7 @@ public:
     Uint32 m_schemaTransId;
   };
   typedef ArrayPool<Table> Table_pool;
-  typedef KeyTable<Table_pool, Table> Table_keyhash;
+  typedef KeyTable<Table_pool> Table_keyhash;
   /**
    * 
    */
