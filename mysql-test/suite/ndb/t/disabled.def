@@ -87,3 +87,5 @@ ndb_alter_table3: Bug#25915132 INPLACE ALTER TABLE WITH FOREIGN KEYS CAUSES TABL
 ndb_trigger: Need WL#9185 MySQL Cluster support for new DD
 ndb_rename: Need WL#9185 MySQL Cluster support for new DD
 ndb_global_schema_lock: Need WL#9185 MySQL Cluster support for new DD
+ndb_multi: Need WL#9185 MySQL Cluster support for new DD
+ndb_share: Need WL#9185 MySQL Cluster support for new DD
