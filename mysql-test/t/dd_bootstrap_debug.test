@@ -35,7 +35,7 @@ CALL mtr.add_suppression("InnoDB: New log files created");
 write_file $BOOTSTRAP_SQL;
   SET SESSION debug= '+d,skip_dd_table_access_check';
   CREATE SCHEMA test;
-  UPDATE mysql.version SET version= version + 1;
+  UPDATE mysql.dd_properties SET properties= 'invalid';
   SET SESSION debug= '-d,skip_dd_table_access_check';
 EOF
 
