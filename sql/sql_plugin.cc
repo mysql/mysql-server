@@ -2255,7 +2255,7 @@ static bool mysql_install_plugin(THD *thd, const LEX_STRING *name,
   bool error= true;
   int argc= orig_argc;
   char **argv= orig_argv;
-  st_plugin_int *tmp;
+  st_plugin_int *tmp= nullptr;
   LEX_CSTRING name_cstr= {name->str, name->length};
   bool store_infoschema_metadata= false;
   dd::Schema_MDL_locker mdl_handler(thd);
