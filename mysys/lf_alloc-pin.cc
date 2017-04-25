@@ -1,5 +1,5 @@
 /* QQ: TODO multi-pinbox */
-/* Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,6 +16,13 @@
 
 #include <stddef.h>
 #include <sys/types.h>
+
+#include <atomic>
+
+static_assert(
+  sizeof(std::atomic<void *>) == sizeof(void *),
+  "We happily cast to and from std::atomic<void *>, so they need to be at least"
+  "nominally compatible.");
 
 /**
   @file mysys/lf_alloc-pin.cc
@@ -164,7 +171,7 @@ LF_PINS *lf_pinbox_get_pins(LF_PINBOX *pinbox)
     if (!(pins= top_ver % LF_PINBOX_MAX_PINS))
     {
       /* the stack of free elements is empty */
-      pins= my_atomic_add32((int32 volatile*) &pinbox->pins_in_array, 1)+1;
+      pins= pinbox->pins_in_array.fetch_add(1) + 1;
       if (unlikely(pins >= LF_PINBOX_MAX_PINS))
         return 0;
       /*
@@ -178,9 +185,10 @@ LF_PINS *lf_pinbox_get_pins(LF_PINBOX *pinbox)
     }
     el= (LF_PINS *)lf_dynarray_value(&pinbox->pinarray, pins);
     next= el->link;
-  } while (!my_atomic_cas32((int32 volatile*) &pinbox->pinstack_top_ver,
-                            (int32*) &top_ver,
-                            top_ver-pins+next+LF_PINBOX_MAX_PINS));
+  } while (!atomic_compare_exchange_strong(
+             &pinbox->pinstack_top_ver,
+             &top_ver,
+             top_ver-pins+next+LF_PINBOX_MAX_PINS));
   /*
     set el->link to the index of el in the dynarray (el->link has two usages:
     - if element is allocated, it's its own index
@@ -232,9 +240,10 @@ void lf_pinbox_put_pins(LF_PINS *pins)
   do
   {
     pins->link= top_ver % LF_PINBOX_MAX_PINS;
-  } while (!my_atomic_cas32((int32 volatile*) &pinbox->pinstack_top_ver,
-                            (int32*) &top_ver,
-                            top_ver-pins->link+nr+LF_PINBOX_MAX_PINS));
+  } while (!atomic_compare_exchange_strong(
+             &pinbox->pinstack_top_ver,
+             &top_ver,
+             top_ver-pins->link+nr+LF_PINBOX_MAX_PINS));
 }
 
 /*
@@ -339,7 +348,12 @@ static void lf_pinbox_real_free(LF_PINS *pins)
   }
 }
 
-#define next_node(P, X) (*((uchar * volatile *)(((uchar *)(X)) + (P)->free_ptr_offset)))
+static inline std::atomic<uchar *>& next_node(LF_PINBOX *P, uchar *X)
+{
+  std::atomic<uchar *> *free_ptr= (std::atomic<uchar *> *)(X + P->free_ptr_offset);
+  return *free_ptr;
+}
+
 #define anext_node(X) next_node(&allocator->pinbox, (X))
 
 /* lock-free memory allocator for fixed-size objects */
@@ -355,20 +369,15 @@ LF_REQUIRE_PINS(1)
     first->el->el->....->el->last. Use first==last to free only one element.
 */
 static void alloc_free(uchar *first,
-                       uchar volatile *last,
+                       uchar *last,
                        LF_ALLOCATOR *allocator)
 {
-  /*
-    we need a union here to access type-punned pointer reliably.
-    otherwise gcc -fstrict-aliasing will not see 'tmp' changed in the loop
-  */
-  union { uchar * node; void *ptr; } tmp;
-  tmp.node= allocator->top;
+  uchar *node= allocator->top;
   do
   {
-    anext_node(last)= tmp.node;
-  } while (!my_atomic_casptr((void **)(char *)&allocator->top,
-                             (void **)&tmp.ptr, first) && LF_BACKOFF);
+    anext_node(last)= node;
+  } while (!atomic_compare_exchange_strong(
+             &allocator->top, &node, first) && LF_BACKOFF);
 }
 
 /**
@@ -453,12 +462,12 @@ void *lf_alloc_new(LF_PINS *pins)
         allocator->constructor(node);
 #ifdef MY_LF_EXTRA_DEBUG
       if (likely(node != 0))
-        my_atomic_add32(&allocator->mallocs, 1);
+        ++allocator->mallocs;
 #endif
       break;
     }
-    if (my_atomic_casptr((void **)(char *)&allocator->top,
-                         reinterpret_cast<void **>(&node), anext_node(node)))
+    if (atomic_compare_exchange_strong(
+          &allocator->top, &node, anext_node(node).load()))
       break;
   }
   lf_unpin(pins, 0);
