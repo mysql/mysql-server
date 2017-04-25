@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -658,14 +658,6 @@ public:
     Uint32 m_lqhKeyReq[LqhKeyReq::FixedSignalLength + 4];
   };
 
-  struct ScanFragData
-  {
-    Uint32 m_rows_received;  // #execTRANSID_AI
-    Uint32 m_rows_expecting; // ScanFragConf
-    Uint32 m_scanFragReq[ScanFragReq::SignalLength + 2];
-    Uint32 m_scanFragHandlePtrI;
-  };
-
   struct ScanFragHandle
   {
     enum SFH_State
@@ -1055,7 +1047,6 @@ public:
     union
     {
       LookupData m_lookup_data;
-      ScanFragData m_scanfrag_data;
       ScanIndexData m_scanindex_data;
     };
 
@@ -1486,25 +1477,6 @@ private:
                         const Ptr<TreeNode> treeNodePtr);
   void lookup_dumpNode(const Ptr<Request> requestPtr,
                        const Ptr<TreeNode> treeNodePtr);
-
-  /**
-   * ScanFrag
-   */
-  static const OpInfo g_ScanFragOpInfo;
-  Uint32 scanFrag_build(Build_context&, Ptr<Request>,
-                        const QueryNode*, const QueryNodeParameters*);
-  void scanFrag_start(Signal*, Ptr<Request>,Ptr<TreeNode>);
-  void scanFrag_send(Signal*, Ptr<Request>, Ptr<TreeNode>);
-  bool scanFrag_countSignal(const Signal*, Ptr<Request>, Ptr<TreeNode>);
-  void scanFrag_execSCAN_FRAGREF(Signal*, Ptr<Request>, Ptr<TreeNode>, Ptr<ScanFragHandle>);
-  void scanFrag_execSCAN_FRAGCONF(Signal*, Ptr<Request>, Ptr<TreeNode>, Ptr<ScanFragHandle>);
-  void scanFrag_execSCAN_NEXTREQ(Signal*, Ptr<Request>,Ptr<TreeNode>);
-  void scanFrag_abort(Signal*, Ptr<Request>, Ptr<TreeNode>);
-  void scanFrag_cleanup(Ptr<Request>, Ptr<TreeNode>);
-  bool scanFrag_checkNode(const Ptr<Request> requestPtr, 
-                          const Ptr<TreeNode> treeNodePtr);
-  void scanFrag_dumpNode(const Ptr<Request> requestPtr,
-                         const Ptr<TreeNode> treeNodePtr);
 
   /**
    * ScanIndex
