@@ -1,4 +1,4 @@
-# Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -197,6 +197,10 @@ done
 # No need for these scripts
 rm -f %{buildroot}%{_datadir}/mysql/{mysql.server,mysqld_multi.server,mysql-log-rotate,binary-configure}
 
+# Remove files pages we explicitly do not want to package
+rm -rf %{buildroot}%{_infodir}/mysql.info*
+rm -f %{buildroot}%{_datadir}/mysql/win_install_firewall.sql
+
 %check
 %if 0%{?runselftest}
 pushd release
@@ -283,6 +287,16 @@ rm -r $(readlink var) var
 %attr(644, root, root) %{_datadir}/mysql/dictionary.txt
 %attr(644, root, root) %{_datadir}/mysql/innodb_memcached_config.sql
 %attr(644, root, root) %{_datadir}/mysql/magic
+
+%if 0%{?commercial}
+%attr(755, root, root) %{_libdir}/mysql/plugin/audit_log.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/authentication_pam.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/thread_pool.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/openssl_udf.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/firewall.so
+%attr(644, root, root) %{_datadir}/mysql/linux_install_firewall.sql
+%endif
+
 %dir %attr(750, mysql, mysql) /var/lib/mysql
 %dir %attr(755, mysql, mysql) /var/run/mysqld
 %dir %attr(750, mysql, mysql) /var/lib/mysql-files
