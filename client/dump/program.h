@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -18,10 +18,11 @@
 #ifndef PROGRAM_INCLUDED
 #define PROGRAM_INCLUDED
 
+#include <atomic>
+
 #include "base/abstract_connection_program.h"
 #include "mysql_chain_element_options.h"
 #include "mysqldump_tool_chain_maker_options.h"
-#include "base/atomic.h"
 
 namespace Mysql{
 namespace Tools{
@@ -65,7 +66,7 @@ private:
   bool m_watch_progress;
   Mysql::Nullable<std::string> m_error_log_file;
   FILE* m_stderr;
-  my_boost::atomic_uint32_t m_error_code;
+  std::atomic<uint32_t> m_error_code;
 };
 
 }

@@ -19,6 +19,7 @@
 #define ABSTRACT_CHAIN_ELEMENT_INCLUDED
 
 #include <stddef.h>
+#include <atomic>
 #include <functional>
 
 #include "abstract_progress_reporter.h"
@@ -153,7 +154,7 @@ private:
   /**
     Stores next chain element ID to be used. Used as ID generator.
    */
-  static my_boost::atomic_uint64_t next_id;
+  static std::atomic<uint64_t> next_id;
 };
 
 }

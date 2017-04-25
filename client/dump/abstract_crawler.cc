@@ -15,17 +15,17 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include <boost/date_time.hpp>
 #include <stddef.h>
+#include <chrono>
 #include <functional>
+#include <thread>
 
 #include "abstract_crawler.h"
 #include "dump_end_dump_task.h"
-#include "this_thread.h"
 
 using namespace Mysql::Tools::Dump;
 
-my_boost::atomic_uint64_t Abstract_crawler::next_chain_id;
+std::atomic<uint64_t> Abstract_crawler::next_chain_id;
 
 Abstract_crawler::Abstract_crawler(
   std::function<bool(const Mysql::Tools::Base::Message_data&)>*
@@ -106,7 +106,7 @@ void Abstract_crawler::wait_for_tasks_completion()
         }
         return;
       }
-      my_boost::this_thread::sleep(boost::posix_time::milliseconds(1));
+      std::this_thread::sleep_for(std::chrono::milliseconds(1));
     }
   }
 }

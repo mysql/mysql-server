@@ -18,6 +18,7 @@
 #ifndef ABSTRACT_CRAWLER_INCLUDED
 #define ABSTRACT_CRAWLER_INCLUDED
 
+#include <atomic>
 #include <functional>
 
 #include "abstract_chain_element.h"
@@ -78,7 +79,7 @@ private:
   /**
     Stores next chain ID to be used. Used as ID generator.
    */
-  static my_boost::atomic_uint64_t next_chain_id;
+  static std::atomic<uint64_t> next_chain_id;
   Mysql::Tools::Base::Abstract_program* m_program;
 };
 

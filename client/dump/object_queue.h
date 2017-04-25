@@ -26,7 +26,6 @@
 #include "abstract_dump_task.h"
 #include "abstract_object_reader_wrapper.h"
 #include "base/abstract_program.h"
-#include "base/atomic.h"
 #include "base/mutex.h"
 #include "i_object_reader.h"
 #include "my_inttypes.h"
@@ -98,7 +97,7 @@ private:
     Indicates if queue is running. If set to false, all pending and being
     processed tasks should complete, then queue is ready to close.
   */
-  my_boost::atomic_bool m_is_queue_running;
+  std::atomic<bool> m_is_queue_running;
   /*
     Callback called when created thread is starting or exiting. Call is done in
     execution context of created thread. Parameter value

@@ -19,6 +19,7 @@
 
 #include <stdlib.h>
 #include <sys/types.h>
+#include <atomic>
 #include <functional>
 
 #include "m_ctype.h"
@@ -31,7 +32,7 @@ using std::vector;
 using std::string;
 
 Mysql_query_runner::Mysql_query_runner(MYSQL* connection)
-  : m_is_processing(new my_boost::atomic<bool>(false)),
+  : m_is_processing(new std::atomic<bool>(false)),
   m_is_original_runner(true),
   m_connection(connection)
 {}
