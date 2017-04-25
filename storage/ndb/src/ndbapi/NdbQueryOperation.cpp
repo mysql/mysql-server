@@ -4499,7 +4499,7 @@ NdbQueryOperationImpl::prepareAttrInfo(Uint32Buffer& attrInfo)
 
   QueryNodeParameters::OpType paramType =
        !def.isScanOperation() ? QueryNodeParameters::QN_LOOKUP
-           : (isRoot) ? QueryNodeParameters::QN_SCAN_FRAG 
+           : (isRoot) ? QueryNodeParameters::QN_SCAN_FRAG //TODO: Deprecate
                       : QueryNodeParameters::QN_SCAN_INDEX;
 
   if (paramType == QueryNodeParameters::QN_SCAN_INDEX)

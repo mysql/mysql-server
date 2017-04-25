@@ -983,6 +983,19 @@ public:
        */
       T_EXEC_SEQUENTIAL = 0x8000,
 
+      /**
+       * Does this node need the m_prepare() method to be called.
+       *  (Also implies RT_NEED_PREPARE is set)
+       */
+      T_NEED_PREPARE = 0x10000,
+
+      /**
+       * Does this node need the m_complete() method to be called.
+       *  (Also implies RT_NEED_COMPLETE is set)
+       *
+       */
+      T_NEED_COMPLETE = 0x20000,
+
       // End marker...
       T_END = 0
     };
@@ -1502,12 +1515,14 @@ private:
   Uint32 parseScanIndex(Build_context&, Ptr<Request>, Ptr<TreeNode>,
                         DABuffer tree, Uint32 treeBits,
                         DABuffer param, Uint32 paramBits);
+  void scanIndex_start(Signal*, Ptr<Request>,Ptr<TreeNode>);
   void scanIndex_prepare(Signal*, Ptr<Request>, Ptr<TreeNode>);
   bool scanIndex_countSignal(const Signal*, Ptr<Request>, Ptr<TreeNode>);
   void scanIndex_execSCAN_FRAGREF(Signal*, Ptr<Request>, Ptr<TreeNode>, Ptr<ScanFragHandle>);
   void scanIndex_execSCAN_FRAGCONF(Signal*, Ptr<Request>, Ptr<TreeNode>, Ptr<ScanFragHandle>);
   void scanIndex_parent_row(Signal*,Ptr<Request>,Ptr<TreeNode>, const RowPtr&);
   void scanIndex_fixupBound(Ptr<ScanFragHandle> fragPtr, Uint32 ptrI, Uint32);
+  void scanIndex_send(Signal*, Ptr<Request>, Ptr<TreeNode>);
   Uint32 scanIndex_send(Signal* signal,
                         Ptr<Request> requestPtr,
                         Ptr<TreeNode> treeNodePtr,

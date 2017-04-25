@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2015 Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2772,7 +2772,7 @@ NdbQueryScanOperationDefImpl::serialize(Uint32Buffer& serializedDef,
     node->tableId = tableOrIndex.getObjectId();
     node->tableVersion = tableOrIndex.getObjectVersion();
     node->requestInfo = requestInfo;
-    QueryNode::setOpLen(node->len, QueryNode::QN_SCAN_FRAG, length);
+    QueryNode::setOpLen(node->len, QueryNode::QN_SCAN_FRAG, length); //TODO: Deprecate
   }
   else 
   {
