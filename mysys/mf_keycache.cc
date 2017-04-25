@@ -1856,9 +1856,7 @@ restart:
           block= &keycache->block_root[keycache->blocks_used];
           block_mem_offset= 
            ((size_t) keycache->blocks_used) * keycache->key_cache_block_size;
-          block->buffer= ADD_TO_PTR(keycache->block_mem,
-                                    block_mem_offset,
-                                    uchar*);
+          block->buffer= keycache->block_mem + block_mem_offset;
           keycache->blocks_used++;
           DBUG_ASSERT(!block->next_used);
         }

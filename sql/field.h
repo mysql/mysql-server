@@ -1377,9 +1377,9 @@ public:
 
   virtual void move_field_offset(my_ptrdiff_t ptr_diff)
   {
-    ptr= ADD_TO_PTR(ptr, ptr_diff, uchar*);
+    ptr+= ptr_diff;
     if (real_maybe_null())
-      m_null_ptr= ADD_TO_PTR(m_null_ptr, ptr_diff, uchar*);
+      m_null_ptr+= ptr_diff;
   }
 
   virtual void get_image(uchar *buff, size_t length, const CHARSET_INFO*)
@@ -3910,7 +3910,7 @@ public:
     }
   void set_ptr_offset(my_ptrdiff_t ptr_diff, uint32 length, uchar *data)
     {
-      uchar *ptr_ofs= ADD_TO_PTR(ptr,ptr_diff,uchar*);
+      uchar *ptr_ofs= ptr + ptr_diff;
       store_length(ptr_ofs, packlength, length);
       memcpy(ptr_ofs+packlength, &data, sizeof(char*));
     }
@@ -4433,7 +4433,7 @@ public:
   void move_field_offset(my_ptrdiff_t ptr_diff)
   {
     Field::move_field_offset(ptr_diff);
-    bit_ptr= ADD_TO_PTR(bit_ptr, ptr_diff, uchar*);
+    bit_ptr+= ptr_diff;
   }
   void hash(ulong *nr, ulong *nr2);
   Field_bit *clone(MEM_ROOT *mem_root) const { 

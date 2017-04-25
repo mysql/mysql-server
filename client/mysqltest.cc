@@ -11763,10 +11763,9 @@ int insert_pointer_name(POINTER_ARRAY *pa,char * name)
       DBUG_RETURN(1);
     if (new_pos != pa->str)
     {
-      my_ptrdiff_t diff=PTR_BYTE_DIFF(new_pos,pa->str);
+      ptrdiff_t diff= new_pos - pa->str;
       for (i=0 ; i < pa->typelib.count ; i++)
-	pa->typelib.type_names[i]= ADD_TO_PTR(pa->typelib.type_names[i],diff,
-					      char*);
+	pa->typelib.type_names[i]= pa->typelib.type_names[i] + diff;
       pa->str=new_pos;
     }
     pa->max_length= pa->length+length+PS_MALLOC;
