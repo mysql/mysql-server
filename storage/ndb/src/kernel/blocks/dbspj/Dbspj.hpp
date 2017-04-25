@@ -740,7 +740,7 @@ public:
     Uint32 m_noOfSamples;
   }; // IncrementalStatistics
 
-  struct ScanIndexData
+  struct ScanFragData
   {
     Uint16 m_frags_complete;
     Uint16 m_frags_outstanding;
@@ -960,12 +960,12 @@ public:
       T_PRUNE_PATTERN = 0x1000,
 
       /**
-       * Should index scan be parallel
+       * Should fragment scan be parallel
        */
       T_SCAN_PARALLEL = 0x2000,
 
       /**
-       * Possible requesting resultset for this index scan to be repeated
+       * Possible requesting resultset for this fragment scan to be repeated
        */
       T_SCAN_REPEATABLE = 0x4000,
 
@@ -1047,7 +1047,7 @@ public:
     union
     {
       LookupData m_lookup_data;
-      ScanIndexData m_scanindex_data;
+      ScanFragData m_scanFrag_data;
     };
 
     struct {
@@ -1479,53 +1479,55 @@ private:
                        const Ptr<TreeNode> treeNodePtr);
 
   /**
-   * ScanIndex
+   * ScanFrag
    */
-  static const OpInfo g_ScanIndexOpInfo;
-  Uint32 scanIndex_build(Build_context&, Ptr<Request>,
-                         const QueryNode*, const QueryNodeParameters*);
-  Uint32 parseScanIndex(Build_context&, Ptr<Request>, Ptr<TreeNode>,
-                        DABuffer tree, Uint32 treeBits,
-                        DABuffer param, Uint32 paramBits);
-  void scanIndex_start(Signal*, Ptr<Request>,Ptr<TreeNode>);
-  void scanIndex_prepare(Signal*, Ptr<Request>, Ptr<TreeNode>);
-  bool scanIndex_countSignal(const Signal*, Ptr<Request>, Ptr<TreeNode>);
-  void scanIndex_execSCAN_FRAGREF(Signal*, Ptr<Request>, Ptr<TreeNode>, Ptr<ScanFragHandle>);
-  void scanIndex_execSCAN_FRAGCONF(Signal*, Ptr<Request>, Ptr<TreeNode>, Ptr<ScanFragHandle>);
-  void scanIndex_parent_row(Signal*,Ptr<Request>,Ptr<TreeNode>, const RowPtr&);
-  void scanIndex_fixupBound(Ptr<ScanFragHandle> fragPtr, Uint32 ptrI, Uint32);
-  void scanIndex_send(Signal*, Ptr<Request>, Ptr<TreeNode>);
-  Uint32 scanIndex_send(Signal* signal,
-                        Ptr<Request> requestPtr,
-                        Ptr<TreeNode> treeNodePtr,
-                        Uint32 noOfFrags,
-                        Uint32 bs_bytes,
-                        Uint32 bs_rows,
-                        Uint32& batchRange);
-  void scanIndex_batchComplete(Signal* signal);
-  Uint32 scanIndex_findFrag(Local_ScanFragHandle_list &, Ptr<ScanFragHandle>&,
-                            Uint32 fragId);
-  void scanIndex_parent_batch_complete(Signal*, Ptr<Request>, Ptr<TreeNode>);
-  void scanIndex_parent_batch_repeat(Signal*, Ptr<Request>, Ptr<TreeNode>);
-  void scanIndex_execSCAN_NEXTREQ(Signal*, Ptr<Request>,Ptr<TreeNode>);
-  void scanIndex_complete(Signal*, Ptr<Request>, Ptr<TreeNode>);
-  void scanIndex_abort(Signal*, Ptr<Request>, Ptr<TreeNode>);
-  Uint32 scanIndex_execNODE_FAILREP(Signal*signal, Ptr<Request>, Ptr<TreeNode>,
-                                  NdbNodeBitmask);
-  void scanIndex_parent_batch_cleanup(Ptr<Request>, Ptr<TreeNode>);
-  void scanIndex_cleanup(Ptr<Request>, Ptr<TreeNode>);
+  static const OpInfo g_ScanFragOpInfo;
+  Uint32 scanFrag_build(Build_context&, Ptr<Request>,
+                        const QueryNode*, const QueryNodeParameters*);
+  Uint32 parseScanFrag(Build_context&, Ptr<Request>, Ptr<TreeNode>,
+                       DABuffer tree, Uint32 treeBits,
+                       DABuffer param, Uint32 paramBits);
+  void scanFrag_start(Signal*, Ptr<Request>,Ptr<TreeNode>);
+  void scanFrag_prepare(Signal*, Ptr<Request>, Ptr<TreeNode>);
+  bool scanFrag_countSignal(const Signal*, Ptr<Request>, Ptr<TreeNode>);
+  void scanFrag_execSCAN_FRAGREF(Signal*, Ptr<Request>, Ptr<TreeNode>,
+                                 Ptr<ScanFragHandle>);
+  void scanFrag_execSCAN_FRAGCONF(Signal*, Ptr<Request>, Ptr<TreeNode>,
+                                  Ptr<ScanFragHandle>);
+  void scanFrag_parent_row(Signal*,Ptr<Request>,Ptr<TreeNode>, const RowPtr&);
+  void scanFrag_fixupBound(Ptr<ScanFragHandle> fragPtr, Uint32 ptrI, Uint32);
+  void scanFrag_send(Signal*, Ptr<Request>, Ptr<TreeNode>);
+  Uint32 scanFrag_send(Signal* signal,
+                       Ptr<Request> requestPtr,
+                       Ptr<TreeNode> treeNodePtr,
+                       Uint32 noOfFrags,
+                       Uint32 bs_bytes,
+                       Uint32 bs_rows,
+                       Uint32& batchRange);
+  void scanFrag_batchComplete(Signal* signal);
+  Uint32 scanFrag_findFrag(Local_ScanFragHandle_list &, Ptr<ScanFragHandle>&,
+                           Uint32 fragId);
+  void scanFrag_parent_batch_complete(Signal*, Ptr<Request>, Ptr<TreeNode>);
+  void scanFrag_parent_batch_repeat(Signal*, Ptr<Request>, Ptr<TreeNode>);
+  void scanFrag_execSCAN_NEXTREQ(Signal*, Ptr<Request>,Ptr<TreeNode>);
+  void scanFrag_complete(Signal*, Ptr<Request>, Ptr<TreeNode>);
+  void scanFrag_abort(Signal*, Ptr<Request>, Ptr<TreeNode>);
+  Uint32 scanFrag_execNODE_FAILREP(Signal*signal, Ptr<Request>, Ptr<TreeNode>,
+                                   NdbNodeBitmask);
+  void scanFrag_parent_batch_cleanup(Ptr<Request>, Ptr<TreeNode>);
+  void scanFrag_cleanup(Ptr<Request>, Ptr<TreeNode>);
 
-  void scanIndex_release_rangekeys(Ptr<Request>, Ptr<TreeNode>);
+  void scanFrag_release_rangekeys(Ptr<Request>, Ptr<TreeNode>);
 
-  Uint32 scanindex_sendDihGetNodesReq(Signal* signal,
-                                      Ptr<Request> requestPtr,
-                                      Ptr<TreeNode> treeNodePtr);
+  Uint32 scanFrag_sendDihGetNodesReq(Signal* signal,
+                                     Ptr<Request> requestPtr,
+                                     Ptr<TreeNode> treeNodePtr);
 
-  bool scanIndex_checkNode(const Ptr<Request> requestPtr,
-                           const Ptr<TreeNode> treeNodePtr);
-
-  void scanIndex_dumpNode(const Ptr<Request> requestPtr,
+  bool scanFrag_checkNode(const Ptr<Request> requestPtr,
                           const Ptr<TreeNode> treeNodePtr);
+
+  void scanFrag_dumpNode(const Ptr<Request> requestPtr,
+                         const Ptr<TreeNode> treeNodePtr);
 
   /**
    * Page manager
