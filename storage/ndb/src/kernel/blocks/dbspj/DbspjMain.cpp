@@ -1382,11 +1382,43 @@ Dbspj::build(Build_context& ctx,
       goto error;
     }
 
-    const OpInfo* info = getOpInfo(node_op);
-    if (unlikely(info == 0))
+    const OpInfo* info = NULL;
+    if (node_op == QueryNode::QN_SCAN_FRAG)
     {
+      /**
+       * Convert the deprecated SCAN_FRAG node+param to SCAN_INDEX:
+       *  - The 'node' formats are identical, no conversion needed.
+       *  - The QN_ScanIndexParameters has an additional 'batchSize' member.
+       *    Extend entire param block to make room for it.
+       */
       jam();
-      goto error;
+      QN_ScanIndexParameters *indexParam = (QN_ScanIndexParameters*)m_buffer1;
+
+      if (unlikely(param_len+1 >= NDB_ARRAY_SIZE(m_buffer1)))
+      {
+        jam();
+        err = DbspjErr::QueryNodeParametersTooBig;
+        goto error;
+      }
+      memmove((&indexParam->batchSize)+1, &indexParam->batchSize, 
+              (&m_buffer1[param_len]-&indexParam->batchSize)*sizeof(Uint32));
+
+      /* Calculate param 'batchSize' from request */
+      Signal* signal = ctx.m_start_signal;
+      const ScanFragReq* req = (const ScanFragReq*)(signal->getDataPtr());
+      indexParam->batchSize = (req->batch_size_bytes << QN_ScanIndexParameters::BatchRowBits) | 
+                               req->batch_size_rows;
+      param_len++;
+      info = &Dbspj::g_ScanIndexOpInfo;
+    }
+    else
+    {
+      info = getOpInfo(node_op);
+      if (unlikely(info == NULL))
+      {
+        jam();
+        goto error;
+      }
     }
 
     QueryNode* qn = (QueryNode*)m_buffer0;
@@ -1403,7 +1435,7 @@ Dbspj::build(Build_context& ctx,
     /**
      * only first node gets access to signal
      */
-    ctx.m_start_signal = 0;
+    ctx.m_start_signal = NULL;
 
     ndbrequire(ctx.m_cnt < NDB_ARRAY_SIZE(ctx.m_node_list));
     ctx.m_cnt++;
@@ -1734,10 +1766,11 @@ Dbspj::prepare(Signal* signal,
         jam();
         break;
       }
-      ndbrequire(nodePtr.p->m_info != 0);
-      if (nodePtr.p->m_info->m_prepare != 0)
+      if (nodePtr.p->m_bits & TreeNode::T_NEED_PREPARE)
       {
         jam();
+        ndbassert(nodePtr.p->m_info != NULL);
+        ndbassert(nodePtr.p->m_info->m_prepare != NULL);
         (this->*(nodePtr.p->m_info->m_prepare))(signal, requestPtr, nodePtr);
       }
     }
@@ -2610,10 +2643,11 @@ Dbspj::complete(Signal* signal, Ptr<Request> requestPtr)
     for (list.first(nodePtr); !nodePtr.isNull(); list.next(nodePtr))
     {
       jam();
-      ndbrequire(nodePtr.p->m_info != 0);
-      if (nodePtr.p->m_info->m_complete != 0)
+      if (nodePtr.p->m_bits & TreeNode::T_NEED_COMPLETE)
       {
         jam();
+        ndbassert(nodePtr.p->m_info != NULL);
+        ndbassert(nodePtr.p->m_info->m_complete != NULL);
         (this->*(nodePtr.p->m_info->m_complete))(signal, requestPtr, nodePtr);
       }
     }
@@ -2654,7 +2688,7 @@ Dbspj::cleanup(Ptr<Request> requestPtr)
      * there is no ongoing client request we can reply to.
      * We set it to RS_ABORTED state now, a later SCAN_NEXTREQ will
      * find the RS_ABORTED request, REF with the abort reason, and
-     * the complete the cleaning up
+     * then complete the cleaning up
      *
      * NOTE1: If no SCAN_NEXTREQ ever arrives for this Request, it
      *        is effectively leaked!
@@ -3883,6 +3917,7 @@ Dbspj::lookup_build(Build_context& ctx,
   const QN_LookupParameters * param = (const QN_LookupParameters*)qp;
   do
   {
+    jam();
     err = DbspjErr::InvalidTreeNodeSpecification;
     if (unlikely(node->len < QN_LookupNode::NodeSize))
     {
@@ -5262,6 +5297,8 @@ Dbspj::scanFrag_build(Build_context& ctx,
   const QN_ScanFragNode * node = (const QN_ScanFragNode*)qn;
   const QN_ScanFragParameters * param = (const QN_ScanFragParameters*)qp;
 
+  ndbrequire(false);  //Deprecated
+
   do
   {
     err = DbspjErr::InvalidTreeNodeSpecification;
@@ -5460,6 +5497,7 @@ Dbspj::scanFrag_start(Signal* signal,
                       Ptr<Request> requestPtr,
                       Ptr<TreeNode> treeNodePtr)
 {
+  ndbrequire(false);  //Deprecated
   scanFrag_send(signal, requestPtr, treeNodePtr);
 }
 
@@ -5469,6 +5507,8 @@ Dbspj::scanFrag_send(Signal* signal,
                      Ptr<TreeNode> treeNodePtr)
 {
   jam();
+  ndbrequire(false);  //Deprecated
+
   if (!ERROR_INSERTED(17521)) // Avoid emulated rnd errors
   {
     // ::checkTableError() should be handled before we reach this far
@@ -5581,6 +5621,8 @@ Dbspj::scanFrag_countSignal(const Signal* signal,
                             Ptr<TreeNode> treeNodePtr)
 {
   jam();
+  ndbrequire(false);  //Deprecated
+
   ScanFragData& data = treeNodePtr.p->m_scanfrag_data;
   data.m_rows_received++;
 
@@ -5601,6 +5643,8 @@ Dbspj::scanFrag_execSCAN_FRAGREF(Signal* signal,
                                  Ptr<ScanFragHandle> scanFragHandlePtr)
 {
   jam();
+  ndbrequire(false);  //Deprecated
+
   const ScanFragRef* rep =
     reinterpret_cast<const ScanFragRef*>(signal->getDataPtr());
   Uint32 errCode = rep->errorCode;
@@ -5626,6 +5670,8 @@ Dbspj::scanFrag_execSCAN_FRAGCONF(Signal* signal,
                                   Ptr<ScanFragHandle> scanFragHandlePtr)
 {
   jam();
+  ndbrequire(false);  //Deprecated
+
   const ScanFragConf * conf =
     reinterpret_cast<const ScanFragConf*>(signal->getDataPtr());
   Uint32 rows = conf->completedOps;
@@ -5687,6 +5733,8 @@ Dbspj::scanFrag_execSCAN_NEXTREQ(Signal* signal,
                                  Ptr<TreeNode> treeNodePtr)
 {
   jam();
+  ndbrequire(false);  //Deprecated
+
   Uint32 err = checkTableError(treeNodePtr);
   if (unlikely(err))
   {
@@ -5737,6 +5785,7 @@ Dbspj::scanFrag_abort(Signal* signal,
                       Ptr<TreeNode> treeNodePtr)
 {
   jam();
+  ndbrequire(false);  //Deprecated
 
   if (treeNodePtr.p->m_state == TreeNode::TN_ACTIVE)
   {
@@ -5790,6 +5839,8 @@ void
 Dbspj::scanFrag_cleanup(Ptr<Request> requestPtr,
                         Ptr<TreeNode> treeNodePtr)
 {
+  ndbrequire(false);  //Deprecated
+
   Uint32 ptrI = treeNodePtr.p->m_scanfrag_data.m_scanFragHandlePtrI;
   if (ptrI != RNIL)
   {
@@ -5803,6 +5854,7 @@ Dbspj::scanFrag_checkNode(const Ptr<Request> requestPtr,
                           const Ptr<TreeNode> treeNodePtr)
 {
   jam();
+  ndbrequire(false);  //Deprecated
 
   /* TODO */
 
@@ -5814,6 +5866,7 @@ Dbspj::scanFrag_dumpNode(const Ptr<Request> requestPtr,
                          const Ptr<TreeNode> treeNodePtr)
 {
   jam();
+  ndbrequire(false);  //Deprecated
 
   const ScanFragData& data = treeNodePtr.p->m_scanfrag_data;
 
@@ -5848,7 +5901,7 @@ Dbspj::g_ScanIndexOpInfo =
 {
   &Dbspj::scanIndex_build,
   &Dbspj::scanIndex_prepare,
-  0, // start
+  &Dbspj::scanIndex_start,
   &Dbspj::scanIndex_countSignal,
   0, // execLQHKEYREF
   0, // execLQHKEYCONF
@@ -5880,6 +5933,7 @@ Dbspj::scanIndex_build(Build_context& ctx,
 
   do
   {
+    jam();
     err = DbspjErr::InvalidTreeNodeSpecification;
     DEBUG("scanIndex_build: len=" << node->len);
     if (unlikely(node->len < QN_ScanIndexNode::NodeSize))
@@ -5903,51 +5957,21 @@ Dbspj::scanIndex_build(Build_context& ctx,
       break;
     }
 
-    Uint32 batchSize = param->batchSize;
-
     requestPtr.p->m_bits |= Request::RT_SCAN;
-    requestPtr.p->m_bits |= Request::RT_NEED_PREPARE;
-    requestPtr.p->m_bits |= Request::RT_NEED_COMPLETE;
 
-    Uint32 indexId = node->tableId;
-    Uint32 tableId = g_key_descriptor_pool.getPtr(indexId)->primaryTableId;
+    const Uint32 treeBits = node->requestInfo;
+    const Uint32 paramBits = param->requestInfo;
+    const Uint32 batchSize = param->batchSize;
+    const Uint32 indexId = node->tableId;
+    const Uint32 tableId = g_key_descriptor_pool.getPtr(indexId)->primaryTableId;
 
     treeNodePtr.p->m_info = &g_ScanIndexOpInfo;
     treeNodePtr.p->m_tableOrIndexId = indexId;
     treeNodePtr.p->m_primaryTableId = tableId;
     treeNodePtr.p->m_schemaVersion = node->tableVersion;
     treeNodePtr.p->m_bits |= TreeNode::T_ATTR_INTERPRETED;
-    treeNodePtr.p->m_bits |= TreeNode::T_NEED_REPORT_BATCH_COMPLETED;
-    treeNodePtr.p->m_batch_size = 
+    treeNodePtr.p->m_batch_size =  //OJA, modified later if root?
       batchSize & ~(0xFFFFFFFF << QN_ScanIndexParameters::BatchRowBits);
-
-    ScanFragReq*dst=(ScanFragReq*)treeNodePtr.p->m_scanindex_data.m_scanFragReq;
-    dst->senderData = treeNodePtr.i;
-    dst->resultRef = reference();
-    dst->resultData = treeNodePtr.i;
-    dst->savePointId = ctx.m_savepointId;
-    dst->batch_size_rows  = 
-      batchSize & ~(0xFFFFFFFF << QN_ScanIndexParameters::BatchRowBits);
-    dst->batch_size_bytes = batchSize >> QN_ScanIndexParameters::BatchRowBits;
-
-    Uint32 transId1 = requestPtr.p->m_transId[0];
-    Uint32 transId2 = requestPtr.p->m_transId[1];
-    dst->transId1 = transId1;
-    dst->transId2 = transId2;
-
-    Uint32 treeBits = node->requestInfo;
-    Uint32 paramBits = param->requestInfo;
-    Uint32 requestInfo = 0;
-    ScanFragReq::setRangeScanFlag(requestInfo, 1);
-    ScanFragReq::setReadCommittedFlag(requestInfo, 1);
-    ScanFragReq::setScanPrio(requestInfo, ctx.m_scanPrio);
-    ScanFragReq::setNoDiskFlag(requestInfo,
-                               (treeBits & DABits::NI_LINKED_DISK) == 0 &&
-                               (paramBits & DABits::PI_DISK_ATTR) == 0);
-    ScanFragReq::setCorrFactorFlag(requestInfo, 1);
-    dst->requestInfo = requestInfo;
-    dst->tableId = node->tableId;
-    dst->schemaVersion = node->tableVersion;
 
     ctx.m_resultData = param->resultData;
 
@@ -5998,6 +6022,141 @@ Dbspj::scanIndex_build(Build_context& ctx,
       treeNodePtr.p->m_bits |= TreeNode::T_SCAN_REPEATABLE;
     }
 
+    ScanIndexData& data = treeNodePtr.p->m_scanindex_data;
+    ScanFragReq* const dst = reinterpret_cast<ScanFragReq*>(data.m_scanFragReq);
+
+    /**
+     * The root node get most of its ScanFragReq contents readily 
+     * filled in from the 'start_signal'. So building the initial
+     * contents of the m_scanFragReq has to be handled different
+     * for the root node vs. a non-root node.
+     */
+    if (ctx.m_start_signal)  //Is the root node?
+    {
+      jam();
+      ndbassert(treeNodePtr.p->m_parentPtrI == RNIL);
+
+      /**
+       * The REQuest in 'start_signal' contains most of the m_scanFragReq
+       * readilly filled in. Copy it, and modify where needed.
+       */
+      const Signal* signal = ctx.m_start_signal;
+      const ScanFragReq* const req = reinterpret_cast<const ScanFragReq*>(signal->getDataPtr());
+      memcpy(dst, req, sizeof(data.m_scanFragReq));
+
+      // Assert some limitations on the SPJ supported ScanFragReq
+      ndbassert(ScanFragReq::getLockMode(req->requestInfo) == 0);
+      ndbassert(ScanFragReq::getHoldLockFlag(req->requestInfo) == 0);
+      ndbassert(ScanFragReq::getKeyinfoFlag(req->requestInfo) == 0);
+      ndbassert(ScanFragReq::getReadCommittedFlag(req->requestInfo) == 1);
+      ndbassert(ScanFragReq::getLcpScanFlag(req->requestInfo) == 0);
+      ndbassert(ScanFragReq::getReorgFlag(req->requestInfo) == ScanFragReq::REORG_ALL);
+
+      /**
+       * 'NoDiskFlag' should agree with information in treeNode
+       */
+      ndbassert(ScanFragReq::getNoDiskFlag(req->requestInfo) ==
+                ((treeBits & DABits::NI_LINKED_DISK) == 0 &&
+                 (paramBits & DABits::PI_DISK_ATTR) == 0));
+
+      ndbassert(dst->savePointId == ctx.m_savepointId);
+      ndbassert(dst->tableId == node->tableId);
+      ndbassert(dst->schemaVersion == node->tableVersion);
+      ndbassert(dst->transId1 == requestPtr.p->m_transId[0]);
+      ndbassert(dst->transId2 == requestPtr.p->m_transId[1]);
+
+      treeNodePtr.p->m_bits |= TreeNode::T_ONE_SHOT;
+      treeNodePtr.p->m_batch_size = ctx.m_batch_size_rows;
+
+      TableRecordPtr tablePtr;
+      tablePtr.i = treeNodePtr.p->m_tableOrIndexId;
+      ptrCheckGuard(tablePtr, c_tabrecFilesize, m_tableRecord);
+      const bool readBackup =
+        !!(tablePtr.p->m_flags & TableRecord::TR_READ_BACKUP);
+
+      data.m_fragCount = 1;
+
+      /**
+       * As this is the root node, fragId is already contained in the REQuest
+       * Fill in the set of 'm_fragments' to be SCAN'ed by this REQ.
+       */
+      {
+        Local_ScanFragHandle_list list(m_scanfraghandle_pool, data.m_fragments);
+        {
+          jam();
+          Ptr<ScanFragHandle> fragPtr;
+
+          const Uint32 ref =
+            numberToRef(DBLQH,
+                        getInstanceKey(req->tableId, req->fragmentNoKeyLen),
+                        getOwnNodeId());
+
+         if (!ERROR_INSERTED_CLEAR(17004) &&
+              likely(m_scanfraghandle_pool.seize(requestPtr.p->m_arena, fragPtr)))
+          {
+            jam();
+            fragPtr.p->init(req->fragmentNoKeyLen, readBackup);
+            fragPtr.p->m_treeNodePtrI = treeNodePtr.i;
+            fragPtr.p->m_ref = ref;
+            list.addLast(fragPtr);
+          }
+          else
+          {
+            jam();
+            err = DbspjErr::OutOfQueryMemory;
+            return err;
+          }
+        }
+      }
+
+      if (ScanFragReq::getRangeScanFlag(req->requestInfo))
+      {
+        jam();
+        c_Counters.incr_counter(CI_RANGE_SCANS_RECEIVED, 1);
+      }
+      else
+      {
+        jam();
+        c_Counters.incr_counter(CI_TABLE_SCANS_RECEIVED, 1);
+      }
+    }
+    else
+    {
+      requestPtr.p->m_bits |= Request::RT_NEED_PREPARE;
+      requestPtr.p->m_bits |= Request::RT_NEED_COMPLETE;
+
+      treeNodePtr.p->m_bits |= TreeNode::T_NEED_PREPARE;
+      treeNodePtr.p->m_bits |= TreeNode::T_NEED_COMPLETE;
+      treeNodePtr.p->m_bits |= TreeNode::T_NEED_REPORT_BATCH_COMPLETED;
+
+      dst->tableId = node->tableId;
+      dst->schemaVersion = node->tableVersion;
+      dst->fragmentNoKeyLen = 0xff; //Filled in after 'prepare'
+      dst->savePointId = ctx.m_savepointId;
+      dst->transId1 = requestPtr.p->m_transId[0];
+      dst->transId2 = requestPtr.p->m_transId[1];
+
+      Uint32 requestInfo = 0;
+      ScanFragReq::setReadCommittedFlag(requestInfo, 1);
+      ScanFragReq::setScanPrio(requestInfo, ctx.m_scanPrio);
+      ScanFragReq::setRangeScanFlag(requestInfo, 1);
+      ScanFragReq::setNoDiskFlag(requestInfo,
+                                 (treeBits & DABits::NI_LINKED_DISK) == 0 &&
+                                 (paramBits & DABits::PI_DISK_ATTR) == 0);
+
+      dst->requestInfo = requestInfo;
+    }
+
+    // Common part whether root or not
+    dst->senderData = treeNodePtr.i;
+    dst->resultRef  = reference();
+    dst->resultData = treeNodePtr.i;
+    ScanFragReq::setCorrFactorFlag(dst->requestInfo, 1);
+
+    dst->batch_size_rows  = 
+      batchSize & ~(0xFFFFFFFF << QN_ScanIndexParameters::BatchRowBits);
+    dst->batch_size_bytes = batchSize >> QN_ScanIndexParameters::BatchRowBits;
+
     ctx.m_scan_cnt++;
     ctx.m_scans.set(treeNodePtr.p->m_node_no);
 
@@ -6025,6 +6184,7 @@ Dbspj::parseScanIndex(Build_context& ctx,
 
     ScanIndexData& data = treeNodePtr.p->m_scanindex_data;
     data.m_fragments.init();
+    data.m_fragCount = 0;
     data.m_frags_outstanding = 0;
     data.m_frags_complete = 0;
     data.m_frags_not_started = 0;
@@ -6141,6 +6301,7 @@ Dbspj::scanIndex_prepare(Signal * signal,
     // ::checkTableError() should be handled before we reach this far
     ndbassert(checkTableError(treeNodePtr) == 0); //Handled in Dbspj::start
   }
+  ndbassert(treeNodePtr.p->m_state == TreeNode::TN_BUILDING);
   treeNodePtr.p->m_state = TreeNode::TN_PREPARING;
 
   requestPtr.p->m_outstanding++;
@@ -6516,6 +6677,25 @@ Dbspj::scanindex_sendDihGetNodesReq(Signal* signal,
 } //Dbspj::scanindex_sendDihGetNodesReq
 
 
+void
+Dbspj::scanIndex_start(Signal* signal,
+                      Ptr<Request> requestPtr,
+                      Ptr<TreeNode> treeNodePtr)
+{
+  jam();
+  ScanIndexData& data = treeNodePtr.p->m_scanindex_data;
+
+  ndbassert(data.m_fragCount > 0);
+  ndbassert(data.m_frags_outstanding == 0);
+  ndbassert(data.m_frags_complete == 0);
+  data.m_frags_not_started = data.m_fragCount;
+
+  ndbassert(treeNodePtr.p->m_state == TreeNode::TN_BUILDING);
+  treeNodePtr.p->m_state = TreeNode::TN_INACTIVE;
+
+  scanIndex_send(signal, requestPtr, treeNodePtr);
+}//Dbspj::scanIndex_start
+
 Uint32
 Dbspj::scanIndex_findFrag(Local_ScanFragHandle_list & list,
                           Ptr<ScanFragHandle> & fragPtr, Uint32 fragId)
@@ -6540,6 +6720,7 @@ Dbspj::scanIndex_parent_row(Signal* signal,
                             const RowPtr & rowRef)
 {
   jam();
+  ndbassert(treeNodePtr.p->m_parentPtrI != RNIL);
   DEBUG("::scanIndex_parent_row"
      << ", node: " << treeNodePtr.p->m_node_no);
 
@@ -6743,13 +6924,11 @@ Dbspj::scanIndex_parent_batch_complete(Signal* signal,
                                        Ptr<TreeNode> treeNodePtr)
 {
   jam();
+  ndbassert(treeNodePtr.p->m_parentPtrI != RNIL);
+  ndbassert(treeNodePtr.p->m_state == TreeNode::TN_INACTIVE);
 
   ScanIndexData& data = treeNodePtr.p->m_scanindex_data;
-  data.m_rows_received = 0;
-  data.m_rows_expecting = 0;
-  ndbassert(data.m_frags_outstanding == 0);
   ndbassert(data.m_frags_complete == data.m_fragCount);
-  ndbassert(treeNodePtr.p->m_state == TreeNode::TN_INACTIVE);
 
   /**
    * Update the fragments 'm_state' and the aggregated TreeNode::m_frag_*
@@ -6779,10 +6958,7 @@ Dbspj::scanIndex_parent_batch_complete(Signal* signal,
       }
       else
       {
-        /* No range info therefore empty result set.  Will 
-         * transition to TN_INACTIVE state below.  Note
-         * fragment states not updated here.
-         */
+        /* No range info therefore empty result set. */
         jam();
         data.m_frags_complete = data.m_fragCount;
       }
@@ -6823,6 +6999,20 @@ Dbspj::scanIndex_parent_batch_complete(Signal* signal,
   /**
    * When parent's batch is complete, we send our batch
    */
+  scanIndex_send(signal, requestPtr, treeNodePtr);
+}
+
+
+void
+Dbspj::scanIndex_send(Signal* signal,
+                      Ptr<Request> requestPtr,
+                      Ptr<TreeNode> treeNodePtr)
+{
+  jam();
+  ndbassert(treeNodePtr.p->m_state == TreeNode::TN_INACTIVE);
+  ScanIndexData& data = treeNodePtr.p->m_scanindex_data;
+  ndbassert(data.m_frags_outstanding == 0);
+
   const ScanFragReq * org = (const ScanFragReq*)data.m_scanFragReq;
   ndbrequire(org->batch_size_rows > 0);
 
@@ -6897,6 +7087,8 @@ Dbspj::scanIndex_parent_batch_complete(Signal* signal,
   ndbassert(bs_rows > 0);
   ndbassert(bs_bytes > 0);
 
+  data.m_rows_received = 0;
+  data.m_rows_expecting = 0;
   data.m_largestBatchRows = 0;
   data.m_largestBatchBytes = 0;
   data.m_totalRows = 0;
@@ -6934,33 +7126,6 @@ Dbspj::scanIndex_parent_batch_complete(Signal* signal,
   }
 }
 
-void
-Dbspj::scanIndex_parent_batch_repeat(Signal* signal,
-                                      Ptr<Request> requestPtr,
-                                      Ptr<TreeNode> treeNodePtr)
-{
-  jam();
-  ScanIndexData& data = treeNodePtr.p->m_scanindex_data;
-
-  DEBUG("scanIndex_parent_batch_repeat(), m_node_no: " << treeNodePtr.p->m_node_no
-        << ", m_batch_chunks: " << data.m_batch_chunks);
-  
-  ndbassert(treeNodePtr.p->m_bits & TreeNode::T_SCAN_REPEATABLE);
-
-  /**
-   * Register index-scans to be restarted if we didn't get all
-   * previously fetched parent related child rows in a single batch.
-   */
-  if (data.m_batch_chunks > 1)
-  {
-    jam();
-    DEBUG("Register TreeNode for restart, m_node_no: " << treeNodePtr.p->m_node_no);
-    ndbrequire(treeNodePtr.p->m_state != TreeNode::TN_ACTIVE);
-    registerActiveCursor(requestPtr, treeNodePtr);
-    data.m_batch_chunks = 0;
-  }
-}
-
 /**
  * Ask for the first batch for a number of fragments.
  *
@@ -6990,7 +7155,7 @@ Dbspj::scanIndex_send(Signal* signal,
 
   /**
    * If scan is repeatable, we must make sure not to release range keys so
-   * that we canuse them again in the next repetition.
+   * that we can use them again in the next repetition.
    */
   const bool repeatable =
     (treeNodePtr.p->m_bits & TreeNode::T_SCAN_REPEATABLE) != 0;
@@ -7015,8 +7180,7 @@ Dbspj::scanIndex_send(Signal* signal,
     Local_ScanFragHandle_list list(m_scanfraghandle_pool, data.m_fragments);
     Ptr<ScanFragHandle> fragPtr;
     list.first(fragPtr);
-    Uint32 keyInfoPtrI = fragPtr.p->m_rangePtrI;
-    ndbrequire(prune || keyInfoPtrI != RNIL);
+
     /**
      * Iterate over the list of fragments until we have sent as many
      * SCAN_FRAGREQs as we should.
@@ -7054,8 +7218,6 @@ Dbspj::scanIndex_send(Signal* signal,
         continue;
       }
 
-      Uint32 attrInfoPtrI = treeNodePtr.p->m_send.m_attrInfoPtrI;
-
       /**
        * Set data specific for this fragment
        */
@@ -7072,24 +7234,84 @@ Dbspj::scanIndex_send(Signal* signal,
         break;
       }
 
-      if (prune)
+      /**
+       * Set up the key-/attrInfo to be sent with the SCAN_FRAGREQ.
+       * Determine whether these should released as part of the
+       * send or not. We try to 'release' whenever possible in order
+       * to avoid copying them when sent locally. However, we need
+       * to make sure that the key/attr will not be reused before
+       * they can be released. Note:
+       *
+       * - Only the rootNode is ONE_SHOT.
+       * - keyInfo comes from either m_send.m_keyInfoPtrI or
+       *   fragPtr.p->m_rangePtrI (not both! - 'XOR').
+       * - If the child scan is pruned, a seperate 'rangePtr' is
+       *   build for each frag - Non-pruned scan store the 'rangePtr'
+       *   in the first frag, which is reused for all the frags.
+       * - Child nodes can possibly be 'repeatable', which implies
+       *   that m_rangePtrI can't be released yet.
+       * - attrInfo is always taken from m_send.m_attrInfoPtrI, and
+       *   is reused from all frag scans, either repeated or not!
+       *
+       * Note the somewhat different lifetime of key- vs attrInfo:
+       * Except for the ONE_SHOT rootNode, the attrInfo always has
+       * to be kept longer than 'key' before released.
+       * As sendSignal() either release both or none, we can't
+       * set 'releaseAtSend' to suite both key- and attrInfo
+       * lifetime.
+       *
+       * Thus, we set 'releaseAtSend' to suite the shorter lifecycle
+       * of the 'range' keys. attrInfo is duplicated whenever needed
+       * such that a copy can be release together with the keyInfo.
+       */
+      Uint32 attrInfoPtrI = treeNodePtr.p->m_send.m_attrInfoPtrI;
+      Uint32 keyInfoPtrI = treeNodePtr.p->m_send.m_keyInfoPtrI;
+      bool releaseAtSend = false;
+
+      if (treeNodePtr.p->m_bits & TreeNode::T_ONE_SHOT && 
+          data.m_frags_not_started==1)
       {
         jam();
-        keyInfoPtrI = fragPtr.p->m_rangePtrI;
-        
-        /* Pruning out of rangeless fragments done above */
-        ndbassert(keyInfoPtrI != RNIL);
+        ndbassert(!repeatable);
+        ndbassert(fragPtr.p->m_rangePtrI == RNIL);
+        /**
+         * Pass sections to send and release them (root only)
+         */
+        treeNodePtr.p->m_send.m_attrInfoPtrI = RNIL;
+        treeNodePtr.p->m_send.m_keyInfoPtrI = RNIL;
+        releaseAtSend = true;
+      }
+      else
+      {
+        jam();
+        ndbassert(keyInfoPtrI == RNIL);  //Not both keyInfo and 'range'
 
-        if (!repeatable)
+        Ptr<ScanFragHandle> fragWithRangePtr;
+        if (prune)
+        {
+          jam();
+          fragWithRangePtr = fragPtr;
+          releaseAtSend = !repeatable;
+        }
+        else
         {
           /**
-           * If we'll use sendSignal() and we need to send the attrInfo several
-           * times, we need to copy them. (For repeatable or unpruned scans
-           * we use sendSignalNoRelease(), so then we do not need to copy.)
+           * Note: if not 'prune', keyInfo is only set in first fragPtr,
+           *   even if it is valid for all of them. (save some mem.)
            */
           jam();
-          Uint32 tmp = RNIL;
+          list.first(fragWithRangePtr);
+          releaseAtSend = (!repeatable && data.m_frags_not_started==1);
+        }
+        keyInfoPtrI = fragWithRangePtr.p->m_rangePtrI;
 
+        /**
+         * 'releaseAtSend' is set above based on the keyInfo lifetime.
+         * Copy the attrInfo (comment above) whenever needed.
+         */
+        if (releaseAtSend)
+        {
+          jam();
           /**
            * Test execution terminated due to 'OutOfSectionMemory' which
            * may happen for different treeNodes in the request:
@@ -7098,7 +7320,6 @@ Dbspj::scanIndex_send(Signal* signal,
            * - 17092: Fail on scanIndex_send() if 'isLeaf'
            * - 17093: Fail on scanIndex_send() if treeNode not root
            */
-
           if (ERROR_INSERTED(17090) ||
              (ERROR_INSERTED(17091) && requestsSent > 1) ||
              (ERROR_INSERTED(17092) && treeNodePtr.p->isLeaf()) ||
@@ -7111,7 +7332,7 @@ Dbspj::scanIndex_send(Signal* signal,
             err = DbspjErr::OutOfSectionMemory;
             break;
           }
-
+          Uint32 tmp = RNIL;
           if (!dupSection(tmp, attrInfoPtrI))
           {
             jam();
@@ -7119,16 +7340,24 @@ Dbspj::scanIndex_send(Signal* signal,
             err = DbspjErr::OutOfSectionMemory;
             break;
           }
-
           attrInfoPtrI = tmp;
-        }
+
+          /** Reflect the release of the keyInfo 'range' set above */
+          fragWithRangePtr.p->m_rangePtrI = RNIL;
+          fragWithRangePtr.p->reset_ranges();
+        } //if (releaseAtSend)
       }
 
       SectionHandle handle(this);
       getSection(handle.m_ptr[0], attrInfoPtrI);
-      getSection(handle.m_ptr[1], keyInfoPtrI);
-      handle.m_cnt = 2;
-
+      handle.m_cnt = 1;
+      if (keyInfoPtrI != RNIL)
+      {
+        jam();
+        getSection(handle.m_ptr[1], keyInfoPtrI);
+        handle.m_cnt++;
+      }
+      
 #if defined DEBUG_SCAN_FRAGREQ
       ndbout_c("SCAN_FRAGREQ to %x", ref);
       printSCAN_FRAGREQ(stdout, signal->getDataPtrSend(),
@@ -7136,18 +7365,24 @@ Dbspj::scanIndex_send(Signal* signal,
                         DBLQH);
       printf("ATTRINFO: ");
       print(handle.m_ptr[0], stdout);
-      printf("KEYINFO: ");
-      print(handle.m_ptr[1], stdout);
+      if (handle.m_cnt > 1)
+      {
+        printf("KEYINFO: ");
+        print(handle.m_ptr[1], stdout);
+      }
 #endif
 
-      if (refToNode(ref) == getOwnNodeId())
+      if (!ScanFragReq::getRangeScanFlag(req->requestInfo))
+      {
+        c_Counters.incr_counter(CI_LOCAL_TABLE_SCANS_SENT, 1);
+      }
+      else if (refToNode(ref) == getOwnNodeId())
       {
         c_Counters.incr_counter(CI_LOCAL_RANGE_SCANS_SENT, 1);
       }
       else
       {
         ndbrequire(!ERROR_INSERTED(17014));
-        
         c_Counters.incr_counter(CI_REMOTE_RANGE_SCANS_SENT, 1);
       }
 
@@ -7184,8 +7419,8 @@ Dbspj::scanIndex_send(Signal* signal,
        * last request in which case they can be freed. If the
        * last request is a local send then a copy is avoided.
        */
-      const bool release = prune && !repeatable;
       {
+        jam();
         FragmentSendInfo fragSendInfo;
         sendFirstFragment(fragSendInfo,
                           ref,
@@ -7194,8 +7429,8 @@ Dbspj::scanIndex_send(Signal* signal,
                           NDB_ARRAY_SIZE(data.m_scanFragReq),
                           JBB,
                           &handle,
-                          !release);  // Keep sent sections unless
-                                      // last send
+                          !releaseAtSend); //Keep sent sections,
+                                           //unless last send
 
         while (fragSendInfo.m_status != FragmentSendInfo::SendComplete)
         {
@@ -7205,11 +7440,9 @@ Dbspj::scanIndex_send(Signal* signal,
         }
       }
 
-      if (release)
+      if (releaseAtSend)
       {
-        jam();
-        fragPtr.p->m_rangePtrI = RNIL;
-        fragPtr.p->reset_ranges();
+        ndbassert(handle.m_cnt == 0);
       }
       handle.clear();
 
@@ -7228,6 +7461,35 @@ Dbspj::scanIndex_send(Signal* signal,
   }
 
   return requestsSent;
+}
+
+void
+Dbspj::scanIndex_parent_batch_repeat(Signal* signal,
+                                      Ptr<Request> requestPtr,
+                                      Ptr<TreeNode> treeNodePtr)
+{
+  jam();
+  ndbassert(treeNodePtr.p->m_parentPtrI != RNIL);
+
+  ScanIndexData& data = treeNodePtr.p->m_scanindex_data;
+
+  DEBUG("scanIndex_parent_batch_repeat(), m_node_no: " << treeNodePtr.p->m_node_no
+        << ", m_batch_chunks: " << data.m_batch_chunks);
+  
+  ndbassert(treeNodePtr.p->m_bits & TreeNode::T_SCAN_REPEATABLE);
+
+  /**
+   * Register index-scans to be restarted if we didn't get all
+   * previously fetched parent related child rows in a single batch.
+   */
+  if (data.m_batch_chunks > 1)
+  {
+    jam();
+    DEBUG("Register TreeNode for restart, m_node_no: " << treeNodePtr.p->m_node_no);
+    ndbrequire(treeNodePtr.p->m_state != TreeNode::TN_ACTIVE);
+    registerActiveCursor(requestPtr, treeNodePtr);
+    data.m_batch_chunks = 0;
+  }
 }
 
 bool
@@ -7367,7 +7629,7 @@ Dbspj::scanIndex_execSCAN_FRAGCONF(Signal* signal,
        * Correlation value must be unique within batch and smaller than 
        * org->batch_size_rows.
        */
-      const Uint32 maxCorrVal = (data.m_totalRows) == 0 ? 0 :
+      const Uint32 maxCorrVal = data.m_totalRows == 0 ? 0 :
         org->batch_size_rows / data.m_parallelism * (data.m_parallelism - 1)
         + data.m_totalRows;
       
@@ -7596,7 +7858,7 @@ Dbspj::scanIndex_execSCAN_NEXTREQ(Signal* signal,
         batchRange += bs_rows;
 
         DEBUG("scanIndex_execSCAN_NEXTREQ to: " << hex
-              << treeNodePtr.p->m_send.m_ref
+              << fragPtr.p->m_ref
               << ", m_node_no=" << treeNodePtr.p->m_node_no
               << ", senderData: " << req->senderData);
 
@@ -7904,6 +8166,7 @@ Dbspj::scanIndex_parent_batch_cleanup(Ptr<Request> requestPtr,
                                       Ptr<TreeNode> treeNodePtr)
 {
   DEBUG("scanIndex_parent_batch_cleanup");
+  ndbassert(treeNodePtr.p->m_parentPtrI != RNIL);
   scanIndex_release_rangekeys(requestPtr,treeNodePtr);
 }
 
@@ -9019,9 +9282,6 @@ Dbspj::parseDA(Build_context& ctx,
       Uint32 len = len_cnt & 0xFFFF; // length of pattern in words
       Uint32 cnt = len_cnt >> 16;    // no of parameters
 
-      LocalArenaPool<DataBufferSegment<14> > pool(requestPtr.p->m_arena, m_dependency_map_pool);
-      Local_pattern_store pattern(pool, treeNodePtr.p->m_keyPattern);
-
       err = DbspjErr::InvalidTreeParametersSpecificationIncorrectKeyParamCount;
       if (unlikely( ((cnt==0) != ((treeBits & DABits::NI_KEY_PARAMS) == 0)) ||
                     ((cnt==0) != ((paramBits & DABits::PI_KEY_PARAMS) == 0))))
@@ -9033,6 +9293,9 @@ Dbspj::parseDA(Build_context& ctx,
       if (treeBits & DABits::NI_KEY_LINKED)
       {
         jam();
+        LocalArenaPool<DataBufferSegment<14> > pool(requestPtr.p->m_arena, m_dependency_map_pool);
+        Local_pattern_store pattern(pool, treeNodePtr.p->m_keyPattern);
+
         DEBUG("LINKED-KEY PATTERN w/ " << cnt << " PARAM values");
         /**
          * Expand pattern into a new pattern (with linked values)
