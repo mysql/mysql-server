@@ -9844,32 +9844,35 @@ int main(int argc, char **argv)
     
     /* delimiter needs to be executed so we can continue to parse */
     bool ok_to_do= cur_block->ok || command->type == Q_DELIMITER;
+
     /*
       Some commands need to be "done" the first time if they may get
       re-iterated over in a true context. This can only happen if there's 
       a while loop at some level above the current block.
     */
-    if (!ok_to_do)
+    if (!ok_to_do && (command->type == Q_ERROR ||
+                      command->type == Q_SOURCE))
     {
-      if (command->type == Q_SOURCE ||
-          command->type == Q_ERROR ||
-          command->type == Q_WRITE_FILE ||
-          command->type == Q_APPEND_FILE ||
-	  command->type == Q_PERL)
+      for (struct st_block *stb= cur_block - 1; stb >= block_stack; stb--)
       {
-	for (struct st_block *stb= cur_block-1; stb >= block_stack; stb--)
-	{
-	  if (stb->cmd == cmd_while)
-	  {
-	    ok_to_do= 1;
-	    break;
-	  }
-	}
+        if (stb->cmd == cmd_while)
+        {
+          ok_to_do= 1;
+          break;
+        }
       }
     }
 
-    if (command->type == Q_PERL)
-      do_perl(command);
+    /*
+      Some commands need to be parsed in false context also to
+      avoid any parsing errors.
+    */
+    if (!ok_to_do && (command->type == Q_APPEND_FILE ||
+                      command->type == Q_PERL ||
+                      command->type == Q_WRITE_FILE))
+    {
+      ok_to_do= 1;
+    }
 
     if (ok_to_do)
     {
@@ -9964,6 +9967,9 @@ int main(int argc, char **argv)
       case Q_COPY_FILE: do_copy_file(command); break;
       case Q_MOVE_FILE: do_move_file(command); break;
       case Q_CHMOD_FILE: do_chmod_file(command); break;
+      case Q_PERL:
+        do_perl(command);
+        break;
       case Q_RESULT_FORMAT_VERSION: do_result_format_version(command); break;
       case Q_DELIMITER:
         do_delimiter(command);

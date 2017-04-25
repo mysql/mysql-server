@@ -3808,3 +3808,69 @@ SELECT 19.955934879;
 --echo # The minimum value which can be passed is 0
 --error 1
 --exec echo "replace_numeric_round -1;" | $MYSQL_TEST 2>&1
+
+--echo #
+--echo # BUG#25840940 : MYSQLTEST WRITE_FILE IN NON-EXECUTED IF BLOCK BREAKS PARSING
+--echo #
+
+--echo # if condition evalutes to false
+if (0)
+{
+  --write_file $MYSQL_TMP_DIR/bug25840940.inc
+  Hello
+  EOF
+}
+
+--echo # File shouldn't be created by write_file command inside
+--echo # the if block, cat_file command should fail.
+--error 1
+--cat_file $MYSQL_TMP_DIR/bug25840940.inc
+
+--echo # while condition evalutes to false
+while (0)
+{
+  --write_file $MYSQL_TMP_DIR/bug25840940.inc
+  Hello
+  EOF
+}
+
+--echo # File shouldn't be created by write_file command inside
+--echo # the while block, cat_file command should fail
+--error 1
+--cat_file $MYSQL_TMP_DIR/bug25840940.inc
+
+# Create a file
+--write_file $MYSQL_TMP_DIR/bug25840940.inc
+Hello
+EOF
+
+--echo # Outer if condition evalutes to false
+if (0)
+{
+  if (1)
+  {
+    --append_file $MYSQL_TMP_DIR/bug25840940.inc
+    Hello
+    EOF
+  }
+}
+
+--echo # "Hello" shouldn't be repeated
+--cat_file $MYSQL_TMP_DIR/bug25840940.inc
+
+--echo # Outer while condition evalutes to false
+while (0)
+{
+  if (1)
+  {
+    --append_file $MYSQL_TMP_DIR/bug25840940.inc
+    Hello
+    EOF
+  }
+}
+
+--echo # "Hello" shouldn't be repeated
+--cat_file $MYSQL_TMP_DIR/bug25840940.inc
+
+# Cleanup
+--remove_file $MYSQL_TMP_DIR/bug25840940.inc

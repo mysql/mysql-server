@@ -1511,3 +1511,18 @@ mysqltest: At line 1: Missing required argument 'precision' to command 'replace_
 mysqltest: At line 1: A number between 0 and 16 is required for the precision in replace_numeric_round
 # The minimum value which can be passed is 0
 mysqltest: At line 1: A number between 0 and 16 is required for the precision in replace_numeric_round
+#
+# BUG#25840940 : MYSQLTEST WRITE_FILE IN NON-EXECUTED IF BLOCK BREAKS PARSING
+#
+# if condition evalutes to false
+# File shouldn't be created by write_file command inside
+# the if block, cat_file command should fail.
+# while condition evalutes to false
+# File shouldn't be created by write_file command inside
+# the while block, cat_file command should fail
+# Outer if condition evalutes to false
+# "Hello" shouldn't be repeated
+Hello
+# Outer while condition evalutes to false
+# "Hello" shouldn't be repeated
+Hello
