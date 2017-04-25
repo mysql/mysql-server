@@ -40,6 +40,14 @@
 }
 
 {
+   GCC never cleans up its TLS block
+   Memcheck:Leak
+   fun:memalign
+   fun:allocate_and_init
+   fun:tls_get_addr_tail
+}
+
+{
    pthead_exit memory loss 1
    Memcheck:Leak
    fun:malloc
@@ -155,6 +163,14 @@
    fun:_dlerror_run
    fun:dlsym
    fun:__errno_location
+}
+
+{
+   pthread errno
+   Memcheck:Leak
+   fun:calloc
+   fun:_dlerror_run
+   fun:dlclose
 }
 
 
