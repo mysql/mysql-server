@@ -4629,13 +4629,11 @@ const char* find_fk_supporting_index(Alter_info *alter_info,
   problems with duplicate foreign key names while we have two
   definitions of the same table.
 
-  @param thd            Thread handle.
   @param table_def      Table object.
   @param alter_ctx      ALTER TABLE runtime context.
  */
 
-static void restore_foreign_key_names(THD *thd,
-                                      dd::Table *table_def,
+static void restore_foreign_key_names(dd::Table *table_def,
                                       const Alter_table_ctx &alter_ctx)
 {
   // Restore the original name for pre-existing foreign keys
@@ -8739,7 +8737,7 @@ static bool mysql_inplace_alter_table(THD *thd,
       table definition. Since we now have only one defintion, the names
       can be restored.
     */
-    restore_foreign_key_names(thd, altered_table_def, *alter_ctx);
+    restore_foreign_key_names(altered_table_def, *alter_ctx);
 
     if (thd->dd_client()->update(altered_table_def))
       goto cleanup2;
@@ -11941,7 +11939,7 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
       goto err_with_mdl;
     DBUG_ASSERT(new_table != nullptr);
 
-    restore_foreign_key_names(thd, new_table, alter_ctx);
+    restore_foreign_key_names(new_table, alter_ctx);
     if (thd->dd_client()->update(new_table))
       goto err_with_mdl;
 
