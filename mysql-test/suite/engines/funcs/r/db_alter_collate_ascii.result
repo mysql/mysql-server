@@ -203,6 +203,7 @@ utf8mb4_icelandic_ci	utf8mb4	225		#	#	PAD SPACE
 utf8mb4_is_0900_ai_ci	utf8mb4	257		#	#	NO PAD
 utf8mb4_is_0900_as_cs	utf8mb4	280		#	#	NO PAD
 utf8mb4_ja_0900_as_cs	utf8mb4	303		#	#	NO PAD
+utf8mb4_ja_0900_as_cs_ks	utf8mb4	304		#	#	NO PAD
 utf8mb4_latvian_ci	utf8mb4	226		#	#	PAD SPACE
 utf8mb4_la_0900_ai_ci	utf8mb4	271		#	#	NO PAD
 utf8mb4_la_0900_as_cs	utf8mb4	294		#	#	NO PAD

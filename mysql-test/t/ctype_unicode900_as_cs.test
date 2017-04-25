@@ -206,6 +206,54 @@ INSERT INTO t1 VALUES('a', 'Latin'), ('A', 'Latin'), (_utf16 0x02AC, 'Latin'),
 (_utf16 0x3070, 'Hiragana BA'), (_utf16 0x3071, 'Hiragana PA');
 SELECT HEX(CONVERT(a USING utf16)), description FROM t1 ORDER BY a;
 DROP TABLE t1;
+
+CREATE TABLE t1(a CHAR, description VARCHAR(30)) COLLATE utf8mb4_ja_0900_as_cs_ks;
+INSERT INTO t1 VALUES('a', 'Latin'), ('A', 'Latin'), (_utf16 0x02AC, 'Latin'),
+(_utf16 0x02AD, 'Latin'), (_utf16 0x03B1, 'Greak'), (_utf16 0x2C81, 'Coptic'),
+(_utf16 0x0430, 'Cyrillic'), (_utf16 0xD7FB, 'Hangul'),
+(_utf16 0x3041, 'Hiragana'), (_utf16 0x3105, 'Bopomofo'),
+(_utf16 0x2F00, 'Other Han'), (_utf16 0x4E00, 'Japanese Han'),
+(_utf16 0x9FFF, 'Other'), (_utf16 0xA000, 'Other'),
+(_utf16 0x9FD5, 'Other Han'), (_utf16 0xFA0E, 'Other Han'),
+(_utf16 0x3400, 'Other Han'), (_utf16 0x4E9C, 'Japanese Han'),
+(_utf16 0x7199, 'Japanese Han'), (_utf16 0x6190, 'Japanese Han'),
+(_utf16 0x30F3, 'Katakana'), (_utf16 0x306F, 'Hiragana HA'),
+(_utf16 0x3070, 'Hiragana BA'), (_utf16 0x3071, 'Hiragana PA');
+SELECT HEX(CONVERT(a USING utf16)), description FROM t1 ORDER BY a;
+DROP TABLE t1;
+
+SET @s1 = CONVERT(_utf16 0x304D30853046 USING utf8mb4);
+SET @s2 = CONVERT(_utf16 0x30AD30E530A6 USING utf8mb4);
+SET @s3 = CONVERT(_utf16 0x304D30863046 USING utf8mb4);
+SET @s4 = CONVERT(_utf16 0x30AD30E630A6 USING utf8mb4);
+SELECT STRCMP(@s1 COLLATE utf8mb4_ja_0900_as_cs, @s2 COLLATE utf8mb4_ja_0900_as_cs);
+SELECT STRCMP(@s2 COLLATE utf8mb4_ja_0900_as_cs, @s3 COLLATE utf8mb4_ja_0900_as_cs);
+SELECT STRCMP(@s3 COLLATE utf8mb4_ja_0900_as_cs, @s4 COLLATE utf8mb4_ja_0900_as_cs);
+SELECT STRCMP(@s1 COLLATE utf8mb4_ja_0900_as_cs_ks, @s2 COLLATE utf8mb4_ja_0900_as_cs_ks);
+SELECT STRCMP(@s2 COLLATE utf8mb4_ja_0900_as_cs_ks, @s3 COLLATE utf8mb4_ja_0900_as_cs_ks);
+SELECT STRCMP(@s3 COLLATE utf8mb4_ja_0900_as_cs_ks, @s4 COLLATE utf8mb4_ja_0900_as_cs_ks);
+# iteration mark
+SET @s1 = CONVERT(_utf16 0x309D USING utf8mb4);
+SET @s2 = CONVERT(_utf16 0x30FD USING utf8mb4);
+SELECT STRCMP(@s1 COLLATE utf8mb4_ja_0900_as_cs, @s2 COLLATE utf8mb4_ja_0900_as_cs);
+SELECT STRCMP(@s1 COLLATE utf8mb4_ja_0900_as_cs_ks, @s2 COLLATE utf8mb4_ja_0900_as_cs_ks);
+
+CREATE TABLE t1(a VARCHAR(20)) COLLATE utf8mb4_ja_0900_as_cs_ks;
+INSERT INTO t1 VALUES(_utf16 0x30FC), (_utf16 0x30A230FC), (_utf16 0x304230FC),
+(_utf16 0x65E5672C8A9E), (_utf16 0x30443059309E), (_utf16 0x30443059305A),
+(_utf16 0x30A430B930FE), (_utf16 0x30A430B930BA),
+(_utf16 0x65E5672C8A9E30CB30DB30F330B4);
+SELECT HEX(CONVERT(a USING utf16)), HEX(WEIGHT_STRING(a)) FROM t1 ORDER BY a;
+DROP TABLE t1;
+
+CREATE TABLE t1(a VARCHAR(20), KEY a (a)) COLLATE utf8mb4_ja_0900_as_cs_ks
+PARTITION BY KEY (a) PARTITIONS 3;
+INSERT INTO t1 VALUES(_utf16 0x30FC), (_utf16 0x30A230FC), (_utf16 0x304230FC),
+(_utf16 0x65E5672C8A9E), (_utf16 0x30443059309E), (_utf16 0x30443059305A),
+(_utf16 0x30A430B930FE), (_utf16 0x30A430B930BA),
+(_utf16 0x65E5672C8A9E30CB30DB30F330B4);
+SELECT HEX(CONVERT(a USING utf16)) FROM t1 WHERE a = _utf16 0x30443059305A;
+DROP TABLE t1;
 --echo #
 --echo # End of 5.8 tests
 --echo #
