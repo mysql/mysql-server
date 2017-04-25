@@ -589,6 +589,7 @@ SELECT STD(ST_GEOMETRYTYPE(g)) FROM gis_geometry;
 
 SELECT STD(ST_SRID(g)) FROM gis_geometry;
 
+--replace_numberic_round 10
 SELECT STD(ST_DIMENSION(g)) FROM gis_geometry;
 
 SELECT STD(ST_ISSIMPLE(g)) FROM gis_geometry;

@@ -488,8 +488,10 @@ SELECT ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT('MULTILINESTRING((100 100, 200 200))')
 --echo #====================================================================================
 SELECT ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT('MULTILINESTRING((0 25,25 0,25 30))'),ST_GEOMFROMTEXT(@star_collection_elems)));
 
+--replace_numberic_round 5
 SELECT ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_collection_elems)));
 
+--replace_numberic_round 5
 SELECT ST_ASTEXT(ST_UNION(g,ST_GEOMFROMTEXT(@star_collection_elems))) FROM gis_geometrycollection WHERE fid=114;
 
 SELECT ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT(@star_lines_near_horizontal),ST_GEOMFROMTEXT(@star_collection_multilinestr)));
@@ -679,10 +681,12 @@ SELECT ST_ASTEXT(ST_UNION(g,ST_GEOMFROMTEXT(@star_top_to_center))) FROM gis_geom
 --echo #====================================================================================
 --echo # geometrycollection,multilinestring
 --echo #====================================================================================
+--replace_numberic_round 5
 SELECT ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_lines_near_vertical)));
 
 SELECT ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT('MULTILINESTRING((0 30,30 30,0 35))')));
 
+--replace_numberic_round 5
 SELECT ST_ASTEXT(ST_UNION(g,ST_GEOMFROMTEXT(@star_lines_near_vertical))) FROM gis_geometrycollection WHERE fid=115;
 
 --echo #====================================================================================
