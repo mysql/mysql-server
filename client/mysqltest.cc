@@ -572,6 +572,8 @@ struct st_command
   struct st_expected_errors expected_errors;
   char output_file[FN_REFLEN];
   enum enum_commands type;
+  // Line number of the command
+  uint lineno;
 };
 
 TYPELIB command_typelib= {array_elements(command_names),"",
@@ -7368,37 +7370,38 @@ static bool is_delimiter(const char* p)
 }
 
 
-/*
-  Create a command from a set of lines
-
-  SYNOPSIS
-    read_command()
-    command_ptr pointer where to return the new query
-
-  DESCRIPTION
-    Converts lines returned by read_line into a command, this involves
-    parsing the first word in the read line to find the command type.
-
-  A -- comment may contain a valid query as the first word after the
-  comment start. Thus it's always checked to see if that is the case.
-  The advantage with this approach is to be able to execute commands
-  terminated by new line '\n' regardless how many "delimiter" it contain.
-*/
-
-#define MAX_QUERY (256*1024*2) /* 256K -- a test in sp-big is >128K */
+// 256K -- a test in sp-big is >128K
+#define MAX_QUERY (256*1024*2)
 static char read_command_buf[MAX_QUERY];
 
+/// Create a command from a set of lines.
+///
+/// Converts lines returned by read_line into a command, this involves
+/// parsing the first word in the read line to find the command type.
+///
+/// A '`--`' comment may contain a valid query as the first word after
+/// the comment start. Thus it's always checked to see if that is the
+/// case. The advantage with this approach is to be able to execute
+/// commands terminated by new line '\n' regardless how many "delimiter"
+/// it contain.
+///
+/// @param [in] command_ptr pointer where to return the new query
+///
+/// @retval 0 on success, else 1
 static int read_command(struct st_command** command_ptr)
 {
   char *p= read_command_buf;
-  struct st_command* command;
   DBUG_ENTER("read_command");
 
   if (parser.current_line < parser.read_lines)
   {
     *command_ptr= q_lines->at(parser.current_line);
+    // Assign the current command line number
+    start_lineno= (*command_ptr)->lineno;
     DBUG_RETURN(0);
   }
+
+  struct st_command* command;
   if (!(*command_ptr= command=
         (struct st_command*) my_malloc(PSI_NOT_INSTRUMENTED,
                                        sizeof(*command),
@@ -7414,6 +7417,9 @@ static int read_command(struct st_command** command_ptr)
     DBUG_RETURN(1);
   }
 
+  // Set the line number for the command
+  command->lineno= start_lineno;
+
   if (opt_result_format_version == 1)
     convert_to_format_v1(read_command_buf);
 
@@ -7425,14 +7431,15 @@ static int read_command(struct st_command** command_ptr)
   else if (p[0] == '-' && p[1] == '-')
   {
     command->type= Q_COMMENT_WITH_COMMAND;
-    p+= 2; /* Skip past -- */
+    // Skip past '--'
+    p+= 2;
   }
   else if (*p == '\n')
   {
     command->type= Q_EMPTY_LINE;
   }
 
-  /* Skip leading spaces */
+  // Skip leading spaces
   while (*p && my_isspace(charset_info, *p))
     p++;
 
@@ -7440,9 +7447,8 @@ static int read_command(struct st_command** command_ptr)
                                                       p, MYF(MY_WME))))
     die("Out of memory");
 
-  /*
-    Calculate first word length(the command), terminated
-    by 'space' , '(' or 'delimiter' */
+  // Calculate first word length(the command), terminated
+  // by 'space' , '(' or 'delimiter'
   p= command->query;
   while (*p && !my_isspace(charset_info, *p) && *p != '(' && !is_delimiter(p))
     p++;
@@ -7451,7 +7457,7 @@ static int read_command(struct st_command** command_ptr)
                       static_cast<int>(command->first_word_len),
                       command->query));
 
-  /* Skip spaces between command and first argument */
+  // Skip spaces between command and first argument
   while (*p && my_isspace(charset_info, *p))
     p++;
   command->first_argument= p;

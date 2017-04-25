@@ -3874,3 +3874,26 @@ while (0)
 
 # Cleanup
 --remove_file $MYSQL_TMP_DIR/bug25840940.inc
+
+--echo #
+--echo # BUG#11766444 : MTR PRINTS WRONG FILE AND LINE NUMBER WHEN TESTS FAIL
+--echo #
+
+--write_file $MYSQLTEST_VARDIR/tmp/bug11766444.test
+--let $counter= 2
+while ($counter)
+{
+  --dec $counter
+  if (!$counter)
+  {
+    execute this invalid query;
+  }
+}
+EOF
+
+# Invalid query at line 7
+--error 1
+--exec $MYSQL_TEST -x $MYSQLTEST_VARDIR/tmp/bug11766444.test 2>&1
+
+# Cleanup
+--remove_file $MYSQLTEST_VARDIR/tmp/bug11766444.test

@@ -1526,3 +1526,7 @@ Hello
 # Outer while condition evalutes to false
 # "Hello" shouldn't be repeated
 Hello
+#
+# BUG#11766444 : MTR PRINTS WRONG FILE AND LINE NUMBER WHEN TESTS FAIL
+#
+mysqltest: At line 7: query 'execute this invalid query' failed: 1064: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'invalid query' at line 1
