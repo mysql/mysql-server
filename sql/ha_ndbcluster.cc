@@ -11297,22 +11297,16 @@ int ha_ndbcluster::create(const char *name,
     if (mod_nologging->m_found &&
         mod_nologging->m_val_bool)
     {
-      /**
-       * Trying to set NLOGGING=1 on a disk table isn't permitted.
-       * Signal error, if table_temporary set or if not table_logging
-       * set then we will silently convert to logged table.
-       */
+      // Setting NOLOGGING=1 on a disk table isn't permitted.
       push_warning_printf(thd, Sql_condition::SL_WARNING,
                           ER_ILLEGAL_HA_CREATE_OPTION,
                           ER_THD(thd, ER_ILLEGAL_HA_CREATE_OPTION),
                           ndbcluster_hton_name,
-                          "Not allowed to set NOLOGGING=1 on table"
-                          " with fields using STORAGE DISK");
+                          "NOLOGGING=1 on table with fields "
+                          "using STORAGE DISK");
       result= HA_ERR_UNSUPPORTED;
       goto abort_return;
     }
-    if (!mod_nologging->m_found)
-      tab.setLogging(TRUE);
     tab.setLogging(TRUE);
     tab.setTemporary(FALSE);
     if (create_info->tablespace)

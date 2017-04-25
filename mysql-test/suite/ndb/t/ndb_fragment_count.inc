@@ -321,9 +321,10 @@ show create table t1;
 drop table t1;
 
 #Verify that it isn't possible to create no logging table with disk fields
---error 3014
+--error ER_UNSUPPORTED_EXTENSION
 create table t1 (a bigint primary key, b bigint storage disk) engine ndb
   comment="NDB_TABLE=NOLOGGING=1";
+show warnings;
 
 #Verify that unique indexes gets also correct partition balance
 create table t2 (a bigint primary key, b bigint unique) engine ndb
