@@ -395,10 +395,13 @@ SELECT COUNT(DISTINCT(ST_AREA(g))) FROM gis_geometry;
 ############################################################################################
 
 --echo # Checking the Centroid of the spatial objects inserted into GEOMETRY class
+--replace_numberic_round 10
 SELECT fid, ST_ASTEXT(ST_CENTROID(g)) FROM gis_geometry;
 
+--replace_numberic_round 10
 SELECT COUNT(ST_CENTROID(g)) FROM gis_geometry;
 
+--replace_numberic_round 10
 SELECT COUNT(DISTINCT(ST_CENTROID(g))) FROM gis_geometry;
 
 ############################################################################################
@@ -445,6 +448,7 @@ END |
 DELIMITER ;|
 
 --echo # Call the proc
+--replace_numberic_round 10
 CALL geom_attri;
 
 --echo # Dropping the created procedure
@@ -471,12 +475,14 @@ DELIMITER ;|
 UPDATE gis_geometry SET fid = 999 where fid = 111;
 
 --echo # Checking the GEOMETRY class properties on the spatial data in the gis_geometry_1 table
+--replace_numberic_round 10
 SELECT fid, ST_GEOMETRYTYPE(g) FROM gis_geometry_1;
 SELECT fid, ST_SRID(g) FROM gis_geometry_1;
 SELECT fid, ST_DIMENSION(g) FROM gis_geometry_1;
 SELECT fid, ST_ISSIMPLE(g) FROM gis_geometry_1;
 SELECT fid, ST_ASTEXT(ST_ENVELOPE(g)) FROM gis_geometry_1;
 SELECT fid, ST_AREA(g) FROM gis_geometry_1;
+--replace_numberic_round 10
 SELECT fid, ST_ASTEXT(ST_CENTROID(g)) FROM gis_geometry_1;
 SELECT fid, ST_ASTEXT(ST_CONVEXHULL(g)) FROM gis_geometry_1;
 SELECT fid, ST_ISEMPTY(g) FROM gis_geometry_1;
@@ -591,10 +597,13 @@ SELECT STD(ST_SRID(g)) FROM gis_geometry;
 
 SELECT STD(ST_DIMENSION(g)) FROM gis_geometry;
 
+--replace_numberic_round 10
 SELECT STD(ST_ISSIMPLE(g)) FROM gis_geometry;
 
+--replace_numberic_round 10
 SELECT STD(ST_AREA(g)) FROM gis_geometry;
 
+--replace_numberic_round 10
 SELECT STD(ST_ISEMPTY(g)) FROM gis_geometry;
 
 --echo # Checking the AVG function
@@ -606,6 +615,7 @@ SELECT AVG(ST_DIMENSION(g)) FROM gis_geometry;
 
 SELECT AVG(ST_ISSIMPLE(g)) FROM gis_geometry;
 
+--replace_numberic_round 10
 SELECT AVG(ST_AREA(g)) FROM gis_geometry;
 
 SELECT AVG(ST_ISEMPTY(g)) FROM gis_geometry;
