@@ -943,6 +943,8 @@ NdbImportUtil::RowList::RowList()
   m_foe = false;
   m_overflow = 0;
   m_underflow = 0;
+  m_stat_overflow = 0;
+  m_stat_underflow = 0;
 }
 
 NdbImportUtil::RowList::~RowList ()
@@ -1024,9 +1026,8 @@ NdbImportUtil::RowList::pop_front()
       break;
     }
     m_underflow++;
-    // XXX XXX XXX
-    //if (m_stat_underflow != 0)
-      //m_stat_underflow->add(1);
+    if (m_stat_underflow != 0)
+      m_stat_underflow->add(1);
   } while (0);
   return row;
 }
