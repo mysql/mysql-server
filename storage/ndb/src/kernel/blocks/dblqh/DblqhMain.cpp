@@ -2634,6 +2634,15 @@ Dblqh::execPREP_DROP_TAB_REQ(Signal* signal){
 }
 
 void
+Dblqh::execINFORM_BACKUP_DROP_TAB_CONF(Signal *signal)
+{
+  TablerecPtr tabPtr;
+  tabPtr.i = signal->theData[0];
+  ptrCheckGuard(tabPtr, ctabrecFileSize, tablerec);
+  tabPtr.p->m_informed_backup_drop_tab = true;
+}
+
+void
 Dblqh::dropTab_wait_usage(Signal* signal){
 
   TablerecPtr tabPtr;
@@ -2645,7 +2654,7 @@ Dblqh::dropTab_wait_usage(Signal* signal){
   Uint32 senderData = signal->theData[3];
   
   ndbrequire(tabPtr.p->tableStatus == Tablerec::DROP_TABLE_WAIT_USAGE);
-  
+
   if (tabPtr.p->usageCountR > 0 || tabPtr.p->usageCountW > 0)
   {
     jam();
@@ -2736,6 +2745,21 @@ Dblqh::dropTab_wait_usage(Signal* signal){
     sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 10, 4);
     return;
   }
+  if (!tabPtr.p->m_informed_backup_drop_tab)
+  {
+    jam();
+    signal->theData[0] = ZDROP_TABLE_WAIT_USAGE;
+    signal->theData[1] = tabPtr.i;
+    signal->theData[2] = senderRef;
+    signal->theData[3] = senderData;
+    sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 1, 4);
+
+    signal->theData[0] = tabPtr.i;
+    signal->theData[1] = reference();
+    BlockReference backupRef = calcInstanceBlockRef(BACKUP);
+    sendSignal(backupRef, GSN_INFORM_BACKUP_DROP_TAB_REQ, signal, 2, JBB);
+    return;
+  }
   tabPtr.p->tableStatus = Tablerec::DROP_TABLE_WAIT_DONE;
 
   DropTabConf * conf = (DropTabConf*)signal->getDataPtrSend();
@@ -2808,6 +2832,7 @@ Dblqh::execDROP_TAB_REQ(Signal* signal){
       ndbassert(false);
     case Tablerec::PREP_DROP_TABLE_DONE:
       jam();
+      tabPtr.p->m_informed_backup_drop_tab = false;
       tabPtr.p->tableStatus = Tablerec::DROP_TABLE_WAIT_USAGE;
       signal->theData[0] = ZDROP_TABLE_WAIT_USAGE;
       signal->theData[1] = tabPtr.i;

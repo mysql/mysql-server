@@ -2183,6 +2183,7 @@ public:
     Uint16 primaryTableId;
     Uint32 schemaVersion;
     Uint8 m_disk_table;
+    bool  m_informed_backup_drop_tab;
 
     Uint32 usageCountR; // readers
     Uint32 usageCountW; // writers
@@ -2968,6 +2969,7 @@ private:
   void execLCP_PREPARE_CONF(Signal* signal);
   void execEND_LCPREF(Signal* signal);
   void execEND_LCPCONF(Signal* signal);
+  void execINFORM_BACKUP_DROP_TAB_CONF(Signal *signal);
 
   Uint32 m_backup_ptr;
   bool m_node_restart_lcp_first_phase_started;
