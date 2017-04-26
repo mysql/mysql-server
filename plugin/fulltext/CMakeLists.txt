@@ -17,6 +17,14 @@
 MYSQL_ADD_PLUGIN(ftexample ./example/plugin_example.c
                 MODULE_ONLY MODULE_OUTPUT_NAME "mypluglib")
 
+# Norm parser
+MYSQL_ADD_PLUGIN(norm_parser ./norm_parser/plugin_norm.c
+                MODULE_ONLY MODULE_OUTPUT_NAME "norm_parser")
+TARGET_LINK_LIBRARIES(norm_parser icuio)
+TARGET_LINK_LIBRARIES(norm_parser icui18n)
+TARGET_LINK_LIBRARIES(norm_parser icuuc)
+TARGET_LINK_LIBRARIES(norm_parser icudata)
+
 # Ngram parser
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/storage/innobase/include
                     ${CMAKE_SOURCE_DIR}/include)
