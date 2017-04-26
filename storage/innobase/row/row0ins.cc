@@ -2680,25 +2680,6 @@ row_ins_clust_index_entry_low(
 			|| (flags & BTR_NO_UNDO_LOG_FLAG));
 
 		autoinc_mtr.get_mtr()->set_log_mode(MTR_LOG_NO_REDO);
-	} else {
-
-		/* We do logging first to prevent further potential deadlock.
-		Also, no need to write logs for all intermediate tables,
-		since we can set it at last only once */
-		if (!index->table->skip_alter_undo
-		    && dict_table_has_autoinc_col(index->table)) {
-
-			ib_uint64_t counter = row_get_autoinc_counter(
-				entry, index->table->autoinc_field_no);
-
-			if (counter != 0) {
-				/* We always log the counter before real
-				insertion. So even if there was a failure later,
-				current counter still gets persisted and never
-				re-used, as long as the log gets flushed */
-				autoinc_mtr.log(index->table, counter);
-			}
-		}
 	}
 
 	if (mode == BTR_MODIFY_LEAF && dict_index_is_online_ddl(index)) {
@@ -2727,6 +2708,23 @@ row_ins_clust_index_entry_low(
 		      || rec_n_fields_is_sane(index, first_rec, entry));
 	}
 #endif /* UNIV_DEBUG */
+
+	/* Write logs for AUTOINC right after index lock has been got and
+	before any further resource acquisitions to prevent deadlock.
+	No need to log for temporary tables and intermediate tables */
+	if (!index->table->is_temporary() && !index->table->skip_alter_undo
+	    && dict_table_has_autoinc_col(index->table)) {
+		ib_uint64_t counter = row_get_autoinc_counter(
+			entry, index->table->autoinc_field_no);
+
+		if (counter != 0) {
+			/* We always log the counter before real
+			insertion. So even if there was a failure later,
+			current counter still gets persisted and never
+			re-used, as long as the log gets flushed */
+			autoinc_mtr.log(index->table, counter);
+		}
+	}
 
 	/* Allowing duplicates in clustered index is currently enabled
 	only for intrinsic table and caller understand the limited
