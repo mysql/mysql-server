@@ -19,12 +19,12 @@ Master(1)
 select variable_name, variable_value from performance_schema.global_status
 where variable_name='Ndb_slave_max_replicated_epoch';
 variable_name	variable_value
-NDB_SLAVE_MAX_REPLICATED_EPOCH	0
+Ndb_slave_max_replicated_epoch	0
 Master1(3)
 select variable_name, variable_value from performance_schema.global_status
 where variable_name='Ndb_slave_max_replicated_epoch';
 variable_name	variable_value
-NDB_SLAVE_MAX_REPLICATED_EPOCH	0
+Ndb_slave_max_replicated_epoch	0
 Make a change originating at Cluster A
 Master(1)
 use test;
@@ -46,7 +46,7 @@ Non-slave server on Cluster A will have no value for Max Replicated Epoch
 select variable_name, variable_value from performance_schema.global_status
 where variable_name='Ndb_slave_max_replicated_epoch';
 variable_name	variable_value
-NDB_SLAVE_MAX_REPLICATED_EPOCH	0
+Ndb_slave_max_replicated_epoch	0
 Slave server on Cluster A has current value for Max Replicated Epoch
 Master1 (3)
 Expect count 1
@@ -92,7 +92,7 @@ Show that Cluster A Slave server (old master) has no Max replicated epoch before
 select variable_name, variable_value from performance_schema.global_status
 where variable_name='Ndb_slave_max_replicated_epoch';
 variable_name	variable_value
-NDB_SLAVE_MAX_REPLICATED_EPOCH	0
+Ndb_slave_max_replicated_epoch	0
 Master1 (3)
 Cluster A Master server (old slave) has old Max replicated epoch
 select
