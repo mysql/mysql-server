@@ -483,7 +483,8 @@ uint cached_table_definitions(void)
 }
 
 
-static TABLE_SHARE *process_found_table_share(THD *thd, TABLE_SHARE *share,
+static TABLE_SHARE *process_found_table_share(THD *thd MY_ATTRIBUTE((unused)),
+                                              TABLE_SHARE *share,
                                               bool open_view)
 {
   DBUG_ENTER("process_found_table_share");
