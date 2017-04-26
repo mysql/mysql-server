@@ -1773,6 +1773,13 @@ int terminate_slave_threads(Master_info* mi, int thread_mask,
   {
     DBUG_PRINT("info",("Terminating IO thread"));
     mi->abort_slave=1;
+    DBUG_EXECUTE_IF("pause_after_queue_event",
+                    {
+                      const char act[]=
+                        "now SIGNAL reached_stopping_io_thread";
+                      DBUG_ASSERT(!debug_sync_set_action(current_thd,
+                                                         STRING_WITH_LEN(act)));
+                    };);
     if ((error=terminate_slave_thread(mi->info_thd,io_lock,
                                       &mi->stop_cond,
                                       &mi->slave_running,
