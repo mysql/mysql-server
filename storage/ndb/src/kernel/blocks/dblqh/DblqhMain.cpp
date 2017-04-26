@@ -1305,13 +1305,14 @@ void Dblqh::execREAD_CONFIG_REQ(Signal* signal)
     progError(__LINE__, NDBD_EXIT_INVALID_CONFIG, buf);
   }
 
-  if ((globalData.ndbMtLqhWorkers * 4) < globalData.ndbLogParts)
+  Uint32 redoLogHandlers = isNdbMtLqh() ? globalData.ndbMtLqhWorkers : 1;
+  if ((redoLogHandlers * 4) < globalData.ndbLogParts)
   {
     char buf[255];
     BaseString::snprintf(buf, sizeof(buf),
       "Trying to start %d LQH workers with %d log parts, "
       "too many log parts per LQH (max 4 parts per LQH)",
-      globalData.ndbMtLqhWorkers, globalData.ndbLogParts);
+       redoLogHandlers, globalData.ndbLogParts);
     progError(__LINE__, NDBD_EXIT_INVALID_CONFIG, buf);
   }
 
