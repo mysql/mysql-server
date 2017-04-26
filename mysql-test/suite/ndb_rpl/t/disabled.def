@@ -25,3 +25,13 @@ ndb_rpl_basic: Need WL#10665 Extend size of extra table metadata
 
 ndb_rpl_dd_partitions: Bug#25858461 FAILURE TO DROP DATAFILE FROM TABLESPACES WITH MULTIPLE DATAFILES
 ndb_rpl_dd_basic: Bug#25858461 FAILURE TO DROP DATAFILE FROM TABLESPACES WITH MULTIPLE DATAFILES
+
+# The mysql.ndb_binlog_index table does is not updated
+ndb_rpl_circular: Bug#25931184 NDB_BINLOG_INDEX IS NOT UPDATE
+ndb_rpl_idempotent: Bug#25931184 NDB_BINLOG_INDEX IS NOT UPDATE
+ndb_rpl_sync: Bug#25931184 NDB_BINLOG_INDEX IS NOT UPDATE
+
+# Problem with alter table leaving table with old name behind
+ndb_rpl_dd_advance: Need WL#9185 MySQL Cluster support for new DD
+ndb_rpl_ddl_open_trans: Need WL#9185 MySQL Cluster support for new DD
+ndb_rpl_dist_priv: Need WL#9185 MySQL Cluster support for new DD
