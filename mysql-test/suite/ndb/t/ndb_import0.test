@@ -6,17 +6,17 @@
 
 --echo # database argument is required
 --error 1
-exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp
+exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp --keep-state --verbose=1
      >> $NDB_TOOLS_OUTPUT 2>&1;
 
 --echo # no args is ok
 --error 0
-exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp
+exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp --keep-state --verbose=1
      test >> $NDB_TOOLS_OUTPUT 2>&1;
 
 --echo # table does not exist
 --error 1
-exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp
+exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp --keep-state --verbose=1
      test '/foo/data/t1.csv' >> $NDB_TOOLS_OUTPUT 2>&1;
 
 create table t1 (
@@ -26,7 +26,7 @@ create table t1 (
 
 --echo # csv file does not exist
 --error 1
-exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp
+exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp --keep-state --verbose=1
      test '/foo/data/t1.csv' >> $NDB_TOOLS_OUTPUT 2>&1;
 
 perl;
@@ -48,24 +48,24 @@ EOF
 
 --echo # bad state dir
 --error 1
-exec $NDB_IMPORT --state-dir=/foo/state
-     test MYSQLTEST_VARDIR/tmp/t1.csv >> $NDB_TOOLS_OUTPUT 2>&1;
+exec $NDB_IMPORT --state-dir=/foo/state --keep-state --verbose=1
+     test $MYSQLTEST_VARDIR/tmp/t1.csv >> $NDB_TOOLS_OUTPUT 2>&1;
 
 --echo # normal import
-exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp
+exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp --keep-state --verbose=1
      --input-type=csv --output-type=ndb
      test $MYSQLTEST_VARDIR/tmp/t1.csv >> $NDB_TOOLS_OUTPUT 2>&1;
 select count(*) from t1;
 
 --echo # invalid --input-type
 --error 1
-exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp
+exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp --keep-state --verbose=1
      --input-type=xxx --output-type=ndb
      test $MYSQLTEST_VARDIR/tmp/t1.csv >> $NDB_TOOLS_OUTPUT 2>&1;
 
 --echo # invalid --output-type
 --error 1
-exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp
+exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp --keep-state --verbose=1
      --input-type=csv --output-type=xxx
      test $MYSQLTEST_VARDIR/tmp/t1.csv >> $NDB_TOOLS_OUTPUT 2>&1;
 
@@ -105,7 +105,7 @@ create table t2ver (
 ) charset utf8
   engine=ndb;
 
-exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp
+exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp --keep-state --verbose=1
      test $MYSQLTEST_VARDIR/tmp/t2.csv >> $NDB_TOOLS_OUTPUT 2>&1;
 
 --disable_query_log
@@ -145,7 +145,7 @@ create table t3 (
 
 create table t3ver like t3;
 
-exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp
+exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp --keep-state --verbose=1
      test $MYSQLTEST_VARDIR/tmp/t3.csv >> $NDB_TOOLS_OUTPUT 2>&1;
 
 --disable_query_log
@@ -159,4 +159,49 @@ select count(*) from t3ver;
 select count(*) from t3 x, t3ver y
 where x.b = y.b;
 
-drop table t1, t2, t2ver, t3, t3ver;
+--echo # test with rejects and no --keep-state
+
+perl;
+use strict;
+use Symbol;
+my $vardir = $ENV{MYSQLTEST_VARDIR}
+  or die "need MYSQLTEST_VARDIR";
+my $file = "$vardir/tmp/t4.csv";
+my $fh = gensym();
+open($fh, ">$file")
+  or die "$file: open for write failed: $!";
+for my $i (0..999) {
+  if ($i == 333) {
+    print $fh $i, "\t", $i*10, "\t", 333, "\n";
+  } elsif ($i == 666) {
+    print $fh 111, "\t", $i*10, "\n";
+  } elsif ($i == 999) {
+    print $fh $i, "\t", "abcde", "\n";
+  } else {
+    print $fh $i, "\t", $i*10, "\n";
+  }
+}
+close($fh)
+  or die "$file: close after write failed: $!";
+exit(0)
+EOF
+
+create table t4 (
+  a int primary key,
+  b int not null
+) engine=ndb;
+
+exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp --verbose=1
+     --rejects=3
+     test $MYSQLTEST_VARDIR/tmp/t4.csv >> $NDB_TOOLS_OUTPUT 2>&1;
+
+--error 1
+--file_exists $MYSQLTEST_VARDIR/tmp/t4.res
+--error 0
+--file_exists $MYSQLTEST_VARDIR/tmp/t4.rej
+--error 1
+--file_exists $MYSQLTEST_VARDIR/tmp/t4.map
+--error 1
+--file_exists $MYSQLTEST_VARDIR/tmp/t4.stt
+
+drop table t1, t2, t2ver, t3, t3ver, t4;

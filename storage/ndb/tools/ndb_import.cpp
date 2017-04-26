@@ -73,6 +73,13 @@ my_long_options[] =
     " Default is \".\" (currect directory)",
     &g_opt.m_state_dir, &g_opt.m_state_dir, 0,
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
+  { "keep-state", NDB_OPT_NOSHORT,
+    "By default state files are removed when the job completes"
+    " successfully, except if there were any rejects (within allowed limit)"
+    " then *.rej is kept. This option keeps all state files"
+    " e.g. for study of stats *.stt",
+    &g_opt.m_keep_state, &g_opt.m_keep_state, 0,
+    GET_BOOL, NO_ARG, false, 0, 0, 0, 0, 0 },
   { "input-type", NDB_OPT_NOSHORT,
     "Input type: csv,random"
     " (random is a test option)",
@@ -119,9 +126,9 @@ my_long_options[] =
   { "monitor", NDB_OPT_NOSHORT,
     "Periodically print status of running job if something has changed"
     " (status, rejected rows, temporary errors)."
-    " Value 0 disables.  Value 1 prints any change seen."
+    " Value 0 disables. Value 1 prints any change seen."
     " Higher values reduce status printing exponentially"
-    " up to some pre-defined limit.",
+    " up to some pre-defined limit",
     &g_opt.m_monitor, &g_opt.m_monitor, 0,
     GET_UINT, REQUIRED_ARG, g_opt.m_monitor, 0, 0, 0, 0, 0 },
   { "ai-prefetch-sz", NDB_OPT_NOSHORT,
@@ -185,7 +192,7 @@ my_long_options[] =
     &g_opt.m_polltimeout, &g_opt.m_polltimeout, 0,
     GET_UINT, REQUIRED_ARG, g_opt.m_polltimeout, 0, 0, 0, 0, 0 },
   { "temperrors", NDB_OPT_NOSHORT,
-    "Temporary error count is incremented by 1 each time a db operation"
+    "Temporary error count is incremented by 1 each time a db execution"
     " batch has any temporary errors."
     " This option limits temporary error count."
     " Default is 0 which means that any temporary error is fatal."
@@ -271,11 +278,14 @@ short_usage_sub(void)
     "\n"
     "Arguments give database and files of CSV table data.\n"
     "The basename of each file specifies the table name.\n"
-    "E.g. %s test foo/t1.csv foo/t2.csv loads tables t1 t2.\n"
-    "For each table t1 etc, results, rejected rows, processed\n"
-    "row ranges, and stats are written to files with suffixes\n"
-    ".res, .rej, .map, and .stt"
+    "E.g. %s test foo/t1.csv foo/t2.csv loads tables\n"
+    "test.t1 test.t2.\n"
     "\n"
+    "For each job (load of one table), results, rejected rows,\n"
+    "processed row ranges, and stats are written to state files\n"
+    "with suffixes .res, .rej, .map, and .stt.  By default these\n"
+    "are removed when the job completes successfully with no rejects.\n"
+    "See options --state-dir and --keep-state.\n"
     "\n",
     my_progname);
 }
@@ -672,6 +682,15 @@ domonitor(NdbImport::Job& job)
   }
 }
 
+static void
+removefile(const char* path)
+{
+  if (unlink(path) == -1)
+  {
+    LOG(my_progname << ": remove " << path << " failed: " << strerror(errno));
+  }
+}
+
 static int
 doimp()
 {
@@ -680,6 +699,10 @@ doimp()
   uint jobs_run = 0;
   uint jobs_fail = 0;
   NdbImport imp;
+  if (g_tablecnt == 0)
+  {
+    LOG("note: no files to import specified");
+  }
   do
   {
     CHK3(imp.set_opt(g_opt) == 0, "invalid options", imp.get_error());
@@ -687,6 +710,7 @@ doimp()
     for (uint i = 0; i < g_tablecnt; i++)
     {
       const TableArg& arg = g_tablearg[i];
+      // no parallel jobs yet so can use global g_opt
       g_opt.m_table = arg.m_table.c_str();
       g_opt.m_input_file = arg.m_input_file.c_str();
       g_opt.m_result_file = arg.m_result_file.c_str();
@@ -697,12 +721,11 @@ doimp()
       {
         uint tabid;
         CHK3(imp.add_table(g_opt.m_database, g_opt.m_table, tabid) == 0,
-                           "add table "<< g_opt.m_table << " failed",
-                           imp.get_error());
+                           "table "<< g_opt.m_table <<
+                           " not found", imp.get_error());
         CHK3(imp.set_tabid(tabid) == 0,
-                           "add table "<< g_opt.m_table <<
-                           " tabid=" << tabid << " failed",
-                           imp.get_error());
+                           "table "<< g_opt.m_table << " tabid=" << tabid <<
+                           " unexpected error", imp.get_error());
       }
       NdbImport::Job job(imp);
       job.do_create();
@@ -726,9 +749,14 @@ doimp()
       {
         LOG("global error: " << imp.get_error());
       }
-      if (job_error)
+      if (job.m_status == JobStatus::Status_success &&
+          !g_opt.m_keep_state)
       {
-        //LOG("job " << job.m_jobno << " error");
+        removefile(g_opt.m_result_file);
+        if (job.m_stats.m_reject == 0)
+          removefile(g_opt.m_reject_file);
+        removefile(g_opt.m_rowmap_file);
+        removefile(g_opt.m_stats_file);
       }
       job.do_destroy();
       jobs_run++;
@@ -743,10 +771,6 @@ doimp()
     imp.do_disconnect();
     CHK1(ret == 0);
   } while (0);
-  if (g_tablecnt == 0)
-  {
-    LOG("note: no files to import specified");
-  }
   LOG("jobs summary:" <<
       " defined: " << jobs_defined <<
       " run: " << jobs_run <<

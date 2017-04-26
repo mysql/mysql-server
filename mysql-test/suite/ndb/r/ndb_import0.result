@@ -47,4 +47,9 @@ select count(*) from t3 x, t3ver y
 where x.b = y.b;
 count(*)
 1000
-drop table t1, t2, t2ver, t3, t3ver;
+# test with rejects and no --keep-state
+create table t4 (
+a int primary key,
+b int not null
+) engine=ndb;
+drop table t1, t2, t2ver, t3, t3ver, t4;
