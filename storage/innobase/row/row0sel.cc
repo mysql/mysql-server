@@ -2930,8 +2930,10 @@ row_sel_field_store_in_mysql_format_func(
 		ut_ad(!templ->mbmaxlen
 		      || !(templ->mysql_col_len % templ->mbmaxlen));
 		/* Length of the record will be less in case of
-		clust_templ_for_sec is true. */
-		ut_ad(clust_templ_for_sec
+		clust_templ_for_sec is true or if it is fetched
+		from prefix virtual column in virtual index. */
+		ut_ad(templ->is_virtual
+		      || clust_templ_for_sec
 		      || len * templ->mbmaxlen >= templ->mysql_col_len
 		      || (field_no == templ->icp_rec_field_no
 			  && field->prefix_len > 0));
