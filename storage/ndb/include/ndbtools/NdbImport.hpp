@@ -51,6 +51,7 @@ public:
     uint m_connections;
     const char* m_database;
     const char* m_state_dir;
+    bool m_keep_state;
     const char* m_table;
     const char* m_input_type;
     const char* m_input_file;

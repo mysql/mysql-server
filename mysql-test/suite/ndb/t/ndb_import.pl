@@ -290,6 +290,7 @@ sub run_import {
   my @cmd = ();
   push(@cmd, "\$NDB_IMPORT");
   push(@cmd, "--state-dir='$test->{statedir}'");
+  push(@cmd, "--keep-state");
   push(@cmd, "--input-type=csv");
   push(@cmd, "--input-workers=2");
   push(@cmd, "--output-type=ndb");

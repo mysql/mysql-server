@@ -78,8 +78,8 @@ exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING"
 
 --echo # import t1, t2
 
-exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp
-     --temperrors=1000 --verbose=1
+exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp --keep-state --verbose=1
+     --temperrors=1000
      test
      $MYSQLTEST_VARDIR/tmp/t1.csv
      $MYSQLTEST_VARDIR/tmp/t2.csv >> $NDB_TOOLS_OUTPUT 2>&1;
