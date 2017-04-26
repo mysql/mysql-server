@@ -24,7 +24,6 @@
 
 #include "binlog_event.h"              // enum_binlog_checksum_alg
 #include "m_string.h"                  // llstr
-#include "my_atomic.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_io.h"
@@ -124,7 +123,7 @@ public:
 
     inline int32 get_size()
     {
-      return my_atomic_load32(&m_size);
+      return m_size.load();
     }
 
   private:
@@ -146,7 +145,7 @@ public:
     THD **m_last;
 
     /** size of the queue */
-    int32 m_size;
+    std::atomic<int32> m_size;
 
     /** Lock for protecting the queue. */
     mysql_mutex_t m_lock;

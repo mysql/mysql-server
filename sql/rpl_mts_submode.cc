@@ -425,7 +425,7 @@ longlong Mts_submode_logical_clock::get_lwm_timestamp(Relay_log_info *rli,
   }
   else if (is_stale)
   {
-    my_atomic_store64(&last_lwm_timestamp, lwm_estim);
+    last_lwm_timestamp.store(lwm_estim);
   }
 
   if (!need_lock)
@@ -483,7 +483,7 @@ wait_for_last_committed_trx(Relay_log_info* rli,
 
   DBUG_ASSERT(min_waited_timestamp == SEQ_UNINIT);
 
-  my_atomic_store64(&min_waited_timestamp, last_committed_arg);
+  min_waited_timestamp.store(last_committed_arg);
   /*
     This transaction is a candidate for insertion into the waiting list.
     That fact is descibed by incrementing waited_timestamp_cnt.
@@ -507,15 +507,15 @@ wait_for_last_committed_trx(Relay_log_info* rli,
     }
     while ((!rli->info_thd->killed && !is_error) &&
            !clock_leq(last_committed_arg, estimate_lwm_timestamp()));
-    my_atomic_store64(&min_waited_timestamp, SEQ_UNINIT);  // reset waiting flag
+    min_waited_timestamp.store(SEQ_UNINIT);  // reset waiting flag
     mysql_mutex_unlock(&rli->mts_gaq_LOCK);
     thd->EXIT_COND(&old_stage);
     set_timespec_nsec(&ts[1], 0);
-    my_atomic_add64(&rli->mts_total_wait_overlap, diff_timespec(&ts[1], &ts[0]));
+    rli->mts_total_wait_overlap+= diff_timespec(&ts[1], &ts[0]);
   }
   else
   {
-    my_atomic_store64(&min_waited_timestamp, SEQ_UNINIT);
+    min_waited_timestamp.store(SEQ_UNINIT);
     mysql_mutex_unlock(&rli->mts_gaq_LOCK);
   }
 

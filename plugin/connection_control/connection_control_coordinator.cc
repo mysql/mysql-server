@@ -15,8 +15,9 @@
 
 #include "connection_control_coordinator.h"
 
-#include <my_atomic.h>
 #include <sys/types.h>
+
+#include <atomic>
 
 #include "connection_control.h"
 #include "my_dbug.h"
@@ -259,12 +260,12 @@ namespace connection_control
         {
           case ACTION_INC:
           {
-            my_atomic_add64(&g_statistics.stats_array[status_var], 1);
+            ++g_statistics.stats_array[status_var];
             break;
           }
           case ACTION_RESET:
           {
-            my_atomic_store64(&g_statistics.stats_array[status_var], 0);
+            g_statistics.stats_array[status_var].store(0);
             break;
           }
           default:

@@ -23,6 +23,8 @@
 
 #include <sys/types.h>
 
+#include <atomic>
+
 #include "my_inttypes.h"
 #include "pfs_column_types.h"
 #include "pfs_digest.h"
@@ -126,7 +128,8 @@ extern bool flag_events_statements_history;
 extern bool flag_events_statements_history_long;
 
 extern bool events_statements_history_long_full;
-extern PFS_ALIGNED PFS_cacheline_uint32 events_statements_history_long_index;
+extern PFS_ALIGNED PFS_cacheline_atomic_uint32
+  events_statements_history_long_index;
 extern PFS_events_statements *events_statements_history_long_array;
 extern size_t events_statements_history_long_size;
 

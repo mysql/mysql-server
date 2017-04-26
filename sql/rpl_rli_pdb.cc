@@ -25,6 +25,7 @@
 #endif
 
 #include <algorithm>
+#include <atomic>
 
 #include "binlog.h"
 #include "current_thd.h"
@@ -36,7 +37,6 @@
 #include "m_ctype.h"
 #include "m_string.h"
 #include "mdl.h"
-#include "my_atomic.h"
 #include "my_bitmap.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
@@ -1260,7 +1260,7 @@ void Slave_worker::slave_worker_ends_group(Log_event* ev, int error)
 
     ptr_g->group_master_log_pos= group_master_log_pos;
     ptr_g->group_relay_log_pos= group_relay_log_pos;
-    my_atomic_store32(&ptr_g->done, 1);
+    ptr_g->done.store(1);
     last_group_done_index= gaq_index;
     last_groups_assigned_index= ptr_g->total_seqno;
     reset_gaq_index();
@@ -1361,7 +1361,7 @@ void Slave_worker::slave_worker_ends_group(Log_event* ev, int error)
     Mts_submode_logical_clock* mts_submode=
       static_cast<Mts_submode_logical_clock*>(c_rli->current_mts_submode);
     int64 min_child_waited_logical_ts=
-      my_atomic_load64(&mts_submode->min_waited_timestamp);
+      mts_submode->min_waited_timestamp.load();
 
     DBUG_EXECUTE_IF("slave_worker_ends_group_before_signal_lwm",
                     {
@@ -1606,7 +1606,7 @@ ulong Slave_committed_queue::move_queue_head(Slave_worker_array *ws)
       even assigned, this means there is a gap.
     */
     if (ptr_g->worker_id == MTS_WORKER_UNDEF ||
-        my_atomic_load32(&ptr_g->done) == 0)
+        ptr_g->done.load() == 0)
       break; /* gap at i'th */
 
     /* Worker-id domain guard */
@@ -1716,7 +1716,7 @@ ulong Slave_committed_queue::find_lwm(Slave_job_group** arg_g,
        i= (i + 1) % size, cnt++)
   {
     ptr_g= &m_Q[i];
-    if (my_atomic_load32(&ptr_g->done) == 0)
+    if (ptr_g->done.load() == 0)
     {
       if (cnt == 0)
         return size;             // the first node of the queue is not done

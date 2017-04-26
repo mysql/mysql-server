@@ -38,7 +38,6 @@
 #include "log_event.h"
 #include "m_ctype.h"
 #include "m_string.h"
-#include "my_atomic.h"
 #include "my_dbug.h"
 #include "mysql/psi/mysql_stage.h"
 #include "mysql/psi/mysql_statement.h"
@@ -285,22 +284,6 @@ static void free_user_var(void *arg)
   entry->destroy();
 }
 
-
-PSI_thread* THD::get_psi()
-{
-  void *addr= & m_psi;
-  void * volatile * typed_addr= static_cast<void * volatile *>(addr);
-  void *ptr;
-  ptr= my_atomic_loadptr(typed_addr);
-  return static_cast<PSI_thread*>(ptr);
-}
-
-void THD::set_psi(PSI_thread *psi)
-{
-  void *addr= & m_psi;
-  void * volatile * typed_addr= static_cast<void * volatile *>(addr);
-  my_atomic_storeptr(typed_addr, psi);
-}
 
 void THD::enter_stage(const PSI_stage_info *new_stage,
                       PSI_stage_info *old_stage,

@@ -17,6 +17,8 @@
 
 #include <string.h>
 #include <sys/types.h>
+
+#include <atomic>
 #include <string>
 #include <unordered_map>
 
@@ -28,7 +30,6 @@
 #include "lex_string.h"
 #include "lf.h"
 #include "mf_wcomp.h"                   // wild_many, wild_one, wild_prefix
-#include "my_atomic.h"
 #include "my_inttypes.h"
 #include "mysql/mysql_lex_string.h"
 #include "mysql/psi/mysql_mutex.h"
@@ -401,10 +402,10 @@ public:
   uint64 version() { return m_version; }
   uint32 reference_count()
   {
-    return my_atomic_load32(&m_reference_count);
+    return m_reference_count.load();
   }
 private:
-  volatile int32 m_reference_count;
+  std::atomic<int32> m_reference_count;
   uint64 m_version;
   Db_access_map m_db_acls;
   Db_access_map m_db_wild_acls;
@@ -478,7 +479,7 @@ private:
   */
   Acl_map *create_acl_map(uint64 version, Security_context *sctx);
   /** Role graph version counter */
-  volatile uint64 m_role_graph_version;
+  std::atomic<uint64> m_role_graph_version;
   Acl_cache_internal m_cache;
   mysql_mutex_t m_cache_flush_mutex;
 };

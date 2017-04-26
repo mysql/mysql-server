@@ -781,7 +781,7 @@ bool using_udf_functions;
 bool locked_in_memory;
 bool opt_using_transactions;
 ulong opt_tc_log_size;
-int32 volatile connection_events_loop_aborted_flag;
+std::atomic<int32> connection_events_loop_aborted_flag;
 static enum_server_operational_state server_operational_state= SERVER_BOOTING;
 ulong log_warnings;
 char *opt_log_error_filter_rules;

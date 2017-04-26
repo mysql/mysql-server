@@ -26,7 +26,6 @@
 #include "lex_string.h"
 #include "m_ctype.h"
 #include "my_alloc.h"
-#include "my_atomic.h"
 #include "my_bitmap.h"
 #include "my_command.h"
 #include "my_compiler.h"
@@ -140,7 +139,7 @@ extern bool opt_help;
 extern bool opt_verbose;
 extern bool opt_ignore_builtin_innodb;
 extern bool opt_character_set_client_handshake;
-extern MYSQL_PLUGIN_IMPORT int32 volatile connection_events_loop_aborted_flag;
+extern MYSQL_PLUGIN_IMPORT std::atomic<int32> connection_events_loop_aborted_flag;
 extern bool opt_initialize;
 extern bool opt_safe_user_create;
 extern bool opt_local_infile, opt_myisam_use_mmap;
@@ -665,13 +664,13 @@ inline MY_ATTRIBUTE((warn_unused_result)) query_id_t next_query_id()
 inline MY_ATTRIBUTE((warn_unused_result))
 bool connection_events_loop_aborted()
 {
-  return my_atomic_load32(&connection_events_loop_aborted_flag);
+  return connection_events_loop_aborted_flag.load();
 }
 
 /* only here because of unireg_init(). */
 static inline void set_connection_events_loop_aborted(bool value)
 {
-  my_atomic_store32(&connection_events_loop_aborted_flag, value);
+  connection_events_loop_aborted_flag.store(value);
 }
 
 #endif /* MYSQLD_INCLUDED */

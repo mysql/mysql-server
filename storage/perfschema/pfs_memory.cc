@@ -20,10 +20,11 @@
 
 #include "storage/perfschema/pfs_memory.h"
 
+#include <atomic>
+
 #include "m_string.h"
 #include "my_sys.h"
 #include "pfs_account.h"
-#include "pfs_atomic.h"
 #include "pfs_buffer_container.h"
 #include "pfs_global.h"
 #include "pfs_host.h"

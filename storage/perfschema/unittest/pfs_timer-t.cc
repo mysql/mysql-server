@@ -105,11 +105,7 @@ void test_timers()
 
 void do_all_tests()
 {
-  PFS_atomic::init();
-
   test_timers();
-
-  PFS_atomic::cleanup();
 }
 
 int main(int, char **)

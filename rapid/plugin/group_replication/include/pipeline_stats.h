@@ -213,10 +213,10 @@ public:
   void send_stats_member_message();
 
 private:
-  int32 m_transactions_waiting_apply;
-  int64 m_transactions_certified;
-  int64 m_transactions_applied;
-  int64 m_transactions_local;
+  std::atomic<int32> m_transactions_waiting_apply;
+  std::atomic<int64> m_transactions_certified;
+  std::atomic<int64> m_transactions_applied;
+  std::atomic<int64> m_transactions_local;
 };
 
 
@@ -386,13 +386,13 @@ private:
     Number of members that did have waiting transactions on
     certification and/or apply.
   */
-  int32 m_holds_in_period;
+  std::atomic<int32> m_holds_in_period;
 
   /*
    FCM_QUOTA
   */
-  int64 m_quota_used;
-  int64 m_quota_size;
+  std::atomic<int64> m_quota_used;
+  std::atomic<int64> m_quota_size;
 
   /*
     Counter incremented on every flow control step.

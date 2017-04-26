@@ -18,9 +18,9 @@
 #ifndef SIMPLE_ID_GENERATOR_INCLUDED
 #define SIMPLE_ID_GENERATOR_INCLUDED
 
-#include <atomic>
-
 #include "my_inttypes.h"
+
+#include <atomic>
 
 namespace Mysql{
 namespace Tools{

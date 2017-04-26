@@ -17,10 +17,11 @@
 
 #include <stddef.h>
 #include <sys/types.h>
+
+#include <atomic>
 #include <utility>
 
 #include "binlog_event.h"      // SEQ_UNINIT
-#include "my_atomic.h"
 #include "my_inttypes.h"
 #include "my_thread_local.h"   // my_thread_id
 #include "prealloced_array.h"  // Prealloced_array
@@ -113,7 +114,7 @@ private:
   bool is_new_group;
   uint delegated_jobs;
   /* "instant" value of committed transactions low-water-mark */
-  longlong last_lwm_timestamp;
+  std::atomic<longlong> last_lwm_timestamp;
   /* GAQ index corresponding to the min commit point */
   ulong last_lwm_index;
   longlong last_committed;
@@ -126,7 +127,7 @@ public:
     the logical timestamp of the olderst transaction that is being waited by
     before to resume scheduling.
   */
-  longlong min_waited_timestamp;
+  std::atomic<longlong> min_waited_timestamp;
   /*
     Committed transactions and those that are waiting for their commit parents
     comprise sequences whose items are identified as GAQ index.
@@ -185,7 +186,7 @@ public:
   longlong get_lwm_timestamp(Relay_log_info *rli, bool need_lock);
   longlong estimate_lwm_timestamp()
   {
-    return my_atomic_load64(&last_lwm_timestamp);
+    return last_lwm_timestamp.load();
   };
   ~Mts_submode_logical_clock() {}
 };

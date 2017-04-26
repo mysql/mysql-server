@@ -30,7 +30,7 @@ inline int64 Logical_clock::get_timestamp()
 {
   int64 retval= 0;
   DBUG_ENTER("Logical_clock::get_timestamp");
-  retval= my_atomic_load64(&state);
+  retval= state.load();
   DBUG_RETURN(retval);
 }
 
@@ -83,7 +83,7 @@ inline int64 Logical_clock::set_if_greater(int64 new_val)
 
   DBUG_ASSERT(new_val > 0);
 
-  while (!(cas_rc= my_atomic_cas64(&state, &old_val, new_val)) &&
+  while (!(cas_rc= atomic_compare_exchange_strong(&state, &old_val, new_val)) &&
          old_val < new_val)
   {}
 

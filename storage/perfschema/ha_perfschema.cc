@@ -22,7 +22,6 @@
 
 #include "hostname.h"
 #include "lex_string.h"
-#include "my_atomic.h"
 #include "my_dbug.h"
 #include "my_thread.h"
 #include "mysql/plugin.h"

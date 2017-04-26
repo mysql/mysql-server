@@ -22,6 +22,8 @@
 
 #include <string.h>
 
+#include <atomic>
+
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_psi_config.h"
@@ -88,7 +90,7 @@ PFS_statement_stat *global_instr_class_statements_array = NULL;
 PFS_histogram global_statements_histogram;
 PFS_memory_stat *global_instr_class_memory_array = NULL;
 
-static PFS_ALIGNED PFS_cacheline_uint64 thread_internal_id_counter;
+static PFS_ALIGNED PFS_cacheline_atomic_uint64 thread_internal_id_counter;
 
 /** Hash table for instrumented files. */
 LF_HASH filename_hash;
@@ -132,7 +134,7 @@ init_instruments(const PFS_global_param *param)
 
   file_handle_array = NULL;
 
-  thread_internal_id_counter.m_u64 = 0;
+  thread_internal_id_counter.m_u64.store(0);
 
   if (global_mutex_container.init(param->m_mutex_sizing))
   {
@@ -593,8 +595,7 @@ create_thread(PFS_thread_class *klass,
   pfs = global_thread_container.allocate(&dirty_state);
   if (pfs != NULL)
   {
-    pfs->m_thread_internal_id =
-      PFS_atomic::add_u64(&thread_internal_id_counter.m_u64, 1);
+    pfs->m_thread_internal_id = thread_internal_id_counter.m_u64++;
     pfs->m_parent_thread_internal_id = 0;
     pfs->m_processlist_id = static_cast<ulong>(processlist_id);
     pfs->m_thread_os_id = 0;

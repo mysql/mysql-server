@@ -4939,7 +4939,7 @@ apply_event_and_update_pos(Log_event** ptr_ev, THD* thd, Relay_log_info* rli)
                  rli->mts_wq_overrun_cnt,
                  rli->mts_wq_overfill_cnt,
                  rli->wq_size_waits_cnt,
-                 rli->mts_total_wait_overlap,
+                 rli->mts_total_wait_overlap.load(),
                  rli->mts_wq_no_underrun_cnt,
                  rli->mts_total_wait_worker_avail);
           rli->mts_last_online_stat= my_now;
@@ -7206,7 +7206,7 @@ static void slave_stop_workers(Relay_log_info *rli, bool *mts_inited)
                       diff_timespec(&stats_end, &rli->stats_begin),
                       rli->mts_wq_overrun_cnt,
                       rli->mts_wq_overfill_cnt, rli->wq_size_waits_cnt,
-                      rli->mts_total_wait_overlap,
+                      rli->mts_total_wait_overlap.load(),
                       rli->mts_wq_no_underrun_cnt,
                       rli->mts_total_wait_worker_avail));
 

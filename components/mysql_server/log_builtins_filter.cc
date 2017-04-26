@@ -639,7 +639,7 @@ int log_builtins_filter_run(void *instance MY_ATTRIBUTE((unused)),
     if (log_filter_try_match((ln >= 0) ? &ll->item[ln] : nullptr, r) ==
         LOG_FILTER_MATCH_SUCCESS)
     {
-      my_atomic_add32(&r->match_count, 1);
+      ++r->match_count;
 
       log_filter_try_apply(ll, ln, r);
       p++;

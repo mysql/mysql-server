@@ -2189,7 +2189,7 @@ Stage_manager::Mutex_queue::append(THD *first)
     count++;
     first= first->next_to_commit;
   }
-  my_atomic_add32(&m_size, count);
+  m_size+= count;
 
   m_last= &first->next_to_commit;
   DBUG_PRINT("info", ("m_first: 0x%llx, &m_first: 0x%llx, m_last: 0x%llx",
@@ -2222,8 +2222,8 @@ Stage_manager::Mutex_queue::pop_front()
     more= false;
     m_last = &m_first;
   }
-  DBUG_ASSERT(my_atomic_load32(&m_size) > 0);
-  my_atomic_add32(&m_size, -1);
+  DBUG_ASSERT(m_size.load() > 0);
+  --m_size;
   DBUG_ASSERT(m_first || m_last == &m_first);
   unlock();
   DBUG_PRINT("return", ("result: 0x%llx, more: %s",
@@ -2319,10 +2319,10 @@ THD *Stage_manager::Mutex_queue::fetch_and_empty()
   DBUG_PRINT("info", ("m_first: 0x%llx, &m_first: 0x%llx, m_last: 0x%llx",
                        (ulonglong) m_first, (ulonglong) &m_first,
                        (ulonglong) m_last));
-  DBUG_PRINT("info", ("fetched queue of %d transactions", my_atomic_load32(&m_size)));
+  DBUG_PRINT("info", ("fetched queue of %d transactions", m_size.load()));
   DBUG_PRINT("return", ("result: 0x%llx", (ulonglong) result));
-  DBUG_ASSERT(my_atomic_load32(&m_size) >= 0);
-  my_atomic_store32(&m_size, 0);
+  DBUG_ASSERT(m_size.load() >= 0);
+  m_size.store(0);
   unlock();
   DBUG_RETURN(result);
 }

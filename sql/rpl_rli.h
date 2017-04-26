@@ -804,7 +804,7 @@ public:
     the scheduler type.
   */
   ulong mts_wq_no_underrun_cnt;
-  longlong mts_total_wait_overlap; // Waiting time corresponding to above
+  std::atomic<longlong> mts_total_wait_overlap; // Waiting time corresponding to above
   /*
     Stats to compute Coordinator waiting time for any Worker available,
     applies solely to the Commit-clock scheduler.

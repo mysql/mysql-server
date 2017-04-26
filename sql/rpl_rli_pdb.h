@@ -21,6 +21,8 @@
 #include <sys/types.h>
 #include <time.h>
 
+#include <atomic>
+
 #include "binlog_event.h"
 #include "log_event.h"         // Format_description_log_event
 #include "my_dbug.h"
@@ -99,6 +101,63 @@ Slave_worker *get_least_occupied_worker(Relay_log_info *rli,
 
 typedef struct st_slave_job_group
 {
+  st_slave_job_group() {}
+
+  /*
+    We need a custom copy constructor and assign operator because std::atomic<T>
+    is not copy-constructible.
+  */
+  st_slave_job_group(const st_slave_job_group &other)
+    : group_master_log_name(other.group_master_log_name),
+      group_master_log_pos(other.group_master_log_pos),
+      group_relay_log_name(other.group_relay_log_name),
+      group_relay_log_pos(other.group_relay_log_pos),
+      worker_id(other.worker_id),
+      worker(other.worker),
+      total_seqno(other.total_seqno),
+      master_log_pos(other.master_log_pos),
+      checkpoint_seqno(other.checkpoint_seqno),
+      checkpoint_log_pos(other.checkpoint_log_pos),
+      checkpoint_log_name(other.checkpoint_log_name),
+      checkpoint_relay_log_pos(other.checkpoint_relay_log_pos),
+      checkpoint_relay_log_name(other.checkpoint_relay_log_name),
+      done(other.done.load()),
+      shifted(other.shifted),
+      ts(other.ts),
+#ifndef DBUG_OFF
+      notified(other.notified),
+#endif
+      last_committed(other.last_committed),
+      sequence_number(other.sequence_number),
+      new_fd_event(other.new_fd_event) {}
+
+  st_slave_job_group &operator=(const st_slave_job_group &other)
+  {
+    group_master_log_name= other.group_master_log_name;
+    group_master_log_pos= other.group_master_log_pos;
+    group_relay_log_name= other.group_relay_log_name;
+    group_relay_log_pos= other.group_relay_log_pos;
+    worker_id= other.worker_id;
+    worker= other.worker;
+    total_seqno= other.total_seqno;
+    master_log_pos= other.master_log_pos;
+    checkpoint_seqno= other.checkpoint_seqno;
+    checkpoint_log_pos= other.checkpoint_log_pos;
+    checkpoint_log_name= other.checkpoint_log_name;
+    checkpoint_relay_log_pos= other.checkpoint_relay_log_pos;
+    checkpoint_relay_log_name= other.checkpoint_relay_log_name;
+    done.store(other.done.load());
+    shifted= other.shifted;
+    ts= other.ts;
+#ifndef DBUG_OFF
+    notified= other.notified;
+#endif
+    last_committed= other.last_committed;
+    sequence_number= other.sequence_number;
+    new_fd_event= other.new_fd_event;
+    return *this;
+  }
+
   char *group_master_log_name;   // (actually redundant)
   /*
     T-event lop_pos filled by Worker for CheckPoint (CP)
@@ -127,11 +186,11 @@ typedef struct st_slave_job_group
   char*    checkpoint_log_name;
   my_off_t checkpoint_relay_log_pos; // T-event lop_pos filled by W for CheckPoint
   char*    checkpoint_relay_log_name;
-  int32    done;  // Flag raised by W,  read and reset by Coordinator
+  std::atomic<int32> done;  // Flag raised by W,  read and reset by Coordinator
   ulong    shifted;     // shift the last CP bitmap at receiving a new CP
   time_t   ts;          // Group's timestampt to update Seconds_behind_master
 #ifndef DBUG_OFF
-  bool     notified;    // to debug group_master_log_name change notification
+  bool     notified{false};  // to debug group_master_log_name change notification
 #endif
   /* Clock-based scheduler requirement: */
   longlong last_committed; // commit parent timestamp

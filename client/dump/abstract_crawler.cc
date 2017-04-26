@@ -16,6 +16,8 @@
 */
 
 #include <stddef.h>
+
+#include <atomic>
 #include <chrono>
 #include <functional>
 #include <thread>

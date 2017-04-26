@@ -24,7 +24,6 @@
 
 #include "control_events.h"     // binary_log::Uuid
 #include "hash.h"               // HASH
-#include "my_atomic.h"          // my_atomic_add32
 #include "my_dbug.h"
 #include "mysql/psi/mysql_rwlock.h" // mysql_rwlock_t
 #include "prealloced_array.h"   // Prealloced_array
@@ -454,7 +453,7 @@ public:
                    )
   {
 #ifndef DBUG_OFF
-    my_atomic_store32(&lock_state, 0);
+    lock_state.store(0);
     dbug_trace= true;
 #else
     is_write_lock= false;
@@ -479,7 +478,7 @@ public:
 #ifndef DBUG_OFF
     if (dbug_trace)
       DBUG_PRINT("info", ("%p.rdlock()", this));
-    my_atomic_add32(&lock_state, 1);
+    ++lock_state;
 #endif
   }
   /// Acquire the write lock.
@@ -490,7 +489,7 @@ public:
 #ifndef DBUG_OFF
     if (dbug_trace)
       DBUG_PRINT("info", ("%p.wrlock()", this));
-    my_atomic_store32(&lock_state, -1);
+    lock_state.store(-1);
 #else
     is_write_lock= true;
 #endif
@@ -502,11 +501,11 @@ public:
 #ifndef DBUG_OFF
     if (dbug_trace)
       DBUG_PRINT("info", ("%p.unlock()", this));
-    int val= my_atomic_load32(&lock_state);
+    int val= lock_state.load();
     if (val > 0)
-      my_atomic_add32(&lock_state, -1);
+      --lock_state;
     else if (val == -1)
-      my_atomic_store32(&lock_state, 0);
+      lock_state.store(0);
     else
       DBUG_ASSERT(0);
 #else
@@ -559,11 +558,11 @@ private:
     -1 - write locked
     >0 - read locked by that many threads
   */
-  int32 lock_state;
+  std::atomic<int32> lock_state;
   /// Read lock_state atomically and return the value.
   inline int32 get_state() const
   {
-    return my_atomic_load32(const_cast<volatile int32*>(&lock_state));
+    return lock_state.load();
   }
 
 #else

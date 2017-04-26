@@ -19,6 +19,8 @@
 #define OBJECT_QUEUE_INCLUDED
 
 #include <sys/types.h>
+
+#include <atomic>
 #include <functional>
 #include <map>
 #include <queue>

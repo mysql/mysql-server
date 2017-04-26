@@ -3599,7 +3599,7 @@ Acl_map &Acl_map::operator=(Acl_map &&map)
 {
   m_db_acls= std::move(map.m_db_acls);
   m_global_acl= map.m_global_acl;
-  m_reference_count= map.m_reference_count;
+  m_reference_count= map.m_reference_count.load();
   m_table_acls= std::move(map.m_table_acls);
   m_sp_acls= std::move(map.m_sp_acls);
   m_func_acls= std::move(map.m_func_acls);
@@ -3665,33 +3665,31 @@ Acl_map::dynamic_privileges()
 void
 Acl_map::increase_reference_count()
 {
-  my_atomic_add32(&m_reference_count, 1);
+  ++m_reference_count;
 }
 
 void
 Acl_map::decrease_reference_count()
 {
-  my_atomic_add32(&m_reference_count, -1);
+  --m_reference_count;
 }
 
 void Acl_cache::increase_version()
 {
   DBUG_ENTER("Acl_cache::increase_version");
-  my_atomic_add64((volatile int64 *)&m_role_graph_version, 1);
+  ++m_role_graph_version;
   flush_cache();
   DBUG_VOID_RETURN;
 }
 
 uint64 Acl_cache::version()
 {
-  uint64 version= (uint64)my_atomic_load64((volatile int64 *)&m_role_graph_version);
-  return version;
+  return m_role_graph_version.load();
 }
 
 int32 Acl_cache::size()
 {
-  uint32 size= (uint32)my_atomic_load32((volatile int32 *)&m_cache.count);
-  return size;
+  return m_cache.count.load();
 }
 
 /**
@@ -3716,7 +3714,7 @@ Acl_cache::checkout_acl_map(Security_context *sctx, Auth_id_ref &uid,
   // CREATE KEY
   uchar *key; // allocated by create_hash_key and released by Acl_cache::flush_cache
   unsigned key_len;
-  uint64 version= my_atomic_load64((volatile int64 *)&m_role_graph_version);
+  uint64 version= m_role_graph_version.load();
   if (!create_acl_cache_hash_key(&key, &key_len, version, uid,
                                  active_roles))
   {

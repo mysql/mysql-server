@@ -3514,13 +3514,20 @@ public:
     associated with this user session.
     @param psi Performance schema thread instrumentation
   */
-  void set_psi(PSI_thread *psi);
+  void set_psi(PSI_thread *psi)
+  {
+    m_psi= psi;
+  }
+
   /**
     Read the performance schema thread instrumentation
     associated with this user session.
     This method is safe to use from a different thread.
   */
-  PSI_thread* get_psi();
+  PSI_thread* get_psi()
+  {
+    return m_psi;
+  }
 
 private:
   /**
@@ -3530,7 +3537,7 @@ private:
     @sa set_psi
     @sa get_psi
   */
-  PSI_thread* m_psi;
+  std::atomic<PSI_thread*> m_psi;
 
 public:
   inline Internal_error_handler *get_internal_handler()
