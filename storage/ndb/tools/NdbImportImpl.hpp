@@ -743,6 +743,7 @@ public:
 };
 
 NdbOut& operator<<(NdbOut& out, const NdbImportImpl& impl);
+NdbOut& operator<<(NdbOut& out, const NdbImportImpl::Mgm& mgm);
 NdbOut& operator<<(NdbOut& out, const NdbImportImpl::Job& job);
 NdbOut& operator<<(NdbOut& out, const NdbImportImpl::Team& team);
 NdbOut& operator<<(NdbOut& out, const NdbImportImpl::Worker& w);

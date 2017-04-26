@@ -533,6 +533,7 @@ operator<<(NdbOut& out, const NdbImport::Error& error)
   out << "error[" << typetext << "-" << error.code << "]";
   if (error.text[0] != 0)
     out << ": " << error.text;
+  out << " (source:" << error.line << ")";
   return out;
 }
 
