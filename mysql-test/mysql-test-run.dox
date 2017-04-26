@@ -2898,6 +2898,16 @@
       when the program exits.
     </li>
 
+
+    <li>
+      <tt>`--default-character-set`=<b>charset_name</b></tt>
+
+      Use <b>charset_name</b> as the default character set for the
+      client and connection. For more information, see [Connection
+      Character Sets and Collations]
+      (https://dev.mysql.com/doc/refman/8.0/en/charset-connection.html).
+    </li>
+
     <li>
       <tt>`--explain-protocol`</tt>
 
