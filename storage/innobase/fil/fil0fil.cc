@@ -8753,6 +8753,7 @@ fil_tablespace_name_recover(
 	case MLOG_FILE_CREATE2:
 
 		ut_a(page_id.space() != TRX_SYS_SPACE);
+		// Fall through.
 
 	case MLOG_FILE_OPEN:
 

@@ -222,6 +222,7 @@ dtype_print(
 
 	case DATA_VAR_POINT:
 		fputs("DATA_VAR_POINT", stderr);
+		break;
 
 	case DATA_GEOMETRY:
 		fputs("DATA_GEOMETRY", stderr);

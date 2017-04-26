@@ -320,9 +320,9 @@ trx_rseg_create(
 		|| rseg_id < srv_tmp_rollback_segments);
 	ut_ad(fsp_is_system_temporary(space_id)
 		|| rseg_id < srv_rollback_segments);
-	ut_ad(to_int(space->purpose) == fsp_is_system_temporary(space_id)
+	ut_ad(to_int(space->purpose) == (fsp_is_system_temporary(space_id)
 				? FIL_TYPE_TEMPORARY
-				: FIL_TYPE_TABLESPACE);
+				: FIL_TYPE_TABLESPACE));
 	ut_ad(univ_page_size.equals_to(page_size_t(space->flags)));
 
 	if (fsp_is_system_temporary(space_id)) {

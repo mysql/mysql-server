@@ -2653,6 +2653,7 @@ String *sp_get_item_value(THD *thd, Item *item, String *str)
     if (item->data_type() != MYSQL_TYPE_BIT)
       return item->val_str(str);
     else {/* Bit type is handled as binary string */}
+    // Fall through
   case STRING_RESULT:
     {
       String *result= item->val_str(str);

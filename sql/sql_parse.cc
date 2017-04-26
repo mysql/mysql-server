@@ -3345,6 +3345,7 @@ mysql_execute_command(THD *thd, bool first_level)
       DBUG_PRINT("debug", ("Just after generate_incident()"));
     }
 #endif
+    // Fall through
   case SQLCOM_INSERT:
   case SQLCOM_REPLACE_SELECT:
   case SQLCOM_INSERT_SELECT:

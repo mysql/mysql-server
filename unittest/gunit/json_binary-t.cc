@@ -984,7 +984,9 @@ TEST_P(SpaceNeededTest, SpaceNeeded)
     value can be inlined in the large storage format.
   */
   if (param.m_needed_small != param.m_needed_large)
+  {
     EXPECT_EQ(0U, param.m_needed_large);
+  }
 
   size_t needed= 0;
   if (param.m_result)
