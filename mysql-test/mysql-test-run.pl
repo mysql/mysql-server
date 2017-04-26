@@ -1427,6 +1427,15 @@ sub command_line_setup {
 
   ($auth_plugin)= find_plugin("auth_test_plugin", "plugin_output_directory");
 
+  # On windows, backslashes in the file name argument to "load data
+  # infile" statement should be specified either as forward slashes or
+  # doubled backslashes. If vardir path contains backslashes,
+  # "check-warnings.test" will fail with parallel > 1, because the
+  # path to error log file is calculated using vardir path and this
+  # path is used with "load data infile" statement.
+  # Replace '\' with '/' on windows.
+  $opt_vardir =~ s/\\/\//g if IS_WINDOWS;
+
   # --debug[-common] implies we run debug server
   $opt_debug_server= 1 if $opt_debug || $opt_debug_common;
 
