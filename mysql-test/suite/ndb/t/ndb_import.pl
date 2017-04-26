@@ -172,7 +172,10 @@ sub init_test {
   $test->{csvdir} = "$vardir/tmp";
   $test->{database} = "test";
   # does load data for verification need own csv file
-  $test->{csvver} = $test->{verify} && $test->{rejects};
+  $test->{csvver} = $test->{verify} && $test->{rejectsgen};
+  # resume requires bad rows
+  $test->{resumeopt} && !$test->{rejectsgen}
+    and die "resume test requires rejected rows";
 }
 
 sub get_tablename {
@@ -297,12 +300,11 @@ sub run_import {
   if (defined($fenc)) {
     push(@cmd, "--fields-optionally-enclosed-by='$fenc'");
   }
-  # fail on first rejected row if resume flag is set
-  if ($test->{rejects} && !$test->{resume}) {
-    push(@cmd, "--rejects=$test->{rejects}");
+  if ($test->{rejectsopt}) {
+    push(@cmd, "--rejects=$test->{rejectsopt}");
   }
   # $opts tells is this is a resume
-  if ($opts->{resume}) {
+  if ($opts->{resumeopt}) {
     push(@cmd, "--resume");
   }
   push(@cmd, "--verbose=1");
@@ -413,12 +415,12 @@ sub make_test {
   my @txt = ();
   push @txt, "--echo # test $test->{tag} - $test->{desc}\n";
   push @txt, create_tables($test, { engine => "ndb" });
-  if (!$test->{resume}) {
+  if (!$test->{resumeopt}) {
     push @txt, run_import($test, {});
   } else {
     push @txt, run_import($test, { error => "1" });
-    for (my $i = 1; $i <= $test->{rejects}; $i++) {
-      push @txt, run_import($test, { resume => $i, error => "0,1" });
+    for (my $i = 1; $i <= $test->{rejectsgen}; $i++) {
+      push @txt, run_import($test, { resumeopt => $i, error => "0,1" });
     }
   }
   push @txt, select_counts($test, {});
@@ -873,13 +875,13 @@ sub write_csvfile {
   }
   my $tablename = get_tablename($test, $table, { ver => 0 });
   my $rows = $table->{rows};
-  $table->{rejects} = 0;
+  $table->{rejectsgen} = 0;
   for (my $n = 0; $n < $rows; $n++) {
     $opts->{rowid} = $n;
     $opts->{rejectsflag} = 0;
-    if ($test->{rejects}) {
+    if ($test->{rejectsgen}) {
       my $rowsleft = $rows - $n;
-      my $rejectsleft = $test->{rejects} - $table->{rejects};
+      my $rejectsleft = $test->{rejectsgen} - $table->{rejectsgen};
       if ($rejectsleft != 0) {
         if ($rejectsleft == $rowsleft ||
             myrand(1 + $rowsleft/$rejectsleft) == 0) {
@@ -891,7 +893,7 @@ sub write_csvfile {
     my $line = gen_csvline($test, $table, $opts);
     if ($opts->{rejectsflag}) {
       $opts->{rejectserrs} or die "no rejectserrs";
-      $table->{rejects}++;
+      $table->{rejectsgen}++;
     }
     print $fh "$line"
       or die "$file: rowid $n: write failed: $!";
@@ -902,8 +904,8 @@ sub write_csvfile {
       }
     }
   }
-  $test->{rejects} == $table->{rejects}
-    or die "$tablename: $test->{rejects} != $table->{rejects}";
+  $test->{rejectsgen} == $table->{rejectsgen}
+    or die "$tablename: $test->{rejectsgen} != $table->{rejectsgen}";
   close($fh)
     or die "$file: close after write failed: $!";
   if ($test->{csvver}) {
