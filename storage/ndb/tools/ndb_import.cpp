@@ -768,9 +768,9 @@ doimp()
           break;
       }
     }
-    imp.do_disconnect();
     CHK1(ret == 0);
   } while (0);
+  imp.do_disconnect();
   LOG("jobs summary:" <<
       " defined: " << jobs_defined <<
       " run: " << jobs_run <<

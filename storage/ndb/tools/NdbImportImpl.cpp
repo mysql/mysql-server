@@ -59,9 +59,17 @@ NdbImportImpl::Mgm::~Mgm()
   do_disconnect();
 }
 
+NdbOut&
+operator<<(NdbOut& out, const NdbImportImpl::Mgm& mgm)
+{
+  out << "mgm";
+  return out;
+}
+
 int
 NdbImportImpl::Mgm::do_connect()
 {
+  log1("do_connect");
   require(m_handle == 0);
   m_handle = ndb_mgm_create_handle();
   require(m_handle != 0);
@@ -74,6 +82,7 @@ NdbImportImpl::Mgm::do_connect()
     return -1;
   }
   m_connected = true;
+  log1("do_connect: success");
   return 0;
 }
 
@@ -94,12 +103,14 @@ NdbImportImpl::Mgm::do_disconnect()
     }
     ndb_mgm_destroy_handle(&m_handle);
     m_handle = 0;
+    log1("do_disconnect: done");
   }
 }
 
 int
 NdbImportImpl::Mgm::get_status()
 {
+  log1("get_status");
   require(m_connected);
   require(m_status == 0);
   int retries = 0;
@@ -107,10 +118,12 @@ NdbImportImpl::Mgm::get_status()
   {
     if ((m_status = ndb_mgm_get_status(m_handle)) != 0)
     {
+      log1("get_status: success");
       return 0;
     }
     NdbSleep_SecSleep(1);
     retries++;
+    log1("get_status: retries " << retries);
   }
   m_util.set_error_mgm(m_error, __LINE__, m_handle);
   return -1;
@@ -209,6 +222,7 @@ NdbImportImpl::set_connections(uint cnt,
 int
 NdbImportImpl::do_connect()
 {
+  log1("do_connect");
   const Opt& opt = m_util.c_opt;
   Connect& c = c_connect;
   if (c.m_connected)
@@ -231,6 +245,7 @@ NdbImportImpl::do_connect()
     }
     for (uint i = 0; i < c.m_connectioncnt; i++)
     {
+      log1("connection " << i << " of " << c.m_connectioncnt);
       Ndb_cluster_connection* con = c.m_connections[i];
       int retries = opt_connect_retries;
       int delay = opt_connect_retry_delay;
@@ -239,6 +254,7 @@ NdbImportImpl::do_connect()
         m_util.set_error_con(m_error, __LINE__, con);
         return -1;
       }
+      log1("connection " << i << " api nodeid " << con->node_id());
     }
   }
   for (uint i = 0; i < c.m_connectioncnt; i++)
@@ -249,6 +265,7 @@ NdbImportImpl::do_connect()
       m_util.set_error_con(m_error, __LINE__, con);
       return -1;
     }
+    log1("connection " << i << " wait_until_ready done");
   }
   require(c.m_mainndb == 0);
   c.m_mainndb = new Ndb(c.m_mainconnection);
@@ -263,24 +280,30 @@ NdbImportImpl::do_connect()
     return -1;
   }
   c.m_connected = true;
+  log1("do_connect: success");
   return 0;
 }
 
 void
 NdbImportImpl::do_disconnect()
 {
+  log1("do_disconnect");
   Connect& c = c_connect;
+  // delete any ndb before delete connection
   delete c.m_mainndb;
   c.m_mainndb = 0;
-  if (c.m_connectionowner)
+  if (c.m_connectionowner && c.m_connections != 0)
   {
     for (uint i = 0; i < c.m_connectioncnt; i++)
     {
+      log1("delete connection " << i << " of " << c.m_connectioncnt);
       delete c.m_connections[i];
       c.m_connections[i] = 0;
     }
   }
   delete [] c.m_connections;
+  c.m_connections = 0;
+  log1("do_disconnect: done");
 }
 
 // tables
