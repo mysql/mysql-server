@@ -888,7 +888,7 @@ Dictionary_client::Dictionary_client(THD *thd): m_thd(thd),
 Dictionary_client::~Dictionary_client()
 {
   // Release the objects left in the object registry (should be empty).
-  size_t num_released= release();
+  size_t num_released= release(&m_registry_committed);
   DBUG_ASSERT(num_released == 0);
   if (num_released > 0)
   {
@@ -1794,27 +1794,6 @@ bool Dictionary_client::get_table_name_by_trigger_name(
 }
 
 
-// Get the highest currently used se private id for the table objects.
-/* purecov: begin deadcode */
-bool Dictionary_client::get_tables_max_se_private_id(const String_type &engine,
-                                                     Object_id *max_id)
-{
-  dd::Transaction_ro trx(m_thd, ISO_READ_COMMITTED);
-
-  trx.otx.register_tables<dd::Schema>();
-  trx.otx.register_tables<dd::Table>();
-
-  if (trx.otx.open_tables())
-  {
-    DBUG_ASSERT(m_thd->is_system_thread() || m_thd->killed || m_thd->is_error());
-    return true;
-  }
-
-  return dd::tables::Tables::max_se_private_id(&trx.otx, engine, max_id);
-}
-/* purecov: end */
-
-
 // Fetch the names of all the components in the schema.
 template <typename T>
 bool Dictionary_client::fetch_schema_component_names(
@@ -2137,11 +2116,6 @@ bool Dictionary_client::fetch_fk_children_uncached(
 
   return false;
 }
-
-
-// Mark all objects acquired by this client as not being used anymore.
-size_t Dictionary_client::release()
-{ return release(&m_registry_committed); }
 
 
 // Remove and delete an object from the cache and the dd tables.

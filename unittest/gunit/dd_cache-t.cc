@@ -1239,13 +1239,6 @@ TEST_F(CacheStorageTest, TestTransactionMaxSePrivateId)
   lock_object(tab3->name());
   EXPECT_FALSE(dc.store(tab3.get()));
 
-  // Needs working dd::get_dictionary()
-  //dd::Object_id max_id;
-  //EXPECT_FALSE(dc.get_tables_max_se_private_id("innodb", &max_id));
-  //EXPECT_EQ(10u, max_id);
-  //EXPECT_FALSE(dc.get_tables_max_se_private_id("unknown", &max_id));
-  //EXPECT_EQ(20u, max_id);
-
   dd::Table *tab1_new= NULL;
   EXPECT_FALSE(dc.acquire_uncached_table_by_se_private_id("innodb", 5, &tab1_new));
   EXPECT_NE(nullp<dd::Table>(), tab1_new);

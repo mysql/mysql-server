@@ -798,21 +798,6 @@ public:
 
 
   /**
-    Get the highest currently used se private id for the table objects.
-
-    @param       engine        Name of the engine storing the table.
-    @param [out] max_id        Max SE private id.
-
-    @return      true   Failure (error is reported).
-    @return      false  Success.
-  */
-
-  bool get_tables_max_se_private_id(const String_type &engine,
-                                    Object_id *max_id)
-    MY_ATTRIBUTE((warn_unused_result));
-
-
-  /**
     Fetch the names of the components in the schema. Hidden components are
     ignored. E.g., Object with dd::Table::hidden() == true will be ignored.
 
@@ -912,17 +897,6 @@ public:
     const String_type &parent_name,
     std::vector<String_type> *children_schemas,
     std::vector<String_type> *children_names);
-
-
-  /**
-    Mark all objects acquired by this client as not being used anymore.
-
-    This function will release all objects from the client's registry.
-
-    @return Number of objects released.
-  */
-
-  size_t release();
 
 
   /**
