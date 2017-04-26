@@ -127,6 +127,8 @@ Backup::Backup(Block_context& ctx, Uint32 instanceNumber) :
   addRecSignal(GSN_BACKUP_LOCK_TAB_REF, &Backup::execBACKUP_LOCK_TAB_REF);
 
   addRecSignal(GSN_RESTORABLE_GCI_REP, &Backup::execRESTORABLE_GCI_REP);
+  addRecSignal(GSN_INFORM_BACKUP_DROP_TAB_REQ,
+               &Backup::execINFORM_BACKUP_DROP_TAB_REQ);
 
   addRecSignal(GSN_LCP_STATUS_REQ, &Backup::execLCP_STATUS_REQ);
 

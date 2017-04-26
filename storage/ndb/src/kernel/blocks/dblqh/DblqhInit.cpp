@@ -402,6 +402,8 @@ Dblqh::Dblqh(Block_context& ctx, Uint32 instanceNumber):
   addRecSignal(GSN_WAIT_COMPLETE_LCP_REQ, &Dblqh::execWAIT_COMPLETE_LCP_REQ);
   addRecSignal(GSN_WAIT_ALL_COMPLETE_LCP_CONF,
                &Dblqh::execWAIT_ALL_COMPLETE_LCP_CONF);
+  addRecSignal(GSN_INFORM_BACKUP_DROP_TAB_CONF,
+               &Dblqh::execINFORM_BACKUP_DROP_TAB_CONF);
 
   addRecSignal(GSN_EMPTY_LCP_REQ, &Dblqh::execEMPTY_LCP_REQ);
   addRecSignal(GSN_LCP_FRAG_ORD, &Dblqh::execLCP_FRAG_ORD);

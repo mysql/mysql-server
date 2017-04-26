@@ -12310,6 +12310,88 @@ Backup::finished_removing_files(Signal *signal,
   signal->theData[0] = BackupContinueB::ZDELETE_LCP_FILE;
   signal->theData[1] = ptr.i;
   sendSignal(reference(), GSN_CONTINUEB, signal, 2, JBB);
+  if (ptr.p->m_informDropTabTableId != Uint32(~0))
+  {
+    jam();
+    sendINFORM_BACKUP_DROP_TAB_CONF(signal, ptr);
+  }
+}
+
+void
+Backup::execINFORM_BACKUP_DROP_TAB_REQ(Signal *signal)
+{
+  BackupRecordPtr ptr;
+  ndbrequire(c_backups.first(ptr));
+  ptr.p->m_informDropTabTableId = signal->theData[0];
+  ptr.p->m_informDropTabReference = signal->theData[1];
+  if (ptr.p->currentDeleteLcpFile != RNIL)
+  {
+    DeleteLcpFilePtr deleteLcpFilePtr;
+    jam();
+    c_deleteLcpFilePool.getPtr(deleteLcpFilePtr, ptr.p->currentDeleteLcpFile);
+    if (deleteLcpFilePtr.p->tableId == ptr.p->m_informDropTabTableId)
+    {
+      jam();
+      /**
+       * The current delete record is deleting files and writing files
+       * from the dropped table. Wait until this is completed before
+       * we continue.
+       */
+      return;
+    }
+  }
+  sendINFORM_BACKUP_DROP_TAB_CONF(signal, ptr);
+}
+
+void
+Backup::sendINFORM_BACKUP_DROP_TAB_CONF(Signal *signal,
+                                        BackupRecordPtr ptr)
+{
+  /**
+   * Before we send the confirm we have to remove all entries from
+   * drop delete queue that refer to the dropped table. We have already
+   * ensured that the dropped table isn't currently involved in drops.
+   * It would create complex code if we could remove the LCP files
+   * while we were writing them.
+   */
+
+  {
+    DeleteLcpFilePtr deleteLcpFilePtr;
+    DeleteLcpFilePtr nextDeleteLcpFilePtr;
+    LocalDeleteLcpFile_list queue(c_deleteLcpFilePool,
+                                  m_delete_lcp_file_head);
+    bool is_next_available = queue.first(deleteLcpFilePtr);
+    while (is_next_available)
+    {
+      nextDeleteLcpFilePtr = deleteLcpFilePtr;
+      is_next_available = queue.next(nextDeleteLcpFilePtr);
+      if (deleteLcpFilePtr.p->tableId == ptr.p->m_informDropTabTableId)
+      {
+        jam();
+        /**
+         * We found an entry that is from the dropped table, we can
+         * ignore this since the table will be dropped and all
+         * LCP files with it.
+         */
+        queue.remove(deleteLcpFilePtr);
+        c_deleteLcpFilePool.release(deleteLcpFilePtr);
+      }
+      deleteLcpFilePtr = nextDeleteLcpFilePtr;
+    }
+  }
+
+  /**
+   * Now we have removed all entries from queue and we are ready to inform
+   * LQH that he can continue dropping the table.
+   * At this point LQH have already ensured that no more LCPs are started
+   * on this table.
+   */
+  BlockReference ref = ptr.p->m_informDropTabReference;
+  Uint32 tableId = ptr.p->m_informDropTabTableId;
+  signal->theData[0] = tableId;
+  sendSignal(ref, GSN_INFORM_BACKUP_DROP_TAB_CONF, signal, 1, JBB);
+  ptr.p->m_informDropTabReference = Uint32(~0);
+  ptr.p->m_informDropTabTableId = Uint32(~0);
 }
 
 void

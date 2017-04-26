@@ -182,6 +182,7 @@ protected:
   void execSYNC_PAGE_CACHE_CONF(Signal*);
   void execSYNC_EXTENT_PAGES_CONF(Signal*);
   void execEND_LCPREQ(Signal* signal);
+  void execINFORM_BACKUP_DROP_TAB_REQ(Signal*);
 
   void execDBINFO_SCANREQ(Signal *signal);
 
@@ -539,6 +540,9 @@ public:
         */
         m_gsn = 0;
         masterData.gsn = 0;
+        m_informDropTabTableId = Uint32(~0);
+        m_informDropTabReference = Uint32(~0);
+        currentDeleteLcpFile = RNIL;
       }
     
     /* prev time backup status was reported */
@@ -610,6 +614,9 @@ public:
     Uint64 m_current_lcp_lsn;
     BackupFormat::PartPair m_part_info[BackupFormat::NDB_MAX_LCP_PARTS];
     LcpScanInfo m_scan_info[BackupFormat::NDB_MAX_FILES_PER_LCP];
+
+    Uint32 m_informDropTabTableId;
+    BlockReference m_informDropTabReference;
 
     Uint32 newestGci;
     Uint32 deleteCtlFileNumber;
@@ -1118,6 +1125,7 @@ public:
   void delete_lcp_file_processing(Signal*, Uint32 ptrI);
   void finished_removing_files(Signal*, BackupRecordPtr);
   void sendEND_LCPCONF(Signal*, BackupRecordPtr);
+  void sendINFORM_BACKUP_DROP_TAB_CONF(Signal*, BackupRecordPtr);
 
   void sync_log_lcp_lsn(Signal*, DeleteLcpFilePtr, Uint32 ptrI);
   void sync_log_lcp_lsn_callback(Signal*, Uint32 ptrI, Uint32 res);
