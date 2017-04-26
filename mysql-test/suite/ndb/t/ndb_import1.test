@@ -135,7 +135,8 @@ my $test1 = {
   desc => "all data types, csv default format",
   tables => [ $t1, $t2, $t3, $t4, $t5, $t6, $t7 ],
   csvfmt => get_csvfmt1(),
-  rejects => 0,
+  rejectsopt => 0,      # option to ndb_import
+  rejectsgen => 0,      # number of bad rows to generate
   verify => 1,
 };
 
@@ -144,7 +145,9 @@ my $test2 = {
   desc => "all data types, csv complex format",
   tables => [ $t1, $t2, $t3, $t4, $t5, $t6, $t7 ],
   csvfmt => get_csvfmt2(),
-  rejects => 0,
+  rejectsopt => 0,
+  rejectsgen => 0,
+  resumeopt => 0,
   verify => 1,
 };
 
@@ -153,7 +156,9 @@ my $test3 = {
   desc => "success, with rejected rows",
   tables => [ $t8 ],
   csvfmt => get_csvfmt1(),
-  rejects => 100,
+  rejectsopt => 100,
+  rejectsgen => 100,
+  resumeopt => 0,
   verify => 1,
 };
 
@@ -162,8 +167,9 @@ my $test4 = {
   desc => "success, with rejected rows and resume",
   tables => [ $t8 ],
   csvfmt => get_csvfmt1(),
-  rejects => 10,
-  resume => 1,
+  rejectsopt => 0,
+  rejectsgen => 10,
+  resumeopt => 1,
   verify => 1,
 };
 
