@@ -5501,10 +5501,16 @@ fil_io_set_encryption(
 	const page_id_t&	page_id,
 	fil_space_t*		space)
 {
-	/* Don't encrypt page 0 of all tablespaces except redo log
+
+	/* On pages 1 & 2, FIL_PAGE_FILE_FLUSH_LSN is used for storing
+	SDI root page numbers, which conflicts with PAGE_IO compression
+	or Encryption. So never IO compress or encrypt pages 0, 1 & 2. */
+
+	/* Don't encrypt pages 0,1,2 of all tablespaces except redo log
 	tablespace, all pages from the system tablespace. */
 	if (space->encryption_type == Encryption::NONE
-	    || (page_id.page_no() == 0 && !req_type.is_log())) {
+	    || (page_id.page_no() <= FSP_FIRST_INODE_PAGE_NO
+		&& !req_type.is_log())) {
 		req_type.clear_encrypted();
 		return;
 	}
@@ -5808,7 +5814,7 @@ fil_io(
 	    /* On pages 1 & 2, FIL_PAGE_FILE_FLUSH_LSN is used for storing
 	    SDI root page numbers, which conflicts with PAGE_IO compression.
 	    So never IO compress pages 0, 1 & 2. */
-	    && page_id.page_no() > 2
+	    && (page_id.page_no() > FSP_FIRST_INODE_PAGE_NO)
 	    && IORequest::is_punch_hole_supported()
 	    && node->punch_hole) {
 
@@ -5844,6 +5850,17 @@ fil_io(
 			req_type, node->name, node->handle, buf, offset, len);
 	}
 #else
+
+#ifdef UNIV_DEBUG
+	/* On pages 1 & 2, FIL_PAGE_FILE_FLUSH_LSN is used for storing
+	SDI root page numbers, which conflicts with PAGE_IO compression
+	or Encryption. So never IO compress or encrypt pages 0, 1 & 2. */
+	if (!req_type.is_log() && (req_type.is_encrypted()
+	    || req_type.is_compressed())) {
+		ut_ad(page_id.page_no() > FSP_FIRST_INODE_PAGE_NO);
+	}
+#endif /* UNIV_DEBUG */
+
 	/* Queue the aio request */
 	err = os_aio(
 		req_type,
@@ -6390,6 +6407,9 @@ fil_iterate(
 	ulint	read_type = IORequest::READ;
 	ulint	write_type = IORequest::WRITE;
 
+	/* Page 2 offset. Used for disabling encryption on Pages 0,1,2 */
+	os_offset_t	page_2_offset = FSP_FIRST_INODE_PAGE_NO * iter.page_size;
+
 	for (offset = iter.start; offset < iter.end; offset += n_bytes) {
 
 		byte*	io_buffer = iter.io_buffer;
@@ -6429,8 +6449,10 @@ fil_iterate(
 		dberr_t		err;
 		IORequest	read_request(read_type);
 
-		/* For encrypted table, set encryption information. */
-		if (iter.encryption_key != NULL && offset != 0) {
+		/* For encrypted table, set encryption information.
+		Pages 0,1,2 should not be encrypted. */
+		if (iter.encryption_key != NULL
+		    && (offset > page_2_offset)) {
 			read_request.encryption_key(iter.encryption_key,
 						    ENCRYPTION_KEY_LEN,
 						    iter.encryption_iv);
@@ -6475,8 +6497,10 @@ fil_iterate(
 
 		IORequest	write_request(write_type);
 
-		/* For encrypted table, set encryption information. */
-		if (iter.encryption_key != NULL && offset != 0) {
+		/* For encrypted table, set encryption information.
+		Pages 0,1,2 should not be encrypted. */
+		if (iter.encryption_key != NULL
+		    && (offset > page_2_offset)) {
 			write_request.encryption_key(iter.encryption_key,
 						     ENCRYPTION_KEY_LEN,
 						     iter.encryption_iv);
