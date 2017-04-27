@@ -149,89 +149,7 @@ void generate_test_data(Key_use *keys, TABLE_LIST *tables, int n)
 }
 
 
-// Play around with these constants to see std::sort speedup vs. my_qsort.
-const int num_elements= 200;
-const int num_iterations= 1000;
-
-/*
-  This class is used for comparing performance of
-    std::vector<> and std::sort()
-  vs
-    DYNAMIC_ARRAY and my_qsort()
- */
-class DynArrayTest : public ::testing::Test
-{
-public:
-  DynArrayTest() {}
-
-  static void SetUpTestCase()
-  {
-    generate_test_data(test_data, table_list, num_elements);
-  }
-
-  virtual void SetUp()
-  {
-    dynarray_unittest::my_init_dynamic_array(&m_keyuse_dyn,
-                          PSI_NOT_INSTRUMENTED,
-                          sizeof(Key_use), NULL,
-                          num_elements, 64);
-    m_keyuse_vec.reserve(num_elements);
-  }
-
-  virtual void TearDown()
-  {
-    delete_dynamic(&m_keyuse_dyn);
-  }
-
-  void insert_and_sort_dynamic()
-  {
-    reset_dynamic(&m_keyuse_dyn);
-    for (int ix= 0; ix < num_elements; ++ix)
-    {
-      insert_dynamic(&m_keyuse_dyn, &test_data[ix]);
-    }
-    my_qsort(m_keyuse_dyn.buffer, m_keyuse_dyn.elements, sizeof(Key_use),
-             reinterpret_cast<qsort_cmp>(sort_keyuse));
-  }
-
-  void insert_and_sort_vector()
-  {
-    m_keyuse_vec.clear();
-    for (int ix= 0; ix < num_elements; ++ix)
-    {
-      m_keyuse_vec.push_back(test_data[ix]);
-    }
-    std::sort(m_keyuse_vec.begin(), m_keyuse_vec.end(), std::less<Key_use>());
-  }
-
-  DYNAMIC_ARRAY           m_keyuse_dyn;
-  std::vector<Key_use>    m_keyuse_vec;
-private:
-  static Key_use test_data[num_elements];
-  static TABLE_LIST table_list[num_elements];
-
-  GTEST_DISALLOW_COPY_AND_ASSIGN_(DynArrayTest);
-};
-
-Key_use DynArrayTest::test_data[num_elements];
-TABLE_LIST DynArrayTest::table_list[num_elements];
-
-
-// Test insert_dynamic() and my_qsort().
-TEST_F(DynArrayTest, DynArray)
-{
-  for (int ix= 0; ix < num_iterations; ++ix)
-    insert_and_sort_dynamic();
-}
-
-
-// Test vector::push_back() and std::sort()
-TEST_F(DynArrayTest, Vector)
-{
-  for (int ix= 0; ix < num_iterations; ++ix)
-    insert_and_sort_vector();
-}
-
+constexpr int num_elements= 200;
 
 /*
   This class is for unit testing of Mem_root_array.
@@ -241,7 +159,6 @@ class MemRootTest : public ::testing::Test
 protected:
   MemRootTest()
     : m_mem_root_p(&m_mem_root),
-      m_array_mysys(m_mem_root_p),
       m_array_std(m_mem_root_p)
   {}
 
@@ -250,7 +167,6 @@ protected:
     init_sql_alloc(PSI_NOT_INSTRUMENTED, &m_mem_root, 1024, 0);
     THR_MALLOC= &m_mem_root_p;
 
-    m_array_mysys.reserve(num_elements);
     m_array_std.reserve(num_elements);
     destroy_counter= 0;
   }
@@ -271,31 +187,8 @@ protected:
     THR_MALLOC= nullptr;
   }
 
-  void insert_and_sort_mysys()
-  {
-    m_array_mysys.clear();
-    for (int ix= 0; ix < num_elements; ++ix)
-    {
-      m_array_mysys.push_back(test_data[ix]);
-    }
-    my_qsort(m_array_mysys.begin(), m_array_mysys.size(),
-             m_array_mysys.element_size(),
-             reinterpret_cast<qsort_cmp>(sort_keyuse));
-  }
-
-  void insert_and_sort_std()
-  {
-    m_array_std.clear();
-    for (int ix= 0; ix < num_elements; ++ix)
-    {
-      m_array_std.push_back(test_data[ix]);
-    }
-    std::sort(m_array_std.begin(), m_array_std.end(), std::less<Key_use>());
-  }
-
   MEM_ROOT m_mem_root;
   MEM_ROOT *m_mem_root_p;
-  Key_use_array m_array_mysys;
   Key_use_array m_array_std;
 public:
   static size_t  destroy_counter;
@@ -309,36 +202,6 @@ private:
 size_t  MemRootTest::destroy_counter;
 Key_use MemRootTest::test_data[num_elements];
 TABLE_LIST MemRootTest::table_list[num_elements];
-
-
-// Test Mem_root_array::push_back() and my_qsort()
-TEST_F(MemRootTest, KeyUseMysys)
-{
-  for (int ix= 0; ix < num_iterations; ++ix)
-    insert_and_sort_mysys();
-}
-
-
-// Test Mem_root_array::push_back() and std::sort()
-TEST_F(MemRootTest, KeyUseStd)
-{
-  for (int ix= 0; ix < num_iterations; ++ix)
-    insert_and_sort_std();
-}
-
-
-// Test that my_qsort() and std::sort() generate same order.
-TEST_F(MemRootTest, KeyUseCompare)
-{
-  insert_and_sort_mysys();
-  insert_and_sort_std();
-  for (int ix= 0; ix < num_elements; ++ix)
-  {
-    Key_use k1= m_array_mysys.at(ix);
-    Key_use k2= m_array_std.at(ix);
-    EXPECT_EQ(k1, k2);
-  }
-}
 
 
 // Test that Mem_root_array re-expanding works.

@@ -5783,31 +5783,52 @@ the generated partition syntax in a correct manner.
         to reorganize into
       */
       if (alter_info->flags == Alter_info::ALTER_REORGANIZE_PARTITION &&
-          tab_part_info->part_type == partition_type::RANGE &&
-          ((is_last_partition_reorged &&
-            (tab_part_info->column_list ?
-             (tab_part_info->compare_column_values(
-                              alt_max_elem_val->col_val_array,
-                              tab_max_elem_val->col_val_array) < 0) :
-             alt_max_range < tab_max_range)) ||
-            (!is_last_partition_reorged &&
-             (tab_part_info->column_list ?
-              (tab_part_info->compare_column_values(
-                              alt_max_elem_val->col_val_array,
-                              tab_max_elem_val->col_val_array) != 0) :
-              alt_max_range != tab_max_range))))
+          tab_part_info->part_type == partition_type::RANGE)
       {
-        /*
-          For range partitioning the total resulting range before and
-          after the change must be the same except in one case. This is
-          when the last partition is reorganised, in this case it is
-          acceptable to increase the total range.
-          The reason is that it is not allowed to have "holes" in the
-          middle of the ranges and thus we should not allow to reorganise
-          to create "holes".
-        */
-        my_error(ER_REORG_OUTSIDE_RANGE, MYF(0));
-        goto err;
+        bool is_error;
+        if (is_last_partition_reorged)
+        {
+          if (tab_part_info->column_list)
+          {
+            is_error= tab_part_info->compare_column_values(
+              alt_max_elem_val->col_val_array,
+              tab_max_elem_val->col_val_array);  // a < b.
+          }
+          else
+          {
+            is_error= alt_max_range < tab_max_range;
+          }
+        }
+        else
+        {
+          if (tab_part_info->column_list)
+          {
+            is_error= tab_part_info->compare_column_values(
+                        alt_max_elem_val->col_val_array,
+                        tab_max_elem_val->col_val_array) ||
+                      tab_part_info->compare_column_values(
+                        tab_max_elem_val->col_val_array,
+                        alt_max_elem_val->col_val_array);  // a != b.
+          }
+          else
+          {
+            is_error= alt_max_range != tab_max_range;
+          }
+        }
+        if (is_error)
+        {
+          /*
+            For range partitioning the total resulting range before and
+            after the change must be the same except in one case. This is
+            when the last partition is reorganised, in this case it is
+            acceptable to increase the total range.
+            The reason is that it is not allowed to have "holes" in the
+            middle of the ranges and thus we should not allow to reorganise
+            to create "holes".
+          */
+          my_error(ER_REORG_OUTSIDE_RANGE, MYF(0));
+          goto err;
+        }
       }
     }
   }

@@ -112,6 +112,7 @@
 #include "thr_malloc.h"
 #include "transaction.h"              // trans_commit_implicit
 #include "transaction_info.h"
+#include "varlen_sort.h"
 #include "xa.h"
 
 
@@ -7004,14 +7005,6 @@ void DsMrr_impl::reset()
 }
 
 
-static int rowid_cmp(const void *h, const void *a, const void *b)
-{
-  return
-    pointer_cast<const handler*>(h)->cmp_ref(pointer_cast<const uchar*>(a),
-                                             pointer_cast<const uchar*>(b));
-}
-
-
 /**
   DS-MRR: Fill the buffer with rowids and sort it by rowid
 
@@ -7080,10 +7073,10 @@ int DsMrr_impl::dsmrr_fill_buffer()
 
   /* Sort the buffer contents by rowid */
   uint elem_size= h->ref_length + (int)is_mrr_assoc * sizeof(void*);
-  size_t n_rowids= (rowids_buf_cur - rowids_buf) / elem_size;
+  DBUG_ASSERT((rowids_buf_cur - rowids_buf) % elem_size == 0);
   
-  my_qsort2(rowids_buf, n_rowids, elem_size, rowid_cmp,
-            (void*)h);
+  varlen_sort(rowids_buf, rowids_buf_cur, elem_size,
+    [this](const uchar *a, const uchar *b) { return h->cmp_ref(a, b) < 0; });
   rowids_buf_last= rowids_buf_cur;
   rowids_buf_cur=  rowids_buf;
   DBUG_RETURN(0);

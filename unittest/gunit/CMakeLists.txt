@@ -312,7 +312,6 @@ SET(TESTS
   my_error
   my_fileutils
   my_murmur3
-  my_qsort_vs_stdsort
   my_regex
   my_thread
   mysys_base64
@@ -347,6 +346,7 @@ SET(TESTS
   my_alloc
   pump_object_filter
   val_int_compare
+  varlen_sort
   )
  
 IF(WIN32)

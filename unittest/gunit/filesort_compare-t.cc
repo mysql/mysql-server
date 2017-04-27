@@ -27,8 +27,6 @@ namespace filesort_compare_unittest {
 /*
   Below are some performance microbenchmarks in order to compare our sorting
   options: 
-  my_qsort2        - requires no extra memory, uses insert sort on small ranges,
-                     uses quicksort on larger ranges
   radixsort -        requires extra memory: array of n pointers,
                      seems to be quite fast on intel *when it is appliccable*:
                      if (size <= 20 && items >= 1000 && items < 100000)
@@ -352,17 +350,6 @@ TEST_F(FileSortCompareTest, DISABLED_RadixSort)
       std::get_temporary_buffer<uchar*>(num_records);
     radixsort_for_str_ptr(&keys[0], num_records, record_size, buffer.first);
     std::return_temporary_buffer(buffer.first);
-  }
-}
-
-TEST_F(FileSortCompareTest, MyQsort)
-{
-  size_t size= record_size;
-  for (int ix= 0; ix < num_iterations; ++ix)
-  {
-    std::vector<uchar*> keys(sort_keys, sort_keys + num_records);
-    my_qsort2((uchar*) &keys[0], num_records, sizeof(uchar*),
-              my_testing::get_ptr_compare(record_size), &size);
   }
 }
 
