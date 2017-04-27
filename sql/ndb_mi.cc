@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2014 Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2017 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -111,6 +111,16 @@ void ndb_mi_set_relay_log_trans_retries(ulong number)
 bool ndb_mi_get_slave_sql_running()
 {
   return active_mi->rli->slave_running;
+}
+
+ulong ndb_mi_get_slave_parallel_workers()
+{
+  DBUG_ASSERT (active_mi != NULL);
+#if MYSQL_VERSION_ID < 50600
+  return active_mi->rli.opt_slave_parallel_workers;
+#else
+  return active_mi->rli->opt_slave_parallel_workers;
+#endif
 }
 
 /* #ifdef HAVE_NDB_BINLOG */
