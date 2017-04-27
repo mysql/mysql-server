@@ -10589,11 +10589,27 @@ Backup::lcp_update_ctl_page(BackupRecordPtr ptr,
             !m_our_node_started);
   lcpCtlFilePtr->MaxGciWritten = ptr.p->newestGci;
   lcp_set_lcp_id(ptr, lcpCtlFilePtr);
-  DEB_LCP(("(%u)TAGY Handle idle LCP, tab(%u,%u), maxGciCompleted = %u",
+
+  /**
+   * Also idle LCPs have to be careful to ensure that the LCP is valid before
+   * we write it as valid. The reason is that otherwise we won't find the
+   * LCP record in the UNDO log and apply too many UNDO log records.
+   */
+  TablePtr tabPtr;
+  ptr.p->tables.first(tabPtr);
+  Uint32 tableId = tabPtr.p->tableId;
+  ptr.p->m_disk_data_exist = c_lqh->is_disk_columns_in_table(tableId);
+  Uint32 valid_flag = lcp_pre_sync_lsn(ptr);
+  ptr.p->m_lcp_lsn_synced = valid_flag;
+  lcpCtlFilePtr->ValidFlag = valid_flag;
+
+  DEB_LCP(("(%u)TAGY Handle idle LCP, tab(%u,%u), maxGciCompleted = %u"
+           ", validFlag = %u",
             instance(),
             lcpCtlFilePtr->TableId,
             lcpCtlFilePtr->FragmentId,
-            lcpCtlFilePtr->MaxGciCompleted));
+            lcpCtlFilePtr->MaxGciCompleted,
+            valid_flag));
 }
 
 void
@@ -11515,19 +11531,13 @@ Backup::lcp_close_data_file_conf(Signal* signal, BackupRecordPtr ptr)
   lcp_write_ctl_file(signal, ptr);
 }
 
-void
-Backup::lcp_write_ctl_file(Signal *signal, BackupRecordPtr ptr)
+Uint32
+Backup::lcp_pre_sync_lsn(BackupRecordPtr ptr)
 {
-  if (ptr.p->wait_data_file_close ||
-      ptr.p->wait_disk_data_sync)
-  {
-    jam();
-    return;
-  }
-
   Uint32 valid_flag = 1;
   if (ptr.p->m_disk_data_exist)
   {
+    jam();
     Uint64 sync_lsn;
     {
       Logfile_client lgman(this, c_lgman, 0);
@@ -11551,6 +11561,24 @@ Backup::lcp_write_ctl_file(Signal *signal, BackupRecordPtr ptr)
       DEB_LCP(("(%u)Writing first with ValidFlag = 0", instance()));
     }
   }
+  else
+  {
+    jam();
+  }
+  return valid_flag;
+}
+
+void
+Backup::lcp_write_ctl_file(Signal *signal, BackupRecordPtr ptr)
+{
+  if (ptr.p->wait_data_file_close ||
+      ptr.p->wait_disk_data_sync)
+  {
+    jam();
+    return;
+  }
+
+  Uint32 valid_flag = lcp_pre_sync_lsn(ptr);
 
   /**
    * This function prepares the page for the LCP Control file data
@@ -11780,13 +11808,14 @@ Backup::finalize_lcp_processing(Signal *signal, BackupRecordPtr ptr)
     LocalDeleteLcpFile_list queue(c_deleteLcpFilePool,
                                   m_delete_lcp_file_head);
     DEB_LCP(("(%u))TAGI Insert delete file in queue:"
-      " tab(%u,%u), file(%u,%u) GCI: %u",
+      " tab(%u,%u), file(%u,%u) GCI: %u, validFlag: %u",
       instance(),
       tableId,
       fragmentId,
       ptr.p->deleteDataFileNumber,
       ptr.p->deleteCtlFileNumber,
-      ptr.p->newestGci));
+      ptr.p->newestGci,
+      ptr.p->m_lcp_lsn_synced));
 
     Uint32 wait_for_gci = ptr.p->newestGci;
     if (m_our_node_started)

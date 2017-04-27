@@ -1101,6 +1101,7 @@ public:
   void lcp_update_ctl_page(BackupRecordPtr,
                                Page32Ptr&,
                                BackupFilePtr&);
+  Uint32 lcp_pre_sync_lsn(BackupRecordPtr);
   void start_execute_lcp(Signal* signal,
                          BackupRecordPtr ptr,
                          TablePtr & tabPtr,

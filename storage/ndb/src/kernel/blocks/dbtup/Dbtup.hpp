@@ -3617,6 +3617,8 @@ public:
                            Uint32 lcpId,
                            Uint32 localLcpId);
   
+  bool is_disk_columns_in_table(Uint32 tableId);
+
 private:
   // these 2 were file-static before mt-lqh
   bool f_undo_done;

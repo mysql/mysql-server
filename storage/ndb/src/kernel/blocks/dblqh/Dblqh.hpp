@@ -3672,6 +3672,8 @@ public:
   bool check_fire_trig_pass(Uint32 op, Uint32 pass);
 
   bool handleLCPSurfacing(Signal *signal);
+  bool is_disk_columns_in_table(Uint32 tableId);
+
   AlterTabReq c_keep_alter_tab_req;
   Uint32 c_keep_alter_tab_req_len;
   bool c_wait_lcp_surfacing;
