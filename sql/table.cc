@@ -2661,9 +2661,21 @@ static bool fix_fields_gcol_func(THD *thd, Field *field)
   save_use_only_table_context= thd->lex->use_only_table_context;
   thd->lex->use_only_table_context= TRUE;
 
-  /* Fix fields referenced to by the generated column function */
+  bool charset_switched= false;
+  const CHARSET_INFO *saved_collation_connection= func_expr->default_charset();
+  if (saved_collation_connection != table->s->table_charset)
+  {
+   thd->variables.collation_connection= table->s->table_charset;
+   charset_switched= true;
+  }
+
   Item *new_func= func_expr;
   error= func_expr->fix_fields(thd, &new_func);
+
+  /* Restore the current connection character set and collation. */
+  if (charset_switched)
+    thd->variables.collation_connection=  saved_collation_connection;
+
   /* Restore the original context*/
   thd->lex->use_only_table_context= save_use_only_table_context;
   context->table_list= save_table_list;
