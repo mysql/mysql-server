@@ -1474,7 +1474,7 @@ public:
                class thread_local_pool<thr_send_page>  & send_buffer_pool);
 
   /* Send thread method to send to a node picked by get_node */
-  bool handle_send_node(NodeId & node,
+  bool handle_send_node(NodeId node,
                         Uint32 & num_nodes_sent,
                         Uint32 thr_no,
                         NDB_TICKS & now,
@@ -2457,7 +2457,7 @@ thr_send_threads::assist_send_thread(Uint32 min_num_nodes,
 }
 
 bool
-thr_send_threads::handle_send_node(NodeId & node,
+thr_send_threads::handle_send_node(NodeId node,
                                    Uint32 & num_nodes_sent,
                                    Uint32 thr_no,
                                    NDB_TICKS & now,
@@ -2806,6 +2806,7 @@ thr_send_threads::run_send_thread(Uint32 instance_no)
       {
         break;
       }
+      node = 0;
     } // while (get_node()...)
 
     /* No more nodes having data to send right now, prepare to sleep */
