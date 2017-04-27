@@ -16009,6 +16009,12 @@ void Dblqh::execBACKUP_FRAGMENT_REF(Signal* signal)
   execBACKUP_FRAGMENT_CONF(signal);
 }
 
+bool
+Dblqh::is_disk_columns_in_table(Uint32 tableId)
+{
+  return c_tup->is_disk_columns_in_table(tableId);
+}
+
 void
 Dblqh::get_lcp_frag_stats(Uint64 & row_count,
                           Uint64 & row_change_count,

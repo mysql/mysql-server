@@ -1476,6 +1476,15 @@ Dbtup::handleCharsetPos(Uint32 csNumber, CHARSET_INFO** charsetArray,
   }
 }
 
+bool
+Dbtup::is_disk_columns_in_table(Uint32 tableId)
+{
+  TablerecPtr regTabPtr;
+  regTabPtr.i = tableId;
+  ptrCheckGuard(regTabPtr, cnoOfTablerec, tablerec);
+  return (regTabPtr.p->m_no_of_disk_attributes > 0);
+}
+
 /*
   This function (re-)computes aggregated metadata. It is called for
   both ALTER TABLE and CREATE TABLE.
