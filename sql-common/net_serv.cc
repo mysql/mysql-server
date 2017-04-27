@@ -34,12 +34,13 @@
 #include "my_byteorder.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
-#include "my_global.h"
-#include "mysql_com.h"
-#include "mysqld_error.h"
+#include "my_io.h"
+#include "my_macros.h"
+#include "my_sys.h"
 #include "mysql.h"
 #include "mysql/service_mysql_alloc.h"
-#include "my_sys.h"
+#include "mysql_com.h"
+#include "mysqld_error.h"
 
 using std::min;
 using std::max;
@@ -77,11 +78,11 @@ extern void thd_increment_bytes_received(size_t length);
 
 #define VIO_SOCKET_ERROR  ((size_t) -1)
 
-static my_bool net_write_buff(NET *, const uchar *, size_t);
+static bool net_write_buff(NET *, const uchar *, size_t);
 
 /** Init with packet info. */
 
-my_bool my_net_init(NET *net, Vio* vio)
+bool my_net_init(NET *net, Vio* vio)
 {
   DBUG_ENTER("my_net_init");
   net->vio = vio;
@@ -129,7 +130,7 @@ void net_claim_memory_ownership(NET *net)
 
 /** Realloc the packet buffer. */
 
-my_bool net_realloc(NET *net, size_t length)
+bool net_realloc(NET *net, size_t length)
 {
   uchar *buff;
   size_t pkt_length;
@@ -183,7 +184,7 @@ my_bool net_realloc(NET *net, size_t length)
 */
 
 void net_clear(NET *net,
-               my_bool check_buffer MY_ATTRIBUTE((unused)))
+               bool check_buffer MY_ATTRIBUTE((unused)))
 {
   DBUG_ENTER("net_clear");
 
@@ -200,9 +201,9 @@ void net_clear(NET *net,
 
 /** Flush write_buffer if not empty. */
 
-my_bool net_flush(NET *net)
+bool net_flush(NET *net)
 {
-  my_bool error= 0;
+  bool error= 0;
   DBUG_ENTER("net_flush");
   if (net->buff != net->write_pos)
   {
@@ -227,10 +228,10 @@ my_bool net_flush(NET *net)
   @retval FALSE   Operation should not be retried. Fatal error.
 */
 
-static my_bool
-net_should_retry(NET *net, uint *retry_count)
+static bool
+net_should_retry(NET *net, uint *retry_count MY_ATTRIBUTE((unused)))
 {
-  my_bool retry;
+  bool retry;
 
 #ifndef MYSQL_SERVER
   /*
@@ -358,7 +359,7 @@ net_should_retry(NET *net, uint *retry_count)
   @note If compression is used, the original packet is modified!
 */
 
-my_bool my_net_write(NET *net, const uchar *packet, size_t len)
+bool my_net_write(NET *net, const uchar *packet, size_t len)
 {
   uchar buff[NET_HEADER_SIZE];
   int rc;
@@ -432,7 +433,7 @@ my_bool my_net_write(NET *net, const uchar *packet, size_t len)
     1	error
 */
 
-my_bool
+bool
 net_write_command(NET *net,uchar command,
       const uchar *header, size_t head_len,
       const uchar *packet, size_t len)
@@ -503,7 +504,7 @@ net_write_command(NET *net,uchar command,
     1
 */
 
-static my_bool
+static bool
 net_write_buff(NET *net, const uchar *packet, size_t len)
 {
   ulong left_length;
@@ -564,7 +565,7 @@ net_write_buff(NET *net, const uchar *packet, size_t len)
   @return TRUE on error, FALSE on success.
 */
 
-static my_bool
+static bool
 net_write_raw_loop(NET *net, const uchar *buf, size_t count)
 {
   unsigned int retry_count= 0;
@@ -675,10 +676,10 @@ compress_packet(NET *net, const uchar *packet, size_t *length)
   @return TRUE on error, FALSE on success.
 */
 
-my_bool
+bool
 net_write_packet(NET *net, const uchar *packet, size_t length)
 {
-  my_bool res;
+  bool res;
   DBUG_ENTER("net_write_packet");
 
 #if defined(MYSQL_SERVER)
@@ -731,7 +732,7 @@ net_write_packet(NET *net, const uchar *packet, size_t length)
   @return TRUE on error, FALSE on success.
 */
 
-static my_bool net_read_raw_loop(NET *net, size_t count)
+static bool net_read_raw_loop(NET *net, size_t count)
 {
   bool eof= false;
   unsigned int retry_count= 0;
@@ -802,11 +803,11 @@ static my_bool net_read_raw_loop(NET *net, size_t count)
   @return TRUE on error, FALSE on success.
 */
 
-static my_bool net_read_packet_header(NET *net)
+static bool net_read_packet_header(NET *net)
 {
   uchar pkt_nr;
   size_t count= NET_HEADER_SIZE;
-  my_bool rc;
+  bool rc;
 
   if (net->compress)
     count+= COMP_HEADER_SIZE;

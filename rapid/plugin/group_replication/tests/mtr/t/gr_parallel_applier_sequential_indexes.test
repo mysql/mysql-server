@@ -10,6 +10,7 @@
 #   2) Empty transactions
 #   3) Management commands, like CREATE USER
 #
+--source include/big_test.inc
 --source ../inc/have_group_replication_plugin.inc
 
 --echo
@@ -76,7 +77,7 @@ CREATE DATABASE db1;
 --let $grep_file= $dump_file
 --let $grep_pattern= last_committed
 --let $grep_output= print_each
---replace_regex /# at [0-9]*/# at #/ /#[0-9]+/#time#/ /[[:space:]]+[0-9]+:[0-9]+:[0-9]+/ ##:##:##/ /end_log_pos [0-9]+/end_log_pos ##/
+--replace_regex /# at [0-9]*/# at #/ /#[0-9]+/#time#/ /[[:space:]]+[0-9]+:[0-9]+:[0-9]+/ ##:##:##/ /end_log_pos [0-9]+/end_log_pos ##/ /original_committed_timestamp=[0-9]*/original_committed_timestamp=##:##:##/ /immediate_commit_timestamp=[0-9]*/immediate_commit_timestamp=##:##:##/
 --source include/grep_pattern.inc
 --remove_file $dump_file
 

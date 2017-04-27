@@ -350,8 +350,8 @@ include/sync_slave_io_with_master.inc
 [connection master]
 [connection slave]
 include/wait_for_slave_param.inc [Slave_SQL_Running_State]
-include/assert.inc [(INNODB, sync_rli=0, step=2) SQL thread did not synced master binlog file]
-include/assert.inc [(INNODB, sync_rli=0, step=2) SQL thread did not synced master binlog position]
+Wait until (INNODB, sync_rli=0, step=2) SQL thread synced master binlog file
+Wait until (INNODB, sync_rli=0, step=2) SQL thread synced master binlog position
 include/gtid_step_assert.inc [count=1, only_count=0]
 [connection master]
 INSERT INTO t1 VALUES (1);
@@ -377,8 +377,8 @@ include/sync_slave_io_with_master.inc
 [connection master]
 [connection slave]
 include/wait_for_slave_param.inc [Slave_SQL_Running_State]
-include/assert.inc [(INNODB, sync_rli=0, step=5) SQL thread did not synced master binlog file]
-include/assert.inc [(INNODB, sync_rli=0, step=5) SQL thread did not synced master binlog position]
+Wait until (INNODB, sync_rli=0, step=5) SQL thread synced master binlog file
+Wait until (INNODB, sync_rli=0, step=5) SQL thread synced master binlog position
 include/gtid_step_assert.inc [count=1, only_count=0]
 include/stop_slave.inc
 include/start_slave_sql.inc
@@ -489,8 +489,8 @@ include/sync_slave_io_with_master.inc
 [connection master]
 [connection slave]
 include/wait_for_slave_param.inc [Slave_SQL_Running_State]
-include/assert.inc [(INNODB, sync_rli=0, step=18) SQL thread did not synced master binlog file]
-include/assert.inc [(INNODB, sync_rli=0, step=18) SQL thread did not synced master binlog position]
+Wait until (INNODB, sync_rli=0, step=18) SQL thread synced master binlog file
+Wait until (INNODB, sync_rli=0, step=18) SQL thread synced master binlog position
 include/gtid_step_assert.inc [count=1, only_count=0]
 [connection master]
 CREATE TABLE t1 (c1 int PRIMARY KEY) ENGINE=InnoDB;
@@ -498,8 +498,8 @@ include/sync_slave_io_with_master.inc
 [connection master]
 [connection slave]
 include/wait_for_slave_param.inc [Slave_SQL_Running_State]
-include/assert.inc [(INNODB, sync_rli=0, step=19) SQL thread did not synced master binlog file]
-include/assert.inc [(INNODB, sync_rli=0, step=19) SQL thread did not synced master binlog position]
+Wait until (INNODB, sync_rli=0, step=19) SQL thread synced master binlog file
+Wait until (INNODB, sync_rli=0, step=19) SQL thread synced master binlog position
 include/gtid_step_assert.inc [count=1, only_count=0]
 include/stop_slave.inc
 include/start_slave_sql.inc
@@ -559,8 +559,8 @@ include/sync_slave_io_with_master.inc
 [connection master]
 [connection slave]
 include/wait_for_slave_param.inc [Slave_SQL_Running_State]
-include/assert.inc [(INNODB, sync_rli=0, step=25) SQL thread did not synced master binlog file]
-include/assert.inc [(INNODB, sync_rli=0, step=25) SQL thread did not synced master binlog position]
+Wait until (INNODB, sync_rli=0, step=25) SQL thread synced master binlog file
+Wait until (INNODB, sync_rli=0, step=25) SQL thread synced master binlog position
 include/gtid_step_assert.inc [count=1, only_count=0]
 #
 # sync_relay_log_info= 1, transactional (InnoDB) storage engine

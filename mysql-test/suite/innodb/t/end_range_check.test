@@ -1,4 +1,3 @@
---source include/not_embedded.inc
 --source include/big_test.inc
 
 --echo # Bug #23481444	OPTIMISER CALL ROW_SEARCH_MVCC() AND READ

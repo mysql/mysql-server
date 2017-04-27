@@ -18,8 +18,10 @@
   Cursor on thread connect attributes.
 */
 
-#include "my_global.h"
-#include "cursor_by_thread_connect_attr.h"
+#include "storage/perfschema/cursor_by_thread_connect_attr.h"
+
+#include <stddef.h>
+
 #include "pfs_buffer_container.h"
 
 ha_rows

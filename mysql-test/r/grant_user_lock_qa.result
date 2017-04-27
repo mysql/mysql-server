@@ -138,7 +138,7 @@ SHOW STATUS LIKE 'locked_connects';
 Variable_name	Value
 Locked_connects	2
 FLUSH STATUS;
-SELECT * FROM INFORMATION_SCHEMA.user_privileges WHERE GRANTEE LIKE '%user%';
+SELECT * FROM INFORMATION_SCHEMA.user_privileges WHERE GRANTEE LIKE '%user%' AND GRANTEE NOT IN ("'mysql.session_user'@'localhost'");
 GRANTEE	TABLE_CATALOG	PRIVILEGE_TYPE	IS_GRANTABLE
 'user2'@'localhost'	def	CREATE USER	NO
 'user8'@'localhost'	def	USAGE	NO
@@ -425,7 +425,7 @@ plugin	mysql_native_password
 authentication_string	#
 ssl_type	X509
 password_expired	N
-password_lifetime	NULL
+password_lifetime	0
 account_locked	N
 
 SHOW CREATE USER u6@localhost;
@@ -543,7 +543,7 @@ ssl_cipher
 x509_issuer	
 x509_subject	/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client
 password_expired	N
-password_lifetime	NULL
+password_lifetime	0
 account_locked	N
 
 SHOW CREATE USER u9@localhost;

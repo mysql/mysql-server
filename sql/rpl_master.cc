@@ -36,6 +36,7 @@
 #include "my_byteorder.h"
 #include "my_command.h"
 #include "my_dbug.h"
+#include "my_io.h"
 #include "my_psi_config.h"
 #include "my_sys.h"
 #include "mysql/psi/mysql_file.h"
@@ -64,7 +65,7 @@
 
 
 int max_binlog_dump_events = 0; // unlimited
-my_bool opt_sporadic_binlog_dump_fail = 0;
+bool opt_sporadic_binlog_dump_fail = 0;
 
 #define SLAVE_LIST_CHUNK 128
 HASH slave_list;

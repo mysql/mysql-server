@@ -15,6 +15,7 @@
 
 #include "my_dbug.h"
 #include "my_double2ulonglong.h"
+#include "my_macros.h"
 #include "myisamdef.h"
 #include "rt_index.h"
 #include "rt_mbr.h"

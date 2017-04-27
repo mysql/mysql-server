@@ -380,15 +380,16 @@
 
 #include "current_thd.h"
 #include "key.h"                                // key_copy
+#include "lex_string.h"
 #include "m_string.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
+#include "my_macros.h"
 #include "my_psi_config.h"
 #include "myisam.h"                             // TT_USEFRM
 #include "mysql/psi/mysql_memory.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysqld.h"                             // my_localhost
-#include "sql_analyse.h"         // append_escaped
 #include "sql_class.h"
 #include "sql_servers.h"         // FOREIGN_SERVER, get_server_by_name
 #include "template_utils.h"
@@ -1440,8 +1441,8 @@ bool ha_federated::create_where_from_key(String *to,
           {
             goto err;
           }
-          break;
         }
+        break;
       case HA_READ_KEY_OR_NEXT:
         DBUG_PRINT("info", ("federated HA_READ_KEY_OR_NEXT %d", i));
         if (emit_key_part_name(&tmp, key_part) ||
@@ -1459,8 +1460,8 @@ bool ha_federated::create_where_from_key(String *to,
               emit_key_part_element(&tmp, key_part, needs_quotes, 0, ptr,
                                     part_length))
             goto err;
-          break;
         }
+        break;
       case HA_READ_KEY_OR_PREV:
         DBUG_PRINT("info", ("federated HA_READ_KEY_OR_PREV %d", i));
         if (emit_key_part_name(&tmp, key_part) ||

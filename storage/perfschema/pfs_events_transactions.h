@@ -21,10 +21,13 @@
   Events transactions data structures (declarations).
 */
 
+#include <sys/types.h>
+
 #include "my_inttypes.h"
 #include "mysql/plugin.h" /* MYSQL_XIDDATASIZE */
 #include "pfs_column_types.h"
 #include "pfs_events.h"
+#include "pfs_global.h"
 #include "rpl_gtid.h"
 
 struct PFS_thread;
@@ -86,7 +89,7 @@ struct PFS_events_transactions : public PFS_events
   /** Global Transaction ID specifier. */
   Gtid_specification m_gtid_spec;
   /** True if XA transaction. */
-  my_bool m_xa;
+  bool m_xa;
   /** XA transaction ID. */
   PSI_xid m_xid;
   /** XA status */
@@ -94,9 +97,9 @@ struct PFS_events_transactions : public PFS_events
   /** Transaction isolation level. */
   enum_isolation_level m_isolation_level;
   /** True if read-only transaction, otherwise read-write. */
-  my_bool m_read_only;
+  bool m_read_only;
   /** True if autocommit transaction. */
-  my_bool m_autocommit;
+  bool m_autocommit;
   /** Total number of savepoints. */
   ulonglong m_savepoint_count;
   /** Number of rollback_to_savepoint. */

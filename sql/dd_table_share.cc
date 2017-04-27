@@ -23,7 +23,7 @@
 #include "dd/cache/dictionary_client.h"       // dd::cache::Dictionary_client
 #include "dd/collection.h"
 #include "dd/dd_schema.h"                     // dd::schema_exists
-#include "dd/dd_table.h"                      // dd::abstract_table_type
+#include "dd/dd_table.h"                      // dd::FIELD_NAME_SEPARATOR_CHAR
 #include "dd/dd_tablespace.h"                 // dd::get_tablespace_name
 // TODO: Avoid exposing dd/impl headers in public files.
 #include "dd/impl/utils.h"                    // dd::eat_str
@@ -38,10 +38,12 @@
 #include "dd/types/partition_value.h"         // dd::Partition_value
 #include "dd/types/table.h"                   // dd::Table
 #include "default_values.h"                   // prepare_default_value_buffer...
+#include "error_handler.h"                    // Internal_error_handler
 #include "field.h"
 #include "handler.h"
 #include "hash.h"
 #include "key.h"
+#include "lex_string.h"
 #include "log.h"                              // sql_print_error
 #include "my_base.h"
 #include "my_bitmap.h"
@@ -49,6 +51,7 @@
 #include "my_compiler.h"
 #include "my_config.h"
 #include "my_dbug.h"
+#include "my_macros.h"
 #include "mysql/plugin.h"
 #include "mysql/psi/psi_base.h"
 #include "mysql_com.h"
@@ -252,14 +255,14 @@ bool is_suitable_for_primary_key(KEY_PART_INFO *key_part,
 }
 
 /**
-  Prepare TABLE_SHARE from dd::Table object or by reading metadata
-  from dd.tables.
+  Finalize preparation of TABLE_SHARE from dd::Table object by filling
+  in remaining info about columns and keys.
 
   This code similar to code in open_binary_frm(). Can be re-written
   independent to other efforts later.
 */
 
-static bool prepare_share(THD *thd, TABLE_SHARE *share)
+static bool prepare_share(THD *thd, TABLE_SHARE *share, const dd::Table *table_def)
 {
   my_bitmap_map *bitmaps;
   bool use_hash;
@@ -322,8 +325,21 @@ static bool prepare_share(THD *thd, TABLE_SHARE *share)
       keyinfo= share->key_info;
       key_part= keyinfo->key_part;
 
+      dd::Table::Index_collection::const_iterator idx_it(table_def->indexes().
+                                                         begin());
+
       for (uint key=0 ; key < share->keys ; key++,keyinfo++)
       {
+          /*
+            Skip hidden dd::Index objects so idx_it is in sync with key index
+            and keyinfo pointer.
+          */
+          while ((*idx_it)->is_hidden())
+          {
+            ++idx_it;
+            continue;
+          }
+
           uint usable_parts= 0;
           keyinfo->name=(char*) share->keynames.type_names[key];
 
@@ -351,10 +367,29 @@ static bool prepare_share(THD *thd, TABLE_SHARE *share)
                 break;
               }
             }
+
+            /*
+              Check that dd::Index::is_candidate_key() used by SEs works in
+              the same way as above call to is_suitable_for_primary_key().
+            */
+            DBUG_ASSERT((primary_key == key) == (*idx_it)->is_candidate_key());
           }
+
+          dd::Index::Index_elements::const_iterator idx_el_it((*idx_it)->
+                                                      elements().begin());
 
           for (uint i=0 ; i < keyinfo->user_defined_key_parts ; key_part++,i++)
           {
+              /*
+                Skip hidden Index_element objects so idx_el_it is in sync with
+                i and key_part pointer.
+              */
+              while ((*idx_el_it)->is_hidden())
+              {
+                ++idx_el_it;
+                continue;
+              }
+
               Field *field= key_part->field;
 
               key_part->type= field->key_type();
@@ -432,6 +467,14 @@ static bool prepare_share(THD *thd, TABLE_SHARE *share)
 #endif
                   key_part->key_part_flag|= HA_PART_KEY_SEG;
               }
+
+              /*
+                Check that dd::Index_element::is_prefix() used by SEs works in
+                the same way as code which sets HA_PART_KEY_SEG flag.
+              */
+              DBUG_ASSERT((*idx_el_it)->is_prefix() ==
+                          static_cast<bool>(key_part->key_part_flag & HA_PART_KEY_SEG));
+              ++idx_el_it;
           }
 
           /*
@@ -460,6 +503,8 @@ static bool prepare_share(THD *thd, TABLE_SHARE *share)
           if ((keyinfo->flags & HA_NOSAME) ||
                   (ha_option & HA_ANY_INDEX_MAY_BE_UNIQUE))
               set_if_bigger(share->max_unique_length,keyinfo->key_length);
+
+          ++idx_it;
       }
       if (primary_key < MAX_KEY &&
               (share->keys_in_use.is_set(primary_key)))
@@ -592,10 +637,6 @@ static bool fill_share_from_dd(THD *thd, TABLE_SHARE *share, const dd::Table *ta
 
     DBUG_ASSERT(hton && ha_storage_engine_is_enabled(hton));
     DBUG_ASSERT(!ha_check_storage_engine_flag(hton, HTON_NOT_USER_SELECTABLE));
-
-    // For a partitioned table, the SE must support partitioning natively.
-    DBUG_ASSERT(tab_obj->partition_type() == dd::Table::PT_NONE ||
-                hton->partition_flags);
 
     plugin_unlock(NULL, share->db_plugin);
     share->db_plugin= my_plugin_lock(NULL, &tmp_plugin);
@@ -799,7 +840,8 @@ static uint column_preamble_bits(const dd::Column *col_obj)
   object to TABLE_SHARE.
 */
 
-static bool fill_column_from_dd(TABLE_SHARE *share,
+static bool fill_column_from_dd(THD *thd,
+                                TABLE_SHARE *share,
                                 const dd::Column *col_obj,
                                 uchar *null_pos,
                                 uint null_bit_pos,
@@ -870,7 +912,8 @@ static bool fill_column_from_dd(TABLE_SHARE *share,
                     "invalid collation id %llu for table %s, column %s",
                     MYF(0), col_obj->collation_id(), share->table_name.str,
                     name);
-    return true;
+    if (thd->is_error())
+      return true;
   }
 
   // Decimals
@@ -1055,7 +1098,7 @@ static bool fill_column_from_dd(TABLE_SHARE *share,
   from dd::Table object.
 */
 
-static bool fill_columns_from_dd(TABLE_SHARE *share, const dd::Table *tab_obj)
+static bool fill_columns_from_dd(THD *thd, TABLE_SHARE *share, const dd::Table *tab_obj)
 {
   // Allocate space for fields in TABLE_SHARE.
   uint fields_size= ((share->fields+1)*sizeof(Field*));
@@ -1087,7 +1130,7 @@ static bool fill_columns_from_dd(TABLE_SHARE *share, const dd::Table *tab_obj)
     */
     if (!col_obj->is_virtual())
     {
-      if (fill_column_from_dd(share, col_obj, null_pos, null_bit_pos,
+      if (fill_column_from_dd(thd, share, col_obj, null_pos, null_bit_pos,
                               rec_pos, field_nr))
         return true;
 
@@ -1131,7 +1174,7 @@ static bool fill_columns_from_dd(TABLE_SHARE *share, const dd::Table *tab_obj)
       if (col_obj2->is_virtual())
       {
         // Fill details of each column.
-        if (fill_column_from_dd(share, col_obj2, null_pos, null_bit_pos,
+        if (fill_column_from_dd(thd, share, col_obj2, null_pos, null_bit_pos,
                                 rec_pos, field_nr))
           return true;
 
@@ -1232,7 +1275,8 @@ static void fill_index_elements_from_dd(TABLE_SHARE *share,
   the TABLE_SHARE.
 */
 
-static bool fill_index_from_dd(TABLE_SHARE *share, const dd::Index *idx_obj,
+static bool fill_index_from_dd(THD* thd, TABLE_SHARE *share,
+                               const dd::Index *idx_obj,
                                uint key_nr)
 {
   //
@@ -1358,7 +1402,8 @@ static bool fill_index_from_dd(TABLE_SHARE *share, const dd::Index *idx_obj,
     if (! keyinfo->parser)
     {
       my_error(ER_PLUGIN_IS_NOT_LOADED, MYF(0), parser_name.str);
-      return true;
+      if (thd->is_error())
+        return true;
     }
 
     keyinfo->flags|= HA_USES_PARSER;
@@ -1387,7 +1432,8 @@ static bool fill_index_from_dd(TABLE_SHARE *share, const dd::Index *idx_obj,
   from dd::Table object.
 */
 
-static bool fill_indexes_from_dd(TABLE_SHARE *share, const dd::Table *tab_obj)
+static bool fill_indexes_from_dd(THD *thd, TABLE_SHARE *share,
+                                 const dd::Table *tab_obj)
 {
   uint32 primary_key_parts= 0;
 
@@ -1492,7 +1538,7 @@ static bool fill_indexes_from_dd(TABLE_SHARE *share, const dd::Table *tab_obj)
       if (idx_obj->is_hidden())
         continue;
 
-      if (fill_index_from_dd(share, idx_obj, key_nr))
+      if (fill_index_from_dd(thd, share, idx_obj, key_nr))
         return true;
 
       index_at_pos[key_nr]= idx_obj;
@@ -2202,99 +2248,24 @@ static bool fill_partitioning_from_dd(THD *thd, TABLE_SHARE *share,
 }
 
 
-bool open_table_def(THD *thd, TABLE_SHARE *share, bool open_view,
-                    const dd::Table *table_def)
+bool open_table_def(THD *thd, TABLE_SHARE *share, const dd::Table &table_def)
 {
   DBUG_ENTER("open_table_def");
-
-  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
-
-  // Assume base table, we find it is a view a bit later.
-  dd::enum_table_type dd_table_type= dd::enum_table_type::BASE_TABLE;
-
-  if (!table_def)
-  {
-    // Make sure the schema exists.
-    bool exists= false;
-    if (dd::schema_exists(thd, share->db.str, &exists))
-      DBUG_RETURN(true);
-
-    if (!exists)
-    {
-      my_error(ER_BAD_DB_ERROR, MYF(0), share->db.str);
-      DBUG_RETURN(true);
-    }
-
-    if (dd::abstract_table_type(thd->dd_client(), share->db.str,
-                                share->table_name.str,
-                                &dd_table_type))
-    {
-      // Error is reported in dd_abstract_table_type().
-      DBUG_RETURN(true);
-    }
-
-    if (dd_table_type == dd::enum_table_type::USER_VIEW ||
-        dd_table_type == dd::enum_table_type::SYSTEM_VIEW)
-    {
-      if (!open_view)
-      {
-        // We found a view but were trying to open table only.
-        my_error(ER_NO_SUCH_TABLE, MYF(0), share->db.str, share->table_name.str);
-        DBUG_RETURN(true);
-      }
-      /*
-        Create view reference object and hold it in TABLE_SHARE member view_object.
-        Read it from DD
-      */
-      share->is_view= true;
-      const dd::View *tmp_view= nullptr;
-      if (thd->dd_client()->acquire(share->db.str,
-                                    share->table_name.str,
-                                    &tmp_view))
-      {
-        DBUG_ASSERT(thd->is_error() || thd->killed);
-        DBUG_RETURN(true);
-      }
-
-      if (!tmp_view)
-      {
-        my_error(ER_NO_SUCH_TABLE, MYF(0), share->db.str, share->table_name.str);
-        DBUG_RETURN(true);
-      }
-      share->view_object= tmp_view->clone();
-
-      share->table_category= get_table_category(share->db, share->table_name);
-      thd->status_var.opened_shares++;
-      DBUG_RETURN(false);
-    }
-    else // BASE_TABLE
-    {
-      (void) thd->dd_client()->acquire(share->db.str,
-                                       share->table_name.str,
-                                       &table_def);
-    }
-  }
-
-  if (!table_def)
-  {
-    DBUG_ASSERT(thd->is_error() || thd->killed);
-    DBUG_RETURN(true);
-  }
 
   MEM_ROOT *old_root= thd->mem_root;
   thd->mem_root= &share->mem_root; // Needed for make_field()++
   share->blob_fields= 0; // HACK
 
   // Fill the TABLE_SHARE with details.
-  bool error=  (fill_share_from_dd(thd, share, table_def) ||
-                fill_columns_from_dd(share, table_def) ||
-                fill_indexes_from_dd(share, table_def) ||
-                fill_partitioning_from_dd(thd, share, table_def));
+  bool error=  (fill_share_from_dd(thd, share, &table_def) ||
+                fill_columns_from_dd(thd, share, &table_def) ||
+                fill_indexes_from_dd(thd, share, &table_def) ||
+                fill_partitioning_from_dd(thd, share, &table_def));
 
   thd->mem_root= old_root;
 
   if (!error)
-    error= prepare_share(thd, share);
+    error= prepare_share(thd, share, &table_def);
 
   if (!error)
   {
@@ -2305,3 +2276,35 @@ bool open_table_def(THD *thd, TABLE_SHARE *share, bool open_view,
   DBUG_RETURN(true);
 }
 
+
+/*
+  Ignore errors related to invalid collation and missing parser during
+  open_table_def().
+*/
+class Open_table_error_handler : public Internal_error_handler
+{
+public:
+  virtual bool handle_condition(THD*,
+                                uint sql_errno,
+                                const char*,
+                                Sql_condition::enum_severity_level*,
+                                const char*)
+  {
+    return (sql_errno == ER_UNKNOWN_COLLATION ||
+            sql_errno == ER_PLUGIN_IS_NOT_LOADED);
+  }
+};
+
+
+bool open_table_def_suppress_invalid_meta_data(THD *thd, TABLE_SHARE *share,
+                                               const dd::Table &table_def)
+{
+  Open_table_error_handler error_handler;
+  thd->push_internal_handler(&error_handler);
+  bool error= open_table_def(thd, share, table_def);
+  thd->pop_internal_handler();
+  return error;
+}
+
+
+//////////////////////////////////////////////////////////////////////////

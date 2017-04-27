@@ -2,13 +2,12 @@
 # This test case will test basic encryption support features.
 
 --source include/no_valgrind_without_big.inc
---source include/not_embedded.inc
 --source include/have_innodb_max_16k.inc
 --source include/have_debug.inc
+
 #let $KEYRING_PLUGIN = 'keyring_file.so';
 
-# Create a table with encryption, should fail since keyring is not
-# loaded
+--disable_query_log
 call mtr.add_suppression("\\[Error\\] InnoDB: Encryption can't find master key, please check the keyring plugin is loaded.");
 call mtr.add_suppression("\\[ERROR\\] InnoDB: Failed to find tablespace for table `\.\.*`\.`\.\.*` in the cache.");
 call mtr.add_suppression("\\[ERROR\\] InnoDB: Operating system error number 2 in a file operation.");
@@ -16,7 +15,13 @@ call mtr.add_suppression("\\[ERROR\\] InnoDB: The error means the system cannot 
 call mtr.add_suppression("\\[ERROR\\] InnoDB: Could not find a valid tablespace file for");
 call mtr.add_suppression("ibd can't be decrypted , please confirm the keyfile is match and keyring plugin is loaded.");
 call mtr.add_suppression("\\[Warning\\] InnoDB: Ignoring tablespace .* because it could not be opened");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: Unable to open tablespace .* \\(flags=.*, filename=./test/t1.ibd");
 call mtr.add_suppression("\\[ERROR\\] InnoDB: If you are installing InnoDB, remember that you must create directories yourself, InnoDB does not create them.");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: Unable to open tablespace .* \\(flags=.*, filename=");
+--enable_query_log
+
+# Create a table with encryption, should fail since keyring is not
+# loaded
 --error ER_CANNOT_FIND_KEY_IN_KEYRING
 CREATE TABLE t1(c1 INT, c2 char(20)) ENCRYPTION="Y" ENGINE = InnoDB;
 
@@ -264,9 +269,8 @@ SET GLOBAL innodb_file_per_table=OFF;
 
 CREATE TABLE t1 (c1 int);
 
---disable_warnings
+--error ER_ILLEGAL_HA_CREATE_OPTION
 ALTER TABLE t1 COMPRESSION='zlib';
---enable_warnings
 
 --error ER_TABLESPACE_CANNOT_ENCRYPT
 ALTER TABLE t1 ENCRYPTION='Y',ALGORITHM=COPY;

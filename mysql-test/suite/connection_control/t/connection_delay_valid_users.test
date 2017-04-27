@@ -1,6 +1,3 @@
-# Skip the test in embedded mode
---source include/not_embedded.inc
-
 # Make sure that connection_control plugin can be loaded
 --source ../inc/have_connection_control_plugin.inc
 

@@ -13,10 +13,10 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
-#include <my_global.h>
 #include <mysql/components/service_implementation.h>
 #include <mysql/plugin.h>
 #include <mysql_version.h>
+#include <stddef.h>
 
 #include "my_dbug.h"
 
@@ -259,7 +259,7 @@ static int test_services_plugin_init(void *p)
   @retval 1 failure
 */
 
-static int test_services_plugin_deinit(void *p)
+static int test_services_plugin_deinit(void*)
 {
   DBUG_ENTER("test_services_plugin_deinit");
   DBUG_RETURN(0);

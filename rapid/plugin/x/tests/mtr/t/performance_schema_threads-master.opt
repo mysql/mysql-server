@@ -1,4 +1,3 @@
---plugin_dir=$MYSQLXPLUGIN_DIR
 --loose-mysqlx-idle-worker-thread-timeout=1
 --performance_schema=ON
 --performance-schema-instrument='%/mysqlx/%=COUNTED'

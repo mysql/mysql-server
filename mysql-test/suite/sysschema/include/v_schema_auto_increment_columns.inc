@@ -1,5 +1,4 @@
 -- source include/big_test.inc
--- source include/not_embedded.inc
 -- source ../include/ps_truncate_all_tables.inc
 # Tests for sys schema
 # Verify the sys.schema_auto_increment_columns view

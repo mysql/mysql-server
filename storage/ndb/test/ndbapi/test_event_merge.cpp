@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -67,24 +67,24 @@
  */
 
 struct Opts {
-  my_bool abort_on_error;
+  bool abort_on_error;
   int blob_version;
   int loglevel;
   uint loop;
   uint maxops;
   uint maxpk;
-  my_bool no_blobs;
-  my_bool no_implicit_nulls;
-  my_bool no_missing_update;
-  my_bool no_multiops;
-  my_bool no_nulls;
-  my_bool one_blob;
+  bool no_blobs;
+  bool no_implicit_nulls;
+  bool no_missing_update;
+  bool no_multiops;
+  bool no_nulls;
+  bool one_blob;
   const char* opstring;
   uint seed;
   int maxtab;
-  my_bool separate_events;
+  bool separate_events;
   uint tweak; // whatever's useful
-  my_bool use_table;
+  bool use_table;
 };
 
 static Opts g_opts;

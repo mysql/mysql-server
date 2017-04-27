@@ -26,6 +26,8 @@ Created 6/2/1994 Heikki Tuuri
 
 #include "btr0btr.h"
 
+#include <sys/types.h>
+
 #include "fsp0sysspace.h"
 #include "gis0rtree.h"
 #include "my_dbug.h"
@@ -887,7 +889,6 @@ btr_free_root(
 	fseg_header_t*	header;
 
 	ut_ad(mtr_memo_contains_flagged(mtr, block, MTR_MEMO_PAGE_X_FIX));
-	ut_ad(mtr->is_named_space(block->page.id.space()));
 
 	btr_search_drop_page_hash_index(block);
 
@@ -981,7 +982,6 @@ btr_create(
 	page_t*			page;
 	page_zip_des_t*		page_zip;
 
-	ut_ad(mtr->is_named_space(space));
 	ut_ad(index_id != BTR_FREED_INDEX_ID);
 
 	/* Create the two new segments (one, in the case of an ibuf tree) for
@@ -1125,7 +1125,6 @@ btr_free_but_not_root(
 leaf_loop:
 	mtr_start(&mtr);
 	mtr_set_log_mode(&mtr, log_mode);
-	mtr.set_named_space(block->page.id.space());
 
 	page_t*	root = block->frame;
 
@@ -1150,7 +1149,6 @@ leaf_loop:
 top_loop:
 	mtr_start(&mtr);
 	mtr_set_log_mode(&mtr, log_mode);
-	mtr.set_named_space(block->page.id.space());
 
 	root = block->frame;
 
@@ -1189,7 +1187,6 @@ btr_free_if_exists(
 	}
 
 	btr_free_but_not_root(root, mtr->get_log_mode());
-	mtr->set_named_space(page_id.space());
 	btr_free_root(root, mtr);
 	btr_free_root_invalidate(root, mtr);
 }
@@ -1248,8 +1245,6 @@ btr_truncate(
 
 	block = buf_page_get(page_id, page_size, RW_X_LATCH, &mtr);
 
-	mtr.set_named_space(space);
-
 	page_t*			page = buf_block_get_frame(block);
 	ut_ad(page_is_root(page));
 
@@ -1262,7 +1257,6 @@ btr_truncate(
 	mtr.commit();
 
 	mtr.start();
-	mtr.set_named_space(space);
 
 	block = buf_page_get(page_id, page_size, RW_X_LATCH, &mtr);
 
@@ -5332,7 +5326,6 @@ btr_sdi_create_indexes(
 
 	mtr_t	mtr;
 	mtr.start();
-	mtr.set_named_space(space_id);
 
 	const page_size_t	page_size = page_size_t(space->flags);
 

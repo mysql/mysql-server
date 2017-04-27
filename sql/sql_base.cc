@@ -21,12 +21,18 @@
 #include <limits.h>
 #include <string.h>
 #include <time.h>
+#include <algorithm>
 
 #include "auth_acls.h"
 #include "auth_common.h"              // check_table_access
 #include "binlog.h"                   // mysql_bin_log
 #include "check_stack.h"
+#include "dd/cache/dictionary_client.h"
+#include "dd/dd_schema.h"
+#include "dd/dd_table.h"              // dd::table_exists
+#include "dd/dd_tablespace.h"         // dd::fill_table_and_parts_tablespace_name
 #include "dd/types/abstract_table.h"
+#include "dd/types/table.h"           // dd::Table
 #include "dd_table_share.h"           // open_table_def
 #include "debug_sync.h"               // DEBUG_SYNC
 #include "derror.h"                   // ER_THD
@@ -43,18 +49,23 @@
 #include "log_event.h"                // Query_log_event
 #include "m_ctype.h"
 #include "mf_wcomp.h"                 // wild_one, wild_many
+#include "mutex_lock.h"
 #include "my_bitmap.h"
 #include "my_byteorder.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_dir.h"
+#include "my_io.h"
+#include "my_macros.h"
 #include "my_psi_config.h"
 #include "my_sqlcommand.h"
 #include "my_sys.h"
 #include "my_systime.h"
+#include "my_table_map.h"
 #include "my_thread_local.h"
 #include "mysql/plugin.h"
 #include "mysql/psi/mysql_cond.h"
+#include "mysql/psi/mysql_file.h"
 #include "mysql/psi/mysql_table.h"
 #include "mysql/psi/psi_base.h"
 #include "mysql/psi/psi_cond.h"
@@ -70,6 +81,7 @@
 #include "query_options.h"
 #include "rpl_gtid.h"
 #include "rpl_handler.h"              // RUN_HOOK
+#include "rpl_rli.h"                  //Relay_log_information
 #include "session_tracker.h"
 #include "sp.h"                       // Sroutine_hash_entry
 #include "sp_cache.h"                 // sp_cache_version
@@ -104,16 +116,6 @@
 #include "transaction.h"              // trans_rollback_stmt
 #include "transaction_info.h"
 #include "xa.h"
-#include "rpl_rli.h"                  //Relay_log_information
-
-#include <algorithm>
-
-#include "dd/dd_table.h"              // dd::table_exists
-#include "dd/dd_tablespace.h"         // dd::fill_table_and_parts_tablespace_name
-#include "dd/dd_trigger.h"            // dd::table_has_triggers
-#include "dd/types/table.h"           // dd::Table
-#include "mutex_lock.h"
-#include "mysql/psi/mysql_file.h"
 
 /**
   This internal handler is used to trap ER_NO_SUCH_TABLE and
@@ -128,11 +130,11 @@ public:
     : m_handled_errors(false), m_unhandled_errors(false)
   {}
 
-  virtual bool handle_condition(THD *thd,
+  virtual bool handle_condition(THD*,
                                 uint sql_errno,
-                                const char* sqlstate,
-                                Sql_condition::enum_severity_level *level,
-                                const char* msg)
+                                const char*,
+                                Sql_condition::enum_severity_level*,
+                                const char*)
   {
     if (sql_errno == ER_NO_SUCH_TABLE || sql_errno == ER_WRONG_MRG_TABLE)
     {
@@ -278,11 +280,14 @@ static bool table_def_shutdown_in_progress= false;
 
 static bool check_and_update_table_version(THD *thd, TABLE_LIST *tables,
                                            TABLE_SHARE *table_share);
-static bool open_table_entry_fini(THD *thd, TABLE_SHARE *share, TABLE *entry);
+static bool open_table_entry_fini(THD *thd, TABLE_SHARE *share,
+                                  const dd::Table *table, TABLE *entry);
 static bool auto_repair_table(THD *thd, TABLE_LIST *table_list);
 static TABLE *find_temporary_table(THD *thd,
                                    const char *table_key,
                                    size_t table_key_length);
+static bool tdc_open_view(THD *thd, TABLE_LIST *table_list,
+                          const char *cache_key, size_t cache_key_length);
 
 /**
   Create a table cache/table definition cache key
@@ -478,6 +483,62 @@ uint cached_table_definitions(void)
 }
 
 
+static TABLE_SHARE *process_found_table_share(THD *thd MY_ATTRIBUTE((unused)),
+                                              TABLE_SHARE *share,
+                                              bool open_view)
+{
+  DBUG_ENTER("process_found_table_share");
+  mysql_mutex_assert_owner(&LOCK_open);
+#if defined(ENABLED_DEBUG_SYNC)
+  if (!thd->is_attachable_ro_transaction_active())
+    DEBUG_SYNC(thd, "get_share_found_share");
+#endif
+  /*
+     We found an existing table definition. Return it if we didn't get
+     an error when reading the table definition from file.
+  */
+  if (share->error)
+  {
+    /*
+      Table definition contained an error.
+      Note that we report ER_NO_SUCH_TABLE regardless of which error occured
+      when the other thread tried to open the table definition (e.g. OOM).
+    */
+    my_error(ER_NO_SUCH_TABLE, MYF(0), share->db.str, share->table_name.str);
+    DBUG_RETURN(NULL);
+  }
+  if (share->is_view && !open_view)
+  {
+    my_error(ER_NO_SUCH_TABLE, MYF(0), share->db.str, share->table_name.str);
+    DBUG_RETURN(NULL);
+  }
+
+  ++share->ref_count;
+
+  if (share->ref_count == 1 && share->prev)
+  {
+    /*
+      Share was not used before and it was in the old_unused_share list
+      Unlink share from this list
+    */
+    DBUG_PRINT("info", ("Unlinking from not used list"));
+    *share->prev= share->next;
+    share->next->prev= share->prev;
+    share->next= 0;
+    share->prev= 0;
+  }
+
+   /* Free cache if too big */
+  while (table_def_cache.records > table_def_size &&
+         oldest_unused_share->next)
+    my_hash_delete(&table_def_cache, (uchar*) oldest_unused_share);
+
+  DBUG_PRINT("exit", ("share: %p ref_count: %u",
+                      share, share->ref_count));
+  DBUG_RETURN(share);
+}
+
+
 /**
   Get the TABLE_SHARE for a table.
 
@@ -504,7 +565,8 @@ uint cached_table_definitions(void)
         Otherwise, we may end up in deadlocks that will not be detected.
 
   @param thd                thread handle
-  @param table_list         table that should be opened
+  @param db                 schema name
+  @param table_name         table name
   @param key                table cache key
   @param key_length         length of key
   @param open_view          allow open of view
@@ -513,7 +575,8 @@ uint cached_table_definitions(void)
   @return Pointer to the new TABLE_SHARE, or NULL if there was an error
 */
 
-TABLE_SHARE *get_table_share(THD *thd, TABLE_LIST *table_list,
+TABLE_SHARE *get_table_share(THD *thd, const char *db,
+                             const char *table_name,
                              const char *key, size_t key_length,
                              bool open_view, my_hash_value_type hash_value)
 {
@@ -529,8 +592,8 @@ TABLE_SHARE *get_table_share(THD *thd, TABLE_LIST *table_list,
     some kind of metadata lock on it.
   */
   DBUG_ASSERT(thd->mdl_context.owns_equal_or_stronger_lock(MDL_key::TABLE,
-                                 table_list->db, table_list->table_name,
-                                 MDL_SHARED));
+                                                           db, table_name,
+                                                           MDL_SHARED));
 
   /*
     Read table definition from the cache. If the share is being opened,
@@ -545,7 +608,7 @@ TABLE_SHARE *get_table_share(THD *thd, TABLE_LIST *table_list,
                        key_length))))
   {
     if (!share->m_open_in_progress)
-      goto found;
+      DBUG_RETURN(process_found_table_share(thd, share, open_view));
 
     mysql_cond_wait(&COND_open, &LOCK_open);
   }
@@ -555,7 +618,7 @@ TABLE_SHARE *get_table_share(THD *thd, TABLE_LIST *table_list,
     thread will be waiting for m_open_in_progress. Hence, a broadcast is
     not necessary.
   */
-  if (!(share= alloc_table_share(table_list, key, key_length)))
+  if (!(share= alloc_table_share(db, table_name, key, key_length)))
   {
     DBUG_RETURN(NULL);
   }
@@ -605,7 +668,50 @@ TABLE_SHARE *get_table_share(THD *thd, TABLE_LIST *table_list,
     DEBUG_SYNC(thd, "get_share_before_open");
 #endif
 
-  open_table_err= open_table_def(thd, share, open_view, NULL);
+  {
+    // We must make sure the schema is released and unlocked in the right order.
+    dd::Schema_MDL_locker mdl_handler(thd);
+    dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+    const dd::Schema *sch= nullptr;
+    const dd::Abstract_table *abstract_table= nullptr;
+    open_table_err= true; // Assume error to simplify code below.
+    if (mdl_handler.ensure_locked(share->db.str) ||
+        thd->dd_client()->acquire(share->db.str, &sch) ||
+        thd->dd_client()->acquire(share->db.str, share->table_name.str, &
+                                  abstract_table))
+    { }
+    else if (sch == nullptr)
+      my_error(ER_BAD_DB_ERROR, MYF(0), share->db.str);
+    else if (abstract_table == nullptr)
+      my_error(ER_NO_SUCH_TABLE, MYF(0), share->db.str, share->table_name.str);
+    else if (abstract_table->type() == dd::enum_table_type::USER_VIEW ||
+             abstract_table->type() == dd::enum_table_type::SYSTEM_VIEW)
+    {
+      if (!open_view) // We found a view but were trying to open table only.
+        my_error(ER_NO_SUCH_TABLE, MYF(0), share->db.str, share->table_name.str);
+      else
+      {
+        /*
+          Clone the view reference object and hold it in
+          TABLE_SHARE member view_object.
+        */
+        share->is_view= true;
+        const dd::View *tmp_view= dynamic_cast<const dd::View*>(abstract_table);
+        share->view_object= tmp_view->clone();
+
+        share->table_category= get_table_category(share->db, share->table_name);
+        thd->status_var.opened_shares++;
+        open_table_err= false;
+      }
+    }
+    else
+    {
+      DBUG_ASSERT(abstract_table->type() == dd::enum_table_type::BASE_TABLE);
+      open_table_err=
+        open_table_def(thd, share,
+                       *dynamic_cast<const dd::Table*>(abstract_table));
+    }
+  }
 
   /*
     Get back LOCK_open before continuing. Notify all waiters that the
@@ -662,55 +768,6 @@ TABLE_SHARE *get_table_share(THD *thd, TABLE_LIST *table_list,
                              key_length));
 #endif
   DBUG_RETURN(share);
-
-found:
-#if defined(ENABLED_DEBUG_SYNC)
-  if (!thd->is_attachable_ro_transaction_active())
-    DEBUG_SYNC(thd, "get_share_found_share");
-#endif
-  /*
-     We found an existing table definition. Return it if we didn't get
-     an error when reading the table definition from file.
-  */
-  if (share->error)
-  {
-    /*
-      Table definition contained an error.
-      Note that we report ER_NO_SUCH_TABLE regardless of which error occured
-      when the other thread tried to open the table definition (e.g. OOM).
-    */
-    my_error(ER_NO_SUCH_TABLE, MYF(0), share->db.str, share->table_name.str);
-    DBUG_RETURN(NULL);
-  }
-  if (share->is_view && !open_view)
-  {
-    my_error(ER_NO_SUCH_TABLE, MYF(0), share->db.str, share->table_name.str);
-    DBUG_RETURN(NULL);
-  }
-
-  ++share->ref_count;
-
-  if (share->ref_count == 1 && share->prev)
-  {
-    /*
-      Share was not used before and it was in the old_unused_share list
-      Unlink share from this list
-    */
-    DBUG_PRINT("info", ("Unlinking from not used list"));
-    *share->prev= share->next;
-    share->next->prev= share->prev;
-    share->next= 0;
-    share->prev= 0;
-  }
-
-   /* Free cache if too big */
-  while (table_def_cache.records > table_def_size &&
-         oldest_unused_share->next)
-    my_hash_delete(&table_def_cache, (uchar*) oldest_unused_share);
-
-  DBUG_PRINT("exit", ("share: %p ref_count: %u",
-                      share, share->ref_count));
-  DBUG_RETURN(share);
 }
 
 
@@ -730,8 +787,8 @@ get_table_share_with_discover(THD *thd, TABLE_LIST *table_list,
   bool exists;
   DBUG_ENTER("get_table_share_with_create");
 
-  share= get_table_share(thd, table_list, key, key_length, true,
-                         hash_value);
+  share= get_table_share(thd, table_list->db, table_list->table_name,
+                         key, key_length, true, hash_value);
   /*
     If share is not NULL, we found an existing share.
 
@@ -863,7 +920,6 @@ void release_table_share(TABLE_SHARE *share)
   by another thread (m_open_in_progress flag is true) return share.
   Do not wait for share opening to finish.
 
-  @param thd        thread descriptor.
   @param db         database name.
   @param table_name table name.
 
@@ -872,7 +928,7 @@ void release_table_share(TABLE_SHARE *share)
 */
 
 static
-TABLE_SHARE *get_cached_table_share(THD *thd, const char *db,
+TABLE_SHARE *get_cached_table_share(const char *db,
                                     const char *table_name)
 {
   char key[MAX_DBKEY_LENGTH];
@@ -1081,7 +1137,7 @@ bool close_cached_tables(THD *thd, TABLE_LIST *tables,
     bool found=0;
     for (TABLE_LIST *table= tables; table; table= table->next_local)
     {
-      TABLE_SHARE *share= get_cached_table_share(thd, table->db,
+      TABLE_SHARE *share= get_cached_table_share(table->db,
                                                  table->table_name);
 
       if (share)
@@ -1172,7 +1228,7 @@ bool close_cached_tables(THD *thd, TABLE_LIST *tables,
     {
       for (TABLE_LIST *table= tables; table; table= table->next_local)
       {
-        share= get_cached_table_share(thd, table->db, table->table_name);
+        share= get_cached_table_share(table->db, table->table_name);
         if (share && share->has_old_version())
         {
 	  found= TRUE;
@@ -1526,6 +1582,7 @@ void close_thread_tables(THD *thd)
       if (table->db_stat)
         table->file->extra(HA_EXTRA_DETACH_CHILDREN);
       table->cleanup_gc_items();
+      table->cleanup_partial_update();
     }
   }
 
@@ -1712,7 +1769,7 @@ void close_thread_table(THD *thd, TABLE **table_ptr)
 
 
 /* close_temporary_tables' internal, 4 is due to uint4korr definition */
-static inline uint  tmpkeyval(THD *thd, TABLE *table)
+static inline uint tmpkeyval(TABLE *table)
 {
   return uint4korr(table->s->table_cache_key.str + table->s->table_cache_key.length - 4);
 }
@@ -1834,7 +1891,7 @@ bool close_temporary_tables(THD *thd)
            prev_sorted= sorted, sorted= sorted->next)
       {
         if (!is_user_table(sorted) ||
-            tmpkeyval(thd, sorted) > tmpkeyval(thd, table))
+            tmpkeyval(sorted) > tmpkeyval(table))
         {
           /* move into the sorted part of the list from the unsorted */
           prev_table->next= table->next;
@@ -1861,6 +1918,16 @@ bool close_temporary_tables(THD *thd)
     thd->variables.option_bits |= OPTION_QUOTE_SHOW_CREATE;
   }
 
+  /*
+    Make LEX consistent with DROP TEMPORARY TABLES statement which we
+    are going to log. This is important for the binary logging code.
+  */
+  LEX *lex=thd->lex;
+  enum_sql_command sav_sql_command= lex->sql_command;
+  bool sav_drop_temp= lex->drop_temporary;
+  lex->sql_command= SQLCOM_DROP_TABLE;
+  lex->drop_temporary= true;
+
   /* scan sorted tmps to generate sequence of DROP */
   for (table= thd->temporary_tables; table; table= next)
   {
@@ -1869,7 +1936,7 @@ bool close_temporary_tables(THD *thd)
       bool save_thread_specific_used= thd->thread_specific_used;
       my_thread_id save_pseudo_thread_id= thd->variables.pseudo_thread_id;
       /* Set pseudo_thread_id to be that of the processed table */
-      thd->variables.pseudo_thread_id= tmpkeyval(thd, table);
+      thd->variables.pseudo_thread_id= tmpkeyval(table);
       String db;
       db.append(table->s->db.str);
       /* Loop forward through all tables that belong to a common database
@@ -1879,7 +1946,7 @@ bool close_temporary_tables(THD *thd)
       for (s_query_trans.length(stub_len), s_query_non_trans.length(stub_len),
            found_trans_table= false, found_non_trans_table= false;
            table && is_user_table(table) &&
-             tmpkeyval(thd, table) == thd->variables.pseudo_thread_id &&
+             tmpkeyval(table) == thd->variables.pseudo_thread_id &&
              table->s->db.length == db.length() &&
              strcmp(table->s->db.str, db.ptr()) == 0;
            table= next)
@@ -1992,6 +2059,9 @@ bool close_temporary_tables(THD *thd)
       slave_closed_temp_tables++;
     }
   }
+  lex->drop_temporary= sav_drop_temp;
+  lex->sql_command= sav_sql_command;
+
   if (!was_quote_show)
     thd->variables.option_bits&= ~OPTION_QUOTE_SHOW_CREATE; /* restore option */
 
@@ -2035,7 +2105,6 @@ TABLE_LIST *find_table_in_global_list(TABLE_LIST *table,
 /**
   Test that table is unique (It's only exists once in the table list)
 
-  @param  thd          thread handle
   @param  table        table to be checked (must be updatable base table)
   @param  table_list   list of tables
   @param  check_alias  whether to check tables' aliases
@@ -2066,7 +2135,7 @@ TABLE_LIST *find_table_in_global_list(TABLE_LIST *table,
   @retval 0 if table is unique
 */
 
-static TABLE_LIST* find_dup_table(THD *thd, const TABLE_LIST *table,
+static TABLE_LIST* find_dup_table(const TABLE_LIST *table,
                                   TABLE_LIST *table_list, bool check_alias)
 {
   TABLE_LIST *res;
@@ -2149,7 +2218,6 @@ next:
   tables of @c table (if any) are listed right after it and that
   their @c parent_l field points at the main table.
 
-  @param  thd        thread handle
   @param  table      table to be checked (must be updatable base table)
   @param  table_list List of tables to check against
   @param  check_alias whether to check tables' aliases
@@ -2159,7 +2227,7 @@ next:
   @retval NULL     No duplicates found.
 */
 
-TABLE_LIST *unique_table(THD *thd, const TABLE_LIST *table,
+TABLE_LIST *unique_table(const TABLE_LIST *table,
                          TABLE_LIST *table_list, bool check_alias)
 {
   DBUG_ASSERT(table == ((TABLE_LIST *)table)->updatable_base_table());
@@ -2173,12 +2241,12 @@ TABLE_LIST *unique_table(THD *thd, const TABLE_LIST *table,
     for (child= table->next_global; child && child->parent_l == table;
          child= child->next_global)
     {
-      if ((dup= find_dup_table(thd, child, child->next_global, check_alias)))
+      if ((dup= find_dup_table(child, child->next_global, check_alias)))
         break;
     }
   }
   else
-    dup= find_dup_table(thd, table, table_list, check_alias);
+    dup= find_dup_table(table, table_list, check_alias);
   return dup;
 }
 
@@ -2428,7 +2496,7 @@ void close_temporary(THD *thd, TABLE *table, bool free_share, bool delete_table)
 */
 
 bool rename_temporary_table(THD* thd, TABLE *table, const char *db,
-			    const char *table_name)
+                            const char *table_name)
 {
   char *key;
   size_t key_length;
@@ -2502,7 +2570,7 @@ bool wait_while_table_is_used(THD *thd, TABLE *table,
     @retval  FALSE  No error. 'exists' out parameter set accordingly.
 */
 
-bool check_if_table_exists(THD *thd, TABLE_LIST *table, bool *exists)
+static bool check_if_table_exists(THD *thd, TABLE_LIST *table, bool *exists)
 {
   DBUG_ENTER("check_if_table_exists");
 
@@ -2512,10 +2580,8 @@ bool check_if_table_exists(THD *thd, TABLE_LIST *table, bool *exists)
               owns_equal_or_stronger_lock(MDL_key::TABLE, table->db,
                                           table->table_name, MDL_SHARED));
 
-  if (dd::table_exists<dd::Abstract_table>(thd->dd_client(),
-                                           table->db,
-                                           table->table_name,
-                                           exists))
+  if (dd::table_exists(thd->dd_client(), table->db,
+                       table->table_name, exists))
     DBUG_RETURN(true); // Error is already reported.
 
   if (*exists)
@@ -2546,11 +2612,11 @@ public:
     : m_ot_ctx(ot_ctx_arg), m_is_active(FALSE)
   {}
 
-  virtual bool handle_condition(THD *thd,
+  virtual bool handle_condition(THD*,
                                 uint sql_errno,
-                                const char* sqlstate,
-                                Sql_condition::enum_severity_level *level,
-                                const char* msg)
+                                const char*,
+                                Sql_condition::enum_severity_level*,
+                                const char*)
   {
     if (! m_is_active && sql_errno == ER_LOCK_DEADLOCK)
     {
@@ -2776,7 +2842,7 @@ tdc_wait_for_old_version(THD *thd, const char *db, const char *table_name,
   bool res= FALSE;
 
   mysql_mutex_lock(&LOCK_open);
-  if ((share= get_cached_table_share(thd, db, table_name)) &&
+  if ((share= get_cached_table_share(db, table_name)) &&
       share->has_old_version())
   {
     struct timespec abstime;
@@ -3000,11 +3066,11 @@ bool open_table(THD *thd, TABLE_LIST *table_list, Open_table_context *ot_ctx)
         during prelocking process (in this case in theory we still
         should hold shared metadata lock on it).
       */
-      dd::enum_table_type table_type;
-      if (!dd::abstract_table_type(thd->dd_client(), table_list->db,
-                                   table_list->table_name, &table_type) &&
-          (table_type == dd::enum_table_type::USER_VIEW ||
-           table_type == dd::enum_table_type::SYSTEM_VIEW))
+      dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+      const dd::View *view= nullptr;
+      if (!thd->dd_client()->acquire(table_list->db,
+                                     table_list->table_name, &view) &&
+          view != nullptr)
       {
         /*
           If parent_l of the table_list is non null then a merge table
@@ -3016,8 +3082,7 @@ bool open_table(THD *thd, TABLE_LIST *table_list, Open_table_context *ot_ctx)
           DBUG_RETURN(true);
         }
 
-        if (!tdc_open_view(thd, table_list, alias, key, key_length,
-                           CHECK_METADATA_VERSION))
+        if (!tdc_open_view(thd, table_list, key, key_length))
         {
           DBUG_ASSERT(table_list->is_view());
           DBUG_RETURN(FALSE); // VIEW
@@ -3278,31 +3343,24 @@ retry_share:
   */
   if (share->is_view)
   {
+    bool view_open_result= true;
     /*
       If parent_l of the table_list is non null then a merge table
       has this view as child table, which is not supported.
     */
     if (table_list->parent_l)
-    {
       my_error(ER_WRONG_MRG_TABLE, MYF(0));
-      goto err_unlock;
-    }
-
     /*
       This table is a view. Validate its metadata version: in particular,
       that it was a view when the statement was prepared.
     */
-    if (check_and_update_table_version(thd, table_list, share))
-      goto err_unlock;
-    if (table_list->i_s_requested_object & OPEN_TABLE_ONLY)
-    {
+    else if (check_and_update_table_version(thd, table_list, share))
+      ;
+    else if (table_list->i_s_requested_object & OPEN_TABLE_ONLY)
       my_error(ER_NO_SUCH_TABLE, MYF(0), table_list->db,
                table_list->table_name);
-      goto err_unlock;
-    }
-
-    /* Open view */
-    bool view_open_result= open_and_read_view(thd, share, table_list);
+    else /* Open view */
+      view_open_result= open_and_read_view(thd, share, table_list);
 
     /* TODO: Don't free this */
     release_table_share(share);
@@ -3385,61 +3443,73 @@ share_found:
   }
 
   mysql_mutex_unlock(&LOCK_open);
-  DEBUG_SYNC(thd, "open_table_found_share");
 
   DEBUG_SYNC(thd, "open_table_found_share");
 
-  /* make a new table */
-  if (!(table= (TABLE*) my_malloc(key_memory_TABLE,
-                                  sizeof(*table), MYF(MY_WME))))
-    goto err_lock;
-
-  error= open_table_from_share(thd, share, alias,
-                               ((flags & MYSQL_OPEN_NO_NEW_TABLE_IN_SE) ?
-                                0 :
-                                ((uint) (HA_OPEN_KEYFILE |
-                                         HA_OPEN_RNDFILE |
-                                         HA_GET_INDEX |
-                                         HA_TRY_READ_ONLY))),
-                                       EXTRA_RECORD,
-                               thd->open_options, table, false,
-                               nullptr);
-
-  if (error)
   {
-    my_free(table);
-
-    if (error == 7)
-      (void) ot_ctx->request_backoff_action(Open_table_context::OT_DISCOVER,
-                                            table_list);
-    else if (error == 8)
-      (void) ot_ctx->request_backoff_action(Open_table_context::OT_FIX_ROW_TYPE,
-                                            table_list);
-    else if (share->crashed)
-      (void) ot_ctx->request_backoff_action(Open_table_context::OT_REPAIR,
-                                            table_list);
-    goto err_lock;
-  }
-  else if (share->crashed)
-  {
-    switch (thd->lex->sql_command) {
-    case SQLCOM_ALTER_TABLE:
-    case SQLCOM_REPAIR:
-    case SQLCOM_CHECK:
-    case SQLCOM_SHOW_CREATE:
-      break;
-    default:
-      closefrm(table, 0);
-      my_free(table);
-      my_error(ER_CRASHED_ON_USAGE, MYF(0), share->table_name.str);
+    dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+    const dd::Table *table_def= nullptr;
+    if (!(flags & MYSQL_OPEN_NO_NEW_TABLE_IN_SE) &&
+        thd->dd_client()->acquire(share->db.str, share->table_name.str,
+                                  &table_def))
+    {
+      // Error is reported by the dictionary subsystem.
       goto err_lock;
     }
-  }
-  if (open_table_entry_fini(thd, share, table))
-  {
-    closefrm(table, 0);
-    my_free(table);
-    goto err_lock;
+
+    /* make a new table */
+    if (!(table= (TABLE*) my_malloc(key_memory_TABLE,
+                                    sizeof(*table), MYF(MY_WME))))
+      goto err_lock;
+
+    error= open_table_from_share(thd, share, alias,
+                                 ((flags & MYSQL_OPEN_NO_NEW_TABLE_IN_SE) ?
+                                  0 :
+                                  ((uint) (HA_OPEN_KEYFILE |
+                                           HA_OPEN_RNDFILE |
+                                           HA_GET_INDEX |
+                                           HA_TRY_READ_ONLY))),
+                                 EXTRA_RECORD,
+                                 thd->open_options, table, false,
+                                 table_def);
+
+    if (error)
+    {
+      my_free(table);
+
+      if (error == 7)
+        (void) ot_ctx->request_backoff_action(Open_table_context::OT_DISCOVER,
+                                              table_list);
+      else if (error == 8)
+        (void) ot_ctx->request_backoff_action(Open_table_context::OT_FIX_ROW_TYPE,
+                                              table_list);
+      else if (share->crashed)
+        (void) ot_ctx->request_backoff_action(Open_table_context::OT_REPAIR,
+                                              table_list);
+      goto err_lock;
+    }
+    else if (share->crashed)
+    {
+      switch (thd->lex->sql_command) {
+      case SQLCOM_ALTER_TABLE:
+      case SQLCOM_REPAIR:
+      case SQLCOM_CHECK:
+      case SQLCOM_SHOW_CREATE:
+        break;
+      default:
+        closefrm(table, 0);
+        my_free(table);
+        my_error(ER_CRASHED_ON_USAGE, MYF(0), share->table_name.str);
+        goto err_lock;
+      }
+    }
+
+    if (open_table_entry_fini(thd, share, table_def, table))
+    {
+      closefrm(table, 0);
+      my_free(table);
+      goto err_lock;
+    }
   }
   {
     /* Add new TABLE object to table cache for this connection. */
@@ -3503,7 +3573,6 @@ table_found:
 
 err_lock:
   mysql_mutex_lock(&LOCK_open);
-err_unlock:
   release_table_share(share);
   mysql_mutex_unlock(&LOCK_open);
 
@@ -4165,10 +4234,8 @@ check_and_update_routine_version(THD *thd, Sroutine_hash_entry *rt,
 
    @param thd               Thread handle
    @param table_list        TABLE_LIST with db, table_name & belong_to_view
-   @param alias             Alias name
    @param cache_key         Key for table definition cache
    @param cache_key_length  Length of cache_key
-   @param flags             Flags which modify how we open the view
 
    @todo This function is needed for special handling of views under
          LOCK TABLES. We probably should get rid of it in long term.
@@ -4176,8 +4243,8 @@ check_and_update_routine_version(THD *thd, Sroutine_hash_entry *rt,
    @return FALSE if success, TRUE - otherwise.
 */
 
-bool tdc_open_view(THD *thd, TABLE_LIST *table_list, const char *alias,
-                   const char *cache_key, size_t cache_key_length, uint flags)
+static bool tdc_open_view(THD *thd, TABLE_LIST *table_list,
+                          const char *cache_key, size_t cache_key_length)
 {
   my_hash_value_type hash_value;
   TABLE_SHARE *share;
@@ -4186,27 +4253,28 @@ bool tdc_open_view(THD *thd, TABLE_LIST *table_list, const char *alias,
                            cache_key_length);
   mysql_mutex_lock(&LOCK_open);
 
-  if (!(share= get_table_share(thd, table_list, cache_key,
-                               cache_key_length,
+  if (!(share= get_table_share(thd, table_list->db, table_list->table_name,
+                               cache_key, cache_key_length,
                                true, hash_value)))
-    goto err;
-
-  if ((flags & CHECK_METADATA_VERSION))
   {
-    /*
-      Check TABLE_SHARE-version of view only if we have been instructed to do
-      so. We do not need to check the version if we're executing CREATE VIEW or
-      ALTER VIEW statements.
+    mysql_mutex_unlock(&LOCK_open);
+    return true;
+  }
 
-      In the future, this functionality should be moved out from
-      tdc_open_view(), and  tdc_open_view() should became a part of a clean
-      table-definition-cache interface.
-    */
-    if (check_and_update_table_version(thd, table_list, share))
-    {
-      release_table_share(share);
-      goto err;
-    }
+  /*
+    Check TABLE_SHARE-version of view only if we have been instructed to do
+    so. We do not need to check the version if we're executing CREATE VIEW or
+    ALTER VIEW statements.
+
+    In the future, this functionality should be moved out from
+    tdc_open_view(), and  tdc_open_view() should became a part of a clean
+    table-definition-cache interface.
+  */
+  if (check_and_update_table_version(thd, table_list, share))
+  {
+    release_table_share(share);
+    mysql_mutex_unlock(&LOCK_open);
+    return true;
   }
 
   if (share->is_view)
@@ -4219,18 +4287,13 @@ bool tdc_open_view(THD *thd, TABLE_LIST *table_list, const char *alias,
     if (view_open_result)
       return true;
 
-    bool view_parse_result= false;
-    if (!(flags & OPEN_VIEW_NO_PARSE))
-      view_parse_result= parse_view_definition(thd, table_list);
-
-    return view_parse_result;
+    return parse_view_definition(thd, table_list);
   }
 
   my_error(ER_WRONG_OBJECT, MYF(0), share->db.str, share->table_name.str, "VIEW");
   release_table_share(share);
-err:
   mysql_mutex_unlock(&LOCK_open);
-  return TRUE;
+  return true;
 }
 
 
@@ -4239,18 +4302,14 @@ err:
    and taking action if a HEAP table content was emptied implicitly.
 */
 
-static bool open_table_entry_fini(THD *thd, TABLE_SHARE *share, TABLE *entry)
+static bool open_table_entry_fini(THD *thd, TABLE_SHARE *share,
+                                  const dd::Table *table, TABLE *entry)
 {
-  bool table_has_trigger;
-  if (dd::table_has_triggers(thd, share->db.str, share->table_name.str,
-                             &table_has_trigger))
-    return true;
-
-  if (table_has_trigger)
+  if (table != nullptr && table->has_trigger())
   {
     Table_trigger_dispatcher *d= Table_trigger_dispatcher::create(entry);
 
-    if (!d || d->check_n_load(thd, false))
+    if (!d || d->check_n_load(thd, *table))
     {
       delete d;
       return true;
@@ -4318,8 +4377,8 @@ static bool auto_repair_table(THD *thd, TABLE_LIST *table_list)
                            cache_key_length);
   mysql_mutex_lock(&LOCK_open);
 
-  if (!(share= get_table_share(thd, table_list, cache_key,
-                               cache_key_length,
+  if (!(share= get_table_share(thd, table_list->db, table_list->table_name,
+                               cache_key, cache_key_length,
                                true, hash_value)))
     goto end_unlock;
 
@@ -4383,11 +4442,11 @@ end_unlock:
 class Fix_row_type_error_handler : public Internal_error_handler
 {
 public:
-  virtual bool handle_condition(THD *thd,
+  virtual bool handle_condition(THD*,
                                 uint sql_errno,
-                                const char* sqlstate,
-                                Sql_condition::enum_severity_level *level,
-                                const char* msg)
+                                const char*,
+                                Sql_condition::enum_severity_level*,
+                                const char*)
   {
     return sql_errno == ER_GET_ERRNO &&
            my_errno() == HA_ERR_ROW_FORMAT_CHANGED;
@@ -4423,8 +4482,8 @@ static bool fix_row_type(THD *thd, TABLE_LIST *table_list)
     No_such_table_error_handler no_such_table_handler;
     thd->push_internal_handler(&no_such_table_handler);
 
-    share= get_table_share(thd, table_list, cache_key, cache_key_length,
-                           true, hash_value);
+    share= get_table_share(thd, table_list->db, table_list->table_name,
+                           cache_key, cache_key_length, true, hash_value);
 
     thd->pop_internal_handler();
 
@@ -4457,6 +4516,16 @@ static bool fix_row_type(THD *thd, TABLE_LIST *table_list)
     }
   }
 
+  int error= 0;
+  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+  dd::Table *table_def= nullptr;
+  if (thd->dd_client()->acquire_for_modification(share->db.str,
+                                                 share->table_name.str,
+                                                 &table_def))
+    error= 1;
+
+  DBUG_ASSERT(table_def != nullptr);
+
   /*
     Silence expected HA_ERR_ROW_FORMAT_CHANGED errors.
   */
@@ -4464,26 +4533,45 @@ static bool fix_row_type(THD *thd, TABLE_LIST *table_list)
   thd->push_internal_handler(&err_handler);
 
   TABLE tmp_table;
-  int error= open_table_from_share(thd, share, table_list->alias,
-                                   (uint) (HA_OPEN_KEYFILE | HA_OPEN_RNDFILE |
-                                           HA_GET_INDEX | HA_TRY_READ_ONLY),
-                                   EXTRA_RECORD, ha_open_options, &tmp_table,
-                                   false, NULL);
+  if (error == 0)
+    error= open_table_from_share(thd, share, table_list->alias,
+                                  (uint) (HA_OPEN_KEYFILE | HA_OPEN_RNDFILE |
+                                          HA_GET_INDEX | HA_TRY_READ_ONLY),
+                                  EXTRA_RECORD, ha_open_options, &tmp_table,
+                                  false, table_def);
 
   thd->pop_internal_handler();
 
-  bool result;
   if (error == 8)
   {
-    result= dd::fix_row_type(thd, share);
+    Disable_autocommit_guard autocommit_guard(thd);
+    HA_CREATE_INFO create_info;
+    create_info.row_type= share->row_type;
+    create_info.table_options= share->db_options_in_use;
+
+    handler *file= get_new_handler(share, share->m_part_info != NULL,
+                                   thd->mem_root, share->db_type());
+    if (file != nullptr)
+    {
+      row_type correct_row_type= file->get_real_row_type(&create_info);
+      bool result= dd::fix_row_type(thd, table_def, correct_row_type);
+      delete file;
+
+      if (result)
+      {
+        trans_rollback_stmt(thd);
+        trans_rollback(thd);
+      }
+      else
+      {
+        result= trans_commit_stmt(thd) || trans_commit(thd);
+        if (!result)
+          error= 0;
+      }
+    }
   }
-  else if (!error)
-  {
+  else if (error == 0)
     closefrm(&tmp_table, 0);
-    result= false;
-  }
-  else
-    result= true;
 
   table_cache_manager.lock_all_and_tdc();
   release_table_share(share);
@@ -4495,7 +4583,7 @@ static bool fix_row_type(THD *thd, TABLE_LIST *table_list)
                    table_list->db, table_list->table_name,
                    TRUE);
   table_cache_manager.unlock_all_and_tdc();
-  return result;
+  return error != 0;
 }
 
 
@@ -4624,9 +4712,9 @@ class MDL_deadlock_discovery_repair_handler : public Internal_error_handler
 public:
   virtual bool handle_condition(THD *thd,
                                 uint sql_errno,
-                                const char* sqlstate,
-                                Sql_condition::enum_severity_level *level,
-                                const char* msg)
+                                const char*,
+                                Sql_condition::enum_severity_level*,
+                                const char*)
   {
     if (sql_errno == ER_LOCK_DEADLOCK)
     {
@@ -4901,14 +4989,13 @@ open_and_process_routine(THD *thd, Query_tables_list *prelocking_ctx,
                          Open_table_context *ot_ctx,
                          bool *need_prelocking, bool *routine_modifies_data)
 {
-  MDL_key::enum_mdl_namespace mdl_type= rt->mdl_request.key.mdl_namespace();
   *routine_modifies_data= false;
   DBUG_ENTER("open_and_process_routine");
 
-  switch (mdl_type)
+  switch (rt->type())
   {
-  case MDL_key::FUNCTION:
-  case MDL_key::PROCEDURE:
+  case Sroutine_hash_entry::FUNCTION:
+  case Sroutine_hash_entry::PROCEDURE:
     {
       sp_head *sp;
       /*
@@ -4919,13 +5006,15 @@ open_and_process_routine(THD *thd, Query_tables_list *prelocking_ctx,
         up there, not the CALL itself.
       */
       if (rt != prelocking_ctx->sroutines_list.first ||
-          mdl_type != MDL_key::PROCEDURE)
+          rt->type() != Sroutine_hash_entry::PROCEDURE)
       {
-        /*
-          Since we acquire only shared lock on routines we don't
-          need to care about global intention exclusive locks.
-        */
-        DBUG_ASSERT(rt->mdl_request.type == MDL_SHARED);
+        MDL_request mdl_request;
+
+        MDL_REQUEST_INIT_BY_PART_KEY(&mdl_request,
+            (rt->type() == Sroutine_hash_entry::FUNCTION) ?
+            MDL_key::FUNCTION : MDL_key::PROCEDURE,
+            rt->part_mdl_key(), rt->part_mdl_key_length(), rt->db_length(),
+            MDL_SHARED, MDL_TRANSACTION);
 
         /*
           Waiting for a conflicting metadata lock to go away may
@@ -4939,7 +5028,7 @@ open_and_process_routine(THD *thd, Query_tables_list *prelocking_ctx,
         MDL_deadlock_handler mdl_deadlock_handler(ot_ctx);
 
         thd->push_internal_handler(&mdl_deadlock_handler);
-        bool result= thd->mdl_context.acquire_lock(&rt->mdl_request,
+        bool result= thd->mdl_context.acquire_lock(&mdl_request,
                                                    ot_ctx->get_timeout());
         thd->pop_internal_handler();
 
@@ -4979,7 +5068,7 @@ open_and_process_routine(THD *thd, Query_tables_list *prelocking_ctx,
       }
     }
     break;
-  case MDL_key::TRIGGER:
+  case Sroutine_hash_entry::TRIGGER:
     /**
       We add trigger entries to lex->sroutines_list, but we don't
       load them here. The trigger entry is only used when building
@@ -5028,9 +5117,6 @@ open_and_process_routine(THD *thd, Query_tables_list *prelocking_ctx,
   @param[in]     lex                  LEX structure for statement.
   @param[in]     tables               Table list element to be processed.
   @param[in,out] counter              Number of tables which are open.
-  @param[in]     flags                Bitmap of flags to modify how the tables
-                                      will be open, see open_table() description
-                                      for details.
   @param[in]     prelocking_strategy  Strategy which specifies how the
                                       prelocking set should be extended
                                       when table or view is processed.
@@ -5045,7 +5131,7 @@ open_and_process_routine(THD *thd, Query_tables_list *prelocking_ctx,
 
 static bool
 open_and_process_table(THD *thd, LEX *lex, TABLE_LIST *const tables,
-                       uint *counter, uint flags,
+                       uint *counter,
                        Prelocking_strategy *prelocking_strategy,
                        bool has_prelocking_list,
                        Open_table_context *ot_ctx)
@@ -5616,8 +5702,6 @@ lock_table_names(THD *thd,
   @param tables_start  Start of list of tables on which upgradable locks
                        should be searched for.
   @param tables_end    End of list of tables.
-  @param flags         Bitmap of flags to modify how the tables will be
-                       open, see open_table() description for details.
 
   @retval FALSE  Success.
   @retval TRUE   Failure (e.g. connection was killed)
@@ -5625,7 +5709,7 @@ lock_table_names(THD *thd,
 
 static bool
 open_tables_check_upgradable_mdl(THD *thd, TABLE_LIST *tables_start,
-                                 TABLE_LIST *tables_end, uint flags)
+                                 TABLE_LIST *tables_end)
 {
   TABLE_LIST *table;
 
@@ -5777,8 +5861,7 @@ restart:
         need to check if appropriate locks were pre-acquired.
       */
       if (open_tables_check_upgradable_mdl(thd, *start,
-                                           thd->lex->first_not_own_table(),
-                                           flags))
+                                           thd->lex->first_not_own_table()))
       {
         error= TRUE;
         goto err;
@@ -5819,7 +5902,7 @@ restart:
          table_to_open= &tables->next_global, tables= tables->next_global)
     {
       error= open_and_process_table(thd, thd->lex, tables, counter,
-                                    flags, prelocking_strategy,
+                                    prelocking_strategy,
                                     has_prelocking_list, &ot_ctx);
 
       if (error)
@@ -6013,19 +6096,6 @@ restart:
     }
 
     /*
-      When we implicitly open DD tables used by a IS query in LOCK TABLE mode,
-      we do not go through mysql_lock_tables(), which sets lock type to use
-      by SE. Here, we request SE to use read lock for these implicitly opened
-      DD tables using ha_external_lock().
-    */
-    if (tbl && in_LTM(thd) && belongs_to_dd_table(tables))
-    {
-      DBUG_ASSERT(tbl->file->get_lock_type() == F_UNLCK);
-      tbl->file->init_table_handle_for_HANDLER();
-      tbl->file->ha_external_lock(thd, F_RDLCK);
-    }
-
-    /*
       Check if this is a DD table used under a I_S view
       then tell innodb to do non-locking reads on the table.
     */
@@ -6068,6 +6138,19 @@ restart:
         error= TRUE;
         goto err;
       }
+    }
+
+    /*
+      When we implicitly open DD tables used by a IS query in LOCK TABLE mode,
+      we do not go through mysql_lock_tables(), which sets lock type to use
+      by SE. Here, we request SE to use read lock for these implicitly opened
+      DD tables using ha_external_lock().
+    */
+    if (tbl && in_LTM(thd) && belongs_to_dd_table(tables))
+    {
+      DBUG_ASSERT(tbl->file->get_lock_type() == F_UNLCK);
+      tbl->file->init_table_handle_for_HANDLER();
+      tbl->file->ha_external_lock(thd, F_RDLCK);
     }
 
   } // End of for(;;)
@@ -6118,7 +6201,7 @@ handle_routine(THD *thd, Query_tables_list *prelocking_ctx,
   */
 
   if (rt != prelocking_ctx->sroutines_list.first ||
-      rt->mdl_request.key.mdl_namespace() != MDL_key::PROCEDURE)
+      rt->type() != Sroutine_hash_entry::PROCEDURE)
   {
     *need_prelocking= TRUE;
     sp_update_stmt_used_routines(thd, prelocking_ctx, &sp->m_sroutines,
@@ -6255,8 +6338,8 @@ handle_table(THD *thd, Query_tables_list *prelocking_ctx,
 */
 
 bool Alter_table_prelocking_strategy::
-handle_routine(THD *thd, Query_tables_list *prelocking_ctx,
-               Sroutine_hash_entry *rt, sp_head *sp, bool *need_prelocking)
+handle_routine(THD*, Query_tables_list*,
+               Sroutine_hash_entry*, sp_head*, bool*)
 {
   return FALSE;
 }
@@ -6267,21 +6350,11 @@ handle_routine(THD *thd, Query_tables_list *prelocking_ctx,
   table list elements.
 
   Unlike in DML, we do not process triggers here.
-
-  @param[in]  thd              Thread context.
-  @param[in]  prelocking_ctx   Prelocking context of the statement.
-  @param[in]  table_list       Table list element for table.
-  @param[out] need_prelocking  Set to TRUE if method detects that prelocking
-                               required, not changed otherwise.
-
-
-  @retval FALSE  Success.
-  @retval TRUE   Failure (OOM).
 */
 
 bool Alter_table_prelocking_strategy::
-handle_table(THD *thd, Query_tables_list *prelocking_ctx,
-             TABLE_LIST *table_list, bool *need_prelocking)
+handle_table(THD*, Query_tables_list*,
+             TABLE_LIST*, bool*)
 {
   return FALSE;
 }
@@ -6295,8 +6368,8 @@ handle_table(THD *thd, Query_tables_list *prelocking_ctx,
 */
 
 bool Alter_table_prelocking_strategy::
-handle_view(THD *thd, Query_tables_list *prelocking_ctx,
-            TABLE_LIST *table_list, bool *need_prelocking)
+handle_view(THD*, Query_tables_list*,
+            TABLE_LIST*, bool*)
 {
   return FALSE;
 }
@@ -6369,7 +6442,7 @@ static bool check_lock_and_start_stmt(THD *thd,
       thd->session_tracker.get_tracker(TRANSACTION_INFO_TRACKER);
     enum enum_tx_state       s;
 
-    s= tst->calc_trx_state(thd, lock_type,
+    s= tst->calc_trx_state(lock_type,
                            table_list->table->file->has_transactions());
     tst->add_trx_state(thd, s);
   }
@@ -6922,10 +6995,6 @@ void close_tables_for_reopen(THD *thd, TABLE_LIST **tables,
   if (first_not_own_table == *tables)
     *tables= 0;
   thd->lex->chop_off_not_own_tables();
-  /* Reset MDL tickets for procedures/functions */
-  for (Sroutine_hash_entry *rt= thd->lex->sroutines_list.first;
-       rt; rt= rt->next)
-    rt->mdl_request.ticket= NULL;
   sp_remove_not_own_routines(thd->lex);
   for (tmp= *tables; tmp; tmp= tmp->next_global)
   {
@@ -6962,12 +7031,8 @@ void close_tables_for_reopen(THD *thd, TABLE_LIST **tables,
   @param open_in_engine               Indicates that we need to open table
                                       in storage engine in addition to
                                       constructing TABLE object for it.
-  @param table_def                    If not NULL: a data-dictionary
-                                      Table-object describing table to be
-                                      used for opening, instead of reading
-                                      information from DD. If NULL, a new
-                                      dd::Table-object will be constructed
-                                      and read from the Data Dictionary.
+  @param table_def                    A data-dictionary Table-object describing
+                                      table to be used for opening.
 
   @note This function is used:
     - by alter_table() to open a temporary table;
@@ -6981,7 +7046,7 @@ TABLE *open_table_uncached(THD *thd, const char *path, const char *db,
                            const char *table_name,
                            bool add_to_temporary_tables_list,
                            bool open_in_engine,
-                           const dd::Table *table_def)
+                           const dd::Table &table_def)
 {
   TABLE *tmp_table;
   TABLE_SHARE *share;
@@ -7033,7 +7098,7 @@ TABLE *open_table_uncached(THD *thd, const char *path, const char *db,
   init_tmp_table_share(thd, share, saved_cache_key, key_length,
                        strend(saved_cache_key)+1, tmp_path, nullptr);
 
-  if (open_table_def(thd, share, false, table_def))
+  if (open_table_def(thd, share, table_def))
   {
     /* No need to lock share->mutex as this is not needed for tmp tables */
     free_table_share(share);
@@ -7058,7 +7123,7 @@ TABLE *open_table_uncached(THD *thd, const char *path, const char *db,
                               Set "is_create_table" if the table does not
                               exist in SE
                             */
-                            (open_in_engine ? false : true) , table_def))
+                            (open_in_engine ? false : true) , &table_def))
   {
     /* No need to lock share->mutex as this is not needed for tmp tables */
     free_table_share(share);
@@ -7296,8 +7361,6 @@ bool open_temporary_tables(THD *thd, TABLE_LIST *tl_list)
     thd				thread handler
     table_list			view to search for 'name'
     name			name of field
-    length			length of name
-    item_name                   name of item if it will be created (VIEW)
     ref				expression substituted in VIEW should be passed
                                 using this reference (return view_ref_found)
     register_tree_change        TRUE if ref is not stack variable and we
@@ -7311,14 +7374,14 @@ bool open_temporary_tables(THD *thd, TABLE_LIST *tl_list)
 
 static Field *
 find_field_in_view(THD *thd, TABLE_LIST *table_list,
-                   const char *name, size_t length,
-                   const char *item_name, Item **ref,
+                   const char *name,
+                   Item **ref,
                    bool register_tree_change)
 {
   DBUG_ENTER("find_field_in_view");
   DBUG_PRINT("enter",
-             ("view: '%s', field name: '%s', item name: '%s', ref %p",
-              table_list->alias, name, item_name, ref));
+             ("view: '%s', field name: '%s', ref %p",
+              table_list->alias, name, ref));
   Field_iterator_view field_it;
   field_it.set(table_list);
 
@@ -7335,7 +7398,10 @@ find_field_in_view(THD *thd, TABLE_LIST *table_list,
           Use own arena for Prepared Statements or data will be freed after
           PREPARE.
         */
-        Prepared_stmt_arena_holder ps_arena_holder(thd, register_tree_change);
+        Prepared_stmt_arena_holder ps_arena_holder(
+          thd,
+          register_tree_change &&
+            thd->stmt_arena->is_stmt_prepare_or_first_stmt_execute());
 
         /*
           create_item() may, or may not create a new Item, depending on
@@ -7375,7 +7441,6 @@ find_field_in_view(THD *thd, TABLE_LIST *table_list,
   @param thd thread handler
   @param table_ref table reference to search
   @param name name of field
-  @param length	length of name
   @param [in,out] ref if 'name' is resolved to a view field, ref is
                                set to point to the found view field
   @param register_tree_change TRUE if ref is not stack variable and we
@@ -7402,7 +7467,7 @@ find_field_in_view(THD *thd, TABLE_LIST *table_list,
 
 static Field *
 find_field_in_natural_join(THD *thd, TABLE_LIST *table_ref, const char *name,
-                           size_t length, Item **ref, bool register_tree_change,
+                           Item **ref, bool register_tree_change,
                            TABLE_LIST **actual_table)
 {
   List_iterator_fast<Natural_join_column>
@@ -7510,7 +7575,6 @@ find_field_in_natural_join(THD *thd, TABLE_LIST *table_ref, const char *name,
 
   SYNOPSIS
     find_field_in_table()
-    thd				thread handler
     table			table where to search for the field
     name			name of field
     length			length of name
@@ -7524,7 +7588,7 @@ find_field_in_natural_join(THD *thd, TABLE_LIST *table_ref, const char *name,
 */
 
 Field *
-find_field_in_table(THD *thd, TABLE *table, const char *name, size_t length,
+find_field_in_table(TABLE *table, const char *name, size_t length,
                     bool allow_rowid, uint *cached_field_index_ptr)
 {
   Field **field_ptr, *field;
@@ -7682,7 +7746,7 @@ find_field_in_table_ref(THD *thd, TABLE_LIST *table_list,
   if (table_list->field_translation)
   {
     /* 'table_list' is a view or an information schema table. */
-    if ((fld= find_field_in_view(thd, table_list, name, length, item_name, ref,
+    if ((fld= find_field_in_view(thd, table_list, name, ref,
                                  register_tree_change)))
       *actual_table= table_list;
   }
@@ -7690,7 +7754,7 @@ find_field_in_table_ref(THD *thd, TABLE_LIST *table_list,
   {
     /* 'table_list' is a stored table. */
     DBUG_ASSERT(table_list->table);
-    if ((fld= find_field_in_table(thd, table_list->table, name, length,
+    if ((fld= find_field_in_table(table_list->table, name, length,
                                   allow_rowid,
                                   cached_field_index_ptr)))
       *actual_table= table_list;
@@ -7725,7 +7789,7 @@ find_field_in_table_ref(THD *thd, TABLE_LIST *table_list,
       natural join, thus if the field is not qualified, we will search
       directly the top-most NATURAL/USING join.
     */
-    fld= find_field_in_natural_join(thd, table_list, name, length, ref,
+    fld= find_field_in_natural_join(thd, table_list, name, ref,
                                     register_tree_change, actual_table);
   }
 
@@ -7895,7 +7959,7 @@ find_field_in_tables(THD *thd, Item_ident *item,
       */
     if (table_ref->table && !table_ref->is_view())
     {
-      found= find_field_in_table(thd, table_ref->table, name, length,
+      found= find_field_in_table(table_ref->table, name, length,
                                  TRUE, &(item->cached_field_index));
       // Check if there are sufficient privileges to the found field.
       if (found && want_privilege &&
@@ -7942,41 +8006,17 @@ find_field_in_tables(THD *thd, Item_ident *item,
     Field *cur_field=
       find_field_in_table_ref(thd, cur_table, name, length,
                               item->item_name.ptr(), db, table_name, ref,
-                              (thd->lex->sql_command == SQLCOM_SHOW_FIELDS) ?
-                                0 : want_privilege,
+                              want_privilege,
                               allow_rowid,
                               &(item->cached_field_index),
                               register_tree_change,
                               &actual_table);
-    if (cur_field == NULL && thd->is_error())
-      return NULL;
+    if ((cur_field == NULL && thd->is_error()) ||
+        cur_field == WRONG_GRANT)
+      return nullptr;
 
     if (cur_field)
     {
-      if (cur_field == WRONG_GRANT)
-      {
-        if (thd->lex->sql_command != SQLCOM_SHOW_FIELDS)
-          return (Field*) 0;
-
-        thd->clear_error();
-        cur_field=
-          find_field_in_table_ref(thd, cur_table, name, length,
-                                  item->item_name.ptr(), db, table_name, ref,
-                                  0,
-                                  allow_rowid,
-                                  &(item->cached_field_index),
-                                  register_tree_change,
-                                  &actual_table);
-        if (cur_field)
-        {
-          Field *nf=new Field_null(NULL,0,Field::NONE,
-                                   cur_field->field_name,
-                                   &my_charset_bin);
-          nf->init(cur_table->table);
-          cur_field= nf;
-        }
-      }
-
       /*
         Store the original table of the field, which may be different from
         cur_table in the case of NATURAL/USING join.
@@ -8039,8 +8079,7 @@ find_field_in_tables(THD *thd, Item_ident *item,
          and throw column access error.
       */
       if (!first_table ||
-          !(thd->lex->sql_command == SQLCOM_SHOW_FIELDS ? 
-            false : want_privilege) ||
+          (want_privilege == 0) ||
           !check_column_grant_in_table_ref(thd, first_table, name, length,
                                            want_privilege))
              my_error(ER_BAD_FIELD_ERROR, MYF(0), item->full_name(), thd->where);
@@ -8930,8 +8969,8 @@ store_top_level_join_columns(THD *thd, TABLE_LIST *table_ref,
     FALSE  OK
 */
  bool setup_natural_join_row_types(THD *thd,
-                                         List<TABLE_LIST> *from_clause,
-                                         Name_resolution_context *context)
+                                   List<TABLE_LIST> *from_clause,
+                                   Name_resolution_context *context)
 {
   DBUG_ENTER("setup_natural_join_row_types");
   thd->where= "from clause";
@@ -9152,9 +9191,10 @@ bool setup_fields(THD *thd, Ref_item_array ref_item_array,
       Mark_field mf(MARK_COLUMNS_WRITE);
       item->walk(&Item::mark_field_in_map, Item::WALK_POSTFIX,
                  pointer_cast<uchar *>(&mf));
-   }
-    if (item->with_sum_func && item->type() != Item::SUM_FUNC_ITEM &&
-	sum_func_list)
+    }
+    if (item->has_aggregation() &&
+        item->type() != Item::SUM_FUNC_ITEM &&
+        sum_func_list)
       item->split_sum_func(thd, ref_item_array, *sum_func_list);
     select->select_list_tables|= item->used_tables();
     thd->lex->used_tables|= item->used_tables();
@@ -9877,7 +9917,7 @@ bool mysql_rm_tmp_tables(void)
   List_iterator<LEX_STRING> files_it;
   MEM_ROOT files_root;
   LEX_STRING *file_str;
-  my_bool result= true;
+  bool result= true;
   DBUG_ENTER("mysql_rm_tmp_tables");
 
   if (!(thd= new THD))

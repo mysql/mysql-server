@@ -5,7 +5,6 @@
 # Test case to show behavior of statements digest when
 # parsing a NULL literal
 
---source include/not_embedded.inc
 # Test requires: sp-protocol/ps-protocol/view-protocol/cursor-protocol disabled
 --source include/no_protocol.inc
 

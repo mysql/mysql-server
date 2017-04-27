@@ -1,0 +1,91 @@
+###############################################################################
+# Bug#24901077: RESET SLAVE ALL DOES NOT ALWAYS RESET SLAVE
+#
+# Problem:
+# =======
+# If you have a relay log index file that has ended up with
+# some relay log files that do not exists, then RESET SLAVE
+# ALL is not enough to get back to a clean state.
+###############################################################################
+# Remove all slave-relay-bin.0* files (do not remove slave-relay-bin.index)
+# During server restart rli initialization will fail as there are no
+# relay logs.  In case of bug RESET SLAVE will not do the required clean up
+# as rli is not inited and subsequent START SLAVE will fail.
+# Disable "Warning  1612  Being purged log ./slave-relay-bin.0* was not found"
+# because it is different on Unix and Windows systems.
+
+--source include/have_binlog_format_mixed.inc
+--source include/master-slave.inc
+
+--source include/rpl_connection_master.inc
+CREATE TABLE t1 (c1 INT);
+INSERT INTO t1 (c1) VALUES (1);
+--source include/sync_slave_sql_with_master.inc
+
+--source include/rpl_connection_slave.inc
+--source include/stop_slave_sql.inc
+--let $MYSQLD_SLAVE_DATADIR= `select @@datadir`
+
+--source include/rpl_connection_master.inc
+# Generate more relay logs on slave.
+FLUSH LOGS;
+FLUSH LOGS;
+INSERT INTO t1 (c1) VALUES (2);
+
+--source include/sync_slave_io_with_master.inc
+call mtr.add_suppression("File '.*slave-relay-bin.");
+call mtr.add_suppression("Could not open log file");
+call mtr.add_suppression("Failed to open the relay log");
+call mtr.add_suppression("Slave failed to initialize relay log info structure");
+call mtr.add_suppression("Could not find target log file mentioned in relay log info in the index file");
+call mtr.add_suppression("Failed to initialize the relay-log-info structure");
+call mtr.add_suppression("Failed to initialize the master info structure");
+call mtr.add_suppression("Failed to create or recover replication info repositories");
+
+# Stop slave
+--let $rpl_server_number= 2
+--source include/rpl_stop_server.inc
+
+# Delete file(s)
+--echo # Removing $remove_pattern file(s)
+--let $remove_pattern= slave-relay-bin.0*
+--remove_files_wildcard $MYSQLD_SLAVE_DATADIR $remove_pattern
+
+# Start slave
+--let $rpl_server_number= 2
+--source include/rpl_start_server.inc
+
+# Start slave must fail because of the removed file(s).
+--error ER_SLAVE_RLI_INIT_REPOSITORY
+START SLAVE;
+
+# Try a second time, it must fail again.
+--error ER_SLAVE_RLI_INIT_REPOSITORY
+START SLAVE;
+
+# Retrieve master executed position before reset slave.
+--let $master_exec_file= query_get_value("SHOW SLAVE STATUS", Relay_Master_Log_File, 1)
+--let $master_exec_pos= query_get_value("SHOW SLAVE STATUS", Exec_Master_Log_Pos, 1)
+
+# Reset slave.
+# Disable "Warning  1612  Being purged log ./slave-relay-bin.0* was not found"
+# because it is different on Unix and Windows systems.
+--disable_warnings
+RESET SLAVE;
+--enable_warnings
+RESET MASTER;
+DROP TABLE t1;
+# Start slave.
+--source include/start_slave.inc
+
+--source include/rpl_connection_master.inc
+--source include/sync_slave_sql_with_master.inc
+# Check consistency.
+--let $diff_tables= master:t1, slave:t1
+--source include/diff_tables.inc
+
+# Cleanup
+--source include/rpl_connection_master.inc
+DROP TABLE t1;
+--source include/sync_slave_sql_with_master.inc
+--source include/rpl_end.inc

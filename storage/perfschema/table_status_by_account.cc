@@ -18,12 +18,14 @@
   Table STATUS_BY_ACCOUNT (implementation).
 */
 
+#include "storage/perfschema/table_status_by_account.h"
+
+#include <stddef.h>
 #include <new>
 
 #include "current_thd.h"
 #include "field.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_thread.h"
 #include "mysqld.h"
 #include "pfs_account.h"
@@ -32,7 +34,6 @@
 #include "pfs_global.h"
 #include "pfs_instr_class.h"
 #include "sql_class.h"
-#include "table_status_by_account.h"
 
 THR_LOCK table_status_by_account::m_table_lock;
 
@@ -114,7 +115,7 @@ PFS_index_status_by_account::match(const Status_variable *pfs)
 }
 
 PFS_engine_table *
-table_status_by_account::create(void)
+table_status_by_account::create(PFS_engine_table_share *)
 {
   return new table_status_by_account();
 }
@@ -232,7 +233,7 @@ table_status_by_account::rnd_pos(const void *pos)
 }
 
 int
-table_status_by_account::index_init(uint idx, bool)
+table_status_by_account::index_init(uint idx MY_ATTRIBUTE((unused)), bool)
 {
   /* Build array of SHOW_VARs from the global status array prior to
    * materializing. */

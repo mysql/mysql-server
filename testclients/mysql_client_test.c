@@ -26,12 +26,16 @@
 
 #include <errno.h>
 #include <fcntl.h>
+#include <stdarg.h>
 #include <stdlib.h>
+#include <sys/types.h>
 
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_double2ulonglong.h"
 #include "my_inttypes.h"
+#include "my_io.h"
+#include "my_macros.h"
 #include "mysql/service_my_snprintf.h"
 #include "mysql_client_fw.c"
 
@@ -522,7 +526,7 @@ static void test_wl4435()
   char       dec_data[20][WL4435_STRING_SIZE];
   int        int_data[20];
   ulong      str_length= WL4435_STRING_SIZE;
-  my_bool    is_null;
+  bool       is_null;
   MYSQL_BIND ps_params[WL4435_NUM_PARAMS];
 
   int exec_counter;
@@ -1012,7 +1016,7 @@ static void test_wl4435_2()
   MYSQL_RES *rs_metadata; \
   MYSQL_FIELD *fields; \
   c_type pspv c_type_ext; \
-  my_bool psp_null= FALSE; \
+  bool psp_null= FALSE; \
   \
   memset(&pspv, 0, sizeof (pspv));                \
   \
@@ -1350,7 +1354,7 @@ static void test_prepare()
   float      real_data, o_real_data;
   double     double_data, o_double_data;
   ulong      length[7], len;
-  my_bool    is_null[7];
+  bool       is_null[7];
   char	     llbuf[22];
   MYSQL_BIND my_bind[7];
   char query[MAX_TEST_QUERY_LENGTH];
@@ -1610,7 +1614,7 @@ static void test_null()
   int        rc;
   uint       nData;
   MYSQL_BIND my_bind[2];
-  my_bool    is_null[2];
+  bool       is_null[2];
   char query[MAX_TEST_QUERY_LENGTH];
 
   myheader("test_null");
@@ -1713,12 +1717,12 @@ static void test_ps_null_param()
   int        rc;
 
   MYSQL_BIND in_bind;
-  my_bool    in_is_null;
+  bool       in_is_null;
   long int   in_long;
 
   MYSQL_BIND out_bind;
   ulong      out_length;
-  my_bool    out_is_null;
+  bool       out_is_null;
   char       out_str_data[20];
 
   const char *queries[]= {"select ?", "select ?+1",
@@ -1789,7 +1793,7 @@ static void test_fetch_null()
   int        i, nData;
   MYSQL_BIND my_bind[11];
   ulong      length[11];
-  my_bool    is_null[11];
+  bool    is_null[11];
   char query[MAX_TEST_QUERY_LENGTH];
 
   myheader("test_fetch_null");
@@ -2618,7 +2622,7 @@ static void test_bug1644()
   MYSQL_ROW row;
   MYSQL_BIND my_bind[4];
   int num;
-  my_bool isnull;
+  bool isnull;
   int rc, i;
   char query[MAX_TEST_QUERY_LENGTH];
 
@@ -2953,7 +2957,7 @@ static void test_long_data_str()
   ulong      length1;
   MYSQL_RES  *result;
   MYSQL_BIND my_bind[2];
-  my_bool    is_null[2];
+  bool    is_null[2];
   char query[MAX_TEST_QUERY_LENGTH];
 
   myheader("test_long_data_str");
@@ -3043,7 +3047,7 @@ static void test_long_data_str1()
   char       data[255];
   long       length;
   ulong      max_blob_length, blob_length, length1;
-  my_bool    true_value;
+  bool       true_value;
   MYSQL_RES  *result;
   MYSQL_BIND my_bind[2];
   MYSQL_FIELD *field;
@@ -3514,7 +3518,7 @@ static void test_bind_result()
   ulong      length1;
   char       szData[100];
   MYSQL_BIND my_bind[2];
-  my_bool    is_null[2];
+  bool       is_null[2];
 
   myheader("test_bind_result");
 
@@ -3608,7 +3612,7 @@ static void test_bind_result_ext()
   ulong      szLength, bLength;
   MYSQL_BIND my_bind[8];
   ulong      length[8];
-  my_bool    is_null[8];
+  bool       is_null[8];
   char	     llbuf[22];
   myheader("test_bind_result_ext");
 
@@ -3729,7 +3733,7 @@ static void test_bind_result_ext1()
   double     szData;
   MYSQL_BIND my_bind[8];
   ulong      length[8];
-  my_bool    is_null[8];
+  bool    is_null[8];
   myheader("test_bind_result_ext1");
 
   rc= mysql_query(mysql, "DROP TABLE IF EXISTS test_bind_result");
@@ -3862,7 +3866,7 @@ static void bind_fetch(int row_count)
   char         s_data[10];
   ulong        length[10];
   MYSQL_BIND   my_bind[7];
-  my_bool      is_null[7];
+  bool         is_null[7];
 
   stmt= mysql_simple_prepare(mysql, "INSERT INTO test_bind_fetch VALUES "
                                     "(?, ?, ?, ?, ?, ?, ?)");
@@ -4016,7 +4020,7 @@ static void test_fetch_date()
   ulong      d_length, t_length, ts_length, ts4_length, ts6_length,
              dt_length, y_length;
   MYSQL_BIND my_bind[8];
-  my_bool    is_null[8];
+  bool       is_null[8];
   ulong      length[8];
 
   myheader("test_fetch_date");
@@ -5020,7 +5024,7 @@ static void test_multi_stmt()
   char        name[50];
   MYSQL_BIND  my_bind[2];
   ulong       length[2];
-  my_bool     is_null[2];
+  bool        is_null[2];
   myheader("test_multi_stmt");
 
   rc= mysql_query(mysql, "DROP TABLE IF EXISTS test_multi_table");
@@ -5153,7 +5157,7 @@ static void test_manual_sample()
   char         str_data[50];
   ulonglong    affected_rows;
   MYSQL_BIND   my_bind[3];
-  my_bool      is_null;
+  bool         is_null;
   char query[MAX_TEST_QUERY_LENGTH];
 
   myheader("test_manual_sample");
@@ -5313,7 +5317,7 @@ static void test_prepare_alter()
   MYSQL_STMT  *stmt;
   int         rc, id;
   MYSQL_BIND  my_bind[1];
-  my_bool     is_null;
+  bool     is_null;
 
   myheader("test_prepare_alter");
 
@@ -5558,7 +5562,7 @@ static void test_store_result()
   char       szData[100];
   MYSQL_BIND my_bind[2];
   ulong      length, length1;
-  my_bool    is_null[2];
+  bool       is_null[2];
 
   myheader("test_store_result");
 
@@ -5944,13 +5948,13 @@ static void test_subselect()
   conversion using MYSQL_TIME structure
 */
 
-static void bind_date_conv(uint row_count, my_bool preserveFractions)
+static void bind_date_conv(uint row_count, bool preserveFractions)
 {
   MYSQL_STMT   *stmt= 0;
   uint         rc, i, count= row_count;
   ulong        length[4];
   MYSQL_BIND   my_bind[4];
-  my_bool      is_null[4]= {0};
+  bool         is_null[4]= {0};
   MYSQL_TIME   tm[4];
   ulong        second_part;
   uint         year, month, day, hour, minute, sec;
@@ -6244,7 +6248,7 @@ static void test_temporal_param()
   uint         rc;
   ulong        length[N_PARAMS],  length2[N_PARAMS];
   MYSQL_BIND   my_bind[N_PARAMS], my_bind2[N_PARAMS];
-  my_bool      is_null[N_PARAMS], is_null2[N_PARAMS];
+  bool         is_null[N_PARAMS], is_null2[N_PARAMS];
   MYSQL_TIME   tm;
   longlong     bigint= 123;
   double       real= 123;
@@ -6479,7 +6483,7 @@ static void test_buffers()
   MYSQL_BIND my_bind[2];
   int        rc;
   ulong      length;
-  my_bool    is_null;
+  bool      is_null;
   char       buffer[20];
 
   myheader("test_buffers");
@@ -7282,7 +7286,7 @@ static void test_decimal_bug()
   MYSQL_BIND my_bind[1];
   char       data[30];
   int        rc;
-  my_bool    is_null;
+  bool       is_null;
 
   myheader("test_decimal_bug");
 
@@ -8061,7 +8065,7 @@ static void test_fetch_offset()
   char       data[11];
   ulong      length;
   int        rc;
-  my_bool    is_null;
+  bool       is_null;
 
 
   myheader("test_fetch_offset");
@@ -9330,7 +9334,7 @@ static void test_bug3117()
   MYSQL_BIND buffer;
   longlong lii;
   ulong length;
-  my_bool is_null;
+  bool is_null;
   int rc;
 
   myheader("test_bug3117");
@@ -9801,7 +9805,7 @@ static void test_bind_nagative()
   MYSQL_BIND      my_bind[1];
   int32           my_val= 0;
   ulong           my_length= 0L;
-  my_bool         my_null= FALSE;
+  bool            my_null= FALSE;
   myheader("test_insert_select");
 
   rc= mysql_query(mysql, "DROP TABLE IF EXISTS t1");
@@ -9823,7 +9827,7 @@ static void test_bind_nagative()
   my_bind[0].buffer_type= MYSQL_TYPE_LONG;
   my_bind[0].buffer= (void *)&my_val;
   my_bind[0].length= &my_length;
-  my_bind[0].is_null= (char*)&my_null;
+  my_bind[0].is_null= &my_null;
 
   rc= mysql_stmt_bind_param(stmt_insert, my_bind);
   check_execute(stmt_insert, rc);
@@ -9845,7 +9849,7 @@ static void test_derived()
   MYSQL_BIND      my_bind[1];
   int32           my_val= 0;
   ulong           my_length= 0L;
-  my_bool         my_null= FALSE;
+  bool            my_null= FALSE;
   const char *query=
     "select count(1) from (select f.id from t1 f where f.id=?) as x";
 
@@ -9872,7 +9876,7 @@ ENGINE=InnoDB DEFAULT CHARSET=utf8");
   my_bind[0].buffer_type= MYSQL_TYPE_LONG;
   my_bind[0].buffer= (void *)&my_val;
   my_bind[0].length= &my_length;
-  my_bind[0].is_null= (char*)&my_null;
+  my_bind[0].is_null= (bool*)&my_null;
   my_val= 1;
   rc= mysql_stmt_bind_param(stmt, my_bind);
   check_execute(stmt, rc);
@@ -10369,7 +10373,7 @@ static void test_union_param()
   MYSQL_BIND      my_bind[2];
   char            my_val[4];
   ulong           my_length= 3L;
-  my_bool         my_null= FALSE;
+  bool         my_null= FALSE;
   myheader("test_union_param");
 
   my_stpcpy(my_val, "abc");
@@ -10389,12 +10393,12 @@ static void test_union_param()
   my_bind[0].buffer=         (char*) &my_val;
   my_bind[0].buffer_length=  4;
   my_bind[0].length=         &my_length;
-  my_bind[0].is_null=        (char*)&my_null;
+  my_bind[0].is_null=        &my_null;
   my_bind[1].buffer_type=    MYSQL_TYPE_STRING;
   my_bind[1].buffer=         (char*) &my_val;
   my_bind[1].buffer_length=  4;
   my_bind[1].length=         &my_length;
-  my_bind[1].is_null=        (char*)&my_null;
+  my_bind[1].is_null=        &my_null;
 
   rc= mysql_stmt_bind_param(stmt, my_bind);
   check_execute(stmt, rc);
@@ -10910,7 +10914,7 @@ static void test_view()
   MYSQL_BIND      my_bind[1];
   char            str_data[50];
   ulong           length = 0L;
-  long            is_null = 0L;
+  bool            is_null = 0L;
   const char *query=
     "SELECT COUNT(*) FROM v1 WHERE SERVERNAME=?";
 
@@ -10966,7 +10970,7 @@ static void test_view()
   my_bind[0].buffer_length= 50;
   my_bind[0].length= &length;
   length= 4;
-  my_bind[0].is_null= (char*)&is_null;
+  my_bind[0].is_null= &is_null;
   rc= mysql_stmt_bind_param(stmt, my_bind);
   check_execute(stmt,rc);
 
@@ -11173,7 +11177,7 @@ static void test_view_insert()
   MYSQL_BIND      my_bind[1];
   int             my_val = 0;
   ulong           my_length = 0L;
-  long            my_null = 0L;
+  bool            my_null = 0L;
   const char *query=
     "insert into v1 values (?)";
 
@@ -11202,7 +11206,7 @@ static void test_view_insert()
   my_bind[0].buffer_type = MYSQL_TYPE_LONG;
   my_bind[0].buffer = (char *)&my_val;
   my_bind[0].length = &my_length;
-  my_bind[0].is_null = (char*)&my_null;
+  my_bind[0].is_null = &my_null;
   rc= mysql_stmt_bind_param(insert_stmt, my_bind);
   check_execute(insert_stmt, rc);
 
@@ -11973,18 +11977,6 @@ static void test_cursors_with_union()
 }
 
 
-static void test_cursors_with_procedure()
-{
-  const char *queries[]=
-  {
-    "SELECT * FROM t1 procedure analyse()"
-  };
-  myheader("test_cursors_with_procedure");
-  fetch_n(queries, sizeof(queries)/sizeof(*queries), USE_ROW_BY_ROW_FETCH);
-  fetch_n(queries, sizeof(queries)/sizeof(*queries), USE_STORE_RESULT);
-}
-
-
 /*
   Altough mysql_create_db(), mysql_rm_db() are deprecated since 4.0 they
   should not crash server and should not hang in case of errors.
@@ -12030,7 +12022,7 @@ static void test_bug6096()
   MYSQL_FIELD *query_field_list, *stmt_field_list;
   ulong query_field_count, stmt_field_count;
   int rc;
-  my_bool update_max_length= TRUE;
+  bool update_max_length= TRUE;
   uint i;
 
   myheader("test_bug6096");
@@ -12402,7 +12394,7 @@ static void test_rewind(void)
   const char *stmt_text;
   ulong length= 4;
   long unsigned int Data= 0;
-  my_bool isnull=0;
+  bool isnull=0;
 
   myheader("test_rewind");
 
@@ -12711,8 +12703,8 @@ static void test_truncation_option()
   const char *stmt_text;
   int rc;
   uint8 buf;
-  my_bool option= 0;
-  my_bool error;
+  bool option= 0;
+  bool error;
   MYSQL_BIND my_bind;
 
   myheader("test_truncation_option");
@@ -14941,7 +14933,7 @@ static void test_bug15510()
 static void test_opt_reconnect()
 {
   MYSQL *lmysql;
-  my_bool my_true= TRUE;
+  bool my_true= TRUE;
 
   myheader("test_opt_reconnect");
 
@@ -15061,8 +15053,8 @@ static void test_bug16143()
 
 static void test_bug16144()
 {
-  const my_bool flag_orig= (my_bool) 0xde;
-  my_bool flag= flag_orig;
+  const bool flag_orig= (bool) 0xde;
+  bool flag= flag_orig;
   MYSQL_STMT *stmt;
   myheader("test_bug16144");
 
@@ -15287,6 +15279,7 @@ static void test_bug17667()
   Bug#14169: type of group_concat() result changed to blob if tmp_table was
   used
 */
+#if 0
 static void test_bug14169()
 {
   MYSQL_STMT *stmt;
@@ -15301,7 +15294,7 @@ static void test_bug14169()
   myquery(rc);
   rc= mysql_query(mysql, "set session group_concat_max_len=1024");
   myquery(rc);
-  rc= mysql_query(mysql, "create table t1 (f1 int unsigned, f2 varchar(255))");
+  rc= mysql_query(mysql, "create table t1 (f1 int unsigned, f2 varchar(250))");
   myquery(rc);
   rc= mysql_query(mysql, "insert into t1 values (1,repeat('a',255)),"
                          "(2,repeat('b',255))");
@@ -15322,7 +15315,7 @@ static void test_bug14169()
   rc= mysql_query(mysql, "drop table t1");
   myquery(rc);
 }
-
+#endif
 /*
    Test that mysql_insert_id() behaves as documented in our manual
 */
@@ -15336,7 +15329,7 @@ static void test_mysql_insert_id()
   rc= mysql_query(mysql, "drop table if exists t1");
   myquery(rc);
   /* table without auto_increment column */
-  rc= mysql_query(mysql, "create table t1 (f1 int, f2 varchar(255), key(f1))");
+  rc= mysql_query(mysql, "create table t1 (f1 int, f2 varchar(25), key(f1))");
   myquery(rc);
   rc= mysql_query(mysql, "insert into t1 values (1,'a')");
   myquery(rc);
@@ -15467,7 +15460,7 @@ static void test_mysql_insert_id()
   rc= mysql_query(mysql, "drop table t2");
   myquery(rc);
   rc= mysql_query(mysql, "create table t2 (f1 int not null primary key "
-                  "auto_increment, f2 varchar(255), unique (f2)) ENGINE = MyISAM");
+                  "auto_increment, f2 varchar(25), unique (f2)) ENGINE = MyISAM");
   myquery(rc);
   rc= mysql_query(mysql, "insert into t2 values (null,'e')");
   res= mysql_insert_id(mysql);
@@ -15519,6 +15512,75 @@ static void test_mysql_insert_id()
   DIE_UNLESS(res == 15);
 
   rc= mysql_query(mysql, "drop table t1,t2");
+  myquery(rc);
+}
+
+/*
+  Test for bug#22028117: MYSQLCLIENT DOES NOT RETURN CORRECT
+  MYSQL_INSERT_ID VIA DATABASE HANDLE
+*/
+
+static void test_bug22028117()
+{
+  my_ulonglong res;
+  int rc;
+  MYSQL_STMT *stmt;
+
+  myheader("test_bug22028117");
+
+  rc = mysql_query(mysql, "USE test");
+  myquery(rc);
+  rc= mysql_query(mysql, "DROP TABLE IF EXISTS t1");
+  myquery(rc);
+  rc= mysql_query(mysql, "CREATE TABLE t1 ("
+                         "f1 INT NOT NULL PRIMARY KEY AUTO_INCREMENT,"
+                         "f2 VARCHAR(255))");
+  myquery(rc);
+  res= mysql_insert_id(mysql);
+  DIE_UNLESS(res == 0);
+
+  rc= mysql_query(mysql, "INSERT INTO t1 (f2) VALUES ('a')");
+  myquery(rc);
+  res= mysql_insert_id(mysql);
+  DIE_UNLESS(res == 1);
+
+  rc= mysql_query(mysql, "INSERT INTO t1 (f2) VALUES ('b')");
+  myquery(rc);
+  res= mysql_insert_id(mysql);
+  DIE_UNLESS(res == 2);
+
+  /* Make sure that the value of insert_id is not lost after SELECT */
+  stmt= mysql_simple_prepare(mysql, "SELECT MAX(f1) FROM t1");
+  check_stmt(stmt);
+  rc= mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+  rc= my_process_stmt_result(stmt);
+  DIE_UNLESS(rc == 1);
+  mysql_stmt_close(stmt);
+
+  res= mysql_insert_id(mysql);
+  DIE_UNLESS(res == 2);
+  /* insert_id will be reset to 0 after a new table is created */
+  rc= mysql_query(mysql, "DROP TABLE IF EXISTS t2");
+  myquery(rc);
+
+  rc= mysql_query(mysql, "CREATE TABLE t2 ("
+                         "f1 INT NOT NULL PRIMARY KEY AUTO_INCREMENT,"
+                         "f2 VARCHAR(255))");
+  myquery(rc);
+  res= mysql_insert_id(mysql);
+  DIE_UNLESS(res == 0);
+
+  /*
+    mysql_insert_id() should return expr when the INSERT query contains
+    last_insert_id(expr)
+  */
+  rc= mysql_query(mysql, "INSERT INTO t1 (f1) VALUES (last_insert_id(100))");
+  myquery(rc);
+  res= mysql_insert_id(mysql);
+  DIE_UNLESS(res == 100);
+
+  rc= mysql_query(mysql, "DROP TABLE t1,t2");
   myquery(rc);
 }
 
@@ -16132,7 +16194,7 @@ static void test_bug28505()
 
 static void test_bug28934()
 {
-  my_bool error= 0;
+  bool error= 0;
   MYSQL_BIND bind[5];
   MYSQL_STMT *stmt;
   int cnt;
@@ -16766,17 +16828,17 @@ static void bug20023_change_user(MYSQL *con)
                            opt_db ? opt_db : "test"));
 }
 
-static my_bool query_str_variable(MYSQL *con,
-                                  const char *var_name,
-                                  char *str,
-                                  size_t len)
+static bool query_str_variable(MYSQL *con,
+                               const char *var_name,
+                               char *str,
+                               size_t len)
 {
   MYSQL_RES *rs;
   MYSQL_ROW row;
 
   char query_buffer[MAX_TEST_QUERY_LENGTH];
 
-  my_bool is_null;
+  bool is_null;
 
   my_snprintf(query_buffer, sizeof (query_buffer),
               "SELECT %s", var_name);
@@ -16795,12 +16857,12 @@ static my_bool query_str_variable(MYSQL *con,
   return is_null;
 }
 
-static my_bool query_int_variable(MYSQL *con,
-                                  const char *var_name,
-                                  int *var_value)
+static bool query_int_variable(MYSQL *con,
+                               const char *var_name,
+                               int *var_value)
 {
   char str[32];
-  my_bool is_null= query_str_variable(con, var_name, str, sizeof(str));
+  bool is_null= query_str_variable(con, var_name, str, sizeof(str));
 
   if (!is_null)
     *var_value= atoi(str);
@@ -16961,7 +17023,7 @@ static void bug31418_impl()
 {
   MYSQL con;
 
-  my_bool is_null;
+  bool is_null;
   int rc= 0;
 
   /* Create a new connection. */
@@ -17256,7 +17318,7 @@ static void test_wl4166_1()
   float      real_data;
   double     double_data;
   ulong      length[7];
-  my_bool    is_null[7];
+  bool       is_null[7];
   MYSQL_BIND my_bind[7];
   int rc;
   int i;
@@ -17794,7 +17856,7 @@ static void test_bug40365(void)
   uint         rc, i;
   MYSQL_STMT   *stmt= 0;
   MYSQL_BIND   my_bind[2];
-  my_bool      is_null[2]= {0};
+  bool      is_null[2]= {0};
   MYSQL_TIME   tm[2];
 
   DBUG_ENTER("test_bug40365");
@@ -17889,7 +17951,7 @@ static void test_bug43560(void)
   uint         rc;
   MYSQL_STMT   *stmt= 0;
   MYSQL_BIND   bind;
-  my_bool      is_null= 0;
+  bool         is_null= 0;
   char         buffer[256];
   const uint   BUFSIZE= sizeof(buffer);
   const char*  values[] = {"eins", "zwei", "drei", "viele", NULL};
@@ -18038,7 +18100,7 @@ static void test_bug41078(void)
   ulong        len;
   char         str[64];
   const char   param_str[]= "abcdefghijklmn";
-  my_bool      is_null, error;
+  bool         is_null, error;
 
   DBUG_ENTER("test_bug41078");
 
@@ -18376,8 +18438,8 @@ static void test_bug47485()
   const char*   sql_select = "SELECT 1, 'a'";
   int           int_data;
   char          str_data[16];
-  my_bool       is_null[2];
-  my_bool       error[2];
+  bool          is_null[2];
+  bool          error[2];
   ulong         length[2];
 
   DBUG_ENTER("test_bug47485");
@@ -18552,7 +18614,7 @@ static void test_bug49972()
   MYSQL_BIND in_param_bind;
   MYSQL_BIND out_param_bind;
   int int_data= 0;
-  my_bool is_null= FALSE;
+  bool is_null= FALSE;
 
   DBUG_ENTER("test_bug49972");
   myheader("test_bug49972");
@@ -19149,7 +19211,7 @@ static void test_wl6587()
 {
   int rc;
   MYSQL *l_mysql, *r_mysql;
-  my_bool can;
+  bool can;
 
   myheader("test_wl6587");
 
@@ -19456,7 +19518,7 @@ static void test_wl6791()
     MYSQL_OPT_CONNECT_TIMEOUT, MYSQL_OPT_READ_TIMEOUT, MYSQL_OPT_WRITE_TIMEOUT,
     MYSQL_OPT_PROTOCOL, MYSQL_OPT_LOCAL_INFILE, MYSQL_OPT_SSL_MODE
   },
-  my_bool_opts[] = {
+  bool_opts[] = {
     MYSQL_OPT_COMPRESS, MYSQL_OPT_USE_REMOTE_CONNECTION,
     MYSQL_OPT_USE_EMBEDDED_CONNECTION, MYSQL_OPT_GUESS_CONNECTION,
     MYSQL_REPORT_DATA_TRUNCATION, MYSQL_OPT_RECONNECT,
@@ -19501,18 +19563,18 @@ static void test_wl6791()
     DIE_UNLESS(opt_before == opt_after);
   }
 
-  for (idx= 0; idx < sizeof(my_bool_opts) / sizeof(enum mysql_option); idx++)
+  for (idx= 0; idx < sizeof(bool_opts) / sizeof(enum mysql_option); idx++)
   {
-    my_bool opt_before = TRUE, opt_after = FALSE;
+    bool opt_before = TRUE, opt_after = FALSE;
 
     if (!opt_silent)
-      fprintf(stdout, "testing my_bool option #%d (%d)\n", idx,
-      (int)my_bool_opts[idx]);
+      fprintf(stdout, "testing bool option #%d (%d)\n", idx,
+      (int)bool_opts[idx]);
 
-    rc = mysql_options(l_mysql, my_bool_opts[idx], &opt_before);
+    rc = mysql_options(l_mysql, bool_opts[idx], &opt_before);
     DIE_UNLESS(rc == 0);
 
-    rc = mysql_get_option(l_mysql, my_bool_opts[idx], &opt_after);
+    rc = mysql_get_option(l_mysql, bool_opts[idx], &opt_after);
     DIE_UNLESS(rc == 0);
 
     DIE_UNLESS(opt_before == opt_after);
@@ -19763,7 +19825,7 @@ struct execute_test_query
 */
 static void execute_and_test(struct execute_test_query *query, char quote,
                              int result, const char* string,
-                             const char* expected, my_bool recursive)
+                             const char* expected, bool recursive)
 {
   MYSQL_STMT *stmt;
   const char *stmt_text;
@@ -19980,7 +20042,7 @@ static void test_bug19894382()
   MYSQL_STMT *stmt1;
   const char *stmt1_txt= "INSERT INTO client_test_db.bug19894382 VALUES"
                          " ('master', ?, ?, ?, ?, ?, ?);";
-  my_bool    is_null= 0;
+  bool    is_null= 0;
   MYSQL_BIND bind_val[6];
   MYSQL_TIME tm[6];
   MYSQL_TIME tm_common;
@@ -20519,8 +20581,8 @@ static void test_bug17883203()
   MYSQL_STMT *stmt;
   MYSQL_BIND bind;
   char str_data[BUG17883203_STRING_SIZE];
-  my_bool is_null;
-  my_bool error;
+  bool is_null;
+  bool error;
   unsigned long length;
   const char stmt_text[] ="SELECT VERSION()";
   int rc;
@@ -20746,7 +20808,7 @@ static void test_mysql_binlog()
   MYSQL *mysql1, *mysql2;
   MYSQL_RPL rpl1, rpl2;
   const char *binlog_name= "mysql-binlog.000001";
-  my_bool reconnect= TRUE;
+  bool reconnect= TRUE;
 
   myheader("test_mysql_binlog");
 
@@ -21048,7 +21110,6 @@ static struct my_tests_st my_tests[]= {
   { "test_view_insert_fields", test_view_insert_fields },
   { "test_basic_cursors", test_basic_cursors },
   { "test_cursors_with_union", test_cursors_with_union },
-  { "test_cursors_with_procedure", test_cursors_with_procedure },
   { "test_truncation", test_truncation },
   { "test_truncation_option", test_truncation_option },
   { "test_client_character_set", test_client_character_set },
@@ -21092,7 +21153,7 @@ static struct my_tests_st my_tests[]= {
   { "test_bug16144", test_bug16144 },
   { "test_bug15613", test_bug15613 },
   { "test_bug20152", test_bug20152 },
-  { "test_bug14169", test_bug14169 },
+//  { "test_bug14169", test_bug14169 },
   { "test_bug17667", test_bug17667 },
   { "test_bug15752", test_bug15752 },
   { "test_mysql_insert_id", test_mysql_insert_id },
@@ -21173,6 +21234,7 @@ static struct my_tests_st my_tests[]= {
   { "test_bug22559575", test_bug22559575 },
   { "test_bug24963580", test_bug24963580 },
   { "test_mysql_binlog", test_mysql_binlog },
+  { "test_bug22028117", test_bug22028117 },
   { 0, 0 }
 };
 

@@ -18,18 +18,18 @@
   Server error instrument data structures (implementation).
 */
 
-#include "my_global.h"
+#include "storage/perfschema/pfs_error.h"
+
 #include "my_sys.h"
-#include "pfs_global.h"
-#include "pfs_instr_class.h"
-#include "pfs_instr.h"
-#include "pfs_account.h"
-#include "pfs_host.h"
-#include "pfs_user.h"
-#include "pfs_error.h"
-#include "pfs_builtin_memory.h"
-#include "pfs_buffer_container.h"
 #include "mysql_com.h"
+#include "pfs_account.h"
+#include "pfs_buffer_container.h"
+#include "pfs_builtin_memory.h"
+#include "pfs_global.h"
+#include "pfs_host.h"
+#include "pfs_instr.h"
+#include "pfs_instr_class.h"
+#include "pfs_user.h"
 
 uint max_server_errors;
 uint pfs_to_server_error_map[PFS_MAX_SERVER_ERRORS];
@@ -47,6 +47,7 @@ server_error error_names_array[] = {
 #ifndef IN_DOXYGEN
   {0, 0, 0, 0, 0, 0},  // NULL ROW
 #include <mysqld_ername.h>
+
   {0, 0, 0, 0, 0, 0}  // DUMMY ROW
 #endif                /* IN_DOXYGEN */
 };

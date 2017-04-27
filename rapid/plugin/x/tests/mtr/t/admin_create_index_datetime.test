@@ -1,7 +1,7 @@
 ## generated
 ## Index of time related types
 
---source ../include/xplugin_preamble.inc
+--source include/xplugin_preamble.inc
 ## Test starts here
 --write_file $MYSQL_TMP_DIR/admin_create_index_datetime.tmp
 ## Test data

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -174,10 +174,6 @@ every XDES_DESCRIBED_PER_PAGE pages in every tablespace. */
 						page, in tablespace 0 */
 #define FSP_DICT_HDR_PAGE_NO		7	/*!< data dictionary header
 						page, in tablespace 0 */
-#define FSP_TBL_BUFFER_TREE_ROOT_PAGE_NO	\
-					8	/*!< DDTableBuffer table's
-						B-tree root page in tablespace
-						0 */
 
 /*--------------------------------------*/
 /* @} */
@@ -189,6 +185,7 @@ The newer row formats, COMPRESSED and DYNAMIC, will have at least
 the DICT_TF_COMPACT bit set.
 @param[in]	flags	Tablespace flags
 @return true if valid, false if not */
+inline
 bool
 fsp_flags_is_valid(
 	ulint	flags)

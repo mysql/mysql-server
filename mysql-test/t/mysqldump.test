@@ -1,9 +1,6 @@
 
 --source include/no_valgrind_without_big.inc
 
-# Embedded server doesn't support external clients
---source include/not_embedded.inc
-
 # Binlog is required
 --source include/have_log_bin.inc
 
@@ -175,7 +172,7 @@ drop database mysqldump_test_db;
 --echo # if it is explicitely set.
 
 CREATE TABLE t1 (a  CHAR(10));
-INSERT INTO t1  VALUES (_latin1 'ÄÖÜß');
+INSERT INTO t1  VALUES (_latin1 x'C4D6DCDF');
 --exec $MYSQL_DUMP --character-sets-dir=$MYSQL_SHAREDIR/charsets --skip-comments test t1
 
 --echo #
@@ -1426,8 +1423,6 @@ insert into u1 values (4);
 create view v1 (c1) as select * from t1;
 
 # Backup should not fail for Bug#21527. Flush priviliges test begins.
-# TODO (Bug#22655287): mysqldump should skip the innodb_*_stats tables.
-# Restoring the dump will cause errors (see below).
 --exec $MYSQL_DUMP --skip-comments --add-drop-table --flush-privileges --ignore-table=mysql.general_log --ignore-table=mysql.slow_log --databases mysqldump_myDB mysql > $MYSQLTEST_VARDIR/tmp/bug21527.sql
 
 # Clean up
@@ -1446,11 +1441,7 @@ flush privileges;
 --echo # Restore. Flush Privileges test ends.
 --echo #
 
-# TODO (Bug#22655287): mysqldump should skip the innodb_*_stats tables.
-# Restoring the dump will cause errors. Using '--force' will ignore
-# errors and allow the dump to be restored. Fixing Bug#22655287 should
-# allow the command below to succeed without '--force'.
---exec $MYSQL --force < $MYSQLTEST_VARDIR/tmp/bug21527.sql
+--exec $MYSQL < $MYSQLTEST_VARDIR/tmp/bug21527.sql
 
 # Do as a user
 connection user1;
@@ -1812,8 +1803,6 @@ drop database mysqldump_test_db;
 #
 # Bug#26121 mysqldump includes LOCK TABLES general_log WRITE
 #
-# TODO: Allow dump/restore of innodb_index_stats/innodb_table_stats See
-# Bug#22655287
 --exec $MYSQL_DUMP --all-databases > $MYSQLTEST_VARDIR/tmp/bug26121.sql
 # take a backup of sys db.
 --exec $MYSQL < $MYSQLTEST_VARDIR/tmp/bug26121.sql
@@ -1838,9 +1827,10 @@ DROP DATABASE IF EXISTS mysqldump_test_db;
 CREATE DATABASE mysqldump_test_db;
 
 set names koi8r;
+let $koi8rname= `select convert(_utf8mb4 'ÐºÐ¾Ð»Ð¾Ð½ÐºÐ°1' using koi8r)`;
 
-CREATE VIEW mysqldump_test_db.v2 AS SELECT 1 AS ËÏÌÏÎËÁ1;
-CREATE VIEW mysqldump_test_db.v1 AS SELECT ËÏÌÏÎËÁ1 FROM mysqldump_test_db.v2;
+eval CREATE VIEW mysqldump_test_db.v2 AS SELECT 1 AS $koi8rname;
+eval CREATE VIEW mysqldump_test_db.v1 AS SELECT $koi8rname FROM mysqldump_test_db.v2;
 
 set names latin1;
 
@@ -1885,9 +1875,7 @@ DROP DATABASE mysqldump_test_db;
 USE test;
 CREATE event e29938 ON SCHEDULE AT '2035-12-31 20:01:23' DO SET @bug29938=29938;
 SHOW EVENTS;
-# TODO: Allow dump/restore of innodb_index_stats/innodb_table_stats
-# See Bug#22655287
---exec $MYSQL_DUMP --skip-events --all-databases --ignore-table=mysql.innodb_index_stats --ignore-table=mysql.innodb_table_stats > $MYSQLTEST_VARDIR/tmp/bug29938.sql
+--exec $MYSQL_DUMP --skip-events --all-databases > $MYSQLTEST_VARDIR/tmp/bug29938.sql
 
 --exec $MYSQL < $MYSQLTEST_VARDIR/tmp/bug29938.sql
 SHOW EVENTS;
@@ -2484,9 +2472,7 @@ while ($colnum)
 }
 --eval CREATE VIEW v1 AS SELECT $str
 
-# TODO: Allow dump/restore of innodb_index_stats/innodb_table_stats
-# See Bug#22655287
---exec $MYSQL_DUMP -uroot --all-databases --ignore-table=mysql.innodb_index_stats --ignore-table=mysql.innodb_table_stats > $MYSQLTEST_VARDIR/tmp/bug17477959.sql
+--exec $MYSQL_DUMP -uroot --all-databases > $MYSQLTEST_VARDIR/tmp/bug17477959.sql
 #Reload of the dump fails without the patch
 --exec $MYSQL < $MYSQLTEST_VARDIR/tmp/bug17477959.sql
 #Cleanup.
@@ -2499,9 +2485,7 @@ DROP VIEW v1;
 CREATE DATABASE `a\\k`;
 CREATE TABLE `a\\k`.t1(i INT);
 SHOW TABLES FROM `a\\k`;
-# TODO: Allow dump/restore of innodb_index_stats/innodb_table_stats
-# See Bug#22655287
---exec $MYSQL_DUMP -uroot --all-databases --ignore-table=mysql.innodb_index_stats --ignore-table=mysql.innodb_table_stats > $MYSQLTEST_VARDIR/tmp/bug18109728.sql
+--exec $MYSQL_DUMP -uroot --all-databases > $MYSQLTEST_VARDIR/tmp/bug18109728.sql
 DROP DATABASE `a\\k`;
 --exec $MYSQL < $MYSQLTEST_VARDIR/tmp/bug18109728.sql
 SHOW TABLES FROM `a\\k`;
@@ -2626,9 +2610,7 @@ DROP DATABASE dump_generated;
 # take backup of sys schema
 --exec $MYSQL_DUMP --databases sys --routines > $MYSQLTEST_VARDIR/tmp/sys.sql
 # this will not dump sys schema and sys schema routines.
-# TODO: Allow dump/restore of innodb_index_stats/innodb_table_stats
-# See Bug#22655287
---exec $MYSQL_DUMP --all-databases --ignore-table=mysql.innodb_index_stats --ignore-table=mysql.innodb_table_stats > $MYSQLTEST_VARDIR/tmp/bug21549860.sql
+--exec $MYSQL_DUMP --all-databases > $MYSQLTEST_VARDIR/tmp/bug21549860.sql
 SELECT COUNT(*) FROM INFORMATION_SCHEMA.routines WHERE routine_schema = 'sys';
 DROP DATABASE sys;
 SELECT COUNT(*) FROM INFORMATION_SCHEMA.routines WHERE routine_schema = 'sys';
@@ -2660,3 +2642,76 @@ DROP TABLE test.t1;
 
 # Needs to be removed after Bug#24619634 is fixed.
 --source include/force_restart.inc
+--echo #
+--echo # Bug #25717383: MYSQLDUMP MAY EXECUTE ANY ARBITRARY QUERY
+--echo #
+
+
+CREATE DATABASE bug25717383;
+use bug25717383;
+
+CREATE TABLE `tab
+one` (a int);
+CREATE VIEW `view
+one` as SELECT * FROM `tab
+one`;
+
+CREATE PROCEDURE `proc
+one`() SELECT * from `tab
+one`;
+
+CREATE TEMPORARY TABLE `temp
+one` (id INT);
+
+CREATE TRIGGER `trig
+one` BEFORE INSERT ON `tab
+one` FOR EACH ROW SET NEW.a = 1;
+
+CREATE EVENT `event
+one` ON SCHEDULE AT '2030-01-01 00:00:00' DO SET @a=5;
+
+SHOW TABLES FROM bug25717383;
+--replace_column 6 #
+SHOW TRIGGERS FROM bug25717383;
+--replace_column 6 #
+SHOW EVENTS FROM bug25717383;
+
+SELECT ROUTINE_NAME FROM INFORMATION_SCHEMA.ROUTINES
+       WHERE ROUTINE_SCHEMA='bug25717383' AND ROUTINE_TYPE= 'PROCEDURE'
+       ORDER BY ROUTINE_NAME;
+
+--exec $MYSQL_DUMP --triggers --events --routines --add-drop-database --databases bug25717383 > $MYSQLTEST_VARDIR/tmp/bug25717383.sql
+
+SHOW TABLES FROM bug25717383;
+--replace_column 6 #
+SHOW TRIGGERS FROM bug25717383;
+--replace_column 6 #
+SHOW EVENTS FROM bug25717383;
+
+SELECT ROUTINE_NAME FROM INFORMATION_SCHEMA.ROUTINES
+       WHERE ROUTINE_SCHEMA='bug25717383' AND ROUTINE_TYPE= 'PROCEDURE'
+       ORDER BY ROUTINE_NAME;
+
+DROP DATABASE bug25717383;
+
+--echo #
+--echo # Bug #25469161: MYSQLDUMP SHOULD EXCLUDE REPLICATION
+--echo #                REPOSITORY METADATA TABLES
+--echo #
+
+SHOW VARIABLES LIKE "master_info_repository";
+SHOW VARIABLES LIKE "relay_log_info_repository";
+
+SET GLOBAL master_info_repository= 'TABLE';
+SET GLOBAL relay_log_info_repository= 'TABLE';
+
+SHOW VARIABLES LIKE "master_info_repository";
+SHOW VARIABLES LIKE "relay_log_info_repository";
+
+--exec $MYSQL_DUMP --skip-comments mysql slave_master_info slave_relay_log_info 2>&1
+
+SET GLOBAL master_info_repository= 'FILE';
+SET GLOBAL relay_log_info_repository= 'FILE';
+
+SHOW VARIABLES LIKE "master_info_repository";
+SHOW VARIABLES LIKE "relay_log_info_repository";

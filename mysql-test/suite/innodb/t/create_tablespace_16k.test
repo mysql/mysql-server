@@ -2,8 +2,6 @@
 # WL#6205 - A series of tests to show the correct behavior for
 # CREATE TABLESPACE and associated SQL statements for 16k page size.
 #
---source include/have_innodb_16k.inc
---source include/not_embedded.inc
 
 --echo #
 --echo # CREATE TABLESPACE related tests for 16k page sizes.
@@ -643,4 +641,5 @@ call mtr.add_suppression("\\[ERROR\\] InnoDB: Cannot open datafile for read-only
 call mtr.add_suppression("\\[ERROR\\] InnoDB: Cannot delete tablespace .* because it is not found in the tablespace memory cache");
 call mtr.add_suppression("\\[ERROR\\] InnoDB: Failed to find tablespace for table `test`.`t_missing` in the cache. Attempting to load the tablespace with space id .*");
 call mtr.add_suppression("\\[Warning\\] InnoDB: Ignoring tablespace `s_missing` because it could not be opened");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: Unable to open tablespace .* \\(flags=.*, filename=delete_me.ibd\\);");
 --enable_query_log

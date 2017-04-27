@@ -872,7 +872,7 @@ INSERT INTO t1 (title, text) VALUES
 ('MySQL databases are relational', 'A relational database stores data in separate tables rather than putting all the data in one big storeroom...'),
 ('MySQL software is Open Source', 'Open Source means that it is possible for anyone to use and modify the software...'),
 ('The MySQL Database Server is very fast, reliable, scalable, and easy to use', 'MySQL Server can run comfortably on a desktop or laptop...'),
-('MySQL Server works in client/server or embedded systems', 'The MySQL Database Software is a client/server system...'),
+('MySQL Server works in client/server enviornment ......', 'The MySQL Database Software is a client/server system...'),
 ('MyISAM', 'MyISAM is based on the older (and no longer available) ISAM storage engine but has many useful extensions'),
 ('A large amount of contributed MySQL software is available', 'MySQL Server has a practical set of features developed in close cooperation with our users'),
 (NULL,NULL);
@@ -914,7 +914,7 @@ Note	1003	/* select#1 */ select `test`.`t1`.`FTS_DOC_ID` AS `FTS_DOC_ID`,`test`.
 SELECT FTS_DOC_ID, title FROM t1 WHERE MATCH(title, text) AGAINST ('+very +fast' WITH QUERY EXPANSION);
 FTS_DOC_ID	title
 11	The MySQL Database Server is very fast, reliable, scalable, and easy to use
-12	MySQL Server works in client/server or embedded systems
+12	MySQL Server works in client/server enviornment ......
 10	MySQL software is Open Source
 4	1001 MySQL Tricks
 14	A large amount of contributed MySQL software is available
@@ -958,7 +958,7 @@ ORDER BY title;
 FTS_DOC_ID	TITLE
 9	MySQL databases are relational
 8	MySQL is a database management system
-12	MySQL Server works in client/server or embedded systems
+12	MySQL Server works in client/server enviornment ......
 1	MySQL Tutorial
 5	MySQL vs. YourSQL database
 11	The MySQL Database Server is very fast, reliable, scalable, and easy to use
@@ -987,7 +987,7 @@ FTS_DOC_ID	title
 9	MySQL databases are relational
 8	MySQL is a database management system
 6	MySQL Security
-12	MySQL Server works in client/server or embedded systems
+12	MySQL Server works in client/server enviornment ......
 10	MySQL software is Open Source
 1	MySQL Tutorial
 5	MySQL vs. YourSQL database

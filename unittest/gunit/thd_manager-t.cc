@@ -17,9 +17,12 @@
   This is unit test for the Global_THD_manager class.
 */
 
-#include <gtest/gtest.h>
-
 #include "my_config.h"
+
+#include <gtest/gtest.h>
+#include <stddef.h>
+#include <sys/types.h>
+
 #include "my_inttypes.h"
 #include "mysqld.h"
 #include "mysqld_thd_manager.h"  // Global_THD_manager
@@ -116,7 +119,7 @@ public:
   {
     cnt= 0;
   }
-  void operator() (THD* thd)
+  void operator() (THD*)
   {
     cnt= cnt + 1;
   }

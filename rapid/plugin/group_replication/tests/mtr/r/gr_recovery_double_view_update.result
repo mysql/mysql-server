@@ -26,6 +26,7 @@ call mtr.add_suppression("There was an error when connecting to the donor*");
 call mtr.add_suppression("Maximum number of retries when*");
 call mtr.add_suppression("Fatal error during the Recovery process of Group Replication.*");
 call mtr.add_suppression("The member is leaving a group without being on one");
+call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave the group is on-going.");
 call mtr.add_suppression("All donors left. Aborting group replication recovery.*");
 set session sql_log_bin=1;
 SET @debug_save= @@GLOBAL.DEBUG;

@@ -2,7 +2,6 @@
 # Test for persistent corrupt bit for corrupted index and table
 #
 --source include/no_valgrind_without_big.inc
---source include/not_embedded.inc
 # This test needs debug server
 --source include/have_debug.inc
 
@@ -159,7 +158,7 @@ SELECT c FROM t3 WHERE c = 'bb';
 use corrupted;
 SHOW TABLES;
 
---error ER_NO_SUCH_TABLE
+--error ER_CHECK_NO_SUCH_TABLE
 CREATE INDEX b ON t1(b);
 
 --error ER_TABLE_HAS_NO_FT
@@ -329,7 +328,7 @@ CHECK TABLE t5;
 SELECT b FROM t5 WHERE b > 5;
 
 CHECK TABLE t6;
---error ER_NO_SUCH_TABLE
+--error ER_CHECK_NO_SUCH_TABLE
 CREATE INDEX idx_v ON t6(v);
 
 --echo # Invoke checkpoint to persist the latest corruption bits again

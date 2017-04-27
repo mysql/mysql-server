@@ -21,7 +21,11 @@
   Stored Program data structures (declarations).
 */
 
+#include <sys/types.h>
+
 #include "pfs_column_types.h"
+#include "pfs_global.h"
+#include "pfs_instr.h"
 #include "pfs_stat.h"
 
 #define PROGRAM_HASH_KEY_LENGTH                         \
@@ -37,8 +41,8 @@ struct PFS_program_key
 {
   /**
     Hash search key.
-    This has to be a string for LF_HASH,
-    the format is "<object_type><0x00><object_name><0x00><schema_name><0x00>"
+    This has to be a string for @c LF_HASH,
+    the format is @c "<object_type><0x00><object_name><0x00><schema_name><0x00>"
   */
   char m_hash_key[PROGRAM_HASH_KEY_LENGTH];
   uint m_key_length;
@@ -66,7 +70,7 @@ struct PFS_ALIGNED PFS_program : public PFS_instr
   /** Stored program stat. */
   PFS_sp_stat m_sp_stat;
 
-  /** Referesh setup object flags. */
+  /** Refresh setup object flags. */
   void refresh_setup_object_flags(PFS_thread *thread);
 
   /** Reset data for this record. */

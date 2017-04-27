@@ -13,8 +13,9 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "sql_cursor.h"
+#include "sql/sql_cursor.h"
 
+#include <stddef.h>
 #include <algorithm>
 
 #include "debug_sync.h"
@@ -24,7 +25,6 @@
 #include "my_base.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysql_com.h"
@@ -206,7 +206,8 @@ Server_side_cursor::~Server_side_cursor()
 }
 
 
-void Server_side_cursor::operator delete(void *ptr, size_t size)
+void Server_side_cursor::operator delete(void *ptr,
+                                         size_t size MY_ATTRIBUTE((unused)))
 {
   Server_side_cursor *cursor= (Server_side_cursor*) ptr;
   MEM_ROOT own_root= std::move(*cursor->mem_root);
@@ -411,16 +412,10 @@ Materialized_cursor::~Materialized_cursor()
 ****************************************************************************/
 
 bool Query_result_materialize::send_result_set_metadata(List<Item> &list,
-                                                        uint flags)
+                                                        uint)
 {
   DBUG_ASSERT(table == 0);
-  /*
-    PROCEDURE ANALYSE installs a result filter that has a different set
-    of input and output column Items:
-  */
-  List<Item> *column_types= (unit->first_select()->parent_lex->proc_analyse ?
-                             &list : unit->get_field_list());
-  if (create_result_table(unit->thd, column_types,
+  if (create_result_table(unit->thd, unit->get_field_list(),
                           FALSE,
                           thd->variables.option_bits | TMP_TABLE_ALL_COLUMNS,
                           "", FALSE, TRUE))

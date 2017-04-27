@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2009, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2009, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -189,6 +189,13 @@ dict_stats_rename_index(
 	const char*		old_index_name,	/*!< in: old index name */
 	const char*		new_index_name)	/*!< in: new index name */
 	MY_ATTRIBUTE((warn_unused_result));
+
+/** Evict the stats tables if they loaded in tablespace cache and also
+close the stats .ibd files. We have to close stats tables because
+8.0 stats tables will use the same name. We load the stats from 5.7
+with a suffix "_backup57" and migrate the statistics. */
+void
+dict_stats_evict_tablespaces();
 
 #include "dict0stats.ic"
 

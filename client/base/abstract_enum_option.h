@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2016 Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -45,14 +45,14 @@ protected:
       data structure.
    */
   Abstract_enum_option(T_type* value, const T_typelib* type, ulong var_type,
-    std::string name, std::string description, uint64 default_value);
+    std::string name, std::string description, longlong default_value);
 };
 
 
 template<typename T_type, typename T_typelib>Abstract_enum_option<T_type, T_typelib>
 ::Abstract_enum_option(
   T_type* value, const T_typelib* type, ulong var_type, std::string name,
-  std::string description, uint64 default_value)
+  std::string description, longlong default_value)
   : Abstract_option<T_type>(
       value, var_type, name, description, default_value)
 {

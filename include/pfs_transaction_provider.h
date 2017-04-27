@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -44,8 +44,8 @@ pfs_get_thread_transaction_locker_v1(PSI_transaction_locker_state *state,
                                      const void *xid,
                                      const ulonglong *trxid,
                                      int isolation_level,
-                                     my_bool read_only,
-                                     my_bool autocommit);
+                                     bool read_only,
+                                     bool autocommit);
 
 void pfs_start_transaction_v1(PSI_transaction_locker *locker,
                               const char *src_file, uint src_line);
@@ -73,7 +73,7 @@ void pfs_inc_transaction_rollback_to_savepoint_v1(PSI_transaction_locker *locker
 void pfs_inc_transaction_release_savepoint_v1(PSI_transaction_locker *locker,
                                               ulong count);
 
-void pfs_end_transaction_v1(PSI_transaction_locker *locker, my_bool commit);
+void pfs_end_transaction_v1(PSI_transaction_locker *locker, bool commit);
 
 C_MODE_END
 

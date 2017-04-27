@@ -1,4 +1,4 @@
-/* Copyright (c) 2016 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -23,7 +23,6 @@
 #include "dd/impl/types/weak_object_impl.h"   // dd::Weak_object_impl
 #include "dd/types/object_type.h"             // dd::Object_type
 #include "dd/types/parameter_type_element.h"  // dd::Parameter_type_element
-#include "my_global.h"
 
 namespace dd {
 
@@ -110,12 +109,6 @@ public:
 
   virtual uint index() const
   { return m_index; }
-
-  // Fix "inherits ... via dominance" warnings
-  virtual Weak_object_impl *impl()
-  { return Weak_object_impl::impl(); }
-  virtual const Weak_object_impl *impl() const
-  { return Weak_object_impl::impl(); }
 
 public:
   virtual void debug_print(String_type &outb) const;

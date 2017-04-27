@@ -165,7 +165,8 @@ bool Table_impl::restore_children(Open_dictionary_tables_ctx *otx)
       this,
       otx,
       otx->get_table<Foreign_key>(),
-      Foreign_keys::create_key_by_table_id(this->id()))
+      Foreign_keys::create_key_by_table_id(this->id()),
+      Foreign_key_order_comparator())
     ||
     m_partitions.restore_items(
       this,
@@ -179,34 +180,11 @@ bool Table_impl::restore_children(Open_dictionary_tables_ctx *otx)
       this,
       otx,
       otx->get_table<Trigger>(),
-      Triggers::create_key_by_table_id(this->id()));
+      Triggers::create_key_by_table_id(this->id()),
+      Trigger_order_comparator());
 
   if (!ret)
     fix_partitions();
-
-  /*
-    Keep the collection items ordered based on
-    action_timing, event_type and action_order.
-  */
-  if (!ret)
-  {
-    class Sort_triggers
-    {
-    public:
-      inline bool operator() (const Trigger *t1,
-                              const Trigger *t2) const
-      {
-        return (t1->action_timing() < t2->action_timing()) ||
-                (t1->action_timing() == t2->action_timing() &&
-                 t1->event_type() < t2->event_type()) ||
-                (t1->action_timing() == t2->action_timing() &&
-                 t1->event_type() == t2->event_type() &&
-                 t1->action_order() < t2->action_order());
-      }
-    };
-
-    m_triggers.sort_items(Sort_triggers());
-  }
 
   return ret;
 }
@@ -769,39 +747,6 @@ Trigger *Table_impl::add_trigger_preceding(const Trigger *trigger,
   reorder_action_order(at, et);
 
   return new_trigger;
-}
-
-///////////////////////////////////////////////////////////////////////////
-
-void Table_impl::clone_triggers(Prealloced_array<Trigger*, 1> *triggers) const
-{
-  DBUG_ASSERT(triggers != nullptr);
-
-  for (const auto &trg: m_triggers)
-  {
-    Trigger_impl *trg_impl= Trigger_impl::clone(
-            *dynamic_cast<const Trigger_impl*>(trg), nullptr);
-    trg_impl->set_id(INVALID_OBJECT_ID);
-    triggers->push_back(trg_impl);
-  }
-}
-
-///////////////////////////////////////////////////////////////////////////
-
-void Table_impl::move_triggers(Prealloced_array<Trigger*, 1> *triggers)
-{
-  DBUG_ASSERT(triggers != nullptr);
-
-  for (auto &trg: *triggers)
-  {
-    Trigger_impl *trg_impl= dynamic_cast<Trigger_impl*>(trg);
-    DBUG_ASSERT(trg_impl->id() == INVALID_OBJECT_ID);
-    trg_impl->set_table(this);
-    m_triggers.push_back(trg_impl);
-  }
-  // All triggers are now owned by this table. Clear the array to make sure
-  // the triggers are not deleted by the owner of the array.
-  triggers->clear();
 }
 
 ///////////////////////////////////////////////////////////////////////////

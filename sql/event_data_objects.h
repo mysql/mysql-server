@@ -24,8 +24,8 @@
 
 #include <sys/types.h>
 
+#include "lex_string.h"
 #include "my_alloc.h"                   // MEM_ROOT
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_psi_config.h"
 #include "my_time.h"                    // interval_type
@@ -37,8 +37,6 @@ class THD;
 class Time_zone;
 
 typedef ulonglong sql_mode_t;
-typedef struct st_mysql_lex_string LEX_STRING;
-typedef struct st_mysql_const_lex_string LEX_CSTRING;
 namespace dd
 {
   class Event;
@@ -107,9 +105,9 @@ public:
   my_time_t m_execute_at;
   my_time_t m_starts;
   my_time_t m_ends;
-  my_bool m_starts_null;
-  my_bool m_ends_null;
-  my_bool m_execute_at_null;
+  bool m_starts_null;
+  bool m_ends_null;
+  bool m_execute_at_null;
 
   longlong m_expression;
   interval_type m_interval;
@@ -184,8 +182,23 @@ private:
   virtual bool fill_event_info(THD *thd, const dd::Event &event,
                                const char *schema_name);
   bool construct_sp_sql(THD *thd, String *sp_sql);
-  bool construct_drop_event_sql(THD *thd, String *sp_sql);
 };
+
+/**
+  Build an SQL drop event string.
+
+  @param[in]     thd         Thread handle
+  @param[in,out] sp_sql      Pointer to String object where the SQL query will
+                             be stored
+  @param[in]     db_name     The schema name
+  @param[in]     event_name  The event name
+
+  @retval        false       The drop event SQL query is built
+  @retval        true        Otherwise
+*/
+bool construct_drop_event_sql(THD *thd, String *sp_sql,
+                              const LEX_STRING &db_name,
+                              const LEX_STRING &event_name);
 
 
 /* Compares only the schema part of the identifier */

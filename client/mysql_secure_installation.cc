@@ -16,6 +16,7 @@
 */
 
 #include <stdlib.h>
+#include <sys/types.h>
 #include <welcome_copyright_notice.h> // ORACLE_WELCOME_COPYRIGHT_NOTICE
 
 #include "client_priv.h"
@@ -23,6 +24,8 @@
 #include "my_dbug.h"
 #include "my_default.h"
 #include "my_inttypes.h"
+#include "my_macros.h"
+#include "my_shm_defaults.h"
 #include "mysql/service_my_snprintf.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysqld_error.h"
@@ -39,12 +42,12 @@ static uint opt_protocol= 0;
 static char *opt_socket= 0;
 static MYSQL mysql;
 static char *password= 0;
-static my_bool password_provided= FALSE;
-static my_bool g_expire_password_on_exit= FALSE;
-static my_bool opt_use_default= FALSE;
+static bool password_provided= FALSE;
+static bool g_expire_password_on_exit= FALSE;
+static bool opt_use_default= FALSE;
 
 #if defined (_WIN32)
-static char *shared_memory_base_name= default_shared_memory_base_name;
+static const char *shared_memory_base_name= default_shared_memory_base_name;
 #endif
 
 #include "sslopt-vars.h"
@@ -94,7 +97,7 @@ static struct my_option my_connection_options[]=
   {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
-my_bool find_temporary_password(char **p);
+bool find_temporary_password(char **p);
 
 static void usage()
 {
@@ -123,7 +126,7 @@ static void free_resources()
 }
 
 extern "C" {
-static my_bool
+static bool
 my_arguments_get_one_option(int optid,
                             const struct my_option *opt MY_ATTRIBUTE((unused)),
                             char *argument)
@@ -445,7 +448,7 @@ static void estimate_password_strength(char *password_string)
     @retval FALSE failure
 */
 
-static my_bool mysql_set_password(MYSQL *mysql, char *password)
+static bool mysql_set_password(MYSQL *mysql, char *password)
 {
   size_t password_len= strlen(password);
   char *query, *end;
@@ -481,7 +484,7 @@ static my_bool mysql_set_password(MYSQL *mysql, char *password)
     @retval FALSE failure
 */
 
-static my_bool mysql_expire_password(MYSQL *mysql)
+static bool mysql_expire_password(MYSQL *mysql)
 {
   char sql[]= "UPDATE mysql.user SET password_expired= 'Y'";
   size_t sql_len= strlen(sql);
@@ -586,7 +589,7 @@ static void set_opt_user_password(int plugin_set)
 */
 static int get_opt_user_password()
 {
-  my_bool using_temporary_password= FALSE;
+  bool using_temporary_password= FALSE;
   int res;
 
   if (!password_provided)
@@ -849,7 +852,7 @@ static void reload_privilege_tables()
  @returns true if the password was successfully retrieved.
 */
 
-my_bool find_temporary_password(char **p)
+bool find_temporary_password(char **p)
 {
   const char *root_path= "/root";
   const char *password_file_name= "/.mysql_secret";

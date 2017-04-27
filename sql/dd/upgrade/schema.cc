@@ -1,0 +1,197 @@
+/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; version 2 of the License.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+
+#include "dd/upgrade/schema.h"
+#include "dd/cache/dictionary_client.h"       // dd::cache::Dictionary_client
+#include "dd/dd_schema.h"                     // Schema_MDL_locker
+#include "log.h"                              // sql_print_warning
+#include "mysqld.h"                           // key_file_dbopt
+#include "mysql/psi/mysql_file.h"             // mysql_file_open
+#include "sql_class.h"                        // THD
+#include "sql_table.h"                        // build_tablename
+#include "transaction.h"                      // trans_commit
+
+namespace dd {
+namespace upgrade {
+
+/**
+  Returns the collation id for the database specified.
+
+  @param[in]  thd                        Thread handle.
+  @param[in]  db_opt_path                Path for database.
+  @param[out] schema_charset             Character set of database.
+
+  @retval false  ON SUCCESS
+  @retval true   ON FAILURE
+
+*/
+static bool load_db_schema_collation(THD *thd,
+                                     const LEX_STRING *db_opt_path,
+                                     const CHARSET_INFO **schema_charset)
+{
+  IO_CACHE cache;
+  File file;
+  char buf[256];
+  uint nbytes;
+
+  if ((file= mysql_file_open(key_file_dbopt, db_opt_path->str,
+                             O_RDONLY, MYF(0))) < 0)
+  {
+    sql_print_warning("Unable to open db.opt file %s. "
+                      "Using default Character set.", db_opt_path->str);
+    return false;
+  }
+
+  if (init_io_cache(&cache, file, IO_SIZE, READ_CACHE, 0, 0, MYF(0)))
+  {
+    sql_print_error("Unable to intialize IO cache to open db.opt file %s. ",
+                     db_opt_path->str);
+    goto err;
+  }
+
+  while ((int) (nbytes= my_b_gets(&cache, (char*) buf, sizeof(buf))) > 0)
+  {
+    char *pos= buf + nbytes - 1;
+
+    /* Remove end space and control characters */
+    while (pos > buf && !my_isgraph(&my_charset_latin1, pos[-1]))
+      pos--;
+
+    *pos=0;
+    if ((pos= strrchr(buf, '=')))
+    {
+      if (!strncmp(buf,"default-character-set", (pos-buf)))
+      {
+        /*
+           Try character set name, and if it fails try collation name, probably
+           it's an old 4.1.0 db.opt file, which didn't have separate
+           default-character-set and default-collation commands.
+        */
+        if (!(*schema_charset= get_charset_by_csname(pos + 1,
+                                                    MY_CS_PRIMARY, MYF(0))) &&
+            !(*schema_charset= get_charset_by_name(pos + 1, MYF(0))))
+        {
+          sql_print_warning("Unable to identify the charset in %s. "
+                            "Using default character set.", db_opt_path->str);
+
+          *schema_charset= thd->variables.collation_server;
+        }
+      }
+      else if (!strncmp(buf, "default-collation", (pos - buf)))
+      {
+        if (!(*schema_charset= get_charset_by_name(pos + 1, MYF(0))) )
+        {
+          sql_print_warning("Unable to identify the charset in %s. "
+                            "Using default character set.", db_opt_path->str);
+          *schema_charset= thd->variables.collation_server;
+        }
+      }
+    }
+  }
+
+  end_io_cache(&cache);
+  mysql_file_close(file, MYF(0));
+  return false;
+
+err:
+  mysql_file_close(file, MYF(0));
+  return true;
+}
+
+
+/**
+   Update the Schemata:DD for every database present
+   in the data directory.
+*/
+
+bool migrate_schema_to_dd(THD *thd, const char *dbname)
+{
+  char dbopt_path_buff[FN_REFLEN + 1];
+  char schema_name[NAME_LEN + 1];
+  LEX_STRING dbopt_file_name;
+  const CHARSET_INFO *schema_charset= thd->variables.collation_server;
+
+  // Construct the schema name from its canonical format.
+  filename_to_tablename(dbname, schema_name, sizeof(schema_name));
+
+  dbopt_file_name.str= dbopt_path_buff;
+  dbopt_file_name.length= build_table_filename(dbopt_path_buff, FN_REFLEN - 1,
+                                               schema_name, "db", ".opt", 0);
+
+  if (!my_access(dbopt_file_name.str, F_OK))
+  {
+    // Get the collation id for the database.
+    if (load_db_schema_collation(thd, &dbopt_file_name, &schema_charset))
+      return true;
+  }
+  else
+  {
+    sql_print_warning("db.opt file not found for %s database. "
+                      "Using default Character set.", dbname);
+  }
+
+  // Disable autocommit option
+  Disable_autocommit_guard autocommit_guard(thd);
+
+  if (dd::create_schema(thd, schema_name, schema_charset))
+  {
+    trans_rollback_stmt(thd);
+    // Full rollback in case we have THD::transaction_rollback_request.
+    trans_rollback(thd);
+    return true;
+  }
+
+  if (trans_commit_stmt(thd) || trans_commit(thd))
+    return true;
+
+  return false;
+}
+
+
+/**
+  Scans datadir for databases and lists all the database names.
+*/
+
+bool find_schema_from_datadir(std::vector<String_type> *db_name)
+{
+  MY_DIR *a;
+  uint i;
+  FILEINFO *file;
+
+  if (!(a = my_dir(mysql_real_data_home, MYF(MY_WANT_STAT))))
+    return true;
+
+  for (i = 0; i < (uint)a->number_off_files; i++)
+  {
+    file= a->dir_entry+i;
+
+    if (file->name[0]  == '.')
+      continue;
+
+    if (MY_S_ISDIR(a->dir_entry[i].mystat->st_mode))
+    {
+      db_name->push_back(a->dir_entry[i].name);
+      continue;
+    }
+  }
+
+  my_dirend(a);
+  return false;
+}
+
+
+} // namespace upgrade
+} // namespace dd
+

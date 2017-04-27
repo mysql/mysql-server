@@ -3,8 +3,6 @@
 # This test verifies that performance schema tables, because they contain
 # data that is volatile, are never cached in the query cache.
 
---source include/not_embedded.inc
-
 --disable_warnings
 drop table if exists t1;
 --enable_warnings
@@ -12,6 +10,7 @@ drop table if exists t1;
 create table t1 (a int not null);
 insert into t1 values (1), (2), (3);
 
+SET @save_query_cache_size = @@query_cache_size;
 SET GLOBAL query_cache_size=1355776;
 
 flush query cache;
@@ -48,7 +47,7 @@ show global status like "Qcache_queries_in_cache";
 show global status like "Qcache_inserts";
 show global status like "Qcache_hits";
 
-SET GLOBAL query_cache_size= default;
+SET GLOBAL query_cache_size= @save_query_cache_size;
 
 drop table t1;
 flush status;

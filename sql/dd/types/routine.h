@@ -1,4 +1,4 @@
-/* Copyright (c) 2016 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,10 +16,9 @@
 #ifndef DD__ROUTINE_INCLUDED
 #define DD__ROUTINE_INCLUDED
 
-#include "my_global.h"
-
-#include "dd/types/dictionary_object.h"   // dd::Dictionary_object
+#include "dd/types/entity_object.h"       // dd::Entity_object
 #include "dd/types/view.h"                // dd::Column::enum_security_type
+#include "my_inttypes.h"
 
 namespace dd {
 
@@ -48,11 +47,11 @@ namespace tables {
         must inherit this class virtually.
 */
 
-class Routine : public Dictionary_object
+class Routine : virtual public Entity_object
 {
 public:
   static const Object_type &TYPE();
-  static const Dictionary_object_table &OBJECT_TABLE();
+  static const Entity_object_table &OBJECT_TABLE();
 
   typedef Routine cache_partition_type;
   typedef tables::Routines cache_partition_table_type;

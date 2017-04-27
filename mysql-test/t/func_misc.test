@@ -58,7 +58,7 @@ drop table t1;
 
 
 #
-# Bug #21531: EXPORT_SET() doesn't accept args with coercible character sets
+# Bug #21531: EXPORT_SET() does not accept args with coercible character sets
 #
 select export_set(3, _latin1'foo', _utf8'bar', ',', 4);
 
@@ -134,7 +134,6 @@ drop table t1;
 #      - "worker" session sending the query with "send" and pulling results
 #        with "reap"
 #      - session observing the processlist parallel to the worker session
-#      "send" and "reap" do not work in case of an embedded server.
 #    Conclusion: Tests based on processlist have too many restrictions.
 #
 # Solutions for subtests based on TIMEDIFF of values filled via NOW()
@@ -178,6 +177,7 @@ if (!` SELECT (@sleep_time_per_result_row * @row_count - @max_acceptable_delay >
                @sleep_time_per_result_row, @row_count, @max_acceptable_delay;
    exit;
 }
+SET @save_query_cache_size=@@query_cache_size;
 SET @@global.query_cache_size = 1024 * 64;
 --disable_warnings
 DROP TEMPORARY TABLE IF EXISTS t_history;
@@ -263,7 +263,7 @@ if (`SELECT @aux1 + @aux2 + @aux3 <> 3`)
 }
 DROP TABLE t1;
 DROP TEMPORARY TABLE t_history;
-SET @@global.query_cache_size = default;
+SET @@global.query_cache_size = @save_query_cache_size;
 
 #
 # Bug #21466: INET_ATON() returns signed, not unsigned
@@ -448,12 +448,6 @@ SELECT NAME_CONST('a', -(1 OR 2)) OR 1;
 --error ER_WRONG_ARGUMENTS
 SELECT NAME_CONST('a', -(1 AND 2)) OR 1;
 SELECT NAME_CONST('a', -(1)) OR 1;
-
-
-#
-#
-# Bug #30389: connection_id() always return 0 in embedded server
-#
 
 select connection_id() > 0;
 

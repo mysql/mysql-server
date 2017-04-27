@@ -20,9 +20,9 @@
 #include <string.h>
 #include <sys/types.h>
 
+#include "lex_string.h"
 #include "m_string.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_sqlcommand.h"
 #include "sql_cmd.h"          // Sql_cmd
@@ -647,13 +647,11 @@ struct st_plugin_int *plugin_find_by_type(const LEX_CSTRING &plugin, int type);
 
   @param[in,out]     thd     Thread context
   @param             plugin  Reference to handlerton
-  @param             unused  Unused
 
   @return    FALSE   on success, TRUE otherwise.
 */
 
-my_bool detach_native_trx(THD *thd, plugin_ref plugin,
-                                      void *unused);
+bool detach_native_trx(THD *thd, plugin_ref plugin, void *);
 
 /**
   Reset some transaction state information and delete corresponding

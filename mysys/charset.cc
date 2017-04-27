@@ -22,6 +22,8 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
+#include <mutex>
+
 #include "m_ctype.h"
 #include "m_string.h"
 #include "my_compiler.h"
@@ -59,7 +61,7 @@ extern CHARSET_INFO my_charset_utf16_unicode_ci;
 extern CHARSET_INFO my_charset_utf32_unicode_ci;
 extern CHARSET_INFO my_charset_cp932_japanese_ci;
 
-my_bool my_charset_same(const CHARSET_INFO *cs1, const CHARSET_INFO *cs2)
+bool my_charset_same(const CHARSET_INFO *cs1, const CHARSET_INFO *cs2)
 {
   return ((cs1 == cs2) || !strcmp(cs1->csname,cs2->csname));
 }
@@ -156,7 +158,7 @@ err:
 
 
 
-static my_bool simple_cs_is_full(CHARSET_INFO *cs)
+static bool simple_cs_is_full(CHARSET_INFO *cs)
 {
   return ((cs->csname && cs->tab_to_uni && cs->ctype && cs->to_upper &&
 	   cs->to_lower) &&
@@ -213,7 +215,6 @@ static int add_collation(CHARSET_INFO *cs)
 
       newcs->caseup_multiply= newcs->casedn_multiply= 1;
       newcs->levels_for_compare= 1;
-      newcs->levels_for_order= 1;
       
       if (!strcmp(cs->csname,"ucs2") )
       {
@@ -369,7 +370,7 @@ my_charset_loader_init_mysys(MY_CHARSET_LOADER *loader)
 const char *charsets_dir= NULL;
 
 
-static my_bool
+static bool
 my_read_charset_file(MY_CHARSET_LOADER *loader,
                      const char *filename,
                      myf myflags)
@@ -441,8 +442,7 @@ void add_compiled_collation(CHARSET_INFO *cs)
 }
 
 
-static my_thread_once_t charsets_initialized= MY_THREAD_ONCE_INIT;
-static my_thread_once_t charsets_template= MY_THREAD_ONCE_INIT;
+static std::once_flag charsets_initialized;
 
 extern "C" {
 static void init_available_charsets(void)
@@ -460,13 +460,6 @@ static void init_available_charsets(void)
   my_read_charset_file(&loader, fname, MYF(0));
 }
 }
-
-
-void free_charsets(void)
-{
-  charsets_initialized= charsets_template;
-}
-
 
 static const char*
 get_collation_name_alias(const char *name, char *buf, size_t bufsize)
@@ -490,7 +483,7 @@ uint get_collation_number(const char *name)
 {
   uint id;
   char alias[64];
-  my_thread_once(&charsets_initialized, init_available_charsets);
+  std::call_once(charsets_initialized, init_available_charsets);
   if ((id= get_collation_number_internal(name)))
     return id;
   if ((name= get_collation_name_alias(name, alias, sizeof(alias))))
@@ -528,7 +521,7 @@ get_charset_name_alias(const char *name)
 uint get_charset_number(const char *charset_name, uint cs_flags)
 {
   uint id;
-  my_thread_once(&charsets_initialized, init_available_charsets);
+  std::call_once(charsets_initialized, init_available_charsets);
   if ((id= get_charset_number_internal(charset_name, cs_flags)))
     return id;
   if ((charset_name= get_charset_name_alias(charset_name)))
@@ -539,7 +532,7 @@ uint get_charset_number(const char *charset_name, uint cs_flags)
 
 const char *get_charset_name(uint charset_number)
 {
-  my_thread_once(&charsets_initialized, init_available_charsets);
+  std::call_once(charsets_initialized, init_available_charsets);
 
   if (charset_number < array_elements(all_charsets))
   {
@@ -610,7 +603,7 @@ CHARSET_INFO *get_charset(uint cs_number, myf flags)
   if (cs_number == default_charset_info->number)
     return default_charset_info;
 
-  my_thread_once(&charsets_initialized, init_available_charsets);
+  std::call_once(charsets_initialized, init_available_charsets);
  
   if (cs_number >= array_elements(all_charsets)) 
     return NULL;
@@ -645,7 +638,7 @@ my_collation_get_by_name(MY_CHARSET_LOADER *loader,
 {
   uint cs_number;
   CHARSET_INFO *cs;
-  my_thread_once(&charsets_initialized, init_available_charsets);
+  std::call_once(charsets_initialized, init_available_charsets);
 
   cs_number= get_collation_number(name);
   my_charset_loader_init_mysys(loader);
@@ -687,7 +680,7 @@ my_charset_get_by_name(MY_CHARSET_LOADER *loader,
   DBUG_ENTER("get_charset_by_csname");
   DBUG_PRINT("enter",("name: '%s'", cs_name));
 
-  my_thread_once(&charsets_initialized, init_available_charsets);
+  std::call_once(charsets_initialized, init_available_charsets);
 
   cs_number= get_charset_number(cs_name, cs_flags);
   cs= cs_number ? get_internal_charset(loader, cs_number, flags) : NULL;
@@ -728,9 +721,9 @@ get_charset_by_csname(const char *cs_name, uint cs_flags, myf flags)
   is no character set with given name.
 */
 
-my_bool resolve_charset(const char *cs_name,
-                        const CHARSET_INFO *default_cs,
-                        const CHARSET_INFO **cs)
+bool resolve_charset(const char *cs_name,
+                     const CHARSET_INFO *default_cs,
+                     const CHARSET_INFO **cs)
 {
   *cs= get_charset_by_csname(cs_name, MY_CS_PRIMARY, MYF(0));
 
@@ -760,9 +753,9 @@ my_bool resolve_charset(const char *cs_name,
   collation with given name.
 */
 
-my_bool resolve_collation(const char *cl_name,
-                          const CHARSET_INFO *default_cl,
-                          const CHARSET_INFO **cl)
+bool resolve_collation(const char *cl_name,
+                       const CHARSET_INFO *default_cl,
+                       const CHARSET_INFO **cl)
 {
   *cl= get_charset_by_name(cl_name, MYF(0));
 
@@ -807,8 +800,8 @@ size_t escape_string_for_mysql(const CHARSET_INFO *charset_info,
 {
   const char *to_start= to;
   const char *end, *to_end=to_start + (to_length ? to_length-1 : 2*length);
-  my_bool overflow= FALSE;
-  my_bool use_mb_flag= use_mb(charset_info);
+  bool overflow= FALSE;
+  bool use_mb_flag= use_mb(charset_info);
   for (end= from + length; from < end; from++)
   {
     char escape= 0;
@@ -946,8 +939,8 @@ size_t escape_quotes_for_mysql(CHARSET_INFO *charset_info,
 {
   const char *to_start= to;
   const char *end, *to_end=to_start + (to_length ? to_length-1 : 2*length);
-  my_bool overflow= FALSE;
-  my_bool use_mb_flag= use_mb(charset_info);
+  bool overflow= FALSE;
+  bool use_mb_flag= use_mb(charset_info);
   for (end= from + length; from < end; from++)
   {
     int tmp_length;

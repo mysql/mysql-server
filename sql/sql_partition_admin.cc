@@ -13,7 +13,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "sql_partition_admin.h"
+#include "sql/sql_partition_admin.h"
 
 #include <limits.h>
 #include <string.h>
@@ -25,13 +25,14 @@
 #include "dd/types/table.h"                 // dd::Table
 #include "debug_sync.h"                     // DEBUG_SYNC
 #include "handler.h"
+#include "lex_string.h"
 #include "log.h"
 #include "m_ctype.h"
 #include "mdl.h"
 #include "my_base.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_inttypes.h"
+#include "my_io.h"
 #include "my_sys.h"
 #include "my_thread_local.h"
 #include "mysql/psi/mysql_mutex.h"
@@ -188,6 +189,20 @@ static bool compare_table_with_partition(THD *thd, TABLE *table,
   Alter_table_ctx part_alter_ctx; // Not used
   DBUG_ENTER("compare_table_with_partition");
 
+  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+  const dd::Table *part_table_def= nullptr;
+  if (!part_table->s->tmp_table)
+  {
+    if (thd->dd_client()->acquire(part_table->s->db.str,
+                                  part_table->s->table_name.str,
+                                  &part_table_def))
+    {
+      DBUG_RETURN(true);
+    }
+    // Should not happen, we know the table exists and can be opened.
+    DBUG_ASSERT(part_table_def != nullptr);
+  }
+
   bool metadata_equal= false;
   memset(&part_create_info, 0, sizeof(HA_CREATE_INFO));
   memset(&table_create_info, 0, sizeof(HA_CREATE_INFO));
@@ -198,7 +213,8 @@ static bool compare_table_with_partition(THD *thd, TABLE *table,
   /* mark all columns used, since they are used when preparing the new table */
   part_table->use_all_columns();
   table->use_all_columns();
-  if (mysql_prepare_alter_table(thd, part_table, &part_create_info,
+  if (mysql_prepare_alter_table(thd, part_table_def,
+                                part_table, &part_create_info,
                                 &part_alter_info, &part_alter_ctx))
   {
     my_error(ER_TABLES_DIFFERENT_METADATA, MYF(0));
@@ -281,190 +297,6 @@ static bool compare_table_with_partition(THD *thd, TABLE *table,
 
 
 /**
-  @brief Exchange partition/table with ddl log.
-
-  @details How to handle a crash in the middle of the rename (break on error):
-  1) register in ddl_log that we are going to exchange swap_table with part.
-  2) do the first rename (swap_table -> tmp-name) and sync the ddl_log.
-  3) do the second rename (part -> swap_table) and sync the ddl_log.
-  4) do the last rename (tmp-name -> part).
-  5) mark the entry done.
-
-  Recover by:
-    5) is done, All completed. Nothing to recover.
-    4) is done see 3). (No mark or sync in the ddl_log...)
-    3) is done -> try rename part -> tmp-name (ignore failure) goto 2).
-    2) is done -> try rename swap_table -> part (ignore failure) goto 1).
-    1) is done -> try rename tmp-name -> swap_table (ignore failure).
-    before 1) Nothing to recover...
-
-  @param thd        Thread handle
-  @param name       name of table/partition 1 (to be exchanged with 2)
-  @param from_name  name of table/partition 2 (to be exchanged with 1)
-  @param tmp_name   temporary name to use while exchaning
-  @param ht         handlerton of the table/partitions
-
-  @return Operation status
-    @retval TRUE    Error
-    @retval FALSE   Success
-
-  @note ha_heap always succeeds in rename (since it is created upon usage).
-  This is OK when to recover from a crash since all heap are empty and the
-  recover is done early in the startup of the server (right before
-  read_init_file which can populate the tables).
-
-  And if no crash we can trust the syncs in the ddl_log.
-
-  What about if the rename is put into a background thread? That will cause
-  corruption and is avoided by the exlusive metadata lock.
-*/
-static bool exchange_name_with_ddl_log(THD *thd,
-                                       const char *name,
-                                       const char *from_name,
-                                       const char *tmp_name,
-                                       handlerton *ht)
-{
-  DDL_LOG_ENTRY exchange_entry;
-  DDL_LOG_MEMORY_ENTRY *log_entry= NULL;
-  DDL_LOG_MEMORY_ENTRY *exec_log_entry= NULL;
-  bool error= TRUE;
-  bool error_set= FALSE;
-  handler *file= NULL;
-  DBUG_ENTER("exchange_name_with_ddl_log");
-
-  if (!(file= get_new_handler(NULL, false, thd->mem_root, ht)))
-  {
-    mem_alloc_error(sizeof(handler));
-    DBUG_RETURN(TRUE);
-  }
-
-  /* prepare the action entry */
-  exchange_entry.entry_type=   DDL_LOG_ENTRY_CODE;
-  exchange_entry.action_type=  DDL_LOG_EXCHANGE_ACTION;
-  exchange_entry.next_entry=   0;
-  exchange_entry.name=         name;
-  exchange_entry.from_name=    from_name;
-  exchange_entry.tmp_name=     tmp_name;
-  exchange_entry.handler_name= ha_resolve_storage_engine_name(ht);
-  exchange_entry.phase=        EXCH_PHASE_NAME_TO_TEMP;
-
-  mysql_mutex_lock(&LOCK_gdl);
-  /*
-    write to the ddl log what to do by:
-    1) write the action entry (i.e. which names to be exchanged)
-    2) write the execution entry with a link to the action entry
-  */
-  DBUG_EXECUTE_IF("exchange_partition_fail_1", goto err_no_action_written;);
-  DBUG_EXECUTE_IF("exchange_partition_abort_1", DBUG_SUICIDE(););
-  if (write_ddl_log_entry(&exchange_entry, &log_entry))
-    goto err_no_action_written;
-
-  DBUG_EXECUTE_IF("exchange_partition_fail_2", goto err_no_execute_written;);
-  DBUG_EXECUTE_IF("exchange_partition_abort_2", DBUG_SUICIDE(););
-  if (write_execute_ddl_log_entry(log_entry->entry_pos, FALSE, &exec_log_entry))
-    goto err_no_execute_written;
-  /* ddl_log is written and synced */
-
-  mysql_mutex_unlock(&LOCK_gdl);
-  /*
-    Execute the name exchange.
-    Do one rename, increase the phase, update the action entry and sync.
-    In case of errors in the ddl_log we must fail and let the ddl_log try
-    to revert the changes, since otherwise it could revert the command after
-    we sent OK to the client.
-  */
-  /* call rename table from table to tmp-name */
-  DBUG_EXECUTE_IF("exchange_partition_fail_3",
-                  my_error(ER_ERROR_ON_RENAME, MYF(0),
-                           name, tmp_name, 0, "n/a");
-                  error_set= TRUE;
-                  goto err_rename;);
-  DBUG_EXECUTE_IF("exchange_partition_abort_3", DBUG_SUICIDE(););
-  if (file->ha_rename_table(name, tmp_name, NULL, NULL))
-  {
-    char errbuf[MYSYS_STRERROR_SIZE];
-    my_error(ER_ERROR_ON_RENAME, MYF(0), name, tmp_name,
-             my_errno(), my_strerror(errbuf, sizeof(errbuf), my_errno()));
-    error_set= TRUE;
-    goto err_rename;
-  }
-  DBUG_EXECUTE_IF("exchange_partition_fail_4", goto err_rename;);
-  DBUG_EXECUTE_IF("exchange_partition_abort_4", DBUG_SUICIDE(););
-  if (deactivate_ddl_log_entry(log_entry->entry_pos))
-    goto err_rename;
-
-  /* call rename table from partition to table */
-  DBUG_EXECUTE_IF("exchange_partition_fail_5",
-                  my_error(ER_ERROR_ON_RENAME, MYF(0),
-                           from_name, name, 0, "n/a");
-                  error_set= TRUE;
-                  goto err_rename;);
-  DBUG_EXECUTE_IF("exchange_partition_abort_5", DBUG_SUICIDE(););
-  if (file->ha_rename_table(from_name, name, NULL, NULL))
-  {
-    char errbuf[MYSYS_STRERROR_SIZE];
-    my_error(ER_ERROR_ON_RENAME, MYF(0), from_name, name,
-             my_errno(), my_strerror(errbuf, sizeof(errbuf), my_errno()));
-    error_set= TRUE;
-    goto err_rename;
-  }
-  DBUG_EXECUTE_IF("exchange_partition_fail_6", goto err_rename;);
-  DBUG_EXECUTE_IF("exchange_partition_abort_6", DBUG_SUICIDE(););
-  if (deactivate_ddl_log_entry(log_entry->entry_pos))
-    goto err_rename;
-
-  /* call rename table from tmp-nam to partition */
-  DBUG_EXECUTE_IF("exchange_partition_fail_7",
-                  my_error(ER_ERROR_ON_RENAME, MYF(0),
-                           tmp_name, from_name, 0, "n/a");
-                  error_set= TRUE;
-                  goto err_rename;);
-  DBUG_EXECUTE_IF("exchange_partition_abort_7", DBUG_SUICIDE(););
-  if (file->ha_rename_table(tmp_name, from_name, NULL, NULL))
-  {
-    char errbuf[MYSYS_STRERROR_SIZE];
-    my_error(ER_ERROR_ON_RENAME, MYF(0), tmp_name, from_name,
-             my_errno(), my_strerror(errbuf, sizeof(errbuf), my_errno()));
-    error_set= TRUE;
-    goto err_rename;
-  }
-  DBUG_EXECUTE_IF("exchange_partition_fail_8", goto err_rename;);
-  DBUG_EXECUTE_IF("exchange_partition_abort_8", DBUG_SUICIDE(););
-  if (deactivate_ddl_log_entry(log_entry->entry_pos))
-    goto err_rename;
-
-  /* The exchange is complete and ddl_log is deactivated */
-  DBUG_EXECUTE_IF("exchange_partition_fail_9", goto err_rename;);
-  DBUG_EXECUTE_IF("exchange_partition_abort_9", DBUG_SUICIDE(););
-  /* all OK */
-  error= FALSE;
-  delete file;
-  DBUG_RETURN(error);
-err_rename:
-  /*
-    Nothing to do if any of these commands fails :( the commands itselfs
-    will log to the error log about the failures...
-  */
-  /* execute the ddl log entry to revert the renames */
-  (void) execute_ddl_log_entry(thd, log_entry->entry_pos);
-  mysql_mutex_lock(&LOCK_gdl);
-  /* mark the execute log entry done */
-  (void) write_execute_ddl_log_entry(0, TRUE, &exec_log_entry);
-  /* release the execute log entry */
-  release_ddl_log_memory_entry(exec_log_entry);
-err_no_execute_written:
-  /* release the action log entry */
-  release_ddl_log_memory_entry(log_entry);
-err_no_action_written:
-  mysql_mutex_unlock(&LOCK_gdl);
-  delete file;
-  if (!error_set)
-    my_error(ER_DDL_LOG_ERROR, MYF(0));
-  DBUG_RETURN(error);
-}
-
-
-/**
   @brief Swap places between a partition and a table.
 
   @details Verify that the tables are compatible (same engine, definition etc),
@@ -491,7 +323,6 @@ bool Sql_cmd_alter_table_exchange_partition::
 {
   TABLE *part_table, *swap_table;
   TABLE_LIST *swap_table_list;
-  handlerton *table_hton;
   partition_element *part_elem;
   String *partition_name;
   char temp_name[FN_REFLEN+1];
@@ -550,8 +381,6 @@ bool Sql_cmd_alter_table_exchange_partition::
   if (lock_tables(thd, table_list, table_counter, 0))
     DBUG_RETURN(true);
 
-
-  table_hton= swap_table->file->ht;
 
   THD_STAGE_INFO(thd, stage_verifying_table);
 
@@ -671,41 +500,8 @@ bool Sql_cmd_alter_table_exchange_partition::
   table_list->next_local->table= NULL;
   query_cache.invalidate(thd, table_list, FALSE);
 
-
-  if (ha_error == HA_ERR_WRONG_COMMAND)
+  if (ha_error)
   {
-    /*
-      TODO: Legacy code to be removed once InnoDB supports exchange of
-            partitions using Partition_handler::exchange_partition API.
-    */
-    close_all_tables_for_name(thd, swap_table->s, false, NULL);
-    close_all_tables_for_name(thd, part_table->s, false, NULL);
-
-    if (exchange_name_with_ddl_log(thd, swap_file_name, part_file_name,
-                                   temp_file_name, table_hton))
-      DBUG_RETURN(true);
-
-    /*
-      Reopen tables under LOCK TABLES. Ignore the return value for now. It's
-      better to keep master/slave in consistent state. Alternative would be to
-      try to revert the exchange operation and issue error.
-    */
-    (void) thd->locked_tables_list.reopen_tables(thd);
-
-    if (write_bin_log(thd, true, thd->query().str, thd->query().length))
-    {
-      /*
-        The error is reported in write_bin_log().
-        We try to revert to make it easier to keep the master/slave in sync.
-      */
-      (void) exchange_name_with_ddl_log(thd, part_file_name, swap_file_name,
-                                        temp_file_name, table_hton);
-      DBUG_RETURN(true);
-    }
-  }
-  else if (ha_error)
-  {
-    /* purecov: begin deadcode */
     part_table->file->print_error(ha_error, MYF(0));
     // Close TABLE instances which marked as old earlier.
     close_all_tables_for_name(thd, swap_table->s, false, NULL);
@@ -728,11 +524,9 @@ bool Sql_cmd_alter_table_exchange_partition::
       part_table->file->ht->post_ddl(thd);
     (void) thd->locked_tables_list.reopen_tables(thd);
     DBUG_RETURN(true);
-    /* purecov: end */
   }
   else
   {
-    /* purecov: begin deadcode */
     if (part_table->file->ht->flags & HTON_SUPPORTS_ATOMIC_DDL)
     {
       handlerton *hton= part_table->file->ht;
@@ -796,7 +590,6 @@ bool Sql_cmd_alter_table_exchange_partition::
       if (write_bin_log(thd, true, thd->query().str, thd->query().length))
         DBUG_RETURN(true);
     }
-    /* purecov: end */
   }
 
   my_ok(thd);
@@ -880,7 +673,7 @@ bool Sql_cmd_alter_table_truncate_partition::execute(THD *thd)
   TABLE_LIST *first_table= thd->lex->select_lex->table_list.first;
   Alter_info *alter_info= &thd->lex->alter_info;
   uint table_counter;
-  Partition_handler *part_handler;
+  Partition_handler *part_handler= nullptr;
   handlerton *hton;
   DBUG_ENTER("Sql_cmd_alter_table_truncate_partition::execute");
 

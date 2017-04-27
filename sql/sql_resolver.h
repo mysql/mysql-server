@@ -1,7 +1,7 @@
 #ifndef SQL_RESOLVER_INCLUDED
 #define SQL_RESOLVER_INCLUDED
 
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -41,7 +41,7 @@ bool setup_order(THD *thd, Ref_item_array ref_item_array, TABLE_LIST *tables,
 bool subquery_allows_materialization(Item_in_subselect *predicate,
                                      THD *thd, SELECT_LEX *select_lex,
                                      const SELECT_LEX *outer);
-bool validate_gc_assignment(THD * thd, List<Item> *fields,
+bool validate_gc_assignment(List<Item> *fields,
                             List<Item> *values, TABLE *tab);
 
 #endif /* SQL_RESOLVER_INCLUDED */

@@ -18,11 +18,11 @@ AND (collation_name LIKE CONCAT(character_set_name,'_general_ci')
 OR
 collation_name LIKE CONCAT(character_set_name,'_bin'))
 ORDER BY collation_name;
-COLLATION_NAME	CHARACTER_SET_NAME	ID	IS_DEFAULT	IS_COMPILED	SORTLEN
-latin1_bin	latin1	47		Yes	1
-latin1_general_ci	latin1	48		Yes	1
-utf8_bin	utf8	83		Yes	1
-utf8_general_ci	utf8	33	Yes	Yes	1
+COLLATION_NAME	CHARACTER_SET_NAME	ID	IS_DEFAULT	IS_COMPILED	SORTLEN	PAD_ATTRIBUTE
+latin1_bin	latin1	47		Yes	1	PAD SPACE
+latin1_general_ci	latin1	48		Yes	1	PAD SPACE
+utf8_bin	utf8	83		Yes	1	PAD SPACE
+utf8_general_ci	utf8	33	Yes	Yes	1	PAD SPACE
 
 SELECT *
 FROM information_schema.collation_character_set_applicability

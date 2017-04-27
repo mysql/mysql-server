@@ -26,14 +26,20 @@
   environment. MEMORY internal temporary tables are optimized similarly.
 */
 
+#include "my_config.h"
+
 #include <errno.h>
 #include <fcntl.h>
 #include <m_ctype.h>
+#include <sys/types.h>
+#include <time.h>
 
 #include "fulltext.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
+#include "my_io.h"
+#include "my_macros.h"
 #include "my_pointer_arithmetic.h"
 #include "myisam_sys.h"
 #include "rt_index.h"
@@ -210,7 +216,7 @@ MI_INFO *mi_open_share(const char *name, MYISAM_SHARE *old_share, int mode,
     mysql_file_seek(kfile, 0L, MY_SEEK_SET, MYF(0));
     if (!(open_flags & HA_OPEN_TMP_TABLE))
     {
-      if ((lock_error=my_lock(kfile,F_RDLCK,0L,F_TO_EOF,
+      if ((lock_error=my_lock(kfile,F_RDLCK,
 			      MYF(open_flags & HA_OPEN_WAIT_IF_LOCKED ?
 				  0 : MY_DONT_WAIT))) &&
 	  !(open_flags & HA_OPEN_IGNORE_IF_LOCKED))
@@ -490,7 +496,7 @@ MI_INFO *mi_open_share(const char *name, MYISAM_SHARE *old_share, int mode,
 
     if (! lock_error)
     {
-      (void) my_lock(kfile,F_UNLCK,0L,F_TO_EOF,MYF(MY_SEEK_NOT_DONE));
+      (void) my_lock(kfile,F_UNLCK,MYF(MY_SEEK_NOT_DONE));
       lock_error=1;			/* Database unlocked */
     }
 
@@ -517,7 +523,7 @@ MI_INFO *mi_open_share(const char *name, MYISAM_SHARE *old_share, int mode,
       share->options|= HA_OPTION_READ_ONLY_DATA;
       info.s=share;
       if (_mi_read_pack_info(&info,
-			     (my_bool)
+			     (bool)
 			     MY_TEST(!(share->options &
                                        (HA_OPTION_PACK_RECORD |
                                         HA_OPTION_TEMP_COMPRESS_RECORD)))))
@@ -691,7 +697,7 @@ err:
     /* fall through */
   case 3:
     if (! lock_error)
-      (void) my_lock(kfile, F_UNLCK, 0L, F_TO_EOF, MYF(MY_SEEK_NOT_DONE));
+      (void) my_lock(kfile, F_UNLCK, MYF(MY_SEEK_NOT_DONE));
     /* fall through */
   case 2:
     /* fall through */
@@ -992,7 +998,7 @@ uchar *mi_state_info_read(uchar *ptr, MI_STATE_INFO *state)
 }
 
 
-uint mi_state_info_read_dsk(File file, MI_STATE_INFO *state, my_bool pRead)
+uint mi_state_info_read_dsk(File file, MI_STATE_INFO *state, bool pRead)
 {
   uchar	buff[MI_STATE_INFO_SIZE + MI_STATE_EXTRA_SIZE];
 

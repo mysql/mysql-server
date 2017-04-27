@@ -49,7 +49,7 @@ if ( `SELECT @@GLOBAL.GTID_MODE = "ON"` )
 --source include/start_slave.inc
 connection master;
 
-create table t1(n char(30));
+create table t1(n char(30)) CHARACTER SET latin1;
 set @i1:=12345678901234, @i2:=-12345678901234, @i3:=0, @i4:=-1;
 set @s1:='This is a test', @r1:=12.5, @r2:=-12.5;
 set @n1:=null;

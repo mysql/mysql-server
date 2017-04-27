@@ -1,5 +1,3 @@
-# Can't test with embedded server that doesn't support grants
---source include/not_embedded.inc
 --source include/big_test.inc
 
 CREATE DATABASE IF NOT EXISTS events_test;

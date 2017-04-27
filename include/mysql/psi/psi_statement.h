@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -25,8 +25,10 @@
   @{
 */
 
-#include "my_global.h"
+#include "my_inttypes.h"
+#include "my_macros.h"
 #include "my_psi_config.h"  // IWYU pragma: keep
+#include "my_sharedlib.h"
 #include "psi_base.h"
 
 C_MODE_START
@@ -122,7 +124,7 @@ typedef struct PSI_sp_locker PSI_sp_locker;
 
 /**
   Statement instrument information.
-  @since PSI_VERSION_1
+  @since PSI_STATEMENT_VERSION_1
   This structure is used to register an instrumented statement.
 */
 struct PSI_statement_info_v1
@@ -152,9 +154,9 @@ typedef struct PSI_statement_info_v1 PSI_statement_info_v1;
 struct PSI_statement_locker_state_v1
 {
   /** Discarded flag. */
-  my_bool m_discarded;
+  bool m_discarded;
   /** In prepare flag. */
-  my_bool m_in_prepare;
+  bool m_in_prepare;
   /** Metric, no index used flag. */
   uchar m_no_index_used;
   /** Metric, no good index used flag. */

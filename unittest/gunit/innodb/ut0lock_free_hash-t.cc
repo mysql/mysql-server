@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -62,22 +62,22 @@ unittest/gunit/innodb/CMakeLists.txt */
 #endif /* TEST_TBB */
 
 #include <gtest/gtest.h>
+#include <my_thread_local.h> /* Needed to access thread local variables */
+#include <stddef.h>
 #include <thread>
 
-#include "univ.i"
-
-#include "sync0policy.h" /* needed by ib0mutex.h, which is not self contained */
-#include "os0thread.h" /* os_thread_*() */
 #include "os0thread-create.h" /* os_thread_*() */
+#include "os0thread.h" /* os_thread_*() */
 #include "srv0conc.h" /* srv_max_n_threads */
 #include "sync0debug.h" /* sync_check_init(), sync_check_close() */
+#include "sync0policy.h" /* needed by ib0mutex.h, which is not self contained */
+#include "univ.i"
 #include "ut0dbg.h" /* ut_chrono_t */
 #include "ut0lock_free_hash.h"
 #include "ut0mutex.h" /* SysMutex, mutex_enter() */
-#include <my_thread_local.h> /* Needed to access thread local variables */
 
-/* Key for thread local counter variable for random backoff for spinlocks*/
-extern thread_local_key_t ut_rnd_ulint_counter_key;
+/* Thread local counter variable for random backoff for spinlocks */
+extern thread_local ulint ut_rnd_ulint_counter;
 
 namespace innodb_lock_free_hash_unittest {
 
@@ -518,7 +518,7 @@ run_multi_threaded(
 
 	ut_hash_interface_t*	hash;
 
-	(void)my_create_thread_local_key(&ut_rnd_ulint_counter_key, NULL);
+	ut_rnd_ulint_counter = 0;
 
 #if defined(TEST_STD_MAP) || defined(TEST_STD_UNORDERED_MAP)
 	hash = new std_hash_t();
@@ -560,7 +560,6 @@ run_multi_threaded(
 	delete[] threads;
 
 	delete hash;
-	my_delete_thread_local_key(ut_rnd_ulint_counter_key);
 
 }
 

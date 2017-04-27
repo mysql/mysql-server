@@ -18,6 +18,7 @@
 
 #include "checker.h"
 #include "my_inttypes.h"
+#include "my_io.h"
 
 namespace keyring {
 
@@ -27,9 +28,9 @@ public:
   CheckerVer_1_0() : Checker(keyring_file_version_1_0)
   {}
 protected:
-  my_bool is_file_size_correct(size_t file_size);
-  my_bool file_seek_to_tag(File file);
-  my_bool is_dgst_correct(File file, Digest *digest);
+  bool is_file_size_correct(size_t file_size);
+  bool file_seek_to_tag(File file);
+  bool is_dgst_correct(File file, Digest *digest);
 };
 
 }//namespace keyring

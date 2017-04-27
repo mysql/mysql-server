@@ -52,6 +52,7 @@
 
 # Skip configuration of recovery channel
 
+--source include/big_test.inc
 --let $skip_recovery_configuration = 1
 --source ../inc/have_group_replication_plugin.inc
 --let $rpl_skip_group_replication_start= 1
@@ -107,7 +108,8 @@ STOP SLAVE SQL_THREAD FOR CHANNEL 'group_replication_recovery';
 START SLAVE SQL_THREAD FOR CHANNEL 'group_replication_recovery';
 
 --echo
---echo # 'Empty set' when executing SHOW SLAVE STATUS on GR recovery channel
+--echo # ERROR when executing SHOW SLAVE STATUS on GR recovery channel
+--error ER_SLAVE_CHANNEL_DOES_NOT_EXIST
 --query_vertical SHOW SLAVE STATUS FOR CHANNEL 'group_replication_recovery'
 
 --echo

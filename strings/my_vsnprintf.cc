@@ -16,13 +16,13 @@
 #include <float.h>
 #include <m_ctype.h>
 #include <m_string.h>
-#include <my_global.h>
 #include <stdarg.h>
 #include <string.h>
 #include <sys/types.h>
 
 #include "my_dbug.h"
 #include "my_inttypes.h"
+#include "my_macros.h"
 
 struct pos_arg_info;
 struct print_info;

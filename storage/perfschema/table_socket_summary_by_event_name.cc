@@ -18,16 +18,18 @@
   Table SOCKET_EVENT_NAMES (implementation).
 */
 
+#include "storage/perfschema/table_socket_summary_by_event_name.h"
+
+#include <stddef.h>
+
 #include "field.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_thread.h"
 #include "pfs_column_types.h"
 #include "pfs_column_values.h"
 #include "pfs_global.h"
 #include "pfs_instr.h"
 #include "pfs_visitor.h"
-#include "table_socket_summary_by_event_name.h"
 
 THR_LOCK table_socket_summary_by_event_name::m_table_lock;
 
@@ -189,7 +191,7 @@ PFS_index_socket_summary_by_event_name::match(const PFS_socket_class *pfs)
 }
 
 PFS_engine_table *
-table_socket_summary_by_event_name::create(void)
+table_socket_summary_by_event_name::create(PFS_engine_table_share *)
 {
   return new table_socket_summary_by_event_name();
 }
@@ -254,7 +256,8 @@ table_socket_summary_by_event_name::rnd_pos(const void *pos)
 }
 
 int
-table_socket_summary_by_event_name::index_init(uint idx, bool)
+table_socket_summary_by_event_name::index_init(uint idx MY_ATTRIBUTE((unused)),
+                                               bool)
 {
   PFS_index_socket_summary_by_event_name *result = NULL;
   DBUG_ASSERT(idx == 0);

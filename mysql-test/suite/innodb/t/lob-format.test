@@ -1,7 +1,5 @@
 --source include/have_debug.inc
 --source include/have_innodb_max_16k.inc
-# The embedded server does not support restarting.
---source include/not_embedded.inc
 
 --echo #
 --echo # WL#9263 InnoDB: Independent compress/decompress of BLOB pages

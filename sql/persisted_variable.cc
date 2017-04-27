@@ -1,4 +1,4 @@
-/* Copyright (c) 2016 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,46 +14,17 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "persisted_variable.h"
-
-#include <fcntl.h>
-#include <string.h>
-#include <sys/types.h>
-#include <memory>
-#include <new>
-#include <utility>
-
 #include "current_thd.h"
-#include "item.h"
+#include "derror.h"           // ER_THD
 #include "json_dom.h"
+#include "lex_string.h"
 #include "log.h"                        // sql_print_error
-#include "m_ctype.h"
-#include "m_string.h"
-#include "my_compiler.h"
-#include "my_dbug.h"
 #include "my_default.h"                 // check_file_permissions
-#include "my_getopt.h"
-#include "my_loglevel.h"
-#include "my_sys.h"
-#include "my_thread.h"
-#include "mysql/plugin.h"
-#include "mysql/psi/mysql_file.h"
-#include "mysql/psi/psi_base.h"
-#include "mysql/psi/psi_file.h"
-#include "mysql/psi/psi_mutex.h"
-#include "mysql_version.h"
 #include "mysqld.h"
-#include "mysqld_error.h"
 #include "set_var.h"
 #include "sql_class.h"
 #include "sql_lex.h"
-#include "sql_list.h"
-#include "sql_plugin.h"
-#include "sql_security_ctx.h"
-#include "sql_show.h"
-#include "sql_string.h"
-#include "strfunc.h"
 #include "sys_vars_shared.h"
-#include "thr_mutex.h"
 
 #ifdef HAVE_PSI_FILE_INTERFACE
 PSI_file_key key_persist_file_cnf;
@@ -150,9 +121,6 @@ void Persisted_variables_cache::set_variable(THD *thd, set_var *setvar)
   } tmp_var;
   sys_var *system_var= setvar->var;
 
-  /* check if it is SET PERSIST X=DEFAULT; */
-  bool is_default= (setvar->value ? 0 : 1);
-
   const char* var_name=
     Persisted_variables_cache::get_variable_name(system_var);
   const char* var_value=
@@ -168,28 +136,8 @@ void Persisted_variables_cache::set_variable(THD *thd, set_var *setvar)
     tmp_var.name= struct_var_name.append(".").append(tmp_var.name);
   /* modification to in-memory must be thread safe */
   mysql_mutex_lock(&m_LOCK_persist_hash);
-  std::map<string, string>::iterator it;
-  it = m_persist_hash.find(tmp_var.name);
-  if (it != m_persist_hash.end())
-  {
-    /*
-      if present and value is default then remove it. This is like
-      reset operation. Else update with new value.
-    */
-    if (is_default)
-      m_persist_hash.erase(it);
-    else
-      m_persist_hash[tmp_var.name]= tmp_var.value;
-  }
-  /*
-    if not present insert into hash, if it is default literal value
-    but not DEFAULT keyword
-  */
-  else
-  {
-    if (!is_default)
-    m_persist_hash[tmp_var.name]= tmp_var.value;
-  }
+  /* if present update variable with new value else insert into hash */
+  m_persist_hash[tmp_var.name]= tmp_var.value;
   mysql_mutex_unlock(&m_LOCK_persist_hash);
 }
 
@@ -609,6 +557,75 @@ int Persisted_variables_cache::read_persist_file()
   return 0;
 }
 
+/**
+  reset_persisted_variables() does a lookup into persist_hash and remove the
+  variable from the hash if present and flush the hash to file.
+
+  @param [in] thd                     Pointer to connection handle.
+  @param [in] name                    Name of variable to remove, if NULL all
+                                      variables are removed from config file.
+  @param [in] if_exists               Bool value when set to TRUE reports
+                                      warning else error if variable is not
+                                      present in the config file.
+
+  @return 0 Success
+  @return 1 Failure
+*/
+bool Persisted_variables_cache::reset_persisted_variables(THD *thd,
+  const char* name, bool if_exists)
+{
+  bool result= 0, flush= 0;
+  string var_name;
+  bool reset_all= (name ? 0 : 1);
+  var_name= (name ? name : string());
+  std::map<string, string>::iterator it= m_persist_hash.find(var_name);
+
+  if (reset_all)
+  {
+    if (!m_persist_hash.empty())
+    {
+      m_persist_hash.clear();
+      flush= 1;
+    }
+  }
+  else
+  {
+    if (it != m_persist_hash.end())
+    {
+      /* if variable is present in config file remove it */
+      m_persist_hash.erase(it);
+      flush= 1;
+    }
+    else
+    {
+      /* if not present and if exists is specified report warning */
+      if (if_exists)
+      {
+        push_warning_printf(thd, Sql_condition::SL_WARNING,
+                            ER_VAR_DOES_NOT_EXIST,
+                            ER_THD(thd, ER_VAR_DOES_NOT_EXIST),
+                            var_name.c_str());
+      }
+      else /* report error */
+      {
+        my_error(ER_VAR_DOES_NOT_EXIST, MYF(0), var_name.c_str());
+        result= 1;
+      }
+    }
+  }
+  if (flush)
+    flush_to_file();
+
+  return result;
+}
+
+/**
+  Return in-memory copy persist_hash
+*/
+map<string, string>* Persisted_variables_cache::get_persist_hash()
+{
+  return &m_persist_hash;
+}
 void Persisted_variables_cache::cleanup()
 {
   mysql_mutex_destroy(&m_LOCK_persist_hash);

@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,8 +18,9 @@
    Implementation of the Optimizer trace API (WL#5257)
 */
 
-#include "opt_trace.h"
+#include "sql/opt_trace.h"
 
+#include <assert.h>
 #include <stdio.h>
 #include <new>
 
@@ -189,7 +190,8 @@ public:
   size_t alloced_length() const
   { return trace_buffer.alloced_length() + query_buffer.alloced_length(); }
 
-  void assert_current_struct(const Opt_trace_struct *s) const
+  void assert_current_struct
+    (const Opt_trace_struct *s MY_ATTRIBUTE((unused))) const
   { DBUG_ASSERT(current_struct == s); }
 
   /// @see Opt_trace_context::missing_privilege()

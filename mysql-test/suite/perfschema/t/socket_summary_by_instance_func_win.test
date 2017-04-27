@@ -27,9 +27,6 @@
 #    - Connects                   in 4.5
 #
 
-# Embedded server does not support the performance_schema.
---source include/not_embedded.inc
-
 # Windows platforms only
 --source include/windows.inc
 

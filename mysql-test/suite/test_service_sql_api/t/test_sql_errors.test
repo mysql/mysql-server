@@ -1,4 +1,3 @@
---source include/not_embedded.inc
 
 call mtr.add_suppression(".*test_sql_errors.*");
 call mtr.add_suppression(".*Killing thread.*");

@@ -7,8 +7,6 @@
 #                                                                           #
 #############################################################################
 
--- source include/not_embedded.inc
-
 # Currently just a sanity check
 CALL sys.ps_setup_reset_to_default(TRUE);
 

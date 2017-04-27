@@ -1,4 +1,3 @@
---source include/not_embedded.inc
 --source include/master-slave.inc
 
 --connection master

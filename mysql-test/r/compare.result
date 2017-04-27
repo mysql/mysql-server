@@ -1,5 +1,5 @@
 drop table if exists t1;
-CREATE TABLE t1 (id CHAR(12) not null, PRIMARY KEY (id));
+CREATE TABLE t1 (id CHAR(12) not null, PRIMARY KEY (id)) charset latin1;
 insert into t1 values ('000000000001'),('000000000002');
 analyze table t1;
 Table	Op	Msg_type	Msg_text
@@ -34,7 +34,7 @@ SELECT 'a\t' < 'a';
 SELECT 'a\t' < 'a ';
 'a\t' < 'a '
 1
-CREATE TABLE t1 (a char(10) not null);
+CREATE TABLE t1 (a char(10) not null) charset latin1;
 INSERT INTO t1 VALUES ('a'),('a\0'),('a\t'),('a ');
 SELECT hex(a),STRCMP(a,'a'), STRCMP(a,'a ') FROM t1;
 hex(a)	STRCMP(a,'a')	STRCMP(a,'a ')

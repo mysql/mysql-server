@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -30,9 +30,9 @@
     character pointer, or not the same bit pattern as NullS.
 */
 
-#include <my_global.h>
-#include "m_string.h"  // IWYU pragma: keep
 #include <stdarg.h>
+
+#include "m_string.h"  // IWYU pragma: keep
 
 char *strxmov(char *dst,const char *src, ...)
 {

@@ -13,7 +13,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include <my_global.h>
+#include <stddef.h>
 #include <memory>
 
 #include "keyring.h"
@@ -32,7 +32,7 @@ namespace keyring
 mysql_rwlock_t LOCK_keyring;
 
 std::unique_ptr<IKeys_container> keys(nullptr);
-my_bool is_keys_container_initialized= FALSE;
+bool is_keys_container_initialized= FALSE;
 std::unique_ptr<ILogger> logger(nullptr);
 std::unique_ptr<char[]> keyring_file_data(nullptr);
 
@@ -60,7 +60,7 @@ void keyring_init_psi_keys(void)
 }
 #endif //HAVE_PSI_INTERFACE
 
-my_bool init_keyring_locks()
+bool init_keyring_locks()
 {
   if (mysql_rwlock_init(keyring::key_LOCK_keyring, &LOCK_keyring))
     return TRUE;
@@ -83,8 +83,8 @@ void update_keyring_file_data(MYSQL_THD thd  MY_ATTRIBUTE((unused)),
   mysql_rwlock_unlock(&LOCK_keyring);
 }
 
-my_bool mysql_key_fetch(std::unique_ptr<IKey> key_to_fetch, char **key_type,
-                        void **key, size_t *key_len)
+bool mysql_key_fetch(std::unique_ptr<IKey> key_to_fetch, char **key_type,
+                     void **key, size_t *key_len)
 {
   if (is_keys_container_initialized == FALSE)
     return TRUE;
@@ -112,7 +112,7 @@ my_bool mysql_key_fetch(std::unique_ptr<IKey> key_to_fetch, char **key_type,
   return FALSE;
 }
 
-my_bool check_key_for_writting(IKey* key, std::string error_for)
+bool check_key_for_writting(IKey* key, std::string error_for)
 {
   std::string error_msg= "Error while ";
   error_msg+= error_for;
@@ -131,7 +131,7 @@ my_bool check_key_for_writting(IKey* key, std::string error_for)
  return FALSE;
 }
 
-my_bool mysql_key_store(std::unique_ptr<IKey> key_to_store)
+bool mysql_key_store(std::unique_ptr<IKey> key_to_store)
 {
   if (is_keys_container_initialized == FALSE)
     return TRUE;
@@ -153,7 +153,7 @@ my_bool mysql_key_store(std::unique_ptr<IKey> key_to_store)
   return FALSE;
 }
 
-my_bool mysql_key_remove(std::unique_ptr<IKey> key_to_remove)
+bool mysql_key_remove(std::unique_ptr<IKey> key_to_remove)
 {
   bool retval= false;
   if (is_keys_container_initialized == FALSE)

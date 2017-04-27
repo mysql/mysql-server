@@ -1,7 +1,7 @@
 ## generated
 ## Delete with missing schema or table
 
---source ../include/xplugin_preamble.inc
+--source include/xplugin_preamble.inc
 ## Test starts here
 --write_file $MYSQL_TMP_DIR/delete_del_missing_arg.tmp
 ## Test data

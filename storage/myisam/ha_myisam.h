@@ -22,10 +22,13 @@
 
 #include <ft_global.h>
 #include <myisam.h>
+#include <stddef.h>
+#include <sys/types.h>
 
 #include "handler.h"                            /* handler */
 #include "my_icp.h"
 #include "my_inttypes.h"
+#include "my_macros.h"
 #include "sql_string.h"
 #include "table.h"                              /* TABLE_SHARE */
 #include "typelib.h"
@@ -174,11 +177,11 @@ class ha_myisam: public handler
   int assign_to_keycache(THD* thd, HA_CHECK_OPT* check_opt);
   int preload_keys(THD* thd, HA_CHECK_OPT* check_opt);
   bool check_if_incompatible_data(HA_CREATE_INFO *info, uint table_changes);
-  my_bool register_query_cache_table(THD *thd, char *table_key,
-                                     size_t key_length,
-                                     qc_engine_callback
-                                     *engine_callback,
-                                     ulonglong *engine_data);
+  bool register_query_cache_table(THD *thd, char *table_key,
+                                  size_t key_length,
+                                  qc_engine_callback
+                                  *engine_callback,
+                                  ulonglong *engine_data);
   MI_INFO *file_ptr(void)
   {
     return file;

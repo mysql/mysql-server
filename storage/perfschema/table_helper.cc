@@ -19,10 +19,14 @@
   Performance schema table helpers (implementation).
 */
 
+#include "storage/perfschema/table_helper.h"
+
+#include "my_config.h"
+
 #include "field.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
-#include "my_global.h"
+#include "my_macros.h"
 #include "my_thread.h"
 #include "pfs_account.h"
 #include "pfs_column_types.h"
@@ -37,7 +41,163 @@
 #include "pfs_setup_object.h"
 #include "pfs_user.h"
 #include "pfs_variable.h"
-#include "table_helper.h"
+
+void
+set_field_long(Field *f, long value)
+{
+  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_LONG);
+  Field_long *f2 = (Field_long *)f;
+  f2->store(value, false);
+}
+
+void
+set_field_ulong(Field *f, ulong value)
+{
+  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_LONG);
+  Field_long *f2 = (Field_long *)f;
+  f2->store(value, true);
+}
+
+void
+set_field_longlong(Field *f, longlong value)
+{
+  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_LONGLONG);
+  Field_longlong *f2 = (Field_longlong *)f;
+  f2->store(value, false);
+}
+
+void
+set_field_ulonglong(Field *f, ulonglong value)
+{
+  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_LONGLONG);
+  Field_longlong *f2 = (Field_longlong *)f;
+  f2->store(value, true);
+}
+
+void
+set_field_char_utf8(Field *f, const char *str, uint len)
+{
+  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_STRING);
+  Field_string *f2 = (Field_string *)f;
+  f2->store(str, len, &my_charset_utf8_bin);
+}
+
+void
+set_field_varchar(Field *f, const CHARSET_INFO *cs, const char *str, uint len)
+{
+  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_VARCHAR);
+  Field_varstring *f2 = (Field_varstring *)f;
+  f2->store(str, len, cs);
+}
+
+void
+set_field_varchar_utf8(Field *f, const char *str, uint len)
+{
+  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_VARCHAR);
+  Field_varstring *f2 = (Field_varstring *)f;
+  f2->store(str, len, &my_charset_utf8_bin);
+}
+
+void
+set_field_varchar_utf8mb4(Field *f, const char *str, uint len)
+{
+  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_VARCHAR);
+  Field_varstring *f2 = (Field_varstring *)f;
+  f2->store(str, len, &my_charset_utf8mb4_bin);
+}
+
+void
+set_field_varchar_utf8(Field *f, const char *str)
+{
+  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_VARCHAR);
+  Field_varstring *f2 = (Field_varstring *)f;
+  f2->store(str, strlen(str), &my_charset_utf8_bin);
+}
+
+void
+set_field_varchar_utf8mb4(Field *f, const char *str)
+{
+  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_VARCHAR);
+  Field_varstring *f2 = (Field_varstring *)f;
+  f2->store(str, strlen(str), &my_charset_utf8mb4_bin);
+}
+
+void
+set_field_longtext_utf8(Field *f, const char *str, uint len)
+{
+  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_BLOB);
+  Field_blob *f2 = (Field_blob *)f;
+  f2->store(str, len, &my_charset_utf8_bin);
+}
+
+void
+set_field_blob(Field *f, const char *val, uint len)
+{
+  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_BLOB);
+  Field_blob *f2 = (Field_blob *)f;
+  f2->store(val, len, &my_charset_utf8_bin);
+}
+
+void
+set_field_enum(Field *f, ulonglong value)
+{
+  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_ENUM);
+  Field_enum *f2 = (Field_enum *)f;
+  f2->store_type(value);
+}
+
+void
+set_field_timestamp(Field *f, ulonglong value)
+{
+  struct timeval tm;
+  tm.tv_sec = (long)(value / 1000000);
+  tm.tv_usec = (long)(value % 1000000);
+  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_TIMESTAMP2);
+  Field_timestampf *f2 = (Field_timestampf *)f;
+  f2->store_timestamp(&tm);
+}
+
+void
+set_field_double(Field *f, double value)
+{
+  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_DOUBLE);
+  Field_double *f2 = (Field_double *)f;
+  f2->store(value);
+}
+
+ulonglong
+get_field_ulonglong(Field *f)
+{
+  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_LONGLONG);
+  Field_longlong *f2 = (Field_longlong *)f;
+  return f2->val_int();
+}
+
+ulonglong
+get_field_enum(Field *f)
+{
+  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_ENUM);
+  Field_enum *f2 = (Field_enum *)f;
+  return f2->val_int();
+}
+
+String *
+get_field_char_utf8(Field *f, String *val)
+{
+  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_STRING);
+  Field_string *f2 = (Field_string *)f;
+  val = f2->val_str(NULL, val);
+  return val;
+}
+
+String *
+get_field_varchar_utf8(Field *f, String *val)
+{
+  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_VARCHAR);
+  Field_varstring *f2 = (Field_varstring *)f;
+  val = f2->val_str(NULL, val);
+  return val;
+}
 
 int
 PFS_host_row::make_row(PFS_host *pfs)
@@ -59,7 +219,7 @@ PFS_host_row::set_field(Field *f)
 {
   if (m_hostname_length > 0)
   {
-    PFS_engine_table::set_field_char_utf8(f, m_hostname, m_hostname_length);
+    set_field_char_utf8(f, m_hostname, m_hostname_length);
   }
   else
   {
@@ -87,7 +247,7 @@ PFS_user_row::set_field(Field *f)
 {
   if (m_username_length > 0)
   {
-    PFS_engine_table::set_field_char_utf8(f, m_username, m_username_length);
+    set_field_char_utf8(f, m_username, m_username_length);
   }
   else
   {
@@ -129,7 +289,7 @@ PFS_account_row::set_field(uint index, Field *f)
   case 0: /* USER */
     if (m_username_length > 0)
     {
-      PFS_engine_table::set_field_char_utf8(f, m_username, m_username_length);
+      set_field_char_utf8(f, m_username, m_username_length);
     }
     else
     {
@@ -139,7 +299,7 @@ PFS_account_row::set_field(uint index, Field *f)
   case 1: /* HOST */
     if (m_hostname_length > 0)
     {
-      PFS_engine_table::set_field_char_utf8(f, m_hostname, m_hostname_length);
+      set_field_char_utf8(f, m_hostname, m_hostname_length);
     }
     else
     {
@@ -210,8 +370,9 @@ PFS_digest_row::set_field(uint index, Field *f)
   {
   case 0: /* SCHEMA_NAME */
     if (m_schema_name_length > 0)
-      PFS_engine_table::set_field_varchar_utf8(
-        f, m_schema_name, m_schema_name_length);
+    {
+      set_field_varchar_utf8(f, m_schema_name, m_schema_name_length);
+    }
     else
     {
       f->set_null();
@@ -220,7 +381,7 @@ PFS_digest_row::set_field(uint index, Field *f)
   case 1: /* DIGEST */
     if (m_digest_length > 0)
     {
-      PFS_engine_table::set_field_varchar_utf8(f, m_digest, m_digest_length);
+      set_field_varchar_utf8(f, m_digest, m_digest_length);
     }
     else
     {
@@ -229,8 +390,10 @@ PFS_digest_row::set_field(uint index, Field *f)
     break;
   case 2: /* DIGEST_TEXT */
     if (m_digest_text.length() > 0)
-      PFS_engine_table::set_field_longtext_utf8(
+    {
+      set_field_longtext_utf8(
         f, m_digest_text.ptr(), (uint)m_digest_text.length());
+    }
     else
     {
       f->set_null();
@@ -401,12 +564,10 @@ PFS_object_row::set_field(uint index, Field *f)
     set_field_object_type(f, m_object_type);
     break;
   case 1: /* SCHEMA_NAME */
-    PFS_engine_table::set_field_varchar_utf8(
-      f, m_schema_name, m_schema_name_length);
+    set_field_varchar_utf8(f, m_schema_name, m_schema_name_length);
     break;
   case 2: /* OBJECT_NAME */
-    PFS_engine_table::set_field_varchar_utf8(
-      f, m_object_name, m_object_name_length);
+    set_field_varchar_utf8(f, m_object_name, m_object_name_length);
     break;
   default:
     DBUG_ASSERT(false);
@@ -430,8 +591,9 @@ PFS_object_row::set_nullable_field(uint index, Field *f)
     break;
   case 1: /* SCHEMA_NAME */
     if (m_schema_name_length > 0)
-      PFS_engine_table::set_field_varchar_utf8(
-        f, m_schema_name, m_schema_name_length);
+    {
+      set_field_varchar_utf8(f, m_schema_name, m_schema_name_length);
+    }
     else
     {
       f->set_null();
@@ -439,8 +601,9 @@ PFS_object_row::set_nullable_field(uint index, Field *f)
     break;
   case 2: /* OBJECT_NAME */
     if (m_object_name_length > 0)
-      PFS_engine_table::set_field_varchar_utf8(
-        f, m_object_name, m_object_name_length);
+    {
+      set_field_varchar_utf8(f, m_object_name, m_object_name_length);
+    }
     else
     {
       f->set_null();
@@ -516,8 +679,9 @@ PFS_index_row::set_field(uint index, Field *f)
     break;
   case 3: /* INDEX_NAME */
     if (m_index_name_length > 0)
-      PFS_engine_table::set_field_varchar_utf8(
-        f, m_index_name, m_index_name_length);
+    {
+      set_field_varchar_utf8(f, m_index_name, m_index_name_length);
+    }
     else
     {
       f->set_null();
@@ -541,61 +705,61 @@ PFS_statement_stat_row::set_field(uint index, Field *f)
     m_timer1_row.set_field(index, f);
     break;
   case 5: /* SUM_LOCK_TIME */
-    PFS_engine_table::set_field_ulonglong(f, m_lock_time);
+    set_field_ulonglong(f, m_lock_time);
     break;
   case 6: /* SUM_ERRORS */
-    PFS_engine_table::set_field_ulonglong(f, m_error_count);
+    set_field_ulonglong(f, m_error_count);
     break;
   case 7: /* SUM_WARNINGS */
-    PFS_engine_table::set_field_ulonglong(f, m_warning_count);
+    set_field_ulonglong(f, m_warning_count);
     break;
   case 8: /* SUM_ROWS_AFFECTED */
-    PFS_engine_table::set_field_ulonglong(f, m_rows_affected);
+    set_field_ulonglong(f, m_rows_affected);
     break;
   case 9: /* SUM_ROWS_SENT */
-    PFS_engine_table::set_field_ulonglong(f, m_rows_sent);
+    set_field_ulonglong(f, m_rows_sent);
     break;
   case 10: /* SUM_ROWS_EXAMINED */
-    PFS_engine_table::set_field_ulonglong(f, m_rows_examined);
+    set_field_ulonglong(f, m_rows_examined);
     break;
   case 11: /* SUM_CREATED_TMP_DISK_TABLES */
-    PFS_engine_table::set_field_ulonglong(f, m_created_tmp_disk_tables);
+    set_field_ulonglong(f, m_created_tmp_disk_tables);
     break;
   case 12: /* SUM_CREATED_TMP_TABLES */
-    PFS_engine_table::set_field_ulonglong(f, m_created_tmp_tables);
+    set_field_ulonglong(f, m_created_tmp_tables);
     break;
   case 13: /* SUM_SELECT_FULL_JOIN */
-    PFS_engine_table::set_field_ulonglong(f, m_select_full_join);
+    set_field_ulonglong(f, m_select_full_join);
     break;
   case 14: /* SUM_SELECT_FULL_RANGE_JOIN */
-    PFS_engine_table::set_field_ulonglong(f, m_select_full_range_join);
+    set_field_ulonglong(f, m_select_full_range_join);
     break;
   case 15: /* SUM_SELECT_RANGE */
-    PFS_engine_table::set_field_ulonglong(f, m_select_range);
+    set_field_ulonglong(f, m_select_range);
     break;
   case 16: /* SUM_SELECT_RANGE_CHECK */
-    PFS_engine_table::set_field_ulonglong(f, m_select_range_check);
+    set_field_ulonglong(f, m_select_range_check);
     break;
   case 17: /* SUM_SELECT_SCAN */
-    PFS_engine_table::set_field_ulonglong(f, m_select_scan);
+    set_field_ulonglong(f, m_select_scan);
     break;
   case 18: /* SUM_SORT_MERGE_PASSES */
-    PFS_engine_table::set_field_ulonglong(f, m_sort_merge_passes);
+    set_field_ulonglong(f, m_sort_merge_passes);
     break;
   case 19: /* SUM_SORT_RANGE */
-    PFS_engine_table::set_field_ulonglong(f, m_sort_range);
+    set_field_ulonglong(f, m_sort_range);
     break;
   case 20: /* SUM_SORT_ROWS */
-    PFS_engine_table::set_field_ulonglong(f, m_sort_rows);
+    set_field_ulonglong(f, m_sort_rows);
     break;
   case 21: /* SUM_SORT_SCAN */
-    PFS_engine_table::set_field_ulonglong(f, m_sort_scan);
+    set_field_ulonglong(f, m_sort_scan);
     break;
   case 22: /* SUM_NO_INDEX_USED */
-    PFS_engine_table::set_field_ulonglong(f, m_no_index_used);
+    set_field_ulonglong(f, m_no_index_used);
     break;
   case 23: /* SUM_NO_GOOD_INDEX_USED */
-    PFS_engine_table::set_field_ulonglong(f, m_no_good_index_used);
+    set_field_ulonglong(f, m_no_good_index_used);
     break;
   default:
     DBUG_ASSERT(false);
@@ -643,7 +807,7 @@ PFS_error_stat_row::set_field(uint index, Field *f, server_error *temp_error)
   case 0: /* ERROR NUMBER */
     if (temp_error)
     {
-      PFS_engine_table::set_field_long(f, temp_error->mysql_errno);
+      set_field_long(f, temp_error->mysql_errno);
     }
     else /* NULL ROW */
     {
@@ -652,8 +816,10 @@ PFS_error_stat_row::set_field(uint index, Field *f, server_error *temp_error)
     break;
   case 1: /* ERROR NAME */
     if (temp_error)
-      PFS_engine_table::set_field_varchar_utf8(
+    {
+      set_field_varchar_utf8(
         f, temp_error->name, (uint)strlen(temp_error->name));
+    }
     else /* NULL ROW */
     {
       f->set_null();
@@ -661,23 +827,25 @@ PFS_error_stat_row::set_field(uint index, Field *f, server_error *temp_error)
     break;
   case 2: /* SQLSTATE */
     if (temp_error)
-      PFS_engine_table::set_field_varchar_utf8(
+    {
+      set_field_varchar_utf8(
         f, temp_error->odbc_state, (uint)strlen(temp_error->odbc_state));
+    }
     else /* NULL ROW */
     {
       f->set_null();
     }
     break;
   case 3: /* SUM_ERROR_RAISED */
-    PFS_engine_table::set_field_ulonglong(f, m_count);
+    set_field_ulonglong(f, m_count);
     break;
   case 4: /* SUM_ERROR_HANDLED */
-    PFS_engine_table::set_field_ulonglong(f, m_handled_count);
+    set_field_ulonglong(f, m_handled_count);
     break;
   case 5: /* FIRST_SEEN */
     if (m_first_seen != 0)
     {
-      PFS_engine_table::set_field_timestamp(f, m_first_seen);
+      set_field_timestamp(f, m_first_seen);
     }
     else
     {
@@ -687,7 +855,7 @@ PFS_error_stat_row::set_field(uint index, Field *f, server_error *temp_error)
   case 6: /* LAST_SEEN */
     if (m_last_seen != 0)
     {
-      PFS_engine_table::set_field_timestamp(f, m_last_seen);
+      set_field_timestamp(f, m_last_seen);
     }
     else
     {
@@ -707,10 +875,10 @@ PFS_connection_stat_row::set_field(uint index, Field *f)
   switch (index)
   {
   case 0: /* CURRENT_CONNECTIONS */
-    PFS_engine_table::set_field_ulonglong(f, m_current_connections);
+    set_field_ulonglong(f, m_current_connections);
     break;
   case 1: /* TOTAL_CONNECTIONS */
-    PFS_engine_table::set_field_ulonglong(f, m_total_connections);
+    set_field_ulonglong(f, m_total_connections);
     break;
   default:
     DBUG_ASSERT(false);
@@ -724,7 +892,7 @@ set_field_object_type(Field *f, enum_object_type object_type)
   const char *name;
   size_t length;
   object_type_to_string(object_type, &name, &length);
-  PFS_engine_table::set_field_varchar_utf8(f, name, (uint)length);
+  set_field_varchar_utf8(f, name, (uint)length);
 }
 
 void
@@ -733,34 +901,34 @@ set_field_lock_type(Field *f, PFS_TL_LOCK_TYPE lock_type)
   switch (lock_type)
   {
   case PFS_TL_READ:
-    PFS_engine_table::set_field_varchar_utf8(f, "READ", 4);
+    set_field_varchar_utf8(f, "READ", 4);
     break;
   case PFS_TL_READ_WITH_SHARED_LOCKS:
-    PFS_engine_table::set_field_varchar_utf8(f, "READ WITH SHARED LOCKS", 22);
+    set_field_varchar_utf8(f, "READ WITH SHARED LOCKS", 22);
     break;
   case PFS_TL_READ_HIGH_PRIORITY:
-    PFS_engine_table::set_field_varchar_utf8(f, "READ HIGH PRIORITY", 18);
+    set_field_varchar_utf8(f, "READ HIGH PRIORITY", 18);
     break;
   case PFS_TL_READ_NO_INSERT:
-    PFS_engine_table::set_field_varchar_utf8(f, "READ NO INSERT", 14);
+    set_field_varchar_utf8(f, "READ NO INSERT", 14);
     break;
   case PFS_TL_WRITE_ALLOW_WRITE:
-    PFS_engine_table::set_field_varchar_utf8(f, "WRITE ALLOW WRITE", 17);
+    set_field_varchar_utf8(f, "WRITE ALLOW WRITE", 17);
     break;
   case PFS_TL_WRITE_CONCURRENT_INSERT:
-    PFS_engine_table::set_field_varchar_utf8(f, "WRITE CONCURRENT INSERT", 23);
+    set_field_varchar_utf8(f, "WRITE CONCURRENT INSERT", 23);
     break;
   case PFS_TL_WRITE_LOW_PRIORITY:
-    PFS_engine_table::set_field_varchar_utf8(f, "WRITE LOW PRIORITY", 18);
+    set_field_varchar_utf8(f, "WRITE LOW PRIORITY", 18);
     break;
   case PFS_TL_WRITE:
-    PFS_engine_table::set_field_varchar_utf8(f, "WRITE", 5);
+    set_field_varchar_utf8(f, "WRITE", 5);
     break;
   case PFS_TL_READ_EXTERNAL:
-    PFS_engine_table::set_field_varchar_utf8(f, "READ EXTERNAL", 13);
+    set_field_varchar_utf8(f, "READ EXTERNAL", 13);
     break;
   case PFS_TL_WRITE_EXTERNAL:
-    PFS_engine_table::set_field_varchar_utf8(f, "WRITE EXTERNAL", 14);
+    set_field_varchar_utf8(f, "WRITE EXTERNAL", 14);
     break;
   case PFS_TL_NONE:
     f->set_null();
@@ -777,37 +945,37 @@ set_field_mdl_type(Field *f, opaque_mdl_type mdl_type)
   switch (e)
   {
   case MDL_INTENTION_EXCLUSIVE:
-    PFS_engine_table::set_field_varchar_utf8(f, "INTENTION_EXCLUSIVE", 19);
+    set_field_varchar_utf8(f, "INTENTION_EXCLUSIVE", 19);
     break;
   case MDL_SHARED:
-    PFS_engine_table::set_field_varchar_utf8(f, "SHARED", 6);
+    set_field_varchar_utf8(f, "SHARED", 6);
     break;
   case MDL_SHARED_HIGH_PRIO:
-    PFS_engine_table::set_field_varchar_utf8(f, "SHARED_HIGH_PRIO", 16);
+    set_field_varchar_utf8(f, "SHARED_HIGH_PRIO", 16);
     break;
   case MDL_SHARED_READ:
-    PFS_engine_table::set_field_varchar_utf8(f, "SHARED_READ", 11);
+    set_field_varchar_utf8(f, "SHARED_READ", 11);
     break;
   case MDL_SHARED_WRITE:
-    PFS_engine_table::set_field_varchar_utf8(f, "SHARED_WRITE", 12);
+    set_field_varchar_utf8(f, "SHARED_WRITE", 12);
     break;
   case MDL_SHARED_WRITE_LOW_PRIO:
-    PFS_engine_table::set_field_varchar_utf8(f, "SHARED_WRITE_LOW_PRIO", 21);
+    set_field_varchar_utf8(f, "SHARED_WRITE_LOW_PRIO", 21);
     break;
   case MDL_SHARED_UPGRADABLE:
-    PFS_engine_table::set_field_varchar_utf8(f, "SHARED_UPGRADABLE", 17);
+    set_field_varchar_utf8(f, "SHARED_UPGRADABLE", 17);
     break;
   case MDL_SHARED_READ_ONLY:
-    PFS_engine_table::set_field_varchar_utf8(f, "SHARED_READ_ONLY", 16);
+    set_field_varchar_utf8(f, "SHARED_READ_ONLY", 16);
     break;
   case MDL_SHARED_NO_WRITE:
-    PFS_engine_table::set_field_varchar_utf8(f, "SHARED_NO_WRITE", 15);
+    set_field_varchar_utf8(f, "SHARED_NO_WRITE", 15);
     break;
   case MDL_SHARED_NO_READ_WRITE:
-    PFS_engine_table::set_field_varchar_utf8(f, "SHARED_NO_READ_WRITE", 20);
+    set_field_varchar_utf8(f, "SHARED_NO_READ_WRITE", 20);
     break;
   case MDL_EXCLUSIVE:
-    PFS_engine_table::set_field_varchar_utf8(f, "EXCLUSIVE", 9);
+    set_field_varchar_utf8(f, "EXCLUSIVE", 9);
     break;
   default:
     DBUG_ASSERT(false);
@@ -821,13 +989,13 @@ set_field_mdl_duration(Field *f, opaque_mdl_duration mdl_duration)
   switch (e)
   {
   case MDL_STATEMENT:
-    PFS_engine_table::set_field_varchar_utf8(f, "STATEMENT", 9);
+    set_field_varchar_utf8(f, "STATEMENT", 9);
     break;
   case MDL_TRANSACTION:
-    PFS_engine_table::set_field_varchar_utf8(f, "TRANSACTION", 11);
+    set_field_varchar_utf8(f, "TRANSACTION", 11);
     break;
   case MDL_EXPLICIT:
-    PFS_engine_table::set_field_varchar_utf8(f, "EXPLICIT", 8);
+    set_field_varchar_utf8(f, "EXPLICIT", 8);
     break;
   case MDL_DURATION_END:
   default:
@@ -843,16 +1011,16 @@ set_field_mdl_status(Field *f, opaque_mdl_status mdl_status)
   switch (e)
   {
   case MDL_ticket::PENDING:
-    PFS_engine_table::set_field_varchar_utf8(f, "PENDING", 7);
+    set_field_varchar_utf8(f, "PENDING", 7);
     break;
   case MDL_ticket::GRANTED:
-    PFS_engine_table::set_field_varchar_utf8(f, "GRANTED", 7);
+    set_field_varchar_utf8(f, "GRANTED", 7);
     break;
   case MDL_ticket::PRE_ACQUIRE_NOTIFY:
-    PFS_engine_table::set_field_varchar_utf8(f, "PRE_ACQUIRE_NOTIFY", 18);
+    set_field_varchar_utf8(f, "PRE_ACQUIRE_NOTIFY", 18);
     break;
   case MDL_ticket::POST_RELEASE_NOTIFY:
-    PFS_engine_table::set_field_varchar_utf8(f, "POST_RELEASE_NOTIFY", 19);
+    set_field_varchar_utf8(f, "POST_RELEASE_NOTIFY", 19);
     break;
   default:
     DBUG_ASSERT(false);
@@ -867,44 +1035,44 @@ PFS_memory_stat_row::set_field(uint index, Field *f)
   switch (index)
   {
   case 0: /* COUNT_ALLOC */
-    PFS_engine_table::set_field_ulonglong(f, m_stat.m_alloc_count);
+    set_field_ulonglong(f, m_stat.m_alloc_count);
     break;
   case 1: /* COUNT_FREE */
-    PFS_engine_table::set_field_ulonglong(f, m_stat.m_free_count);
+    set_field_ulonglong(f, m_stat.m_free_count);
     break;
   case 2: /* SUM_NUMBER_OF_BYTES_ALLOC */
-    PFS_engine_table::set_field_ulonglong(f, m_stat.m_alloc_size);
+    set_field_ulonglong(f, m_stat.m_alloc_size);
     break;
   case 3: /* SUM_NUMBER_OF_BYTES_FREE */
-    PFS_engine_table::set_field_ulonglong(f, m_stat.m_free_size);
+    set_field_ulonglong(f, m_stat.m_free_size);
     break;
   case 4: /* LOW_COUNT_USED */
     val =
       m_stat.m_alloc_count - m_stat.m_free_count - m_stat.m_free_count_capacity;
-    PFS_engine_table::set_field_longlong(f, val);
+    set_field_longlong(f, val);
     break;
   case 5: /* CURRENT_COUNT_USED */
     val = m_stat.m_alloc_count - m_stat.m_free_count;
-    PFS_engine_table::set_field_longlong(f, val);
+    set_field_longlong(f, val);
     break;
   case 6: /* HIGH_COUNT_USED */
     val = m_stat.m_alloc_count - m_stat.m_free_count +
           m_stat.m_alloc_count_capacity;
-    PFS_engine_table::set_field_longlong(f, val);
+    set_field_longlong(f, val);
     break;
   case 7: /* LOW_NUMBER_OF_BYTES_USED */
     val =
       m_stat.m_alloc_size - m_stat.m_free_size - m_stat.m_free_size_capacity;
-    PFS_engine_table::set_field_longlong(f, val);
+    set_field_longlong(f, val);
     break;
   case 8: /* CURRENT_NUMBER_OF_BYTES_USED */
     val = m_stat.m_alloc_size - m_stat.m_free_size;
-    PFS_engine_table::set_field_longlong(f, val);
+    set_field_longlong(f, val);
     break;
   case 9: /* HIGH_NUMBER_OF_BYTES_USED */
     val =
       m_stat.m_alloc_size - m_stat.m_free_size + m_stat.m_alloc_size_capacity;
-    PFS_engine_table::set_field_longlong(f, val);
+    set_field_longlong(f, val);
     break;
   default:
     DBUG_ASSERT(false);
@@ -918,16 +1086,16 @@ set_field_isolation_level(Field *f, enum_isolation_level iso_level)
   switch (iso_level)
   {
   case TRANS_LEVEL_READ_UNCOMMITTED:
-    PFS_engine_table::set_field_varchar_utf8(f, "READ UNCOMMITTED", 16);
+    set_field_varchar_utf8(f, "READ UNCOMMITTED", 16);
     break;
   case TRANS_LEVEL_READ_COMMITTED:
-    PFS_engine_table::set_field_varchar_utf8(f, "READ COMMITTED", 14);
+    set_field_varchar_utf8(f, "READ COMMITTED", 14);
     break;
   case TRANS_LEVEL_REPEATABLE_READ:
-    PFS_engine_table::set_field_varchar_utf8(f, "REPEATABLE READ", 15);
+    set_field_varchar_utf8(f, "REPEATABLE READ", 15);
     break;
   case TRANS_LEVEL_SERIALIZABLE:
-    PFS_engine_table::set_field_varchar_utf8(f, "SERIALIZABLE", 12);
+    set_field_varchar_utf8(f, "SERIALIZABLE", 12);
     break;
   default:
     DBUG_ASSERT(false);
@@ -940,22 +1108,22 @@ set_field_xa_state(Field *f, enum_xa_transaction_state xa_state)
   switch (xa_state)
   {
   case TRANS_STATE_XA_NOTR:
-    PFS_engine_table::set_field_varchar_utf8(f, "NOTR", 4);
+    set_field_varchar_utf8(f, "NOTR", 4);
     break;
   case TRANS_STATE_XA_ACTIVE:
-    PFS_engine_table::set_field_varchar_utf8(f, "ACTIVE", 6);
+    set_field_varchar_utf8(f, "ACTIVE", 6);
     break;
   case TRANS_STATE_XA_IDLE:
-    PFS_engine_table::set_field_varchar_utf8(f, "IDLE", 4);
+    set_field_varchar_utf8(f, "IDLE", 4);
     break;
   case TRANS_STATE_XA_PREPARED:
-    PFS_engine_table::set_field_varchar_utf8(f, "PREPARED", 8);
+    set_field_varchar_utf8(f, "PREPARED", 8);
     break;
   case TRANS_STATE_XA_ROLLBACK_ONLY:
-    PFS_engine_table::set_field_varchar_utf8(f, "ROLLBACK ONLY", 13);
+    set_field_varchar_utf8(f, "ROLLBACK ONLY", 13);
     break;
   case TRANS_STATE_XA_COMMITTED:
-    PFS_engine_table::set_field_varchar_utf8(f, "COMMITTED", 9);
+    set_field_varchar_utf8(f, "COMMITTED", 9);
     break;
   default:
     DBUG_ASSERT(false);
@@ -1010,7 +1178,7 @@ PFS_variable_value_row::make_row(const CHARSET_INFO *cs,
 void
 PFS_variable_value_row::set_field(Field *f)
 {
-  PFS_engine_table::set_field_varchar(f, m_charset, m_str, m_length);
+  set_field_varchar(f, m_charset, m_str, m_length);
 }
 
 void
@@ -1040,7 +1208,54 @@ PFS_user_variable_value_row::make_row(const char *val, size_t length)
 }
 
 bool
-PFS_key_long_int::do_match(bool record_null, int32 record_value)
+PFS_key_long::do_match(bool record_null, long record_value)
+{
+  int cmp = 0;
+
+  if (m_is_null)
+  {
+    cmp = (record_null ? 0 : 1);
+  }
+  else
+  {
+    if (record_null)
+    {
+      cmp = -1;
+    }
+    else if (record_value < m_key_value)
+    {
+      cmp = -1;
+    }
+    else if (record_value > m_key_value)
+    {
+      cmp = +1;
+    }
+    else
+    {
+      cmp = 0;
+    }
+  }
+
+  switch (m_find_flag)
+  {
+  case HA_READ_KEY_EXACT:
+    return (cmp == 0);
+  case HA_READ_KEY_OR_NEXT:
+    return (cmp >= 0);
+  case HA_READ_KEY_OR_PREV:
+    return (cmp <= 0);
+  case HA_READ_BEFORE_KEY:
+    return (cmp < 0);
+  case HA_READ_AFTER_KEY:
+    return (cmp > 0);
+  default:
+    DBUG_ASSERT(false);
+    return false;
+  }
+}
+
+bool
+PFS_key_ulong::do_match(bool record_null, ulong record_value)
 {
   int cmp = 0;
 
@@ -1654,6 +1869,12 @@ PFS_key_digest::match(PFS_statements_digest_stat *pfs)
   MD5_HASH_TO_STRING(pfs->m_digest_storage.m_md5, md5_string);
 
   return do_match(record_null, md5_string, MD5_HASH_TO_STRING_LENGTH);
+}
+
+bool
+PFS_key_bucket_number::match(ulong value)
+{
+  return do_match(false, value);
 }
 
 bool

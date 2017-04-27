@@ -17,7 +17,6 @@
  * decimal_utils.cpp
  */
 
-#include "my_global.h"
 #include "m_string.h"
 #include "decimal.h"
 

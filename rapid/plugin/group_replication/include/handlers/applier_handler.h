@@ -87,7 +87,7 @@ public:
       @retval -1     A timeout occurred
       @retval -2     An error occurred
   */
-  int wait_for_gtid_execution(longlong timeout);
+  int wait_for_gtid_execution(double timeout);
 
   /**
     Checks if the channel's relay log contains partial transaction.

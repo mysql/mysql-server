@@ -16,7 +16,6 @@
 /* This file is for Shift JIS charset, and created by tommy@valley.ne.jp.
  */
 
-#include <my_global.h>
 #include <stddef.h>
 #include <sys/types.h>
 
@@ -1121,7 +1120,7 @@ extern "C" {
 static int my_strnncoll_sjis(const CHARSET_INFO *cs,
                              const uchar *a, size_t a_length, 
                              const uchar *b, size_t b_length,
-                             my_bool b_is_prefix)
+                             bool b_is_prefix)
 {
   int res= my_strnncoll_sjis_internal(cs, &a, a_length, &b, b_length);
   if (b_is_prefix && a_length > b_length)
@@ -34210,9 +34209,9 @@ CHARSET_INFO my_charset_sjis_japanese_ci=
     ' ',                /* pad char      */
     1,                  /* escape_with_backslash_is_dangerous */
     1,                  /* levels_for_compare */
-    1,                  /* levels_for_order   */
     &my_charset_handler,
-    &my_collation_ci_handler
+    &my_collation_ci_handler,
+    PAD_SPACE
 };
 
 CHARSET_INFO my_charset_sjis_bin=
@@ -34245,7 +34244,7 @@ CHARSET_INFO my_charset_sjis_bin=
     ' ',                /* pad char      */
     1,                  /* escape_with_backslash_is_dangerous */
     1,                  /* levels_for_compare */
-    1,                  /* levels_for_order   */
     &my_charset_handler,
-    &my_collation_mb_bin_handler
+    &my_collation_mb_bin_handler,
+    PAD_SPACE
 };

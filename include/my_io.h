@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -22,26 +22,23 @@
   Common \#defines and includes for file and socket I/O.
 */
 
-#include "my_config.h"
-
 #ifdef _WIN32
 /* Include common headers.*/
 # include <io.h>       /* access(), chmod() */
-# include <winsock2.h>
-# include <ws2tcpip.h> /* SOCKET */
+#ifdef WIN32_LEAN_AND_MEAN
+#include <winsock2.h>
+#include <ws2tcpip.h> /* SOCKET */
+#endif
 #endif
 
 #ifndef MYSQL_ABI_CHECK
-#ifdef HAVE_SYS_SOCKET_H
+#if !defined(_WIN32)
 #include <sys/socket.h>
+#include <unistd.h>
 #endif
-
 #include <errno.h>
 #include <limits.h>
 #include <sys/types.h>  // Needed for mode_t, so IWYU pragma: keep.
-#ifdef HAVE_UNISTD_H
-#include <unistd.h>
-#endif
 #endif
 
 #ifdef _WIN32
@@ -55,7 +52,6 @@
 #define F_RDLCK 1
 #define F_WRLCK 2
 #define F_UNLCK 3
-#define F_TO_EOF 0x3FFFFFFF
 
 #define O_NONBLOCK 1    /* For emulation of fcntl() */
 
@@ -75,10 +71,6 @@
 #define MY_FOPEN_BINARY _O_BINARY
 #else
 #define MY_FOPEN_BINARY 0       /* Ignore on non-Windows */
-#endif
-
-#ifdef HAVE_FCNTL
-#define F_TO_EOF        0L      /* Param to lockf() to lock rest of file */
 #endif
 
 #ifdef _WIN32

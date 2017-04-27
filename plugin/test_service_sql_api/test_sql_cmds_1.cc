@@ -14,13 +14,14 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
 #include <fcntl.h>
-#include <my_global.h>
 #include <mysql/plugin.h>
 #include <mysql/service_srv_session_info.h>
 #include <stdlib.h>
+#include <sys/types.h>
 
 #include "my_dbug.h"
 #include "my_inttypes.h"
+#include "my_io.h"
 #include "my_sys.h"                             // my_write, my_malloc
 #include "sql_string.h" /* STRING_PSI_MEMORY_KEY */
 
@@ -149,7 +150,7 @@ st_send_field_n sql_field[64][64];
 int row_count= 0;
 
 
-static int sql_start_result_metadata(void *ctx, uint num_cols, uint flags,
+static int sql_start_result_metadata(void*, uint num_cols, uint,
                                      const CHARSET_INFO *resultcs)
 {
   DBUG_ENTER("sql_start_result_metadata");
@@ -162,8 +163,8 @@ static int sql_start_result_metadata(void *ctx, uint num_cols, uint flags,
   DBUG_RETURN(false);
 }
 
-static int sql_field_metadata(void *ctx, struct st_send_field *field,
-                              const CHARSET_INFO *charset)
+static int sql_field_metadata(void*, struct st_send_field *field,
+                              const CHARSET_INFO*)
 {
   DBUG_ENTER("sql_field_metadata");
   DBUG_PRINT("info",("field->db_name: %s", field->db_name));
@@ -189,7 +190,7 @@ static int sql_field_metadata(void *ctx, struct st_send_field *field,
   DBUG_RETURN(false);
 }
 
-static int sql_end_result_metadata(void *ctx, uint server_status, uint warn_count)
+static int sql_end_result_metadata(void*, uint, uint)
 {
   DBUG_ENTER("sql_end_result_metadata");
   sql_num_meta_rows= row_count;
@@ -197,75 +198,75 @@ static int sql_end_result_metadata(void *ctx, uint server_status, uint warn_coun
   DBUG_RETURN(false);
 }
 
-static int sql_start_row(void *ctx)
+static int sql_start_row(void*)
 {
   DBUG_ENTER("sql_start_row");
   col_count= 0;
   DBUG_RETURN(false);
 }
 
-static int sql_end_row(void *ctx)
+static int sql_end_row(void*)
 {
   DBUG_ENTER("sql_end_row");
   row_count++;
   DBUG_RETURN(false);
 }
 
-static void sql_abort_row(void *ctx)
+static void sql_abort_row(void*)
 {
   DBUG_ENTER("sql_abort_row");
   DBUG_VOID_RETURN;
 }
 
-static ulong sql_get_client_capabilities(void *ctx)
+static ulong sql_get_client_capabilities(void*)
 {
   DBUG_ENTER("sql_get_client_capabilities");
   DBUG_RETURN(0);
 }
 
-static int sql_get_null(void *ctx)
+static int sql_get_null(void*)
 {
   DBUG_ENTER("sql_get_null");
   DBUG_RETURN(false);
 }
 
-static int sql_get_integer(void * ctx, longlong value)
+static int sql_get_integer(void*, longlong)
 {
   DBUG_ENTER("sql_get_integer");
   DBUG_RETURN(false);
 }
 
-static int sql_get_longlong(void * ctx, longlong value, uint is_unsigned)
+static int sql_get_longlong(void*, longlong, uint)
 {
   DBUG_ENTER("sql_get_longlong");
   DBUG_RETURN(false);
 }
 
-static int sql_get_decimal(void * ctx, const decimal_t * value)
+static int sql_get_decimal(void*, const decimal_t*)
 {
   DBUG_ENTER("sql_get_decimal");
   DBUG_RETURN(false);
 }
 
-static int sql_get_double(void * ctx, double value, uint32 decimals)
+static int sql_get_double(void*, double, uint32)
 {
   DBUG_ENTER("sql_get_double");
   DBUG_RETURN(false);
 }
 
-static int sql_get_date(void * ctx, const MYSQL_TIME * value)
+static int sql_get_date(void*, const MYSQL_TIME*)
 {
   DBUG_ENTER("sql_get_date");
   DBUG_RETURN(false);
 }
 
-static int sql_get_time(void * ctx, const MYSQL_TIME * value, uint decimals)
+static int sql_get_time(void*, const MYSQL_TIME*, uint)
 {
   DBUG_ENTER("sql_get_time");
   DBUG_RETURN(false);
 }
 
-static int sql_get_datetime(void * ctx, const MYSQL_TIME * value, uint decimals)
+static int sql_get_datetime(void*, const MYSQL_TIME*, uint)
 {
   DBUG_ENTER("sql_get_datetime");
   DBUG_RETURN(false);
@@ -274,9 +275,9 @@ static int sql_get_datetime(void * ctx, const MYSQL_TIME * value, uint decimals)
 char sql_str_value[64][64][256];
 size_t sql_str_len[64][64];
 
-static int sql_get_string(void * ctx,
-	                        const char * const value, size_t length,
-		                      const CHARSET_INFO * const valuecs)
+static int sql_get_string(void*,
+                          const char * const value, size_t length,
+                          const CHARSET_INFO * const)
 {
   DBUG_ENTER("sql_get_string");
   strncpy(sql_str_value[col_count][row_count],value,length);
@@ -358,7 +359,7 @@ static void test_com_query(void *p)
   MYSQL_SESSION st_session;
   void *plugin_ctx=NULL;
   bool session_ret= false;
-  my_bool fail= false;
+  bool fail= false;
   COM_DATA cmd;
   Callback_data cbd;
 
@@ -625,7 +626,7 @@ static void* test_session_thread(Test_data *tdata)
 }
 
 
-static void session_error_cb(void *ctx, unsigned int sql_errno, const char *err_msg)
+static void session_error_cb(void*, unsigned int sql_errno, const char *err_msg)
 {
   WRITE_STR("default error handler called\n");
   WRITE_VAL("sql_errno = %i\n", sql_errno);

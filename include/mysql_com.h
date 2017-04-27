@@ -21,9 +21,23 @@
 #ifndef _mysql_com_h
 #define _mysql_com_h
 
+#ifndef MYSQL_ABI_CHECK
+#include <stdbool.h>
+#endif
+
 #include "my_command.h"
-#include "my_inttypes.h"
+
+/*
+  We need a definition for my_socket. On the client, <mysql.h> already provides
+  it, but on the server side, we need to get it from a header.
+*/
+#ifndef my_socket_defined
 #include "my_io.h"
+#endif
+
+#ifndef MYSQL_ABI_CHECK
+#include <stdbool.h>
+#endif
 
 #define HOSTNAME_LENGTH 60
 #define SYSTEM_CHARSET_MBMAXLEN 3
@@ -172,6 +186,7 @@
 #define REFRESH_USER_RESOURCES	0x80000L
 #define REFRESH_FOR_EXPORT      0x100000L /** FLUSH TABLES ... FOR EXPORT */
 #define REFRESH_OPTIMIZER_COSTS 0x200000L /** FLUSH OPTIMIZER_COSTS */
+#define REFRESH_PERSIST         0x400000L /** RESET PERSIST */
 
 /**
    @defgroup group_cs_capabilities_flags Capabilities Flags
@@ -727,8 +742,8 @@ enum SERVER_STATUS_flags_enum
   Server status flags that must be cleared when starting
   execution of a new SQL statement.
   Flags from this set are only added to the
-  current server status by the execution engine, but 
-  never removed -- the execution engine expects them 
+  current server status by the execution engine, but
+  never removed -- the execution engine expects them
   to disappear automagically by the next command.
 */
 #define SERVER_STATUS_CLEAR_SET (SERVER_QUERY_NO_GOOD_INDEX_USED| \
@@ -787,7 +802,7 @@ typedef struct st_net {
   unsigned int *return_status;
   unsigned char reading_or_writing;
   char save_char;
-  my_bool compress;
+  bool compress;
   /**
     Pointer to query object in query cache, do not equal NULL (0) for
     queries in cache that have not stored its results yet
@@ -941,23 +956,23 @@ enum enum_session_state_type
 extern "C" {
 #endif
 
-my_bool	my_net_init(NET *net, MYSQL_VIO vio);
+bool	my_net_init(NET *net, MYSQL_VIO vio);
 void my_net_local_init(NET *net);
 void net_end(NET *net);
-void net_clear(NET *net, my_bool check_buffer);
+void net_clear(NET *net, bool check_buffer);
 void net_claim_memory_ownership(NET *net);
-my_bool net_realloc(NET *net, size_t length);
-my_bool	net_flush(NET *net);
-my_bool	my_net_write(NET *net,const unsigned char *packet, size_t len);
-my_bool	net_write_command(NET *net,unsigned char command,
+bool net_realloc(NET *net, size_t length);
+bool	net_flush(NET *net);
+bool	my_net_write(NET *net,const unsigned char *packet, size_t len);
+bool	net_write_command(NET *net,unsigned char command,
 			  const unsigned char *header, size_t head_len,
 			  const unsigned char *packet, size_t len);
-my_bool net_write_packet(NET *net, const unsigned char *packet, size_t length);
+bool net_write_packet(NET *net, const unsigned char *packet, size_t length);
 unsigned long my_net_read(NET *net);
 
-void my_net_set_write_timeout(NET *net, uint timeout);
-void my_net_set_read_timeout(NET *net, uint timeout);
-void my_net_set_retry_count(NET *net, uint retry_count);
+void my_net_set_write_timeout(NET *net, unsigned int timeout);
+void my_net_set_read_timeout(NET *net, unsigned int timeout);
+void my_net_set_retry_count(NET *net, unsigned int retry_count);
 
 struct rand_struct {
   unsigned long seed1,seed2,max_value;
@@ -994,11 +1009,11 @@ typedef struct st_udf_args
 */
 typedef struct st_udf_init
 {
-  my_bool maybe_null;          /** 1 if function can return NULL */
+  bool maybe_null;             /** 1 if function can return NULL */
   unsigned int decimals;       /** for real functions */
   unsigned long max_length;    /** For string functions */
   char *ptr;                   /** free pointer for function data */
-  my_bool const_item;          /** 1 if function always returns the same value */
+  bool const_item;             /** 1 if function always returns the same value */
   void *extension;
 } UDF_INIT;
 
@@ -1030,15 +1045,15 @@ void create_random_string(char *to, unsigned int length, struct rand_struct *ran
 void hash_password(unsigned long *to, const char *password, unsigned int password_len);
 void make_scrambled_password_323(char *to, const char *password);
 void scramble_323(char *to, const char *message, const char *password);
-my_bool check_scramble_323(const unsigned char *reply, const char *message,
-                           unsigned long *salt);
+bool check_scramble_323(const unsigned char *reply, const char *message,
+                        unsigned long *salt);
 void get_salt_from_password_323(unsigned long *res, const char *password);
 void make_password_from_salt_323(char *to, const unsigned long *salt);
 
 void make_scrambled_password(char *to, const char *password);
 void scramble(char *to, const char *message, const char *password);
-my_bool check_scramble(const unsigned char *reply, const char *message,
-                       const unsigned char *hash_stage2);
+bool check_scramble(const unsigned char *reply, const char *message,
+                    const unsigned char *hash_stage2);
 void get_salt_from_password(unsigned char *res, const char *password);
 void make_password_from_salt(char *to, const unsigned char *hash_stage2);
 char *octet2hex(char *to, const char *str, unsigned int len);
@@ -1050,15 +1065,16 @@ const char *mysql_errno_to_sqlstate(unsigned int mysql_errno);
 
 /* Some other useful functions */
 
-my_bool my_thread_init(void);
+bool my_thread_init(void);
 void my_thread_end(void);
 
 #ifdef STDCALL
-ulong STDCALL net_field_length(uchar **packet);
+unsigned long STDCALL net_field_length(unsigned char **packet);
 #endif
-my_ulonglong net_field_length_ll(uchar **packet);
-uchar *net_store_length(uchar *pkg, ulonglong length);
-unsigned int net_length_size(ulonglong num);
+unsigned long long net_field_length_ll(unsigned char **packet);
+unsigned char *net_store_length(unsigned char *pkg, unsigned long long length);
+unsigned int net_length_size(unsigned long long num);
+unsigned int net_field_length_size(unsigned char *pos);
 
 #ifdef __cplusplus
 }

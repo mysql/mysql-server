@@ -1,7 +1,5 @@
 # Tests for PERFORMANCE_SCHEMA
 
---source include/not_embedded.inc
-
 #setup
 let $select_column = count(*);
 let $table = performance_schema.mutex_instances;

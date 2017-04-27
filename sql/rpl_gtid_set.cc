@@ -30,7 +30,6 @@
 #include "m_string.h"                  // my_strtoll
 #include "my_byteorder.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_stacktrace.h"             // my_safe_printf_stderr
 #include "my_sys.h"
@@ -179,8 +178,6 @@ enum_return_status Gtid_set::ensure_sidno(rpl_sidno sidno)
         }
       }
     }
-    if (m_intervals.reserve(sid_map == NULL ? sidno : sid_map->get_max_sidno()))
-      goto error;
     Interval *null_p= NULL;
     for (rpl_sidno i= max_sidno; i < sidno; i++)
       if (m_intervals.push_back(null_p))
@@ -332,6 +329,22 @@ void Gtid_set::clear()
       ivit.set(NULL);
     }
   }
+  DBUG_VOID_RETURN;
+}
+
+
+void Gtid_set::clear_set_and_sid_map()
+{
+  DBUG_ENTER("Gtid_set::clear_set_and_sid_map");
+  clear();
+  /*
+    Cleaning the SID map without cleaning up the Gtid_set intervals may lead
+    to a condition were the Gtid_set->get_max_sidno() will be greater than the
+    Sid_map->get_max_sidno().
+  */
+  m_intervals.clear();
+  sid_map->clear();
+  DBUG_ASSERT(get_max_sidno() == sid_map->get_max_sidno());
   DBUG_VOID_RETURN;
 }
 

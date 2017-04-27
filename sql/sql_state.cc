@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,8 +18,7 @@
 #include <mysqld_error.h>
 #include <sys/types.h>
 
-// Hack needed due to mysql_com.h not including my_global.h.
-#include "my_global.h"  // IWYU pragma: keep
+#include "my_inttypes.h"  // IWYU pragma: keep
 #include "mysql_com.h"  // IWYU pragma: keep
 
 static const int NUM_SECTIONS=
@@ -28,12 +27,12 @@ static const int NUM_SECTIONS=
 struct st_map_errno_to_sqlstate
 {
   const char *name;
-  uint        code;
+  unsigned    code;
   const char *text;
   /* SQLSTATE */
   const char *odbc_state;
   const char *jdbc_state;
-  uint error_index;
+  unsigned error_index;
 };
 
 struct st_map_errno_to_sqlstate sqlstate_map[]=
@@ -43,7 +42,7 @@ struct st_map_errno_to_sqlstate sqlstate_map[]=
 #endif /* IN_DOXYGEN */
 };
 
-const char *mysql_errno_to_sqlstate(uint mysql_errno)
+const char *mysql_errno_to_sqlstate(unsigned mysql_errno)
 {
   int offset= 0; // Position where the current section starts in the array.
   int i;

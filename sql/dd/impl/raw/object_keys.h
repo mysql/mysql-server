@@ -23,7 +23,6 @@
 #include "dd/impl/object_key.h"  // dd::Object_key
 #include "dd/object_id.h"        // dd::Object_id
 #include "m_ctype.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 
 namespace dd {
@@ -518,18 +517,17 @@ private:
 
 ///////////////////////////////////////////////////////////////////////////
 
-// Range key to find views using base table/view in mysql.view_table_usage table
-// or views using stored function in mysql.view_routine_usage table.
-class View_usage_range_key : public Object_key
+// Range key to find rows using catalog/schema/table name.
+class Table_reference_range_key : public Object_key
 {
 public:
-  View_usage_range_key(int index_no,
-                       int catalog_name_column_no,
-                       const String_type &catalog_name,
-                       int schema_name_column_no,
-                       const String_type &schema_name,
-                       int table_name_column_no,
-                       const String_type &table_name)
+  Table_reference_range_key(int index_no,
+                            int catalog_name_column_no,
+                            const String_type &catalog_name,
+                            int schema_name_column_no,
+                            const String_type &schema_name,
+                            int table_name_column_no,
+                            const String_type &table_name)
     :m_index_no(index_no),
      m_catalog_name_column_no(catalog_name_column_no),
      m_catalog_name(catalog_name),

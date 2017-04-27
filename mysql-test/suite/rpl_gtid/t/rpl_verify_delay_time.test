@@ -1,0 +1,130 @@
+#
+# ==== Purpose ====
+# Test to verify that the delay is relative to the transaction's
+# immediate_commit_timestamp and not with respect to when it started.
+#
+# ==== Implementation ====
+# In a master->slave topology it verifies that the delay of transaction
+# on slave is relative to the commit event time on master and not relative
+# to the begining of the transaction by sleeping for a time equal to $delay
+# before the commit event. It uses the timestamps of events in the mysqld
+# log of master and slave.
+#
+# ==== References ====
+#
+# WL#7318 Delayed Replication: GTID based and relative to immediate master commit
+
+--source include/have_binlog_format_statement.inc
+--source include/master-slave.inc
+
+--let $delay= 10
+
+--source include/rpl_connection_slave.inc
+--source include/stop_slave.inc
+--eval CHANGE MASTER TO MASTER_DELAY= $delay
+--source include/start_slave.inc
+
+--source include/rpl_connection_master.inc
+CREATE TABLE t1 (a varchar(50));
+
+BEGIN;
+INSERT INTO t1 VALUES ("1");
+--sleep $delay
+COMMIT;
+
+--source include/sync_slave_sql_with_master.inc
+
+--source include/rpl_connection_master.inc
+
+--let $out_file_1= $MYSQLTEST_VARDIR/mysqld.1/mysqld.log
+--let $out_file_2= $MYSQLTEST_VARDIR/mysqld.2/mysqld.log
+--let FOUTFILE = $out_file_1
+--let SOUTFILE = $out_file_2
+
+
+perl;
+  use strict;
+  my $outfile1 = $ENV{'FOUTFILE'} or die "OUTFILE not set";
+  my $outfile2 = $ENV{'SOUTFILE'} or die "OUTFILE not set";
+  open(FILE, "$outfile1") or die("Unable to open $outfile1: $!\n");
+
+  my $next_stmt;
+  my $insert_event;
+  my $commit_event;
+
+  #obtain the timestamp of INSERT event by using regex.
+
+  while (my $next_stmt = <FILE>)
+  {
+     chomp $next_stmt;
+     if ($next_stmt =~ /COMMIT/)
+     {
+       last;
+     }
+     $insert_event=$next_stmt;
+  }
+
+  $insert_event =~ s/.*([0-9][0-9]:[0-9][0-9]:[0-9][0-9]).*/\1/;
+
+  open(FILE, "$outfile2") or die("Unable to open $outfile2: $!\n");
+
+  my $next_stmt_slave;
+  my $insert_event_slave;
+
+  #obtain the timestamp of BEGIN event by using regex. note that the
+  #the timestamps of BEGIN and INSERT events are almost same.
+
+  while (my $next_stmt_slave = <FILE>)
+  {
+    chomp $next_stmt_slave;
+    $insert_event_slave= $next_stmt_slave;
+    if ($next_stmt_slave =~ /BEGIN/)
+    {
+      last;
+    }
+  }
+
+  $insert_event_slave =~ s/.*([0-9][0-9]:[0-9][0-9]:[0-9][0-9]).*/\1/;
+
+  my $dir = $ENV{'MYSQLTEST_VARDIR'};
+  open (OUTPUT, ">$dir/tmp/tar.inc") ;
+  print OUTPUT "--let \$insert_timestamp =  $insert_event\n";
+  print OUTPUT "--let \$insert_timestamp2 =  $insert_event_slave\n";
+  close (OUTPUT);
+
+EOF
+
+--source $MYSQLTEST_VARDIR/tmp/tar.inc
+--remove_file $MYSQLTEST_VARDIR/tmp/tar.inc
+
+# Obtain the immediate commit timestamp in human readable format for INSERT transaction.
+--let $server_uuid= query_get_value(select @@global.server_uuid, @@global.server_uuid, 1)
+--let $gtid= $server_uuid:2
+--let $readable= 1
+--source include/get_immediate_commit_timestamp.inc
+--let $readable= 0
+
+# Convert the ICT value in human readable format in UTC timezone.
+
+--let $ICT_UTC= `SELECT CONVERT_TZ('$immediate_commit_timestamp','SYSTEM','+00:00')`
+--let $ICT_sec= `SELECT TIME_TO_SEC('$ICT_UTC')`
+--let $insert_slave_sec= `SELECT TIME_TO_SEC('$insert_timestamp2')`
+--let $insert_master_sec= `SELECT TIME_TO_SEC('$insert_timestamp')`
+
+# verify that the delay is relative to the ICT and not relative to BEGIN or INSERT event.
+--let $assert_text= Assert that the delay is relative to the immediate_commit_timestamp..
+--let $assert_cond= $insert_slave_sec >= $ICT_sec + $delay
+--source include/assert.inc
+
+--let $assert_text= Assert that the delay is not relative to the insert event timestamp or begining of transaction..
+--let $assert_cond= $insert_slave_sec >= $insert_master_sec + 2 * $delay
+--source include/assert.inc
+
+# Cleanup
+DROP TABLE t1;
+--source include/sync_slave_sql_with_master.inc
+--source include/stop_slave_sql.inc
+CHANGE MASTER TO MASTER_DELAY= 0;
+--source include/start_slave_sql.inc
+
+--source include/rpl_end.inc

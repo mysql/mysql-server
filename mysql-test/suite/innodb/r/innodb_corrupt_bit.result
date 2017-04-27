@@ -136,7 +136,7 @@ Tables_in_corrupted
 t1
 t2
 CREATE INDEX b ON t1(b);
-ERROR 42S02: Table 'corrupted.t1' doesn't exist
+ERROR 42000: Can't open table
 SELECT t FROM t2 WHERE MATCH(t) AGAINST('corrupted');
 ERROR HY000: The table does not have FULLTEXT index to support this query
 DROP INDEX ft ON t2;
@@ -151,8 +151,7 @@ t
 for corrupted index
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
-corrupted.t1	check	Error	Table 'corrupted.t1' doesn't exist
-corrupted.t1	check	status	Operation failed
+corrupted.t1	check	error	Corrupt
 CHECK TABLE t2;
 Table	Op	Msg_type	Msg_text
 corrupted.t2	check	status	OK
@@ -339,7 +338,7 @@ Table	Op	Msg_type	Msg_text
 corrupted.t6	check	Error	Table 'corrupted.t6' doesn't exist
 corrupted.t6	check	status	Operation failed
 CREATE INDEX idx_v ON t6(v);
-ERROR 42S02: Table 'corrupted.t6' doesn't exist
+ERROR 42000: Can't open table
 # Invoke checkpoint to persist the latest corruption bits again
 SET @start_global_value = @@global.innodb_log_checkpoint_now;
 SELECT @start_global_value;
@@ -363,8 +362,7 @@ corrupted.t5	check	Warning	InnoDB: Index idx_b is marked as corrupted
 corrupted.t5	check	error	Corrupt
 CHECK TABLE t6;
 Table	Op	Msg_type	Msg_text
-corrupted.t6	check	Error	Table 'corrupted.t6' doesn't exist
-corrupted.t6	check	status	Operation failed
+corrupted.t6	check	error	Corrupt
 # An IN-PLACE 'ALTER TABLE' would not recover the table
 ALTER TABLE t5 CHANGE c c1 CHAR(10), ALGORITHM = INPLACE;
 CHECK TABLE t5;

@@ -1,7 +1,7 @@
 ## Inserting values described as an expressions
 
 ## Preamble
---source ../include/xplugin_preamble.inc
+--source include/xplugin_preamble.inc
 ## Test starts here
 --write_file $MYSQL_TMP_DIR/crud_insert_expr.tmp
 ## Test data

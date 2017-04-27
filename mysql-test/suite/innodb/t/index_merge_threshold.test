@@ -10,7 +10,6 @@
 #
 # Check actual behavior for table, partitioned table and temporary table
 # #############################################################
---source include/have_innodb_16k.inc
 --source include/have_debug.inc
 
 --disable_query_log
@@ -23,7 +22,7 @@ set global internal_tmp_disk_storage_engine = MyISAM;
 # Check index merge threshold by create index on all datatypes
 
 CREATE TABLE tab(a BIGINT PRIMARY KEY,c1 TINYTEXT,c2 TEXT,c3 MEDIUMTEXT,
-c4 TINYBLOB,c5 BLOB,c6 MEDIUMBLOB,c7 LONGBLOB) ENGINE=InnoDB STATS_PERSISTENT=0;
+c4 TINYBLOB,c5 BLOB,c6 MEDIUMBLOB,c7 LONGBLOB) charset latin1 ENGINE=InnoDB STATS_PERSISTENT=0;
 
 # check index merge threshold on all datatypes
 CREATE INDEX index1 ON tab(c1(255)) COMMENT 'Check index level merge MERGE_THRESHOLD=51';

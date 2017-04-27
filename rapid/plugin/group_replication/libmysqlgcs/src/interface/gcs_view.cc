@@ -13,7 +13,9 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "gcs_view.h"
+#include "mysql/gcs/gcs_view.h"
+
+#include <stddef.h>
 
 Gcs_view::Gcs_view(const std::vector<Gcs_member_identifier>& members,
                    const Gcs_view_identifier &view_id,

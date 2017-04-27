@@ -1,1 +1,3 @@
 --query_cache_type=0
+--bootstrap --innodb_page_size=16k
+--query_cache_size=0

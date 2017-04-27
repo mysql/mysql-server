@@ -12,6 +12,9 @@
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
+
+#include "sql/auth/role_tables.h"
+
 #include <string.h>
 #include <utility>
 
@@ -19,18 +22,17 @@
 #include "field.h"
 #include "handler.h"
 #include "key.h"
+#include "lex_string.h"
 #include "m_string.h"
 #include "mdl.h"
 #include "my_base.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysql/mysql_lex_string.h"
 #include "mysql/psi/psi_base.h"
 #include "mysqld_error.h"
 #include "records.h"
-#include "role_tables.h"
 #include "sql_auth_cache.h"
 #include "sql_base.h"
 #include "sql_const.h"

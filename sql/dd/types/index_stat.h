@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,7 +17,7 @@
 #define DD__INDEX_STAT_INCLUDED
 
 
-#include "my_global.h" // ulonglong
+#include "my_inttypes.h"
 
 namespace dd {
 
@@ -28,11 +28,11 @@ class Composite_4char_key;
 
 ///////////////////////////////////////////////////////////////////////////
 
-class Index_stat : virtual public Dictionary_object
+class Index_stat : virtual public Entity_object
 {
 public:
   static const Object_type &TYPE();
-  static const Dictionary_object_table &OBJECT_TABLE();
+  static const Entity_object_table &OBJECT_TABLE();
 
   typedef Composite_4char_key name_key_type;
 

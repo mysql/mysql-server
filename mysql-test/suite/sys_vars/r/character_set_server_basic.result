@@ -1,19 +1,19 @@
 SET @global_start_value = @@global.character_set_server;
 SELECT @global_start_value;
 @global_start_value
-latin1
+utf8mb4
 SET @session_start_value = @@character_set_server;
 SELECT @session_start_value;
 @session_start_value
-latin1
+utf8mb4
 SET @session_start_value = @@local.character_set_server;
 SELECT @session_start_value;
 @session_start_value
-latin1
+utf8mb4
 SET @session_start_value = @@session.character_set_server;
 SELECT @session_start_value;
 @session_start_value
-latin1
+utf8mb4
 '#--------------------FN_DYNVARS_009_01------------------#'
 SELECT character_set_server;
 ERROR 42S22: Unknown column 'character_set_server' in 'field list'
@@ -41,7 +41,7 @@ SET @@global.character_set_server = latin5;
 SET @@global.character_set_server = DEFAULT;
 SELECT @@global.character_set_server;
 @@global.character_set_server
-latin1
+utf8mb4
 '#--------------------FN_DYNVARS_009_03-------------------------#'
 SET @@session.character_set_server = utf8;
 SELECT @@session.character_set_server;
@@ -508,8 +508,8 @@ res
 SET @@global.character_set_server = @global_start_value;
 SELECT @@global.character_set_server;
 @@global.character_set_server
-latin1
+utf8mb4
 SET @@session.character_set_server = @session_start_value;
 SELECT @@session.character_set_server;
 @@session.character_set_server
-latin1
+utf8mb4

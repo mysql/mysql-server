@@ -25,7 +25,6 @@
 #endif
 
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_sys.h"       /* my_message_local */
 #include "my_thread.h"   /* my_thread_init, my_thread_end */
 #include "my_timer.h"     /* my_timer_t */

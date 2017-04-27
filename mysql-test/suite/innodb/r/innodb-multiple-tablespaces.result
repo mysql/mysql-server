@@ -164,14 +164,14 @@ yyy	CREATE TABLE `yyy` (
   `c1` int(11) NOT NULL,
   `c2` text,
   PRIMARY KEY (`c1`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
 SHOW CREATE TABLE nyy;
 Table	Create Table
 nyy	CREATE TABLE `nyy` (
   `c1` int(11) NOT NULL,
   `c2` text,
   PRIMARY KEY (`c1`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
 SHOW CREATE TABLE yny;
 ERROR HY000: Tablespace is missing for table `test`.`yny`.
 SHOW CREATE TABLE yyn;
@@ -180,14 +180,14 @@ yyn	CREATE TABLE `yyn` (
   `c1` int(11) NOT NULL,
   `c2` text,
   PRIMARY KEY (`c1`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
 SHOW CREATE TABLE nyw;
 Table	Create Table
 nyw	CREATE TABLE `nyw` (
   `c1` int(11) NOT NULL,
   `c2` text,
   PRIMARY KEY (`c1`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
 SHOW CREATE TABLE nwy;
 ERROR HY000: Tablespace is missing for table `test`.`nwy`.
 SHOW CREATE TABLE wny;
@@ -200,7 +200,7 @@ wyn	CREATE TABLE `wyn` (
   `c1` int(11) NOT NULL,
   `c2` text,
   PRIMARY KEY (`c1`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
 SHOW CREATE TABLE ywn;
 ERROR HY000: Tablespace is missing for table `test`.`ywn`.
 SHOW CREATE TABLE nnn;
@@ -213,7 +213,7 @@ nolink	CREATE TABLE `nolink` (
   `c1` int(11) NOT NULL,
   `c2` text,
   PRIMARY KEY (`c1`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
 #
 # List of files before DROP TABLES
 #
@@ -388,35 +388,35 @@ ny	CREATE TABLE `ny` (
   `c1` int(11) NOT NULL,
   `c2` text,
   PRIMARY KEY (`c1`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
 SHOW CREATE TABLE wy;
 Table	Create Table
 wy	CREATE TABLE `wy` (
   `c1` int(11) NOT NULL,
   `c2` text,
   PRIMARY KEY (`c1`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
 SHOW CREATE TABLE yn;
 Table	Create Table
 yn	CREATE TABLE `yn` (
   `c1` int(11) NOT NULL,
   `c2` text,
   PRIMARY KEY (`c1`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
 SHOW CREATE TABLE yw;
 Table	Create Table
 yw	CREATE TABLE `yw` (
   `c1` int(11) NOT NULL,
   `c2` text,
   PRIMARY KEY (`c1`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
 SHOW CREATE TABLE yy;
 Table	Create Table
 yy	CREATE TABLE `yy` (
   `c1` int(11) NOT NULL,
   `c2` text,
   PRIMARY KEY (`c1`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
 === information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
 test/ny	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/ny.ibd

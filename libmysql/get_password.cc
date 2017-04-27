@@ -16,13 +16,14 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include "my_config.h"
+
 /*
 ** Ask for a password from tty
 ** This is an own file to avoid conflicts with curses
 */
 #include <m_ctype.h>
 #include <m_string.h>
-#include <my_global.h>
 #include <my_sys.h>
 
 #include "my_dbug.h"
@@ -109,7 +110,7 @@ char *get_tty_password(const char *opt_message)
   to will not include the eol characters.
 */
 
-static void get_password(char *to,uint length,int fd, my_bool echo)
+static void get_password(char *to,uint length,int fd, bool echo)
 {
   char *pos=to,*end=to+length;
 

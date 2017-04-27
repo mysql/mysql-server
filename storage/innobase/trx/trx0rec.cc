@@ -25,6 +25,8 @@ Created 3/26/1996 Heikki Tuuri
 
 #include "trx0rec.h"
 
+#include <sys/types.h>
+
 #include "fsp0fsp.h"
 #include "mach0data.h"
 #include "mtr0log.h"
@@ -881,9 +883,7 @@ trx_undo_get_mbr_from_ext(
 			mbr[i * 2 + 1] = -DBL_MAX;
 		}
 	} else {
-		rtree_mbr_from_wkb(dptr + GEO_DATA_HEADER_SIZE,
-				   static_cast<uint>(dlen
-				   - GEO_DATA_HEADER_SIZE), SPDIMS, mbr);
+		get_mbr_from_store(dptr, static_cast<uint>(dlen), SPDIMS, mbr);
 	}
 
 	mem_heap_free(heap);
@@ -1963,7 +1963,6 @@ trx_undo_report_row_operation(
 		mtr.set_log_mode(MTR_LOG_NO_REDO);
 	} else {
 		undo_ptr = &trx->rsegs.m_redo;
-		mtr.set_undo_space(undo_ptr->rseg->space_id);
 	}
 
 	mutex_enter(&trx->undo_mutex);
@@ -2062,9 +2061,6 @@ trx_undo_report_row_operation(
 
 				if (index->table->is_temporary()) {
 					mtr.set_log_mode(MTR_LOG_NO_REDO);
-				} else {
-					mtr.set_undo_space(
-						undo_ptr->rseg->space_id);
 				}
 
 				mutex_enter(&undo_ptr->rseg->mutex);
@@ -2103,11 +2099,11 @@ trx_undo_report_row_operation(
 		/* We have to extend the undo log by one page */
 
 		ut_ad(++loop_count < 2);
+
 		mtr_start(&mtr);
+
 		if (index->table->is_temporary()) {
 			mtr.set_log_mode(MTR_LOG_NO_REDO);
-		} else {
-			mtr.set_undo_space(undo_ptr->rseg->space_id);
 		}
 
 		/* When we add a page to an undo log, this is analogous to

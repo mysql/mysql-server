@@ -24,6 +24,7 @@
 #include "connection_handler_manager.h" // Connection_handler_manager
 #include "log.h"                        // sql_print_error
 #include "mysqld.h"                     // connection_events_loop_aborted
+#include "my_shm_defaults.h"
 #include "sql_class.h"                  // THD
 #include "psi_memory_key.h"
 
@@ -309,32 +310,34 @@ Channel_info* Shared_mem_listener::listen_for_connection_event()
   if (connection_events_loop_aborted())
     goto errorconn;
 
-  Channel_info* channel_info= new (std::nothrow)
-    Channel_info_shared_mem(m_handle_client_file_map,
-                            m_handle_client_map,
-                            m_event_server_wrote,
-                            m_event_server_read,
-                            m_event_client_wrote,
-                            m_event_client_read,
-                            m_event_conn_closed);
-  if (channel_info != NULL)
   {
-    int4store(m_connect_map,  m_connect_number);
-    if (!SetEvent(m_event_connect_answer))
+    Channel_info* channel_info= new (std::nothrow)
+      Channel_info_shared_mem(m_handle_client_file_map,
+                              m_handle_client_map,
+                              m_event_server_wrote,
+                              m_event_server_read,
+                              m_event_client_wrote,
+                              m_event_client_read,
+                              m_event_conn_closed);
+    if (channel_info != NULL)
     {
-      errmsg= "Could not send answer event";
-      delete channel_info;
-      goto errorconn;
-    }
+      int4store(m_connect_map,  m_connect_number);
+      if (!SetEvent(m_event_connect_answer))
+      {
+        errmsg= "Could not send answer event";
+        delete channel_info;
+        goto errorconn;
+      }
 
-    if (!SetEvent(m_event_client_read))
-    {
-      errmsg= "Could not set client to read mode";
-      delete channel_info;
-      goto errorconn;
+      if (!SetEvent(m_event_client_read))
+      {
+        errmsg= "Could not set client to read mode";
+        delete channel_info;
+        goto errorconn;
+      }
+      m_connect_number++;
+      return channel_info;
     }
-    m_connect_number++;
-    return channel_info;
   }
 errorconn:
   /* Could not form connection;  Free used handlers/memort and retry */

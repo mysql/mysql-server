@@ -25,9 +25,11 @@
 #include "hash.h"
 #include "item_func.h"         // user_var_entry
 #include "key.h"
+#include "lex_string.h"
 #include "log.h"               // sql_print_error
 #include "my_compiler.h"
 #include "my_dbug.h"
+#include "my_io.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysqld.h"            // server_uuid
@@ -44,6 +46,7 @@
 #include "system_variables.h"
 #include "table.h"
 #include "transaction_info.h"
+#include "rpl_write_set_handler.h"
 
 Trans_delegate *transaction_delegate;
 Binlog_storage_delegate *binlog_storage_delegate;
@@ -60,13 +63,13 @@ Observer_info::Observer_info(void *ob, st_plugin_int *p)
 
 
 Delegate::Delegate(
-#ifdef HAVE_PSI_INTERFACE
+#ifdef HAVE_PSI_RWLOCK_INTERFACE
          PSI_rwlock_key key
 #endif
          )
 {
   inited= FALSE;
-#ifdef HAVE_PSI_INTERFACE
+#ifdef HAVE_PSI_RWLOCK_INTERFACE
   if (mysql_rwlock_init(key, &lock))
     return;
 #else
@@ -324,7 +327,8 @@ void delegates_destroy()
 int Trans_delegate::before_commit(THD *thd, bool all,
                                   IO_CACHE *trx_cache_log,
                                   IO_CACHE *stmt_cache_log,
-                                  ulonglong cache_log_max_size)
+                                  ulonglong cache_log_max_size,
+                                  bool is_atomic_ddl_arg)
 {
   DBUG_ENTER("Trans_delegate::before_commit");
   Trans_param param;
@@ -338,6 +342,8 @@ int Trans_delegate::before_commit(THD *thd, bool all,
   param.trx_cache_log= trx_cache_log;
   param.stmt_cache_log= stmt_cache_log;
   param.cache_log_max_size= cache_log_max_size;
+  param.original_commit_timestamp= &thd->variables.original_commit_timestamp;
+  param.is_atomic_ddl= is_atomic_ddl_arg;
 
   bool is_real_trans=
     (all || !thd->get_transaction()->is_active(Transaction_ctx::SESSION));

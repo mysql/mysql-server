@@ -22,12 +22,16 @@
   Performance schema user (declarations).
 */
 
+#include <sys/types.h>
+
 #include "lf.h"
 #include "my_inttypes.h"
 #include "pfs_con_slice.h"
+#include "pfs_global.h"
 #include "pfs_lock.h"
 
 struct PFS_global_param;
+struct PFS_memory_stat_delta;
 struct PFS_thread;
 
 /**
@@ -40,8 +44,8 @@ struct PFS_user_key
 {
   /**
     Hash search key.
-    This has to be a string for LF_HASH,
-    the format is "<username><0x00>"
+    This has to be a string for @c LF_HASH,
+    the format is @c "<username><0x00>"
   */
   char m_hash_key[USERNAME_LENGTH + 1];
   uint m_key_length;

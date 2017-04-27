@@ -15,6 +15,7 @@
 
 #include "json_dom.h"
 
+#include <cmath>                // std::isfinite
 #include <errno.h>
 #include <limits.h>
 #include <math.h>
@@ -32,7 +33,7 @@
 #include "field.h"
 #include "json_path.h"
 #include "m_ctype.h"
-#include "m_string.h"           // my_gcvt, _dig_vec_lower
+#include "m_string.h"           // my_gcvt, _dig_vec_lower, my_strtod
 #include "my_byteorder.h"
 #include "my_dbug.h"
 #include "my_double2ulonglong.h"
@@ -355,9 +356,7 @@ bool Json_dom::find_child_doms(const Json_path_leg *path_leg,
       if (dom_type == enum_json_type::J_OBJECT)
       {
         const Json_object * object= down_cast<const Json_object *>(this);
-        std::string member_name(path_leg->get_member_name(),
-                                path_leg->get_member_name_length());
-        Json_dom * child= object->get(member_name);
+        Json_dom *child= object->get(path_leg->get_member_name());
 
         if (child != NULL && add_if_missing(child, duplicates, result))
           return true;                        /* purecov: inspected */
@@ -469,12 +468,10 @@ private:
   Json_dom* m_current_element;  ///< The current object/array being parsed.
   size_t m_depth;      ///< The depth at which parsing currently happens.
   std::string m_key;   ///< The name of the current member of an object.
-  bool m_preserve_neg_zero_int; ///< Should -0 be interpreted as -0.0?
 public:
-  Rapid_json_handler(bool preserve_neg_zero_int= false)
+  Rapid_json_handler()
     : m_state(expect_anything), m_dom_as_built(nullptr),
-      m_current_element(nullptr), m_depth(0), m_key(),
-      m_preserve_neg_zero_int(preserve_neg_zero_int)
+      m_current_element(nullptr), m_depth(0), m_key()
   {}
 
   /**
@@ -573,28 +570,27 @@ public:
     return seeing_value(new (std::nothrow) Json_uint(ui64));
   }
 
-  bool Double(double d, bool is_int= false)
+  bool Double(double d)
   {
-    if (is_int && !m_preserve_neg_zero_int)
-    {
-      /*
-        The is_int flag is true only if -0 was seen. Handle it as an
-        integer.
-      */
-      DBUG_ASSERT(d == 0.0);
-      return Int64(static_cast<int64_t>(d));
-    }
-    else
-    {
-      DUMP_CALLBACK("double", state);
-      return seeing_value(new (std::nothrow) Json_double(d));
-    }
+    DUMP_CALLBACK("double", state);
+    /*
+      We only accept finite values. RapidJSON normally stops non-finite values
+      from getting here, but sometimes +/-inf values could end up here anyway.
+    */
+    if (!std::isfinite(d))
+      return false;
+    return seeing_value(new (std::nothrow) Json_double(d));
   }
 
-  bool RawNumber(const char*, SizeType, bool)
+  bool RawNumber(const char* str, SizeType length, bool)
   {
-    DBUG_ASSERT(false);
-    return false;
+    char *end[]= { const_cast<char*>(str) + length };
+    int error= 0;
+    double value = my_strtod(str, end, &error);
+
+    if (error == EOVERFLOW)
+      return false;
+    return Double(value);
   }
 
   bool String(const char* str, SizeType length, bool)
@@ -676,12 +672,15 @@ private:
 
 Json_dom *Json_dom::parse(const char *text, size_t length,
                           const char **syntaxerr, size_t *offset,
-                          bool preserve_neg_zero_int)
+                          bool handle_numbers_as_double)
 {
-  Rapid_json_handler handler(preserve_neg_zero_int);
+  Rapid_json_handler handler;
   MemoryStream ss(text, length);
   Reader reader;
-  bool success= reader.Parse<kParseDefaultFlags>(ss, handler);
+  bool success=
+    handle_numbers_as_double ?
+    reader.Parse<kParseNumbersAsStringsFlag>(ss, handler) :
+    reader.Parse<kParseDefaultFlags>(ss, handler);
 
   if (success)
   {
@@ -1579,11 +1578,6 @@ void Json_datetime::from_packed(const char *from, enum_field_types ft,
 }
 
 
-Json_opaque::Json_opaque(enum_field_types mytype, const char *v, size_t size)
-  : Json_scalar(), m_mytype(mytype), m_val(v, size)
-{}
-
-
 Json_dom *Json_opaque::clone() const
 {
   return new (std::nothrow) Json_opaque(m_mytype, value(), size());
@@ -1651,20 +1645,19 @@ Json_wrapper::Json_wrapper(Json_dom *dom_value)
 }
 
 
-void Json_wrapper::steal(Json_wrapper *old)
+Json_wrapper::Json_wrapper(Json_wrapper &&old)
+  : m_is_dom(old.m_is_dom)
 {
-  if (old->m_is_dom)
+  if (m_is_dom)
   {
-    bool old_is_aliased= old->m_dom_alias;
-    old->m_dom_alias= true; // we want no deep copy now, or later
-    *this= *old;
-    this->m_dom_alias= old_is_aliased; // set it back
-    // old is now marked as aliased, so any ownership is effectively
-    // transferred to this.
+    m_dom_alias= old.m_dom_alias;
+    m_dom_value= old.m_dom_value;
+    // Mark old as aliased. Any ownership is effectively transferred to this.
+    old.set_alias();
   }
   else
   {
-    *this= *old;
+    m_value= std::move(old.m_value);
   }
 }
 
@@ -1698,20 +1691,38 @@ Json_wrapper::~Json_wrapper()
 }
 
 
-Json_wrapper &Json_wrapper::operator=(const Json_wrapper& from)
+/**
+  Common implementation of move-assignment and copy-assignment for
+  Json_wrapper. If @a from is an rvalue, its contents are moved into
+  @a to, otherwise the contents are copied over.
+*/
+template <typename T>
+static Json_wrapper &assign_json_wrapper(T &&from, Json_wrapper *to)
 {
-  if (this == &from)
+  if (&from == to)
   {
-    return *this;   // self assignment: no-op
+    return *to;   // self assignment: no-op
   }
 
   // Deallocate DOM if needed.
-  this->~Json_wrapper();
+  to->~Json_wrapper();
 
-  // Copy the value into this.
-  new (this) Json_wrapper(from);
+  // Move or copy the value into the destination.
+  new (to) Json_wrapper(std::forward<T>(from));
 
-  return *this;
+  return *to;
+}
+
+
+Json_wrapper &Json_wrapper::operator=(const Json_wrapper &from)
+{
+  return assign_json_wrapper(from, this);
+}
+
+
+Json_wrapper &Json_wrapper::operator=(Json_wrapper &&from)
+{
+  return assign_json_wrapper(std::move(from), this);
 }
 
 
@@ -2096,19 +2107,18 @@ Json_wrapper_object_iterator Json_wrapper::object_iterator() const
 }
 
 
-Json_wrapper Json_wrapper::lookup(const char *key, size_t len) const
+Json_wrapper Json_wrapper::lookup(const std::string &key) const
 {
   DBUG_ASSERT(type() == enum_json_type::J_OBJECT);
   if (m_is_dom)
   {
     const Json_object *object= down_cast<const Json_object *>(m_dom_value);
-    std::string member_name(key, len);
-    Json_wrapper wr(object->get(member_name));
+    Json_wrapper wr(object->get(key));
     wr.set_alias(); // wr doesn't own the supplied DOM: part of array DOM
     return wr;
   }
 
-  return Json_wrapper(m_value.lookup(key, len));
+  return Json_wrapper(m_value.lookup(key));
 }
 
 Json_wrapper Json_wrapper::operator[](size_t index) const
@@ -2334,24 +2344,22 @@ bool Json_dom::seek(const Json_seekable_path &path,
 
 bool Json_wrapper::seek_no_ellipsis(const Json_seekable_path &path,
                                     Json_wrapper_vector *hits,
-                                    const size_t leg_number,
+                                    size_t current_leg,
+                                    size_t last_leg,
                                     bool auto_wrap,
                                     bool only_need_one) const
 {
-  if (leg_number >= path.leg_count())
+  if (current_leg >= last_leg)
   {
     if (m_is_dom)
     {
       Json_wrapper clone(m_dom_value->clone());
-      if (clone.empty() || hits->emplace_back())
-        return true;                          /* purecov: inspected */
-      hits->back().steal(&clone);
-      return false;
+      return clone.empty() || hits->push_back(std::move(clone));
     }
     return hits->push_back(*this);
   }
 
-  const Json_path_leg *path_leg= path.get_leg_at(leg_number);
+  const Json_path_leg *path_leg= path.get_leg_at(current_leg);
 
   switch(path_leg->get_type())
   {
@@ -2361,15 +2369,13 @@ bool Json_wrapper::seek_no_ellipsis(const Json_seekable_path &path,
       {
       case enum_json_type::J_OBJECT:
         {
-          const char *key= path_leg->get_member_name();
-          size_t key_length= path_leg->get_member_name_length();
-          Json_wrapper member= lookup(key, key_length);
+          Json_wrapper member= lookup(path_leg->get_member_name());
 
           if (member.type() != enum_json_type::J_ERROR)
           {
             // recursion
-            if (member.seek_no_ellipsis(path, hits, leg_number + 1, auto_wrap,
-                                        only_need_one))
+            if (member.seek_no_ellipsis(path, hits, current_leg + 1, last_leg,
+                                        auto_wrap, only_need_one))
               return true;                    /* purecov: inspected */
           }
           return false;
@@ -2397,7 +2403,9 @@ bool Json_wrapper::seek_no_ellipsis(const Json_seekable_path &path,
             // recursion
             if (iter.elt().second.seek_no_ellipsis(path,
                                                    hits,
-                                                   leg_number + 1, auto_wrap,
+                                                   current_leg + 1,
+                                                   last_leg,
+                                                   auto_wrap,
                                                    only_need_one))
               return true;                    /* purecov: inspected */
           }
@@ -2421,8 +2429,8 @@ bool Json_wrapper::seek_no_ellipsis(const Json_seekable_path &path,
           (this->type() != enum_json_type::J_ARRAY))
       {
         // recursion
-        return seek_no_ellipsis(path, hits, leg_number + 1, auto_wrap,
-                                only_need_one);
+        return seek_no_ellipsis(path, hits, current_leg + 1, last_leg,
+                                auto_wrap, only_need_one);
       }
 
       switch(this->type())
@@ -2432,8 +2440,8 @@ bool Json_wrapper::seek_no_ellipsis(const Json_seekable_path &path,
           if (cell_idx < this->length())
           {
             Json_wrapper cell= (*this)[cell_idx];
-            return cell.seek_no_ellipsis(path, hits, leg_number + 1, auto_wrap,
-                                         only_need_one);
+            return cell.seek_no_ellipsis(path, hits, current_leg + 1, last_leg,
+                                         auto_wrap, only_need_one);
           }
           return false;
         }
@@ -2459,8 +2467,8 @@ bool Json_wrapper::seek_no_ellipsis(const Json_seekable_path &path,
 
             // recursion
             Json_wrapper cell= (*this)[idx];
-            if (cell.seek_no_ellipsis(path, hits, leg_number + 1, auto_wrap,
-                                      only_need_one))
+            if (cell.seek_no_ellipsis(path, hits, current_leg + 1, last_leg,
+                                      auto_wrap, only_need_one))
               return true;                    /* purecov: inspected */
           }
           return false;
@@ -2512,7 +2520,8 @@ bool Json_wrapper::seek(const Json_seekable_path &path,
   // use fast-track code if the path doesn't have any ellipses
   if (!contains_ellipsis(path))
   {
-    return seek_no_ellipsis(path, hits, 0, auto_wrap, only_need_one);
+    return seek_no_ellipsis(path, hits, 0, path.leg_count(),
+                            auto_wrap, only_need_one);
   }
 
   /*
@@ -2526,12 +2535,11 @@ bool Json_wrapper::seek(const Json_seekable_path &path,
   Json_dom_vector dhits(key_memory_JSON);
   if (m_dom_value->seek(path, &dhits, auto_wrap, only_need_one))
     return true;                              /* purecov: inspected */
-  for (Json_dom_vector::iterator it= dhits.begin(); it != dhits.end(); ++it)
+  for (const Json_dom *dom : dhits)
   {
-    Json_wrapper clone((*it)->clone());
-    if (clone.empty() || hits->emplace_back())
+    Json_wrapper clone(dom->clone());
+    if (clone.empty() || hits->push_back(std::move(clone)))
       return true;                            /* purecov: inspected */
-    hits->back().steal(&clone);
   }
 
   return false;
@@ -2970,9 +2978,9 @@ int Json_wrapper::compare(const Json_wrapper &other) const
           return 1;                           /* purecov: inspected */
         return -compare_json_decimal_int(b_dec, get_int());
       }
-    default:
-      break;
+    default:;
     }
+    break;
   case enum_json_type::J_UINT:
     // Unsigned integers can be compared to all other numbers.
     switch (other_type)
@@ -2990,31 +2998,29 @@ int Json_wrapper::compare(const Json_wrapper &other) const
           return 1;                           /* purecov: inspected */
         return -compare_json_decimal_uint(b_dec, get_uint());
       }
-    default:
-      break;
+    default:;
     }
+    break;
   case enum_json_type::J_DOUBLE:
     // Doubles can be compared to all other numbers.
+    switch (other_type)
     {
-      switch (other_type)
+    case enum_json_type::J_DOUBLE:
+      return compare_numbers(get_double(), other.get_double());
+    case enum_json_type::J_INT:
+      return compare_json_double_int(get_double(), other.get_int());
+    case enum_json_type::J_UINT:
+      return compare_json_double_uint(get_double(), other.get_uint());
+    case enum_json_type::J_DECIMAL:
       {
-      case enum_json_type::J_DOUBLE:
-        return compare_numbers(get_double(), other.get_double());
-      case enum_json_type::J_INT:
-        return compare_json_double_int(get_double(), other.get_int());
-      case enum_json_type::J_UINT:
-        return compare_json_double_uint(get_double(), other.get_uint());
-      case enum_json_type::J_DECIMAL:
-        {
-          my_decimal other_dec;
-          if (other.get_decimal_data(&other_dec))
-            return 1;                         /* purecov: inspected */
-          return -compare_json_decimal_double(other_dec, get_double());
-        }
-      default:
-        break;
+        my_decimal other_dec;
+        if (other.get_decimal_data(&other_dec))
+          return 1;                         /* purecov: inspected */
+        return -compare_json_decimal_double(other_dec, get_double());
       }
+    default:;
     }
+    break;
   case enum_json_type::J_DECIMAL:
     // Decimals can be compared to all other numbers.
     {
@@ -3040,9 +3046,9 @@ int Json_wrapper::compare(const Json_wrapper &other) const
         return compare_json_decimal_uint(a_dec, other.get_uint());
       case enum_json_type::J_DOUBLE:
         return compare_json_decimal_double(a_dec, other.get_double());
-      default:
-        break;
+      default:;
       }
+      break;
     }
   case enum_json_type::J_BOOLEAN:
     // Booleans are only equal to other booleans. false is less than true.
@@ -3889,4 +3895,124 @@ ulonglong Json_wrapper::make_hash_key(ulonglong *hash_val)
 
   ulonglong result= hash_key.get_crc();
   return result;
+}
+
+
+bool Json_wrapper::get_free_space(size_t *space) const
+{
+  if (m_is_dom)
+  {
+    *space= 0;
+    return false;
+  }
+
+  return m_value.get_free_space(current_thd, space);
+}
+
+
+bool Json_wrapper::attempt_partial_update(const THD *thd,
+                                          Field_json *field,
+                                          const Json_seekable_path &path,
+                                          Json_wrapper *new_value,
+                                          bool replace,
+                                          String *result)
+{
+  using namespace json_binary;
+
+  // Can only do partial update if the input value is binary.
+  DBUG_ASSERT(!is_dom());
+
+  /*
+    If we are replacing the top-level document, there's no need for
+    partial update. The full document is rewritten anyway.
+  */
+  if (path.leg_count() == 0)
+    return true;
+
+  // Find the parent of the value we want to modify.
+  Json_wrapper_vector hits(key_memory_JSON);
+  if (seek_no_ellipsis(path, &hits, 0, path.leg_count() - 1, false, true))
+    return true;                                /* purecov: inspected */
+
+  if (hits.empty())
+  {
+    /*
+      No parent array/object was found, so both JSON_SET and
+      JSON_REPLACE will be no-ops. Return success.
+    */
+    return false;
+  }
+
+  DBUG_ASSERT(hits.size() == 1);
+  DBUG_ASSERT(!hits[0].is_dom());
+
+  auto &parent= hits[0].m_value;
+  const Json_path_leg *last_leg= path.get_leg_at(path.leg_count() - 1);
+  size_t element_pos;
+  switch (parent.type())
+  {
+  case Value::OBJECT:
+    if (last_leg->get_type() != enum_json_path_leg_type::jpl_member)
+      return true;
+    element_pos= parent.lookup_index(last_leg->get_member_name());
+    break;
+  case Value::ARRAY:
+    if (last_leg->get_type() != enum_json_path_leg_type::jpl_array_cell)
+      return true;
+    element_pos= last_leg->get_array_cell_index();
+    break;
+  default:
+    // Can only partially update values inside an array or an object.
+    return true;
+  }
+
+  if (element_pos >= parent.element_count())
+  {
+    /*
+      The element wasn't found. JSON_SET will need to grow the
+      array/object with a new entry, so it cannot do partial update.
+      JSON_REPLACE will be a no-op, so we can return successfully.
+    */
+    return !replace;
+  }
+
+  // Find out how much space we need to store new_value.
+  size_t needed;
+  if (space_needed(thd, new_value, parent.large_format(), &needed))
+    return true;
+
+  // Do we have that space available?
+  size_t data_offset= 0;
+  if (needed > 0 && !parent.has_space(element_pos, needed, &data_offset))
+    return true;
+
+  /*
+    Get a pointer to the binary representation of the document. If the result
+    buffer is not empty, it contains the binary representation of the document,
+    including any other partial updates made to it previously in this
+    operation. If it is empty, the document is unchanged and its binary
+    representation can be retrieved from the Field.
+  */
+  const char *original;
+  if (result->is_empty())
+  {
+    if (m_value.raw_binary(thd, result))
+      return true;                              /* purecov: inspected */
+    original= field->get_binary();
+  }
+  else
+  {
+    DBUG_ASSERT(is_binary_backed_by(result));
+    original= result->ptr();
+  }
+
+  DBUG_ASSERT(result->length() >= data_offset + needed);
+
+  char *destination= const_cast<char *>(result->ptr());
+  if (parent.update_in_shadow(thd, field, element_pos, new_value, data_offset,
+                              needed, original, destination))
+    return true;                                /* purecov: inspected */
+
+  m_value= parse_binary(result->ptr(), result->length());
+  return false;
 }

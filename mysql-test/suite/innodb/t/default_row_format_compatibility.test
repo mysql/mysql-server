@@ -21,8 +21,6 @@ let $MYSQLD_TMPDIR = `SELECT @@tmpdir`;
 let $MYSQLD_DATADIR = `SELECT @@datadir`;
 
 # The following tescases works with page_size=16k only
---source include/have_innodb_16k.inc
---source include/not_embedded.inc
 --source include/no_valgrind_without_big.inc
 
 # Check storage engine InnoDB
@@ -146,7 +144,7 @@ SET GLOBAL innodb_default_row_format=Dynamic;
 
 SELECT @@innodb_default_row_format;
 
-CREATE TABLE tab(a INT PRIMARY KEY, b VARCHAR(5000), KEY idx1(b(3070))) ENGINE= InnoDB;
+CREATE TABLE tab(a INT PRIMARY KEY, b VARCHAR(5000), KEY idx1(b(3070))) ENGINE= InnoDB charset latin1;
 
 INSERT INTO tab(a,b) VALUES(1,'Check with max column size');
 
@@ -172,7 +170,7 @@ SET GLOBAL innodb_default_row_format=Default;
 # Change row_format to Dynamic
 SELECT @@innodb_default_row_format;
 
-CREATE TABLE tab(a INT PRIMARY KEY, b VARCHAR(5000), KEY idx1(b(767))) ENGINE= InnoDB;
+CREATE TABLE tab(a INT PRIMARY KEY, b VARCHAR(5000), KEY idx1(b(767))) ENGINE= InnoDB charset latin1;
 
 INSERT INTO tab(a,b) VALUES(1,'Check with max column size');
 
@@ -208,4 +206,3 @@ ALTER TABLE tab ROW_FORMAT=Dynamic;
 
 # Cleanup
 DROP TABLE tab;
-

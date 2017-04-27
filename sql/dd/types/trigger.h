@@ -1,4 +1,4 @@
-/* Copyright (c) 2016 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,10 +16,15 @@
 #ifndef DD__TRIGGER_INCLUDED
 #define DD__TRIGGER_INCLUDED
 
-#include "my_global.h"
+#include <time.h>
+
+#ifdef _WIN32
+#include <winsock2.h>                 // timeval
+#endif
 
 #include "dd/sdi_fwd.h"               // dd::Sdi_wcontext
 #include "dd/types/entity_object.h"   // dd::Entity_object
+#include "my_inttypes.h"
 
 namespace dd {
 

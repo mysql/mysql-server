@@ -6,9 +6,6 @@ if (!$require_case_insensitive_file_system)
 
 --source include/no_valgrind_without_big.inc
 
-# This test  uses grants, which can't get tested for embedded server
--- source include/not_embedded.inc
-
 #Don't run this test when thread_pool active
 --source include/not_threadpool.inc
 
@@ -287,7 +284,7 @@ select * from information_schema.views where table_schema !=
 'sys' order by table_name;
 grant select (a) on test.t1 to joe@localhost with grant option;
 select * from INFORMATION_SCHEMA.COLUMN_PRIVILEGES WHERE table_schema != 'sys';
-select * from INFORMATION_SCHEMA.TABLE_PRIVILEGES WHERE table_schema != 'sys';
+select * from INFORMATION_SCHEMA.TABLE_PRIVILEGES WHERE table_schema NOT IN ('sys','mysql');
 drop view v1, v2, v3;
 drop table t1;
 delete from mysql.user where user='joe';
@@ -648,10 +645,10 @@ connection con4;
 select * from information_schema.column_privileges where grantee like '%user%'
 order by grantee;
 select * from information_schema.table_privileges where grantee like '%user%'
-order by grantee;
+and table_schema !='mysql' order by grantee;
 select * from information_schema.schema_privileges where grantee like '%user%'
-order by grantee;
-select * from information_schema.user_privileges where grantee like '%user%'
+and table_schema !='performance_schema' order by grantee;
+select * from information_schema.user_privileges where grantee like '%user%' and grantee not like '%session%'
 order by grantee;
 show grants;
 connection default;
@@ -967,7 +964,7 @@ CREATE FUNCTION get_value()
   DETERMINISTIC
 BEGIN
   DECLARE col1, col2, col3, col4, col6 CHAR(255);
-  DECLARE default_val VARCHAR(65532);
+  DECLARE default_val VARCHAR(65532) CHARACTER SET latin1;
   DECLARE done INT DEFAULT 0;
   DECLARE cur1 CURSOR FOR SELECT COLUMN_NAME, COLUMN_TYPE, IS_NULLABLE, COLUMN_KEY, COLUMN_DEFAULT, EXTRA FROM INFORMATION_SCHEMA.COLUMNS where TABLE_NAME='bug23037';
   DECLARE CONTINUE HANDLER FOR SQLSTATE '02000' SET done = 1;
@@ -1373,10 +1370,6 @@ drop table if exists t1;drop table if exists t1;\
 drop table if exists t1;drop table if exists t1;";
 select * from performance_schema.global_variables where variable_name='init_connect';
 set global init_connect="";
-
-#
-# Bug#34517 SHOW GLOBAL STATUS does not work properly in embedded server.
-#
 
 --disable_warnings
 create table t0 select * from performance_schema.global_status where VARIABLE_NAME='COM_SELECT';
@@ -1977,7 +1970,7 @@ FULLTEXT KEY c4_fts (c4, c5));
 SELECT COLUMN_NAME, IS_NULLABLE,
        DATA_TYPE, COLLATION_NAME, COLUMN_KEY
   FROM INFORMATION_SCHEMA.COLUMNS
-  WHERE TABLE_SCHEMA='test';
+  WHERE TABLE_SCHEMA='test' ORDER BY COLUMN_NAME;
 SHOW COLUMNS FROM t1;
 
 DROP TABLE t1;
@@ -2181,3 +2174,78 @@ SHOW COLUMNS FROM `aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 aaaaaaaaaaaaaaaa`.`t1`;
+
+--echo #
+--echo # Bug#25583588 `M_PREBUILT->TABLE->N_REF_COUNT > 0' AT
+--echo # HA_INNOBASE::UPDATE_THD IN HANDLER
+--echo #
+--echo # This test would crash especially with a FULLTEXT
+--echo # index and hidden FTS tables that are created by InnoDB.
+--echo #
+
+CREATE TABLE t1 (a VARCHAR(200), b TEXT, FULLTEXT (a,b))
+ENGINE = InnoDB charset utf8mb4;
+SELECT * FROM INFORMATION_SCHEMA.`REFERENTIAL_CONSTRAINTS`;
+DROP TABLE t1;
+
+
+--echo #
+--echo # Bug#25576205 WRONG COLUMN CARDINALITY PASSED TO GET STATS
+--echo #
+--echo # The test case crashes if server requests for cardinality for
+--echo # InnoDB SE even for hidden index.
+--echo #
+
+set information_schema_stats=latest;
+SELECT INDEX_NAME FROM INFORMATION_SCHEMA.`STATISTICS` WHERE `TABLE_NAME` = 'innodb_table_stats' AND Cardinality ;
+
+--echo #
+--echo # Bug#25188540 FIELD_TINY::VAL_INT(): ASSERTION `!TABLE || (!TABLE->READ_SET |......)' FAILED
+--echo #
+
+CREATE TABLE t1 (a INT);
+SET SESSION optimizer_switch='derived_merge=off';
+SHOW FIELDS FROM t1;
+SET SESSION optimizer_switch=DEFAULT;
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#25824297 INFORMATION_SCHEMA.CHARACTER_SETS DESCRIPTION COLUMN IS
+--echo # CASE SENSITIVE IN 8.0
+--echo # The following SELECT does case sensitive comparision without the
+--echo # fix, returning no rows.
+--echo #
+
+SELECT * FROM INFORMATION_SCHEMA.CHARACTER_SETS WHERE DESCRIPTION LIKE '%japanese%';
+
+--echo # WL#9495 Update schema tables of dynamic plugins
+--echo # into data dictionary.
+--echo #
+--echo # Make sure user does not access following
+--echo # INFORMATION_SCHEMA tables:
+--echo #   TABLES_DYNAMIC, STATISTICS_DYNAMIC
+--echo #   SHOW_STATISTICS, SHOW_STATISTICS_DYNAMIC,
+--echo #
+--error ER_NO_SYSTEM_VIEW_ACCESS
+SELECT * FROM INFORMATION_SCHEMA.TABLES_DYNAMIC;
+--error ER_NO_SYSTEM_VIEW_ACCESS
+SELECT * FROM INFORMATION_SCHEMA.STATISTICS_DYNAMIC;
+--error ER_NO_SYSTEM_VIEW_ACCESS
+SELECT * FROM INFORMATION_SCHEMA.SHOW_STATISTICS;
+--error ER_NO_SYSTEM_VIEW_ACCESS
+SELECT * FROM INFORMATION_SCHEMA.SHOW_STATISTICS_DYNAMIC;
+
+--echo #
+--echo # Bug#25793429 CAN'T RETURN
+--echo # INFORMATION_SCHEMA.TABLES.CREATE_OPTION IN UPPERCASE
+--echo #
+--echo # The UPPER() function fails to convert strings without the fix.
+--echo #
+CREATE TABLE t1 (a CHAR(40) NOT NULL, UNIQUE idx1(a(2)))
+  COMMENT="testing a fix" MAX_ROWS=10;
+SELECT create_options, UPPER(create_options),
+       table_comment, UPPER(table_comment)
+  FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 't1';
+SELECT privileges, UPPER(privileges)
+  FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 't1';
+DROP TABLE t1;

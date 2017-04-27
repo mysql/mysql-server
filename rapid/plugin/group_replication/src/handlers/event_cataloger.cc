@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -38,7 +38,7 @@ Event_cataloger::handle_event(Pipeline_event *pevent, Continuation *cont)
   {
     pevent->mark_event(TRANSACTION_BEGIN);
   }
-  else
+  else if (pevent->get_event_context() != SINGLE_VIEW_EVENT)
   {
     pevent->mark_event(UNMARKED_EVENT);
   }
@@ -46,10 +46,10 @@ Event_cataloger::handle_event(Pipeline_event *pevent, Continuation *cont)
   //Check if the current transaction was discarded
   if (cont->is_transaction_discarded())
   {
-    if (pevent->get_event_context() == TRANSACTION_BEGIN ||
-        pevent->get_event_type() == binary_log::VIEW_CHANGE_EVENT)
+    if ((pevent->get_event_context() == TRANSACTION_BEGIN)||
+        (pevent->get_event_context() == SINGLE_VIEW_EVENT))
     {
-      //a new transaction begins
+      //a new transaction begins or we are handling a view change
       cont->set_transation_discarded(false);
     }
     else

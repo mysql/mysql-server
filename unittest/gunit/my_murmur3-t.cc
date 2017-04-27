@@ -15,6 +15,7 @@
 
 
 #include <gtest/gtest.h>
+#include <sys/types.h>
 
 #include "my_inttypes.h"
 #include "my_murmur3.h"

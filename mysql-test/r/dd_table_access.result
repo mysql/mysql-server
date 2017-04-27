@@ -20,165 +20,165 @@ CREATE TABLE t (pk BIGINT UNSIGNED PRIMARY KEY);
 #
 # DD table access in LOAD statements.
 #
-LOAD DATA INFILE 'no_such_file' INTO TABLE mysql.version;
-ERROR HY000: Access to data dictionary table 'mysql.version' is rejected.
+LOAD DATA INFILE 'no_such_file' INTO TABLE mysql.dd_properties;
+ERROR HY000: Access to data dictionary table 'mysql.dd_properties' is rejected.
 #
 # DD table access in HANDLER statements.
 #
-HANDLER mysql.version OPEN;
-ERROR HY000: Access to data dictionary table 'mysql.version' is rejected.
+HANDLER mysql.dd_properties OPEN;
+ERROR HY000: Access to data dictionary table 'mysql.dd_properties' is rejected.
 #
 # DD table visibility in I_S.
 #
 # A SELECT statement will not fail, since the table names are submitted as strings in WHERE clauses.
-SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'mysql.version' AND TABLE_SCHEMA = 'mysql';
+SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'mysql.dd_properties' AND TABLE_SCHEMA = 'mysql';
 COUNT(*)
 0
 # A SHOW statement will fail because the table name is interpreted as a table name, not as a string.
-SHOW CREATE TABLE mysql.version;
-ERROR HY000: Access to data dictionary table 'mysql.version' is rejected.
+SHOW CREATE TABLE mysql.dd_properties;
+ERROR HY000: Access to data dictionary table 'mysql.dd_properties' is rejected.
 #
 # DD table access in DDL.
 #
-DROP TABLE mysql.version;
-ERROR HY000: Access to data dictionary table 'mysql.version' is rejected.
-CREATE TABLE mysql.version (i INTEGER);
-ERROR HY000: Access to data dictionary table 'mysql.version' is rejected.
-CREATE TABLE new_tab LIKE mysql.version;
-ERROR HY000: Access to data dictionary table 'mysql.version' is rejected.
-CREATE TABLE new_tab SELECT * FROM mysql.version;
-ERROR HY000: Access to data dictionary table 'mysql.version' is rejected.
-ALTER TABLE mysql.version ADD COLUMN (new_col INTEGER);
-ERROR HY000: Access to data dictionary table 'mysql.version' is rejected.
-TRUNCATE TABLE mysql.version;
-ERROR HY000: Access to data dictionary table 'mysql.version' is rejected.
-RENAME TABLE mysql.version TO new_tab;
-ERROR HY000: Access to data dictionary table 'mysql.version' is rejected.
-RENAME TABLE t TO mysql.version;
-ERROR HY000: Access to data dictionary table 'mysql.version' is rejected.
+DROP TABLE mysql.dd_properties;
+ERROR HY000: Access to data dictionary table 'mysql.dd_properties' is rejected.
+CREATE TABLE mysql.dd_properties (i INTEGER);
+ERROR HY000: Access to data dictionary table 'mysql.dd_properties' is rejected.
+CREATE TABLE new_tab LIKE mysql.dd_properties;
+ERROR HY000: Access to data dictionary table 'mysql.dd_properties' is rejected.
+CREATE TABLE new_tab SELECT * FROM mysql.dd_properties;
+ERROR HY000: Access to data dictionary table 'mysql.dd_properties' is rejected.
+ALTER TABLE mysql.dd_properties ADD COLUMN (new_col INTEGER);
+ERROR HY000: Access to data dictionary table 'mysql.dd_properties' is rejected.
+TRUNCATE TABLE mysql.dd_properties;
+ERROR HY000: Access to data dictionary table 'mysql.dd_properties' is rejected.
+RENAME TABLE mysql.dd_properties TO new_tab;
+ERROR HY000: Access to data dictionary table 'mysql.dd_properties' is rejected.
+RENAME TABLE t TO mysql.dd_properties;
+ERROR HY000: Access to data dictionary table 'mysql.dd_properties' is rejected.
 #
 # DD table access in DML.
 #
-SELECT * from mysql.version;
-ERROR HY000: Access to data dictionary table 'mysql.version' is rejected.
-SELECT * from t WHERE t.pk = (SELECT COUNT(*) FROM mysql.version);
-ERROR HY000: Access to data dictionary table 'mysql.version' is rejected.
-DELETE FROM mysql.version;
-ERROR HY000: Access to data dictionary table 'mysql.version' is rejected.
-UPDATE mysql.version SET id= 0 WHERE ID= 1;
-ERROR HY000: Access to data dictionary table 'mysql.version' is rejected.
-INSERT INTO mysql.version VALUES (1);
-ERROR HY000: Access to data dictionary table 'mysql.version' is rejected.
+SELECT * from mysql.dd_properties;
+ERROR HY000: Access to data dictionary table 'mysql.dd_properties' is rejected.
+SELECT * from t WHERE t.pk = (SELECT COUNT(*) FROM mysql.dd_properties);
+ERROR HY000: Access to data dictionary table 'mysql.dd_properties' is rejected.
+DELETE FROM mysql.dd_properties;
+ERROR HY000: Access to data dictionary table 'mysql.dd_properties' is rejected.
+UPDATE mysql.dd_properties SET id= 0 WHERE ID= 1;
+ERROR HY000: Access to data dictionary table 'mysql.dd_properties' is rejected.
+INSERT INTO mysql.dd_properties VALUES (1);
+ERROR HY000: Access to data dictionary table 'mysql.dd_properties' is rejected.
 #
 # DD table access from views.
 #
-CREATE VIEW new_view AS SELECT * FROM mysql.version;
-ERROR HY000: Access to data dictionary table 'mysql.version' is rejected.
+CREATE VIEW new_view AS SELECT * FROM mysql.dd_properties;
+ERROR HY000: Access to data dictionary table 'mysql.dd_properties' is rejected.
 #
 # DD table access from stored programs.
 #
-CREATE PROCEDURE dd_access() SELECT * FROM mysql.version;
-ERROR HY000: Access to data dictionary table 'mysql.version' is rejected.
-CREATE FUNCTION dd_access() RETURNS INTEGER RETURN (SELECT COUNT(*) FROM mysql.version);
-ERROR HY000: Access to data dictionary table 'mysql.version' is rejected.
+CREATE PROCEDURE dd_access() SELECT * FROM mysql.dd_properties;
+ERROR HY000: Access to data dictionary table 'mysql.dd_properties' is rejected.
+CREATE FUNCTION dd_access() RETURNS INTEGER RETURN (SELECT COUNT(*) FROM mysql.dd_properties);
+ERROR HY000: Access to data dictionary table 'mysql.dd_properties' is rejected.
 #
 # DD table access from prepared statements (the '?' placeholders cannot be used for meta data).
 #
-PREPARE ps FROM 'DROP TABLE mysql.version';;
-ERROR HY000: Access to data dictionary table 'mysql.version' is rejected.
-PREPARE ps FROM 'SELECT * FROM mysql.version';;
-ERROR HY000: Access to data dictionary table 'mysql.version' is rejected.
+PREPARE ps FROM 'DROP TABLE mysql.dd_properties';;
+ERROR HY000: Access to data dictionary table 'mysql.dd_properties' is rejected.
+PREPARE ps FROM 'SELECT * FROM mysql.dd_properties';;
+ERROR HY000: Access to data dictionary table 'mysql.dd_properties' is rejected.
 #
 # DD table access from triggers
 #
-CREATE TRIGGER trg BEFORE INSERT ON mysql.version FOR EACH ROW SET @count = @count + 1;;
-ERROR HY000: Access to data dictionary table 'mysql.version' is rejected.
+CREATE TRIGGER trg BEFORE INSERT ON mysql.dd_properties FOR EACH ROW SET @count = @count + 1;;
+ERROR HY000: Access to data dictionary table 'mysql.dd_properties' is rejected.
 #
 # DD table access from foreign keys
 #
-ALTER TABLE t ADD CONSTRAINT FOREIGN KEY (pk) REFERENCES mysql.version (id);;
-ERROR HY000: Access to data dictionary table 'mysql.version' is rejected.
+ALTER TABLE t ADD CONSTRAINT FOREIGN KEY (pk) REFERENCES mysql.dd_properties (id);;
+ERROR HY000: Access to data dictionary table 'mysql.dd_properties' is rejected.
 #
 # DD table access in LOAD statements.
 #
-LOAD DATA INFILE 'no_such_file' INTO TABLE version;
-ERROR HY000: Access to data dictionary table 'mysql.version' is rejected.
+LOAD DATA INFILE 'no_such_file' INTO TABLE dd_properties;
+ERROR HY000: Access to data dictionary table 'mysql.dd_properties' is rejected.
 #
 # DD table access in HANDLER statements.
 #
-HANDLER version OPEN;
-ERROR HY000: Access to data dictionary table 'mysql.version' is rejected.
+HANDLER dd_properties OPEN;
+ERROR HY000: Access to data dictionary table 'mysql.dd_properties' is rejected.
 #
 # DD table visibility in I_S.
 #
 # A SELECT statement will not fail, since the table names are submitted as strings in WHERE clauses.
-SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'version' AND TABLE_SCHEMA = 'mysql';
+SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'dd_properties' AND TABLE_SCHEMA = 'mysql';
 COUNT(*)
 0
 # A SHOW statement will fail because the table name is interpreted as a table name, not as a string.
-SHOW CREATE TABLE version;
-ERROR HY000: Access to data dictionary table 'mysql.version' is rejected.
+SHOW CREATE TABLE dd_properties;
+ERROR HY000: Access to data dictionary table 'mysql.dd_properties' is rejected.
 #
 # DD table access in DDL.
 #
-DROP TABLE version;
-ERROR HY000: Access to data dictionary table 'mysql.version' is rejected.
-CREATE TABLE version (i INTEGER);
-ERROR HY000: Access to data dictionary table 'mysql.version' is rejected.
-CREATE TABLE new_tab LIKE version;
-ERROR HY000: Access to data dictionary table 'mysql.version' is rejected.
-CREATE TABLE new_tab SELECT * FROM version;
-ERROR HY000: Access to data dictionary table 'mysql.version' is rejected.
-ALTER TABLE version ADD COLUMN (new_col INTEGER);
-ERROR HY000: Access to data dictionary table 'mysql.version' is rejected.
-TRUNCATE TABLE version;
-ERROR HY000: Access to data dictionary table 'mysql.version' is rejected.
-RENAME TABLE version TO new_tab;
-ERROR HY000: Access to data dictionary table 'mysql.version' is rejected.
-RENAME TABLE t TO version;
-ERROR HY000: Access to data dictionary table 'mysql.version' is rejected.
+DROP TABLE dd_properties;
+ERROR HY000: Access to data dictionary table 'mysql.dd_properties' is rejected.
+CREATE TABLE dd_properties (i INTEGER);
+ERROR HY000: Access to data dictionary table 'mysql.dd_properties' is rejected.
+CREATE TABLE new_tab LIKE dd_properties;
+ERROR HY000: Access to data dictionary table 'mysql.dd_properties' is rejected.
+CREATE TABLE new_tab SELECT * FROM dd_properties;
+ERROR HY000: Access to data dictionary table 'mysql.dd_properties' is rejected.
+ALTER TABLE dd_properties ADD COLUMN (new_col INTEGER);
+ERROR HY000: Access to data dictionary table 'mysql.dd_properties' is rejected.
+TRUNCATE TABLE dd_properties;
+ERROR HY000: Access to data dictionary table 'mysql.dd_properties' is rejected.
+RENAME TABLE dd_properties TO new_tab;
+ERROR HY000: Access to data dictionary table 'mysql.dd_properties' is rejected.
+RENAME TABLE t TO dd_properties;
+ERROR HY000: Access to data dictionary table 'mysql.dd_properties' is rejected.
 #
 # DD table access in DML.
 #
-SELECT * from version;
-ERROR HY000: Access to data dictionary table 'mysql.version' is rejected.
-SELECT * from t WHERE t.pk = (SELECT COUNT(*) FROM version);
-ERROR HY000: Access to data dictionary table 'mysql.version' is rejected.
-DELETE FROM version;
-ERROR HY000: Access to data dictionary table 'mysql.version' is rejected.
-UPDATE version SET id= 0 WHERE ID= 1;
-ERROR HY000: Access to data dictionary table 'mysql.version' is rejected.
-INSERT INTO version VALUES (1);
-ERROR HY000: Access to data dictionary table 'mysql.version' is rejected.
+SELECT * from dd_properties;
+ERROR HY000: Access to data dictionary table 'mysql.dd_properties' is rejected.
+SELECT * from t WHERE t.pk = (SELECT COUNT(*) FROM dd_properties);
+ERROR HY000: Access to data dictionary table 'mysql.dd_properties' is rejected.
+DELETE FROM dd_properties;
+ERROR HY000: Access to data dictionary table 'mysql.dd_properties' is rejected.
+UPDATE dd_properties SET id= 0 WHERE ID= 1;
+ERROR HY000: Access to data dictionary table 'mysql.dd_properties' is rejected.
+INSERT INTO dd_properties VALUES (1);
+ERROR HY000: Access to data dictionary table 'mysql.dd_properties' is rejected.
 #
 # DD table access from views.
 #
-CREATE VIEW new_view AS SELECT * FROM version;
-ERROR HY000: Access to data dictionary table 'mysql.version' is rejected.
+CREATE VIEW new_view AS SELECT * FROM dd_properties;
+ERROR HY000: Access to data dictionary table 'mysql.dd_properties' is rejected.
 #
 # DD table access from stored programs.
 #
-CREATE PROCEDURE dd_access() SELECT * FROM version;
-ERROR HY000: Access to data dictionary table 'mysql.version' is rejected.
-CREATE FUNCTION dd_access() RETURNS INTEGER RETURN (SELECT COUNT(*) FROM version);
-ERROR HY000: Access to data dictionary table 'mysql.version' is rejected.
+CREATE PROCEDURE dd_access() SELECT * FROM dd_properties;
+ERROR HY000: Access to data dictionary table 'mysql.dd_properties' is rejected.
+CREATE FUNCTION dd_access() RETURNS INTEGER RETURN (SELECT COUNT(*) FROM dd_properties);
+ERROR HY000: Access to data dictionary table 'mysql.dd_properties' is rejected.
 #
 # DD table access from prepared statements (the '?' placeholders cannot be used for meta data).
 #
-PREPARE ps FROM 'DROP TABLE version';;
-ERROR HY000: Access to data dictionary table 'mysql.version' is rejected.
-PREPARE ps FROM 'SELECT * FROM version';;
-ERROR HY000: Access to data dictionary table 'mysql.version' is rejected.
+PREPARE ps FROM 'DROP TABLE dd_properties';;
+ERROR HY000: Access to data dictionary table 'mysql.dd_properties' is rejected.
+PREPARE ps FROM 'SELECT * FROM dd_properties';;
+ERROR HY000: Access to data dictionary table 'mysql.dd_properties' is rejected.
 #
 # DD table access from triggers
 #
-CREATE TRIGGER trg BEFORE INSERT ON version FOR EACH ROW SET @count = @count + 1;;
-ERROR HY000: Access to data dictionary table 'mysql.version' is rejected.
+CREATE TRIGGER trg BEFORE INSERT ON dd_properties FOR EACH ROW SET @count = @count + 1;;
+ERROR HY000: Access to data dictionary table 'mysql.dd_properties' is rejected.
 #
 # DD table access from foreign keys
 #
-ALTER TABLE t ADD CONSTRAINT FOREIGN KEY (pk) REFERENCES version (id);;
-ERROR HY000: Access to data dictionary table 'mysql.version' is rejected.
+ALTER TABLE t ADD CONSTRAINT FOREIGN KEY (pk) REFERENCES dd_properties (id);;
+ERROR HY000: Access to data dictionary table 'mysql.dd_properties' is rejected.
 #
 # DD table access in LOAD statements.
 #

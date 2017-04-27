@@ -26,13 +26,13 @@
  * .configure. mbmaxlen_big5=2
  */
 
-#include <my_global.h>
 #include <stddef.h>
 #include <sys/types.h>
 
 #include "m_ctype.h"
 #include "my_compiler.h"
 #include "my_inttypes.h"
+#include "my_macros.h"
 
 
 /* 
@@ -879,7 +879,7 @@ extern "C" {
 static int my_strnncoll_big5(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)), 
 			     const uchar *a, size_t a_length,
                              const uchar *b, size_t b_length,
-                             my_bool b_is_prefix)
+                             bool b_is_prefix)
 {
   size_t length= MY_MIN(a_length, b_length);
   int res= my_strnncoll_big5_internal(&a, &b, length);
@@ -950,7 +950,7 @@ my_strnxfrm_big5(const CHARSET_INFO *cs,
     else
       *dst++= sort_order ? sort_order[*src++] : *src++;
   }
-  return my_strxfrm_pad_desc_and_reverse(cs, d0, dst, de, nweights, flags, 0);
+  return my_strxfrm_pad(cs, d0, dst, de, nweights, flags);
 }
 
 
@@ -6908,9 +6908,9 @@ CHARSET_INFO my_charset_big5_chinese_ci=
     ' ',                /* pad char      */
     1,                  /* escape_with_backslash_is_dangerous */
     1,                  /* levels_for_compare */
-    1,                  /* levels_for_order   */
     &my_charset_big5_handler,
-    &my_collation_big5_chinese_ci_handler
+    &my_collation_big5_chinese_ci_handler,
+    PAD_SPACE
 };
 
 
@@ -6944,7 +6944,7 @@ CHARSET_INFO my_charset_big5_bin=
     ' ',                /* pad char      */
     1,                  /* escape_with_backslash_is_dangerous */
     1,                  /* levels_for_compare */
-    1,                  /* levels_for_order   */
     &my_charset_big5_handler,
-    &my_collation_mb_bin_handler
+    &my_collation_mb_bin_handler,
+    PAD_SPACE
 };

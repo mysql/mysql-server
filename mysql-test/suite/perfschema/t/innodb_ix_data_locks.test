@@ -1,5 +1,3 @@
---source include/not_embedded.inc
-
 --echo #Test for Intention Exclusive lock
 
 -- connect (con1,localhost,root,,)

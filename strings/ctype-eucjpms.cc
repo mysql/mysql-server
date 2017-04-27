@@ -26,7 +26,6 @@ ctype-ujis.c file.
  * .configure. mbmaxlen_eucjpms=3
  */
 
-#include <my_global.h>
 #include <stddef.h>
 #include <sys/types.h>
 
@@ -67596,9 +67595,9 @@ CHARSET_INFO my_charset_eucjpms_japanese_ci=
     ' ',		/* pad_char      */
     0,                  /* escape_with_backslash_is_dangerous */
     1,                  /* levels_for_compare */
-    1,                  /* levels_for_order   */
     &my_charset_handler,
-    &my_collation_ci_handler
+    &my_collation_ci_handler,
+    PAD_SPACE
 };
 
 
@@ -67632,8 +67631,8 @@ CHARSET_INFO my_charset_eucjpms_bin=
     ' ',		/* pad_char      */
     0,                  /* escape_with_backslash_is_dangerous */
     1,                  /* levels_for_compare */
-    1,                  /* levels_for_order   */
     &my_charset_handler,
-    &my_collation_mb_bin_handler
+    &my_collation_mb_bin_handler,
+    PAD_SPACE
 };
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,18 +13,19 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "sdi_utils.h"
+#include "sql/sdi_utils.h"
 
-#include "my_global.h"
+#include <string.h>
+
 #include "my_sys.h"
 #include "mysqld_error.h"
-#include <string.h>
 
 
 /* purecov: begin deadcode */
-bool create_serialized_meta_data(const char *schema_name,
-                                 const char *table_name,
-                                 uchar **meta_data, size_t *meta_data_length)
+bool create_serialized_meta_data(const char *schema_name MY_ATTRIBUTE((unused)),
+                                 const char *table_name MY_ATTRIBUTE((unused)),
+                                 uchar **meta_data MY_ATTRIBUTE((unused)),
+                                 size_t *meta_data_length MY_ATTRIBUTE((unused)))
 {
   /*
     TODO: This function is currently not implemented. The procedure here
@@ -53,9 +54,9 @@ bool create_serialized_meta_data(const char *schema_name,
 }
 
 
-bool import_serialized_meta_data(const uchar *meta_data,
-                                 size_t meta_data_length,
-                                 bool readonly)
+bool import_serialized_meta_data(const uchar *meta_data MY_ATTRIBUTE((unused)),
+                                 size_t meta_data_length MY_ATTRIBUTE((unused)),
+                                 bool readonly MY_ATTRIBUTE((unused)))
 {
   // TODO: This function is currently not implemented. Return error so
   // that client code will not attempt to open a non-existent table

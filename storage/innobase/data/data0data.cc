@@ -23,6 +23,7 @@ SQL data field and tuple
 Created 5/30/1994 Heikki Tuuri
 *************************************************************************/
 
+#include <sys/types.h>
 #include <new>
 
 #include "data0data.h"

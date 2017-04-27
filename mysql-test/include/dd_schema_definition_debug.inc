@@ -40,7 +40,7 @@ let $dd_table_ids=
                'table_partitions',
                'table_partition_values',
                'index_partitions',
-               'version');
+               'dd_properties');
 
 # Expression representing the DD index ids
 let $dd_index_ids= SELECT id FROM indexes

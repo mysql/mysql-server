@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -41,7 +41,7 @@ namespace dd {
 // Spatial reference system implementation.
 ///////////////////////////////////////////////////////////////////////////
 
-const Dictionary_object_table &Spatial_reference_system::OBJECT_TABLE()
+const Entity_object_table &Spatial_reference_system::OBJECT_TABLE()
 {
   return Spatial_reference_systems::instance();
 }
@@ -79,8 +79,6 @@ bool Spatial_reference_system_impl::is_lat_long() const
 
 bool Spatial_reference_system_impl::restore_attributes(const Raw_record &r)
 {
-  bool error= false;
-
   restore_id(r, Spatial_reference_systems::FIELD_ID);
   restore_name(r, Spatial_reference_systems::FIELD_NAME);
 
@@ -92,17 +90,7 @@ bool Spatial_reference_system_impl::restore_attributes(const Raw_record &r)
   m_definition= r.read_str(Spatial_reference_systems::FIELD_DEFINITION);
   m_description= r.read_str(Spatial_reference_systems::FIELD_DESCRIPTION);
 
-  gis::srs::Spatial_reference_system *srs= nullptr;
-  // parse_wkt() will only allocate memory if successful.
-  error=
-    gis::srs::parse_wkt(id(),
-                        &m_definition.front(),
-                        &m_definition.back()+1,
-                        &srs);
-  if (!error)
-    m_parsed_definition.reset(srs);
-
-  return error;
+  return parse_definition();
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -156,17 +144,25 @@ bool Spatial_reference_system_impl::deserialize(Sdi_rcontext *rctx,
   read(&m_definition, val, "definition");
   read(&m_description, val, "description");
 
+  return parse_definition();
+}
+
+///////////////////////////////////////////////////////////////////////////
+
+bool Spatial_reference_system_impl::parse_definition()
+{
   gis::srs::Spatial_reference_system *srs= nullptr;
   // parse_wkt() will only allocate memory if successful.
-  bool error=
-    gis::srs::parse_wkt(id(),
-                        &m_definition.front(),
-                        &m_definition.back()+1,
-                        &srs);
-  if (!error)
+  if (!gis::srs::parse_wkt(id(),
+                          &m_definition.front(),
+                          &m_definition.back()+1,
+                          &srs))
+  {
     m_parsed_definition.reset(srs);
+    return false;
+  }
 
-  return error;
+  return true;
 }
 
 ///////////////////////////////////////////////////////////////////////////

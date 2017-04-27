@@ -1501,7 +1501,7 @@ DROP TABLE t1,t2,t3;
 CREATE TABLE t1 (
   carrier char(2) default NULL,
   id int NOT NULL auto_increment PRIMARY KEY
-);
+) CHARSET utf8mb4;
 INSERT INTO t1 VALUES
   ('CO',235371754),('CO',235376554),('CO',235376884),('CO',235377874),
   ('CO',231060394),('CO',231059224),('CO',231059314),('CO',231060484),
@@ -1569,7 +1569,7 @@ CREATE TABLE t4 (
   carrier char(2) NOT NULL default '' PRIMARY KEY,
   id int(11) default NULL,
   INDEX id(id)
-);
+) CHARSET utf8mb4;
 INSERT INTO t4 VALUES
   ('99',6),('SK',456),('UA',486),('AI',1081),('OS',1111),('VS',1510);
 
@@ -1663,24 +1663,11 @@ TRUNCATE TABLE performance_schema.memory_summary_by_thread_by_event_name;
 # returns an empty result if the memory usage is OK, or one row if the
 # memory usage was too high.
 #
-# The sys.ps_thread_id function is not available on the embedded
-# server, so we need a couple of tricks to make the test pass on
-# embedded:
-#
-# 1) Accept and ignore the ER_SP_DOES_NOT_EXIST error that we get on
-#    embedded.
-#
-# 2) Use the backtick operator to evaluate the query, so that the
-#    column names are not printed on successful execution of the
-#    query. Printing the column names on successful execution would
-#    lead to different output on server (where it is successful) and
-#    embedded (where it is not successful).
---error 0, ER_SP_DOES_NOT_EXIST
 let $res=
-`SELECT * FROM performance_schema.memory_summary_by_thread_by_event_name
+SELECT * FROM performance_schema.memory_summary_by_thread_by_event_name
 WHERE event_name = 'memory/sql/thd::main_mem_root'
 AND thread_id = sys.ps_thread_id(connection_id())
-AND sum_number_of_bytes_alloc > 1000000`;
+AND sum_number_of_bytes_alloc > 1000000;
 --echo $res
 
 DROP TABLE t;

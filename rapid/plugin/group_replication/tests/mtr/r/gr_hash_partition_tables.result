@@ -6,10 +6,12 @@ Note	####	Storing MySQL user name or password information in the master info rep
 [connection server1]
 ## Create table with HASH Partition ##
 CREATE TABLE t1 ( c1 int PRIMARY KEY )
+CHARSET=utf8mb4
 PARTITION BY HASH(c1)
 PARTITIONS 3;
 ## Create table with KEY Partition ##
 CREATE TABLE t2 ( c1 int PRIMARY KEY )
+CHARSET=utf8mb4
 PARTITION BY KEY()
 PARTITIONS 3;
 include/rpl_sync.inc
@@ -19,7 +21,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` int(11) NOT NULL,
   PRIMARY KEY (`c1`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 /*!50100 PARTITION BY HASH (c1)
 PARTITIONS 3 */
 INSERT INTO t1 values (1),(5),(11),(18),(20),(100),(33);
@@ -28,7 +30,7 @@ Table	Create Table
 t2	CREATE TABLE `t2` (
   `c1` int(11) NOT NULL,
   PRIMARY KEY (`c1`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 /*!50100 PARTITION BY KEY ()
 PARTITIONS 3 */
 INSERT INTO t2 values (1),(5),(11),(18),(20),(100);

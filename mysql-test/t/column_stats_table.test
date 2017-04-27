@@ -7,13 +7,6 @@
 #####################################################################
 
 #
-# For non-embedded server, running queries against tables in mysql.* as non-root
-# will fail with an error. These queries will not fail for embedded server, and
-# that is why we don't run this test with embedded server.
-#
---source include/not_embedded.inc
-
-#
 # Check that the structure is as expected.
 # (database_name, table_name, column_name, histogram)
 # PRIMARY KEY (database_name, table_name, column_name)

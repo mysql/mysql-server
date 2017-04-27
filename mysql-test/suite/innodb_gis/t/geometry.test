@@ -8,7 +8,6 @@
 # File Formts Compressed & Dynamic
 # All Geometric functions.
 #********************************************************
---source include/not_embedded.inc
 --source include/have_debug.inc
 --source include/have_innodb_max_16k.inc
 
@@ -472,6 +471,7 @@ c6 MULTIPOLYGON,c7 GEOMETRYCOLLECTION ,c8 GEOMETRY) ENGINE=InnoDB
 KEY_BLOCK_SIZE=8 ROW_FORMAT=COMPRESSED;
 
 --echo #check file format
+--replace_regex /KEY_BLOCK_SIZE=[2,8]/KEY_BLOCK_SIZE=key_block_size/
 SHOW CREATE TABLE tab3;
 
 ALTER TABLE tab3 KEY_BLOCK_SIZE=16 ROW_FORMAT=Dynamic;

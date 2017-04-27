@@ -16,7 +16,6 @@
 #ifndef COMMON_H
 #define COMMON_H
 
-#include <my_global.h>
 #include <mysql/plugin_auth_common.h> // for MYSQL_PLUGIN_VIO
 #include <sspi.h>              // for CtxtHandle
 #include <windows.h>

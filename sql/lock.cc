@@ -83,6 +83,7 @@
 #include "auth_common.h"                   // SUPER_ACL
 #include "debug_sync.h"
 #include "handler.h"
+#include "lex_string.h"
 #include "m_ctype.h"
 #include "m_string.h"
 #include "my_base.h"
@@ -291,7 +292,7 @@ static void track_table_access(THD *thd, TABLE **tables, size_t count)
 
     if (t)
     {
-      s= tst->calc_trx_state(thd, t->reginfo.lock_type,
+      s= tst->calc_trx_state(t->reginfo.lock_type,
                              t->file->has_transactions());
       tst->add_trx_state(thd, s);
     }

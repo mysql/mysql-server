@@ -19,9 +19,12 @@
   Table EVENTS_STAGES_SUMMARY_BY_ACCOUNT_BY_EVENT_NAME (implementation).
 */
 
+#include "storage/perfschema/table_esgs_by_account_by_event_name.h"
+
+#include <stddef.h>
+
 #include "field.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_thread.h"
 #include "pfs_buffer_container.h"
 #include "pfs_column_types.h"
@@ -29,7 +32,6 @@
 #include "pfs_global.h"
 #include "pfs_instr_class.h"
 #include "pfs_visitor.h"
-#include "table_esgs_by_account_by_event_name.h"
 
 THR_LOCK table_esgs_by_account_by_event_name::m_table_lock;
 
@@ -131,7 +133,7 @@ PFS_index_esgs_by_account_by_event_name::match(PFS_instr_class *instr_class)
 }
 
 PFS_engine_table *
-table_esgs_by_account_by_event_name::create(void)
+table_esgs_by_account_by_event_name::create(PFS_engine_table_share *)
 {
   return new table_esgs_by_account_by_event_name();
 }
@@ -215,7 +217,8 @@ table_esgs_by_account_by_event_name::rnd_pos(const void *pos)
 }
 
 int
-table_esgs_by_account_by_event_name::index_init(uint idx, bool)
+table_esgs_by_account_by_event_name::index_init(uint idx MY_ATTRIBUTE((unused)),
+                                                bool)
 {
   m_normalizer = time_normalizer::get(stage_timer);
 

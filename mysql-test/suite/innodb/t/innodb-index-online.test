@@ -139,10 +139,6 @@ AND stat_value = 6;
 SELECT * FROM mysql.innodb_index_stats WHERE table_name IN ('t1');
 CREATE TABLE t1_c2_stats SELECT * FROM mysql.innodb_index_stats
 WHERE database_name = 'test' AND table_name = 't1' and index_name = 'c2';
-# in Embedded mode (./mtr --embedded-server) the t1_c2_stats table gets
-# created in MyISAM format by default even if we set
-# default_storage_engine='innodb'
-ALTER TABLE t1_c2_stats ENGINE=INNODB;
 DROP INDEX c2 ON t1;
 ANALYZE TABLE t1_c2_stats;
 --replace_column 4 LAST_UPDATE

@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,12 +13,13 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "parse_tree_hints.h"
+#include "sql/parse_tree_hints.h"
 
 #include <stddef.h>
 
 #include "derror.h"
 #include "item_subselect.h"
+#include "lex_string.h"
 #include "m_string.h"
 #include "my_dbug.h"
 #include "my_sqlcommand.h"
@@ -402,6 +403,24 @@ bool PT_table_level_hint::contextualize(Parse_context *pc)
 }
 
 
+void PT_key_level_hint::append_args(THD *thd, String *str) const
+{
+  if (type() == INDEX_MERGE_HINT_ENUM)
+  {
+    for (uint i= 0; i < key_list.size(); i++)
+    {
+      const LEX_CSTRING *key_name= &key_list.at(i);
+      str->append(STRING_WITH_LEN(" "));
+      append_identifier(thd, str, key_name->str, key_name->length);
+      if (i < key_list.size() - 1)
+      {
+        str->append(STRING_WITH_LEN(","));
+      }
+    }
+  }
+}
+
+
 bool PT_key_level_hint::contextualize(Parse_context *pc)
 {
   if (super::contextualize(pc))
@@ -415,16 +434,27 @@ bool PT_key_level_hint::contextualize(Parse_context *pc)
   if (!tab)
     return true;
 
+  bool is_conflicting= false;
   if (key_list.empty())  // Table level hint
   {
     if (tab->set_switch(switch_on(), type(), false))
+    {
       print_warn(pc->thd, ER_WARN_CONFLICTING_HINT,
                  &table_name.opt_query_block,
                  &table_name.table, NULL, this);
+      return false;
+    }
+  }
+
+  if (type() == INDEX_MERGE_HINT_ENUM && key_list.size() == 1 && switch_on())
+  {
+    print_warn(pc->thd, ER_WARN_INVALID_HINT,
+               &table_name.opt_query_block,
+               &table_name.table, NULL, this);
     return false;
   }
 
-  for (uint i= 0; i < key_list.size(); i++)
+  for (size_t i= 0; i < key_list.size(); i++)
   {
     LEX_CSTRING *key_name= &key_list.at(i);
     Opt_hints_key *key= (Opt_hints_key *)tab->find_by_name(key_name,
@@ -437,9 +467,26 @@ bool PT_key_level_hint::contextualize(Parse_context *pc)
     }
 
     if (key->set_switch(switch_on(), type(), true))
-      print_warn(pc->thd, ER_WARN_CONFLICTING_HINT,
-                 &table_name.opt_query_block,
-                 &table_name.table, key_name, this);
+    {
+      is_conflicting= true;
+      if (type() == INDEX_MERGE_HINT_ENUM)
+      {
+        print_warn(pc->thd, ER_WARN_CONFLICTING_HINT,
+                   &table_name.opt_query_block,
+                   &table_name.table, NULL, this);
+        break;
+      }
+      else
+        print_warn(pc->thd, ER_WARN_CONFLICTING_HINT,
+                   &table_name.opt_query_block,
+                   &table_name.table, key_name, this);
+    }
+  }
+
+  if (type() == INDEX_MERGE_HINT_ENUM && !is_conflicting)
+  {
+    tab->index_merge.set_pt_hint(this);
+    (void) tab->set_switch(switch_on(), type(), false);
   }
 
   return false;

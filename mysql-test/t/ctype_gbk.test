@@ -183,14 +183,12 @@ DROP TABLE t1;
 
 set names gbk;
 --source include/weight_string.inc
---source include/weight_string_l1.inc
 --source include/weight_string_A1A1.inc
 --source include/weight_string_8140.inc
 --source include/weight_string_8EA1.inc
 
 set collation_connection=gbk_bin;
 --source include/weight_string.inc
---source include/weight_string_l1.inc
 --source include/weight_string_A1A1.inc
 --source include/weight_string_8140.inc
 --source include/weight_string_8EA1.inc

@@ -16,7 +16,10 @@
 
 
 #define MYSQL_SERVER 1
+#include "storage/myisam/ha_myisam.h"
+
 #include <fcntl.h>
+#include <limits.h>
 #include <m_ctype.h>
 #include <my_bit.h>
 #include <myisampack.h>
@@ -26,11 +29,12 @@
 
 #include "current_thd.h"
 #include "derror.h"
-#include "ha_myisam.h"
 #include "key.h"                                // key_copy
+#include "lex_string.h"
 #include "log.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
+#include "my_io.h"
 #include "my_psi_config.h"
 #include "myisam.h"
 #include "myisamdef.h"
@@ -898,7 +902,7 @@ int ha_myisam::open(const char *name, int mode, uint test_if_locked,
 
 int ha_myisam::close(void)
 {
-  my_bool closed_share= FALSE;
+  bool closed_share= FALSE;
   lock_shared_ha_data();
   int err= mi_close_share(file, &closed_share);
   file= 0;
@@ -1357,7 +1361,7 @@ int ha_myisam::preload_keys(THD* thd, HA_CHECK_OPT*)
   const char *errmsg;
   ulonglong map;
   TABLE_LIST *table_list= table->pos_in_table_list;
-  my_bool ignore_leaves= table_list->ignore_leaves;
+  bool ignore_leaves= table_list->ignore_leaves;
   char buf[MYSQL_ERRMSG_SIZE];
 
   DBUG_ENTER("ha_myisam::preload_keys");
@@ -2194,7 +2198,7 @@ uint ha_myisam::checksum() const
 
 
 bool ha_myisam::check_if_incompatible_data(HA_CREATE_INFO *info,
-					   uint table_changes)
+                                           uint table_changes)
 {
   uint options= table->s->db_options_in_use;
 
@@ -2229,7 +2233,7 @@ extern "C" st_keycache_thread_var *keycache_thread_var()
       It will then be the main thread during startup/shutdown or
       extra threads created for thr_find_all_keys().
     */
-    return (st_keycache_thread_var*)my_get_thread_local(keycache_tls_key);
+    return keycache_tls;
   }
 
   /*
@@ -2303,8 +2307,7 @@ static int myisam_init(void *p)
   main_thread_keycache_var= st_keycache_thread_var();
   mysql_cond_init(mi_keycache_thread_var_suspend,
                   &main_thread_keycache_var.suspend);
-  (void)my_create_thread_local_key(&keycache_tls_key, NULL);
-  my_set_thread_local(keycache_tls_key, &main_thread_keycache_var);
+  keycache_tls= &main_thread_keycache_var;
   return 0;
 }
 
@@ -2312,7 +2315,7 @@ static int myisam_init(void *p)
 static int myisam_deinit(void*)
 {
   mysql_cond_destroy(&main_thread_keycache_var.suspend);
-  my_delete_thread_local_key(keycache_tls_key);
+  keycache_tls= nullptr;
   return 0;
 }
 
@@ -2448,7 +2451,7 @@ mysql_declare_plugin_end;
     @retval FALSE An error occured
 */
 
-my_bool
+bool
 ha_myisam::register_query_cache_table(THD *thd MY_ATTRIBUTE((unused)),
                                       char *table_name MY_ATTRIBUTE((unused)),
                                       size_t table_name_len MY_ATTRIBUTE((unused)),

@@ -5,7 +5,6 @@
 # Simulate failures from user authentication:
 # - reported in COUNT_AUTHENTICATION_ERRORS
 
---source include/not_embedded.inc
 --source include/have_debug.inc
 
 # Enforce a clean state

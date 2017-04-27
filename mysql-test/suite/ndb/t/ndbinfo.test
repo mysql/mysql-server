@@ -599,9 +599,7 @@ create view frag_ops as select
   sum(tot_key_updates) as tot_key_updates, 
   sum(tot_key_writes) as tot_key_writes, 
   sum(tot_key_deletes) as tot_key_deletes, 
-  sum(tot_key_refs) as tot_key_refs, 
-  # Attrinfo for read operations is a bit longer when running with embedded 
-  # mysqld, which is why we do the rounding below. 
+  sum(tot_key_refs) as tot_key_refs,
   round(log2(1+sum(tot_key_attrinfo_bytes))) as log_tot_key_attrinfo_bytes,
   sum(tot_key_keyinfo_bytes) as tot_key_keyinfo_bytes,
   sum(tot_key_prog_bytes) as tot_key_prog_bytes,

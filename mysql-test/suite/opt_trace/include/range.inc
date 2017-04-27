@@ -2,7 +2,6 @@
 
 --source include/have_optimizer_trace.inc
 # InnoDB page size influences cost => makes trace vary.
---source include/have_innodb_16k.inc
 
 SET optimizer_trace_max_mem_size=1048576; # 1MB
 SET end_markers_in_json=on;
@@ -160,7 +159,7 @@ CREATE TABLE t1 (
   filler char(200),
   key(cola), 
   key(colb)
-);
+) CHARSET utf8mb4;
 INSERT INTO t1 VALUES ('foo','bar', 'ZZ'),('fuz','baz', 'ZZ');
 
 --echo Inserting records
@@ -229,7 +228,7 @@ CREATE TABLE t1 (
   c char(1),
   KEY k1 (i1),
   KEY k2 (i1, i2)
-);
+) CHARSET utf8mb4;
 INSERT INTO t1 VALUES (0,1,'2'),(3,2,'1');
 
 EXPLAIN SELECT * FROM t1 WHERE i1 > '2' ORDER BY i1, i2;
@@ -252,7 +251,7 @@ CREATE TABLE t1 (
   v varchar(1),
   INDEX i1_idx (i1),
   INDEX v_idx (v,i1)
-) ENGINE=InnoDB;
+) ENGINE=InnoDB, CHARSET utf8mb4;
 
 INSERT INTO t1 VALUES (1, 1, 9,'a'), (2, 2, 8,'b'), (3, 3, 7,'c'),
                       (4, 4, 6,'d'), (5, 5, 5,'e');
@@ -317,7 +316,7 @@ CREATE TABLE t1 (
   c2 VARCHAR(2) NOT NULL,
   KEY k1 (c1),
   KEY k2 (c1, i1)
-);
+) CHARSET utf8mb4;
 
 INSERT INTO t1 VALUES ('0',3,'0'),('0',2,'1');
 

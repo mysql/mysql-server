@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -23,6 +23,7 @@
 
 #include "mysql/psi/psi_transaction.h"
 
+#include "my_inttypes.h"
 #include "pfs_transaction_provider.h"
 
 #ifndef PSI_TRANSACTION_CALL
@@ -135,8 +136,8 @@ inline_mysql_start_transaction(PSI_transaction_locker_state *state,
                                const void *xid,
                                const ulonglong *trxid,
                                int isolation_level,
-                               my_bool read_only,
-                               my_bool autocommit,
+                               bool read_only,
+                               bool autocommit,
                                const char *src_file,
                                int src_line)
 {

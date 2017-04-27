@@ -1,6 +1,6 @@
 /***********************************************************************
 
-Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify it
 under the terms of the GNU General Public License as published by the
@@ -193,7 +193,8 @@ ib_trx_t
 /*==============*/
 	ib_trx_level_t	ib_trx_level,
 	bool		read_write,
-	bool		auto_commit);
+	bool		auto_commit,
+	void*		thd);
 
 typedef
 ib_err_t

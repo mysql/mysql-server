@@ -28,9 +28,9 @@ Created December 2006 by Marko Makela
 #include "buf0buf.h"
 #include "buf0flu.h"
 #include "buf0lru.h"
+#include "dict0dict.h"
 #include "my_inttypes.h"
 #include "page0zip.h"
-#include "srv0start.h"
 
 /** When freeing a buf we attempt to coalesce by looking at its buddy
 and deciding whether it is free or not. To ascertain if the buddy is
@@ -40,7 +40,7 @@ safe to look at BUF_BUDDY_STAMP_OFFSET.
 The answer lies in following invariants:
 * All blocks allocated by buddy allocator are used for compressed
 page frame.
-* A compressed table always have space_id < SRV_LOG_SPACE_FIRST_ID
+* A compressed table always have space_id < dict_sys_t::log_space_first_id
 * BUF_BUDDY_STAMP_OFFSET always points to the space_id field in
 a frame.
   -- The above is true because we look at these fields when the
@@ -68,15 +68,11 @@ are written.*/
 
 /** Value that we stamp on all buffers that are currently on the zip_free
 list. This value is stamped at BUF_BUDDY_STAMP_OFFSET offset */
-#define BUF_BUDDY_STAMP_FREE	 SRV_LOG_SPACE_FIRST_ID
+#define BUF_BUDDY_STAMP_FREE	dict_sys_t::log_space_first_id
 
 /** Stamp value for non-free buffers. Will be overwritten by a non-zero
 value by the consumer of the block */
 #define BUF_BUDDY_STAMP_NONFREE	0XFFFFFFFFUL
-
-#if BUF_BUDDY_STAMP_FREE >= BUF_BUDDY_STAMP_NONFREE
-# error "BUF_BUDDY_STAMP_FREE >= BUF_BUDDY_STAMP_NONFREE"
-#endif
 
 /** Return type of buf_buddy_is_free() */
 enum buf_buddy_state_t {

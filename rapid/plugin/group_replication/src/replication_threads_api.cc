@@ -208,7 +208,7 @@ bool Replication_thread_api::is_applier_thread_waiting()
 }
 
 int
-Replication_thread_api::wait_for_gtid_execution(longlong timeout)
+Replication_thread_api::wait_for_gtid_execution(double timeout)
 {
   DBUG_ENTER("Replication_thread_api::wait_for_gtid_execution");
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -42,17 +42,17 @@
 #include "mysys_priv.h"
 #include "thr_mutex.h"
 
-static my_bool THR_KEY_mysys_initialized= FALSE;
-static my_bool my_thread_global_init_done= FALSE;
+static bool my_thread_global_init_done= FALSE;
 #ifndef DBUG_OFF
 static uint    THR_thread_count= 0;
 static uint    my_thread_end_wait_time= 5;
 static my_thread_id thread_id= 0;
-static thread_local_key_t THR_KEY_mysys;
+struct st_my_thread_var;
+static thread_local st_my_thread_var *THR_mysys= nullptr;
 #endif
-static thread_local_key_t THR_KEY_myerrno;
+static thread_local int THR_myerrno= 0;
 #ifdef _WIN32
-static thread_local_key_t THR_KEY_winerrno;
+static thread_local int THR_winerrno= 0;
 #endif
 
 C_MODE_START
@@ -90,15 +90,14 @@ struct st_my_thread_var
 
 static struct st_my_thread_var *mysys_thread_var()
 {
-  DBUG_ASSERT(THR_KEY_mysys_initialized);
-  return  (struct st_my_thread_var*)my_get_thread_local(THR_KEY_mysys);
+  return THR_mysys;
 }
 
 
 static int set_mysys_thread_var(struct st_my_thread_var *mysys_var)
 {
-  DBUG_ASSERT(THR_KEY_mysys_initialized);
-  return my_set_thread_local(THR_KEY_mysys, mysys_var);
+  THR_mysys= mysys_var;
+  return 0;
 }
 #endif
 
@@ -152,13 +151,11 @@ void my_thread_global_reinit()
   initialize thread environment
 
   @retval  FALSE  ok
-  @retval  TRUE   error (Couldn't create THR_KEY_mysys)
+  @retval  TRUE   error
 */
 
-my_bool my_thread_global_init()
+bool my_thread_global_init()
 {
-  int pth_ret;
-
   if (my_thread_global_init_done)
     return FALSE;
   my_thread_global_init_done= TRUE;
@@ -191,34 +188,6 @@ my_bool my_thread_global_init()
                             PTHREAD_MUTEX_ERRORCHECK);
 #endif
 
-  DBUG_ASSERT(! THR_KEY_mysys_initialized);
-#ifndef DBUG_OFF
-  if ((pth_ret= my_create_thread_local_key(&THR_KEY_mysys, NULL)) != 0)
-  { /* purecov: begin inspected */
-    my_message_local(ERROR_LEVEL, "Can't initialize threads: error %d",
-                     pth_ret);
-    /* purecov: end */
-    return TRUE;
-  }
-#endif
-  if ((pth_ret= my_create_thread_local_key(&THR_KEY_myerrno, NULL)) != 0)
-  { /* purecov: begin inspected */
-    my_message_local(ERROR_LEVEL, "Can't initialize threads: error %d",
-                     pth_ret);
-    /* purecov: end */
-    return TRUE;
-  }
-#ifdef _WIN32
-  if ((pth_ret= my_create_thread_local_key(&THR_KEY_winerrno, NULL)) != 0)
-  { /* purecov: begin inspected */
-    my_message_local(ERROR_LEVEL, "Can't initialize threads: error %d",
-                     pth_ret);
-    /* purecov: end */
-    return TRUE;
-  }
-#endif
-  THR_KEY_mysys_initialized= TRUE;
-
   mysql_mutex_init(key_THR_LOCK_malloc, &THR_LOCK_malloc, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_THR_LOCK_open, &THR_LOCK_open, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_THR_LOCK_charset, &THR_LOCK_charset, MY_MUTEX_INIT_FAST);
@@ -240,7 +209,7 @@ void my_thread_global_end()
 {
 #ifndef DBUG_OFF
   struct timespec abstime;
-  my_bool all_threads_killed= TRUE;
+  bool all_threads_killed= TRUE;
 
   set_timespec(&abstime, my_thread_end_wait_time);
   mysql_mutex_lock(&THR_LOCK_threads);
@@ -269,15 +238,6 @@ void my_thread_global_end()
   mysql_mutex_unlock(&THR_LOCK_threads);
 #endif
 
-  DBUG_ASSERT(THR_KEY_mysys_initialized);
-#ifndef DBUG_OFF
-  my_delete_thread_local_key(THR_KEY_mysys);
-#endif
-  my_delete_thread_local_key(THR_KEY_myerrno);
-#ifdef _WIN32
-  my_delete_thread_local_key(THR_KEY_winerrno);
-#endif
-  THR_KEY_mysys_initialized= FALSE;
 #ifdef PTHREAD_ADAPTIVE_MUTEX_INITIALIZER_NP
   pthread_mutexattr_destroy(&my_fast_mutexattr);
 #endif
@@ -314,7 +274,7 @@ void my_thread_global_end()
   @retval TRUE   Fatal error; mysys/dbug functions can't be used
 */
 
-my_bool my_thread_init()
+bool my_thread_init()
 {
 #ifndef DBUG_OFF
   struct st_my_thread_var *tmp;
@@ -399,32 +359,26 @@ void my_thread_end()
 
 int my_errno()
 {
-  if (THR_KEY_mysys_initialized)
-    return  (int)(intptr)my_get_thread_local(THR_KEY_myerrno);
-  return 0;
+  return THR_myerrno;
 }
 
 
 void set_my_errno(int my_errno)
 {
-  if (THR_KEY_mysys_initialized)
-    (void) my_set_thread_local(THR_KEY_myerrno, (void*)(intptr)my_errno);
+  THR_myerrno= my_errno;
 }
 
 
 #ifdef _WIN32
 int thr_winerr()
 {
-  if (THR_KEY_mysys_initialized)
-    return  (int)(intptr)my_get_thread_local(THR_KEY_winerrno);
-  return 0;
+  return THR_winerrno;
 }
 
 
 void set_thr_winerr(int winerr)
 {
-  if (THR_KEY_mysys_initialized)
-    (void) my_set_thread_local(THR_KEY_winerrno, (void*)(intptr)winerr);
+  THR_winerrno= winerr;
 }
 #endif
 
@@ -444,17 +398,7 @@ void set_my_thread_var_id(my_thread_id id)
 
 struct _db_code_state_ **my_thread_var_dbug()
 {
-  struct st_my_thread_var *tmp;
-  /*
-    Instead of enforcing DBUG_ASSERT(THR_KEY_mysys_initialized) here,
-    which causes any DBUG_ENTER and related traces to fail when
-    used in init / cleanup code, we are more tolerant:
-    using DBUG_ENTER / DBUG_PRINT / DBUG_RETURN
-    when the dbug instrumentation is not in place will do nothing.
-  */
-  if (! THR_KEY_mysys_initialized)
-    return NULL;
-  tmp= mysys_thread_var();
+  struct st_my_thread_var *tmp= THR_mysys;
   return tmp ? &tmp->dbug : NULL;
 }
 #endif /* DBUG_OFF */

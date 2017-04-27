@@ -13,11 +13,12 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
+// First include (the generated) my_config.h, to get correct platform defines.
+#include "my_config.h"
+
 #include <stdarg.h>
 #include <string.h>
 
-// First include (the generated) my_config.h, to get correct platform defines.
-#include "my_config.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 
@@ -44,7 +45,7 @@
 mysql_mutex_t g_public_key_mutex;
 #endif
 
-int sha256_password_init(char *a, size_t b, int c, va_list d)
+int sha256_password_init(char *, size_t, int, va_list)
 {
 #if !defined(HAVE_YASSL)
   mysql_mutex_init(0,&g_public_key_mutex, MY_MUTEX_INIT_SLOW);

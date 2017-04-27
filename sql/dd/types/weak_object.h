@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,17 +16,9 @@
 #ifndef DD__WEAK_OBJECT_INCLUDED
 #define DD__WEAK_OBJECT_INCLUDED
 
-#include "my_global.h"
 #include "dd/string_type.h"  // dd::String_type XXX: temporary, debug-only
 
 namespace dd {
-
-///////////////////////////////////////////////////////////////////////////
-
-namespace cache {
-  class Storage_adapter;
-  class Dictionary_client;
-}
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -51,26 +43,6 @@ public:
 
   virtual ~Weak_object()
   { }
-
-private:
-  virtual class Weak_object_impl *impl() = 0;
-  virtual const class Weak_object_impl *impl() const= 0;
-  friend class cache::Storage_adapter;
-  friend class Dictionary_object_table_impl;
-  friend class cache::Dictionary_client;
-};
-
-///////////////////////////////////////////////////////////////////////////
-
-/** Pretty-printer of data dictionary objects */
-struct debug_printer : public String_type
-{
-	/** Constructor
-	@param o	object to pretty-print */
-	explicit debug_printer(const dd::Weak_object& o) : String_type()
-	{
-		o.debug_print(*this);
-	}
 };
 
 ///////////////////////////////////////////////////////////////////////////

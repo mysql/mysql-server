@@ -35,7 +35,7 @@ EXPLAIN
         "read_cost": "2.25",
         "eval_cost": "10.00",
         "prefix_cost": "12.25",
-        "data_read_per_join": "99K"
+        "data_read_per_join": "392K"
       },
       "used_columns": [
         "pk",
@@ -79,7 +79,7 @@ EXPLAIN
         "read_cost": "2.25",
         "eval_cost": "10.00",
         "prefix_cost": "12.25",
-        "data_read_per_join": "99K"
+        "data_read_per_join": "392K"
       },
       "used_columns": [
         "pk",
@@ -124,7 +124,7 @@ EXPLAIN
         "read_cost": "2.25",
         "eval_cost": "20.00",
         "prefix_cost": "22.25",
-        "data_read_per_join": "99K"
+        "data_read_per_join": "392K"
       },
       "used_columns": [
         "pk",
@@ -177,7 +177,7 @@ EXPLAIN
           "read_cost": "1.90",
           "eval_cost": "1.10",
           "prefix_cost": "3.00",
-          "data_read_per_join": "10K"
+          "data_read_per_join": "43K"
         },
         "used_columns": [
           "pk",
@@ -225,7 +225,7 @@ EXPLAIN
           "read_cost": "2.45",
           "eval_cost": "1.10",
           "prefix_cost": "3.55",
-          "data_read_per_join": "10K"
+          "data_read_per_join": "43K"
         },
         "used_columns": [
           "pk",
@@ -269,7 +269,7 @@ EXPLAIN
             "read_cost": "2.25",
             "eval_cost": "10.00",
             "prefix_cost": "12.25",
-            "data_read_per_join": "99K"
+            "data_read_per_join": "392K"
           },
           "used_columns": [
             "pk",
@@ -314,7 +314,7 @@ EXPLAIN
                   "read_cost": "2.25",
                   "eval_cost": "10.00",
                   "prefix_cost": "12.25",
-                  "data_read_per_join": "99K"
+                  "data_read_per_join": "392K"
                 },
                 "used_columns": [
                   "i1"
@@ -360,7 +360,7 @@ EXPLAIN
             "read_cost": "2.25",
             "eval_cost": "10.00",
             "prefix_cost": "12.25",
-            "data_read_per_join": "99K"
+            "data_read_per_join": "392K"
           },
           "used_columns": [
             "pk",
@@ -405,7 +405,7 @@ EXPLAIN
                   "read_cost": "2.25",
                   "eval_cost": "10.00",
                   "prefix_cost": "12.25",
-                  "data_read_per_join": "99K"
+                  "data_read_per_join": "392K"
                 },
                 "used_columns": [
                   "i1"
@@ -452,7 +452,7 @@ EXPLAIN
             "read_cost": "2.25",
             "eval_cost": "10.00",
             "prefix_cost": "12.25",
-            "data_read_per_join": "99K"
+            "data_read_per_join": "392K"
           },
           "used_columns": [
             "pk",
@@ -497,7 +497,7 @@ EXPLAIN
                   "read_cost": "2.25",
                   "eval_cost": "10.00",
                   "prefix_cost": "12.25",
-                  "data_read_per_join": "99K"
+                  "data_read_per_join": "392K"
                 },
                 "used_columns": [
                   "i1"
@@ -546,7 +546,7 @@ EXPLAIN
             "read_cost": "2.25",
             "eval_cost": "10.00",
             "prefix_cost": "12.25",
-            "data_read_per_join": "99K"
+            "data_read_per_join": "392K"
           },
           "used_columns": [
             "pk",
@@ -591,7 +591,7 @@ EXPLAIN
                   "read_cost": "2.25",
                   "eval_cost": "10.00",
                   "prefix_cost": "12.25",
-                  "data_read_per_join": "99K"
+                  "data_read_per_join": "392K"
                 },
                 "used_columns": [
                   "i1"
@@ -637,7 +637,7 @@ EXPLAIN
             "read_cost": "2.25",
             "eval_cost": "10.00",
             "prefix_cost": "12.25",
-            "data_read_per_join": "99K"
+            "data_read_per_join": "392K"
           },
           "used_columns": [
             "pk",
@@ -655,7 +655,7 @@ EXPLAIN
           "table_name": "<subquery2>",
           "access_type": "eq_ref",
           "key": "<auto_key>",
-          "key_length": "251",
+          "key_length": "1001",
           "ref": [
             "test.t1.c1"
           ],
@@ -673,7 +673,7 @@ EXPLAIN
                   "read_cost": "2.25",
                   "eval_cost": "10.00",
                   "prefix_cost": "12.25",
-                  "data_read_per_join": "99K"
+                  "data_read_per_join": "392K"
                 },
                 "used_columns": [
                   "c1"
@@ -717,7 +717,7 @@ EXPLAIN
             "read_cost": "2.25",
             "eval_cost": "10.00",
             "prefix_cost": "12.25",
-            "data_read_per_join": "99K"
+            "data_read_per_join": "392K"
           },
           "used_columns": [
             "pk",
@@ -735,7 +735,7 @@ EXPLAIN
           "table_name": "<subquery2>",
           "access_type": "eq_ref",
           "key": "<auto_key>",
-          "key_length": "251",
+          "key_length": "1001",
           "ref": [
             "test.t1.c1"
           ],
@@ -753,7 +753,7 @@ EXPLAIN
                   "read_cost": "2.25",
                   "eval_cost": "10.00",
                   "prefix_cost": "12.25",
-                  "data_read_per_join": "99K"
+                  "data_read_per_join": "392K"
                 },
                 "used_columns": [
                   "c1"
@@ -797,7 +797,7 @@ EXPLAIN
             "read_cost": "2.25",
             "eval_cost": "10.00",
             "prefix_cost": "12.25",
-            "data_read_per_join": "99K"
+            "data_read_per_join": "392K"
           },
           "used_columns": [
             "pk",
@@ -815,7 +815,7 @@ EXPLAIN
           "table_name": "<subquery2>",
           "access_type": "eq_ref",
           "key": "<auto_key>",
-          "key_length": "251",
+          "key_length": "1001",
           "ref": [
             "test.t1.c1"
           ],
@@ -833,7 +833,7 @@ EXPLAIN
                   "read_cost": "2.25",
                   "eval_cost": "10.00",
                   "prefix_cost": "12.25",
-                  "data_read_per_join": "99K"
+                  "data_read_per_join": "392K"
                 },
                 "used_columns": [
                   "c1"
@@ -880,7 +880,7 @@ EXPLAIN
             "read_cost": "2.25",
             "eval_cost": "10.00",
             "prefix_cost": "12.25",
-            "data_read_per_join": "99K"
+            "data_read_per_join": "392K"
           },
           "used_columns": [
             "pk",
@@ -898,7 +898,7 @@ EXPLAIN
           "table_name": "<subquery2>",
           "access_type": "eq_ref",
           "key": "<auto_key>",
-          "key_length": "251",
+          "key_length": "1001",
           "ref": [
             "test.t1.c1"
           ],
@@ -916,7 +916,7 @@ EXPLAIN
                   "read_cost": "2.25",
                   "eval_cost": "10.00",
                   "prefix_cost": "12.25",
-                  "data_read_per_join": "99K"
+                  "data_read_per_join": "392K"
                 },
                 "used_columns": [
                   "c1"
@@ -957,7 +957,7 @@ EXPLAIN
         "read_cost": "2.25",
         "eval_cost": "10.00",
         "prefix_cost": "12.25",
-        "data_read_per_join": "99K"
+        "data_read_per_join": "392K"
       },
       "used_columns": [
         "pk",
@@ -997,7 +997,7 @@ EXPLAIN
         "read_cost": "4.50",
         "eval_cost": "10.00",
         "prefix_cost": "14.50",
-        "data_read_per_join": "99K"
+        "data_read_per_join": "392K"
       },
       "used_columns": [
         "pk",

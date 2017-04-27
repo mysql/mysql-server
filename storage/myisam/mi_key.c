@@ -15,9 +15,13 @@
 
 /* Functions to handle keys */
 
+#include <math.h>
+#include <sys/types.h>
+
 #include "m_ctype.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
+#include "my_macros.h"
 #include "myisamdef.h"
 #include "sp_defs.h"
 
@@ -29,7 +33,7 @@
             } while(0)
 
 static int _mi_put_key_in_record(MI_INFO *info, uint keynr, 
-                                 my_bool unpack_blobs, uchar *record);
+                                 bool unpack_blobs, uchar *record);
 
 /*
   Make a intern key from a record
@@ -52,7 +56,7 @@ uint _mi_make_key(MI_INFO *info, uint keynr, uchar *key,
   uchar *pos;
   uchar *start;
   HA_KEYSEG *keyseg;
-  my_bool is_ft= info->s->keyinfo[keynr].flag & HA_FULLTEXT;
+  bool is_ft= info->s->keyinfo[keynr].flag & HA_FULLTEXT;
   DBUG_ENTER("_mi_make_key");
 
   if (info->s->keyinfo[keynr].flag & HA_SPATIAL)
@@ -213,7 +217,7 @@ uint _mi_pack_key(MI_INFO *info, uint keynr, uchar *key, uchar *old,
 {
   uchar *start_key=key;
   HA_KEYSEG *keyseg;
-  my_bool is_ft= info->s->keyinfo[keynr].flag & HA_FULLTEXT;
+  bool is_ft= info->s->keyinfo[keynr].flag & HA_FULLTEXT;
   DBUG_ENTER("_mi_pack_key");
 
   /* "one part" rtree key is 2*SPDIMS part key in MyISAM */
@@ -320,7 +324,7 @@ uint _mi_pack_key(MI_INFO *info, uint keynr, uchar *key, uchar *old,
 */
 
 static int _mi_put_key_in_record(MI_INFO *info, uint keynr, 
-                                 my_bool unpack_blobs, uchar *record)
+                                 bool unpack_blobs, uchar *record)
 {
   uchar *key;
   uchar *pos,*key_end;

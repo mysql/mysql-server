@@ -24,10 +24,11 @@
 #include "dd/types/object_table.h"
 #include "dd/types/parameter_type_element.h"       // Parameter_type_element
 #include "dd/types/weak_object.h"
-#include "my_global.h"
+#include "dd_table_share.h"                       // dd_get_mysql_charset
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysqld_error.h"
+#include "sql_const.h"                            // MAX_INTERVAL_VALUE_LENGTH
 
 namespace dd {
 class Object_key;
@@ -75,6 +76,18 @@ bool Parameter_type_element_impl::validate() const
              MYF(0),
              Parameter_type_element_impl::OBJECT_TABLE().name().c_str(),
              "No parameter associated with this object.");
+    return true;
+  }
+
+  const CHARSET_INFO *cs= dd_get_mysql_charset(m_parameter->collation_id());
+  DBUG_ASSERT(cs);
+  const char* cstr= m_name.c_str();
+
+  if (cs->cset->numchars(cs, cstr, cstr + strlen(cstr)) > MAX_INTERVAL_VALUE_LENGTH)
+  {
+    my_error(ER_TOO_LONG_SET_ENUM_VALUE,
+             MYF(0),
+             m_parameter->name().c_str());
     return true;
   }
 

@@ -78,6 +78,9 @@ TODO:
 #define SELECT_TYPE_REQUIRES_PREFIX 5
 #define DELETE_TYPE_REQUIRES_PREFIX 6
 
+#include "my_config.h"
+
+#include <ctype.h>
 #include <fcntl.h>
 #include <my_dir.h>
 #include <mysqld_error.h>
@@ -92,13 +95,14 @@ TODO:
 #ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
 #endif
-#include <ctype.h>
+#include <time.h>
 #include <welcome_copyright_notice.h>   /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
 
 #include "client_priv.h"
 #include "my_dbug.h"
 #include "my_default.h"
 #include "my_inttypes.h"
+#include "my_io.h"
 #include "my_systime.h"
 #include "mysql/service_my_snprintf.h"
 #include "mysql/service_mysql_alloc.h"
@@ -137,18 +141,18 @@ static char *host= NULL, *opt_password= NULL, *user= NULL,
             *post_system= NULL,
             *opt_mysql_unix_port= NULL;
 static char *opt_plugin_dir= 0, *opt_default_auth= 0;
-static my_bool opt_secure_auth= TRUE;
+static bool opt_secure_auth= TRUE;
 static uint opt_enable_cleartext_plugin= 0;
-static my_bool using_opt_enable_cleartext_plugin= 0;
+static bool using_opt_enable_cleartext_plugin= 0;
 
 const char *delimiter= "\n";
 
 const char *create_schema_string= "mysqlslap";
 
-static my_bool opt_preserve= TRUE, opt_no_drop= FALSE;
-static my_bool debug_info_flag= 0, debug_check_flag= 0;
-static my_bool opt_only_print= FALSE;
-static my_bool opt_compress= FALSE, tty_password= FALSE,
+static bool opt_preserve= TRUE, opt_no_drop= FALSE;
+static bool debug_info_flag= 0, debug_check_flag= 0;
+static bool opt_only_print= FALSE;
+static bool opt_compress= FALSE, tty_password= FALSE,
                opt_silent= FALSE,
                auto_generate_sql_autoincrement= FALSE,
                auto_generate_sql_guid_primary= FALSE,
@@ -265,7 +269,7 @@ size_t get_random_string(char *buf);
 static statement *build_table_string(void);
 static statement *build_insert_string(void);
 static statement *build_update_string(void);
-static statement * build_select_string(my_bool key);
+static statement * build_select_string(bool key);
 static int generate_primary_key_list(MYSQL *mysql, option_string *engine_stmt);
 static int drop_primary_key_list(void);
 static int create_schema(MYSQL *mysql, const char *db, statement *stmt, 
@@ -751,7 +755,7 @@ static void usage(void)
 
 
 extern "C" {
-static my_bool
+static bool
 get_one_option(int optid, const struct my_option *opt,
                char *argument)
 {
@@ -1140,7 +1144,7 @@ build_insert_string(void)
   statement or file containing a query statement
 */
 static statement *
-build_select_string(my_bool key)
+build_select_string(bool key)
 {
   char       buf[HUGE_STRING_LENGTH];
   unsigned int        col_count;

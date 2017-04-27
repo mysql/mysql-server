@@ -26,9 +26,10 @@
 #include "m_string.h"                  // llstr
 #include "my_atomic.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_inttypes.h"
+#include "my_io.h"
 #include "my_psi_config.h"
+#include "my_sharedlib.h"
 #include "my_sys.h"
 #include "mysql/psi/mysql_cond.h"
 #include "mysql/psi/mysql_mutex.h"
@@ -38,6 +39,8 @@
 #include "sql_string.h"
 #include "tc_log.h"                    // TC_LOG
 #include "thr_mutex.h"
+#include "rpl_gtid.h"                  // Gtid_set, Sid_map
+#include "rpl_trx_tracking.h"
 
 class Format_description_log_event;
 class Gtid_set;
@@ -71,46 +74,6 @@ struct Binlog_user_var_event
   Item_result type;
   uint charset_number;
   bool unsigned_flag;
-};
-
-/**
-  Logical timestamp generator for logical timestamping binlog transactions.
-  A transaction is associated with two sequence numbers see
-  @c Transaction_ctx::last_committed and @c Transaction_ctx::sequence_number.
-  The class provides necessary interfaces including that of
-  generating a next consecutive value for the latter.
-*/
-class  Logical_clock
-{
-private:
-  int64 state;
-  /*
-    Offset is subtracted from the actual "absolute time" value at
-    logging a replication event. That is the event holds logical
-    timestamps in the "relative" format. They are meaningful only in
-    the context of the current binlog.
-    The member is updated (incremented) per binary log rotation.
-  */
-  int64 offset;
-public:
-  Logical_clock();
-  int64 step();
-  int64 set_if_greater(int64 new_val);
-  int64 get_timestamp();
-  int64 get_offset() { return offset; }
-  /*
-    Updates the offset.
-    This operation is invoked when binlog rotates and at that time
-    there can't any concurrent step() callers so no need to guard
-    the assignement.
-  */
-  void update_offset(int64 new_offset)
-  {
-    DBUG_ASSERT(offset <= new_offset);
-
-    offset= new_offset;
-  }
-  ~Logical_clock() { }
 };
 
 /**
@@ -381,6 +344,7 @@ typedef struct st_log_info
     }
 } LOG_INFO;
 
+
 /*
   TODO use mmap instead of IO_CACHE for binlog
   (mmap+fsync is two times faster than write+fsync)
@@ -441,7 +405,7 @@ class MYSQL_BIN_LOG: public TC_LOG
   mysql_mutex_t LOCK_xids;
   mysql_cond_t update_cond;
 
-  my_off_t binlog_end_pos;
+  std::atomic<my_off_t> atomic_binlog_end_pos;
   ulonglong bytes_written;
   IO_CACHE index_file;
   char index_file_name[FN_REFLEN];
@@ -623,11 +587,8 @@ public:
 #endif
 
 public:
-  /* Committed transactions timestamp */
-   Logical_clock max_committed_transaction;
-  /* "Prepared" transactions timestamp */
-   Logical_clock transaction_counter;
-  void update_max_committed(THD *thd);
+  /** Manage the MTS dependency tracking */
+  Transaction_dependency_tracker m_dependency_tracker;
 
   /**
     Find the oldest binary log that contains any GTID that
@@ -664,9 +625,10 @@ public:
     @param [out] trx_parser  This will be used to return the actual
     relaylog transaction parser state because of the possibility
     of partial transactions.
-    @param [out] gtid_partial_trx If a transaction was left incomplete
-    on the relaylog, it's GTID should be returned to be used in the
-    case of the rest of the transaction be added to the relaylog.
+    @param [out] partial_trx If a transaction was left incomplete
+    on the relaylog, its GTID information should be returned to be
+    used in the case of the rest of the transaction be added to the
+    relaylog.
     @param is_server_starting True if the server is starting.
     @return false on success, true on error.
   */
@@ -674,7 +636,7 @@ public:
                       bool verify_checksum,
                       bool need_lock,
                       Transaction_boundary_parser *trx_parser,
-                      Gtid *gtid_partial_trx,
+                      trx_monitoring_info *partial_trx,
                       bool is_server_starting= false);
 
   void set_previous_gtid_set_relaylog(Gtid_set *previous_gtid_set_param)
@@ -782,34 +744,28 @@ public:
     DBUG_VOID_RETURN;
   }
 
-  void update_binlog_end_pos()
+  void update_binlog_end_pos(bool need_lock= true)
   {
-    /*
-      binlog_end_pos is used only on master's binlog right now. It is possible
-      to use it on relay log.
-    */
-    if (is_relay_log)
-      signal_update();
-    else
-    {
+    if (need_lock)
       lock_binlog_end_pos();
-      binlog_end_pos= my_b_tell(&log_file);
-      signal_update();
+    else
+      mysql_mutex_assert_owner(&LOCK_binlog_end_pos);
+    atomic_binlog_end_pos= my_b_tell(&log_file);
+    signal_update();
+    if (need_lock)
       unlock_binlog_end_pos();
-    }
   }
 
   void update_binlog_end_pos(my_off_t pos)
   {
     lock_binlog_end_pos();
-    if (pos > binlog_end_pos)
-      binlog_end_pos= pos;
+    if (pos > atomic_binlog_end_pos)
+      atomic_binlog_end_pos= pos;
     signal_update();
     unlock_binlog_end_pos();
   }
 
-  int wait_for_update_relay_log(THD *thd, const struct timespec * timeout);
-  int wait_for_update_bin_log(const struct timespec * timeout);
+  int wait_for_update(const struct timespec * timeout);
   bool do_write_cache(IO_CACHE *cache, class Binlog_event_writer *writer);
 public:
   void init_pthread_objects();
@@ -890,10 +846,10 @@ public:
   void stop_union_events(THD *thd);
   bool is_query_in_union(THD *thd, query_id_t query_id_param);
 
-  bool append_buffer(const char* buf, uint len, Master_info *mi);
-  bool append_event(Log_event* ev, Master_info *mi);
+  bool write_buffer(const char* buf, uint len, Master_info *mi);
+  bool write_event(Log_event* ev, Master_info *mi);
 private:
-  bool after_append_to_relay_log(Master_info *mi);
+  bool after_write_to_relay_log(Master_info *mi);
 public:
 
   void make_log_name(char* buf, const char* log_ident);
@@ -937,7 +893,7 @@ public:
   int purge_index_entry(THD *thd, ulonglong *decrease_log_space,
                         bool need_lock_index);
   bool reset_logs(THD* thd, bool delete_only= false);
-  void close(uint exiting);
+  void close(uint exiting, bool need_lock_log, bool need_lock_index);
 
   // iterating through the log index file
   int find_log_pos(LOG_INFO* linfo, const char* log_name,
@@ -960,14 +916,13 @@ public:
   inline uint32 get_open_count() { return open_count; }
 
   /*
-    It is called by the threads(e.g. dump thread) which want to read
-    hot log without LOCK_log protection.
+    It is called by the threads (e.g. dump thread, applier thread) which want
+    to read hot log without LOCK_log protection.
   */
   my_off_t get_binlog_end_pos() const
   {
     mysql_mutex_assert_not_owner(&LOCK_log);
-    mysql_mutex_assert_owner(&LOCK_binlog_end_pos);
-    return binlog_end_pos;
+    return atomic_binlog_end_pos;
   }
   mysql_mutex_t* get_binlog_end_pos_lock() { return &LOCK_binlog_end_pos; }
   void lock_binlog_end_pos() { mysql_mutex_lock(&LOCK_binlog_end_pos); }

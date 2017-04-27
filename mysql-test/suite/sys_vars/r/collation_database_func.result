@@ -12,13 +12,13 @@ SELECT @@global.collation_database;
 latin1_danish_ci
 SELECT @@session.collation_database;
 @@session.collation_database
-latin1_swedish_ci
+utf8mb4_0900_ai_ci
 '#--------------------FN_DYNVARS_011_02-------------------------#'
 'connection default'
 DROP TABLE IF EXISTS t1,t2;
 SELECT @@character_set_server,@@collation_server;
 @@character_set_server	@@collation_server
-latin1	latin1_swedish_ci
+utf8mb4	utf8mb4_0900_ai_ci
 '--check if setting collation_database update character_set_database--'
 SET @@session.collation_database = utf8_spanish_ci;
 Warnings:
@@ -61,7 +61,7 @@ utf8_roman_ci	utf8_roman_ci	utf8	utf8
 USE test;
 SELECT @@collation_database,@@collation_server,@@character_set_database,@@character_set_server;
 @@collation_database	@@collation_server	@@character_set_database	@@character_set_server
-latin1_swedish_ci	utf8_roman_ci	latin1	utf8
+utf8mb4_0900_ai_ci	utf8_roman_ci	utf8mb4	utf8
 'fill table with some test data';
 CREATE TABLE t1(a CHAR(20))CHARACTER SET=latin1;
 INSERT INTO t1 VALUES('Muffler'),('Müller'),('MX Systems');

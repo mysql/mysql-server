@@ -2637,7 +2637,7 @@ DROP TABLE t1, t2;
 #21
 CREATE TABLE t1 (a1 INT);
 INSERT INTO t1 VALUES (1), (2), (3), (4), (5);
-CREATE TABLE t2 (a2 VARCHAR(10));
+CREATE TABLE t2 (a2 VARCHAR(10)) charset utf8mb4;
 INSERT INTO t2 VALUES (1), (2), (3), (4), (5);
 SET @save_optimizer_switch= @@optimizer_switch;
 #
@@ -2689,7 +2689,7 @@ EXPLAIN
                 "read_cost": "0.84",
                 "eval_cost": "0.10",
                 "prefix_cost": "1.01",
-                "data_read_per_join": "16"
+                "data_read_per_join": "48"
               } /* cost_info */,
               "used_columns": [
                 "a2"
@@ -2756,7 +2756,7 @@ EXPLAIN
                 "read_cost": "0.84",
                 "eval_cost": "0.10",
                 "prefix_cost": "1.01",
-                "data_read_per_join": "16"
+                "data_read_per_join": "48"
               } /* cost_info */,
               "used_columns": [
                 "a2"
@@ -2831,7 +2831,7 @@ EXPLAIN
                 "read_cost": "0.84",
                 "eval_cost": "0.10",
                 "prefix_cost": "1.01",
-                "data_read_per_join": "16"
+                "data_read_per_join": "48"
               } /* cost_info */,
               "used_columns": [
                 "a2"
@@ -2895,7 +2895,7 @@ EXPLAIN
             "read_cost": "0.84",
             "eval_cost": "0.50",
             "prefix_cost": "2.67",
-            "data_read_per_join": "80"
+            "data_read_per_join": "240"
           } /* cost_info */,
           "used_columns": [
             "a2"
@@ -3723,7 +3723,7 @@ Handler_read_key	1
 
 DROP TABLE t1;
 #30
-CREATE TABLE t1(a INT, i CHAR(2), INDEX(i(1)));
+CREATE TABLE t1(a INT, i CHAR(2), INDEX(i(1))) charset utf8mb4;
 INSERT INTO t1 (i) VALUES (10),(11),(12),(13),(14),(15),(16),(17),(18),(19),
 (20),(21),(22),(23),(24),(25),(26),(27),(28),(29),
 (30),(31),(32),(33),(34),(35);
@@ -3787,7 +3787,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "6.00"
+      "query_cost": "6.01"
     } /* cost_info */,
     "ordering_operation": {
       "using_filesort": true,
@@ -3804,10 +3804,10 @@ EXPLAIN
         "rows_produced_per_join": 2,
         "filtered": "11.11",
         "cost_info": {
-          "read_cost": "2.82",
+          "read_cost": "2.83",
           "eval_cost": "0.29",
-          "prefix_cost": "3.11",
-          "data_read_per_join": "23"
+          "prefix_cost": "3.12",
+          "data_read_per_join": "46"
         } /* cost_info */,
         "used_columns": [
           "a",
@@ -4059,7 +4059,8 @@ CREATE TABLE t1 (i INT);
 INSERT INTO t1 (i) VALUES (10),(11),(12),(13),(14),(15),(16),(17),(18),(19),
 (20),(21),(22),(23),(24),(25),(26),(27),(28),(29),
 (30),(31),(32),(33),(34),(35);
-CREATE TABLE t2 (a CHAR(2), b CHAR(2), c CHAR(2), d CHAR(2), INDEX (a,b(1),c));
+CREATE TABLE t2 (a CHAR(2), b CHAR(2), c CHAR(2), d CHAR(2), INDEX (a,b(1),c))
+charset utf8mb4;
 INSERT INTO t2 SELECT i, i, i, i FROM t1;
 #
 # query:  DELETE   FROM t2 WHERE b = 10 ORDER BY a, c LIMIT 5
@@ -4116,7 +4117,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "5.71"
+      "query_cost": "5.75"
     } /* cost_info */,
     "ordering_operation": {
       "using_filesort": true,
@@ -4130,10 +4131,10 @@ EXPLAIN
         "rows_produced_per_join": 2,
         "filtered": "10.00",
         "cost_info": {
-          "read_cost": "2.85",
+          "read_cost": "2.89",
           "eval_cost": "0.26",
-          "prefix_cost": "3.11",
-          "data_read_per_join": "41"
+          "prefix_cost": "3.15",
+          "data_read_per_join": "104"
         } /* cost_info */,
         "used_columns": [
           "a",
@@ -4168,7 +4169,7 @@ INSERT INTO t1 (i) VALUES (10),(11),(12),(13),(14),(15),(16),(17),(18),(19),
 (20),(21),(22),(23),(24),(25),(26),(27),(28),(29),
 (30),(31),(32),(33),(34),(35);
 CREATE TABLE t2 (a CHAR(2), b CHAR(2), c CHAR(2), d CHAR(2), INDEX (a,b,c))
-ENGINE=HEAP;
+charset utf8mb4  ENGINE=HEAP;
 INSERT INTO t2 SELECT i, i, i, i FROM t1;
 #
 # query:  DELETE   FROM t2 WHERE b = 10 ORDER BY a, c LIMIT 5
@@ -4242,7 +4243,7 @@ EXPLAIN
           "read_cost": "5.16",
           "eval_cost": "0.26",
           "prefix_cost": "5.42",
-          "data_read_per_join": "41"
+          "data_read_per_join": "104"
         } /* cost_info */,
         "used_columns": [
           "a",
@@ -4509,7 +4510,7 @@ CREATE TABLE t1 (i INT);
 INSERT INTO t1 (i) VALUES (10),(11),(12),(13),(14),(15),(16),(17),(18),(19),
 (20),(21),(22),(23),(24),(25),(26),(27),(28),(29),
 (30),(31),(32),(33),(34),(35);
-CREATE TABLE t2 (a CHAR(2), b CHAR(2), c CHAR(2), INDEX (a, b));
+CREATE TABLE t2 (a CHAR(2), b CHAR(2), c CHAR(2), INDEX (a, b)) charset utf8mb4;
 INSERT INTO t2 SELECT i, i, i FROM t1;
 #
 # query:  DELETE   FROM t2 ORDER BY a, b DESC LIMIT 5
@@ -4560,7 +4561,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "3.11"
+      "query_cost": "3.14"
     } /* cost_info */,
     "ordering_operation": {
       "using_filesort": true,
@@ -4571,10 +4572,10 @@ EXPLAIN
         "rows_produced_per_join": 26,
         "filtered": "100.00",
         "cost_info": {
-          "read_cost": "0.51",
+          "read_cost": "0.54",
           "eval_cost": "2.60",
-          "prefix_cost": "3.11",
-          "data_read_per_join": "208"
+          "prefix_cost": "3.14",
+          "data_read_per_join": "832"
         } /* cost_info */,
         "used_columns": [
           "a",
@@ -4606,7 +4607,7 @@ CREATE TABLE t1 (i INT);
 INSERT INTO t1 VALUES (10),(11),(12),(13),(14),(15),(16),(17),(18),(19),
 (20),(21),(22),(23),(24),(25),(26),(27),(28),(29),
 (30),(31),(32),(33),(34),(35);
-CREATE TABLE t2 (a CHAR(2), b CHAR(2), c INT, INDEX (a, b));
+CREATE TABLE t2 (a CHAR(2), b CHAR(2), c INT, INDEX (a, b)) charset utf8mb4;
 INSERT INTO t2 (a, b) SELECT i, i FROM t1;
 INSERT INTO t2 (a, b) SELECT t1.i, t1.i FROM t1, t1 x1, t1 x2;
 #
@@ -4615,12 +4616,12 @@ INSERT INTO t2 (a, b) SELECT t1.i, t1.i FROM t1, t1 x1, t1 x2;
 #
 EXPLAIN DELETE   FROM t2 ORDER BY a DESC, b DESC LIMIT 5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	DELETE	t2	NULL	index	NULL	a	6	NULL	5	100.00	NULL
+1	DELETE	t2	NULL	index	NULL	a	18	NULL	5	100.00	NULL
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED DELETE   FROM t2 ORDER BY a DESC, b DESC LIMIT 5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	DELETE	t2	NULL	index	NULL	a	6	NULL	5	100.00	NULL
+1	DELETE	t2	NULL	index	NULL	a	18	NULL	5	100.00	NULL
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 # Status of EXPLAIN EXTENDED query
@@ -4641,7 +4642,7 @@ EXPLAIN
           "a",
           "b"
         ] /* used_key_parts */,
-        "key_length": "6",
+        "key_length": "18",
         "rows_examined_per_scan": 5,
         "filtered": "100.00"
       } /* table */
@@ -4652,7 +4653,7 @@ FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED SELECT * FROM t2 ORDER BY a DESC, b DESC LIMIT 5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	index	NULL	a	6	NULL	5	100.00	Backward index scan
+1	SIMPLE	t2	NULL	index	NULL	a	18	NULL	5	100.00	Backward index scan
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c` from `test`.`t2` order by `test`.`t2`.`a` desc,`test`.`t2`.`b` desc limit 5
@@ -4664,7 +4665,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "1770.37"
+      "query_cost": "1783.26"
     } /* cost_info */,
     "ordering_operation": {
       "using_filesort": false,
@@ -4676,16 +4677,16 @@ EXPLAIN
           "a",
           "b"
         ] /* used_key_parts */,
-        "key_length": "6",
+        "key_length": "18",
         "rows_examined_per_scan": 5,
         "rows_produced_per_join": 17602,
         "filtered": "100.00",
         "backward_index_scan": true,
         "cost_info": {
-          "read_cost": "10.17",
+          "read_cost": "23.06",
           "eval_cost": "1760.20",
-          "prefix_cost": "1770.37",
-          "data_read_per_join": "275K"
+          "prefix_cost": "1783.26",
+          "data_read_per_join": "412K"
         } /* cost_info */,
         "used_columns": [
           "a",
@@ -4828,7 +4829,7 @@ CREATE TABLE t1 (i INT);
 INSERT INTO t1 VALUES (10),(11),(12),(13),(14),(15),(16),(17),(18),(19),
 (20),(21),(22),(23),(24),(25),(26),(27),(28),(29),
 (30),(31),(32),(33),(34),(35);
-CREATE TABLE t2(a INT, i CHAR(2), INDEX(i(1)));
+CREATE TABLE t2(a INT, i CHAR(2), INDEX(i(1))) charset utf8mb4;
 INSERT INTO t2 (i) SELECT i FROM t1;
 #
 # query:  UPDATE t2 SET a = 10 WHERE i > 10 AND i <= 18 ORDER BY i LIMIT 5
@@ -4890,7 +4891,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "6.00"
+      "query_cost": "6.01"
     } /* cost_info */,
     "ordering_operation": {
       "using_filesort": true,
@@ -4907,10 +4908,10 @@ EXPLAIN
         "rows_produced_per_join": 2,
         "filtered": "11.11",
         "cost_info": {
-          "read_cost": "2.82",
+          "read_cost": "2.83",
           "eval_cost": "0.29",
-          "prefix_cost": "3.11",
-          "data_read_per_join": "23"
+          "prefix_cost": "3.12",
+          "data_read_per_join": "46"
         } /* cost_info */,
         "used_columns": [
           "a",
@@ -5164,7 +5165,8 @@ CREATE TABLE t1 (i INT);
 INSERT INTO t1 VALUES (10),(11),(12),(13),(14),(15),(16),(17),(18),(19),
 (20),(21),(22),(23),(24),(25),(26),(27),(28),(29),
 (30),(31),(32),(33),(34),(35);
-CREATE TABLE t2 (a CHAR(2), b CHAR(2), c CHAR(2), d CHAR(2), INDEX (a,b(1),c));
+CREATE TABLE t2 (a CHAR(2), b CHAR(2), c CHAR(2), d CHAR(2), INDEX (a,b(1),c))
+charset utf8mb4;
 INSERT INTO t2 SELECT i, i, i, i FROM t1;
 #
 # query:  UPDATE t2 SET d = 10 WHERE b = 10 ORDER BY a, c LIMIT 5
@@ -5221,7 +5223,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "5.71"
+      "query_cost": "5.75"
     } /* cost_info */,
     "ordering_operation": {
       "using_filesort": true,
@@ -5235,10 +5237,10 @@ EXPLAIN
         "rows_produced_per_join": 2,
         "filtered": "10.00",
         "cost_info": {
-          "read_cost": "2.85",
+          "read_cost": "2.89",
           "eval_cost": "0.26",
-          "prefix_cost": "3.11",
-          "data_read_per_join": "41"
+          "prefix_cost": "3.15",
+          "data_read_per_join": "104"
         } /* cost_info */,
         "used_columns": [
           "a",
@@ -5272,7 +5274,7 @@ INSERT INTO t1 VALUES (10),(11),(12),(13),(14),(15),(16),(17),(18),(19),
 (20),(21),(22),(23),(24),(25),(26),(27),(28),(29),
 (30),(31),(32),(33),(34),(35);
 CREATE TABLE t2 (a CHAR(2), b CHAR(2), c CHAR(2), d CHAR(2), INDEX (a,b,c))
-ENGINE=HEAP;
+charset utf8mb4  ENGINE=HEAP;
 INSERT INTO t2 SELECT i, i, i, i FROM t1;
 #
 # query:  UPDATE t2 SET d = 10 WHERE b = 10 ORDER BY a, c LIMIT 5
@@ -5346,7 +5348,7 @@ EXPLAIN
           "read_cost": "5.16",
           "eval_cost": "0.26",
           "prefix_cost": "5.42",
-          "data_read_per_join": "41"
+          "data_read_per_join": "104"
         } /* cost_info */,
         "used_columns": [
           "a",
@@ -5614,7 +5616,7 @@ CREATE TABLE t1 (i INT);
 INSERT INTO t1 VALUES (10),(11),(12),(13),(14),(15),(16),(17),(18),(19),
 (20),(21),(22),(23),(24),(25),(26),(27),(28),(29),
 (30),(31),(32),(33),(34),(35);
-CREATE TABLE t2 (a CHAR(2), b CHAR(2), c CHAR(2), INDEX (a, b));
+CREATE TABLE t2 (a CHAR(2), b CHAR(2), c CHAR(2), INDEX (a, b)) charset utf8mb4;
 INSERT INTO t2 SELECT i, i, i FROM t1;
 #
 # query:  UPDATE t2 SET c = 10 ORDER BY a, b DESC LIMIT 5
@@ -5665,7 +5667,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "3.11"
+      "query_cost": "3.14"
     } /* cost_info */,
     "ordering_operation": {
       "using_filesort": true,
@@ -5676,10 +5678,10 @@ EXPLAIN
         "rows_produced_per_join": 26,
         "filtered": "100.00",
         "cost_info": {
-          "read_cost": "0.51",
+          "read_cost": "0.54",
           "eval_cost": "2.60",
-          "prefix_cost": "3.11",
-          "data_read_per_join": "208"
+          "prefix_cost": "3.14",
+          "data_read_per_join": "832"
         } /* cost_info */,
         "used_columns": [
           "a",
@@ -5711,7 +5713,7 @@ CREATE TABLE t1 (i INT);
 INSERT INTO t1 VALUES (10),(11),(12),(13),(14),(15),(16),(17),(18),(19),
 (20),(21),(22),(23),(24),(25),(26),(27),(28),(29),
 (30),(31),(32),(33),(34),(35);
-CREATE TABLE t2 (a CHAR(2), b CHAR(2), c INT, INDEX (a, b));
+CREATE TABLE t2 (a CHAR(2), b CHAR(2), c INT, INDEX (a, b)) charset utf8mb4;
 INSERT INTO t2 (a, b) SELECT i, i FROM t1;
 INSERT INTO t2 (a, b) SELECT t1.i, t1.i FROM t1, t1 x1, t1 x2;
 #
@@ -5720,12 +5722,12 @@ INSERT INTO t2 (a, b) SELECT t1.i, t1.i FROM t1, t1 x1, t1 x2;
 #
 EXPLAIN UPDATE t2 SET c = 10 ORDER BY a DESC, b DESC LIMIT 5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	t2	NULL	index	NULL	a	6	NULL	5	100.00	Using temporary
+1	UPDATE	t2	NULL	index	NULL	a	18	NULL	5	100.00	Using temporary
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED UPDATE t2 SET c = 10 ORDER BY a DESC, b DESC LIMIT 5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	t2	NULL	index	NULL	a	6	NULL	5	100.00	Using temporary
+1	UPDATE	t2	NULL	index	NULL	a	18	NULL	5	100.00	Using temporary
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 # Status of EXPLAIN EXTENDED query
@@ -5747,7 +5749,7 @@ EXPLAIN
           "a",
           "b"
         ] /* used_key_parts */,
-        "key_length": "6",
+        "key_length": "18",
         "rows_examined_per_scan": 5,
         "filtered": "100.00"
       } /* table */
@@ -5758,7 +5760,7 @@ FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED SELECT * FROM t2     ORDER BY a DESC, b DESC LIMIT 5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	index	NULL	a	6	NULL	5	100.00	Backward index scan
+1	SIMPLE	t2	NULL	index	NULL	a	18	NULL	5	100.00	Backward index scan
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c` from `test`.`t2` order by `test`.`t2`.`a` desc,`test`.`t2`.`b` desc limit 5
@@ -5770,7 +5772,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "1770.37"
+      "query_cost": "1783.26"
     } /* cost_info */,
     "ordering_operation": {
       "using_filesort": false,
@@ -5782,16 +5784,16 @@ EXPLAIN
           "a",
           "b"
         ] /* used_key_parts */,
-        "key_length": "6",
+        "key_length": "18",
         "rows_examined_per_scan": 5,
         "rows_produced_per_join": 17602,
         "filtered": "100.00",
         "backward_index_scan": true,
         "cost_info": {
-          "read_cost": "10.17",
+          "read_cost": "23.06",
           "eval_cost": "1760.20",
-          "prefix_cost": "1770.37",
-          "data_read_per_join": "275K"
+          "prefix_cost": "1783.26",
+          "data_read_per_join": "412K"
         } /* cost_info */,
         "used_columns": [
           "a",
@@ -5823,7 +5825,7 @@ c1_idx CHAR(1) DEFAULT 'y',
 c2 INT,
 PRIMARY KEY (pk),
 INDEX c1_idx (c1_idx)
-);
+) charset utf8mb4;
 INSERT INTO t1 VALUES (1,'y',1), (2,'n',2), (3,'y',3), (4,'n',4);
 #
 # query:  UPDATE t1 SET c2 = 0 WHERE c1_idx = 'y' ORDER BY pk DESC LIMIT 2
@@ -5831,12 +5833,12 @@ INSERT INTO t1 VALUES (1,'y',1), (2,'n',2), (3,'y',3), (4,'n',4);
 #
 EXPLAIN UPDATE t1 SET c2 = 0 WHERE c1_idx = 'y' ORDER BY pk DESC LIMIT 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	t1	NULL	range	c1_idx	c1_idx	2	const	2	100.00	Using where; Using filesort
+1	UPDATE	t1	NULL	range	c1_idx	c1_idx	5	const	2	100.00	Using where; Using filesort
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED UPDATE t1 SET c2 = 0 WHERE c1_idx = 'y' ORDER BY pk DESC LIMIT 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	t1	NULL	range	c1_idx	c1_idx	2	const	2	100.00	Using where; Using filesort
+1	UPDATE	t1	NULL	range	c1_idx	c1_idx	5	const	2	100.00	Using where; Using filesort
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 # Status of EXPLAIN EXTENDED query
@@ -5859,7 +5861,7 @@ EXPLAIN
         "used_key_parts": [
           "c1_idx"
         ] /* used_key_parts */,
-        "key_length": "2",
+        "key_length": "5",
         "ref": [
           "const"
         ] /* ref */,
@@ -5874,7 +5876,7 @@ FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED SELECT * FROM t1     WHERE c1_idx = 'y' ORDER BY pk DESC LIMIT 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ref	c1_idx	c1_idx	2	const	2	100.00	Using index condition; Using filesort
+1	SIMPLE	t1	NULL	ref	c1_idx	c1_idx	5	const	2	100.00	Using index condition; Using filesort
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`c1_idx` AS `c1_idx`,`test`.`t1`.`c2` AS `c2` from `test`.`t1` where (`test`.`t1`.`c1_idx` = 'y') order by `test`.`t1`.`pk` desc limit 2
@@ -5900,7 +5902,7 @@ EXPLAIN
         "used_key_parts": [
           "c1_idx"
         ] /* used_key_parts */,
-        "key_length": "2",
+        "key_length": "5",
         "ref": [
           "const"
         ] /* ref */,
@@ -5947,12 +5949,12 @@ Sort_rows	2
 #
 EXPLAIN DELETE   FROM t1 WHERE c1_idx = 'y' ORDER BY pk DESC LIMIT 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	DELETE	t1	NULL	range	c1_idx	c1_idx	2	const	2	100.00	Using where; Using filesort
+1	DELETE	t1	NULL	range	c1_idx	c1_idx	5	const	2	100.00	Using where; Using filesort
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED DELETE   FROM t1 WHERE c1_idx = 'y' ORDER BY pk DESC LIMIT 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	DELETE	t1	NULL	range	c1_idx	c1_idx	2	const	2	100.00	Using where; Using filesort
+1	DELETE	t1	NULL	range	c1_idx	c1_idx	5	const	2	100.00	Using where; Using filesort
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 # Status of EXPLAIN EXTENDED query
@@ -5975,7 +5977,7 @@ EXPLAIN
         "used_key_parts": [
           "c1_idx"
         ] /* used_key_parts */,
-        "key_length": "2",
+        "key_length": "5",
         "ref": [
           "const"
         ] /* ref */,
@@ -5990,7 +5992,7 @@ FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED SELECT * FROM t1 WHERE c1_idx = 'y' ORDER BY pk DESC LIMIT 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ref	c1_idx	c1_idx	2	const	2	100.00	Using index condition; Using filesort
+1	SIMPLE	t1	NULL	ref	c1_idx	c1_idx	5	const	2	100.00	Using index condition; Using filesort
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`c1_idx` AS `c1_idx`,`test`.`t1`.`c2` AS `c2` from `test`.`t1` where (`test`.`t1`.`c1_idx` = 'y') order by `test`.`t1`.`pk` desc limit 2
@@ -6016,7 +6018,7 @@ EXPLAIN
         "used_key_parts": [
           "c1_idx"
         ] /* used_key_parts */,
-        "key_length": "2",
+        "key_length": "5",
         "ref": [
           "const"
         ] /* ref */,

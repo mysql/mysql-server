@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -27,6 +27,9 @@ usr/lib/mysql/plugin/auth_test_plugin.so
 usr/lib/mysql/plugin/component_example_component1.so
 usr/lib/mysql/plugin/component_example_component2.so
 usr/lib/mysql/plugin/component_example_component3.so
+usr/lib/mysql/plugin/component_test_string_service.so
+usr/lib/mysql/plugin/component_test_string_service_charset.so
+usr/lib/mysql/plugin/component_test_string_service_long.so
 usr/lib/mysql/plugin/daemon_example.ini
 usr/lib/mysql/plugin/ha_example.so
 usr/lib/mysql/plugin/libdaemon_example.so
@@ -65,6 +68,9 @@ usr/lib/mysql/plugin/debug/auth_test_plugin.so
 usr/lib/mysql/plugin/debug/component_example_component1.so
 usr/lib/mysql/plugin/debug/component_example_component2.so
 usr/lib/mysql/plugin/debug/component_example_component3.so
+usr/lib/mysql/plugin/debug/component_test_string_service.so
+usr/lib/mysql/plugin/debug/component_test_string_service_charset.so
+usr/lib/mysql/plugin/debug/component_test_string_service_long.so
 usr/lib/mysql/plugin/debug/daemon_example.ini
 usr/lib/mysql/plugin/debug/ha_example.so
 usr/lib/mysql/plugin/debug/libdaemon_example.so

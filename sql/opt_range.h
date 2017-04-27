@@ -34,8 +34,9 @@
 #include "my_bitmap.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_inttypes.h"
+#include "my_macros.h"
+#include "my_table_map.h"
 #include "prealloced_array.h" // Prealloced_array
 #include "priority_queue.h"   // Priority_queue
 #include "records.h"          // READ_RECORD
@@ -248,6 +249,13 @@ public:
     For QUICK_GROUP_MIN_MAX_SELECT it includes MIN/MAX argument keyparts.
   */
   uint used_key_parts;
+  /**
+    true if creation of the object is forced by the hint.
+    The flag is used to skip ref evaluation in find_best_ref() function.
+    It also enables using of QUICK_SELECT object in
+    Optimize_table_order::best_access_path() regardless of the evaluation cost.
+  */
+  bool forced_by_hint;
 
   QUICK_SELECT_I();
   virtual ~QUICK_SELECT_I(){};
@@ -1006,8 +1014,7 @@ public:
 class QUICK_SELECT_DESC: public QUICK_RANGE_SELECT
 {
 public:
-  QUICK_SELECT_DESC(QUICK_RANGE_SELECT *q, uint used_key_parts, 
-                    bool *create_err);
+  QUICK_SELECT_DESC(QUICK_RANGE_SELECT *q, uint used_key_parts);
   int get_next();
   bool reverse_sorted() const { return true; }
   bool reverse_sort_possible() const { return true; }

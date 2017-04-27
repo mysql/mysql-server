@@ -14,7 +14,6 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
 #include "my_dbug.h"
-#include "my_global.h"
 #include "mysql/plugin.h"
 #include "mysql/service_security_context.h"
 
@@ -23,51 +22,53 @@
 extern "C" {
 #endif
 
-  my_svc_bool thd_get_security_context(MYSQL_THD, MYSQL_SECURITY_CONTEXT *out_ctx)
+  my_svc_bool thd_get_security_context(MYSQL_THD, MYSQL_SECURITY_CONTEXT*)
   {
     DBUG_ASSERT(0);
     return 0;
   }
 
-  my_svc_bool thd_set_security_context(MYSQL_THD, MYSQL_SECURITY_CONTEXT in_ctx)
+  my_svc_bool thd_set_security_context(MYSQL_THD, MYSQL_SECURITY_CONTEXT)
   {
     DBUG_ASSERT(0);
     return 0;
   }
 
-  my_svc_bool security_context_create(MYSQL_SECURITY_CONTEXT *out_ctx)
+  my_svc_bool security_context_create(MYSQL_SECURITY_CONTEXT*)
   {
     DBUG_ASSERT(0);
     return 0;
   }
 
-  my_svc_bool security_context_destroy(MYSQL_SECURITY_CONTEXT ctx)
+  my_svc_bool security_context_destroy(MYSQL_SECURITY_CONTEXT)
   {
     DBUG_ASSERT(0);
     return 0;
   }
 
-  my_svc_bool security_context_copy(MYSQL_SECURITY_CONTEXT in_ctx, MYSQL_SECURITY_CONTEXT *out_ctx)
+  my_svc_bool security_context_copy(MYSQL_SECURITY_CONTEXT, MYSQL_SECURITY_CONTEXT*)
   {
     DBUG_ASSERT(0);
     return 0;
   }
 
-  my_svc_bool security_context_lookup(MYSQL_SECURITY_CONTEXT ctx,
-                                      const char *user, const char *host,
-                                      const char *ip, const char *db)
+  my_svc_bool security_context_lookup(MYSQL_SECURITY_CONTEXT,
+                                      const char*, const char*,
+                                      const char*, const char*)
   {
     DBUG_ASSERT(0);
     return 0;
   }
 
-  my_svc_bool security_context_get_option(MYSQL_SECURITY_CONTEXT, const char *name, void *inout_pvalue)
+  my_svc_bool security_context_get_option(MYSQL_SECURITY_CONTEXT,
+                                          const char*, void*)
   {
     DBUG_ASSERT(0);
     return 0;
   }
 
-  my_svc_bool security_context_set_option(MYSQL_SECURITY_CONTEXT, const char *name, void *pvalue)
+  my_svc_bool security_context_set_option(MYSQL_SECURITY_CONTEXT,
+                                          const char*, void*)
   {
     DBUG_ASSERT(0);
     return 0;

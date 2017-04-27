@@ -25,6 +25,7 @@ Created 2012-02-08 by Sunny Bains.
 
 #include <errno.h>
 #include <my_aes.h>
+#include <sys/types.h>
 #include <vector>
 
 #include "btr0pcur.h"
@@ -45,6 +46,13 @@ Created 2012-02-08 by Sunny Bains.
 #include "row0upd.h"
 #include "srv0start.h"
 #include "ut0new.h"
+#include "dict0crea.h"
+#include "lob0lob.h"
+#include "dict0dd.h"
+
+#include <vector>
+
+#include <my_aes.h>
 
 /** The size of the buffer to use for IO. Note: os_file_read() doesn't expect
 reads to fail. If you set the buffer size to be greater than a multiple of the
@@ -1702,7 +1710,7 @@ PageConverter::PageConverter(
 {
 	m_index = m_cfg->m_indexes;
 
-	m_current_lsn = log_get_lsn();
+	m_current_lsn = log_sys->flushed_to_disk_lsn;
 	ut_a(m_current_lsn > 0);
 
 	m_offsets = m_offsets_;
@@ -2067,6 +2075,7 @@ PageConverter::update_page(
 	case FIL_PAGE_TYPE_XDES:
 		err = set_current_xdes(
 			block->page.id.page_no(), get_frame(block));
+		/* Fall through. */
 	case FIL_PAGE_INODE:
 	case FIL_PAGE_TYPE_TRX_SYS:
 	case FIL_PAGE_IBUF_FREE_LIST:
@@ -3398,6 +3407,8 @@ row_import_read_encryption_data(
 		return(DB_IO_ERROR);
 	}
 
+	lint old_size = mem_heap_get_size(table->heap);
+
 	table->encryption_key =
 		static_cast<byte*>(mem_heap_alloc(table->heap,
 						  ENCRYPTION_KEY_LEN));
@@ -3405,6 +3416,10 @@ row_import_read_encryption_data(
 	table->encryption_iv =
 		static_cast<byte*>(mem_heap_alloc(table->heap,
 						  ENCRYPTION_KEY_LEN));
+
+	lint	new_size = mem_heap_get_size(table->heap);
+	dict_sys->size += new_size - old_size;
+
 	/* Decrypt tablespace key and iv. */
 	elen = my_aes_decrypt(
 		encryption_key,
@@ -4103,14 +4118,14 @@ row_import_for_mysql(
 	fil_space_set_imported(prebuilt->table->space);
 
 	if (dict_table_is_encrypted(table)) {
-		fil_space_t*	space;
 		mtr_t		mtr;
 		byte		encrypt_info[ENCRYPTION_INFO_SIZE_V2];
 
+		fil_space_t*	space = fil_space_get(table->space);
+
 		mtr_start(&mtr);
 
-		mtr.set_named_space(table->space);
-		space = mtr_x_lock_space(table->space, &mtr);
+		mtr_x_lock_space(space, &mtr);
 
 		memset(encrypt_info, 0, ENCRYPTION_INFO_SIZE_V2);
 
@@ -4138,13 +4153,6 @@ row_import_for_mysql(
 
 	/* Update the root pages of the table's indexes. */
 	err = row_import_update_index_root(trx, table, false, true);
-
-	if (err != DB_SUCCESS) {
-		return(row_import_error(prebuilt, trx, err));
-	}
-
-	/* Update the table's discarded flag, unset it. */
-	err = row_import_update_discarded_flag(trx, table->id, false, true);
 
 	if (err != DB_SUCCESS) {
 		return(row_import_error(prebuilt, trx, err));

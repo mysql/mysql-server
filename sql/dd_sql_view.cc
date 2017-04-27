@@ -13,7 +13,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "dd_sql_view.h"
+#include "sql/dd_sql_view.h"
 
 #include <string.h>
 #include <sys/types.h>
@@ -29,12 +29,13 @@
 #include "dd/string_type.h"
 #include "dd/types/schema.h"
 #include "dd/types/view.h"
+#include "debug_sync.h"
 #include "derror.h"                     // ER_THD
 #include "error_handler.h"              // Internal_error_handler
 #include "handler.h"                    // HA_LEX_CREATE_TMP_TABLE
+#include "lex_string.h"
 #include "mdl.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_sqlcommand.h"
 #include "my_sys.h"
@@ -52,6 +53,7 @@
 #include "system_variables.h"
 #include "table.h"                      // TABLE_LIST
 #include "thr_lock.h"
+#include "transaction.h"
 
 namespace dd {
 class View_routine;
@@ -102,6 +104,8 @@ public:
     // While opening views, there is chance of hitting deadlock error. Returning
     // error in this case and resetting transaction_rollback_request here.
     m_thd->transaction_rollback_request= false;
+
+    DEBUG_SYNC(m_thd, "view_metadata_updater_context_dtor");
   }
 
 private:
@@ -136,42 +140,34 @@ public:
                                 Sql_condition::enum_severity_level*,
                                 const char*)
   {
-    bool retval= true;
-
     switch(sql_errno)
     {
     case ER_LOCK_WAIT_TIMEOUT:
     case ER_LOCK_DEADLOCK:
-      retval= false;
+      break;
     case ER_NO_SUCH_USER:
-      m_sql_errno= sql_errno;
+      m_sql_errno= ER_NO_SUCH_USER;
       break;
     default:
       m_sql_errno= ER_VIEW_INVALID;
       break;
     }
-
-    return retval;
+    return is_view_error_handled();
   };
 
-  // Method check if invalid view error is set.
-  bool is_view_invalid() { return m_sql_errno == ER_VIEW_INVALID; }
+  bool is_view_invalid() const { return m_sql_errno == ER_VIEW_INVALID; }
 
-  // Method to check if error is handler.
-  bool is_view_error_handled()
+  bool is_view_error_handled() const
   {
     /*
       Other errors apart from ER_LOCK_DEADLOCK and ER_LOCK_WAIT_TIMEOUT are
-      handled as ER_VIEW_INVALID. Warning ER_NO_SUCH_USER generated but
+      handled as ER_VIEW_INVALID. Warning ER_NO_SUCH_USER is generated but
       m_sql_errno is not set to ER_VIEW_INVALID.
     */
-    return (m_sql_errno &&
-            m_sql_errno != ER_LOCK_DEADLOCK &&
-            m_sql_errno != ER_LOCK_WAIT_TIMEOUT);
+    return m_sql_errno == ER_NO_SUCH_USER || m_sql_errno == ER_VIEW_INVALID;
   }
 
 private:
-  // Member to store errno.
   uint m_sql_errno= 0;
 };
 
@@ -264,7 +260,7 @@ static bool prepare_view_tables_list(THD *thd, const char *db,
         DBUG_RETURN(true);
 
       vw->init_one_table(db_name, schema_name.length(), vw_name,
-                         view_name.length(), nullptr, TL_WRITE, MDL_EXCLUSIVE);
+                         view_name.length(), vw_name, TL_WRITE, MDL_EXCLUSIVE);
 
       views->push_back(vw);
       prepared_view_ids.insert(view_ids.at(idx));
@@ -349,7 +345,11 @@ static bool open_views_and_update_metadata(
        thd->lex->sql_command == SQLCOM_DROP_FUNCTION ||
        thd->lex->sql_command == SQLCOM_DROP_DB);
 
-    View_metadata_updater_context vw_metadata_udpate_context(thd);
+    View_metadata_updater_context vw_metadata_update_context(thd);
+
+    // This needs to be after View_metadata_updater_context so that
+    // objects are released before metadata locks are dropped.
+    dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
 
     // If operation is drop operation then view referencing it becomes
     // invalid. Hence mark all view as invalid.
@@ -401,7 +401,7 @@ static bool open_views_and_update_metadata(
       }
       else if (error_handler.is_view_error_handled() == false)
       {
-        // Error is not handled by View_metadata_updater_error_handler.
+        // ER_LOCK_DEADLOCK or ER_LOCK_WAIT_TIMEOUT.
         DBUG_RETURN(true);
       }
       continue;
@@ -410,6 +410,7 @@ static bool open_views_and_update_metadata(
     {
       // In between listing views and locking(opening), if view is dropped and
       // created as table then skip it.
+      thd->pop_internal_handler();
       continue;
     }
 
@@ -432,7 +433,7 @@ static bool open_views_and_update_metadata(
       }
       else if (error_handler.is_view_error_handled() == false)
       {
-        // Error is not handled by View_metadata_updater_error_handler.
+        // ER_LOCK_DEADLOCK or ER_LOCK_WAIT_TIMEOUT.
         DBUG_RETURN(true);
       }
       continue;
@@ -455,8 +456,20 @@ static bool open_views_and_update_metadata(
 
     // Update view metadata. mysql_register_view with VIEW_ALTER mode, drops
     // old view object and recreates the new one with the new definition.
-    if (mysql_register_view(thd, view, enum_view_create_mode::VIEW_ALTER,
-                            commit_dd_changes))
+    bool res= mysql_register_view(thd, view, enum_view_create_mode::VIEW_ALTER);
+    if (commit_dd_changes)
+    {
+      Disable_gtid_state_update_guard disabler(thd);
+      if (res)
+      {
+        trans_rollback_stmt(thd);
+        // Full rollback in case we have THD::transaction_rollback_request.
+        trans_rollback(thd);
+      }
+      else
+        res= trans_commit_stmt(thd) || trans_commit(thd);
+    }
+    if (res)
     {
       view_lex->unit->cleanup(true);
       lex_end(view_lex);

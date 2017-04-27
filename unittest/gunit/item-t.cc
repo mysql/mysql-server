@@ -15,6 +15,9 @@
 
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
+#include <limits.h>
+#include <stddef.h>
+#include <sys/types.h>
 
 #include "fake_table.h"
 #include "item.h"
@@ -22,8 +25,11 @@
 #include "item_create.h"
 #include "item_strfunc.h"
 #include "item_timefunc.h"
+#include "lex_string.h"
 #include "mock_field_timestamp.h"
 #include "my_inttypes.h"
+#include "my_macros.h"
+#include "my_table_map.h"
 #include "sql_class.h"
 #include "test_utils.h"
 #include "tztime.h"
@@ -788,8 +794,8 @@ TEST_F(ItemTest, MysqlTimeCache)
 extern "C"
 {
   // Verifies that Item_func_conv::val_str does not call my_strntoll()
-  longlong fail_strntoll(const struct charset_info_st *, const char *s,
-                         size_t l, int base, char **e, int *err)
+  longlong fail_strntoll(const struct charset_info_st*, const char*,
+                         size_t, int, char**, int*)
   {
     ADD_FAILURE() << "Unexpected call";
     return 0;

@@ -36,12 +36,6 @@ Created 4/18/1996 Heikki Tuuri
 #include "srv0srv.h"
 #include "trx0trx.h"
 
-/** TRUE if we don't have DDTableBuffer in the system tablespace,
-this should be due to we run the server against old data files.
-Please do NOT change this when server is running.
-FIXME: This should be removed away once we can upgrade for new DD. */
-extern bool    srv_missing_dd_table_buffer;
-
 /**********************************************************************//**
 Gets a pointer to the dictionary header and x-latches its page.
 @return pointer to the dictionary header, page x-latched */
@@ -83,7 +77,6 @@ dict_hdr_get_new_id(
 	mtr_t		mtr;
 
 	mtr_start(&mtr);
-	mtr.set_sys_modified();
 
 	if (table) {
 		dict_disable_redo_if_temporary(table, &mtr);
@@ -167,7 +160,6 @@ dict_hdr_flush_row_id(void)
 	id = dict_sys->row_id;
 
 	mtr_start(&mtr);
-	mtr.set_sys_modified();
 
 	dict_hdr = dict_hdr_get(&mtr);
 
@@ -198,15 +190,6 @@ dict_hdr_create(
 			    DICT_HDR + DICT_HDR_FSEG_HEADER, mtr);
 
 	ut_a(DICT_HDR_PAGE_NO == block->page.id.page_no());
-
-	/* We create the root page for DDTableBuffer here, right after
-	all dict_header things have been created. Because
-	FSP_TBL_BUFFER_TREE_ROOT_PAGE_NO is right after
-	FSP_DICT_HDR_PAGE_NO */
-	root_page_no = btr_create(DICT_CLUSTERED, 0, univ_page_size,
-				  DICT_TBL_BUFFER_ID, dict_ind_redundant,
-				  mtr);
-	ut_ad(root_page_no == FSP_TBL_BUFFER_TREE_ROOT_PAGE_NO);
 
 	dict_header = dict_hdr_get(mtr);
 
@@ -373,6 +356,7 @@ dict_boot(void)
 
 	table->id = DICT_TABLES_ID;
 
+	dict_table_add_system_columns(table, heap);
 	dict_table_add_to_cache(table, FALSE, heap);
 	dict_sys->sys_tables = table;
 	mem_heap_empty(heap);
@@ -419,6 +403,7 @@ dict_boot(void)
 
 	table->id = DICT_COLUMNS_ID;
 
+	dict_table_add_system_columns(table, heap);
 	dict_table_add_to_cache(table, FALSE, heap);
 	dict_sys->sys_columns = table;
 	mem_heap_empty(heap);
@@ -453,6 +438,7 @@ dict_boot(void)
 
 	table->id = DICT_INDEXES_ID;
 
+	dict_table_add_system_columns(table, heap);
 	dict_table_add_to_cache(table, FALSE, heap);
 	dict_sys->sys_indexes = table;
 	mem_heap_empty(heap);
@@ -481,6 +467,7 @@ dict_boot(void)
 
 	table->id = DICT_FIELDS_ID;
 
+	dict_table_add_system_columns(table, heap);
 	dict_table_add_to_cache(table, FALSE, heap);
 	dict_sys->sys_fields = table;
 	mem_heap_free(heap);
@@ -508,13 +495,10 @@ dict_boot(void)
 
 	ibuf_init_at_db_start();
 
-	if (!srv_missing_dd_table_buffer) {
-		dict_persist->table_buffer = UT_NEW_NOKEY(DDTableBuffer());
-	}
-
 	dberr_t	err = DB_SUCCESS;
 
-	if (srv_read_only_mode && !ibuf_is_empty()) {
+	if (srv_force_recovery != SRV_FORCE_NO_LOG_REDO
+	    && srv_read_only_mode && !ibuf_is_empty()) {
 
 		ib::error() << "Change buffer must be empty when"
 			" --innodb-read-only is set!";
@@ -555,7 +539,6 @@ dict_create(void)
 	mtr_t	mtr;
 
 	mtr_start(&mtr);
-	mtr.set_sys_modified();
 
 	dict_hdr_create(&mtr);
 

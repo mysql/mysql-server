@@ -1,5 +1,4 @@
 -- source include/have_archive.inc
--- source include/not_embedded.inc
 
 --disable_warnings
 drop table if exists t1;

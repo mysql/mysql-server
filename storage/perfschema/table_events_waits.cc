@@ -18,11 +18,13 @@
   Table EVENTS_WAITS_xxx (implementation).
 */
 
+#include "storage/perfschema/table_events_waits.h"
+
 #include "field.h"
+#include "lex_string.h"
 #include "m_string.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_thread.h"
 #include "pfs_buffer_container.h"
 #include "pfs_events_waits.h"
@@ -30,7 +32,6 @@
 #include "pfs_instr.h"
 #include "pfs_instr_class.h"
 #include "pfs_timer.h"
-#include "table_events_waits.h"
 
 bool
 PFS_index_events_waits::match(PFS_thread *pfs)
@@ -744,7 +745,7 @@ static const LEX_STRING operation_names_map[] = {
   {C_STRING_WITH_LEN("rename")},
   {C_STRING_WITH_LEN("sync")},
 
-  /* Table io operations */
+  /* Table I/O operations */
   {C_STRING_WITH_LEN("fetch")},
   {C_STRING_WITH_LEN("insert")}, /* write row */
   {C_STRING_WITH_LEN("update")}, /* update row */
@@ -974,7 +975,7 @@ table_events_waits_common::read_row_values(TABLE *table,
 }
 
 PFS_engine_table *
-table_events_waits_current::create(void)
+table_events_waits_current::create(PFS_engine_table_share *)
 {
   return new table_events_waits_current();
 }
@@ -999,7 +1000,7 @@ table_events_waits_current::get_wait(PFS_thread *pfs_thread,
 
 /*
   We do not show nested events for now,
-  this will be revised with TABLE io
+  this will be revised with TABLE I/O
 */
 // #define ONLY_SHOW_ONE_WAIT
 
@@ -1094,7 +1095,7 @@ table_events_waits_current::rnd_pos(const void *pos)
 }
 
 int
-table_events_waits_current::index_init(uint idx, bool)
+table_events_waits_current::index_init(uint idx MY_ATTRIBUTE((unused)), bool)
 {
   PFS_index_events_waits *result;
   DBUG_ASSERT(idx == 0);
@@ -1177,7 +1178,7 @@ table_events_waits_current::get_row_count(void)
 }
 
 PFS_engine_table *
-table_events_waits_history::create(void)
+table_events_waits_history::create(PFS_engine_table_share *)
 {
   return new table_events_waits_history();
 }
@@ -1276,7 +1277,7 @@ table_events_waits_history::rnd_pos(const void *pos)
 }
 
 int
-table_events_waits_history::index_init(uint idx, bool)
+table_events_waits_history::index_init(uint idx MY_ATTRIBUTE((unused)), bool)
 {
   PFS_index_events_waits *result;
   DBUG_ASSERT(idx == 0);
@@ -1365,7 +1366,7 @@ table_events_waits_history::get_row_count(void)
 }
 
 PFS_engine_table *
-table_events_waits_history_long::create(void)
+table_events_waits_history_long::create(PFS_engine_table_share *)
 {
   return new table_events_waits_history_long();
 }

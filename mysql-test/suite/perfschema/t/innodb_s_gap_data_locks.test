@@ -1,5 +1,3 @@
---source include/not_embedded.inc
-
 --echo #Test for Shared, GAP locks
 
 -- connect (con1,localhost,root,,)

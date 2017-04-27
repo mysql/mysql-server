@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,9 +16,9 @@
 #ifndef DD__BOOTSTRAPPER_INCLUDED
 #define DD__BOOTSTRAPPER_INCLUDED
 
-#include "my_global.h"
 
 #include "dd/string_type.h"                    // dd::String_type
+#include "handler.h"                           // dict_init_mode_t
 
 class THD;
 
@@ -83,6 +83,7 @@ bool execute_query(THD *thd, const dd::String_type &q_buf);
 */
 
 namespace dd {
+class Dictionary_impl;
 namespace bootstrap {
 
 // Enumeration of bootstrapping stages.
@@ -234,53 +235,79 @@ bool store_plugin_IS_table_metadata(THD *thd);
 
 
 /**
-  Check if the server is starting on a data directory without dictionary
-  tables or not.
+  Initialization and verification of dictionary objects
+  after upgrade, similar to what is done after normal server
+  restart.
 
-  If the dictionary tables are present, continue with restart of the server.
-
-  If the dicionary tables are not present, create the dictionary tables in
-  existing data directory.  This function marks dd_upgrade_flag as true to
-  indicate to the server that Data dictionary is being upgraded.
-
-  metadata mysql.plugin table is migrated to the DD tables in case of upgrade.
-  mysql.plugin table is used to initialize all other Storage Engines.
-  This is necessary before migrating other user tables.
-
-  @param thd    Thread context.
-
-  @return       Upon failure, return true, otherwise false.
+  @param thd    Thread context
 */
-bool upgrade_do_pre_checks_and_initialize_dd(THD *thd);
+bool setup_dd_objects_and_collations(THD *thd);
+
 
 /**
-  Finalize upgrade to the new data-dictionary by populating
-  Data Dictionary tables with metadata.
-
-  Populate metadata in Data dictionary tables.
-  This will be done for following database objects:
-  - Databases
-  - Tables
-  - Views
-  - Stored Procedures and Stored Functions
-  - Events
-  - Triggers
+  This function is used in case of crash during upgrade.
+  It tries to initialize dictionary and calls DDSE_dict_recover.
+  InnoDB should do the recovery and empty undo log. Upgrade
+  process will do the cleanup and exit.
 
   @param thd    Thread context.
-
-  @return       Upon failure, return true, otherwise false.
 */
-bool upgrade_fill_dd_and_finalize(THD *thd);
+void recover_innodb_upon_upgrade(THD *thd);
+
 
 /**
-  Drop all DD tables in case there is an error while upgrading server.
+  Initialize InnoDB for
+  - creating new data directory : InnoDB creates system tablespace and
+                                  dictionary tablespace.
+  - normal server restart.      : Verifies existence of system and dictionary
+                                  tablespaces.
+  - in place upgrade            : Verifies existence of system tablespace and
+                                  create dictionary tablespace.
 
-  @param[in] thd               Thread context.
+  @param thd             Thread context.
+  @param dict_init_mode  mode to initialize InnoDB
+  @param version         Dictionary version.
 
   @return       Upon failure, return true, otherwise false.
 */
-bool delete_dictionary_and_cleanup(THD *thd);
-}
+bool DDSE_dict_init(THD *thd,
+                    dict_init_mode_t dict_init_mode,
+                    uint version);
+
+/**
+  Create mysql schema. Create dictionary tables inside InnoDB.
+  Create entry for dictionary tables inside dictionary tables.
+  Add hard coded data to dictionary tables.
+  Create Foreign key constraint on dictionary tables.
+
+  This function is used in both cases, new data directory initialization
+  and in place upgrade.
+
+  @param thd            Thread context.
+  @param is_dd_upgrade  Flag to indicate if it is in place upgrade.
+  @param d              Dictionary instance
+
+  @return       Upon failure, return true, otherwise false.
+
+*/
+bool initialize_dictionary(THD *thd, bool is_dd_upgrade,
+                           Dictionary_impl *d);
+
+
 }
 
+/**
+  Helper function to do rollback or commit, depending on
+  error. Also closes tables and releases transactional
+  locks, regardless of error.
+
+  @param thd   Thread
+  @param error If true, the transaction will be rolledback.
+               otherwise, it is committed.
+
+  @returns false on success, otherwise true.
+*/
+bool end_transaction(THD *thd, bool error);
+
+}
 #endif // DD__BOOTSTRAPPER_INCLUDED

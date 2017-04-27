@@ -1,6 +1,3 @@
-# Not supported in embedded
---source include/not_embedded.inc
-
 # Adding big test option for this test.
 --source include/big_test.inc
 
@@ -1247,6 +1244,8 @@ call mtr.add_suppression("\\[ERROR\\] InnoDB: If you are installing InnoDB, reme
 call mtr.add_suppression("\\[ERROR\\] InnoDB: IO Error: while reading index meta-data, expected to read 44 bytes but read only 0 bytes");
 call mtr.add_suppression("\\[ERROR\\] InnoDB: Operating system error number 2 in a file operation.");
 call mtr.add_suppression("\\[ERROR\\] InnoDB: The error means the system cannot find the path specified.");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: Unable to open tablespace .*");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: Trying to import a tablespace, but could not open the tablespace file");
 call mtr.add_suppression("\\[ERROR\\] InnoDB: Unsupported tablespace format");
 --enable_query_log
 

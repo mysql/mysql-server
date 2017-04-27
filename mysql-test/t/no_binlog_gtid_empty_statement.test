@@ -14,9 +14,6 @@
 # BUG#22811150 SQLCOM_EMPTY_QUERY should be considered GTID innocent
 #
 
-# Test is not required to run against embedded server
---source include/not_embedded.inc
-
 USE test;
 
 # With anonymous GTIDs

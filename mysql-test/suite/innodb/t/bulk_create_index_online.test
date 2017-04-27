@@ -2,7 +2,6 @@
 --echo # BUG#19316315 CRASH RECOVERY FAILS AFTER ONLINE ADD INDEX
 --echo #
 
---source include/not_embedded.inc
 --source include/have_debug_sync.inc
 
 CREATE TABLE t1 (c1 INT PRIMARY KEY, c2 INT) ENGINE=InnoDB;
@@ -30,7 +29,7 @@ SELECT * FROM t1;
 DROP TABLE t1;
 
 # Clean up temporary tables left by crash.
-# TODO: Revisit this after WL#7016
+# TODO: Revisit this after WL#9536
 --disable_query_log
 SET SESSION debug= "+d,skip_dd_table_access_check";
 DELETE FROM mysql.index_column_usage WHERE column_id IN (

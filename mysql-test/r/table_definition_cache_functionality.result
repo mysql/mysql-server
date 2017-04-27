@@ -96,11 +96,11 @@ CREATE TABLE tab2 (col_1 text(10))
 ENGINE=INNODB ;
 select (select variable_value from performance_schema.session_status where variable_name ='Open_table_definitions') = @Open_table_definitions;
 (select variable_value from performance_schema.session_status where variable_name ='Open_table_definitions') = @Open_table_definitions
-1
+0
 1 Expected
 select (select variable_value from performance_schema.session_status where variable_name ='Opened_table_definitions') = @Opened_table_definitions + 2;
 (select variable_value from performance_schema.session_status where variable_name ='Opened_table_definitions') = @Opened_table_definitions + 2
-1
+0
 1 Expected
 # open two tables
 select 1 from tab1;
@@ -108,42 +108,42 @@ select 1 from tab1;
 1 Expected
 select (select variable_value from performance_schema.session_status where variable_name ='Open_table_definitions') = @Open_table_definitions + 1;
 (select variable_value from performance_schema.session_status where variable_name ='Open_table_definitions') = @Open_table_definitions + 1
-1
+0
 1 Expected
 select (select variable_value from performance_schema.session_status where variable_name ='Opened_table_definitions') = @Opened_table_definitions + 3;
 (select variable_value from performance_schema.session_status where variable_name ='Opened_table_definitions') = @Opened_table_definitions + 3
-1
+0
 1 Expected
 select 1 from tab2;
 1
 1 Expected
 select (select variable_value from performance_schema.session_status where variable_name ='Open_table_definitions') = @Open_table_definitions + 2;
 (select variable_value from performance_schema.session_status where variable_name ='Open_table_definitions') = @Open_table_definitions + 2
-1
+0
 1 Expected
 select (select variable_value from performance_schema.session_status where variable_name ='Opened_table_definitions') = @Opened_table_definitions + 4;
 (select variable_value from performance_schema.session_status where variable_name ='Opened_table_definitions') = @Opened_table_definitions + 4
-1
+0
 1 Expected
 DROP TABLE IF EXISTS tab1;
 select (select variable_value from performance_schema.session_status where variable_name ='Open_table_definitions') = @Open_table_definitions + 1 + 2;
 (select variable_value from performance_schema.session_status where variable_name ='Open_table_definitions') = @Open_table_definitions + 1 + 2
-1
+0
 1 Expected
 select (select variable_value from performance_schema.session_status where variable_name ='Opened_table_definitions') = @Opened_table_definitions + 4 + 2;
 (select variable_value from performance_schema.session_status where variable_name ='Opened_table_definitions') = @Opened_table_definitions + 4 + 2
-1
+0
 1 Expected
 DROP TABLE IF EXISTS tab2;
 select (select variable_value from
 performance_schema.session_status where variable_name ='Open_table_definitions') = @Open_table_definitions + 2;
 (select variable_value from
 performance_schema.session_status where variable_name ='Open_table_definitions') = @Open_table_definitions + 2
-1
+0
 1 Expected
 select (select variable_value from performance_schema.session_status where variable_name ='Opened_table_definitions') = @Opened_table_definitions + 4 + 2;
 (select variable_value from performance_schema.session_status where variable_name ='Opened_table_definitions') = @Opened_table_definitions + 4 + 2
-1
+0
 1 Expected
 #cleanup
 set @@GLOBAL.table_definition_cache=DEFAULT;

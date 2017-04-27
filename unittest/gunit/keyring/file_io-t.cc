@@ -15,12 +15,12 @@
 
 #include <fcntl.h>
 #include <gtest/gtest.h>
-#include <my_global.h>
 
 #include "current_thd.h"
 #include "file_io.h"
 #include "mock_logger.h"
 #include "my_inttypes.h"
+#include "my_io.h"
 #include "test_utils.h"
 
 #if defined(HAVE_PSI_INTERFACE)
@@ -50,7 +50,8 @@ namespace keyring__file_io_unittest
 
       //Set user as super
       Security_context* sec_ctx= current_thd->security_context();
-      sec_ctx->set_master_access(sec_ctx->master_access() | SUPER_ACL);
+      sec_ctx->set_master_access(sec_ctx->master_access() |
+                                 SUPER_ACL);
     }
 
     virtual void TearDown()

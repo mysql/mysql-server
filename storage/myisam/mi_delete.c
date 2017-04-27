@@ -17,10 +17,12 @@
 
 #include <errno.h>
 #include <fcntl.h>
+#include <sys/types.h>
 
 #include "fulltext.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
+#include "my_macros.h"
 #include "rt_index.h"
 
 static int d_search(MI_INFO *info,MI_KEYDEF *keyinfo,uint comp_flag,
@@ -225,7 +227,7 @@ static int d_search(MI_INFO *info, MI_KEYDEF *keyinfo,
 {
   int flag,ret_value,save_flag;
   uint length,nod_flag,search_key_length;
-  my_bool last_key;
+  bool last_key;
   uchar *leaf_buff,*keypos;
   my_off_t leaf_page= 0, next_block;
   uchar lastkey[MI_MAX_KEY_BUFF];
@@ -380,7 +382,7 @@ static int d_search(MI_INFO *info, MI_KEYDEF *keyinfo,
 	goto err;
       }
       ret_value=_mi_insert(info,keyinfo,key,anc_buff,keypos,lastkey,
-			   (uchar*) 0,(uchar*) 0,(my_off_t) 0,(my_bool) 0);
+			   (uchar*) 0,(uchar*) 0,(my_off_t) 0,(bool) 0);
     }
   }
   if (ret_value == 0 && mi_getint(anc_buff) > keyinfo->block_length)

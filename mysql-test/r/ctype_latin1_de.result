@@ -593,36 +593,6 @@ hex(weight_string(cast(_latin1 0x808080 as char), 5, 4, 0xC0))
 select hex(weight_string(cast(_latin1 0x808080 as char),25, 4, 0xC0));
 hex(weight_string(cast(_latin1 0x808080 as char),25, 4, 0xC0))
 80808020202020202020202020202020202020202020202020
-select @@collation_connection;
-@@collation_connection
-latin1_german2_ci
-select hex(weight_string('a' LEVEL 1));
-hex(weight_string('a' LEVEL 1))
-41
-select hex(weight_string('A' LEVEL 1));
-hex(weight_string('A' LEVEL 1))
-41
-select hex(weight_string('abc' LEVEL 1));
-hex(weight_string('abc' LEVEL 1))
-414243
-select hex(weight_string('abc' as char(2) LEVEL 1));
-hex(weight_string('abc' as char(2) LEVEL 1))
-4142
-select hex(weight_string('abc' as char(3) LEVEL 1));
-hex(weight_string('abc' as char(3) LEVEL 1))
-414243
-select hex(weight_string('abc' as char(5) LEVEL 1));
-hex(weight_string('abc' as char(5) LEVEL 1))
-4142432020
-select hex(weight_string('abc' as char(5) LEVEL 1 REVERSE));
-hex(weight_string('abc' as char(5) LEVEL 1 REVERSE))
-2020434241
-select hex(weight_string('abc' as char(5) LEVEL 1 DESC));
-hex(weight_string('abc' as char(5) LEVEL 1 DESC))
-BEBDBCDFDF
-select hex(weight_string('abc' as char(5) LEVEL 1 DESC REVERSE));
-hex(weight_string('abc' as char(5) LEVEL 1 DESC REVERSE))
-DFDFBCBDBE
 select hex(weight_string('Ä'));
 hex(weight_string('Ä'))
 4145
@@ -652,29 +622,29 @@ hex(weight_string('ß'))
 5353
 select hex(weight_string('ä' as char(1)));
 hex(weight_string('ä' as char(1)))
-41
+4145
 select hex(weight_string('ö' as char(1)));
 hex(weight_string('ö' as char(1)))
-4F
+4F45
 select hex(weight_string('ü' as char(1)));
 hex(weight_string('ü' as char(1)))
-55
+5545
 select hex(weight_string('ß' as char(1)));
 hex(weight_string('ß' as char(1)))
-53
+5353
 select hex(weight_string('xä' as char(2)));
 hex(weight_string('xä' as char(2)))
-5841
+584145
 select hex(weight_string('xö' as char(2)));
 hex(weight_string('xö' as char(2)))
-584F
+584F45
 select hex(weight_string('xü' as char(2)));
 hex(weight_string('xü' as char(2)))
-5855
+585545
 select hex(weight_string('xß' as char(2)));
 hex(weight_string('xß' as char(2)))
-5853
+585353
 #
 # End of 5.6 tests
 #
-ALTER SCHEMA test COLLATE latin1_swedish_ci;
+ALTER SCHEMA test COLLATE utf8mb4_0900_ai_ci;

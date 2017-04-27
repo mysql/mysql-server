@@ -15,6 +15,8 @@
 
 /* close a isam-database */
 
+#include <stddef.h>
+
 #include "my_dbug.h"
 #include "myrg_def.h"
 

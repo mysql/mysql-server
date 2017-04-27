@@ -22,14 +22,14 @@
   This code needs extra visibility in the lexer structures
 */
 
+#include "storage/perfschema/pfs_digest.h"
+
 #include <string.h>
 
 #include "my_compiler.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_sys.h"
 #include "pfs_builtin_memory.h"
-#include "pfs_digest.h"
 #include "pfs_global.h"
 #include "pfs_instr.h"
 #include "sql_get_diagnostics.h"
@@ -201,7 +201,7 @@ get_digest_hash_pins(PFS_thread *thread)
   return thread->m_digest_hash_pins;
 }
 
-PFS_statement_stat *
+PFS_statements_digest_stat *
 find_or_create_digest(PFS_thread *thread,
                       const sql_digest_storage *digest_storage,
                       const char *schema_name,
@@ -264,7 +264,7 @@ search:
     pfs = *entry;
     pfs->m_last_seen = now;
     lf_hash_search_unpin(pins);
-    return &pfs->m_stat;
+    return pfs;
   }
 
   lf_hash_search_unpin(pins);
@@ -280,7 +280,7 @@ search:
       pfs->m_first_seen = now;
     }
     pfs->m_last_seen = now;
-    return &pfs->m_stat;
+    return pfs;
   }
 
   while (++attempts <= digest_max)
@@ -290,10 +290,11 @@ search:
     if (safe_index == 0)
     {
       /* Record [0] is reserved. */
-      safe_index = 1;
+      continue;
     }
 
     /* Add a new record in digest stat array. */
+    DBUG_ASSERT(safe_index < digest_max);
     pfs = &statements_digest_stat_array[safe_index];
 
     if (pfs->m_lock.is_free())
@@ -312,11 +313,13 @@ search:
         pfs->m_first_seen = now;
         pfs->m_last_seen = now;
 
+        pfs->m_histogram.reset();
+
         res = lf_hash_insert(&digest_hash, pins, &pfs);
         if (likely(res == 0))
         {
           pfs->m_lock.dirty_to_allocated(&dirty_state);
-          return &pfs->m_stat;
+          return pfs;
         }
 
         pfs->m_lock.dirty_to_free(&dirty_state);
@@ -349,7 +352,7 @@ search:
     pfs->m_first_seen = now;
   }
   pfs->m_last_seen = now;
-  return &pfs->m_stat;
+  return pfs;
 }
 
 static void
@@ -432,4 +435,20 @@ reset_esms_by_digest()
   */
   PFS_atomic::store_u32(&digest_monotonic_index.m_u32, 1);
   digest_full = false;
+}
+
+void
+reset_histogram_by_digest()
+{
+  uint index;
+
+  if (statements_digest_stat_array == NULL)
+  {
+    return;
+  }
+
+  for (index = 0; index < digest_max; index++)
+  {
+    statements_digest_stat_array[index].m_histogram.reset();
+  }
 }

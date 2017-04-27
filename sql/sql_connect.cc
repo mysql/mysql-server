@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2007, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2007, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -47,11 +47,11 @@
 #include "hostname.h"                   // Host_errors
 #include "item_func.h"                  // mqh_used
 #include "key.h"
+#include "lex_string.h"
 #include "log.h"                        // sql_print_information
 #include "m_ctype.h"
 #include "m_string.h"                   // my_stpcpy
 #include "my_command.h"
-#include "my_config.h"
 #include "my_dbug.h"
 #include "my_sqlcommand.h"
 #include "my_sys.h"
@@ -514,7 +514,7 @@ static int check_connection(THD *thd)
 
   if (!thd->m_main_security_ctx.host().length)     // If TCP/IP connection
   {
-    my_bool peer_rc;
+    bool peer_rc;
     char ip[NI_MAXHOST];
     LEX_CSTRING main_sctx_ip;
 
@@ -824,7 +824,9 @@ static void prepare_new_connection_state(THD* thd)
   thd->set_command(COM_SLEEP);
   thd->init_query_mem_roots();
 
-  if (opt_init_connect.length && !(sctx->check_access(SUPER_ACL)))
+  if (opt_init_connect.length &&
+      !(sctx->check_access(SUPER_ACL) ||
+        sctx->has_global_grant(STRING_WITH_LEN("CONNECTION_ADMIN")).first))
   {
     execute_init_command(thd, &opt_init_connect, &LOCK_sys_init_connect);
     if (thd->is_error())

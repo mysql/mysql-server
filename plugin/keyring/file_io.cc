@@ -13,9 +13,12 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include "my_config.h"
+
 #include <errno.h>
-#include <my_global.h>
 #include <mysql/psi/mysql_file.h>
+#include <stdarg.h>
+#include <sys/types.h>
 #include <sstream>
 #include <utility>
 
@@ -29,7 +32,7 @@
 namespace keyring
 {
 
-my_bool is_super_user()
+bool is_super_user()
 {
   THD *thd = current_thd;
   MYSQL_SECURITY_CONTEXT sec_ctx;
@@ -44,8 +47,8 @@ my_bool is_super_user()
   return has_super_privilege;
 }
 
-File File_io::open(PSI_file_key file_data_key, const char *filename, int flags,
-                   myf myFlags)
+File File_io::open(PSI_file_key file_data_key MY_ATTRIBUTE((unused)),
+                   const char *filename, int flags, myf myFlags)
 {
   File file= mysql_file_open(file_data_key, filename, flags, MYF(0));
   if (file < 0  && (myFlags & MY_WME))
@@ -157,7 +160,7 @@ int File_io::fstat(File file, MY_STAT *stat_area, myf myFlags)
   return result;
 }
 
-my_bool File_io::remove(const char *filename, myf myFlags)
+bool File_io::remove(const char *filename, myf myFlags)
 {
   if (::remove(filename) != 0 && (myFlags & MY_WME))
   {
@@ -173,7 +176,7 @@ my_bool File_io::remove(const char *filename, myf myFlags)
   return FALSE;
 }
 
-my_bool File_io::truncate(File file, myf myFlags)
+bool File_io::truncate(File file, myf myFlags)
 {
 #ifdef _WIN32
   LARGE_INTEGER length;

@@ -66,6 +66,11 @@ The following options may be given as the first argument:
  When statements cannot be written to the binary log due
  to a fatal error, the server can either ignore the error
  and let the master continue, or abort.
+ --binlog-expire-logs-seconds=# 
+ If non-zero, binary logs will be purged after
+ (binlog_expire_logs_seconds + 24 * 60 * 60 *
+ expire_logs_days) seconds; possible purges happen at
+ startup and at binary log rotation
  --binlog-format=name 
  What form of binary logging the master will use: either
  ROW for row-based binary logging, STATEMENT for
@@ -134,6 +139,11 @@ The following options may be given as the first argument:
  the table) is logged in the before image, and only
  changed columns are logged in the after image. (Default:
  FULL).
+ --binlog-row-metadata=name 
+ Controls whether metadata is logged using FULL or MINIMAL
+ format. FULL causes all metadata to be logged; MINIMAL
+ means that only metadata actually required by slave is
+ logged. Default: MINIMAL.
  --binlog-rows-query-log-events 
  Allow writing of Rows_query_log events into binary log.
  --binlog-stmt-cache-size=# 
@@ -141,6 +151,13 @@ The following options may be given as the first argument:
  non-transactional engines for the binary log. If you
  often use statements updating a great number of rows, you
  can increase this to get more performance
+ --binlog-transaction-dependency-history-size=# 
+ Maximum number of rows to keep in the writeset history.
+ --binlog-transaction-dependency-tracking=name 
+ Selects the source of dependency information from which
+ to assess which transactions can be executed in parallel
+ by the slave's multi-threaded applier. Possible values
+ are COMMIT_ORDER, WRITESET and WRITESET_SESSION.
  --block-encryption-mode=name 
  mode for AES_ENCRYPT/AES_DECRYPT
  --bulk-insert-buffer-size=# 
@@ -252,8 +269,10 @@ The following options may be given as the first argument:
  -T, --exit-info[=#] Used for debugging. Use at your own risk.
  --expire-logs-days=# 
  If non-zero, binary logs will be purged after
- expire_logs_days days; possible purges happen at startup
- and at binary log rotation
+ expire_logs_days days; or (binlog_expire_logs_seconds +
+ 24 * 60 * 60 * expire_logs_days) seconds if
+ binlog_expire_logs_seconds has a non zero value; possible
+ purges happen at startup and at binary log rotation
  --explicit-defaults-for-timestamp 
  This option causes CREATE TABLE to create all TIMESTAMP
  columns as NULL with DEFAULT NULL attribute, Without this
@@ -681,9 +700,11 @@ The following options may be given as the first argument:
  --performance-schema-consumer-events-transactions-current 
  Default startup value for the events_transactions_current
  consumer.
+ (Defaults to on; use --skip-performance-schema-consumer-events-transactions-current to disable.)
  --performance-schema-consumer-events-transactions-history 
  Default startup value for the events_transactions_history
  consumer.
+ (Defaults to on; use --skip-performance-schema-consumer-events-transactions-history to disable.)
  --performance-schema-consumer-events-transactions-history-long 
  Default startup value for the
  events_transactions_history_long consumer.
@@ -1163,7 +1184,8 @@ The following options may be given as the first argument:
  the SUPER privilege are affected, unlike read_only. 
  Setting super_read_only to ON also sets read_only to ON.
  -s, --symbolic-links 
- Enable symbolic link support.
+ Enable symbolic link support (deprecated and will be 
+ removed in a future release).
  --sync-binlog=#     Synchronously flush binary log to disk after every #th
  write to the file. Use 0 to disable synchronous flushing
  --sync-master-info=# 
@@ -1252,6 +1274,7 @@ binlog-cache-size 32768
 binlog-checksum CRC32
 binlog-direct-non-transactional-updates FALSE
 binlog-error-action ABORT_SERVER
+binlog-expire-logs-seconds 0
 binlog-format ROW
 binlog-group-commit-sync-delay 0
 binlog-group-commit-sync-no-delay-count 0
@@ -1260,17 +1283,20 @@ binlog-max-flush-queue-time 0
 binlog-order-commits TRUE
 binlog-row-event-max-size 8192
 binlog-row-image FULL
+binlog-row-metadata MINIMAL
 binlog-rows-query-log-events FALSE
 binlog-stmt-cache-size 32768
+binlog-transaction-dependency-history-size 25000
+binlog-transaction-dependency-tracking COMMIT_ORDER
 block-encryption-mode aes-128-ecb
 bulk-insert-buffer-size 8388608
 character-set-client-handshake TRUE
 character-set-filesystem binary
-character-set-server latin1
+character-set-server utf8mb4
 character-sets-dir MYSQL_CHARSETSDIR/
 check-proxy-users FALSE
 chroot (No default value)
-collation-server latin1_swedish_ci
+collation-server utf8mb4_0900_ai_ci
 completion-type NO_CHAIN
 concurrent-insert AUTO
 connect-timeout 10
@@ -1429,8 +1455,8 @@ performance-schema-consumer-events-stages-history-long FALSE
 performance-schema-consumer-events-statements-current TRUE
 performance-schema-consumer-events-statements-history TRUE
 performance-schema-consumer-events-statements-history-long FALSE
-performance-schema-consumer-events-transactions-current FALSE
-performance-schema-consumer-events-transactions-history FALSE
+performance-schema-consumer-events-transactions-current TRUE
+performance-schema-consumer-events-transactions-history TRUE
 performance-schema-consumer-events-transactions-history-long FALSE
 performance-schema-consumer-events-waits-current FALSE
 performance-schema-consumer-events-waits-history FALSE
@@ -1439,7 +1465,7 @@ performance-schema-consumer-global-instrumentation TRUE
 performance-schema-consumer-statements-digest TRUE
 performance-schema-consumer-thread-instrumentation TRUE
 performance-schema-digests-size -1
-performance-schema-error-size 1080
+performance-schema-error-size 1087
 performance-schema-events-stages-history-long-size -1
 performance-schema-events-stages-history-size -1
 performance-schema-events-statements-history-long-size -1
@@ -1488,7 +1514,7 @@ profiling-history-size 15
 query-alloc-block-size 8192
 query-cache-limit 1048576
 query-cache-min-res-unit 4096
-query-cache-size 1048576
+query-cache-size 0
 query-cache-type OFF
 query-cache-wlock-invalidate FALSE
 query-prealloc-size 8192

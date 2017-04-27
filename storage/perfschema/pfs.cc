@@ -13,21 +13,28 @@
   along with this program; if not, write to the Free Software Foundation,
   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
+#include "storage/perfschema/pfs.h"
+
+#include "my_config.h"
+
 #include <errno.h>
 #include <fcntl.h>
+#include <sys/types.h>
+#include <time.h>
 
 /**
   @file storage/perfschema/pfs.cc
   The performance schema implementation of all instruments.
 */
+#include "lex_string.h"
 #include "mdl.h" /* mdl_key_init */
 #include "my_compiler.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_inttypes.h"
+#include "my_io.h"
+#include "my_macros.h"
 #include "my_thread.h"
 #include "mysql/psi/mysql_thread.h"
-#include "pfs.h"
 #include "pfs_account.h"
 #include "pfs_column_values.h"
 #include "pfs_data_lock.h"
@@ -137,7 +144,7 @@ report_memory_accounting_error(const char *api_name,
   as opposed to the INFORMATION_SCHEMA whose purpose is to inspect metadata.
 
   From a user point of view, the performance schema consists of:
-  - a dedicated database schema, named PERFORMANCE_SCHEMA,
+  - a dedicated database schema, named @c performance_schema,
   - SQL tables, used to query the server internal state or change
   configuration settings.
 
@@ -171,29 +178,35 @@ report_memory_accounting_error(const char *api_name,
 
   @subsection INT_COMPILING Compiling interface
 
-  The implementation of the performance schema can be enabled or disabled at
-  build time, when building MySQL from the source code.
+  The performance schema storage engine, the code that expose SQL tables,
+  is always compiled.
 
-  When building with the performance schema code, some compilation flags
-  are available to change the default values used in the code, if required.
+  The instrumentation points, that collects data to the storage engine,
+  can be enabled or disabled at build time,
+  when building MySQL from the source code.
+  Each kind of instrumentation can be enabled or disabled independently.
 
   For more details, see:
-  @verbatim ./configure --help @endverbatim
+  @verbatim ccmake @endverbatim
+
+  Press [t] to toggle advanced mode (Currently Off)
+  and search for options named like @c DISABLE_PSI_MUTEX.
 
   To compile with the performance schema:
-  @verbatim ./configure --with-perfschema @endverbatim
+  @verbatim cmake @endverbatim
+
+  To compile without some performance schema instrumentation:
+  @verbatim cmake -DDISABLE_PSI_MUTEX @endverbatim
 
   The implementation of all the compiling options is located in
-  @verbatim ./storage/perfschema/plug.in @endverbatim
+  @verbatim ./storage/perfschema/CMakeLists.txt @endverbatim
 
   @subsection INT_STARTUP Server startup interface
 
-  The server startup interface consists of the "./mysqld ..."
+  The server startup interface consists of the @code ./mysqld ... @endcode
   command line used to start the server.
-  When the performance schema is compiled in the server binary,
-  extra command line options are available.
 
-  These extra start options allow the DBA to:
+  These start options allow the DBA to:
   - enable or disable the performance schema
   - specify some sizing parameters.
 
@@ -201,7 +214,7 @@ report_memory_accounting_error(const char *api_name,
   @verbatim ./sql/mysqld --verbose --help  @endverbatim
 
   The implementation of all the startup options is located in
-  @verbatim ./sql/mysqld.cc, my_long_options[] @endverbatim
+  file @code ./sql/mysqld.cc @endcode, see for example @c Sys_pfs_enabled.
 
   @subsection INT_BOOTSTRAP Server bootstrap interface
 
@@ -248,8 +261,7 @@ report_memory_accounting_error(const char *api_name,
   It displays data related to the memory usage of the performance schema,
   as well as statistics about lost events, if any.
 
-  The SHOW STATUS command is implemented in
-  @verbatim ./storage/perfschema/pfs_engine_table.cc @endverbatim
+  The SHOW STATUS command is implemented in @c pfs_show_status.
 
   @subsection INT_QUERY Query interface
 
@@ -269,7 +281,8 @@ report_memory_accounting_error(const char *api_name,
   in behavior.
 
   To achieve this, the overall design of the performance schema complies
-  with the following very severe design constraints:
+  (for the most part, there are some exceptions)
+  with the following very severe design constraints.
 
   The parser is unchanged. There are no new keywords, no new statements.
   This guarantees that existing applications will run the same way with or
@@ -280,10 +293,15 @@ report_memory_accounting_error(const char *api_name,
   code will proceed.
 
   None of the instrumentation points allocate memory.
-  All the memory used by the performance schema is pre-allocated at startup,
-  and is considered "static" during the server life time.
+  In general, the memory used by the performance schema is pre-allocated at
+  startup.
+  For some instrumentations, memory is pre-allocated incrementally, by chunks,
+  at runtime.
+  In both cases, memory is considered "static" during the server life time.
+  Performance schema memory can be reused, but is never returned.
 
-  None of the instrumentation points use any pthread_mutex, pthread_rwlock,
+  For nominal code paths,
+  none of the instrumentation points use any pthread_mutex, pthread_rwlock,
   or pthread_cond (or platform equivalents).
   Executing the instrumentation point should not cause thread scheduling to
   change in the server.
@@ -294,7 +312,7 @@ report_memory_accounting_error(const char *api_name,
   - mutex free
   - rwlock free
 
-  TODO: All the code located in storage/perfschema is malloc free,
+  Currently, most of the code located in storage/perfschema is malloc free,
   but unfortunately the usage of LF_HASH introduces some memory allocation.
   This should be revised if possible, to use a lock-free,
   malloc-free hash code table.
@@ -388,10 +406,11 @@ report_memory_accounting_error(const char *api_name,
   from the server binary, using build time configuration options.
 
   Regardless, the following types of deployment are valid:
-  - a server supporting the performance schema + a storage engine
-  that is not instrumented
-  - a server not supporting the performance schema + a storage engine
-  that is instrumented
+  - a server supporting the performance schema instrumentation X + a storage
+  engine
+  that is not instrumented for X
+  - a server not supporting the performance schema Y + a storage engine
+  that is instrumented for Y
 
   @subpage PAGE_PFS_PSI
 
@@ -415,19 +434,20 @@ report_memory_accounting_error(const char *api_name,
   that provides many helpers for a developer instrumenting some code,
   to make the instrumentation as easy as possible.
 
-  The ABI layer consists of:
+  The ABI layer consists of files such as:
 @code
-#include "mysql/psi/psi.h"
+#include "mysql/psi/psi_mutex.h"
+#include "mysql/psi/psi_file.h"
 @endcode
 
-  The API layer consists of:
+  The API layer consists of files such as:
 @code
 #include "mysql/psi/mutex_mutex.h"
 #include "mysql/psi/mutex_file.h"
 @endcode
 
-  The first helper is for mutexes, rwlocks and conditions,
-  the second for file io.
+  The first helper is for mutexes,
+  the second for file I/O.
 
   The API layer exposes C macros and typedefs which will expand:
   - either to non-instrumented code, when compiled without the performance
@@ -453,7 +473,7 @@ report_memory_accounting_error(const char *api_name,
   but the list will constantly grow when more instruments are supported.
   To support binary compatibility with plugins compiled with a different
   version of the instrumentation, the ABI itself is versioned
-  (see @c PSI_v1, @c PSI_v2).
+  (see @c PSI_MUTEX_VERSION_1, @c PSI_MUTEX_VERSION_2).
 
   For a given instrumentation point in the API, the basic coding pattern
   used is:
@@ -470,8 +490,9 @@ report_memory_accounting_error(const char *api_name,
   in implemented, when the instrumentation is compiled in:
 
 @verbatim
-static inline int mysql_mutex_lock(
-  mysql_mutex_t *that, myf flags, const char *src_file, uint src_line)
+static inline int
+mysql_mutex_lock(
+  mysql_mutex_t *that, const char *src_file, uint src_line)
 {
   int result;
   struct PSI_mutex_locker_state state;
@@ -479,7 +500,7 @@ static inline int mysql_mutex_lock(
 
   ............... (a)
   locker= PSI_MUTEX_CALL(start_mutex_wait)(&state, that->p_psi, PSI_MUTEX_LOCK,
-                                           locker, src_file, src_line);
+                                           src_file, src_line);
 
   ............... (b)
   result= pthread_mutex_lock(&that->m_mutex);
@@ -520,7 +541,7 @@ static inline int mysql_mutex_lock(...)
 
   ............... (a)
   locker= pfs_start_mutex_wait_v1(&state, that->p_psi, PSI_MUTEX_LOCK,
-                                  locker, src_file, src_line);
+                                  src_file, src_line);
 
   ............... (b)
   result= pthread_mutex_lock(&that->m_mutex);
@@ -550,7 +571,7 @@ static inline int mysql_mutex_lock(...)
 
   ............... (a)
   locker= PSI_server->start_mutex_wait(&state, that->p_psi, PSI_MUTEX_LOCK,
-                                       locker, src_file, src_line);
+                                       src_file, src_line);
 
   ............... (b)
   result= pthread_mutex_lock(&that->m_mutex);
@@ -847,9 +868,9 @@ static inline int mysql_mutex_lock(...)
   - mutexes (mysql_mutex_t)
   - rwlocks (mysql_rwlock_t)
   - conditions (mysql_cond_t)
-  - file io (MYSQL_FILE)
-  - socket io (MYSQL_SOCKET)
-  - table io
+  - file I/O (MYSQL_FILE)
+  - socket I/O (MYSQL_SOCKET)
+  - table I/O
   - table lock
   - idle
 
@@ -1076,7 +1097,7 @@ static inline int mysql_mutex_lock(...)
   @subsection IMPL_WAIT_TABLE Table waits
 
 @verbatim
-  table_locker(Thread Th, Table Tb, Event = io or lock)
+  table_locker(Thread Th, Table Tb, Event = I/O or lock)
    |
    | [1]
    |
@@ -1452,33 +1473,19 @@ static inline int mysql_mutex_lock(...)
   @ingroup performance_schema_implementation
 */
 
-thread_local_key_t THR_PFS;
-thread_local_key_t THR_PFS_VG;   // global_variables
-thread_local_key_t THR_PFS_SV;   // session_variables
-thread_local_key_t THR_PFS_VBT;  // variables_by_thread
-thread_local_key_t THR_PFS_SG;   // global_status
-thread_local_key_t THR_PFS_SS;   // session_status
-thread_local_key_t THR_PFS_SBT;  // status_by_thread
-thread_local_key_t THR_PFS_SBU;  // status_by_user
-thread_local_key_t THR_PFS_SBH;  // status_by_host
-thread_local_key_t THR_PFS_SBA;  // status_by_account
-
-bool THR_PFS_initialized = false;
+thread_local PFS_thread *THR_PFS= nullptr;
+thread_local PFS_table_context *THR_PFS_contexts[THR_PFS_NUM_KEYS];
 
 static inline PFS_thread *
 my_thread_get_THR_PFS()
 {
-  DBUG_ASSERT(THR_PFS_initialized);
-  PFS_thread *thread = static_cast<PFS_thread *>(my_get_thread_local(THR_PFS));
-  DBUG_ASSERT(thread == NULL || sanitize_thread(thread) != NULL);
-  return thread;
+  return THR_PFS;
 }
 
 static inline void
 my_thread_set_THR_PFS(PFS_thread *pfs)
 {
-  DBUG_ASSERT(THR_PFS_initialized);
-  my_set_thread_local(THR_PFS, pfs);
+  THR_PFS= pfs;
 }
 
 /**
@@ -1607,7 +1614,7 @@ build_prefix(const LEX_STRING *prefix,
   char *out_ptr = output;
   size_t prefix_length = prefix->length;
 
-  if (unlikely((prefix_length + len + 1) >= PFS_MAX_FULL_PREFIX_NAME_LENGTH))
+  if (unlikely((prefix_length + len + 2) >= PFS_MAX_FULL_PREFIX_NAME_LENGTH))
   {
     pfs_print_error("build_prefix: prefix+category is too long <%s> <%s>\n",
                     prefix->str,
@@ -2012,7 +2019,7 @@ pfs_destroy_cond_v1(PSI_cond *cond)
   @sa PSI_v1::get_table_share.
 */
 PSI_table_share *
-pfs_get_table_share_v1(my_bool temporary, TABLE_SHARE *share)
+pfs_get_table_share_v1(bool temporary, TABLE_SHARE *share)
 {
   /* Ignore temporary tables and views. */
   if (temporary || share->is_view)
@@ -2052,7 +2059,7 @@ pfs_release_table_share_v1(PSI_table_share *share)
   @sa PSI_v1::drop_table_share.
 */
 void
-pfs_drop_table_share_v1(my_bool temporary,
+pfs_drop_table_share_v1(bool temporary,
                         const char *schema_name,
                         int schema_name_length,
                         const char *table_name,
@@ -5940,7 +5947,7 @@ pfs_end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
    Capture statement stats by digest.
   */
   const sql_digest_storage *digest_storage = NULL;
-  PFS_statement_stat *digest_stat = NULL;
+  PFS_statements_digest_stat *digest_stat = NULL;
   PFS_program *pfs_program = NULL;
   PFS_prepared_stmt *pfs_prepared_stmt = NULL;
 
@@ -6083,33 +6090,55 @@ pfs_end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
 
   if (digest_stat != NULL)
   {
-    digest_stat->mark_used();
+    digest_stat->m_stat.mark_used();
 
     if (flags & STATE_FLAG_TIMED)
     {
-      digest_stat->aggregate_value(wait_time);
+      digest_stat->m_stat.aggregate_value(wait_time);
+
+      time_normalizer *normalizer = time_normalizer::get(wait_timer);
+      ulong bucket_index = normalizer->bucket_index(wait_time);
+
+      /* Update digest histogram. */
+      digest_stat->m_histogram.increment_bucket(bucket_index);
+
+      /* Update global histogram. */
+      global_statements_histogram.increment_bucket(bucket_index);
     }
     else
     {
-      digest_stat->aggregate_counted();
+      digest_stat->m_stat.aggregate_counted();
     }
 
-    digest_stat->m_lock_time += state->m_lock_time;
-    digest_stat->m_rows_sent += state->m_rows_sent;
-    digest_stat->m_rows_examined += state->m_rows_examined;
-    digest_stat->m_created_tmp_disk_tables += state->m_created_tmp_disk_tables;
-    digest_stat->m_created_tmp_tables += state->m_created_tmp_tables;
-    digest_stat->m_select_full_join += state->m_select_full_join;
-    digest_stat->m_select_full_range_join += state->m_select_full_range_join;
-    digest_stat->m_select_range += state->m_select_range;
-    digest_stat->m_select_range_check += state->m_select_range_check;
-    digest_stat->m_select_scan += state->m_select_scan;
-    digest_stat->m_sort_merge_passes += state->m_sort_merge_passes;
-    digest_stat->m_sort_range += state->m_sort_range;
-    digest_stat->m_sort_rows += state->m_sort_rows;
-    digest_stat->m_sort_scan += state->m_sort_scan;
-    digest_stat->m_no_index_used += state->m_no_index_used;
-    digest_stat->m_no_good_index_used += state->m_no_good_index_used;
+    digest_stat->m_stat.m_lock_time += state->m_lock_time;
+    digest_stat->m_stat.m_rows_sent += state->m_rows_sent;
+    digest_stat->m_stat.m_rows_examined += state->m_rows_examined;
+    digest_stat->m_stat.m_created_tmp_disk_tables +=
+      state->m_created_tmp_disk_tables;
+    digest_stat->m_stat.m_created_tmp_tables += state->m_created_tmp_tables;
+    digest_stat->m_stat.m_select_full_join += state->m_select_full_join;
+    digest_stat->m_stat.m_select_full_range_join +=
+      state->m_select_full_range_join;
+    digest_stat->m_stat.m_select_range += state->m_select_range;
+    digest_stat->m_stat.m_select_range_check += state->m_select_range_check;
+    digest_stat->m_stat.m_select_scan += state->m_select_scan;
+    digest_stat->m_stat.m_sort_merge_passes += state->m_sort_merge_passes;
+    digest_stat->m_stat.m_sort_range += state->m_sort_range;
+    digest_stat->m_stat.m_sort_rows += state->m_sort_rows;
+    digest_stat->m_stat.m_sort_scan += state->m_sort_scan;
+    digest_stat->m_stat.m_no_index_used += state->m_no_index_used;
+    digest_stat->m_stat.m_no_good_index_used += state->m_no_good_index_used;
+  }
+  else
+  {
+    if (flags & STATE_FLAG_TIMED)
+    {
+      time_normalizer *normalizer = time_normalizer::get(wait_timer);
+      ulong bucket_index = normalizer->bucket_index(wait_time);
+
+      /* Update global histogram. */
+      global_statements_histogram.increment_bucket(bucket_index);
+    }
   }
 
   if (pfs_program != NULL)
@@ -6226,8 +6255,8 @@ pfs_end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
     stat->m_warning_count += da->last_statement_cond_count();
     if (digest_stat != NULL)
     {
-      digest_stat->m_rows_affected += da->affected_rows();
-      digest_stat->m_warning_count += da->last_statement_cond_count();
+      digest_stat->m_stat.m_rows_affected += da->affected_rows();
+      digest_stat->m_stat.m_warning_count += da->last_statement_cond_count();
     }
     if (sub_stmt_stat != NULL)
     {
@@ -6244,7 +6273,7 @@ pfs_end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
     stat->m_warning_count += da->last_statement_cond_count();
     if (digest_stat != NULL)
     {
-      digest_stat->m_warning_count += da->last_statement_cond_count();
+      digest_stat->m_stat.m_warning_count += da->last_statement_cond_count();
     }
     if (sub_stmt_stat != NULL)
     {
@@ -6259,7 +6288,7 @@ pfs_end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
     stat->m_error_count++;
     if (digest_stat != NULL)
     {
-      digest_stat->m_error_count++;
+      digest_stat->m_stat.m_error_count++;
     }
     if (sub_stmt_stat != NULL)
     {
@@ -6448,8 +6477,8 @@ pfs_get_thread_transaction_locker_v1(PSI_transaction_locker_state *state,
                                      const void *xid,
                                      const ulonglong *trxid,
                                      int isolation_level,
-                                     my_bool read_only,
-                                     my_bool autocommit)
+                                     bool read_only,
+                                     bool autocommit)
 {
   DBUG_ASSERT(state != NULL);
 
@@ -6709,7 +6738,7 @@ pfs_inc_transaction_release_savepoint_v1(PSI_transaction_locker *locker,
 }
 
 void
-pfs_end_transaction_v1(PSI_transaction_locker *locker, my_bool commit)
+pfs_end_transaction_v1(PSI_transaction_locker *locker, bool commit)
 {
   PSI_transaction_locker_state *state =
     reinterpret_cast<PSI_transaction_locker_state *>(locker);

@@ -1,7 +1,4 @@
 
-# Can't run with embedded server because we use GRANT
--- source include/not_embedded.inc
-
 # Save the initial number of concurrent sessions
 --source include/count_sessions.inc
 

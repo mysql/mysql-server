@@ -22,8 +22,8 @@
 #include "item.h"  // Item
 #include "my_compiler.h"
 #include "my_decimal.h"
-#include "my_global.h"
 #include "my_inttypes.h"
+#include "my_table_map.h"
 #include "my_time.h"
 #include "mysql_com.h"
 #include "parse_tree_node_base.h"

@@ -3,8 +3,6 @@
 
 # Tests for PERFORMANCE_SCHEMA
 
---source include/not_embedded.inc
-
 -- error ER_DBACCESS_DENIED_ERROR
 alter table performance_schema.prepared_statements_instances
   add column foo integer;

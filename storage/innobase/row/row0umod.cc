@@ -23,9 +23,14 @@ Undo modify of a row
 Created 2/27/1997 Heikki Tuuri
 *******************************************************/
 
+#include <stddef.h>
+
 #include "btr0btr.h"
 #include "dict0boot.h"
 #include "dict0dict.h"
+#include "dict0boot.h"
+#include "dict0dd.h"
+#include "btr0btr.h"
 #include "ha_prototypes.h"
 #include "log0log.h"
 #include "mach0data.h"
@@ -268,7 +273,7 @@ row_undo_mod_clust(
 	index = btr_cur_get_index(btr_pcur_get_btr_cur(pcur));
 
 	mtr_start(&mtr);
-	mtr.set_named_space(index->space);
+
 	dict_disable_redo_if_temporary(index->table, &mtr);
 
 	online = dict_index_is_online_ddl(index);
@@ -299,7 +304,7 @@ row_undo_mod_clust(
 		descent down the index tree */
 
 		mtr_start(&mtr);
-		mtr.set_named_space(index->space);
+
 		dict_disable_redo_if_temporary(index->table, &mtr);
 
 		err = row_undo_mod_clust_low(
@@ -350,7 +355,7 @@ row_undo_mod_clust(
 	if (err == DB_SUCCESS && node->rec_type == TRX_UNDO_UPD_DEL_REC) {
 
 		mtr_start(&mtr);
-		mtr.set_named_space(index->space);
+
 		dict_disable_redo_if_temporary(index->table, &mtr);
 
 		/* It is not necessary to call row_log_table,
@@ -365,7 +370,7 @@ row_undo_mod_clust(
 			pessimistic descent down the index tree */
 
 			mtr_start(&mtr);
-			mtr.set_named_space(index->space);
+
 			dict_disable_redo_if_temporary(index->table, &mtr);
 
 			err = row_undo_mod_remove_clust_low(
@@ -419,8 +424,9 @@ row_undo_mod_del_mark_or_remove_sec_low(
 	ibool			modify_leaf = false;
 
 	log_free_check();
+
 	mtr_start(&mtr);
-	mtr.set_named_space(index->space);
+
 	dict_disable_redo_if_temporary(index->table, &mtr);
 
 	if (mode == BTR_MODIFY_LEAF) {
@@ -624,8 +630,9 @@ row_undo_mod_del_unmark_sec_and_undo_update(
 
 try_again:
 	log_free_check();
+
 	mtr_start(&mtr);
-	mtr.set_named_space(index->space);
+
 	dict_disable_redo_if_temporary(index->table, &mtr);
 
 	if (!index->is_committed()) {
@@ -1120,8 +1127,12 @@ row_undo_mod_parse_undo_rec(
 				    &dummy_extern, &undo_no, &table_id);
 	node->rec_type = type;
 
-	node->table = dict_table_open_on_id(
-		table_id, dict_locked, DICT_TABLE_OP_NORMAL);
+	/* If a table exists, it cannot be dropped or evicted.
+	Rollback is typically protected by a table IX lock.
+	Notably, there cannot be a race between ROLLBACK and
+	DROP TEMPORARY TABLE, because temporary tables are
+	private to a single connection. */
+	node->table = dd_table_open_on_id_in_mem(table_id, dict_locked);
 
 	/* TODO: other fixes associated with DROP TABLE + rollback in the
 	same table by another user */

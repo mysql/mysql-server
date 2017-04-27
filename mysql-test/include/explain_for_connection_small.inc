@@ -1,6 +1,5 @@
   --source include/have_debug.inc
   --source include/have_debug_sync.inc
-  --source include/not_embedded.inc
   --source include/not_windows.inc
   --source include/have_grep.inc
 
@@ -99,12 +98,12 @@
   INSERT INTO ten VALUES (0),(1),(2),(3),(4),(5),(6),(7),(8),(9) ;
   CREATE TABLE t1 ( pk INTEGER NOT NULL, i1 INTEGER NOT NULL, c1 VARCHAR(10) NOT NULL, PRIMARY KEY (pk) ) ;
   INSERT INTO t1 SELECT a, 1, 'MySQL' FROM ten ;
-  CREATE TABLE t2 ( pk INTEGER NOT NULL, c1 VARCHAR(10) NOT NULL, c2 varchar(10) NOT NULL, PRIMARY KEY (pk) ) ;
+  CREATE TABLE t2 ( pk INTEGER NOT NULL, c1 VARCHAR(10) NOT NULL, c2 varchar(10) NOT NULL, PRIMARY KEY (pk) ) charset latin1;
   INSERT INTO t2 SELECT a, 'MySQL', 'MySQL' FROM ten ;
-  CREATE TABLE t3 ( pk INTEGER NOT NULL, c1 VARCHAR(10) NOT NULL, PRIMARY KEY (pk) ) ;
+  CREATE TABLE t3 ( pk INTEGER NOT NULL, c1 VARCHAR(10) NOT NULL, PRIMARY KEY (pk) ) charset latin1;
   INSERT INTO t3 SELECT a, 'MySQL' FROM ten ;
-  CREATE TABLE t4 ( pk int(11) NOT NULL, c1_key varchar(10) CHARACTER SET utf8 NOT NULL, c2 varchar(10) NOT NULL, c3 varchar(10) NOT NULL, PRIMARY KEY (pk), KEY k1 (c1_key) ) ;
-  CREATE TABLE t5 ( pk INTEGER NOT NULL, c1 VARCHAR(10) NOT NULL, PRIMARY KEY (pk) ) ;
+  CREATE TABLE t4 ( pk int(11) NOT NULL, c1_key varchar(10) CHARACTER SET utf8 NOT NULL, c2 varchar(10) NOT NULL, c3 varchar(10) NOT NULL, PRIMARY KEY (pk), KEY k1 (c1_key) ) charset latin1;
+  CREATE TABLE t5 ( pk INTEGER NOT NULL, c1 VARCHAR(10) NOT NULL, PRIMARY KEY (pk) ) charset latin1;
   INSERT INTO t5 SELECT a, 'MySQL' FROM ten ;
   let $point=   after_join_optimize;let $query=  SELECT STRAIGHT_JOIN * FROM (t1 LEFT JOIN  (t2 LEFT JOIN (t3 LEFT OUTER JOIN t4 ON t3.c1 <= t4.c1_key) ON t2.c1 = t4.c3)  ON t1.c1 = t4.c2) RIGHT OUTER JOIN t5 ON t2.c2 <= t5.c1 WHERE t1.i1 = 1 ;
   --source include/explain_for_connection.inc
@@ -299,7 +298,7 @@ SET sql_mode = default;
 
 
 
-  CREATE TABLE t1 ( a varchar(255) default NULL, b timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP, INDEX idx(a,b) ) ;
+  CREATE TABLE t1 ( a varchar(240) default NULL, b timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP, INDEX idx(a,b) ) ;
   CREATE TABLE t2 ( a varchar(255) default NULL ) ;
   INSERT INTO t1 VALUES ('abcdefghijk','2007-05-07 06:00:24') ;
   INSERT INTO t1 SELECT * FROM t1 ;

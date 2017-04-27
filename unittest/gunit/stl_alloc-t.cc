@@ -14,6 +14,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <gtest/gtest.h>
+#include <stddef.h>
 #include <algorithm>
 #include <deque>
 #include <list>
@@ -318,7 +319,7 @@ public:
     buffer= new char[20];
   }
 
-  Container_object(const Container_object &other)
+  Container_object(const Container_object&)
   {
     buffer= new char[20]; // Don't care about contents
   }
@@ -443,6 +444,32 @@ TYPED_TEST(STLAllocTestBasicStringTemplate, OutOfMemTest)
   // Set flag to force allocation failure
   simulate_failed_allocation= true;
   ASSERT_THROW(x.reserve(1000), std::bad_alloc);
+}
+
+//
+// Test of container of objects that cannot be copied.
+//
+
+template<typename T>
+class STLAllocTestMoveOnly : public STLAllocTestInt<T>
+{ };
+
+typedef ::testing::Types<Malloc_allocator_wrapper<std::unique_ptr<int>>,
+                         Memroot_allocator_wrapper<std::unique_ptr<int>>,
+                         Not_instr_allocator<std::unique_ptr<int>>,
+                         PSI_42_allocator<std::unique_ptr<int>>,
+                         Init_aa_allocator<std::unique_ptr<int>>>
+         AllocatorTypesMoveOnly;
+
+TYPED_TEST_CASE(STLAllocTestMoveOnly, AllocatorTypesMoveOnly);
+
+TYPED_TEST(STLAllocTestMoveOnly, MoveOnly)
+{
+  vector<std::unique_ptr<int>, TypeParam> v(this->allocator);
+  v.emplace_back(new int(1));
+  v.emplace_back(new int(2));
+  EXPECT_EQ(1, *v[0]);
+  EXPECT_EQ(2, *v[1]);
 }
 
 } // namespace stlalloc_unittest

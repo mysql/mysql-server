@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -500,12 +500,12 @@ writeToSection(Uint32 firstSegmentIVal, Uint32 offset,
 
 void setResOwner(Uint32 id)
 {
-  NdbThread_SetTlsKey(NDB_THREAD_TLS_RES_OWNER, (void*) ((UintPtr)id));
+  NDB_THREAD_TLS_RES_OWNER = id;
 }
 
 Uint32 getResOwner()
 {
-  return (Uint32) ((UintPtr) NdbThread_GetTlsKey(NDB_THREAD_TLS_RES_OWNER));
+  return NDB_THREAD_TLS_RES_OWNER;
 }
 
 #endif

@@ -54,6 +54,8 @@ This file contains the implementation of error and warnings related
 #include "log.h"          // sql_print_warning
 #include "my_dbug.h"
 #include "my_decimal.h"
+#include "my_inttypes.h"
+#include "my_macros.h"
 #include "my_sys.h"
 #include "my_time.h"
 #include "mysql/psi/mysql_statement.h"
@@ -868,7 +870,6 @@ bool mysqld_show_warnings(THD *thd, ulong levels_to_show)
                                 Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     rc= true;
 
-  const Sql_condition *err;
   SELECT_LEX *sel= thd->lex->select_lex;
   SELECT_LEX_UNIT *unit= thd->lex->unit;
   ulonglong idx= 0;
@@ -877,6 +878,7 @@ bool mysqld_show_warnings(THD *thd, ulong levels_to_show)
   unit->set_limit(thd, sel);
 
   Diagnostics_area::Sql_condition_iterator it= first_da->sql_conditions();
+  const Sql_condition *err= nullptr;
   while (!rc && (err= it++))
   {
     /* Skip levels that the user is not interested in */

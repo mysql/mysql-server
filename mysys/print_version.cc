@@ -19,12 +19,16 @@
 */
 
 #include "print_version.h"
+
+#include "my_config.h"
+
 #include <stdio.h>
 #include <string.h>
-#include "mysql_com.h"
-#include "mysql_version.h"
+
 #include "m_string.h"
 #include "my_sys.h"
+#include "mysql_com.h"
+#include "mysql_version.h"
 
 
 #ifdef MYSQL_SERVER_SUFFIX

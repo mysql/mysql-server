@@ -16,12 +16,15 @@
 
 #include "semisync_slave.h"
 
+#include <assert.h>
+#include <sys/types.h>
+
 #include "current_thd.h"
 #include "debug_sync.h"
 #include "my_dbug.h"
 #include "mysql.h"
 
-char rpl_semi_sync_slave_enabled;
+bool rpl_semi_sync_slave_enabled;
 char rpl_semi_sync_slave_status= 0;
 unsigned long rpl_semi_sync_slave_trace_level;
 
@@ -89,7 +92,7 @@ int ReplSemiSyncSlave::slaveStart(Binlog_relay_IO_param *param)
   return 0;
 }
 
-int ReplSemiSyncSlave::slaveStop(Binlog_relay_IO_param *param)
+int ReplSemiSyncSlave::slaveStop(Binlog_relay_IO_param*)
 {
   if (rpl_semi_sync_slave_status)
     rpl_semi_sync_slave_status= 0;

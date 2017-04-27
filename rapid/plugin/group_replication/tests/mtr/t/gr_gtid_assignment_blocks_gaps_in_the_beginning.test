@@ -21,6 +21,7 @@
 #  - Start GR on M2. Verify GTID_EXECUTED=GRP_UUID:1-128:224 on M1 and M2.
 # 10. Clean up.
 ################################################################################
+--source include/big_test.inc
 --let $group_replication_group_name= bebf367f-1ef4-11e6-b127-00212844d44e
 --source ../inc/have_group_replication_plugin.inc
 --let $rpl_skip_group_replication_start= 1

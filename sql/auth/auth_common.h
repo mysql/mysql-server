@@ -16,6 +16,8 @@
 #ifndef AUTH_COMMON_INCLUDED
 #define AUTH_COMMON_INCLUDED
 
+#include "my_config.h"
+
 #include <stddef.h>
 #include <sys/types.h>
 #include <set>
@@ -23,15 +25,20 @@
 #include <vector>
 
 #include "auth_acls.h"                          /* ACL information */
+#include "lex_string.h"
 #include "m_string.h"
 #include "my_command.h"
-#include "my_config.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "sql_string.h"                         /* String */
 #include "template_utils.h"
 #include "thr_malloc.h"
+#include <mysql/components/service.h>
+#include <mysql/components/my_service.h>
+#include <mysql/components/services/dynamic_privilege.h>
+#include "dynamic_privileges_impl.h"
+
+#include <functional>
 
 /* Forward Declarations */
 class Alter_info;
@@ -615,11 +622,11 @@ public:
 };
 
 extern bool mysql_user_table_is_in_short_password_format;
-extern my_bool disconnect_on_expired_password;
+extern bool disconnect_on_expired_password;
 extern const char *any_db;	// Special symbol for check_access
 /** controls the extra checks on plugin availability for mysql.user records */
 
-extern my_bool validate_user_plugins;
+extern bool validate_user_plugins;
 
 /* Function Declarations */
 
@@ -675,16 +682,16 @@ int wild_case_compare(CHARSET_INFO *cs, const char *str,const char *wildstr);
 int wild_case_compare(CHARSET_INFO *cs, const char *str, size_t str_len,
                       const char *wildstr, size_t wildstr_len);
 bool hostname_requires_resolving(const char *hostname);
-my_bool acl_init(bool dont_read_acl_tables);
+bool acl_init(bool dont_read_acl_tables);
 void acl_free(bool end=0);
-my_bool acl_reload(THD *thd);
+bool acl_reload(THD *thd);
 bool check_engine_type_for_acl_table(THD *thd);
 bool grant_init(bool skip_grant_tables);
 void grant_free(void);
-my_bool grant_reload(THD *thd);
+bool grant_reload(THD *thd);
 bool roles_init_from_tables(THD *thd);
 ulong acl_get(THD *thd, const char *host, const char *ip,
-              const char *user, const char *db, my_bool db_is_pattern);
+              const char *user, const char *db, bool db_is_pattern);
 bool is_acl_user(THD *thd, const char *host, const char *user);
 bool acl_getroot(THD *thd, Security_context *sctx, char *user,
                  char *host, char *ip, const char *db);
@@ -697,8 +704,10 @@ int mysql_set_active_role_none(THD *thd);
 int mysql_set_role_default(THD *thd);
 int mysql_set_active_role_all(THD *thd, const List <LEX_USER> *except_users);
 int mysql_set_active_role(THD *thd, const List<LEX_USER > *role_list);
-bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &user_list,
-                 ulong rights, bool revoke, bool is_proxy);
+bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
+                 ulong rights, bool revoke_grant, bool is_proxy,
+                 const List<LEX_CSTRING > &dynamic_privilege,
+                 bool grant_all_current_privileges);
 bool mysql_routine_grant(THD *thd, TABLE_LIST *table, bool is_proc,
                          List <LEX_USER> &user_list, ulong rights,
                          bool revoke, bool write_to_binlog);
@@ -758,7 +767,7 @@ bool is_secure_transport(int vio_type);
 
 bool check_one_table_access(THD *thd, ulong privilege, TABLE_LIST *tables);
 bool check_single_table_access(THD *thd, ulong privilege,
-			   TABLE_LIST *tables, bool no_errors);
+                           TABLE_LIST *tables, bool no_errors);
 bool check_routine_access(THD *thd, ulong want_access, const char *db,
                           char *name, bool is_proc, bool no_errors);
 bool check_some_access(THD *thd, ulong want_access, TABLE_LIST *table);
@@ -810,7 +819,7 @@ typedef enum ssl_artifacts_status
 ulong get_global_acl_cache_size();
 
 #if defined(HAVE_OPENSSL) && !defined(HAVE_YASSL)
-extern my_bool opt_auto_generate_certs;
+extern bool opt_auto_generate_certs;
 bool do_auto_cert_generation(ssl_artifacts_status auto_detection_status);
 #endif /* HAVE_OPENSSL && !HAVE_YASSL */
 

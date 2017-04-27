@@ -20,7 +20,6 @@
 #include <map>
 #include <string>
 
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_psi_config.h"
 #include "mysql/psi/mysql_file.h"
@@ -79,6 +78,14 @@ public:
     Set persisted options
   */
   bool set_persist_options(bool what_options= FALSE);
+  /**
+    Reset persisted options
+  */
+  bool reset_persisted_variables(THD *thd, const char* name, bool if_exists);
+  /**
+    Get persist hash
+  */
+  map<string,string>* get_persist_hash();
 
   void cleanup();
 

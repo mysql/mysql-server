@@ -26,6 +26,7 @@
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
+#include "my_io.h"
 #include "my_sys.h"
 #include "myisam_sys.h"
 #include "mysys_err.h"
@@ -158,12 +159,11 @@ error:
         to indicate the actual error code.
 */
 
-int my_lock(File fd, int locktype, my_off_t start, my_off_t length,
-	    myf MyFlags)
+int my_lock(File fd, int locktype, myf MyFlags)
 {
   DBUG_ENTER("my_lock");
-  DBUG_PRINT("my",("fd: %d  Op: %d  start: %ld  Length: %ld  MyFlags: %d",
-		   fd,locktype,(long) start,(long) length,MyFlags));
+  DBUG_PRINT("my",("fd: %d  Op: %d  MyFlags: %d",
+		   fd,locktype,MyFlags));
   if (my_disable_locking)
     DBUG_RETURN(0);
 
@@ -175,7 +175,7 @@ int my_lock(File fd, int locktype, my_off_t start, my_off_t length,
     else
       timeout_sec= WIN_LOCK_INFINITE;
 
-    if (win_lock(fd, locktype, start, length, timeout_sec) == 0)
+    if (win_lock(fd, locktype, 0, 0x3FFFFFFF, timeout_sec) == 0)
       DBUG_RETURN(0);
   }
 #else
@@ -184,8 +184,8 @@ int my_lock(File fd, int locktype, my_off_t start, my_off_t length,
 
     lock.l_type=   (short) locktype;
     lock.l_whence= SEEK_SET;
-    lock.l_start=  (off_t) start;
-    lock.l_len=    (off_t) length;
+    lock.l_start=  0;
+    lock.l_len=    0;  // End of file.
 
     if (MyFlags & MY_DONT_WAIT)
     {

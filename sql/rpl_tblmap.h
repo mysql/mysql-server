@@ -21,7 +21,6 @@
 
 #include "hash.h"        // HASH
 #include "my_alloc.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "template_utils.h"
 

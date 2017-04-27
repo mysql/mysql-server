@@ -21,6 +21,8 @@
   Table EVENTS_STAGES_SUMMARY_BY_THREAD_BY_EVENT_NAME (declarations).
 */
 
+#include <sys/types.h>
+
 #include "my_inttypes.h"
 #include "pfs_column_types.h"
 #include "pfs_engine_table.h"
@@ -108,7 +110,7 @@ class table_esgs_by_thread_by_event_name : public PFS_engine_table
 public:
   /** Table share */
   static PFS_engine_table_share m_share;
-  static PFS_engine_table *create();
+  static PFS_engine_table *create(PFS_engine_table_share *);
   static int delete_all_rows();
   static ha_rows get_row_count();
 

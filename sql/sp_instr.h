@@ -21,10 +21,10 @@
 #include <sys/types.h>
 
 #include "binary_log_types.h"
+#include "lex_string.h"
 #include "m_string.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_psi_config.h"
 #include "my_sys.h"

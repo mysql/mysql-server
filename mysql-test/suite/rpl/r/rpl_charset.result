@@ -76,7 +76,7 @@ a	b
 1	latin1_german1_ci
 2	Muffler
 3	latin1_german2_ci
-4	Müller
+4	MÃ¼ller
 include/sync_slave_sql_with_master.inc
 --- --slave--
 select * from mysqltest2.t1 order by a;
@@ -84,7 +84,7 @@ a	b
 1	latin1_german1_ci
 2	Muffler
 3	latin1_german2_ci
-4	Müller
+4	MÃ¼ller
 set @a= _cp850 'Müller' collate cp850_general_ci;
 truncate table t1;
 insert into t1 (b) values(collation(@a));

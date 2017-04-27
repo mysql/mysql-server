@@ -9,7 +9,6 @@
 ###############################################################################
 
 --source include/not_windows.inc
---source include/not_embedded.inc
 
 SELECT @@global.check_proxy_users;
 

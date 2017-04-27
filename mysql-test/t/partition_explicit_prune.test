@@ -3,9 +3,6 @@
 # increase when binary logging is enabled.
 --source include/not_log_bin.inc
 
-# Test uses performance_schema.status_by_thread, not available in embedded
---source include/not_embedded.inc
-
 # Helper statement
 
 create table thread_to_monitor(thread_id int);
@@ -145,7 +142,7 @@ DROP TABLE t1;
 --echo # Original tests for WL#5217
 
 --echo # Must have InnoDB as engine to get the same statistics results.
---echo # embedded uses MyISAM as default. CREATE SELECT uses the default engine.
+--echo # CREATE SELECT uses the default engine.
 SET @old_default_storage_engine = @@default_storage_engine;
 SET @@default_storage_engine = 'InnoDB';
 
@@ -168,6 +165,7 @@ CREATE TABLE t1
  INDEX (b,a),
  PRIMARY KEY (a))
 ENGINE = InnoDB
+charset latin1
 PARTITION BY RANGE (a)
 SUBPARTITION BY HASH (a) SUBPARTITIONS 2
 (PARTITION pNeg VALUES LESS THAN (0)
@@ -514,6 +512,7 @@ FLUSH STATUS;
 ALTER TABLE t1 TRUNCATE PARTITION pNeg, `p10-99`;
 
 connection monitor;
+--replace_regex /[0-9]*//
 --source include/get_handler_status_counts.inc
 connection default;
 
@@ -546,7 +545,7 @@ connection monitor;
 connection default;
 
 --echo # 18 read key (ALTER forces table to be closed, see above for open)
-LOAD DATA INFILE 'loadtest.txt' INTO TABLE t1 PARTITION (pNeg, `p10-99`);
+LOAD DATA INFILE 'loadtest.txt' INTO TABLE t1 PARTITION (pNeg, `p10-99`) CHARACTER SET latin1;
 
 connection monitor;
 --source include/get_handler_status_counts.inc
@@ -784,6 +783,7 @@ FLUSH STATUS;
 ALTER TABLE t2 TRUNCATE PARTITION `p10-99`, `p0-9`, `p100-99999`;
 
 connection monitor;
+--replace_regex /[0-9]*//
 --source include/get_handler_status_counts.inc
 connection default;
 
@@ -895,6 +895,7 @@ FLUSH STATUS;
 ALTER TABLE t1 TRUNCATE PARTITION pNeg;
 
 connection monitor;
+--replace_regex /[0-9]*//
 --source include/get_handler_status_counts.inc
 connection default;
 --echo # Lots of extra lock acquisitions, reads and etc due to

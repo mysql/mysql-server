@@ -23,6 +23,8 @@ Row versions
 Created 2/6/1997 Heikki Tuuri
 *******************************************************/
 
+#include <stddef.h>
+
 #include "btr0btr.h"
 #include "current_thd.h"
 #include "dict0boot.h"

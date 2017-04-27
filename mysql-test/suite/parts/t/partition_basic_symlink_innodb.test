@@ -31,9 +31,6 @@
 # windows does not support symlink for DATA/INDEX DIRECTORY.
 --source include/not_windows.inc
 
-# Does not work with --embedded
---source include/not_embedded.inc
-
 --disable_query_log
 let $MYSQLD_DATADIR= `select @@datadir`;
 

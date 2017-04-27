@@ -15,7 +15,6 @@
 
 #include <limits.h>
 #include <m_string.h>  // IWYU pragma: keep
-#include <my_global.h>
 #include <my_sys.h>            /* Needed for MY_ERRNO_ERANGE */
 #include <sys/types.h>
 

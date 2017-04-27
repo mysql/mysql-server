@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -23,7 +23,6 @@ class Security_context;
 class String;
 class THD;
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
 void roles_graphml(THD *thd, String *);
 void flatten_role_acls(ACL_USER *user, Security_context *sctx);
 
@@ -39,5 +38,4 @@ bool has_any_table_acl(THD *thd, Security_context *sctx,
                        const LEX_CSTRING &str);
 bool has_any_routine_acl(THD *thd, Security_context *sctx,
                          const LEX_CSTRING &db);
-#endif
 #endif /* SQL_AUTHORIZATION_INCLUDED */

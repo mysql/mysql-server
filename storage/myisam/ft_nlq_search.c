@@ -17,11 +17,13 @@
 
 #define FT_CORE
 #include <fcntl.h>
+#include <sys/types.h>
 
 #include "ftdefs.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
+#include "my_macros.h"
 
 /* search with natural language queries */
 

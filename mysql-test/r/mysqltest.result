@@ -373,12 +373,12 @@ var3 two columns with same name
 var4 from query that returns NULL
 var5 from query that returns no row
 failing query in let
-create table t1 (a varchar(100));
+create table t1 (a varchar(100)) charset utf8mb4;
 insert into t1 values ('`select 42`');
 `select 42`
 insert into t1 values ('$dollar');
-$dollar
 `select 42`
+$dollar
 drop table t1;
 mysqltest: At line 1: query 'let $var2= `failing query`' failed: 1064: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'failing query' at line 1
 mysqltest: At line 1: Missing required argument 'filename' to command 'source'
@@ -477,8 +477,6 @@ mysqltest: At line 1: Cannot perform inc/dec on a non-numeric value
 mysqltest: At line 1: End of line junk detected: "1000"
 mysqltest: At line 1: Cannot perform inc/dec on a non-numeric value
 mysqltest: At line 1: Cannot perform inc/dec on a non-numeric value
-mysqltest: At line 1: 'system' command  is deprecated, use exec or
-  see the manual for portable commands to use
 test
 test2
 test3
@@ -1206,7 +1204,7 @@ DROP TABLE t1;
 SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_TEMP_TABLE_INFO;
 COUNT(*)
 0
-CREATE /*! TEMPORARY */ TABLE t1 /* shouldn't fail */ (a INT);
+CREATE /*! TEMPORARY */ TABLE t1 /* shouldn't fail */ (a INT) CHARSET utf8mb4;
 SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_TEMP_TABLE_INFO;
 COUNT(*)
 1
@@ -1214,7 +1212,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TEMPORARY TABLE `t1` (
   `a` int(11) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 DROP TEMPORARY TABLE t1;
 #
 # Bug#21048973 : SUPPORT "--ERROR CR_..." FOR COMMUNICATION RELATED ERRORS
@@ -1303,3 +1301,232 @@ Paris
 # Destination contains a file with the same name as a
 # subdirectory in source, should fail
 # Source directory path and destination directory path are same, should fail
+#
+# BUG#24806741 : MTR: INTRODUCE "EXPR" COMMAND
+#
+#
+# Arithmetic operation
+#
+# Addition operation
+expr $res= 10 + 20
+30
+expr $res= 20 + (-10)
+10
+expr $res= -10 + 10.5
+0.5
+expr $res= -3.5 + 10.5
+7
+expr $res= 1e10 + 1e10
+2e+10
+expr $res= 1e10 + 1e8
+1.01e+10
+# Subtraction operation
+expr $res= 10 - 20
+-10
+expr $res= 20 - (-10)
+30
+expr $res= -10 - 10
+-20
+expr $res= 10.5 - 10
+0.5
+expr $res= 1e10 - 1e8
+9900000000
+expr $res= 1e8 - 1e10
+-9900000000
+# Multiplication operation
+expr $res= 10 * 20
+200
+expr $res= 10 * (-10)
+-100
+expr $res= -10 * 10.5
+-105
+expr $res= 10.5 * (-3.5)
+-36.75
+expr $res= 1e10 * 1e8
+1e+18
+# Division operation
+expr $res= 10 / 20
+0.5
+expr $res= 20 / (-10)
+-2
+expr $res= 10.5 / (-3.5)
+-3
+expr $res= 1e10 / 1e8
+100
+# Modulo operation
+expr $res= 10 % 20
+10
+expr $res= 20 % (-10)
+0
+expr $res= 10.5 % -3.5
+1
+#
+# Logical operation
+#
+# Logical AND operation
+expr $res= 10 && 20
+1
+expr $res= -10 && 0
+0
+expr $res= 20 && -10
+1
+expr $res= 10.5 && -3.5
+1
+expr $res= -3.5 && 0
+0
+expr $res= 0 && 0
+0
+# Logical OR operation
+expr $res= 10 || 20
+1
+expr $res= -10 || 0
+1
+expr $res= -10 || -3.5
+1
+expr $res= 10.5 || 0
+1
+expr $res= 0 || 0
+0
+#
+# Bitwise operation
+#
+# Binary AND operation
+expr $res= 10 & 20
+0
+expr $res= 20 & 10.5
+0
+expr $res= 20 & 0
+0
+expr $res= 10 & 2
+2
+# Binary OR operation
+expr $res= 10 | 20
+30
+expr $res= 20 | 10.5
+30
+expr $res= 20 | 0
+20
+expr $res= 0 | 0
+0
+# Binary XOR operation
+expr $res= 10 ^ 20
+30
+expr $res= 20 ^ 10.5
+30
+expr $res= 20 ^ 0
+20
+# Binary right shift operation
+expr $res= 10 >> 2
+2
+expr $res= 20 >> 3
+2
+expr $res= 20 >> 0
+20
+# Binary left shift operation
+expr $res= 10 << 2
+40
+expr $res= 20 << 3
+160
+expr $res= 20 << 0
+20
+# Infinite result
+expr $res= 1e308 + 1e308
+inf
+# Division by 0, result will be an infinite value and MTR will print 'inf' keyword.
+expr $res= 10 / 0
+inf
+# Invalid mathematical expressions
+expr
+mysqltest: At line 1: Missing arguments to expr command.
+expr $res
+mysqltest: At line 1: Missing assignment operator in expr command.
+expr $res= $a
+mysqltest: At line 1: Undefined/invalid first operand '$a' in expr command.
+expr $res= $b + $a
+mysqltest: At line 1: Undefined/invalid first operand '$b' in expr command.
+expr $res= $a + $c
+mysqltest: At line 1: Undefined/invalid second operand '$c' in expr command.
+expr $res= $a + $c
+mysqltest: At line 1: Undefined/invalid second operand '$c' in expr command.
+expr $res= $a + $
+mysqltest: At line 1: Missing variable name.
+expr $re@s= $a + $a
+mysqltest: At line 1: Invalid variable name '$re@s'
+expr $res= $a + $a**
+mysqltest: At line 1: Invalid variable name '$a**'
+expr $res= $a + $b + $c
+mysqltest: At line 1: Invalid mathematical expression '$a + $b + $c' in expr command.
+expr $res= $a + b
+mysqltest: At line 1: Variable name 'b' should start with '$'
+expr $res= $a ++ $b
+mysqltest: At line 1: Invalid operator '++' in expr command
+#
+# BUG#25487471 : MYSQLTEST FAILS TO ESCAPE FILENAMES
+#
+# Test file name 'a_b.test'
+SELECT 100 AS res;
+res
+100
+# Test file name 'a-b.test'
+SELECT 100 AS res;
+res
+100
+# Test file name '-ab.test'
+mysqltest: Invalid file name '-ab.test', first character must be alpha-numeric.
+# Test file name '_ab.test'
+mysqltest: Invalid file name '_ab.test', first character must be alpha-numeric.
+# Test file name 'a=bc.test'
+mysqltest: Invalid file name 'a=bc.test'. Test or result file name should consist of only alpha-numeric characters, dash (-) or underscore (_), but should not start with dash or underscore.
+# Test file name 'abc@.test'
+mysqltest: Invalid file name 'abc@.test'. Test or result file name should consist of only alpha-numeric characters, dash (-) or underscore (_), but should not start with dash or underscore.
+# Result file name 'ab#c.result'
+mysqltest: Invalid file name 'ab#c.result'. Test or result file name should consist of only alpha-numeric characters, dash (-) or underscore (_), but should not start with dash or underscore.
+# Bug#23280117: 5.7 BUG XXXXX TEST REPLACE NUMBER ROUND+GIS PRECISION
+# DIFFERENCES (CONTRIBUTION)
+#
+# Insert values to be tested into a table
+CREATE TABLE t1(f FLOAT, k DOUBLE);
+INSERT INTO t1 VALUES(124.7892,1.23456e200);
+INSERT INTO t1 VALUES(6.9999999,1.000000000);
+INSERT INTO t1 VALUES(12900.019,37489e-12);
+SELECT * FROM t1;
+f	k
+124.79	1.23e+200
+7	1
+12900	0
+DROP TABLE t1;
+# Verify that the function rounds numeric values when they
+# are padded with characters
+SELECT 'aaaa(12.12348)';
+aaaa(12.12348)
+aaaa(12.12348)
+# Test case with precision 0. Value should be rounded off
+# to nearest whole number.
+SELECT 20;
+20
+20
+# An error is thrown if parameter count is 0
+mysqltest: At line 1: Missing required argument 'precision' to command 'replace_numeric_round'
+# The maximum value which can be passed is 16
+mysqltest: At line 1: A number between 0 and 16 is required for the precision in replace_numeric_round
+# The minimum value which can be passed is 0
+mysqltest: At line 1: A number between 0 and 16 is required for the precision in replace_numeric_round
+#
+# BUG#25840940 : MYSQLTEST WRITE_FILE IN NON-EXECUTED IF BLOCK BREAKS PARSING
+#
+# if condition evalutes to false
+# File shouldn't be created by write_file command inside
+# the if block, cat_file command should fail.
+# while condition evalutes to false
+# File shouldn't be created by write_file command inside
+# the while block, cat_file command should fail
+# Outer if condition evalutes to false
+# "Hello" shouldn't be repeated
+Hello
+# Outer while condition evalutes to false
+# "Hello" shouldn't be repeated
+Hello
+#
+# BUG#11766444 : MTR PRINTS WRONG FILE AND LINE NUMBER WHEN TESTS FAIL
+#
+mysqltest: At line 7: query 'execute this invalid query' failed: 1064: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'invalid query' at line 1

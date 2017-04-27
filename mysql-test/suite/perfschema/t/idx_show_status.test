@@ -1,7 +1,5 @@
 # Tests for PERFORMANCE_SCHEMA
 
---source include/not_embedded.inc
-
 truncate performance_schema.status_by_account;
 truncate performance_schema.status_by_host;
 truncate performance_schema.status_by_user;

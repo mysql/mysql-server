@@ -17,10 +17,13 @@
  * 02110-1301  USA
  */
 
+#include <stddef.h>
+#include <sys/types.h>
 #include <sstream>
 
 #include "my_dbug.h"
 #include "my_inttypes.h"
+#include "my_io.h"
 #include "ngs/log.h"
 #include "ngs_common/connection_type.h"
 #include "ngs_common/connection_vio.h"
@@ -36,7 +39,7 @@ class Options_session_supports_ssl : public Options_session_default
 public:
   Options_session_supports_ssl() {}
 
-  bool supports_tls() { return true; }
+  bool supports_tls() const { return true; }
 };
 
 
@@ -150,7 +153,7 @@ ssize_t Connection_vio::read(char *buffer, const std::size_t buffer_size)
   return buffer_size;
 }
 
-int Connection_vio::shutdown(Shutdown_type how_to_shutdown)
+int Connection_vio::shutdown(Shutdown_type)
 {
   Mutex_lock lock(m_shutdown_mutex);
   return vio_shutdown(m_vio);

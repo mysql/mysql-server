@@ -1,7 +1,7 @@
 --echo Preamble
 --source include/check_ipv4_mapped.inc
 --source include/check_ipv6.inc
---source ../include/xplugin_preamble.inc
+--source include/xplugin_preamble.inc
 
 # User name is limited to 32 characters, the long IPv6 localhost form
 # must be truncated like following:

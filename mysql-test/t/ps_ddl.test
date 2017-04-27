@@ -1921,7 +1921,7 @@ deallocate prepare stmt;
 drop table if exists t1;
 create table t1 (a int);
 # The gtid_executed session variable was deprecated on MySQL 5.7 and
-# only in MySQL 5.7 with GTID support (non-embedded for example) a
+# only in MySQL 5.7 with GTID support (for example) a
 # "SHOW VARIABLES" statement will throw a warning about the deprecation.
 prepare stmt from "show variables where (1) in (select * from t1)";
 # We disable the warnings only for the "execute stmt;"
@@ -2085,8 +2085,19 @@ deallocate prepare stmt;
 --echo # SQLCOM_SHOW_EVENTS
 --echo #
 --echo #
---echo # Please see this test in ps.test, it requires not_embedded.inc
+--echo # Bug#27430 Crash in subquery code when in PS and table DDL changed
+--echo # after PREPARE
 --echo #
+--disable_warnings ONCE
+drop table if exists t1;
+create table t1 (a int);
+prepare stmt from "show events where (1) in (select * from t1)";
+execute stmt;
+drop table t1;
+create table t1 (x int);
+execute stmt;
+drop table t1;
+deallocate prepare stmt;
 
 --echo #
 --echo # SQLCOM_SET_OPTION

@@ -3,15 +3,12 @@
 # columns are stored off-page.
 
 # The 7000 in this test is a bit less than half the innodb_page_size.
---source include/have_innodb_16k.inc
 
 # DEBUG_SYNC must be compiled in.
 --source include/have_debug_sync.inc
 
 # Valgrind would complain about memory leaks when we crash on purpose.
 --source include/not_valgrind.inc
-# Embedded server does not support crashing
---source include/not_embedded.inc
 # Avoid CrashReporter popup on Mac
 --source include/not_crashrep.inc
 

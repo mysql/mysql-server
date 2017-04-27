@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,13 +13,14 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "binary_log_types.h"
-
-#include "statement_events.h"
-
+#include <sys/types.h>
 #include <algorithm>
 #include <cstdio>
 #include <string>
+
+#include "binary_log_types.h"
+#include "my_io.h"
+#include "statement_events.h"
 
 namespace binary_log
 {
@@ -592,14 +593,15 @@ XA_prepare_event(const char* buf,
 Gtid_event::Gtid_event(const char *buffer, uint32_t event_len,
                        const Format_description_event *description_event)
  : Binary_log_event(&buffer, description_event->binlog_version),
-    last_committed(SEQ_UNINIT), sequence_number(SEQ_UNINIT)
+    last_committed(SEQ_UNINIT), sequence_number(SEQ_UNINIT),
+    original_commit_timestamp(0), immediate_commit_timestamp(0)
 {
   /*
     The layout of the buffer is as follows:
-    +------+--------+-------+-------+--------------+---------------+
-    |unused|SID     |GNO    |lt_type|last_committed|sequence_number|
-    |1 byte|16 bytes|8 bytes|1 byte |8 bytes       |8 bytes        |
-    +------+--------+-------+-------+--------------+---------------+
+    +------+--------+-------+-------+--------------+---------------+------------+
+    |unused|SID     |GNO    |lt_type|last_committed|sequence_number| timestamps*|
+    |1 byte|16 bytes|8 bytes|1 byte |8 bytes       |8 bytes        | 7/14 bytes |
+    +------+--------+-------+-------+--------------+---------------+------------+
 
     The 'unused' field is not used.
 
@@ -612,8 +614,27 @@ Gtid_event::Gtid_event(const char *buffer, uint32_t event_len,
 
     The buffer is advanced in Binary_log_event constructor to point to
     beginning of post-header
+
+   * The section titled "timestamps" contains commit timestamps on originating
+     server and commit timestamp on the immediate master.
+
+     This is how we write the timestamps section serialized to a memory buffer.
+
+     if original_commit_timestamp != immediate_commit_timestamp:
+
+       +-7 bytes, high bit (1<<55) set-----+-7 bytes----------+
+       | immediate_commit_timestamp        |original_timestamp|
+       +-----------------------------------+------------------+
+
+     else:
+
+       +-7 bytes, high bit (1<<55) cleared-+
+       | immediate_commit_timestamp        |
+       +-----------------------------------+
   */
   char const *ptr_buffer= buffer;
+  char const *ptr_buffer_end= buffer + event_len -
+                            description_event->common_header_len;
 
   ptr_buffer+= ENCODED_FLAG_LENGTH;
 
@@ -634,7 +655,7 @@ Gtid_event::Gtid_event(const char *buffer, uint32_t event_len,
     avoid out of buffer reads.
   */
   if (ptr_buffer + LOGICAL_TIMESTAMP_TYPECODE_LENGTH +
-      LOGICAL_TIMESTAMP_LENGTH <= buffer + event_len &&
+      LOGICAL_TIMESTAMP_LENGTH <= ptr_buffer_end &&
       *ptr_buffer == LOGICAL_TIMESTAMP_TYPECODE)
   {
     ptr_buffer+= LOGICAL_TIMESTAMP_TYPECODE_LENGTH;
@@ -643,6 +664,39 @@ Gtid_event::Gtid_event(const char *buffer, uint32_t event_len,
     memcpy(&sequence_number, ptr_buffer + 8, sizeof(sequence_number));
     sequence_number= (int64_t)le64toh(sequence_number);
     ptr_buffer+= LOGICAL_TIMESTAMP_LENGTH;
+  }
+  /*
+    Fetch the timestamps used to monitor replication lags with respect to
+    the immediate master and the server that originated this transaction.
+    Check that the timestamps exist before reading. Note that a master
+    older than MySQL-5.8 will NOT send these timestamps. We should be
+    able to ignore these fields in this case.
+  */
+  has_commit_timestamps= ptr_buffer + IMMEDIATE_COMMIT_TIMESTAMP_LENGTH
+                         <= ptr_buffer_end;
+  if (has_commit_timestamps)
+  {
+    memcpy(&immediate_commit_timestamp, ptr_buffer,
+           IMMEDIATE_COMMIT_TIMESTAMP_LENGTH);
+    immediate_commit_timestamp=(int64_t)le64toh(immediate_commit_timestamp);
+    ptr_buffer+= IMMEDIATE_COMMIT_TIMESTAMP_LENGTH;
+    // Check the MSB to determine how we should populate original_commit_timestamp
+    if ((immediate_commit_timestamp & (1ULL << ENCODED_COMMIT_TIMESTAMP_LENGTH))
+        != 0)
+    {
+      // Read the original_commit_timestamp
+      immediate_commit_timestamp &=
+        ~(1ULL << ENCODED_COMMIT_TIMESTAMP_LENGTH); /* Clear MSB. */
+      memcpy(&original_commit_timestamp, ptr_buffer,
+          ORIGINAL_COMMIT_TIMESTAMP_LENGTH);
+      original_commit_timestamp=(int64_t)le64toh(original_commit_timestamp);
+      ptr_buffer+= ORIGINAL_COMMIT_TIMESTAMP_LENGTH;
+    }
+    else
+    {
+      // The transaction originated in the previous server
+      original_commit_timestamp= immediate_commit_timestamp;
+    }
   }
 
   return;

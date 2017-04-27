@@ -5,7 +5,6 @@
 # Simulate failures from vio_peer_addr, reported in:
 # status variable Peer_address_errors
 
---source include/not_embedded.inc
 --source include/have_debug.inc
 
 # Enforce a clean state

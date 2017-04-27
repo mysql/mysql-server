@@ -20,11 +20,13 @@
   the file descriptior.
 */
 
+#include <sys/types.h>
 #include <new>
 
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
+#include "my_io.h"
 #include "my_psi_config.h"
 #include "mysql/psi/mysql_memory.h"
 #include "mysql/psi/psi_memory.h"  // IWYU pragma: keep
@@ -87,7 +89,7 @@ static int no_io_wait(Vio *vio MY_ATTRIBUTE((unused)),
 #endif
 
 extern "C" {
-static my_bool has_no_data(Vio *vio MY_ATTRIBUTE((unused)))
+static bool has_no_data(Vio *vio MY_ATTRIBUTE((unused)))
 {
   return FALSE;
 }
@@ -245,8 +247,8 @@ static bool vio_init(Vio *vio, enum enum_vio_type type,
   @return Return value is zero on success.
 */
 
-my_bool vio_reset(Vio* vio, enum enum_vio_type type,
-                  my_socket sd, void *ssl MY_ATTRIBUTE((unused)), uint flags)
+bool vio_reset(Vio* vio, enum enum_vio_type type,
+               my_socket sd, void *ssl MY_ATTRIBUTE((unused)), uint flags)
 {
   int ret= FALSE;
   Vio new_vio(flags);
@@ -434,7 +436,7 @@ Vio *vio_new_win32shared_memory(HANDLE handle_file_map, HANDLE handle_map,
 int vio_timeout(Vio *vio, uint which, int timeout_sec)
 {
   int timeout_ms;
-  my_bool old_mode;
+  bool old_mode;
 
   /*
     Vio timeouts are measured in milliseconds. Check for a possible

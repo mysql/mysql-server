@@ -1,7 +1,5 @@
 # Test needs myisam for some myisam specific testcases
 --source include/have_myisam.inc
-# Can't run test of external client with embedded server
---source include/not_embedded.inc
 --source include/no_valgrind_without_big.inc
 
 --exec $MYSQL_SLAP --silent --concurrency=5 --iterations=20 --number-int-cols=2 --number-char-cols=3 --auto-generate-sql

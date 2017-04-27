@@ -20,8 +20,11 @@
   @file storage/perfschema/pfs_buffer_container.h
   Generic buffer container.
 */
+
+#include <stddef.h>
+#include <sys/types.h>
+
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "pfs_builtin_memory.h"
 #include "pfs_instr.h"
@@ -433,14 +436,14 @@ public:
   /**
     Type of elements in the buffer.
     The following attributes are required:
-    - pfs_lock m_lock
-    - PFS_opaque_container_page *m_page
+    - @code pfs_lock m_lock @endcode
+    - @code PFS_opaque_container_page *m_page @endcode
   */
   typedef T value_type;
   /**
     Type of pages in the buffer.
     The following attributes are required:
-    - PFS_opaque_container *m_container
+    - @code PFS_opaque_container *m_container @endcode
   */
   typedef U array_type;
   typedef V allocator_type;

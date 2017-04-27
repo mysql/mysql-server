@@ -16,6 +16,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
+#include <sys/types.h>
+
 #include "btr0pcur.h"
 #include "fil0fil.h"
 #include "lob0fit.h"
@@ -84,7 +86,7 @@ BaseInserter::alloc_blob_page()
 
 	if (m_ctx->is_bulk()) {
 		mtr_start(&mtr_bulk);
-		mtr_bulk.set_named_space(m_ctx->space());
+
 		alloc_mtr = &mtr_bulk;
 	} else {
 		alloc_mtr = &m_blob_mtr;
@@ -92,8 +94,10 @@ BaseInserter::alloc_blob_page()
 
 	page_no_t	hint_page_no = m_prev_page_no + 1;
 
-	if (!fsp_reserve_free_extents(&r_extents, m_ctx->space(), 1,
-		FSP_BLOB, alloc_mtr, 1)) {
+	bool	success = fsp_reserve_free_extents(
+		&r_extents, m_ctx->space(), 1, FSP_BLOB, alloc_mtr, 1);
+
+	if (!success) {
 
 		alloc_mtr->commit();
 		m_status = DB_OUT_OF_FILE_SPACE;
@@ -104,7 +108,9 @@ BaseInserter::alloc_blob_page()
 		m_ctx->index(), hint_page_no, FSP_NO_DIR, 0,
 		alloc_mtr, &m_blob_mtr);
 
-	alloc_mtr->release_free_extents(r_extents);
+	fil_space_t*	space = fil_space_get(m_ctx->space());
+
+	space->release_free_extents(r_extents);
 
 	if (m_ctx->is_bulk()) {
 		alloc_mtr->commit();
@@ -1034,7 +1040,7 @@ dberr_t	Deleter::free_first_page()
 	page_no_t	next_page_no;
 
 	mtr_start(&m_mtr);
-	m_mtr.set_spaces(*m_ctx.m_mtr);
+
 	m_mtr.set_log_mode(m_ctx.m_mtr->get_log_mode());
 
 	ut_ad(m_ctx.m_pcur == nullptr

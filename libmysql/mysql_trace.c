@@ -41,7 +41,6 @@
   hooks within libmysql code.
 */
 
-#include <my_global.h>
 
 #include "my_dbug.h"
 #include "my_inttypes.h"
@@ -157,7 +156,7 @@ void mysql_trace_trace(struct st_mysql  *m,
       by setting trace data pointer to NULL. Also, set reconnect
       flag to 0 in case plugin executes any queries.
     */
-    my_bool saved_reconnect_flag= m->reconnect;
+    bool saved_reconnect_flag= m->reconnect;
 
     TRACE_DATA(m)= NULL;
     m->reconnect=  0;

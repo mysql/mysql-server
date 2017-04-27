@@ -47,6 +47,7 @@ Created 1/8/1996 Heikki Tuuri
 #include "trx0roll.h"
 #include "usr0sess.h"
 #include "ut0vec.h"
+#include "dict0upgrade.h"
 
 /*****************************************************************//**
 Based on a table object, this function builds the entry to be inserted
@@ -360,16 +361,50 @@ dict_build_table_def_step(
 	table = node->table;
 
 	trx_t*	trx = thr_get_trx(thr);
-	dict_table_assign_new_id(table, trx);
+	if (!table->skip_step) {
+		dict_table_assign_new_id(table, trx);
 
-	err = dict_build_tablespace_for_table(table);
-	if (err != DB_SUCCESS) {
-		return(err);
+		err = dict_build_tablespace_for_table(table);
+		if (err != DB_SUCCESS) {
+			return(err);
+		}
 	}
 
 	row = dict_create_sys_tables_tuple(table, node->heap);
 
 	ins_node_set_new_row(node->tab_def, row);
+
+	return(err);
+}
+
+/** Build a table definition without updating SYSTEM TABLES
+@param[in,out]	table	dict table object
+@param[in,out]	trx	transaction instance
+@return DB_SUCCESS or error code */
+dberr_t
+dict_build_table_def(
+	dict_table_t*	table,
+	trx_t*		trx)
+{
+	dberr_t		err = DB_SUCCESS;
+
+
+	if (srv_is_upgrade_mode) {
+		table->id = dd_upgrade_tables_num++;
+#ifdef UNIV_DEBUG
+		char	db_buf[NAME_LEN + 1];
+		char	tbl_buf[NAME_LEN + 1];
+
+		dd_parse_tbl_name(table->name.m_name, db_buf, tbl_buf, NULL);
+		/*TODO: NewDD: WL#9535: Remove INNODB_SYS_TABLE_ID_MAX, after INNODB SYS_TABLE is removed. */
+		ut_ad(strcmp(tbl_buf, innodb_dd_table[table->id - INNODB_SYS_TABLE_ID_MAX].name) == 0);
+#endif /* UNIV_DEBUG */
+
+	} else {
+		dict_table_assign_new_id(table, trx);
+	}
+
+	err = dict_build_tablespace_for_table(table);
 
 	return(err);
 }
@@ -388,8 +423,8 @@ dict_build_tablespace(
 	ut_ad(mutex_own(&dict_sys->mutex));
 	ut_ad(tablespace);
 
-        DBUG_EXECUTE_IF("out_of_tablespace_disk",
-                         return(DB_OUT_OF_FILE_SPACE););
+	DBUG_EXECUTE_IF("out_of_tablespace_disk",
+			return(DB_OUT_OF_FILE_SPACE););
 	/* Get a new space id. */
 	dict_hdr_get_new_id(NULL, NULL, &space, NULL, false);
 	if (space == SPACE_UNKNOWN) {
@@ -417,6 +452,7 @@ dict_build_tablespace(
 		return(err);
 	}
 
+#ifdef INNODB_DD_TABLE
 	/* Update SYS_TABLESPACES and SYS_DATAFILES */
 	err = dict_replace_tablespace_and_filepath(
 		tablespace->space_id(), tablespace->name(),
@@ -425,9 +461,9 @@ dict_build_tablespace(
 		os_file_delete(innodb_data_file_key, datafile->filepath());
 		return(err);
 	}
+#endif
 
 	mtr_start(&mtr);
-	mtr.set_named_space(space);
 
 	/* Once we allow temporary general tablespaces, we must do this;
 	mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO); */
@@ -436,6 +472,11 @@ dict_build_tablespace(
 	bool ret = fsp_header_init(
 		space, FIL_IBD_FILE_INITIAL_SIZE, &mtr, false);
 	mtr_commit(&mtr);
+
+	DBUG_EXECUTE_IF(
+		"fil_ibd_create_log",
+		log_write_up_to(mtr.commit_lsn(), true);
+		DBUG_SUICIDE(););
 
 	if (!ret) {
 		return(DB_ERROR);
@@ -530,11 +571,15 @@ dict_build_tablespace_for_table(
 		}
 
 		mtr_start(&mtr);
-		mtr.set_named_space(table->space);
 
 		bool ret = fsp_header_init(
 			table->space, FIL_IBD_FILE_INITIAL_SIZE, &mtr, false);
 		mtr_commit(&mtr);
+
+		DBUG_EXECUTE_IF(
+			"fil_ibd_create_log",
+			log_write_up_to(mtr.commit_lsn(), true);
+			DBUG_SUICIDE(););
 
 		if (!ret) {
 			return(DB_ERROR);
@@ -675,7 +720,11 @@ dict_create_sys_indexes_tuple(
 		entry, DICT_COL__SYS_INDEXES__N_FIELDS);
 
 	ptr = static_cast<byte*>(mem_heap_alloc(heap, 4));
-	mach_write_to_4(ptr, index->n_fields);
+	if (index->skip_step) {
+		mach_write_to_4(ptr, index->n_user_defined_cols);
+	} else {
+		mach_write_to_4(ptr, index->n_fields);
+	}
 
 	dfield_set_data(dfield, ptr, 4);
 
@@ -704,7 +753,7 @@ dict_create_sys_indexes_tuple(
 		entry, DICT_COL__SYS_INDEXES__PAGE_NO);
 
 	ptr = static_cast<byte*>(mem_heap_alloc(heap, 4));
-	mach_write_to_4(ptr, FIL_NULL);
+	mach_write_to_4(ptr, index->page);
 
 	dfield_set_data(dfield, ptr, 4);
 
@@ -884,13 +933,15 @@ dict_build_index_def_step(
 	ut_ad((UT_LIST_GET_LEN(table->indexes) > 0)
 	      || index->is_clustered());
 
-	dict_hdr_get_new_id(NULL, &index->id, NULL, table, false);
+	if (!index->skip_step) {
+		dict_hdr_get_new_id(NULL, &index->id, NULL, table, false);
+	}
 
 	/* Inherit the space id from the table; we store all indexes of a
 	table in the same tablespace */
 
 	index->space = table->space;
-	node->page_no = FIL_NULL;
+	node->page_no = index->page;
 	row = dict_create_sys_indexes_tuple(index, node->heap);
 	node->ind_row = row;
 
@@ -925,7 +976,13 @@ dict_build_index_def(
 	      || index->is_clustered());
 
 	if (!table->is_intrinsic()) {
-		dict_hdr_get_new_id(NULL, &index->id, NULL, table, false);
+		if (srv_is_upgrade_mode) {
+			index->id = dd_upgrade_indexes_num++;
+			ut_ad(dd_upgrade_indexes_num <= INNODB_SYS_INDEX_ID_MAX + dd_get_total_indexes_num());
+		} else {
+			dict_hdr_get_new_id(NULL, &index->id, NULL, table, false);
+		}
+
 	} else {
 		/* Index are re-loaded in process of creation using id.
 		If same-id is used for all indexes only first index will always
@@ -995,14 +1052,9 @@ dict_create_index_tree_step(
 	sys_indexes */
 
 	mtr_start(&mtr);
-	mtr.set_sys_modified();
 
 	const bool	missing = index->table->ibd_file_missing
 		|| dict_table_is_discarded(index->table);
-
-	if (!missing) {
-		mtr.set_named_space(index->space);
-	}
 
 	search_tuple = dict_create_search_tuple(node->ind_row, node->heap);
 
@@ -1058,20 +1110,31 @@ dict_create_index_tree_in_mem(
 
 	ut_ad(mutex_own(&dict_sys->mutex) || index->table->is_intrinsic());
 
+	DBUG_EXECUTE_IF("ib_dict_create_index_tree_fail",
+			return(DB_OUT_OF_MEMORY););
+
 	if (index->type == DICT_FTS) {
 		/* FTS index does not need an index tree */
 		return(DB_SUCCESS);
 	}
 
+	const bool      missing =  index->table->ibd_file_missing
+		|| dict_table_is_discarded(index->table);
+
+	if (missing) {
+		index->page = FIL_NULL;
+		index->trx_id= trx->id;
+
+		return(DB_SUCCESS);
+	}
+
 	mtr_start(&mtr);
-	mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
+
+	if (index->table->is_temporary()) {
+		mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
+	}
 
 	dberr_t		err = DB_SUCCESS;
-
-	/* Currently this function is being used by temp-tables only.
-	Import/Discard of temp-table is blocked and so this assert. */
-	ut_ad(index->table->ibd_file_missing == 0
-	      && !dict_table_is_discarded(index->table));
 
 	page_no = btr_create(
 		index->type, index->space,
@@ -1152,6 +1215,52 @@ dict_drop_index_tree(
 			   mach_read_from_8(ptr), mtr);
 
 	return(true);
+}
+
+/** Drop an index tree
+@param[in]	index		dict index
+@param[in]	root_page_no	root page no */
+void
+dict_drop_index(
+	const dict_index_t*	index,
+	page_no_t		root_page_no)
+{
+	ut_ad(mutex_own(&dict_sys->mutex));
+	ut_ad(!index->table->is_temporary());
+
+	if (root_page_no == FIL_NULL) {
+		ut_ad((index->type & DICT_FTS)
+		      || index->table->ibd_file_missing);
+		return;
+	}
+
+	/* This is an index which has its index tree dropped, but left due
+	to table ref count in row_merge_drop_indexes() */
+	if (dict_index_get_online_status(index) == ONLINE_INDEX_ABORTED_DROPPED
+	    && index->is_corrupted()) {
+		return;
+	}
+
+	bool			found;
+	const page_size_t	page_size(fil_space_get_page_size(index->space,
+								  &found));
+
+	if (!found) {
+		/* It is a single table tablespace and the .ibd file is
+		missing: do nothing */
+
+		return;
+	}
+
+	mtr_t	mtr;
+	mtr_start(&mtr);
+
+	btr_free_if_exists(page_id_t(index->space, root_page_no),
+			   page_size, index->id, &mtr);
+
+	mtr_commit(&mtr);
+
+	return;
 }
 
 /** Drop an index tree belonging to a temporary table.
@@ -1292,8 +1401,9 @@ dict_create_table_step(
 
 		node->state = TABLE_BUILD_COL_DEF;
 		node->col_no = 0;
-
 		thr->run_node = node->tab_def;
+
+		//node->state = TABLE_ADD_TO_CACHE;
 
 		return(thr);
 	}
@@ -1363,7 +1473,10 @@ dict_create_table_step(
 	if (node->state == TABLE_ADD_TO_CACHE) {
 		DBUG_EXECUTE_IF("ib_ddl_crash_during_create", DBUG_SUICIDE(););
 
-		dict_table_add_to_cache(node->table, TRUE, node->heap);
+		if (!node->table->skip_step) {
+			dict_table_add_system_columns(node->table, node->heap);
+			dict_table_add_to_cache(node->table, TRUE, node->heap);
+		}
 
 		err = DB_SUCCESS;
 	}
@@ -1425,15 +1538,22 @@ dict_create_index_step(
 
 		node->state = INDEX_BUILD_FIELD_DEF;
 		node->field_no = 0;
-
 		thr->run_node = node->ind_def;
+
+		//node->state = INDEX_ADD_TO_CACHE;
 
 		return(thr);
 	}
 
 	if (node->state == INDEX_BUILD_FIELD_DEF) {
+		ulint n_fields;
+		if (node->index->skip_step) {
+			n_fields = node->index->n_user_defined_cols;
+		} else {
+			n_fields = node->index->n_fields;
+		}
 
-		if (node->field_no < (node->index)->n_fields) {
+		if (node->field_no < n_fields) {
 
 			dict_build_field_def_step(node);
 
@@ -1445,6 +1565,11 @@ dict_create_index_step(
 		} else {
 			node->state = INDEX_ADD_TO_CACHE;
 		}
+	}
+
+	if (node->index->skip_step) {
+		err = DB_SUCCESS;
+		goto function_exit;
 	}
 
 	if (node->state == INDEX_ADD_TO_CACHE) {
@@ -1478,27 +1603,8 @@ dict_create_index_step(
 			it from fts->cache->indexes list as well */
 			if ((node->index->type & DICT_FTS)
 			    && node->table->fts) {
-				fts_index_cache_t*	index_cache;
-
-				rw_lock_x_lock(
-					&node->table->fts->cache->init_lock);
-
-				index_cache = (fts_index_cache_t*)
-					 fts_find_index_cache(
-						node->table->fts->cache,
-						node->index);
-
-				if (index_cache->words) {
-					rbt_free(index_cache->words);
-					index_cache->words = 0;
-				}
-
-				ib_vector_remove(
-					node->table->fts->cache->indexes,
-					*reinterpret_cast<void**>(index_cache));
-
-				rw_lock_x_unlock(
-					&node->table->fts->cache->init_lock);
+				fts_cache_index_cache_remove(
+					node->table, node->index);
 			}
 
 			dict_index_remove_from_cache(node->table, node->index);
@@ -1589,7 +1695,7 @@ dict_create_or_check_foreign_constraint_tables(void)
 /*================================================*/
 {
 	trx_t*		trx;
-	my_bool		srv_file_per_table_backup;
+	bool		srv_file_per_table_backup;
 	dberr_t		err;
 	dberr_t		sys_foreign_err;
 	dberr_t		sys_foreign_cols_err;
@@ -1722,7 +1828,7 @@ dberr_t
 dict_create_or_check_sys_virtual()
 {
 	trx_t*		trx;
-	my_bool		srv_file_per_table_backup;
+	bool		srv_file_per_table_backup;
 	dberr_t		err;
 
 	/* Note: The master thread has not been started at this point. */
@@ -2242,7 +2348,7 @@ dict_create_or_check_sys_tablespace(void)
 /*=====================================*/
 {
 	trx_t*		trx;
-	my_bool		srv_file_per_table_backup;
+	bool		srv_file_per_table_backup;
 	dberr_t		err;
 	dberr_t		sys_tablespaces_err;
 	dberr_t		sys_datafiles_err;
@@ -2527,7 +2633,7 @@ dict_sdi_create_idx_in_mem(
 		rec_format = REC_FORMAT_COMPACT;
 	}
 
-	ulint	table_flags;
+	ulint	table_flags = 0;
 	dict_tf_set(&table_flags, rec_format, zip_ssize, has_data_dir,
 		    has_shared_space);
 
@@ -2553,6 +2659,7 @@ dict_sdi_create_idx_in_mem(
 	/* Disable persistent statistics on the table */
 	dict_stats_set_persistent(table, false, true);
 
+	dict_table_add_system_columns(table, heap);
 	dict_table_add_to_cache(table, TRUE, heap);
 
 	/* TODO: After WL#7412, we can use a common name for both

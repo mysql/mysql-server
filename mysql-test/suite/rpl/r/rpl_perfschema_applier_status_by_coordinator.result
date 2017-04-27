@@ -15,7 +15,7 @@ include/assert.inc [thread_name should should indicate sql thread.]
 include/assert.inc [SSS shows Slave_IO_Running as "Yes". So, Service_State from this PS table should be "ON".]
 include/assert.inc [Value returned by SSS and PS table for Last_Error_Number should be same.]
 include/assert.inc [Value returned by SSS and PS table for Last_Error_Message should be same.]
-include/assert.inc [Value returned by SSS and PS table for Last_Error_Timestamp should be 0000-00-00 00:00:00.]
+include/assert.inc [Value returned by SSS and PS table for Last_Error_Timestamp should be 0000-00-00 00:00:00.000000.]
 include/assert.inc [SSS shows Slave_SQL_Running as "Yes". So, Service_State from this PS table should be "ON".]
 
 # Cause an error in the SQL thread and check for the correctness of
@@ -79,7 +79,7 @@ include/assert.inc [thread_name should should indicate sql thread.]
 include/assert.inc [SSS shows Slave_SQL_Running as "Yes". So, Service_State from this PS table should be "ON".]
 include/assert.inc [Value returned by SSS and PS table for Last_Error_Number should be same.]
 include/assert.inc [Value returned by SSS and PS table for Last_Error_Message should be same.]
-include/assert.inc [Value returned by SSS and PS table for Last_Error_Timestamp should be 0000-00-00 00:00:00.]
+include/assert.inc [Value returned by SSS and PS table for Last_Error_Timestamp should be 0000-00-00 00:00:00.000000.]
 
 # Cleanup.
 

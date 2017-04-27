@@ -21,11 +21,13 @@
   Table DATA_LOCKS (declarations).
 */
 
+#include <sys/types.h>
+
 #include "pfs.h"
 #include "pfs_column_types.h"
+#include "pfs_data_lock.h"
 #include "pfs_engine_table.h"
 #include "table_helper.h"
-#include "pfs_data_lock.h"
 
 struct PFS_data_locks;
 class PFS_index_data_locks;
@@ -96,7 +98,7 @@ class table_data_locks : public PFS_engine_table
 public:
   /** Table share. */
   static PFS_engine_table_share m_share;
-  static PFS_engine_table *create();
+  static PFS_engine_table *create(PFS_engine_table_share *);
   static ha_rows get_row_count();
 
   virtual int rnd_next();

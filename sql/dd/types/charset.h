@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,17 +16,16 @@
 #ifndef DD__CHARSET_INCLUDED
 #define DD__CHARSET_INCLUDED
 
-#include "my_global.h"
-
-#include "dd/types/dictionary_object.h"    // dd::Dictionary_object
+#include "dd/types/entity_object.h"    // dd::Entity_object
+#include "my_inttypes.h"
 
 namespace dd {
 
 ///////////////////////////////////////////////////////////////////////////
 
+class Entity_object_table;
 class Collation;
 class Object_type;
-
 class Primary_id_key;
 class Global_name_key;
 class Void_key;
@@ -37,11 +36,11 @@ namespace tables {
 
 ///////////////////////////////////////////////////////////////////////////
 
-class Charset : public Dictionary_object
+class Charset : virtual public Entity_object
 {
 public:
   static const Object_type &TYPE();
-  static const Dictionary_object_table &OBJECT_TABLE();
+  static const Entity_object_table &OBJECT_TABLE();
 
   typedef Charset cache_partition_type;
   typedef tables::Character_sets cache_partition_table_type;

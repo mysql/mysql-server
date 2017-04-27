@@ -25,4 +25,3 @@ DROP TABLE t1;
 DROP TABLE t2;
 SET sql_mode = default;
 --source include/rpl_end.inc
-

@@ -1,0 +1,126 @@
+include/rpl_init.inc [topology=1->2,3->2]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server_1]
+CREATE DATABASE db1;
+CREATE TABLE db1.t1(a int);
+INSERT INTO db1.t1 VALUES(1);
+UPDATE db1.t1 SET a=2;
+DELETE FROM db1.t1 WHERE a=1;
+DROP TABLE db1.t1;
+DROP DATABASE db1;
+include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_1']
+[connection server_3]
+CREATE DATABASE db2;
+CREATE TABLE db2.t2(a int);
+INSERT INTO db2.t2 VALUES(1);
+UPDATE db2.t2 SET a=2;
+DELETE FROM db2.t2 WHERE a=1;
+DROP TABLE db2.t2;
+DROP DATABASE db2;
+include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_3']
+# 1. Save both timestamps (original/immediate) on all servers.
+[connection server_1]
+[connection server_2]
+# 2. Verify that the timestamps are correct.
+include/assert.inc [Assert that the OCT is the same on server_1 and server_2.]
+include/assert.inc [Assert that OCT is the same as ICT on server_1]
+include/assert.inc [Assert that ICT increases from server_1 to server_2]
+# 1. Save both timestamps (original/immediate) on all servers.
+[connection server_3]
+[connection server_2]
+# 2. Verify that the timestamps are correct.
+include/assert.inc [Assert that the OCT is the same on server_3 and server_2.]
+include/assert.inc [Assert that OCT is the same as ICT on server_3]
+include/assert.inc [Assert that ICT increases from server_3 to server_2]
+# 1. Save both timestamps (original/immediate) on all servers.
+[connection server_1]
+[connection server_2]
+# 2. Verify that the timestamps are correct.
+include/assert.inc [Assert that the OCT is the same on server_1 and server_2.]
+include/assert.inc [Assert that OCT is the same as ICT on server_1]
+include/assert.inc [Assert that ICT increases from server_1 to server_2]
+# 1. Save both timestamps (original/immediate) on all servers.
+[connection server_3]
+[connection server_2]
+# 2. Verify that the timestamps are correct.
+include/assert.inc [Assert that the OCT is the same on server_3 and server_2.]
+include/assert.inc [Assert that OCT is the same as ICT on server_3]
+include/assert.inc [Assert that ICT increases from server_3 to server_2]
+# 1. Save both timestamps (original/immediate) on all servers.
+[connection server_1]
+[connection server_2]
+# 2. Verify that the timestamps are correct.
+include/assert.inc [Assert that the OCT is the same on server_1 and server_2.]
+include/assert.inc [Assert that OCT is the same as ICT on server_1]
+include/assert.inc [Assert that ICT increases from server_1 to server_2]
+# 1. Save both timestamps (original/immediate) on all servers.
+[connection server_3]
+[connection server_2]
+# 2. Verify that the timestamps are correct.
+include/assert.inc [Assert that the OCT is the same on server_3 and server_2.]
+include/assert.inc [Assert that OCT is the same as ICT on server_3]
+include/assert.inc [Assert that ICT increases from server_3 to server_2]
+# 1. Save both timestamps (original/immediate) on all servers.
+[connection server_1]
+[connection server_2]
+# 2. Verify that the timestamps are correct.
+include/assert.inc [Assert that the OCT is the same on server_1 and server_2.]
+include/assert.inc [Assert that OCT is the same as ICT on server_1]
+include/assert.inc [Assert that ICT increases from server_1 to server_2]
+# 1. Save both timestamps (original/immediate) on all servers.
+[connection server_3]
+[connection server_2]
+# 2. Verify that the timestamps are correct.
+include/assert.inc [Assert that the OCT is the same on server_3 and server_2.]
+include/assert.inc [Assert that OCT is the same as ICT on server_3]
+include/assert.inc [Assert that ICT increases from server_3 to server_2]
+# 1. Save both timestamps (original/immediate) on all servers.
+[connection server_1]
+[connection server_2]
+# 2. Verify that the timestamps are correct.
+include/assert.inc [Assert that the OCT is the same on server_1 and server_2.]
+include/assert.inc [Assert that OCT is the same as ICT on server_1]
+include/assert.inc [Assert that ICT increases from server_1 to server_2]
+# 1. Save both timestamps (original/immediate) on all servers.
+[connection server_3]
+[connection server_2]
+# 2. Verify that the timestamps are correct.
+include/assert.inc [Assert that the OCT is the same on server_3 and server_2.]
+include/assert.inc [Assert that OCT is the same as ICT on server_3]
+include/assert.inc [Assert that ICT increases from server_3 to server_2]
+# 1. Save both timestamps (original/immediate) on all servers.
+[connection server_1]
+[connection server_2]
+# 2. Verify that the timestamps are correct.
+include/assert.inc [Assert that the OCT is the same on server_1 and server_2.]
+include/assert.inc [Assert that OCT is the same as ICT on server_1]
+include/assert.inc [Assert that ICT increases from server_1 to server_2]
+# 1. Save both timestamps (original/immediate) on all servers.
+[connection server_3]
+[connection server_2]
+# 2. Verify that the timestamps are correct.
+include/assert.inc [Assert that the OCT is the same on server_3 and server_2.]
+include/assert.inc [Assert that OCT is the same as ICT on server_3]
+include/assert.inc [Assert that ICT increases from server_3 to server_2]
+# 1. Save both timestamps (original/immediate) on all servers.
+[connection server_1]
+[connection server_2]
+# 2. Verify that the timestamps are correct.
+include/assert.inc [Assert that the OCT is the same on server_1 and server_2.]
+include/assert.inc [Assert that OCT is the same as ICT on server_1]
+include/assert.inc [Assert that ICT increases from server_1 to server_2]
+# 1. Save both timestamps (original/immediate) on all servers.
+[connection server_3]
+[connection server_2]
+# 2. Verify that the timestamps are correct.
+include/assert.inc [Assert that the OCT is the same on server_3 and server_2.]
+include/assert.inc [Assert that OCT is the same as ICT on server_3]
+include/assert.inc [Assert that ICT increases from server_3 to server_2]
+include/rpl_end.inc
+RESET SLAVE ALL FOR CHANNEL 'channel_1';
+RESET SLAVE ALL FOR CHANNEL 'channel_3';

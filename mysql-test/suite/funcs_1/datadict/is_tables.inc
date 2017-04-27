@@ -17,7 +17,6 @@
 #                   Create this script based on older scripts and new code.
 # Last Change:
 # 2008-06-11 mleich Move t/is_tables.test to this file and
-#                   create variants for embedded/non embedded server.
 #
 
 let $is_table = TABLES;
@@ -100,7 +99,7 @@ FROM information_schema.tables WHERE table_catalog IS NULL OR table_catalog <> '
 --disable_warnings
 DROP DATABASE IF EXISTS db_datadict;
 --enable_warnings
-CREATE DATABASE db_datadict;
+CREATE DATABASE db_datadict charset latin1;
 
 --error 0,ER_CANNOT_USER
 DROP   USER 'testuser1'@'localhost';
@@ -249,7 +248,7 @@ DROP DATABASE db_datadict;
 DROP TABLE IF EXISTS test.t1_my_table;
 DROP DATABASE IF EXISTS db_datadict;
 --enable_warnings
-CREATE DATABASE db_datadict;
+CREATE DATABASE db_datadict charset latin1;
 
 SELECT table_name FROM information_schema.tables
 WHERE table_name LIKE 't1_my_table%';
@@ -448,7 +447,7 @@ WHERE table_name = 't1_my_tablex';
 --disable_warnings
 DROP DATABASE IF EXISTS db_datadict;
 --enable_warnings
-CREATE DATABASE db_datadict;
+CREATE DATABASE db_datadict charset latin1;
 --replace_result $engine_type <engine_type>
 eval
 CREATE TABLE db_datadict.t1 (f1 BIGINT)
@@ -467,9 +466,7 @@ let $my_error_message =
 ##### The previous statement must fail ######
 # Server type  | expected error name      | expected error message
 # --------------------------------------------------------------------------------------------------------------------
-# not embedded | ER_DBACCESS_DENIED_ERROR | ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
-# embedded     | ER_NON_UPDATABLE_TABLE   | ERROR HY000: The target table tables of the UPDATE is not updatable
-#              | or similar               |              or similar
+# MySQL  | ER_DBACCESS_DENIED_ERROR | ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
 ;
 --disable_abort_on_error
 UPDATE information_schema.tables SET table_schema = 'test'

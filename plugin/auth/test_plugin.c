@@ -25,7 +25,6 @@
   This test plugin is based on the dialog plugin example.
 */
 
-#include <my_global.h>
 #include <mysql/client_plugin.h>
 #include <mysql/plugin_auth.h>
 #include <mysql/service_my_plugin_log.h>

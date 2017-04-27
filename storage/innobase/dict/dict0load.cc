@@ -24,6 +24,10 @@ from dictionary tables
 Created 4/24/1996 Heikki Tuuri
 *******************************************************/
 
+#include "ha_prototypes.h"
+#include "current_thd.h"
+
+#include "dict0load.h"
 #include <set>
 #include <stack>
 
@@ -32,6 +36,7 @@ Created 4/24/1996 Heikki Tuuri
 #include "dict0boot.h"
 #include "dict0crea.h"
 #include "dict0dict.h"
+#include "dict0dd.h"
 #include "dict0load.h"
 #include "dict0mem.h"
 #include "dict0priv.h"
@@ -49,10 +54,11 @@ Created 4/24/1996 Heikki Tuuri
 #include "rem0cmp.h"
 #include "srv0srv.h"
 #include "srv0start.h"
+#include "fts0fts.h"
 
 /** Following are the InnoDB system tables. The positions in
 this array are referenced by enum dict_system_table_id. */
-static const char* SYSTEM_TABLE_NAME[] = {
+const char* SYSTEM_TABLE_NAME[] = {
 	"SYS_TABLES",
 	"SYS_INDEXES",
 	"SYS_COLUMNS",
@@ -63,6 +69,24 @@ static const char* SYSTEM_TABLE_NAME[] = {
 	"SYS_DATAFILES",
 	"SYS_VIRTUAL"
 };
+
+/** This variant is based on name comparision and is used because
+system table id array is not built yet.
+@param[in]	name	InnoDB table name
+@return true if table name is InnoDB SYSTEM table */
+static
+bool
+dict_load_is_system_table(const char* name)
+{
+	ut_ad(name != NULL);
+	uint32_t	size = sizeof(SYSTEM_TABLE_NAME) / sizeof(char*);
+	for (uint32_t i = 0; i < size; i++) {
+		if (strcmp(name, SYSTEM_TABLE_NAME[i]) == 0) {
+			return(true);
+		}
+	}
+	return(false);
+}
 
 /** Loads a table definition and also all its index definitions.
 
@@ -105,7 +129,7 @@ dict_load_table_low(
 
 /* If this flag is TRUE, then we will load the cluster index's (and tables')
 metadata even if it is marked as "corrupted". */
-my_bool     srv_load_corrupted = FALSE;
+bool     srv_load_corrupted = FALSE;
 
 #ifdef UNIV_DEBUG
 /****************************************************************//**
@@ -327,14 +351,27 @@ dict_process_sys_tables_rec_and_mtr_commit(
 	/* If DICT_TABLE_LOAD_FROM_CACHE is set, first check
 	whether there is cached dict_table_t struct */
 	if (status & DICT_TABLE_LOAD_FROM_CACHE) {
-
 		/* Commit before load the table again */
 		mtr_commit(mtr);
+		THD*		thd = current_thd;
+		MDL_ticket*	mdl = nullptr;
 
-		*table = dict_table_get_low(table_name.m_name);
+		if (dict_get_db_name_len(table_name.m_name) == 0) {
+			/* TODO: NEWDD: Will be removed by WL#9535. Get info
+			on InnoDB system tables */
+			ut_ad(strstr(table_name.m_name, "sys")
+			      || strstr(table_name.m_name, "SYS"));
+			*table = dict_table_get_low(table_name.m_name);
+		} else {
+			*table = dd_table_open_on_name(
+				thd, &mdl, table_name.m_name, true,
+				DICT_ERR_IGNORE_NONE);
+		}
 
 		if (!(*table)) {
 			err_msg = "Table not found in cache";
+		} else if (mdl) {
+			dd_table_close(*table, thd, &mdl, true);
 		}
 	} else {
 		err_msg = dict_load_table_low(table_name, rec, table);
@@ -375,7 +412,7 @@ dict_load_index_low(
 	const byte*	field;
 	ulint		len;
 	ulint		name_len;
-	char*		name_buf;
+	const char*	name_buf;
 	space_index_t	id;
 	ulint		n_fields;
 	ulint		type;
@@ -488,6 +525,33 @@ err_len:
 		rec, DICT_FLD__SYS_INDEXES__PAGE_NO, &len);
 	if (len != 4) {
 		goto err_len;
+	}
+
+	if (srv_is_upgrade_mode) {
+		if (strcmp(name_buf, innobase_index_reserve_name) == 0) {
+			/* Data dictinory uses PRIMARY instead of GEN_CLUST_INDEX. */
+			name_buf = "PRIMARY";
+		}
+	}
+
+	if (srv_is_upgrade_mode) {
+		fts_aux_table_t	fts_table;
+		bool	is_fts = fts_is_aux_table_name(&fts_table,
+			table_name, strlen(table_name));
+
+		if (is_fts) {
+			switch (fts_table.type) {
+			case FTS_INDEX_TABLE:
+				name_buf= FTS_INDEX_TABLE_IND_NAME;
+				break;
+			case FTS_COMMON_TABLE:
+				name_buf= FTS_COMMON_TABLE_IND_NAME;
+				break;
+			case FTS_OBSELETED_TABLE:
+				break;
+				/* do nothing */
+			}
+		}
 	}
 
 	if (allocate) {
@@ -921,7 +985,7 @@ dict_load_virtual_one_col(
 		err_msg = dict_load_virtual_low(table, heap,
 						&v_col->base_col[i - skipped],
 						NULL,
-					        &pos, NULL, rec);
+						&pos, NULL, rec);
 
 		if (err_msg) {
 			if (err_msg != dict_load_virtual_del) {
@@ -1591,7 +1655,6 @@ dict_replace_tablespace_and_filepath(
 	DBUG_EXECUTE_IF("innodb_fail_to_update_tablespace_dict",
 			return(DB_INTERRUPTED););
 
-	ut_ad(rw_lock_own(dict_operation_lock, RW_LOCK_X));
 	ut_ad(mutex_own(&dict_sys->mutex));
 	ut_ad(filepath);
 
@@ -1761,7 +1824,6 @@ dict_check_sys_tablespaces(
 
 	DBUG_ENTER("dict_check_sys_tablespaces");
 
-	ut_ad(rw_lock_own(dict_operation_lock, RW_LOCK_X));
 	ut_ad(mutex_own(&dict_sys->mutex));
 
 	/* Before traversing it, let's make sure we have
@@ -1816,7 +1878,9 @@ dict_check_sys_tablespaces(
 				<< " because it could not be opened.";
 		}
 
-		max_space_id = ut_max(max_space_id, space_id);
+		if (!dict_sys_t::is_reserved(space_id)) {
+			max_space_id = ut_max(max_space_id, space_id);
+		}
 
 		ut_free(filepath);
 	}
@@ -1927,7 +1991,6 @@ dict_check_sys_tables(
 
 	DBUG_ENTER("dict_check_sys_tables");
 
-	ut_ad(rw_lock_own(dict_operation_lock, RW_LOCK_X));
 	ut_ad(mutex_own(&dict_sys->mutex));
 
 	mtr_start(&mtr);
@@ -1946,7 +2009,7 @@ dict_check_sys_tables(
 	     rec = dict_getnext_system(&pcur, &mtr)) {
 		const byte*	field;
 		ulint		len;
-		char*		space_name;
+		const char*	space_name;
 		table_name_t	table_name;
 		table_id_t	table_id;
 		space_id_t	space_id;
@@ -1973,7 +2036,7 @@ dict_check_sys_tables(
 					 &n_cols, &flags, &flags2);
 		if (flags == ULINT_UNDEFINED
 		    || fsp_is_system_or_temp_tablespace(space_id)) {
-                        ut_ad(!fsp_is_undo_tablespace(space_id));
+			ut_ad(!fsp_is_undo_tablespace(space_id));
 			ut_free(table_name.m_name);
 			continue;
 		}
@@ -2002,9 +2065,13 @@ dict_check_sys_tables(
 		the space name must be the table_name, and the filepath can be
 		discovered in the default location.*/
 		char*	shared_space_name = dict_space_get_name(space_id, NULL);
-		space_name = shared_space_name == NULL
-			? table_name.m_name
-			: shared_space_name;
+		if (space_id == dict_sys_t::space_id) {
+			space_name = dict_sys_t::dd_space_name;
+		} else if (shared_space_name != NULL) {
+			space_name = shared_space_name;
+		} else {
+			space_name = table_name.m_name;
+		}
 
 		/* Now that we have the proper name for this tablespace,
 		whether it is a shared tablespace or a single table
@@ -2022,7 +2089,9 @@ dict_check_sys_tables(
 		location) or this path is the same file but looks different,
 		fil_ibd_open() will update the dictionary with what is
 		opened. */
-		char*	filepath = dict_get_first_path(space_id);
+		char*	filepath = space_id == dict_sys_t::space_id
+			? mem_strdup(dict_sys_t::dd_space_file_name)
+			: dict_get_first_path(space_id);
 
 		/* Check that the .ibd file exists. */
 		bool	is_encrypted = flags2 & DICT_TF2_ENCRYPTION;
@@ -2043,7 +2112,9 @@ dict_check_sys_tables(
 				<< " because it could not be opened.";
 		}
 
-		max_space_id = ut_max(max_space_id, space_id);
+		if (!dict_sys_t::is_reserved(space_id)) {
+			max_space_id = ut_max(max_space_id, space_id);
+		}
 
 		ut_free(table_name.m_name);
 		ut_free(shared_space_name);
@@ -2053,58 +2124,6 @@ dict_check_sys_tables(
 	mtr_commit(&mtr);
 
 	DBUG_RETURN(max_space_id);
-}
-
-/** Check each tablespace found in the data dictionary.
-Look at each general tablespace found in SYS_TABLESPACES.
-Then look at each table defined in SYS_TABLES that has a space_id > 0
-to find all the file-per-table tablespaces.
-
-In a crash recovery we already have some tablespace objects created from
-processing the REDO log.  Any other tablespace in SYS_TABLESPACES not
-previously used in recovery will be opened here.  We will compare the
-space_id information in the data dictionary to what we find in the
-tablespace file. In addition, more validation will be done if recovery
-was needed and force_recovery is not set.
-
-We also scan the biggest space id, and store it to fil_system.
-@param[in]	validate	true if recovery was needed */
-void
-dict_check_tablespaces_and_store_max_id(
-	bool	validate)
-{
-	mtr_t	mtr;
-
-	DBUG_ENTER("dict_check_tablespaces_and_store_max_id");
-
-	rw_lock_x_lock(dict_operation_lock);
-	mutex_enter(&dict_sys->mutex);
-
-	/* Initialize the max space_id from sys header */
-	mtr_start(&mtr);
-	space_id_t	max_space_id = mtr_read_ulint(
-		dict_hdr_get(&mtr) + DICT_HDR_MAX_SPACE_ID,
-		MLOG_4BYTES, &mtr);
-	mtr_commit(&mtr);
-
-	fil_set_max_space_id_if_bigger(max_space_id);
-
-	/* Open all general tablespaces found in SYS_TABLESPACES. */
-	space_id_t	max1 = dict_check_sys_tablespaces(validate);
-
-	/* Open all tablespaces referenced in SYS_TABLES.
-	This will update SYS_TABLESPACES and SYS_DATAFILES if it
-	finds any file-per-table tablespaces not already there. */
-	space_id_t	max2 = dict_check_sys_tables(validate);
-
-	/* Store the max space_id found */
-	max_space_id = ut_max(max1, max2);
-	fil_set_max_space_id_if_bigger(max_space_id);
-
-	mutex_exit(&dict_sys->mutex);
-	rw_lock_x_unlock(dict_operation_lock);
-
-	DBUG_VOID_RETURN;
 }
 
 /********************************************************************//**
@@ -2192,7 +2211,12 @@ dict_load_columns(
 
 			This case does not arise for table create as
 			the flag is set before the table is created. */
-			if (table->fts == NULL) {
+
+			/* We do not add fts tables to optimize thread
+			during upgrade because fts tables will be renamed
+			as part of upgrade. These tables wil be added
+			to fts optimize queue when they are opened. */
+			if (table->fts == NULL && !srv_is_upgrade_mode) {
 				table->fts = fts_create(table);
 				fts_optimize_add_table(table);
 			}
@@ -2777,9 +2801,8 @@ dict_load_table(
 
 /** Opens a tablespace for dict_load_table_one()
 @param[in,out]	table		A table that refers to the tablespace to open
-@param[in]	heap		A memory heap
+@param[in,out]	heap		A memory heap
 @param[in]	ignore_err	Whether to ignore an error. */
-UNIV_INLINE
 void
 dict_load_tablespace(
 	dict_table_t*		table,
@@ -2807,7 +2830,10 @@ dict_load_tablespace(
 	char*	shared_space_name = NULL;
 	char*	space_name;
 	if (DICT_TF_HAS_SHARED_SPACE(table->flags)) {
-		if (srv_sys_tablespaces_open) {
+		if (table->space == dict_sys_t::space_id) {
+			shared_space_name = mem_strdup(
+				dict_sys_t::dd_space_name);
+		} else if (srv_sys_tablespaces_open) {
 			shared_space_name =
 				dict_space_get_name(table->space, NULL);
 
@@ -2834,7 +2860,7 @@ dict_load_tablespace(
 		return;
 	}
 
-	if (!(ignore_err & DICT_ERR_IGNORE_RECOVER_LOCK)) {
+	if (!(ignore_err & DICT_ERR_IGNORE_RECOVER_LOCK) && !srv_is_upgrade_mode) {
 		ib::error() << "Failed to find tablespace for table "
 			<< table->name << " in the cache. Attempting"
 			" to load the tablespace with space id "
@@ -2934,7 +2960,7 @@ dict_load_table_one(
 	DBUG_PRINT("dict_load_table_one", ("table: %s", name.m_name));
 
 	ut_ad(mutex_own(&dict_sys->mutex));
-#if 0 /* FIXME: enable this in WL#7141 */
+#if 0 /* WL#9535/9536 TODO: Maybe just remove all these */
 	/* Currently, the master thread may call us in
 	row_drop_tables_for_mysql_in_background(). */
 	ut_ad(!srv_is_being_shutdown);
@@ -2961,7 +2987,32 @@ dict_load_table_one(
 	tuple = dtuple_create(heap, 1);
 	dfield = dtuple_get_nth_field(tuple, 0);
 
-	dfield_set_data(dfield, name.m_name, ut_strlen(name.m_name));
+	/* We suffix "_backup57" to 5.7 statistics tables/.ibds. This is
+	to avoid conflict with 8.0 statistics tables. Since InnoDB dictionary
+	refers 5.7 stats tables without the sufix, we strip the suffix and
+	search in dictionary. */
+	bool is_stats = false;
+	if (strcmp(name.m_name, "mysql/innodb_index_stats_backup57") == 0
+	    || strcmp(name.m_name, "mysql/innodb_table_stats_backup57") == 0) {
+		is_stats = true;
+	}
+
+	std::string orig_name(name.m_name);
+
+	if (is_stats) {
+		/* To load 5.7 stats tables, we search the table names
+		with "_backup57" suffix. We now strip the suffix before
+		searching InnoDB Dictionary */
+		std::string substr("_backup57");
+		std::size_t	found = orig_name.find(substr);
+		ut_ad(found != std::string::npos);
+		orig_name.erase(found, substr.length());
+
+		dfield_set_data(dfield, orig_name.c_str(), orig_name.length());
+	} else {
+		dfield_set_data(dfield, name.m_name, ut_strlen(name.m_name));
+	}
+
 	dict_index_copy_types(tuple, sys_index, 1);
 
 	btr_pcur_open_on_user_rec(sys_index, tuple, PAGE_CUR_GE,
@@ -2983,8 +3034,8 @@ err_exit:
 		rec, DICT_FLD__SYS_TABLES__NAME, &len);
 
 	/* Check if the table name in record is the searched one */
-	if (len != ut_strlen(name.m_name)
-	    || 0 != ut_memcmp(name.m_name, field, len)) {
+	if (!is_stats && (len != ut_strlen(name.m_name)
+	    || 0 != ut_memcmp(name.m_name, field, len))) {
 
 		goto err_exit;
 	}
@@ -3006,11 +3057,7 @@ err_exit:
 
 	dict_load_virtual(table, heap);
 
-	if (cached) {
-		dict_table_add_to_cache(table, TRUE, heap);
-	} else {
-		dict_table_add_system_columns(table, heap);
-	}
+	dict_table_add_system_columns(table, heap);
 
 	mem_heap_empty(heap);
 
@@ -3026,7 +3073,22 @@ err_exit:
 		: ignore_err;
 	err = dict_load_indexes(table, heap, index_load_err);
 
-	dict_table_load_dynamic_metadata(table);
+	if (err == DB_SUCCESS) {
+		if (srv_is_upgrade_mode && !srv_upgrade_old_undo_found
+		    && !dict_load_is_system_table(table->name.m_name)) {
+			table->id = table->id + DICT_MAX_DD_TABLES;
+		}
+		if (cached) {
+			dict_table_add_to_cache(table, TRUE, heap);
+		}
+	}
+
+	/* WL#9535 TODO: To remove this along with this function.
+	Currently, there are still functions calling this,
+	thus this workaround */
+	if (dict_sys->dynamic_metadata != NULL) {
+		dict_table_load_dynamic_metadata(table);
+	}
 
 	/* Re-check like we do in dict_load_indexes() */
 	if (!srv_load_corrupted
@@ -3129,6 +3191,11 @@ func_exit:
 	      || !table->is_corrupted());
 
 	if (table && table->fts) {
+		/* We do not add fts tables to optimize thread
+		during upgrade because fts tables will be renamed
+		as part of upgrade. These tables wil be added
+		to fts optimize queue when they are opened. */
+
 		if (!(dict_table_has_fts_index(table)
 		      || DICT_TF2_FLAG_IS_SET(table, DICT_TF2_FTS_HAS_DOC_ID)
 		      || DICT_TF2_FLAG_IS_SET(table, DICT_TF2_FTS_ADD_DOC_ID))) {
@@ -3137,7 +3204,7 @@ func_exit:
 			FTS */
 			fts_optimize_remove_table(table);
 			fts_free(table);
-		} else {
+		} else if (!srv_is_upgrade_mode) {
 			fts_optimize_add_table(table);
 		}
 	}
@@ -3574,7 +3641,7 @@ dict_load_foreign(
 	dictionary. */
 
 	DBUG_RETURN(dict_foreign_add_to_cache(foreign, col_names,
-					      check_charsets,
+					      check_charsets, true,
 					      ignore_err));
 }
 
@@ -3751,4 +3818,26 @@ load_next_index:
 	}
 
 	DBUG_RETURN(DB_SUCCESS);
+}
+
+/** Load all tablespaces during upgrade */
+void
+dict_load_tablespaces_for_upgrade()
+{
+	ut_ad(srv_is_upgrade_mode);
+
+	mutex_enter(&dict_sys->mutex);
+
+	mtr_t	mtr;
+	mtr_start(&mtr);
+	space_id_t	max_id = mtr_read_ulint(
+		dict_hdr_get(&mtr) + DICT_HDR_MAX_SPACE_ID,
+		MLOG_4BYTES, &mtr);
+	mtr_commit(&mtr);
+	fil_set_max_space_id_if_bigger(max_id);
+
+	dict_check_sys_tablespaces(false);
+	dict_check_sys_tables(false);
+
+	mutex_exit(&dict_sys->mutex);
 }

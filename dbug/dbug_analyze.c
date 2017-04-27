@@ -49,7 +49,6 @@
  *	if invoked with -v flag.
  */
 
-#include <my_global.h>
 #include <m_string.h>
 #include <my_thread.h>
 

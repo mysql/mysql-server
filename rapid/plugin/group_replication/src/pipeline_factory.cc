@@ -15,6 +15,8 @@
 
 #include "pipeline_factory.h"
 
+#include <stddef.h>
+
 #include "handlers/applier_handler.h"
 #include "handlers/certification_handler.h"
 #include "handlers/event_cataloger.h"

@@ -22,6 +22,7 @@
 #include "dynamic_ids.h"        // Server_ids
 #include "log.h"                // sql_print_error
 #include "my_dbug.h"
+#include "my_macros.h"
 #include "my_sys.h"
 #include "mysql/psi/psi_stage.h"
 #include "mysql/service_my_snprintf.h"
@@ -158,6 +159,11 @@ Master_info::Master_info(
   start_user[0]= 0;
   ignore_server_ids= new Server_ids;
 
+  last_queued_trx= new trx_monitoring_info;
+  last_queued_trx->clear();
+  queueing_trx= new trx_monitoring_info;
+  queueing_trx->clear();
+
   /*channel is set in base class, rpl_info.cc*/
   my_snprintf(for_channel_str, sizeof(for_channel_str)-1,
              " for channel '%s'", channel);
@@ -181,6 +187,8 @@ Master_info::~Master_info()
   delete m_channel_lock;
   delete ignore_server_ids;
   delete mi_description_event;
+  delete last_queued_trx;
+  delete queueing_trx;
 }
 
 /**
@@ -501,8 +509,8 @@ bool Master_info::read_info(Rpl_info_handler *from)
       DBUG_RETURN(true);
   }
 
-  ssl= (my_bool) MY_TEST(temp_ssl);
-  ssl_verify_server_cert= (my_bool) MY_TEST(temp_ssl_verify_server_cert);
+  ssl= (bool) MY_TEST(temp_ssl);
+  ssl_verify_server_cert= (bool) MY_TEST(temp_ssl_verify_server_cert);
   master_log_pos= (my_off_t) temp_master_log_pos;
   auto_position= MY_TEST(temp_auto_position);
 

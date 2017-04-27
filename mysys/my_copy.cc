@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -65,7 +65,7 @@
 int my_copy(const char *from, const char *to, myf MyFlags)
 {
   size_t Count;
-  my_bool new_file_stat= 0; /* 1 if we could stat "to" */
+  bool new_file_stat= 0; /* 1 if we could stat "to" */
   int create_flag;
   File from_file,to_file;
   uchar buff[IO_SIZE];

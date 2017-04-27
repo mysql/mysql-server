@@ -22,13 +22,14 @@
 
 #include "mysqlx_connection.h"
 
+#include "my_config.h"
+
 #include <errno.h>
 #include <sstream>
 #ifdef HAVE_SYS_UN_H
 #include <sys/un.h>
 #endif // HAVE_SYS_UN_H
 
-#include "my_global.h"
 
 #ifdef WIN32
 #  define snprintf _snprintf

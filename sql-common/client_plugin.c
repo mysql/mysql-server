@@ -27,17 +27,22 @@
   There is no reference counting and no unloading either.
 */
 
+#include "my_config.h"
+
 #include <m_string.h>
-#include <my_global.h>
 #include <my_sys.h>
 #include <my_thread.h>
 #include <mysql/client_plugin.h>
 #include <sql_common.h>
+#include <stdarg.h>
 #include <stdlib.h>
+#include <sys/types.h>
 
 #include "errmsg.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
+#include "my_io.h"
+#include "my_macros.h"
 #include "my_psi_config.h"
 #include "mysql.h"
 #include "mysql/psi/mysql_memory.h"
@@ -88,7 +93,7 @@ struct st_client_plugin_int {
   struct st_mysql_client_plugin *plugin;
 };
 
-static my_bool initialized= 0;
+static bool initialized= 0;
 static MEM_ROOT mem_root;
 
 static const char *plugin_declarations_sym= "_mysql_client_plugin_declaration_";

@@ -83,7 +83,8 @@ while ($_rpl_start_server)
     # the middle of one element and end in the middle of next element.
     --let $_rpl_seen_list= $_rpl_server,$_rpl_seen_list
     # If server is marked seen or synced, or has no master
-    if (`SELECT SUBSTRING('$_rpl_server_marks', $_rpl_server, 1) != 0 OR '$_rpl_master' = ''`)
+
+    if (`SELECT SUBSTRING('$_rpl_server_marks', $_rpl_server, 1) != 0 OR '$_rpl_master' = ' '`)
     {
       # If server is marked seen but not synced.
       if (`SELECT SUBSTRING('$_rpl_server_marks', $_rpl_server, 1) = 1`)

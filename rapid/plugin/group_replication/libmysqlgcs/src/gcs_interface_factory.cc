@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,15 +13,15 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include <string>
+#include <stddef.h>
 #include <algorithm>
+#include <string>
 #ifdef _WIN32
 #include<iterator>
 #endif
 
 #include "bindings/xcom/gcs_xcom_interface.h"
-
-#include "gcs_interface.h"
+#include "mysql/gcs/gcs_interface.h"
 
 Gcs_interface *
 Gcs_interface_factory::

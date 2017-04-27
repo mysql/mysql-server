@@ -1,7 +1,9 @@
-select schema_name from information_schema.schemata where schema_name not in ('sys', 'performance_schema');
+select schema_name from information_schema.schemata ;
 SCHEMA_NAME
 mysql
 information_schema
+sys
+performance_schema
 test
 mtr
 show tables in mysql where Tables_in_mysql != 'ndb_binlog_index';
@@ -14,11 +16,13 @@ default_roles
 engine_cost
 func
 general_log
+global_grants
 gtid_executed
 help_category
 help_keyword
 help_relation
 help_topic
+innodb_dynamic_metadata
 innodb_index_stats
 innodb_table_stats
 plugin

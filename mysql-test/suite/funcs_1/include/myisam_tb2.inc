@@ -63,7 +63,7 @@ f114 VARBINARY(192) ,
 f115 VARBINARY(27) null ,
 f116 VARBINARY(64) null,
 f117 VARBINARY(192) null
-) engine = myisam;
+) charset latin1 engine = myisam;
 
 # The original columns. They are replaced by varbinary, because the funcs_1 tests should
 # not depend on the optional availability of the geometry feature.
@@ -79,4 +79,4 @@ f117 VARBINARY(192) null
 --replace_result $MYSQLTEST_VARDIR <MYSQLTEST_VARDIR>
 eval
 load data infile '$MYSQLTEST_VARDIR/std_data/funcs_1/myisam_tb2.txt'
-into table tb2;
+into table tb2 character set latin1;

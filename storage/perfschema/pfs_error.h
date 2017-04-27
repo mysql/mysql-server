@@ -21,6 +21,8 @@
   server error instrument data structures (declarations).
 */
 
+#include <sys/types.h>
+
 #include "lf.h"
 #include "mysqld_error.h" /* For lookup */
 #include "pfs_server.h"

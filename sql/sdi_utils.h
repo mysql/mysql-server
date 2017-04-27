@@ -18,7 +18,6 @@
 
 #include <stddef.h>
 
-#include "my_global.h"                          /* uchar */
 #include "my_inttypes.h"
 
 

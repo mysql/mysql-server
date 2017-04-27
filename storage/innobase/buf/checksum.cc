@@ -23,6 +23,8 @@ Buffer pool checksum functions, also linked from /extra/innochecksum.cc
 Created Aug 11, 2011 Vasil Dimov
 *******************************************************/
 
+#include <sys/types.h>
+
 #include "buf0buf.h"
 #include "buf0types.h"
 #include "fil0fil.h"

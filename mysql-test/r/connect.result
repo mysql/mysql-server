@@ -9,11 +9,13 @@ default_roles
 engine_cost
 func
 general_log
+global_grants
 gtid_executed
 help_category
 help_keyword
 help_relation
 help_topic
+innodb_dynamic_metadata
 innodb_index_stats
 innodb_table_stats
 plugin
@@ -53,11 +55,13 @@ default_roles
 engine_cost
 func
 general_log
+global_grants
 gtid_executed
 help_category
 help_keyword
 help_relation
 help_topic
+innodb_dynamic_metadata
 innodb_index_stats
 innodb_table_stats
 plugin
@@ -91,8 +95,8 @@ connect(localhost,test,,test2,MASTER_PORT,MASTER_SOCKET);
 ERROR 28000: Access denied for user 'test'@'localhost' (using password: NO)
 connect(localhost,test,,test,MASTER_PORT,MASTER_SOCKET);
 ERROR 28000: Access denied for user 'test'@'localhost' (using password: NO)
-delete from mysql.user where user=_binary"test";
-flush privileges;
+drop user test@localhost;
+drop user test@127.0.0.1;
 create table t1 (id integer not null auto_increment primary key);
 create temporary table t2(id integer not null auto_increment primary key);
 set @id := 1;

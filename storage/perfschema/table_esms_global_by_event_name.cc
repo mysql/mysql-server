@@ -18,9 +18,12 @@
   Table EVENTS_STATEMENTS_SUMMARY_GLOBAL_BY_EVENT_NAME (implementation).
 */
 
+#include "storage/perfschema/table_esms_global_by_event_name.h"
+
+#include <stddef.h>
+
 #include "field.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_thread.h"
 #include "pfs_column_types.h"
 #include "pfs_column_values.h"
@@ -29,7 +32,6 @@
 #include "pfs_instr_class.h"
 #include "pfs_timer.h"
 #include "pfs_visitor.h"
-#include "table_esms_global_by_event_name.h"
 
 THR_LOCK table_esms_global_by_event_name::m_table_lock;
 
@@ -200,7 +202,7 @@ PFS_index_esms_global_by_event_name::match(PFS_instr_class *instr_class)
 }
 
 PFS_engine_table *
-table_esms_global_by_event_name::create(void)
+table_esms_global_by_event_name::create(PFS_engine_table_share *)
 {
   return new table_esms_global_by_event_name();
 }
@@ -213,6 +215,7 @@ table_esms_global_by_event_name::delete_all_rows(void)
   reset_events_statements_by_user();
   reset_events_statements_by_host();
   reset_events_statements_global();
+  reset_histogram_global();
   return 0;
 }
 
@@ -285,7 +288,8 @@ table_esms_global_by_event_name::rnd_pos(const void *pos)
 }
 
 int
-table_esms_global_by_event_name::index_init(uint idx, bool)
+table_esms_global_by_event_name::index_init(uint idx MY_ATTRIBUTE((unused)),
+                                            bool)
 {
   m_normalizer = time_normalizer::get(statement_timer);
 

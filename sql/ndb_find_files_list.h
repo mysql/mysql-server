@@ -18,9 +18,8 @@
 #ifndef NDB_FIND_FILES_LIST_H
 #define NDB_FIND_FILES_LIST_H
 
-#include "my_global.h"
-#include "mysql/mysql_lex_string.h"
 #include "my_inttypes.h"
+#include "mysql/mysql_lex_string.h"
 
 /**
   Ndb_find_files_list

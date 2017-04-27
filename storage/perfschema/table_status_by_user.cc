@@ -18,12 +18,14 @@
   Table STATUS_BY_USER (implementation).
 */
 
+#include "storage/perfschema/table_status_by_user.h"
+
+#include <stddef.h>
 #include <new>
 
 #include "current_thd.h"
 #include "field.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_thread.h"
 #include "mysqld.h"
 #include "pfs_account.h"
@@ -33,7 +35,6 @@
 #include "pfs_instr_class.h"
 #include "pfs_visitor.h"
 #include "sql_class.h"
-#include "table_status_by_user.h"
 
 THR_LOCK table_status_by_user::m_table_lock;
 
@@ -103,7 +104,7 @@ PFS_index_status_by_user::match(const Status_variable *pfs)
 }
 
 PFS_engine_table *
-table_status_by_user::create(void)
+table_status_by_user::create(PFS_engine_table_share *)
 {
   return new table_status_by_user();
 }
@@ -221,7 +222,7 @@ table_status_by_user::rnd_pos(const void *pos)
 }
 
 int
-table_status_by_user::index_init(uint idx, bool)
+table_status_by_user::index_init(uint idx MY_ATTRIBUTE((unused)), bool)
 {
   /* Build array of SHOW_VARs from the global status array. */
   m_status_cache.initialize_client_session();

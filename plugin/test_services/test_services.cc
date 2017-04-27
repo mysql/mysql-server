@@ -14,13 +14,13 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
 #include <fcntl.h>
-#include <my_global.h>
 #include <mysql/plugin.h>
 #include <mysql_version.h>
 
 #include "m_string.h"                           // strlen
 #include "my_dbug.h"
 #include "my_inttypes.h"
+#include "my_io.h"
 #include "my_sys.h"                             // my_write, my_malloc
 //#include "sql_plugin.h"                         // st_plugin_int
 
@@ -145,7 +145,7 @@ static int test_services_plugin_init(void *p)
 }
 
 /* There is nothing to clean up when UNINSTALL PLUGIN. */
-static int test_services_plugin_deinit(void *p)
+static int test_services_plugin_deinit(void*)
 {
   DBUG_ENTER("test_services_plugin_deinit");
   DBUG_RETURN(0);

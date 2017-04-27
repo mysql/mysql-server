@@ -2,7 +2,6 @@
 # Test for starting mysqld using --daemonize option.
 #
 
---source include/not_embedded.inc
 --source include/not_windows.inc
 --source include/not_valgrind.inc
 

@@ -18,6 +18,8 @@
  * 02110-1301  USA
  */
 
+#include "my_config.h"
+
 #include <errno.h>
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
@@ -25,6 +27,7 @@
 #include "io/xpl_listener_unix_socket.h"
 #include "mock/ngs_general.h"
 #include "my_inttypes.h"
+#include "my_io.h"
 
 
 namespace xpl {

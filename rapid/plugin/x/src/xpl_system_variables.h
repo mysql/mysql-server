@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,7 +18,6 @@
 #ifndef XPL_SYSTEM_VARIABLES_H
 #define XPL_SYSTEM_VARIABLES_H
 
-#include "my_global.h"
 #include "xpl_log.h"
 #include "ngs_common/bind.h"
 #include <vector>
@@ -94,7 +93,7 @@ private:
 };
 
 template<typename Copy_type>
-void Plugin_system_variables::update_func(THD *thd, st_mysql_sys_var *var, void *tgt, const void *save)
+void Plugin_system_variables::update_func(THD*, st_mysql_sys_var*, void *tgt, const void *save)
 {
   *(Copy_type*)tgt = *(Copy_type*) save;
 

@@ -62,9 +62,10 @@
 #include "my_base.h"
 #include "my_bitmap.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_inttypes.h"
+#include "my_macros.h"
 #include "my_sys.h"
+#include "my_table_map.h"
 #include "mysql_com.h"
 #include "sql_bitmap.h"
 #include "sql_class.h"
@@ -1139,6 +1140,7 @@ static bool maxmin_in_range(bool max_fl, Item_field *item_field, Item *cond)
   case Item_func::LT_FUNC:
   case Item_func::LE_FUNC:
     less_fl= true;
+    // Fall through
   case Item_func::GT_FUNC:
   case Item_func::GE_FUNC:
   {

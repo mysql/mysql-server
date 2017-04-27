@@ -36,8 +36,12 @@
 
  ***************************************************************/
 
+#include <limits>
+
 #include "my_config.h"
+
 #include "my_inttypes.h"
+#include "my_macros.h"
 #include "my_pointer_arithmetic.h"
 
 #ifdef HAVE_ENDIAN_H
@@ -46,7 +50,6 @@
 #include <errno.h>
 #include <float.h>
 #include <m_string.h>  /* for memcpy and NOT_FIXED_DEC */
-#include <my_global.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -102,7 +105,7 @@ static void dtoa_free(char *, char *, size_t);
    @return            number of written characters (excluding terminating '\0')
 */
 
-size_t my_fcvt(double x, int precision, char *to, my_bool *error)
+size_t my_fcvt(double x, int precision, char *to, bool *error)
 {
   int decpt, sign, len, i;
   char *res, *src, *end, *dst= to;
@@ -226,12 +229,12 @@ size_t my_fcvt(double x, int precision, char *to, my_bool *error)
 */
 
 size_t my_gcvt(double x, my_gcvt_arg_type type, int width, char *to,
-               my_bool *error)
+               bool *error)
 {
   int decpt, sign, len, exp_len;
   char *res, *src, *end, *dst= to, *dend= dst + width;
   char buf[DTOA_BUFF_SIZE];
-  my_bool have_space, force_e_format;
+  bool have_space, force_e_format;
   DBUG_ASSERT(width > 0 && to != NULL);
   
   /* We want to remove '-' from equations early */
@@ -1037,7 +1040,7 @@ static Bigint *pow5mult(Bigint *b, int k, Stack_alloc *alloc)
   Bigint *b1, *p5, *p51=NULL;
   int i;
   static int p05[3]= { 5, 25, 125 };
-  my_bool overflow= FALSE;
+  bool overflow= FALSE;
 
   if ((i= k & 3))
     b= multadd(b, p05[i-1], 0, alloc);
@@ -1389,7 +1392,7 @@ static double my_strtod_int(const char *s00, char **se, int *error, char *buf, s
     switch (*s) {
     case '-':
       sign= 1;
-      /* no break */
+      // Fall through.
     case '+':
       s++;
       goto break2;
@@ -1487,6 +1490,7 @@ static double my_strtod_int(const char *s00, char **se, int *error, char *buf, s
       switch (c= *s) {
       case '-':
         esign= 1;
+        // Fall through.
       case '+':
         if (++s < end)
           c= *s;
@@ -1498,8 +1502,12 @@ static double my_strtod_int(const char *s00, char **se, int *error, char *buf, s
       if (s < end && c > '0' && c <= '9') {
         L= c - '0';
         s1= s;
-        while (++s < end && (c= *s) >= '0' && c <= '9')
+        // Avoid overflow in loop body below.
+        while (++s < end && (c= *s) >= '0' && c <= '9'
+               && L < (std::numeric_limits<Long>::max() - 255) / 10)
+        {
           L= 10*L + c - '0';
+        }
         if (s - s1 > 8 || L > 19999)
           /* Avoid confusion from exponents
            * so large that e might overflow.
@@ -2334,7 +2342,7 @@ static char *dtoa(double dd, int mode, int ndigits, int *decpt, int *sign,
     break;
   case 2:
     leftright= 0;
-    /* no break */
+    // Fall through.
   case 4:
     if (ndigits <= 0)
       ndigits= 1;
@@ -2342,7 +2350,7 @@ static char *dtoa(double dd, int mode, int ndigits, int *decpt, int *sign,
     break;
   case 3:
     leftright= 0;
-    /* no break */
+    // Fall through.
   case 5:
     i= ndigits + k + 1;
     ilim= i;

@@ -23,10 +23,10 @@ Comparison services for records
 Created 7/1/1994 Heikki Tuuri
 ************************************************************************/
 
-#include <gis0geo.h>
 #include <gstream.h>
 #include <page0cur.h>
 #include <spatial.h>
+#include <sys/types.h>
 #include <algorithm>
 
 #include "ha_prototypes.h"
@@ -68,9 +68,9 @@ int
 innobase_mysql_cmp(
 	ulint		prtype,
 	const byte*	a,
-	unsigned int	a_length,
+	size_t		a_length,
 	const byte*	b,
-	unsigned int	b_length)
+	size_t		b_length)
 {
 #ifdef UNIV_DEBUG
 	switch (prtype & DATA_MYSQL_TYPE_MASK) {
@@ -91,6 +91,19 @@ innobase_mysql_cmp(
 	uint cs_num = (uint) dtype_get_charset_coll(prtype);
 
 	if (CHARSET_INFO* cs = get_charset(cs_num, MYF(MY_WME))) {
+		if ((prtype & DATA_MYSQL_TYPE_MASK) == MYSQL_TYPE_STRING &&
+		    cs->pad_attribute == NO_PAD) {
+			/* MySQL specifies that CHAR fields are stripped of
+			trailing spaces before being returned from the database.
+			Normally this is done in Field_string::val_str(),
+			but since we don't involve the Field classes for internal
+			index comparisons, we need to do the same thing here
+			for NO PAD collations. (If not, strnncollsp will ignore
+			the spaces for us, so we don't need to do it here.) */
+			a_length = cs->cset->lengthsp(cs, (const char *) a, a_length);
+			b_length = cs->cset->lengthsp(cs, (const char *) b, b_length);
+		}
+
 		return(cs->coll->strnncollsp(
 			       cs, a, a_length, b, b_length));
 	}
@@ -382,7 +395,7 @@ cmp_whole_field(
 	case DATA_MYSQL:
 		cmp = innobase_mysql_cmp(prtype,
 					 a, a_length, b, b_length);
-                break;
+		break;
 	case DATA_POINT:
 	case DATA_VAR_POINT:
 	case DATA_GEOMETRY:
@@ -390,7 +403,7 @@ cmp_whole_field(
 				b_length));
 	default:
 		ib::fatal() << "Unknown data type number " << mtype;
-                cmp = 0;
+		cmp = 0;
 	}
 	if (!is_asc) {
 		cmp = -cmp;
@@ -790,8 +803,8 @@ cmp_get_pad_char(
 		strings, and starting from 5.0.3, also for TEXT strings. */
 		return(0x20);
 	case DATA_GEOMETRY:
-                /* DATA_GEOMETRY is binary data, not ASCII-based. */
-	        return(ULINT_UNDEFINED);
+		/* DATA_GEOMETRY is binary data, not ASCII-based. */
+		return(ULINT_UNDEFINED);
 	case DATA_BLOB:
 		if (!(type->prtype & DATA_BINARY_TYPE)) {
 			return(0x20);

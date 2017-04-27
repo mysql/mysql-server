@@ -122,4 +122,3 @@ show create table t1;
 drop index idx on t1;
 
 drop table t1;
-

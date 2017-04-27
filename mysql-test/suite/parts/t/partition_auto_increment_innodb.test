@@ -32,4 +32,3 @@ let $engine= 'InnoDB';
 #------------------------------------------------------------------------------#
 # Test export/import of tablespace with partitioned table for InnoDB
 --source suite/parts/inc/partition_auto_increment_import.inc
-

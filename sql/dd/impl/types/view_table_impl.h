@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -63,7 +63,7 @@ public:
 
   virtual void debug_print(String_type &outb) const;
 
-  void set_ordinal_position(uint ordinal_position)
+  void set_ordinal_position(uint)
   { }
 
   virtual uint ordinal_position() const
@@ -107,12 +107,6 @@ public:
   virtual const View &view() const;
 
   virtual View &view();
-
-  // Fix "inherits ... via dominance" warnings
-  virtual Weak_object_impl *impl()
-  { return Weak_object_impl::impl(); }
-  virtual const Weak_object_impl *impl() const
-  { return Weak_object_impl::impl(); }
 
 public:
   static View_table_impl *restore_item(View_impl *view)

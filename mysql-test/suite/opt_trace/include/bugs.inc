@@ -2,7 +2,6 @@
 
 --source include/have_optimizer_trace.inc
 # InnoDB page size influences cost numbers
---source include/have_innodb_16k.inc
 
 let $DEFAULT_TRACE_MEM_SIZE=1048576; # 1MB
 eval set optimizer_trace_max_mem_size=$DEFAULT_TRACE_MEM_SIZE;
@@ -56,7 +55,7 @@ CREATE TABLE t1 (
   col_int_key INT DEFAULT NULL,
   col_varchar_key VARCHAR(1) DEFAULT NULL,
   PRIMARY KEY (pk)
-) ENGINE=InnoDB;
+) ENGINE=InnoDB, CHARSET utf8mb4;
   
 CREATE TABLE t2 (  
   pk INT NOT NULL AUTO_INCREMENT,
@@ -64,7 +63,7 @@ CREATE TABLE t2 (
   col_varchar_key VARCHAR(1) DEFAULT NULL,
   col_varchar_nokey VARCHAR(1) DEFAULT NULL,
   PRIMARY KEY (pk)
-) ENGINE=InnoDB;
+) ENGINE=InnoDB, CHARSET utf8mb4;
 
 CREATE TABLE t3 (  
   pk INT NOT NULL AUTO_INCREMENT,
@@ -72,14 +71,14 @@ CREATE TABLE t3 (
   col_varchar_key VARCHAR(1) DEFAULT NULL,
   col_varchar_nokey VARCHAR(1) DEFAULT NULL,
   PRIMARY KEY (pk)
-) ENGINE=InnoDB;
+) ENGINE=InnoDB, CHARSET utf8mb4;
 
 CREATE TABLE t4 (
   pk INT NOT NULL AUTO_INCREMENT,
   col_int_key INT DEFAULT NULL,
   col_varchar_key VARCHAR(1) DEFAULT NULL,
   PRIMARY KEY (pk)
-) ENGINE=InnoDB;
+) ENGINE=InnoDB, CHARSET utf8mb4;
 
 CREATE VIEW view_t4 AS SELECT * FROM t4;
 
@@ -486,12 +485,12 @@ CREATE TABLE t1 (
   a TINYTEXT NOT NULL,
   b TINYINT(3) UNSIGNED NOT NULL,
   PRIMARY KEY (a(32),b)
-) ENGINE=MyISAM;
+) ENGINE=MyISAM, CHARSET utf8mb4;
 CREATE TABLE t2 (
   a TINYTEXT NOT NULL,
   b TINYINT(3) UNSIGNED NOT NULL,
   PRIMARY KEY (a(32),b)
-) ENGINE=INNODB;
+) ENGINE=INNODB, CHARSET utf8mb4;
 
 INSERT INTO t1 VALUES ('a',1),('a',2);
 INSERT INTO t2 VALUES ('a',1),('a',2),('a',3),('b',1),('c',1),('c',4),('e',2);

@@ -30,6 +30,8 @@ The database buffer buf_pool
 Created 11/5/1995 Heikki Tuuri
 *******************************************************/
 
+#include "my_config.h"
+
 #include "btr0btr.h"
 #include "buf0buf.h"
 #include "fil0fil.h"
@@ -52,7 +54,11 @@ Created 11/5/1995 Heikki Tuuri
 #include "trx0purge.h"
 #include "trx0undo.h"
 #endif /* !UNIV_HOTBACKUP */
+
 #include <errno.h>
+#include <stdarg.h>
+#include <sys/types.h>
+#include <time.h>
 #include <map>
 #include <new>
 #include <sstream>
@@ -317,7 +323,7 @@ static ulint	buf_dbg_counter	= 0;
 #ifdef UNIV_DEBUG
 /** This is used to enable multiple buffer pool instances
 with small buffer pool size. */
-my_bool	srv_buf_pool_debug;
+bool	srv_buf_pool_debug;
 #endif /* UNIV_DEBUG */
 
 #if defined UNIV_PFS_MUTEX || defined UNIV_PFS_RWLOCK

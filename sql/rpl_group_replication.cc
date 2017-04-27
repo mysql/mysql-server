@@ -13,14 +13,13 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "rpl_group_replication.h"
+#include "sql/rpl_group_replication.h"
 
 #include <stdlib.h>
 #include <sys/types.h>
 
 #include "log.h"                  // sql_print_error
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysql/plugin.h"
@@ -334,14 +333,15 @@ unsigned int get_group_replication_members_number_info()
 }
 
 
+
 /*
   Server methods exported to plugin through
   include/mysql/group_replication_priv.h
 */
-
 void get_server_parameters(char **hostname, uint *port, char** uuid,
-                           unsigned int *out_server_version)
-{
+                           unsigned int *out_server_version,
+                           st_server_ssl_variables* server_ssl_variables)
+  {
   /*
     use startup option report-host and report-port when provided,
     as value provided by glob_hostname, which used gethostname() function
@@ -382,6 +382,20 @@ void get_server_parameters(char **hostname, uint *port, char** uuid,
   int v4= major - v5 * 10;
 
   *out_server_version= v0 + v1 * 16 + v2 * 256 + v3 * 4096 + v4 * 65536 + v5 * 1048576;
+
+#ifdef HAVE_OPENSSL
+  server_ssl_variables->have_ssl_opt= true;
+#else
+  server_ssl_variables->have_ssl_opt= false;
+#endif
+  server_ssl_variables->ssl_ca= opt_ssl_ca;
+  server_ssl_variables->ssl_capath= opt_ssl_capath;
+  server_ssl_variables->tls_version= opt_tls_version;
+  server_ssl_variables->ssl_cert= opt_ssl_cert;
+  server_ssl_variables->ssl_cipher= opt_ssl_cipher;
+  server_ssl_variables->ssl_key= opt_ssl_key;
+  server_ssl_variables->ssl_crl= opt_ssl_crl;
+  server_ssl_variables->ssl_crlpath= opt_ssl_crlpath;
 
   return;
 }

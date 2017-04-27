@@ -15,6 +15,7 @@
 
 #include "dd/impl/types/column_impl.h"
 
+#include <stddef.h>
 #include <memory>
 #include <sstream>
 
@@ -33,7 +34,6 @@
 #include "dd/types/weak_object.h"
 #include "m_string.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysqld_error.h"                            // ER_*
@@ -378,12 +378,16 @@ Column_impl::serialize(Sdi_wcontext *wctx, Sdi_writer *w) const
   write(w, m_char_length, STRING_WITH_LEN("char_length"));
   write(w, m_numeric_precision, STRING_WITH_LEN("numeric_precision"));
   write(w, m_numeric_scale, STRING_WITH_LEN("numeric_scale"));
+  write(w, m_numeric_scale_null, STRING_WITH_LEN("numeric_scale_null"));
   write(w, m_datetime_precision, STRING_WITH_LEN("datetime_precision"));
+  write(w, m_datetime_precision_null, STRING_WITH_LEN("datetime_precision_null"));
   write(w, m_has_no_default, STRING_WITH_LEN("has_no_default"));
   write(w, m_default_value_null, STRING_WITH_LEN("default_value_null"));
 
   // Binary
   write_binary(wctx, w, m_default_value, STRING_WITH_LEN("default_value"));
+  write(w, m_default_value_utf8_null, STRING_WITH_LEN("default_value_utf8_null"));
+  write(w, m_default_value_utf8, STRING_WITH_LEN("default_value_utf8"));
   write(w, m_default_option, STRING_WITH_LEN("default_option"));
   write(w, m_update_option, STRING_WITH_LEN("update_option"));
   write(w, m_comment, STRING_WITH_LEN("comment"));
@@ -416,10 +420,14 @@ Column_impl::deserialize(Sdi_rcontext *rctx, const RJ_Value &val)
   read(&m_char_length, val, "char_length");
   read(&m_numeric_precision, val, "numeric_precision");
   read(&m_numeric_scale, val, "numeric_scale");
+  read(&m_numeric_scale_null, val, "numeric_scale_null");
   read(&m_datetime_precision, val, "datetime_precision");
+  read(&m_datetime_precision_null, val, "datetime_precision_null");
   read(&m_has_no_default, val, "has_no_default");
   read(&m_default_value_null, val, "default_value_null");
   read_binary(rctx, &m_default_value, val, "default_value");
+  read(&m_default_value_utf8_null, val, "default_value_utf8_null");
+  read(&m_default_value_utf8, val, "default_value_utf8");
   read(&m_default_option, val, "default_option");
   read(&m_update_option, val, "update_option");
   read(&m_comment, val, "comment");

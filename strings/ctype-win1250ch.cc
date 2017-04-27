@@ -41,7 +41,6 @@
 
 #include "m_ctype.h"
 #include "my_compiler.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 
 
@@ -443,7 +442,7 @@ static int my_strnncoll_win1250ch(const CHARSET_INFO *cs
                                   MY_ATTRIBUTE((unused)),
 				  const uchar *s1, size_t len1,
                                   const uchar *s2, size_t len2,
-                                  my_bool s2_is_prefix)
+                                  bool s2_is_prefix)
 {
   int v1, v2;
   const uchar *p1, * p2;
@@ -617,10 +616,10 @@ static const uchar like_range_prefix_max_win1250ch[]=
 */
 
 extern "C" {
-static my_bool
+static bool
 my_like_range_win1250ch(const CHARSET_INFO *cs,
 			const char *ptr, size_t ptr_length,
-			my_bool escape, my_bool w_one, my_bool w_many,
+			char escape, char w_one, char w_many,
 			size_t res_length,
 			char *min_str, char *max_str,
 			size_t *min_length, size_t *max_length)
@@ -712,7 +711,7 @@ CHARSET_INFO my_charset_cp1250_czech_ci =
   ' ',                          /* pad char      */
   0,                            /* escape_with_backslash_is_dangerous */
   2,                            /* levels_for_compare */
-  2,                            /* levels_for_order   */
   &my_charset_8bit_handler,
-  &my_collation_czech_ci_handler
+  &my_collation_czech_ci_handler,
+  PAD_SPACE
 };

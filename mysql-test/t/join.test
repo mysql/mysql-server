@@ -565,12 +565,11 @@ select * from v1a join v1b on t1.b = t2.b;
 #
 # Bug #17523 natural join and information_schema
 #
-# Omit columns.PRIVILIGES as it may vary with embedded server.
 # Omit columns.ORDINAL_POSITION and statistics.CARDINALITY as it may vary with hostname='localhost'.
 ANALYZE TABLE mysql.user;
 select 
  statistics.TABLE_NAME, statistics.COLUMN_NAME, statistics.TABLE_CATALOG, statistics.TABLE_SCHEMA, statistics.NON_UNIQUE, statistics.INDEX_SCHEMA, statistics.INDEX_NAME, statistics.SEQ_IN_INDEX, statistics.COLLATION, statistics.SUB_PART, statistics.PACKED, statistics.NULLABLE, statistics.INDEX_TYPE, statistics.COMMENT, 
- columns.TABLE_CATALOG, columns.TABLE_SCHEMA, columns.COLUMN_DEFAULT, columns.IS_NULLABLE, columns.DATA_TYPE, columns.CHARACTER_MAXIMUM_LENGTH, columns.CHARACTER_OCTET_LENGTH, columns.NUMERIC_PRECISION, columns.NUMERIC_SCALE, columns.CHARACTER_SET_NAME, columns.COLLATION_NAME, columns.COLUMN_TYPE, columns.COLUMN_KEY, columns.EXTRA, columns.COLUMN_COMMENT
+ columns.TABLE_CATALOG, columns.TABLE_SCHEMA, columns.COLUMN_DEFAULT, columns.IS_NULLABLE, columns.DATA_TYPE, columns.CHARACTER_MAXIMUM_LENGTH, columns.CHARACTER_OCTET_LENGTH, columns.NUMERIC_PRECISION, columns.NUMERIC_SCALE, columns.CHARACTER_SET_NAME, columns.COLLATION_NAME, columns.COLUMN_TYPE, columns.COLUMN_KEY, columns.EXTRA, columns.PRIVILEGES, columns.COLUMN_COMMENT
  from information_schema.statistics join information_schema.columns using(table_name,column_name) where table_name='user';
 
 drop table t1;
@@ -1117,7 +1116,7 @@ CREATE TABLE t1
  col_datetime datetime DEFAULT NULL,
  PRIMARY KEY (pk),
  KEY col_date_key (col_date_key)
-) ENGINE=MyISAM;
+) charset latin1 ENGINE=MyISAM;
 
 INSERT INTO t1 VALUES
 (8,9,'h','FDUMQ',-1356726272,'2007-09-02 05:48:23','she','2002-04-02','2002-12-20 17:54:07');
@@ -1127,7 +1126,7 @@ CREATE TABLE t2
  col_int INT DEFAULT NULL,
  col_int_key INT DEFAULT NULL,
  PRIMARY KEY (pk)
-) ENGINE=MyISAM;
+) charset latin1 ENGINE=MyISAM;
 
 CREATE TABLE t3
 (col_int INT DEFAULT NULL,
@@ -1135,7 +1134,7 @@ CREATE TABLE t3
  pk INT,
  PRIMARY KEY (pk),
  KEY test_idx (col_int_key,pk,col_int)
-) ENGINE=InnoDB;
+) charset latin1 ENGINE=InnoDB;
 
 INSERT INTO t3 VALUES
  (NULL,9, 41), (NULL,-1596719104, 48), (-1068105728,9, 49);
@@ -1144,7 +1143,7 @@ CREATE TABLE t4
 (col_varchar_255_latin1_key VARCHAR(255) DEFAULT NULL,
  pk INT,
  PRIMARY KEY (pk)
-) ENGINE=MyISAM;
+) charset latin1 ENGINE=MyISAM;
 
 INSERT INTO t4 VALUES ('RUXDY',8);
 

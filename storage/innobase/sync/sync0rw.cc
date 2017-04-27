@@ -33,6 +33,7 @@ Created 9/11/1995 Heikki Tuuri
 #include "sync0rw.h"
 
 #include <my_sys.h>
+#include <sys/types.h>
 
 #include "ha_prototypes.h"
 #include "mem0mem.h"

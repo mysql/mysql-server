@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -85,7 +85,7 @@ MY_MODE get_file_perm(ulong perm_flags)
     @retval FALSE : File permission changed successfully
 */
 
-my_bool my_chmod(const char *filename, ulong perm_flags, myf my_flags)
+bool my_chmod(const char *filename, ulong perm_flags, myf my_flags)
 {
   int ret_val;
   MY_MODE file_perm;

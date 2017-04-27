@@ -1,0 +1,77 @@
+#
+# === Purpose ===
+# This test script verifies that in a replication environment,
+# when we have different errors on master and slave side, and if
+# we have ER_INCONSISTENT_ERROR specified in the slave_skip_errors
+# list the replication should not stop with error ER_INCONSISTENT_ERROR.
+#
+# === Implementation ===
+#1. Create a table using MyISAM storage engine.
+#
+#2. Insert a row with binary logging off, this is done to be able to
+#   generate error in the next query while trying to store a duplicate
+#   value in a column which accepts only unique value.
+#
+#3. As the bin logging was off for the first transaction the slave will only
+#   apply the second insert statement (the one which caused error on master).
+#   And should have thrown 'ER_INCONSISTENT_ERROR' error as the expected
+#   error(ER_DUP_ENTRY) is different from the actual error(No error).
+#
+#4. Now as we have passed ER_INCONSISTENT_ERROR to --slave-skip-errors in the
+#   .opt file the slave will not throw any error and the replication should
+#   continue.
+#
+#5. Test if replication is working fine by taking diff of tables on master
+#   and slave.
+# === Related bugs and worklogs ===
+#
+# Bug#24753281: REQUEST FOR SLAVE_SKIP_ERRORS = ER_INCONSISTENT_ERROR
+
+--source include/have_binlog_format_statement.inc
+--source include/not_mts_slave_parallel_workers.inc
+--source include/have_myisam.inc
+--source include/master-slave.inc
+
+call mtr.add_suppression("Query caused different errors on master and slave."
+                         " Error on master:");
+# We have to use only MyISAM storage engine and not InnDB here, because using
+# MyISAM will ensure that the second insert statement is written to binary log
+# with the error, whereas using InnoDB the insert will just throw
+# error(ER_DUP_ENTRY) and it won't be written to binary log.
+CREATE TABLE t1(s INT, UNIQUE(s)) ENGINE=MyISAM;
+
+SET SESSION sql_log_bin= 0;
+INSERT INTO t1 VALUES(10);
+SET SESSION sql_log_bin= 1;
+
+# We are inserting duplicate value for a column which only accepts unique value.
+# On MyISAM we will log this statement along with the error it is throwing.
+--error ER_DUP_ENTRY
+INSERT INTO t1 VALUES (5),(10);
+DROP TABLE t1;
+
+CREATE TABLE t2(s INT);
+INSERT INTO t2 VALUES(10);
+
+--source include/sync_slave_sql_with_master.inc
+
+# Show that replication is working fine.
+--let $diff_tables=master:t2,slave:t2
+--source include/diff_tables.inc
+
+--source include/rpl_connection_master.inc
+DROP TABLE t2;
+
+--source include/sync_slave_sql_with_master.inc
+--source include/stop_slave.inc
+RESET SLAVE;
+--let $rpl_only_running_threads= 1
+
+--let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.2.err
+--let $assert_only_after= CURRENT_TEST: rpl.rpl_inconsistent_error
+--let $assert_count= 1
+--let $assert_select= actual error and expected error on slave are different .* The expected error was .* 1062. The actual error .*
+
+--let $assert_text= Found the expected information about the ER_INCONSISTENT_ERROR being skipped.
+--source include/assert_grep.inc
+--source include/rpl_end.inc

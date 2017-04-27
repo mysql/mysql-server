@@ -21,14 +21,16 @@
 
 #include "binary_log_types.h"
 #include "key.h"
+#include "lex_string.h"
 #include "m_ctype.h"
 #include "my_base.h"
 #include "my_bitmap.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_inttypes.h"
+#include "my_sharedlib.h"
 #include "my_sys.h"
+#include "my_table_map.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/psi_table.h"
 #include "sql_alloc.h"
@@ -45,6 +47,7 @@ class Item;
 class String;
 class THD;
 class partition_info;
+struct Partial_update_info;
 struct TABLE;
 struct TABLE_LIST;
 struct TABLE_SHARE;
@@ -1089,6 +1092,54 @@ public:
 
 
 /**
+  Class that represents a single change to a column value in partial
+  update of a JSON column.
+*/
+class Binary_diff final
+{
+  /// The offset of the start of the change.
+  size_t m_offset;
+
+  /// The size of the portion that is to be replaced.
+  size_t m_length;
+
+public:
+  /**
+    Create a new Binary_diff object.
+
+    @param offset     the offset of the beginning of the change
+    @param length     the length of the section that is to be replaced
+  */
+  Binary_diff(size_t offset, size_t length)
+    : m_offset(offset), m_length(length)
+  {}
+
+  /// @return the offset of the changed data
+  size_t offset() const { return m_offset; }
+
+  /// @return the length of the changed data
+  size_t length() const { return m_length; }
+
+  /**
+    Get a pointer to the start of the replacement data.
+
+    @param field  the column that is updated
+    @return a pointer to the start of the replacement data
+  */
+  const char *new_data(Field *field) const;
+};
+
+
+/**
+  Vector of Binary_diff objects.
+
+  The Binary_diff objects in the vector should be ordered on offset, and none
+  of the diffs should be overlapping or adjacent.
+*/
+using Binary_diff_vector= Mem_root_array<Binary_diff>;
+
+
+/**
   Flags for TABLE::m_status (maximum 8 bits).
   The flags define the state of the row buffer in TABLE::record[0].
 */
@@ -1309,7 +1360,7 @@ private:
     If true, this table is inner w.r.t. some outer join operation, all columns
     are nullable (in the query), and null_row may be true.
   */
-  my_bool nullable;
+  bool nullable;
 
   uint8   m_status;                     /* What's in record[0] */
 public:
@@ -1318,65 +1369,65 @@ public:
     NULL, including columns declared as "not null" (see nullable).
     @todo make it private, currently join buffering changes it through a pointer
   */
-  my_bool null_row;
+  bool null_row;
 
-  my_bool copy_blobs;                   /* copy_blobs when storing */
+  bool copy_blobs;                   /* copy_blobs when storing */
 
   /*
     TODO: Each of the following flags take up 8 bits. They can just as easily
     be put into one single unsigned long and instead of taking up 18
     bytes, it would take up 4.
   */
-  my_bool force_index;
+  bool force_index;
 
   /**
     Flag set when the statement contains FORCE INDEX FOR ORDER BY
     See TABLE_LIST::process_index_hints().
   */
-  my_bool force_index_order;
+  bool force_index_order;
 
   /**
     Flag set when the statement contains FORCE INDEX FOR GROUP BY
     See TABLE_LIST::process_index_hints().
   */
-  my_bool force_index_group;
-  my_bool distinct;
-  my_bool const_table;
+  bool force_index_group;
+  bool distinct;
+  bool const_table;
   /// True if writes to this table should not write rows and just write keys.
-  my_bool no_rows;
+  bool no_rows;
 
   /**
      If set, the optimizer has found that row retrieval should access index 
      tree only.
    */
-  my_bool key_read;
+  bool key_read;
   /**
      Certain statements which need the full row, set this to ban index-only
      access.
   */
-  my_bool no_keyread;
+  bool no_keyread;
   /**
     If set, indicate that the table is not replicated by the server.
   */
-  my_bool no_replicate;
-  my_bool fulltext_searched;
-  my_bool no_cache;
+  bool no_replicate;
+  bool fulltext_searched;
+  bool no_cache;
   /* To signal that the table is associated with a HANDLER statement */
-  my_bool open_by_handler;
+  bool open_by_handler;
   /*
     To indicate that a non-null value of the auto_increment field
     was provided by the user or retrieved from the current record.
     Used only in the MODE_NO_AUTO_VALUE_ON_ZERO mode.
   */
-  my_bool auto_increment_field_not_null;
-  my_bool alias_name_used;		/* true if table_name is alias */
-  my_bool get_fields_in_item_tree;      /* Signal to fix_field */
+  bool auto_increment_field_not_null;
+  bool alias_name_used;		/* true if table_name is alias */
+  bool get_fields_in_item_tree;      /* Signal to fix_field */
   /**
     This table must be reopened and is not to be reused.
     NOTE: The TABLE will not be reopened during LOCK TABLES in
     close_thread_tables!!!
   */
-  my_bool m_needs_reopen;
+  bool m_needs_reopen;
 private:
   /**
     For tmp tables. TRUE <=> tmp table has been instantiated.
@@ -1710,6 +1761,133 @@ public:
     the next statement.
   */
   void cleanup_gc_items();
+
+private:
+  /**
+    Bitmap that tells which columns are eligible for partial update in an
+    update statement.
+
+    The bitmap is lazily allocated in the TABLE's mem_root when
+    #mark_column_for_partial_update() is called.
+  */
+  MY_BITMAP *m_partial_update_columns;
+
+  /**
+    Object which contains execution time state used for partial update
+    of JSON columns.
+
+    It is allocated in the execution mem_root by #setup_partial_update() if
+    there are columns that have been marked as eligible for partial update.
+  */
+  Partial_update_info *m_partial_update_info;
+
+public:
+  /**
+    Does this table have any columns that can be updated using partial update
+    in the current row?
+
+    @return whether any columns in the current row can be updated using partial
+    update
+  */
+  bool has_partial_update_columns() const;
+
+  /**
+    Can the value of this column be updated using partial update in the current
+    row?
+
+    @param  field  the column to check
+    @return whether the column can be updated using partial update
+  */
+  bool is_partial_update_column(const Field *field) const;
+
+  /**
+    Get the list of binary diffs that have been collected for a given column in
+    the current row, or `nullptr` if partial update cannot be used for that
+    column.
+
+    @param  field   the column to get binary diffs for
+    @return the list of binary diffs for the column, or `nullptr` if the column
+    cannot be updated using partial update
+  */
+  const Binary_diff_vector *get_binary_diffs(const Field *field) const;
+
+  /**
+    Mark a given column as one that can potentially be updated using
+    partial update during execution of an update statement.
+
+    Whether it is actually updated using partial update, is not
+    determined until execution time, since that depends both on the
+    data that is in the column and the new data that is written to the
+    column.
+
+    @param  field  a column which is eligible for partial update
+    @retval false  on success
+    @retval true   on out-of-memory
+  */
+  bool mark_column_for_partial_update(const Field *field);
+
+  /**
+    Does this table have any columns that were marked with
+    #mark_column_for_partial_update()? Note that this only tells if any of the
+    columns satisfy the syntactical requirements for being partially updated.
+    Use #has_partial_update_columns() or #is_partial_update_column() instead to
+    see if partial update should be used on a column.
+  */
+  bool has_columns_marked_for_partial_update() const;
+
+  /**
+    Enable partial update of JSON columns in this table. It is only
+    enabled for the columns that have previously been marked for
+    partial update using #mark_column_for_partial_update().
+
+    @retval false  on success
+    @retval true   on out-of-memory
+  */
+  bool setup_partial_update();
+
+  /**
+    Add a binary diff for a column that is updated using partial update.
+
+    @param field   the column that is being updated
+    @param offset  the offset of the changed portion
+    @param length  the length of the changed portion
+
+    @retval false  on success
+    @retval true   on out-of-memory
+  */
+  bool add_binary_diff(const Field *field, size_t offset, size_t length);
+
+  /**
+    Clear the binary diffs that have been collected for partial update
+    of JSON columns. Should be called between each row that is
+    updated.
+  */
+  void clear_binary_diffs();
+
+  /**
+    Clean up state used for partial update of JSON columns.
+  */
+  void cleanup_partial_update();
+
+  /**
+    Temporarily disable partial update of a column in the current row.
+
+    This function is called during execution to disable partial update of a
+    column that was previously marked as eligible for partial update with
+    #mark_column_for_partial_update() during preparation.
+
+    Partial update of this column will be re-enabled when we go to the next
+    row.
+
+    @param  field  the column to disable partial update for
+  */
+  void disable_partial_update_for_current_row(const Field *field);
+
+  /**
+    Get a buffer that can be used to hold the partially updated column value
+    while performing partial update.
+  */
+  String *get_partial_update_buffer();
 };
 
 
@@ -1887,6 +2065,16 @@ typedef struct st_lex_alter {
   uint16 expire_after_days;
   bool update_account_locked_column;
   bool account_locked;
+
+  void cleanup()
+  {
+    update_password_expired_fields= false;
+    update_password_expired_column= false;
+    use_default_password_lifetime= true;
+    expire_after_days= 0;
+    update_account_locked_column= false;
+    account_locked= false;
+  }
 } LEX_ALTER;
 
 typedef struct	st_lex_user {
@@ -2088,7 +2276,7 @@ struct TABLE_LIST
   bool is_placeholder() const
   {
     return is_view_or_derived() || schema_table || !table ||
-      is_recursive_reference;
+      m_is_recursive_reference;
   }
 
   /// Produce a textual identification of this object
@@ -2140,6 +2328,22 @@ struct TABLE_LIST
   {
     return derived != NULL;
   }
+
+  /**
+     @returns true if this is a recursive reference inside the definition of a
+     recursive CTE.
+     @note that it starts its existence as a dummy derived table, until the
+     end of resolution when it's not a derived table anymore, just a reference
+     to the materialized temporary table. Whereas a non-recursive
+     reference to the recursive CTE is a derived table.
+  */
+  bool is_recursive_reference() const { return m_is_recursive_reference; }
+
+  /**
+    @see is_recursive_reference().
+    @returns true if error
+  */
+  bool set_recursive_reference();
 
   /// Return true if view or derived table and can be merged
   bool is_mergeable() const;
@@ -2935,8 +3139,9 @@ public:
     could be re-used while statement re-execution.
   */
   bool          derived_keys_ready;
+private:
   /// If a recursive reference inside the definition of a CTE.
-  bool          is_recursive_reference;
+  bool          m_is_recursive_reference;
   // End of group for optimization
 
 private:
@@ -3363,8 +3568,8 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
                           uint db_stat, uint prgflag, uint ha_open_flags,
                           TABLE *outparam, bool is_create_table,
                           const dd::Table *table_def_param);
-TABLE_SHARE *alloc_table_share(TABLE_LIST *table_list, const char *key,
-                               size_t key_length);
+TABLE_SHARE *alloc_table_share(const char *db, const char *table_name,
+                               const char *key, size_t key_length);
 void init_tmp_table_share(THD *thd, TABLE_SHARE *share, const char *key,
                           size_t key_length,
                           const char *table_name, const char *path,
@@ -3521,7 +3726,7 @@ public:
 
 /**
    This iterates on those references to a derived table / view / CTE which are
-   materialized.
+   materialized. If a recursive CTE, this includes recursive references.
    Upon construction it is passed a non-recursive materialized reference
    to the derived table (TABLE_LIST*).
    For a CTE it may return more than one reference; for a derived table or a

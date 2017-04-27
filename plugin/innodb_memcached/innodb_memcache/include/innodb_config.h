@@ -1,6 +1,6 @@
 /***********************************************************************
 
-Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify it
 under the terms of the GNU General Public License as published by the
@@ -245,7 +245,9 @@ in columns used for memcached functionalities (cas, exp etc.)
 bool
 innodb_verify(
 /*==========*/
-	meta_cfg_info_t*	info);		/*!< in: meta info structure */
+	meta_cfg_info_t*	info,	/*!< in: meta info structure */
+	void*			thd	/*!< in/out: MySQL THD */
+);
 
 /**********************************************************************//**
 This function frees meta info structure */
@@ -262,6 +264,7 @@ and instantiates the metadata hash table.
 meta_cfg_info_t*
 innodb_config_meta_hash_init(
 /*=========================*/
-	hash_table_t*		meta_hash);	/*!< in/out: InnoDB Memcached
+	hash_table_t*		meta_hash,	/*!< in/out: InnoDB Memcached
 						engine */
+	void*			thd);		/*!< in/out: MySQL THD */
 #endif

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -26,6 +26,8 @@ Created 5/30/1994 Heikki Tuuri
 /** NOTE: The functions in this file should only use functions from
 other files in library. The code in this file is used to make a library for
 external tools. */
+
+#include <stddef.h>
 
 #include "dict0dict.h"
 #include "mem0mem.h"

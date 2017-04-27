@@ -16,13 +16,13 @@
 #ifndef SQL_TABLE_INCLUDED
 #define SQL_TABLE_INCLUDED
 
+#include <set>
 #include <stddef.h>
 #include <sys/types.h>
-#include <set>
 
 #include "binary_log_types.h"  // enum_field_types
-#include "my_global.h"
 #include "my_inttypes.h"
+#include "my_sharedlib.h"
 #include "mysql/psi/mysql_mutex.h"
 #ifndef WORKAROUND_TO_BE_REMOVED_ONCE_WL7016_IS_READY
 #include "prealloced_array.h"
@@ -39,87 +39,16 @@ struct TABLE_LIST;
 struct handlerton;
 class KEY;
 class FOREIGN_KEY;
+namespace dd {
+  class Schema;
+  class Table;
+}
 
 typedef struct st_ha_check_opt HA_CHECK_OPT;
 typedef struct st_ha_create_information HA_CREATE_INFO;
-typedef struct st_lock_param_type ALTER_PARTITION_PARAM_TYPE;
 typedef struct charset_info_st CHARSET_INFO;
 typedef struct st_mysql_mutex mysql_mutex_t;
 template<typename T> class List;
-
-
-enum ddl_log_entry_code
-{
-  /*
-    DDL_LOG_EXECUTE_CODE:
-      This is a code that indicates that this is a log entry to
-      be executed, from this entry a linked list of log entries
-      can be found and executed.
-    DDL_LOG_ENTRY_CODE:
-      An entry to be executed in a linked list from an execute log
-      entry.
-    DDL_IGNORE_LOG_ENTRY_CODE:
-      An entry that is to be ignored
-  */
-  DDL_LOG_EXECUTE_CODE = 'e',
-  DDL_LOG_ENTRY_CODE = 'l',
-  DDL_IGNORE_LOG_ENTRY_CODE = 'i'
-};
-
-enum ddl_log_action_code
-{
-  /*
-    The type of action that a DDL_LOG_ENTRY_CODE entry is to
-    perform.
-    DDL_LOG_DELETE_ACTION:
-      Delete an entity
-    DDL_LOG_RENAME_ACTION:
-      Rename an entity
-    DDL_LOG_REPLACE_ACTION:
-      Rename an entity after removing the previous entry with the
-      new name, that is replace this entry.
-    DDL_LOG_EXCHANGE_ACTION:
-      Exchange two entities by renaming them a -> tmp, b -> a, tmp -> b.
-  */
-  DDL_LOG_DELETE_ACTION = 'd',
-  DDL_LOG_RENAME_ACTION = 'r',
-  DDL_LOG_REPLACE_ACTION = 's',
-  DDL_LOG_EXCHANGE_ACTION = 'e'
-};
-
-enum enum_ddl_log_exchange_phase {
-  EXCH_PHASE_NAME_TO_TEMP= 0,
-  EXCH_PHASE_FROM_TO_NAME= 1,
-  EXCH_PHASE_TEMP_TO_FROM= 2
-};
-
-
-typedef struct st_ddl_log_entry
-{
-  const char *name;
-  const char *from_name;
-  const char *handler_name;
-  const char *tmp_name;
-  uint next_entry;
-  uint entry_pos;
-  enum ddl_log_entry_code entry_type;
-  enum ddl_log_action_code action_type;
-  /*
-    Most actions have only one phase. REPLACE does however have two
-    phases. The first phase removes the file with the new name if
-    there was one there before and the second phase renames the
-    old name to the new name. EXCHANGE have three phases.
-  */
-  char phase;
-} DDL_LOG_ENTRY;
-
-typedef struct st_ddl_log_memory_entry
-{
-  uint entry_pos;
-  struct st_ddl_log_memory_entry *next_log_entry;
-  struct st_ddl_log_memory_entry *prev_log_entry;
-  struct st_ddl_log_memory_entry *next_active_log_entry;
-} DDL_LOG_MEMORY_ENTRY;
 
 
 enum enum_explain_filename_mode
@@ -132,21 +61,17 @@ enum enum_explain_filename_mode
 /* Maximum length of GEOM_POINT Field */
 #define MAX_LEN_GEOM_POINT_FIELD   25
 
-#define WSDI_WRITE_SHADOW 1
-
 /* Flags for conversion functions. */
 static const uint FN_FROM_IS_TMP=  1 << 0;
 static const uint FN_TO_IS_TMP=    1 << 1;
 static const uint FN_IS_TMP=       FN_FROM_IS_TMP | FN_TO_IS_TMP;
-/** Don't remove table in engine. Remove only .FRM and maybe .PAR files. */
-static const uint NO_HA_TABLE=     1 << 2;
 /** Don't check foreign key constraints while renaming table */
-static const uint NO_FK_CHECKS=    1 << 3;
+static const uint NO_FK_CHECKS=    1 << 2;
 /**
   Don't commit transaction after updating data-dictionary while renaming
   the table.
 */
-static const uint NO_DD_COMMIT=    1 << 4;
+static const uint NO_DD_COMMIT=    1 << 3;
 
 
 size_t filename_to_tablename(const char *from, char *to, size_t to_length
@@ -166,8 +91,6 @@ size_t inline build_table_filename(char *buff, size_t bufflen, const char *db,
     return build_table_filename(buff, bufflen, db, table, ext, flags,
                                 &truncated_not_used);
 }
-size_t build_table_shadow_filename(char *buff, size_t bufflen,
-                                   ALTER_PARTITION_PARAM_TYPE *lpt);
 size_t build_tmptable_filename(THD* thd, char *buff, size_t bufflen);
 bool mysql_create_table(THD *thd, TABLE_LIST *create_table,
                         HA_CREATE_INFO *create_info,
@@ -183,9 +106,36 @@ bool mysql_discard_or_import_tablespace(THD *thd,
                                         TABLE_LIST *table_list);
 
 /**
+  Find the index which supports the given foreign key.
+
+  @param alter_info        Alter_info structure describing ALTER TABLE.
+  @param key_info_buffer   Indexes to check
+  @param key_count         Number of indexes.
+  @param fk                FK which we want to find a supporting index for.
+
+  @retval Index supporing the FK or nullptr if no such index was found.
+
+  @note This function is meant to be used both for finding the supporting
+  index in the child table and the parent index in the parent table.
+
+  @note For backward compatibility, we try to find the same index that InnoDB
+  does (@see dict_foreign_find_index). One consequence is that the index
+  might not be an unique index as this is not required by InnoDB.
+  Note that it is difficult to guarantee that we iterate through the
+  indexes in the same order as InnoDB - this means that if several indexes
+  fit, we might select a different one.
+*/
+const char* find_fk_supporting_index(Alter_info *alter_info,
+                                     const KEY *key_info_buffer,
+                                     const uint key_count,
+                                     const FOREIGN_KEY *fk);
+
+/**
   Prepare Create_field and Key_spec objects for ALTER and upgrade.
   @param[in,out]  thd          thread handle. Used as a memory pool
                                and source of environment information.
+  @param[in]      src_table    DD table object. Will be nullptr for temporary
+                               tables and during upgrade.
   @param[in]      table        the source table, open and locked
                                Used as an interface to the storage engine
                                to acquire additional information about
@@ -200,22 +150,22 @@ bool mysql_discard_or_import_tablespace(THD *thd,
                                around two structures.
   @param[in,out]  alter_ctx    Runtime context for ALTER TABLE.
   @param[in]      used_fields  used_fields from HA_CREATE_INFO.
-  @param[in]      upgrade_flag True if upgrading data directory.
 
   @retval TRUE   error, out of memory or a semantical error in ALTER
                  TABLE instructions
   @retval FALSE  success
 
 */
-bool prepare_fields_and_keys(THD *thd, TABLE *table,
+bool prepare_fields_and_keys(THD *thd,
+                             const dd::Table *src_table,
+                             TABLE *table,
                              HA_CREATE_INFO *create_info,
                              Alter_info *alter_info,
                              Alter_table_ctx *alter_ctx,
-                             const uint &used_fields,
-                             bool upgrade_flag);
+                             const uint &used_fields);
 
-bool mysql_prepare_alter_table(THD *thd, TABLE *table,
-                               HA_CREATE_INFO *create_info,
+bool mysql_prepare_alter_table(THD *thd, const dd::Table *src_table,
+                               TABLE *table, HA_CREATE_INFO *create_info,
                                Alter_info *alter_info,
                                Alter_table_ctx *alter_ctx);
 bool mysql_trans_prepare_alter_copy_data(THD *thd);
@@ -233,13 +183,13 @@ bool mysql_create_like_table(THD *thd, TABLE_LIST *table,
                              TABLE_LIST *src_table,
                              HA_CREATE_INFO *create_info);
 bool mysql_rename_table(THD *thd, handlerton *base, const char *old_db,
-                        const char * old_name, const char *new_db,
-                        const char * new_name, uint flags);
+                        const char * old_name, const dd::Schema &new_schema,
+                        const char *new_db, const char * new_name, uint flags);
 
 bool mysql_checksum_table(THD* thd, TABLE_LIST* table_list,
                           HA_CHECK_OPT* check_opt);
-bool mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists,
-                    my_bool drop_temporary);
+bool mysql_rm_table(THD *thd,TABLE_LIST *tables, bool if_exists,
+                    bool drop_temporary);
 bool mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
                              bool drop_temporary, bool drop_database,
                              bool *dropped_non_atomic_flag,
@@ -251,7 +201,6 @@ bool mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
 bool quick_rm_table(THD *thd, handlerton *base, const char *db,
                     const char *table_name, uint flags);
 bool prepare_sp_create_field(THD *thd,
-                             enum enum_field_types field_type,
                              Create_field *field_def);
 bool prepare_pack_create_field(THD *thd, Create_field *sql_field,
                                longlong table_flags);
@@ -261,21 +210,9 @@ const CHARSET_INFO* get_sql_field_charset(const Create_field *sql_field,
 bool validate_comment_length(THD *thd, const char *comment_str,
                              size_t *comment_len, uint max_len,
                              uint err_code, const char *comment_name);
-bool mysql_update_dd(ALTER_PARTITION_PARAM_TYPE *lpt, uint flags);
 int write_bin_log(THD *thd, bool clear_error,
                   const char *query, size_t query_length,
                   bool is_trans= FALSE);
-bool write_ddl_log_entry(DDL_LOG_ENTRY *ddl_log_entry,
-                           DDL_LOG_MEMORY_ENTRY **active_entry);
-bool write_execute_ddl_log_entry(uint first_entry,
-                                   bool complete,
-                                   DDL_LOG_MEMORY_ENTRY **active_entry);
-bool deactivate_ddl_log_entry(uint entry_no);
-void release_ddl_log_memory_entry(DDL_LOG_MEMORY_ENTRY *log_entry);
-void release_ddl_log();
-void execute_ddl_log_recovery();
-bool execute_ddl_log_entry(THD *thd, uint first_entry);
-
 void promote_first_timestamp_column(List<Create_field> *column_definitions);
 
 
@@ -350,7 +287,6 @@ void parse_filename(const char *filename, size_t filename_length,
                     const char ** subpartition_name, size_t *subpartition_name_length);
 
 extern MYSQL_PLUGIN_IMPORT const char *primary_key_name;
-extern mysql_mutex_t LOCK_gdl;
 
 
 /**

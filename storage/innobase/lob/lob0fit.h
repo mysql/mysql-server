@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2016, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -18,11 +18,13 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #ifndef lob0fit_h
 #define lob0fit_h
 
-#include "univ.i"
-#include <iostream>
 #include <mem0mem.h>
 #include <stdlib.h>
+#include <sys/types.h>
 #include <zlib.h>
+#include <iostream>
+
+#include "univ.i"
 
 namespace lob {
 

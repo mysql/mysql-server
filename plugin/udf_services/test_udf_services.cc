@@ -13,10 +13,10 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
-#include <my_global.h>
 #include <mysql/plugin.h>
 #include <mysql_com.h>
 #include <mysql_version.h>
+#include <stddef.h>
 
 #include "my_compiler.h"
 #include "my_inttypes.h"
@@ -72,7 +72,7 @@ mysql_declare_plugin_end;
   @retval     FALSE     success
   @retval     TRUE      Failure. Error in the message argument
 */
-PLUGIN_EXPORT my_bool
+PLUGIN_EXPORT bool
 test_udf_services_udf_init(UDF_INIT *initid MY_ATTRIBUTE((unused)),
                            UDF_ARGS *args MY_ATTRIBUTE((unused)),
                            char *message MY_ATTRIBUTE((unused)))

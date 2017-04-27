@@ -18,6 +18,7 @@
 #ifndef OBJECT_QUEUE_INCLUDED
 #define OBJECT_QUEUE_INCLUDED
 
+#include <sys/types.h>
 #include <functional>
 #include <map>
 #include <queue>

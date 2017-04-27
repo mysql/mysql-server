@@ -1,7 +1,7 @@
 #ifndef HISTOGRAMS_HISTOGRAM_INCLUDED
 #define HISTOGRAMS_HISTOGRAM_INCLUDED
 
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -38,6 +38,7 @@
 #include <string>                // std::string
 #include <utility>               // std::pair
 
+#include "lex_string.h"
 #include "m_string.h"            // LEX_CSTRING
 #include "memroot_allocator.h"   // Memroot_allocator
 #include "my_base.h"             // ha_rows

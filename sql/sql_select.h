@@ -34,9 +34,9 @@
 #include "my_base.h"
 #include "my_bitmap.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_sqlcommand.h"
+#include "my_table_map.h"
 #include "opt_costmodel.h"
 #include "opt_explain_format.h"       // Explain_sort_clause
 #include "set_var.h"
@@ -1126,10 +1126,9 @@ bool handle_query(THD *thd, LEX *lex, Query_result *result,
 bool set_statement_timer(THD *thd);
 void reset_statement_timer(THD *thd);
 
-void free_underlaid_joins(THD *thd, SELECT_LEX *select);
+void free_underlaid_joins(SELECT_LEX *select);
 
-void calc_used_field_length(THD *thd,
-                            TABLE *table,
+void calc_used_field_length(TABLE *table,
                             bool keep_current_rowid,
                             uint *p_used_fields,
                             uint *p_used_fieldlength,

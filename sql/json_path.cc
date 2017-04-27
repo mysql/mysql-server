@@ -21,8 +21,9 @@
   attached to WL#7909.
  */
 
-#include "json_path.h"
+#include "sql/json_path.h"
 
+#include <stddef.h>
 #include <algorithm>                            // any_of
 #include <memory>                               // unique_ptr
 #include <string>
@@ -30,7 +31,6 @@
 #include "json_dom.h"
 #include "m_ctype.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "psi_memory_key.h"           // key_memory_JSON
 #include "rapidjson/encodings.h"
@@ -54,30 +54,10 @@ constexpr char WILDCARD=        '*';
 
 } // namespace
 
-static bool is_ecmascript_identifier(const char *name, size_t name_length);
+static bool is_ecmascript_identifier(const std::string &name);
 static bool is_digit(unsigned codepoint);
 
 // Json_path_leg
-
-enum_json_path_leg_type Json_path_leg::get_type() const
-{
-  return m_leg_type;
-}
-
-size_t Json_path_leg::get_member_name_length() const
-{
-  return m_member_name.size();
-}
-
-const char *Json_path_leg::get_member_name() const
-{
-  return m_member_name.data();
-}
-
-size_t Json_path_leg::get_array_cell_index() const
-{
-  return m_array_cell_index;
-}
 
 bool Json_path_leg::to_string(String *buf) const
 {
@@ -85,10 +65,9 @@ bool Json_path_leg::to_string(String *buf) const
   {
   case jpl_member:
     return buf->append(BEGIN_MEMBER) ||
-      (is_ecmascript_identifier(get_member_name(),
-                                get_member_name_length()) ?
-       buf->append(get_member_name(), get_member_name_length()) :
-       double_quote(get_member_name(), get_member_name_length(), buf));
+      (is_ecmascript_identifier(m_member_name) ?
+       buf->append(m_member_name.data(), m_member_name.length()) :
+       double_quote(m_member_name.data(), m_member_name.length(), buf));
   case jpl_array_cell:
     return buf->append(BEGIN_ARRAY) ||
       buf->append_ulonglong(m_array_cell_index) ||
@@ -114,16 +93,7 @@ Json_path_clone::Json_path_clone()
 {}
 
 
-Json_path_clone::~Json_path_clone()
-{
-  clear();
-}
-
-
-size_t Json_path_clone::leg_count() const { return m_path_legs.size(); }
-
-
-const Json_path_leg *Json_path_clone::get_leg_at(const size_t index) const
+const Json_path_leg *Json_path_clone::get_leg_at(size_t index) const
 {
   if (index >= m_path_legs.size())
   {
@@ -131,12 +101,6 @@ const Json_path_leg *Json_path_clone::get_leg_at(const size_t index) const
   }
 
   return m_path_legs.at(index);
-}
-
-
-bool Json_path_clone::append(const Json_path_leg *leg)
-{
-  return m_path_legs.push_back(leg);
 }
 
 
@@ -167,12 +131,6 @@ const Json_path_leg *Json_path_clone::pop()
 }
 
 
-void Json_path_clone::clear()
-{
-  m_path_legs.clear();
-}
-
-
 // Json_path
 
 Json_path::Json_path()
@@ -180,16 +138,7 @@ Json_path::Json_path()
 {}
 
 
-Json_path::~Json_path()
-{
-  m_path_legs.clear();
-}
-
-
-size_t Json_path::leg_count() const { return m_path_legs.size(); }
-
-
-const Json_path_leg *Json_path::get_leg_at(const size_t index) const
+const Json_path_leg *Json_path::get_leg_at(size_t index) const
 {
   if (index >= m_path_legs.size())
   {
@@ -200,22 +149,12 @@ const Json_path_leg *Json_path::get_leg_at(const size_t index) const
 }
 
 
-bool Json_path::append(const Json_path_leg &leg)
-{
-  return m_path_legs.push_back(leg);
-}
-
 Json_path_leg Json_path::pop()
 {
   DBUG_ASSERT(m_path_legs.size() > 0);
   Json_path_leg p= m_path_legs.back();
   m_path_legs.pop_back();
   return p;
-}
-
-void Json_path::clear()
-{
-  m_path_legs.clear();
 }
 
 bool Json_path::to_string(String *buf) const
@@ -268,11 +207,6 @@ bool Json_path::contains_wildcard_or_ellipsis() const
 
 // Json_path parsing
 
-void Json_path::initialize()
-{
-  m_path_legs.clear();
-}
-
 /** Top level parsing factory method */
 bool parse_path(const bool begins_with_column_id, const size_t path_length,
                 const char *path_expression, Json_path *path, size_t *bad_index)
@@ -314,7 +248,7 @@ const char *Json_path::parse_path(const bool begins_with_column_id,
                                   const char *path_expression,
                                   bool *status)
 {
-  initialize();
+  clear();
 
   const char *charptr= path_expression;
   const char *endptr= path_expression + path_length;
@@ -616,8 +550,7 @@ const char *Json_path::parse_member_leg(const char *charptr,
       PARSER_RETURN(false);
 
     // unquoted names must be valid ECMAScript identifiers
-    if (!was_quoted &&
-        !is_ecmascript_identifier(jstr->value().data(), jstr->size()))
+    if (!was_quoted && !is_ecmascript_identifier(jstr->value()))
       PARSER_RETURN(false);
 
     // Looking good.
@@ -714,14 +647,13 @@ static bool is_connector_punctuation(unsigned codepoint)
    have been replaced with UTF8-encoded bytes.
 
    @param[in] name        name to check
-   @param[in] name_length its length
 
    @return True if the name is a valid ECMAScript identifier. False otherwise.
 */
-static bool is_ecmascript_identifier(const char *name, size_t name_length)
+static bool is_ecmascript_identifier(const std::string &name)
 {
   // An empty string is not a valid identifier.
-  if (name_length == 0)
+  if (name.empty())
     return false;
 
   /*
@@ -729,10 +661,10 @@ static bool is_ecmascript_identifier(const char *name, size_t name_length)
     been replaced with the corresponding UTF-8 bytes. Now we apply
     the rules here: https://es5.github.io/x7.html#x7.6
   */
-  rapidjson::MemoryStream input_stream(name, name_length);
+  rapidjson::MemoryStream input_stream(name.data(), name.length());
   unsigned  codepoint;
 
-  while (input_stream.Tell() < name_length)
+  while (input_stream.Tell() < name.length())
   {
     bool  first_codepoint= (input_stream.Tell() == 0);
     if (!rapidjson::UTF8<char>::Decode(input_stream, &codepoint))

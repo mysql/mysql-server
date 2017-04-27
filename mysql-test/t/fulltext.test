@@ -14,7 +14,7 @@
 drop table if exists t1,t2,t3;
 --enable_warnings
 
-CREATE TABLE t1 (a VARCHAR(200), b TEXT, FULLTEXT (a,b));
+CREATE TABLE t1 (a VARCHAR(200), b TEXT, FULLTEXT (a,b)) charset utf8mb4;
 INSERT INTO t1 VALUES('MySQL has now support', 'for full-text search'),
                        ('Full-text indexes', 'are called collections'),
                           ('Only MyISAM tables','support collections'),
@@ -127,7 +127,7 @@ CREATE TABLE t1 (
   ticket int(11),
   KEY ti (id),
   KEY tit (ticket)
-);
+) charset utf8mb4;
 INSERT INTO t1 VALUES (2,3),(1,2);
 
 CREATE TABLE t2 (
@@ -135,7 +135,7 @@ CREATE TABLE t2 (
   inhalt text,
   KEY tig (ticket),
   fulltext index tix (inhalt)
-);
+) charset utf8mb4;
 INSERT INTO t2 VALUES (1,'foo'),(2,'bar'),(3,'foobar');
 
 select t1.id FROM t2 as ttxt,t1,t1 as ticket2
@@ -285,9 +285,11 @@ drop table t1;
 # UTF8
 #
 SET NAMES latin1;
+--character_set latin1
 CREATE TABLE t1 (t text character set utf8 not null, fulltext(t));
 INSERT t1 VALUES ('Mit freundlichem GrЭъ'), ('aus OsnabrЭck');
 SET NAMES koi8r;
+--character_set koi8r
 INSERT t1 VALUES ("Это мы - опилки"),("Отлезь, гнида!"),
                 ("Не влезай, убьет!"),("и будет прав!");
 SELECT t, collation(t) FROM t1 WHERE MATCH t AGAINST ('ОПИЛКИ');
@@ -295,6 +297,7 @@ SELECT t, collation(t) FROM t1 WHERE MATCH t AGAINST ('ПрА*' IN BOOLEAN MODE);
 SELECT * FROM t1 WHERE MATCH t AGAINST ('это' IN BOOLEAN MODE);
 SELECT t, collation(t) FROM t1 WHERE MATCH t AGAINST ('OsnabrЭck');
 SET NAMES latin1;
+--character_set latin1
 SELECT t, collation(t) FROM t1 WHERE MATCH t AGAINST ('OsnabrЭck');
 SELECT t, collation(t) FROM t1 WHERE MATCH t AGAINST ('Osnabrueck');
 SELECT t, collation(t),FORMAT(MATCH t AGAINST ('Osnabruck'),6) FROM t1 WHERE MATCH t AGAINST ('Osnabruck');
@@ -384,7 +387,7 @@ DROP TABLE t1;
 # BUG#13835: max key length is 1000 bytes when trying to create
 #            a fulltext index
 #
-CREATE TABLE t1 (a VARCHAR(10000), FULLTEXT(a));
+CREATE TABLE t1 (a VARCHAR(10000), FULLTEXT(a)) charset utf8mb4;
 SHOW CREATE TABLE t1;
 DROP TABLE t1;
 

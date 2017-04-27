@@ -1,7 +1,7 @@
 #ifndef SQL_JSON_PATH_INCLUDED
 #define SQL_JSON_PATH_INCLUDED
 
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -40,13 +40,13 @@ enum enum_json_path_leg_type
   jpl_ellipsis
 };
 
-/*
+/**
   One path leg in a JSON path expression.
 
   A path leg describes either a key/value pair in an object
   or a 0-based index into an array.
 */
-class Json_path_leg
+class Json_path_leg final
 {
 private:
   enum_json_path_leg_type m_leg_type;
@@ -68,11 +68,14 @@ public:
       m_member_name(member_name)
   {}
 
-  /** Accessors */
-  enum_json_path_leg_type get_type() const;
-  size_t get_member_name_length() const;
-  const char *get_member_name() const;
-  size_t get_array_cell_index() const;
+  /** Get the type of the path leg. */
+  enum_json_path_leg_type get_type() const { return m_leg_type; }
+
+  /** Get the member name of a ::jpl_member path leg. */
+  const std::string &get_member_name() const { return m_member_name; }
+
+  /** Get the array cell index of a ::jpl_array_cell path leg. */
+  size_t get_array_cell_index() const { return m_array_cell_index; }
 
   /** Turn into a human-readable string. */
   bool to_string(String *buf) const;
@@ -99,7 +102,7 @@ public:
      @return NULL if the index is out of range. Otherwise, a pointer to the
      corresponding Json_path_leg.
   */
-  virtual const Json_path_leg *get_leg_at(const size_t index) const =0;
+  virtual const Json_path_leg *get_leg_at(size_t index) const =0;
 
 };
 
@@ -142,16 +145,11 @@ public:
 
   </pre></code>
 */
-class Json_path : public Json_seekable_path
+class Json_path final : public Json_seekable_path
 {
 private:
   typedef Prealloced_array<Json_path_leg, 8> Path_leg_vector;
   Path_leg_vector m_path_legs;
-
-  /**
-     Reinitialize this to be an empty path expression.
-  */
-  void initialize();
 
   /**
      Fills in this Json_path from a path expression.
@@ -235,10 +233,9 @@ private:
 
 public:
   Json_path();
-  ~Json_path();
 
   /** Return the number of legs in this path */
-  size_t leg_count() const;
+  size_t leg_count() const override { return m_path_legs.size(); }
 
   /**
      Get the ith (numbered from 0) leg
@@ -248,14 +245,14 @@ public:
      @return NULL if the index is out of range. Otherwise, a pointer to the
      corresponding Json_path.
   */
-  const Json_path_leg *get_leg_at(const size_t index) const;
+  const Json_path_leg *get_leg_at(size_t index) const override;
 
   /**
     Add a path leg to the end of this path.
     @param[in] leg the leg to add
     @return false on success, true on error
   */
-  bool append(const Json_path_leg &leg);
+  bool append(const Json_path_leg &leg) { return m_path_legs.push_back(leg); }
 
   /**
     Pop the last leg element.
@@ -270,7 +267,7 @@ public:
   /**
     Resets this to an empty path with no legs.
   */
-  void clear();
+  void clear() { m_path_legs.clear(); }
 
   /**
     Return true if the path contains a wildcard
@@ -294,7 +291,7 @@ public:
   from the path legs of other paths without allocating heap memory
   to copy those legs into.
 */
-class Json_path_clone : public Json_seekable_path
+class Json_path_clone final : public Json_seekable_path
 {
 private:
   using Path_leg_pointers= Prealloced_array<const Json_path_leg *, 8>;
@@ -302,10 +299,9 @@ private:
 
 public:
   Json_path_clone();
-  ~Json_path_clone();
 
   /** Return the number of legs in this cloned path */
-  size_t leg_count() const;
+  size_t leg_count() const override { return m_path_legs.size(); }
 
   /**
      Get the ith (numbered from 0) leg
@@ -315,14 +311,14 @@ public:
      @return NULL if the index is out of range. Otherwise, a pointer to the
      corresponding Json_path_leg.
   */
-  const Json_path_leg *get_leg_at(const size_t index) const;
+  const Json_path_leg *get_leg_at(size_t index) const override;
 
   /**
     Add a path leg to the end of this cloned path.
     @param[in] leg the leg to add
     @return false on success, true on error
   */
-  bool append(const Json_path_leg *leg);
+  bool append(const Json_path_leg *leg) { return m_path_legs.push_back(leg); }
 
   /**
     Clear this clone and then add all of the
@@ -343,7 +339,7 @@ public:
   /**
     Resets this to an empty path with no legs.
   */
-  void clear();
+  void clear() { m_path_legs.clear(); }
 
 };
 

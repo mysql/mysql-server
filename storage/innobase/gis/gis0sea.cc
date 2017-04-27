@@ -36,7 +36,6 @@ Created 2014/01/16 Jimmy Yang
 #include "btr0cur.h"
 #include "btr0pcur.h"
 #include "btr0sea.h"
-#include "gis0geo.h"
 #include "ibuf0ibuf.h"
 #include "lock0lock.h"
 #include "rem0cmp.h"

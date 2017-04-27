@@ -1,6 +1,25 @@
 #include "mysql/psi/psi_table.h"
-#include "my_global.h"
+#include "my_inttypes.h"
+#include "my_config.h"
+typedef unsigned char uchar;
+typedef signed char int8;
+typedef unsigned char uint8;
+typedef short int16;
+typedef unsigned short uint16;
+typedef int int32;
+typedef unsigned int uint32;
+typedef unsigned long long int ulonglong;
+typedef long long int longlong;
+typedef longlong int64;
+typedef ulonglong uint64;
+typedef unsigned long long my_ulonglong;
+typedef intptr_t intptr;
+typedef ulonglong my_off_t;
+typedef ptrdiff_t my_ptrdiff_t;
+typedef int myf;
+#include "my_macros.h"
 #include "my_psi_config.h"
+#include "my_sharedlib.h"
 #include "psi_base.h"
 #include "my_psi_config.h"
 typedef unsigned int PSI_mutex_key;
@@ -15,16 +34,15 @@ struct PSI_placeholder
 {
   int m_placeholder;
 };
-C_MODE_START
 struct TABLE_SHARE;
 struct PSI_table_locker;
 typedef struct PSI_table_locker PSI_table_locker;
 enum PSI_table_io_operation
 {
-  PSI_TABLE_FETCH_ROW= 0,
-  PSI_TABLE_WRITE_ROW= 1,
-  PSI_TABLE_UPDATE_ROW= 2,
-  PSI_TABLE_DELETE_ROW= 3
+  PSI_TABLE_FETCH_ROW = 0,
+  PSI_TABLE_WRITE_ROW = 1,
+  PSI_TABLE_UPDATE_ROW = 2,
+  PSI_TABLE_DELETE_ROW = 3
 };
 typedef enum PSI_table_io_operation PSI_table_io_operation;
 struct PSI_table_locker_state
@@ -42,9 +60,8 @@ struct PSI_table_locker_state
 typedef struct PSI_table_locker_state PSI_table_locker_state;
 struct PSI_table_bootstrap
 {
-  void* (*get_interface)(int version);
+  void *(*get_interface)(int version);
 };
 typedef struct PSI_table_bootstrap PSI_table_bootstrap;
 typedef struct PSI_placeholder PSI_table_service_t;
-extern MYSQL_PLUGIN_IMPORT PSI_table_service_t *psi_table_service;
-C_MODE_END
+extern PSI_table_service_t *psi_table_service;

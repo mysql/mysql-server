@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2012, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2012, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -22,6 +22,9 @@ Code used for background table and index stats gathering.
 
 Created Feb 8, 2013 Marko Makela
 *******************************************************/
+
+#include "dict0dict.h"
+#include "dict0mem.h"
 
 /*****************************************************************//**
 Request the background collection of statistics to stop for a table.

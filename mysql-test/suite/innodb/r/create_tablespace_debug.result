@@ -11,6 +11,7 @@ Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 # MYSQLD_DATADIR/
+mysql.ibd
 DROP TABLESPACE s_def;
 ERROR HY000: Tablespace s_def doesn't exist.
 #
@@ -33,6 +34,7 @@ ALTER TABLE t3 TABLESPACE=s1;
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/t1	s1	161	4	Dynamic	0	General
 # MYSQLD_DATADIR/
+mysql.ibd
 s1.ibd
 show tables;
 Tables_in_test
@@ -99,22 +101,22 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
-) /*!50100 TABLESPACE `s1` */ ENGINE=InnoDB DEFAULT CHARSET=latin1
+) /*!50100 TABLESPACE `s1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `a` int(11) DEFAULT NULL
-) /*!50100 TABLESPACE `s1` */ ENGINE=InnoDB DEFAULT CHARSET=latin1
+) /*!50100 TABLESPACE `s1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 SHOW CREATE TABLE t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
   `a` int(11) DEFAULT NULL
-) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=latin1
+) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 SHOW CREATE TABLE t4;
 Table	Create Table
 t4	CREATE TABLE `t4` (
   `a` int(11) DEFAULT NULL
-) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=latin1
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 BEGIN;
 INSERT INTO t1 VALUES (13);
 INSERT INTO t2 VALUES (23);
@@ -157,21 +159,21 @@ SHOW CREATE TABLE tr1;
 Table	Create Table
 tr1	CREATE TABLE `tr1` (
   `a` int(11) DEFAULT NULL
-) /*!50100 TABLESPACE `s1` */ ENGINE=InnoDB DEFAULT CHARSET=latin1
+) /*!50100 TABLESPACE `s1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 SHOW CREATE TABLE tr2;
 Table	Create Table
 tr2	CREATE TABLE `tr2` (
   `a` int(11) DEFAULT NULL
-) /*!50100 TABLESPACE `s1` */ ENGINE=InnoDB DEFAULT CHARSET=latin1
+) /*!50100 TABLESPACE `s1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 SHOW CREATE TABLE tr3;
 Table	Create Table
 tr3	CREATE TABLE `tr3` (
   `a` int(11) DEFAULT NULL
-) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=latin1
+) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 SHOW CREATE TABLE tr4;
 Table	Create Table
 tr4	CREATE TABLE `tr4` (
   `a` int(11) DEFAULT NULL
-) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=latin1
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 DROP TABLE tr1,tr2,tr3,tr4;
 DROP TABLESPACE s1;

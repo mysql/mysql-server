@@ -128,16 +128,12 @@ no_explain_protocol.inc
 no_cursor_protocol.inc
 
 # 6.0 Different builds
-is_embedded.inc
-not_embedded.inc
-not_windows_embedded.inc
 have_valgrind.inc
 not_valgrind.inc
 not_ubsan.inc
 not_asan.inc
 
 # 7.0 Few skipped test-cases
-mysql_embedded.test
 mysql_tzinfo_to_sql_sys.test
 wrapper.test
 

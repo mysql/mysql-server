@@ -11,7 +11,7 @@ t1	CREATE TABLE `t1` (
   `b` int(11) DEFAULT NULL,
   KEY `a_desc_b_asc` (`a` DESC,`b`),
   KEY `a_asc_b_desc` (`a`,`b` DESC)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 insert into t1 values(1,6),(1,5),(2,5),(2,4),(3,4),(3,3),
 (4,3),(4,2),(5,2),(5,1),(6,1),(NULL,NULL);
 analyze table t1;
@@ -260,14 +260,14 @@ t1	CREATE TABLE `t1` (
   `b` int(11) DEFAULT NULL,
   KEY `a_desc_b_asc` (`a` DESC,`b`),
   KEY `i1` (`a` DESC,`b` DESC)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 create table t2 (a int auto_increment, primary key (a desc)) engine= innodb;
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `a` int(11) NOT NULL AUTO_INCREMENT,
   PRIMARY KEY (`a` DESC)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 insert ignore into t2 select a from t1;
 Warnings:
 Warning	1062	Duplicate entry '5' for key 'PRIMARY'
@@ -291,7 +291,7 @@ Table	Create Table
 t3	CREATE TABLE `t3` (
   `a` varchar(10) DEFAULT NULL,
   KEY `i1` (`a`(5) DESC)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 create index i2 on t3(a(6));
 flush tables;
 show create table t3;
@@ -300,7 +300,7 @@ t3	CREATE TABLE `t3` (
   `a` varchar(10) DEFAULT NULL,
   KEY `i1` (`a`(5) DESC),
   KEY `i2` (`a`(6))
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 alter table t3 add fulltext index fts_idx(a desc);
 ERROR HY000: Incorrect usage of spatial/fulltext/hash index and explicit index order
 alter table t3 add fulltext index fts_idx(a asc);
@@ -1189,7 +1189,7 @@ t1.col_varchar_key, t2.col_varchar_key
 FROM t2 JOIN t1 ON ( t1.pk >= t2.col_int_key
 AND t1.col_varchar_key != t2.col_varchar_key );
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index	pk_2	pk_2	17	NULL	#	#	Using index
+1	SIMPLE	t1	NULL	index	pk_2	pk_2	47	NULL	#	#	Using index
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where; Using join buffer (Block Nested Loop)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t2`.`col_int_key` AS `col_int_key`,`test`.`t1`.`col_varchar_key` AS `col_varchar_key`,`test`.`t2`.`col_varchar_key` AS `col_varchar_key` from `test`.`t2` join `test`.`t1` where ((`test`.`t1`.`pk` >= `test`.`t2`.`col_int_key`) and (`test`.`t1`.`col_varchar_key` <> `test`.`t2`.`col_varchar_key`))
@@ -1281,11 +1281,11 @@ AND ( gp1 . col_varchar < 'e' )
 AND ( gp1 . col_varchar_key <> 'y' )  
 ORDER BY gp1 . col_varchar_key LIMIT 4;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	gp1	NULL	range	col_varchar_key,col_varchar_key_2,col_varchar_key_3	col_varchar_key_3	22	NULL	3	33.33	Using index condition; Using where
+1	SIMPLE	gp1	NULL	range	col_varchar_key,col_varchar_key_2,col_varchar_key_3	col_varchar_key_3	82	NULL	3	33.33	Using index condition; Using where
 1	SIMPLE	c1	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where; FirstMatch(gp1)
-1	SIMPLE	gp2	NULL	ref	col_varchar_key	col_varchar_key	12	test.gp1.col_varchar_key	1	100.00	Using where
+1	SIMPLE	gp2	NULL	ref	col_varchar_key	col_varchar_key	42	test.gp1.col_varchar_key	1	100.00	Using where
 1	SIMPLE	p1	NULL	ALL	NULL	NULL	NULL	NULL	5	20.00	Using where
-1	SIMPLE	p2	NULL	index	NULL	col_varchar_key	16	NULL	5	100.00	Using where; Using index
+1	SIMPLE	p2	NULL	index	NULL	col_varchar_key	46	NULL	5	100.00	Using where; Using index
 1	SIMPLE	c2	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where; FirstMatch(gp2)
 Warnings:
 Note	1276	Field or reference 'test.gp1.col_varchar_key' of SELECT #3 was resolved in SELECT #1
@@ -1433,7 +1433,7 @@ WHERE t1 . pk <> 4
 ORDER BY field1, field2 DESC;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	range	PRIMARY	PRIMARY	4	NULL	#	#	Using where; Backward index scan
-1	SIMPLE	t2	NULL	ref	k3	k3	258	test.t1.col_varchar_255_latin1_key	#	#	Using index
+1	SIMPLE	t2	NULL	ref	k3	k3	1023	test.t1.col_varchar_255_latin1_key	#	#	Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `field1`,`test`.`t1`.`pk` AS `field2` from `test`.`t1` left join `test`.`t1` `t2` on((`test`.`t2`.`col_varchar_255_latin1_key` = `test`.`t1`.`col_varchar_255_latin1_key`)) where (`test`.`t1`.`pk` <> 4) order by `field1`
 DROP TABLE t1;
@@ -1500,7 +1500,7 @@ col_varchar varchar(20) DEFAULT NULL,
 PRIMARY KEY (pk DESC),
 KEY col_int_key (col_int_key DESC),
 KEY col_varchar_key (col_varchar_key DESC)
-);
+) charset latin1;
 INSERT INTO t1 VALUES (20,8,'eiw','eiw'),(19,8,'oeiws','oeiws'),
 (18,NULL,'koeiw','koeiw'),(17,3,'kkoei','kkoei'),
 (16,9,'ukkoe','ukkoe'),(15,5,'qukko','qukko'),

@@ -32,6 +32,8 @@ Created 12/19/1997 Heikki Tuuri
 
 #include "row0sel.h"
 
+#include <sys/types.h>
+
 #include "btr0btr.h"
 #include "btr0cur.h"
 #include "btr0sea.h"
@@ -62,6 +64,8 @@ Created 12/19/1997 Heikki Tuuri
 #include "trx0trx.h"
 #include "trx0undo.h"
 #include "ut0new.h"
+#include "lob0lob.h"
+#include "dict0dd.h"
 
 /* Maximum number of rows to prefetch; MySQL interface has another parameter */
 #define SEL_MAX_N_PREFETCH	16
@@ -302,15 +306,12 @@ row_sel_sec_rec_is_for_clust_rec(
 					heap);
 			}
 
-			rtree_mbr_from_wkb(dptr + GEO_DATA_HEADER_SIZE,
-					   static_cast<uint>(clust_len
-					   - GEO_DATA_HEADER_SIZE),
+			get_mbr_from_store(dptr, static_cast<uint>(clust_len),
 					   SPDIMS,
-					   reinterpret_cast<double*>(
-						&tmp_mbr));
+					   reinterpret_cast<double*>(&tmp_mbr));
 			rtr_read_mbr(sec_field, &sec_mbr);
 
-			if (!MBR_EQUAL_CMP(&sec_mbr, &tmp_mbr)) {
+			if (!mbr_equal_cmp(&sec_mbr, &tmp_mbr, 0)) {
 				is_equal = FALSE;
 				goto func_exit;
 			}
@@ -2928,7 +2929,12 @@ row_sel_field_store_in_mysql_format_func(
 		containing UTF-8 ENUM columns due to Bug #9526. */
 		ut_ad(!templ->mbmaxlen
 		      || !(templ->mysql_col_len % templ->mbmaxlen));
-		ut_ad(len * templ->mbmaxlen >= templ->mysql_col_len
+		/* Length of the record will be less in case of
+		clust_templ_for_sec is true or if it is fetched
+		from prefix virtual column in virtual index. */
+		ut_ad(templ->is_virtual
+		      || clust_templ_for_sec
+		      || len * templ->mbmaxlen >= templ->mysql_col_len
 		      || (field_no == templ->icp_rec_field_no
 			  && field->prefix_len > 0));
 		ut_ad(templ->is_virtual
@@ -3322,7 +3328,7 @@ row_sel_store_mysql_rec(
 	if secondary index is used then FTS_DOC_ID column should be part
 	of this index. */
 	if (dict_table_has_fts_index(prebuilt->table)) {
-		if (index->is_clustered()
+		if ((index->is_clustered() && !clust_templ_for_sec)
 		    || prebuilt->fts_doc_id_in_read_set) {
 			prebuilt->fts_doc_id = fts_get_doc_id_from_rec(
 				prebuilt->table, rec, index, NULL);
@@ -4239,8 +4245,14 @@ row_search_no_mvcc(
 	ut_ad(index && pcur && search_tuple);
 
 	/* Step-0: Re-use the cached mtr. */
-	mtr_t*		mtr = &index->last_sel_cur->mtr;
+	mtr_t*		mtr;
 	dict_index_t*	clust_index = index->table->first_index();
+
+	if(!index->last_sel_cur) {
+		dict_allocate_mem_intrinsic_cache(index);
+	}
+
+	mtr = &index->last_sel_cur->mtr;
 
 	/* Step-1: Build the select graph. */
 	if (direction == 0 && prebuilt->sel_graph == NULL) {
@@ -4931,13 +4943,17 @@ row_search_mvcc(
 
 	trx_start_if_not_started(trx, false);
 
-	if (trx->skip_gap_locks()
-	    && prebuilt->select_lock_type != LOCK_NONE
-	    && trx->mysql_thd != NULL
-	    && thd_is_select(trx->mysql_thd)) {
+	if (prebuilt->table->is_dd_table
+	    || (trx->skip_gap_locks()
+	        && prebuilt->select_lock_type != LOCK_NONE
+	        && trx->mysql_thd != NULL
+	        && thd_is_select(trx->mysql_thd))) {
 		/* It is a plain locking SELECT and the isolation
 		level is low: do not lock gaps */
 
+		/* Reads on DD tables dont require gap-locks as serializability
+		between different DDL statements is achieved using
+		metadata locks */
 		set_also_gap_locks = false;
 	}
 
@@ -6353,25 +6369,26 @@ func_exit:
 	goto loop;
 }
 
-/*******************************************************************//**
-Checks if MySQL at the moment is allowed for this table to retrieve a
+/** Checks if MySQL at the moment is allowed for this table to retrieve a
 consistent read result, or store it to the query cache.
+@param[in]	thd	thread that is trying to access the query cache
+@param[in]	trx	transaction object
+@param[in]	norm_name concatenation of database name, '/' char, table name
 @return TRUE if storing or retrieving from the query cache is permitted */
 ibool
 row_search_check_if_query_cache_permitted(
-/*======================================*/
-	trx_t*		trx,		/*!< in: transaction object */
-	const char*	norm_name)	/*!< in: concatenation of database name,
-					'/' char, table name */
+	THD*		thd,
+	trx_t*		trx,
+	const char*	norm_name)
 {
 	dict_table_t*	table;
 	ibool		ret	= FALSE;
+	MDL_ticket*	mdl	= nullptr;
 
-	table = dict_table_open_on_name(
-		norm_name, FALSE, FALSE, DICT_ERR_IGNORE_NONE);
+	table = dd_table_open_on_name(thd, &mdl, norm_name,
+				      false, DICT_ERR_IGNORE_NONE);
 
 	if (table == NULL) {
-
 		return(FALSE);
 	}
 
@@ -6407,7 +6424,7 @@ row_search_check_if_query_cache_permitted(
 		}
 	}
 
-	dict_table_close(table, FALSE, FALSE);
+	dd_table_close(table, thd, &mdl, false);
 
 	return(ret);
 }

@@ -21,6 +21,9 @@
   Table USER_VARIABLES_BY_THREAD (declarations).
 */
 
+#include <stddef.h>
+#include <sys/types.h>
+
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "pfs_column_types.h"
@@ -178,7 +181,7 @@ class table_uvar_by_thread : public PFS_engine_table
 public:
   /** Table share */
   static PFS_engine_table_share m_share;
-  static PFS_engine_table *create();
+  static PFS_engine_table *create(PFS_engine_table_share *);
   static ha_rows get_row_count();
 
   virtual void reset_position(void);

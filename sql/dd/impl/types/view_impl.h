@@ -26,12 +26,11 @@
 #include "dd/impl/types/weak_object_impl.h"
 #include "dd/object_id.h"
 #include "dd/types/abstract_table.h"
-#include "dd/types/dictionary_object_table.h"  // dd::Dictionary_object_table
+#include "dd/types/entity_object_table.h"      // dd::Entity_object_table
 #include "dd/types/object_type.h"
 #include "dd/types/view.h"                     // dd::View
 #include "dd/types/view_routine.h"             // dd::View_routine
 #include "dd/types/view_table.h"               // dd::View_table
-#include "my_global.h"
 #include "my_inttypes.h"
 
 namespace dd {
@@ -59,7 +58,7 @@ public:
   { }
 
 public:
-  virtual const Dictionary_object_table &object_table() const
+  virtual const Object_table &object_table() const
   { return View::OBJECT_TABLE(); }
 
   virtual bool validate() const;
@@ -69,6 +68,8 @@ public:
   virtual bool store_children(Open_dictionary_tables_ctx *otx);
 
   virtual bool drop_children(Open_dictionary_tables_ctx *otx) const;
+
+  virtual void remove_children();
 
   virtual bool restore_attributes(const Raw_record &r);
 
@@ -213,10 +214,10 @@ public:
   { return m_routines; }
 
   // Fix "inherits ... via dominance" warnings
-  virtual Weak_object_impl *impl()
-  { return Weak_object_impl::impl(); }
-  virtual const Weak_object_impl *impl() const
-  { return Weak_object_impl::impl(); }
+  virtual Entity_object_impl *impl()
+  { return Entity_object_impl::impl(); }
+  virtual const Entity_object_impl *impl() const
+  { return Entity_object_impl::impl(); }
   virtual Object_id id() const
   { return Entity_object_impl::id(); }
   virtual bool is_persistent() const
@@ -250,13 +251,15 @@ public:
   { return Abstract_table_impl::add_column(); }
   virtual const Column_collection &columns() const
   { return Abstract_table_impl::columns(); }
+  virtual Column_collection *columns()
+  { return Abstract_table_impl::columns(); }
   const Column *get_column(const String_type name) const
   { return Abstract_table_impl::get_column(name); }
   Column *get_column(const String_type name)
   { return Abstract_table_impl::get_column(name); }
-  virtual bool hidden() const
+  virtual enum_hidden_type hidden() const
   { return Abstract_table_impl::hidden(); }
-  virtual void set_hidden(bool hidden)
+  virtual void set_hidden(enum_hidden_type hidden)
   { Abstract_table_impl::set_hidden(hidden); }
 
 private:

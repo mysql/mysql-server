@@ -14,9 +14,12 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
 #include <gtest/gtest.h>
+#include <stddef.h>
+#include <sys/types.h>
 
 #include "item.h"
 #include "item_func.h"
+#include "lex_string.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "sql_get_diagnostics.h"
@@ -60,7 +63,7 @@ public:
     : Diagnostics_information_item(target), m_value(value)
   {}
 
-  Item *get_value(THD *thd, const Diagnostics_area *da)
+  Item *get_value(THD *thd, const Diagnostics_area*)
   {
     return new (thd->mem_root) Item_int(m_value);
   }

@@ -15,7 +15,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "abstract_query_plan.h"
+#include "sql/abstract_query_plan.h"
 
 #include <stddef.h>
 
@@ -24,7 +24,6 @@
 #include "key.h"
 #include "my_base.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "opt_range.h"        // QUICK_SELECT_I
 #include "sql_const.h"

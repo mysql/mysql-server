@@ -13,7 +13,7 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "storage_adapter.h"
+#include "sql/dd/impl/cache/storage_adapter.h"
 
 #include <memory>
 #include <string>
@@ -25,12 +25,10 @@
 #include "dd/impl/raw/raw_table.h"            // Raw_table
 #include "dd/impl/sdi.h"                      // sdi::store() sdi::drop()
 #include "dd/impl/transaction_impl.h"         // Transaction_ro
-#include "dd/impl/types/weak_object_impl.h"   // Weak_object_impl
 #include "dd/types/abstract_table.h"          // Abstract_table
 #include "dd/types/charset.h"                 // Charset
 #include "dd/types/collation.h"               // Collation
-#include "dd/types/dictionary_object.h"       // Dictionary_object
-#include "dd/types/dictionary_object_table.h" // Dictionary_object_table
+#include "dd/types/entity_object_table.h"     // Entity_object_table
 #include "dd/types/event.h"                   // Event
 #include "dd/types/function.h"                // Routine, Function
 #include "dd/types/index_stat.h"              // Index_stat
@@ -41,12 +39,12 @@
 #include "dd/types/table_stat.h"              // Table_stat
 #include "dd/types/tablespace.h"              // Tablespace
 #include "dd/types/view.h"                    // View
+#include "dd/upgrade/upgrade.h"               // allow_sdi_creation
 #include "debug_sync.h"                       // DEBUG_SYNC
 #include "log.h"                              // sql_print_error
 #include "mutex_lock.h"                       // Mutex_lock
 #include "my_compiler.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "sql_class.h"                        // THD
@@ -84,8 +82,7 @@ size_t Storage_adapter::core_size()
 
 // Get a dictionary object id from core storage.
 template <typename T>
-Object_id Storage_adapter::core_get_id(THD *thd,
-                                       const typename T::name_key_type &key)
+Object_id Storage_adapter::core_get_id(const typename T::name_key_type &key)
 {
   Cache_element<typename T::cache_partition_type> *element= nullptr;
   Mutex_lock lock(&m_lock);
@@ -101,7 +98,7 @@ Object_id Storage_adapter::core_get_id(THD *thd,
 
 // Get a dictionary object from core storage.
 template <typename K, typename T>
-void Storage_adapter::core_get(THD *thd, const K &key, const T **object)
+void Storage_adapter::core_get(const K &key, const T **object)
 {
   DBUG_ASSERT(object);
   *object= nullptr;
@@ -127,7 +124,7 @@ bool Storage_adapter::get(THD *thd,
   DBUG_ASSERT(object);
   *object= nullptr;
 
-  instance()->core_get(thd, key, object);
+  instance()->core_get(key, object);
   if (*object || s_use_fake_storage)
     return false;
 
@@ -146,7 +143,7 @@ bool Storage_adapter::get(THD *thd,
     return true;
   }
 
-  const Dictionary_object_table &table= T::OBJECT_TABLE();
+  const Entity_object_table &table= T::OBJECT_TABLE();
   // Get main object table.
   Raw_table *t= trx.otx.get_table(table.name());
 
@@ -159,7 +156,7 @@ bool Storage_adapter::get(THD *thd,
   }
 
   // Restore the object from the record.
-  Dictionary_object *new_object= NULL;
+  Entity_object *new_object= NULL;
   if (r.get() && table.restore_object_from_record(&trx.otx, *r.get(), &new_object))
   {
     DBUG_ASSERT(thd->is_system_thread() || thd->killed || thd->is_error());
@@ -189,7 +186,8 @@ bool Storage_adapter::get(THD *thd,
 
 // Drop a dictionary object from core storage.
 template <typename T>
-void Storage_adapter::core_drop(THD *thd, const T *object)
+void Storage_adapter::core_drop(THD *thd MY_ATTRIBUTE((unused)),
+                                const T *object)
 {
   DBUG_ASSERT(s_use_fake_storage || thd->is_dd_system_thread());
   DBUG_ASSERT(bootstrap::stage() <= bootstrap::BOOTSTRAP_CREATED);
@@ -311,7 +309,10 @@ bool Storage_adapter::store(THD *thd, T *object)
     return true;
   }
 
+  // Do not create SDIs for tablespaces and tables while creating
+  // dictionary entry during upgrade.
   if (bootstrap::stage() > bootstrap::BOOTSTRAP_CREATED &&
+      dd::upgrade::allow_sdi_creation() &&
       sdi::store(thd, object))
     return true;
 
@@ -420,23 +421,20 @@ template bool Storage_adapter::core_sync(THD *,
                                          const Schema*);
 
 template Object_id Storage_adapter::core_get_id<Table>(
-      THD *,
       const Table::name_key_type &);
 template Object_id Storage_adapter::core_get_id<Schema>(
-      THD *,
       const Schema::name_key_type &);
 template Object_id Storage_adapter::core_get_id<Tablespace>(
-      THD *,
       const Tablespace::name_key_type &);
 
 template
-void Storage_adapter::core_get(THD*,
+void Storage_adapter::core_get(
        dd::Item_name_key const&, const dd::Schema**);
 template
-void Storage_adapter::core_get<dd::Item_name_key, dd::Abstract_table>(THD*,
+void Storage_adapter::core_get<dd::Item_name_key, dd::Abstract_table>(
        dd::Item_name_key const&, const dd::Abstract_table**);
 template
-void Storage_adapter::core_get<dd::Global_name_key, dd::Tablespace>(THD*,
+void Storage_adapter::core_get<dd::Global_name_key, dd::Tablespace>(
        dd::Global_name_key const&, const dd::Tablespace**);
 
 template Object_id Storage_adapter::next_oid<Abstract_table>();
@@ -573,12 +571,12 @@ template bool Storage_adapter::store(THD *, Tablespace*);
 */
 
 template <>
-void Storage_adapter::core_get(THD*, const Table_stat::name_key_type&,
+void Storage_adapter::core_get(const Table_stat::name_key_type&,
                                const Table_stat**)
 { }
 
 template <>
-void Storage_adapter::core_get(THD*, const Index_stat::name_key_type&,
+void Storage_adapter::core_get(const Index_stat::name_key_type&,
                                const Index_stat**)
 { }
 

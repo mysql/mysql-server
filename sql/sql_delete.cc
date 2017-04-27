@@ -394,7 +394,8 @@ bool Sql_cmd_delete::delete_from_single_table(THD *thd)
 
   if (order)
   {
-    table->update_const_key_parts(conds);
+    if (table->update_const_key_parts(conds))
+      DBUG_RETURN(true);
     order= simple_remove_const(order, conds);
     ORDER_with_src order_src(order, ESC_ORDER_BY);
     usable_index= get_index_for_order(&order_src, &qep_tab, limit,
@@ -829,7 +830,7 @@ bool Sql_cmd_delete::prepare_inner(THD *thd)
       Check that table from which we delete is not used somewhere
       inside subqueries/view.
     */
-    TABLE_LIST *duplicate= unique_table(thd, table_ref->updatable_base_table(),
+    TABLE_LIST *duplicate= unique_table(table_ref->updatable_base_table(),
                                         lex->query_tables, false);
     if (duplicate)
     {
@@ -886,7 +887,7 @@ extern "C" int refpos_order_cmp(const void* arg, const void *a,const void *b)
 }
 
 
-bool Query_result_delete::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
+bool Query_result_delete::prepare(List<Item>&, SELECT_LEX_UNIT *u)
 {
   DBUG_ENTER("Query_result_delete::prepare");
   unit= u;
@@ -943,7 +944,7 @@ bool Query_result_delete::optimize()
       continue;
     delete_table_map|= tr->map();
     if (delete_while_scanning &&
-        unique_table(thd, tr, join->tables_list, false))
+        unique_table(tr, join->tables_list, false))
     {
       /*
         If the table being deleted from is also referenced in the query,
@@ -1043,7 +1044,7 @@ void Query_result_delete::cleanup()
 }
 
 
-bool Query_result_delete::send_data(List<Item> &values)
+bool Query_result_delete::send_data(List<Item>&)
 {
   DBUG_ENTER("Query_result_delete::send_data");
 

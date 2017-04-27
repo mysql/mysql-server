@@ -6,9 +6,6 @@
 --source include/not_windows.inc
 # This will test the limit of a filename in MySQL at 512 bytes.
 # We control that by making it a relative path starting with "./".
-# The embedded server uses an absolute path as the datadir
-# which has a non-deterministic length.
---source include/not_embedded.inc
 
 SET default_storage_engine=InnoDB;
 LET $MYSQLD_DATADIR = `select @@datadir`;

@@ -40,7 +40,6 @@
 #include <queue>
 
 #include "my_dbug.h"
-#include "my_global.h"
 
 /**
  Sorts the elements in the range [first,last) into ascending order

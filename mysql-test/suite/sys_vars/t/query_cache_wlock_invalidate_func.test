@@ -30,7 +30,6 @@
 # Setup
 #
 
---source include/not_embedded.inc
 
 # disabled due to differences in the result
 --disable_ps_protocol

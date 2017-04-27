@@ -20,6 +20,7 @@
 #include <algorithm>
 
 #include "my_dbug.h"
+#include "my_macros.h"
 #include "my_pointer_arithmetic.h"
 #include "mysql_com.h"    // MAX_BIGINT_WIDTH
 
@@ -1348,5 +1349,48 @@ bool validate_string(const CHARSET_INFO *cs, const char *str, uint32 length,
     from+= cnvres;
   }
   *valid_length= length;
+  return false;
+}
+
+
+/**
+  Appends from_str to to_str, escaping certain characters.
+
+  @param [in,out] to_str   The destination string.
+  @param [in]     from_str The source string.
+
+  @return false on success, true on error.
+*/
+
+bool append_escaped(String *to_str, const String *from_str)
+{
+  if (to_str->mem_realloc(to_str->length() + from_str->length()))
+    return true; // OOM
+
+  const char *from= from_str->ptr();
+  const char *end= from + from_str->length();
+  for (; from < end; from++)
+  {
+    char c= *from;
+    switch (c) {
+    case '\0':
+      c= '0';
+      break;
+    case '\032':
+      c= 'Z';
+      break;
+    case '\\':
+    case '\'':
+      break;
+    default:
+      goto normal_character;
+    }
+    if (to_str->append('\\'))
+      return true; // OOM
+
+  normal_character:
+    if (to_str->append(c))
+      return true; // OOM
+  }
   return false;
 }

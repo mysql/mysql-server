@@ -26,7 +26,6 @@
 #include "handler.h"
 #include "mdl.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "sql_class.h"                   // THD
 
@@ -41,9 +40,11 @@
 using namespace dd::sdi_utils;
 
 namespace {
-bool is_valid(const dd::Tablespace *ts)
+bool is_valid(const dd::Tablespace *ts MY_ATTRIBUTE((unused)))
 {
-  return ts && ts->se_private_data().exists("id");
+  // return ts && ts->se_private_data().exists("id");
+  // TODO: WL#9538  Remove this when SDI is enabled for InnoDB
+  return false;
 }
 
 bool lock_tablespace(THD *thd, const dd::Table *table)

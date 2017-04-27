@@ -21,7 +21,6 @@
 
 #include "handler.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_sqlcommand.h"
 #include "query_result.h"         // Query_result_interceptor
@@ -265,7 +264,7 @@ public:
     duplicates(duplicates_arg)
   {}
 
-  virtual void cleanup(THD *thd)
+  virtual void cleanup(THD*)
   {
     if (empty_field_list_on_rset)
     {

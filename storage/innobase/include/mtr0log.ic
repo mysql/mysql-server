@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -223,12 +223,6 @@ mlog_write_initial_log_record_low(
 	mtr_t*		mtr)
 {
 	ut_ad(type <= MLOG_BIGGEST_TYPE);
-	ut_ad(type == MLOG_FILE_NAME
-	      || type == MLOG_FILE_DELETE
-	      || type == MLOG_FILE_CREATE2
-	      || type == MLOG_FILE_RENAME2
-	      || type == MLOG_INDEX_LOAD
-	      || mtr->is_named_space(space_id));
 
 	mach_write_to_1(log_ptr, type);
 	log_ptr++;

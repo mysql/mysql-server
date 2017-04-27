@@ -153,7 +153,10 @@ ROLLBACK/*!*/;
 # # server id #  end_log_pos # CRC32 # 	Previous-GTIDs
 # [empty]
 # at #
-# # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#
+# # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#	original_committed_timestamp=#   immediate_commit_timestamp=#
+# original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
+# immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
+/*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 # at #
 # # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
@@ -163,14 +166,17 @@ SET @@session.pseudo_thread_id=#/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
 SET @@session.sql_mode=1436549152/*!*/;
 SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
-/*!\C latin1 *//*!*/;
-SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
+/*!\C utf8mb4 *//*!*/;
+SET @@session.character_set_client=255,@@session.collation_connection=255,@@session.collation_server=255/*!*/;
 SET @@session.lc_time_names=0/*!*/;
 SET @@session.collation_database=DEFAULT/*!*/;
 create table t1(a int, b int) engine= myisam
 /*!*/;
 # at #
-# # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#
+# # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#	original_committed_timestamp=#   immediate_commit_timestamp=#
+# original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
+# immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
+/*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 # at #
 # # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
@@ -198,7 +204,10 @@ SET TIMESTAMP=#/*!*/;
 COMMIT
 /*!*/;
 # at #
-# # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#
+# # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#	original_committed_timestamp=#   immediate_commit_timestamp=#
+# original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
+# immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
+/*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 # at #
 # # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
@@ -225,7 +234,10 @@ SET TIMESTAMP=#/*!*/;
 COMMIT
 /*!*/;
 # at #
-# # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#
+# # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#	original_committed_timestamp=#   immediate_commit_timestamp=#
+# original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
+# immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
+/*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 # at #
 # # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
@@ -249,15 +261,21 @@ SET TIMESTAMP=#/*!*/;
 COMMIT
 /*!*/;
 # at #
-# # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#
+# # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#	original_committed_timestamp=#   immediate_commit_timestamp=#
+# original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
+# immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
+/*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 # at #
-# # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
+# # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0	Xid = #
 SET TIMESTAMP=#/*!*/;
 create table t2(a int, b int) engine=innodb
 /*!*/;
 # at #
-# # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#
+# # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#	original_committed_timestamp=#   immediate_commit_timestamp=#
+# original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
+# immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
+/*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 # at #
 # # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
@@ -315,7 +333,10 @@ BEGIN
 # # server id #  end_log_pos # CRC32 # 	Xid = #
 COMMIT/*!*/;
 # at #
-# # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#
+# # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#	original_committed_timestamp=#   immediate_commit_timestamp=#
+# original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
+# immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
+/*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 # at #
 # # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
@@ -339,7 +360,10 @@ SET TIMESTAMP=#/*!*/;
 COMMIT
 /*!*/;
 # at #
-# # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#
+# # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#	original_committed_timestamp=#   immediate_commit_timestamp=#
+# original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
+# immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
+/*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 # at #
 # # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
@@ -363,7 +387,10 @@ SET TIMESTAMP=#/*!*/;
 COMMIT
 /*!*/;
 # at #
-# # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#
+# # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#	original_committed_timestamp=#   immediate_commit_timestamp=#
+# original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
+# immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
+/*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 # at #
 # # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
@@ -396,7 +423,10 @@ BEGIN
 # # server id #  end_log_pos # CRC32 # 	Xid = #
 COMMIT/*!*/;
 # at #
-# # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#
+# # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#	original_committed_timestamp=#   immediate_commit_timestamp=#
+# original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
+# immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
+/*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 # at #
 # # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
@@ -404,15 +434,21 @@ SET TIMESTAMP=#/*!*/;
 DROP TABLE `t1` /* generated by server */
 /*!*/;
 # at #
-# # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#
+# # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#	original_committed_timestamp=#   immediate_commit_timestamp=#
+# original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
+# immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
+/*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 # at #
-# # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
+# # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0	Xid = #
 SET TIMESTAMP=#/*!*/;
 DROP TABLE `t2` /* generated by server */
 /*!*/;
 # at #
-# # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#
+# # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#	original_committed_timestamp=#   immediate_commit_timestamp=#
+# original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
+# immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
+/*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 # at #
 # # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
@@ -420,7 +456,10 @@ SET TIMESTAMP=#/*!*/;
 create table t3(a int, b int) engine= myisam
 /*!*/;
 # at #
-# # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#
+# # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#	original_committed_timestamp=#   immediate_commit_timestamp=#
+# original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
+# immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
+/*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 # at #
 # # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
@@ -428,7 +467,10 @@ SET TIMESTAMP=#/*!*/;
 create table t4(a int, b int) engine= myisam
 /*!*/;
 # at #
-# # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#
+# # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#	original_committed_timestamp=#   immediate_commit_timestamp=#
+# original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
+# immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
+/*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 # at #
 # # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
@@ -436,7 +478,10 @@ SET TIMESTAMP=#/*!*/;
 create table t5(a int, b int) engine= myisam
 /*!*/;
 # at #
-# # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#
+# # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#	original_committed_timestamp=#   immediate_commit_timestamp=#
+# original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
+# immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
+/*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 # at #
 # # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
@@ -460,7 +505,10 @@ SET TIMESTAMP=#/*!*/;
 COMMIT
 /*!*/;
 # at #
-# # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#
+# # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#	original_committed_timestamp=#   immediate_commit_timestamp=#
+# original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
+# immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
+/*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 # at #
 # # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
@@ -484,7 +532,10 @@ SET TIMESTAMP=#/*!*/;
 COMMIT
 /*!*/;
 # at #
-# # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#
+# # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#	original_committed_timestamp=#   immediate_commit_timestamp=#
+# original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
+# immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
+/*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 # at #
 # # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
@@ -522,7 +573,10 @@ SET TIMESTAMP=#/*!*/;
 COMMIT
 /*!*/;
 # at #
-# # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#
+# # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#	original_committed_timestamp=#   immediate_commit_timestamp=#
+# original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
+# immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
+/*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 # at #
 # # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
@@ -546,7 +600,10 @@ SET TIMESTAMP=#/*!*/;
 COMMIT
 /*!*/;
 # at #
-# # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#
+# # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#	original_committed_timestamp=#   immediate_commit_timestamp=#
+# original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
+# immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
+/*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 # at #
 # # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
@@ -575,7 +632,10 @@ SET TIMESTAMP=#/*!*/;
 COMMIT
 /*!*/;
 # at #
-# # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#
+# # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#	original_committed_timestamp=#   immediate_commit_timestamp=#
+# original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
+# immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
+/*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 # at #
 # # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
@@ -583,7 +643,10 @@ SET TIMESTAMP=#/*!*/;
 FLUSH TABLES
 /*!*/;
 # at #
-# # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#
+# # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#	original_committed_timestamp=#   immediate_commit_timestamp=#
+# original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
+# immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
+/*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 # at #
 # # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
@@ -591,7 +654,10 @@ SET TIMESTAMP=#/*!*/;
 create table t6(a VARCHAR(60)) engine= myisam
 /*!*/;
 # at #
-# # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#
+# # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#	original_committed_timestamp=#   immediate_commit_timestamp=#
+# original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
+# immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
+/*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 # at #
 # # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
@@ -609,221 +675,224 @@ BEGIN
 # # server id #  end_log_pos # CRC32 # 	Write_rows: table id # flags: STMT_END_F
 ### INSERT INTO `test`.`t6`
 ### SET
-###   @1='Aarhus' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
+###   @1='Aarhus' /* VARSTRING(240) meta=240 nullable=1 is_null=0 */
 ### INSERT INTO `test`.`t6`
 ### SET
-###   @1='Aaron' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
+###   @1='Aaron' /* VARSTRING(240) meta=240 nullable=1 is_null=0 */
 ### INSERT INTO `test`.`t6`
 ### SET
-###   @1='Ababa' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
+###   @1='Ababa' /* VARSTRING(240) meta=240 nullable=1 is_null=0 */
 ### INSERT INTO `test`.`t6`
 ### SET
-###   @1='aback' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
+###   @1='aback' /* VARSTRING(240) meta=240 nullable=1 is_null=0 */
 ### INSERT INTO `test`.`t6`
 ### SET
-###   @1='abaft' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
+###   @1='abaft' /* VARSTRING(240) meta=240 nullable=1 is_null=0 */
 ### INSERT INTO `test`.`t6`
 ### SET
-###   @1='abandon' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
+###   @1='abandon' /* VARSTRING(240) meta=240 nullable=1 is_null=0 */
 ### INSERT INTO `test`.`t6`
 ### SET
-###   @1='abandoned' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
+###   @1='abandoned' /* VARSTRING(240) meta=240 nullable=1 is_null=0 */
 ### INSERT INTO `test`.`t6`
 ### SET
-###   @1='abandoning' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
+###   @1='abandoning' /* VARSTRING(240) meta=240 nullable=1 is_null=0 */
 ### INSERT INTO `test`.`t6`
 ### SET
-###   @1='abandonment' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
+###   @1='abandonment' /* VARSTRING(240) meta=240 nullable=1 is_null=0 */
 ### INSERT INTO `test`.`t6`
 ### SET
-###   @1='abandons' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
+###   @1='abandons' /* VARSTRING(240) meta=240 nullable=1 is_null=0 */
 ### INSERT INTO `test`.`t6`
 ### SET
-###   @1='Aarhus' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
+###   @1='Aarhus' /* VARSTRING(240) meta=240 nullable=1 is_null=0 */
 ### INSERT INTO `test`.`t6`
 ### SET
-###   @1='Aaron' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
+###   @1='Aaron' /* VARSTRING(240) meta=240 nullable=1 is_null=0 */
 ### INSERT INTO `test`.`t6`
 ### SET
-###   @1='Ababa' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
+###   @1='Ababa' /* VARSTRING(240) meta=240 nullable=1 is_null=0 */
 ### INSERT INTO `test`.`t6`
 ### SET
-###   @1='aback' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
+###   @1='aback' /* VARSTRING(240) meta=240 nullable=1 is_null=0 */
 ### INSERT INTO `test`.`t6`
 ### SET
-###   @1='abaft' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
+###   @1='abaft' /* VARSTRING(240) meta=240 nullable=1 is_null=0 */
 ### INSERT INTO `test`.`t6`
 ### SET
-###   @1='abandon' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
+###   @1='abandon' /* VARSTRING(240) meta=240 nullable=1 is_null=0 */
 ### INSERT INTO `test`.`t6`
 ### SET
-###   @1='abandoned' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
+###   @1='abandoned' /* VARSTRING(240) meta=240 nullable=1 is_null=0 */
 ### INSERT INTO `test`.`t6`
 ### SET
-###   @1='abandoning' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
+###   @1='abandoning' /* VARSTRING(240) meta=240 nullable=1 is_null=0 */
 ### INSERT INTO `test`.`t6`
 ### SET
-###   @1='abandonment' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
+###   @1='abandonment' /* VARSTRING(240) meta=240 nullable=1 is_null=0 */
 ### INSERT INTO `test`.`t6`
 ### SET
-###   @1='abandons' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
+###   @1='abandons' /* VARSTRING(240) meta=240 nullable=1 is_null=0 */
 ### INSERT INTO `test`.`t6`
 ### SET
-###   @1='abase' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
+###   @1='abase' /* VARSTRING(240) meta=240 nullable=1 is_null=0 */
 ### INSERT INTO `test`.`t6`
 ### SET
-###   @1='abased' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
+###   @1='abased' /* VARSTRING(240) meta=240 nullable=1 is_null=0 */
 ### INSERT INTO `test`.`t6`
 ### SET
-###   @1='abasement' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
+###   @1='abasement' /* VARSTRING(240) meta=240 nullable=1 is_null=0 */
 ### INSERT INTO `test`.`t6`
 ### SET
-###   @1='abasements' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
+###   @1='abasements' /* VARSTRING(240) meta=240 nullable=1 is_null=0 */
 ### INSERT INTO `test`.`t6`
 ### SET
-###   @1='abases' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
+###   @1='abases' /* VARSTRING(240) meta=240 nullable=1 is_null=0 */
 ### INSERT INTO `test`.`t6`
 ### SET
-###   @1='abash' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
+###   @1='abash' /* VARSTRING(240) meta=240 nullable=1 is_null=0 */
 ### INSERT INTO `test`.`t6`
 ### SET
-###   @1='abashed' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
+###   @1='abashed' /* VARSTRING(240) meta=240 nullable=1 is_null=0 */
 ### INSERT INTO `test`.`t6`
 ### SET
-###   @1='abashes' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
+###   @1='abashes' /* VARSTRING(240) meta=240 nullable=1 is_null=0 */
 ### INSERT INTO `test`.`t6`
 ### SET
-###   @1='abashing' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
+###   @1='abashing' /* VARSTRING(240) meta=240 nullable=1 is_null=0 */
 ### INSERT INTO `test`.`t6`
 ### SET
-###   @1='abasing' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
+###   @1='abasing' /* VARSTRING(240) meta=240 nullable=1 is_null=0 */
 ### INSERT INTO `test`.`t6`
 ### SET
-###   @1='abate' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
+###   @1='abate' /* VARSTRING(240) meta=240 nullable=1 is_null=0 */
 ### INSERT INTO `test`.`t6`
 ### SET
-###   @1='abated' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
+###   @1='abated' /* VARSTRING(240) meta=240 nullable=1 is_null=0 */
 ### INSERT INTO `test`.`t6`
 ### SET
-###   @1='abatement' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
+###   @1='abatement' /* VARSTRING(240) meta=240 nullable=1 is_null=0 */
 ### INSERT INTO `test`.`t6`
 ### SET
-###   @1='abatements' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
+###   @1='abatements' /* VARSTRING(240) meta=240 nullable=1 is_null=0 */
 ### INSERT INTO `test`.`t6`
 ### SET
-###   @1='abater' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
+###   @1='abater' /* VARSTRING(240) meta=240 nullable=1 is_null=0 */
 ### INSERT INTO `test`.`t6`
 ### SET
-###   @1='abates' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
+###   @1='abates' /* VARSTRING(240) meta=240 nullable=1 is_null=0 */
 ### INSERT INTO `test`.`t6`
 ### SET
-###   @1='abating' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
+###   @1='abating' /* VARSTRING(240) meta=240 nullable=1 is_null=0 */
 ### INSERT INTO `test`.`t6`
 ### SET
-###   @1='Abba' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
+###   @1='Abba' /* VARSTRING(240) meta=240 nullable=1 is_null=0 */
 ### INSERT INTO `test`.`t6`
 ### SET
-###   @1='abbe' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
+###   @1='abbe' /* VARSTRING(240) meta=240 nullable=1 is_null=0 */
 ### INSERT INTO `test`.`t6`
 ### SET
-###   @1='abbey' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
+###   @1='abbey' /* VARSTRING(240) meta=240 nullable=1 is_null=0 */
 ### INSERT INTO `test`.`t6`
 ### SET
-###   @1='abbeys' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
+###   @1='abbeys' /* VARSTRING(240) meta=240 nullable=1 is_null=0 */
 ### INSERT INTO `test`.`t6`
 ### SET
-###   @1='abbot' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
+###   @1='abbot' /* VARSTRING(240) meta=240 nullable=1 is_null=0 */
 ### INSERT INTO `test`.`t6`
 ### SET
-###   @1='abbots' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
+###   @1='abbots' /* VARSTRING(240) meta=240 nullable=1 is_null=0 */
 ### INSERT INTO `test`.`t6`
 ### SET
-###   @1='Abbott' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
+###   @1='Abbott' /* VARSTRING(240) meta=240 nullable=1 is_null=0 */
 ### INSERT INTO `test`.`t6`
 ### SET
-###   @1='abbreviate' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
+###   @1='abbreviate' /* VARSTRING(240) meta=240 nullable=1 is_null=0 */
 ### INSERT INTO `test`.`t6`
 ### SET
-###   @1='abbreviated' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
+###   @1='abbreviated' /* VARSTRING(240) meta=240 nullable=1 is_null=0 */
 ### INSERT INTO `test`.`t6`
 ### SET
-###   @1='abbreviates' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
+###   @1='abbreviates' /* VARSTRING(240) meta=240 nullable=1 is_null=0 */
 ### INSERT INTO `test`.`t6`
 ### SET
-###   @1='abbreviating' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
+###   @1='abbreviating' /* VARSTRING(240) meta=240 nullable=1 is_null=0 */
 ### INSERT INTO `test`.`t6`
 ### SET
-###   @1='abbreviation' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
+###   @1='abbreviation' /* VARSTRING(240) meta=240 nullable=1 is_null=0 */
 ### INSERT INTO `test`.`t6`
 ### SET
-###   @1='abbreviations' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
+###   @1='abbreviations' /* VARSTRING(240) meta=240 nullable=1 is_null=0 */
 ### INSERT INTO `test`.`t6`
 ### SET
-###   @1='Abby' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
+###   @1='Abby' /* VARSTRING(240) meta=240 nullable=1 is_null=0 */
 ### INSERT INTO `test`.`t6`
 ### SET
-###   @1='abdomen' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
+###   @1='abdomen' /* VARSTRING(240) meta=240 nullable=1 is_null=0 */
 ### INSERT INTO `test`.`t6`
 ### SET
-###   @1='abdomens' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
+###   @1='abdomens' /* VARSTRING(240) meta=240 nullable=1 is_null=0 */
 ### INSERT INTO `test`.`t6`
 ### SET
-###   @1='abdominal' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
+###   @1='abdominal' /* VARSTRING(240) meta=240 nullable=1 is_null=0 */
 ### INSERT INTO `test`.`t6`
 ### SET
-###   @1='abduct' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
+###   @1='abduct' /* VARSTRING(240) meta=240 nullable=1 is_null=0 */
 ### INSERT INTO `test`.`t6`
 ### SET
-###   @1='abducted' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
+###   @1='abducted' /* VARSTRING(240) meta=240 nullable=1 is_null=0 */
 ### INSERT INTO `test`.`t6`
 ### SET
-###   @1='abduction' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
+###   @1='abduction' /* VARSTRING(240) meta=240 nullable=1 is_null=0 */
 ### INSERT INTO `test`.`t6`
 ### SET
-###   @1='abductions' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
+###   @1='abductions' /* VARSTRING(240) meta=240 nullable=1 is_null=0 */
 ### INSERT INTO `test`.`t6`
 ### SET
-###   @1='abductor' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
+###   @1='abductor' /* VARSTRING(240) meta=240 nullable=1 is_null=0 */
 ### INSERT INTO `test`.`t6`
 ### SET
-###   @1='abductors' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
+###   @1='abductors' /* VARSTRING(240) meta=240 nullable=1 is_null=0 */
 ### INSERT INTO `test`.`t6`
 ### SET
-###   @1='abducts' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
+###   @1='abducts' /* VARSTRING(240) meta=240 nullable=1 is_null=0 */
 ### INSERT INTO `test`.`t6`
 ### SET
-###   @1='Abe' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
+###   @1='Abe' /* VARSTRING(240) meta=240 nullable=1 is_null=0 */
 ### INSERT INTO `test`.`t6`
 ### SET
-###   @1='abed' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
+###   @1='abed' /* VARSTRING(240) meta=240 nullable=1 is_null=0 */
 ### INSERT INTO `test`.`t6`
 ### SET
-###   @1='Abel' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
+###   @1='Abel' /* VARSTRING(240) meta=240 nullable=1 is_null=0 */
 ### INSERT INTO `test`.`t6`
 ### SET
-###   @1='Abelian' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
+###   @1='Abelian' /* VARSTRING(240) meta=240 nullable=1 is_null=0 */
 ### INSERT INTO `test`.`t6`
 ### SET
-###   @1='Abelson' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
+###   @1='Abelson' /* VARSTRING(240) meta=240 nullable=1 is_null=0 */
 ### INSERT INTO `test`.`t6`
 ### SET
-###   @1='Aberdeen' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
+###   @1='Aberdeen' /* VARSTRING(240) meta=240 nullable=1 is_null=0 */
 ### INSERT INTO `test`.`t6`
 ### SET
-###   @1='Abernathy' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
+###   @1='Abernathy' /* VARSTRING(240) meta=240 nullable=1 is_null=0 */
 ### INSERT INTO `test`.`t6`
 ### SET
-###   @1='aberrant' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
+###   @1='aberrant' /* VARSTRING(240) meta=240 nullable=1 is_null=0 */
 ### INSERT INTO `test`.`t6`
 ### SET
-###   @1='aberration' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
+###   @1='aberration' /* VARSTRING(240) meta=240 nullable=1 is_null=0 */
 # at #
 # # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
 SET TIMESTAMP=#/*!*/;
 COMMIT
 /*!*/;
 # at #
-# # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#
+# # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#	original_committed_timestamp=#   immediate_commit_timestamp=#
+# original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
+# immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
+/*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 # at #
 # # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
@@ -831,7 +900,10 @@ SET TIMESTAMP=#/*!*/;
 DROP TABLE `t3` /* generated by server */
 /*!*/;
 # at #
-# # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#
+# # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#	original_committed_timestamp=#   immediate_commit_timestamp=#
+# original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
+# immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
+/*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 # at #
 # # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
@@ -839,7 +911,10 @@ SET TIMESTAMP=#/*!*/;
 DROP TABLE `t6` /* generated by server */
 /*!*/;
 # at #
-# # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#
+# # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#	original_committed_timestamp=#   immediate_commit_timestamp=#
+# original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
+# immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
+/*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 # at #
 # # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
@@ -847,7 +922,10 @@ SET TIMESTAMP=#/*!*/;
 DROP TABLE `t4` /* generated by server */
 /*!*/;
 # at #
-# # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#
+# # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#	original_committed_timestamp=#   immediate_commit_timestamp=#
+# original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
+# immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
+/*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 # at #
 # # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0

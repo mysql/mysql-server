@@ -22,10 +22,13 @@
 
 #include <errno.h>
 #include <fcntl.h>
+#include <sys/types.h>
 
 #include "ftdefs.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
+#include "my_io.h"
+#include "my_macros.h"
 #include "myisam_sys.h"
 
 	/* lock table by F_UNLCK, F_RDLCK or F_WRLCK */
@@ -125,13 +128,13 @@ int mi_lock_database(MI_INFO *info, int lock_type)
 	{
 	  if (share->r_locks)
 	  {					/* Only read locks left */
-	    if (my_lock(share->kfile,F_RDLCK,0L,F_TO_EOF,
+	    if (my_lock(share->kfile,F_RDLCK,
 			MYF(MY_WME | MY_SEEK_NOT_DONE)) && !error)
 	      error=my_errno();
 	  }
 	  else if (!share->w_locks)
 	  {					/* No more locks */
-	    if (my_lock(share->kfile,F_UNLCK,0L,F_TO_EOF,
+	    if (my_lock(share->kfile,F_UNLCK,
 			MYF(MY_WME | MY_SEEK_NOT_DONE)) && !error)
 	      error=my_errno();
 	  }
@@ -152,7 +155,7 @@ int mi_lock_database(MI_INFO *info, int lock_type)
         */
 	if (share->w_locks == 1)
 	{
-          if (my_lock(share->kfile,lock_type,0L,F_TO_EOF,
+          if (my_lock(share->kfile,lock_type,
 		      MYF(MY_SEEK_NOT_DONE)))
 	  {
 	    error=my_errno();
@@ -166,7 +169,7 @@ int mi_lock_database(MI_INFO *info, int lock_type)
       }
       if (!share->r_locks && !share->w_locks)
       {
-	if (my_lock(share->kfile,lock_type,0L,F_TO_EOF,
+	if (my_lock(share->kfile,lock_type,
 		    info->lock_wait | MY_SEEK_NOT_DONE))
 	{
 	  error=my_errno();
@@ -175,7 +178,7 @@ int mi_lock_database(MI_INFO *info, int lock_type)
 	if (mi_state_info_read_dsk(share->kfile, &share->state, 1))
 	{
 	  error=my_errno();
-	  (void) my_lock(share->kfile,F_UNLCK,0L,F_TO_EOF,MYF(MY_SEEK_NOT_DONE));
+	  (void) my_lock(share->kfile,F_UNLCK,MYF(MY_SEEK_NOT_DONE));
 	  set_my_errno(error);
 	  break;
 	}
@@ -191,7 +194,7 @@ int mi_lock_database(MI_INFO *info, int lock_type)
       {						/* Change READONLY to RW */
 	if (share->r_locks == 1)
 	{
-	  if (my_lock(share->kfile,lock_type,0L,F_TO_EOF,
+	  if (my_lock(share->kfile,lock_type,
 		      MYF(info->lock_wait | MY_SEEK_NOT_DONE)))
 	  {
 	    error=my_errno();
@@ -207,7 +210,7 @@ int mi_lock_database(MI_INFO *info, int lock_type)
       {
 	if (!share->w_locks)
 	{
-	  if (my_lock(share->kfile,lock_type,0L,F_TO_EOF,
+	  if (my_lock(share->kfile,lock_type,
 		      info->lock_wait | MY_SEEK_NOT_DONE))
 	  {
 	    error=my_errno();
@@ -218,7 +221,7 @@ int mi_lock_database(MI_INFO *info, int lock_type)
 	    if (mi_state_info_read_dsk(share->kfile, &share->state, 1))
 	    {
 	      error=my_errno();
-	      (void) my_lock(share->kfile,F_UNLCK,0L,F_TO_EOF,
+	      (void) my_lock(share->kfile,F_UNLCK,
 			   info->lock_wait | MY_SEEK_NOT_DONE);
 	      set_my_errno(error);
 	      break;
@@ -373,7 +376,7 @@ void mi_copy_status(void* to,void *from)
     1  not ok
 */
 
-my_bool mi_check_status(void *param)
+bool mi_check_status(void *param)
 {
   MI_INFO *info=(MI_INFO*) param;
   /*
@@ -384,7 +387,7 @@ my_bool mi_check_status(void *param)
   DBUG_PRINT("info",("dellink: %ld  r_locks: %u  w_locks: %u",
                      (long) info->s->state.dellink, (uint) info->s->r_locks,
                      (uint) info->s->w_locks));
-  return (my_bool) !(info->s->state.dellink == HA_OFFSET_ERROR ||
+  return (bool) !(info->s->state.dellink == HA_OFFSET_ERROR ||
                      (myisam_concurrent_insert == 2 && info->s->r_locks &&
                       info->s->w_locks == 1));
 }
@@ -403,13 +406,13 @@ int _mi_readinfo(MI_INFO *info, int lock_type, int check_keybuffer)
     MYISAM_SHARE *share=info->s;
     if (!share->tot_locks)
     {
-      if (my_lock(share->kfile,lock_type,0L,F_TO_EOF,
+      if (my_lock(share->kfile,lock_type,
 		  info->lock_wait | MY_SEEK_NOT_DONE))
 	DBUG_RETURN(1);
       if (mi_state_info_read_dsk(share->kfile, &share->state, 1))
       {
 	int error=my_errno() ? my_errno() : -1;
-	(void) my_lock(share->kfile,F_UNLCK,0L,F_TO_EOF,
+	(void) my_lock(share->kfile,F_UNLCK,
 		     MYF(MY_SEEK_NOT_DONE));
 	set_my_errno(error);
 	DBUG_RETURN(1);
@@ -461,7 +464,7 @@ int _mi_writeinfo(MI_INFO *info, uint operation)
 #endif
     }
     if (!(operation & WRITEINFO_NO_UNLOCK) &&
-	my_lock(share->kfile,F_UNLCK,0L,F_TO_EOF,
+	my_lock(share->kfile,F_UNLCK,
 		MYF(MY_WME | MY_SEEK_NOT_DONE)) && !error)
       DBUG_RETURN(1);
     set_my_errno(olderror);

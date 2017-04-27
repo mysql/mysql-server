@@ -21,21 +21,23 @@ performance_schema_setup_actors_size	EXPLICIT
 performance_schema_setup_objects_size	EXPLICIT
 performance_schema_users_size	EXPLICIT
 # Test command line options
-select * from performance_schema.variables_info
+select VARIABLE_NAME, VARIABLE_SOURCE
+from performance_schema.variables_info
 where VARIABLE_SOURCE = 'COMMAND_LINE' AND
 (VARIABLE_NAME = 'max_connections' OR
 VARIABLE_NAME = 'skip_networking')
 order by VARIABLE_NAME;
-VARIABLE_NAME	VARIABLE_SOURCE	VARIABLE_PATH	MIN_VALUE	MAX_VALUE
+VARIABLE_NAME	VARIABLE_SOURCE
 # Restart server with command line option
-select * from performance_schema.variables_info
+select VARIABLE_NAME, VARIABLE_SOURCE
+from performance_schema.variables_info
 where VARIABLE_SOURCE = 'COMMAND_LINE' AND
 (VARIABLE_NAME = 'max_connections' OR
 VARIABLE_NAME = 'skip_networking')
 order by VARIABLE_NAME;
-VARIABLE_NAME	VARIABLE_SOURCE	VARIABLE_PATH	MIN_VALUE	MAX_VALUE
-max_connections	COMMAND_LINE		1	100000
-skip_networking	COMMAND_LINE		0	0
+VARIABLE_NAME	VARIABLE_SOURCE
+max_connections	COMMAND_LINE
+skip_networking	COMMAND_LINE
 # Test persisted variables
 SET PERSIST sort_buffer_size=256000;
 SET PERSIST max_heap_table_size=999424, slave_net_timeout=124;
@@ -115,6 +117,105 @@ VARIABLE_NAME	VARIABLE_SOURCE
 innodb_fast_shutdown	COMMAND_LINE
 innodb_file_per_table	COMMAND_LINE
 # Restart server
+#
+# WL#9720: SET PERSIST capture user + timestamp
+#
+CREATE USER WL9720@localhost;
+GRANT ALL ON *.* to WL9720@localhost;
+SET SESSION max_heap_table_size=999424;
+# user must be WL9720
+select VARIABLE_NAME, SET_USER, SET_HOST
+from performance_schema.variables_info
+where VARIABLE_NAME = 'max_heap_table_size';
+VARIABLE_NAME	SET_USER	SET_HOST
+max_heap_table_size	WL9720	localhost
+# user must be root
+select VARIABLE_NAME, SET_USER, SET_HOST
+from performance_schema.variables_info
+where VARIABLE_NAME = 'max_heap_table_size';
+VARIABLE_NAME	SET_USER	SET_HOST
+max_heap_table_size	WL9720	localhost
+# user must be root
+select VARIABLE_NAME, SET_USER, SET_HOST
+from performance_schema.variables_info
+where VARIABLE_NAME = 'session_track_system_variables';
+VARIABLE_NAME	SET_USER	SET_HOST
+session_track_system_variables		
+SET GLOBAL session_track_system_variables=DEFAULT;
+# user must be WL9720
+select VARIABLE_NAME, SET_USER, SET_HOST
+from performance_schema.variables_info
+where VARIABLE_NAME = 'session_track_system_variables';
+VARIABLE_NAME	SET_USER	SET_HOST
+session_track_system_variables	WL9720	localhost
+# user must be WL9720 since variable was changed globally by wl9720 user
+select VARIABLE_NAME, SET_USER, SET_HOST
+from performance_schema.variables_info
+where VARIABLE_NAME = 'session_track_system_variables';
+VARIABLE_NAME	SET_USER	SET_HOST
+session_track_system_variables	WL9720	localhost
+# Restart server
+# user must be root
+select VARIABLE_NAME, SET_USER, SET_HOST
+from performance_schema.variables_info
+where VARIABLE_NAME = 'session_track_system_variables';
+VARIABLE_NAME	SET_USER	SET_HOST
+session_track_system_variables		
+DROP USER WL9720@localhost;
+# check timestamp column values
+select SET_TIME INTO @init_time
+from performance_schema.variables_info
+where VARIABLE_NAME = 'sql_auto_is_null';
+Sleep 1 second
+SET SESSION sql_auto_is_null= 1;
+select SET_TIME INTO @set_time
+from performance_schema.variables_info
+where VARIABLE_NAME = 'sql_auto_is_null';
+# should return 0
+SELECT (@init_time = @set_time);
+(@init_time = @set_time)
+0
+select SET_TIME INTO @init_time
+from performance_schema.variables_info
+where VARIABLE_NAME = 'sort_buffer_size';
+Sleep 1 second
+SET GLOBAL sort_buffer_size= 256000;
+select SET_TIME INTO @set_time
+from performance_schema.variables_info
+where VARIABLE_NAME = 'sort_buffer_size';
+# should return 0
+SELECT (@init_time = @set_time);
+(@init_time = @set_time)
+0
+select SET_TIME INTO @init_time
+from performance_schema.variables_info
+where VARIABLE_NAME = 'foreign_key_checks';
+Sleep 1 second
+SET PERSIST foreign_key_checks = 0;
+select SET_TIME INTO @set_time
+from performance_schema.variables_info
+where VARIABLE_NAME = 'foreign_key_checks';
+# should return 0
+SELECT (@init_time = @set_time);
+(@init_time = @set_time)
+0
+select SET_TIME INTO @init_time
+from performance_schema.variables_info
+where VARIABLE_NAME = 'sql_log_bin';
+Sleep 1 second
+# since SET statement fails there should be no change in timestamp
+SET @@persist.sql_log_bin=0;
+ERROR 42000: Variable 'sql_log_bin' can't be set to the value of '0'
+select SET_TIME INTO @set_time
+from performance_schema.variables_info
+where VARIABLE_NAME = 'sql_log_bin';
+# should return 1
+SELECT (@init_time = @set_time);
+(@init_time = @set_time)
+1
+SET GLOBAL sort_buffer_size= DEFAULT;
+SET PERSIST foreign_key_checks = DEFAULT;
+RESET PERSIST;
 SELECT 'END OF TEST';
 END OF TEST
 END OF TEST

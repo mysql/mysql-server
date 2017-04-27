@@ -1,7 +1,7 @@
 ## Password expired handling
 
 ## Preamble
---source ../include/xplugin_preamble.inc
+--source include/xplugin_preamble.inc
 call mtr.add_suppression("Plugin mysqlx reported: '1.1: Unsuccessful login attempt");
 call mtr.add_suppression("Plugin mysqlx reported: '3.1: Unsuccessful login attempt");
 call mtr.add_suppression("Plugin mysqlx reported: '4.1: Unsuccessful login attempt");

@@ -41,7 +41,7 @@ typedef int32 decimal_digit_t;
  */
 typedef struct st_decimal_t {
   int    intg, frac, len;
-  my_bool sign;
+  bool sign;
   decimal_digit_t *buf;
 } decimal_t;
 

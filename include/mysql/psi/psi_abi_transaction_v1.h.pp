@@ -1,6 +1,25 @@
 #include "mysql/psi/psi_transaction.h"
-#include "my_global.h"
+#include "my_inttypes.h"
+#include "my_config.h"
+typedef unsigned char uchar;
+typedef signed char int8;
+typedef unsigned char uint8;
+typedef short int16;
+typedef unsigned short uint16;
+typedef int int32;
+typedef unsigned int uint32;
+typedef unsigned long long int ulonglong;
+typedef long long int longlong;
+typedef longlong int64;
+typedef ulonglong uint64;
+typedef unsigned long long my_ulonglong;
+typedef intptr_t intptr;
+typedef ulonglong my_off_t;
+typedef ptrdiff_t my_ptrdiff_t;
+typedef int myf;
+#include "my_macros.h"
 #include "my_psi_config.h"
+#include "my_sharedlib.h"
 #include "psi_base.h"
 #include "my_psi_config.h"
 typedef unsigned int PSI_mutex_key;
@@ -15,7 +34,6 @@ struct PSI_placeholder
 {
   int m_placeholder;
 };
-C_MODE_START
 struct PSI_transaction_bootstrap
 {
   void *(*get_interface)(int version);
@@ -31,8 +49,8 @@ struct PSI_transaction_locker_state_v1
   ulonglong m_timer_start;
   ulonglong (*m_timer)(void);
   void *m_transaction;
-  my_bool m_read_only;
-  my_bool m_autocommit;
+  bool m_read_only;
+  bool m_autocommit;
   ulong m_statement_count;
   ulong m_savepoint_count;
   ulong m_rollback_to_savepoint_count;
@@ -44,8 +62,8 @@ typedef struct PSI_transaction_locker *(*get_thread_transaction_locker_v1_t)(
   const void *xid,
   const ulonglong *trxid,
   int isolation_level,
-  my_bool read_only,
-  my_bool autocommit);
+  bool read_only,
+  bool autocommit);
 typedef void (*start_transaction_v1_t)(struct PSI_transaction_locker *locker,
                                        const char *src_file,
                                        uint src_line);
@@ -66,7 +84,7 @@ typedef void (*inc_transaction_rollback_to_savepoint_v1_t)(
 typedef void (*inc_transaction_release_savepoint_v1_t)(
   struct PSI_transaction_locker *locker, ulong count);
 typedef void (*end_transaction_v1_t)(struct PSI_transaction_locker *locker,
-                                     my_bool commit);
+                                     bool commit);
 struct PSI_transaction_service_v1
 {
   get_thread_transaction_locker_v1_t get_thread_transaction_locker;
@@ -83,5 +101,4 @@ struct PSI_transaction_service_v1
 };
 typedef struct PSI_transaction_service_v1 PSI_transaction_service_t;
 typedef struct PSI_transaction_locker_state_v1 PSI_transaction_locker_state;
-extern MYSQL_PLUGIN_IMPORT PSI_transaction_service_t *psi_transaction_service;
-C_MODE_END
+extern PSI_transaction_service_t *psi_transaction_service;

@@ -21,8 +21,10 @@
   Table SETUP_INSTRUMENTS (declarations).
 */
 
-#include "pfs_instr_class.h"
+#include <sys/types.h>
+
 #include "pfs_engine_table.h"
+#include "pfs_instr_class.h"
 #include "table_helper.h"
 
 /**
@@ -94,7 +96,7 @@ class table_setup_instruments : public PFS_engine_table
 public:
   /** Table share. */
   static PFS_engine_table_share m_share;
-  static PFS_engine_table *create();
+  static PFS_engine_table *create(PFS_engine_table_share *);
   static ha_rows get_row_count();
 
   virtual void reset_position(void);

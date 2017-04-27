@@ -18,9 +18,12 @@
   Table TABLE_TABLE_HANDLES (implementation).
 */
 
+#include "storage/perfschema/table_table_handles.h"
+
+#include <stddef.h>
+
 #include "field.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_thread.h"
 #include "pfs_buffer_container.h"
 #include "pfs_column_types.h"
@@ -28,7 +31,6 @@
 #include "pfs_global.h"
 #include "pfs_instr_class.h"
 #include "pfs_stat.h"
-#include "table_table_handles.h"
 
 THR_LOCK table_table_handles::m_table_lock;
 
@@ -164,7 +166,7 @@ PFS_index_table_handles_by_owner::match(PFS_table *pfs)
 }
 
 PFS_engine_table *
-table_table_handles::create(void)
+table_table_handles::create(PFS_engine_table_share *)
 {
   return new table_table_handles();
 }

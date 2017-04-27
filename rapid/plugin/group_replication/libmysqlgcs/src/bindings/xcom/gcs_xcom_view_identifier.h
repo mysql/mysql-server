@@ -16,8 +16,8 @@
 #ifndef GCS_XCOM_VIEW_IDENTIFIER_INCLUDED
 #define GCS_XCOM_VIEW_IDENTIFIER_INCLUDED
 
-#include "gcs_view_identifier.h"
-#include "gcs_types.h"
+#include "mysql/gcs/gcs_view_identifier.h"
+#include "mysql/gcs/gcs_types.h"
 
 #include <string>
 #include <stdint.h>

@@ -14,6 +14,7 @@
 # 4. Clean up.
 ################################################################################
 
+--source include/big_test.inc
 --source include/have_debug.inc
 --let $group_replication_group_name= 32e16c0b-01d2-11e6-a992-02420ef39c5b
 --source ../inc/have_group_replication_plugin.inc

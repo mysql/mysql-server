@@ -23,8 +23,11 @@ The database buffer buf_pool flush algorithm
 Created 11/11/1995 Heikki Tuuri
 *******************************************************/
 
+#include <math.h>
 #include <my_dbug.h>
 #include <mysql/service_thd_wait.h>
+#include <sys/types.h>
+#include <time.h>
 
 #include "buf0buf.h"
 #include "buf0checksum.h"
@@ -189,7 +192,7 @@ struct page_cleaner_t {
 static page_cleaner_t*	page_cleaner = NULL;
 
 #ifdef UNIV_DEBUG
-my_bool innodb_page_cleaner_disabled_debug;
+bool innodb_page_cleaner_disabled_debug;
 #endif /* UNIV_DEBUG */
 
 /** If LRU list of a buf_pool is less than this size then LRU eviction
@@ -3081,7 +3084,7 @@ buf_flush_page_cleaner_disabled_debug_update(
 		return;
 	}
 
-	if (!*static_cast<const my_bool*>(save)) {
+	if (!*static_cast<const bool*>(save)) {
 		if (!innodb_page_cleaner_disabled_debug) {
 			return;
 		}
@@ -3181,7 +3184,8 @@ buf_flush_page_coordinator_thread(size_t n_page_cleaners)
 
 	while (!srv_read_only_mode
 	       && srv_shutdown_state == SRV_SHUTDOWN_NONE
-	       && recv_sys->heap != NULL) {
+	       && recv_sys->spaces != NULL) {
+
 		/* treat flushing requests during recovery. */
 		ulint	n_flushed_lru = 0;
 		ulint	n_flushed_list = 0;
@@ -3189,7 +3193,8 @@ buf_flush_page_coordinator_thread(size_t n_page_cleaners)
 		os_event_wait(recv_sys->flush_start);
 
 		if (srv_shutdown_state != SRV_SHUTDOWN_NONE
-		    || recv_sys->heap == NULL) {
+		    || recv_sys->spaces == NULL) {
+
 			break;
 		}
 

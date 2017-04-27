@@ -15,6 +15,8 @@
 
 /* Update current record in heap-database */
 
+#include <sys/types.h>
+
 #include "heapdef.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
@@ -23,7 +25,7 @@ int heap_update(HP_INFO *info, const uchar *old, const uchar *heap_new)
 {
   HP_KEYDEF *keydef, *end, *p_lastinx;
   uchar *pos;
-  my_bool auto_key_changed= 0;
+  bool auto_key_changed= 0;
   HP_SHARE *share= info->s;
   DBUG_ENTER("heap_update");
 

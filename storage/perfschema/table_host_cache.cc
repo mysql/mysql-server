@@ -18,14 +18,14 @@
   Table HOST_CACHE (implementation).
 */
 
+#include "storage/perfschema/table_host_cache.h"
+
 #include "current_thd.h"
 #include "field.h"
 #include "hostname.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_thread.h"
 #include "sql_class.h"
-#include "table_host_cache.h"
 
 THR_LOCK table_host_cache::m_table_lock;
 
@@ -224,7 +224,7 @@ PFS_index_host_cache_by_host::match(const row_host_cache *row)
 }
 
 PFS_engine_table *
-table_host_cache::create(void)
+table_host_cache::create(PFS_engine_table_share *)
 {
   table_host_cache *t = new table_host_cache();
   if (t != NULL)

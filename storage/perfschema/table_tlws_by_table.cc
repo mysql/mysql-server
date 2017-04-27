@@ -19,9 +19,12 @@
   Table TABLE_LOCK_WAITS_SUMMARY_BY_TABLE (implementation).
 */
 
+#include "storage/perfschema/table_tlws_by_table.h"
+
+#include <stddef.h>
+
 #include "field.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_thread.h"
 #include "pfs_buffer_container.h"
 #include "pfs_column_types.h"
@@ -29,7 +32,6 @@
 #include "pfs_global.h"
 #include "pfs_instr_class.h"
 #include "pfs_visitor.h"
-#include "table_tlws_by_table.h"
 
 THR_LOCK table_tlws_by_table::m_table_lock;
 
@@ -428,7 +430,7 @@ PFS_index_tlws_by_table::match(const PFS_table_share *share)
 }
 
 PFS_engine_table *
-table_tlws_by_table::create(void)
+table_tlws_by_table::create(PFS_engine_table_share *)
 {
   return new table_tlws_by_table();
 }
@@ -510,7 +512,7 @@ table_tlws_by_table::rnd_pos(const void *pos)
 }
 
 int
-table_tlws_by_table::index_init(uint idx, bool)
+table_tlws_by_table::index_init(uint idx MY_ATTRIBUTE((unused)), bool)
 {
   m_normalizer = time_normalizer::get(wait_timer);
 

@@ -1,7 +1,5 @@
 # Include this in any test using mysql_upgrade
 
-# Can't run test of external client with embedded server
--- source include/not_embedded.inc
 
 #
 # Hack:

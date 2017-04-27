@@ -1,1 +1,1 @@
---query_cache_type=1
+--query_cache_type=1 --character-set-server=latin1

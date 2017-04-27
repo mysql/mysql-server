@@ -17,6 +17,9 @@
 
 #include "semisync_master.h"
 
+#include <assert.h>
+#include <time.h>
+
 #include "my_compiler.h"
 #include "my_systime.h"
 #include "mysqld.h"                             // max_connections
@@ -31,7 +34,7 @@
 #define TIME_BILLION  1000000000
 
 /* This indicates whether semi-synchronous replication is enabled. */
-char rpl_semi_sync_master_enabled;
+bool rpl_semi_sync_master_enabled;
 unsigned long rpl_semi_sync_master_timeout;
 unsigned long rpl_semi_sync_master_trace_level;
 char rpl_semi_sync_master_status                    = 0;
@@ -49,7 +52,7 @@ unsigned long long rpl_semi_sync_master_net_wait_num = 0;
 unsigned long rpl_semi_sync_master_clients          = 0;
 unsigned long long rpl_semi_sync_master_net_wait_time = 0;
 unsigned long long rpl_semi_sync_master_trx_wait_time = 0;
-char rpl_semi_sync_master_wait_no_slave = 1;
+bool rpl_semi_sync_master_wait_no_slave = 1;
 unsigned int rpl_semi_sync_master_wait_for_slave_count= 1;
 
 
@@ -201,7 +204,7 @@ int ActiveTranx::insert_tranx_node(const char *log_file_name,
 }
 
 bool ActiveTranx::is_tranx_end_pos(const char *log_file_name,
-				   my_off_t    log_file_pos)
+                                   my_off_t    log_file_pos)
 {
   const char *kWho = "ActiveTranx::is_tranx_end_pos";
   function_enter(kWho);
@@ -1227,7 +1230,7 @@ int ReplSemiSyncMaster::skipSlaveReply(const char *event_buf,
   return function_exit(kWho, 0);
 }
 
-int ReplSemiSyncMaster::readSlaveReply(NET *net, uint32 server_id,
+int ReplSemiSyncMaster::readSlaveReply(NET *net,
                                        const char *event_buf)
 {
   const char *kWho = "ReplSemiSyncMaster::readSlaveReply";

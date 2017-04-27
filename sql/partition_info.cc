@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -29,6 +29,7 @@
 #include "field.h"
 #include "hash.h"
 #include "item.h"
+#include "lex_string.h"
 #include "m_ctype.h"
 #include "m_string.h"
 #include "my_compiler.h"
@@ -51,7 +52,7 @@
 #include "sql_partition.h"
 #include "sql_security_ctx.h"
 #include "sql_string.h"
-#include "sql_tablespace.h"                   // check_tablespace_name
+#include "sql_tablespace.h"                   // validate_tablespace_name
 #include "system_variables.h"
 #include "table.h"                            // TABLE_LIST
 #include "table_trigger_dispatcher.h"         // Table_trigger_dispatcher
@@ -63,7 +64,7 @@
 
 // TODO: Create ::get_copy() for getting a deep copy.
 
-partition_info *partition_info::get_clone(bool reset /* = false */)
+partition_info *partition_info::get_clone(THD *thd, bool reset /* = false */)
 {
   DBUG_ENTER("partition_info::get_clone");
   List_iterator<partition_element> part_it(partitions);
@@ -92,6 +93,11 @@ partition_info *partition_info::get_clone(bool reset /* = false */)
       DBUG_RETURN(NULL);
     }
     memcpy(part_clone, part, sizeof(partition_element));
+
+    /* Explicitly copy the tablespace name, use the thd->mem_root. */
+    if (part->tablespace_name != nullptr)
+      part_clone->tablespace_name= strmake_root(thd->mem_root,
+        part->tablespace_name, strlen(part->tablespace_name) + 1);
 
     /*
       Mark that RANGE and LIST values needs to be fixed so that we don't
@@ -122,6 +128,12 @@ partition_info *partition_info::get_clone(bool reset /* = false */)
         DBUG_RETURN(NULL);
       }
       memcpy(subpart_clone, subpart, sizeof(partition_element));
+
+      /* Explicitly copy the tablespace name, use the thd->mem_root. */
+      if (subpart->tablespace_name != nullptr)
+        subpart_clone->tablespace_name= strmake_root(thd->mem_root,
+          subpart->tablespace_name, strlen(subpart->tablespace_name) + 1);
+
       part_clone->subpartitions.push_back(subpart_clone);
     }
     clone->partitions.push_back(part_clone);
@@ -129,11 +141,11 @@ partition_info *partition_info::get_clone(bool reset /* = false */)
   DBUG_RETURN(clone);
 }
 
-partition_info *partition_info::get_full_clone()
+partition_info *partition_info::get_full_clone(THD *thd)
 {
   partition_info *clone;
   DBUG_ENTER("partition_info::get_full_clone");
-  clone= get_clone();
+  clone= get_clone(thd);
   if (!clone)
     DBUG_RETURN(NULL);
   memcpy(&clone->read_partitions, &read_partitions, sizeof(read_partitions));
@@ -986,8 +998,7 @@ partition_element *partition_info::get_part_elem(const char *partition_name,
           if (file_name)
             create_subpartition_name(file_name, "",
                                      part_elem->partition_name,
-                                     partition_name,
-                                     NORMAL_PART_NAME);
+                                     partition_name);
           *part_id= j + (i * num_subparts);
           DBUG_RETURN(sub_part_elem);
         }
@@ -1002,8 +1013,7 @@ partition_element *partition_info::get_part_elem(const char *partition_name,
                             part_elem->partition_name, partition_name))
     {
       if (file_name)
-        create_partition_name(file_name, "", partition_name,
-                              NORMAL_PART_NAME, TRUE);
+        create_partition_name(file_name, "", partition_name, TRUE);
       *part_id= i;
       DBUG_RETURN(part_elem);
     }
@@ -3259,7 +3269,8 @@ bool partition_info::same_key_column_order(List<Create_field> *create_list)
 }
 
 
-void partition_info::print_debug(const char *str, uint *value)
+void partition_info::print_debug(const char *str MY_ATTRIBUTE((unused)),
+                                 uint *value)
 {
   DBUG_ENTER("print_debug");
   if (value)
@@ -3338,20 +3349,10 @@ bool fill_partition_tablespace_names(
   return false;
 }
 
-/**
-  Check if all tablespace names specified for partitions
-  are valid.
 
-  @param part_info  - Partition info that could be using tablespaces.
-
-  @return true  - One of tablespace names specified is invalid and
-                  a error is reported.
-  @return false - All the tablespace names specified for
-                  partitions are valid.
-*/
-bool check_partition_tablespace_names(partition_info *part_info)
+bool validate_partition_tablespace_name_lengths(partition_info *part_info)
 {
-  // Do nothing if table is not partitioned.
+  // Do nothing if the table is not partitioned.
   if (!part_info)
     return false;
 
@@ -3360,10 +3361,9 @@ bool check_partition_tablespace_names(partition_info *part_info)
   partition_element *part_elem;
   while ((part_elem= part_it++))
   {
-    // Check tablespace names from partition elements, if used.
+    // Check tablespace name length from partition elements, if used.
     if (part_elem->tablespace_name &&
-        (check_tablespace_name(part_elem->tablespace_name) !=
-         Ident_name_check::OK))
+        validate_tablespace_name_length(part_elem->tablespace_name))
       return true;
 
     // Traverse through all subpartitions.
@@ -3371,10 +3371,58 @@ bool check_partition_tablespace_names(partition_info *part_info)
     partition_element *sub_elem;
     while ((sub_elem= sub_it++))
     {
-      // Add tablespace name from sub-partition elements, if used.
+      // Check tablespace name length from sub-partition elements, if used.
       if (sub_elem->tablespace_name &&
-          check_tablespace_name(sub_elem->tablespace_name) !=
-          Ident_name_check::OK)
+          validate_tablespace_name_length(sub_elem->tablespace_name))
+        return true;
+    }
+  }
+
+  return false;
+}
+
+
+bool validate_partition_tablespace_names(partition_info *part_info,
+                                         const handlerton *default_engine)
+{
+  DBUG_ASSERT(default_engine);
+
+  // Do nothing if the table is not partitioned.
+  if (!part_info)
+    return false;
+
+  // Traverse through all partitions.
+  List_iterator<partition_element> part_it(part_info->partitions);
+  partition_element *part_elem;
+  while ((part_elem= part_it++))
+  {
+    // Use default engine if not overridden.
+    const handlerton *part_elem_engine= part_elem->engine_type;
+    if (part_elem_engine == nullptr)
+      part_elem_engine= default_engine;
+
+    // Check tablespace names from partition elements, if used.
+    if (part_elem->tablespace_name &&
+        validate_tablespace_name(false,
+                                 part_elem->tablespace_name,
+                                 part_elem_engine))
+      return true;
+
+    // Traverse through all subpartitions.
+    List_iterator<partition_element> sub_it(part_elem->subpartitions);
+    partition_element *sub_elem;
+    while ((sub_elem= sub_it++))
+    {
+      // Use default engine if not overridden.
+      const handlerton *sub_elem_engine= sub_elem->engine_type;
+      if (sub_elem_engine == nullptr)
+        sub_elem_engine= default_engine;
+
+      // Check tablespace name from sub-partition elements, if used.
+      if (sub_elem->tablespace_name &&
+          validate_tablespace_name(false,
+                                   sub_elem->tablespace_name,
+                                   sub_elem_engine))
         return true;
     }
   }

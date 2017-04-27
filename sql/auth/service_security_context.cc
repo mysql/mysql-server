@@ -21,7 +21,6 @@
 #include "auth_acls.h"
 #include "auth_common.h"
 #include "current_thd.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "mysql/mysql_lex_string.h"
 #include "mysql/psi/psi_base.h"
@@ -188,7 +187,7 @@ my_svc_bool security_context_lookup(MYSQL_SECURITY_CONTEXT ctx,
                                     const char *ip, const char *db)
 {
   THD *tmp_thd= NULL;
-  my_bool retval;
+  bool retval;
   if (current_thd == NULL)
   {
     tmp_thd= create_thd(false, true, false, PSI_NOT_INSTRUMENTED);
@@ -353,18 +352,18 @@ my_svc_bool security_context_set_option(MYSQL_SECURITY_CONTEXT ctx,
     {
       my_svc_bool value= *(my_svc_bool *) pvalue;
       if (value)
-        ctx->set_master_access(ctx->master_access() | SUPER_ACL);
+        ctx->set_master_access(ctx->master_access() | (SUPER_ACL));
       else
-        ctx->set_master_access(ctx->master_access() & !(SUPER_ACL));
+        ctx->set_master_access(ctx->master_access() & ~(SUPER_ACL));
 
     }
     else if (!strcmp(name, "privilege_execute"))
     {
       my_svc_bool value= *(my_svc_bool *) pvalue;
       if (value)
-        ctx->set_master_access(ctx->master_access() | EXECUTE_ACL);
+        ctx->set_master_access(ctx->master_access() | (EXECUTE_ACL));
       else
-        ctx->set_master_access(ctx->master_access() & !(EXECUTE_ACL));
+        ctx->set_master_access(ctx->master_access() & ~(EXECUTE_ACL));
     }
     else
       return MY_SVC_TRUE; /* invalid option */

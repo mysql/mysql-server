@@ -364,7 +364,7 @@ f4 VARCHAR(500), f5 VARCHAR(500), f6 VARCHAR(500),
 f7 VARCHAR(500),
 PRIMARY KEY (f1, f2, f3, f4),
 KEY k1 (f5, f6, f7)
-) ENGINE = InnoDB;
+) charset latin1 ENGINE = InnoDB;
 EXPLAIN SELECT f5 FROM t1 FORCE INDEX (k1) WHERE
 f1 = 'a' AND f2 = 'a' AND f3 = 'a' AND f4 = 'a' AND
 f5 = 'a' AND f6 = 'a' AND f7 = 'a';

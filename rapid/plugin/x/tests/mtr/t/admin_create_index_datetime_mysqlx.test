@@ -1,7 +1,7 @@
 ## generated
 ## Index of time related types
 
---source ../include/xplugin_preamble.inc
+--source include/xplugin_preamble.inc
 ## Test starts here
 CREATE SCHEMA xtest DEFAULT CHARSET 'utf8mb4';
 

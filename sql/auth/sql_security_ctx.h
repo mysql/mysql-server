@@ -1,7 +1,4 @@
-#ifndef SQL_SECURITY_CTX_INCLUDED
-#define SQL_SECURITY_CTX_INCLUDED
-
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,15 +12,17 @@
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
-
+#ifndef SQL_SECURITY_CTX_INCLUDED
+#define SQL_SECURITY_CTX_INCLUDED
 #include <string.h>
 #include <sys/types.h>
 #include <algorithm>
 
 #include "auth/auth_common.h"
+#include "lex_string.h"
 #include "m_string.h"
 #include "my_dbug.h"
-#include "my_global.h"
+#include "my_sharedlib.h"
 #include "mysql_com.h"
 #include "sql_const.h"
 #include "sql_string.h"
@@ -88,6 +87,7 @@ public:
 
   inline void assign_user(const char *user_arg, const size_t user_arg_length);
 
+  std::pair<bool, bool> has_global_grant(const char *priv, size_t priv_len);
   int activate_role(LEX_CSTRING user, LEX_CSTRING host,
                     bool validate_access= false);
   void clear_active_roles(void);
@@ -409,6 +409,20 @@ public:
 
   void logout();
   void init();
+  /**
+    Locked account can still be used as routine definers and when they are
+    there shouldn't be any checks for expired passwords.
+  */
+  bool account_is_locked()
+  {
+    return m_is_locked;
+  }
+
+  void lock_account(bool is_locked)
+  {
+    m_is_locked= is_locked;
+  }
+
 private:
   void destroy();
   void copy_security_ctx(const Security_context &src_sctx);
@@ -468,6 +482,10 @@ private:
   List_of_auth_id_refs m_active_roles;
   Acl_map *m_acl_map;
   int m_map_checkout_count;
+  /**
+    True if this account can't be logged into.
+  */
+  bool m_is_locked;
 };
 
 

@@ -1,7 +1,7 @@
 ## generated
 ## Doc: Insert a valid document without _id
 
---source ../include/xplugin_preamble.inc
+--source include/xplugin_preamble.inc
 ## Test starts here
 --write_file $MYSQL_TMP_DIR/insert_doc_noid.tmp
 ## Test data

@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -47,7 +47,7 @@ class Spatial_reference_system;
 }  // namespace dd
 
 
-bool Srs_fetcher::lock(Geometry::srid_t srid)
+bool Srs_fetcher::lock(gis::srid_t srid)
 {
   DBUG_ENTER("lock_srs");
 
@@ -75,7 +75,7 @@ bool Srs_fetcher::lock(Geometry::srid_t srid)
 }
 
 
-bool Srs_fetcher::acquire(Geometry::srid_t srid,
+bool Srs_fetcher::acquire(gis::srid_t srid,
                           const dd::Spatial_reference_system **srs)
 {
   if (lock(srid))
@@ -87,7 +87,7 @@ bool Srs_fetcher::acquire(Geometry::srid_t srid,
 }
 
 
-bool Srs_fetcher::srs_exists(THD *thd, Geometry::srid_t srid, bool *exists)
+bool Srs_fetcher::srs_exists(THD *thd, gis::srid_t srid, bool *exists)
 {
   DBUG_ASSERT(exists);
   dd::cache::Dictionary_client::Auto_releaser m_releaser(thd->dd_client());
@@ -97,53 +97,6 @@ bool Srs_fetcher::srs_exists(THD *thd, Geometry::srid_t srid, bool *exists)
     return true;
   *exists= (srs != nullptr);
   return false;
-}
-
-
-void handle_gis_exception(const char *funcname)
-{
-  try
-  {
-    throw;
-  }
-  catch (const boost::geometry::centroid_exception &)
-  {
-    my_error(ER_BOOST_GEOMETRY_CENTROID_EXCEPTION, MYF(0), funcname);
-  }
-  catch (const boost::geometry::overlay_invalid_input_exception &)
-  {
-    my_error(ER_BOOST_GEOMETRY_OVERLAY_INVALID_INPUT_EXCEPTION, MYF(0),
-             funcname);
-  }
-  catch (const boost::geometry::turn_info_exception &)
-  {
-    my_error(ER_BOOST_GEOMETRY_TURN_INFO_EXCEPTION, MYF(0), funcname);
-  }
-  catch (const boost::geometry::detail::self_get_turn_points::self_ip_exception &)
-  {
-    my_error(ER_BOOST_GEOMETRY_SELF_INTERSECTION_POINT_EXCEPTION, MYF(0),
-             funcname);
-  }
-  catch (const boost::geometry::empty_input_exception &)
-  {
-    my_error(ER_BOOST_GEOMETRY_EMPTY_INPUT_EXCEPTION, MYF(0), funcname);
-  }
-  catch (const boost::geometry::inconsistent_turns_exception &)
-  {
-    my_error(ER_BOOST_GEOMETRY_INCONSISTENT_TURNS_EXCEPTION, MYF(0));
-  }
-  catch (const boost::geometry::exception &)
-  {
-    my_error(ER_BOOST_GEOMETRY_UNKNOWN_EXCEPTION, MYF(0), funcname);
-  }
-  catch (const std::exception &)
-  {
-    handle_std_exception(funcname);
-  }
-  catch (...)
-  {
-    my_error(ER_GIS_UNKNOWN_EXCEPTION, MYF(0), funcname);
-  }
 }
 
 
@@ -163,8 +116,7 @@ merge_components(bool *pnull_value)
     return;
 
   POS pos;
-  Item_func_spatial_operation ifso(pos, NULL, NULL,
-                                   Item_func_spatial_operation::op_union);
+  Item_func_st_union ifsu(pos, NULL, NULL);
   bool do_again= true;
   uint32 last_composition[6]= {0}, num_unchanged_composition= 0;
   size_t last_num_geos= 0;
@@ -201,7 +153,7 @@ merge_components(bool *pnull_value)
   */
   while (!*pnull_value && do_again)
   {
-    do_again= merge_one_run<Coordsys>(&ifso, pnull_value);
+    do_again= merge_one_run<Coordsys>(&ifsu, pnull_value);
     if (!*pnull_value && do_again)
     {
       const size_t num_geos= m_geos.size();
@@ -257,7 +209,7 @@ bool linear_areal_intersect_infinite(Geometry *g1, Geometry *g2,
     ones can be accepted by BG and the cross check would be considered true,
     we should reject such result and return false in this case.
   */
-  if (Item_func_spatial_rel::bg_geo_relation_check<Coordsys>
+  if (Item_func_spatial_rel::bg_geo_relation_check
       (g1, g2, Item_func::SP_CROSSES_FUNC, pnull_value) && !*pnull_value)
   {
     Geometry::wkbType g2_type= g2->get_type();
@@ -392,13 +344,13 @@ public:
 
   @tparam Coordsys Coordinate system type, specified using those defined in
           boost::geometry::cs.
-  @param ifso the Item_func_spatial_operation object, we here rely on it to
+  @param ifsu the Item_func_spatial_operation object, we here rely on it to
          do union operation.
   @param[out] pnull_value takes back null_value set during the operation.
   @return whether need another call of this function.
  */
 template<typename Coordsys>
-bool BG_geometry_collection::merge_one_run(Item_func_spatial_operation *ifso,
+bool BG_geometry_collection::merge_one_run(Item_func_st_union *ifsu,
                                            bool *pnull_value)
 {
   Geometry *gres= NULL;
@@ -451,7 +403,7 @@ bool BG_geometry_collection::merge_one_run(Item_func_spatial_operation *ifso,
         continue;
 
       // Equals is much easier and faster to check, so check it first.
-      if (Item_func_spatial_rel::bg_geo_relation_check<Coordsys>
+      if (Item_func_spatial_rel::bg_geo_relation_check
           (geom2, *i, Item_func::SP_EQUALS_FUNC, &null_value) && !null_value)
       {
         *i= NULL;
@@ -464,7 +416,7 @@ bool BG_geometry_collection::merge_one_run(Item_func_spatial_operation *ifso,
         break;
       }
 
-      if (Item_func_spatial_rel::bg_geo_relation_check<Coordsys>
+      if (Item_func_spatial_rel::bg_geo_relation_check
           (*i, geom2, Item_func::SP_WITHIN_FUNC, &null_value) && !null_value)
       {
         *i= NULL;
@@ -477,7 +429,7 @@ bool BG_geometry_collection::merge_one_run(Item_func_spatial_operation *ifso,
         break;
       }
 
-      if (Item_func_spatial_rel::bg_geo_relation_check<Coordsys>
+      if (Item_func_spatial_rel::bg_geo_relation_check
           (geom2, *i, Item_func::SP_WITHIN_FUNC, &null_value) && !null_value)
       {
         m_geos[j->second]= NULL;
@@ -524,7 +476,7 @@ bool BG_geometry_collection::merge_one_run(Item_func_spatial_operation *ifso,
         check the inner rings.
       */
       if ((!is_linear_areal &&
-           Item_func_spatial_rel::bg_geo_relation_check<Coordsys>
+           Item_func_spatial_rel::bg_geo_relation_check
            (*i, geom2, Item_func::SP_INTERSECTS_FUNC, &null_value) &&
            !null_value) ||
           (is_linear_areal && linear_areal_intersect_infinite
@@ -538,9 +490,9 @@ bool BG_geometry_collection::merge_one_run(Item_func_spatial_operation *ifso,
           break;
         }
 
-        gres= ifso->bg_geo_set_op<Coordsys>(*i, geom2,
+        gres= ifsu->bg_geo_set_op<Coordsys>(*i, geom2,
                                                         &wkbres);
-        null_value= ifso->null_value;
+        null_value= ifsu->null_value;
 
         if (null_value)
         {

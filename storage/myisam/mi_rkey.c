@@ -15,6 +15,8 @@
 
 /* Read record based on a key */
 
+#include <sys/types.h>
+
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "myisamdef.h"

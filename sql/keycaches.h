@@ -19,15 +19,13 @@
 #include <string.h>
 
 #include "keycache.h"
-#include "my_global.h"
+#include "lex_string.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysql/mysql_lex_string.h"
 #include "mysql/service_mysql_alloc.h"
 #include "sql_list.h"
 #include "thr_malloc.h"
-
-typedef struct st_mysql_lex_string LEX_STRING;
 
 
 extern "C"

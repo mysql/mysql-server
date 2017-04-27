@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,7 +19,6 @@
 #define NDB_THREAD_H
 
 #include <ndb_global.h>
-#include <my_thread_local.h>
 
 #ifdef	__cplusplus
 extern "C" {
@@ -43,13 +42,13 @@ typedef enum NDB_THREAD_PRIO_ENUM {
   NDB_THREAD_PRIO_LOWEST
 } NDB_THREAD_PRIO;
 
-typedef enum NDB_THREAD_TLS_ENUM {
-  NDB_THREAD_TLS_JAM,           /* Jam buffer pointer. */
-  NDB_THREAD_TLS_THREAD,        /* Thread self pointer. */
-  NDB_THREAD_TLS_NDB_THREAD,    /* NDB thread pointer */
-  NDB_THREAD_TLS_RES_OWNER,     /* (Debug only) Shared resource owner */
-  NDB_THREAD_TLS_MAX
-} NDB_THREAD_TLS;
+#ifdef __cplusplus
+
+/* NDB thread pointer. */
+struct NdbThread;
+extern thread_local NdbThread* NDB_THREAD_TLS_NDB_THREAD;
+
+#endif
 
 typedef void* (NDB_THREAD_FUNC)(void*);
 typedef void* NDB_THREAD_ARG;
@@ -62,7 +61,7 @@ struct NdbThread;
   signum set in g_ndb_shm_signum in a portable manner.
 */
 #ifdef NDB_SHM_TRANSPORTER
-void NdbThread_set_shm_sigmask(my_bool block);
+void NdbThread_set_shm_sigmask(bool block);
 #endif
 
 /**
@@ -137,13 +136,13 @@ int NdbThread_GetTid(struct NdbThread*);
  * Yield to normal time-share prio and back to real-time prio for
  * real-time threads
  */
-int NdbThread_yield_rt(struct NdbThread*, my_bool high_prio);
+int NdbThread_yield_rt(struct NdbThread*, bool high_prio);
 
 /**
  * Set Scheduler for thread
  * This sets real-time priority of the thread.
  */
-int NdbThread_SetScheduler(struct NdbThread*, my_bool rt_prio, my_bool high_prio);
+int NdbThread_SetScheduler(struct NdbThread*, bool rt_prio, bool high_prio);
 
 /**
  * Set Thread priority for thread
@@ -245,11 +244,6 @@ void NdbThread_UnassignFromCPUSet(struct NdbThread*,
 const struct processor_set_handler*
   NdbThread_LockGetCPUSetKey(struct NdbThread*);
 
-/**
- * Fetch and set thread-local storage entry.
- */
-void *NdbThread_GetTlsKey(NDB_THREAD_TLS key);
-void NdbThread_SetTlsKey(NDB_THREAD_TLS key, void *value);
 /* Get my own NdbThread pointer */
 struct NdbThread *NdbThread_GetNdbThread();
 

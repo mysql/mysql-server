@@ -28,7 +28,6 @@
 #include "item.h"
 #include "my_base.h"
 #include "my_compiler.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "records.h"               // READ_RECORD
 #include "sql_alloc.h"

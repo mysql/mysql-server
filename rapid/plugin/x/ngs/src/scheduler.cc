@@ -17,6 +17,8 @@
  * 02110-1301  USA
  */
 
+#include <stddef.h>
+
 #include "my_inttypes.h"
 #include "my_psi_config.h"
 #include "my_rdtsc.h"

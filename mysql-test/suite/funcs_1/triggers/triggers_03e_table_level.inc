@@ -18,7 +18,7 @@ let $message= #########      Testcase for table level:   ########;
         --disable_warnings
 	drop database if exists priv_db;
 	--enable_warnings
-	create database priv_db;
+	create database priv_db charset utf8mb4;
 	use priv_db;
 	eval create table t1 (f1 char(20)) engine= $engine_type;
 

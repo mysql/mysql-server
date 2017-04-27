@@ -16,11 +16,7 @@
 --source include/not_valgrind.inc
 --source include/have_debug_sync.inc
 --source include/not_crashrep.inc
-# Disabled in --log-bin runs until atomic DDL is properly supported in
-# binary log.
---source include/not_log_bin.inc
-
---source ../include/xplugin_preamble.inc
+--source include/xplugin_preamble.inc
 
 
 ## Test starts here
@@ -105,7 +101,7 @@ EOF
 # Request a crash, and restart the server.
 # Write file to make mysql-test-run.pl restart the server
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---source ../include/xplugin_wait_for_interfaces.inc
+--source include/xplugin_wait_for_interfaces.inc
 --error 1
 --exec $MYSQLXTEST -u root --password='' --file=$MYSQL_TMP_DIR/mysqlx-in.tmp >$MYSQL_TMP_DIR/mysqlx-out.tmp 2>&1
 #--cat_file $MYSQL_TMP_DIR/mysqlx-out.tmp
@@ -278,7 +274,7 @@ EOF
 # Request a crash, and restart the server.
 # Write file to make mysql-test-run.pl restart the server
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---source ../include/xplugin_wait_for_interfaces.inc
+--source include/xplugin_wait_for_interfaces.inc
 --error 1
 --exec $MYSQLXTEST -u root --password='' --file=$MYSQL_TMP_DIR/mysqlx-in.tmp >$MYSQL_TMP_DIR/mysqlx-out.tmp 2>&1
 #--cat_file $MYSQL_TMP_DIR/mysqlx-out.tmp

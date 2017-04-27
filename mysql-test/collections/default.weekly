@@ -69,7 +69,7 @@ perl mysql-test-run.pl --timer --force --big-test --testcase-timeout=60 --debug-
 perl mysql-test-run.pl --timer --force --big-test --testcase-timeout=60 --debug-server --parallel=auto --comment=innodb_64k_size --vardir=var-innodb-64k --experimental=collections/default.experimental --skip-test-list=collections/disabled-weekly.list --mysqld=--innodb-page-size=64k --skip-test=innodb_ignore_builtin --suite=innodb --no-skip
 
 # Run default suites with innodb_undo_tablespace set to > 0
-perl mysql-test-run.pl --timer --force --big-test --testcase-timeout=60 --debug-server  --parallel=auto --comment=innodb_undo-2-debug  --vardir=var-innodb-tablespaces-2-debug --experimental=collections/default.experimental --mysqld=--innodb_undo_tablespaces=2 --bootstrap --innodb_undo_tablespaces=2 --no-skip
+perl mysql-test-run.pl --timer --force --big-test --testcase-timeout=60 --debug-server  --parallel=auto --comment=innodb_undo-2-debug  --vardir=var-undo-2-debug --experimental=collections/default.experimental --mysqld=--innodb_undo_tablespaces=2 --bootstrap --innodb_undo_tablespaces=2 --no-skip
 
 # Run innodb suites with innodb_undo_table_spaces >0  and different pagesizes
 perl mysql-test-run.pl --timer  --force --big-test --parallel=auto --comment=innodb_undo_3_4k --vardir=var-innodb-undo-3-4k --experimental=collections/default.experimental --suite=innodb_undo,innodb_zip,innodb --mysqld=--innodb_undo_tablespaces=3 --mysqld=--innodb-page-size=4k --no-skip

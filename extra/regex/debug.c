@@ -1,13 +1,13 @@
-#include <stdio.h>
-#include <my_global.h>
 #include <m_ctype.h>
 #include <m_string.h>
+#include <stdio.h>
 #include <sys/types.h>
 
 #include "my_regex.h"
-#include "utils.h"
 #include "regex2.h"
-#include "debug.ih"
+#include "utils.h"
+
+#include "debug.ih"  // Must come after all other headers.
 
 /* Added extra paramter to regchar to remove static buffer ; Monty 96.11.27 */
 
@@ -103,7 +103,7 @@ FILE *d;
 	int col = 0;
 	int last;
 	sopno offset = 2;
-	char buf[10];
+	char buf[20];
 #	define	GAP()	{	if (offset % 5 == 0) { \
 					if (col > 40) { \
 						fprintf(d, "\n\t"); \

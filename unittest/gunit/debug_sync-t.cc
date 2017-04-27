@@ -28,7 +28,6 @@
 
 #include "debug_sync.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "test_utils.h"
 #include "thread_utils.h"

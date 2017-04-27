@@ -21,7 +21,7 @@ CREATE TABLE t1 (
   uniq VARCHAR(10),
   col1 VARCHAR(10),
   col2 VARCHAR(1024)
-);
+) CHARSET utf8mb4;
 
 INSERT INTO t1 SELECT pk, col1, col1 FROM tmp;
 

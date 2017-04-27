@@ -2,7 +2,7 @@
 #define SQL_TRIGGER_INCLUDED
 
 /*
-   Copyright (c) 2004, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -30,6 +30,7 @@
 
 ///////////////////////////////////////////////////////////////////////////
 
+#include "lex_string.h"
 #include "m_string.h"
 #include "mdl.h"              // enum_mdl_type
 #include "my_sqlcommand.h"    // SQLCOM_CREATE_TRIGGER, SQLCOM_DROP_TRIGGER
@@ -39,11 +40,13 @@ class String;
 class THD;
 struct TABLE;
 struct TABLE_LIST;
+namespace dd {
+  class Table;
+}
 ///////////////////////////////////////////////////////////////////////////
 
 /**
-  Find trigger's table from trigger identifier and add it to
-  the statement table list.
+  Find trigger's table from trigger identifier.
 
   @param[in] thd                    Thread context.
   @param[in] db_name                Schema name.
@@ -60,7 +63,7 @@ struct TABLE_LIST;
     @retval true  Otherwise.
 */
 
-bool add_table_for_trigger(THD *thd,
+bool get_table_for_trigger(THD *thd,
                            const LEX_CSTRING &db_name,
                            const LEX_STRING &trigger_name,
                            bool continue_if_not_exist,
@@ -89,9 +92,8 @@ bool drop_all_triggers(THD *thd,
   are the same. This functions is called while handling the statement
   RENAME TABLE to ensure that table moved within the same database.
 
-  @param[in] thd         Thread context.
   @param[in] db_name     Schema name.
-  @param[in] table_name  Table name.
+  @param[in] table       Table.
   @param[in] new_db_name New schema name
 
   @note
@@ -104,9 +106,8 @@ bool drop_all_triggers(THD *thd,
     @retval true  Old and new schema name aren't the same.
 */
 
-bool check_table_triggers_are_not_in_the_same_schema(THD *thd,
-                                                     const char *db_name,
-                                                     const char *table_name,
+bool check_table_triggers_are_not_in_the_same_schema(const char *db_name,
+                                                     const dd::Table &table,
                                                      const char *new_db_name);
 
 
@@ -200,16 +201,15 @@ inline bool acquire_shared_mdl_for_trigger(THD *thd, const char *db,
   Drop statistics from performance schema for every trigger
   associated with a table.
 
-  @param thd         Current thread context.
-  @param table       Pointer to the table, for that associated
+  @param schema_name Name of schema containing the table.
+  @param table       Table reference, for that associated
                      triggers statistics has to be deleted.
-
-  @return Operation status.
-    @retval false Success
-    @retval true  Failure
 */
 
-bool remove_all_triggers_from_perfschema(THD *thd, TABLE_LIST *table);
+#ifdef HAVE_PSI_SP_INTERFACE
+void remove_all_triggers_from_perfschema(const char *schema_name,
+                                         const dd::Table &table);
+#endif
 ///////////////////////////////////////////////////////////////////////////
 
 

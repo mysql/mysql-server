@@ -3,6 +3,8 @@
 #
 
 --source include/have_debug.inc
+--source include/have_debug_sync.inc
+
 --source include/count_sessions.inc
 
 ###########################################################################
@@ -40,9 +42,11 @@ DROP TABLE t1;
 --echo ###################################################################
 --echo #
 
-# InnoDB will complain when trying to drop a table which is not
-# present in the SE.
-call mtr.add_suppression("\\[ERROR\\] InnoDB: Table `test`.`t1` .*");
+# These can be removed after WL#9536 is implemented
+call mtr.add_suppression("\\[ERROR\\] InnoDB: Operating system error number .* in a file operation");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: The error means the system cannot find the path specified");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: Cannot open datafile for read-only");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: Cannot delete tablespace .* because it is not found in the tablespace memory cache");
 
 --echo # 1. Schemata
 --echo # 1.1 Fail while storing dd object during create.
@@ -93,7 +97,7 @@ SET GLOBAL DEBUG= '-d, fail_while_acquiring_dd_object';
 --echo # 1.3b No schema found during drop.
 
 SET DEBUG= '+d, pretend_no_schema_in_drop_schema';
---error ER_BAD_DB_ERROR
+--error ER_DB_DROP_EXISTS
 DROP SCHEMA s1;
 SET DEBUG= '-d, pretend_no_schema_in_drop_schema';
 
@@ -240,7 +244,6 @@ SELECT COUNT(*) FROM mysql.tablespaces WHERE name LIKE 'ts1';
 --echo # Note: The statement below fails, but removes entry for
 --echo #       ts1 from mysql.tablespaces.
 --echo # Do it for real.
---error ER_DROP_FILEGROUP_FAILED
 DROP TABLESPACE ts1;
 SELECT COUNT(*) FROM mysql.tablespaces WHERE name LIKE 'ts1';
 SET SESSION debug= '-d,skip_dd_table_access_check';
@@ -283,6 +286,50 @@ ALTER TABLE t1 RENAME TO t2, ALGORITHM= COPY;
 DROP TABLE IF EXISTS t1;
 DROP TABLE t2;
 DROP VIEW v1;
+
+--echo #
+--echo # Bug#25587256 NEWDD: FK: NEED TO SET PROPER REFERENCED COLUMN CASE
+--echo #
+
+CREATE TABLE t1 (pk INT PRIMARY KEY);
+CREATE TABLE t2 (fk INT, FOREIGN KEY (FK) REFERENCES t1 (PK));
+
+SHOW CREATE TABLE t2;
+SET SESSION debug= '+d,skip_dd_table_access_check';
+# Case should match SHOW CREATE TABLE output.
+SELECT foreign_key_column_usage.referenced_column_name
+FROM mysql.foreign_key_column_usage, mysql.foreign_keys, mysql.tables
+WHERE tables.name= 't2'
+AND tables.id = foreign_keys.table_id
+AND foreign_keys.id = foreign_key_column_usage.foreign_key_id;
+SET SESSION debug= '-d,skip_dd_table_access_check';
+
+DROP TABLE t2, t1;
+
+--echo #
+--echo # Bug#25685371: `E->USAGE() == 1' AT DD::CACHE::SHARED_MULTI_MAP<T>::
+--echo #               REMOVE FOR DROP VIEW
+--echo #
+
+--enable_connect_log
+CREATE TABLE t1 (a INT) engine= myisam;
+CREATE VIEW v1 AS SELECT * FROM t1;
+--connect(con1, localhost, root)
+SET debug_sync= 'view_metadata_updater_context_dtor SIGNAL blocked WAIT_FOR next';
+--send ALTER TABLE t1 ADD COLUMN b INT
+--connection default
+SET debug_sync= 'now WAIT_FOR blocked';
+DROP VIEW v1;
+SET debug_sync= 'now SIGNAL next';
+--connection con1
+--reap
+--disconnect con1
+--source include/wait_until_disconnected.inc
+--connection default
+DROP TABLE t1;
+SET DEBUG_SYNC= 'RESET';
+--disable_connect_log
+
 
 --echo ###################################################################
 

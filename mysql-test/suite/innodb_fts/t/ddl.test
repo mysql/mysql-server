@@ -166,7 +166,7 @@ drop table fts_test;
 
 # This should fail:
 # Create a FTS_DOC_ID of the wrong type (should be bigint)
---error 1166
+--error ER_INNODB_FT_WRONG_DOCID_COLUMN
 CREATE TABLE fts_test (
    FTS_DOC_ID int(20) unsigned NOT NULL AUTO_INCREMENT,
    title varchar(255) NOT NULL DEFAULT '',

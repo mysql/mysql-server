@@ -34,7 +34,7 @@ insert into t1 values(3,"compressed table");
 [14b]: when server default checksum=crc32 rewrite new checksum=innodb with innochecksum
 # Also check the long form of write option.
 # start the server with innodb_checksum_algorithm=InnoDB
-# restart
+# restart: --innodb_checksum_algorithm=innodb
 INSERT INTO tab1 VALUES(2, 'Innochecksum CRC32');
 SELECT c1,c2 FROM tab1 order by c1,c2;
 c1	c2
@@ -44,7 +44,7 @@ c1	c2
 [15]: when server default checksum=crc32 rewrite new checksum=none with innochecksum
 # Also check the short form of write option.
 # Start the server with checksum algorithm=none
-# restart
+# restart: --innodb_checksum_algorithm=none
 INSERT INTO tab1 VALUES(3, 'Innochecksum None');
 SELECT c1,c2 FROM tab1 order by c1,c2;
 c1	c2
@@ -55,7 +55,7 @@ DROP TABLE t1;
 # Stop the server
 [16]: rewrite into new checksum=crc32 with innochecksum
 # Restart the DB server with  innodb_checksum_algorithm=crc32
-# restart
+# restart: --innodb_checksum_algorithm=crc32 --innodb_file_per_table=on
 SELECT * FROM tab1;
 c1	c2
 1	Innochecksum InnoDB1
@@ -69,7 +69,7 @@ c1	c2
 # Stop server
 [17]: rewrite into new checksum=InnoDB
 # Restart the DB server with innodb_checksum_algorithm=InnoDB
-# restart
+# restart: --innodb_checksum_algorithm=innodb --innodb_file_per_table=on
 DELETE FROM tab1 where c1=2;
 SELECT * FROM tab1;
 c1	c2
@@ -77,6 +77,6 @@ c1	c2
 # Stop server
 [18]:check Innochecksum with invalid write options
 # Restart the server
-# restart
+# restart: --innodb_checksum_algorithm=innodb --innodb_file_per_table=on
 DROP TABLE tab1;
 SET GLOBAL innodb_file_per_table=default;

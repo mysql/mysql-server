@@ -1,6 +1,3 @@
-
-#Restarting not supported in embedded 
---source include/not_embedded.inc
 #Windows has trouble creating files/directories with long names
 --source include/not_windows.inc
 
@@ -29,6 +26,7 @@ call mtr.add_suppression("\\[ERROR\\] InnoDB: Cannot open datafile for read-only
 call mtr.add_suppression("\\[ERROR\\] InnoDB: Could not find a valid tablespace file for");
 call mtr.add_suppression("\\[Warning\\] InnoDB: Ignoring tablespace .* because it could not be opened");
 call mtr.add_suppression("\\[Warning\\] InnoDB: Cannot calculate statistics for table `\.\.*`\.`\.\.*` because the \.ibd file is missing");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: Unable to open tablespace .* \\(flags=.*, filename=");
 --enable_query_log
 
 --error ER_TABLESPACE_MISSING

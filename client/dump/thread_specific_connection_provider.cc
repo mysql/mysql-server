@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -17,6 +17,7 @@
 
 #include "thread_specific_connection_provider.h"
 
+#include <stddef.h>
 #include <functional>
 
 using namespace Mysql::Tools::Dump;
@@ -26,8 +27,12 @@ Mysql::Tools::Base::Mysql_query_runner*
     std::function<bool(const Mysql::Tools::Base::Message_data&)>*
       message_handler)
 {
-  Mysql::Tools::Base::Mysql_query_runner* runner= m_runner.get();
-  if (runner == NULL)
+  Mysql::Tools::Base::Mysql_query_runner* runner= nullptr;
+  {
+    std::lock_guard<std::mutex> lock(mu);
+    runner= m_runners[std::this_thread::get_id()];
+  }
+  if (runner == nullptr)
   {
     runner= this->create_new_runner(message_handler);
     runner->run_query("SET SQL_QUOTE_SHOW_CREATE= 1");
@@ -36,10 +41,9 @@ Mysql::Tools::Base::Mysql_query_runner*
       has a different time zone set.
     */
     runner->run_query("SET TIME_ZONE='+00:00'");
-    m_runner.reset(runner);
 
-    my_boost::mutex::scoped_lock lock(m_runners_created_lock);
-    m_runners_created.push_back(runner);
+    std::lock_guard<std::mutex> lock(mu);
+    m_runners[std::this_thread::get_id()]= runner;
   }
   // Deliver copy of original runner.
   return new Mysql::Tools::Base::Mysql_query_runner(*runner);
@@ -52,9 +56,8 @@ Thread_specific_connection_provider::Thread_specific_connection_provider(
 
 Thread_specific_connection_provider::~Thread_specific_connection_provider()
 {
-  for (std::vector<Mysql::Tools::Base::Mysql_query_runner*>::iterator
-    it= m_runners_created.begin(); it != m_runners_created.end(); ++it)
+  for (const auto &id_and_runner : m_runners)
   {
-    delete *it;
+    delete id_and_runner.second;
   }
 }

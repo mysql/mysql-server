@@ -14,7 +14,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "srv_session.h"
+#include "sql/srv_session.h"
 
 #include <stddef.h>
 #include <sys/types.h>
@@ -27,12 +27,12 @@
 #include "current_thd.h"
 #include "decimal.h"
 #include "derror.h"             // ER_DEFAULT
+#include "lex_string.h"
 #include "log.h"                 // Query log
 #include "m_ctype.h"
 #include "mutex_lock.h"
 #include "my_dbug.h"
 #include "my_decimal.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_psi_config.h"
 #include "my_thread.h"
@@ -69,8 +69,8 @@
 
 extern void thd_clear_errors(THD *thd);
 
-static thread_local_key_t THR_stack_start_address;
-static thread_local_key_t THR_srv_session_thread;
+static thread_local const char *THR_stack_start_address= nullptr;
+static thread_local const st_plugin_int *THR_srv_session_thread= nullptr;
 static bool srv_session_THRs_initialized= false;
 
 class Thread_to_plugin_map
@@ -610,7 +610,7 @@ static int err_get_string(void*, const char*, size_t,const CHARSET_INFO*)
 
 static void err_handle_ok(void * ctx, uint server_status, uint warn_count,
                           ulonglong affected_rows, ulonglong last_insert_id,
-                          const char * const message)
+                          const char * const)
 {
   Srv_session::st_err_protocol_ctx *pctx=
              static_cast<Srv_session::st_err_protocol_ctx*>(ctx);
@@ -625,7 +625,7 @@ static void err_handle_ok(void * ctx, uint server_status, uint warn_count,
 }
 
 static void err_handle_error(void * ctx, uint err_errno, const char * err_msg,
-                             const char * sqlstate)
+                             const char*)
 {
   Srv_session::st_err_protocol_ctx *pctx=
              static_cast<Srv_session::st_err_protocol_ctx*>(ctx);
@@ -633,7 +633,7 @@ static void err_handle_error(void * ctx, uint err_errno, const char * err_msg,
     pctx->handler(pctx->handler_context, err_errno, err_msg);
 }
 
-static void err_shutdown(void*, int server_shutdown){}
+static void err_shutdown(void*, int) {}
 
 
 const struct st_command_service_cbs error_protocol_callbacks=
@@ -665,14 +665,14 @@ const struct st_command_service_cbs error_protocol_callbacks=
 
   @param thd THD
 */
+#ifdef HAVE_PSI_THREAD_INTERFACE
 static void set_psi(THD *thd)
 {
-#ifdef HAVE_PSI_THREAD_INTERFACE
   struct PSI_thread *psi= PSI_THREAD_CALL(get_thread)();
   PSI_THREAD_CALL(set_thread_id)(psi, thd? thd->thread_id() : 0);
   PSI_THREAD_CALL(set_thread_THD)(psi, thd);
-#endif
 }
+#endif
 
 
 /**
@@ -687,14 +687,16 @@ static void set_psi(THD *thd)
 */
 bool Srv_session::init_thread(const void *plugin)
 {
-  int stack_start;
-  if (my_thread_init() ||
-      my_set_thread_local(THR_srv_session_thread, const_cast<void*>(plugin)) ||
-      my_set_thread_local(THR_stack_start_address, &stack_start))
+  char stack_start;
+  if (my_thread_init())
   {
     connection_errors_internal++;
     return true;
   }
+
+  THR_srv_session_thread=
+    reinterpret_cast<st_plugin_int *>(const_cast<void *>(plugin));
+  THR_stack_start_address= &stack_start;
 
   server_session_threads.add(my_thread_self(), plugin);
 
@@ -750,8 +752,7 @@ static void close_all_sessions_of_plugin_if_any(const st_plugin_int *plugin)
 */
 void Srv_session::deinit_thread()
 {
-  const st_plugin_int *plugin= static_cast<const st_plugin_int *>(
-                                my_get_thread_local(THR_srv_session_thread));
+  const st_plugin_int *plugin= THR_srv_session_thread;
   if (plugin)
     close_currently_attached_session_if_any(plugin);
 
@@ -761,10 +762,10 @@ void Srv_session::deinit_thread()
   if (!server_session_threads.count(plugin))
     close_all_sessions_of_plugin_if_any(plugin);
 
-  my_set_thread_local(THR_srv_session_thread, NULL);
+  THR_srv_session_thread= nullptr;
 
-  DBUG_ASSERT(my_get_thread_local(THR_stack_start_address));
-  my_set_thread_local(THR_stack_start_address, NULL);
+  DBUG_ASSERT(THR_stack_start_address);
+  THR_stack_start_address= nullptr;
   my_thread_end();
 }
 
@@ -805,14 +806,9 @@ bool Srv_session::module_init()
 {
   if (srv_session_THRs_initialized)
     return false;
-
-  if (my_create_thread_local_key(&THR_stack_start_address, NULL) ||
-      my_create_thread_local_key(&THR_srv_session_thread, NULL))
-  {
-    sql_print_error("Can't create thread key for SQL session service");
-    return true;
-  }
   srv_session_THRs_initialized= true;
+  THR_stack_start_address= nullptr;
+  THR_srv_session_thread= nullptr;
 
   server_session_list.init();
   server_session_threads.init();
@@ -833,9 +829,8 @@ bool Srv_session::module_deinit()
 {
   if (srv_session_THRs_initialized)
   {
-    srv_session_THRs_initialized= false;
-    (void) my_delete_thread_local_key(THR_stack_start_address);
-    (void) my_delete_thread_local_key(THR_srv_session_thread);
+    THR_stack_start_address= nullptr;
+    THR_srv_session_thread= nullptr;
 
     server_session_list.clear();
     server_session_list.deinit();
@@ -945,7 +940,7 @@ bool Srv_session::open()
 
   Global_THD_manager::get_instance()->add_thd(&thd);
 
-  const void *plugin= my_get_thread_local(THR_srv_session_thread);
+  const void *plugin= THR_srv_session_thread;
 
   server_session_list.add(&thd, plugin, this);
 
@@ -997,8 +992,8 @@ bool Srv_session::attach()
 
   DBUG_PRINT("info",("current_thd=%p", current_thd));
 
-  const char *new_stack= my_get_thread_local(THR_srv_session_thread)?
-        (const char*)my_get_thread_local(THR_stack_start_address):
+  const char *new_stack= THR_srv_session_thread ?
+        THR_stack_start_address :
         (old_thd? old_thd->thread_stack : NULL);
 
   /*
@@ -1015,7 +1010,9 @@ bool Srv_session::attach()
     if (old_thd)
       old_thd->store_globals();
 
+#ifdef HAVE_PSI_THREAD_INTERFACE
     set_psi(old_thd);
+#endif
 
     set_detached();
     DBUG_RETURN(true);
@@ -1028,9 +1025,9 @@ bool Srv_session::attach()
 
   thd_clear_errors(&thd);
 
+#ifdef HAVE_PSI_THREAD_INTERFACE
   set_psi(&thd);
 
-#ifdef HAVE_PSI_THREAD_INTERFACE
    PSI_THREAD_CALL(set_connection_type)(vio_type != NO_VIO_TYPE?
                                         vio_type : thd.get_vio_type());
 #endif /* HAVE_PSI_THREAD_INTERFACE */
@@ -1076,7 +1073,9 @@ bool Srv_session::detach()
   DBUG_ASSERT(&thd == current_thd);
   thd.restore_globals();
 
+#ifdef HAVE_PSI_THREAD_INTERFACE
   set_psi(NULL);
+#endif
   /*
     We can't call PSI_THREAD_CALL(set_connection_type)(NO_VIO_TYPE) here because
     it will assert. Thus, it will be possible to have a physical thread, which
@@ -1146,7 +1145,9 @@ bool Srv_session::close()
 
   thd.disconnect();
 
+#ifdef HAVE_PSI_THREAD_INTERFACE
   set_psi(NULL);
+#endif
 
   thd.release_resources();
 

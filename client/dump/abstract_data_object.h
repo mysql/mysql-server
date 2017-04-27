@@ -21,7 +21,6 @@
 #include <string>
 
 #include "i_data_object.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 
 namespace Mysql{

@@ -16,14 +16,14 @@
 #ifndef OPT_TRACE_INCLUDED
 #define OPT_TRACE_INCLUDED
 
+#include "my_config.h"
+
 #include <limits.h>
 #include <string.h>
 #include <sys/types.h>
 
 #include "m_ctype.h"
 #include "my_compiler.h"
-#include "my_config.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_sqlcommand.h"     // enum_sql_command
 #include "opt_trace_context.h" // Opt_trace_context
@@ -1136,7 +1136,7 @@ void opt_trace_disable_if_no_stored_proc_func_access(THD *thd, sp_head *sp);
    @retval 0 ok
    @retval 1 error
 */
-int fill_optimizer_trace_info(THD *thd, TABLE_LIST *tables, Item *cond);
+int fill_optimizer_trace_info(THD *thd, TABLE_LIST *tables, Item*);
 
 //@}
 

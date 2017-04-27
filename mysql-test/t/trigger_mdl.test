@@ -1,4 +1,3 @@
---source include/not_embedded.inc
 --source include/have_log_bin.inc
 --source include/have_debug.inc
 
@@ -47,8 +46,7 @@ reap;
 --echo # master-bin.000001    1073    Query    1    1169    use `test`; DROP TRIGGER trigger_1
 --echo # That is, two statements CREATE TRIGGER trigger_t1 follows one
 --echo # after another then DROP TRIGGER.
-# Skip a log entry for server version
-SHOW BINLOG EVENTS FROM 123;
+--source include/show_binlog_events.inc
 
 DROP TABLE t1,t2;
 

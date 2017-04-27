@@ -25,13 +25,11 @@ include/start_slave.inc
 include/assert.inc [Worker_Id should be 1]
 include/assert.inc [thread_name should should indicate worker thread.]
 include/assert.inc [Service_State should be "ON" on a fresh slave server.]
-include/assert.inc [Last_Seen_Transaction should show "" if no transaction applierd]
 CREATE TABLE t1 (a INT);
 DROP TABLE t1;
-include/assert.inc [Last_Seen_Transaction should show "ANONYMOUS" if last transaction was anonymous.]
 include/assert.inc [Value returned by SSS and PS table for Last_Error_Number should be same.]
 include/assert.inc [Value returned by SSS and PS table for Last_Error_Message should both be empty.]
-include/assert.inc [Value returned by PS table for Last_Error_Timestamp should be 0000-00-00 00:00:00.]
+include/assert.inc [Value returned by PS table for Last_Error_Timestamp should be 0000-00-00 00:00:00.000000.]
 
 # Introduce an error in the worker thread and check for the correctness
 # of error number, message and timestamp fields.
@@ -89,19 +87,11 @@ start slave;
 create database d1;
 create table d1.t1(a int);
 insert into d1.t1 values(1);
-select Last_Seen_Transaction from performance_schema.replication_applier_status_by_worker;
-Last_Seen_Transaction	MASTER_UUID:3
-
-# Verify that the value in 'Last_Seen_Transaction' field is preserved
-# after STOP SLAVE.
-
-include/stop_slave.inc
-select Last_Seen_Transaction from performance_schema.replication_applier_status_by_worker;
-Last_Seen_Transaction	MASTER_UUID:3
 #
 # BUG#20513547 REPLICATION_APPLIER_STATUS_BY_WORKER SHOWS
 #              WRONG WORKER_ID WHEN SLAVE STOPS
 #
+include/stop_slave.inc
 SET @@GLOBAL.slave_parallel_workers = 3;
 include/start_slave.inc
 SELECT worker_id from performance_schema.replication_applier_status_by_worker;

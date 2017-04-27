@@ -21,6 +21,9 @@
   TABLE THREADS.
 */
 
+#include <sys/types.h>
+#include <time.h>
+
 #include "cursor_by_thread.h"
 #include "my_inttypes.h"
 #include "pfs_column_types.h"
@@ -200,7 +203,7 @@ public:
   /** Table share */
   static PFS_engine_table_share m_share;
   /** Table builder */
-  static PFS_engine_table *create();
+  static PFS_engine_table *create(PFS_engine_table_share *);
 
 protected:
   virtual int read_row_values(TABLE *table,

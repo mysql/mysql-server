@@ -1,3 +1,4 @@
+SET @save_query_cache_size=@@query_cache_size;
 SET @@global.query_cache_size=1355776;
 flush status;
 select count(*) from t00;
@@ -1690,6 +1691,6 @@ DROP TABLE t4;
 DROP TABLE t3;
 DROP TABLE t2;
 DROP TABLE t1;
-SET @@global.query_cache_size = DEFAULT;
+SET @@global.query_cache_size = @save_query_cache_size;
 SET @@global.table_definition_cache = @save_table_definition_cache;
 End of 5.1 tests

@@ -55,7 +55,6 @@
 #include <string.h>
 
 #include "hash.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 
 class Session_sysvar_resource_manager {

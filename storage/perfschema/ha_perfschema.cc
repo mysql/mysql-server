@@ -18,12 +18,12 @@
   Performance schema storage engine (implementation).
 */
 
-#include "ha_perfschema.h"
+#include "storage/perfschema/ha_perfschema.h"
 
 #include "hostname.h"
+#include "lex_string.h"
 #include "my_atomic.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_thread.h"
 #include "mysql/plugin.h"
 #include "mysqld.h"
@@ -46,7 +46,9 @@ handlerton *pfs_hton = NULL;
   (pfs_initialized && (pfs_enabled || m_table_share->m_perpetual))
 
 static handler *
-pfs_create_handler(handlerton *hton, TABLE_SHARE *table, bool,
+pfs_create_handler(handlerton *hton,
+                   TABLE_SHARE *table,
+                   bool,
                    MEM_ROOT *mem_root)
 {
   return new (mem_root) ha_perfschema(hton, table);
@@ -1235,7 +1237,7 @@ compare_database_names(const char *name1, const char *name2)
   return strcmp(name1, name2);
 }
 
-static const PFS_engine_table_share *
+static PFS_engine_table_share *
 find_table_share(const char *db, const char *name)
 {
   DBUG_ENTER("find_table_share");
@@ -1245,7 +1247,7 @@ find_table_share(const char *db, const char *name)
     DBUG_RETURN(NULL);
   }
 
-  const PFS_engine_table_share *result;
+  PFS_engine_table_share *result;
   result = PFS_engine_table::find_engine_table_share(name);
   DBUG_RETURN(result);
 }
@@ -1576,7 +1578,7 @@ ha_perfschema::rnd_init(bool scan)
   stats.records = 0;
   if (m_table == NULL)
   {
-    m_table = m_table_share->m_open_table();
+    m_table = m_table_share->m_open_table(NULL);
   }
   else
   {
@@ -1723,16 +1725,20 @@ ha_perfschema::delete_table(const char *, const dd::Table *)
 }
 
 int
-ha_perfschema::rename_table(const char *, const char *,
-                            const dd::Table *, dd::Table *)
+ha_perfschema::rename_table(const char *,
+                            const char *,
+                            const dd::Table *,
+                            dd::Table *)
 {
   DBUG_ENTER("ha_perfschema::rename_table ");
   DBUG_RETURN(HA_ERR_WRONG_COMMAND);
 }
 
 int
-ha_perfschema::create(const char *, TABLE *table_arg,
-                      HA_CREATE_INFO *, dd::Table *)
+ha_perfschema::create(const char *,
+                      TABLE *table_arg,
+                      HA_CREATE_INFO *,
+                      dd::Table *)
 {
   DBUG_ENTER("ha_perfschema::create");
   DBUG_ASSERT(table_arg);
@@ -1833,7 +1839,7 @@ ha_perfschema::index_init(uint idx, bool sorted)
 
   if (m_table == NULL)
   {
-    m_table = m_table_share->m_open_table();
+    m_table = m_table_share->m_open_table(NULL);
   }
   else
   {
@@ -1886,7 +1892,7 @@ ha_perfschema::index_read(uchar *buf,
 
   if (m_table == NULL)
   {
-    m_table = m_table_share->m_open_table();
+    m_table = m_table_share->m_open_table(NULL);
   }
   else
   {

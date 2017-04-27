@@ -1,8 +1,6 @@
 # Tests for PERFORMANCE_SCHEMA
 #    Show existing objects and information about their structure
 
---source include/not_embedded.inc
-
 # List of indexes
 select TABLE_NAME, NON_UNIQUE, INDEX_SCHEMA, INDEX_NAME, INDEX_TYPE, INDEX_COMMENT
   from INFORMATION_SCHEMA.STATISTICS

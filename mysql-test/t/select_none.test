@@ -31,4 +31,3 @@ if (`select locate('mrr', @@optimizer_switch) > 0`)
 --source include/select.inc
 
 set optimizer_switch=default;
-

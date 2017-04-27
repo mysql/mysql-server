@@ -725,7 +725,7 @@ create table t1 select * from t2;
 create table t1 select * from t1;
 # Error which happens before select_create::prepare()
 --error ER_CANT_AGGREGATE_2COLLATIONS
-create table t1 select coalesce('a' collate latin1_swedish_ci,'b' collate latin1_bin);
+create table t1 select coalesce(_latin1 'a' collate latin1_swedish_ci,_latin1 'b' collate latin1_bin);
 # Error during table creation
 --error ER_KEY_COLUMN_DOES_NOT_EXITS
 create table t1 (primary key(a)) select "b" as b;
@@ -748,7 +748,7 @@ select * from t1;
 drop table t1;
 # Error before select_create::prepare()
 --error ER_CANT_AGGREGATE_2COLLATIONS
-create table t1 select coalesce('a' collate latin1_swedish_ci,'b' collate latin1_bin);
+create table t1 select coalesce(_latin1 'a' collate latin1_swedish_ci,_latin1 'b' collate latin1_bin);
 
 
 # Base vs temporary tables dillema (a.k.a. bug#24508 "Inconsistent
@@ -1770,7 +1770,7 @@ drop function f;
 --echo #
 
 --error ER_TOO_BIG_ROWSIZE
-CREATE TABLE t1 (v varchar(65535));
+CREATE TABLE t1 (v varchar(65535) CHARACTER SET latin1);
 
 --echo #
 --echo # Bug#11746295 - 25168: "INCORRECT TABLE NAME" INSTEAD OF "IDENTIFIER TOO
@@ -1845,8 +1845,7 @@ PARTITION p0 VALUES LESS THAN (10) INDEX DIRECTORY = 'a#########################
 --error ER_WRONG_VALUE
 CREATE TABLE t3 (id INT) INDEX DIRECTORY = 'test';
 
-# The statememnt fails differently with embedded and non-embedded server.
---error ER_WRONG_VALUE, ER_ILLEGAL_HA
+--error ER_WRONG_VALUE
 CREATE TABLE t4 (id INT NOT NULL, name VARCHAR(30))
 ENGINE = InnoDB
 PARTITION BY RANGE (id) (

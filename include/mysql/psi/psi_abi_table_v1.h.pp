@@ -1,6 +1,25 @@
 #include "mysql/psi/psi_table.h"
-#include "my_global.h"
+#include "my_inttypes.h"
+#include "my_config.h"
+typedef unsigned char uchar;
+typedef signed char int8;
+typedef unsigned char uint8;
+typedef short int16;
+typedef unsigned short uint16;
+typedef int int32;
+typedef unsigned int uint32;
+typedef unsigned long long int ulonglong;
+typedef long long int longlong;
+typedef longlong int64;
+typedef ulonglong uint64;
+typedef unsigned long long my_ulonglong;
+typedef intptr_t intptr;
+typedef ulonglong my_off_t;
+typedef ptrdiff_t my_ptrdiff_t;
+typedef int myf;
+#include "my_macros.h"
 #include "my_psi_config.h"
+#include "my_sharedlib.h"
 #include "psi_base.h"
 #include "my_psi_config.h"
 typedef unsigned int PSI_mutex_key;
@@ -15,7 +34,6 @@ struct PSI_placeholder
 {
   int m_placeholder;
 };
-C_MODE_START
 struct TABLE_SHARE;
 struct PSI_table_locker;
 typedef struct PSI_table_locker PSI_table_locker;
@@ -56,9 +74,9 @@ enum PSI_table_lock_operation
 };
 typedef enum PSI_table_lock_operation PSI_table_lock_operation;
 typedef struct PSI_table_share *(*get_table_share_v1_t)(
-  my_bool temporary, struct TABLE_SHARE *share);
+  bool temporary, struct TABLE_SHARE *share);
 typedef void (*release_table_share_v1_t)(struct PSI_table_share *share);
-typedef void (*drop_table_share_v1_t)(my_bool temporary,
+typedef void (*drop_table_share_v1_t)(bool temporary,
                                       const char *schema_name,
                                       int schema_name_length,
                                       const char *table_name,
@@ -105,5 +123,4 @@ struct PSI_table_service_v1
   unlock_table_v1_t unlock_table;
 };
 typedef struct PSI_table_service_v1 PSI_table_service_t;
-extern MYSQL_PLUGIN_IMPORT PSI_table_service_t *psi_table_service;
-C_MODE_END
+extern PSI_table_service_t *psi_table_service;

@@ -7,4 +7,3 @@ set optimizer_switch='semijoin=on,materialization=on,firstmatch=on,loosescan=on,
 --source include/explain_json.inc
 
 set optimizer_switch=default;
-

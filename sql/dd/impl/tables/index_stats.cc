@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016  Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,10 +17,6 @@
 
 #include "dd/impl/raw/object_keys.h"
 #include "dd/impl/types/object_table_definition_impl.h"
-
-namespace dd {
-class Object_key;
-}  // namespace dd
 
 namespace dd {
 namespace tables {

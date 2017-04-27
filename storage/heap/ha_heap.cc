@@ -16,13 +16,15 @@
 
 
 #define MYSQL_SERVER 1
-#include "ha_heap.h"
+#include "storage/heap/ha_heap.h"
 
 #include <errno.h>
+#include <limits.h>
 
 #include "current_thd.h"
 #include "heapdef.h"
 #include "my_dbug.h"
+#include "my_macros.h"
 #include "my_pointer_arithmetic.h"
 #include "my_psi_config.h"
 #include "sql_base.h"                    // enum_tdc_remove_table_type
@@ -109,7 +111,7 @@ int ha_heap::open(const char *name, int mode, uint test_if_locked,
       (!(file= heap_open(name, mode)) && my_errno() == ENOENT))
   {
     HP_CREATE_INFO create_info;
-    my_bool created_new_share;
+    bool created_new_share;
     int rc;
     file= 0;
     if (heap_prepare_hp_create_info(table, single_instance,
@@ -720,7 +722,7 @@ int ha_heap::create(const char *name, TABLE *table_arg,
                     HA_CREATE_INFO *create_info, dd::Table*)
 {
   int error;
-  my_bool created;
+  bool created;
   HP_CREATE_INFO hp_create_info;
   DBUG_ASSERT(!single_instance);
 
@@ -756,7 +758,7 @@ void ha_heap::get_auto_increment(ulonglong, ulonglong, ulonglong,
 
 
 bool ha_heap::check_if_incompatible_data(HA_CREATE_INFO *info,
-					 uint table_changes)
+                                         uint table_changes)
 {
   /* Check that auto_increment value was not changed */
   if ((info->used_fields & HA_CREATE_USED_AUTO &&

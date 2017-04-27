@@ -16,11 +16,11 @@
 #ifndef HOSTNAME_INCLUDED
 #define HOSTNAME_INCLUDED
 
+#include "my_config.h"
+
 #include <sys/types.h>
 
 #include "hash_filo.h"
-#include "my_config.h"
-#include "my_global.h"                          /* uint */
 #include "my_inttypes.h"
 #include "mysql_com.h"
 

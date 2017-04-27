@@ -46,7 +46,7 @@
      0   ok.  In this case 'len' contains the size of the compressed packet
 */
 
-my_bool my_compress(uchar *packet, size_t *len, size_t *complen)
+bool my_compress(uchar *packet, size_t *len, size_t *complen)
 {
   DBUG_ENTER("my_compress");
   if (*len < MIN_COMPRESS_LENGTH)
@@ -116,7 +116,7 @@ uchar *my_compress_alloc(const uchar *packet, size_t *len, size_t *complen)
               real data.
 */
 
-my_bool my_uncompress(uchar *packet, size_t len, size_t *complen)
+bool my_uncompress(uchar *packet, size_t len, size_t *complen)
 {
   uLongf tmp_complen;
   DBUG_ENTER("my_uncompress");

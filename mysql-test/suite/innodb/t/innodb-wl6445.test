@@ -2,9 +2,6 @@
 # Don't test this under valgrind, memory leaks will occur due restart
 --source include/not_valgrind.inc
 
-# Embedded has issues with restarting
---source include/not_embedded.inc
-
 CREATE DATABASE WL6445;
 
 CREATE TABLE WL6445.t1(c1 INT, c2 INT, INDEX sec_idx(c2)) ENGINE=InnoDB;

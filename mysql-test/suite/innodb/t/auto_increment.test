@@ -24,8 +24,6 @@
 
 # innodb_autoinc_lock_mode is not a dynamic variable and server needs to be restarted
 # to change its value
-# Restarting is not supported in embedded
---source include/not_embedded.inc
 
 # Valgrind can hang or return spurious messages on DBUG_SUICIDE
 --source include/not_valgrind.inc

@@ -18,11 +18,14 @@
    Unit test of the Optimizer trace API (WL#5257)
 */
 
-#include <gtest/gtest.h>
-
 // First include (the generated) my_config.h, to get correct platform defines.
 #include "my_config.h"
+
+#include <gtest/gtest.h>
+#include <sys/types.h>
+
 #include "my_inttypes.h"
+#include "my_macros.h"
 
 #ifdef OPTIMIZER_TRACE
 
@@ -119,7 +122,7 @@ bool TraceContentTest::oom;
 void (*TraceContentTest::m_old_error_handler_hook)(uint, const char *, myf);
 
 
-void my_error_handler(uint error, const char *str, myf MyFlags)
+void my_error_handler(uint error, const char*, myf)
 {
   const uint EE= static_cast<uint>(EE_OUTOFMEMORY);
   EXPECT_EQ(EE, error);

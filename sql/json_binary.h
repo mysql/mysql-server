@@ -135,12 +135,14 @@
 
 #include <stddef.h>
 #include <new>
+#include <string>
 
 #include "binary_log_types.h"                   // enum_field_types
-#include "my_global.h"
 #include "my_inttypes.h"
 
+class Field_json;
 class Json_dom;
+class Json_wrapper;
 class String;
 class THD;
 
@@ -179,12 +181,15 @@ public:
     ERROR /* Not really a type. Used to signal that an
              error was detected. */
   };
+
   /**
     Does this value, and all of its members, represent a valid JSON
     value?
   */
   bool is_valid() const;
   enum_type type() const { return m_type; }
+  /// Does this value use the large storage format?
+  bool large_format() const { return m_large; }
   const char *get_data() const;
   uint32 get_data_length() const;
   int64 get_int64() const;
@@ -194,8 +199,16 @@ public:
   Value element(size_t pos) const;
   Value key(size_t pos) const;
   enum_field_types field_type() const;
-  Value lookup(const char *key, size_t len) const;
+  Value lookup(const std::string &key) const;
+  size_t lookup_index(const std::string &key) const;
+  bool is_backed_by(const String *str) const;
   bool raw_binary(const THD *thd, String *buf) const;
+  bool get_free_space(const THD *thd, size_t *space) const;
+  bool has_space(size_t pos, size_t needed, size_t *offset) const;
+  bool update_in_shadow(const THD *thd, const Field_json *field,
+                        size_t pos, Json_wrapper *new_value,
+                        size_t data_offset, size_t data_length,
+                        const char *original, char *destination) const;
 
   /** Constructor for values that represent literals or errors. */
   explicit Value(enum_type t);
@@ -277,6 +290,10 @@ private:
   */
   const bool m_large;
 
+  size_t value_entry_offset(size_t pos) const;
+  bool first_value_offset(size_t *offset) const;
+  bool element_offsets(size_t pos, size_t *start, size_t *end,
+                       bool *inlined) const;
 };
 
 /**
@@ -287,6 +304,21 @@ private:
   @return an object that allows access to the contents of the document
 */
 Value parse_binary(const char *data, size_t len);
+
+/**
+  How much space is needed for a JSON value when it is stored in the binary
+  format.
+
+  @param[in]  thd     THD handle
+  @param[in]  value   the JSON value to add to a document
+  @param[in]  large   true if the large storage format is used
+  @param[out] needed  gets set to the amount of bytes needed to store
+                      the value
+  @retval false if successful
+  @retval true if an error occurred while calculating the needed space
+*/
+bool space_needed(const THD *thd, const Json_wrapper *value,
+                  bool large, size_t *needed);
 
 }
 

@@ -19,7 +19,6 @@
 */
 
 #include <ctype.h>
-#include <my_global.h>
 #include <my_sys.h>
 #include <mysql.h>
 
@@ -30,7 +29,7 @@
 
 extern "C" {
 
-my_bool load_rewrite_rules_init(UDF_INIT *initid, UDF_ARGS *args, char *message)
+bool load_rewrite_rules_init(UDF_INIT*, UDF_ARGS*, char *message)
 {
   if (get_rewriter_plugin_info() != NULL)
     return 0;
@@ -38,8 +37,8 @@ my_bool load_rewrite_rules_init(UDF_INIT *initid, UDF_ARGS *args, char *message)
   return 1;
 }
 
-char *load_rewrite_rules(UDF_INIT *initid, UDF_ARGS *args, char *result,
-                         unsigned long *length, char *is_null, char *error)
+char *load_rewrite_rules(UDF_INIT*, UDF_ARGS*, char*,
+                         unsigned long *length, char *is_null, char*)
 {
   DBUG_ASSERT(get_rewriter_plugin_info() != NULL);
   const char *message= NULL;
@@ -54,6 +53,6 @@ char *load_rewrite_rules(UDF_INIT *initid, UDF_ARGS *args, char *result,
   return const_cast<char*>(message);
 }
 
-void load_rewrite_rules_deinit(UDF_INIT *initid) {}
+void load_rewrite_rules_deinit(UDF_INIT*) {}
 
 }

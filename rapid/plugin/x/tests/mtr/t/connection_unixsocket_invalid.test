@@ -3,7 +3,7 @@
 ## Preamble
 --source include/not_windows.inc
 --source ../include/have_performance_schema_threads.inc
---source ../include/xplugin_preamble.inc
+--source include/xplugin_preamble.inc
 
 ## Test starts here
 --write_file $MYSQL_TMP_DIR/check_unixsocket.tmp
@@ -67,7 +67,7 @@ let $restart_parameters = restart: --loose-mysqlx-socket=$MASTER_MYSOCK;
 --source ../include/restart_mysqld_and_wait_for_xplugin.inc
 
 --let $wait_for_unixsocket_status = undefined_value
- --source ../include/xplugin_install_and_wait.inc
+ --source include/xplugin_install_and_wait.inc
 
 # The legacy UNIX socket should be still valid
 connect(socket_con,localhost,root,,,,$MASTER_MYSOCK);

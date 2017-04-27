@@ -34,18 +34,21 @@
   a correct password. It shows the situation when a number of questions
   is not known in advance.
 */
+#include "my_config.h"
+
 #if defined (WIN32) && !defined (RTLD_DEFAULT)
 # define RTLD_DEFAULT GetModuleHandle(NULL)
 #endif
 
-#include <my_global.h>
-#include "my_compiler.h"
 #include <mysql.h>
 #include <mysql/client_plugin.h>
 #include <mysql/plugin_auth.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#include "my_compiler.h"
 
 #ifdef HAVE_DLFCN_H
 #include <dlfcn.h>

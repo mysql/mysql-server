@@ -1,6 +1,6 @@
 ## Test cases for unknown message types
 
---source ../include/xplugin_preamble.inc
+--source include/xplugin_preamble.inc
 
 
 ## Test starts here

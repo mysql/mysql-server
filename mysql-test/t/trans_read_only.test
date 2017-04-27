@@ -1,6 +1,3 @@
-
---source include/not_embedded.inc
-
 --echo #
 --echo # WL#5968: Implement START TRANSACTION READ (WRITE|ONLY);
 --echo #

@@ -18,11 +18,12 @@
   "EXPLAIN <command>" implementation.
 */
 
-#include "opt_explain.h"
+#include "sql/opt_explain.h"
 
 #include <limits.h>
 #include <math.h>
 #include <string.h>
+#include <sys/types.h>
 
 #include "auth_acls.h"
 #include "current_thd.h"
@@ -41,10 +42,11 @@
 #include "my_base.h"
 #include "my_bitmap.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_inttypes.h"
+#include "my_macros.h"
 #include "my_sqlcommand.h"
 #include "my_sys.h"
+#include "my_table_map.h"
 #include "my_thread_local.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/service_my_snprintf.h"
@@ -596,6 +598,13 @@ Explain_no_table::get_subquery_context(SELECT_LEX_UNIT *unit) const
 */
 bool Explain::explain_subqueries()
 {
+  /*
+    Subqueries in empty queries are neither optimized nor executed. They are
+    therefore not to be included in the explain output.
+  */
+  if (select_lex->is_empty_query())
+    return false;
+
   for (SELECT_LEX_UNIT *unit= select_lex->first_inner_unit();
        unit;
        unit= unit->next_unit())
@@ -1776,6 +1785,8 @@ bool Explain_join::explain_extra()
           !bitmap_is_set(table->write_set, (*fld)->field_index))
         continue;
       fmt->entry()->col_used_columns.push_back((*fld)->field_name);
+      if (table->is_partial_update_column(*fld))
+        fmt->entry()->col_partial_update_columns.push_back((*fld)->field_name);
     }
   }
   return false;
@@ -1923,6 +1934,10 @@ bool Explain_table::explain_extra()
   if (message)
     return fmt->entry()->col_message.set(message);
 
+  for (Field **fld= table->field; *fld != nullptr; ++fld)
+    if (table->is_partial_update_column(*fld))
+      fmt->entry()->col_partial_update_columns.push_back((*fld)->field_name);
+
   uint keyno;
   int quick_type;
   if (tab && tab->quick_optim())
@@ -2048,7 +2063,13 @@ bool explain_single_table_modification(THD *ethd,
 
   ethd->lex->explain_format->send_headers(&result);
 
-  if (!other)
+  /*
+    Optimize currently non-optimized subqueries when needed, but
+    - do not optimize subqueries for other connections, and
+    - there is no need to optimize subqueries that will not be explained
+      because they are attached to a query block that do not return any rows.
+  */
+  if (!other && !select->is_empty_query())
   {
     for (SELECT_LEX_UNIT *unit= select->first_inner_unit();
          unit;
@@ -2417,11 +2438,25 @@ void mysql_explain_other(THD *thd)
       1) Prepared statements
       2) EXPLAIN to avoid clash in EXPLAIN code
       3) statements of stored routine
+      4) Resolver has not finished (then data structures are changing too much
+        and are not safely readable).
+        m_sql_cmd is set during parsing and cleared in LEX::reset(), without
+        mutex. If we are here, the explained connection has set its qp to
+        something else than SQLCOM_END with set_query_plan(), so is in a phase
+        after parsing and before LEX::reset(). Thus we can read m_sql_cmd.
+        m_sql_cmd::m_prepared is set at end of resolution and cleared at end
+        of execution (before setting qp to SQLCOM_END), without mutex.
+        So if we see it false while it just changed to true, we'll bail out
+        which is ok; if we see it true while it just changed to false, we can
+        indeed explain as the plan is still valid and will remain so as we
+        hold the mutex.
     */
     if (!qp->is_ps_query() &&                                        // (1)
         is_explainable_query(qp->get_command()) &&
         !qp->get_lex()->describe &&                                  // (2)
-        qp->get_lex()->sphead == NULL)                               // (3)
+        qp->get_lex()->sphead == NULL &&                             // (3)
+        (!qp->get_lex()->m_sql_cmd ||
+         qp->get_lex()->m_sql_cmd->is_prepared()))                   // (4)
     {
       Security_context *tmp_sctx= query_thd->security_context();
       DBUG_ASSERT(tmp_sctx->user().str);
@@ -2440,6 +2475,11 @@ void mysql_explain_other(THD *thd)
     }
     else
     {
+      /*
+        Note that we send "not supported" for a supported stmt (e.g. SELECT)
+        which is in-parsing or in-preparation, which is a bit confusing, but
+        ok as the user is unlikely to try EXPLAIN in these short phases.
+      */
       my_error(ER_EXPLAIN_NOT_SUPPORTED, MYF(0));
       goto err;
     }

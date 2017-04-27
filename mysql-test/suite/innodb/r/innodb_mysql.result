@@ -156,7 +156,7 @@ a5 char(175) DEFAULT NULL,
 a6 timestamp NOT NULL DEFAULT '2000-01-01 01:01:01',
 a7 tinyblob,
 INDEX idx (a6,a7(239),a5)
-) ENGINE=InnoDB;
+) charset latin1 ENGINE=InnoDB;
 EXPLAIN SELECT a4 FROM t1 WHERE
 a6=NULL AND
 a4='UNcT5pIde4I6c2SheTo4gt92OV1jgJCVkXmzyf325R1DwLURkbYHwhydANIZMbKTgdcR5xS';
@@ -326,7 +326,7 @@ INSERT INTO t1 VALUES (1);
 INSERT INTO t2 VALUES (1);
 DELETE IGNORE FROM t1 WHERE i = 1;
 Warnings:
-Warning	1451	Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`i`) REFERENCES `t1` (`i`) ON DELETE NO ACTION)
+Warning	1451	Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`i`) REFERENCES `t1` (`i`))
 SELECT * FROM t1, t2;
 i	i
 1	1
@@ -350,12 +350,12 @@ insert into t1 values ( 1,"e"),(2,"a"),( 3,"c"),(4,"d");
 alter table t1 drop primary key, add primary key (f2, f1);
 explain select distinct f1 a, f1 b from t1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index	PRIMARY	PRIMARY	5	NULL	4	100.00	Using index; Using temporary
+1	SIMPLE	t1	NULL	index	PRIMARY	PRIMARY	8	NULL	4	100.00	Using index; Using temporary
 Warnings:
 Note	1003	/* select#1 */ select distinct `test`.`t1`.`f1` AS `a`,`test`.`t1`.`f1` AS `b` from `test`.`t1`
 explain select distinct f1, f2 from t1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index	PRIMARY	PRIMARY	5	NULL	4	100.00	Using index
+1	SIMPLE	t1	NULL	index	PRIMARY	PRIMARY	8	NULL	4	100.00	Using index
 Warnings:
 Note	1003	/* select#1 */ select distinct `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2` from `test`.`t1`
 drop table t1;
@@ -369,7 +369,7 @@ EXPLAIN
 SELECT COUNT(*) FROM t2 LEFT JOIN t1 ON t2.fkey = t1.id
 WHERE t1.name LIKE 'A%';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	PRIMARY,name	name	23	NULL	2	100.00	Using where; Using index
+1	SIMPLE	t1	NULL	range	PRIMARY,name	name	83	NULL	2	100.00	Using where; Using index
 1	SIMPLE	t2	NULL	ref	fkey	fkey	5	test.t1.id	1	100.00	Using index
 Warnings:
 Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t2` join `test`.`t1` where ((`test`.`t2`.`fkey` = `test`.`t1`.`id`) and (`test`.`t1`.`name` like 'A%'))
@@ -397,7 +397,7 @@ INSERT INTO t1(id, dept, age, name) VALUES
 (4020, 'cs10', 20, 'rs5'),(4027, 'cs11', 10, 'rs6'),(4028, 'cs12', 20, 'rs6');
 EXPLAIN SELECT DISTINCT t1.name, t1.dept FROM t1 WHERE t1.name='rs5';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ref	name	name	22	const	2	100.00	Using where; Using index
+1	SIMPLE	t1	NULL	ref	name	name	82	const	2	100.00	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select distinct `test`.`t1`.`name` AS `name`,`test`.`t1`.`dept` AS `dept` from `test`.`t1` where (`test`.`t1`.`name` = 'rs5')
 SELECT DISTINCT t1.name, t1.dept FROM t1 WHERE t1.name='rs5';
@@ -408,7 +408,7 @@ DELETE FROM t1;
 # Masking (#) number in "rows" column of the following EXPLAIN output, as it may vary (bug#47746).
 EXPLAIN SELECT DISTINCT t1.name, t1.dept FROM t1 WHERE t1.name='rs5';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ref	name	name	22	const	#	100.00	Using where; Using index
+1	SIMPLE	t1	NULL	ref	name	name	82	const	#	100.00	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select distinct `test`.`t1`.`name` AS `name`,`test`.`t1`.`dept` AS `dept` from `test`.`t1` where (`test`.`t1`.`name` = 'rs5')
 SELECT DISTINCT t1.name, t1.dept FROM t1 WHERE t1.name='rs5';
@@ -676,7 +676,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 COMMENT='123'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='123'
 drop table t1;
 CREATE TABLE t1 (a CHAR(2), KEY (a)) ENGINE = InnoDB DEFAULT CHARSET=UTF8;
 INSERT INTO t1 VALUES ('uk'),('bg');
@@ -1551,7 +1551,7 @@ t1	CREATE TABLE `t1` (
   `b` char(4) NOT NULL,
   UNIQUE KEY `bb` (`b`),
   UNIQUE KEY `aa` (`a`(1))
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 drop table t1;
 CREATE TABLE t1 (id int, type char(6), d int, INDEX idx(id,d)) ENGINE=InnoDB;
 INSERT INTO t1 VALUES 
@@ -1640,7 +1640,7 @@ t1	CREATE TABLE `t1` (
   PRIMARY KEY (`f1`),
   KEY `f2_ref` (`f2`),
   CONSTRAINT `f2_ref` FOREIGN KEY (`f2`) REFERENCES `t1` (`f1`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 DROP TABLE t1;
 #
 # Bug #36995: valgrind error in remove_const during subquery executions
@@ -1910,11 +1910,11 @@ t2	CREATE TABLE `t2` (
   `c` int(11) NOT NULL,
   `d` int(11) NOT NULL,
   PRIMARY KEY (`c`,`d`),
-  CONSTRAINT `c1` FOREIGN KEY (`c`) REFERENCES `t1` (`a`) ON DELETE NO ACTION,
-  CONSTRAINT `c2` FOREIGN KEY (`c`) REFERENCES `t1` (`a`) ON UPDATE NO ACTION,
-  CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`c`) REFERENCES `t1` (`a`) ON UPDATE NO ACTION,
-  CONSTRAINT `t2_ibfk_2` FOREIGN KEY (`c`) REFERENCES `t1` (`a`) ON UPDATE NO ACTION
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+  CONSTRAINT `c1` FOREIGN KEY (`c`) REFERENCES `t1` (`a`),
+  CONSTRAINT `c2` FOREIGN KEY (`c`) REFERENCES `t1` (`a`),
+  CONSTRAINT `f3` FOREIGN KEY (`c`) REFERENCES `t1` (`a`),
+  CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`c`) REFERENCES `t1` (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 DROP TABLE t2;
 DROP TABLE t1;
 create table t1 (a int auto_increment primary key) engine=innodb;
@@ -2661,7 +2661,7 @@ c >= '2009-10-09 00:00:00.001' AND c <= '2009-10-09 00:00:00.00';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` where ((`test`.`t1`.`c` >= '2009-10-09 00:00:00.001') and (`test`.`t1`.`c` <= '2009-10-09 00:00:00.00') and multiple equal('TEST', `test`.`t1`.`a`))
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` where ((`test`.`t1`.`a` = 'TEST') and (`test`.`t1`.`c` >= '2009-10-09 00:00:00.001') and (`test`.`t1`.`c` <= '2009-10-09 00:00:00.00'))
 DROP TABLE t1;
 #
 # Bug #46175: NULL read_view and consistent read assertion
@@ -2874,7 +2874,7 @@ AND f5 = 'abcdefghijklmnopwrst' AND f2 = 1221457 AND f4 = 0 ;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	range	PRIMARY,idx1,idx2	PRIMARY	4	NULL	18	0.28	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2`,`test`.`t1`.`f3` AS `f3`,`test`.`t1`.`f4` AS `f4`,`test`.`t1`.`f5` AS `f5` from `test`.`t1` where ((`test`.`t1`.`f4` = 0) and (`test`.`t1`.`f2` = 1221457) and (`test`.`t1`.`f5` = 'abcdefghijklmnopwrst') and (`test`.`t1`.`f1` in (3305028,3353871,3772880,3346860,4228206,3336022,3470988,3305175,3329875,3817277,3856380,3796193,3784744,4180925,4559596,3963734,3856391,4494153)))
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2`,`test`.`t1`.`f3` AS `f3`,`test`.`t1`.`f4` AS `f4`,`test`.`t1`.`f5` AS `f5` from `test`.`t1` where ((`test`.`t1`.`f4` = 0) and (`test`.`t1`.`f2` = 1221457) and (`test`.`t1`.`f1` in (3305028,3353871,3772880,3346860,4228206,3336022,3470988,3305175,3329875,3817277,3856380,3796193,3784744,4180925,4559596,3963734,3856391,4494153)) and (`test`.`t1`.`f5` = 'abcdefghijklmnopwrst'))
 DROP TABLE t1;
 #
 # Bug#51431 Wrong sort order after import of dump file
@@ -3026,7 +3026,7 @@ t2	CREATE TABLE `t2` (
   `fk` int(11) DEFAULT NULL,
   KEY `x` (`fk`),
   CONSTRAINT `x` FOREIGN KEY (`fk`) REFERENCES `t1` (`pk`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 drop table t2, t1;
 #
 # Test for bug #11762012 - "54553: INNODB ASSERTS IN HA_INNOBASE::
@@ -3188,5 +3188,41 @@ CREATE TABLE t1 (id int, a  int, b  int, PRIMARY KEY (id),
 INDEX a (a)) ENGINE=innodb;
 ALTER TABLE t1 DROP INDEX a, ADD INDEX a (b, a);
 ALTER TABLE t1 DROP INDEX a, ADD INDEX (a, b);
+DROP TABLE t1;
+#
+# Check the prefix index on BLOB could not be promoted to PRIMARY KEY
+#
+CREATE TABLE t1 (a INT NOT NULL, d INT NOT NULL, b TEXT NOT NULL, c TEXT,
+UNIQUE KEY (b(8) desc, a asc, d)) ENGINE = InnoDB;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `d` int(11) NOT NULL,
+  `b` text NOT NULL,
+  `c` text,
+  UNIQUE KEY `b` (`b`(8) DESC,`a`,`d`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+DROP TABLE t1;
+#
+# Bug#25650516. The problem is the index order for the old and new
+# dd::Table are different
+#
+CREATE TABLE t1 (col1 INT, col2 INT) ENGINE = InnoDB;
+ALTER TABLE t1 ADD UNIQUE KEY uidx ( col2 );
+ALTER TABLE t1 ADD UNIQUE KEY uidx ( col1 ), RENAME KEY uidx TO new_uidx;
+ALTER TABLE t1 ADD PRIMARY KEY ( col1 );
+ALTER TABLE t1 ALTER COLUMN col1 DROP DEFAULT;
+DROP TABLE t1;
+#
+# BUG 25674492 - INNODB: ASSERTION FAILURE: HA_INNODB.CC:13881
+# :DD_TABLE_MATCH(TABLE, DD_TABLE)
+#
+CREATE TABLE t1 (col1 INT, col4 TEXT) ENGINE = InnoDB ROW_FORMAT = COMPACT;
+ALTER TABLE t1 ADD KEY idx ( col1 ), ADD FULLTEXT KEY ftidx ( col4 );
+Warnings:
+Warning	124	InnoDB rebuilding table to add column FTS_DOC_ID
+ALTER TABLE t1 DROP KEY ftidx;
+TRUNCATE TABLE t1;
 DROP TABLE t1;
 End of 6.0 tests

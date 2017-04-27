@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -40,7 +40,6 @@
 #include <sys/types.h>
 
 #include "lf.h"
-#include "my_atomic.h"
 #include "my_compiler.h"
 #include "my_inttypes.h"
 #include "my_macros.h"
@@ -54,7 +53,7 @@ void lf_dynarray_init(LF_DYNARRAY *array, uint element_size)
   array->size_of_element= element_size;
 }
 
-static void recursive_free(void **alloc, int level)
+static void recursive_free(std::atomic<void *> *alloc, int level)
 {
   if (!alloc)
     return;
@@ -63,7 +62,7 @@ static void recursive_free(void **alloc, int level)
   {
     int i;
     for (i= 0; i < LF_DYNARRAY_LEVEL_LENGTH; i++)
-      recursive_free(static_cast<void**>(alloc[i]), level-1);
+      recursive_free(static_cast<std::atomic<void *> *>(alloc[i].load()), level-1);
     my_free(alloc);
   }
   else
@@ -74,7 +73,7 @@ void lf_dynarray_destroy(LF_DYNARRAY *array)
 {
   int i;
   for (i= 0; i < LF_DYNARRAY_LEVELS; i++)
-    recursive_free(static_cast<void**>(array->level[i]), i);
+    recursive_free(static_cast<std::atomic<void *> *>(array->level[i].load()), i);
 }
 
 static const ulong dynarray_idxes_in_prev_levels[LF_DYNARRAY_LEVELS]=
@@ -103,12 +102,12 @@ static const ulong dynarray_idxes_in_prev_level[LF_DYNARRAY_LEVELS]=
 */
 void *lf_dynarray_lvalue(LF_DYNARRAY *array, uint idx)
 {
-  void * ptr, * volatile * ptr_ptr= 0;
+  void * ptr;
   int i;
 
   for (i= LF_DYNARRAY_LEVELS-1; idx < dynarray_idxes_in_prev_levels[i]; i--)
     /* no-op */;
-  ptr_ptr= &array->level[i];
+  std::atomic<void *> *ptr_ptr= &array->level[i];
   idx-= dynarray_idxes_in_prev_levels[i];
   for (; i > 0; i--)
   {
@@ -119,12 +118,12 @@ void *lf_dynarray_lvalue(LF_DYNARRAY *array, uint idx)
                              MYF(MY_WME|MY_ZEROFILL));
       if (unlikely(!alloc))
         return(NULL);
-      if (my_atomic_casptr(ptr_ptr, &ptr, alloc))
+      if (atomic_compare_exchange_strong(ptr_ptr, &ptr, alloc))
         ptr= alloc;
       else
         my_free(alloc);
     }
-    ptr_ptr= ((void **)ptr) + idx / dynarray_idxes_in_prev_level[i];
+    ptr_ptr= ((std::atomic<void *> *)ptr) + idx / dynarray_idxes_in_prev_level[i];
     idx%= dynarray_idxes_in_prev_level[i];
   }
   if (!(ptr= *ptr_ptr))
@@ -146,7 +145,7 @@ void *lf_dynarray_lvalue(LF_DYNARRAY *array, uint idx)
         data+= array->size_of_element - mod;
     }
     ((void **)data)[-1]= alloc; /* free() will need the original pointer */
-    if (my_atomic_casptr(ptr_ptr, &ptr, data))
+    if (atomic_compare_exchange_strong(ptr_ptr, &ptr, static_cast<void *>(data)))
       ptr= data;
     else
       my_free(alloc);
@@ -160,18 +159,18 @@ void *lf_dynarray_lvalue(LF_DYNARRAY *array, uint idx)
 */
 void *lf_dynarray_value(LF_DYNARRAY *array, uint idx)
 {
-  void * ptr, * volatile * ptr_ptr= 0;
+  void * ptr;
   int i;
 
   for (i= LF_DYNARRAY_LEVELS-1; idx < dynarray_idxes_in_prev_levels[i]; i--)
     /* no-op */;
-  ptr_ptr= &array->level[i];
+  std::atomic<void *> *ptr_ptr= &array->level[i];
   idx-= dynarray_idxes_in_prev_levels[i];
   for (; i > 0; i--)
   {
     if (!(ptr= *ptr_ptr))
       return(NULL);
-    ptr_ptr= ((void **)ptr) + idx / dynarray_idxes_in_prev_level[i];
+    ptr_ptr= ((std::atomic<void *> *)ptr) + idx / dynarray_idxes_in_prev_level[i];
     idx %= dynarray_idxes_in_prev_level[i];
   }
   if (!(ptr= *ptr_ptr))

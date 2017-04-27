@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -395,17 +395,6 @@ page_size_t
 fsp_header_get_page_size(
 	const page_t*	page);
 
-/** Decoding the encryption info from the first page of a tablespace.
-@param[in,out]	key		key
-@param[in,out]	iv		iv
-@param[in]	encryption_info	encrytion info.
-@return true if success */
-bool
-fsp_header_decode_encryption_info(
-	byte*		key,
-	byte*		iv,
-	byte*		encryption_info);
-
 /** Reads the encryption key from the first page of a tablespace.
 @param[in]	fsp_flags	tablespace flags
 @param[in,out]	key		tablespace key
@@ -462,7 +451,7 @@ fsp_header_get_encryption_offset(
 @return true if success. */
 bool
 fsp_header_write_encryption(
-	ulint			space_id,
+	space_id_t		space_id,
 	ulint			space_flags,
 	byte*			encrypt_info,
 	bool			update_fsp_flags,
@@ -747,7 +736,7 @@ bool
 fsp_is_system_or_temp_tablespace(space_id_t space_id)
 {
 	return(space_id == TRX_SYS_SPACE
-		|| fsp_is_system_temporary(space_id));
+	       || fsp_is_system_temporary(space_id));
 }
 
 /** Determine if the space ID is an IBD tablespace, either file_per_table
@@ -774,7 +763,7 @@ fsp_is_file_per_table(
 	ulint		fsp_flags)
 {
 	return(!fsp_is_shared_tablespace(fsp_flags)
-		&& fsp_is_ibd_tablespace(space_id));
+	       && fsp_is_ibd_tablespace(space_id));
 }
 
 /** Determine if the tablespace is compressed from tablespace flags.
@@ -992,5 +981,15 @@ fsp_header_size_update(
 
 	DBUG_VOID_RETURN;
 }
+
+/** Check if a specified page is inode page or not. This is used for
+index root pages of core DD table, we can safely assume that the passed in
+page number is in the range of pages which are only either index root page
+or inode page
+@param[in]	page	Page number to check
+@return true if it's inode page, otherwise false */
+inline
+bool
+fsp_is_inode_page(page_no_t page);
 
 #endif

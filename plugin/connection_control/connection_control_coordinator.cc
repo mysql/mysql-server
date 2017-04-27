@@ -16,7 +16,7 @@
 #include "connection_control_coordinator.h"
 
 #include <my_atomic.h>
-#include <my_global.h>
+#include <sys/types.h>
 
 #include "connection_control.h"
 #include "my_dbug.h"

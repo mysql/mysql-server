@@ -18,6 +18,7 @@
 
 #include "logger.h"
 #include "my_inttypes.h"
+#include "my_io.h"
 
 namespace keyring
 {
@@ -36,8 +37,8 @@ namespace keyring
     my_off_t tell(File file, myf flags);
     int fstat(File file, MY_STAT *stat_area, myf myFlags);
     int sync(File file, myf myFlags);
-    my_bool truncate(File file, myf myFlags);
-    my_bool remove(const char *filename, myf myFlags);
+    bool truncate(File file, myf myFlags);
+    bool remove(const char *filename, myf myFlags);
   protected:
     ILogger *logger;
 

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -26,6 +26,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "lex_string.h"
 #include "my_byteorder.h"    /* uint8korr */
 #include "my_config.h"
 #include "my_dbug.h"
@@ -269,9 +270,9 @@ typedef enum {
 
 double my_strtod(const char *str, char **end, int *error);
 double my_atof(const char *nptr);
-size_t my_fcvt(double x, int precision, char *to, my_bool *error);
+size_t my_fcvt(double x, int precision, char *to, bool *error);
 size_t my_gcvt(double x, my_gcvt_arg_type type, int width, char *to,
-               my_bool *error);
+               bool *error);
 
 #define NOT_FIXED_DEC 31
 
@@ -336,19 +337,9 @@ static inline char *ullstr(longlong value, char *buff)
 }
 #endif
 
-/*
-  LEX_STRING -- a pair of a C-string and its length.
-  (it's part of the plugin API as a MYSQL_LEX_STRING)
-  Ditto LEX_CSTRING/MYSQL_LEX_CSTRING.
-*/
-
-typedef struct st_mysql_lex_string LEX_STRING;
-typedef struct st_mysql_const_lex_string LEX_CSTRING;
-
 #define STRING_WITH_LEN(X) (X), ((sizeof(X) - 1))
 #define USTRING_WITH_LEN(X) ((uchar*) X), ((sizeof(X) - 1))
 #define C_STRING_WITH_LEN(X) ((char *) (X)), ((sizeof(X) - 1))
-
 
 /**
   Skip trailing space.

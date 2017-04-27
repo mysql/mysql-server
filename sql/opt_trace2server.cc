@@ -23,6 +23,8 @@
    are defined in opt_trace2server.cc.
 */
 
+#include "my_config.h"
+
 #include <string.h>
 #include <sys/types.h>
 
@@ -31,11 +33,10 @@
 #include "binary_log_types.h"
 #include "enum_query_type.h"
 #include "field.h"
+#include "lex_string.h"
 #include "m_ctype.h"
 #include "my_compiler.h"
-#include "my_config.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_sqlcommand.h"
 #include "mysql/psi/mysql_statement.h"
@@ -522,7 +523,7 @@ void opt_trace_disable_if_no_tables_access(THD *thd, TABLE_LIST *tbl)
 } // namespace
 
 
-int fill_optimizer_trace_info(THD *thd, TABLE_LIST *tables, Item *cond)
+int fill_optimizer_trace_info(THD *thd, TABLE_LIST *tables, Item*)
 {
   TABLE *table= tables->table;
   Opt_trace_info info;

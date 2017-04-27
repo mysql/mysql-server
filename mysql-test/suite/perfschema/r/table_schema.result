@@ -185,6 +185,20 @@ def	performance_schema	events_statements_current	NO_GOOD_INDEX_USED	38	NULL	NO	b
 def	performance_schema	events_statements_current	NESTING_EVENT_ID	39	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references		
 def	performance_schema	events_statements_current	NESTING_EVENT_TYPE	40	NULL	YES	enum	11	33	NULL	NULL	NULL	utf8	utf8_general_ci	enum('TRANSACTION','STATEMENT','STAGE','WAIT')			select,insert,update,references		
 def	performance_schema	events_statements_current	NESTING_EVENT_LEVEL	41	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references		
+def	performance_schema	events_statements_histogram_by_digest	SCHEMA_NAME	1	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)	MUL		select,insert,update,references		
+def	performance_schema	events_statements_histogram_by_digest	DIGEST	2	NULL	YES	varchar	32	96	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(32)			select,insert,update,references		
+def	performance_schema	events_statements_histogram_by_digest	BUCKET_NUMBER	3	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(10) unsigned			select,insert,update,references		
+def	performance_schema	events_statements_histogram_by_digest	BUCKET_TIMER_LOW	4	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references		
+def	performance_schema	events_statements_histogram_by_digest	BUCKET_TIMER_HIGH	5	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references		
+def	performance_schema	events_statements_histogram_by_digest	COUNT_BUCKET	6	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references		
+def	performance_schema	events_statements_histogram_by_digest	COUNT_BUCKET_AND_LOWER	7	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references		
+def	performance_schema	events_statements_histogram_by_digest	BUCKET_QUANTILE	8	NULL	NO	double	NULL	NULL	7	6	NULL	NULL	NULL	double(7,6)			select,insert,update,references		
+def	performance_schema	events_statements_histogram_global	BUCKET_NUMBER	1	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(10) unsigned	PRI		select,insert,update,references		
+def	performance_schema	events_statements_histogram_global	BUCKET_TIMER_LOW	2	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references		
+def	performance_schema	events_statements_histogram_global	BUCKET_TIMER_HIGH	3	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references		
+def	performance_schema	events_statements_histogram_global	COUNT_BUCKET	4	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references		
+def	performance_schema	events_statements_histogram_global	COUNT_BUCKET_AND_LOWER	5	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references		
+def	performance_schema	events_statements_histogram_global	BUCKET_QUANTILE	6	NULL	NO	double	NULL	NULL	7	6	NULL	NULL	NULL	double(7,6)			select,insert,update,references		
 def	performance_schema	events_statements_history	THREAD_ID	1	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned	PRI		select,insert,update,references		
 def	performance_schema	events_statements_history	EVENT_ID	2	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned	PRI		select,insert,update,references		
 def	performance_schema	events_statements_history	END_EVENT_ID	3	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references		
@@ -323,6 +337,9 @@ def	performance_schema	events_statements_summary_by_digest	SUM_NO_INDEX_USED	26	
 def	performance_schema	events_statements_summary_by_digest	SUM_NO_GOOD_INDEX_USED	27	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references		
 def	performance_schema	events_statements_summary_by_digest	FIRST_SEEN	28	0000-00-00 00:00:00	NO	timestamp	NULL	NULL	NULL	NULL	0	NULL	NULL	timestamp			select,insert,update,references		
 def	performance_schema	events_statements_summary_by_digest	LAST_SEEN	29	0000-00-00 00:00:00	NO	timestamp	NULL	NULL	NULL	NULL	0	NULL	NULL	timestamp			select,insert,update,references		
+def	performance_schema	events_statements_summary_by_digest	QUANTILE_95	30	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references		
+def	performance_schema	events_statements_summary_by_digest	QUANTILE_99	31	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references		
+def	performance_schema	events_statements_summary_by_digest	QUANTILE_999	32	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references		
 def	performance_schema	events_statements_summary_by_host_by_event_name	HOST	1	NULL	YES	char	60	180	NULL	NULL	NULL	utf8	utf8_bin	char(60)	MUL		select,insert,update,references		
 def	performance_schema	events_statements_summary_by_host_by_event_name	EVENT_NAME	2	NULL	NO	varchar	128	384	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(128)			select,insert,update,references		
 def	performance_schema	events_statements_summary_by_host_by_event_name	COUNT_STAR	3	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references		
@@ -886,6 +903,8 @@ def	performance_schema	performance_timers	TIMER_NAME	1	NULL	NO	enum	11	33	NULL	N
 def	performance_schema	performance_timers	TIMER_FREQUENCY	2	NULL	YES	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(20)			select,insert,update,references		
 def	performance_schema	performance_timers	TIMER_RESOLUTION	3	NULL	YES	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(20)			select,insert,update,references		
 def	performance_schema	performance_timers	TIMER_OVERHEAD	4	NULL	YES	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(20)			select,insert,update,references		
+def	performance_schema	persisted_variables	VARIABLE_NAME	1	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)	PRI		select,insert,update,references		
+def	performance_schema	persisted_variables	VARIABLE_VALUE	2	NULL	YES	varchar	1024	3072	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(1024)			select,insert,update,references		
 def	performance_schema	prepared_statements_instances	OBJECT_INSTANCE_BEGIN	1	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned	PRI		select,insert,update,references		
 def	performance_schema	prepared_statements_instances	STATEMENT_ID	2	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned	MUL		select,insert,update,references		
 def	performance_schema	prepared_statements_instances	STATEMENT_NAME	3	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)	MUL		select,insert,update,references		
@@ -923,6 +942,16 @@ def	performance_schema	prepared_statements_instances	SUM_NO_INDEX_USED	34	NULL	N
 def	performance_schema	prepared_statements_instances	SUM_NO_GOOD_INDEX_USED	35	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references		
 def	performance_schema	replication_applier_configuration	CHANNEL_NAME	1	NULL	NO	char	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	char(64)	PRI		select,insert,update,references		
 def	performance_schema	replication_applier_configuration	DESIRED_DELAY	2	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references		
+def	performance_schema	replication_applier_filters	CHANNEL_NAME	1	NULL	NO	char	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	char(64)			select,insert,update,references		
+def	performance_schema	replication_applier_filters	FILTER_NAME	2	NULL	NO	char	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	char(64)			select,insert,update,references		
+def	performance_schema	replication_applier_filters	FILTER_RULE	3	NULL	NO	longtext	4294967295	4294967295	NULL	NULL	NULL	utf8	utf8_general_ci	longtext			select,insert,update,references		
+def	performance_schema	replication_applier_filters	CONFIGURED_BY	4	NULL	NO	enum	37	111	NULL	NULL	NULL	utf8	utf8_general_ci	enum('STARTUP_OPTIONS','CHANGE_REPLICATION_FILTER','STARTUP_OPTIONS_FOR_CHANNEL','CHANGE_REPLICATION_FILTER_FOR_CHANNEL')			select,insert,update,references		
+def	performance_schema	replication_applier_filters	ACTIVE_SINCE	5	0000-00-00 00:00:00.000000	NO	timestamp	NULL	NULL	NULL	NULL	6	NULL	NULL	timestamp(6)			select,insert,update,references		
+def	performance_schema	replication_applier_filters	COUNTER	6	0	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references		
+def	performance_schema	replication_applier_global_filters	FILTER_NAME	1	NULL	NO	char	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	char(64)			select,insert,update,references		
+def	performance_schema	replication_applier_global_filters	FILTER_RULE	2	NULL	NO	longtext	4294967295	4294967295	NULL	NULL	NULL	utf8	utf8_general_ci	longtext			select,insert,update,references		
+def	performance_schema	replication_applier_global_filters	CONFIGURED_BY	3	NULL	NO	enum	25	75	NULL	NULL	NULL	utf8	utf8_general_ci	enum('STARTUP_OPTIONS','CHANGE_REPLICATION_FILTER')			select,insert,update,references		
+def	performance_schema	replication_applier_global_filters	ACTIVE_SINCE	4	0000-00-00 00:00:00.000000	NO	timestamp	NULL	NULL	NULL	NULL	6	NULL	NULL	timestamp(6)			select,insert,update,references		
 def	performance_schema	replication_applier_status	CHANNEL_NAME	1	NULL	NO	char	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	char(64)	PRI		select,insert,update,references		
 def	performance_schema	replication_applier_status	SERVICE_STATE	2	NULL	NO	enum	3	9	NULL	NULL	NULL	utf8	utf8_general_ci	enum('ON','OFF')			select,insert,update,references		
 def	performance_schema	replication_applier_status	REMAINING_DELAY	3	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(10) unsigned			select,insert,update,references		
@@ -932,15 +961,32 @@ def	performance_schema	replication_applier_status_by_coordinator	THREAD_ID	2	NUL
 def	performance_schema	replication_applier_status_by_coordinator	SERVICE_STATE	3	NULL	NO	enum	3	9	NULL	NULL	NULL	utf8	utf8_general_ci	enum('ON','OFF')			select,insert,update,references		
 def	performance_schema	replication_applier_status_by_coordinator	LAST_ERROR_NUMBER	4	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references		
 def	performance_schema	replication_applier_status_by_coordinator	LAST_ERROR_MESSAGE	5	NULL	NO	varchar	1024	3072	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(1024)			select,insert,update,references		
-def	performance_schema	replication_applier_status_by_coordinator	LAST_ERROR_TIMESTAMP	6	CURRENT_TIMESTAMP	NO	timestamp	NULL	NULL	NULL	NULL	0	NULL	NULL	timestamp		on update CURRENT_TIMESTAMP	select,insert,update,references		
+def	performance_schema	replication_applier_status_by_coordinator	LAST_ERROR_TIMESTAMP	6	CURRENT_TIMESTAMP(6)	NO	timestamp	NULL	NULL	NULL	NULL	6	NULL	NULL	timestamp(6)		on update CURRENT_TIMESTAMP(6)	select,insert,update,references		
+def	performance_schema	replication_applier_status_by_coordinator	LAST_PROCESSED_TRANSACTION	7	NULL	YES	char	57	171	NULL	NULL	NULL	utf8	utf8_general_ci	char(57)			select,insert,update,references		
+def	performance_schema	replication_applier_status_by_coordinator	LAST_PROCESSED_TRANSACTION_ORIGINAL_COMMIT_TIMESTAMP	8	0000-00-00 00:00:00.000000	NO	timestamp	NULL	NULL	NULL	NULL	6	NULL	NULL	timestamp(6)			select,insert,update,references		
+def	performance_schema	replication_applier_status_by_coordinator	LAST_PROCESSED_TRANSACTION_IMMEDIATE_COMMIT_TIMESTAMP	9	0000-00-00 00:00:00.000000	NO	timestamp	NULL	NULL	NULL	NULL	6	NULL	NULL	timestamp(6)			select,insert,update,references		
+def	performance_schema	replication_applier_status_by_coordinator	LAST_PROCESSED_TRANSACTION_START_BUFFER_TIMESTAMP	10	0000-00-00 00:00:00.000000	NO	timestamp	NULL	NULL	NULL	NULL	6	NULL	NULL	timestamp(6)			select,insert,update,references		
+def	performance_schema	replication_applier_status_by_coordinator	LAST_PROCESSED_TRANSACTION_END_BUFFER_TIMESTAMP	11	0000-00-00 00:00:00.000000	NO	timestamp	NULL	NULL	NULL	NULL	6	NULL	NULL	timestamp(6)			select,insert,update,references		
+def	performance_schema	replication_applier_status_by_coordinator	PROCESSING_TRANSACTION	12	NULL	YES	char	57	171	NULL	NULL	NULL	utf8	utf8_general_ci	char(57)			select,insert,update,references		
+def	performance_schema	replication_applier_status_by_coordinator	PROCESSING_TRANSACTION_ORIGINAL_COMMIT_TIMESTAMP	13	0000-00-00 00:00:00.000000	NO	timestamp	NULL	NULL	NULL	NULL	6	NULL	NULL	timestamp(6)			select,insert,update,references		
+def	performance_schema	replication_applier_status_by_coordinator	PROCESSING_TRANSACTION_IMMEDIATE_COMMIT_TIMESTAMP	14	0000-00-00 00:00:00.000000	NO	timestamp	NULL	NULL	NULL	NULL	6	NULL	NULL	timestamp(6)			select,insert,update,references		
+def	performance_schema	replication_applier_status_by_coordinator	PROCESSING_TRANSACTION_START_BUFFER_TIMESTAMP	15	0000-00-00 00:00:00.000000	NO	timestamp	NULL	NULL	NULL	NULL	6	NULL	NULL	timestamp(6)			select,insert,update,references		
 def	performance_schema	replication_applier_status_by_worker	CHANNEL_NAME	1	NULL	NO	char	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	char(64)	PRI		select,insert,update,references		
 def	performance_schema	replication_applier_status_by_worker	WORKER_ID	2	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned	PRI		select,insert,update,references		
 def	performance_schema	replication_applier_status_by_worker	THREAD_ID	3	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned	MUL		select,insert,update,references		
 def	performance_schema	replication_applier_status_by_worker	SERVICE_STATE	4	NULL	NO	enum	3	9	NULL	NULL	NULL	utf8	utf8_general_ci	enum('ON','OFF')			select,insert,update,references		
-def	performance_schema	replication_applier_status_by_worker	LAST_SEEN_TRANSACTION	5	NULL	NO	char	57	171	NULL	NULL	NULL	utf8	utf8_general_ci	char(57)			select,insert,update,references		
-def	performance_schema	replication_applier_status_by_worker	LAST_ERROR_NUMBER	6	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references		
-def	performance_schema	replication_applier_status_by_worker	LAST_ERROR_MESSAGE	7	NULL	NO	varchar	1024	3072	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(1024)			select,insert,update,references		
-def	performance_schema	replication_applier_status_by_worker	LAST_ERROR_TIMESTAMP	8	CURRENT_TIMESTAMP	NO	timestamp	NULL	NULL	NULL	NULL	0	NULL	NULL	timestamp		on update CURRENT_TIMESTAMP	select,insert,update,references		
+def	performance_schema	replication_applier_status_by_worker	LAST_ERROR_NUMBER	5	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references		
+def	performance_schema	replication_applier_status_by_worker	LAST_ERROR_MESSAGE	6	NULL	NO	varchar	1024	3072	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(1024)			select,insert,update,references		
+def	performance_schema	replication_applier_status_by_worker	LAST_ERROR_TIMESTAMP	7	CURRENT_TIMESTAMP(6)	NO	timestamp	NULL	NULL	NULL	NULL	6	NULL	NULL	timestamp(6)		on update CURRENT_TIMESTAMP(6)	select,insert,update,references		
+def	performance_schema	replication_applier_status_by_worker	LAST_APPLIED_TRANSACTION	8	NULL	YES	char	57	171	NULL	NULL	NULL	utf8	utf8_general_ci	char(57)			select,insert,update,references		
+def	performance_schema	replication_applier_status_by_worker	LAST_APPLIED_TRANSACTION_ORIGINAL_COMMIT_TIMESTAMP	9	0000-00-00 00:00:00.000000	NO	timestamp	NULL	NULL	NULL	NULL	6	NULL	NULL	timestamp(6)			select,insert,update,references		
+def	performance_schema	replication_applier_status_by_worker	LAST_APPLIED_TRANSACTION_IMMEDIATE_COMMIT_TIMESTAMP	10	0000-00-00 00:00:00.000000	NO	timestamp	NULL	NULL	NULL	NULL	6	NULL	NULL	timestamp(6)			select,insert,update,references		
+def	performance_schema	replication_applier_status_by_worker	LAST_APPLIED_TRANSACTION_START_APPLY_TIMESTAMP	11	0000-00-00 00:00:00.000000	NO	timestamp	NULL	NULL	NULL	NULL	6	NULL	NULL	timestamp(6)			select,insert,update,references		
+def	performance_schema	replication_applier_status_by_worker	LAST_APPLIED_TRANSACTION_END_APPLY_TIMESTAMP	12	0000-00-00 00:00:00.000000	NO	timestamp	NULL	NULL	NULL	NULL	6	NULL	NULL	timestamp(6)			select,insert,update,references		
+def	performance_schema	replication_applier_status_by_worker	APPLYING_TRANSACTION	13	NULL	YES	char	57	171	NULL	NULL	NULL	utf8	utf8_general_ci	char(57)			select,insert,update,references		
+def	performance_schema	replication_applier_status_by_worker	APPLYING_TRANSACTION_ORIGINAL_COMMIT_TIMESTAMP	14	0000-00-00 00:00:00.000000	NO	timestamp	NULL	NULL	NULL	NULL	6	NULL	NULL	timestamp(6)			select,insert,update,references		
+def	performance_schema	replication_applier_status_by_worker	APPLYING_TRANSACTION_IMMEDIATE_COMMIT_TIMESTAMP	15	0000-00-00 00:00:00.000000	NO	timestamp	NULL	NULL	NULL	NULL	6	NULL	NULL	timestamp(6)			select,insert,update,references		
+def	performance_schema	replication_applier_status_by_worker	APPLYING_TRANSACTION_START_APPLY_TIMESTAMP	16	0000-00-00 00:00:00.000000	NO	timestamp	NULL	NULL	NULL	NULL	6	NULL	NULL	timestamp(6)			select,insert,update,references		
 def	performance_schema	replication_connection_configuration	CHANNEL_NAME	1	NULL	NO	char	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	char(64)	PRI		select,insert,update,references		
 def	performance_schema	replication_connection_configuration	HOST	2	NULL	NO	char	60	180	NULL	NULL	NULL	utf8	utf8_bin	char(60)			select,insert,update,references		
 def	performance_schema	replication_connection_configuration	PORT	3	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references		
@@ -966,11 +1012,20 @@ def	performance_schema	replication_connection_status	SOURCE_UUID	3	NULL	NO	char	
 def	performance_schema	replication_connection_status	THREAD_ID	4	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned	MUL		select,insert,update,references		
 def	performance_schema	replication_connection_status	SERVICE_STATE	5	NULL	NO	enum	10	30	NULL	NULL	NULL	utf8	utf8_general_ci	enum('ON','OFF','CONNECTING')			select,insert,update,references		
 def	performance_schema	replication_connection_status	COUNT_RECEIVED_HEARTBEATS	6	0	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references		
-def	performance_schema	replication_connection_status	LAST_HEARTBEAT_TIMESTAMP	7	CURRENT_TIMESTAMP	NO	timestamp	NULL	NULL	NULL	NULL	0	NULL	NULL	timestamp		on update CURRENT_TIMESTAMP	select,insert,update,references	Shows when the most recent heartbeat signal was received.	
+def	performance_schema	replication_connection_status	LAST_HEARTBEAT_TIMESTAMP	7	CURRENT_TIMESTAMP(6)	NO	timestamp	NULL	NULL	NULL	NULL	6	NULL	NULL	timestamp(6)		on update CURRENT_TIMESTAMP(6)	select,insert,update,references	Shows when the most recent heartbeat signal was received.	
 def	performance_schema	replication_connection_status	RECEIVED_TRANSACTION_SET	8	NULL	NO	longtext	4294967295	4294967295	NULL	NULL	NULL	utf8	utf8_general_ci	longtext			select,insert,update,references		
 def	performance_schema	replication_connection_status	LAST_ERROR_NUMBER	9	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references		
 def	performance_schema	replication_connection_status	LAST_ERROR_MESSAGE	10	NULL	NO	varchar	1024	3072	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(1024)			select,insert,update,references		
-def	performance_schema	replication_connection_status	LAST_ERROR_TIMESTAMP	11	0000-00-00 00:00:00	NO	timestamp	NULL	NULL	NULL	NULL	0	NULL	NULL	timestamp			select,insert,update,references		
+def	performance_schema	replication_connection_status	LAST_ERROR_TIMESTAMP	11	0000-00-00 00:00:00.000000	NO	timestamp	NULL	NULL	NULL	NULL	6	NULL	NULL	timestamp(6)			select,insert,update,references		
+def	performance_schema	replication_connection_status	LAST_QUEUED_TRANSACTION	12	NULL	YES	char	57	171	NULL	NULL	NULL	utf8	utf8_general_ci	char(57)			select,insert,update,references		
+def	performance_schema	replication_connection_status	LAST_QUEUED_TRANSACTION_ORIGINAL_COMMIT_TIMESTAMP	13	0000-00-00 00:00:00.000000	NO	timestamp	NULL	NULL	NULL	NULL	6	NULL	NULL	timestamp(6)			select,insert,update,references		
+def	performance_schema	replication_connection_status	LAST_QUEUED_TRANSACTION_IMMEDIATE_COMMIT_TIMESTAMP	14	0000-00-00 00:00:00.000000	NO	timestamp	NULL	NULL	NULL	NULL	6	NULL	NULL	timestamp(6)			select,insert,update,references		
+def	performance_schema	replication_connection_status	LAST_QUEUED_TRANSACTION_START_QUEUE_TIMESTAMP	15	0000-00-00 00:00:00.000000	NO	timestamp	NULL	NULL	NULL	NULL	6	NULL	NULL	timestamp(6)			select,insert,update,references		
+def	performance_schema	replication_connection_status	LAST_QUEUED_TRANSACTION_END_QUEUE_TIMESTAMP	16	0000-00-00 00:00:00.000000	NO	timestamp	NULL	NULL	NULL	NULL	6	NULL	NULL	timestamp(6)			select,insert,update,references		
+def	performance_schema	replication_connection_status	QUEUEING_TRANSACTION	17	NULL	YES	char	57	171	NULL	NULL	NULL	utf8	utf8_general_ci	char(57)			select,insert,update,references		
+def	performance_schema	replication_connection_status	QUEUEING_TRANSACTION_ORIGINAL_COMMIT_TIMESTAMP	18	0000-00-00 00:00:00.000000	NO	timestamp	NULL	NULL	NULL	NULL	6	NULL	NULL	timestamp(6)			select,insert,update,references		
+def	performance_schema	replication_connection_status	QUEUEING_TRANSACTION_IMMEDIATE_COMMIT_TIMESTAMP	19	0000-00-00 00:00:00.000000	NO	timestamp	NULL	NULL	NULL	NULL	6	NULL	NULL	timestamp(6)			select,insert,update,references		
+def	performance_schema	replication_connection_status	QUEUEING_TRANSACTION_START_QUEUE_TIMESTAMP	20	0000-00-00 00:00:00.000000	NO	timestamp	NULL	NULL	NULL	NULL	6	NULL	NULL	timestamp(6)			select,insert,update,references		
 def	performance_schema	replication_group_members	CHANNEL_NAME	1	NULL	NO	char	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	char(64)			select,insert,update,references		
 def	performance_schema	replication_group_members	MEMBER_ID	2	NULL	NO	char	36	108	NULL	NULL	NULL	utf8	utf8_bin	char(36)			select,insert,update,references		
 def	performance_schema	replication_group_members	MEMBER_HOST	3	NULL	NO	char	60	180	NULL	NULL	NULL	utf8	utf8_bin	char(60)			select,insert,update,references		
@@ -1269,6 +1324,9 @@ def	performance_schema	variables_info	VARIABLE_SOURCE	2	COMPILED	YES	enum	12	36	
 def	performance_schema	variables_info	VARIABLE_PATH	3	NULL	YES	varchar	1024	3072	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(1024)			select,insert,update,references		
 def	performance_schema	variables_info	MIN_VALUE	4	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select,insert,update,references		
 def	performance_schema	variables_info	MAX_VALUE	5	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select,insert,update,references		
+def	performance_schema	variables_info	SET_TIME	6	CURRENT_TIMESTAMP	NO	timestamp	NULL	NULL	NULL	NULL	0	NULL	NULL	timestamp			select,insert,update,references		
+def	performance_schema	variables_info	SET_USER	7	NULL	YES	char	32	96	NULL	NULL	NULL	utf8	utf8_bin	char(32)			select,insert,update,references		
+def	performance_schema	variables_info	SET_HOST	8	NULL	YES	char	60	180	NULL	NULL	NULL	utf8	utf8_bin	char(60)			select,insert,update,references		
 select count(*) from information_schema.columns
 where table_schema="performance_schema" and data_type = "bigint"
    and column_name like "%number_of_bytes" into @count_byte_columns;

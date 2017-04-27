@@ -22,10 +22,8 @@
 
 #include "dd/impl/raw/raw_record.h"
 #include "dd/impl/types/entity_object_impl.h" // dd::Entity_object_impl
-#include "dd/types/dictionary_object_table.h" // dd::Dictionary_object_table
 #include "dd/types/object_type.h"             // dd::Object_type
 #include "dd/types/table_stat.h"              // dd::Table_stat
-#include "my_global.h"
 #include "my_inttypes.h"
 
 namespace dd {
@@ -61,7 +59,7 @@ public:
 public:
   virtual void debug_print(String_type &outb) const;
 
-  virtual const Dictionary_object_table &object_table() const
+  virtual const Object_table &object_table() const
   { return Table_stat::OBJECT_TABLE(); }
 
   virtual bool validate() const;
@@ -197,10 +195,10 @@ public:
   virtual bool has_new_primary_key() const;
 
   // Fix "inherits ... via dominance" warnings
-  virtual Weak_object_impl *impl()
-  { return Weak_object_impl::impl(); }
-  virtual const Weak_object_impl *impl() const
-  { return Weak_object_impl::impl(); }
+  virtual Entity_object_impl *impl()
+  { return Entity_object_impl::impl(); }
+  virtual const Entity_object_impl *impl() const
+  { return Entity_object_impl::impl(); }
   virtual Object_id id() const
   { return Entity_object_impl::id(); }
   virtual bool is_persistent() const

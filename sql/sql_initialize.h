@@ -19,7 +19,6 @@
 #include <string>
 
 #include "bootstrap_impl.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 
 class Compiled_in_command_iterator : public bootstrap::Command_iterator
@@ -38,7 +37,7 @@ private:
   bool is_active;
 };
 
-extern my_bool opt_initialize_insecure;
+extern bool opt_initialize_insecure;
 bool initialize_create_data_directory(const char *data_home);
 
 #endif /* SQL_INITIALIZE_H */

@@ -2470,6 +2470,9 @@ SELECT ST_ASTEXT(ST_GEOMFROMGEOJSON("{ \"type\": \"Point\", \"coordinates\": [42
 
 SELECT ST_ASTEXT(ST_GEOMFROMGEOJSON("{ \"type\": \"Point\", \"coordinates\": [18446744073709551615, 9223372036854775807] }"));
 
+--error ER_INVALID_JSON_TEXT_IN_PARAM
+SELECT ST_AsGeoJSON(ST_GeomFromGeoJSON('{"type":"Point","coordinates":[2e308,-0]}'));
+
 #####################################################################
 # BUG#19341961
 #####################################################################

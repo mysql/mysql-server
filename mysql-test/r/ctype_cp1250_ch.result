@@ -1,8 +1,8 @@
 drop table if exists t1;
 DROP TABLE IF EXISTS t1;
 SHOW COLLATION LIKE 'cp1250_czech_cs';
-Collation	Charset	Id	Default	Compiled	Sortlen
-cp1250_czech_cs	cp1250	34		Yes	2
+Collation	Charset	Id	Default	Compiled	Sortlen	Pad_attribute
+cp1250_czech_cs	cp1250	34		Yes	2	PAD SPACE
 SET @test_character_set= 'cp1250';
 SET @test_collation= 'cp1250_general_ci';
 SET @safe_character_set_server= @@character_set_server;
@@ -571,72 +571,6 @@ BBAD0103
 select hex(weight_string(cast(_latin1 0xDF6368 as char),25, 4,0xC0));
 hex(weight_string(cast(_latin1 0xDF6368 as char),25, 4,0xC0))
 BBAD0103000000000000000000000000000000000000000000
-select @@collation_connection;
-@@collation_connection
-cp1250_czech_cs
-select hex(weight_string('a' LEVEL 1));
-hex(weight_string('a' LEVEL 1))
-A4
-select hex(weight_string('A' LEVEL 1));
-hex(weight_string('A' LEVEL 1))
-A4
-select hex(weight_string('abc' LEVEL 1));
-hex(weight_string('abc' LEVEL 1))
-A4A5A6
-select hex(weight_string('abc' as char(2) LEVEL 1));
-hex(weight_string('abc' as char(2) LEVEL 1))
-A4A5
-select hex(weight_string('abc' as char(3) LEVEL 1));
-hex(weight_string('abc' as char(3) LEVEL 1))
-A4A5A6
-select hex(weight_string('abc' as char(5) LEVEL 1));
-hex(weight_string('abc' as char(5) LEVEL 1))
-A4A5A6
-select hex(weight_string('abc' as char(5) LEVEL 1 REVERSE));
-hex(weight_string('abc' as char(5) LEVEL 1 REVERSE))
-A4A5A6
-select hex(weight_string('abc' as char(5) LEVEL 1 DESC));
-hex(weight_string('abc' as char(5) LEVEL 1 DESC))
-A4A5A6
-select hex(weight_string('abc' as char(5) LEVEL 1 DESC REVERSE));
-hex(weight_string('abc' as char(5) LEVEL 1 DESC REVERSE))
-A4A5A6
-select @@collation_connection;
-@@collation_connection
-cp1250_czech_cs
-select hex(weight_string('a' LEVEL 2));
-hex(weight_string('a' LEVEL 2))
-02
-select hex(weight_string('A' LEVEL 2));
-hex(weight_string('A' LEVEL 2))
-01
-select hex(weight_string('abc' LEVEL 2));
-hex(weight_string('abc' LEVEL 2))
-020202
-select hex(weight_string('abc' as char(2) LEVEL 2));
-hex(weight_string('abc' as char(2) LEVEL 2))
-0202
-select hex(weight_string('abc' as char(3) LEVEL 2));
-hex(weight_string('abc' as char(3) LEVEL 2))
-020202
-select hex(weight_string('abc' as char(5) LEVEL 2));
-hex(weight_string('abc' as char(5) LEVEL 2))
-020202
-select @@collation_connection;
-@@collation_connection
-cp1250_czech_cs
-select hex(weight_string('a' LEVEL 1,2));
-hex(weight_string('a' LEVEL 1,2))
-A402
-select hex(weight_string('a' LEVEL 1-2));
-hex(weight_string('a' LEVEL 1-2))
-A402
-select hex(weight_string('A' LEVEL 1,2));
-hex(weight_string('A' LEVEL 1,2))
-A401
-select hex(weight_string('A' LEVEL 1-2));
-hex(weight_string('A' LEVEL 1-2))
-A401
 #
 # Bugs#12635232: VALGRIND WARNINGS: IS_IPV6, IS_IPV4, INET6_ATON,
 # INET6_NTOA + MULTIBYTE CHARSET.

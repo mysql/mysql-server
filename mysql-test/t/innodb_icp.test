@@ -1,4 +1,3 @@
-
 set optimizer_switch='index_condition_pushdown=on';
 
 --disable_query_log

@@ -32,6 +32,9 @@ Created 9/5/1995 Heikki Tuuri
 
 #include "sync0arr.h"
 
+#include <sys/types.h>
+#include <time.h>
+
 #include "ha_prototypes.h"
 #include "lock0lock.h"
 #include "my_inttypes.h"
@@ -1194,7 +1197,7 @@ sync_array_print_long_waits(
 
 		os_thread_sleep(30000000);
 
-		srv_print_innodb_monitor = static_cast<my_bool>(old_val);
+		srv_print_innodb_monitor = static_cast<bool>(old_val);
 		fprintf(stderr,
 			"InnoDB: ###### Diagnostic info printed"
 			" to the standard error stream\n");

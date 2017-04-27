@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -22,26 +22,13 @@
 
 #include "ngs_common/smart_ptr.h"
 #include "ngs_common/bind.h"
+#include "my_compiler.h"
 
 #include <mysql/plugin.h>
 
 namespace ngs
 {
 extern unsigned int x_psf_objects_key;
-
-template <typename Type>
-void Custom_allocator_default_delete(Type *ptr)
-{
-  delete ptr;
-}
-
-
-template <typename Type, typename DeleterType = ngs::function<void (Type *value_ptr)> >
-struct Custom_allocator
-{
-  typedef ngs::unique_ptr<Type, DeleterType > Unique_ptr;
-};
-
 
 namespace detail
 {
@@ -63,7 +50,7 @@ public:
     typedef PFS_allocator<U> other;
   };
 
-  T *allocate(size_t n, const void *hint = 0)
+  T *allocate(size_t n, const void *hint MY_ATTRIBUTE((unused)) = 0)
   {
     return reinterpret_cast<T*>
           (my_malloc(x_psf_objects_key, sizeof(T) * n, MYF(MY_WME) ));

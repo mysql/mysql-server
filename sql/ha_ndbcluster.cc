@@ -106,9 +106,9 @@ static char* opt_ndb_recv_thread_cpu_mask;
 static char* opt_ndb_index_stat_option;
 static char* opt_ndb_connectstring;
 static uint opt_ndb_nodeid;
-static my_bool opt_ndb_read_backup;
+static bool opt_ndb_read_backup;
 static ulong opt_ndb_data_node_neighbour;
-static my_bool opt_ndb_fully_replicated;
+static bool opt_ndb_fully_replicated;
 
 #define MYSQL_VERSION_NDB_DEFAULT_COLUMN_FORMAT_DYNAMIC 50711
 enum ndb_default_colum_format_enum {
@@ -14288,7 +14288,8 @@ int ndbcluster_init(void* p)
     ndbcluster_binlog_init(h);
     h->flags=            HTON_CAN_RECREATE |
                          HTON_TEMPORARY_NOT_SUPPORTED |
-                         HTON_NO_BINLOG_ROW_OPT;
+                         HTON_NO_BINLOG_ROW_OPT |
+                         HTON_SUPPORTS_FOREIGN_KEYS;
     h->discover=         ndbcluster_discover;
     h->find_files=       ndbcluster_find_files;
     h->table_exists_in_engine= ndbcluster_table_exists_in_engine;
@@ -14989,7 +14990,7 @@ uint ndb_get_commitcount(THD *thd, const char *norm_name,
 
 */
 
-static my_bool
+static bool
 ndbcluster_cache_retrieval_allowed(THD *thd,
                                    const char *full_name, uint full_name_len,
                                    ulonglong *engine_data)
@@ -15076,7 +15077,7 @@ ndbcluster_cache_retrieval_allowed(THD *thd,
     FALSE No, don't cach the query
 */
 
-my_bool
+bool
 ha_ndbcluster::register_query_cache_table(THD *thd,
                                           char *full_name,
                                           size_t full_name_len,
@@ -15403,6 +15404,9 @@ NDB_SHARE::create(const char* key, TABLE* table)
   share->new_op= 0;
   share->event_data= 0;
   share->stored_columns.bitmap= 0;
+
+  // NDB_SHARE has been allocated with zerofill, just verify pointer is NULL
+  DBUG_ASSERT(share->inplace_alter_new_table_def == nullptr);
 
   if (ndbcluster_binlog_init_share(current_thd, share, table))
   {
@@ -16060,7 +16064,7 @@ multi_range_max_ranges(int num_ranges, ulong bufsize)
 
 /* Return the size in HANDLER_BUFFER of a variable-sized entry. */
 static ulong
-multi_range_entry_size(my_bool use_keyop, ulong reclength)
+multi_range_entry_size(bool use_keyop, ulong reclength)
 {
   /* Space for type byte. */
   ulong len= 1;
@@ -16092,7 +16096,7 @@ multi_range_entry_type(uchar *p)
 static uchar *
 multi_range_next_entry(uchar *p, ulong reclength)
 {
-  my_bool use_keyop= multi_range_entry_type(p) < enum_ordered_range;
+  bool use_keyop= multi_range_entry_type(p) < enum_ordered_range;
   return p + multi_range_entry_size(use_keyop, reclength);
 }
 
@@ -16128,7 +16132,7 @@ multi_range_put_custom(HANDLER_BUFFER *buffer, int range_no, char *custom)
   If a scan is not needed, we use a faster primary/unique key operation
   instead.
 */
-static my_bool
+static bool
 read_multi_needs_scan(NDB_INDEX_TYPE cur_index_type, const KEY *key_info,
                       const KEY_MULTI_RANGE *r, bool is_pushed)
 {
@@ -16489,7 +16493,7 @@ int ha_ndbcluster::multi_range_start_retrievals(uint starting_range)
   {
     if (range_no >= max_range)
       break;
-    my_bool need_scan=
+    bool need_scan=
       read_multi_needs_scan(cur_index_type, key_info, &mrr_cur_range, is_pushed);
     if (row_buf + multi_range_entry_size(!need_scan, reclength) > end_of_buffer)
       break;
@@ -19313,7 +19317,8 @@ bool
 ha_ndbcluster::commit_inplace_alter_table(TABLE *altered_table,
                                           Alter_inplace_info *ha_alter_info,
                                           bool commit,
-                                          const dd::Table *, dd::Table *)
+                                          const dd::Table*,
+                                          dd::Table* new_table_def)
 {
   DBUG_ENTER("ha_ndbcluster::commit_inplace_alter_table");
 
@@ -19334,11 +19339,18 @@ ha_ndbcluster::commit_inplace_alter_table(TABLE *altered_table,
   const Uint32 table_id= alter_data->table_id;
   const Uint32 table_version= alter_data->old_table_version;
 
+  // Pass pointer to table_def for usage by schema dist participant
+  // in the binlog thread of this mysqld.
+  m_share->inplace_alter_new_table_def = new_table_def;
+
   ndbcluster_log_schema_op(thd, thd->query().str, thd->query().length,
                            db, name,
                            table_id, table_version,
                            SOT_ONLINE_ALTER_TABLE_PREPARE,
                            NULL, NULL);
+
+  // The pointer to new table_def is not valid anymore
+  m_share->inplace_alter_new_table_def = nullptr;
 
   delete alter_data;
   ha_alter_info->handler_ctx= 0;
@@ -20575,35 +20587,49 @@ static MYSQL_SYSVAR_ULONG(
   0                                    /* block        */
 );
 
-my_bool opt_ndb_log_update_as_write;
+bool opt_ndb_log_update_as_write;
 static MYSQL_SYSVAR_BOOL(
   log_update_as_write,               /* name */
   opt_ndb_log_update_as_write,       /* var */
   PLUGIN_VAR_OPCMDARG,
   "For efficiency log only after image as a write event. "
-  "Ignore before image. This may cause compatability problems if "
+  "Ignore before image. This may cause compatibility problems if "
   "replicating to other storage engines than ndbcluster.",
   NULL,                              /* check func. */
   NULL,                              /* update func. */
   1                                  /* default */
 );
 
+bool opt_ndb_log_update_minimal;
+static MYSQL_SYSVAR_BOOL(
+  log_update_minimal,                  /* name */
+  opt_ndb_log_update_minimal,          /* var */
+  PLUGIN_VAR_OPCMDARG,
+  "For efficiency, log updates in a minimal format"
+  "Log only the primary key value(s) in the before "
+  "image. Log only the changed columns in the after "
+  "image. This may cause compatibility problems if "
+  "replicating to other storage engines than ndbcluster.",
+  NULL,                              /* check func. */
+  NULL,                              /* update func. */
+  0                                  /* default */
+);
 
-my_bool opt_ndb_log_updated_only;
+bool opt_ndb_log_updated_only;
 static MYSQL_SYSVAR_BOOL(
   log_updated_only,                  /* name */
   opt_ndb_log_updated_only,          /* var */
   PLUGIN_VAR_OPCMDARG,
   "For efficiency log only updated columns. Columns are considered "
   "as \"updated\" even if they are updated with the same value. "
-  "This may cause compatability problems if "
+  "This may cause compatibility problems if "
   "replicating to other storage engines than ndbcluster.",
   NULL,                              /* check func. */
   NULL,                              /* update func. */
   1                                  /* default */
 );
 
-my_bool opt_ndb_log_empty_update;
+bool opt_ndb_log_empty_update;
 static MYSQL_SYSVAR_BOOL(
   log_empty_update,                  /* name */
   opt_ndb_log_empty_update,          /* var */
@@ -20619,7 +20645,7 @@ static MYSQL_SYSVAR_BOOL(
   0                                  /* default */
 );
 
-my_bool opt_ndb_log_orig;
+bool opt_ndb_log_orig;
 static MYSQL_SYSVAR_BOOL(
   log_orig,                          /* name */
   opt_ndb_log_orig,                  /* var */
@@ -20633,7 +20659,7 @@ static MYSQL_SYSVAR_BOOL(
 );
 
 
-my_bool opt_ndb_log_bin;
+bool opt_ndb_log_bin;
 static MYSQL_SYSVAR_BOOL(
   log_bin,                           /* name */
   opt_ndb_log_bin,                   /* var */
@@ -20646,7 +20672,7 @@ static MYSQL_SYSVAR_BOOL(
 );
 
 
-my_bool opt_ndb_log_binlog_index;
+bool opt_ndb_log_binlog_index;
 static MYSQL_SYSVAR_BOOL(
   log_binlog_index,                  /* name */
   opt_ndb_log_binlog_index,          /* var */
@@ -20659,7 +20685,7 @@ static MYSQL_SYSVAR_BOOL(
 );
 
 
-static my_bool opt_ndb_log_empty_epochs;
+static bool opt_ndb_log_empty_epochs;
 static MYSQL_SYSVAR_BOOL(
   log_empty_epochs,                  /* name */
   opt_ndb_log_empty_epochs,          /* var */
@@ -20675,7 +20701,7 @@ bool ndb_log_empty_epochs(void)
   return opt_ndb_log_empty_epochs;
 }
 
-my_bool opt_ndb_log_apply_status;
+bool opt_ndb_log_apply_status;
 static MYSQL_SYSVAR_BOOL(
   log_apply_status,                 /* name */
   opt_ndb_log_apply_status,         /* var */
@@ -20687,7 +20713,7 @@ static MYSQL_SYSVAR_BOOL(
 );
 
 
-my_bool opt_ndb_log_transaction_id;
+bool opt_ndb_log_transaction_id;
 static MYSQL_SYSVAR_BOOL(
   log_transaction_id,               /* name */
   opt_ndb_log_transaction_id,       /* var  */
@@ -20698,7 +20724,7 @@ static MYSQL_SYSVAR_BOOL(
   0                                 /* default */
 );
 
-my_bool opt_ndb_clear_apply_status;
+bool opt_ndb_clear_apply_status;
 static MYSQL_SYSVAR_BOOL(
   clear_apply_status,               /* name */
   opt_ndb_clear_apply_status,       /* var  */
@@ -20930,6 +20956,7 @@ static struct st_mysql_sys_var* system_variables[]= {
   MYSQL_SYSVAR(eventbuffer_free_percent),
   MYSQL_SYSVAR(log_update_as_write),
   MYSQL_SYSVAR(log_updated_only),
+  MYSQL_SYSVAR(log_update_minimal),
   MYSQL_SYSVAR(log_empty_update),
   MYSQL_SYSVAR(log_orig),
   MYSQL_SYSVAR(distribution),

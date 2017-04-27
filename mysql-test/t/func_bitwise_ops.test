@@ -59,7 +59,8 @@ SELECT HEX(vbin1 ^ vbin2) FROM t WHERE id=8;
 --echo # show output type
 --echo #
 CREATE TABLE t0(vbin VARBINARY(6), bin BINARY(6));
-CREATE TABLE t1 AS SELECT vbin & vbin, vbin & bin, bin & vbin, bin & bin FROM t0;
+CREATE TABLE t1  charset utf8mb4
+AS SELECT vbin & vbin, vbin & bin, bin & vbin, bin & bin FROM t0;
 SHOW CREATE TABLE t1;
 DROP TABLE t0;
 DROP TABLE t1;

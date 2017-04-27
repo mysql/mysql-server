@@ -15,8 +15,8 @@
 
 #include "dd/impl/types/tablespace_impl.h"
 
-#include <string.h>
 #include <memory>
+#include <string.h>
 #include <sstream>
 
 #include "dd/impl/properties_impl.h"             // Properties_impl
@@ -35,7 +35,6 @@
 #include "dd/types/tablespace_file.h"
 #include "dd/types/weak_object.h"
 #include "m_string.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysqld_error.h"                        // ER_*
@@ -54,7 +53,7 @@ class Sdi_wcontext;
 // Tablespace implementation.
 ///////////////////////////////////////////////////////////////////////////
 
-const Dictionary_object_table &Tablespace::OBJECT_TABLE()
+const Entity_object_table &Tablespace::OBJECT_TABLE()
 {
   return Tablespaces::instance();
 }

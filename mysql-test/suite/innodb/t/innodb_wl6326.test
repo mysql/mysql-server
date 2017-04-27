@@ -4,7 +4,6 @@
 
 --source include/have_debug.inc
 --source include/have_debug_sync.inc
---source include/have_innodb_16k.inc
 
 --disable_query_log
 SET @old_innodb_limit_optimistic_insert_debug = @@innodb_limit_optimistic_insert_debug;
@@ -34,7 +33,7 @@ CREATE TABLE t1 (
   a05 CHAR(255) NOT NULL DEFAULT 'a',
   a06 CHAR(255) NOT NULL DEFAULT 'a',
   b INT NOT NULL DEFAULT 0
-) ENGINE = InnoDB;
+) charset latin1 ENGINE = InnoDB;
 
 ALTER TABLE t1 ADD CONSTRAINT pkey PRIMARY KEY(
   a00,

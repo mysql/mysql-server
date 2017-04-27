@@ -31,7 +31,7 @@ userC
 # This event sequence pattern MUST NOT be present in binlog: !Q(RENAME USER.*userA.*TO.*userX.*,.*user_ne1.*TO.*user_ne2.*,.*userC.*TO.*userZ.*)
 include/assert_binlog_events.inc
 # Insert an entry in mysql.user table but do not execute FLUSH PRIVILEGES
-CREATE TEMPORARY TABLE mysql.tmp_user LIKE mysql.user;
+CREATE TABLE mysql.tmp_user LIKE mysql.user;
 INSERT INTO mysql.tmp_user SELECT * FROM mysql.user WHERE user LIKE 'userC';
 UPDATE mysql.tmp_user SET user='userZ' WHERE user LIKE 'userC';
 INSERT INTO mysql.user SELECT * FROM mysql.tmp_user;

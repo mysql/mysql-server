@@ -131,8 +131,6 @@ mysql_server_end
 mysql_set_character_set
 mysql_get_character_set_info
 mysql_stmt_next_result
-# Since its already documented we will keep it. FR will be created to redesign.
-my_init
 mysql_client_find_plugin
 mysql_client_register_plugin
 mysql_load_plugin
@@ -215,6 +213,10 @@ IF(WIN32)
   LIST(APPEND LIBS auth_win_client)
 ENDIF()
 
+# LDAP authentication SASL client plugin
+MESSAGE(STATUS "Creating LDAP authentication SASL client library.")
+ADD_SUBDIRECTORY(authentication_ldap)
+  
 # Merge several convenience libraries into one big mysqlclient
 MERGE_LIBRARIES(mysqlclient STATIC ${LIBS} COMPONENT Development)
 
@@ -322,3 +324,4 @@ IF(DISABLE_SHARED)
 ELSE()
   TARGET_LINK_LIBRARIES(libmysql_api_test libmysql)
 ENDIF()
+

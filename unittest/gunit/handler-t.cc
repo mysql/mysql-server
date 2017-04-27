@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,12 +13,15 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
-#include "handler-t.h"
-#include "test_utils.h"
+#include "unittest/gunit/handler-t.h"
+
+#include <stddef.h>
+#include <sys/types.h>
+
 #include "fake_table.h"
 #include "mock_field_datetime.h"
-
 #include "sql_executor.h"
+#include "test_utils.h"
 
 /*
   HAVE_UBSAN: undefined behaviour in gmock.

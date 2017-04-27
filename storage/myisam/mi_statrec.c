@@ -16,9 +16,11 @@
 	/* Functions to handle fixed-length-records */
 
 #include <fcntl.h>
+#include <sys/types.h>
 
 #include "my_dbug.h"
 #include "my_inttypes.h"
+#include "my_io.h"
 #include "myisam_sys.h"
 #include "myisamdef.h"
 
@@ -203,7 +205,7 @@ int _mi_read_static_record(MI_INFO *info, my_off_t pos,
 
 int _mi_read_rnd_static_record(MI_INFO *info, uchar *buf,
 			       my_off_t filepos,
-			       my_bool skip_deleted_blocks)
+			       bool skip_deleted_blocks)
 {
   int locked,error,cache_read;
   uint cache_length;
@@ -241,7 +243,7 @@ int _mi_read_rnd_static_record(MI_INFO *info, uchar *buf,
       if ((! cache_read || share->base.reclength > cache_length) &&
 	  share->tot_locks == 0)
       {						/* record not in cache */
-	if (my_lock(share->kfile,F_RDLCK,0L,F_TO_EOF,
+	if (my_lock(share->kfile,F_RDLCK,
 		    MYF(MY_SEEK_NOT_DONE) | info->lock_wait))
 	  DBUG_RETURN(my_errno());
 	locked=1;

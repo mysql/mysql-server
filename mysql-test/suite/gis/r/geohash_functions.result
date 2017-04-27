@@ -1957,3 +1957,19 @@ VALUES (11111111, 1, 'TEST11111111', 'Foo', 11111111, 'FOOBAR', '');
 SELECT ST_GEOHASH(ST_GEOMFROMTEXT('POINT(0 0)', 11111111), 10);
 ERROR SR002: Can't parse the spatial reference system definition of SRID 11111111.
 DELETE FROM mysql.st_spatial_reference_systems WHERE id = 11111111;
+#
+# Bug#25912557 ST_LATFROMGEOHASH/ST_LONGFROMGEOHASH ODD INPUT TYPE
+#              REQUIREMENT
+#
+CREATE TABLE t1 (col1 CHAR(4));
+INSERT INTO t1 VALUES ('bbbb');
+SELECT ST_LatFromGeohash(col1) FROM t1;
+ST_LatFromGeohash(col1)
+49.3
+SELECT ST_LongFromGeohash(col1) FROM t1;
+ST_LongFromGeohash(col1)
+-145
+SELECT ST_AsText(ST_PointFromGeohash(col1, 4326)) FROM t1;
+ST_AsText(ST_PointFromGeohash(col1, 4326))
+POINT(49.3 -145)
+DROP TABLE t1;

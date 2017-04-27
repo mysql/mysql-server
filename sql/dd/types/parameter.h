@@ -16,10 +16,9 @@
 #ifndef DD__PARAMETER_INCLUDED
 #define DD__PARAMETER_INCLUDED
 
-#include "my_global.h"
-
 #include "dd/types/column.h"         // dd::Column::enum_column_types
 #include "dd/types/entity_object.h"  // dd::Entity_object
+#include "my_inttypes.h"
 
 namespace dd {
 

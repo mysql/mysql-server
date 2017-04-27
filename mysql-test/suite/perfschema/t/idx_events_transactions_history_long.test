@@ -1,7 +1,5 @@
 # Tests for PERFORMANCE_SCHEMA
 
---source include/not_embedded.inc
-
 # There are no indexes on this table.
 
 show create table performance_schema.events_transactions_history_long;

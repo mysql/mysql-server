@@ -24,9 +24,16 @@
   Please keep the test framework tools identical in all versions!
 */
 
+#include "my_config.h"
+
+#ifdef MY_MSCRT_DEBUG
+#include <crtdbg.h>
+#endif
+#include <assert.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <hash.h>
+#include <limits.h>
 #include <m_ctype.h>
 #include <mf_wcomp.h>   // wild_compare
 #include <my_dir.h>
@@ -35,13 +42,17 @@
 #include <sql_common.h>
 #include <stdarg.h>
 #include <stdlib.h>
+#include <sys/types.h>
 #include <violite.h>
+#include <cmath> // std::isinf
 
 #include "client_priv.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_default.h"
 #include "my_inttypes.h"
+#include "my_io.h"
+#include "my_macros.h"
 #include "my_pointer_arithmetic.h"
 #include "my_regex.h" /* Our own version of regex */
 #include "my_thread_local.h"
@@ -89,6 +100,7 @@ extern CHARSET_INFO my_charset_utf16le_bin;
 #define MAX_COLUMNS            256
 #define MAX_DELIMITER_LENGTH 16
 #define DEFAULT_MAX_CONN       128
+#define REPLACE_ROUND_MAX      16
 
 /* Flags controlling send and reap */
 #define QUERY_SEND_FLAG  1
@@ -124,8 +136,8 @@ extern CHARSET_INFO my_charset_utf16le_bin;
 
 C_MODE_START
 static void signal_handler(int sig);
-static my_bool get_one_option(int optid, const struct my_option *,
-                              char *argument);
+static bool get_one_option(int optid, const struct my_option *,
+                           char *argument);
 C_MODE_END
 
 enum {
@@ -147,44 +159,44 @@ static int opt_port= 0;
 static int opt_max_connect_retries;
 static int opt_result_format_version;
 static int opt_max_connections= DEFAULT_MAX_CONN;
-static my_bool opt_compress= 0, silent= 0, verbose= 0, trace_exec= 0;
-static my_bool debug_info_flag= 0, debug_check_flag= 0;
-static my_bool tty_password= 0;
-static my_bool opt_mark_progress= 0;
-static my_bool ps_protocol= 0, ps_protocol_enabled= 0;
-static my_bool sp_protocol= 0, sp_protocol_enabled= 0;
-static my_bool no_skip=0;
-static my_bool view_protocol= 0, view_protocol_enabled= 0;
-static my_bool opt_trace_protocol= 0, opt_trace_protocol_enabled= 0;
-static my_bool explain_protocol= 0, explain_protocol_enabled= 0;
-static my_bool json_explain_protocol= 0, json_explain_protocol_enabled= 0;
-static my_bool cursor_protocol= 0, cursor_protocol_enabled= 0;
-static my_bool parsing_disabled= 0;
-static my_bool display_result_vertically= FALSE, display_result_lower= FALSE,
+static bool opt_compress= 0, silent= 0, verbose= 0, trace_exec= 0;
+static bool debug_info_flag= 0, debug_check_flag= 0;
+static bool tty_password= 0;
+static bool opt_mark_progress= 0;
+static bool ps_protocol= 0, ps_protocol_enabled= 0;
+static bool sp_protocol= 0, sp_protocol_enabled= 0;
+static bool no_skip=0;
+static bool view_protocol= 0, view_protocol_enabled= 0;
+static bool opt_trace_protocol= 0, opt_trace_protocol_enabled= 0;
+static bool explain_protocol= 0, explain_protocol_enabled= 0;
+static bool json_explain_protocol= 0, json_explain_protocol_enabled= 0;
+static bool cursor_protocol= 0, cursor_protocol_enabled= 0;
+static bool parsing_disabled= 0;
+static bool display_result_vertically= FALSE, display_result_lower= FALSE,
   display_metadata= FALSE, display_result_sorted= FALSE,
   display_session_track_info= FALSE;
-static my_bool disable_query_log= 0, disable_result_log= 0;
-static my_bool disable_connect_log= 1;
-static my_bool disable_warnings= 0;
-static my_bool disable_info= 1;
-static my_bool abort_on_error= 1;
-static my_bool server_initialized= 0;
-static my_bool is_windows= 0;
+static bool disable_query_log= 0, disable_result_log= 0;
+static bool disable_connect_log= 1;
+static bool disable_warnings= 0;
+static bool disable_info= 1;
+static bool abort_on_error= 1;
+static bool server_initialized= 0;
+static bool is_windows= 0;
 static char **default_argv;
 static const char *load_default_groups[]= { "mysqltest", "client", 0 };
 static char line_buffer[MAX_DELIMITER_LENGTH], *line_buffer_pos= line_buffer;
 #if !defined(HAVE_YASSL)
 static const char *opt_server_public_key= 0;
 #endif
-static my_bool can_handle_expired_passwords= TRUE;
+static bool can_handle_expired_passwords= TRUE;
 
 /* Info on properties that can be set with --enable_X and --disable_X */
 
 struct property {
-  my_bool *var;			/* Actual variable */
-  my_bool set;			/* Has been set for ONE command */
-  my_bool old;			/* If set, thus is the old value */
-  my_bool reverse;		/* Varible is true if disabled */
+  bool *var;			/* Actual variable */
+  bool set;			/* Has been set for ONE command */
+  bool old;			/* If set, thus is the old value */
+  bool reverse;			/* Variable is true if disabled */
   const char *env_name;		/* Env. variable name */
 };
 
@@ -200,7 +212,7 @@ static struct property prop_list[] = {
   { &disable_warnings, 0, 0, 1, "$ENABLED_WARNINGS" }
 };
 
-static my_bool once_property= FALSE;
+static bool once_property= FALSE;
 
 enum enum_prop {
   P_ABORT= 0,
@@ -238,7 +250,7 @@ enum block_cmd {
 struct st_block
 {
   int             line; /* Start line of block */
-  my_bool         ok;   /* Should block be executed */
+  bool            ok;   /* Should block be executed */
   enum block_cmd  cmd;  /* Command owning the block */
   char            delim[MAX_DELIMITER_LENGTH];  /* Delimiter before block */
 };
@@ -258,8 +270,8 @@ static struct st_test_file file_stack[16];
 static struct st_test_file* cur_file;
 static struct st_test_file* file_stack_end;
 
-
-static CHARSET_INFO *charset_info= &my_charset_latin1; /* Default charset */
+static char* default_charset= (char*) MYSQL_DEFAULT_CHARSET_NAME;
+static CHARSET_INFO *charset_info= &my_charset_utf8mb4_0900_ai_ci; /* Default charset */
 
 /*
   Timer related variables
@@ -354,7 +366,7 @@ struct st_connection
   size_t name_len;
   MYSQL_STMT* stmt;
   /* Set after send to disallow other queries before reap */
-  my_bool pending;
+  bool pending;
 };
 
 struct st_connection *connections= NULL;
@@ -371,8 +383,8 @@ enum enum_commands {
   Q_INC,		    Q_DEC,
   Q_SOURCE,	    Q_DISCONNECT,
   Q_LET,		    Q_ECHO,
+  Q_EXPR,
   Q_WHILE,	    Q_END_BLOCK,
-  Q_SYSTEM,	    Q_RESULT,
   Q_SAVE_MASTER_POS,
   Q_SYNC_WITH_MASTER,
   Q_SYNC_SLAVE_WITH_MASTER,
@@ -380,7 +392,6 @@ enum enum_commands {
   Q_SEND,		    Q_REAP,
   Q_DIRTY_CLOSE,	    Q_REPLACE, Q_REPLACE_COLUMN,
   Q_PING,		    Q_EVAL,
-  Q_EVAL_RESULT,
   Q_ENABLE_QUERY_LOG, Q_DISABLE_QUERY_LOG,
   Q_ENABLE_RESULT_LOG, Q_DISABLE_RESULT_LOG,
   Q_ENABLE_CONNECT_LOG, Q_DISABLE_CONNECT_LOG,
@@ -399,7 +410,7 @@ enum enum_commands {
   Q_DISABLE_RECONNECT, Q_ENABLE_RECONNECT,
   Q_IF,
   Q_DISABLE_PARSING, Q_ENABLE_PARSING,
-  Q_REPLACE_REGEX, Q_REMOVE_FILE, Q_FILE_EXIST,
+  Q_REPLACE_REGEX, Q_REPLACE_NUMERIC_ROUND, Q_REMOVE_FILE, Q_FILE_EXIST,
   Q_WRITE_FILE, Q_COPY_FILE, Q_PERL, Q_DIE, Q_EXIT, Q_SKIP,
   Q_CHMOD_FILE, Q_APPEND_FILE, Q_CAT_FILE, Q_DIFF_FILES,
   Q_SEND_QUIT, Q_CHANGE_USER, Q_MKDIR, Q_RMDIR,
@@ -430,10 +441,9 @@ const char *command_names[]=
   "disconnect",
   "let",
   "echo",
+  "expr",
   "while",
   "end",
-  "system",
-  "result",
   "save_master_pos",
   "sync_with_master",
   "sync_slave_with_master",
@@ -445,7 +455,6 @@ const char *command_names[]=
   "replace_column",
   "ping",
   "eval",
-  "eval_result",
   /* Enable/disable that the _query_ is logged to result file */
   "enable_query_log",
   "disable_query_log",
@@ -485,6 +494,7 @@ const char *command_names[]=
   "disable_parsing",
   "enable_parsing",
   "replace_regex",
+  "replace_numeric_round",
   "remove_file",
   "file_exists",
   "write_file",
@@ -558,10 +568,12 @@ struct st_command
   char *query, *query_buf,*first_argument,*last_argument,*end;
   DYNAMIC_STRING content;
   size_t first_word_len, query_len;
-  my_bool abort_on_error, used_replace;
+  bool abort_on_error, used_replace;
   struct st_expected_errors expected_errors;
   char output_file[FN_REFLEN];
   enum enum_commands type;
+  // Line number of the command
+  uint lineno;
 };
 
 TYPELIB command_typelib= {array_elements(command_names),"",
@@ -633,15 +645,15 @@ VAR* var_from_env(const char *, const char *);
 VAR* var_init(VAR* v, const char *name, size_t name_len, const char *val,
               size_t val_len);
 VAR* var_get(const char *var_name, const char** var_name_end,
-             my_bool raw, my_bool ignore_not_existing);
+             bool raw, bool ignore_not_existing);
 void eval_expr(VAR* v, const char *p, const char** p_end,
                bool open_end=false, bool do_eval=true);
-my_bool match_delimiter(int c, const char *delim, size_t length);
+bool match_delimiter(int c, const char *delim, size_t length);
 
 void do_eval(DYNAMIC_STRING *query_eval, const char *query,
-             const char *query_end, my_bool pass_through_escape_chars);
+             const char *query_end, bool pass_through_escape_chars);
 void str_to_file(const char *fname, char *str, size_t size);
-void str_to_file2(const char *fname, char *str, size_t size, my_bool append);
+void str_to_file2(const char *fname, char *str, size_t size, bool append);
 
 void fix_win_paths(const char *val, size_t len);
 const char *get_errname_from_code (uint error_code);
@@ -666,6 +678,13 @@ void free_replace();
 void do_get_replace_regex(struct st_command *command);
 void free_replace_regex();
 
+/* For replace numeric round */
+static int glob_replace_numeric_round= -1;
+void do_get_replace_numeric_round(struct st_command *command);
+void free_replace_numeric_round();
+void replace_numeric_round_append(int round, DYNAMIC_STRING* ds,
+                                   const char *from, size_t len);
+
 /* Used by sleep */
 void check_eol_junk_line(const char *eol);
 
@@ -676,6 +695,7 @@ static void free_all_replace(){
   free_replace();
   free_replace_regex();
   free_replace_column();
+  free_replace_numeric_round();
 }
 
 
@@ -865,7 +885,7 @@ void handle_no_error(struct st_command*);
 void revert_properties();
 
 void do_eval(DYNAMIC_STRING *query_eval, const char *query,
-             const char *query_end, my_bool pass_through_escape_chars)
+             const char *query_end, bool pass_through_escape_chars)
 {
   const char *p;
   char c, next_c;
@@ -1072,7 +1092,7 @@ enum arg_type
 struct command_arg {
   const char *argname;       /* Name of argument   */
   enum arg_type type;        /* Type of argument   */
-  my_bool required;          /* Argument required  */
+  bool required;             /* Argument required  */
   DYNAMIC_STRING *ds;        /* Storage for argument */
   const char *description;   /* Description of the argument */
 };
@@ -1870,6 +1890,19 @@ static int compare_files(const char* filename1, const char* filename2)
   if ((fd= my_open(filename1, O_RDONLY, MYF(0))) < 0)
     die("Failed to open first file: '%s'", filename1);
 
+  /*
+    Removing the unnecessary warning messages generated
+    on GCOV platform.
+  */
+#ifdef HAVE_GCOV
+  char cmd[FN_REFLEN+FN_REFLEN];
+  strcpy(cmd, "sed -i '/gcda:Merge mismatch for function/d' ");
+  strcat(cmd, filename1);
+  strcat(cmd, " ");
+  strcat(cmd, filename2);
+  system(cmd);
+#endif
+
   error= compare_files2(fd, filename2);
 
   my_close(fd, MYF(0));
@@ -1896,17 +1929,6 @@ static void check_result()
   DBUG_ENTER("check_result");
   DBUG_ASSERT(result_file_name);
   DBUG_PRINT("enter", ("result_file_name: %s", result_file_name));
-
-  /*
-    Removing the unnecessary warning messages generated
-    on GCOV platform.
-  */
-#ifdef HAVE_GCOV
-  char cmd[256];
-  strcpy(cmd, "sed -i '/gcda:Merge mismatch for function/d' ");
-  strcat(cmd, log_file.file_name());
-  system(cmd);
-#endif
 
   switch (compare_files(log_file.file_name(), result_file_name)) {
   case RESULT_OK:
@@ -2080,8 +2102,8 @@ VAR* var_from_env(const char *name, const char *def_val)
 }
 
 
-VAR* var_get(const char *var_name, const char **var_name_end, my_bool raw,
-	     my_bool ignore_not_existing)
+VAR* var_get(const char *var_name, const char **var_name_end, bool raw,
+	     bool ignore_not_existing)
 {
   int digit;
   VAR *v;
@@ -2223,7 +2245,7 @@ static void var_set_errno(int sql_errno)
 
 /* Functions to handle --disable and --enable properties */
 
-static void set_once_property(enum_prop prop, my_bool val)
+static void set_once_property(enum_prop prop, bool val)
 {
   property &pr= prop_list[prop];
   pr.set= 1;
@@ -2233,7 +2255,7 @@ static void set_once_property(enum_prop prop, my_bool val)
   once_property= TRUE;
 }
 
-static void set_property(st_command *command, enum_prop prop, my_bool val)
+static void set_property(st_command *command, enum_prop prop, bool val)
 {
   char* p= command->first_argument;
   if (p && !strcmp (p, "ONCE")) 
@@ -2359,11 +2381,40 @@ static void var_query_set(VAR *var, const char *query, const char** query_end)
 	    len= strlen(val);
 	  }
 	}
-	
+        DYNAMIC_STRING ds_temp;
+        init_dynamic_string(&ds_temp, "", 512, 512);
+
+        /* Store result from replace_result in ds_temp */
 	if (glob_replace)
-	  replace_strings_append(glob_replace, &result, val, len);
-	else
+	    replace_strings_append(glob_replace, &ds_temp, val, len);
+
+         /*
+           Call the replace_numeric_round function with the specified
+           precision. It may be used along with replace_result, so use the
+           output from replace_result as the input for replace_numeric_round.
+        */
+	if (glob_replace_numeric_round >= 0)
+        {
+          /* Copy the result from replace_result if it was used, into buffer */
+          if (ds_temp.length > 0)
+          {
+            char buffer[512];
+            strcpy(buffer, ds_temp.str);
+            dynstr_free(&ds_temp);
+            init_dynamic_string(&ds_temp, "", 512, 512);
+            replace_numeric_round_append(glob_replace_numeric_round, &ds_temp,
+                                          buffer, strlen(buffer));
+          }
+          else
+	    replace_numeric_round_append(glob_replace_numeric_round, &ds_temp,
+                                          val, len);
+        }
+
+        if(!glob_replace &&  glob_replace_numeric_round < 0)
 	  dynstr_append_mem(&result, val, len);
+        else
+          dynstr_append_mem(&result, ds_temp.str, strlen(ds_temp.str));
+        dynstr_free(&ds_temp);
       }
       dynstr_append_mem(&result, "\t", 1);
     }
@@ -2775,7 +2826,7 @@ static int open_file(const char *name)
   DBUG_ENTER("open_file");
   DBUG_PRINT("enter", ("name: %s", name));
 
-  my_bool file_exists= false;
+  bool file_exists= false;
   /* Extract path from current file and try it as base first */
   if (dirname_part(buff, cur_file->file_name, &length))
   {
@@ -2854,7 +2905,7 @@ static void do_source(struct st_command *command)
 
 
 static FILE* my_popen(DYNAMIC_STRING *ds_cmd, const char *mode,
-                      struct st_command *command)
+                      struct st_command *command MY_ATTRIBUTE((unused)))
 {
 #ifdef _WIN32
   /*
@@ -3995,7 +4046,7 @@ void do_force_rmdir(struct st_command *command, DYNAMIC_STRING *ds_dirname)
   Remove the empty directory <dir_name>
 */
 
-static void do_rmdir(struct st_command *command, my_bool force)
+static void do_rmdir(struct st_command *command, bool force)
 {
   int error;
   static DYNAMIC_STRING ds_dirname;
@@ -4113,7 +4164,7 @@ static void do_list_files(struct st_command *command)
 */
 
 static void do_list_files_write_file_command(struct st_command *command,
-                                             my_bool append)
+                                             bool append)
 {
   int error;
   static DYNAMIC_STRING ds_content;
@@ -4217,7 +4268,7 @@ static void read_until_delimiter(DYNAMIC_STRING *ds,
 }
 
 
-static void do_write_file_command(struct st_command *command, my_bool append)
+static void do_write_file_command(struct st_command *command, bool append)
 {
   static DYNAMIC_STRING ds_content;
   static DYNAMIC_STRING ds_filename;
@@ -4972,6 +5023,272 @@ static int do_save_master_pos()
 
 
 /*
+  Check if a variable name is valid or not.
+
+  SYNOPSIS
+  check_variable_name()
+  var_name     - pointer to the beginning of variable name
+  var_name_end - pointer to the end of variable name
+  dollar_flag  - flag to check whether variable name should start with '$'
+*/
+static void check_variable_name(const char *var_name,
+                                const char *var_name_end,
+                                const bool dollar_flag)
+{
+  char save_var_name[MAX_VAR_NAME_LENGTH];
+  strmake(save_var_name, var_name, (var_name_end - var_name));
+
+  // Check if variable name should start with '$'
+  if (!dollar_flag && (*var_name != '$'))
+    die ("Variable name '%s' should start with '$'", save_var_name);
+
+  if (*var_name == '$')
+    var_name++;
+
+  // Check if variable name exists or not
+  if (var_name == var_name_end)
+    die("Missing variable name.");
+
+  // Check for non alphanumeric character(s) in variable name
+  while ((var_name != var_name_end) && my_isvar(charset_info, *var_name))
+    var_name++;
+
+  if (var_name != var_name_end)
+    die ("Invalid variable name '%s'", save_var_name);
+}
+
+
+/*
+  Check if the pointer points to an operator.
+
+  SYNOPSIS
+  is_operator()
+  op - character pointer to mathematical expression
+*/
+static bool is_operator(char *op)
+{
+  if (*op == '+')
+    return true;
+  else if (*op == '-')
+    return true;
+  else if (*op == '*')
+    return true;
+  else if (*op == '/')
+    return true;
+  else if (*op == '%')
+    return true;
+  else if (*op == '&' && *(op + 1) == '&')
+    return true;
+  else if (*op == '|' && *(op + 1) == '|')
+    return true;
+  else if (*op == '&')
+    return true;
+  else if (*op == '|')
+    return true;
+  else if (*op == '^')
+    return true;
+  else if (*op == '>' && *(op + 1) == '>')
+    return true;
+  else if (*op == '<' && *(op + 1) == '<')
+    return true;
+
+  return false;
+}
+
+
+/*
+  Perform basic mathematical operation.
+
+  SYNOPSIS
+  do_expr()
+  command - command handle
+
+  DESCRIPTION
+  expr $<var_name>= <operand1> <operator> <operand2>
+  Perform basic mathematical operation and store the result
+  in a variable($<var_name>). Both <operand1> and <operand2>
+  should be valid MTR variables.
+
+  'expr' command supports only binary operators that operates
+  on two operands and manipulates them to return a result.
+
+  Following mathematical operators are supported.
+  1 Arithmetic Operators
+    1.1 Addition
+    1.2 Subtraction
+    1.3 Multiplication
+    1.4 Division
+    1.5 Modulo
+
+  2 Logical Operators
+    2.1 Logical AND
+    2.2 Logical OR
+
+  3 Bitwise Operators
+    3.1 Binary AND
+    3.2 Binary OR
+    3.3 Binary XOR
+    3.4 Binary Left Shift
+    3.5 Binary Right Shift
+
+  NOTE
+  1. Non-integer operand is truncated to integer value for operations
+     that dont support non-integer operand.
+  2. If the result is an infinite value, then expr command will return
+     'inf' keyword to indicate the result is infinity.
+  3. Division by 0 will result in an infinite value and expr command
+     will return 'inf' keyword to indicate the result is infinity.
+*/
+static void do_expr(struct st_command *command)
+{
+  DBUG_ENTER("do_expr");
+
+  char *p= command->first_argument;
+  if (!*p)
+    die("Missing arguments to expr command.");
+
+  // Find <var_name>
+  char *var_name= p;
+  while (*p && (*p != '=') && !my_isspace(charset_info, *p))
+    p++;
+  char *var_name_end= p;
+  check_variable_name(var_name, var_name_end, 1);
+
+  // Skip spaces between <var_name> and '='
+  while (my_isspace(charset_info, *p))
+    p++;
+
+  if (*p++ != '=')
+    die("Missing assignment operator in expr command.");
+
+  // Skip spaces after '='
+  while (*p && my_isspace(charset_info, *p))
+    p++;
+
+  // Save the mathematical expression in a variable
+  const char *expr= p;
+
+  // First operand in the expression
+  char *operand_name= p;
+  while (*p && !is_operator(p) && !my_isspace(charset_info, *p))
+    p++;
+  const char *operand_name_end= p;
+  check_variable_name(operand_name, operand_name_end, 0);
+  VAR *v1= var_get(operand_name, &operand_name_end, 0, 0);
+
+  double operand1;
+  if ((my_isdigit(charset_info, *v1->str_val)) ||
+      ((*v1->str_val == '-') && my_isdigit(charset_info, *(v1->str_val + 1))))
+    operand1= strtod(v1->str_val, NULL);
+  else
+    die ("Undefined/invalid first operand '$%s' in expr command.", v1->name);
+
+  // Skip spaces after the first operand
+  while (*p && my_isspace(charset_info, *p))
+    p++;
+
+  // Extract the operator
+  char *operator_start= p;
+  while (*p && (*p != '$') &&
+         !(my_isspace(charset_info, *p) || my_isvar(charset_info, *p)))
+    p++;
+
+  char math_operator[3];
+  strmake(math_operator, operator_start, (p - operator_start));
+  if (!strlen(math_operator))
+    die ("Missing mathematical operator in expr command.");
+
+  // Skip spaces after the operator
+  while (*p && my_isspace(charset_info, *p))
+    p++;
+
+  // Second operand in the expression
+  operand_name= p;
+  while (*p && !my_isspace(charset_info, *p))
+    p++;
+  operand_name_end= p;
+  check_variable_name(operand_name, operand_name_end, 0);
+  VAR *v2= var_get(operand_name, &operand_name_end, 0, 0);
+
+  double operand2;
+  if ((my_isdigit(charset_info, *v2->str_val)) ||
+      ((*v2->str_val == '-') && my_isdigit(charset_info, *(v2->str_val + 1))))
+    operand2= strtod(v2->str_val, NULL);
+  else
+    die ("Undefined/invalid second operand '$%s' in expr command.", v2->name);
+
+  // Skip spaces at the end
+  while (*p && my_isspace(charset_info, *p))
+    p++;
+
+  // Check for any spurious text after the second operand
+  if (*p)
+    die("Invalid mathematical expression '%s' in expr command.", expr);
+
+  double result;
+  // Arithmetic Operators
+  if (!strcmp(math_operator, "+"))
+    result= operand1 + operand2;
+  else if (!strcmp(math_operator, "-"))
+    result= operand1 - operand2;
+  else if (!strcmp(math_operator, "*"))
+    result= operand1 * operand2;
+  else if (!strcmp(math_operator, "/"))
+    result= operand1 / operand2;
+  else if (!strcmp(math_operator, "%"))
+    result= (int) operand1 % (int) operand2;
+  // Logical Operators
+  else if (!strcmp(math_operator, "&&"))
+    result= operand1 && operand2;
+  else if (!strcmp(math_operator, "||"))
+    result= operand1 || operand2;
+  // Bitwise Operators
+  else if (!strcmp(math_operator, "&"))
+    result= (int) operand1 & (int) operand2;
+  else if (!strcmp(math_operator, "|"))
+    result= (int) operand1 | (int) operand2;
+  else if (!strcmp(math_operator, "^"))
+    result= (int) operand1 ^ (int) operand2;
+  else if (!strcmp(math_operator, ">>"))
+    result= (int) operand1 >> (int) operand2;
+  else if (!strcmp(math_operator, "<<"))
+    result= (int) operand1 << (int) operand2;
+  else
+    die("Invalid operator '%s' in expr command", math_operator);
+
+  char buf[128];
+  size_t result_len;
+  // Check if result is an infinite value
+  if (!std::isinf(result))
+  {
+    const char *format= (result < 1e10 && result > -1e10) ? "%f" : "%g";
+    result_len= snprintf(buf, sizeof(buf), format, result);
+  }
+  else
+    // Print 'inf' if result is an infinite value
+    result_len= snprintf(buf, sizeof(buf), "%s", "inf");
+
+  if (result < 1e10 && result > -1e10)
+  {
+    /*
+      Remove the trailing 0's i.e 2.0000000 need to be represented
+      as 2 for consistency, 2.0010000 also becomes 2.001.
+    */
+    while (buf[result_len - 1] == '0')
+      result_len--;
+
+    // Remove trailing '.' if exists
+     if (buf[result_len - 1] == '.')
+      result_len--;
+  }
+
+  var_set(var_name, var_name_end, buf, buf + result_len);
+  command->last_argument= command->end;
+  DBUG_VOID_RETURN;
+}
+
+
+/*
   Assign the variable <var_name> with <var_val>
 
   SYNOPSIS
@@ -5052,7 +5369,7 @@ static void do_let(struct st_command *command)
   used for cpu-independent delays.
 */
 
-static int do_sleep(struct st_command *command, my_bool real_sleep)
+static int do_sleep(struct st_command *command, bool real_sleep)
 {
   int error= 0;
   char *sleep_start, *sleep_end;
@@ -5209,7 +5526,7 @@ static bool kill_process(int pid)
   @param pid  Process id.
   @param path Path to create minidump file in.
 */
-static void abort_process(int pid, const char *path)
+static void abort_process(int pid, const char *path MY_ATTRIBUTE((unused)))
 {
 #ifdef _WIN32
   HANDLE proc;
@@ -5662,7 +5979,7 @@ static char *get_string(char **to_ptr, char **from_ptr,
 
 static void set_reconnect(MYSQL* mysql, int val)
 {
-  my_bool reconnect= val;
+  bool reconnect= val;
   DBUG_ENTER("set_reconnect");
   DBUG_PRINT("info", ("val: %d", val));
   mysql_options(mysql, MYSQL_OPT_RECONNECT, (char *)&reconnect);
@@ -6029,8 +6346,8 @@ static void do_connect(struct st_command *command)
 {
   int con_port= opt_port;
   char *con_options;
-  my_bool con_ssl= 0, con_compress= 0;
-  my_bool con_pipe= 0, con_shm= 0, con_cleartext_enable= 0;
+  bool con_ssl= 0, con_compress= 0;
+  bool con_pipe= 0, con_shm= 0, con_cleartext_enable= 0;
   struct st_connection* con_slot;
 #if defined(HAVE_OPENSSL)
   uint save_opt_ssl_mode= opt_ssl_mode;
@@ -6101,7 +6418,7 @@ static void do_connect(struct st_command *command)
 
   /* Options */
   con_options= ds_options.str;
-  my_bool con_socket=0, con_tcp= 0;
+  bool con_socket=0, con_tcp= 0;
   while (*con_options)
   {
     /* Step past any spaces in beginning of option */
@@ -6394,7 +6711,7 @@ static void do_block(enum block_cmd cmd, struct st_command* command)
   const char *expr_start, *expr_end;
   VAR v;
   const char *cmd_name= (cmd == cmd_while ? "while" : "if");
-  my_bool not_expr= FALSE;
+  bool not_expr= FALSE;
   DBUG_ENTER("do_block");
   DBUG_PRINT("enter", ("%s", cmd_name));
 
@@ -6619,7 +6936,7 @@ static void do_reset_connection()
   DBUG_VOID_RETURN;
 }
 
-my_bool match_delimiter(int c, const char *delim, size_t length)
+bool match_delimiter(int c, const char *delim, size_t length)
 {
   uint i;
   char tmp[MAX_DELIMITER_LENGTH];
@@ -6643,7 +6960,7 @@ my_bool match_delimiter(int c, const char *delim, size_t length)
 }
 
 
-static my_bool end_of_query(int c)
+static bool end_of_query(int c)
 {
   return match_delimiter(c, delimiter, delimiter_length);
 }
@@ -6679,7 +6996,7 @@ static int read_line(char *buf, int size)
   char *p= buf, *buf_end= buf + size - 1;
   int skip_char= 0;
   int query_comment= 0, query_comment_start= 0, query_comment_end= 0;
-  my_bool have_slash= FALSE;
+  bool have_slash= FALSE;
   
   enum {R_NORMAL, R_Q, R_SLASH_IN_Q,
         R_COMMENT, R_LINE_START} state= R_LINE_START;
@@ -6738,9 +7055,9 @@ static int read_line(char *buf, int size)
 	DBUG_RETURN(0);
       }
       else if ((c == '{' &&
-                (!my_strnncoll_simple(charset_info, (const uchar*) "while", 5,
+                (!charset_info->coll->strnncoll(charset_info, (const uchar*) "while", 5,
                                       (uchar*) buf, min<my_ptrdiff_t>(5, p - buf), 0) ||
-                 !my_strnncoll_simple(charset_info, (const uchar*) "if", 2,
+                 !charset_info->coll->strnncoll(charset_info, (const uchar*) "if", 2,
                                       (uchar*) buf, min<my_ptrdiff_t>(2, p - buf), 0))))
       {
         /* Only if and while commands can be terminated by { */
@@ -7053,37 +7370,38 @@ static bool is_delimiter(const char* p)
 }
 
 
-/*
-  Create a command from a set of lines
-
-  SYNOPSIS
-    read_command()
-    command_ptr pointer where to return the new query
-
-  DESCRIPTION
-    Converts lines returned by read_line into a command, this involves
-    parsing the first word in the read line to find the command type.
-
-  A -- comment may contain a valid query as the first word after the
-  comment start. Thus it's always checked to see if that is the case.
-  The advantage with this approach is to be able to execute commands
-  terminated by new line '\n' regardless how many "delimiter" it contain.
-*/
-
-#define MAX_QUERY (256*1024*2) /* 256K -- a test in sp-big is >128K */
+// 256K -- a test in sp-big is >128K
+#define MAX_QUERY (256*1024*2)
 static char read_command_buf[MAX_QUERY];
 
+/// Create a command from a set of lines.
+///
+/// Converts lines returned by read_line into a command, this involves
+/// parsing the first word in the read line to find the command type.
+///
+/// A '`--`' comment may contain a valid query as the first word after
+/// the comment start. Thus it's always checked to see if that is the
+/// case. The advantage with this approach is to be able to execute
+/// commands terminated by new line '\n' regardless how many "delimiter"
+/// it contain.
+///
+/// @param [in] command_ptr pointer where to return the new query
+///
+/// @retval 0 on success, else 1
 static int read_command(struct st_command** command_ptr)
 {
   char *p= read_command_buf;
-  struct st_command* command;
   DBUG_ENTER("read_command");
 
   if (parser.current_line < parser.read_lines)
   {
     *command_ptr= q_lines->at(parser.current_line);
+    // Assign the current command line number
+    start_lineno= (*command_ptr)->lineno;
     DBUG_RETURN(0);
   }
+
+  struct st_command* command;
   if (!(*command_ptr= command=
         (struct st_command*) my_malloc(PSI_NOT_INSTRUMENTED,
                                        sizeof(*command),
@@ -7099,6 +7417,9 @@ static int read_command(struct st_command** command_ptr)
     DBUG_RETURN(1);
   }
 
+  // Set the line number for the command
+  command->lineno= start_lineno;
+
   if (opt_result_format_version == 1)
     convert_to_format_v1(read_command_buf);
 
@@ -7110,14 +7431,15 @@ static int read_command(struct st_command** command_ptr)
   else if (p[0] == '-' && p[1] == '-')
   {
     command->type= Q_COMMENT_WITH_COMMAND;
-    p+= 2; /* Skip past -- */
+    // Skip past '--'
+    p+= 2;
   }
   else if (*p == '\n')
   {
     command->type= Q_EMPTY_LINE;
   }
 
-  /* Skip leading spaces */
+  // Skip leading spaces
   while (*p && my_isspace(charset_info, *p))
     p++;
 
@@ -7125,9 +7447,8 @@ static int read_command(struct st_command** command_ptr)
                                                       p, MYF(MY_WME))))
     die("Out of memory");
 
-  /*
-    Calculate first word length(the command), terminated
-    by 'space' , '(' or 'delimiter' */
+  // Calculate first word length(the command), terminated
+  // by 'space' , '(' or 'delimiter'
   p= command->query;
   while (*p && !my_isspace(charset_info, *p) && *p != '(' && !is_delimiter(p))
     p++;
@@ -7136,7 +7457,7 @@ static int read_command(struct st_command** command_ptr)
                       static_cast<int>(command->first_word_len),
                       command->query));
 
-  /* Skip spaces between command and first argument */
+  // Skip spaces between command and first argument
   while (*p && my_isspace(charset_info, *p))
     p++;
   command->first_argument= p;
@@ -7157,6 +7478,9 @@ static struct my_option my_long_options[] =
   {"character-sets-dir", OPT_CHARSETS_DIR,
    "Directory for character set files.", &opt_charsets_dir,
    &opt_charsets_dir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"default-character-set", OPT_DEFAULT_CHARSET,
+   "Set the default character set.", &default_charset,
+   &default_charset, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"compress", 'C', "Use the compressed server/client protocol.",
    &opt_compress, &opt_compress, 0, GET_BOOL, NO_ARG, 0, 0, 0,
    0, 0, 0},
@@ -7311,7 +7635,7 @@ static void usage()
 }
 
 
-static my_bool
+static bool
 get_one_option(int optid, const struct my_option *opt, char *argument)
 {
   switch(optid) {
@@ -7397,6 +7721,69 @@ get_one_option(int optid, const struct my_option *opt, char *argument)
 }
 
 
+/**
+  Test case or the result file names may use alphanumeric characters
+  (A-Z, a-z, 0-9), dash ('-') or underscore ('_'), but should not
+  start with dash or underscore.
+
+  Check if a file name conatins any other special characters. If yes,
+  throw an error and abort the test run.
+
+  @param[in] file_name File name
+*/
+
+static void validate_filename(const char *file_name)
+{
+  const char *fname= strrchr(file_name, '/');
+
+  if (fname == NULL)
+  {
+    if(is_windows)
+    {
+      fname= strrchr(file_name, '\\');
+
+      if (fname == NULL)
+        fname= file_name;
+      else
+        fname++;
+    }
+    else
+      fname= file_name;
+  }
+  else
+    fname++;
+
+  file_name= fname;
+
+  // Check if first character in the file name is a alphanumeric character
+  if (!my_isalnum(charset_info, file_name[0]))
+  {
+    die("Invalid file name '%s', first character must be alpha-numeric.",
+        file_name);
+  }
+  else
+    file_name++;
+
+  // Skip extension('.test' or '.result' or '.inc' etc) in the file name
+  const char* file_name_end= strrchr(file_name, '.');
+
+  while (*file_name && (file_name != file_name_end) &&
+         (file_name[0] == '-' || file_name[0] == '_' ||
+          my_isalnum(charset_info, file_name[0])))
+  {
+    file_name++;
+  }
+
+  if (file_name != file_name_end)
+  {
+    die("Invalid file name '%s'. Test or result file name should "\
+        "consist of only alpha-numeric characters, dash (-) or "\
+        "underscore (_), but should not start with dash or "\
+        "underscore.", fname);
+  }
+}
+
+
 static int parse_args(int argc, char **argv)
 {
   if (load_defaults("my",load_default_groups,&argc,&argv))
@@ -7407,11 +7794,20 @@ static int parse_args(int argc, char **argv)
   if ((handle_options(&argc, &argv, my_long_options, get_one_option)))
     exit(1);
 
+  // Check for special characters in test case file name
+  if (cur_file->file_name)
+    validate_filename(cur_file->file_name);
+
+  // Check for special characters in result file name
+  if (result_file_name)
+    validate_filename(result_file_name);
+
   if (argc > 1)
   {
     usage();
     exit(1);
   }
+
   if (argc == 1)
     opt_db= *argv;
   if (tty_password)
@@ -7443,7 +7839,7 @@ static int parse_args(int argc, char **argv)
   append - append to file instead of overwriting old file
 */
 
-void str_to_file2(const char *fname, char *str, size_t size, my_bool append)
+void str_to_file2(const char *fname, char *str, size_t size, bool append)
 {
   int fd;
   char buff[FN_REFLEN];
@@ -7634,7 +8030,7 @@ void fix_win_paths(const char *val, size_t len)
 */
 
 static void append_field(DYNAMIC_STRING *ds, uint col_idx, MYSQL_FIELD* field,
-                         char* val, size_t len, my_bool is_null)
+                         char* val, size_t len, bool is_null)
 {
   char null[]= "NULL";
 
@@ -7729,7 +8125,7 @@ static void append_stmt_result(DYNAMIC_STRING *ds, MYSQL_STMT *stmt,
                                MYSQL_FIELD *fields, uint num_fields)
 {
   MYSQL_BIND *my_bind;
-  my_bool *is_null;
+  bool *is_null;
   ulong *length;
   uint i;
 
@@ -7740,9 +8136,9 @@ static void append_stmt_result(DYNAMIC_STRING *ds, MYSQL_STMT *stmt,
   length= (ulong*) my_malloc(PSI_NOT_INSTRUMENTED,
                              num_fields * sizeof(ulong),
 			     MYF(MY_WME | MY_FAE));
-  is_null= (my_bool*) my_malloc(PSI_NOT_INSTRUMENTED,
-                                num_fields * sizeof(my_bool),
-				MYF(MY_WME | MY_FAE));
+  is_null= (bool*) my_malloc(PSI_NOT_INSTRUMENTED,
+                             num_fields * sizeof(bool),
+			     MYF(MY_WME | MY_FAE));
 
   /* Allocate data for the result of each field */
   for (i= 0; i < num_fields; i++)
@@ -8367,7 +8763,7 @@ static void run_query_stmt(MYSQL *mysql, struct st_command *command,
     buffer to allocate for result data
   */
   {
-    my_bool one= 1;
+    bool one= 1;
     if (mysql_stmt_attr_set(stmt, STMT_ATTR_UPDATE_MAX_LENGTH, (void*) &one))
       die("mysql_stmt_attr_set(STMT_ATTR_UPDATE_MAX_LENGTH) failed': %d %s",
           mysql_stmt_errno(stmt), mysql_stmt_error(stmt));
@@ -8566,9 +8962,8 @@ static void run_query(struct st_connection *cn, struct st_command *command, int 
   DYNAMIC_STRING eval_query;
   char *query;
   size_t query_len;
-  my_bool view_created= 0, sp_created= 0;
-  my_bool complete_query= ((flags & QUERY_SEND_FLAG) &&
-                           (flags & QUERY_REAP_FLAG));
+  bool view_created= 0, sp_created= 0;
+  bool complete_query= ((flags & QUERY_SEND_FLAG) && (flags & QUERY_REAP_FLAG));
   DBUG_ENTER("run_query");
   dynstr_set(&ds_result, "");
 
@@ -9219,7 +9614,7 @@ static void init_signal_handling(void)
 int main(int argc, char **argv)
 {
   struct st_command *command;
-  my_bool q_send_flag= 0, abort_flag= 0;
+  bool q_send_flag= 0, abort_flag= 0;
   uint command_executed= 0, last_command_executed= 0;
   char output_file[FN_REFLEN];
   MY_INIT(argv[0]);
@@ -9374,6 +9769,10 @@ int main(int argc, char **argv)
   if (opt_compress)
     mysql_options(&con->mysql,MYSQL_OPT_COMPRESS,NullS);
   mysql_options(&con->mysql, MYSQL_OPT_LOCAL_INFILE, 0);
+  if (strcmp(default_charset, charset_info->csname) &&
+    !(charset_info= get_charset_by_csname(default_charset,
+                                          MY_CS_PRIMARY, MYF(MY_WME))))
+    die("Invalid character set specified.");
   mysql_options(&con->mysql, MYSQL_SET_CHARSET_NAME,
                 charset_info->csname);
   if (opt_charsets_dir)
@@ -9450,33 +9849,36 @@ int main(int argc, char **argv)
                               abort_on_error);
     
     /* delimiter needs to be executed so we can continue to parse */
-    my_bool ok_to_do= cur_block->ok || command->type == Q_DELIMITER;
+    bool ok_to_do= cur_block->ok || command->type == Q_DELIMITER;
+
     /*
       Some commands need to be "done" the first time if they may get
       re-iterated over in a true context. This can only happen if there's 
       a while loop at some level above the current block.
     */
-    if (!ok_to_do)
+    if (!ok_to_do && (command->type == Q_ERROR ||
+                      command->type == Q_SOURCE))
     {
-      if (command->type == Q_SOURCE ||
-          command->type == Q_ERROR ||
-          command->type == Q_WRITE_FILE ||
-          command->type == Q_APPEND_FILE ||
-	  command->type == Q_PERL)
+      for (struct st_block *stb= cur_block - 1; stb >= block_stack; stb--)
       {
-	for (struct st_block *stb= cur_block-1; stb >= block_stack; stb--)
-	{
-	  if (stb->cmd == cmd_while)
-	  {
-	    ok_to_do= 1;
-	    break;
-	  }
-	}
+        if (stb->cmd == cmd_while)
+        {
+          ok_to_do= 1;
+          break;
+        }
       }
     }
 
-    if (command->type == Q_PERL)
-      do_perl(command);
+    /*
+      Some commands need to be parsed in false context also to
+      avoid any parsing errors.
+    */
+    if (!ok_to_do && (command->type == Q_APPEND_FILE ||
+                      command->type == Q_PERL ||
+                      command->type == Q_WRITE_FILE))
+    {
+      ok_to_do= 1;
+    }
 
     if (ok_to_do)
     {
@@ -9547,10 +9949,6 @@ int main(int argc, char **argv)
       case Q_INC: do_modify_var(command, DO_INC); break;
       case Q_DEC: do_modify_var(command, DO_DEC); break;
       case Q_ECHO: do_echo(command); command_executed++; break;
-      case Q_SYSTEM:
-        die("'system' command  is deprecated, use exec or\n"\
-            "  see the manual for portable commands to use");
-	break;
       case Q_REMOVE_FILE: do_remove_file(command); break;
       case Q_REMOVE_FILES_WILDCARD: do_remove_files_wildcard(command); break;
       case Q_COPY_FILES_WILDCARD: do_copy_files_wildcard(command); break;
@@ -9575,6 +9973,9 @@ int main(int argc, char **argv)
       case Q_COPY_FILE: do_copy_file(command); break;
       case Q_MOVE_FILE: do_move_file(command); break;
       case Q_CHMOD_FILE: do_chmod_file(command); break;
+      case Q_PERL:
+        do_perl(command);
+        break;
       case Q_RESULT_FORMAT_VERSION: do_result_format_version(command); break;
       case Q_DELIMITER:
         do_delimiter(command);
@@ -9600,8 +10001,9 @@ int main(int argc, char **argv)
         display_result_lower= TRUE;
         break;
       case Q_LET: do_let(command); break;
-      case Q_EVAL_RESULT:
-        die("'eval_result' command  is deprecated");
+      case Q_EXPR:
+        do_expr(command);
+        break;
       case Q_EVAL:
       case Q_QUERY_VERTICAL:
       case Q_QUERY_HORIZONTAL:
@@ -9615,7 +10017,7 @@ int main(int argc, char **argv)
       case Q_QUERY:
       case Q_REAP:
       {
-	my_bool old_display_result_vertically= display_result_vertically;
+	bool old_display_result_vertically= display_result_vertically;
         /* Default is full query, both reap and send  */
         int flags= QUERY_REAP_FLAG | QUERY_SEND_FLAG;
 
@@ -9696,6 +10098,9 @@ int main(int argc, char **argv)
         break;
       case Q_REPLACE_COLUMN:
 	do_get_replace_column(command);
+	break;
+      case Q_REPLACE_NUMERIC_ROUND:
+	do_get_replace_numeric_round(command);
 	break;
       case Q_SAVE_MASTER_POS: do_save_master_pos(); break;
       case Q_SYNC_WITH_MASTER: do_sync_with_master(command); break;
@@ -9827,11 +10232,6 @@ int main(int argc, char **argv)
           command->last_argument= command->end;
         }
         break;
-
-      case Q_RESULT:
-        die("result, deprecated command");
-        break;
-
       case Q_OUTPUT:
         {
           static DYNAMIC_STRING ds_to_file;
@@ -9916,7 +10316,7 @@ int main(int argc, char **argv)
   if (parsing_disabled)
     die("Test ended with parsing disabled");
 
-  my_bool empty_result= FALSE;
+  bool empty_result= FALSE;
   
   /*
     The whole test has been executed _sucessfully_.
@@ -10069,6 +10469,158 @@ void free_replace_column()
   max_replace_column= 0;
 }
 
+/*
+  Functions to round numeric results.
+
+SYNOPSIS
+  do_get_replace_numeric_round()
+  command - command handle
+
+DESCRIPTION
+  replace_numeric_round <precision>
+
+  where precision is the number of digits after the decimal point
+  that the result will be rounded off to. The precision can only
+  be a number between 0 and 16.
+  eg. replace_numeric_round 10;
+  Numbers which are > 1e10 or < -1e10 are represented using the
+  exponential notation after they are rounded off.
+  Trailing zeroes after the decimal point are removed from the
+  numbers.
+  If the precision is 0, then the value is rounded off to the
+  nearest whole number.
+*/
+void do_get_replace_numeric_round(struct st_command *command)
+{
+  DYNAMIC_STRING ds_round;
+  const struct command_arg numeric_arg =
+    { "precision", ARG_STRING, TRUE, &ds_round,
+      "Number of decimal precision"};
+  DBUG_ENTER("get_replace_numeric_round");
+
+  check_command_args(command, command->first_argument,
+                     &numeric_arg,
+                     sizeof(numeric_arg)/sizeof(struct command_arg),
+                     ' ');
+
+  // Parse the argument string to get the precision
+  long int v= 0;
+  if (str2int(ds_round.str, 10, 0, REPLACE_ROUND_MAX, &v) == NullS)
+    die("A number between 0 and %d is required for the precision "\
+        "in replace_numeric_round", REPLACE_ROUND_MAX);
+
+  glob_replace_numeric_round= (int) v;
+  dynstr_free(&ds_round);
+  DBUG_VOID_RETURN;
+}
+
+
+void free_replace_numeric_round()
+{
+  glob_replace_numeric_round= -1;
+}
+
+
+/*
+  Round the digits after the decimal point to the specified precision
+  by iterating through the result set element, identifying the part to
+  be rounded off, and rounding that part off.
+*/
+void replace_numeric_round_append(int round, DYNAMIC_STRING* result,
+                                   const char *from, size_t len)
+{
+  while (len > 0)
+  {
+    // Move pointer to the start of the numeric values
+    size_t size= strcspn(from, "0123456789");
+    if (size > 0)
+    {
+      dynstr_append_mem(result, from, size);
+      from+= size;
+      len-= size;
+    }
+
+    /*
+      Move the pointer to the end of the numeric values and the
+      the start of the non-numeric values such as "." and "e"
+    */
+    size= strspn(from, "0123456789");
+    int r= round;
+
+    /*
+      If result from one of the rows of the result set is null,
+      break the loop
+    */
+    if (*(from + size) == 0)
+    {
+      dynstr_append_mem(result, from, size);
+      break;
+    }
+
+    switch (*(from + size))
+    {
+    // double/float
+    case '.':
+      size_t size1;
+      size1= strspn(from + size + 1, "0123456789");
+
+      /*
+        Restrict rounding to less than the
+        the existing precision to avoid 1.2 being replaced
+        to 1.2000000
+      */
+      if (size1 < (size_t) r)
+        r= size1;
+    // fallthrough: all cases till next break are executed
+    case 'e':
+    case 'E':
+      if (isdigit(*(from + size + 1)))
+      {
+        char *end;
+        double val= strtod(from, &end);
+        if (end != NULL)
+        {
+          const char *format= (val < 1e10 && val > -1e10) ? "%.*f" : "%.*e";
+          char buf[40];
+
+          size= snprintf(buf, sizeof(buf), format, r, val);
+          if (val < 1e10 && val > -1e10 && r > 0)
+          {
+            /*
+              2.0000000 need to be represented as 2 for consistency
+              2.0010000 also becomes 2.001
+            */
+            while (buf[size-1] == '0')
+              size--;
+
+            // don't leave 100. trailing
+            if (buf[size-1] == '.')
+              size--;
+          }
+          dynstr_append_mem(result, buf, size);
+          len-= (end - from);
+          from= end;
+          break;
+        }
+      }
+
+      /*
+        This is because strtod didn't convert or there wasn't digits after
+        [.eE] so output without changing
+      */
+      dynstr_append_mem(result, from, size);
+      from+= size;
+      len-= size;
+      break;
+    // int
+    default:
+      dynstr_append_mem(result, from, size);
+      from+= size;
+      len-= size;
+      break;
+    }
+  }
+}
 
 /****************************************************************************/
 /*
@@ -10155,12 +10707,12 @@ void free_replace()
 
 
 typedef struct st_replace {
-  my_bool found;
+  int found;
   struct st_replace *next[256];
 } REPLACE;
 
 typedef struct st_replace_found {
-  my_bool found;
+  int found;
   char *replace_string;
   uint to_offset;
   int from_offset;
@@ -11211,10 +11763,9 @@ int insert_pointer_name(POINTER_ARRAY *pa,char * name)
       DBUG_RETURN(1);
     if (new_pos != pa->str)
     {
-      my_ptrdiff_t diff=PTR_BYTE_DIFF(new_pos,pa->str);
+      ptrdiff_t diff= new_pos - pa->str;
       for (i=0 ; i < pa->typelib.count ; i++)
-	pa->typelib.type_names[i]= ADD_TO_PTR(pa->typelib.type_names[i],diff,
-					      char*);
+	pa->typelib.type_names[i]= pa->typelib.type_names[i] + diff;
       pa->str=new_pos;
     }
     pa->max_length= pa->length+length+PS_MALLOC;
@@ -11293,13 +11844,43 @@ void replace_dynstr_append_mem(DYNAMIC_STRING *ds,
     }
   }
 
+  DYNAMIC_STRING ds_temp;
+  init_dynamic_string(&ds_temp, "", 512, 512);
+
+  /* Store result from replace_result in ds_temp */
   if (glob_replace)
   {
     /* Normal replace */
-    replace_strings_append(glob_replace, ds, val, len);
+      replace_strings_append(glob_replace, &ds_temp, val, len);
   }
-  else
+
+  /*
+    Call the replace_numeric_round function with the specified
+    precision. It may be used along with replace_result, so use the
+    output from replace_result as the input for replace_numeric_round.
+  */
+  if (glob_replace_numeric_round >= 0)
+  {
+    /* Copy the result from replace_result if it was used, into buffer */
+    if(ds_temp.length > 0)
+    {
+      char buffer[512];
+      strcpy(buffer, ds_temp.str);
+      dynstr_free(&ds_temp);
+      init_dynamic_string(&ds_temp, "", 512, 512);
+      replace_numeric_round_append(glob_replace_numeric_round, &ds_temp,
+                                    buffer, strlen(buffer));
+    }
+    else
+      replace_numeric_round_append(glob_replace_numeric_round, &ds_temp,
+                                    val, len);
+  }
+
+  if (!glob_replace && glob_replace_numeric_round < 0)
     dynstr_append_mem(ds, val, len);
+  else
+    dynstr_append_mem(ds, ds_temp.str, strlen(ds_temp.str));
+  dynstr_free(&ds_temp);
 }
 
 

@@ -1,7 +1,7 @@
 #ifndef GSTREAM_INCLUDED
 #define GSTREAM_INCLUDED
 
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,14 +19,13 @@
 
 #include <stddef.h>
 
+#include "lex_string.h"
 #include "m_ctype.h"           /* my_charset_latin1, my_charset_bin */
 #include "m_string.h"
-#include "my_global.h"                          /* NULL, NullS */
 #include "mysql/mysql_lex_string.h"
 #include "mysql/service_mysql_alloc.h"
 
 typedef struct charset_info_st CHARSET_INFO;
-typedef struct st_mysql_lex_string LEX_STRING;
 
 class Gis_read_stream
 {

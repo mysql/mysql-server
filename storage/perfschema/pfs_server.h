@@ -21,6 +21,8 @@
   Private interface for the server (declarations).
 */
 
+#include <sys/types.h>
+
 #include "my_psi_config.h"
 #include "mysql/psi/psi_cond.h"
 #include "mysql/psi/psi_data_lock.h"
@@ -194,7 +196,7 @@ struct PFS_global_param
   */
   long m_file_handle_sizing;
   /**
-    Maxium number of instrumented socket instances
+    Maximum number of instrumented socket instances
     @sa socket_lost
   */
   long m_socket_sizing;
@@ -282,12 +284,6 @@ extern PFS_global_param pfs_param;
   and discarded, until such time @c initialize_performance_schema() is called.
 */
 void pre_initialize_performance_schema();
-
-/**
-  Initialize performance schema sizing values for the embedded build.
-  All instrumentations are sized to 0, disabled.
-*/
-void set_embedded_performance_schema_param(PFS_global_param *param);
 
 /**
   Initialize the performance schema.

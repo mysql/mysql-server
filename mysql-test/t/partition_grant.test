@@ -1,5 +1,3 @@
-# Grant tests not performed with embedded server
--- source include/not_embedded.inc
 
 --disable_warnings
 drop schema if exists mysqltest_1;

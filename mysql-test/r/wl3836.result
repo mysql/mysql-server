@@ -12,7 +12,7 @@ CREATE USER 'user1'@'localhost';
 CREATE USER 'user2'@'localhost';
 GRANT ALL ON wl3836.* TO 'user1'@'localhost', 'user2'@'localhost';
 SET GLOBAL offline_mode=ON;
-ERROR 42000: Access denied; you need (at least one of) the SUPER privilege(s) for this operation
+ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
 CREATE TABLE t1 (id INT PRIMARY KEY AUTO_INCREMENT) ENGINE=MYISAM;
 CREATE TABLE t2 (id INT UNSIGNED NOT NULL);
 INSERT INTO t1 VALUES

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -61,7 +61,7 @@ Query_event::Query_event(const char* query_arg, const char* catalog_arg,
   charset_database_number(0),
   table_map_for_update(table_map_for_update_arg),
   master_data_written(0), explicit_defaults_ts(TERNARY_UNSET),
-  mts_accessed_dbs(0)
+  mts_accessed_dbs(0), ddl_xid(INVALID_XID)
 {
 }
 
@@ -117,7 +117,7 @@ Query_event::Query_event(const char* buf, unsigned int event_len,
   time_zone_len(0), catalog_len(0), lc_time_names_number(0),
   charset_database_number(0), table_map_for_update(0), master_data_written(0),
   explicit_defaults_ts(TERNARY_UNSET),
-  mts_accessed_dbs(OVER_MAX_DBS_IN_EVENT_MTS)
+  mts_accessed_dbs(OVER_MAX_DBS_IN_EVENT_MTS), ddl_xid(INVALID_XID)
 {
   //buf is advanced in Binary_log_event constructor to point to
   //beginning of post-header
@@ -363,6 +363,16 @@ break;
       explicit_defaults_ts= *pos++ == 0 ? TERNARY_OFF : TERNARY_ON;
       break;
     }
+    case Q_DDL_LOGGED_WITH_XID:
+      CHECK_SPACE(pos, end, 8);
+      /*
+        Like in Xid_log_event case, the xid value is not used on the slave
+        so the number does not really need to respect endiness.
+      */
+      memcpy((char*) &ddl_xid, pos, 8);
+      ddl_xid= le64toh(ddl_xid);
+      pos+= 8;
+      break;
     default:
       /* That's why you must write status vars in growing order of code */
       pos= (const unsigned char*) end;         // Break loop
@@ -529,8 +539,8 @@ User_var_event(const char* buf, unsigned int event_len,
                          (description_event->footer()->checksum_alg ==
                           BINLOG_CHECKSUM_ALG_OFF));
   size_t data_written= (header()->data_written- checksum_verify);
-  BAPI_ASSERT(((bytes_read == data_written) ? 0 : BINLOG_CHECKSUM_LEN)||
-              ((bytes_read == data_written - 1) ? 0 : BINLOG_CHECKSUM_LEN));
+  BAPI_ASSERT(((bytes_read == data_written) ? false : true) ||
+              ((bytes_read == data_written - 1) ? false : true));
 #endif
     if ((header()->data_written - bytes_read) > 0)
     {

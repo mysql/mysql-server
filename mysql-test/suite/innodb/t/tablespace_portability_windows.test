@@ -11,8 +11,6 @@
 # On other systems, '\' is left unchanged.
 # So this output file is different from the Non-Windows version.
 
---source include/have_innodb_16k.inc
---source include/not_embedded.inc
 --source include/windows.inc
 
 SET DEFAULT_STORAGE_ENGINE=InnoDB;

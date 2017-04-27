@@ -18,12 +18,14 @@
   Table global_status (implementation).
 */
 
+#include "storage/perfschema/table_global_status.h"
+
+#include <stddef.h>
 #include <new>
 
 #include "current_thd.h"
 #include "field.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_thread.h"
 #include "mysqld.h"
 #include "pfs_column_types.h"
@@ -31,7 +33,6 @@
 #include "pfs_global.h"
 #include "pfs_instr_class.h"
 #include "sql_class.h"
-#include "table_global_status.h"
 
 bool
 PFS_index_global_status::match(const Status_variable *pfs)
@@ -83,7 +84,7 @@ PFS_engine_table_share table_global_status::m_share = {
 };
 
 PFS_engine_table *
-table_global_status::create(void)
+table_global_status::create(PFS_engine_table_share *)
 {
   return new table_global_status();
 }
@@ -182,7 +183,7 @@ table_global_status::rnd_pos(const void *pos)
 }
 
 int
-table_global_status::index_init(uint idx, bool)
+table_global_status::index_init(uint idx MY_ATTRIBUTE((unused)), bool)
 {
   /* Build a cache of all global status variables. Sum across threads. */
   m_status_cache.materialize_global();

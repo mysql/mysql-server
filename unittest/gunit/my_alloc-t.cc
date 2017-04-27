@@ -15,6 +15,8 @@
    Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
 
 #include <gtest/gtest.h>
+#include <stddef.h>
+#include <sys/types.h>
 
 #include "my_inttypes.h"
 #include "my_sys.h"
@@ -74,7 +76,7 @@ Mock_global_error_handler *Mock_global_error_handler::current= NULL;
 /*
   Error handler function.
 */
-extern "C" void mock_error_handler_hook(uint err, const char *str, myf MyFlags)
+extern "C" void mock_error_handler_hook(uint err, const char*, myf)
 {
   if (Mock_global_error_handler::current)
     Mock_global_error_handler::current->error_handler(err);

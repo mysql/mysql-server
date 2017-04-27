@@ -19,27 +19,28 @@
 #include <errno.h>
 #include <m_string.h>
 #include <my_getopt.h>
-#include <my_global.h>
 #include <my_sys.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <sys/types.h>
 #ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
 #define PERROR_VERSION "2.11"
 #include "../storage/ndb/include/mgmapi/mgmapi_error.h"
 #include "../storage/ndb/src/kernel/error/ndbd_exit_codes.c"
 #include "../storage/ndb/src/ndbapi/ndberror.c"
 #endif
-#include "print_version.h"
 #include <welcome_copyright_notice.h> /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
 
-static my_bool verbose;
+#include "print_version.h"
+
+static bool verbose;
 
 #include "../include/my_base.h"
 #include "../mysys/my_handler_errors.h"
 #include "my_compiler.h"
 
 #ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
-static my_bool ndb_code;
+static bool ndb_code;
 static char ndb_string[1024];
 int mgmapi_error_string(int err_no, char *str, int size)
 {
@@ -88,7 +89,7 @@ static void usage(void)
 }
 
 
-static my_bool
+static bool
 get_one_option(int optid, const struct my_option *opt MY_ATTRIBUTE((unused)),
 	       char *argument MY_ATTRIBUTE((unused)))
 {
@@ -186,7 +187,7 @@ int get_ER_error_msg(uint code, const char **name_ptr, const char **msg_ptr)
 }
 
 #if defined(_WIN32)
-static my_bool print_win_error_msg(DWORD error, my_bool verbose)
+static bool print_win_error_msg(DWORD error, bool verbose)
 {
   LPTSTR s;
   if (FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER |
@@ -248,7 +249,7 @@ int main(int argc,char *argv[])
   const char *name;
   char *unknown_error = 0;
 #if defined(_WIN32)
-  my_bool skip_win_message= 0;
+  bool skip_win_message= 0;
 #endif
   MY_INIT(argv[0]);
 

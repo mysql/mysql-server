@@ -2017,3 +2017,18 @@ c
 3
 DROP TABLE t1;
 # End of test for Bug#22686994
+#
+# Bug #25740550: DISTINCT OPERATIONS ON TEMP TABLES ALLOCATE TOO LITTLE
+#                MEMORY FOR SORT KEYS
+#
+# A test for remove_dup_with_hash_index() where sort keys are significantly
+# longer than the row itself.
+#
+CREATE TABLE t1(c1 int, c2 VARCHAR(1) COLLATE utf8mb4_0900_as_cs);
+INSERT INTO t1 VALUES (1, 'a');
+INSERT INTO t1 VALUES (2, 'A');
+SELECT DISTINCT c2 FROM t1 GROUP BY c1;
+c2
+a
+A
+DROP TABLE t1;

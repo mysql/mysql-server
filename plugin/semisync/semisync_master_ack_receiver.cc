@@ -13,6 +13,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include "my_config.h"
+
 #include <errno.h>
 
 #include "my_compiler.h"
@@ -182,7 +184,8 @@ void Ack_receiver::remove_slave(THD *thd)
   function_exit(kWho);
 }
 
-inline void Ack_receiver::set_stage_info(const PSI_stage_info &stage)
+inline void Ack_receiver::
+set_stage_info(const PSI_stage_info &stage MY_ATTRIBUTE((unused)))
 {
 #ifdef HAVE_PSI_STAGE_INTERFACE
   MYSQL_SET_STAGE(stage.m_key, __FILE__, __LINE__);

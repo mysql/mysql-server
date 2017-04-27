@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -36,7 +36,7 @@
 
 static uint my_get_large_page_size_int(void);
 static uchar* my_large_malloc_int(size_t size, myf my_flags);
-static my_bool my_large_free_int(uchar* ptr);
+static bool my_large_free_int(uchar* ptr);
 
 /* Gets the size of large pages from the OS */
 
@@ -165,7 +165,7 @@ uchar* my_large_malloc_int(size_t size, myf my_flags)
 
 /* Linux-specific large pages deallocator */
 
-my_bool my_large_free_int(uchar *ptr)
+bool my_large_free_int(uchar *ptr)
 {
   DBUG_ENTER("my_large_free_int");
   DBUG_RETURN(shmdt(ptr) == 0);

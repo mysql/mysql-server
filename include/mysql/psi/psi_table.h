@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -25,8 +25,10 @@
   @{
 */
 
-#include "my_global.h"
+#include "my_inttypes.h"
+#include "my_macros.h"
 #include "my_psi_config.h"  // IWYU pragma: keep
+#include "my_sharedlib.h"
 #include "psi_base.h"
 
 C_MODE_START
@@ -185,7 +187,7 @@ typedef enum PSI_table_lock_operation PSI_table_lock_operation;
   @return a table share instrumentation, or NULL
 */
 typedef struct PSI_table_share *(*get_table_share_v1_t)(
-  my_bool temporary, struct TABLE_SHARE *share);
+  bool temporary, struct TABLE_SHARE *share);
 
 /**
   Release a table share.
@@ -201,7 +203,7 @@ typedef void (*release_table_share_v1_t)(struct PSI_table_share *share);
   @param table_name the table name
   @param table_name_length the table name length
 */
-typedef void (*drop_table_share_v1_t)(my_bool temporary,
+typedef void (*drop_table_share_v1_t)(bool temporary,
                                       const char *schema_name,
                                       int schema_name_length,
                                       const char *table_name,

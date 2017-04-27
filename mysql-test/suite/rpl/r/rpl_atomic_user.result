@@ -54,69 +54,69 @@ CREATE USER IF NOT EXISTS u7, u_ne3 IDENTIFIED WITH  'sha256_password';
 CREATE USER IF NOT EXISTS u7, u_ne4, u_ne5 IDENTIFIED WITH 'sha256_password'
 by 'pwd_u_ne5';
 Warnings:
-Note	3163	User 'u7'@'%' already exists.
+Note	3163	Authorization ID 'u7'@'%' already exists.
 CREATE USER IF NOT EXISTS u5, u_failed1 IDENTIFIED WITH 'invalid_plugin',
 u_failed2;
 ERROR HY000: Plugin 'invalid_plugin' is not loaded
 CREATE ROLE IF NOT EXISTS r33, r44;
 CREATE ROLE IF NOT EXISTS r44, r55;
 Warnings:
-Note	3163	User 'r44'@'%' already exists.
+Note	3163	Authorization ID 'r44'@'%' already exists.
 CREATE ROLE IF NOT EXISTS r44, r55;
 Warnings:
-Note	3163	User 'r44'@'%' already exists.
-Note	3163	User 'r55'@'%' already exists.
+Note	3163	Authorization ID 'r44'@'%' already exists.
+Note	3163	Authorization ID 'r55'@'%' already exists.
 CREATE USER IF NOT EXISTS u6, u6, r1, r2 IDENTIFIED WITH  'sha256_password', r6;
 Warnings:
-Note	3163	User 'u6'@'%' already exists.
-Note	3163	User 'u6'@'%' already exists.
-Note	3163	User 'r1'@'%' already exists.
-Note	3163	User 'r2'@'%' already exists.
+Note	3163	Authorization ID 'u6'@'%' already exists.
+Note	3163	Authorization ID 'u6'@'%' already exists.
+Note	3163	Authorization ID 'r1'@'%' already exists.
+Note	3163	Authorization ID 'r2'@'%' already exists.
 # ALTER USER IF EXISTS statement test
 ALTER USER IF EXISTS u_failed1, u_failed2 IDENTIFIED WITH  'sha256_password';
 Warnings:
-Note	3162	User 'u_failed1'@'%' does not exist.
-Note	3162	User 'u_failed2'@'%' does not exist.
+Note	3162	Authorization ID 'u_failed1'@'%' does not exist.
+Note	3162	Authorization ID 'u_failed2'@'%' does not exist.
 ALTER USER IF EXISTS u7 IDENTIFIED WITH 'sha256_password', u_failed1, u_failed2,
 u8 WITH MAX_USER_CONNECTIONS 4;
 Warnings:
-Note	3162	User 'u_failed1'@'%' does not exist.
-Note	3162	User 'u_failed2'@'%' does not exist.
-Note	3162	User 'u8'@'%' does not exist.
+Note	3162	Authorization ID 'u_failed1'@'%' does not exist.
+Note	3162	Authorization ID 'u_failed2'@'%' does not exist.
+Note	3162	Authorization ID 'u8'@'%' does not exist.
 ALTER USER IF EXISTS u7, u_failed1, u_failed2 IDENTIFIED  WITH
 'sha256_password' by 'pwd_failed' WITH MAX_USER_CONNECTIONS 5;
 Warnings:
-Note	3162	User 'u_failed1'@'%' does not exist.
-Note	3162	User 'u_failed2'@'%' does not exist.
+Note	3162	Authorization ID 'u_failed1'@'%' does not exist.
+Note	3162	Authorization ID 'u_failed2'@'%' does not exist.
 ALTER USER IF EXISTS u7, u7 IDENTIFIED WITH  'sha256_password',
 u8 WITH MAX_USER_CONNECTIONS 6;
 Warnings:
-Note	3162	User 'u8'@'%' does not exist.
+Note	3162	Authorization ID 'u8'@'%' does not exist.
 ALTER USER IF EXISTS u6 IDENTIFIED WITH  'sha256_password',
 u7 IDENTIFIED WITH 'invalid_plugin', u8 WITH MAX_USER_CONNECTIONS 17;
 ERROR HY000: Plugin 'invalid_plugin' is not loaded
 ALTER USER IF EXISTS u6 IDENTIFIED WITH  'sha256_password',
 u_failed1, r6, r7, u9 WITH MAX_USER_CONNECTIONS 7;
 Warnings:
-Note	3162	User 'u_failed1'@'%' does not exist.
-Note	3162	User 'r7'@'%' does not exist.
-Note	3162	User 'u9'@'%' does not exist.
+Note	3162	Authorization ID 'u_failed1'@'%' does not exist.
+Note	3162	Authorization ID 'r7'@'%' does not exist.
+Note	3162	Authorization ID 'u9'@'%' does not exist.
 # Search warnings in the server log
 # DROP USER IF EXISTS statement test
 DROP USER IF EXISTS u7, u8, u_failed;
 Warnings:
-Note	3162	User 'u8'@'%' does not exist.
-Note	3162	User 'u_failed'@'%' does not exist.
+Note	3162	Authorization ID 'u8'@'%' does not exist.
+Note	3162	Authorization ID 'u_failed'@'%' does not exist.
 DROP USER IF EXISTS u7, u8;
 Warnings:
-Note	3162	User 'u7'@'%' does not exist.
-Note	3162	User 'u8'@'%' does not exist.
+Note	3162	Authorization ID 'u7'@'%' does not exist.
+Note	3162	Authorization ID 'u8'@'%' does not exist.
 DROP USER IF EXISTS u_ne3, u_ne4, r55;
 DROP USER IF EXISTS u_ne5, u_failed1, r6, u_failed2, r7;
 Warnings:
-Note	3162	User 'u_failed1'@'%' does not exist.
-Note	3162	User 'u_failed2'@'%' does not exist.
-Note	3162	User 'r7'@'%' does not exist.
+Note	3162	Authorization ID 'u_failed1'@'%' does not exist.
+Note	3162	Authorization ID 'u_failed2'@'%' does not exist.
+Note	3162	Authorization ID 'r7'@'%' does not exist.
 # DROP USER statement test
 DROP USER u1, u2, u_ne1, u_ne2;
 ERROR HY000: Operation DROP USER failed for 'u_ne1'@'%','u_ne2'@'%'

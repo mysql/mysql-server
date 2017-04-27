@@ -20,13 +20,13 @@
 #include <sys/types.h>
 #include <utility>
 
-#include "my_global.h"                          /* ulonglong, uint */
+#include "lex_string.h"
+#include "m_ctype.h"
+#include "m_string.h"
 #include "my_inttypes.h"
 #include "mysql/mysql_lex_string.h"             // MYSQL_LEX_CSTRING
-#include "m_ctype.h"
 
 typedef struct charset_info_st CHARSET_INFO;
-typedef struct st_mysql_lex_string LEX_STRING;
 typedef struct st_typelib TYPELIB;
 class THD;
 

@@ -19,10 +19,15 @@
 
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
+#include <stddef.h>
+#ifndef _WIN32
+#include <netdb.h>
+#endif
 
 #include "io/xpl_listener_tcp.h"
 #include "mock/ngs_general.h"
 #include "my_inttypes.h"
+#include "my_io.h"
 
 
 namespace xpl {

@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -37,6 +37,7 @@ enum enum_char_grp
   CHARGRP_LATIN,
   CHARGRP_CYRILLIC,
   CHARGRP_ARAB,
+  CHARGRP_KANA,
   CHARGRP_OTHERS
 };
 
@@ -56,6 +57,7 @@ struct Reorder_param
 {
   enum enum_char_grp     reorder_grp[UCA_MAX_CHAR_GRP];
   struct Reorder_wt_rec  wt_rec[2 * UCA_MAX_CHAR_GRP];
+  int                    wt_rec_num;
   uint16                 max_weight;
 };
 
@@ -69,7 +71,7 @@ enum enum_case_first
 struct Coll_param
 {
   struct Reorder_param *reorder_param;
-  my_bool               norm_enabled; // false = normalization off, default;
+  bool                  norm_enabled; // false = normalization off, default;
                                       // true = on
   enum enum_case_first  case_first;
 };

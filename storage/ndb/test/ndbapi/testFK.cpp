@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -26,7 +26,7 @@
 #include <NodeBitmask.hpp>
 #include <NdbEnv.h>
 
-extern "C" my_bool opt_core;
+extern "C" bool opt_core;
 
 #define DBG(x) \
   do { g_info << x << " at line " << __LINE__ << endl; } while (0)

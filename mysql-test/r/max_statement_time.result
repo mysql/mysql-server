@@ -320,6 +320,8 @@ STATUS
 # 10. Test Query cache behavior with max_execution_time.
 #
 SET SESSION query_cache_type= 1;
+SET @save_query_cache_size = @@query_cache_size;
+SET GLOBAL query_cache_size= 1048576;
 SET @@SESSION.max_execution_time= 0;
 CREATE TABLE t1 (fld1 int);
 INSERT INTO t1 VALUES (1), (2), (3);
@@ -406,3 +408,4 @@ STATUS
 FLUSH QUERY CACHE;
 DROP TABLE t1;
 SET @@SESSION.max_execution_time= 0;
+SET GLOBAL query_cache_size= @save_query_cache_size;

@@ -19,8 +19,10 @@
 
 #include "derror.h"        // ER_THD
 #include "key.h"
+#include "lex_string.h"
 #include "m_ctype.h"
 #include "my_dbug.h"
+#include "my_table_map.h"
 #include "mysql/psi/mysql_statement.h"
 #include "mysql/service_my_snprintf.h"
 #include "mysqld.h"        // table_alias_charset
@@ -63,6 +65,7 @@ struct st_opt_hint_info opt_hint_info[]=
   {"JOIN_SUFFIX", false, false, true},
   {"JOIN_ORDER", false, false, true},
   {"JOIN_FIXED_ORDER", false, true, false},
+  {"INDEX_MERGE", false, false, false},
   {0, 0, 0, 0}
 };
 
@@ -134,8 +137,8 @@ void Opt_hints::print(THD *thd, String *str, enum_query_type query_type)
        (This is needed by query rewrite plugins which request
        normalized form before resolving has been performed.)
     */
-    if (is_specified(hint) &&
-        (is_resolved() || query_type == QT_NORMALIZED_FORMAT))
+    if (is_specified(hint) && !ignore_print(hint) &&
+        (is_resolved(hint) || query_type == QT_NORMALIZED_FORMAT))
     {
       append_hint_type(str, hint);
       str->append(STRING_WITH_LEN("("));
@@ -178,6 +181,7 @@ void Opt_hints::print_warn_unresolved(THD *thd)
                           ER_THD(thd, ER_UNRESOLVED_HINT_NAME),
                           hint_name_str.c_ptr_safe(),
                           hint_type_str.c_ptr_safe());
+      get_parent()->set_unresolved(static_cast<opt_hints_enum>(i));
     }
   }
 }
@@ -185,7 +189,7 @@ void Opt_hints::print_warn_unresolved(THD *thd)
 
 void Opt_hints::check_unresolved(THD *thd)
 {
-  if (!is_resolved())
+  if (!is_resolved(MAX_HINT_ENUM))
     print_warn_unresolved(thd);
 
   if (!is_all_resolved())
@@ -633,6 +637,7 @@ void Opt_hints_table::adjust_key_hints(TABLE_LIST *tr)
         (*hint)->set_resolved();
         keyinfo_array[j]= static_cast<Opt_hints_key *>(*hint);
         incr_resolved_children();
+        set_compound_key_hint_map(*hint, j);
       }
     }
   }
@@ -644,6 +649,16 @@ void Opt_hints_table::adjust_key_hints(TABLE_LIST *tr)
   */
   if (is_all_resolved())
     get_parent()->incr_resolved_children();
+}
+
+
+PT_hint *Opt_hints_table::get_complex_hints(opt_hints_enum type)
+{
+  if (type == INDEX_MERGE_HINT_ENUM)
+    return index_merge.get_pt_hint();
+
+  DBUG_ASSERT(0);
+  return NULL;
 }
 
 
@@ -686,8 +701,18 @@ static bool get_hint_state(Opt_hints *hint,
   }
   else
   {
-    /* Complex hint, not implemented atm */
-    DBUG_ASSERT(0);
+    if (hint && hint->is_specified(type_arg) &&
+        /*
+          This check is necessary because function idx_merge_key_enabled()
+          can operate only with resolved hint. For unresolved hint function,
+          idx_merge_key_enabled() always returns 'true' to emulate absence
+          of the hint.
+        */
+        hint->is_resolved(type_arg))
+    {
+      *ret_val= hint->get_switch(type_arg);
+      return true;
+    }
   }
   return false;
 }
@@ -743,4 +768,41 @@ void append_table_name(THD *thd, String *str,
     str->append(STRING_WITH_LEN("@"));
     append_identifier(thd, str, qb_name->str, qb_name->length);
   }
+}
+
+
+bool idx_merge_key_enabled(const TABLE *table, uint keyno)
+{
+  Opt_hints_table *table_hints= table->pos_in_table_list->opt_hints_table;
+
+  if (table_hints && table_hints->is_resolved(INDEX_MERGE_HINT_ENUM))
+  {
+    if (table_hints->index_merge.is_key_map_clear_all())
+      return table_hints->index_merge.get_pt_hint()->switch_on();
+
+    return table_hints->index_merge.is_set_key_map(keyno) ==
+      table_hints->index_merge.get_pt_hint()->switch_on();
+  }
+
+  return true;
+}
+
+
+bool idx_merge_hint_state(const TABLE *table, bool *use_cheapest_index_merge)
+{
+  bool force_index_merge= hint_table_state(table->in_use,
+                                           table->pos_in_table_list,
+                                           INDEX_MERGE_HINT_ENUM, 0);
+  if (force_index_merge)
+  {
+    DBUG_ASSERT(table->pos_in_table_list->opt_hints_table);
+    Opt_hints_table *table_hints= table->pos_in_table_list->opt_hints_table;
+    /*
+      If INDEX_MERGE hint is used without only specified index,
+      cheapest index merge should be used.
+    */
+    *use_cheapest_index_merge= table_hints->index_merge.is_key_map_clear_all();
+  }
+
+  return force_index_merge;
 }

@@ -22,8 +22,9 @@
 #include <stddef.h>
 #include <sys/types.h>
 
-#include "my_global.h"
+#include "lex_string.h"
 #include "my_inttypes.h"
+#include "my_table_map.h"
 #include "mysql/mysql_lex_string.h"  // LEX_STRING
 #include "mysql_com.h"               // Item_result
 #include "sql_alloc.h"               // Sql_alloc
@@ -34,15 +35,13 @@ class String;
 class THD;
 class my_decimal;
 
-typedef struct st_mysql_lex_string LEX_STRING;
-
 
 enum Item_udftype {UDFTYPE_FUNCTION=1,UDFTYPE_AGGREGATE};
 
 typedef void (*Udf_func_clear)(UDF_INIT *, uchar *, uchar *);
 typedef void (*Udf_func_add)(UDF_INIT *, UDF_ARGS *, uchar *, uchar *);
 typedef void (*Udf_func_deinit)(UDF_INIT*);
-typedef my_bool (*Udf_func_init)(UDF_INIT *, UDF_ARGS *,  char *);
+typedef bool (*Udf_func_init)(UDF_INIT *, UDF_ARGS *,  char *);
 typedef void (*Udf_func_any)();
 typedef double (*Udf_func_double)(UDF_INIT *, UDF_ARGS *, uchar *, uchar *);
 typedef longlong (*Udf_func_longlong)(UDF_INIT *, UDF_ARGS *, uchar *,
@@ -88,7 +87,7 @@ class udf_handler :public Sql_alloc
   { return u_d	? u_d->returns : STRING_RESULT;}
   bool get_arguments();
   bool fix_fields(THD *thd, Item_result_field *item,
-		  uint arg_count, Item **args);
+                  uint arg_count, Item **args);
   void cleanup();
   double val(bool *null_value)
   {

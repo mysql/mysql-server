@@ -3,10 +3,7 @@
 #but needs to be kept for tests that would need MyISAM in future.
 --source include/force_myisam_default.inc
 
-# test create 2 myisam tables with same name on
-# different servers hence disable test for embedded
-# which only runs on one
--- source include/not_embedded.inc
+
 -- source include/have_multi_ndb.inc
 
 -- disable_query_log

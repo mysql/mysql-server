@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,16 +16,16 @@
 #ifndef DD__ABSTRACT_TABLE_INCLUDED
 #define DD__ABSTRACT_TABLE_INCLUDED
 
-#include "my_global.h"
-
 #include "dd/collection.h"                // dd::Collection
 #include "dd/object_id.h"                 // dd::Object_id
-#include "dd/types/dictionary_object.h"   // dd::Dictionary_object
+#include "dd/types/entity_object.h"       // dd::Entity_object
+#include "my_inttypes.h"
 
 namespace dd {
 
 ///////////////////////////////////////////////////////////////////////////
 
+class Entity_object_table;
 class Column;
 class Item_name_key;
 class Object_type;
@@ -60,11 +60,11 @@ enum class enum_table_type
         must inherit this class virtually.
 */
 
-class Abstract_table : public Dictionary_object
+class Abstract_table : virtual public Entity_object
 {
 public:
   static const Object_type &TYPE();
-  static const Dictionary_object_table &OBJECT_TABLE();
+  static const Entity_object_table &OBJECT_TABLE();
 
   typedef Abstract_table cache_partition_type;
   typedef tables::Tables cache_partition_table_type;
@@ -93,6 +93,27 @@ public:
   { };
 
 public:
+  /**
+    Enumeration type which indicates whether the table is hidden,
+    and if yes then which type of hidden table it is.
+  */
+  enum enum_hidden_type
+  {
+    /* Normal, user-visible table. */
+    HT_VISIBLE= 1,
+    /* Hidden. System (e.g. data-dictionary) table. */
+    HT_HIDDEN_SYSTEM,
+    /*
+      Hidden. Table which is implicitly created and dropped by SE.
+      For example, InnoDB's auxiliary table for FTS.
+    */
+    HT_HIDDEN_SE,
+    /*
+      Hidden. Temporary table created by ALTER TABLE implementation.
+    */
+    HT_HIDDEN_DDL
+  };
+
   /////////////////////////////////////////////////////////////////////////
   // schema.
   /////////////////////////////////////////////////////////////////////////
@@ -136,8 +157,8 @@ public:
   // hidden.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual bool hidden() const = 0;
-  virtual void set_hidden(bool hidden) = 0;
+  virtual enum_hidden_type hidden() const = 0;
+  virtual void set_hidden(enum_hidden_type hidden) = 0;
 
   /////////////////////////////////////////////////////////////////////////
   // Column collection.
@@ -146,6 +167,8 @@ public:
   virtual Column *add_column() = 0;
 
   virtual const Column_collection &columns() const = 0;
+
+  virtual Column_collection *columns() = 0;
 
   virtual const Column *get_column(const String_type name) const = 0;
 

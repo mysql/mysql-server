@@ -14,6 +14,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
 #include <gtest/gtest.h>
+#include <sys/types.h>
 
 #include "filesort.h"
 #include "my_inttypes.h"
@@ -70,7 +71,6 @@ protected:
 
   Sort_param m_sort_param;
   st_sort_field m_sort_fields[2]; // sortlength() adds an end marker !!
-  bool m_multi_byte_charset;
   uchar m_ref_buff[4];         // unused, but needed for make_sortkey()
   uchar m_buff[100];
   uchar *m_to;
@@ -82,10 +82,8 @@ TEST_F(MakeSortKeyTest, IntResult)
   thd()->variables.max_sort_length= 4U;
   m_sort_fields[0].item= new Item_int(42);
 
-  const uint total_length=
-    sortlength(thd(), m_sort_fields, 1, &m_multi_byte_charset);
+  const uint total_length= sortlength(thd(), m_sort_fields, 1);
   EXPECT_EQ(sizeof(longlong), total_length);
-  EXPECT_FALSE(m_multi_byte_charset);
   EXPECT_EQ(sizeof(longlong), m_sort_fields[0].length);
   EXPECT_EQ(INT_RESULT, m_sort_fields[0].result_type);
 
@@ -102,10 +100,8 @@ TEST_F(MakeSortKeyTest, IntResultNull)
   int_item->maybe_null= true;
   int_item->null_value= true;
 
-  const uint total_length=
-    sortlength(thd(), m_sort_fields, 1, &m_multi_byte_charset);
+  const uint total_length= sortlength(thd(), m_sort_fields, 1);
   EXPECT_EQ(1 + sizeof(longlong), total_length);
-  EXPECT_FALSE(m_multi_byte_charset);
   EXPECT_EQ(sizeof(longlong), m_sort_fields[0].length);
   EXPECT_EQ(INT_RESULT, m_sort_fields[0].result_type);
 
@@ -123,10 +119,8 @@ TEST_F(MakeSortKeyTest, DecimalResult)
   Parse_context pc(thd(), thd()->lex->current_select());
   EXPECT_FALSE(m_sort_fields[0].item->itemize(&pc, &m_sort_fields[0].item));
 
-  const uint total_length=
-    sortlength(thd(), m_sort_fields, 1, &m_multi_byte_charset);
+  const uint total_length= sortlength(thd(), m_sort_fields, 1);
   EXPECT_EQ(10U, total_length);
-  EXPECT_FALSE(m_multi_byte_charset);
   EXPECT_EQ(10U, m_sort_fields[0].length);
   EXPECT_EQ(DECIMAL_RESULT, m_sort_fields[0].result_type);
 
@@ -141,10 +135,8 @@ TEST_F(MakeSortKeyTest, RealResult)
   thd()->variables.max_sort_length= 4U;
   m_sort_fields[0].item= new Item_float(dbl_str, strlen(dbl_str));
 
-  const uint total_length=
-    sortlength(thd(), m_sort_fields, 1, &m_multi_byte_charset);
+  const uint total_length= sortlength(thd(), m_sort_fields, 1);
   EXPECT_EQ(sizeof(double), total_length);
-  EXPECT_FALSE(m_multi_byte_charset);
   EXPECT_EQ(sizeof(double), m_sort_fields[0].length);
   EXPECT_EQ(REAL_RESULT, m_sort_fields[0].result_type);
 

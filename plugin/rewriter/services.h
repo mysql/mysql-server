@@ -34,7 +34,6 @@
 #include <string>
 #include <vector>
 
-#include "my_global.h"
 #include "my_inttypes.h"
 
 namespace services

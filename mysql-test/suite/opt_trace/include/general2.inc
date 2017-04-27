@@ -142,13 +142,13 @@ drop table t1,t2,t3;
 --echo
 # Comes from having.test
 
-CREATE TABLE t1 (f1 INT, f2 VARCHAR(1));
+CREATE TABLE t1 (f1 INT, f2 VARCHAR(1)) CHARSET utf8mb4;
 INSERT INTO t1 VALUES (16,'f');
 INSERT INTO t1 VALUES (16,'f');
-CREATE TABLE t2 (f1 INT, f2 VARCHAR(1));
+CREATE TABLE t2 (f1 INT, f2 VARCHAR(1)) CHARSET utf8mb4;
 INSERT INTO t2 VALUES (13,'f');
 INSERT INTO t2 VALUES (20,'f');
-CREATE TABLE t3 (f1 INT, f2 VARCHAR(1));
+CREATE TABLE t3 (f1 INT, f2 VARCHAR(1)) CHARSET utf8mb4;
 INSERT INTO t3 VALUES (7,'f');
 --source include/turn_off_only_full_group_by.inc
 
@@ -370,13 +370,13 @@ DROP TABLE t2;
 --echo
 
 CREATE TABLE t1 (
-  col_varchar_10_latin1_key varchar(10) DEFAULT NULL,
+  col_varchar_10_latin1_key varchar(10) CHARACTER SET latin1 DEFAULT NULL,
   col_int_key INT,
   KEY col_int_key (col_int_key)
 );
 
 CREATE TABLE t2 (
-  col_varchar_10_latin1_key varchar(10) DEFAULT NULL,
+  col_varchar_10_latin1_key varchar(10) CHARACTER SET latin1 DEFAULT NULL,
   col_varchar_10_utf8_key varchar(10) CHARACTER SET utf8 DEFAULT NULL,
   col_int_key INT,
   KEY col_varchar_10_utf8_key (col_varchar_10_utf8_key),
@@ -388,7 +388,7 @@ INSERT INTO t2 VALUES ('qykbaqfyhz','l',NULL);
 CREATE TABLE t3 (
   col_int_key INT,
   col_varchar_10_utf8_key varchar(10) CHARACTER SET utf8 DEFAULT NULL,
-  col_varchar_10_latin1_key varchar(10) DEFAULT NULL,
+  col_varchar_10_latin1_key varchar(10) CHARACTER SET latin1 DEFAULT NULL,
   KEY col_varchar_10_utf8_key (col_varchar_10_utf8_key),
   KEY col_varchar_10_latin1_key (col_varchar_10_latin1_key)
 );

@@ -82,10 +82,6 @@ SELECT 1 IN (SELECT 1);
 SELECT 1 FROM (SELECT 1 as a) b WHERE 1 IN (SELECT (SELECT a));
 1
 1
-select (SELECT 1 FROM (SELECT 1) a PROCEDURE ANALYSE(1));
-ERROR HY000: Incorrect usage of PROCEDURE and subquery
-SELECT 1 FROM (SELECT 1) a PROCEDURE ANALYSE((SELECT 1));
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '(SELECT 1))' at line 1
 SELECT (SELECT 1) as a FROM (SELECT 1) b WHERE (SELECT a) IS NULL;
 ERROR 42S22: Unknown column 'a' in 'field list'
 SELECT (SELECT 1) as a FROM (SELECT 1) b WHERE (SELECT a) IS NOT NULL;
@@ -1097,31 +1093,31 @@ drop table t1, t2, t3;
 SELECT * FROM (SELECT 1 as a,(SELECT a)) a;
 a	(SELECT a)
 1	1
-CREATE TABLE t1 SELECT * FROM (SELECT 1 as a,(SELECT 1)) a;
+CREATE TABLE t1 charset utf8mb4 SELECT * FROM (SELECT 1 as a,(SELECT 1)) a;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(1) NOT NULL DEFAULT '0',
   `(SELECT 1)` int(1) NOT NULL DEFAULT '0'
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 drop table t1;
-CREATE TABLE t1 SELECT * FROM (SELECT 1 as a,(SELECT a)) a;
+CREATE TABLE t1 charset utf8mb4 SELECT * FROM (SELECT 1 as a,(SELECT a)) a;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(1) NOT NULL DEFAULT '0',
   `(SELECT a)` int(1) NOT NULL DEFAULT '0'
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 DROP TABLE t1;
-CREATE TABLE t1 SELECT * FROM (SELECT 1 as a,(SELECT a+0)) a;
+CREATE TABLE t1 charset utf8mb4 SELECT * FROM (SELECT 1 as a,(SELECT a+0)) a;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(1) NOT NULL DEFAULT '0',
   `(SELECT a+0)` int(3) NOT NULL DEFAULT '0'
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 DROP TABLE t1;
-CREATE TABLE t1 SELECT (SELECT 1 as a UNION SELECT 1+1 limit 1,1) as a;
+CREATE TABLE t1 charset utf8mb4 SELECT (SELECT 1 as a UNION SELECT 1+1 limit 1,1) as a;
 select * from t1;
 a
 2
@@ -1129,7 +1125,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` bigint(20) NOT NULL DEFAULT '0'
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 drop table t1;
 create table t1 (a int);
 insert into t1 values (1), (2), (3);
@@ -2802,7 +2798,7 @@ retailerID	statusID	changed
 drop table t1;
 create table t1(a int, primary key (a));
 insert into t1 values (10);
-create table t2 (a int primary key, b varchar(32), c int, unique key b(c, b));
+create table t2 (a int primary key, b varchar(32), c int, unique key b(c, b)) charset utf8mb4;
 insert into t2(a, c, b) values (1,10,'359'), (2,10,'35988'), (3,10,'35989');
 explain SELECT sql_no_cache t1.a, r.a, r.b FROM t1 LEFT JOIN t2 r
 ON r.a = (SELECT t2.a FROM t2 WHERE t2.c = t1.a AND t2.b <= '359899'
@@ -2810,7 +2806,7 @@ ON r.a = (SELECT t2.a FROM t2 WHERE t2.c = t1.a AND t2.b <= '359899'
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	system	PRIMARY	NULL	NULL	NULL	1	100.00	NULL
 1	PRIMARY	r	NULL	const	PRIMARY	PRIMARY	4	const	1	100.00	NULL
-2	DEPENDENT SUBQUERY	t2	NULL	range	b	b	40	NULL	2	100.00	Using index condition; Backward index scan
+2	DEPENDENT SUBQUERY	t2	NULL	range	b	b	136	NULL	2	100.00	Using index condition; Backward index scan
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
 Note	1003	/* select#1 */ select sql_no_cache '10' AS `a`,'3' AS `a`,'35989' AS `b` from `test`.`t2` `r` where 1
@@ -2825,7 +2821,7 @@ ON r.a = (SELECT t2.a FROM t2 WHERE t2.c = t1.a AND t2.b <= '359899'
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	system	PRIMARY	NULL	NULL	NULL	1	100.00	NULL
 1	PRIMARY	r	NULL	const	PRIMARY	PRIMARY	4	const	1	100.00	NULL
-2	DEPENDENT SUBQUERY	t2	NULL	range	b	b	40	NULL	2	100.00	Using index condition
+2	DEPENDENT SUBQUERY	t2	NULL	range	b	b	136	NULL	2	100.00	Using index condition
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
 Note	1003	/* select#1 */ select sql_no_cache '10' AS `a`,'1' AS `a`,'359' AS `b` from `test`.`t2` `r` where 1
@@ -2890,20 +2886,20 @@ a	a IN (SELECT a FROM t1)
 DROP TABLE t1,t2;
 CREATE TABLE t1 (a DATETIME);
 INSERT INTO t1 VALUES ('1998-09-23'), ('2003-03-25');
-CREATE TABLE t2 AS SELECT
+CREATE TABLE t2 charset utf8mb4 AS SELECT
 (SELECT a FROM t1 WHERE a < '2000-01-01') AS sub_a
 FROM t1 WHERE a > '2000-01-01';
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `sub_a` datetime DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
-CREATE TABLE t3 AS (SELECT a FROM t1 WHERE a < '2000-01-01') UNION (SELECT a FROM t1 WHERE a > '2000-01-01');
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
+CREATE TABLE t3 charset utf8mb4 AS (SELECT a FROM t1 WHERE a < '2000-01-01') UNION (SELECT a FROM t1 WHERE a > '2000-01-01');
 SHOW CREATE TABLE t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
   `a` datetime DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 DROP TABLE t1,t2,t3;
 CREATE TABLE t1 (a int);
 INSERT INTO t1 VALUES (1), (2);
@@ -3941,7 +3937,7 @@ Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `res`.`count(*)` AS `count(*)` from (/* select#2 */ select count(0) AS `count(*)` from `test`.`t1` group by `test`.`t1`.`a`) `res`
 DROP TABLE t1;
 CREATE TABLE t1 (
-a varchar(255) default NULL,
+a varchar(200) default NULL,
 b timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
 INDEX idx(a,b)
 );
@@ -4587,7 +4583,7 @@ Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1276	Field or reference 'test.t2.oref' of SELECT #2 was resolved in SELECT #1
 Note	1003	/* select#1 */ select `test`.`t2`.`oref` AS `oref`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,<in_optimizer>((`test`.`t2`.`a`,`test`.`t2`.`b`),<exists>(<index_lookup>(<cache>(`test`.`t2`.`a`) in t1 on idx checking NULL where ((`test`.`t1`.`oref` = `test`.`t2`.`oref`) and <if>(outer_field_is_not_null, ((<cache>(`test`.`t2`.`a`) = `test`.`t1`.`ie1`) or isnull(`test`.`t1`.`ie1`)), true) and <if>(outer_field_is_not_null, ((<cache>(`test`.`t2`.`b`) = `test`.`t1`.`ie2`) or isnull(`test`.`t1`.`ie2`)), true)) having (<if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t1`.`ie1`), true) and <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t1`.`ie2`), true))))) AS `z` from `test`.`t2` where ((`test`.`t2`.`b` = 10) and (`test`.`t2`.`a` = 10))
 drop table t1, t2;
-create table t1 (oref char(4), grp int, ie int);
+create table t1 (oref char(4), grp int, ie int) charset utf8mb4;
 insert into t1 (oref, grp, ie) values
 ('aa', 10, 2),
 ('aa', 10, 1),
@@ -4599,7 +4595,7 @@ insert into t1 (oref, grp, ie) values
 ('ee', 10, NULL),
 ('ff', 20, 2),
 ('ff', 20, 1);
-create table t2 (oref char(4), a int);
+create table t2 (oref char(4), a int) charset utf8mb4;
 insert into t2 values 
 ('ee', NULL),
 ('bb', 2),
@@ -4717,7 +4713,7 @@ alter table t1 add index idx(oref,ie);
 explain select oref, a, a in (select ie from t1 where oref=t2.oref) z from t2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	7	100.00	NULL
-2	DEPENDENT SUBQUERY	t1	NULL	ref_or_null	idx	idx	10	test.t2.oref,func	4	100.00	Using where; Using index; Full scan on NULL key
+2	DEPENDENT SUBQUERY	t1	NULL	ref_or_null	idx	idx	22	test.t2.oref,func	4	100.00	Using where; Using index; Full scan on NULL key
 Warnings:
 Note	1276	Field or reference 'test.t2.oref' of SELECT #2 was resolved in SELECT #1
 Note	1003	/* select#1 */ select `test`.`t2`.`oref` AS `oref`,`test`.`t2`.`a` AS `a`,<in_optimizer>(`test`.`t2`.`a`,<exists>(/* select#2 */ select 1 from `test`.`t1` where ((`test`.`t1`.`oref` = `test`.`t2`.`oref`) and <if>(outer_field_is_not_null, ((<cache>(`test`.`t2`.`a`) = `test`.`t1`.`ie`) or isnull(`test`.`t1`.`ie`)), true)) having <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t1`.`ie`), true))) AS `z` from `test`.`t2`
@@ -4745,7 +4741,7 @@ group by grp having min(ie) > 1) z
 from t2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	7	100.00	NULL
-2	DEPENDENT SUBQUERY	t1	NULL	ref	idx	idx	5	test.t2.oref	2	100.00	Using index condition; Using temporary
+2	DEPENDENT SUBQUERY	t1	NULL	ref	idx	idx	17	test.t2.oref	2	100.00	Using index condition; Using temporary
 Warnings:
 Note	1276	Field or reference 'test.t2.oref' of SELECT #2 was resolved in SELECT #1
 Note	1003	/* select#1 */ select `test`.`t2`.`oref` AS `oref`,`test`.`t2`.`a` AS `a`,<in_optimizer>(`test`.`t2`.`a`,<exists>(/* select#2 */ select 1 from `test`.`t1` where (`test`.`t1`.`oref` = `test`.`t2`.`oref`) group by `test`.`t1`.`grp` having ((min(`test`.`t1`.`ie`) > 1) and <if>(outer_field_is_not_null, (<cache>(`test`.`t2`.`a`) = <ref_null_helper>(min(`test`.`t1`.`ie`))), true)))) AS `z` from `test`.`t2`
@@ -6410,6 +6406,44 @@ SELECT * FROM t1 WHERE t1.number < ANY(SELECT number FROM t2);
 pk	number
 8	8
 DROP TABLE t1,t2;
+purge master logs before (select adddate(current_timestamp(), interval -4 day));
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '(select adddate(current_timestamp(), interval -4 day))' at line 1
+purge master logs before adddate(current_timestamp(), interval -4 day);
+create table t1(a int,b int,key(a),key(b));
+insert into t1(a,b) values (1,2),(2,1),(2,3),(3,4),(5,4),(5,5),
+(6,7),(7,4),(5,3);
+5
+4
+3
+2
+1
+26
+25
+24
+23
+22
+21
+20
+19
+18
+17
+16
+15
+14
+13
+12
+11
+10
+9
+8
+7
+6
+5
+4
+3
+2
+1
+drop table t1;
 End of 5.1 tests
 #
 # BUG#50257: Missing info in REF column of the EXPLAIN 
@@ -6780,9 +6814,9 @@ DROP TABLE t1, t2;
 #
 # BUG#12616253 - WRONG RESULT WITH EXISTS(SUBQUERY) (MISSING ROWS)
 #
-CREATE TABLE t1 (f1 varchar(1));
+CREATE TABLE t1 (f1 varchar(1)) charset utf8mb4;
 INSERT INTO t1 VALUES ('v'),('s');
-CREATE TABLE t2 (f1_key varchar(1), KEY (f1_key));
+CREATE TABLE t2 (f1_key varchar(1), KEY (f1_key)) charset utf8mb4;
 INSERT INTO t2 VALUES ('j'),('v'),('c'),('m'),('d'),
 ('d'),('y'),('t'),('d'),('s');
 SELECT table1.f1, table2.f1_key
@@ -6822,7 +6856,7 @@ FROM t2
 WHERE f1_key != table2.f1_key AND f1_key >= table1.f1 );
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	table1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
-1	PRIMARY	table2	NULL	index	NULL	f1_key	4	NULL	10	100.00	Using where; Using index; Using join buffer (Block Nested Loop)
+1	PRIMARY	table2	NULL	index	NULL	f1_key	7	NULL	10	100.00	Using where; Using index; Using join buffer (Block Nested Loop)
 2	DEPENDENT SUBQUERY	t2	NULL	ALL	f1_key	NULL	NULL	NULL	10	30.00	Range checked for each record (index map: 0x1)
 Warnings:
 Note	1276	Field or reference 'test.table2.f1_key' of SELECT #2 was resolved in SELECT #1
@@ -6837,14 +6871,14 @@ col_int_key int,
 col_varchar_key varchar(1),
 col_varchar_nokey varchar(1),
 KEY (col_int_key)
-);
+) charset latin1;
 INSERT INTO t1 VALUES (224,'p','p'),(9,'e','e');
 CREATE TABLE t3 (
 col_int_key int,
 col_varchar_key varchar(1),
 KEY col_int_key (col_int_key),
 KEY col_varchar_key (col_varchar_key,col_int_key))
-;
+charset latin1;
 INSERT INTO t3 VALUES (4,'p'),(8,'e'),(10,'a');
 SELECT t1f.*,t3f.*,(
 SELECT MIN(t3s.col_int_key)
@@ -6921,13 +6955,13 @@ DROP TABLE t1, t2, t3;
 CREATE TABLE ot (
 col_int_nokey int(11), 
 col_varchar_nokey varchar(1)
-) ;
+) charset latin1;
 INSERT INTO ot VALUES (1,'x');
 CREATE TABLE it (
 col_int_key int(11), 
 col_varchar_key varchar(1), 
 KEY idx_cvk_cik (col_varchar_key,col_int_key)
-) ;
+) charset latin1 ;
 INSERT INTO it VALUES (NULL,'x'), (NULL,'f');
 
 SELECT col_int_nokey 
@@ -6983,7 +7017,7 @@ col_varchar_key varchar(1),
 col_varchar_key2 varchar(1),
 KEY idx_cvk_cvk2_cik (col_varchar_key, col_varchar_key2, col_int_key),
 KEY idx_cvk_cik (col_varchar_key, col_int_key)
-);
+) charset latin1;
 INSERT INTO it VALUES (NULL,'x','x'), (NULL,'f','f');
 SELECT col_int_nokey
 FROM ot
@@ -7034,7 +7068,7 @@ col_varchar_nokey varchar(1) NOT NULL,
 PRIMARY KEY (pk),
 KEY col_int_key (col_int_key),
 KEY col_varchar_key (col_varchar_key,col_int_key)
-);
+) charset latin1;
 INSERT INTO t1 VALUES (1,0,'j','j'),(2,8,'v','v'),
 (3,1,'c','c'),(4,8,'m','m'),(5,9,'d','d');
 CREATE VIEW v1 AS SELECT * FROM t1;
@@ -7387,7 +7421,7 @@ CREATE TABLE t1 (
 col_varchar_key varchar(1) NOT NULL,
 col_varchar_nokey varchar(1) NOT NULL,
 KEY col_varchar_key (col_varchar_key)
-) ENGINE=InnoDB;
+) charset utf8mb4 ENGINE=InnoDB;
 INSERT INTO t1 VALUES
 ('v','v'), ('s','s'), ('l','l'), ('y','y'), ('c','c'),
 ('i','i'), ('h','h'), ('q','q'), ('a','a'), ('v','v'),
@@ -7396,7 +7430,7 @@ INSERT INTO t1 VALUES
 CREATE TABLE t2 (
 col_int_nokey INT NOT NULL,
 col_varchar_nokey varchar(1) NOT NULL
-) ENGINE=InnoDB;
+) charset utf8mb4 ENGINE=InnoDB;
 INSERT INTO t2 VALUES
 (4,'j'), (6,'v'), (3,'c'), (5,'m'), (3,'d'), (246,'d'), (2,'y'), (9,'t'),
 (3,'d'), (8,'s'), (1,'r'), (8,'m'), (8,'b'), (5,'x'), (7,'g'), (5,'p'),
@@ -7431,7 +7465,7 @@ ON it2.col_varchar_nokey = it1.col_varchar_key
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 3	DEPENDENT SUBQUERY	it2	NULL	ALL	NULL	NULL	NULL	NULL	20	100.00	Using where
-3	DEPENDENT SUBQUERY	it1	NULL	ref	col_varchar_key	col_varchar_key	3	test.it2.col_varchar_nokey	1	100.00	Using index
+3	DEPENDENT SUBQUERY	it1	NULL	ref	col_varchar_key	col_varchar_key	6	test.it2.col_varchar_nokey	1	100.00	Using index
 2	SUBQUERY	t0	NULL	system	PRIMARY	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
@@ -8250,11 +8284,11 @@ CREATE TABLE t1 (
 a1 char(8) DEFAULT NULL,
 a2 char(8) DEFAULT NULL,
 KEY a1 (a1(2))
-);
+) charset latin1;
 CREATE TABLE t2 (
 b1 char(8) DEFAULT NULL,
 b2 char(8) DEFAULT NULL
-);
+) charset latin1;
 INSERT INTO t1 VALUES
 ('1 - 00', '2 - 00'),('1 - 01', '2 - 01'),('1 - 02', '2 - 02');
 INSERT INTO t2 VALUES
@@ -8284,4 +8318,10 @@ SELECT * FROM t2 WHERE b1 NOT IN
 b1	b2
 1 - 03	2 - 03
 DROP TABLE t1,t2;
+CREATE TABLE t1 (f1 INT NOT NULL);
+CREATE VIEW v1 (a) AS SELECT f1 IN (SELECT f1 FROM t1) FROM t1;
+SELECT * FROM v1;
+a
+drop view v1;
+drop table t1;
 set optimizer_switch=default;

@@ -21,12 +21,12 @@
 #include "handler.h"
 #include "hash.h"
 #include "item.h"
+#include "lex_string.h"
 #include "log_event.h"                  /* append_query_string */
 #include "m_ctype.h"
 #include "m_string.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_sqlcommand.h"
 #include "my_sys.h"
@@ -492,12 +492,14 @@ bool set_and_validate_user_attributes(THD *thd,
             password so we can force password change on next login
           */
           Str->alter_status.update_password_expired_column= true;
+          what_to_set|= PASSWORD_EXPIRE_ATTR;
         }
         /*
           always check for password expire/interval attributes as there is no
           way to differentiate NEVER EXPIRE and EXPIRE DEFAULT scenario
         */
-        what_to_set|= PASSWORD_EXPIRE_ATTR;
+        if (Str->alter_status.update_password_expired_fields)
+          what_to_set|= PASSWORD_EXPIRE_ATTR;
         break;
       }
       default:
@@ -645,7 +647,7 @@ bool set_and_validate_user_attributes(THD *thd,
       Str->uses_authentication_string_clause))
   {
     /*
-      The statement CREATE ROLE calls mysql_create_user() with a set of 
+      The statement CREATE ROLE calls mysql_create_user() with a set of
       lexicographic parameters: users_identified_by_password_caluse= false etc
       It also sets is_role= true. We don't have to check this parameter here
       since we're already know that the above parameters will be false
@@ -1119,6 +1121,12 @@ static int handle_grant_data(THD *thd, TABLE_LIST *tables, bool drop,
     {
       DBUG_RETURN(-1);
     }
+    /* Remove all associated dynamic privileges on a best effort basis */
+    Update_dynamic_privilege_table
+      update_table(thd, tables[ACL_TABLES::TABLE_DYNAMIC_PRIV].table);
+    result= revoke_all_dynamic_privileges(user_from->user,
+                                          user_from->host,
+                                          update_table);
   }
 
   /* Handle user table. */
@@ -1464,7 +1472,8 @@ bool mysql_create_user(THD *thd, List <LEX_USER> &list, bool if_not_exists, bool
   /* In case of SE error, we would have raised error before reaching here. */
   if (result && !thd->is_error())
   {
-      my_error(ER_CANNOT_USER, MYF(0), "CREATE USER",
+      my_error(ER_CANNOT_USER, MYF(0), (is_role ? "CREATE ROLE" :
+                                        "CREATE USER"),
                is_anonymous_user ?
                  "anonymous user" :
                  wrong_users.c_ptr_safe());
@@ -1699,6 +1708,14 @@ bool mysql_rename_user(THD *thd, List <LEX_USER> &list)
       continue;
     }
 
+    Update_dynamic_privilege_table
+      update_table(thd, tables[ACL_TABLES::TABLE_DYNAMIC_PRIV].table);
+    if (rename_dynamic_grant(user_from->user, user_from->host, user_to->user,
+                             user_to->host, update_table))
+    {
+      result= 1;
+      break;
+    }
     roles_rename_authid(thd,
                         tables[ACL_TABLES::TABLE_ROLE_EDGES].table,
                         tables[ACL_TABLES::TABLE_DEFAULT_ROLES].table,

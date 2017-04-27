@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2017 Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -57,16 +57,20 @@ SET(xplugin_HDRS
   "${MYSQLX_PROJECT_DIR}/src/xpl_regex.h"
   "${MYSQLX_PROJECT_DIR}/src/auth_plain.h"
   "${MYSQLX_PROJECT_DIR}/src/auth_mysql41.h"
+  "${MYSQLX_PROJECT_DIR}/src/native_plain_verification.h"
+  "${MYSQLX_PROJECT_DIR}/src/native_verification.h"
+  "${MYSQLX_PROJECT_DIR}/src/sha256_plain_verification.h"
+  "${MYSQLX_PROJECT_DIR}/src/account_verification_handler.h"
   "${MYSQLX_PROJECT_DIR}/src/admin_cmd_handler.h"
   "${MYSQLX_PROJECT_DIR}/src/query_string_builder.h"
   "${MYSQLX_PROJECT_DIR}/src/expr_generator.h"
   "${MYSQLX_PROJECT_DIR}/src/crud_cmd_handler.h"
   "${MYSQLX_PROJECT_DIR}/src/buffering_command_delegate.h"
   "${MYSQLX_PROJECT_DIR}/src/callback_command_delegate.h"
-  "${MYSQLX_PROJECT_DIR}/src/command_delegate.h"
   "${MYSQLX_PROJECT_DIR}/src/streaming_command_delegate.h"
   "${MYSQLX_PROJECT_DIR}/src/sql_data_context.h"
   "${MYSQLX_PROJECT_DIR}/src/sql_data_result.h"
+  "${MYSQLX_PROJECT_DIR}/src/xpl_resultset.h"
   "${MYSQLX_PROJECT_DIR}/src/sql_user_require.h"
   "${MYSQLX_PROJECT_DIR}/src/json_utils.h"
   "${MYSQLX_PROJECT_DIR}/src/expect.h"
@@ -96,7 +100,12 @@ SET(xplugin_SRC
   "${MYSQLX_PROJECT_DIR}/src/mysql_variables.cc"
   "${MYSQLX_PROJECT_DIR}/src/mysql_function_names.cc"
   "${MYSQLX_PROJECT_DIR}/src/mysql_show_variable_wrapper.cc"
+  "${MYSQLX_PROJECT_DIR}/src/auth_plain.cc"
   "${MYSQLX_PROJECT_DIR}/src/auth_mysql41.cc"
+  "${MYSQLX_PROJECT_DIR}/src/native_plain_verification.cc"
+  "${MYSQLX_PROJECT_DIR}/src/native_verification.cc"
+  "${MYSQLX_PROJECT_DIR}/src/sha256_plain_verification.cc"
+  "${MYSQLX_PROJECT_DIR}/src/account_verification_handler.cc"
   "${MYSQLX_PROJECT_DIR}/src/admin_cmd_handler.cc"
   "${MYSQLX_PROJECT_DIR}/src/query_formatter.cc"
   "${MYSQLX_PROJECT_DIR}/src/query_string_builder.cc"

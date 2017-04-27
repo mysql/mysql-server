@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -90,6 +90,8 @@ Foreign_keys::Foreign_keys()
   m_target_def.add_index("PRIMARY KEY (id)");
   m_target_def.add_index("UNIQUE KEY (schema_id, name)");
   m_target_def.add_index("UNIQUE KEY (table_id, name)");
+  m_target_def.add_index("KEY (referenced_table_catalog, "
+                         "referenced_table_schema, referenced_table_name)");
 
   m_target_def.add_foreign_key("FOREIGN KEY (schema_id) REFERENCES "
                                "schemata(id)");
@@ -102,6 +104,23 @@ Foreign_keys::Foreign_keys()
 Object_key *Foreign_keys::create_key_by_table_id(Object_id table_id)
 {
   return new (std::nothrow) Parent_id_range_key(2, FIELD_TABLE_ID, table_id);
+}
+
+
+Object_key *Foreign_keys::create_key_by_referenced_name(
+  const String_type &referenced_catalog,
+  const String_type &referenced_schema,
+  const String_type &referenced_table)
+{
+  const int index_no= 3;
+
+  return new (std::nothrow) Table_reference_range_key(index_no,
+                                                 FIELD_REFERENCED_CATALOG,
+                                                 referenced_catalog,
+                                                 FIELD_REFERENCED_SCHEMA,
+                                                 referenced_schema,
+                                                 FIELD_REFERENCED_TABLE,
+                                                 referenced_table);
 }
 
 ///////////////////////////////////////////////////////////////////////////

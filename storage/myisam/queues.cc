@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -61,7 +61,7 @@ static int resize_queue(QUEUE *queue, PSI_memory_key key, uint max_elements);
 
 extern "C" int init_queue(QUEUE *queue, PSI_memory_key psi_key,
                           uint max_elements, uint offset_to_key,
-                          my_bool max_at_top,
+                          bool max_at_top,
                           int (*compare) (void *, uchar *, uchar *),
                           void *first_cmp_arg)
 {
@@ -106,7 +106,7 @@ extern "C" int init_queue(QUEUE *queue, PSI_memory_key psi_key,
 */
 
 extern "C" int init_queue_ex(QUEUE *queue, PSI_memory_key psi_key, uint max_elements,
-                             uint offset_to_key, my_bool max_at_top,
+                             uint offset_to_key, bool max_at_top,
                              int (*compare) (void *, uchar *, uchar *),
                              void *first_cmp_arg, uint auto_extent)
 {
@@ -144,7 +144,7 @@ extern "C" int init_queue_ex(QUEUE *queue, PSI_memory_key psi_key, uint max_elem
 */
 
 extern "C" int reinit_queue(QUEUE *queue, PSI_memory_key psi_key, uint max_elements, uint offset_to_key,
-                            my_bool max_at_top,
+                            bool max_at_top,
                             int (*compare) (void *, uchar *, uchar *),
                             void *first_cmp_arg)
 {
@@ -255,7 +255,7 @@ void _downheap(QUEUE *queue, uint idx)
 {
   uchar *element;
   uint elements,half_queue,offset_to_key, next_index;
-  my_bool first= TRUE;
+  bool first= TRUE;
   uint start_idx= idx;
 
   offset_to_key=queue->offset_to_key;

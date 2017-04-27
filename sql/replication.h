@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,10 +16,9 @@
 #ifndef REPLICATION_H
 #define REPLICATION_H
 
-#include "my_global.h"
+#include "handler.h"                  // enum_tx_isolation
 #include "my_thread_local.h"          // my_thread_id
 #include "mysql/psi/mysql_thread.h"   // mysql_mutex_t
-#include "handler.h"                  // enum_tx_isolation
 
 typedef struct st_mysql MYSQL;
 typedef struct st_io_cache IO_CACHE;
@@ -34,6 +33,22 @@ class THD;
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+/**
+  Struct to share server ssl variables
+*/
+struct st_server_ssl_variables
+{
+  bool have_ssl_opt;
+  char *ssl_ca;
+  char *ssl_capath;
+  char *tls_version;
+  char *ssl_cert;
+  char *ssl_cipher;
+  char *ssl_key;
+  char *ssl_crl;
+  char *ssl_crlpath;
+};
 
 /**
    Transaction observer flags.
@@ -125,6 +140,11 @@ typedef struct Trans_param {
   IO_CACHE *trx_cache_log;
   IO_CACHE *stmt_cache_log;
   ulonglong cache_log_max_size;
+  /*
+    The flag designates the transaction is a DDL contained is
+    the transactional cache.
+  */
+  bool      is_atomic_ddl;
 
   /*
    This is the list of tables that are involved in this transaction and its
@@ -137,6 +157,9 @@ typedef struct Trans_param {
    Context information about system variables in the transaction
    */
   Trans_context_info trans_ctx_info;
+
+  /// pointer to the status var original_commit_timestamp
+  uint64 *original_commit_timestamp;
 
 } Trans_param;
 

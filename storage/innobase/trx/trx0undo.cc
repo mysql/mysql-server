@@ -23,6 +23,8 @@ Transaction undo log
 Created 3/26/1996 Heikki Tuuri
 *******************************************************/
 
+#include <stddef.h>
+
 #include "fsp0fsp.h"
 #include "ha_prototypes.h"
 #include "my_compiler.h"
@@ -1024,7 +1026,6 @@ trx_undo_truncate_end_func(
 			ut_ad(trx->rsegs.m_noredo.rseg == undo->rseg);
 		} else {
 			ut_ad(trx->rsegs.m_redo.rseg == undo->rseg);
-			mtr.set_undo_space(undo->rseg->space_id);
 		}
 
 		trunc_here = NULL;
@@ -1103,8 +1104,6 @@ loop:
 
 	if (fsp_is_system_temporary(rseg->space_id)) {
 		mtr.set_log_mode(MTR_LOG_NO_REDO);
-	} else {
-		mtr.set_undo_space(rseg->space_id);
 	}
 
 	rec = trx_undo_get_first_rec(rseg->space_id, rseg->page_size,
@@ -1169,8 +1168,6 @@ trx_undo_seg_free(
 
 		if (noredo) {
 			mtr.set_log_mode(MTR_LOG_NO_REDO);
-		} else {
-			mtr.set_undo_space(rseg->space_id);
 		}
 
 		mutex_enter(&(rseg->mutex));
@@ -1701,7 +1698,6 @@ trx_undo_assign_undo(
 		mtr.set_log_mode(MTR_LOG_NO_REDO);
 	} else {
 		ut_ad(&trx->rsegs.m_redo == undo_ptr);
-		mtr.set_undo_space(rseg->space_id);
 	}
 
 	mutex_enter(&rseg->mutex);

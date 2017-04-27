@@ -16,7 +16,6 @@
 #include <ctype.h>
 #include <fcntl.h>
 #include <my_dir.h>
-#include <my_global.h>
 #include <mysql/plugin.h>
 #include <mysql_version.h>
 #include <stdlib.h>
@@ -24,6 +23,7 @@
 #include "m_string.h"                           // strlen
 #include "my_dbug.h"
 #include "my_inttypes.h"
+#include "my_io.h"
 #include "my_sys.h"                             // my_write, my_malloc
 #include "sql_plugin.h"                         // st_plugin_int
 
@@ -186,7 +186,7 @@ static int test_sql_service_plugin_init(void *p)
 }
 
 
-static int test_sql_service_plugin_deinit(void *p)
+static int test_sql_service_plugin_deinit(void*)
 {
   DBUG_ENTER("test_sql_service_plugin_deinit");
   DBUG_RETURN(0);

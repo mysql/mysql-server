@@ -192,21 +192,21 @@ create table t1 (a set('y','n')) partition by key (a);
 insert into t1 values ('y');
 select * from t1 where a = 'y';
 drop table t1;
-create table t1 (a varchar(3068)) partition by key (a);
+create table t1 (a varchar(3068)) charset latin1 partition by key (a);
 insert into t1 values ('bbbb');
 insert into t1 values ('aaaa');
 select * from t1 where a = 'aaaa';
 select * from t1 where a like 'aaa%';
 select * from t1 where a = 'bbbb';
 drop table t1;
-create table t1 (a varchar(3069)) partition by key (a);
+create table t1 (a varchar(3069)) charset latin1 partition by key (a);
 insert into t1 values ('bbbb');
 insert into t1 values ('aaaa');
 select * from t1 where a = 'aaaa';
 select * from t1 where a like 'aaa%';
 select * from t1 where a = 'bbbb';
 drop table t1;
-create table t1 (a varchar(3070) not null) partition by key (a);
+create table t1 (a varchar(3070) not null) charset latin1 partition by key (a);
 insert into t1 values ('bbbb');
 insert into t1 values ('aaaa');
 select * from t1 where a = 'aaaa';
@@ -216,11 +216,11 @@ drop table t1;
 -- error ER_PARTITION_FIELDS_TOO_LONG
 create table t1 (a varchar(3070)) partition by key (a);
 -- error ER_TOO_BIG_ROWSIZE
-create table t1 (a varchar(65533)) partition by key (a);
+create table t1 (a varchar(65533)) charset latin1 partition by key (a);
 -- error ER_TOO_BIG_ROWSIZE
-create table t1 (a varchar(65534) not null) partition by key (a);
+create table t1 (a varchar(65534) not null) charset latin1 partition by key (a);
 -- error ER_TOO_BIG_ROWSIZE
-create table t1 (a varchar(65535)) partition by key (a);
+create table t1 (a varchar(65535)) charset latin1 partition by key (a);
 
 #
 # Bug#34358: error in key_restore for bitfields with uneven bits

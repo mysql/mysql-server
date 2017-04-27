@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -17,14 +17,13 @@ this program; if not, write to the Free Software Foundation, Inc.,
 ****************************************************************************/
 
 /**************************************************//**
-@file handler_api.c
+@file handler_api.cc
 
 Created 3/14/2011 Jimmy Yang
 *******************************************************/
 
 #include "handler_api.h"
 
-#include <my_global.h>
 #include <stdlib.h>
 #include <ctype.h>
 #include <mysql_version.h>
@@ -82,7 +81,6 @@ handler_create_thd(
 		return(NULL);
 	}
 
-	my_thread_init();
 	thd = new THD;
 
 	if (!thd) {

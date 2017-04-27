@@ -120,7 +120,7 @@ drop table t2;
 SET NAMES koi8r;
 SET character_set_connection=ucs2;
 --source include/ctype_like.inc
-
+--character_set kio8r
 CREATE TABLE t1 (a VARCHAR(10) CHARACTER SET ucs2);
 INSERT INTO t1 VALUES ('фыва'),('Фыва'),('фЫва'),('фыВа'),('фывА'),('ФЫВА');
 INSERT INTO t1 VALUES ('фывапролдж'),('Фывапролдж'),('фЫвапролдж'),('фыВапролдж');
@@ -131,7 +131,7 @@ SELECT * FROM t1 WHERE a LIKE '%фЫв%';
 SELECT * FROM t1 WHERE a LIKE 'фЫва%';
 SELECT * FROM t1 WHERE a LIKE 'фЫва%' COLLATE ucs2_bin;
 DROP TABLE t1;
-
+--character_set utf8mb4
 #
 # Bug 1181
 #
@@ -781,12 +781,10 @@ SET sql_mode = default;
 set collation_connection=ucs2_general_ci;
 --source include/weight_string.inc
 --source include/weight_string_euro.inc
---source include/weight_string_l1.inc
 
 set collation_connection=ucs2_bin;
 --source include/weight_string.inc
 --source include/weight_string_euro.inc
---source include/weight_string_l1.inc
 
 --echo #
 --echo # Bug #36418 Character sets: crash if char(256 using utf32)

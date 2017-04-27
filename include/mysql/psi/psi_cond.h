@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -25,8 +25,10 @@
   @{
 */
 
-#include "my_global.h"
+#include "my_inttypes.h"
+#include "my_macros.h"
 #include "my_psi_config.h"  // IWYU pragma: keep
+#include "my_sharedlib.h"
 #include "psi_base.h"
 
 C_MODE_START
@@ -111,7 +113,7 @@ typedef enum PSI_cond_operation PSI_cond_operation;
 
 /**
   Condition information.
-  @since PSI_VERSION_1
+  @since PSI_COND_VERSION_1
   This structure is used to register an instrumented cond.
 */
 struct PSI_cond_info_v1

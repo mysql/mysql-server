@@ -1,5 +1,3 @@
--- source include/not_embedded.inc
-
 # Do some valid changes, ensure they are successful
 SET @sql := "CREATE TABLE test.t1 (i INT)";
 CALL sys.execute_prepared_stmt(@sql);

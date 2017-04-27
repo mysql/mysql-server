@@ -19,6 +19,7 @@
 
 #include "streaming_command_delegate.h"
 
+#include <stddef.h>
 #include <iostream>
 #include <string>
 
@@ -263,7 +264,7 @@ int Streaming_command_delegate::get_null()
 
 int Streaming_command_delegate::get_integer(longlong value)
 {
-  my_bool unsigned_flag = (m_field_types[m_proto->row_builder().get_num_fields()].flags & UNSIGNED_FLAG) != 0;
+  bool unsigned_flag = (m_field_types[m_proto->row_builder().get_num_fields()].flags & UNSIGNED_FLAG) != 0;
 
   return get_longlong(value, unsigned_flag);
 }
@@ -298,7 +299,7 @@ int Streaming_command_delegate::get_decimal(const decimal_t * value)
   return false;
 }
 
-int Streaming_command_delegate::get_double(double value, uint32 decimals)
+int Streaming_command_delegate::get_double(double value, uint32)
 {
   if (m_field_types[m_proto->row_builder().get_num_fields()].type == MYSQL_TYPE_FLOAT)
     m_proto->row_builder().add_float_field(static_cast<float>(value));

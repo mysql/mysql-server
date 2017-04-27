@@ -3,8 +3,6 @@
 # Test creates table with 8192 partition and does import/export of idb files
 #------------------------------------------------------------------------------
 
-# Not supported in embedded
---source include/not_embedded.inc
 
 
 # Test take time to run due to max partitions

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -25,9 +25,8 @@
 #include "dd/impl/types/weak_object_impl.h"
 #include "dd/object_id.h"
 #include "dd/types/charset.h"                  // dd::Charset
-#include "dd/types/dictionary_object_table.h"  // dd::Dictionary_object_table
+#include "dd/types/entity_object_table.h"      // dd::Entity_object_table
 #include "dd/types/object_type.h"              // dd::Object_type
-#include "my_global.h"
 
 namespace dd {
 
@@ -52,7 +51,7 @@ public:
   { }
 
 public:
-  virtual const Dictionary_object_table &object_table() const
+  virtual const Object_table &object_table() const
   { return Charset::OBJECT_TABLE(); }
 
   virtual bool validate() const;
@@ -93,10 +92,10 @@ public:
   { m_comment= comment; }
 
   // Fix "inherits ... via dominance" warnings
-  virtual Weak_object_impl *impl()
-  { return Weak_object_impl::impl(); }
-  virtual const Weak_object_impl *impl() const
-  { return Weak_object_impl::impl(); }
+  virtual Entity_object_impl *impl()
+  { return Entity_object_impl::impl(); }
+  virtual const Entity_object_impl *impl() const
+  { return Entity_object_impl::impl(); }
   virtual Object_id id() const
   { return Entity_object_impl::id(); }
   virtual bool is_persistent() const

@@ -1,7 +1,7 @@
 ## generated
 ## Simple collection
 
---source ../include/xplugin_preamble.inc
+--source include/xplugin_preamble.inc
 
 create schema xtest default charset 'utf8mb4';
 create database xtest_1 default charset 'utf8mb4';

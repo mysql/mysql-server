@@ -17,7 +17,7 @@
 #define KEYS_CONTAINER_INCLUDED
 
 #include <hash.h>
-#include <my_global.h>
+#include <sys/types.h>
 #include <sys_vars_shared.h> //For PolyLock, AutoWLock, AutoRLock
 
 #include "i_keyring_io.h"
@@ -26,6 +26,7 @@
 #include "keyring_memory.h"
 #include "logger.h"
 #include "my_inttypes.h"
+#include "my_sharedlib.h"
 
 namespace keyring {
 
@@ -35,10 +36,10 @@ class Keys_container : public IKeys_container
 {
 public:
   Keys_container(ILogger* logger);
-  my_bool init(IKeyring_io* keyring_io, std::string keyring_storage_url);
-  my_bool store_key(IKey *key);
+  bool init(IKeyring_io* keyring_io, std::string keyring_storage_url);
+  bool store_key(IKey *key);
   IKey* fetch_key(IKey *key);
-  my_bool remove_key(IKey *key);
+  bool remove_key(IKey *key);
   std::string get_keyring_storage_url();
   void set_keyring_io(IKeyring_io *keyring_io);
 
@@ -51,13 +52,13 @@ public:
 protected:
   Keys_container(const Keys_container &);
 
-  my_bool load_keys_from_keyring_storage();
+  bool load_keys_from_keyring_storage();
   void free_keys_hash();
   IKey *get_key_from_hash(IKey *key);
-  my_bool store_key_in_hash(IKey *key);
-  my_bool remove_key_from_hash(IKey *key);
-  virtual my_bool flush_to_backup();
-  virtual my_bool flush_to_storage(IKey *key, Key_operation operation);
+  bool store_key_in_hash(IKey *key);
+  bool remove_key_from_hash(IKey *key);
+  virtual bool flush_to_backup();
+  virtual bool flush_to_storage(IKey *key, Key_operation operation);
 
   HASH keys_hash;
   ILogger* logger;

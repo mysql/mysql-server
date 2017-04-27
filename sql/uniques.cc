@@ -42,6 +42,7 @@
 #include "merge_many_buff.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
+#include "my_io.h"
 #include "my_tree.h"                            // element_count
 #include "mysql/psi/mysql_file.h"
 #include "mysql/psi/psi_base.h"
@@ -360,7 +361,7 @@ end:
 
 
 
-int unique_write_to_file(uchar* key, element_count count, Unique *unique)
+int unique_write_to_file(uchar* key, element_count, Unique *unique)
 {
   /*
     Use unique->size (size of element stored in the tree) and not
@@ -371,7 +372,7 @@ int unique_write_to_file(uchar* key, element_count count, Unique *unique)
   return my_b_write(&unique->file, key, unique->size) ? 1 : 0;
 }
 
-int unique_write_to_ptrs(uchar* key, element_count count, Unique *unique)
+int unique_write_to_ptrs(uchar* key, element_count, Unique *unique)
 {
   memcpy(unique->record_pointers, key, unique->size);
   unique->record_pointers+=unique->size;

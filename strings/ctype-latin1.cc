@@ -13,7 +13,6 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include <my_global.h>
 #include <stddef.h>
 #include <sys/types.h>
 
@@ -456,9 +455,9 @@ CHARSET_INFO my_charset_latin1=
     ' ',                /* pad char      */
     0,                  /* escape_with_backslash_is_dangerous */
     1,                  /* levels_for_compare */
-    1,                  /* levels_for_order   */
     &my_charset_handler,
-    &my_collation_8bit_simple_ci_handler
+    &my_collation_8bit_simple_ci_handler,
+    PAD_SPACE
 };
 
 
@@ -469,19 +468,19 @@ CHARSET_INFO my_charset_latin1=
  *
  * The modern sort order is used, where:
  *
- * '‰'  ->  "ae"
- * 'ˆ'  ->  "oe"
- * '¸'  ->  "ue"
- * 'ﬂ'  ->  "ss"
+ * '√§'  ->  "ae"
+ * '√∂'  ->  "oe"
+ * '√º'  ->  "ue"
+ * '√ü'  ->  "ss"
  */
 
 
 /*
  * This is a simple latin1 mapping table, which maps all accented
  * characters to their non-accented equivalents.  Note: in this
- * table, '‰' is mapped to 'A', 'ˇ' is mapped to 'Y', etc. - all
+ * table, '√§' is mapped to 'A', '√ø' is mapped to 'Y', etc. - all
  * accented characters except the following are treated the same way.
- * ‹, ¸, ÷, ˆ, ƒ, ‰
+ * √ú, √º, √ñ, √∂, √Ñ, √§
  */
 
 static const uchar sort_order_latin1_de[] = {
@@ -543,15 +542,14 @@ static const uchar combo2map[]={
 
 /*
   Some notes about the following comparison rules:
-  By definition, my_strnncoll_latin_de must works exactly as if had called
-  my_strnxfrm_latin_de() on both strings and compared the result strings.
+  By definition, my_strnncoll_latin1_de() must work exactly as if one had called
+  my_strnxfrm_latin1_de() on both strings and compared the resulting strings.
 
-  This means that:
-  ƒ must also matches ¡E and AË, because my_strxn_frm_latin_de() will convert
-  both to AE.
+  This means that √Ñ must also match √ÅE and A√®, because my_strxnfrm_latin1_de()
+  will convert both to AE.
 
-  The other option would be to not do any accent removal in
-  sort_order_latin_de[] at all
+  The other option would be to not do any accent removal in sort_order_latin_de[]
+  at all.
 */
 
 
@@ -560,7 +558,7 @@ static int my_strnncoll_latin1_de(const CHARSET_INFO *cs
                                   MY_ATTRIBUTE((unused)),
 				  const uchar *a, size_t a_length,
 				  const uchar *b, size_t b_length,
-                                  my_bool b_is_prefix)
+                                  bool b_is_prefix)
 {
   const uchar *a_end= a + a_length;
   const uchar *b_end= b + b_length;
@@ -676,13 +674,12 @@ my_strnxfrm_latin1_de(const CHARSET_INFO *cs,
   {
     uchar chr= combo1map[*src];
     *dst++= chr;
-    if ((chr= combo2map[*src]) && dst < de && nweights > 1)
+    if ((chr= combo2map[*src]) && dst < de)
     {
       *dst++= chr;
-      nweights--;
     }
   }
-  return my_strxfrm_pad_desc_and_reverse(cs, d0, dst, de, nweights, flags, 0);
+  return my_strxfrm_pad(cs, d0, dst, de, nweights, flags);
 }
 
 
@@ -696,7 +693,7 @@ static void my_hash_sort_latin1_de(const CHARSET_INFO *cs MY_ATTRIBUTE((unused))
 
   /*
     Remove end space. We have to do this to be able to compare
-    'AE' and 'ƒ' as identical
+    'AE' and '√Ñ' as identical
   */
   end= skip_trailing_space(key, len);
 
@@ -767,9 +764,9 @@ CHARSET_INFO my_charset_latin1_german2_ci=
   ' ',                                  /* pad char      */
   0,                                    /* escape_with_backslash_is_dangerous */
   1,                                    /* levels_for_compare */
-  1,                                    /* levels_for_order   */
   &my_charset_handler,
-  &my_collation_german2_ci_handler
+  &my_collation_german2_ci_handler,
+  PAD_SPACE
 };
 
 
@@ -803,8 +800,8 @@ CHARSET_INFO my_charset_latin1_bin=
   ' ',                                  /* pad char      */
   0,                                    /* escape_with_backslash_is_dangerous */
   1,                                    /* levels_for_compare */
-  1,                                    /* levels_for_order   */
   &my_charset_handler,
-  &my_collation_8bit_bin_handler
+  &my_collation_8bit_bin_handler,
+  PAD_SPACE
 };
 

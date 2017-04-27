@@ -6,7 +6,7 @@ EVAL CREATE TABLE articles_1 (
         title_char VARCHAR(200),
         title_varchar VARCHAR(300),
         title_text VARCHAR(300)
-        ) ENGINE=InnoDB $table_row_format;
+        ) charset latin1 ENGINE=InnoDB $table_row_format;
 
 EVAL CREATE TABLE articles (
         seq INT AUTO_INCREMENT NOT NULL PRIMARY KEY,

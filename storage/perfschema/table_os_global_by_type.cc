@@ -19,16 +19,18 @@
   Table OBJECTS_SUMMARY_GLOBAL_BY_TYPE (implementation).
 */
 
+#include "storage/perfschema/table_os_global_by_type.h"
+
+#include <stddef.h>
+
 #include "field.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_thread.h"
 #include "pfs_buffer_container.h"
 #include "pfs_column_types.h"
 #include "pfs_column_values.h"
 #include "pfs_global.h"
 #include "pfs_instr_class.h"
-#include "table_os_global_by_type.h"
 
 THR_LOCK table_os_global_by_type::m_table_lock;
 
@@ -156,7 +158,7 @@ PFS_index_os_global_by_type::match(PFS_program *pfs)
 }
 
 PFS_engine_table *
-table_os_global_by_type::create(void)
+table_os_global_by_type::create(PFS_engine_table_share *)
 {
   return new table_os_global_by_type();
 }
@@ -276,7 +278,7 @@ table_os_global_by_type::rnd_pos(const void *pos)
 }
 
 int
-table_os_global_by_type::index_init(uint idx, bool)
+table_os_global_by_type::index_init(uint idx MY_ATTRIBUTE((unused)), bool)
 {
   PFS_index_os_global_by_type *result;
   DBUG_ASSERT(idx == 0);

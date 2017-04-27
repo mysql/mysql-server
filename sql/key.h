@@ -22,7 +22,6 @@
 #include "key_spec.h"                  /* fk_option */
 #include "my_base.h"                   /* ha_rows, ha_key_alg */
 #include "my_dbug.h"
-#include "my_global.h"                          /* uchar */
 #include "my_inttypes.h"
 #include "mysql/mysql_lex_string.h"    /* LEX_CSTRING */
 #include "sql_plugin_ref.h"            /* plugin_ref */
@@ -39,6 +38,8 @@ class FOREIGN_KEY
 {
 public:
   const char *name;
+  const char *orig_name; // Holds the original name during ALTER TABLE
+  const char *unique_index_name;
   uint key_parts;
   LEX_CSTRING *key_part;
   LEX_CSTRING *fk_key_part;

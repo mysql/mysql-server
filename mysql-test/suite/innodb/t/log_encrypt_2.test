@@ -2,7 +2,6 @@
 # This test case will test basic encryption support features.
 
 --source include/no_valgrind_without_big.inc
---source include/not_embedded.inc
 
 #Suppress following messages from myslqd log
 --disable_query_log

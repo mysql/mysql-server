@@ -17,7 +17,7 @@
 #define MY_XP_THREAD_INCLUDED
 
 #include <errno.h>
-#include <xplatform/my_xp_cond.h>
+#include "mysql/gcs/xplatform/my_xp_cond.h"
 
 #ifndef ETIME
 #define ETIME ETIMEDOUT                         /* For FreeBSD */
@@ -26,6 +26,7 @@
 #ifndef ETIMEDOUT
 #define ETIMEDOUT 145                           /* Win32 doesn't have this */
 #endif
+
 
 typedef unsigned int uint32;
 typedef uint32 native_thread_id;

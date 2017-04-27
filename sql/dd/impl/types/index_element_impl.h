@@ -26,7 +26,6 @@
 #include "dd/sdi_fwd.h"
 #include "dd/types/index_element.h"         // dd::Index_element
 #include "dd/types/object_type.h"           // dd::Object_type
-#include "my_global.h"
 
 namespace dd {
 
@@ -128,7 +127,7 @@ public:
   virtual void set_length(uint length)
   { m_length= length; }
 
-  virtual void set_length_null(bool is_null)
+  virtual void set_length_null(bool)
   { m_length= (uint) -1; }
 
   virtual bool is_length_null() const
@@ -155,12 +154,6 @@ public:
   { m_order= order; }
 
   virtual bool is_prefix() const;
-
-  // Fix "inherits ... via dominance" warnings
-  virtual Weak_object_impl *impl()
-  { return Weak_object_impl::impl(); }
-  virtual const Weak_object_impl *impl() const
-  { return Weak_object_impl::impl(); }
 
 public:
   static Index_element_impl *restore_item(Index_impl *index)

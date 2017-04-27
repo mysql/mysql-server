@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -13,21 +13,20 @@
   along with this program; if not, write to the Free Software Foundation,
   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include <my_global.h>
+#include <memory.h>
 #include <my_thread.h>
-#include <pfs_server.h>
-#include <pfs_instr_class.h>
-#include <pfs_instr.h>
 #include <mysql/psi/psi_file.h>
-#include <pfs_global.h>
 #include <pfs_buffer_container.h>
+#include <pfs_global.h>
+#include <pfs_instr.h>
+#include <pfs_instr_class.h>
+#include <pfs_server.h>
+#include <string.h>
 #include <tap.h>
 
-#include <string.h>
-#include <memory.h>
-
-#include "stub_print_error.h"
+#include "my_io.h"
 #include "stub_pfs_defaults.h"
+#include "stub_print_error.h"
 
 /* test helpers, to simulate the setup */
 
@@ -1633,7 +1632,8 @@ static void test_locker_disabled()
   ok(socket_A1 != NULL, "instrumented");
   /* Socket thread owner has not been set */
   socket_locker= socket_service->start_socket_wait(&socket_state, socket_A1, PSI_SOCKET_SEND, 12, "foo.cc", 12);
-  ok(socket_locker == NULL, "no locker (no thread owner)");
+  ok(socket_locker != NULL, "locker (owner not used)");
+  socket_service->end_socket_wait(socket_locker, 10);
 
   /* Pretend the running thread is not instrumented */
   /* ---------------------------------------------- */
@@ -2265,10 +2265,10 @@ static void do_all_tests()
 
 int main(int, char **)
 {
-  plan(232);
+  plan(343);
 
   MY_INIT("pfs-t");
   do_all_tests();
-  return 0;
+  return (exit_status());
 }
 

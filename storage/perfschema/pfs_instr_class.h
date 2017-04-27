@@ -16,10 +16,13 @@
 #ifndef PFS_INSTR_CLASS_H
 #define PFS_INSTR_CLASS_H
 
+#include "my_config.h"
+
+#include <sys/types.h>
+
 #include "lf.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "mysql_com.h" /* NAME_LEN */
 #include "mysqld_error.h"
@@ -34,7 +37,7 @@ struct TABLE_SHARE;
 
 /**
   @file storage/perfschema/pfs_instr_class.h
-  Performance schema instruments meta data (declarations).
+  Performance schema instruments metadata (declarations).
 */
 
 /**
@@ -61,7 +64,7 @@ class PFS_opaque_container_page;
   @{
 */
 
-extern my_bool pfs_enabled;
+extern bool pfs_enabled;
 extern enum_timer_name *class_timers[];
 
 /** Key, naming a synch instrument (mutex, rwlock, cond). */
@@ -205,7 +208,7 @@ struct PFS_mutex;
 
 #define PFS_MUTEX_PARTITIONS 2
 
-/** Instrumentation metadata for a MUTEX. */
+/** Instrumentation metadata for a mutex. */
 struct PFS_ALIGNED PFS_mutex_class : public PFS_instr_class
 {
   /** Mutex usage statistics. */
@@ -216,7 +219,7 @@ struct PFS_ALIGNED PFS_mutex_class : public PFS_instr_class
 
 struct PFS_rwlock;
 
-/** Instrumentation metadata for a RWLOCK. */
+/** Instrumentation metadata for a read write lock. */
 struct PFS_ALIGNED PFS_rwlock_class : public PFS_instr_class
 {
   /** Rwlock usage statistics. */
@@ -227,7 +230,7 @@ struct PFS_ALIGNED PFS_rwlock_class : public PFS_instr_class
 
 struct PFS_cond;
 
-/** Instrumentation metadata for a COND. */
+/** Instrumentation metadata for a condition. */
 struct PFS_ALIGNED PFS_cond_class : public PFS_instr_class
 {
   /**
@@ -257,8 +260,8 @@ struct PFS_table_share_key
 {
   /**
     Hash search key.
-    This has to be a string for LF_HASH,
-    the format is "<enum_object_type><schema_name><0x00><object_name><0x00>"
+    This has to be a string for @c LF_HASH,
+    the format is @c "<enum_object_type><schema_name><0x00><object_name><0x00>"
     @see create_table_def_key
   */
   char m_hash_key[1 + NAME_LEN + 1 + NAME_LEN + 1];
@@ -399,13 +402,13 @@ private:
   int m_refcount;
   /** Table locks statistics. */
   PFS_table_share_lock *m_race_lock_stat;
-  /** Table indexes' stats. */
+  /** Table indexes stats. */
   PFS_table_share_index *m_race_index_stat[MAX_INDEXES + 1];
 };
 
 /** Statistics for the IDLE instrument. */
 extern PFS_single_stat global_idle_stat;
-/** Statistics for dropped table io. */
+/** Statistics for dropped table I/O. */
 extern PFS_table_io_stat global_table_io_stat;
 /** Statistics for dropped table lock. */
 extern PFS_table_lock_stat global_table_lock_stat;
@@ -439,7 +442,7 @@ sanitize_index_count(uint count)
 #define GLOBAL_ERROR_INDEX 0
 
 /**
-  Instrument controlling all table io.
+  Instrument controlling all table I/O.
   This instrument is used with table SETUP_OBJECTS.
 */
 extern PFS_instr_class global_table_io_class;
@@ -484,8 +487,8 @@ struct PFS_ALIGNED PFS_file_class : public PFS_instr_class
 struct PFS_ALIGNED PFS_stage_class : public PFS_instr_class
 {
   /**
-    Length of the 'stage/\<component\>/' prefix.
-    This is to extract 'foo' from 'stage/sql/foo'.
+    Length of the @c "stage/\<component\>/" prefix.
+    This is to extract @c "foo" from @c "stage/sql/foo".
   */
   uint m_prefix_length;
   /** Stage usage statistics. */

@@ -23,10 +23,13 @@ The transaction
 Created 3/26/1996 Heikki Tuuri
 *******************************************************/
 
+#include <sys/types.h>
+#include <time.h>
 #include <new>
 #include <set>
 
 #include "btr0sea.h"
+#include "dict0dd.h"
 #include "fsp0sysspace.h"
 #include "ha_prototypes.h"
 #include "lock0lock.h"
@@ -787,15 +790,15 @@ trx_resurrect_locks()
 
 		for (table_id_set::const_iterator i = tables.begin();
 		     i != tables.end(); i++) {
-			if (dict_table_t* table = dict_table_open_on_id(
-				    *i, FALSE,
-				    DICT_TABLE_OP_LOAD_TABLESPACE)) {
+			dict_table_t* table = dd_table_open_on_id(
+				*i, NULL, NULL, false);
+			if (table) {
 				ut_ad(!table->is_temporary());
 
 				if (table->ibd_file_missing
 				    || table->is_temporary()) {
 					mutex_enter(&dict_sys->mutex);
-					dict_table_close(table, TRUE, FALSE);
+					dd_table_close(table, NULL, NULL, true);
 					dict_table_remove_from_cache(table);
 					mutex_exit(&dict_sys->mutex);
 					continue;
@@ -813,7 +816,7 @@ trx_resurrect_locks()
 					    trx_get_id_for_print(trx),
 					    table->name.m_name));
 
-				dict_table_close(table, FALSE, FALSE);
+				dd_table_close(table, NULL, NULL, false);
 			}
 		}
 	}
@@ -822,7 +825,7 @@ trx_resurrect_locks()
 }
 
 /****************************************************************//**
-Resurrect the transactions that were doing inserts the time of the
+Resurrect the transactions that were doing inserts at the time of the
 crash, they need to be undone.
 @return trx_t instance */
 static
@@ -933,23 +936,15 @@ trx_resurrect_update_in_prepared_state(
 		ib::info() << "Transaction " << trx_get_id_for_print(trx)
 			<< " was in the XA prepared state.";
 
-		if (srv_force_recovery == 0) {
+		ut_ad(trx->state != TRX_STATE_FORCED_ROLLBACK);
 
-			ut_ad(trx->state != TRX_STATE_FORCED_ROLLBACK);
-
-			if (trx_state_eq(trx, TRX_STATE_NOT_STARTED)) {
-				++trx_sys->n_prepared_trx;
-			} else {
-				ut_ad(trx_state_eq(trx, TRX_STATE_PREPARED));
-			}
-
-			trx->state = TRX_STATE_PREPARED;
+		if (trx_state_eq(trx, TRX_STATE_NOT_STARTED)) {
+			++trx_sys->n_prepared_trx;
 		} else {
-			ib::info() << "Since innodb_force_recovery > 0, we"
-				" will rollback it anyway.";
-
-			trx->state = TRX_STATE_ACTIVE;
+			ut_ad(trx_state_eq(trx, TRX_STATE_PREPARED));
 		}
+
+		trx->state = TRX_STATE_PREPARED;
 	} else {
 		trx->state = TRX_STATE_COMMITTED_IN_MEMORY;
 	}
@@ -2032,7 +2027,8 @@ trx_commit_low(
 	ut_ad(!mtr == !(trx_is_rseg_updated(trx)));
 
 	/* undo_no is non-zero if we're doing the final commit. */
-	if (trx->fts_trx != NULL && trx->undo_no != 0) {
+	if (trx->fts_trx != NULL && trx->undo_no != 0
+	    && trx->lock.que_state != TRX_QUE_ROLLING_BACK) {
 		dberr_t	error;
 
 		ut_a(!trx_is_autocommit_non_locking(trx));
@@ -2058,11 +2054,6 @@ trx_commit_low(
 	if (mtr != NULL) {
 
 		mtr->set_sync();
-
-		if (trx_is_redo_rseg_updated(trx)) {
-			mtr->set_undo_space(trx->rsegs.m_redo.rseg->space_id);
-			mtr->set_sys_modified();
-		}
 
 		serialised = trx_write_serialisation_history(trx, mtr);
 
@@ -2128,8 +2119,8 @@ trx_commit(
 
 	if (trx_is_rseg_updated(trx)) {
 		mtr = &local_mtr;
+
 		mtr_start_sync(mtr);
-		mtr->set_sys_modified();
 	} else {
 		mtr = NULL;
 	}
@@ -2690,8 +2681,6 @@ trx_prepare_low(
 
 		if (noredo_logging) {
 			mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
-		} else {
-			mtr.set_undo_space(rseg->space_id);
 		}
 
 		/* Change the undo log segment states from TRX_UNDO_ACTIVE to

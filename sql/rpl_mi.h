@@ -21,6 +21,7 @@
 
 #include "m_string.h"
 #include "my_inttypes.h"
+#include "my_io.h"
 #include "my_psi_config.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/psi_base.h"
@@ -34,7 +35,6 @@ class THD;
 
 #include "binlog_event.h"            // enum_binlog_checksum_alg
 #include "log_event.h"               // Format_description_log_event
-#include "my_global.h"
 #include "rpl_gtid.h"                // Gtid
 #include "rpl_info.h"                // Rpl_info
 #include "rpl_trx_boundary_parser.h" // Transaction_boundary_parser
@@ -75,7 +75,7 @@ typedef struct st_mysql MYSQL;
 
 *****************************************************************************/
 
-class Master_info : public Rpl_info
+class Master_info : public Rpl_info, public Gtid_mode_copy
 {
 friend class Rpl_info_factory;
 
@@ -84,6 +84,19 @@ public:
     Host name or ip address stored in the master.info.
   */
   char host[HOSTNAME_LENGTH + 1];
+
+  /*
+    Check if the channel is configured.
+
+    @param mi Pointer to Master_info.
+
+    @retval true  The channel is configured.
+    @retval false The channel is not configured.
+  */
+  static bool is_configured(Master_info *mi)
+  {
+    return mi && mi->host[0];
+  }
 
 private:
   /**
@@ -115,6 +128,11 @@ private:
     START SLAVE.
   */
   char start_plugin_dir[FN_REFLEN + 1];
+
+  /// Information on the last queued transaction
+  trx_monitoring_info *last_queued_trx;
+  /// Information on the currently queueing transaction
+  trx_monitoring_info *queueing_trx;
 
 public:
   /**
@@ -250,11 +268,11 @@ public:
       strmake(start_plugin_dir, src, sizeof(start_plugin_dir) - 1);
   }
 
-  my_bool ssl; // enables use of SSL connection if true
+  bool ssl; // enables use of SSL connection if true
   char ssl_ca[FN_REFLEN], ssl_capath[FN_REFLEN], ssl_cert[FN_REFLEN];
   char ssl_cipher[FN_REFLEN], ssl_key[FN_REFLEN], tls_version[FN_REFLEN];
   char ssl_crl[FN_REFLEN], ssl_crlpath[FN_REFLEN];
-  my_bool ssl_verify_server_cert;
+  bool ssl_verify_server_cert;
 
   MYSQL* mysql;
   uint32 file_id;				/* for 3.23 load data infile */
@@ -274,7 +292,7 @@ public:
   float heartbeat_period;         // interface with CHANGE MASTER or master.info
   ulonglong received_heartbeats;  // counter of received heartbeat events
 
-  time_t last_heartbeat;
+  ulonglong last_heartbeat;
 
   Server_ids *ignore_server_ids;
 
@@ -302,6 +320,86 @@ public:
    */
   char for_channel_str[CHANNEL_NAME_LENGTH+15];
   char for_channel_uppercase_str[CHANNEL_NAME_LENGTH+15];
+
+  /**
+   @return the queueing transaction information
+   */
+  trx_monitoring_info* get_queueing_trx()
+  {
+    return queueing_trx;
+  }
+
+  /**
+   @return the last queued transaction information
+  */
+  trx_monitoring_info* get_last_queued_trx()
+  {
+    return last_queued_trx;
+  }
+
+  /**
+    Stores the details of the transaction the receiver thread has just started
+    queueing in queueing_trx.
+
+    @param  gtid_arg         the gtid of the trx
+    @param  original_ts_arg  the original commit timestamp of the transaction
+    @param  immediate_ts_arg the immediate commit timestamp of the transaction
+  */
+  void started_queueing(Gtid gtid_arg, ulonglong original_ts_arg,
+                        ulonglong immediate_ts_arg)
+  {
+    queueing_trx->set(gtid_arg, original_ts_arg, immediate_ts_arg,
+                      my_getsystime() /*start_time*/);
+  }
+
+  /**
+    When the receiver thread finishes queueing a transaction, that timestamp
+    is recorded and the information is copied to last_queued_trx and cleared
+    from queueing_trx.
+  */
+  void finished_queueing()
+  {
+    queueing_trx->end_time= my_getsystime();
+    last_queued_trx->copy(queueing_trx);
+    queueing_trx->clear();
+  }
+
+  /**
+   @return True if there is a transaction currently being queued
+  */
+  bool is_queueing_trx()
+  {
+    return queueing_trx->is_set();
+  }
+
+  /**
+   Clears the queueing_trx structure fields. Normally called when there is an
+   error while queueing the transaction.
+   @param need_lock if false then the lock has already been acquired before the
+                    method was called; if true then the lock must be acquired
+                    before modifying queueing_trx.
+  */
+  void clear_queueing_trx(bool need_lock)
+  {
+    if (need_lock)
+    {
+      mysql_mutex_lock(&data_lock);
+    }
+    queueing_trx->clear();
+    if (need_lock)
+    {
+      mysql_mutex_unlock(&data_lock);
+    }
+  }
+
+  /**
+   Clears the last_queued_trx structure fields.
+  */
+  void clear_last_queued_trx()
+  {
+    last_queued_trx->clear();
+  }
+
 
   virtual ~Master_info();
 
@@ -422,17 +520,7 @@ private:
   Master_info(const Master_info& info);
   Master_info& operator=(const Master_info& info);
 
-  /*
-    Last GTID queued by IO thread. This may contain a GTID of non-fully
-    replicated transaction and will be used when the last event of the
-    transaction be queued to add the GTID to the Retrieved_Gtid_Set.
-  */
-  Gtid last_gtid_queued;
 public:
-  Gtid *get_last_gtid_queued() { return &last_gtid_queued; }
-  void set_last_gtid_queued(Gtid &gtid) { last_gtid_queued= gtid; }
-  void clear_last_gtid_queued() { last_gtid_queued.clear(); }
-
   /*
     This will be used to verify transactions boundaries of events sent by the
     master server.

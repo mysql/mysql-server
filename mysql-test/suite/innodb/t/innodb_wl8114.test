@@ -1,4 +1,3 @@
-
 # Test alter table add column
 CREATE TABLE t_8114 (a int) ENGINE = INNODB;
 

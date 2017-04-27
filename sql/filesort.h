@@ -21,7 +21,6 @@
 
 #include "my_base.h"                            /* ha_rows */
 #include "my_dbug.h"
-#include "my_global.h"                          /* uint, uchar */
 #include "my_inttypes.h"
 #include "sql_alloc.h"                          /* Sql_alloc */
 
@@ -83,7 +82,6 @@ void filesort_free_buffers(TABLE *table, bool full);
 void change_double_for_sort(double nr,uchar *to);
 
 /// Declared here so we can unit test it.
-uint sortlength(THD *thd, st_sort_field *sortorder, uint s_length,
-                bool *multi_byte_charset);
+uint sortlength(THD *thd, st_sort_field *sortorder, uint s_length);
 
 #endif /* FILESORT_INCLUDED */

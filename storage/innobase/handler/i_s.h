@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -25,6 +25,9 @@ Created July 18, 2007 Vasil Dimov
 
 #ifndef i_s_h
 #define i_s_h
+
+class THD;
+struct TABLE_LIST;
 
 const char plugin_author[] = "Oracle Corporation";
 

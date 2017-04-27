@@ -2,7 +2,7 @@
 ## Test multiple resultsets and SP output params
 
 ## Preamble
---source ../include/xplugin_preamble.inc
+--source include/xplugin_preamble.inc
 ## Test starts here
 --write_file $MYSQL_TMP_DIR/multiple_resultsets_and_out_params.tmp
 

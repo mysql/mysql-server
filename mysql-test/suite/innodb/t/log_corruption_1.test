@@ -1,5 +1,3 @@
---source include/have_innodb_16k.inc
-
 # This test case tests if we handle the corrupted redo logs for dynamic metadata
 # of tables(corrupted index bit in this case) correctly.
 # Since we save the data and log files in advance, anything that will modify
@@ -21,6 +19,13 @@ let newdir = $MYSQLTEST_VARDIR/tmp/innodb-log-debug-1;
 --mkdir $newdir
 let SEARCH_FILE = $newdir/my_restart.err;
 --exec unzip $MYSQL_TEST_DIR/suite/innodb/t/log_corruption_1.zip -d $newdir > $SEARCH_FILE
+# In scope of WL#9461,WL#9357, in place upgrade condition
+# requires mysql.plugin.frm file. Create the file manually here
+# to allow initialization of innodb.
+--mkdir $newdir/mysql
+write_file $newdir/mysql/plugin.frm;
+EOF
+
 # We must set '--secure-file-priv=""' here, in case that it will fail on some
 # platform sporadically
 let $args=--no-defaults --datadir=$newdir --secure-file-priv="" --loose-console > $SEARCH_FILE 2>&1 ;
@@ -29,7 +34,7 @@ let $args=--no-defaults --datadir=$newdir --secure-file-priv="" --loose-console 
 --exec $MYSQLD $args
 
 --echo # Matching the server logs for corrupted redo logs
-let SEARCH_PATTERN=InnoDB: ############### CORRUPT LOG RECORD FOUND ##################;
+let SEARCH_PATTERN=InnoDB: ############### CORRUPT LOG RECORD FOUND ###############;
 --source include/search_pattern_in_file.inc
 let SEARCH_PATTERN=InnoDB: Hex dump starting .* bytes before and ending .* bytes after the corrupted record;
 --source include/search_pattern_in_file.inc
@@ -37,10 +42,7 @@ let SEARCH_PATTERN=InnoDB: Set innodb_force_recovery to ignore this error;
 --source include/search_pattern_in_file.inc
 
 --remove_file $SEARCH_FILE
---remove_file $newdir/ibdata1
---remove_file $newdir/ib_logfile0
---remove_file $newdir/ib_logfile1
---rmdir $newdir
+--force-rmdir $newdir
 
 # End of corrupted redo logs test
 

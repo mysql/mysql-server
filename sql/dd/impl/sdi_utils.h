@@ -17,11 +17,10 @@
 #define DD__SDI_UTILS_INCLUDED
 
 #include "current_thd.h"             // inline_current_thd
-#include "error_handler.h"           // Internal_error_handler
 #include "dd/string_type.h"          // dd::String_type
+#include "error_handler.h"           // Internal_error_handler
 #include "mdl.h"                     // MDL_request
 #include "my_dbug.h"
-#include "my_global.h"
 #include "sql_class.h"               // THD
 
 /**
@@ -46,7 +45,7 @@ namespace sdi_utils {
 inline bool checked_return(bool ret)
 {
 #ifndef DBUG_OFF
-  THD *cthd= inline_current_thd();
+  THD *cthd= current_thd;
   DBUG_ASSERT(!ret || cthd->is_error() || cthd->killed);
 #endif /*!DBUG_OFF*/
   return ret;
@@ -89,7 +88,7 @@ template <typename CONDITION_HANDLER_CLOS>
 class Closure_error_handler : public Internal_error_handler
 {
   CONDITION_HANDLER_CLOS *m_ch;
-  bool handle_condition(THD *thd, uint sql_errno, const char* sqlstate,
+  bool handle_condition(THD*, uint sql_errno, const char* sqlstate,
                         Sql_condition::enum_severity_level *level,
                         const char* msg)
   {

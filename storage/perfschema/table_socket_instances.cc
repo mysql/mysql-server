@@ -18,17 +18,19 @@
   Table SOCKET_INSTANCES (implementation).
 */
 
+#include "storage/perfschema/table_socket_instances.h"
+
+#include <stddef.h>
+
 #include "field.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_thread.h"
 #include "pfs_buffer_container.h"
 #include "pfs_column_types.h"
 #include "pfs_column_values.h"
 #include "pfs_global.h"
 #include "pfs_instr.h"
-#include "table_socket_instances.h"
 
 THR_LOCK table_socket_instances::m_table_lock;
 
@@ -151,7 +153,7 @@ PFS_index_socket_instances_by_ip_port::match(const PFS_socket *pfs)
 }
 
 PFS_engine_table *
-table_socket_instances::create(void)
+table_socket_instances::create(PFS_engine_table_share *)
 {
   return new table_socket_instances();
 }

@@ -1,4 +1,3 @@
---source include/not_embedded.inc
 
 --echo #
 --echo # Bug#58669: read_only not enforced on 5.5.x
@@ -6,6 +5,7 @@
 
 --disable_query_log
 CALL mtr.add_suppression("Skip re-populating collations and character sets tables in read-only mode.");
+CALL mtr.add_suppression("Skip updating I_S metadata in read-only mode.");
 --enable_query_log
 
 CREATE USER user1@localhost;

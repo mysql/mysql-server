@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,9 +17,9 @@
 #define DD__TABLE_STAT_INCLUDED
 
 
-#include "my_global.h"                    // ulonglong
+#include "my_inttypes.h"
 
-#include "dd/types/dictionary_object.h"   // dd::Dictionary_object
+#include "dd/types/entity_object.h"   // dd::Entity_object
 
 namespace dd {
 
@@ -30,11 +30,11 @@ class Composite_char_key;
 
 ///////////////////////////////////////////////////////////////////////////
 
-class Table_stat : virtual public Dictionary_object
+class Table_stat : virtual public Entity_object
 {
 public:
   static const Object_type &TYPE();
-  static const Dictionary_object_table &OBJECT_TABLE();
+  static const Entity_object_table &OBJECT_TABLE();
 
   typedef Composite_char_key name_key_type;
 

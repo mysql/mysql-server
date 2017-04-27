@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -137,7 +137,7 @@ AsyncIoThread::run()
   EmulatedJamBuffer jamBuffer;
   jamBuffer.theEmulatedJamIndex = 0;
   // This key is needed by jamNoBlock().
-  NdbThread_SetTlsKey(NDB_THREAD_TLS_JAM, &jamBuffer);
+  NDB_THREAD_TLS_JAM = &jamBuffer;
 
   while (1)
   {

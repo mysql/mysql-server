@@ -3,7 +3,7 @@
 #
 
 --source include/have_innodb_max_16k.inc
---source include/not_embedded.inc
+
 SET default_storage_engine=InnoDB;
 LET $MYSQLD_DATADIR = `select @@datadir`;
 LET $INNODB_PAGE_SIZE = `select @@innodb_page_size`;
@@ -462,4 +462,3 @@ DROP TABLE t77_restart;
 -- disable_query_log
 eval set global innodb_file_per_table=$innodb_file_per_table_orig;
 -- enable_query_log
-

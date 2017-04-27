@@ -76,9 +76,6 @@
 #include "transaction.h"       // trans_commit_stmt
 #include "trigger_def.h"
 
-class Table_trigger_field_support;
-struct PSI_statement_locker;
-
 /**
   @page stored_programs Stored Programs
 
@@ -166,11 +163,7 @@ struct PSI_statement_locker;
 
   - #Table_trigger_dispatcher::create_trigger()
 
-  - #Table_trigger_dispatcher::drop_trigger()
-
   - #Table_trigger_dispatcher::check_n_load()
-
-  - #Trigger_loader::drop_all_triggers()
 
   See the C++ class #Table_trigger_dispatcher in general.
 
@@ -1626,8 +1619,7 @@ static bool sp_update_sp_used_routines(HASH *dst, HASH *src)
   for (uint i= 0 ; i < src->records ; i++)
   {
     Sroutine_hash_entry *rt= (Sroutine_hash_entry *)my_hash_element(src, i);
-    if (!my_hash_search(dst, (uchar *)rt->mdl_request.key.ptr(),
-                        rt->mdl_request.key.length()))
+    if (!my_hash_search(dst, rt->m_key, rt->m_key_length))
     {
       if (my_hash_insert(dst, (uchar *)rt))
         return true;
@@ -1641,30 +1633,33 @@ static bool sp_update_sp_used_routines(HASH *dst, HASH *src)
 ///////////////////////////////////////////////////////////////////////////
 
 /**
-  Create temporary sp_name object from MDL key.
+  Create temporary sp_name object for Sroutine_hash_entry.
 
-  @note The lifetime of this object is bound to the lifetime of the MDL_key.
+  @note The lifetime of this object is bound to the lifetime of the
+        Sroutine_hash_entry object.
         This should be fine as sp_name objects created by this constructor
         are mainly used for SP-cache lookups.
 
-  @note Stored routine names are case insensitive. So for the proper MDL key
+  @note Stored routine names are case insensitive. So for the proper key
         comparison, routine name is converted to the lower case while
-        preparing the MDL_key. Hence the instance of sp_name created from the
-        MDL_key has the routine name in lower case.
+        creating Sroutine_hash_entry. Hence the instance of sp_name created
+        from it has the routine name in lower case.
         Since instances created by this constructor are mainly used for
         SP-cache lookups, routine name in lower case should work fine.
 
-  @param key         MDL key containing database and routine name.
+  @param rt          Sroutine_hash_entry with key containing database and
+                     routine name.
   @param qname_buff  Buffer to be used for storing quoted routine name
                      (should be at least 2*NAME_LEN+1+1 bytes).
 */
 
-sp_name::sp_name(const MDL_key *key, char *qname_buff)
+sp_name::sp_name(const Sroutine_hash_entry *rt, char *qname_buff)
 {
-  m_db.str= (char*)key->db_name();
-  m_db.length= key->db_name_length();
-  m_name.str= (char*)key->name();
-  m_name.length= key->name_length();
+  m_db.str= rt->db();
+  m_db.length= rt->db_length();
+  // Safe as sp_name is not changed in scenarios when this ctor is used.
+  m_name.str= const_cast<char*>(rt->name());
+  m_name.length= rt->name_length();
   m_qname.str= qname_buff;
   if (m_db.length)
   {
@@ -1762,7 +1757,11 @@ sp_head::sp_head(MEM_ROOT &&mem_root, enum_sp_type type)
 
   my_hash_init(&m_sptabs, system_charset_info, 0, 0, sp_table_key, nullptr, 0,
                key_memory_sp_head_main_root);
-  my_hash_init(&m_sroutines, system_charset_info, 0, 0, sp_sroutine_key,
+  /*
+    See Sroutine_hash_entry for explanation why this hash uses binary
+    key comparison.
+  */
+  my_hash_init(&m_sroutines, &my_charset_bin, 0, 0, sp_sroutine_key,
                nullptr, 0,
                key_memory_sp_head_main_root);
 
@@ -1866,7 +1865,7 @@ bool sp_head::setup_trigger_fields(THD *thd,
     for (Item_trigger_field *f= trig_field_list->first; f;
          f= f->next_trg_field)
     {
-      f->setup_field(thd, tfs, subject_table_grant);
+      f->setup_field(tfs, subject_table_grant);
 
       if (need_fix_fields &&
           !f->fixed &&

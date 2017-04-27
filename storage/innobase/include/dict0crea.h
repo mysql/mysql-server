@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -63,6 +63,15 @@ dict_create_table_step(
 /*===================*/
 	que_thr_t*	thr);		/*!< in: query thread */
 
+/** Build a table definition without updating SYSTEM TABLES
+@param[in,out]	table	dict table object
+@param[in,out]	trx	transaction instance
+@return DB_SUCCESS or error code */
+dberr_t
+dict_build_table_def(
+	dict_table_t*	table,
+	trx_t*		trx);
+
 /** Builds a tablespace to store various objects.
 @param[in,out]	tablespace	Tablespace object describing what to build.
 @return DB_SUCCESS or error code. */
@@ -123,6 +132,14 @@ dict_drop_index_tree(
 	rec_t*		rec,
 	btr_pcur_t*	pcur,
 	mtr_t*		mtr);
+
+/** Drop an index tree
+@param[in]	index		dict index
+@param[in]	root_page_no	index root page number */
+void
+dict_drop_index(
+	const dict_index_t*	index,
+	page_no_t		root_page_no);
 
 /***************************************************************//**
 Creates an index tree for the index if it is not a member of a cluster.
@@ -338,21 +355,21 @@ dict_create_v_col_pos(
 
 /** Get the column number for a virtual column (the column position in
 original table), stored in the "POS" field of Sys_columns
-@param[in]      pos             virtual column position
+@param[in]	pos		virtual column position
 @return column position in original table */
 UNIV_INLINE
 ulint
 dict_get_v_col_mysql_pos(
-        ulint   pos);
+	ulint	pos);
 
 /** Get a virtual column sequence (the "nth" virtual column) for a
 virtual column, stord in the "POS" field of Sys_columns
-@param[in]      pos             virtual column position
+@param[in]	pos		virtual column position
 @return virtual column sequence */
 UNIV_INLINE
 ulint
 dict_get_v_col_pos(
-        ulint   pos);
+	ulint	pos);
 
 /* Index create node states */
 #define	INDEX_BUILD_INDEX_DEF	1

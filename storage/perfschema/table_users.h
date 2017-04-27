@@ -21,8 +21,10 @@
   TABLE USERS.
 */
 
-#include "pfs_column_types.h"
+#include <sys/types.h>
+
 #include "cursor_by_user.h"
+#include "pfs_column_types.h"
 #include "table_helper.h"
 
 struct PFS_user;
@@ -67,7 +69,7 @@ public:
   /** Table share */
   static PFS_engine_table_share m_share;
   /** Table builder */
-  static PFS_engine_table *create();
+  static PFS_engine_table *create(PFS_engine_table_share *);
   static int delete_all_rows();
 
 protected:

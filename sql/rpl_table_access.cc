@@ -15,15 +15,15 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
    02110-1301 USA */
 
-#include "rpl_table_access.h"
+#include "sql/rpl_table_access.h"
 
 #include <stddef.h>
 
 #include "current_thd.h" // my_thread_set_THR_THD
 #include "handler.h"     // ha_rollback_trans
+#include "lex_string.h"
 #include "log.h"         // sql_print_warning
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysqld_error.h"
@@ -168,7 +168,7 @@ void System_table_access::drop_thd(THD *thd)
   DBUG_ENTER("System_table_access::drop_thd");
 
   delete thd;
-  my_thread_set_THR_THD(NULL);
+  current_thd= nullptr;
 
   DBUG_VOID_RETURN;
 }

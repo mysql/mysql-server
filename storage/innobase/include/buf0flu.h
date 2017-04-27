@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -38,7 +38,7 @@ extern bool buf_page_cleaner_is_active;
 #ifdef UNIV_DEBUG
 
 /** Value of MySQL global variable used to disable page cleaner. */
-extern my_bool		innodb_page_cleaner_disabled_debug;
+extern bool		innodb_page_cleaner_disabled_debug;
 
 #endif /* UNIV_DEBUG */
 

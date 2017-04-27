@@ -13,10 +13,14 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
-#include <gtest/gtest.h>
-
 #include "my_config.h"
+
+#include <gtest/gtest.h>
+#include <stddef.h>
+#include <sys/types.h>
+
 #include "my_inttypes.h"
+#include "my_io.h"
 #include "mysqld.h"
 #include "sql_class.h"
 #include "tc_log.h"
@@ -36,7 +40,7 @@ using my_testing::Server_initializer;
 class TC_LOG_MMAP_no_msync : public TC_LOG_MMAP
 {
 protected:
-  virtual int do_msync_and_fsync(int fd, void *addr, size_t len, int flags)
+  virtual int do_msync_and_fsync(int, void*, size_t, int)
   {
     return 0;
   }

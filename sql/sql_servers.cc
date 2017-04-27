@@ -33,7 +33,7 @@
   currently running transactions etc will not be disrupted.
 */
 
-#include "sql_servers.h"
+#include "sql/sql_servers.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -48,7 +48,6 @@
 #include "m_string.h"
 #include "my_base.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_psi_config.h"
 #include "my_sys.h"
@@ -695,51 +694,52 @@ bool Sql_cmd_create_server::execute(THD *thd)
   }
 
   int error;
-  tmp_disable_binlog(table->in_use);
-  table->use_all_columns();
-  empty_record(table);
-
-  /* set the field that's the PK to the value we're looking for */
-  table->field[SERVERS_FIELD_NAME]->store(
-    m_server_options->m_server_name.str,
-    m_server_options->m_server_name.length,
-    system_charset_info);
-
-  /* read index until record is that specified in server_name */
-  error= table->file->ha_index_read_idx_map(
-    table->record[0], 0,
-    table->field[SERVERS_FIELD_NAME]->ptr,
-    HA_WHOLE_KEY,
-    HA_READ_KEY_EXACT);
-
-  if (!error)
   {
-    my_error(ER_FOREIGN_SERVER_EXISTS, MYF(0),
-             m_server_options->m_server_name.str);
-    error= 1;
-  }
-  else if (error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE)
-  {
-    /* if not found, err */
-    table->file->print_error(error, MYF(0));
-  }
-  else
-  {
-    /* store each field to be inserted */
-    m_server_options->store_new_server(table);
+    Disable_binlog_guard binlog_guard(thd);
+    table->use_all_columns();
+    empty_record(table);
 
-    /* write/insert the new server */
-    if ((error= table->file->ha_write_row(table->record[0])))
+    /* set the field that's the PK to the value we're looking for */
+    table->field[SERVERS_FIELD_NAME]->store(
+      m_server_options->m_server_name.str,
+      m_server_options->m_server_name.length,
+      system_charset_info);
+
+    /* read index until record is that specified in server_name */
+    error= table->file->ha_index_read_idx_map(
+      table->record[0], 0,
+      table->field[SERVERS_FIELD_NAME]->ptr,
+      HA_WHOLE_KEY,
+      HA_READ_KEY_EXACT);
+
+    if (!error)
+    {
+      my_error(ER_FOREIGN_SERVER_EXISTS, MYF(0),
+               m_server_options->m_server_name.str);
+      error= 1;
+    }
+    else if (error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE)
+    {
+      /* if not found, err */
       table->file->print_error(error, MYF(0));
+    }
     else
     {
-      /* insert the server into the cache */
-      if ((error= m_server_options->insert_into_cache()))
-        my_error(ER_OUT_OF_RESOURCES, MYF(0));
+      /* store each field to be inserted */
+      m_server_options->store_new_server(table);
+
+      /* write/insert the new server */
+      if ((error= table->file->ha_write_row(table->record[0])))
+        table->file->print_error(error, MYF(0));
+      else
+      {
+        /* insert the server into the cache */
+        if ((error= m_server_options->insert_into_cache()))
+          my_error(ER_OUT_OF_RESOURCES, MYF(0));
+      }
     }
   }
 
-  reenable_binlog(table->in_use);
   mysql_rwlock_unlock(&THR_LOCK_servers);
 
   if (error)
@@ -778,46 +778,46 @@ bool Sql_cmd_alter_server::execute(THD *thd)
   }
 
   int error;
-  tmp_disable_binlog(table->in_use);
-  table->use_all_columns();
-
-  /* set the field that's the PK to the value we're looking for */
-  table->field[SERVERS_FIELD_NAME]->store(
-    m_server_options->m_server_name.str,
-    m_server_options->m_server_name.length,
-    system_charset_info);
-
-  error= table->file->ha_index_read_idx_map(
-    table->record[0], 0,
-    table->field[SERVERS_FIELD_NAME]->ptr,
-    ~(longlong)0,
-    HA_READ_KEY_EXACT);
-  if (error)
   {
-    if (error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE)
-      table->file->print_error(error, MYF(0));
-    else
-      my_error(ER_FOREIGN_SERVER_DOESNT_EXIST, MYF(0),
-               m_server_options->m_server_name.str);
-  }
-  else
-  {
-    /* ok, so we can update since the record exists in the table */
-    store_record(table, record[1]);
-    m_server_options->store_altered_server(table, existing);
-    if ((error=table->file->ha_update_row(table->record[1],
-                                          table->record[0])) &&
-        error != HA_ERR_RECORD_IS_THE_SAME)
-      table->file->print_error(error, MYF(0));
+    Disable_binlog_guard binlog_guard(table->in_use);
+    table->use_all_columns();
+
+    /* set the field that's the PK to the value we're looking for */
+    table->field[SERVERS_FIELD_NAME]->store(
+      m_server_options->m_server_name.str,
+      m_server_options->m_server_name.length,
+      system_charset_info);
+
+    error= table->file->ha_index_read_idx_map(
+      table->record[0], 0,
+      table->field[SERVERS_FIELD_NAME]->ptr,
+      ~(longlong)0,
+      HA_READ_KEY_EXACT);
+    if (error)
+    {
+      if (error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE)
+        table->file->print_error(error, MYF(0));
+      else
+        my_error(ER_FOREIGN_SERVER_DOESNT_EXIST, MYF(0),
+                 m_server_options->m_server_name.str);
+    }
     else
     {
-      // Update cache entry
-      if ((error= m_server_options->update_cache(existing)))
-        my_error(ER_OUT_OF_RESOURCES, MYF(0));
+      /* ok, so we can update since the record exists in the table */
+      store_record(table, record[1]);
+      m_server_options->store_altered_server(table, existing);
+      if ((error=table->file->ha_update_row(table->record[1],
+                                            table->record[0])) &&
+          error != HA_ERR_RECORD_IS_THE_SAME)
+        table->file->print_error(error, MYF(0));
+      else
+      {
+        // Update cache entry
+        if ((error= m_server_options->update_cache(existing)))
+          my_error(ER_OUT_OF_RESOURCES, MYF(0));
+      }
     }
   }
-
-  reenable_binlog(table->in_use);
 
   /* Perform a reload so we don't have a 'hole' in our mem_root */
   servers_load(thd, table);
@@ -853,50 +853,51 @@ bool Sql_cmd_drop_server::execute(THD *thd)
 
   int error;
   mysql_rwlock_wrlock(&THR_LOCK_servers);
-  tmp_disable_binlog(table->in_use);
-  table->use_all_columns();
-
-  /* set the field that's the PK to the value we're looking for */
-  table->field[SERVERS_FIELD_NAME]->store(m_server_name.str,
-                                          m_server_name.length,
-                                          system_charset_info);
-
-  error= table->file->ha_index_read_idx_map(
-    table->record[0], 0,
-    table->field[SERVERS_FIELD_NAME]->ptr,
-    HA_WHOLE_KEY, HA_READ_KEY_EXACT);
-  if (error)
   {
-    if (error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE)
-      table->file->print_error(error, MYF(0));
-    else if (!m_if_exists)
-      my_error(ER_FOREIGN_SERVER_DOESNT_EXIST, MYF(0), m_server_name.str);
-    else
-      error= 0; // Reset error - we will report my_ok() in this case.
-  }
-  else
-  {
-    // Delete from table
-    if ((error= table->file->ha_delete_row(table->record[0])))
-      table->file->print_error(error, MYF(0));
+    Disable_binlog_guard binlog_guard(table->in_use);
+    table->use_all_columns();
+
+    /* set the field that's the PK to the value we're looking for */
+    table->field[SERVERS_FIELD_NAME]->store(m_server_name.str,
+                                            m_server_name.length,
+                                            system_charset_info);
+
+    error= table->file->ha_index_read_idx_map(
+      table->record[0], 0,
+      table->field[SERVERS_FIELD_NAME]->ptr,
+      HA_WHOLE_KEY, HA_READ_KEY_EXACT);
+    if (error)
+    {
+      if (error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE)
+        table->file->print_error(error, MYF(0));
+      else if (!m_if_exists)
+        my_error(ER_FOREIGN_SERVER_DOESNT_EXIST, MYF(0), m_server_name.str);
+      else
+        error= 0; // Reset error - we will report my_ok() in this case.
+    }
     else
     {
-      // Remove from cache
-      FOREIGN_SERVER *server=
-        (FOREIGN_SERVER *)my_hash_search(&servers_cache,
-                                         (uchar*) m_server_name.str,
-                                         m_server_name.length);
-      if (server)
-        my_hash_delete(&servers_cache, (uchar*) server);
-      else if (!m_if_exists)
+      // Delete from table
+      if ((error= table->file->ha_delete_row(table->record[0])))
+        table->file->print_error(error, MYF(0));
+      else
       {
-        my_error(ER_FOREIGN_SERVER_DOESNT_EXIST, MYF(0),  m_server_name.str);
-        error= 1;
+        // Remove from cache
+        FOREIGN_SERVER *server=
+          (FOREIGN_SERVER *)my_hash_search(&servers_cache,
+                                           (uchar*) m_server_name.str,
+                                           m_server_name.length);
+        if (server)
+          my_hash_delete(&servers_cache, (uchar*) server);
+        else if (!m_if_exists)
+        {
+          my_error(ER_FOREIGN_SERVER_DOESNT_EXIST, MYF(0),  m_server_name.str);
+          error= 1;
+        }
       }
     }
   }
 
-  reenable_binlog(table->in_use);
   mysql_rwlock_unlock(&THR_LOCK_servers);
 
   if (error)

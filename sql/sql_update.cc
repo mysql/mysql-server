@@ -19,7 +19,7 @@
   Multi-table updates were introduced by Sinisa & Monty
 */
 
-#include "sql_update.h"
+#include "sql/sql_update.h"
 
 #include <string.h>
 
@@ -38,9 +38,10 @@
 #include "my_bit.h"                   // my_count_bits
 #include "my_bitmap.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_inttypes.h"
+#include "my_macros.h"
 #include "my_sys.h"
+#include "my_table_map.h"
 #include "mysql/service_my_snprintf.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql_com.h"
@@ -51,6 +52,7 @@
 #include "opt_range.h"                // QUICK_SELECT_I
 #include "opt_trace.h"                // Opt_trace_object
 #include "parse_tree_node_base.h"
+#include "prealloced_array.h"         // Prealloced_array
 #include "protocol.h"
 #include "psi_memory_key.h"
 #include "query_options.h"
@@ -451,7 +453,7 @@ bool Sql_cmd_update::update_single_table(THD *thd)
 
   table->mark_columns_needed_for_update(thd, false/*mark_binlog_columns=false*/);
   if (table->vfield &&
-      validate_gc_assignment(thd, update_field_list, update_value_list, table))
+      validate_gc_assignment(update_field_list, update_value_list, table))
     DBUG_RETURN(true);
 
   qep_tab.set_table(table);
@@ -505,7 +507,9 @@ bool Sql_cmd_update::update_single_table(THD *thd)
   if (select_lex->has_ft_funcs() && init_ftfuncs(thd, select_lex))
     DBUG_RETURN(true);                      /* purecov: inspected */
 
-  table->update_const_key_parts(conds);
+  if (table->update_const_key_parts(conds))
+    DBUG_RETURN(true);
+
   order= simple_remove_const(order, conds);
   bool need_sort;
   bool reverse= false;
@@ -540,6 +544,9 @@ bool Sql_cmd_update::update_single_table(THD *thd)
   const bool using_filesort= order && need_sort;
 
   table->mark_columns_per_binlog_row_image(thd);
+
+  if (table->setup_partial_update())
+    DBUG_RETURN(true);                          /* purecov: inspected */
 
   ha_rows updated_rows= 0;
   ha_rows found_rows= 0;
@@ -767,7 +774,7 @@ bool Sql_cmd_update::update_single_table(THD *thd)
     }
     else
     {
-      // No after update triggers, attempt to start bulk delete
+      // No after update triggers, attempt to start bulk update
       will_batch= !table->file->start_bulk_update();
     }
     if ((table->file->ha_table_flags() & HA_READ_BEFORE_WRITE_REMOVAL) &&
@@ -777,6 +784,10 @@ bool Sql_cmd_update::update_single_table(THD *thd)
         qep_tab.quick() && qep_tab.quick()->index != MAX_KEY &&
         check_constant_expressions(update_value_list))
       read_removal= table->check_read_removal(qep_tab.quick()->index);
+
+    // If the update is batched, we cannot do partial update, so turn it off.
+    if (will_batch)
+      table->cleanup_partial_update();          /* purecov: inspected */
 
     uint dup_key_found;
 
@@ -802,6 +813,8 @@ bool Sql_cmd_update::update_single_table(THD *thd)
 
       if (table->file->was_semi_consistent_read())
         continue;  /* repeat the read of the same row if it still exists */
+
+      table->clear_binary_diffs();
 
       store_record(table,record[1]);
       if (fill_record_n_invoke_before_triggers(thd, *update_field_list,
@@ -1202,6 +1215,111 @@ bool unsafe_key_update(TABLE_LIST *leaves, table_map tables_for_update)
 }
 
 
+/// Check if a list of Items contains an Item whose type is JSON.
+static bool has_json_columns(List<Item> *items)
+{
+  List_iterator_fast<Item> it(*items);
+  for (Item *item= it++; item != nullptr; item= it++)
+    if (item->data_type() == MYSQL_TYPE_JSON)
+      return true;
+  return false;
+}
+
+
+/**
+  Mark the columns that can possibly be updated in-place using partial update.
+
+  Only JSON columns can be updated in-place, and only if all the updates of the
+  column are on the form
+
+      json_col = JSON_SET(json_col, ...)
+
+  or
+
+      json_col = JSON_REPLACE(json_col, ...)
+
+  Even though a column is marked for partial update, it is not necessarily
+  updated as a partial update during execution. It depends on the actual data
+  in the column if it is possible to do it as a partial update. Also, for
+  multi-table updates, it is only possible to perform partial updates in the
+  first table of the join operation, and it is not determined until later (in
+  Query_result_update::optimize()) which table it is.
+
+  @param trace   the optimizer trace context
+  @param fields  the fields that are updated by the update statement
+  @param values  the values they are updated to
+  @return false on success, true on error
+*/
+static bool prepare_partial_update(Opt_trace_context *trace,
+                                   List<Item> *fields, List<Item> *values)
+{
+  /*
+    First check if we have any JSON columns. The only reason we do this, is to
+    prevent writing an empty optimizer trace about partial update if there are
+    no JSON columns.
+  */
+  if (!has_json_columns(fields))
+    return false;
+
+  Opt_trace_object trace_partial_update(trace, "json_partial_update");
+  Opt_trace_array trace_rejected(trace, "rejected_columns");
+
+  using Field_array= Prealloced_array<const Field *, 8>;
+  Field_array partial_update_fields(PSI_NOT_INSTRUMENTED);
+  Field_array rejected_fields(PSI_NOT_INSTRUMENTED);
+  List_iterator_fast<Item> field_it(*fields);
+  List_iterator_fast<Item> value_it(*values);
+  for (Item *field_item= field_it++, *value_item= value_it++;
+       field_item != nullptr && value_item != nullptr;
+       field_item= field_it++, value_item= value_it++)
+  {
+    Field *field= down_cast<Item_field*>(field_item)->field;
+
+    // Only consider JSON fields for partial update for now.
+    if (field->type() != MYSQL_TYPE_JSON)
+      continue;
+
+    if (rejected_fields.count_unique(field) != 0)
+      continue;
+
+    /*
+      Function object that adds the current column to the list of rejected
+      columns, and possibly traces the rejection if optimizer tracing is
+      enabled.
+    */
+    const auto reject_column= [&](const char *cause)
+    {
+      Opt_trace_object trace_obj(trace);
+      trace_obj.add_utf8_table(field->table->pos_in_table_list);
+      trace_obj.add_utf8("column", field->field_name);
+      trace_obj.add_utf8("cause", cause);
+      rejected_fields.insert_unique(field);
+    };
+
+    if ((field->table->file->ha_table_flags() & HA_BLOB_PARTIAL_UPDATE) == 0)
+    {
+      reject_column("Storage engine does not support partial update");
+      continue;
+    }
+
+    if (value_item->mark_for_partial_update(field))
+    {
+      reject_column("Not JSON_SET or JSON_REPLACE with "
+                    "same source and target column");
+      partial_update_fields.erase_unique(field);
+      continue;
+    }
+
+    partial_update_fields.insert_unique(field);
+  }
+
+  for (const Field *fld : partial_update_fields)
+    if (fld->table->mark_column_for_partial_update(fld))
+      return true;                              /* purecov: inspected */
+
+  return false;
+}
+
 bool Sql_cmd_update::prepare_inner(THD *thd)
 {
   DBUG_ENTER("Sql_cmd_update::prepare_inner");
@@ -1227,7 +1345,6 @@ bool Sql_cmd_update::prepare_inner(THD *thd)
   Opt_trace_object trace_wrapper(trace);
   Opt_trace_object trace_prepare(trace, "update_preparation");
   trace_prepare.add_select_number(select->select_number);
-  Opt_trace_array trace_steps(trace, "steps");
 
   if (multitable)
   {
@@ -1367,6 +1484,9 @@ bool Sql_cmd_update::prepare_inner(THD *thd)
   if (select->master_unit()->prepare_limit(thd, select))
     DBUG_RETURN(true);
 
+  if (prepare_partial_update(trace, update_fields, update_value_list))
+    DBUG_RETURN(true);                          /* purecov: inspected */
+
   if (!multitable)
   {
     // Add default values provided by a function, required for part. pruning
@@ -1457,7 +1577,7 @@ bool Sql_cmd_update::prepare_inner(THD *thd)
   {
     if (tr->updating)
     {
-      TABLE_LIST *duplicate= unique_table(thd, tr, select->leaf_tables, 0);
+      TABLE_LIST *duplicate= unique_table(tr, select->leaf_tables, 0);
       if (duplicate != NULL)
       {
         update_non_unique_table_error(select->leaf_tables, "UPDATE", duplicate);
@@ -1533,6 +1653,7 @@ bool Sql_cmd_update::prepare_inner(THD *thd)
       select->query_result()->prepare(select->fields_list, lex->unit))
     DBUG_RETURN(true);  /* purecov: inspected */
 
+  Opt_trace_array trace_steps(trace, "steps");
   opt_trace_print_expanded_query(thd, select, &trace_wrapper);
 
   if (select->has_sj_candidates() && select->flatten_subqueries())
@@ -1562,7 +1683,7 @@ bool Sql_cmd_update::execute_inner(THD *thd)
   Connect fields with tables and create list of tables that are updated
 */
 
-bool Query_result_update::prepare(List<Item> &not_used_values,
+bool Query_result_update::prepare(List<Item>&,
                                  SELECT_LEX_UNIT *u)
 {
   SQL_I_List<TABLE_LIST> update;
@@ -1748,7 +1869,6 @@ bool Query_result_update::prepare(List<Item> &not_used_values,
 
   SYNOPSIS
     safe_update_on_fly()
-    thd                 Thread handler
     join_tab            How table is used in join
     all_tables          List of tables
 
@@ -1782,11 +1902,11 @@ bool Query_result_update::prepare(List<Item> &not_used_values,
     1		Safe to update
 */
 
-static bool safe_update_on_fly(THD *thd, JOIN_TAB *join_tab,
+static bool safe_update_on_fly(JOIN_TAB *join_tab,
                                TABLE_LIST *table_ref, TABLE_LIST *all_tables)
 {
   TABLE *table= join_tab->table();
-  if (unique_table(thd, table_ref, all_tables, 0))
+  if (unique_table(table_ref, all_tables, 0))
     return 0;
   switch (join_tab->type()) {
   case JT_SYSTEM:
@@ -1916,18 +2036,34 @@ bool Query_result_update::optimize()
           }
         }
       }
-      if (safe_update_on_fly(thd, join->best_ref[0], table_ref,
+      if (safe_update_on_fly(join->best_ref[0], table_ref,
                              select->get_table_list()))
       {
         table->mark_columns_needed_for_update(thd, true/*mark_binlog_columns=true*/);
+        if (table->setup_partial_update())
+          DBUG_RETURN(true);                    /* purecov: inspected */
 	table_to_update= table;			// Update table on the fly
 	continue;
       }
     }
     table->mark_columns_needed_for_update(thd, true/*mark_binlog_columns=true*/);
 
+    if (table != table_to_update &&
+        table->has_columns_marked_for_partial_update())
+    {
+      Opt_trace_context *trace= &thd->opt_trace;
+      if (trace->is_started())
+      {
+        Opt_trace_object trace_wrapper(trace);
+        Opt_trace_object trace_partial_update(trace, "json_partial_update");
+        Opt_trace_object trace_rejected(trace, "rejected_table");
+        trace_rejected.add_utf8_table(table->pos_in_table_list);
+        trace_rejected.add_utf8("cause", "Table cannot be updated on the fly");
+      }
+    }
+
     if (table->vfield &&
-        validate_gc_assignment(thd, fields, values, table))
+        validate_gc_assignment(fields, values, table))
       DBUG_RETURN(false);                      /* purecov: inspected */
     /*
       enable uncacheable flag if we update a view with check option
@@ -2019,7 +2155,7 @@ loop_end:
     tmp_param->group_parts=1;
     tmp_param->group_length= table->file->ref_length;
     /* small table, ignore SQL_BIG_TABLES */
-    my_bool save_big_tables= thd->variables.big_tables; 
+    bool save_big_tables= thd->variables.big_tables; 
     thd->variables.big_tables= FALSE;
     tmp_tables[cnt]=create_tmp_table(thd, tmp_param, temp_fields,
                                      &group, 0, 0,
@@ -2075,7 +2211,7 @@ void Query_result_update::cleanup()
 }
 
 
-bool Query_result_update::send_data(List<Item> &not_used_values)
+bool Query_result_update::send_data(List<Item>&)
 {
   TABLE_LIST *cur_table;
   DBUG_ENTER("Query_result_update::send_data");
@@ -2101,6 +2237,7 @@ bool Query_result_update::send_data(List<Item> &not_used_values)
 
     if (table == table_to_update)
     {
+      table->clear_binary_diffs();
       table->set_updated_row();
       store_record(table,record[1]);
       if (fill_record_n_invoke_before_triggers(thd,

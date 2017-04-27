@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -548,7 +548,7 @@ Chs::Chs(CHARSET_INFO* cs) :
     const size_t dstlen = m_xmul * size;
     const size_t xlen = (*cs->coll->strnxfrm)(
                                 cs, xbytes, dstlen, (uint)dstlen,
-                                bytes, size, MY_STRXFRM_PAD_WITH_SPACE);
+                                bytes, size, 0);
     // check we got something
     ok = false;
     for (uint j = 0; j < (uint)xlen; j++) {

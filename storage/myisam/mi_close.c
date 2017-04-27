@@ -22,12 +22,13 @@
 
 #include <fcntl.h>
 #include <stdlib.h>
+#include <sys/types.h>
 
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "myisamdef.h"
 
-int mi_close_share(register MI_INFO *info, my_bool *closed_share)
+int mi_close_share(register MI_INFO *info, bool *closed_share)
 {
   int error=0,flag;
   MYISAM_SHARE *share=info->s;

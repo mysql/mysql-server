@@ -28,7 +28,7 @@
 #include <stddef.h>
 #include <sys/types.h>
 
-#include "my_global.h"
+#include "lex_string.h"
 #include "my_inttypes.h"
 #include "my_psi_config.h"
 #include "my_time.h"                            /* interval_type */
@@ -46,8 +46,11 @@ class String;
 class THD;
 struct TABLE_LIST;
 
+namespace dd {
+  class Schema;
+}
+
 typedef struct charset_info_st CHARSET_INFO;
-typedef struct st_mysql_lex_string LEX_STRING;
 
 #ifdef HAVE_PSI_INTERFACE
 extern PSI_mutex_key key_event_scheduler_LOCK_scheduler_state;
@@ -115,7 +118,7 @@ public:
   /* A hack needed for Event_queue_element */
   static Event_db_repository *get_db_repository() { return db_repository; }
 
-  static bool init(my_bool opt_noacl);
+  static bool init(bool opt_noacl);
 
   static void deinit();
 
@@ -130,9 +133,9 @@ public:
   static bool drop_event(THD *thd, LEX_STRING dbname, LEX_STRING name,
                          bool if_exists);
 
-  static bool lock_schema_events(THD *thd, const char *db);
+  static bool lock_schema_events(THD *thd, const dd::Schema &schema);
 
-  static bool drop_schema_events(THD *thd, const char *db);
+  static bool drop_schema_events(THD *thd, const dd::Schema &schema);
 
   static bool show_create_event(THD *thd, LEX_STRING dbname, LEX_STRING name);
 

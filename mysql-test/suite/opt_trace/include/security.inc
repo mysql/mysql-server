@@ -2,8 +2,6 @@
 # by lack of privileges.
 
 --source include/have_optimizer_trace.inc
-# Grant tests not performed with embedded server
--- source include/not_embedded.inc
 connection default;
 let $DEFAULT_TRACE_MEM_SIZE=1048576; # 1MB
 set @old_size = @@global.optimizer_trace_max_mem_size;

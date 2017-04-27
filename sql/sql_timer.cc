@@ -13,13 +13,13 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "sql_timer.h"
+#include "sql/sql_timer.h"
 
 #include <stddef.h>
 
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_inttypes.h"
+#include "my_macros.h"
 #include "my_sys.h"
 #include "my_thread_local.h"
 #include "my_timer.h"           // my_timer_t

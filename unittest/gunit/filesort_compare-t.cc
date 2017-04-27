@@ -19,7 +19,6 @@
 #include <vector>
 
 #include "filesort_utils.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "test_utils.h"
 

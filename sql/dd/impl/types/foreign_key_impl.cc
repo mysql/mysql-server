@@ -33,7 +33,6 @@
 #include "dd/types/weak_object.h"
 #include "error_handler.h"                           // Internal_error_handler
 #include "m_string.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysqld_error.h"                            // ER_*
@@ -111,11 +110,11 @@ public:
     : name(name_arg)
   { }
 
-  virtual bool handle_condition(THD *thd,
+  virtual bool handle_condition(THD*,
                                 uint sql_errno,
-                                const char* sqlstate,
-                                Sql_condition::enum_severity_level *level,
-                                const char* msg)
+                                const char*,
+                                Sql_condition::enum_severity_level*,
+                                const char*)
   {
     if (sql_errno == ER_DUP_ENTRY)
     {
@@ -279,6 +278,9 @@ Foreign_key_impl::serialize(Sdi_wcontext *wctx, Sdi_writer *w) const
 
   write_opx_reference(w, m_unique_constraint, STRING_WITH_LEN("unique_constraint_opx"));
 
+  write(w, m_referenced_table_catalog_name,
+        STRING_WITH_LEN("referenced_table_catalog_name"));
+
   write(w, m_referenced_table_schema_name,
         STRING_WITH_LEN("referenced_table_schema_name"));
 
@@ -300,7 +302,8 @@ Foreign_key_impl::deserialize(Sdi_rcontext *rctx, const RJ_Value &val)
 
   read_opx_reference(rctx, &m_unique_constraint, val, "unique_constraint_opx");
 
-  read(&m_referenced_table_schema_name, val, "referenced_table_shema_name");
+  read(&m_referenced_table_catalog_name, val, "referenced_table_catalog_name");
+  read(&m_referenced_table_schema_name, val, "referenced_table_schema_name");
   read(&m_referenced_table_name, val, "referenced_table_name");
   deserialize_each(rctx, [this] () { return add_element(); },
                    val, "elements");

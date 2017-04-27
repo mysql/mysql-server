@@ -28,6 +28,7 @@ void test_concurrently(const char *test, my_start_routine handler, int n, int m)
   my_thread_handle t;
   ulonglong now= my_getsystime();
 
+  my_thread_attr_init(&thr_attr);
   bad= 0;
 
   for (running_threads= n ; n ; n--)

@@ -1,4 +1,4 @@
-/*  Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/*  Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
     This program is free software; you can redistribute it and/or
     modify it under the terms of the GNU General Public License as
@@ -23,7 +23,7 @@
 #include <string.h>
 
 #include "my_compiler.h"
-#include "my_global.h"  // IWYU pragma: keep (for Winsock definitions)
+#include "my_io.h"  // IWYU pragma: keep (for Winsock definitions)
 #include "openssl/ssl.h"
 
 #if defined(HAVE_YASSL)

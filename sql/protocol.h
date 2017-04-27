@@ -18,7 +18,6 @@
 
 #include "my_dbug.h"
 #include "my_decimal.h"                // my_decimal
-#include "my_global.h"
 #include "mysql/mysql_lex_string.h"    // LEX_STRING
 #include "mysql_com.h"                 // mysql_enum_shutdown_level
 #include "mysql_time.h"                // MYSQL_TIME

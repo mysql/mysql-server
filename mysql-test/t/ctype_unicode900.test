@@ -71,7 +71,6 @@ SELECT HEX(WEIGHT_STRING(CAST(_utf32 x'FDFA' AS CHAR)));
 # Test WEIGHT_STRING, LOWER, UPPER
 --source include/weight_string.inc
 --source include/weight_string_euro.inc
---source include/weight_string_l1.inc
 --source include/ctype_unicode800.inc
 
 SELECT 'a' = 'a ';
@@ -137,7 +136,7 @@ SELECT HEX(a), HEX(WEIGHT_STRING(a)) FROM t1 ORDER BY a;
 TRUNCATE TABLE t1;
 # Test characters have more than 1 weight
 INSERT INTO t1 VALUES(_utf16 0x00C4), (_utf16 0x00C5), (_utf16 0x00C6), (_utf16 0x00D8), (_utf16 0x00D6);
-SELECT HEX(a), HEX(WEIGHT_STRING(a)) FROM t1 ORDER BY a;
+SELECT HEX(a), HEX(WEIGHT_STRING(a)) FROM t1 ORDER BY a, BINARY a;
 DROP TABLE t1;
 
 CREATE TABLE t1 (a VARCHAR(10), b VARCHAR(10)) COLLATE utf8mb4_da_0900_ai_ci;
@@ -152,7 +151,7 @@ DROP TABLE t1;
 
 CREATE TABLE t1(a VARCHAR(10)) COLLATE utf8mb4_et_0900_ai_ci;
 INSERT INTO t1 VALUES(_utf16 0x4F), (_utf16 0xD5), (_utf16 0x01A0), (_utf16 0x1EE0);
-SELECT HEX(a), HEX(WEIGHT_STRING(a)) FROM t1 ORDER BY a;
+SELECT HEX(a), HEX(WEIGHT_STRING(a)) FROM t1 ORDER BY a, BINARY a;
 DROP TABLE t1;
 
 CREATE TABLE t1(a VARCHAR(10), b VARCHAR(10)) COLLATE utf8mb4_et_0900_ai_ci;

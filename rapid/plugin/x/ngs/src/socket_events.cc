@@ -21,6 +21,7 @@
 #include <new>
 
 #include "my_inttypes.h"
+#include "my_io.h"
 #include "ngs/interface/connection_acceptor_interface.h"
 #include "ngs/socket_events.h"
 #include "ngs_common/connection_vio.h"
@@ -172,7 +173,7 @@ void Socket_events::break_loop() {
   event_base_loopbreak(m_evbase);
 }
 
-void Socket_events::timeout_call(int sock, short which, void *arg) {
+void Socket_events::timeout_call(int, short, void *arg) {
   Timer_data *data = (Timer_data*)arg;
 
   if (!data->callback()) {
@@ -192,7 +193,7 @@ void Socket_events::timeout_call(int sock, short which, void *arg) {
   }
 }
 
-void Socket_events::socket_data_avaiable(int sock, short which, void *arg) {
+void Socket_events::socket_data_avaiable(int, short, void *arg) {
   Socket_data *data = (Socket_data*)arg;
   Operations_factory operations_factory;
   System_interface::Shared_ptr system_interface(operations_factory.create_system_interface());

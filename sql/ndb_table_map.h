@@ -19,7 +19,6 @@
 #define NDB_TABLE_MAP_H
 
 #include <my_bitmap.h>
-#include <my_global.h>
 
 #include "my_dbug.h"
 

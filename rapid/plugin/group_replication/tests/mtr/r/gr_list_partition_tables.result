@@ -6,6 +6,7 @@ Note	####	Storing MySQL user name or password information in the master info rep
 [connection server1]
 ## List Partitioning ##
 CREATE TABLE t1 (id int PRIMARY KEY, c2 int)
+CHARSET=utf8mb4
 PARTITION BY LIST (id)
 (PARTITION p1 VALUES in (5, 10, 15),
 PARTITION p2 VALUES in (2, 3),
@@ -18,7 +19,7 @@ t1	CREATE TABLE `t1` (
   `id` int(11) NOT NULL,
   `c2` int(11) DEFAULT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 /*!50100 PARTITION BY LIST (id)
 (PARTITION p1 VALUES IN (5,10,15) ENGINE = InnoDB,
  PARTITION p2 VALUES IN (2,3) ENGINE = InnoDB,

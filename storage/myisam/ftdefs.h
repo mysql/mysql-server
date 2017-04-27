@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,6 +20,7 @@
   Some definitions for full-text indices.
 */
 
+#include <math.h>
 #include "fulltext.h"
 #include <m_ctype.h>
 #include <my_tree.h>
@@ -109,7 +110,7 @@ uint _ft_make_key(MI_INFO *, uint , uchar *, FT_WORD *, my_off_t);
 uchar ft_get_word(const CHARSET_INFO *, uchar **, uchar *, FT_WORD *,
                   MYSQL_FTPARSER_BOOLEAN_INFO *);
 uchar ft_simple_get_word(const CHARSET_INFO *, uchar **, const uchar *,
-                         FT_WORD *, my_bool);
+                         FT_WORD *, bool);
 
 typedef struct _st_ft_seg_iterator {
   uint        num, len;

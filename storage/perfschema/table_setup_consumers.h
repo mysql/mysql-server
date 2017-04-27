@@ -21,6 +21,9 @@
   Table SETUP_CONSUMERS (declarations).
 */
 
+#include <sys/types.h>
+
+#include "lex_string.h"
 #include "pfs_column_types.h"
 #include "pfs_engine_table.h"
 #include "table_helper.h"
@@ -66,7 +69,7 @@ class table_setup_consumers : public PFS_engine_table
 public:
   /** Table share. */
   static PFS_engine_table_share m_share;
-  static PFS_engine_table *create();
+  static PFS_engine_table *create(PFS_engine_table_share *);
   static ha_rows get_row_count();
 
   virtual void reset_position(void);

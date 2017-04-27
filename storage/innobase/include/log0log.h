@@ -165,12 +165,10 @@ log_group_init(
 	space_id_t	space_id);	/*!< in: space id of the file space
 					which contains the log files of this
 					group */
-/******************************************************//**
-Completes an i/o to a log file. */
+/** Completes an i/o to a log file.
+@param[in,out]	group		log group or a dummy pointer */
 void
-log_io_complete(
-/*============*/
-	log_group_t*	group);	/*!< in: log group */
+log_io_complete(log_group_t* group);
 
 /* Read the first log file header to get the encryption
 information if it exist.
@@ -275,12 +273,6 @@ void
 log_write_checkpoint_info(
 	bool	sync);
 
-/** Set extra data to be written to the redo log during checkpoint.
-@param[in]	buf	data to be appended on checkpoint, or NULL
-@return pointer to previous data to be appended on checkpoint */
-mtr_buf_t*
-log_append_on_checkpoint(
-	mtr_buf_t*	buf);
 #else /* !UNIV_HOTBACKUP */
 /******************************************************//**
 Writes info to a buffer of a log group when log files are created in
@@ -302,15 +294,6 @@ objects! */
 void
 log_check_margins(void);
 #ifndef UNIV_HOTBACKUP
-/******************************************************//**
-Reads a specified log segment to a buffer. */
-void
-log_group_read_log_seg(
-/*===================*/
-	byte*		buf,		/*!< in: buffer where to read */
-	log_group_t*	group,		/*!< in: log group */
-	lsn_t		start_lsn,	/*!< in: read area start */
-	lsn_t		end_lsn);	/*!< in: read area end */
 /********************************************************//**
 Sets the field values in group to correspond to a given lsn. For this function
 to work, the values must already be correctly initialized to correspond to
@@ -500,17 +483,12 @@ Shutdown the log system but do not release all the memory. */
 void
 log_shutdown(void);
 /*==============*/
-/********************************************************//**
-Free the log system data structures. */
-void
-log_mem_free(void);
-/*==============*/
 
 /** Redo log system */
 extern log_t*	log_sys;
 
 /** Whether to generate and require checksums on the redo log pages */
-extern my_bool	innodb_log_checksums;
+extern bool	innodb_log_checksums;
 
 /* Values used as flags */
 #define LOG_FLUSH	7652559
@@ -597,9 +575,14 @@ enum log_header_format_t
 	/** The MySQL 5.7.9 redo log format identifier. We can support recovery
 	from this format if the redo log is clean (logically empty). */
 	LOG_HEADER_FORMAT_5_7_9 = 1,
+
+	/** Remove MLOG_FILE_NAME and MLOG_CHECKPOINT, introduce MLOG_FILE_OPEN
+	redo log record. */
+	LOG_HEADER_FORMAT_8_0_1 = 2,
+
 	/** The redo log format identifier
 	corresponding to the current format version. */
-	LOG_HEADER_FORMAT_CURRENT = 2
+	LOG_HEADER_FORMAT_CURRENT = LOG_HEADER_FORMAT_8_0_1
 };
 /* @} */
 
@@ -716,6 +699,13 @@ struct log_t{
 			log_groups;	/*!< log groups */
 
 #ifndef UNIV_HOTBACKUP
+
+#ifdef UNIV_DEBUG
+	/** When this is set, writing to the redo log should be disabled. We
+	check for this in functions that write to the redo log. */
+	bool		disable_redo_writes;
+#endif /* UNIV_DEBUG */
+
 	/** The fields involved in the log buffer flush @{ */
 
 	ulint		buf_next_to_write;/*!< first offset in the log buffer
@@ -785,13 +775,6 @@ struct log_t{
 					/*!< latest checkpoint lsn */
 	lsn_t		next_checkpoint_lsn;
 					/*!< next checkpoint lsn */
-	mtr_buf_t*	append_on_checkpoint;
-					/*!< extra redo log records to write
-					during a checkpoint, or NULL if none.
-					The pointer is protected by
-					log_sys->mutex, and the data must
-					remain constant as long as this
-					pointer is not NULL. */
 	ulint		n_pending_checkpoint_writes;
 					/*!< number of currently pending
 					checkpoint writes */

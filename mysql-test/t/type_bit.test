@@ -489,4 +489,3 @@ DROP TABLE t1;
 
 select bin(0b11111111), oct(0b11111111), hex(0b11111111),
        bin(0xFF), oct(0xFF), hex(0xFF);
-

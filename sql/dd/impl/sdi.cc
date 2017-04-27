@@ -18,20 +18,19 @@
 #include "my_rapidjson_size_t.h"  // IWYU pragma: keep
 
 #include <rapidjson/document.h>     // rapidjson::GenericValue
-#include <rapidjson/prettywriter.h> // rapidjson::PrettyWrite
-#include <rapidjson/error/error.h>  // rapidjson::ParseErrorCode
 #include <rapidjson/error/en.h>     // rapidjson::GetParseError_En
+#include <rapidjson/error/error.h>  // rapidjson::ParseErrorCode
+#include <rapidjson/prettywriter.h> // rapidjson::PrettyWrite
 #include <stddef.h>
 #include <stdint.h>
 #include <sys/types.h>
 #include <vector>
 
 #include "dd/cache/dictionary_client.h" // dd::Dictionary_client
+#include "dd/dd.h"                      // dd::create_object
 #include "dd/impl/dictionary_impl.h"    // dd::Dictionary_impl::get_target_dd_version
-#include "dd/impl/sdi.h"                // dd::sdi::Import_target
 #include "dd/impl/sdi_impl.h"           // sdi read/write functions
 #include "dd/impl/sdi_utils.h"          // dd::checked_return
-#include "dd/dd.h"                      // dd::create_object
 #include "dd/object_id.h"
 #include "dd/sdi_file.h"                // dd::sdi_file::store
 #include "dd/sdi_fwd.h"
@@ -43,12 +42,10 @@
 #include "dd/types/table.h"             // dd::Table
 #include "dd/types/tablespace.h"        // dd::Tablespace
 #include "dd_sql_view.h"                // update_referencing_views_metadata()
-
 #include "handler.h"              // ha_resolve_by_name_raw
 #include "m_string.h"             // STRING_WITH_LEN
 #include "mdl.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysql_version.h"        // MYSQL_VERSION_ID
@@ -192,15 +189,23 @@ String_type generic_serialize(THD *thd, const char *dd_object_type,
   w.String(dd_object_type, dd_object_type_size);
 
   w.String(STRING_WITH_LEN("dd_object"));
+
   dd_obj.serialize(&wctx, &w);
+
   w.EndObject();
 
   return (wctx.error() ? empty_ : String_type(buf.GetString(), buf.GetSize()));
 }
 
 
-const String_type &lookup_tablespace_name(Sdi_wcontext *wctx, dd::Object_id id)
+const String_type&
+lookup_tablespace_name(Sdi_wcontext *wctx MY_ATTRIBUTE((unused)),
+                       dd::Object_id id MY_ATTRIBUTE((unused)))
 {
+  // TODO: WL#9538  Remove this when SDI is enabled for InnoDB
+  return empty_;
+
+#if 0 // TODO: WL#9538  Remove this when SDI is enabled for InnoDB
   if (wctx->m_thd == nullptr || id == INVALID_OBJECT_ID)
   {
     return empty_;
@@ -222,6 +227,7 @@ const String_type &lookup_tablespace_name(Sdi_wcontext *wctx, dd::Object_id id)
   DBUG_ASSERT(tsp != nullptr);
 
   return tsp->name();
+#endif
 }
 
 /**
@@ -401,10 +407,11 @@ sdi_t serialize(const Tablespace &tablespace)
 }
 
 
-template <class Dd_type>
-bool generic_deserialize(THD *thd, const sdi_t &sdi,
-                         const String_type &object_type_name, Dd_type *dst,
-                         String_type *schema_name_from_sdi= nullptr)
+template <class Dd_type> bool
+generic_deserialize(THD *thd, const sdi_t &sdi,
+                    const String_type &object_type_name MY_ATTRIBUTE((unused)),
+                    Dd_type *dst,
+                    String_type *schema_name_from_sdi= nullptr)
 {
   RJ_Document doc;
   doc.Parse<0>(sdi.c_str());
@@ -778,24 +785,24 @@ bool drop_after_update(THD *thd, const Table *old_t, const Table *new_t)
 
 namespace sdi_unittest {
 
-typedef void (*cb)(dd::Sdi_wcontext*, const dd::Weak_object*, dd::Sdi_writer*);
-void setup_wctx(cb fp, const dd::Weak_object *wo, dd::Sdi_writer *w)
-{
-  dd::String_type s("driver_schema");
-  dd::Sdi_wcontext wctx(nullptr, &s);
+dd::String_type drv_s= "driver_schema";
+dd::Sdi_wcontext drv_wctx(nullptr, &drv_s);
 
-  fp(&wctx, wo, w);
+dd::Sdi_wcontext* get_wctx()
+{
+  return &drv_wctx;
 }
 
-typedef void (*dcb)(dd::Sdi_rcontext*, dd::Weak_object*,
-                    dd::RJ_Document &doc);
-void setup_rctx(dcb fp, dd::Weak_object *wo, dd::RJ_Document &doc)
+
+dd::Sdi_rcontext drv_rctx(nullptr, 0, 0);
+dd::Sdi_rcontext* get_rctx()
 {
-  dd::Sdi_rcontext rctx(nullptr, 0, 0); // restore ids for comparison
-  fp(&rctx, wo, doc);
+  return &drv_rctx;
 }
 
-bool equal_prefix_chars_driver(const dd::String_type &a, const dd::String_type &b, size_t prefix)
+
+bool equal_prefix_chars_driver(const dd::String_type &a,
+                               const dd::String_type &b, size_t prefix)
 {
   return dd::equal_prefix_chars(a.begin(), a.end(), b.begin(), b.end(), prefix);
 }

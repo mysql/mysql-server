@@ -1,19 +1,19 @@
 SET @global_start_value = @@global.collation_database;
 SELECT @global_start_value;
 @global_start_value
-latin1_swedish_ci
+utf8mb4_0900_ai_ci
 SET @session_start_value = @@collation_database;
 SELECT @session_start_value;
 @session_start_value
-latin1_swedish_ci
+utf8mb4_0900_ai_ci
 SET @session_start_value = @@local.collation_database;
 SELECT @session_start_value;
 @session_start_value
-latin1_swedish_ci
+utf8mb4_0900_ai_ci
 SET @session_start_value = @@session.collation_database;
 SELECT @session_start_value;
 @session_start_value
-latin1_swedish_ci
+utf8mb4_0900_ai_ci
 '#--------------------FN_DYNVARS_016_01------------------#'
 SELECT collation_database;
 ERROR 42S22: Unknown column 'collation_database' in 'field list'
@@ -44,10 +44,10 @@ Warnings:
 Warning	1681	Updating 'collation_database' is deprecated. It will be made read-only in a future release.
 SELECT DEFAULT_COLLATION_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME=DATABASE();
 DEFAULT_COLLATION_NAME
-latin1_swedish_ci
+utf8mb4_0900_ai_ci
 SELECT @@collation_database AS DEFAULT_VALUE;
 DEFAULT_VALUE
-latin1_swedish_ci
+utf8mb4_0900_ai_ci
 SET @@global.collation_database = latin1_bin;
 Warnings:
 Warning	1681	Updating 'collation_database' is deprecated. It will be made read-only in a future release.
@@ -56,7 +56,7 @@ Warnings:
 Warning	1681	Updating 'collation_database' is deprecated. It will be made read-only in a future release.
 SELECT @@global.collation_database;
 @@global.collation_database
-latin1_swedish_ci
+utf8mb4_0900_ai_ci
 '#--------------------FN_DYNVARS_016_03-------------------------#'
 SET @@session.collation_database = utf8_polish_ci;
 Warnings:
@@ -1838,10 +1838,10 @@ Warnings:
 Warning	1681	Updating 'collation_database' is deprecated. It will be made read-only in a future release.
 SELECT @@global.collation_database;
 @@global.collation_database
-latin1_swedish_ci
+utf8mb4_0900_ai_ci
 SET @@session.collation_database = @session_start_value;
 Warnings:
 Warning	1681	Updating 'collation_database' is deprecated. It will be made read-only in a future release.
 SELECT @@session.collation_database;
 @@session.collation_database
-latin1_swedish_ci
+utf8mb4_0900_ai_ci

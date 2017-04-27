@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -17,14 +17,14 @@
 
 #include "single_transaction_connection_provider.h"
 
+#include <stddef.h>
 #include <functional>
 
 using namespace Mysql::Tools::Dump;
 
 Mysql::Tools::Base::Mysql_query_runner*
   Single_transaction_connection_provider::create_new_runner(
-    std::function<bool(const Mysql::Tools::Base::Message_data&)>*
-      message_handler)
+    std::function<bool(const Mysql::Tools::Base::Message_data&)>*)
 {
   Mysql::Tools::Base::Mysql_query_runner* runner= NULL;
   my_boost::mutex::scoped_lock lock(m_pool_mutex);

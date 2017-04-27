@@ -2,7 +2,6 @@
 --echo # Test of locking clause privileges.
 --echo #
 
---source include/not_embedded.inc
 
 --echo #
 --echo #  Test of the parser tokens for use as role names.

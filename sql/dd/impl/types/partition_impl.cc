@@ -35,7 +35,6 @@
 #include "dd/types/partition_value.h"
 #include "dd/types/weak_object.h"
 #include "m_string.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysqld_error.h"                          // ER_*
@@ -204,14 +203,16 @@ bool Partition_impl::restore_children(Open_dictionary_tables_ctx *otx)
            this,
            otx,
            otx->get_table<Partition_value>(),
-           Table_partition_values::create_key_by_partition_id(this->id())) ||
+           Table_partition_values::create_key_by_partition_id(this->id()),
+           Partition_value_order_comparator()) ||
          m_indexes.restore_items(
            // Index will be resolved in restore_attributes()
            // called from Collection::restore_items().
            this,
            otx,
            otx->get_table<Partition_index>(),
-           Index_partitions::create_key_by_partition_id(this->id()));
+           Index_partitions::create_key_by_partition_id(this->id()),
+           Partition_index_order_comparator());
 }
 
 ///////////////////////////////////////////////////////////////////////////

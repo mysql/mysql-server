@@ -1,4 +1,3 @@
---source include/not_embedded.inc
 --source include/have_query_cache_disabled.inc
 
 --echo #

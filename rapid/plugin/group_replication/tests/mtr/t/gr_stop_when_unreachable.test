@@ -12,7 +12,6 @@
 #   5) Clean up.
 ################################################################################
 # Don't test this under valgrind, memory leaks will occur
---source include/not_asan.inc
 --source include/not_valgrind.inc
 --source include/big_test.inc
 --source include/force_restart.inc

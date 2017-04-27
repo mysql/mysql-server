@@ -1,0 +1,231 @@
+include/group_replication.inc [rpl_server_count=3]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+#
+# 1. Bootstrap start a group on M1. Start GR on M2.
+[connection server1]
+include/start_and_bootstrap_group_replication.inc
+[connection server2]
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("There are per-channel replication filter.s. configured for group replication channel 'group_replication_applier' which is disallowed. The filter.s. have been discarded.");
+SET SESSION sql_log_bin= 1;
+include/start_group_replication.inc
+#
+# 2. On M2, verify that replication filters on Group Replication
+#    channels 'group_replication_applier' and
+#    'group_replication_recovery' are disallowed.
+#
+#
+# 2.1. Verify that global replication filters can be configured with
+#      startup options: --replicate-* without specifying channel_name
+#      and a followed 'colon' in filter variable and
+#      P_S.replication_applier_global_filters can display them
+#      correctly.
+#
+SELECT COUNT(*) FROM performance_schema.replication_applier_global_filters;
+COUNT(*)
+1
+SELECT FILTER_NAME, FILTER_RULE, CONFIGURED_BY FROM performance_schema.replication_applier_global_filters;
+FILTER_NAME	FILTER_RULE	CONFIGURED_BY
+REPLICATE_IGNORE_DB	global_db	STARTUP_OPTIONS
+#
+# 2.2. Verify that group replication channels
+#      'group_replication_recovery' and
+#      'group_replication_applier' would not copy global replication
+#      filters to its own per-channel replication filters, but the
+#      default slave channel would copy global replication filters
+#      to its own per-channel replication filters on creation.
+#
+SELECT COUNT(*) FROM performance_schema.replication_applier_filters;
+COUNT(*)
+1
+SELECT CHANNEL_NAME, FILTER_NAME, FILTER_RULE, CONFIGURED_BY, COUNTER FROM performance_schema.replication_applier_filters;
+CHANNEL_NAME	FILTER_NAME	FILTER_RULE	CONFIGURED_BY	COUNTER
+	REPLICATE_IGNORE_DB	global_db	STARTUP_OPTIONS	0
+#
+# 2.3. CHANGE REPLICATION FILTER filter [, filter...] with no FOR CHANNEL
+#      clause does not act on group replication channels
+#      'group_replication_recovery' and 'group_replication_applier'.
+#
+CHANGE REPLICATION FILTER
+Replicate_Rewrite_DB=((db1,db2)),
+Replicate_Ignore_Table=(db2.itab1),
+Replicate_Wild_Do_Table = ('test.%', 'db1.t%', 'db2.t%'),
+Replicate_Wild_Ignore_Table=('db2.ig%'),
+Replicate_Ignore_DB=(global_db),
+Replicate_Do_DB=(db9);
+SELECT COUNT(*) FROM performance_schema.replication_applier_filters;
+COUNT(*)
+6
+SELECT CHANNEL_NAME, FILTER_NAME, FILTER_RULE, CONFIGURED_BY, COUNTER FROM performance_schema.replication_applier_filters;
+CHANNEL_NAME	FILTER_NAME	FILTER_RULE	CONFIGURED_BY	COUNTER
+	REPLICATE_DO_DB	db9	CHANGE_REPLICATION_FILTER	0
+	REPLICATE_IGNORE_DB	global_db	CHANGE_REPLICATION_FILTER	0
+	REPLICATE_IGNORE_TABLE	db2.itab1	CHANGE_REPLICATION_FILTER	0
+	REPLICATE_WILD_DO_TABLE	test.%,db1.t%,db2.t%	CHANGE_REPLICATION_FILTER	0
+	REPLICATE_WILD_IGNORE_TABLE	db2.ig%	CHANGE_REPLICATION_FILTER	0
+	REPLICATE_REWRITE_DB	(db1,db2)	CHANGE_REPLICATION_FILTER	0
+SELECT COUNT(*) FROM performance_schema.replication_applier_global_filters;
+COUNT(*)
+6
+SELECT FILTER_NAME, FILTER_RULE, CONFIGURED_BY FROM performance_schema.replication_applier_global_filters;
+FILTER_NAME	FILTER_RULE	CONFIGURED_BY
+REPLICATE_DO_DB	db9	CHANGE_REPLICATION_FILTER
+REPLICATE_IGNORE_DB	global_db	CHANGE_REPLICATION_FILTER
+REPLICATE_IGNORE_TABLE	db2.itab1	CHANGE_REPLICATION_FILTER
+REPLICATE_WILD_DO_TABLE	test.%,db1.t%,db2.t%	CHANGE_REPLICATION_FILTER
+REPLICATE_WILD_IGNORE_TABLE	db2.ig%	CHANGE_REPLICATION_FILTER
+REPLICATE_REWRITE_DB	(db1,db2)	CHANGE_REPLICATION_FILTER
+#
+# 2.4. If an explicit FOR CHANNEL clause is provided, CHANGE REPLICATION
+# FILTER filter [, filter...] FOR CHANNEL <channel_name> is disallowed
+# on group replication channels 'group_replication_recovery' and
+# 'group_replication_applier'.
+#
+CHANGE REPLICATION FILTER Replicate_Do_DB=(test, db1, db2) FOR CHANNEL 'group_replication_applier';
+ERROR HY000: CHANGE REPLICATION FILTER cannot be performed on channel 'group_replication_applier'.
+CHANGE REPLICATION FILTER Replicate_Do_DB=(test, db1, db2) FOR CHANNEL 'group_replication_recovery';
+ERROR HY000: CHANGE REPLICATION FILTER cannot be performed on channel 'group_replication_recovery'.
+#
+# 3. Execute some DDLs on M1 to check that nothing is filtered out on M2.
+[connection server1]
+CREATE DATABASE global_db;
+CREATE DATABASE db1;
+CREATE DATABASE db2;
+USE global_db;
+CREATE TABLE tab1 (a INT PRIMARY KEY);
+CREATE TABLE itab1 (a INT PRIMARY KEY);
+CREATE TABLE igtab1 (a INT PRIMARY KEY);
+USE db1;
+CREATE TABLE tab1 (a INT PRIMARY KEY);
+CREATE TABLE itab1 (a INT PRIMARY KEY);
+CREATE TABLE igtab1 (a INT PRIMARY KEY);
+USE db2;
+CREATE TABLE tab1 (a INT PRIMARY KEY);
+CREATE TABLE itab1 (a INT PRIMARY KEY);
+CREATE TABLE igtab1 (a INT PRIMARY KEY);
+USE test;
+CREATE TABLE tab1 (a INT PRIMARY KEY);
+CREATE TABLE itab1 (a INT PRIMARY KEY);
+CREATE TABLE igtab1 (a INT PRIMARY KEY);
+# M1: Should display 4 databases
+SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME IN ('test', 'db1', 'db2', 'global_db') ORDER BY 1;
+SCHEMA_NAME
+db1
+db2
+global_db
+test
+# M1: Should display 12 tables
+SELECT CONCAT(TABLE_SCHEMA,'.',TABLE_NAME) AS TABNAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA IN ('test', 'db1', 'db2', 'global_db') ORDER BY 1;
+TABNAME
+db1.igtab1
+db1.itab1
+db1.tab1
+db2.igtab1
+db2.itab1
+db2.tab1
+global_db.igtab1
+global_db.itab1
+global_db.tab1
+test.igtab1
+test.itab1
+test.tab1
+include/rpl_sync.inc
+# Verify nothing is filtered on M2
+[connection server2]
+# M2: Should display 4 databases
+SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME IN ('test', 'db1', 'db2', 'global_db') ORDER BY 1;
+SCHEMA_NAME
+db1
+db2
+global_db
+test
+# M2: Should display 12 tables
+SELECT CONCAT(TABLE_SCHEMA,'.',TABLE_NAME) AS TABNAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA IN ('test', 'db1', 'db2', 'global_db') ORDER BY 1;
+TABNAME
+db1.igtab1
+db1.itab1
+db1.tab1
+db2.igtab1
+db2.itab1
+db2.tab1
+global_db.igtab1
+global_db.itab1
+global_db.tab1
+test.igtab1
+test.itab1
+test.tab1
+#
+# 4. Stop applier thread on M1 and M2 so that M3 will stay in RECOVERING state.
+#    And, we can fetch donor's server_uuid.
+include/gr_stop_applier_sql_thread.inc
+STOP SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+[connection server1]
+include/gr_stop_applier_sql_thread.inc
+STOP SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+#
+# 5. Start GR on M3 and check donor's server_uuid.
+[connection server3]
+include/start_group_replication.inc
+# Wait until donor is confirmed
+#
+# 6. Start applier thread on M1 and M2.
+[connection server1]
+include/gr_start_applier_sql_thread.inc
+START SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+[connection server2]
+include/gr_start_applier_sql_thread.inc
+START SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+#
+# 7. Allow member M3 to come ONLINE, then verify data.
+[connection server3]
+include/gr_wait_for_member_state.inc
+include/assert.inc [There are [4] databases]
+include/assert.inc [There are [12] tables]
+#
+# 8. Clean up
+[connection server2]
+CHANGE REPLICATION FILTER
+Replicate_Rewrite_DB=(),
+Replicate_Ignore_Table=(),
+Replicate_Wild_Do_Table = (),
+Replicate_Wild_Ignore_Table=(),
+Replicate_Ignore_DB=(),
+Replicate_Do_DB=();
+SELECT COUNT(*) FROM performance_schema.replication_applier_filters;
+COUNT(*)
+6
+SELECT CHANNEL_NAME, FILTER_NAME, FILTER_RULE, CONFIGURED_BY, COUNTER FROM performance_schema.replication_applier_filters;
+CHANNEL_NAME	FILTER_NAME	FILTER_RULE	CONFIGURED_BY	COUNTER
+	REPLICATE_DO_DB		CHANGE_REPLICATION_FILTER	0
+	REPLICATE_IGNORE_DB		CHANGE_REPLICATION_FILTER	0
+	REPLICATE_IGNORE_TABLE		CHANGE_REPLICATION_FILTER	0
+	REPLICATE_WILD_DO_TABLE		CHANGE_REPLICATION_FILTER	0
+	REPLICATE_WILD_IGNORE_TABLE		CHANGE_REPLICATION_FILTER	0
+	REPLICATE_REWRITE_DB		CHANGE_REPLICATION_FILTER	0
+SELECT COUNT(*) FROM performance_schema.replication_applier_global_filters;
+COUNT(*)
+6
+SELECT FILTER_NAME, FILTER_RULE, CONFIGURED_BY FROM performance_schema.replication_applier_global_filters;
+FILTER_NAME	FILTER_RULE	CONFIGURED_BY
+REPLICATE_DO_DB		CHANGE_REPLICATION_FILTER
+REPLICATE_IGNORE_DB		CHANGE_REPLICATION_FILTER
+REPLICATE_IGNORE_TABLE		CHANGE_REPLICATION_FILTER
+REPLICATE_WILD_DO_TABLE		CHANGE_REPLICATION_FILTER
+REPLICATE_WILD_IGNORE_TABLE		CHANGE_REPLICATION_FILTER
+REPLICATE_REWRITE_DB		CHANGE_REPLICATION_FILTER
+DROP DATABASE global_db;
+DROP DATABASE db1;
+DROP DATABASE db2;
+DROP TABLES test.tab1, test.itab1, test.igtab1;
+#
+# 9. Verify that if the user specifies a per-channel replication filter
+#    through a command-line option (or in a configuration file) for
+#    group replication channels 'group_replication_recovery' and
+#    'group_replication_applier' which is disallowed, then the
+#    per-channel replication filter is discarded with a warning.
+#
+include/assert_grep.inc [Found the expected warning "There are per-channel replication filter.s. configured for group replication channel 'group_replication_applier' which is disallowed. The filter.s. have been discarded."]
+include/group_replication_end.inc

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -17,13 +17,16 @@
  * 02110-1301  USA
  */
 
-
+#include "account_verification_handler.h"
+#include "ngs_common/connection_vio.h"
+#include "ngs/interface/account_verification_interface.h"
 #include "ngs/interface/client_interface.h"
 #include "ngs/interface/server_interface.h"
-#include "ngs_common/connection_vio.h"
+#include "ngs/interface/sql_session_interface.h"
 #include "ngs/scheduler.h"
-#include "xpl_session.h"
 #include "sql_data_context.h"
+#include "xpl_resultset.h"
+#include "xpl_session.h"
 
 
 namespace ngs
@@ -67,12 +70,12 @@ class Mock_server : public ngs::Server_interface
 public:
 
 
-  Authentication_handler_ptr get_auth_handler(const std::string &p1, Session_interface *p2)
+  Authentication_interface_ptr get_auth_handler(const std::string &p1, Session_interface *p2)
   {
-    return Authentication_handler_ptr(get_auth_handler2(p1, p2));
+    return Authentication_interface_ptr(get_auth_handler2(p1, p2));
   }
 
-  MOCK_METHOD2(get_auth_handler2, Authentication_handler_ptr::element_type *(const std::string &, Session_interface *));
+  MOCK_METHOD2(get_auth_handler2, Authentication_interface_ptr::element_type *(const std::string &, Session_interface *));
   MOCK_CONST_METHOD0(get_config, ngs::shared_ptr<Protocol_config> ());
   MOCK_METHOD0(is_running, bool ());
   MOCK_CONST_METHOD0(get_worker_scheduler, ngs::shared_ptr<Scheduler_dynamic> ());
@@ -90,6 +93,45 @@ public:
   }
 };
 
+class Mock_authentication_interface : public ngs::Authentication_interface
+{
+ public:
+  MOCK_METHOD3(handle_start, Response(const std::string &, const std::string &,
+                                      const std::string &));
+
+  MOCK_METHOD1(handle_continue, Response(const std::string &));
+
+  MOCK_CONST_METHOD3(authenticate_account,
+                     ngs::Error_code(const std::string &, const std::string &,
+                                     const std::string &));
+};
+
+class Mock_account_verification
+    : public ngs::Account_verification_interface {
+ public:
+  MOCK_CONST_METHOD0(get_salt, const std::string&());
+  MOCK_CONST_METHOD2(verify_authentication_string,
+                     bool(const std::string &, const std::string &));
+};
+
+class Mock_sql_data_context : public ngs::Sql_session_interface {
+ public:
+  MOCK_METHOD1(set_connection_type, Error_code(const Connection_type));
+  MOCK_METHOD1(execute_kill_sql_session, Error_code(uint64_t));
+  MOCK_CONST_METHOD0(is_killed, bool());
+  MOCK_CONST_METHOD0(password_expired, bool());
+  MOCK_METHOD0(proto, Protocol_encoder &());
+  MOCK_CONST_METHOD0(get_authenticated_user_name, std::string());
+  MOCK_CONST_METHOD0(get_authenticated_user_host, std::string());
+  MOCK_CONST_METHOD0(has_authenticated_user_a_super_priv, bool());
+  MOCK_CONST_METHOD0(mysql_session_id, uint64_t());
+  MOCK_METHOD7(authenticate,
+               Error_code(const char *, const char *, const char *,
+                          const char *, const std::string &,
+                          const Authentication_interface &, bool));
+  MOCK_METHOD3(execute,
+               Error_code(const char *, std::size_t, Resultset_interface *));
+};
 }  // namespace test
 }  // namespace ngs
 
@@ -119,7 +161,8 @@ public:
   MOCK_CONST_METHOD0(get_state, Client_state ());
 
   MOCK_METHOD0(session, ngs::shared_ptr<ngs::Session_interface> ());
-  MOCK_METHOD0(supports_expired_passwords, bool ());
+  MOCK_CONST_METHOD0(supports_expired_passwords, bool ());
+
 public:
   MOCK_METHOD1(on_session_reset_void, bool (ngs::Session_interface &));
   MOCK_METHOD1(on_session_close_void, bool (ngs::Session_interface &));
@@ -186,27 +229,24 @@ public:
   {
   }
 
-  MOCK_METHOD0(data_context, xpl::Sql_data_context&());
+  MOCK_METHOD0(data_context, ngs::Sql_session_interface&());
 };
 
 
-class Mock_sql_data_context : public xpl::Sql_data_context
-{
-public:
-  Mock_sql_data_context(ngs::Protocol_encoder *p=0)
-  : xpl::Sql_data_context(p)
-  {
-  }
+class Mock_account_verification_handler
+    : public xpl::Account_verification_handler {
+ public:
+  Mock_account_verification_handler(xpl::Session *session)
+      : xpl::Account_verification_handler(session) {}
 
-  MOCK_METHOD8(authenticate, ngs::Error_code (const char *, const char *, const char *, const char *, On_user_password_hash , bool, ngs::IOptions_session_ptr &, const ngs::Connection_type));
-  MOCK_METHOD5(execute_sql_and_collect_results, ngs::Error_code (
-      const char *,
-      std::size_t,
-      std::vector<Command_delegate::Field_type> &,
-      Buffering_command_delegate::Resultset &,
-      Result_info &));
+  MOCK_CONST_METHOD2(authenticate,
+                     ngs::Error_code(const ngs::Authentication_interface &,
+                                     const std::string &));
+  MOCK_CONST_METHOD1(
+      get_account_verificator,
+      const ngs::Account_verification_interface *(
+          const ngs::Account_verification_interface::Account_type));
 };
-
 
 } // namespace test
 }  // namespace xpl

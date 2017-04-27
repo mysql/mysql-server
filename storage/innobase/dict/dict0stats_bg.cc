@@ -23,9 +23,14 @@ Code used for background table and index stats gathering.
 Created Apr 25, 2012 Vasil Dimov
 *******************************************************/
 
+#include "sql_thd_internal_api.h"
+
+#include <stddef.h>
+#include <sys/types.h>
 #include <vector>
 
 #include "dict0dict.h"
+#include "dict0dd.h"
 #include "dict0stats.h"
 #include "dict0stats_bg.h"
 #include "my_inttypes.h"
@@ -44,7 +49,7 @@ os_event_t			dict_stats_event = NULL;
 
 #ifdef UNIV_DEBUG
 /** Used by SET GLOBAL innodb_dict_stats_disabled_debug = 1; */
-my_bool				innodb_dict_stats_disabled_debug;
+bool				innodb_dict_stats_disabled_debug;
 
 static os_event_t		dict_stats_disabled_event;
 #endif /* UNIV_DEBUG */
@@ -289,17 +294,20 @@ dict_stats_thread_deinit()
 	dict_stats_start_shutdown = false;
 }
 
-/*****************************************************************//**
-Get the first table that has been added for auto recalc and eventually
-update its stats. */
+/** Get the first table that has been added for auto recalc and eventually
+update its stats.
+@param[in,out]	thd	current thread */
 static
 void
-dict_stats_process_entry_from_recalc_pool()
-/*=======================================*/
+dict_stats_process_entry_from_recalc_pool(
+	THD*	thd)
 {
 	table_id_t	table_id;
 
 	ut_ad(!srv_read_only_mode);
+
+	DBUG_EXECUTE_IF("do_not_meta_lock_in_background",
+			return;);
 
 	/* pop the first table from the auto recalc pool */
 	if (!dict_stats_recalc_pool_get(&table_id)) {
@@ -308,10 +316,13 @@ dict_stats_process_entry_from_recalc_pool()
 	}
 
 	dict_table_t*	table;
+	MDL_ticket*	mdl = nullptr;
 
+	/* We need to enter dict_sys->mutex for setting
+	table->stats_bg_flag. This is for blocking other DDL, like drop
+	table. */
 	mutex_enter(&dict_sys->mutex);
-
-	table = dict_table_open_on_id(table_id, TRUE, DICT_TABLE_OP_NORMAL);
+	table = dd_table_open_on_id(table_id, thd, &mdl, true);
 
 	if (table == NULL) {
 		/* table does not exist, must have been DROPped
@@ -322,11 +333,12 @@ dict_stats_process_entry_from_recalc_pool()
 
 	/* Check whether table is corrupted */
 	if (table->is_corrupted()) {
-		dict_table_close(table, TRUE, FALSE);
+		dd_table_close(table, thd, &mdl, true);
 		mutex_exit(&dict_sys->mutex);
 		return;
 	}
 
+	/* Set bg flag. */
 	table->stats_bg_flag = BG_STAT_IN_PROGRESS;
 
 	mutex_exit(&dict_sys->mutex);
@@ -354,11 +366,14 @@ dict_stats_process_entry_from_recalc_pool()
 
 	mutex_enter(&dict_sys->mutex);
 
+	/* Set back bg flag */
 	table->stats_bg_flag = BG_STAT_NONE;
 
-	dict_table_close(table, TRUE, FALSE);
-
 	mutex_exit(&dict_sys->mutex);
+
+	/* This call can't be moved into dict_sys->mutex protection,
+	since it'll cause deadlock while release mdl lock. */
+	dd_table_close(table, thd, &mdl, false);
 }
 
 #ifdef UNIV_DEBUG
@@ -378,7 +393,7 @@ dict_stats_disabled_debug_update(
 	/* This method is protected by mutex, as every SET GLOBAL .. */
 	ut_ad(dict_stats_disabled_event != NULL);
 
-	const bool disable = *static_cast<const my_bool*>(save);
+	const bool disable = *static_cast<const bool*>(save);
 
 	const int64_t sig_count = os_event_reset(dict_stats_disabled_event);
 
@@ -400,6 +415,7 @@ dict_stats_thread()
 	my_thread_init();
 
 	ut_a(!srv_read_only_mode);
+	THD*	thd = create_thd(false, true, true, 0);
 
 	srv_dict_stats_thread_active = true;
 
@@ -428,7 +444,7 @@ dict_stats_thread()
 			break;
 		}
 
-		dict_stats_process_entry_from_recalc_pool();
+		dict_stats_process_entry_from_recalc_pool(thd);
 
 		os_event_reset(dict_stats_event);
 	}
@@ -437,6 +453,7 @@ dict_stats_thread()
 
 	os_event_set(dict_stats_shutdown_event);
 
+	destroy_thd(thd);
 	my_thread_end();
 }
 

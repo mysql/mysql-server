@@ -13,7 +13,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "sql_reload.h"
+#include "sql/sql_reload.h"
 
 #include <stddef.h>
 
@@ -25,11 +25,11 @@
 #include "des_key_file.h"
 #include "handler.h"
 #include "hostname.h"    // hostname_cache_refresh
+#include "lex_string.h"
 #include "log.h"         // query_logger
 #include "mdl.h"
 #include "my_base.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysql_com.h"
@@ -208,7 +208,7 @@ bool reload_acl_and_cache(THD *thd, unsigned long options,
     {
       delete tmp_thd;
       /* Remember that we don't have a THD */
-      my_thread_set_THR_THD(NULL);
+      current_thd= nullptr;
       thd= 0;
     }
   }

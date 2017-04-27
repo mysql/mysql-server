@@ -16,13 +16,14 @@
 #ifndef PFS_BUILTIN_MEMORY_H
 #define PFS_BUILTIN_MEMORY_H
 
-#include "my_global.h"
+#include <sys/types.h>
+
 #include "pfs_global.h"
 #include "pfs_instr_class.h"
 
 /**
   @file storage/perfschema/pfs_builtin_memory.h
-  Performance schema instruments meta data (declarations).
+  Performance schema instruments metadata (declarations).
 */
 
 typedef uint PFS_builtin_memory_key;

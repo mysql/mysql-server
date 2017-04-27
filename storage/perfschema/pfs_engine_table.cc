@@ -18,19 +18,20 @@
   Performance schema tables (implementation).
 */
 
+#include "storage/perfschema/pfs_engine_table.h"
+
 #include "current_thd.h"
 #include "derror.h"
 #include "lock.h"  // MYSQL_LOCK_IGNORE_TIMEOUT
 #include "log.h"
 #include "my_dbug.h"
-#include "my_global.h"
+#include "my_macros.h"
 #include "my_thread.h"
 #include "mysqld.h" /* lower_case_table_names */
 #include "pfs_buffer_container.h"
 /* For show status */
 #include "pfs_column_values.h"
 #include "pfs_digest.h"
-#include "pfs_engine_table.h"
 #include "pfs_global.h"
 #include "pfs_instr.h"
 #include "pfs_instr_class.h"
@@ -55,6 +56,8 @@
 #include "table_esms_by_digest.h"
 #include "table_esms_by_host_by_event_name.h"
 #include "table_esms_by_program.h"
+#include "table_esmh_global.h"
+#include "table_esmh_by_digest.h"
 #include "table_esms_by_thread_by_event_name.h"
 #include "table_esms_by_user_by_event_name.h"
 #include "table_esms_global_by_event_name.h"
@@ -98,6 +101,8 @@
 #include "table_replication_connection_status.h"
 #include "table_replication_group_member_stats.h"
 #include "table_replication_group_members.h"
+#include "table_replication_applier_filters.h"
+#include "table_replication_applier_global_filters.h"
 #include "table_session_account_connect_attrs.h"
 #include "table_session_connect_attrs.h"
 #include "table_session_status.h"
@@ -124,6 +129,7 @@
 #include "table_uvar_by_thread.h"
 #include "table_variables_by_thread.h"
 #include "table_variables_info.h"
+#include "table_persisted_variables.h"
 
 /**
   @page PAGE_PFS_NEW_TABLE Implementing a new performance_schema table
@@ -156,7 +162,7 @@
   pfs -> pfs_table : rnd_init()
 
   == for each row ==
-  server -> pfs : rnd_next()
+  server -> pfs : ha_perfschema::rnd_next()
   pfs -> pfs_table : rnd_next()
   server -> pfs : ha_perfschema::read_row_values()
   pfs -> pfs_table : read_row_values()
@@ -450,8 +456,7 @@ PFS_table_context::initialize(void)
   if (m_restore)
   {
     /* Restore context from TLS. */
-    PFS_table_context *context =
-      static_cast<PFS_table_context *>(my_get_thread_local(m_thr_key));
+    PFS_table_context *context = THR_PFS_contexts[m_thr_key];
     DBUG_ASSERT(context != NULL);
 
     if (context)
@@ -466,9 +471,7 @@ PFS_table_context::initialize(void)
   else
   {
     /* Check that TLS is not in use. */
-    PFS_table_context *context =
-      static_cast<PFS_table_context *>(my_get_thread_local(m_thr_key));
-    // DBUG_ASSERT(context == NULL);
+    PFS_table_context *context = THR_PFS_contexts[m_thr_key];
 
     context = this;
 
@@ -489,7 +492,7 @@ PFS_table_context::initialize(void)
 #endif
 
     /* Write to TLS. */
-    my_set_thread_local(m_thr_key, static_cast<void *>(context));
+    THR_PFS_contexts[m_thr_key] = context;
   }
 
   m_initialized = (m_map_size > 0) ? (m_map != NULL) : true;
@@ -500,7 +503,7 @@ PFS_table_context::initialize(void)
 /* Constructor for global or single thread tables, map size = 0.  */
 PFS_table_context::PFS_table_context(ulonglong current_version,
                                      bool restore,
-                                     thread_local_key_t key)
+                                     THR_PFS_key key)
   : m_thr_key(key),
     m_current_version(current_version),
     m_last_version(0),
@@ -519,7 +522,7 @@ PFS_table_context::PFS_table_context(ulonglong current_version,
 PFS_table_context::PFS_table_context(ulonglong current_version,
                                      ulong map_size,
                                      bool restore,
-                                     thread_local_key_t key)
+                                     THR_PFS_key key)
   : m_thr_key(key),
     m_current_version(current_version),
     m_last_version(0),
@@ -535,11 +538,6 @@ PFS_table_context::PFS_table_context(ulonglong current_version,
 
 PFS_table_context::~PFS_table_context(void)
 {
-  /* Clear TLS after final use. */
-  //  if (m_restore)
-  //  {
-  //    my_set_thread_local(m_thr_key, NULL);
-  //  }
 }
 
 void
@@ -611,6 +609,8 @@ static PFS_engine_table_share *all_shares[] = {
   &table_esms_global_by_event_name::m_share,
   &table_esms_by_digest::m_share,
   &table_esms_by_program::m_share,
+  &table_esmh_global::m_share,
+  &table_esmh_by_digest::m_share,
 
   &table_events_transactions_current::m_share,
   &table_events_transactions_history::m_share,
@@ -656,6 +656,8 @@ static PFS_engine_table_share *all_shares[] = {
   &table_replication_applier_status_by_coordinator::m_share,
   &table_replication_applier_status_by_worker::m_share,
   &table_replication_group_member_stats::m_share,
+  &table_replication_applier_filters::m_share,
+  &table_replication_applier_global_filters::m_share,
 
   &table_prepared_stmt_instances::m_share,
 
@@ -671,6 +673,7 @@ static PFS_engine_table_share *all_shares[] = {
   &table_global_variables::m_share,
   &table_session_variables::m_share,
   &table_variables_info::m_share,
+  &table_persisted_variables::m_share,
 
   NULL};
 
@@ -730,7 +733,7 @@ PFS_check_intact::report_error(uint, const char *fmt, ...)
 
 /**
   Check integrity of the actual table schema.
-  The actual table schema (.frm) is compared to the expected schema.
+  The actual table schema is compared to the expected schema.
   @param thd              current thread
 */
 void
@@ -762,9 +765,12 @@ PFS_engine_table_share::check_one_table(THD *thd)
     close_thread_tables(thd);
   }
   else
+  {
     sql_print_error(ER_DEFAULT(ER_WRONG_NATIVE_TABLE_STRUCTURE),
                     PERFORMANCE_SCHEMA_str.str,
                     m_name.str);
+    thd->clear_error();
+  }
 
   lex_end(&dummy_lex);
   thd->lex = old_lex;
@@ -860,7 +866,7 @@ compare_table_names(const char *name1, const char *name2)
   @param name             The table name
   @return table share
 */
-const PFS_engine_table_share *
+PFS_engine_table_share *
 PFS_engine_table::find_engine_table_share(const char *name)
 {
   DBUG_ENTER("PFS_engine_table::find_table_share");
@@ -1019,166 +1025,6 @@ PFS_engine_table::get_normalizer(PFS_instr_class *instr_class)
     m_normalizer = time_normalizer::get(*instr_class->m_timer);
     m_class_type = instr_class->m_type;
   }
-}
-
-void
-PFS_engine_table::set_field_long(Field *f, long value)
-{
-  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_LONG);
-  Field_long *f2 = (Field_long *)f;
-  f2->store(value, false);
-}
-
-void
-PFS_engine_table::set_field_ulong(Field *f, ulong value)
-{
-  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_LONG);
-  Field_long *f2 = (Field_long *)f;
-  f2->store(value, true);
-}
-
-void
-PFS_engine_table::set_field_longlong(Field *f, longlong value)
-{
-  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_LONGLONG);
-  Field_longlong *f2 = (Field_longlong *)f;
-  f2->store(value, false);
-}
-
-void
-PFS_engine_table::set_field_ulonglong(Field *f, ulonglong value)
-{
-  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_LONGLONG);
-  Field_longlong *f2 = (Field_longlong *)f;
-  f2->store(value, true);
-}
-
-void
-PFS_engine_table::set_field_char_utf8(Field *f, const char *str, uint len)
-{
-  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_STRING);
-  Field_string *f2 = (Field_string *)f;
-  f2->store(str, len, &my_charset_utf8_bin);
-}
-
-void
-PFS_engine_table::set_field_varchar(Field *f,
-                                    const CHARSET_INFO *cs,
-                                    const char *str,
-                                    uint len)
-{
-  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_VARCHAR);
-  Field_varstring *f2 = (Field_varstring *)f;
-  f2->store(str, len, cs);
-}
-
-void
-PFS_engine_table::set_field_varchar_utf8(Field *f, const char *str, uint len)
-{
-  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_VARCHAR);
-  Field_varstring *f2 = (Field_varstring *)f;
-  f2->store(str, len, &my_charset_utf8_bin);
-}
-
-void
-PFS_engine_table::set_field_varchar_utf8mb4(Field *f, const char *str, uint len)
-{
-  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_VARCHAR);
-  Field_varstring *f2 = (Field_varstring *)f;
-  f2->store(str, len, &my_charset_utf8mb4_bin);
-}
-
-void
-PFS_engine_table::set_field_varchar_utf8(Field *f, const char *str)
-{
-  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_VARCHAR);
-  Field_varstring *f2 = (Field_varstring *)f;
-  f2->store(str, strlen(str), &my_charset_utf8_bin);
-}
-
-void
-PFS_engine_table::set_field_varchar_utf8mb4(Field *f, const char *str)
-{
-  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_VARCHAR);
-  Field_varstring *f2 = (Field_varstring *)f;
-  f2->store(str, strlen(str), &my_charset_utf8mb4_bin);
-}
-
-void
-PFS_engine_table::set_field_longtext_utf8(Field *f, const char *str, uint len)
-{
-  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_BLOB);
-  Field_blob *f2 = (Field_blob *)f;
-  f2->store(str, len, &my_charset_utf8_bin);
-}
-
-void
-PFS_engine_table::set_field_blob(Field *f, const char *val, uint len)
-{
-  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_BLOB);
-  Field_blob *f2 = (Field_blob *)f;
-  f2->store(val, len, &my_charset_utf8_bin);
-}
-
-void
-PFS_engine_table::set_field_enum(Field *f, ulonglong value)
-{
-  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_ENUM);
-  Field_enum *f2 = (Field_enum *)f;
-  f2->store_type(value);
-}
-
-void
-PFS_engine_table::set_field_timestamp(Field *f, ulonglong value)
-{
-  struct timeval tm;
-  tm.tv_sec = (long)(value / 1000000);
-  tm.tv_usec = (long)(value % 1000000);
-  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_TIMESTAMP2);
-  Field_timestampf *f2 = (Field_timestampf *)f;
-  f2->store_timestamp(&tm);
-}
-
-ulonglong
-PFS_engine_table::get_field_ulonglong(Field *f)
-{
-  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_LONGLONG);
-  Field_longlong *f2 = (Field_longlong *)f;
-  return f2->val_int();
-}
-
-void
-PFS_engine_table::set_field_double(Field *f, double value)
-{
-  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_DOUBLE);
-  Field_double *f2 = (Field_double *)f;
-  f2->store(value);
-}
-
-ulonglong
-PFS_engine_table::get_field_enum(Field *f)
-{
-  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_ENUM);
-  Field_enum *f2 = (Field_enum *)f;
-  return f2->val_int();
-}
-
-String *
-PFS_engine_table::get_field_char_utf8(Field *f, String *val)
-{
-  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_STRING);
-  Field_string *f2 = (Field_string *)f;
-  val = f2->val_str(NULL, val);
-  return val;
-}
-
-String *
-PFS_engine_table::get_field_varchar_utf8(Field *f, String *val)
-{
-  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_VARCHAR);
-  Field_varstring *f2 = (Field_varstring *)f;
-  val = f2->val_str(NULL, val);
-  return val;
 }
 
 int
@@ -1470,9 +1316,9 @@ PFS_key_reader::read_uchar(enum ha_rkey_function find_flag,
 }
 
 enum ha_rkey_function
-PFS_key_reader::read_long_int(enum ha_rkey_function find_flag,
-                              bool &isnull,
-                              int32 *value)
+PFS_key_reader::read_long(enum ha_rkey_function find_flag,
+                          bool &isnull,
+                          long *value)
 {
   if (m_remaining_key_part_info->store_length <= m_remaining_key_len)
   {
@@ -1493,6 +1339,43 @@ PFS_key_reader::read_long_int(enum ha_rkey_function find_flag,
     }
 
     int32 data = sint4korr(m_remaining_key);
+    m_remaining_key += data_size;
+    m_remaining_key_len -= (uint)data_size;
+    m_parts_found++;
+    m_remaining_key_part_info++;
+
+    *value = data;
+    return ((m_remaining_key_len == 0) ? find_flag : HA_READ_KEY_EXACT);
+  }
+
+  DBUG_ASSERT(m_remaining_key_len == 0);
+  return HA_READ_INVALID;
+}
+
+enum ha_rkey_function
+PFS_key_reader::read_ulong(enum ha_rkey_function find_flag,
+                           bool &isnull,
+                           ulong *value)
+{
+  if (m_remaining_key_part_info->store_length <= m_remaining_key_len)
+  {
+    size_t data_size = sizeof(int32);
+    DBUG_ASSERT(m_remaining_key_part_info->type == HA_KEYTYPE_ULONG_INT);
+    DBUG_ASSERT(m_remaining_key_part_info->store_length >= data_size);
+
+    isnull = false;
+    if (m_remaining_key_part_info->field->real_maybe_null())
+    {
+      if (m_remaining_key[0])
+      {
+        isnull = true;
+      }
+
+      m_remaining_key += HA_KEY_NULL_LENGTH;
+      m_remaining_key_len -= HA_KEY_NULL_LENGTH;
+    }
+
+    uint32 data = uint4korr(m_remaining_key);
     m_remaining_key += data_size;
     m_remaining_key_len -= (uint)data_size;
     m_parts_found++;

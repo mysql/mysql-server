@@ -15,12 +15,12 @@
 
 #include "query_result.h"
 
+#include "my_config.h"
+
 #include <fcntl.h>
 #include <limits.h>
 #include <string.h>
 #include <sys/stat.h>
-
-#include "my_config.h"
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif
@@ -29,9 +29,11 @@
 #include "derror.h"            // ER_THD
 #include "item.h"
 #include "item_func.h"
+#include "lex_string.h"
 #include "m_ctype.h"
 #include "m_string.h"
 #include "my_dbug.h"
+#include "my_macros.h"
 #include "my_thread_local.h"
 #include "mysql/psi/mysql_file.h"
 #include "mysql_com.h"

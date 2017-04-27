@@ -19,13 +19,12 @@
 #define NDB_SHARE_H
 
 #include <stdio.h>           // FILE, stderr
-#include <my_global.h>
-#include <my_alloc.h>        // MEM_ROOT
-#include <thr_lock.h>        // THR_LOCK
-#include <my_bitmap.h>       // MY_BITMAP
-#include <mysql/psi/mysql_thread.h>
 
-#include <ndbapi/Ndb.hpp>    // Ndb::TupleIdRange
+#include "my_alloc.h"        // MEM_ROOT
+#include "my_bitmap.h"       // MY_BITMAP
+#include "mysql/psi/mysql_thread.h"
+#include "ndbapi/Ndb.hpp"    // Ndb::TupleIdRange
+#include "thr_lock.h"        // THR_LOCK
 
 enum NDB_SHARE_STATE {
   NSS_INITIAL= 0,
@@ -39,9 +38,11 @@ enum Ndb_binlog_type
   ,NBT_NO_LOGGING               = 1
   ,NBT_UPDATED_ONLY             = 2
   ,NBT_FULL                     = 3
-  ,NBT_USE_UPDATE               = 4 /* bit 0x4 indicates USE_UPDATE */
-  ,NBT_UPDATED_ONLY_USE_UPDATE  = NBT_UPDATED_ONLY | NBT_USE_UPDATE
-  ,NBT_FULL_USE_UPDATE          = NBT_FULL         | NBT_USE_UPDATE
+  ,NBT_USE_UPDATE               = 4
+  ,NBT_UPDATED_ONLY_USE_UPDATE  = 6
+  ,NBT_FULL_USE_UPDATE          = 7
+  ,NBT_UPDATED_ONLY_MINIMAL     = 8
+  ,NBT_UPDATED_FULL_MINIMAL     = 9
 };
 
 
@@ -78,6 +79,11 @@ struct NDB_SHARE {
   class Ndb_event_data *event_data; // Place holder before NdbEventOperation is created
   class NdbEventOperation *op;
   class NdbEventOperation *new_op;
+
+  // Raw pointer for passing table definition from schema dist client to
+  // participant in the same node to avoid that paritcipant have to access
+  // the DD to open the table definition.
+  const void* inplace_alter_new_table_def;
 
   static NDB_SHARE* create(const char* key,
                          struct TABLE* table);
@@ -137,6 +143,8 @@ set_ndb_share_state(NDB_SHARE *share, NDB_SHARE_STATE state)
 #define NSF_BINLOG_FULL 8u /* table should be binlogged with full rows */
 #define NSF_BINLOG_USE_UPDATE 16u  /* table update should be binlogged using
                                      update log event */
+#define NSF_BINLOG_MINIMAL_UPDATE 32u  /* table update should be binlogged using
+                              minimal format: before(PK):after(changed cols) */
 inline void set_binlog_logging(NDB_SHARE *share)
 {
   DBUG_PRINT("info", ("set_binlog_logging"));
@@ -147,7 +155,7 @@ inline void set_binlog_nologging(NDB_SHARE *share)
   DBUG_PRINT("info", ("set_binlog_nologging"));
   share->flags|= NSF_NO_BINLOG;
 }
-inline my_bool get_binlog_nologging(NDB_SHARE *share)
+inline bool get_binlog_nologging(NDB_SHARE *share)
 { return (share->flags & NSF_NO_BINLOG) != 0; }
 inline void set_binlog_updated_only(NDB_SHARE *share)
 {
@@ -159,7 +167,7 @@ inline void set_binlog_full(NDB_SHARE *share)
   DBUG_PRINT("info", ("set_binlog_full"));
   share->flags|= NSF_BINLOG_FULL;
 }
-inline my_bool get_binlog_full(NDB_SHARE *share)
+inline bool get_binlog_full(NDB_SHARE *share)
 { return (share->flags & NSF_BINLOG_FULL) != 0; }
 inline void set_binlog_use_write(NDB_SHARE *share)
 {
@@ -171,9 +179,19 @@ inline void set_binlog_use_update(NDB_SHARE *share)
   DBUG_PRINT("info", ("set_binlog_use_update"));
   share->flags|= NSF_BINLOG_USE_UPDATE;
 }
-inline my_bool get_binlog_use_update(NDB_SHARE *share)
+inline bool get_binlog_use_update(NDB_SHARE *share)
 { return (share->flags & NSF_BINLOG_USE_UPDATE) != 0; }
 
+static inline void set_binlog_update_minimal(NDB_SHARE *share)
+{
+  DBUG_PRINT("info", ("set_binlog_update_minimal"));
+  share->flags|= NSF_BINLOG_MINIMAL_UPDATE;
+}
+
+static inline bool get_binlog_update_minimal(const NDB_SHARE *share)
+{
+  return (share->flags & NSF_BINLOG_MINIMAL_UPDATE) != 0;
+}
 
 NDB_SHARE *ndbcluster_get_share(const char *key,
                                 struct TABLE *table,

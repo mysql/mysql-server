@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved. 
+/* Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved. 
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,7 +21,6 @@
 #define TAP_H
 
 #include "my_compiler.h"
-#include "my_global.h"
 
 /*
   @defgroup MyTAP MySQL support for performing unit tests according to

@@ -24,10 +24,10 @@ if (!$TABLE)
   USE mysql;
   CREATE TABLE t (pk BIGINT UNSIGNED PRIMARY KEY);
 
-  --let $TABLE= mysql.version
+  --let $TABLE= mysql.dd_properties
   --source dd_table_access.test
 
-  --let $TABLE= version
+  --let $TABLE= dd_properties
   --source dd_table_access.test
 
   --let $TABLE= mysql.indexes

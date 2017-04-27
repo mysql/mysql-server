@@ -18,11 +18,12 @@
 
 #include <limits>
 #include <new>
+#include <utility>                              // std::forward
 
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_sys.h"
 #include "mysql/service_mysql_alloc.h"
+#include "psi_memory_key.h"
 
 
 /**
@@ -97,11 +98,12 @@ public:
 
   void deallocate(pointer p, size_type) { my_free(p); }
 
-  void construct(pointer p, const T& val)
+  template <class U, class... Args>
+  void construct(U *p, Args&&... args)
   {
     DBUG_ASSERT(p != NULL);
     try {
-      new(p) T(val);
+      ::new((void *)p) U(std::forward<Args>(args)...);
     } catch (...) {
       DBUG_ASSERT(false); // Constructor should not throw an exception.
     }

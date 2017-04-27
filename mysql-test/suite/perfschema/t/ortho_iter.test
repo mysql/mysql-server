@@ -2,7 +2,6 @@
 # Verify the orthogonality of iterators (table*::rnd_next()),
 # for every table and instruments.
 
---source include/not_embedded.inc
 --source include/no_valgrind_without_big.inc
 
 --disable_warnings

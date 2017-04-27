@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -693,11 +693,11 @@ EmulatorData::create(){
     For multithreaded ndbd, each thread will set a local jam buffer later.
   */
 #ifndef NO_EMULATED_JAM
-  void * jamBuffer = (void *)&theEmulatedJamBuffer;
+  EmulatedJamBuffer * jamBuffer = &theEmulatedJamBuffer;
 #else
-  void * jamBuffer = 0;
+  EmulatedJamBuffer * jamBuffer = nullptr;
 #endif
-  NdbThread_SetTlsKey(NDB_THREAD_TLS_JAM, jamBuffer);
+  NDB_THREAD_TLS_JAM = jamBuffer;
 
   theConfiguration = new Configuration();
   theWatchDog      = new WatchDog();

@@ -18,6 +18,7 @@
 #include <mysql/psi/mysql_thread.h>
 
 #include "binlog.h"
+#include "dd/cache/dictionary_client.h"
 #include "dd/types/abstract_table.h"
 #include "dd_table_share.h"
 #include "ha_ndbcluster.h"
@@ -37,6 +38,7 @@
 #include "ndbapi/NdbDictionary.hpp"
 #include "ndbapi/ndb_cluster_connection.hpp"
 #include "ndb_sleep.h"
+#include "ndb_bitmap.h"
 
 #include "rpl_filter.h"
 #include "rpl_injector.h"
@@ -49,18 +51,19 @@
 #include "derror.h"         // ER_THD
 #include "log.h"            // sql_print_*
 
-extern my_bool opt_ndb_log_orig;
-extern my_bool opt_ndb_log_bin;
-extern my_bool opt_ndb_log_update_as_write;
-extern my_bool opt_ndb_log_updated_only;
-extern my_bool opt_ndb_log_binlog_index;
-extern my_bool opt_ndb_log_apply_status;
+extern bool opt_ndb_log_orig;
+extern bool opt_ndb_log_bin;
+extern bool opt_ndb_log_update_as_write;
+extern bool opt_ndb_log_updated_only;
+extern bool opt_ndb_log_update_minimal;
+extern bool opt_ndb_log_binlog_index;
+extern bool opt_ndb_log_apply_status;
 extern ulong opt_ndb_extra_logging;
 extern st_ndb_slave_state g_ndb_slave_state;
-extern my_bool opt_ndb_log_transaction_id;
-extern my_bool log_bin_use_v1_row_events;
-extern my_bool opt_ndb_log_empty_update;
-extern my_bool opt_ndb_clear_apply_status;
+extern bool opt_ndb_log_transaction_id;
+extern bool log_bin_use_v1_row_events;
+extern bool opt_ndb_log_empty_update;
+extern bool opt_ndb_clear_apply_status;
 
 bool ndb_log_empty_epochs(void);
 
@@ -153,9 +156,9 @@ static mysql_cond_t  injector_data_cond;
   Flag showing if the ndb binlog should be created, if so == TRUE
   FALSE if not
 */
-my_bool ndb_binlog_running= FALSE;
-static my_bool ndb_binlog_tables_inited= FALSE;  //injector_data_mutex, relaxed
-static my_bool ndb_binlog_is_ready= FALSE;       //injector_data_mutex, relaxed
+bool ndb_binlog_running= FALSE;
+static bool ndb_binlog_tables_inited= FALSE;  //injector_data_mutex, relaxed
+static bool ndb_binlog_is_ready= FALSE;       //injector_data_mutex, relaxed
  
 bool
 ndb_binlog_is_read_only(void)
@@ -207,8 +210,8 @@ static ulonglong ndb_latest_received_binlog_epoch= 0;
 NDB_SHARE *ndb_apply_status_share= NULL;
 static NDB_SHARE *ndb_schema_share= NULL; //Need injector_data_mutex
 
-extern my_bool opt_log_slave_updates;
-static my_bool g_ndb_log_slave_updates;
+extern bool opt_log_slave_updates;
+static bool g_ndb_log_slave_updates;
 
 static bool g_injector_v1_warning_emitted = false;
 
@@ -345,17 +348,22 @@ ndb_binlog_close_shadow_table(NDB_SHARE *share)
   - The shadow table is (mainly) used when an event is
     received from the data nodes which need to be written
     to the binlog injector.
+  - the caller may provide table_def in order to avoid that
+    open_table_def() has to access the DD. This in turn avoids
+    that MDL lock is necessary when calling this function.
 */
 
 static int
-ndb_binlog_open_shadow_table(THD *thd, NDB_SHARE *share)
+ndb_binlog_open_shadow_table(THD *thd, NDB_SHARE *share,
+                             const dd::Table* table_def = NULL)
 {
-  int error;
+  int error= 0;
   DBUG_ASSERT(share->event_data == 0);
   Ndb_event_data *event_data= share->event_data= new Ndb_event_data(share);
   DBUG_ENTER("ndb_binlog_open_shadow_table");
+  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
 
-  MEM_ROOT **root_ptr= my_thread_get_THR_MALLOC();
+  MEM_ROOT **root_ptr= THR_MALLOC;
   MEM_ROOT *old_root= *root_ptr;
   init_sql_alloc(PSI_INSTRUMENT_ME, &event_data->mem_root, 1024, 0);
   *root_ptr= &event_data->mem_root;
@@ -369,10 +377,23 @@ ndb_binlog_open_shadow_table(THD *thd, NDB_SHARE *share)
                        share->db, 0,
                        share->table_name,
                        share->key_string(), nullptr);
-  if ((error= open_table_def(thd, shadow_table_share, false, NULL)) ||
+
+  if (table_def == nullptr)
+  {
+    if (thd->dd_client()->acquire(share->db, share->table_name, &table_def))
+      error= 1;
+    else if (table_def == nullptr)
+    {
+      my_error(ER_NO_SUCH_TABLE, MYF(0), share->db, share->table_name);
+      error= 1;
+    }
+  }
+
+  if (error ||
+      (error= open_table_def(thd, shadow_table_share, *table_def)) ||
       (error= open_table_from_share(thd, shadow_table_share, "", 0,
                                     (uint) (OPEN_FRM_FILE_ONLY | DELAYED_OPEN | READ_ALL),
-                                    0, shadow_table, false, NULL)))
+                                    0, shadow_table, false, table_def)))
   {
     DBUG_PRINT("error", ("failed to open shadow table, error: %d my_errno: %d",
                          error, my_errno()));
@@ -405,7 +426,7 @@ ndb_binlog_open_shadow_table(THD *thd, NDB_SHARE *share)
                                              &shadow_table->s->all_set);
 
   share->set_binlog_flags_for_table(shadow_table);
-
+  event_data->init_pk_bitmap();
 #ifndef DBUG_OFF
   dbug_print_table("table", shadow_table);
 #endif
@@ -427,7 +448,34 @@ int ndbcluster_binlog_init_share(THD *thd, NDB_SHARE *share, TABLE *_table)
     DBUG_RETURN(0);
   }
 
-  DBUG_RETURN(ndb_binlog_open_shadow_table(thd, share));
+  // Acquire shared mdl lock on table since the DD is
+  // acessed when opening the shadow table
+  MDL_ticket *mdl_ticket;
+  {
+    MDL_request mdl_request;
+    MDL_REQUEST_INIT(&mdl_request,
+                     MDL_key::TABLE, share->db, share->table_name,
+                     MDL_SHARED, MDL_EXPLICIT);
+
+    if (thd->mdl_context.acquire_lock(&mdl_request,
+                                      thd->variables.lock_wait_timeout))
+    {
+      DBUG_RETURN(1); // Failed to acquire MDL lock
+    }
+    // Save the ticket to allow only this lock be released
+    mdl_ticket= mdl_request.ticket;
+  }
+
+  // NOTE! When better control of who actually _creates_ the NDB_SHARE
+  // is acheived, the table_def could be provided to this function
+  // and passed to ndb_binlog_open_shadow_table() in order to avoid
+  // taking these additional MDL lock(s).
+  const int open_shadow_result =
+      ndb_binlog_open_shadow_table(thd, share, NULL);
+
+  thd->mdl_context.release_lock(mdl_ticket);
+
+  DBUG_RETURN(open_shadow_result);
 }
 
 static int
@@ -3234,6 +3282,69 @@ class Ndb_schema_event_handler {
         mysqld_write_frm_from_ndb(schema->db, schema->name);
       }
     }
+    else
+    {
+      // Special case for schema dist participant in own node!
+      // The schema dist client has exclusive MDL lock and thus
+      // the schema dist participant(this code) on the same mysqld
+      // can't open the table def from the DD, trying to acquire
+      // another MDL lock will just block.
+      // Instead(since this is in the same mysqld) it provides the new
+      // table def via a pointer in the NDB_SHARE.
+      //
+      // Presumably also the code for remote participants which opens
+      // the shadow table can be moved here. Better to do it all in one place
+      // even if doihng it slightly different.
+
+      NDB_SHARE *share= get_share(schema);
+      mysql_mutex_lock(&share->mutex);
+      ndb_binlog_close_shadow_table(share);
+
+      const dd::Table* new_table_def =
+          static_cast<const dd::Table*>(share->inplace_alter_new_table_def);
+      DBUG_ASSERT(new_table_def);
+
+      if (ndb_binlog_open_shadow_table(m_thd, share, new_table_def))
+      {
+        sql_print_error("NDB Binlog: Failed to re-open shadow table %s.%s",
+                        schema->db, schema->name);
+      }
+      mysql_mutex_unlock(&share->mutex);
+
+      free_share(&share);     // temporary ref.
+    }
+  }
+
+
+  int
+  remote_participant_inplace_alter_open_shadow_table(NDB_SHARE *share) const
+  {
+    DBUG_ENTER("remote_participant_inplace_alter_open_shadow_table");
+
+    // Acquire shared mdl lock on table since the DD is
+    // acessed when opening the shadow table
+    MDL_ticket *mdl_ticket;
+    {
+      MDL_request mdl_request;
+      MDL_REQUEST_INIT(&mdl_request,
+                       MDL_key::TABLE, share->db, share->table_name,
+                       MDL_SHARED, MDL_EXPLICIT);
+
+      if (m_thd->mdl_context.acquire_lock(&mdl_request,
+                                          m_thd->variables.lock_wait_timeout))
+      {
+        DBUG_RETURN(1); // Failed to acquire MDL lock
+      }
+      // Save the ticket to allow only this lock be released
+      mdl_ticket= mdl_request.ticket;
+    }
+
+    const int open_shadow_result =
+        ndb_binlog_open_shadow_table(m_thd, share, NULL);
+
+    m_thd->mdl_context.release_lock(mdl_ticket);
+
+    DBUG_RETURN(open_shadow_result);
   }
 
 
@@ -3249,15 +3360,23 @@ class Ndb_schema_event_handler {
         sql_print_information("NDB Binlog: handling online alter/rename");
 
       mysql_mutex_lock(&share->mutex);
-      ndb_binlog_close_shadow_table(share);
 
-      if (ndb_binlog_open_shadow_table(m_thd, share))
+      int open_shadow_result = 0;
+      if (schema->node_id != own_nodeid())
       {
-        sql_print_error("NDB Binlog: Failed to re-open shadow table %s.%s",
-                        schema->db, schema->name);
-        mysql_mutex_unlock(&share->mutex);
+        ndb_binlog_close_shadow_table(share);
+
+        open_shadow_result =
+            remote_participant_inplace_alter_open_shadow_table(share);
+        if (open_shadow_result)
+        {
+          sql_print_error("NDB Binlog: Failed to re-open shadow table %s.%s",
+                          schema->db, schema->name);
+          mysql_mutex_unlock(&share->mutex);
+        }
       }
-      else
+
+      if(!open_shadow_result)
       {
         /*
           Start subscribing to data changes to the new table definition
@@ -4088,7 +4207,7 @@ class Ndb_binlog_index_table_util
       Turn off binlogging to prevent the table changes to be written to
       the binary log.
     */
-    tmp_disable_binlog(thd);
+    Disable_binlog_guard binlog_guard(thd);
 
     if (open_binlog_index_table(thd, &ndb_binlog_index))
     {
@@ -4274,7 +4393,6 @@ class Ndb_binlog_index_table_util
     // Release MDL locks on the opened table
     thd->mdl_context.release_transactional_locks();
 
-    reenable_binlog(thd);
     return error;
   }
 
@@ -4487,6 +4605,10 @@ set_binlog_flags(NDB_SHARE *share,
     {
       set_binlog_use_update(share);
     }
+    if (opt_ndb_log_update_minimal)
+    {
+      set_binlog_update_minimal(share);
+    }
     break;
   case NBT_UPDATED_ONLY:
     DBUG_PRINT("info", ("NBT_UPDATED_ONLY"));
@@ -4510,6 +4632,20 @@ set_binlog_flags(NDB_SHARE *share,
     set_binlog_full(share);
     set_binlog_use_update(share);
     break;
+  case NBT_UPDATED_ONLY_MINIMAL:
+    DBUG_PRINT("info", ("NBT_UPDATED_ONLY_MINIMAL"));
+    set_binlog_updated_only(share);
+    set_binlog_use_update(share);
+    set_binlog_update_minimal(share);
+    break;
+  case NBT_UPDATED_FULL_MINIMAL:
+    DBUG_PRINT("info", ("NBT_UPDATED_FULL_MINIMAL"));
+    set_binlog_full(share);
+    set_binlog_use_update(share);
+    set_binlog_update_minimal(share);
+    break;
+  default:
+    DBUG_VOID_RETURN;
   }
   set_binlog_logging(share);
   DBUG_VOID_RETURN;
@@ -6019,10 +6155,10 @@ handle_data_event(THD* thd, Ndb *ndb, NdbEventOperation *pOp,
   DBUG_PRINT("info", ("Assuming %u columns for table %s",
                       n_fields, table->s->table_name.str));
   MY_BITMAP b;
-  /* Potential buffer for the bitmap */
-  uint32 bitbuf[128 / (sizeof(uint32) * 8)];
-  const bool own_buffer = n_fields <= sizeof(bitbuf) * 8;
-  bitmap_init(&b, own_buffer ? bitbuf : NULL, n_fields, FALSE); 
+  my_bitmap_map bitbuf[(NDB_MAX_ATTRIBUTES_IN_TABLE +
+                            8*sizeof(my_bitmap_map) - 1) /
+                           (8*sizeof(my_bitmap_map))];
+  ndb_bitmap_init(b, bitbuf, n_fields);
   bitmap_copy(&b, & (share->stored_columns));
 
   /*
@@ -6167,9 +6303,25 @@ handle_data_event(THD* thd, Ndb *ndb, NdbEventOperation *pOp,
         }
         ndb_unpack_record(table, event_data->ndb_value[1], &b, table->record[1]);
         DBUG_EXECUTE("info", print_records(table, table->record[1]););
+
+
+        MY_BITMAP col_bitmap_before_update;
+        my_bitmap_map bitbuf[(NDB_MAX_ATTRIBUTES_IN_TABLE +
+                                  8*sizeof(my_bitmap_map) - 1) /
+                                 (8*sizeof(my_bitmap_map))];
+        ndb_bitmap_init(col_bitmap_before_update, bitbuf, n_fields);
+        if (get_binlog_update_minimal(share))
+        {
+          event_data->generate_minimal_bitmap(&col_bitmap_before_update, &b);
+        }
+        else
+        {
+          bitmap_copy(&col_bitmap_before_update, &b);
+        }
+
         ret = trans.update_row(logged_server_id,
                                injector::transaction::table(table, true),
-                               &b,
+                               &col_bitmap_before_update, &b,
                                table->record[1], // before values
                                table->record[0], // after values
                                extra_row_info_ptr);
@@ -6187,11 +6339,6 @@ handle_data_event(THD* thd, Ndb *ndb, NdbEventOperation *pOp,
   {
     my_free(blobs_buffer[0]);
     my_free(blobs_buffer[1]);
-  }
-
-  if (!own_buffer)
-  {
-    bitmap_free(&b);
   }
 
   return 0;
@@ -6961,7 +7108,7 @@ restart_cluster_failure:
       break;
     }
 
-    MEM_ROOT **root_ptr= my_thread_get_THR_MALLOC();
+    MEM_ROOT **root_ptr= THR_MALLOC;
     MEM_ROOT *old_root= *root_ptr;
     MEM_ROOT mem_root;
     init_sql_alloc(PSI_INSTRUMENT_ME, &mem_root, 4096, 0);

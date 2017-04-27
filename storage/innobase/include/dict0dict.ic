@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -1203,6 +1203,20 @@ dict_table_prevent_eviction(
 	}
 }
 
+/** Allow the table to be evicted by moving a table to the LRU list from
+the non-LRU list if it is not already there.
+@param[in]      table   InnoDB table object can be evicted */
+UNIV_INLINE
+void
+dict_table_allow_eviction(
+	dict_table_t*   table)
+{
+	ut_ad(mutex_own(&dict_sys->mutex));
+	if (!table->can_be_evicted) {
+		dict_table_move_from_non_lru_to_lru(table);
+	}
+}
+
 /********************************************************************//**
 Check if the tablespace for the table has been discarded.
 @return true if the tablespace has been discarded. */
@@ -1235,9 +1249,7 @@ bool
 dict_table_is_table_buffer(
 	const dict_table_t*	table)
 {
-	const dict_index_t*	index = table->first_index();
-
-	return(index != NULL && index->id == DICT_TBL_BUFFER_ID);
+	return(table == dict_sys->dynamic_metadata);
 }
 
 /** Check if the table is in a shared tablespace (System or General).
@@ -1534,6 +1546,26 @@ dict_table_have_virtual_index(
 
 	return(false);
 }
+/** Allocate memory for intrinsic cache elements in the index
+@param[in]      index   index object */
+UNIV_INLINE
+void
+dict_allocate_mem_intrinsic_cache(
+                dict_index_t*           index)
+{
+
+        index->last_ins_cur =
+                static_cast<last_ops_cur_t*>(mem_heap_alloc(
+                        index->heap, sizeof(last_ops_cur_t)));
+
+        new (index->last_ins_cur) last_ops_cur_t();
+
+        index->last_sel_cur =
+                static_cast<last_ops_cur_t*>(mem_heap_alloc(
+                        index->heap, sizeof(last_ops_cur_t)));
+
+        new (index->last_sel_cur) last_ops_cur_t();
+}
 
 /** Generate a table_id from space id for SDI Index.
 @param[in]	space_id	InnoDB tablespace id
@@ -1608,4 +1640,22 @@ dict_sdi_get_copy_num(
 	ut_ad(dict_table_is_sdi(table_id));
 	return(~static_cast<uint32_t>(table_id >> 32));
 }
+
+/** Check whether the dict_table_t is a partition.
+A partitioned table on the SQL level is composed of InnoDB tables,
+where each InnoDB table is a [sub]partition including its secondary indexes
+which belongs to the partition.
+@param[in]	table	Table to check.
+@return true if the dict_table_t is a partition else false. */
+UNIV_INLINE
+bool
+dict_table_is_partition(
+	const dict_table_t*	table)
+{
+	/* Check both P and p on all platforms in case it was moved to/from
+	WIN. */
+	return(strstr(table->name.m_name, "#p#")
+	       || strstr(table->name.m_name, "#P#"));
+}
+
 #endif /* !UNIV_HOTBACKUP */

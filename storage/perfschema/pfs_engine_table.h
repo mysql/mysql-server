@@ -16,13 +16,17 @@
 #ifndef PFS_ENGINE_TABLE_H
 #define PFS_ENGINE_TABLE_H
 
+#include <stddef.h>
+#include <sys/types.h>
+
 #include "auth_common.h" /* struct ACL_* */
 #include "key.h"
+#include "lex_string.h"
 #include "my_base.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
-#include "my_thread_local.h" /* thread_local_key_t */
+#include "pfs.h"
 
 class PFS_engine_key;
 class PFS_engine_index;
@@ -36,16 +40,6 @@ typedef struct st_table_field_def TABLE_FIELD_DEF;
 */
 
 #include "pfs_instr_class.h"
-
-extern thread_local_key_t THR_PFS_VG;   // global_variables
-extern thread_local_key_t THR_PFS_SV;   // session_variables
-extern thread_local_key_t THR_PFS_VBT;  // variables_by_thread
-extern thread_local_key_t THR_PFS_SG;   // global_status
-extern thread_local_key_t THR_PFS_SS;   // session_status
-extern thread_local_key_t THR_PFS_SBT;  // status_by_thread
-extern thread_local_key_t THR_PFS_SBU;  // status_by_user
-extern thread_local_key_t THR_PFS_SBH;  // status_by_host
-extern thread_local_key_t THR_PFS_SBA;  // status_by_account
 
 class Field;
 struct PFS_engine_table_share;
@@ -64,11 +58,11 @@ class PFS_table_context
 public:
   PFS_table_context(ulonglong current_version,
                     bool restore,
-                    thread_local_key_t key);
+                    THR_PFS_key key);
   PFS_table_context(ulonglong current_version,
                     ulong map_size,
                     bool restore,
-                    thread_local_key_t key);
+                    THR_PFS_key key);
   ~PFS_table_context(void);
 
   bool initialize(void);
@@ -94,7 +88,7 @@ public:
   }
   void set_item(ulong n);
   bool is_item_set(ulong n);
-  thread_local_key_t m_thr_key;
+  THR_PFS_key m_thr_key;
 
 private:
   ulonglong m_current_version;
@@ -115,7 +109,7 @@ private:
 class PFS_engine_table
 {
 public:
-  static const PFS_engine_table_share *find_engine_table_share(
+  static PFS_engine_table_share *find_engine_table_share(
     const char *name);
 
   int read_row(TABLE *table, unsigned char *buf, Field **fields);
@@ -211,130 +205,6 @@ public:
   {
   }
 
-  /**
-    Helper, assign a value to a long field.
-    @param f the field to set
-    @param value the value to assign
-  */
-  static void set_field_long(Field *f, long value);
-  /**
-    Helper, assign a value to a ulong field.
-    @param f the field to set
-    @param value the value to assign
-  */
-  static void set_field_ulong(Field *f, ulong value);
-  /**
-    Helper, assign a value to a longlong field.
-    @param f the field to set
-    @param value the value to assign
-  */
-  static void set_field_longlong(Field *f, longlong value);
-  /**
-    Helper, assign a value to a ulonglong field.
-    @param f the field to set
-    @param value the value to assign
-  */
-  static void set_field_ulonglong(Field *f, ulonglong value);
-  /**
-    Helper, assign a value to a char utf8 field.
-    @param f the field to set
-    @param str the string to assign
-    @param len the length of the string to assign
-  */
-  static void set_field_char_utf8(Field *f, const char *str, uint len);
-  /**
-    Helper, assign a value to a varchar utf8 field.
-    @param f the field to set
-    @param cs the string character set
-    @param str the string to assign
-    @param len the length of the string to assign
-  */
-  static void set_field_varchar(Field *f,
-                                const CHARSET_INFO *cs,
-                                const char *str,
-                                uint len);
-  /**
-    Helper, assign a value to a varchar utf8 field.
-    @param f the field to set
-    @param str the string to assign
-    @param len the length of the string to assign
-  */
-  static void set_field_varchar_utf8(Field *f, const char *str, uint len);
-  /**
-    Helper, assign a value to a varchar utf8mb4 field.
-    @param f the field to set
-    @param str the string to assign
-    @param len the length of the string to assign
-  */
-  static void set_field_varchar_utf8mb4(Field *f, const char *str, uint len);
-  /**
-    Helper, assign a value to a varchar utf8 field.
-    @param f the field to set
-    @param str the string to assign
-  */
-  static void set_field_varchar_utf8(Field *f, const char *str);
-  /**
-    Helper, assign a value to a varchar utf8mb4 field.
-    @param f the field to set
-    @param str the string to assign
-  */
-  static void set_field_varchar_utf8mb4(Field *f, const char *str);
-  /**
-    Helper, assign a value to a longtext utf8 field.
-    @param f the field to set
-    @param str the string to assign
-    @param len the length of the string to assign
-  */
-  static void set_field_longtext_utf8(Field *f, const char *str, uint len);
-  /**
-    Helper, assign a value to a blob field.
-    @param f the field to set
-    @param val the value to assign
-    @param len the length of the string to assign
-  */
-  static void set_field_blob(Field *f, const char *val, uint len);
-  /**
-    Helper, assign a value to an enum field.
-    @param f the field to set
-    @param value the value to assign
-  */
-  static void set_field_enum(Field *f, ulonglong value);
-  /**
-    Helper, assign a value to a timestamp field.
-    @param f the field to set
-    @param value the value to assign
-  */
-  static void set_field_timestamp(Field *f, ulonglong value);
-
-  static ulonglong get_field_ulonglong(Field *f);
-
-  /**
-    Helper, assign a value to a double field.
-    @param f the field to set
-    @param value the value to assign
-  */
-  static void set_field_double(Field *f, double value);
-  /**
-    Helper, read a value from an enum field.
-    @param f the field to read
-    @return the field value
-  */
-  static ulonglong get_field_enum(Field *f);
-  /**
-    Helper, read a value from a char utf8 field.
-    @param f the field to read
-    @param[out] val the field value
-    @return the field value
-  */
-  static String *get_field_char_utf8(Field *f, String *val);
-  /**
-    Helper, read a value from a varchar utf8 field.
-    @param f the field to read
-    @param[out] val the field value
-    @return the field value
-  */
-  static String *get_field_varchar_utf8(Field *f, String *val);
-
 protected:
   /**
     Read the current row values.
@@ -385,7 +255,7 @@ protected:
 
   /** Table share. */
   const PFS_engine_table_share *m_share_ptr;
-  /** Opaque pointer to the m_pos position of this cursor. */
+  /** Opaque pointer to the @c m_pos position of this cursor. */
   void *m_pos_ptr;
   /** Current normalizer */
   time_normalizer *m_normalizer;
@@ -396,7 +266,7 @@ protected:
 };
 
 /** Callback to open a table. */
-typedef PFS_engine_table *(*pfs_open_table_t)(void);
+typedef PFS_engine_table *(*pfs_open_table_t)(PFS_engine_table_share *);
 /** Callback to write a row. */
 typedef int (*pfs_write_row_t)(TABLE *table,
                                unsigned char *buf,
@@ -427,13 +297,18 @@ struct PFS_key_reader
                                    bool &isnull,
                                    uchar *value);
 
-  enum ha_rkey_function read_long_int(enum ha_rkey_function find_flag,
-                                      bool &isnull,
-                                      int32 *value);
+  enum ha_rkey_function read_long(enum ha_rkey_function find_flag,
+                                  bool &isnull,
+                                  long *value);
+
+  enum ha_rkey_function read_ulong(enum ha_rkey_function find_flag,
+                                   bool &isnull,
+                                   ulong *value);
 
   enum ha_rkey_function read_ulonglong(enum ha_rkey_function find_flag,
                                        bool &isnull,
                                        ulonglong *value);
+
   enum ha_rkey_function read_varchar_utf8(enum ha_rkey_function find_flag,
                                           bool &isnull,
                                           char *buffer,
@@ -574,7 +449,7 @@ struct PFS_engine_table_share
 
   /** Table name. */
   LEX_STRING m_name;
-  /** Table ACL. */
+  /** Table Access Control List. */
   const ACL_internal_table_access *m_acl;
   /** Open table function. */
   pfs_open_table_t m_open_table;
@@ -584,7 +459,7 @@ struct PFS_engine_table_share
   pfs_delete_all_rows_t m_delete_all_rows;
   /** Get rows count function. */
   pfs_get_row_count_t m_get_row_count;
-  /** Length of the m_pos position structure. */
+  /** Length of the @c m_pos position structure. */
   uint m_ref_length;
   /** The lock, stored on behalf of the SQL layer. */
   THR_LOCK *m_thr_lock_ptr;

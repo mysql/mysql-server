@@ -262,7 +262,7 @@ child	CREATE TABLE `child` (
   CONSTRAINT `fk_10` FOREIGN KEY (`a1`, `a2`) REFERENCES `parent` (`a`, `b`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `fk_2` FOREIGN KEY (`a1`, `a2`) REFERENCES `parent` (`a`, `b`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `fk_3` FOREIGN KEY (`a1`, `a2`) REFERENCES `parent` (`a`, `b`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 DELETE FROM parent where a = 1;
 SELECT * FROM child;
 a1	a2
@@ -394,63 +394,6 @@ SYS_FOREIGN
 SYS_FOREIGN_COLS
 SYS_TABLESPACES
 SYS_VIRTUAL
-mysql/catalogs
-mysql/character_sets
-mysql/collations
-mysql/column_stats
-mysql/column_type_elements
-mysql/columns
-mysql/columns_priv
-mysql/component
-mysql/db
-mysql/default_roles
-mysql/engine_cost
-mysql/events
-mysql/foreign_key_column_usage
-mysql/foreign_keys
-mysql/func
-mysql/gtid_executed
-mysql/help_category
-mysql/help_keyword
-mysql/help_relation
-mysql/help_topic
-mysql/index_column_usage
-mysql/index_partitions
-mysql/index_stats
-mysql/indexes
-mysql/innodb_index_stats
-mysql/innodb_table_stats
-mysql/parameter_type_elements
-mysql/parameters
-mysql/plugin
-mysql/procs_priv
-mysql/proxies_priv
-mysql/role_edges
-mysql/routines
-mysql/schemata
-mysql/server_cost
-mysql/servers
-mysql/slave_master_info
-mysql/slave_relay_log_info
-mysql/slave_worker_info
-mysql/st_spatial_reference_systems
-mysql/table_partition_values
-mysql/table_partitions
-mysql/table_stats
-mysql/tables
-mysql/tables_priv
-mysql/tablespace_files
-mysql/tablespaces
-mysql/time_zone
-mysql/time_zone_leap_second
-mysql/time_zone_name
-mysql/time_zone_transition
-mysql/time_zone_transition_type
-mysql/triggers
-mysql/user
-mysql/version
-mysql/view_routine_usage
-mysql/view_table_usage
 test/child
 test/parent
 INSERT INTO child VALUES(5,4);
@@ -853,7 +796,7 @@ child	CREATE TABLE `child` (
   PRIMARY KEY (`a1`),
   KEY `fk_4` (`a2`),
   CONSTRAINT `fk_4` FOREIGN KEY (`a2`) REFERENCES `parent` (`b`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 SELECT * FROM information_schema.INNODB_SYS_FOREIGN;
 ID	FOR_NAME	REF_NAME	N_COLS	TYPE
 mysql/character_sets_ibfk_1	mysql/character_sets	mysql/collations	1	0
@@ -1091,63 +1034,6 @@ SYS_FOREIGN
 SYS_FOREIGN_COLS
 SYS_TABLESPACES
 SYS_VIRTUAL
-mysql/catalogs
-mysql/character_sets
-mysql/collations
-mysql/column_stats
-mysql/column_type_elements
-mysql/columns
-mysql/columns_priv
-mysql/component
-mysql/db
-mysql/default_roles
-mysql/engine_cost
-mysql/events
-mysql/foreign_key_column_usage
-mysql/foreign_keys
-mysql/func
-mysql/gtid_executed
-mysql/help_category
-mysql/help_keyword
-mysql/help_relation
-mysql/help_topic
-mysql/index_column_usage
-mysql/index_partitions
-mysql/index_stats
-mysql/indexes
-mysql/innodb_index_stats
-mysql/innodb_table_stats
-mysql/parameter_type_elements
-mysql/parameters
-mysql/plugin
-mysql/procs_priv
-mysql/proxies_priv
-mysql/role_edges
-mysql/routines
-mysql/schemata
-mysql/server_cost
-mysql/servers
-mysql/slave_master_info
-mysql/slave_relay_log_info
-mysql/slave_worker_info
-mysql/st_spatial_reference_systems
-mysql/table_partition_values
-mysql/table_partitions
-mysql/table_stats
-mysql/tables
-mysql/tables_priv
-mysql/tablespace_files
-mysql/tablespaces
-mysql/time_zone
-mysql/time_zone_leap_second
-mysql/time_zone_name
-mysql/time_zone_transition
-mysql/time_zone_transition_type
-mysql/triggers
-mysql/user
-mysql/version
-mysql/view_routine_usage
-mysql/view_table_usage
 test/child
 test/parent
 ALTER TABLE child ADD PRIMARY KEY idx (a3), CHANGE a1 a3 INT,
@@ -1262,63 +1148,6 @@ SYS_FOREIGN
 SYS_FOREIGN_COLS
 SYS_TABLESPACES
 SYS_VIRTUAL
-mysql/catalogs
-mysql/character_sets
-mysql/collations
-mysql/column_stats
-mysql/column_type_elements
-mysql/columns
-mysql/columns_priv
-mysql/component
-mysql/db
-mysql/default_roles
-mysql/engine_cost
-mysql/events
-mysql/foreign_key_column_usage
-mysql/foreign_keys
-mysql/func
-mysql/gtid_executed
-mysql/help_category
-mysql/help_keyword
-mysql/help_relation
-mysql/help_topic
-mysql/index_column_usage
-mysql/index_partitions
-mysql/index_stats
-mysql/indexes
-mysql/innodb_index_stats
-mysql/innodb_table_stats
-mysql/parameter_type_elements
-mysql/parameters
-mysql/plugin
-mysql/procs_priv
-mysql/proxies_priv
-mysql/role_edges
-mysql/routines
-mysql/schemata
-mysql/server_cost
-mysql/servers
-mysql/slave_master_info
-mysql/slave_relay_log_info
-mysql/slave_worker_info
-mysql/st_spatial_reference_systems
-mysql/table_partition_values
-mysql/table_partitions
-mysql/table_stats
-mysql/tables
-mysql/tables_priv
-mysql/tablespace_files
-mysql/tablespaces
-mysql/time_zone
-mysql/time_zone_leap_second
-mysql/time_zone_name
-mysql/time_zone_transition
-mysql/time_zone_transition_type
-mysql/triggers
-mysql/user
-mysql/version
-mysql/view_routine_usage
-mysql/view_table_usage
 test/child
 test/parent
 SHOW CREATE TABLE child;
@@ -1329,7 +1158,7 @@ child	CREATE TABLE `child` (
   PRIMARY KEY (`a3`),
   KEY `tb` (`a2`),
   CONSTRAINT `fk_1` FOREIGN KEY (`a2`) REFERENCES `parent` (`b`) ON DELETE SET NULL ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 DROP TABLE child;
 CREATE TABLE child (a1 INT NOT NULL, a2 INT) ENGINE = InnoDB;
 ALTER TABLE child ADD PRIMARY KEY idx (a1),
@@ -1444,63 +1273,6 @@ SYS_FOREIGN
 SYS_FOREIGN_COLS
 SYS_TABLESPACES
 SYS_VIRTUAL
-mysql/catalogs
-mysql/character_sets
-mysql/collations
-mysql/column_stats
-mysql/column_type_elements
-mysql/columns
-mysql/columns_priv
-mysql/component
-mysql/db
-mysql/default_roles
-mysql/engine_cost
-mysql/events
-mysql/foreign_key_column_usage
-mysql/foreign_keys
-mysql/func
-mysql/gtid_executed
-mysql/help_category
-mysql/help_keyword
-mysql/help_relation
-mysql/help_topic
-mysql/index_column_usage
-mysql/index_partitions
-mysql/index_stats
-mysql/indexes
-mysql/innodb_index_stats
-mysql/innodb_table_stats
-mysql/parameter_type_elements
-mysql/parameters
-mysql/plugin
-mysql/procs_priv
-mysql/proxies_priv
-mysql/role_edges
-mysql/routines
-mysql/schemata
-mysql/server_cost
-mysql/servers
-mysql/slave_master_info
-mysql/slave_relay_log_info
-mysql/slave_worker_info
-mysql/st_spatial_reference_systems
-mysql/table_partition_values
-mysql/table_partitions
-mysql/table_stats
-mysql/tables
-mysql/tables_priv
-mysql/tablespace_files
-mysql/tablespaces
-mysql/time_zone
-mysql/time_zone_leap_second
-mysql/time_zone_name
-mysql/time_zone_transition
-mysql/time_zone_transition_type
-mysql/triggers
-mysql/user
-mysql/version
-mysql/view_routine_usage
-mysql/view_table_usage
 test/child
 test/parent
 SHOW CREATE TABLE child;
@@ -1511,7 +1283,7 @@ child	CREATE TABLE `child` (
   PRIMARY KEY (`a1`),
   KEY `fk_1` (`a2`),
   CONSTRAINT `fk_1` FOREIGN KEY (`a2`) REFERENCES `parent` (`b`) ON DELETE SET NULL ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 DROP TABLE child;
 CREATE TABLE child (a1 INT NOT NULL, a2 INT) ENGINE = InnoDB;
 ALTER TABLE child CHANGE a1 a3 INT,
@@ -1626,63 +1398,6 @@ SYS_FOREIGN
 SYS_FOREIGN_COLS
 SYS_TABLESPACES
 SYS_VIRTUAL
-mysql/catalogs
-mysql/character_sets
-mysql/collations
-mysql/column_stats
-mysql/column_type_elements
-mysql/columns
-mysql/columns_priv
-mysql/component
-mysql/db
-mysql/default_roles
-mysql/engine_cost
-mysql/events
-mysql/foreign_key_column_usage
-mysql/foreign_keys
-mysql/func
-mysql/gtid_executed
-mysql/help_category
-mysql/help_keyword
-mysql/help_relation
-mysql/help_topic
-mysql/index_column_usage
-mysql/index_partitions
-mysql/index_stats
-mysql/indexes
-mysql/innodb_index_stats
-mysql/innodb_table_stats
-mysql/parameter_type_elements
-mysql/parameters
-mysql/plugin
-mysql/procs_priv
-mysql/proxies_priv
-mysql/role_edges
-mysql/routines
-mysql/schemata
-mysql/server_cost
-mysql/servers
-mysql/slave_master_info
-mysql/slave_relay_log_info
-mysql/slave_worker_info
-mysql/st_spatial_reference_systems
-mysql/table_partition_values
-mysql/table_partitions
-mysql/table_stats
-mysql/tables
-mysql/tables_priv
-mysql/tablespace_files
-mysql/tablespaces
-mysql/time_zone
-mysql/time_zone_leap_second
-mysql/time_zone_name
-mysql/time_zone_transition
-mysql/time_zone_transition_type
-mysql/triggers
-mysql/user
-mysql/version
-mysql/view_routine_usage
-mysql/view_table_usage
 test/child
 test/parent
 SHOW CREATE TABLE child;
@@ -1692,7 +1407,7 @@ child	CREATE TABLE `child` (
   `a2` int(11) DEFAULT NULL,
   KEY `fk_1` (`a3`),
   CONSTRAINT `fk_1` FOREIGN KEY (`a3`) REFERENCES `parent` (`b`) ON DELETE SET NULL ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 DROP TABLE child;
 CREATE TABLE child (a1 INT NOT NULL, a2 INT) ENGINE = InnoDB;
 ALTER TABLE child ADD PRIMARY KEY idx (a3), CHANGE a1 a3 INT,
@@ -1725,7 +1440,7 @@ child	CREATE TABLE `child` (
   KEY `fk_b` (`a1_new`),
   CONSTRAINT `fk_a` FOREIGN KEY (`a2_new`) REFERENCES `parent` (`b`) ON DELETE SET NULL ON UPDATE CASCADE,
   CONSTRAINT `fk_b` FOREIGN KEY (`a1_new`) REFERENCES `parent` (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 SELECT * from information_schema.INNODB_SYS_FOREIGN;
 ID	FOR_NAME	REF_NAME	N_COLS	TYPE
 mysql/character_sets_ibfk_1	mysql/character_sets	mysql/collations	1	0
@@ -1840,7 +1555,7 @@ child	CREATE TABLE `child` (
   KEY `fk_b` (`a1_new`),
   CONSTRAINT `fk_a` FOREIGN KEY (`a2_new`) REFERENCES `parent` (`b`) ON DELETE SET NULL ON UPDATE CASCADE,
   CONSTRAINT `fk_b` FOREIGN KEY (`a1_new`) REFERENCES `parent` (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 SELECT * from information_schema.INNODB_SYS_FOREIGN;
 ID	FOR_NAME	REF_NAME	N_COLS	TYPE
 mysql/character_sets_ibfk_1	mysql/character_sets	mysql/collations	1	0
@@ -1958,7 +1673,7 @@ child	CREATE TABLE `child` (
   CONSTRAINT `fk_new_1` FOREIGN KEY (`a1_new`) REFERENCES `parent` (`b`),
   CONSTRAINT `fk_new_2` FOREIGN KEY (`a2_new`) REFERENCES `parent` (`a`),
   CONSTRAINT `fk_new_3` FOREIGN KEY (`a3`) REFERENCES `parent` (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 SELECT * from information_schema.INNODB_SYS_FOREIGN;
 ID	FOR_NAME	REF_NAME	N_COLS	TYPE
 mysql/character_sets_ibfk_1	mysql/character_sets	mysql/collations	1	0
@@ -2079,7 +1794,7 @@ child	CREATE TABLE `child` (
   `a2` int(11) DEFAULT NULL,
   `a3` int(11) DEFAULT NULL,
   KEY `tb` (`a2`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 SELECT * from information_schema.INNODB_SYS_FOREIGN;
 ID	FOR_NAME	REF_NAME	N_COLS	TYPE
 mysql/character_sets_ibfk_1	mysql/character_sets	mysql/collations	1	0
@@ -2191,7 +1906,7 @@ child	CREATE TABLE `child` (
   CONSTRAINT `fk_new_1` FOREIGN KEY (`a1`) REFERENCES `parent` (`b`),
   CONSTRAINT `fk_new_2` FOREIGN KEY (`a2`) REFERENCES `parent` (`a`),
   CONSTRAINT `fk_new_3` FOREIGN KEY (`a3`) REFERENCES `parent` (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 SELECT * from information_schema.INNODB_SYS_FOREIGN;
 ID	FOR_NAME	REF_NAME	N_COLS	TYPE
 mysql/character_sets_ibfk_1	mysql/character_sets	mysql/collations	1	0
@@ -2436,7 +2151,7 @@ t2	CREATE TABLE `t2` (
   `f3` int(11) DEFAULT NULL,
   KEY `t` (`f2`),
   CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`f2`) REFERENCES `t1` (`f1`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 drop table t2;
 drop table t1;
 create table t1(f1 int ,primary key(f1))engine=innodb;
@@ -2451,6 +2166,6 @@ t2	CREATE TABLE `t2` (
   `f3` int(11) DEFAULT NULL,
   KEY `t1` (`f2`,`f3`),
   CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`f2`) REFERENCES `t1` (`f1`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 drop table t2;
 drop table t1;

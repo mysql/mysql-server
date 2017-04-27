@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -21,6 +21,8 @@
   Performance schema instrumentation (declarations).
 */
 
+#include <sys/types.h>
+
 #include "my_psi_config.h"
 
 #ifdef HAVE_PSI_FILE_INTERFACE
@@ -29,9 +31,9 @@
 
 #include <stddef.h>
 
+#include "my_inttypes.h"
 #include "my_io.h"
 #include "my_macros.h"
-#include "my_inttypes.h"
 #include "mysql/psi/psi_file.h"
 
 #define PSI_FILE_CALL(M) pfs_ ## M ## _v1

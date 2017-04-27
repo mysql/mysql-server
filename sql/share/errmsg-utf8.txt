@@ -6000,7 +6000,7 @@ ER_PARTITION_FUNCTION_IS_NOT_ALLOWED
         eng "This partition function is not allowed"
         ger "Diese Partitionierungsfunktion ist nicht erlaubt"
         swe "Denna partitioneringsfunktion är inte tillåten"
-ER_DDL_LOG_ERROR
+OBSOLETE_ER_DDL_LOG_ERROR_UNUSED
         eng "Error in DDL log"
         ger "Fehler im DDL-Log"
 ER_NULL_IN_VALUES_LESS_THAN
@@ -7569,10 +7569,10 @@ ER_DISABLED_STORAGE_ENGINE
   eng "Storage engine %s is disabled (Table creation is disallowed)."
 
 ER_USER_DOES_NOT_EXIST
-  eng "User %s does not exist."
+  eng "Authorization ID %s does not exist."
 
 ER_USER_ALREADY_EXISTS
-  eng "User %s already exists."
+  eng "Authorization ID %s already exists."
 
 ER_AUDIT_API_ABORT
   eng "Aborted by Audit API ('%-.48s';%d)."
@@ -7664,6 +7664,18 @@ ER_CANNOT_ADD_FOREIGN_BASE_COL_STORED
 
 ER_TABLE_REFERENCED
   eng "Cannot complete the operation because table is referenced by another connection."
+
+OBSOLETE_ER_PARTITION_ENGINE_DEPRECATED_FOR_TABLE
+  eng "The partition engine, used by table '%-.192s.%-.192s', is deprecated and will be removed in a future release. Please use native partitioning instead."
+
+OBSOLETE_ER_WARN_USING_GEOMFROMWKB_TO_SET_SRID_ZERO 01000
+  eng "%.192s(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use %.192s(st_aswkb(geometry), 0) instead."
+
+OBSOLETE_ER_WARN_USING_GEOMFROMWKB_TO_SET_SRID 01000
+  eng "%.192s(geometry, srid) is deprecated and will be replaced by st_srid(geometry, srid) in a future version. Use %.192s(st_aswkb(geometry), srid) instead."
+
+ER_XA_RETRY
+  eng "The resource manager is not able to commit the transaction branch at this time. Please retry later."
 
 #
 #  End of 5.7 error messages.
@@ -7871,7 +7883,6 @@ ER_INVALID_OPTION_KEY_VALUE_PAIR 22023
 
 ER_INVALID_OPTION_START_CHARACTER 22023
   eng "The options argument in function %.192s starts with the invalid character '%c'."
-
 ER_INVALID_OPTION_END_CHARACTER 22023
   eng "The options argument in function %.192s ends with the invalid character '%c'."
 
@@ -7898,7 +7909,6 @@ ER_DUPLICATE_TABLE_LOCK
 
 ER_BINLOG_UNSAFE_SKIP_LOCKED
   eng "Statement is unsafe because it uses SKIP LOCKED. The set of inserted values is non-deterministic."
-
 ER_BINLOG_UNSAFE_NOWAIT
   eng "Statement is unsafe because it uses NOWAIT. Whether the command will succeed or fail is not deterministic."
 
@@ -7961,6 +7971,27 @@ ER_IMP_INCOMPATIBLE_DD_VERSION
 
 ER_IMP_INCOMPATIBLE_SDI_VERSION
   eng "Imported sdi version (%llu) is not compatible with current (%llu)"
+
+ER_WARN_INVALID_HINT
+  eng "Invalid number of arguments for hint %s"
+
+ER_VAR_DOES_NOT_EXIST
+  eng "Variable %s does not exist in persisted config file"
+
+ER_LONGITUDE_OUT_OF_RANGE 22S02
+  eng "Longitude %f is out of range in function %.192s. It must be within (%f, %f]."
+
+ER_LATITUDE_OUT_OF_RANGE 22S03
+  eng "Latitude %f is out of range in function %.192s. It must be within [%f, %f]."
+
+ER_NOT_IMPLEMENTED_FOR_GEOGRAPHIC_SRS 22S00
+  eng "%.192s(%.40s, %.40s) has not been implemented for geographic spatial reference systems."
+
+ER_ILLEGAL_PRIVILEGE_LEVEL
+  eng "Illegal privilege level specified for %s"
+
+ER_NO_SYSTEM_VIEW_ACCESS
+  eng "Access to system view INFORMATION_SCHEMA.'%.64s' is rejected."
 
 #
 #  End of 8.0 error messages.

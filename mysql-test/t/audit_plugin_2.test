@@ -2,7 +2,6 @@
 --source include/no_ps_protocol.inc
 
 --source include/have_null_audit_plugin.inc
---source include/not_embedded.inc
 
 --echo # Test is temporarily run with show_compatibility_56=ON until Bug#21783798 is fixed.
 select @@global.show_compatibility_56 into @show_compatibility_56_save;

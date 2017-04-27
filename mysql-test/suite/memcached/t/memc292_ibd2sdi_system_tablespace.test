@@ -88,6 +88,10 @@ let MEMCACHED_TABLE_MAPPING = desc_t1;
 # Shutdown server
 --source include/shutdown_mysqld.inc
 
+--echo # check if ibdata* exist
+--file_exists $MYSQLD_DATADIR1/ibdata1
+--file_exists $MYSQLD_DATADIR1/ibdata2
+
 --echo # Section I: Test options
 --source ../include/ibd2sdi_common.inc
 

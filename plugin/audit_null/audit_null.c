@@ -20,9 +20,12 @@
 #include <mysql/plugin_audit.h>
 #include <mysqld_error.h>
 #include <stdio.h>
+#include <sys/types.h>
 
+#include "lex_string.h"
 #include "my_compiler.h"
 #include "my_inttypes.h"
+#include "my_macros.h"
 
 /** Event strings. */
 LEX_CSTRING event_names[][6] = {
@@ -335,7 +338,7 @@ static void process_event_record(MYSQL_THD thd, LEX_CSTRING event_name,
 }
 
 static int process_command(MYSQL_THD thd, LEX_CSTRING event_command,
-                           my_bool consume_event)
+                           bool consume_event)
 {
   LEX_CSTRING abort_ret_command= { C_STRING_WITH_LEN("ABORT_RET") };
 
@@ -399,7 +402,7 @@ static int audit_null_notify(MYSQL_THD thd,
   LEX_CSTRING event_token= get_token(&order_str);
   LEX_CSTRING event_data= get_token(&order_str);
   LEX_CSTRING event_command= get_token(&order_str);
-  my_bool consume_event= TRUE;
+  bool consume_event= TRUE;
 
   /* prone to races, oh well */
   number_of_calls++;
@@ -467,6 +470,7 @@ static int audit_null_notify(MYSQL_THD thd,
       break;
     }
   }
+#if 0
   /**
     Currently events not active.
 
@@ -508,6 +512,7 @@ static int audit_null_notify(MYSQL_THD thd,
     }
   }
   */
+#endif
   else if (event_class == MYSQL_AUDIT_SERVER_STARTUP_CLASS)
   {
     /* const struct mysql_event_server_startup *event_startup=

@@ -1,3 +1,17 @@
+Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation; version 2 of the License.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program; if not, write to the Free Software
+Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 
 CHARSET_INFO
 ============
@@ -37,6 +51,8 @@ typedef struct charset_info_st
 
   MY_CHARSET_HANDLER *cset;
   MY_COLLATION_HANDLER *coll;
+
+  Pad_attribute pad_attribute;
 
 } CHARSET_INFO;
 
@@ -195,6 +211,11 @@ Miscellaneous fields
 		     in case of other multi-byte character sets -
 		     max_str pad byte (usually 0xFF).
 
+  pad_attribute    - whether this collation is a PAD SPACE or NO PAD
+                     collation. PAD SPACE collations treat strings
+		     as if they were conceptually padded with an infinite
+		     amount of space characters at the end.
+
 MY_CHARSET_HANDLER
 ==================
 
@@ -272,7 +293,8 @@ scan()    - to skip leading spaces in the given string.
 MY_COLLATION_HANDLER
 ====================
 strnncoll()   - compares two strings according to the given collation
-strnncollsp() - like the above but ignores trailing spaces
+strnncollsp() - like the above but ignores trailing spaces for PAD SPACE
+                collations. For NO PAD collations, identical to strnncoll.
 strnxfrm()    - makes a sort key suitable for memcmp() corresponding
                 to the given string
 like_range()  - creates a LIKE range, for optimizer

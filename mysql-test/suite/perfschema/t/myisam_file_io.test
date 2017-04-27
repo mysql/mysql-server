@@ -1,7 +1,5 @@
 # Tests for PERFORMANCE_SCHEMA
 
---source include/not_embedded.inc
-
 # Setup
 
 update performance_schema.setup_instruments set enabled='NO';

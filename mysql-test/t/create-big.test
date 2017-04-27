@@ -1,7 +1,7 @@
 # Tests for various concurrency-related aspects of CREATE TABLE ... SELECT
 # and CREATE TABLE like implementation.
 #
-# Note that we don't test general CREATE TABLE ... SELECT/LIKE functionality
+# Note that we do not test general CREATE TABLE ... SELECT/LIKE functionality
 # here as it is already covered by create.test. We are more interested in
 # extreme cases.
 #

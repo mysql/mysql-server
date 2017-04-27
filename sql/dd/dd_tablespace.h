@@ -17,13 +17,11 @@
 #define DD_TABLESPACE_INCLUDED
 
 #include "lock.h"                    // Tablespace_hash_set
-#include "my_alloc.h"
-#include "my_global.h"
-
 
 class THD;
 class st_alter_tablespace;
 struct handlerton;
+typedef struct st_mem_root MEM_ROOT;
 
 namespace dd {
 

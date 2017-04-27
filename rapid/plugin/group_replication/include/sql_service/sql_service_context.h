@@ -16,6 +16,8 @@
 #ifndef SQL_SERVICE_CONTEXT_INCLUDE
 #define SQL_SERVICE_CONTEXT_INCLUDE
 
+#include <stddef.h>
+
 #include "my_inttypes.h"
 #include "sql_service_context_base.h"
 

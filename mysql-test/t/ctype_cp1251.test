@@ -1,5 +1,6 @@
 --source include/have_myisam.inc
 --source include/no_valgrind_without_big.inc
+
 # The include file ctype_numconv.inc have some MyISAM specific tests
 
 # Test of charset cp1251
@@ -9,6 +10,7 @@ drop table if exists t1;
 --enable_warnings
 
 SET NAMES cp1251;
+--character_set cp1251
 
 #
 # Test problem with LEFT() (Bug #514)

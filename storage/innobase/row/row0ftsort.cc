@@ -23,9 +23,13 @@ Create Full Text Index with (parallel) merge sort
 Created 10/13/2010 Jimmy Yang
 *******************************************************/
 
+#include <sys/types.h>
+
 #include "btr0bulk.h"
 #include "btr0cur.h"
 #include "dict0dict.h"
+#include "dict0dd.h"
+#include "row0merge.h"
 #include "fts0plugin.h"
 #include "ha_prototypes.h"
 #include "lob0lob.h"
@@ -1601,10 +1605,11 @@ row_fts_merge_insert(
 
 	/* Get aux index */
 	fts_get_table_name(&fts_table, aux_table_name);
-	aux_table = dict_table_open_on_name(aux_table_name, FALSE, FALSE,
-					    DICT_ERR_IGNORE_NONE);
+
+	aux_table = dd_table_open_on_name(nullptr, nullptr, aux_table_name,
+					  false, DICT_ERR_IGNORE_NONE);
 	ut_ad(aux_table != NULL);
-	dict_table_close(aux_table, FALSE, FALSE);
+	dd_table_close(aux_table, nullptr, nullptr, false);
 	aux_index = aux_table->first_index();
 
 	FlushObserver* observer;

@@ -394,4 +394,3 @@ DROP TABLE emp;
 --rmdir $MYSQL_TMP_DIR/alt_dir_west
 --rmdir $MYSQL_TMP_DIR/alt_dir/test
 --rmdir $MYSQL_TMP_DIR/alt_dir
-

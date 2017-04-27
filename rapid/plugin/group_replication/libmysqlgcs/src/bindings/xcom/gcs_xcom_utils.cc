@@ -15,7 +15,12 @@
 
 #include "gcs_xcom_utils.h"
 
+#include <assert.h>
 #include <errno.h>
+#include <time.h>
+#ifndef _WIN32
+#include <netdb.h>
+#endif
 #include <algorithm>
 #include <climits>
 #include <iostream>
@@ -23,8 +28,9 @@
 #include <set>
 #include <sstream>
 
-#include "gcs_group_identifier.h"
-#include "gcs_logging.h"
+#include "mysql/gcs/gcs_group_identifier.h"
+#include "mysql/gcs/gcs_logging.h"
+
 #include "gcs_message_stage_lz4.h"
 #include "gcs_xcom_networking.h"
 #include "task_net.h"
@@ -48,7 +54,7 @@ static const unsigned int WAITING_TIME= 30;
 /*
   Number of attempts to join a group.
 */
-static const unsigned int JOIN_ATTEMPTS= 3;
+static const unsigned int JOIN_ATTEMPTS= 0;
 
 /*
   Sleep time between attempts defined in seconds.
@@ -93,6 +99,27 @@ process_peer_nodes(const std::string *peer_nodes,
 
     // Find next "non-delimiter"
     pos= peer_init.find_first_of(delimiter, lastPos);
+  }
+}
+
+void
+Gcs_xcom_utils::
+validate_peer_nodes(std::vector<std::string> &peers,
+                    std::vector<std::string> &invalid_peers)
+{
+  std::vector<std::string>::iterator it;
+  for(it= peers.begin(); it != peers.end();)
+  {
+    std::string server_and_port= *it;
+    if (!is_valid_hostname(server_and_port))
+    {
+      invalid_peers.push_back(server_and_port);
+      it= peers.erase(it);
+    }
+    else
+    {
+      ++it;
+    }
   }
 }
 
@@ -376,8 +403,8 @@ bool Gcs_xcom_proxy_impl::xcom_open_handlers(std::string saddr, xcom_port port)
         // This is a hack. It forces a protocol negotiation in
         // the current connection with the local xcom, so that
         // it does not happen later on.
-        if ((xcom_client_enable_arbitrator(con) <= 0) ||
-            (xcom_client_disable_arbitrator(con) <= 0))
+        if ((::xcom_client_enable_arbitrator(con) <= 0) ||
+            (::xcom_client_disable_arbitrator(con) <= 0))
           success= false;
       }
 
@@ -866,60 +893,143 @@ Gcs_xcom_proxy_impl::xcom_client_force_config(node_list *nl,
     connection_descriptor* fd= m_xcom_handlers[index]->get_fd();
 
     if (fd != NULL)
-      res= this->xcom_client_force_config(fd, nl, group_id);
+      res= ::xcom_client_force_config(fd, nl, group_id);
   }
   xcom_release_handler(index);
   return res;
 }
 
-Gcs_xcom_nodes::Gcs_xcom_nodes(const site_def *site, node_set &nodes)
-  : m_node_no(site->nodeno), m_addresses(), m_uuids(), m_statuses(),
-    m_size(nodes.node_set_len)
+
+int Gcs_xcom_proxy_base::xcom_remove_nodes(Gcs_xcom_nodes &nodes,
+                                           uint32_t group_id_hash)
 {
-  Gcs_uuid uuid;
-  for (unsigned int i= 0; i < nodes.node_set_len; ++i)
+  node_list nl;
+  int ret= 1;
+
+  if (serialize_nodes_information(nodes, nl))
   {
-    /* Get member address and save it. */
-    std::string address(site->nodes.node_list_val[i].address);
-    m_addresses.push_back(address);
-
-    /* Get member uuid and save it. */
-    assert(uuid.size ==  site->nodes.node_list_val[i].uuid.data.data_len);
-    uuid.decode(
-      reinterpret_cast<uchar *>(site->nodes.node_list_val[i].uuid.data.data_val)
-    );
-    m_uuids.push_back(uuid);
-
-    /* Get member status and save it */
-    m_statuses.push_back(nodes.node_set_val[i] ? true: false);
+    MYSQL_GCS_LOG_DEBUG("Removing " << nl.node_list_len << " nodes at "
+                        << nl.node_list_val);
+    ret= xcom_client_remove_node(&nl, group_id_hash);
   }
-  assert(m_size == m_addresses.size());
-  assert(m_size == m_statuses.size());
+  free_nodes_information(nl);
+
+  return ret;
 }
 
-unsigned int Gcs_xcom_nodes::get_node_no() const
+
+int Gcs_xcom_proxy_base::xcom_remove_node(const Gcs_xcom_node_information &node,
+                                          uint32_t group_id_hash)
 {
-   return m_node_no;
+  Gcs_xcom_nodes nodes_to_remove;
+  nodes_to_remove.add_node(node);
+
+  return xcom_remove_nodes(nodes_to_remove, group_id_hash);
 }
 
-const std::vector<std::string> &Gcs_xcom_nodes::get_addresses() const
+
+int Gcs_xcom_proxy_base::xcom_force_nodes(Gcs_xcom_nodes &nodes,
+                                          uint32_t group_id_hash)
 {
-  return m_addresses;
+  node_list nl;
+  int ret= 1;
+
+  if (serialize_nodes_information(nodes, nl))
+  {
+    MYSQL_GCS_LOG_DEBUG("Forcing " << nl.node_list_len << " nodes at "
+                        << nl.node_list_val);
+    ret= xcom_client_force_config(&nl, group_id_hash);
+  }
+  free_nodes_information(nl);
+
+  return ret;
 }
 
-const std::vector<Gcs_uuid> &Gcs_xcom_nodes::get_uuids() const
+
+bool Gcs_xcom_proxy_base::serialize_nodes_information(Gcs_xcom_nodes &nodes,
+                                                      node_list &nl)
 {
-  return m_uuids;
+  unsigned int len= 0;
+  char **addrs= NULL;
+  blob *uuids= NULL;
+  nl.node_list_len= 0;
+
+  if (nodes.get_size() == 0)
+  {
+    MYSQL_GCS_LOG_DEBUG("There aren't nodes to be reported.");
+    return true;
+  }
+
+  if (!nodes.encode(&len, &addrs, &uuids))
+  {
+    MYSQL_GCS_LOG_DEBUG("Could not encode " << nodes.get_size() << " nodes.");
+    return false;
+  }
+
+  nl.node_list_len= len;
+  nl.node_list_val= new_node_address_uuid(len, addrs, uuids);
+
+  MYSQL_GCS_LOG_DEBUG("Prepared " << nl.node_list_len << " nodes at "
+                      << nl.node_list_val);
+  return true;
 }
 
-const std::vector<bool> &Gcs_xcom_nodes::get_statuses() const
+
+void Gcs_xcom_proxy_base::free_nodes_information(node_list& nl)
 {
-  return m_statuses;
+  MYSQL_GCS_LOG_DEBUG("Unprepared " << nl.node_list_len << " nodes at "
+                      << nl.node_list_val);
+  delete_node_address(nl.node_list_len, nl.node_list_val);
 }
 
-unsigned int Gcs_xcom_nodes::get_size() const
+
+int Gcs_xcom_proxy_base::xcom_boot_node(Gcs_xcom_node_information &node,
+                                        uint32_t group_id_hash)
 {
-  return m_size;
+  Gcs_xcom_nodes nodes_to_boot;
+  nodes_to_boot.add_node(node);
+  node_list nl;
+  int ret= 1;
+
+  if (serialize_nodes_information(nodes_to_boot, nl))
+  {
+    MYSQL_GCS_LOG_DEBUG("Booting up " << nl.node_list_len << " nodes at "
+                        << nl.node_list_val);
+    ret= xcom_client_boot(&nl, group_id_hash);
+  }
+  free_nodes_information(nl);
+
+  return ret;
+}
+
+
+int Gcs_xcom_proxy_base::xcom_add_nodes(connection_descriptor& con,
+                                        Gcs_xcom_nodes &nodes,
+                                        uint32_t group_id_hash)
+{
+  node_list nl;
+  int ret= 1;
+
+  if (serialize_nodes_information(nodes, nl))
+  {
+    MYSQL_GCS_LOG_DEBUG("Adding " << nl.node_list_len << " nodes at "
+                        << nl.node_list_val);
+    ret= xcom_client_add_node(&con, &nl, group_id_hash);
+  }
+  free_nodes_information(nl);
+
+  return ret;
+}
+
+
+int Gcs_xcom_proxy_base::xcom_add_node(connection_descriptor& con,
+                                       const Gcs_xcom_node_information &node,
+                                       uint32_t group_id_hash)
+{
+  Gcs_xcom_nodes nodes_to_add;
+  nodes_to_add.add_node(node);
+
+  return xcom_add_nodes(con, nodes_to_add, group_id_hash);
 }
 
 bool
@@ -1085,6 +1195,10 @@ is_parameters_syntax_correct(const Gcs_interface_parameters &interface_params)
     interface_params.get_parameter("join_attempts");
   const std::string *join_sleep_time_str=
     interface_params.get_parameter("join_sleep_time");
+  const std::string *suspicions_timeout_str=
+    interface_params.get_parameter("suspicions_timeout");
+  const std::string *suspicions_processing_period_str=
+    interface_params.get_parameter("suspicions_processing_period");
 
   /*
     -----------------------------------------------------
@@ -1118,18 +1232,33 @@ is_parameters_syntax_correct(const Gcs_interface_parameters &interface_params)
      Parse and validate hostname and ports.
      */
     std::vector<std::string> hostnames_and_ports;
+    std::vector<std::string> invalid_hostnames_and_ports;
     Gcs_xcom_utils::process_peer_nodes(peer_nodes_str, hostnames_and_ports);
-    std::vector<std::string>::iterator it;
-    for(it= hostnames_and_ports.begin(); it != hostnames_and_ports.end(); ++it)
+    Gcs_xcom_utils::validate_peer_nodes(hostnames_and_ports,
+                                        invalid_hostnames_and_ports);
+
+    if(!invalid_hostnames_and_ports.empty())
     {
-      std::string server_and_port= *it;
-      if (!is_valid_hostname(server_and_port))
+      std::vector<std::string>::iterator invalid_hostnames_and_ports_it;
+      for(invalid_hostnames_and_ports_it= invalid_hostnames_and_ports.begin();
+          invalid_hostnames_and_ports_it != invalid_hostnames_and_ports.end();
+          ++invalid_hostnames_and_ports_it)
       {
-        MYSQL_GCS_LOG_ERROR("Peer address \"" << server_and_port << "\" is" <<
-                            " not valid.")
-        error= GCS_NOK;
-        goto end;
+        MYSQL_GCS_LOG_WARN("Peer address \"" <<
+                           (*invalid_hostnames_and_ports_it).c_str()
+                           << "\" is not valid.");
       }
+    }
+
+    /*
+     This means that none of the provided hosts is valid and that
+     hostnames_and_ports had some sort of value
+     */
+    if(!invalid_hostnames_and_ports.empty() && hostnames_and_ports.empty())
+    {
+      MYSQL_GCS_LOG_ERROR("None of the provided peer address is valid.");
+      error= GCS_NOK;
+      goto end;
     }
   }
 
@@ -1239,12 +1368,33 @@ is_parameters_syntax_correct(const Gcs_interface_parameters &interface_params)
     goto end;
   }
 
+  // validate suspicions parameters
+  if (suspicions_timeout_str &&
+      (suspicions_timeout_str->size() == 0 ||
+       !is_number(*suspicions_timeout_str)))
+  {
+    MYSQL_GCS_LOG_ERROR("The suspicions_timeout parameter ("
+                          << suspicions_timeout_str << ") is not valid.")
+    error= GCS_NOK;
+    goto end;
+  }
+
   if(join_sleep_time_str &&
      (join_sleep_time_str->size() == 0 ||
       !is_number(*join_sleep_time_str)))
   {
     MYSQL_GCS_LOG_ERROR("The join_sleep_time parameter ("
                         << join_sleep_time_str << ") is not valid.")
+    error= GCS_NOK;
+    goto end;
+  }
+
+  if (suspicions_processing_period_str &&
+      (suspicions_processing_period_str->size() == 0 ||
+       !is_number(*suspicions_processing_period_str)))
+  {
+    MYSQL_GCS_LOG_ERROR("The suspicions_processing_period parameter ("
+                          << suspicions_processing_period_str << ") is not valid.")
     error= GCS_NOK;
     goto end;
   }

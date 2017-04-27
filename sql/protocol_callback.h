@@ -28,7 +28,6 @@
 
 #include "my_command.h"
 #include "my_decimal.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "mysql/service_command.h"
 #include "protocol.h"

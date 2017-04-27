@@ -86,6 +86,8 @@
 */
 
 #define MYSQL_SERVER 1
+#include "my_config.h"
+
 #include <m_ctype.h>
 #include <mysql/plugin.h>
 #include <algorithm>
@@ -802,7 +804,7 @@ int ha_myisammrg::attach_children(void)
   if (myrg_attach_children(this->file, this->test_if_locked |
                            current_thd->open_options,
                            myisammrg_attach_children_callback, &param,
-                           (my_bool *) &param.need_compat_check))
+                           (bool *) &param.need_compat_check))
   {
     error= my_errno();
     goto err;
@@ -1514,7 +1516,7 @@ int ha_myisammrg::create(const char *name, TABLE*,
                                     MY_UNPACK_FILENAME|MY_APPEND_EXT),
 			  table_names,
                           create_info->merge_insert_method,
-                          (my_bool) 0));
+                          (bool) 0));
 }
 
 

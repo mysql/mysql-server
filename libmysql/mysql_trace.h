@@ -26,6 +26,9 @@
   declarations are in plugin_trace.h header.
 */
 
+#include <stddef.h>
+
+#include "my_macros.h"
 
 C_MODE_START
 

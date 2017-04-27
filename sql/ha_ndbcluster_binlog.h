@@ -15,7 +15,6 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "my_global.h"
 
 // Typedefs for long names
 typedef NdbDictionary::Object NDBOBJ;
@@ -105,7 +104,7 @@ bool ndb_binlog_is_read_only(void);
 
 extern NDB_SHARE *ndb_apply_status_share;
 
-extern my_bool ndb_binlog_running;
+extern bool ndb_binlog_running;
 
 /* Prints ndb binlog status string in buf */
 size_t ndbcluster_show_status_binlog(char* buf, size_t buf_size);

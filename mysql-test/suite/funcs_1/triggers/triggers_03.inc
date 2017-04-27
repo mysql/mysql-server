@@ -6,9 +6,6 @@
 #======================================================================
 # WL#4084: enable disabled parts. 2007-11-15, hhunger
 
-# This test cannot be used for the embedded server because we check here
-# privilgeges.
---source include/not_embedded.inc
 
 set @orig_sql_mode_session= @@SESSION.sql_mode;
 set @orig_sql_mode_global= @@GLOBAL.sql_mode;

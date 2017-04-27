@@ -28,14 +28,13 @@
 #include "dd/object_id.h"
 #include "dd/sdi_fwd.h"
 #include "dd/types/abstract_table.h"
-#include "dd/types/dictionary_object_table.h"  // dd::Dictionary_object_table
+#include "dd/types/entity_object_table.h"      // dd::Entity_object_table
 #include "dd/types/foreign_key.h"              // dd::Foreign_key
 #include "dd/types/index.h"                    // dd::Index
 #include "dd/types/object_type.h"
 #include "dd/types/partition.h"                // dd::Partition
 #include "dd/types/table.h"                    // dd:Table
 #include "dd/types/trigger.h"                  // dd::Trigger
-#include "my_global.h"
 #include "my_inttypes.h"
 
 namespace dd {
@@ -54,7 +53,7 @@ class Trigger_impl;
 class Weak_object;
 
 class Table_impl : public Abstract_table_impl,
-                   public Table
+                   virtual public Table
 {
 public:
   Table_impl();
@@ -70,7 +69,7 @@ public:
   { return enum_table_type::BASE_TABLE; }
 
 public:
-  virtual const Dictionary_object_table &object_table() const
+  virtual const Object_table &object_table() const
   { return Table::OBJECT_TABLE(); }
 
   virtual bool validate() const;
@@ -271,6 +270,9 @@ public:
   virtual const Foreign_key_collection &foreign_keys() const
   { return m_foreign_keys; }
 
+  virtual Foreign_key_collection *foreign_keys()
+  { return &m_foreign_keys; }
+
   /////////////////////////////////////////////////////////////////////////
   // Partition collection.
   /////////////////////////////////////////////////////////////////////////
@@ -295,10 +297,10 @@ public:
 
 
   // Fix "inherits ... via dominance" warnings
-  virtual Weak_object_impl *impl()
-  { return Weak_object_impl::impl(); }
-  virtual const Weak_object_impl *impl() const
-  { return Weak_object_impl::impl(); }
+  virtual Entity_object_impl *impl()
+  { return Entity_object_impl::impl(); }
+  virtual const Entity_object_impl *impl() const
+  { return Entity_object_impl::impl(); }
   virtual Object_id id() const
   { return Entity_object_impl::id(); }
   virtual bool is_persistent() const
@@ -331,6 +333,8 @@ public:
   { return Abstract_table_impl::add_column(); }
   virtual const Column_collection &columns() const
   { return Abstract_table_impl::columns(); }
+  virtual Column_collection *columns()
+  { return Abstract_table_impl::columns(); }
   const Column *get_column(Object_id column_id) const
   { return Abstract_table_impl::get_column(column_id); }
   Column *get_column(Object_id column_id)
@@ -341,9 +345,9 @@ public:
   { return Abstract_table_impl::get_column(name); }
   virtual bool update_aux_key(aux_key_type *key) const
   { return Table::update_aux_key(key); }
-  virtual bool hidden() const
+  virtual enum_hidden_type hidden() const
   { return Abstract_table_impl::hidden(); }
-  virtual void set_hidden(bool hidden)
+  virtual void set_hidden(enum_hidden_type hidden)
   { Abstract_table_impl::set_hidden(hidden); }
 
   /////////////////////////////////////////////////////////////////////////
@@ -361,8 +365,6 @@ public:
   virtual Trigger_collection *triggers()
   { return &m_triggers; }
 
-  virtual void clone_triggers(Prealloced_array<Trigger*, 1> *triggers) const;
-  virtual void move_triggers(Prealloced_array<Trigger*, 1> *triggers);
   virtual void copy_triggers(const Table *tab_obj);
 
   virtual Trigger *add_trigger(Trigger::enum_action_timing at,

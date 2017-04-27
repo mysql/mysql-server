@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -31,11 +31,12 @@
 #include "dd/types/view_routine.h"
 #include "dd/types/view_table.h"
 #include "dd/types/weak_object.h"
-#include "mysql_com.h"
-#include "mysqld_error.h"                     // ER_*
-#include "mysqld.h"
+#include "lex_string.h"
 #include "my_sys.h"
 #include "my_user.h"                          // parse_user
+#include "mysql_com.h"
+#include "mysqld.h"
+#include "mysqld_error.h"                     // ER_*
 
 using dd::tables::Tables;
 using dd::tables::View_table_usage;
@@ -147,6 +148,16 @@ bool View_impl::drop_children(Open_dictionary_tables_ctx *otx) const
            otx->get_table<View_table>(),
            View_table_usage::create_key_by_view_id(this->id())) ||
          Abstract_table_impl::drop_children(otx);
+}
+
+///////////////////////////////////////////////////////////////////////////
+
+void View_impl::remove_children()
+{
+  columns()->remove_all();
+  column_names().clear();
+  m_tables.remove_all();
+  m_routines.remove_all();
 }
 
 ///////////////////////////////////////////////////////////////////////////

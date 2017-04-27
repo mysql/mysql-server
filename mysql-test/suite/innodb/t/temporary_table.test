@@ -4,14 +4,13 @@
 # WL#7899: InnoDB: Map compressed temporary tables to uncompressed
 #
 
-# Embedded server does not restart of server
---source include/not_embedded.inc
 --source include/no_valgrind_without_big.inc
 
 --disable_query_log
 call mtr.add_suppression("Tablespace innodb_temporary ran out of space. Please add another file or use 'autoextend' for the last file in setting innodb_temp_data_file_path.");
 call mtr.add_suppression("The table 't1' is full");
 call mtr.add_suppression("Skip re-populating collations and character sets tables in InnoDB read-only mode.");
+call mtr.add_suppression("Skip updating I_S metadata in InnoDB read-only mode.");
 --enable_query_log
 
 ################################################################################
@@ -194,7 +193,7 @@ let $restart_parameters = restart: --innodb_temp_data_file_path=ibtmp1:32M;
 #
 create temporary table t1
 	(keyc int, c1 char(250), c2 char(250), c3 char(250),
-	 primary key(keyc, c1, c2, c3)) engine = innodb;
+	 primary key(keyc, c1, c2, c3)) engine = innodb charset latin1;
 delimiter |;
 CREATE PROCEDURE populate_t1()
 BEGIN
@@ -310,7 +309,7 @@ CREATE TEMPORARY TABLE t1(
 SELECT count(*) AS `Expect 1` FROM information_schema.innodb_temp_table_info;
 
 CREATE TABLE space_id(
-  id INT
+  id INT UNSIGNED
 ) ENGINE = InnoDB;
 INSERT INTO space_id SELECT space FROM information_schema.innodb_temp_table_info;
 SELECT count(*) AS `Expect 1` FROM space_id;

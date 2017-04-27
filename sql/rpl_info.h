@@ -19,7 +19,6 @@
 #include <sys/types.h>
 #include <atomic>
 
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_psi_config.h"
 #include "mysql/psi/mysql_cond.h"

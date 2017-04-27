@@ -23,6 +23,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02111-1307  USA */
 #include <mysqld_error.h>
 #include <rwlock_scoped_lock.h>
 #include <scope_guard.h>
+#include <stddef.h>
 #include <functional>
 #include <map>
 #include <memory>

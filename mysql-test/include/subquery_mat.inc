@@ -12,9 +12,9 @@ drop table if exists t1, t2, t3, t1i, t2i, t3i;
 drop view if exists v1, v2, v1m, v2m;
 --enable_warnings
 
-create table t1 (a1 char(8), a2 char(8));
-create table t2 (b1 char(8), b2 char(8));
-create table t3 (c1 char(8), c2 char(8));
+create table t1 (a1 char(8), a2 char(8)) charset utf8mb4;
+create table t2 (b1 char(8), b2 char(8)) charset utf8mb4;
+create table t3 (c1 char(8), c2 char(8)) charset utf8mb4;
 
 insert into t1 values ('1 - 00', '2 - 00');
 insert into t1 values ('1 - 01', '2 - 01');
@@ -32,9 +32,9 @@ insert into t3 values ('1 - 03', '2 - 03');
 insert into t3 values ('1 - 04', '2 - 04');
 
 # Indexed columns
-create table t1i (a1 char(8), a2 char(8));
-create table t2i (b1 char(8), b2 char(8));
-create table t3i (c1 char(8), c2 char(8));
+create table t1i (a1 char(8), a2 char(8)) charset utf8mb4;
+create table t2i (b1 char(8), b2 char(8)) charset utf8mb4;
+create table t3i (c1 char(8), c2 char(8)) charset utf8mb4;
 create index it1i1 on t1i (a1);
 create index it1i2 on t1i (a2);
 create index it1i3 on t1i (a1, a2);
@@ -480,7 +480,7 @@ drop table t1;
 # Test for Bug#16603 GROUP BY in a row subquery with a quantifier
 #                    when an index is defined on the grouping field
 
-CREATE TABLE t1 (a varchar(5), b varchar(10));
+CREATE TABLE t1 (a varchar(5), b varchar(10)) charset utf8mb4;
 INSERT INTO t1 VALUES
   ('AAA', 5), ('BBB', 4), ('BBB', 1), ('CCC', 2),
   ('CCC', 7), ('AAA', 2), ('AAA', 4), ('BBB', 3), ('AAA', 8);
@@ -555,7 +555,7 @@ CREATE TABLE t1 (
   pk INT,
   v VARCHAR(1) DEFAULT NULL,
   PRIMARY KEY(pk)
-);
+) charset latin1;
 CREATE TABLE t2 LIKE t1;
 CREATE TABLE t3 LIKE t1;
 CREATE TABLE empty1 (a int);
@@ -1446,7 +1446,7 @@ CREATE TABLE t1 (
   col_varchar_nokey VARCHAR(1),
   KEY col_int_key (col_int_key),
   KEY col_varchar_key (col_varchar_key,col_int_key)
-);
+) charset utf8mb4;
 
 INSERT INTO t1 VALUES (8,'x','x');
 INSERT INTO t1 VALUES (NULL,'x','x');
@@ -1457,7 +1457,7 @@ CREATE TABLE t2 (
   col_varchar_nokey VARCHAR(1),
   KEY col_int_key (col_int_key),
   KEY col_varchar_key (col_varchar_key,col_int_key)
-);
+) charset utf8mb4;
 
 INSERT INTO t2 VALUES (0,'x','x');
 
@@ -1467,7 +1467,7 @@ CREATE TABLE t3 (
   col_varchar_nokey VARCHAR(1),
   KEY col_int_key (col_int_key),
   KEY col_varchar_key (col_varchar_key,col_int_key)
-);
+) charset utf8mb4;
 
 INSERT INTO t3 VALUES (8,'g','g');
 

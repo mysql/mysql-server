@@ -740,7 +740,8 @@ sub optimize_cases {
 	  defined $tinfo->{binlog_formats} )
       {
 	my $supported=
-	  grep { My::Options::option_equals($_,$test_binlog_format) } @{$tinfo->{'binlog_formats'}};
+	  grep { My::Options::option_equals($_, lc $test_binlog_format) }
+            @{$tinfo->{'binlog_formats'}};
 	if ( !$supported )
 	{
 	  $tinfo->{'skip'}= 1;
@@ -912,13 +913,15 @@ sub collect_one_test_case {
   my $disabled=   shift;
   my $suite_opts= shift;
 
-  #print "collect_one_test_case\n";
-  #print " suitedir: $suitedir\n";
-  #print " testdir: $testdir\n";
-  #print " resdir: $resdir\n";
-  #print " suitename: $suitename\n";
-  #print " tname: $tname\n";
-  #print " filename: $filename\n";
+  # Test file name should consist of only alpha-numeric characters, dash (-)
+  # or underscore (_), but should not start with dash or underscore.
+  if ($tname !~ /^[^_\W][\w-]*$/)
+  {
+    die("Invalid test file name '$suitename.$tname'. Test file ".
+        "name should consist of only alpha-numeric characters, ".
+        "dash (-) or underscore (_), but should not start with ".
+        "dash or underscore.");
+  }
 
   # ----------------------------------------------------------------------
   # Check --start-from

@@ -12,8 +12,7 @@
 # 5. Wait for client reconnection to server 5.
 # 6. Clean up.
 ################################################################################
-# This test does crash servers, thence we skip it on asan and valgrind.
---source include/not_asan.inc
+# This test does crash servers, thence we skip it on valgrind.
 --source include/not_valgrind.inc
 --source include/big_test.inc
 --source include/force_restart.inc

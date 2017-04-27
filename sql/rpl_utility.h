@@ -24,8 +24,8 @@
 
 #include "binary_log_types.h"   // enum_field_types
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_inttypes.h"
+#include "my_macros.h"
 
 #ifdef MYSQL_SERVER
 #include "handler.h"
@@ -341,7 +341,7 @@ public:
     This function returns whether the field on the master can be null.
     This value is derived from field->maybe_null().
   */
-  my_bool maybe_null(uint index) const
+  bool maybe_null(uint index) const
   {
     DBUG_ASSERT(index < m_size);
     return ((m_null_bits[(index / 8)] & 

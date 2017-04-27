@@ -18,9 +18,12 @@
   Table SETUP_INSTRUMENTS (implementation).
 */
 
+#include "storage/perfschema/table_setup_instruments.h"
+
+#include <stddef.h>
+
 #include "field.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_thread.h"
 #include "pfs_builtin_memory.h"
 #include "pfs_column_types.h"
@@ -29,7 +32,6 @@
 #include "pfs_instr.h"
 #include "pfs_instr_class.h"
 #include "pfs_setup_object.h"
-#include "table_setup_instruments.h"
 
 THR_LOCK table_setup_instruments::m_table_lock;
 
@@ -93,7 +95,7 @@ PFS_index_setup_instruments::match(PFS_instr_class *klass)
 }
 
 PFS_engine_table *
-table_setup_instruments::create(void)
+table_setup_instruments::create(PFS_engine_table_share *)
 {
   return new table_setup_instruments();
 }
@@ -296,7 +298,7 @@ table_setup_instruments::rnd_pos(const void *pos)
 }
 
 int
-table_setup_instruments::index_init(uint idx, bool)
+table_setup_instruments::index_init(uint idx MY_ATTRIBUTE((unused)), bool)
 {
   PFS_index_setup_instruments *result;
 

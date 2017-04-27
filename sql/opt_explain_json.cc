@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -251,10 +251,10 @@ public:
 
     This function is to be overloaded by subquery_ctx.
   */
-  virtual void set_child(context *child) {}
+  virtual void set_child(context*) {}
 
   /// associate CTX_UNION_RESULT node with CTX_UNION node
-  virtual void set_union_result(union_result_ctx *ctx) { DBUG_ASSERT(0); }
+  virtual void set_union_result(union_result_ctx*) { DBUG_ASSERT(0); }
 
   /**
     Append a subquery node to the specified list of the unit node
@@ -265,8 +265,10 @@ public:
     @retval false           Ok
     @retval true            Error
   */
-  virtual bool add_subquery(subquery_list_enum subquery_type,
-                            subquery_ctx *ctx) { DBUG_ASSERT(0);return true; }
+  virtual bool
+  add_subquery(subquery_list_enum subquery_type MY_ATTRIBUTE((unused)),
+               subquery_ctx *ctx MY_ATTRIBUTE((unused)))
+  { DBUG_ASSERT(0);return true; }
   /**
     Format nested loop join subtree (if any) to JSON formatter
 
@@ -275,7 +277,8 @@ public:
     @retval false               Ok
     @retval true                Error
   */
-  virtual bool format_nested_loop(Opt_trace_context *json)
+  virtual bool
+  format_nested_loop(Opt_trace_context *json MY_ATTRIBUTE((unused)))
   { DBUG_ASSERT(0); return true; }
 
   /**
@@ -286,7 +289,8 @@ public:
     @retval false           Ok
     @retval true            Error
   */
-  virtual bool add_join_tab(joinable_ctx *ctx) { DBUG_ASSERT(0);return true; }
+  virtual bool add_join_tab(joinable_ctx *ctx MY_ATTRIBUTE((unused)))
+  { DBUG_ASSERT(0);return true; }
 
   /**
     Set nested ORDER BY/GROUP BY/DISTINCT node to @c ctx
@@ -294,7 +298,8 @@ public:
     @retval false               Ok
     @retval true                Error
   */
-  virtual void set_sort(sort_ctx *ctx) { DBUG_ASSERT(0); }
+  virtual void set_sort(sort_ctx *ctx MY_ATTRIBUTE((unused)))
+  { DBUG_ASSERT(0); }
 
   /**
     Add a query specification node to the CTX_UNION node
@@ -304,7 +309,8 @@ public:
     @retval false           Ok
     @retval true            Error
   */
-  virtual bool add_query_spec(context *ctx) { DBUG_ASSERT(0); return true; }
+  virtual bool add_query_spec(context *ctx MY_ATTRIBUTE((unused)))
+  { DBUG_ASSERT(0); return true; }
 
   /**
     Try to associate a derived subquery node with this or underlying node
@@ -315,7 +321,7 @@ public:
     @retval false       Can't associate: this node or its child nodes are not
                         derived from the subquery
   */
-  virtual bool find_and_set_derived(context *subquery)
+  virtual bool find_and_set_derived(context *subquery MY_ATTRIBUTE((unused)))
   {
     DBUG_ASSERT(0);
     return false;
@@ -332,21 +338,22 @@ public:
        0   subqusery were added
        1   error occured
   */
-  virtual int add_where_subquery(subquery_ctx *ctx,
-                                  SELECT_LEX_UNIT *subquery)
+  virtual int
+  add_where_subquery(subquery_ctx *ctx MY_ATTRIBUTE((unused)),
+                     SELECT_LEX_UNIT *subquery MY_ATTRIBUTE((unused)))
   {
     DBUG_ASSERT(0);
     return false;
   }
 
   /// Helper function to format output for derived subquery if any
-  virtual bool format_derived(Opt_trace_context *json) { return false; }
+  virtual bool format_derived(Opt_trace_context*) { return false; }
 
   /// Helper function to format output for associated WHERE subqueries if any
-  virtual bool format_where(Opt_trace_context *json) { return false; }
+  virtual bool format_where(Opt_trace_context*) { return false; }
 
   /// Helper function to format output for HAVING, ORDER/GROUP BY subqueries
-  virtual bool format_unit(Opt_trace_context *json) { return false; }
+  virtual bool format_unit(Opt_trace_context*) { return false; }
 };
 
 
@@ -582,7 +589,7 @@ protected:
   virtual bool format_body(Opt_trace_context *json, Opt_trace_object *obj);
 
 public:
-  virtual size_t id(bool hide)
+  virtual size_t id(bool)
   {
     return col_id.is_empty() ? 0 : col_id.value;
   }
@@ -689,6 +696,9 @@ bool table_base_ctx::format_body(Opt_trace_context *json, Opt_trace_object *obj)
 
   if (!col_used_columns.is_empty())
     add_string_array(json, K_USED_COLUMNS, col_used_columns);
+
+  if (!col_partial_update_columns.is_empty())
+    add_string_array(json, "partial_update_columns", col_partial_update_columns);
 
   if (!col_message.is_empty() && type != CTX_MESSAGE)
   {
@@ -878,7 +888,7 @@ public:
   }
 
   virtual int add_where_subquery(subquery_ctx *ctx,
-                                  SELECT_LEX_UNIT *subquery)
+                                 SELECT_LEX_UNIT*)
   {
     return where_subqueries.push_back(ctx);
   }
@@ -1608,7 +1618,7 @@ public:
   {}
 
 private:
-  virtual bool format_body(Opt_trace_context *json, Opt_trace_object *obj)
+  virtual bool format_body(Opt_trace_context *json, Opt_trace_object*)
   {
     if (union_result)
       return (union_result->format(json)) || format_unit(json);

@@ -31,7 +31,6 @@
 #include "json_dom.h"           // Json_wrapper
 #include "my_dbug.h"
 #include "my_decimal.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "mysql_com.h"
 #include "sql_class.h"          // THD
@@ -167,7 +166,7 @@ bool Cached_item_json::cmp()
     Otherwise, old and new are not equal, and new is not null.
     Remember the current value till the next time we're called.
   */
-  m_value->steal(&wr);
+  *m_value= std::move(wr);
 
   /*
     The row buffer may change, which would garble the JSON binary

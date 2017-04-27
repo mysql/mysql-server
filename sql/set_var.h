@@ -20,13 +20,14 @@
   "public" interface to sys_var - server configuration variables.
 */
 
+#include "my_config.h"
+
 #include <stddef.h>
 #include <sys/types.h>
 #include <vector>
 
-#include "my_config.h"
+#include "lex_string.h"
 #include "my_getopt.h"        // get_opt_arg_type
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "mysql/plugin.h"     // enum_mysql_show_type
 #include "mysql_com.h"        // Item_result
@@ -37,6 +38,7 @@
 #include "sql_plugin_ref.h"   // plugin_ref
 #include "thr_malloc.h"
 #include "typelib.h"          // TYPELIB
+#include "my_systime.h"
 
 class Item;
 class Item_func_set_user_var;
@@ -122,6 +124,9 @@ protected:
   const char *const deprecation_substitute;
   bool is_os_charset; ///< true if the value is in character_set_filesystem
   struct get_opt_arg_source source;
+  char user[USERNAME_CHAR_LENGTH];  /* which user  has set this variable */
+  char host[HOSTNAME_LENGTH];       /* host on which this variable is set */
+  ulonglong timestamp;  /* represents when this variable was set */
 
 public:
   sys_var(sys_var_chain *chain, const char *name_arg, const char *comment,
@@ -154,9 +159,19 @@ public:
   virtual ulonglong get_max_value() { return option.max_value; }
   virtual void set_arg_source(get_opt_arg_source*) {}
   enum_variable_source get_source() { return source.m_source; }
-  const char* get_source_name() { return source.m_name; }
+  const char* get_source_name() { return source.m_path_name; }
   void set_source(enum_variable_source src) { option.arg_source->m_source= src; }
-  void set_source_name(const char* path) { option.arg_source->m_name= path; }
+  void set_source_name(const char* path) { option.arg_source->m_path_name= path; }
+  const char* get_user() { return user; }
+  const char* get_host() { return host; }
+  ulonglong get_timestamp();
+  void set_user_host(THD* thd);
+  /**
+    THD::query_start_timeval_trunc() is used to measure query execution time
+    We dont need this as this is not about elapsed time for query, we only
+    need current  timestamp, thus using this function.
+  */
+  void set_timestamp() { timestamp= my_getsystime() / 10ULL; }
 
   /**
      Update the system variable with the default value from either
@@ -295,8 +310,9 @@ public:
   int check(THD *thd);
   int update(THD *thd);
   void update_source();
+  void update_user_host_timestamp(THD *thd);
   int light_check(THD *thd);
-  void print(THD *thd, String *str);	/* To self-print */
+  void print(THD*, String *str);	/* To self-print */
 #ifdef OPTIMIZER_TRACE
   virtual bool is_var_optimizer_trace() const
   {
@@ -381,7 +397,7 @@ extern SHOW_COMP_OPTION have_statement_timeout;
 ulong get_system_variable_hash_records(void);
 ulonglong get_system_variable_hash_version(void);
 
-bool enumerate_sys_vars(THD *thd, Show_var_array *show_var_array,
+bool enumerate_sys_vars(Show_var_array *show_var_array,
                         bool sort, enum enum_var_type type, bool strict);
 void lock_plugin_mutex();
 void unlock_plugin_mutex();

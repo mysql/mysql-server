@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2017 Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -15,6 +15,7 @@
 
 
 INCLUDE_DIRECTORIES(
+  ${CMAKE_SOURCE_DIR}
   ${CMAKE_SOURCE_DIR}/include 
   ${CMAKE_SOURCE_DIR}/sql/conn_handler
   ${CMAKE_SOURCE_DIR}/libbinlogevents/include
@@ -71,7 +72,6 @@ SET(DD_SOURCES
   dd/dd_tablespace.cc
   dd/dd_trigger.cc
   dd/dd_view.cc
-  dd/dd_upgrade.cc
 
   dd/impl/bootstrapper.cc
   dd/impl/dd.cc
@@ -98,12 +98,30 @@ SET(DD_SOURCES
   dd/impl/raw/raw_record_set.cc
   dd/impl/raw/raw_table.cc
 
+  dd/impl/system_views/character_sets.cc
+  dd/impl/system_views/collations.cc
+  dd/impl/system_views/collation_charset_applicability.cc
+  dd/impl/system_views/columns.cc
+  dd/impl/system_views/events.cc
+  dd/impl/system_views/key_column_usage.cc
+  dd/impl/system_views/parameters.cc
+  dd/impl/system_views/routines.cc
+  dd/impl/system_views/schemata.cc
+  dd/impl/system_views/statistics.cc
+  dd/impl/system_views/st_spatial_reference_systems.cc
+  dd/impl/system_views/st_geometry_columns.cc
+  dd/impl/system_views/tables.cc
+  dd/impl/system_views/table_constraints.cc
+  dd/impl/system_views/triggers.cc
+  dd/impl/system_views/views.cc
+
   dd/impl/tables/table_stats.cc
   dd/impl/tables/index_stats.cc
   dd/impl/tables/character_sets.cc
   dd/impl/tables/collations.cc
   dd/impl/tables/columns.cc
   dd/impl/tables/column_type_elements.cc
+  dd/impl/tables/dd_properties.cc
   dd/impl/tables/events.cc
   dd/impl/tables/foreign_key_column_usage.cc
   dd/impl/tables/foreign_keys.cc
@@ -121,7 +139,6 @@ SET(DD_SOURCES
   dd/impl/tables/tablespace_files.cc
   dd/impl/tables/tablespaces.cc
   dd/impl/tables/triggers.cc
-  dd/impl/tables/version.cc
   dd/impl/tables/view_routine_usage.cc
   dd/impl/tables/view_table_usage.cc
 
@@ -132,7 +149,7 @@ SET(DD_SOURCES
   dd/impl/types/collation_impl.cc
   dd/impl/types/column_impl.cc
   dd/impl/types/column_type_element_impl.cc
-  dd/impl/types/dictionary_object_table_impl.cc
+  dd/impl/types/entity_object_table_impl.cc
   dd/impl/types/entity_object_impl.cc
   dd/impl/types/event_impl.cc
   dd/impl/types/foreign_key_element_impl.cc
@@ -158,15 +175,28 @@ SET(DD_SOURCES
   dd/impl/types/view_table_impl.cc
   dd/impl/types/weak_object_impl.cc
 
+  dd/info_schema/metadata.cc
   dd/info_schema/show.cc
   dd/info_schema/show_query_builder.cc
   dd/info_schema/stats.cc
+
+  dd/upgrade/event.cc
+  dd/upgrade/global.cc
+  dd/upgrade/routine.cc
+  dd/upgrade/schema.cc
+  dd/upgrade/table.cc
+  dd/upgrade/upgrade.cc
 )
 
 SET(SQL_GIS_SOURCES
   geometry_rtree.cc
+  gis/distance.cc
+  gis/geometries.cc
+  gis/ring_direction.cc
+  gis/rtree_support.cc
   gis/srs/srs.cc
   gis/srs/wkt_parser.cc
+  gis/wkb_parser.cc
   item_geofunc.cc
   item_geofunc_buffer.cc
   item_geofunc_internal.cc
@@ -175,9 +205,16 @@ SET(SQL_GIS_SOURCES
   item_geofunc_setops.cc
 )
 
+SET(MYSQL_SERVER_SUB_COMPONENT_SOURCES
+  server_component/mysql_string_service.cc
+  server_component/persistent_dynamic_loader.cc
+  )
+
 SET(SQL_SHARED_SOURCES
   abstract_query_plan.cc
   auth/auth_common.cc
+  auth/dynamic_privileges_impl.cc
+  auth/dynamic_privilege_table.cc
   auth/sql_authentication.cc
   auth/sql_auth_cache.cc
   auth/sql_authorization.cc
@@ -201,7 +238,6 @@ SET(SQL_SHARED_SOURCES
   debug_sync.cc
   default_values.cc
   derror.cc
-  persistent_dynamic_loader.cc
   error_handler.cc
   field.cc
   field_conv.cc 
@@ -278,6 +314,7 @@ SET(SQL_SHARED_SOURCES
   rpl_handler.cc
   rpl_transaction_ctx.cc
   rpl_transaction_write_set_ctx.cc
+  rpl_trx_tracking.cc
   rpl_write_set_handler.cc
   rules_table_service.cc
   rwlock_scoped_lock.cc
@@ -296,7 +333,6 @@ SET(SQL_SHARED_SOURCES
   sql_alloc_error_handler.cc
   sql_alter.cc
   sql_alter_instance.cc
-  sql_analyse.cc
   sql_base.cc 
   sql_bootstrap.cc
   sql_initialize.cc
@@ -315,6 +351,7 @@ SET(SQL_SHARED_SOURCES
   sql_digest.cc
   sql_do.cc 
   sql_error.cc
+  sql_exception_handler.cc
   sql_executor.cc
   sql_get_diagnostics.cc
   sql_handler.cc
@@ -381,6 +418,14 @@ SET(SQL_SHARED_SOURCES
   uniques.cc
   xa.cc
   ${DD_SOURCES}
+  ${MYSQL_SERVER_SUB_COMPONENT_SOURCES}
+)
+
+# Needed so that IDEs (e.g. Xcode) can see all sources when searching
+FILE(GLOB_RECURSE SQL_HEADERS
+  "${CMAKE_SOURCE_DIR}/include/*.h"
+  "${CMAKE_SOURCE_DIR}/sql/*.h"
+  "${CMAKE_SOURCE_DIR}/storage/*.h"
 )
 
 SET(SQL_SOURCE
@@ -388,6 +433,7 @@ SET(SQL_SOURCE
   ${GEN_DIGEST_SOURCES}
   ${CONF_SOURCES}
   ${SQL_SHARED_SOURCES}
+  ${SQL_HEADERS}
   ../extra/lz4/xxhash.c
   ../libmysql/errmsg.cc
   ../sql-common/client.cc
@@ -440,9 +486,12 @@ SET(SQL_BOOST_SOURCES
   auth/sql_user.cc
   auth/sql_security_ctx.cc
   auth/role_tables.cc
+  auth/dynamic_privilege_table.cc
+  auth/dynamic_privileges_impl.cc
   handler.cc
   ${SQL_GIS_SOURCES}
   spatial.cc
+  sql_exception_handler.cc
 )
 SET(SQL_EXPORTED_BOOST_SOURCES ${SQL_BOOST_SOURCES} PARENT_SCOPE)
 
@@ -581,6 +630,7 @@ IF (WIN32 AND OPENSSL_APPLINK_C)
   )
 ENDIF()
 
+ADD_CONVENIENCE_LIBRARY(sql_rtree gis/rtree_support.cc)
 ADD_CONVENIENCE_LIBRARY(sql_main ${SQL_SOURCE})
 ADD_DEPENDENCIES(sql_main GenServerSource)
 ADD_DEPENDENCIES(sql_main GenDigestServerSource)
@@ -588,7 +638,7 @@ ADD_DEPENDENCIES(sql_main GenBootstrapPriv)
 ADD_DEPENDENCIES(sql_main GenSysSchema)
 TARGET_LINK_LIBRARIES(sql_main ${MYSQLD_STATIC_PLUGIN_LIBS} 
   ${MYSQLD_STATIC_COMPONENT_LIBS}  mysys mysys_ssl dbug strings vio regex
-  binlogevents_static  ${LIBWRAP} ${LIBCRYPT} ${LIBDL} ${SSL_LIBRARIES})
+  binlogevents_static sql_rtree ${LIBWRAP} ${LIBCRYPT} ${LIBDL} ${SSL_LIBRARIES})
 
 ADD_CONVENIENCE_LIBRARY(sql_gis ${SQL_GIS_SOURCES})
 ADD_DEPENDENCIES(sql_gis GenServerSource)
@@ -611,7 +661,7 @@ SET (BINLOG_SOURCE rpl_gtid_misc.cc
                    rpl_gtid_state.cc rpl_gtid_owned.cc rpl_gtid_execution.cc
                    rpl_gtid_mutex_cond_array.cc rpl_gtid_persist.cc
                    log_event.cc binlog.cc sql_binlog.cc
-                   rpl_filter.cc rpl_record.cc
+                   rpl_filter.cc rpl_record.cc rpl_trx_tracking.cc
                    rpl_utility.cc rpl_injector.cc rpl_table_access.cc)
 ADD_CONVENIENCE_LIBRARY(binlog ${BINLOG_SOURCE})
 TARGET_LINK_LIBRARIES(binlog binlogevents_static)

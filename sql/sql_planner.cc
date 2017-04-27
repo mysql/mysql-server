@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -44,6 +44,7 @@
 #include "my_compiler.h"
 #include "my_config.h"
 #include "my_dbug.h"
+#include "my_macros.h"
 #include "opt_costmodel.h"
 #include "opt_hints.h"          // hint_table_state
 #include "opt_range.h"          // QUICK_SELECT_I
@@ -84,7 +85,6 @@ cache_record_length(JOIN *join,uint idx)
 {
   uint length=0;
   JOIN_TAB **pos,**end;
-  THD *thd=join->thd;
 
   for (pos=join->best_ref+join->const_tables,end=join->best_ref+idx ;
        pos != end ;
@@ -99,7 +99,7 @@ cache_record_length(JOIN *join,uint idx)
         (1) keep_current_rowid: we don't know if Duplicate Weedout may be
         used, length will thus be inaccurate, this is acceptable.
       */
-      calc_used_field_length(thd, join_tab->table(),
+      calc_used_field_length(join_tab->table(),
                              false,             // (1)
                              &used_fields, &join_tab->used_fieldlength,
                              &used_blobs, &used_null_fields,
@@ -175,6 +175,10 @@ Key_use* Optimize_table_order::find_best_ref(const JOIN_TAB *tab,
                                              table_map *ref_depend_map,
                                              uint *used_key_parts)
 {
+  // Skip finding best_ref if quick object is forced by hint.
+  if (tab->quick() && tab->quick()->forced_by_hint)
+    return NULL;
+
   // Return value - will point to Key_use of the index with cheapest ref access
   Key_use *best_ref= NULL;
 
@@ -3877,8 +3881,6 @@ void Optimize_table_order::semijoin_mat_lookup_access_paths(
 
   @param first_tab        The first tab to calculate access paths for
   @param last_tab         The last tab to calculate access paths for
-  @param remaining_tables Bitmap of tables that are not in the
-                          [0...last_tab] join prefix
   @param[out] newcount    New output row count
   @param[out] newcost     New join prefix cost
 
@@ -3896,8 +3898,7 @@ void Optimize_table_order::semijoin_mat_lookup_access_paths(
 */
 
 void Optimize_table_order::semijoin_dupsweedout_access_paths(
-                uint first_tab, uint last_tab, 
-                table_map remaining_tables, 
+                uint first_tab, uint last_tab,
                 double *newcount, double *newcost)
 {
   DBUG_ENTER("Optimize_table_order::semijoin_dupsweedout_access_paths");
@@ -4486,7 +4487,7 @@ void Optimize_table_order::advance_sj_state(
       */
       double rowcount, cost;
       semijoin_dupsweedout_access_paths(pos->first_dupsweedout_table, idx,
-                                        remaining_tables, &rowcount, &cost);
+                                        &rowcount, &cost);
       /*
         Use the strategy if
          * it is cheaper then what we've had, and strategy is enabled, or
@@ -4593,8 +4594,9 @@ void Optimize_table_order::advance_sj_state(
                           current partial join order.
 */
 
-void Optimize_table_order::backout_nj_state(const table_map remaining_tables,
-                                            const JOIN_TAB *tab)
+void Optimize_table_order::
+backout_nj_state(const table_map remaining_tables MY_ATTRIBUTE((unused)),
+                 const JOIN_TAB *tab)
 {
   DBUG_ASSERT(remaining_tables & tab->table_ref->map());
 

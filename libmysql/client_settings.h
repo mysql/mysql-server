@@ -45,7 +45,7 @@ extern char *	mysql_unix_port;
 
 C_MODE_START
 void read_user_name(char *name);
-my_bool handle_local_infile(MYSQL *mysql, const char *net_filename);
+bool handle_local_infile(MYSQL *mysql, const char *net_filename);
 
 void mysql_read_default_options(struct st_mysql_options *options,
 				const char *filename,const char *group);
@@ -58,7 +58,7 @@ cli_mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
 void cli_mysql_close(MYSQL *mysql);
 
 MYSQL_FIELD * cli_list_fields(MYSQL *mysql);
-my_bool cli_read_prepare_result(MYSQL *mysql, MYSQL_STMT *stmt);
+bool cli_read_prepare_result(MYSQL *mysql, MYSQL_STMT *stmt);
 MYSQL_DATA * cli_read_rows(MYSQL *mysql,MYSQL_FIELD *mysql_fields,
 				   uint fields);
 int cli_stmt_execute(MYSQL_STMT *stmt);

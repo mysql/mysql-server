@@ -18,7 +18,6 @@
 
 #include "item_timefunc.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "mysql/mysql_lex_string.h"
 #include "mysql_com.h"
 #include "parse_tree_node_base.h"

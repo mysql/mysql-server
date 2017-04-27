@@ -3,8 +3,6 @@
 #but needs to be kept for tests that would need MyISAM in future.
 --source include/force_myisam_default.inc
 
-# uses 'send' and 'reap' which seems not supported for emb testing
--- source include/not_embedded.inc
 -- source include/have_ndb.inc
 # We are using some debug-only features in this test
 --source include/have_debug.inc

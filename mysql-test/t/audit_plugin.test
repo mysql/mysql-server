@@ -2,7 +2,6 @@
 # Test for WL#3771 (audit null plugin)
 # Created by HHunger 2009-09-02
 #
---source include/not_embedded.inc
 
 # Adjustment to the OS dependent extension of shared libraries.
 let $expected_extension= so;

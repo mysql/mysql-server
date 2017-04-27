@@ -1,3 +1,4 @@
+SET @save_query_cache_size = @@query_cache_size;
 flush status;
 set query_cache_type=DEMAND;
 set global query_cache_size= 1024*768;
@@ -220,4 +221,4 @@ SET DEBUG_SYNC="now SIGNAL go";
 SET DEBUG_SYNC= 'RESET';
 RESET QUERY CACHE;
 DROP TABLE t1;
-SET GLOBAL query_cache_size= DEFAULT;
+SET GLOBAL query_cache_size= @save_query_cache_size;

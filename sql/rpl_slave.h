@@ -20,7 +20,6 @@
 #include <sys/types.h>
 
 #include "my_bitmap.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_psi_config.h"
 #include "my_thread.h"                     // my_start_routine
@@ -69,7 +68,7 @@ typedef enum { SLAVE_THD_IO, SLAVE_THD_SQL, SLAVE_THD_WORKER } SLAVE_THD_TYPE;
 
 #define SLAVE_NET_TIMEOUT  60
 
-#define MAX_SLAVE_ERROR    2000
+#define MAX_SLAVE_ERROR    10000
 
 #define MTS_WORKER_UNDEF ((ulong) -1)
 #define MTS_MAX_WORKERS  1024
@@ -84,6 +83,22 @@ typedef enum { SLAVE_THD_IO, SLAVE_THD_SQL, SLAVE_THD_WORKER } SLAVE_THD_TYPE;
 #define MTS_MAX_BITS_IN_GROUP ((1L << 19) - 8) /* 524280 */
 
 extern bool server_id_supplied;
+
+/**
+  This macro simplifies when a DBUG_EXECUTE_IF will generate a given
+  signal and then will wait for another signal to continue.
+*/
+#define DBUG_SIGNAL_WAIT_FOR(A,B,C) \
+  DBUG_EXECUTE_IF(A,\
+                  {\
+                    const char act[]= "now SIGNAL "\
+                                      B\
+                                      " WAIT_FOR "\
+                                      C;\
+                    DBUG_ASSERT(\
+                      !debug_sync_set_action(current_thd,\
+                                             STRING_WITH_LEN(act)));\
+                  };)
 
 /*****************************************************************************
 
@@ -253,8 +268,8 @@ extern char *slave_load_tmpdir;
 extern char *master_info_file, *relay_log_info_file;
 extern char *opt_relay_logname, *opt_relaylog_index_name;
 extern char *opt_binlog_index_name;
-extern my_bool opt_skip_slave_start, opt_reckless_slave;
-extern my_bool opt_log_slave_updates;
+extern bool opt_skip_slave_start, opt_reckless_slave;
+extern bool opt_log_slave_updates;
 extern char *opt_slave_skip_errors;
 extern ulonglong relay_log_space_limit;
 
@@ -317,14 +332,17 @@ int init_recovery(Master_info* mi);
   @retval 0 Success
   @retval nonzero Error
 */
-int global_init_info(Master_info* mi, bool ignore_if_no_info, int thread_mask);
+int load_mi_and_rli_from_repositories(Master_info* mi,
+                                      bool ignore_if_no_info,
+                                      int thread_mask);
 void end_info(Master_info* mi);
 int remove_info(Master_info* mi);
-int flush_master_info(Master_info* mi, bool force);
+int flush_master_info(Master_info* mi, bool force,
+                      bool need_lock= true,
+                      bool flush_relay_log= true);
 void add_slave_skip_errors(const char* arg);
 void set_slave_skip_errors(char** slave_skip_errors_ptr);
-int add_new_channel(Master_info** mi, const char* channel,
-                    enum_channel_type channel_type= SLAVE_REPLICATION_CHANNEL);
+int add_new_channel(Master_info** mi, const char* channel);
 /**
   Terminates the slave threads according to the given mask.
 
@@ -370,7 +388,7 @@ int stop_slave(THD* thd, Master_info* mi, bool net_report,
   mysql_cond_wait() on start_cond, start_lock
 */
 bool start_slave_thread(
-#ifdef HAVE_PSI_INTERFACE
+#ifdef HAVE_PSI_THREAD_INTERFACE
                         PSI_thread_key thread_key,
 #endif
                         my_start_routine h_func,
@@ -397,13 +415,22 @@ void init_thread_mask(int* mask,Master_info* mi,bool inverse);
 void set_slave_thread_options(THD* thd);
 void set_slave_thread_default_charset(THD *thd, Relay_log_info const *rli);
 int rotate_relay_log(Master_info* mi);
-bool queue_event(Master_info* mi,const char* buf, ulong event_len);
+typedef enum
+{
+  QUEUE_EVENT_OK= 0,
+  QUEUE_EVENT_ERROR_QUEUING,
+  QUEUE_EVENT_ERROR_FLUSHING_INFO
+} QUEUE_EVENT_RESULT;
+QUEUE_EVENT_RESULT queue_event(Master_info* mi,
+                               const char* buf,
+                               ulong event_len,
+                               bool flush_mi= true);
 
 extern "C" void *handle_slave_io(void *arg);
 extern "C" void *handle_slave_sql(void *arg);
 bool net_request_file(NET* net, const char* fname);
 
-extern my_bool replicate_same_server_id;
+extern bool replicate_same_server_id;
 
 extern int disconnect_slave_event_count, abort_slave_event_count ;
 

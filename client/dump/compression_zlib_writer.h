@@ -19,6 +19,7 @@
 #define COMPRESSION_ZLIB_WRITER_INCLUDED
 
 #include <string.h>
+#include <sys/types.h>
 #include <functional>
 
 #include "abstract_output_writer_wrapper.h"

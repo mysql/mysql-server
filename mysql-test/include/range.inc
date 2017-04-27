@@ -520,7 +520,7 @@ drop table t1, t2;
 # Bug #20732: Partial index and long sjis search with '>' fails sometimes
 #
 
-create table t1(a char(2), key(a(1)));
+create table t1(a char(2), key(a(1))) charset utf8mb4;
 insert into t1 values ('x'), ('xx');
 explain select a from t1 where a > 'x';
 select a from t1 where a > 'x';
@@ -724,7 +724,7 @@ CREATE TABLE t1 (
   status varchar(20),
   PRIMARY KEY  (id),
   KEY (status)
-);
+) CHARSET utf8mb4;
 
 INSERT INTO t1 VALUES
 (1,'B'), (2,'B'), (3,'B'), (4,'B'), (5,'B'), (6,'B'),
@@ -834,7 +834,7 @@ insert into t1 values ('a  ', '');
 insert into t1 select concat('a', 1000 + A.a + 10 * (B.a + 10 * C.a)), ''
   from t3 A, t3 B, t3 C;
 
-create table t2 (a varchar(10), filler char(200), key(a));
+create table t2 (a varchar(10), filler char(200), key(a)) charset utf8mb4;
 insert into t2 select * from t1;
 
 --replace_column 10 #
@@ -843,9 +843,9 @@ explain select * from t1 where a between 'a' and 'a ';
 explain select * from t1 where a = 'a' or a='a ';
 
 --replace_column 10 #
-explain select * from t2 where a between 'a' and 'a '; 
+explain select * from t2 where a between 'a' and 'A';
 --replace_column 10 #
-explain select * from t2 where a = 'a' or a='a ';
+explain select * from t2 where a = 'a' or a='A';
 
 update t1 set a='b' where a<>'a';
 --replace_column 10 #
@@ -918,7 +918,7 @@ CREATE TABLE t1 (
   started datetime NOT NULL default '0000-00-00 00:00:00', 
   price decimal(16,3) NOT NULL default '0.000',                 
   PRIMARY KEY (item,started)                     
-) ENGINE=MyISAM;   
+) ENGINE=MyISAM, CHARSET utf8mb4;
 
 INSERT INTO t1 VALUES
 ('A1','2005-11-01 08:00:00',1000),
@@ -1448,13 +1448,16 @@ drop table t1;
 --echo # RESULT AFTER MYSQL 5.1.
 --echo #
 
+# This test tests interactions between CHAR columns and PAD collations,
+# so it doesn't make sense to test it with our default NO PAD collation.
+
 CREATE TABLE t1(
  F1 CHAR(5) NOT NULL,
  F2 CHAR(5) NOT NULL,
  F3 CHAR(5) NOT NULL,
  PRIMARY KEY(F1),
  INDEX IDX_F2(F2)
-);
+) COLLATE latin1_swedish_ci;
 
 INSERT INTO t1 VALUES
 ('A','A','A'),('AA','AA','AA'),('AAA','AAA','AAA'),
@@ -1774,7 +1777,7 @@ CREATE TABLE t1 (a DATETIME);
 INSERT INTO t1 VALUES ('2001-01-01 00:00:00');
 INSERT INTO t1 VALUES ('2001-01-01 11:22:33');
 
-CREATE TABLE t2 (b VARCHAR(64), KEY (b));
+CREATE TABLE t2 (b VARCHAR(64), KEY (b)) CHARSET utf8mb4;
 INSERT INTO t2 VALUES ('2001-01-01');
 INSERT INTO t2 VALUES ('2001.01.01');
 INSERT INTO t2 VALUES ('2001#01#01');
@@ -2364,7 +2367,7 @@ CREATE TABLE t1 (
   col1 VARCHAR(5),
   col2 INT NOT NULL,
   PRIMARY KEY (col1, col2)
-) ENGINE=InnoDB;
+) ENGINE=InnoDB, CHARSET utf8mb4;
 
 INSERT INTO t1 VALUES ('abcde', 10);
 

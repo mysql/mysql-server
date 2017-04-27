@@ -146,7 +146,7 @@ PRIMARY KEY (FTS_DOC_ID),
 UNIQUE KEY FTS_DOC_ID_INDEX (FTS_DOC_ID),
 FULLTEXT KEY idx (title,text)
 ) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=latin1;
-ERROR 42000: Incorrect column name 'FTS_DOC_ID'
+ERROR HY000: Column 'FTS_DOC_ID' is of wrong type for an InnoDB FULLTEXT index
 CREATE TABLE fts_test (
 FTS_DOC_ID bigint(20) unsigned NOT NULL AUTO_INCREMENT,
 title varchar(255) NOT NULL DEFAULT '',

@@ -13,11 +13,9 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
-#include <my_global.h>
 #include <mysql/plugin.h>
-//#include <stdlib.h>
-//#include <ctype.h>
 #include <mysql_version.h>
+#include <stddef.h>
 
 #include "m_string.h"                           // strlen
 #include "my_dbug.h"
@@ -39,7 +37,7 @@
     1                    failure (cannot happen)
 */
 
-static int test_services_plugin_init(void *p)
+static int test_services_plugin_init(void*)
 {
   DBUG_ENTER("test_services_plugin_init");
   DBUG_RETURN(0);
@@ -59,7 +57,7 @@ static int test_services_plugin_init(void *p)
 
 */
 
-static int test_services_plugin_deinit(void *p)
+static int test_services_plugin_deinit(void*)
 {
   DBUG_ENTER("test_services_plugin_deinit");
   DBUG_RETURN(0);

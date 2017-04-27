@@ -19,8 +19,9 @@
   Handler-calling-functions
 */
 
-#include "handler.h"
+#include "sql/handler.h"
 
+#include <assert.h>
 #include <boost/algorithm/string/case_conv.hpp>
 #include <boost/foreach.hpp>
 #include <boost/iterator/iterator_facade.hpp>
@@ -90,6 +91,7 @@
 #include "rpl_filter.h"
 #include "rpl_gtid.h"
 #include "rpl_handler.h"              // RUN_HOOK
+#include "rpl_rli.h"                  // is_atomic_ddl_commit_on_slave
 #include "rpl_write_set_handler.h"    // add_pke
 #include "sdi_utils.h"                // import_serialized_meta_data
 #include "session_tracker.h"
@@ -322,9 +324,9 @@ st_handler_tablename mysqld_system_tables[]= {
 
 
 // Called for each SE to check if given db.table_name is a system table.
-static my_bool check_engine_system_table_handlerton(THD *unused,
-                                                    plugin_ref plugin,
-                                                    void *arg);
+static bool check_engine_system_table_handlerton(THD *unused,
+                                                 plugin_ref plugin,
+                                                 void *arg);
 
 static int ha_discover(THD *thd, const char *db, const char *name,
                        uchar **frmblob, size_t *frmlen);
@@ -981,8 +983,8 @@ void ha_end()
   my_free(handler_errmsgs);
 }
 
-static my_bool dropdb_handlerton(THD *unused1, plugin_ref plugin,
-                                 void *path)
+static bool dropdb_handlerton(THD *unused1, plugin_ref plugin,
+                              void *path)
 {
   handlerton *hton= plugin_data<handlerton*>(plugin);
   if (hton->state == SHOW_OPTION_YES && hton->drop_database)
@@ -997,8 +999,8 @@ void ha_drop_database(char* path)
 }
 
 
-static my_bool closecon_handlerton(THD *thd, plugin_ref plugin,
-                                   void *unused)
+static bool closecon_handlerton(THD *thd, plugin_ref plugin,
+                                void *unused)
 {
   handlerton *hton= plugin_data<handlerton*>(plugin);
   /*
@@ -1026,7 +1028,7 @@ void ha_close_connection(THD* thd)
 }
 
 
-static my_bool kill_handlerton(THD *thd, plugin_ref plugin, void *)
+static bool kill_handlerton(THD *thd, plugin_ref plugin, void *)
 {
   handlerton *hton= plugin_data<handlerton*>(plugin);
 
@@ -1048,7 +1050,7 @@ void ha_kill_connection(THD *thd)
 /** Invoke handlerton::pre_dd_shutdown() on a plugin.
 @param plugin	storage engine plugin
 @retval FALSE (always) */
-static my_bool pre_dd_shutdown_handlerton(THD *, plugin_ref plugin, void *)
+static bool pre_dd_shutdown_handlerton(THD *, plugin_ref plugin, void *)
 {
   handlerton *hton= plugin_data<handlerton*>(plugin);
   if (hton->state == SHOW_OPTION_YES && hton->pre_dd_shutdown)
@@ -1430,7 +1432,7 @@ void trans_register_ha(THD *thd, bool all, handlerton *ht_arg,
       ht_arg->db_type != DB_TYPE_BINLOG)
   {
     const XID *xid= trn_ctx->xid_state()->get_xid();
-    my_bool autocommit= !thd->in_multi_stmt_transaction_mode();
+    bool autocommit= !thd->in_multi_stmt_transaction_mode();
     thd->m_transaction_psi= MYSQL_START_TRANSACTION(&thd->m_transaction_state,
                                          xid, trxid, thd->tx_isolation,
                                          thd->tx_read_only, autocommit);
@@ -1679,6 +1681,7 @@ int ha_commit_trans(THD *thd, bool all, bool ignore_global_read_lock)
 {
   int error= 0;
   bool need_clear_owned_gtid= false;
+  bool run_slave_post_commit= false;
   /*
     Save transaction owned gtid into table before transaction prepare
     if binlog is disabled, or binlog is enabled and log_slave_updates
@@ -1720,6 +1723,36 @@ int ha_commit_trans(THD *thd, bool all, bool ignore_global_read_lock)
   DBUG_ASSERT(!trn_ctx->is_active(Transaction_ctx::STMT) ||
               !all);
 
+  /*
+    When atomic DDL is executed on the slave, we would like to
+    to update slave applier state as part of DDL's transaction.
+    Call Relay_log_info::pre_commit() hook to do this before DDL
+    gets committed in the following block.
+  */
+  if (is_real_trans && is_atomic_ddl_commit_on_slave(thd))
+  {
+    DBUG_ASSERT(thd->in_multi_stmt_transaction_mode());
+    /*
+      Failed atomic DDL statements should've been marked as
+      executed/committed during statement rollback.
+    */
+    DBUG_ASSERT(!thd->is_error());
+
+    run_slave_post_commit= true;
+    error= error || thd->rli_slave->pre_commit();
+
+    DBUG_EXECUTE_IF("rli_pre_commit_error",
+                    {
+                      error= true;
+                      my_error(ER_UNKNOWN_ERROR, MYF(0));
+                    });
+    DBUG_EXECUTE_IF("slave_crash_before_commit",
+                    {
+                      /* This pre-commit crash aims solely at atomic DDL */
+                      DBUG_SUICIDE();
+                    });
+  }
+
   if (thd->in_sub_stmt)
   {
     DBUG_ASSERT(0);
@@ -1743,7 +1776,7 @@ int ha_commit_trans(THD *thd, bool all, bool ignore_global_read_lock)
 
   MDL_request mdl_request;
   bool release_mdl= false;
-  if (ha_info)
+  if (ha_info && !error)
   {
     uint rw_ha_count;
     bool rw_trans;
@@ -1861,6 +1894,34 @@ end:
       gtid_state->update_on_rollback(thd);
     else
       gtid_state->update_on_commit(thd);
+  }
+  if (run_slave_post_commit)
+  {
+    DBUG_EXECUTE_IF("slave_crash_after_commit", DBUG_SUICIDE(););
+
+    thd->rli_slave->post_commit(error != 0);
+    /*
+      SERVER_STATUS_IN_TRANS may've been gained by pre_commit alone
+      when the main DDL transaction is filtered out of execution.
+      In such case the status has to be reset now.
+
+      TODO: move/refactor this handling onto trans_commit/commit_implicit()
+            the caller level.
+    */
+    thd->server_status&= ~SERVER_STATUS_IN_TRANS;
+  }
+  else
+  {
+    DBUG_EXECUTE_IF("slave_crash_after_commit",
+                    {
+                      if (thd->slave_thread && thd->rli_slave &&
+                          thd->rli_slave->current_event &&
+                          thd->rli_slave->current_event->get_type_code() ==
+                          binary_log::XID_EVENT &&
+                          !thd->is_operating_substatement_implicitly &&
+                          !thd->is_operating_gtid_table_implicitly)
+                        DBUG_SUICIDE();
+                    });
   }
 
   DBUG_RETURN(error);
@@ -2424,8 +2485,8 @@ int ha_release_savepoint(THD *thd, SAVEPOINT *sv)
 }
 
 
-static my_bool snapshot_handlerton(THD *thd, plugin_ref plugin,
-                                   void *arg)
+static bool snapshot_handlerton(THD *thd, plugin_ref plugin,
+                                void *arg)
 {
   handlerton *hton= plugin_data<handlerton*>(plugin);
   if (hton->state == SHOW_OPTION_YES &&
@@ -2455,8 +2516,8 @@ int ha_start_consistent_snapshot(THD *thd)
 }
 
 
-static my_bool flush_handlerton(THD *thd, plugin_ref plugin,
-                                void *arg)
+static bool flush_handlerton(THD *thd, plugin_ref plugin,
+                             void *arg)
 {
   handlerton *hton= plugin_data<handlerton*>(plugin);
   if (hton->state == SHOW_OPTION_YES && hton->flush_logs &&
@@ -4986,7 +5047,7 @@ handler::ha_enable_indexes(uint mode)
 */
 
 int
-handler::ha_discard_or_import_tablespace(my_bool discard,
+handler::ha_discard_or_import_tablespace(bool discard,
                                          dd::Table *table_def)
 {
   DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
@@ -5304,15 +5365,16 @@ int ha_create_table(THD *thd, const char *path,
 
   init_tmp_table_share(thd, &share, db, 0, table_name, path, nullptr);
 
-  if (open_table_def(thd, &share, false, table_def))
+  if (open_table_def(thd, &share, *table_def))
     goto err;
 
 #ifdef HAVE_PSI_TABLE_INTERFACE
   share.m_psi= PSI_TABLE_CALL(get_table_share)(temp_table, &share);
 #endif
 
+  // When db_stat is 0, we can pass nullptr as dd::Table since it won't be used.
   if (open_table_from_share(thd, &share, "", 0, (uint) READ_ALL, 0, &table,
-                            TRUE, table_def))
+                            TRUE, nullptr))
   {
 #ifdef HAVE_PSI_TABLE_INTERFACE
     PSI_TABLE_CALL(drop_table_share)
@@ -5405,12 +5467,23 @@ int ha_create_table_from_engine(THD* thd, const char *db, const char *name)
 
   build_table_filename(path, sizeof(path) - 1, db, name, "", 0);
   init_tmp_table_share(thd, &share, db, 0, name, path, nullptr);
-  if (open_table_def(thd, &share, false, NULL))
+
+  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+  const dd::Table *table_def= nullptr;
+  if (thd->dd_client()->acquire(db, name, &table_def))
+    DBUG_RETURN(3);
+
+  if (table_def == nullptr)
   {
+    my_error(ER_NO_SUCH_TABLE, MYF(0), db, name);
     DBUG_RETURN(3);
   }
 
-  if (open_table_from_share(thd, &share, "" ,0, 0, 0, &table, FALSE, NULL))
+  if (open_table_def(thd, &share, *table_def))
+    DBUG_RETURN(3);
+
+  // When db_stat is 0, we can pass nullptr as dd::Table since it won't be used.
+  if (open_table_from_share(thd, &share, "" ,0, 0, 0, &table, FALSE, nullptr))
   {
     free_table_share(&share);
     DBUG_RETURN(3);
@@ -5571,9 +5644,9 @@ bool ha_check_if_supported_system_table(handlerton *hton, const char *db,
     @retval  false There was no match found.
                    Other SE's will be checked to find a match.
 */
-static my_bool check_engine_system_table_handlerton(THD *unused,
-                                                    plugin_ref plugin,
-                                                    void *arg)
+static bool check_engine_system_table_handlerton(THD *unused,
+                                                 plugin_ref plugin,
+                                                 void *arg)
 {
   st_sys_tbl_chk_params *check_params= (st_sys_tbl_chk_params*) arg;
   handlerton *hton= plugin_data<handlerton*>(plugin);
@@ -5628,8 +5701,8 @@ static my_bool check_engine_system_table_handlerton(THD *unused,
 }
 
 
-static my_bool rm_tmp_tables_handlerton(THD *thd, plugin_ref plugin,
-                                        void *files)
+static bool rm_tmp_tables_handlerton(THD *thd, plugin_ref plugin,
+                                     void *files)
 {
   handlerton *hton= plugin_data<handlerton*>(plugin);
 
@@ -5803,8 +5876,8 @@ struct st_discover_args
   size_t *frmlen;
 };
 
-static my_bool discover_handlerton(THD *thd, plugin_ref plugin,
-                                   void *arg)
+static bool discover_handlerton(THD *thd, plugin_ref plugin,
+                                void *arg)
 {
   st_discover_args *vargs= (st_discover_args *)arg;
   handlerton *hton= plugin_data<handlerton*>(plugin);
@@ -5853,8 +5926,8 @@ struct st_find_files_args
   List<LEX_STRING> *files;
 };
 
-static my_bool find_files_handlerton(THD *thd, plugin_ref plugin,
-                                   void *arg)
+static bool find_files_handlerton(THD *thd, plugin_ref plugin,
+                                  void *arg)
 {
   st_find_files_args *vargs= (st_find_files_args *)arg;
   handlerton *hton= plugin_data<handlerton*>(plugin);
@@ -5898,7 +5971,7 @@ struct st_table_exists_in_engine_args
   int err;
 };
 
-static my_bool table_exists_in_engine_handlerton(THD *thd, plugin_ref plugin,
+static bool table_exists_in_engine_handlerton(THD *thd, plugin_ref plugin,
                                    void *arg)
 {
   st_table_exists_in_engine_args *vargs= (st_table_exists_in_engine_args *)arg;
@@ -5937,7 +6010,7 @@ struct st_make_pushed_join_args
   int err;                    // Error code to return.
 };
 
-static my_bool make_pushed_join_handlerton(THD *thd, plugin_ref plugin,
+static bool make_pushed_join_handlerton(THD *thd, plugin_ref plugin,
                                    void *arg)
 {
   st_make_pushed_join_args *vargs= (st_make_pushed_join_args *)arg;
@@ -5987,7 +6060,7 @@ struct binlog_func_st
 /** @brief
   Listing handlertons first to avoid recursive calls and deadlock
 */
-static my_bool binlog_func_list(THD *thd, plugin_ref plugin, void *arg)
+static bool binlog_func_list(THD *thd, plugin_ref plugin, void *arg)
 {
   hton_list_st *hton_list= (hton_list_st *)arg;
   handlerton *hton= plugin_data<handlerton*>(plugin);
@@ -6005,7 +6078,7 @@ static my_bool binlog_func_list(THD *thd, plugin_ref plugin, void *arg)
   return FALSE;
 }
 
-static my_bool binlog_func_foreach(THD *thd, binlog_func_st *bfn)
+static bool binlog_func_foreach(THD *thd, binlog_func_st *bfn)
 {
   hton_list_st hton_list;
   uint i, sz;
@@ -6055,9 +6128,9 @@ struct binlog_log_query_st
   const char *table_name;
 };
 
-static my_bool binlog_log_query_handlerton2(THD *thd,
-                                            handlerton *hton,
-                                            void *args)
+static bool binlog_log_query_handlerton2(THD *thd,
+                                         handlerton *hton,
+                                         void *args)
 {
   struct binlog_log_query_st *b= (struct binlog_log_query_st*)args;
   if (hton->state == SHOW_OPTION_YES && hton->binlog_log_query)
@@ -6070,9 +6143,9 @@ static my_bool binlog_log_query_handlerton2(THD *thd,
   return FALSE;
 }
 
-static my_bool binlog_log_query_handlerton(THD *thd,
-                                           plugin_ref plugin,
-                                           void *args)
+static bool binlog_log_query_handlerton(THD *thd,
+                                        plugin_ref plugin,
+                                        void *args)
 {
   return binlog_log_query_handlerton2(thd,
                                       plugin_data<handlerton*>(plugin), args);
@@ -7871,8 +7944,8 @@ uint calculate_key_len(TABLE *table, uint key,
   @retval
     pointer		pointer to TYPELIB structure
 */
-static my_bool exts_handlerton(THD *unused, plugin_ref plugin,
-                               void *arg)
+static bool exts_handlerton(THD *unused, plugin_ref plugin,
+                            void *arg)
 {
   List<char> *found_exts= (List<char> *) arg;
   handlerton *hton= plugin_data<handlerton*>(plugin);
@@ -7939,8 +8012,8 @@ static bool stat_print(THD *thd, const char *type, size_t type_len,
 }
 
 
-static my_bool showstat_handlerton(THD *thd, plugin_ref plugin,
-                                   void *arg)
+static bool showstat_handlerton(THD *thd, plugin_ref plugin,
+                                void *arg)
 {
   enum ha_stat_type stat= *(enum ha_stat_type *) arg;
   handlerton *hton= plugin_data<handlerton*>(plugin);
@@ -8669,6 +8742,17 @@ static bool my_eval_gcolumn_expr_helper(THD *thd, TABLE *table,
 }
 
 
+// Set se_private_id and se_private_data during upgrade
+bool handler::ha_upgrade_table(THD *thd,
+                                     const char* dbname,
+                                     const char* table_name,
+                                     dd::Table *dd_table,
+                                     TABLE *table_arg)
+{
+  table= table_arg;
+  return upgrade_table(thd, dbname, table_name, dd_table);
+}
+
 /**
    Callback to allow InnoDB to prepare a template for generated
    column processing. This function will open the table without
@@ -8703,12 +8787,21 @@ bool handler::my_prepare_gcolumn_template(THD *thd,
            thd, db_name, table_name, false, &mdl_ticket))
     return true;
 
-  // Note! The last argument to open_table_uncached() must be false,
-  // since the table already exists in the TDC. Allowing the table to
-  // be opened in the SE in this case is dangerous as the two shares
-  // could get conflicting SE private data.
-  TABLE *table= open_table_uncached(thd, path, db_name, table_name,
-                                    false, false, NULL);
+  TABLE *table= nullptr;
+  {
+    dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+    const dd::Table *tab_obj= nullptr;
+    if (thd->dd_client()->acquire(db_name, table_name, &tab_obj))
+      return true;
+    DBUG_ASSERT(tab_obj);
+
+    // Note! The second-to-last argument to open_table_uncached() must be false,
+    // since the table already exists in the TDC. Allowing the table to
+    // be opened in the SE in this case is dangerous as the two shares
+    // could get conflicting SE private data.
+    table= open_table_uncached(thd, path, db_name, table_name,
+                               false, false, *tab_obj);
+  }
 
   dd::release_mdl(thd, mdl_ticket);
 
@@ -8730,7 +8823,7 @@ bool handler::my_prepare_gcolumn_template(THD *thd,
   handler::my_eval_gcolumn_expr() but is intended for use when no TABLE
   object already exists - e.g. from purge threads.
 
-  Note! The call to open_table_uncached() must be made with the last
+  Note! The call to open_table_uncached() must be made with the second-to-last
   argument (open_in_engine) set to false. Failing to do so will cause
   deadlocks and incorrect behavior.
 
@@ -8763,8 +8856,17 @@ bool handler::my_eval_gcolumn_expr_with_open(THD *thd,
                                    thd, db_name, table_name, false, &mdl_ticket))
     return true;
 
-  TABLE *table= open_table_uncached(thd, path, db_name, table_name,
-                                    false, false, NULL);
+  TABLE *table= nullptr;
+  {
+    dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+    const dd::Table *tab_obj= nullptr;
+    if (thd->dd_client()->acquire(db_name, table_name, &tab_obj))
+      return true;
+    DBUG_ASSERT(tab_obj);
+
+    table= open_table_uncached(thd, path, db_name, table_name,
+                               false, false, *tab_obj);
+  }
 
   dd::release_mdl(thd, mdl_ticket);
 
@@ -8780,7 +8882,7 @@ bool handler::my_eval_gcolumn_expr_with_open(THD *thd,
 
 
 bool handler::my_eval_gcolumn_expr(THD *thd, TABLE *table,
-				   const MY_BITMAP *const fields,
+                                   const MY_BITMAP *const fields,
                                    uchar *record)
 {
   DBUG_ENTER("my_eval_gcolumn_expr");
@@ -8812,7 +8914,7 @@ struct HTON_NOTIFY_PARAMS
 };
 
 
-static my_bool
+static bool
 notify_exclusive_mdl_helper(THD *thd, plugin_ref plugin, void *arg)
 {
   handlerton *hton= plugin_data<handlerton*>(plugin);
@@ -8884,7 +8986,7 @@ bool ha_notify_exclusive_mdl(THD *thd, const MDL_key *mdl_key,
 }
 
 
-static my_bool
+static bool
 notify_alter_table_helper(THD *thd, plugin_ref plugin, void *arg)
 {
   handlerton *hton= plugin_data<handlerton*>(plugin);

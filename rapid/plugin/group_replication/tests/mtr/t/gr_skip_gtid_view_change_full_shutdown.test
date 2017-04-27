@@ -23,6 +23,7 @@
 # 10) Clean up.
 ################################################################################
 
+--source include/big_test.inc
 --let $group_replication_group_name= 32e12bc9-01d2-11e6-a992-02420ef39c5b
 --source ../inc/have_group_replication_plugin.inc
 --let $rpl_skip_group_replication_start= 1

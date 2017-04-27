@@ -3,6 +3,7 @@
 #
 
 set names latin1;
+--character_set latin1
 
 let $old_collation_schema= `SELECT @@collation_database`;
 let $collation_server=`SELECT @@global.collation_server`;
@@ -163,7 +164,6 @@ drop table t1;
 set @@collation_connection=latin1_german2_ci;
 --source include/weight_string.inc
 --source include/weight_string_euro.inc
---source include/weight_string_l1.inc
 select hex(weight_string('Ä'));
 select hex(weight_string('ä'));
 select hex(weight_string('Ö'));

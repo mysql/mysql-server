@@ -131,6 +131,19 @@ union COM_DATA {
   COM_FIELD_LIST_DATA com_field_list;
 };
 #include "mysql_time.h"
+enum enum_mysql_timestamp_type
+{
+  MYSQL_TIMESTAMP_NONE= -2, MYSQL_TIMESTAMP_ERROR= -1,
+  MYSQL_TIMESTAMP_DATE= 0, MYSQL_TIMESTAMP_DATETIME= 1, MYSQL_TIMESTAMP_TIME= 2
+};
+typedef struct st_mysql_time
+{
+  unsigned int year, month, day, hour, minute, second;
+  unsigned long second_part;
+  bool neg;
+  enum enum_mysql_timestamp_type time_type;
+} MYSQL_TIME;
+#include "decimal.h"
 #include "my_inttypes.h"
 #include "my_config.h"
 typedef unsigned char uchar;
@@ -148,22 +161,7 @@ typedef unsigned long long my_ulonglong;
 typedef intptr_t intptr;
 typedef ulonglong my_off_t;
 typedef ptrdiff_t my_ptrdiff_t;
-typedef char my_bool;
 typedef int myf;
-enum enum_mysql_timestamp_type
-{
-  MYSQL_TIMESTAMP_NONE= -2, MYSQL_TIMESTAMP_ERROR= -1,
-  MYSQL_TIMESTAMP_DATE= 0, MYSQL_TIMESTAMP_DATETIME= 1, MYSQL_TIMESTAMP_TIME= 2
-};
-typedef struct st_mysql_time
-{
-  unsigned int year, month, day, hour, minute, second;
-  unsigned long second_part;
-  my_bool neg;
-  enum enum_mysql_timestamp_type time_type;
-} MYSQL_TIME;
-#include "decimal.h"
-#include "my_inttypes.h"
 #include "my_macros.h"
 typedef enum
 {TRUNCATE=0, HALF_EVEN, HALF_UP, CEILING, FLOOR}
@@ -171,7 +169,7 @@ typedef enum
 typedef int32 decimal_digit_t;
 typedef struct st_decimal_t {
   int intg, frac, len;
-  my_bool sign;
+  bool sign;
   decimal_digit_t *buf;
 } decimal_t;
 struct st_send_field
@@ -528,8 +526,8 @@ struct st_transaction_termination_ctx
 {
   unsigned long m_thread_id;
   unsigned int m_flags;
-  char m_rollback_transaction;
-  char m_generated_gtid;
+  bool m_rollback_transaction;
+  bool m_generated_gtid;
   int m_sidno;
   long long int m_gno;
 };

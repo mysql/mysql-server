@@ -15,7 +15,6 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <m_ctype.h>
-#include <my_global.h>
 #include <my_xml.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -25,6 +24,7 @@
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_loglevel.h"
+#include "my_macros.h"
 
 
 /*
@@ -787,12 +787,12 @@ static int cs_value(MY_XML_PARSER *st,const char *attr, size_t len)
 } // extern "C"
 
 
-my_bool
+bool
 my_parse_charset_xml(MY_CHARSET_LOADER *loader, const char *buf, size_t len)
 {
   MY_XML_PARSER p;
   struct my_cs_file_info info;
-  my_bool rc;
+  bool rc;
   
   my_charset_file_init(&info);
   my_xml_parser_create(&p);
@@ -887,7 +887,7 @@ uint my_charset_repertoire(const CHARSET_INFO *cs)
   This function is Ok for 5.0 and 5.1, because we're not going
   to introduce new tricky character sets between 5.0 and 5.2.
 */
-my_bool
+bool
 my_charset_is_ascii_based(const CHARSET_INFO *cs)
 {
   return 
@@ -904,7 +904,7 @@ my_charset_is_ascii_based(const CHARSET_INFO *cs)
   This functions is shared between "conf_to_src"
   and dynamic charsets loader in "mysqld".
 */
-my_bool
+bool
 my_charset_is_8bit_pure_ascii(const CHARSET_INFO *cs)
 {
   size_t code;
@@ -924,7 +924,7 @@ my_charset_is_8bit_pure_ascii(const CHARSET_INFO *cs)
   Check if a 8bit character set is compatible with
   ascii on the range 0x00..0x7F.
 */
-my_bool
+bool
 my_charset_is_ascii_compatible(const CHARSET_INFO *cs)
 {
   uint i;
@@ -1041,7 +1041,7 @@ my_convert(char *to, size_t to_length, const CHARSET_INFO *to_cs,
 
   length= length2= MY_MIN(to_length, from_length);
 
-#if defined(__i386__)
+#if defined(__i386__) || defined(_WIN32) || defined(__x86_64__)
   /*
     Special loop for i386, it allows to refer to a
     non-aligned memory block as UINT32, which makes
@@ -1051,9 +1051,9 @@ my_convert(char *to, size_t to_length, const CHARSET_INFO *to_cs,
   */
   for ( ; length >= 4; length-= 4, from+= 4, to+= 4)
   {
-    if ((*(uint32*)from) & 0x80808080)
+    if (uint4korr(from) & 0x80808080)
       break;
-    *((uint32*) to)= *((const uint32*) from);
+    int4store(to, uint4korr(from));
   }
 #endif /* __i386__ */
 

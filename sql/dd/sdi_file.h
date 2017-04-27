@@ -18,22 +18,21 @@
 
 #include <utility>
 
-#include "my_global.h"
-#include "prealloced_array.h"   // Prealloced_array
 #include "dd/string_type.h"     // dd::String_type
+#include "prealloced_array.h"   // Prealloced_array
 
 class THD;
 struct st_mysql_const_lex_string;
 struct handlerton;
 
 namespace dd {
-class Entity_object;
 class Schema;
 class Table;
 
 namespace sdi_file {
 const size_t FILENAME_PREFIX_CHARS= 16;
-String_type sdi_filename(const dd::Entity_object *eo,
+template<typename T>
+String_type sdi_filename(const T *dd_object,
                          const String_type &schema);
 bool store(THD *thd, const st_mysql_const_lex_string &sdi,
            const dd::Schema *schema);

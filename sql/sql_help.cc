@@ -13,7 +13,7 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "sql_help.h"
+#include "sql/sql_help.h"
 
 #include <string.h>
 #include <sys/types.h>
@@ -28,7 +28,6 @@
 #include "my_base.h"
 #include "my_bitmap.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysqld_error.h"
@@ -146,7 +145,6 @@ static bool init_fields(THD *thd, TABLE_LIST *tables,
     memorize_variant_topic()
 
     thd           Thread handler
-    topics        Table of topics
     count         number of alredy found topics
     find_fields   Filled array of information for work with fields
 
@@ -163,7 +161,7 @@ static bool init_fields(THD *thd, TABLE_LIST *tables,
     found exactly one topic.
 */
 
-static void memorize_variant_topic(THD *thd, TABLE *topics, int count,
+static void memorize_variant_topic(THD *thd, int count,
                                    struct st_find_field *find_fields,
                                    List<String> *names,
                                    String *name, String *description,
@@ -231,8 +229,8 @@ static int search_topics(THD *thd, QEP_TAB *topics,
   {
     if (!topics->condition()->val_int())        // Doesn't match like
       continue;
-    memorize_variant_topic(thd,topics->table(),count,find_fields,
-			   names,name,description,example);
+    memorize_variant_topic(thd, count, find_fields,
+			   names, name, description, example);
     count++;
   }
   end_read_record(&read_record_info);
@@ -363,8 +361,8 @@ static int get_topics_for_keyword(THD *thd, TABLE *topics, TABLE *relations,
     if (!topics->file->ha_index_read_map(topics->record[0], topic_id_buff,
                                          (key_part_map)1, HA_READ_KEY_EXACT))
     {
-      memorize_variant_topic(thd,topics,count,find_fields,
-			     names,name,description,example);
+      memorize_variant_topic(thd, count, find_fields,
+			     names, name, description, example);
       count++;
     }
   }
@@ -653,7 +651,6 @@ static bool prepare_simple_select(THD *thd, Item *cond,
   @param  thd      Thread handler
   @param  mask     mask for compare with name
   @param  mlen     length of mask
-  @param  tables   list of tables, used in WHERE
   @param  table    goal table
   @param  pfname   field "name" in table
   @param  tab      QEP_TAB
@@ -663,7 +660,7 @@ static bool prepare_simple_select(THD *thd, Item *cond,
 */
 
 static bool prepare_select_for_name(THD *thd, const char *mask, size_t mlen,
-                                    TABLE_LIST *tables, TABLE *table,
+                                    TABLE *table,
                                     Field *pfname, QEP_TAB *tab)
 {
   Item *cond= new Item_func_like(new Item_field(pfname),
@@ -744,8 +741,8 @@ bool mysqld_help(THD *thd, const char *mask)
   {
     QEP_TAB_standalone qep_tab_st;
     QEP_TAB &tab= qep_tab_st.as_QEP_TAB();
-    if (prepare_select_for_name(thd,mask,mlen,tables,tables[0].table,
-                                used_fields[help_topic_name].field,&tab))
+    if (prepare_select_for_name(thd, mask, mlen, tables[0].table,
+                                used_fields[help_topic_name].field, &tab))
       goto error;
 
     count_topics= search_topics(thd, &tab, used_fields,
@@ -759,7 +756,7 @@ bool mysqld_help(THD *thd, const char *mask)
     QEP_TAB_standalone qep_tab_st;
     QEP_TAB &tab= qep_tab_st.as_QEP_TAB();
 
-    if (prepare_select_for_name(thd,mask,mlen,tables,tables[3].table,
+    if (prepare_select_for_name(thd, mask, mlen, tables[3].table,
                                 used_fields[help_keyword_name].field,
                                 &tab))
       goto error;
@@ -779,7 +776,7 @@ bool mysqld_help(THD *thd, const char *mask)
       QEP_TAB_standalone qep_tab_st;
       QEP_TAB &tab= qep_tab_st.as_QEP_TAB();
 
-      if (prepare_select_for_name(thd,mask,mlen,tables,tables[1].table,
+      if (prepare_select_for_name(thd, mask, mlen, tables[1].table,
                                   used_fields[help_category_name].field,
                                   &tab))
         goto error;
@@ -854,8 +851,8 @@ bool mysqld_help(THD *thd, const char *mask)
     QEP_TAB_standalone qep_tab_st;
     QEP_TAB &tab= qep_tab_st.as_QEP_TAB();
 
-    if (prepare_select_for_name(thd,mask,mlen,tables,tables[1].table,
-                                used_fields[help_category_name].field,&tab))
+    if (prepare_select_for_name(thd, mask, mlen, tables[1].table,
+                                used_fields[help_category_name].field, &tab))
       goto error;
     search_categories(thd, &tab, used_fields,
 		      &categories_list, 0);

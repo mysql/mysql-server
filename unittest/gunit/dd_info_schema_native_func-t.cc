@@ -137,13 +137,14 @@ TEST_F(ISNativeFuncTest, AllNullArguments)
 
   // INTERNAL_INDEX_COLUMN_CARDINALITY(NULL, NULL, NULL, NULL, NULL, NULL, NULL)
   CREATE_ITEM(Item_func_internal_index_column_cardinality,
-              prepare_null_list(null_list, null, 7));
+              prepare_null_list(null_list, null, 8));
   item->val_int();
   EXPECT_EQ(1, item->null_value);
 
   // GET_DD_INDEX_SUB_PART_LENGTH(NULL, NULL, NULL, NULL, NULL)
-  CREATE_ITEM(Item_func_get_dd_index_sub_part_length, FIVE_NULL_ARGS);
-  EXPECT_EQ(nullptr, item->val_str(&str));
+  CREATE_ITEM(Item_func_get_dd_index_sub_part_length,
+              prepare_null_list(null_list, null, 5));
+  item->val_int();
   EXPECT_EQ(1, item->null_value);
 
   // GET_DD_COLUMN_PRIVILEGES(NULL, NULL, NULL)
@@ -160,8 +161,8 @@ TEST_F(ISNativeFuncTest, AllNullArguments)
   item->val_int();
   EXPECT_EQ(1, item->null_value);
 
-  // CAN_ACCESS_TABLE(NULL, NULL)
-  CREATE_ITEM(Item_func_can_access_table, TWO_NULL_ARGS);
+  // CAN_ACCESS_TABLE(NULL, NULL, NULL)
+  CREATE_ITEM(Item_func_can_access_table, THREE_NULL_ARGS);
   item->val_int();
   EXPECT_EQ(1, item->null_value);
 
@@ -170,8 +171,8 @@ TEST_F(ISNativeFuncTest, AllNullArguments)
   item->val_int();
   EXPECT_EQ(1, item->null_value);
 
-  // CAN_ACCESS_COLUMN(NULL, NULL, NULL)
-  CREATE_ITEM(Item_func_can_access_column, THREE_NULL_ARGS);
+  // CAN_ACCESS_COLUMN(NULL, NULL, NULL, NULL)
+  CREATE_ITEM(Item_func_can_access_column, FOUR_NULL_ARGS);
   item->val_int();
   EXPECT_EQ(1, item->null_value);
 

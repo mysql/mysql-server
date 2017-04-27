@@ -14,7 +14,7 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "spatial.h"
+#include "sql/spatial.h"
 
 #include <cmath>                                // isfinite
 #include <map>
@@ -22,12 +22,13 @@
 #include <new>
 #include <utility>
 
+#include "gis/srid.h"
 #include "gis_bg_traits.h"
 #include "gstream.h"                            // Gis_read_stream
 #include "m_ctype.h"
 #include "m_string.h"
 #include "my_dbug.h"
-#include "my_global.h"                          // REQUIRED for HAVE_* below
+#include "my_macros.h"
 #include "my_sys.h"
 #include "mysqld_error.h"
 #include "prealloced_array.h"
@@ -408,7 +409,7 @@ Geometry *Geometry::construct(Geometry_buffer *buffer,
       !(result= create_by_typeid(buffer, (int) geom_type)))
     return NULL;
 
-  uint32 srid= 0;
+  gis::srid_t srid= 0;
   if (has_srid)
   {
     srid= uint4korr(data);
@@ -1930,7 +1931,7 @@ Gis_polygon::Gis_polygon(const self &r) :Geometry(r), m_inn_rings(NULL)
 
 
 Gis_polygon::Gis_polygon(const void *wkb, size_t nbytes,
-                         const Flags_t &flags, srid_t srid)
+                         const Flags_t &flags, gis::srid_t srid)
   :Geometry(NULL, nbytes, flags, srid)
 {
   set_geotype(wkb_polygon);
@@ -3440,7 +3441,12 @@ Gis_geometry_collection::scan_header_and_create(wkb_parser *wkb,
     the exact length.
   */
   if (geom->get_type() == wkb_point)
+  {
+    if (geom->get_nbytes() < POINT_DATA_SIZE)
+      return nullptr;
     geom->set_nbytes(POINT_DATA_SIZE);
+  }
+
   return geom;
 }
 
@@ -3493,7 +3499,7 @@ bool Gis_geometry_collection::append_geometry(const Geometry *geo,
 /**
   Append geometry into geometry collection, which can be empty. This object
   must be created from default constructor or below one:
-  Gis_geometry_collection(srid_t srid, wkbType gtype,
+  Gis_geometry_collection(gis::srid_t srid, wkbType gtype,
                           const String *gbuf,
                           String *gcbuf);
 
@@ -3506,7 +3512,7 @@ bool Gis_geometry_collection::append_geometry(const Geometry *geo,
   @return false if no error, otherwise true.
 
  */
-bool Gis_geometry_collection::append_geometry(srid_t srid, wkbType gtype,
+bool Gis_geometry_collection::append_geometry(gis::srid_t srid, wkbType gtype,
                                               const String *gbuf, String *gcbuf)
 {
   DBUG_ASSERT(gbuf != NULL && gbuf->ptr() != NULL && gbuf->length() > 0);
@@ -3557,7 +3563,8 @@ bool Gis_geometry_collection::append_geometry(srid_t srid, wkbType gtype,
               NULL, the created geometry collection is empty.
   @param gcbuf this geometry collection's data buffer in GEOMETRY format.
  */
-Gis_geometry_collection::Gis_geometry_collection(srid_t srid, wkbType gtype,
+Gis_geometry_collection::Gis_geometry_collection(gis::srid_t srid,
+                                                 wkbType gtype,
                                                  const String *gbuf,
                                                  String *gcbuf)
   : Geometry(0, 0, Flags_t(wkb_geometrycollection, 0), srid)
@@ -3660,7 +3667,16 @@ uint32 Gis_geometry_collection::get_data_size() const
     */
     if ((object_size= geom->get_data_size()) == GET_SIZE_ERROR)
       return GET_SIZE_ERROR;
-    wkb.skip_unsafe(object_size);
+
+    /*
+      Use 'skip()' instead of 'skip_unsafe()' in case the object size is
+      incorrect
+    */
+    if (wkb.skip(object_size))
+    {
+      DBUG_ASSERT(false); // geom-get_data_size() did something wrong.
+      return GET_SIZE_ERROR;
+    }
   }
   len= static_cast<uint32>(wkb.data() - (const char *)get_data_ptr());
   if (len != get_nbytes())
@@ -4879,7 +4895,7 @@ exit:
 template <typename T>
 Gis_wkb_vector<T>::
 Gis_wkb_vector(const void *ptr, size_t nbytes, const Flags_t &flags,
-               srid_t srid, bool is_bg_adapter)
+               gis::srid_t srid, bool is_bg_adapter)
   :Geometry(ptr, nbytes, flags, srid)
 {
   DBUG_ASSERT((ptr != NULL && nbytes > 0) || (ptr == NULL && nbytes == 0));
@@ -5504,19 +5520,19 @@ template void Gis_wkb_vector<Gis_point_spherical>::shallow_push(Geometry const*)
 template
 Gis_wkb_vector<Gis_line_string>::
 Gis_wkb_vector(const void*, size_t,
-               const Geometry::Flags_t&, srid_t, bool);
+               const Geometry::Flags_t&, gis::srid_t, bool);
 template
 Gis_wkb_vector<Gis_point_spherical>::
 Gis_wkb_vector(const void*, size_t,
-               const Geometry::Flags_t&, srid_t, bool);
+               const Geometry::Flags_t&, gis::srid_t, bool);
 template
 Gis_wkb_vector<Gis_polygon>::
 Gis_wkb_vector(const void*, size_t,
-               const Geometry::Flags_t&, srid_t, bool);
+               const Geometry::Flags_t&, gis::srid_t, bool);
 template
 Gis_wkb_vector<Gis_point>::
 Gis_wkb_vector(const void*, size_t,
-               const Geometry::Flags_t&, srid_t, bool);
+               const Geometry::Flags_t&, gis::srid_t, bool);
 
 template
 Gis_wkb_vector<Gis_point>&

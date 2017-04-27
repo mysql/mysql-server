@@ -1,2 +1,0 @@
---source include/have_case_sensitive_file_system.inc
---source suite/innodb/include/innodb-system-table-view.inc

@@ -5,8 +5,6 @@
 # Test to check the values populated in NESTING_EVENT_TYPE 
 # columns of events_statements_current/history/history_long PS tables. 
 
---source include/not_embedded.inc
-
 TRUNCATE TABLE performance_schema.events_statements_history_long;
 
 --echo #----------------------------

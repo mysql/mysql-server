@@ -17,6 +17,7 @@
 #define SQL_RESULTSET_INCLUDE
 
 #include <mysql/plugin.h>
+#include <stddef.h>
 #include <string>
 #include <vector>
 

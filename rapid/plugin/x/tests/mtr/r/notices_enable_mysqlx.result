@@ -79,30 +79,30 @@ grp	group_concat(a order by a,d-ascii(c)-a)
 3	4,5,6,7,8,9
 0 rows affected
 Warnings generated:
-WARNING | 1292 | Truncated incorrect DOUBLE value: 'a         '
-WARNING | 1292 | Truncated incorrect DOUBLE value: 'a         '
-WARNING | 1292 | Truncated incorrect DOUBLE value: 'b         '
-WARNING | 1292 | Truncated incorrect DOUBLE value: 'a         '
-WARNING | 1292 | Truncated incorrect DOUBLE value: 'b         '
-WARNING | 1292 | Truncated incorrect DOUBLE value: 'b         '
-WARNING | 1292 | Truncated incorrect DOUBLE value: 'd         '
-WARNING | 1292 | Truncated incorrect DOUBLE value: 'd         '
-WARNING | 1292 | Truncated incorrect DOUBLE value: 'c         '
+WARNING | 1292 | Truncated incorrect DOUBLE value: 'a'
+WARNING | 1292 | Truncated incorrect DOUBLE value: 'a'
+WARNING | 1292 | Truncated incorrect DOUBLE value: 'b'
+WARNING | 1292 | Truncated incorrect DOUBLE value: 'a'
+WARNING | 1292 | Truncated incorrect DOUBLE value: 'b'
+WARNING | 1292 | Truncated incorrect DOUBLE value: 'b'
+WARNING | 1292 | Truncated incorrect DOUBLE value: 'd'
+WARNING | 1292 | Truncated incorrect DOUBLE value: 'd'
+WARNING | 1292 | Truncated incorrect DOUBLE value: 'c'
 grp	group_concat(a order by c-ascii(c),a)
 1	1
 2	3,2
 3	7,8,4,6,9,5
 0 rows affected
 Warnings generated:
-WARNING | 1292 | Truncated incorrect DOUBLE value: 'a         '
-WARNING | 1292 | Truncated incorrect DOUBLE value: 'b         '
-WARNING | 1292 | Truncated incorrect DOUBLE value: 'c         '
-WARNING | 1292 | Truncated incorrect DOUBLE value: 'E         '
-WARNING | 1292 | Truncated incorrect DOUBLE value: 'C         '
-WARNING | 1292 | Truncated incorrect DOUBLE value: 'D         '
-WARNING | 1292 | Truncated incorrect DOUBLE value: 'd         '
-WARNING | 1292 | Truncated incorrect DOUBLE value: 'd         '
-WARNING | 1292 | Truncated incorrect DOUBLE value: 'D         '
+WARNING | 1292 | Truncated incorrect DOUBLE value: 'a'
+WARNING | 1292 | Truncated incorrect DOUBLE value: 'b'
+WARNING | 1292 | Truncated incorrect DOUBLE value: 'c'
+WARNING | 1292 | Truncated incorrect DOUBLE value: 'E'
+WARNING | 1292 | Truncated incorrect DOUBLE value: 'C'
+WARNING | 1292 | Truncated incorrect DOUBLE value: 'D'
+WARNING | 1292 | Truncated incorrect DOUBLE value: 'd'
+WARNING | 1292 | Truncated incorrect DOUBLE value: 'd'
+WARNING | 1292 | Truncated incorrect DOUBLE value: 'D'
 
 0 rows affected
 grp	group_concat(c order by c)
@@ -1242,24 +1242,15 @@ default_storage_engine	InnoDB
 Try to enable fixed notice, should be ok
 
 command ok
-Variable_name	Value
-Mysqlx_notice_other_sent	1231
-Mysqlx_notice_warning_sent	547
-Mysqlx_stmt_disable_notices	0
-Mysqlx_stmt_enable_notices	1
-Mysqlx_stmt_list_notices	0
-0 rows affected
+Verify [Status variable "Mysqlx_notice_other_sent" needs to have a value of 168]
+Verify [Status variable "Mysqlx_notice_warning_sent" needs to have a value of 807]
+Verify [Status variable "Mysqlx_stmt_disable_notices" needs to have a value of 0]
+Verify [Status variable "Mysqlx_stmt_enable_notices" needs to have a value of 1]
+Verify [Status variable "Mysqlx_stmt_list_notices" needs to have a value of 0]
 Mysqlx.Ok {
   msg: "bye!"
 }
 ok
-show status like 'Mysqlx%notice%';
-Variable_name	Value
-Mysqlx_notice_other_sent	1232
-Mysqlx_notice_warning_sent	547
-Mysqlx_stmt_disable_notices	0
-Mysqlx_stmt_enable_notices	1
-Mysqlx_stmt_list_notices	0
 checking warnings with procedure execution
 
 0 rows affected
@@ -1348,24 +1339,15 @@ Got expected error: Specified key was too long; max key length is 3072 bytes (co
 0 rows affected
 
 0 rows affected
-Variable_name	Value
-Mysqlx_notice_other_sent	70
-Mysqlx_notice_warning_sent	0
-Mysqlx_stmt_disable_notices	0
-Mysqlx_stmt_enable_notices	0
-Mysqlx_stmt_list_notices	0
-0 rows affected
+Verify [Status variable "Mysqlx_notice_other_sent" needs to have a value of 37]
+Verify [Status variable "Mysqlx_notice_warning_sent" needs to have a value of 32]
+Verify [Status variable "Mysqlx_stmt_disable_notices" needs to have a value of 0]
+Verify [Status variable "Mysqlx_stmt_enable_notices" needs to have a value of 0]
+Verify [Status variable "Mysqlx_stmt_list_notices" needs to have a value of 0]
 Mysqlx.Ok {
   msg: "bye!"
 }
 ok
-show status like 'Mysqlx%notice%';
-Variable_name	Value
-Mysqlx_notice_other_sent	1303
-Mysqlx_notice_warning_sent	547
-Mysqlx_stmt_disable_notices	0
-Mysqlx_stmt_enable_notices	1
-Mysqlx_stmt_list_notices	0
 Try enable warnings
 
 command ok
@@ -1381,24 +1363,15 @@ command ok
 Try enable produced_message
 
 command ok
-Variable_name	Value
-Mysqlx_notice_other_sent	1
-Mysqlx_notice_warning_sent	0
-Mysqlx_stmt_disable_notices	0
-Mysqlx_stmt_enable_notices	5
-Mysqlx_stmt_list_notices	0
-0 rows affected
+Verify [Status variable "Mysqlx_notice_other_sent" needs to have a value of 1]
+Verify [Status variable "Mysqlx_notice_warning_sent" needs to have a value of 0]
+Verify [Status variable "Mysqlx_stmt_disable_notices" needs to have a value of 0]
+Verify [Status variable "Mysqlx_stmt_enable_notices" needs to have a value of 5]
+Verify [Status variable "Mysqlx_stmt_list_notices" needs to have a value of 0]
 Mysqlx.Ok {
   msg: "bye!"
 }
 ok
-show status like 'Mysqlx%notice%';
-Variable_name	Value
-Mysqlx_notice_other_sent	1305
-Mysqlx_notice_warning_sent	547
-Mysqlx_stmt_disable_notices	0
-Mysqlx_stmt_enable_notices	6
-Mysqlx_stmt_list_notices	0
 create user xplugin@localhost identified by 'xplugin';
 Try enable warnings
 
@@ -1415,24 +1388,15 @@ command ok
 Try enable produced_message
 
 command ok
-Variable_name	Value
-Mysqlx_notice_other_sent	1
-Mysqlx_notice_warning_sent	0
-Mysqlx_stmt_disable_notices	0
-Mysqlx_stmt_enable_notices	5
-Mysqlx_stmt_list_notices	0
-0 rows affected
+Verify [Status variable "Mysqlx_notice_other_sent" needs to have a value of 1]
+Verify [Status variable "Mysqlx_notice_warning_sent" needs to have a value of 0]
+Verify [Status variable "Mysqlx_stmt_disable_notices" needs to have a value of 0]
+Verify [Status variable "Mysqlx_stmt_enable_notices" needs to have a value of 5]
+Verify [Status variable "Mysqlx_stmt_list_notices" needs to have a value of 0]
 Mysqlx.Ok {
   msg: "bye!"
 }
 ok
-show status like 'Mysqlx%notice%';
-Variable_name	Value
-Mysqlx_notice_other_sent	1307
-Mysqlx_notice_warning_sent	547
-Mysqlx_stmt_disable_notices	0
-Mysqlx_stmt_enable_notices	11
-Mysqlx_stmt_list_notices	0
 Enable multiple notices both read-only and read-write with single StmtExecute,expect success
 
 command ok
@@ -1443,31 +1407,15 @@ generated_insert_id	1
 rows_affected	1
 produced_message	1
 command ok
-Variable_name	Value
-Mysqlx_notice_other_sent	1
-Mysqlx_notice_warning_sent	0
-Mysqlx_stmt_disable_notices	0
-Mysqlx_stmt_enable_notices	1
-Mysqlx_stmt_list_notices	1
-0 rows affected
+Verify [Status variable "Mysqlx_notice_other_sent" needs to have a value of 1]
+Verify [Status variable "Mysqlx_notice_warning_sent" needs to have a value of 0]
+Verify [Status variable "Mysqlx_stmt_disable_notices" needs to have a value of 0]
+Verify [Status variable "Mysqlx_stmt_enable_notices" needs to have a value of 1]
+Verify [Status variable "Mysqlx_stmt_list_notices" needs to have a value of 1]
 Mysqlx.Ok {
   msg: "bye!"
 }
 ok
-show status like 'Mysqlx%notice%';
-Variable_name	Value
-Mysqlx_notice_other_sent	1309
-Mysqlx_notice_warning_sent	547
-Mysqlx_stmt_disable_notices	0
-Mysqlx_stmt_enable_notices	12
-Mysqlx_stmt_list_notices	1
-Variable_name	Value
-Mysqlx_notice_other_sent	1
-Mysqlx_notice_warning_sent	0
-Mysqlx_stmt_disable_notices	0
-Mysqlx_stmt_enable_notices	0
-Mysqlx_stmt_list_notices	0
-0 rows affected
 check with password function which is deprecated
 1/0	1/0	password('test')	password('')
 null	null	*94BDCEBE19083CE2A1F959FD02F964C7AF4CFC29	
@@ -1484,49 +1432,18 @@ Warnings generated:
 NOTE | 1051 | Unknown table 'mysql.t1'
 expect Mysqlx_notice_other_sent=8 and Mysqlx_notice_warning_sent=3
 seems like some problem with these stats, need to change values once issues fixed
-Variable_name	Value
-Mysqlx_notice_other_sent	10
-Mysqlx_notice_warning_sent	3
-Mysqlx_stmt_disable_notices	0
-Mysqlx_stmt_enable_notices	0
-Mysqlx_stmt_list_notices	0
-0 rows affected
 disable warnings notice and observe stats
 
 command ok
-expect Mysqlx_notice_other_sent=8,Mysqlx_notice_warning_sent=3,Mysqlx_stmt_disable_notices=1
-Variable_name	Value
-Mysqlx_notice_other_sent	11
-Mysqlx_notice_warning_sent	3
-Mysqlx_stmt_disable_notices	1
-Mysqlx_stmt_enable_notices	0
-Mysqlx_stmt_list_notices	0
-0 rows affected
 1/0	1/0	password('test')	password('')
 null	null	*94BDCEBE19083CE2A1F959FD02F964C7AF4CFC29	
 0 rows affected
-expect Mysqlx_notice_other_sent=8,Mysqlx_notice_warning_sent=3,Mysqlx_stmt_disable_notices=1
-Variable_name	Value
-Mysqlx_notice_other_sent	13
-Mysqlx_notice_warning_sent	3
-Mysqlx_stmt_disable_notices	1
-Mysqlx_stmt_enable_notices	0
-Mysqlx_stmt_list_notices	0
-0 rows affected
 enable account_expired notice and check stats
 
 command ok
 enable account_expired notice and check stats
 
 command ok
-expect Mysqlx_notice_other_sent=8,Mysqlx_notice_warning_sent=3,Mysqlx_stmt_disable_notices=1,Mysqlx_stmt_enable_notices=1
-Variable_name	Value
-Mysqlx_notice_other_sent	14
-Mysqlx_notice_warning_sent	3
-Mysqlx_stmt_disable_notices	1
-Mysqlx_stmt_enable_notices	2
-Mysqlx_stmt_list_notices	0
-0 rows affected
 listing notices after enabling warnings,account_expired notices
 notice	enabled
 warnings	1
@@ -1535,14 +1452,6 @@ generated_insert_id	1
 rows_affected	1
 produced_message	1
 command ok
-expect Mysqlx_notice_other_sent=8,Mysqlx_notice_warning_sent=3,Mysqlx_stmt_disable_notices=1,Mysqlx_stmt_enable_notices=1
-Variable_name	Value
-Mysqlx_notice_other_sent	15
-Mysqlx_notice_warning_sent	3
-Mysqlx_stmt_disable_notices	1
-Mysqlx_stmt_enable_notices	2
-Mysqlx_stmt_list_notices	1
-0 rows affected
 listing notices with mixed case
 notice	enabled
 warnings	1
@@ -1551,25 +1460,15 @@ generated_insert_id	1
 rows_affected	1
 produced_message	1
 command ok
-expect Mysqlx_notice_other_sent=8,Mysqlx_notice_warning_sent=3,Mysqlx_stmt_disable_notices=1,Mysqlx_stmt_enable_notices=1
-Variable_name	Value
-Mysqlx_notice_other_sent	16
-Mysqlx_notice_warning_sent	3
-Mysqlx_stmt_disable_notices	1
-Mysqlx_stmt_enable_notices	2
-Mysqlx_stmt_list_notices	2
-0 rows affected
+Verify [Status variable "Mysqlx_notice_other_sent" needs to have a value of 5]
+Verify [Status variable "Mysqlx_notice_warning_sent" needs to have a value of 4]
+Verify [Status variable "Mysqlx_stmt_disable_notices" needs to have a value of 1]
+Verify [Status variable "Mysqlx_stmt_enable_notices" needs to have a value of 2]
+Verify [Status variable "Mysqlx_stmt_list_notices" needs to have a value of 2]
 Mysqlx.Ok {
   msg: "bye!"
 }
 ok
-show status like 'Mysqlx%notice%';
-Variable_name	Value
-Mysqlx_notice_other_sent	1326
-Mysqlx_notice_warning_sent	550
-Mysqlx_stmt_disable_notices	1
-Mysqlx_stmt_enable_notices	14
-Mysqlx_stmt_list_notices	3
 # restart: 
 1/0	1/0	password('test')	password('')
 null	null	*94BDCEBE19083CE2A1F959FD02F964C7AF4CFC29	
@@ -1584,25 +1483,12 @@ WARNING | 1365 | Division by 0
 0 rows affected
 Warnings generated:
 NOTE | 1051 | Unknown table 'mysql.t1'
-expect MYSQLX_NOTICE_OTHER_SENT=8,MYSQLX_NOTICE_WARNING_SENT=3
-Variable_name	Value
-Mysqlx_notice_other_sent	9
-Mysqlx_notice_warning_sent	3
-Mysqlx_stmt_disable_notices	0
-Mysqlx_stmt_enable_notices	0
-Mysqlx_stmt_list_notices	0
-0 rows affected
+Verify [Status variable "Mysqlx_notice_other_sent" needs to have a value of 4]
+Verify [Status variable "Mysqlx_notice_warning_sent" needs to have a value of 4]
 Mysqlx.Ok {
   msg: "bye!"
 }
 ok
-show status like 'Mysqlx%notice%';
-Variable_name	Value
-Mysqlx_notice_other_sent	10
-Mysqlx_notice_warning_sent	3
-Mysqlx_stmt_disable_notices	0
-Mysqlx_stmt_enable_notices	0
-Mysqlx_stmt_list_notices	0
 # restart: 
 create user noti@localhost identified by 'noti';
 1/0	1/0	password('test')	password('')
@@ -1615,25 +1501,15 @@ WARNING | 1365 | Division by 0
 While executing use mysql:
 Got expected error: Access denied for user 'noti'@'localhost' to database 'mysql' (code 1044)
 Got expected error: No database selected (code 1046)
-expect MYSQLX_NOTICE_OTHER_SENT=8,MYSQLX_NOTICE_WARNING_SENT=3
-Variable_name	Value
-Mysqlx_notice_other_sent	5
-Mysqlx_notice_warning_sent	3
-Mysqlx_stmt_disable_notices	0
-Mysqlx_stmt_enable_notices	0
-Mysqlx_stmt_list_notices	0
-0 rows affected
+Verify [Status variable "Mysqlx_notice_other_sent" needs to have a value of 2]
+Verify [Status variable "Mysqlx_notice_warning_sent" needs to have a value of 3]
+Verify [Status variable "Mysqlx_stmt_disable_notices" needs to have a value of 0]
+Verify [Status variable "Mysqlx_stmt_enable_notices" needs to have a value of 0]
+Verify [Status variable "Mysqlx_stmt_list_notices" needs to have a value of 0]
 Mysqlx.Ok {
   msg: "bye!"
 }
 ok
-show status like 'Mysqlx%notice%';
-Variable_name	Value
-Mysqlx_notice_other_sent	6
-Mysqlx_notice_warning_sent	3
-Mysqlx_stmt_disable_notices	0
-Mysqlx_stmt_enable_notices	0
-Mysqlx_stmt_list_notices	0
 drop user noti@localhost;
 drop user xplugin@localhost;
 uninstall plugin mysqlx;

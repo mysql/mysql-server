@@ -16,12 +16,13 @@
 #ifndef _SQL_PROFILE_H
 #define _SQL_PROFILE_H
 
+#include "my_config.h"
+
 #include <stddef.h>
 #include <sys/types.h>
 
-#include "my_config.h"
+#include "lex_string.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 
 class Item;
@@ -33,7 +34,7 @@ typedef struct st_schema_table ST_SCHEMA_TABLE;
 typedef int64 query_id_t;
 
 extern ST_FIELD_INFO query_profile_statistics_info[];
-int fill_query_profile_statistics_info(THD *thd, TABLE_LIST *tables, Item *cond);
+int fill_query_profile_statistics_info(THD *thd, TABLE_LIST *tables, Item*);
 int make_profile_table_for_show(THD *thd, ST_SCHEMA_TABLE *schema_table);
 
 
@@ -51,8 +52,6 @@ int make_profile_table_for_show(THD *thd, ST_SCHEMA_TABLE *schema_table);
 
 #if defined(ENABLED_PROFILING)
 #include "mysql/mysql_lex_string.h"         // LEX_STRING
-
-typedef struct st_mysql_lex_string LEX_STRING;
 
 #ifdef HAVE_SYS_RESOURCE_H
 #include <sys/resource.h>
@@ -288,7 +287,7 @@ public:
   bool show_profiles();
 
   /* ... from INFORMATION_SCHEMA.PROFILING ... */
-  int fill_statistics_info(THD *thd, TABLE_LIST *tables, Item *cond);
+  int fill_statistics_info(THD *thd, TABLE_LIST *tables);
   void cleanup();
 };
 

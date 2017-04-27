@@ -17,8 +17,9 @@
 #define RPL_TRANSACTION_WRITE_SET_CTX_H
 
 #include <vector>
+#include <map>
+#include <list>
 
-#include "my_global.h"
 #include "my_inttypes.h"
 
 /**
@@ -52,8 +53,84 @@ public:
   */
   void clear_write_set();
 
+  /*
+    mark transactions that include tables with no pk
+  */
+  void set_has_missing_keys();
+
+  /*
+    check if the transaction was marked as having missing keys.
+
+    @retval true  The transaction accesses tables with no PK.
+    @retval false All tables referenced in transaction have PK.
+   */
+  bool get_has_missing_keys();
+
+  /*
+    mark transactions that include tables referenced by foreign keys
+  */
+  void set_has_related_foreign_keys();
+
+  /*
+    function to check if the transaction was marked as having missing keys.
+
+    @retval true  If the transaction was marked as being referenced by a foreign key
+  */
+  bool get_has_related_foreign_keys();
+
+  /**
+    Function to add a new SAVEPOINT identifier in the savepoint map in the
+    transaction_ctx object.
+
+    @param[in] name - the identifier name of the SAVEPOINT.
+  */
+  void add_savepoint(char* name);
+
+  /**
+    Function to delete a SAVEPOINT identifier in the savepoint map in the
+    transaction_ctx object.
+
+    @param[in] name - the identifier name of the SAVEPOINT.
+  */
+  void del_savepoint(char* name);
+
+  /**
+    Function to delete all data added to write set and savepoint since
+    SAVEPOINT identifier was added to savepoinbt in the transaction_ctx object.
+
+    @param[in] name - the identifier name of the SAVEPOINT.
+  */
+  void rollback_to_savepoint(char* name);
+
+  /**
+    Function to push savepoint data to a list and clear the savepoint map in
+    order to create another identifier context, needed on functions ant trigger.
+  */
+  void reset_savepoint_list();
+
+  /**
+    Restore previous savepoint map context, called after executed trigger or
+    function.
+  */
+  void restore_savepoint_list();
+
 private:
   std::vector<uint64> write_set;
+  bool m_has_missing_keys;
+  bool m_has_related_foreign_keys;
+
+  /**
+    Contains information related to SAVEPOINTs. The key on map is the
+    identifier and the value is the size of write set when command was
+    executed.
+  */
+  std::map<std::string, size_t> savepoint;
+
+  /**
+    Create a savepoint context hierarchy to support encapsulation of
+    identifier name when function or trigger are executed.
+  */
+  std::list<std::map<std::string, size_t>> savepoint_list;
 };
 
 #endif	/* RPL_TRANSACTION_WRITE_SET_CTX_H */

@@ -21,8 +21,10 @@
   Table EVENTS_STATEMENTS_SUMMARY_BY_PROGRAM (declarations).
 */
 
-#include "table_helper.h"
+#include <sys/types.h>
+
 #include "pfs_program.h"
+#include "table_helper.h"
 
 /**
   @addtogroup performance_schema_tables
@@ -86,7 +88,7 @@ class table_esms_by_program : public PFS_engine_table
 public:
   /** Table share */
   static PFS_engine_table_share m_share;
-  static PFS_engine_table *create();
+  static PFS_engine_table *create(PFS_engine_table_share *);
   static int delete_all_rows();
   static ha_rows get_row_count();
 

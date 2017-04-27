@@ -13,17 +13,19 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "derror.h"
+#include "sql/derror.h"
 
 #include <fcntl.h>
+#include <stddef.h>
 #include <sys/types.h>
 
 #include "current_thd.h"
 #include "log.h"
 #include "my_byteorder.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_inttypes.h"
+#include "my_io.h"
+#include "my_macros.h"
 #include "my_sys.h"
 #include "mysql/psi/mysql_file.h"
 #include "mysql/psi/mysql_statement.h"

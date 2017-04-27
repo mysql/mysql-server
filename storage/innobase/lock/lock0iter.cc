@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -26,11 +26,13 @@ Created July 16, 2007 Vasil Dimov
 
 #define LOCK_MODULE_IMPLEMENTATION
 
-#include "univ.i"
+#include <stddef.h>
+
 #include "dict0mem.h"
 #include "lock0iter.h"
 #include "lock0lock.h"
 #include "lock0priv.h"
+#include "univ.i"
 
 /*******************************************************************//**
 Initialize lock queue iterator so that it starts to iterate from

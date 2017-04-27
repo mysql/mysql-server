@@ -22,14 +22,13 @@
   defaults.
 */
 
-#include "sql_data_change.h"
+#include "sql/sql_data_change.h"
 
 #include "current_thd.h"
 #include "field.h"
 #include "handler.h"
 #include "item.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "sql_class.h"  // THD

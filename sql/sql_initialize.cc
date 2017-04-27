@@ -13,6 +13,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include "sql/sql_initialize.h"
+
 #include <fcntl.h>
 #include <stdio.h>
 #include <string.h>
@@ -27,7 +29,7 @@
 #include "log.h"
 #include "m_ctype.h"
 #include "my_dir.h"
-#include "my_global.h"
+#include "my_io.h"
 #include "my_rnd.h"
 #include "my_sys.h"
 #include "mysql_com.h"
@@ -35,7 +37,6 @@
 #include "sql_bootstrap.h"
 #include "sql_class.h"
 #include "sql_error.h"
-#include "sql_initialize.h"
 
 static const char *initialization_cmds[] =
 {
@@ -49,7 +50,7 @@ static const char *initialization_cmds[] =
 
 char insert_user_buffer[sizeof(INSERT_USER_CMD) + GENERATED_PASSWORD_LENGTH * 2];
 
-my_bool opt_initialize_insecure= FALSE;
+bool opt_initialize_insecure= FALSE;
 
 static const char *initialization_data[] =
 {
@@ -60,14 +61,26 @@ static const char *initialization_data[] =
   NULL
 };
 
+static const char *session_service_initialization_data[] =
+{
+  "CREATE USER 'mysql.session_user'@localhost IDENTIFIED "
+    "WITH mysql_native_password AS '*THISISNOTAVALIDPASSWORDTHATCANBEUSEDHERE' "
+    "ACCOUNT LOCK;\n",
+  "REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'mysql.session_user'@localhost;\n",
+  "GRANT SELECT ON mysql.user TO 'mysql.session_user'@localhost;\n",
+  "GRANT SELECT ON performance_schema.* TO 'mysql.session_user'@localhost;\n",
+  "GRANT SUPER ON *.* TO 'mysql.session_user'@localhost;\n",
+  NULL
+};
 
-static const char** cmds[]= 
+static const char** cmds[]=
 {
   initialization_cmds,
   mysql_system_tables,
   initialization_data,
   mysql_system_data,
   fill_help_tables,
+  session_service_initialization_data,
   mysql_sys_schema,
   NULL
 };
@@ -80,6 +93,7 @@ static const char *cmd_descs[]=
   "Filling in the system tables, part 1",
   "Filling in the system tables, part 2",
   "Filling in the mysql.help table",
+  "Creating user for internal session service",
   "Creating the sys schema",
   NULL
 };

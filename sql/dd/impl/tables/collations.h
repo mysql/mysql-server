@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,21 +18,20 @@
 
 #include <string>
 
-#include "dd/impl/types/dictionary_object_table_impl.h"
-#include "my_global.h"
+#include "dd/impl/types/entity_object_table_impl.h"
+#include "dd/types/collation.h"
 
 class THD;
 
 namespace dd {
 class Global_name_key;
-class Dictionary_object;
 class Raw_record;
 
 namespace tables {
 
 ///////////////////////////////////////////////////////////////////////////
 
-class Collations : public Dictionary_object_table_impl
+class Collations : public Entity_object_table_impl
 {
 public:
   static const Collations &instance();
@@ -49,7 +48,8 @@ public:
     FIELD_NAME,
     FIELD_CHARACTER_SET_ID,
     FIELD_IS_COMPILED,
-    FIELD_SORT_LENGTH
+    FIELD_SORT_LENGTH,
+    FIELD_PAD_ATTRIBUTE
   };
 
 public:
@@ -60,7 +60,7 @@ public:
   virtual const String_type &name() const
   { return Collations::table_name(); }
 
-  virtual Dictionary_object *create_dictionary_object(const Raw_record &) const;
+  virtual Collation *create_entity_object(const Raw_record &) const;
 
 public:
   static bool update_object_key(Global_name_key *key,

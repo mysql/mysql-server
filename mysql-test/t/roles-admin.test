@@ -1,4 +1,3 @@
---source include/not_embedded.inc
 CREATE ROLE r1;
 
 CREATE ROLE `admin-db1`;
@@ -179,7 +178,29 @@ GRANT r1 TO u2@localhost WITH ADMIN OPTION;
 GRANT r2 TO u2@localhost WITH ADMIN OPTION;
 connection default;
 --echo ++ Connected as root
-DROP USER u1@localhost, u2@localhost;
-DROP ROLE r1,r2;
+--echo #############################################################
+--echo ++ Dynamic privilege ROLE_ADMIN grants the ability
+--echo ++ to grant any role to anyone (but not grant any privileges)
+--echo +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+CREATE USER u3@localhost IDENTIFIED BY 'foo';
+CREATE ROLE role_admin, arbitrary_role;
+GRANT ROLE_ADMIN ON *.* TO role_admin;
+GRANT role_admin TO u3@localhost;
+connect(con2, localhost, u3, foo, test);
+--echo ++ Connected as u3@localhost
+SET ROLE role_admin;
+GRANT arbitrary_role TO u1@localhost;
+--echo Granting a role not granted will also work.
+GRANT r1 TO u1@localhost;
+GRANT r1 TO u3@localhost;
+--echo But you can't grant any privileges
+--error ER_ACCESS_DENIED_ERROR
+GRANT SELECT ON *.* TO r1;
+--error ER_ACCESS_DENIED_ERROR
+GRANT SELECT ON *.* TO u3@localhost;
+connection default;
+--echo ++ Connected as root
+DROP USER u1@localhost, u2@localhost, u3@localhost;
+DROP ROLE r1,r2,role_admin,arbitrary_role;
 disconnect con1;
 

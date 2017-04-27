@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2001, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2001, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,8 +21,7 @@
   @file include/my_psi_config.h
   Defines various enable/disable and HAVE_ macros related to the
   performance schema instrumentation system, without pulling in
-  any system \#include files like "my_global.h" does (which breaks the
-  ABI checker).
+  any system \#include files (which breaks the ABI checker).
 
 */
 

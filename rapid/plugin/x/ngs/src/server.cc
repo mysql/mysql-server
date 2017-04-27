@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -18,17 +18,20 @@
  */
 
 #include "ngs/server.h"
+
+#include <time.h>
+
+#include "mysqlx_version.h"
 #include "ngs/interface/client_interface.h"
 #include "ngs/interface/connection_acceptor_interface.h"
 #include "ngs/interface/server_task_interface.h"
-#include "ngs/server_acceptors.h"
-#include "ngs/scheduler.h"
-#include "ngs/protocol_monitor.h"
 #include "ngs/protocol/protocol_config.h"
+#include "ngs/protocol_monitor.h"
+#include "ngs/scheduler.h"
+#include "ngs/server_acceptors.h"
 #include "ngs/server_client_timeout.h"
 #include "ngs_common/connection_vio.h"
 #include "xpl_log.h"
-#include "mysqlx_version.h"
 
 
 using namespace ngs;
@@ -328,7 +331,7 @@ void Server::on_client_closed(const Client_interface &client)
 
 
 void Server::add_authentication_mechanism(const std::string &name,
-                                          Authentication_handler::create initiator,
+                                          Authentication_interface::Create initiator,
                                           const bool allowed_only_with_secure_connection)
 {
   Authentication_key key(name, allowed_only_with_secure_connection);
@@ -336,15 +339,16 @@ void Server::add_authentication_mechanism(const std::string &name,
   m_auth_handlers[key] = initiator;
 }
 
-Authentication_handler_ptr Server::get_auth_handler(const std::string &name, Session_interface *session)
+Authentication_interface_ptr Server::get_auth_handler(const std::string &name, Session_interface *session)
 {
   Connection_type type = session->client().connection().connection_type();
+
   Authentication_key key(name, Connection_type_helper::is_secure_type(type));
 
   Auth_handler_map::const_iterator auth_handler = m_auth_handlers.find(key);
 
   if (auth_handler == m_auth_handlers.end())
-    return Authentication_handler_ptr();
+    return Authentication_interface_ptr();
 
   return auth_handler->second(session);
 }

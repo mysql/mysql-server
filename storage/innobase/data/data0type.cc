@@ -24,6 +24,9 @@ Created 1/16/1996 Heikki Tuuri
 *******************************************************/
 
 #include "data0type.h"
+
+#include <sys/types.h>
+
 #include "ha_prototypes.h"
 #include "my_inttypes.h"
 #ifndef UNIV_HOTBACKUP
@@ -219,6 +222,7 @@ dtype_print(
 
 	case DATA_VAR_POINT:
 		fputs("DATA_VAR_POINT", stderr);
+		break;
 
 	case DATA_GEOMETRY:
 		fputs("DATA_GEOMETRY", stderr);

@@ -5,9 +5,6 @@
 # without "--{view|sp|cursor}-protocol".
 #
 
-# We cannot run on embedded server because we use multiple sessions.
---source include/not_embedded.inc
-
 # The file with expected results fits only to a run without
 # sp-protocol/cursor-protocol/view-protocol.
 --source include/no_sp_protocol.inc

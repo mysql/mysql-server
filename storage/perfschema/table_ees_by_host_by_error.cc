@@ -18,9 +18,12 @@
   Table EVENTS_TRANSACTIONS_SUMMARY_BY_HOST_BY_ERROR (implementation).
 */
 
+#include "storage/perfschema/table_ees_by_host_by_error.h"
+
+#include <stddef.h>
+
 #include "field.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_thread.h"
 #include "pfs_account.h"
 #include "pfs_buffer_container.h"
@@ -29,7 +32,6 @@
 #include "pfs_global.h"
 #include "pfs_instr_class.h"
 #include "pfs_visitor.h"
-#include "table_ees_by_host_by_error.h"
 
 THR_LOCK table_ees_by_host_by_error::m_table_lock;
 
@@ -123,7 +125,7 @@ PFS_index_ees_by_host_by_error::match_error_index(uint error_index)
 }
 
 PFS_engine_table *
-table_ees_by_host_by_error::create(void)
+table_ees_by_host_by_error::create(PFS_engine_table_share *)
 {
   return new table_ees_by_host_by_error();
 }
@@ -210,7 +212,7 @@ table_ees_by_host_by_error::rnd_pos(const void *pos)
 }
 
 int
-table_ees_by_host_by_error::index_init(uint idx, bool)
+table_ees_by_host_by_error::index_init(uint idx MY_ATTRIBUTE((unused)), bool)
 {
   PFS_index_ees_by_host_by_error *result = NULL;
   DBUG_ASSERT(idx == 0);

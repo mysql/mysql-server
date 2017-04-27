@@ -1,21 +1,21 @@
 drop table if exists t1;
-create table t1 (a varchar(10), key(a));
+create table t1 (a varchar(10), key(a)) charset utf8mb4;
 insert into t1 values ("a"),("abc"),("abcd"),("hello"),("test");
 analyze table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 explain extended select * from t1 where a like 'abc%';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	a	a	13	NULL	2	100.00	Using where; Using index
+1	SIMPLE	t1	NULL	range	a	a	43	NULL	2	100.00	Using where; Using index
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` like 'abc%')
 explain extended select * from t1 where a like concat('abc','%');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	a	a	13	NULL	2	100.00	Using where; Using index
+1	SIMPLE	t1	NULL	range	a	a	43	NULL	2	100.00	Using where; Using index
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` like <cache>(concat('abc','%')))
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` like <cache>(convert(concat('abc','%') using utf8mb4)))
 select * from t1 where a like "abc%";
 a
 abc
@@ -272,7 +272,7 @@ DROP TABLE t1, t2;
 # Bug#20035071: Out of range error in subselect lead to assertion failed
 CREATE TABLE t1(a INTEGER) engine=innodb;
 SELECT 1 FROM t1 HAVING (SELECT 1 FROM t1) LIKE EXP(NOW());
-ERROR 22003: DOUBLE value is out of range in 'exp(now())'
+1
 DROP TABLE t1;
 #
 # Bug #25140629: WRONG RESULT WHEN USING LIKE FUNCTION WITH UCA

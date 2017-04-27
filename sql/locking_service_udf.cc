@@ -17,8 +17,8 @@
 #include <sys/types.h>
 
 #include "locking_service.h"       // acquire_locking_service_locks
-#include "my_global.h"
 #include "my_inttypes.h"
+#include "my_macros.h"
 #include "mysql/service_locking.h"
 #include "mysql_com.h"             // UDF_INIT
 
@@ -33,7 +33,7 @@
 */
 
 // Common initialization code for get_read_lock and get_write_lock
-static inline my_bool init_acquire(UDF_INIT *initid, UDF_ARGS *args, char *message)
+static inline bool init_acquire(UDF_INIT *initid, UDF_ARGS *args, char *message)
 {
   initid->maybe_null= FALSE;
   initid->decimals= 0;
@@ -73,15 +73,15 @@ static inline my_bool init_acquire(UDF_INIT *initid, UDF_ARGS *args, char *messa
 
 C_MODE_START
 
-my_bool service_get_read_locks_init(UDF_INIT *initid, UDF_ARGS *args,
-                                   char *message)
+bool service_get_read_locks_init(UDF_INIT *initid, UDF_ARGS *args,
+                                 char *message)
 {
   return init_acquire(initid, args, message);
 }
 
 
-long long service_get_read_locks(UDF_INIT *initid, UDF_ARGS *args,
-                                 char *is_null, char *error)
+long long service_get_read_locks(UDF_INIT*, UDF_ARGS *args,
+                                 char*, char*)
 {
   const char *lock_namespace= args->args[0];
   long long timeout= *((long long*)args->args[args->arg_count - 1]);
@@ -95,15 +95,15 @@ long long service_get_read_locks(UDF_INIT *initid, UDF_ARGS *args,
 }
 
 
-my_bool service_get_write_locks_init(UDF_INIT *initid, UDF_ARGS *args,
-                                    char *message)
+bool service_get_write_locks_init(UDF_INIT *initid, UDF_ARGS *args,
+                                  char *message)
 {
   return init_acquire(initid, args, message);
 }
 
 
-long long service_get_write_locks(UDF_INIT *initid, UDF_ARGS *args,
-                                  char *is_null, char *error)
+long long service_get_write_locks(UDF_INIT*, UDF_ARGS *args,
+                                  char*, char*)
 {
   const char *lock_namespace= args->args[0];
   long long timeout= *((long long*)args->args[args->arg_count - 1]);
@@ -117,8 +117,8 @@ long long service_get_write_locks(UDF_INIT *initid, UDF_ARGS *args,
 }
 
 
-my_bool service_release_locks_init(UDF_INIT *initid, UDF_ARGS *args,
-                                   char *message)
+bool service_release_locks_init(UDF_INIT *initid, UDF_ARGS *args,
+                                char *message)
 {
   initid->maybe_null= FALSE;
   initid->decimals= 0;
@@ -143,8 +143,8 @@ my_bool service_release_locks_init(UDF_INIT *initid, UDF_ARGS *args,
 }
 
 
-long long service_release_locks(UDF_INIT *initid, UDF_ARGS *args,
-                                char *is_null, char *error)
+long long service_release_locks(UDF_INIT*, UDF_ARGS *args,
+                                char*, char*)
 {
   const char *lock_namespace= args->args[0];
   // For the UDF 1 == success, 0 == failure.

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -29,10 +29,13 @@
 #ifndef CONTROL_EVENT_INCLUDED
 #define CONTROL_EVENT_INCLUDED
 
-#include "binlog_event.h"
+#include <sys/types.h>
+#include <time.h>
 #include <list>
 #include <map>
 #include <vector>
+
+#include "binlog_event.h"
 
 namespace binary_log
 {
@@ -145,8 +148,8 @@ public:
                const Format_description_event *description_event);
 
 #ifndef HAVE_MYSYS
-  void print_event_info(std::ostream& info);
-  void print_long_info(std::ostream& info);
+  void print_event_info(std::ostream&);
+  void print_long_info(std::ostream&);
 #endif
 
   ~Rotate_event()
@@ -280,8 +283,8 @@ public:
 #ifndef HAVE_MYSYS
   //TODO(WL#7684): Implement the method print_event_info and print_long_info for
   //            all the events supported  in  MySQL Binlog
-  void print_event_info(std::ostream& info) { }
-  void print_long_info(std::ostream& info) { }
+  void print_event_info(std::ostream&) { }
+  void print_long_info(std::ostream&) { }
 #endif
 };
 
@@ -469,7 +472,7 @@ public:
   {}
 
 #ifndef HAVE_MYSYS
-  void print_event_info(std::ostream& info) {};
+  void print_event_info(std::ostream&) {};
   void print_long_info(std::ostream& info);
 #endif
 };
@@ -743,8 +746,8 @@ public:
     todo: we need to find way how to exploit server's code of
     serialize_xid()
   */
-  void print_event_info(std::ostream& info) {};
-  void print_long_info(std::ostream& info)  {};
+  void print_event_info(std::ostream&) {};
+  void print_long_info(std::ostream&)  {};
 #endif
 };
 
@@ -797,8 +800,8 @@ public:
   */
   Ignorable_event(const char *buf, const Format_description_event *descr_event);
 #ifndef HAVE_MYSYS
-  void print_event_info(std::ostream& info) { }
-  void print_long_info(std::ostream& info) { }
+  void print_event_info(std::ostream&) { }
+  void print_long_info(std::ostream&) { }
 #endif
 };
 
@@ -982,6 +985,56 @@ struct Uuid
         (file, offset)
 
   @section Gtid_event_binary_format Binary Format
+
+  The Body has five components:
+
+  <table>
+  <caption>Body for Gtid_event</caption>
+
+  <tr>
+    <th>Name</th>
+    <th>Format</th>
+    <th>Description</th>
+  </tr>
+
+  </tr>
+  <tr>
+    <td>COMMIT_FLAG</td>
+    <td>1 byte</td>
+    <td>Currently unused.</td>
+  </tr>
+  <tr>
+    <td>ENCODED_SID_LENGTH</td>
+    <td>4 bytes static const integer</td>
+    <td>Length of SID in event encoding</td>
+  </tr>
+  <tr>
+    <td>ENCODED_GNO_LENGTH</td>
+    <td>4 bytes static const integer</td>
+    <td>Length of GNO in event encoding.</td>
+  </tr>
+  <tr>
+    <td>last_committed</td>
+    <td>8 byte integer</td>
+    <td>Store the transaction's commit parent sequence_number</td>
+  </tr>
+  <tr>
+    <td>sequence_number</td>
+    <td>8 byte integer</td>
+    <td>The transaction's logical timestamp assigned at prepare phase</td>
+  </tr>
+  <tr>
+    <td>immediate_commit_timestamp</td>
+    <td>7 byte integer</td>
+    <td>Timestamp of commit on the immediate master/td>
+  </tr>
+  <tr>
+    <td>original_commit_timestamp</td>
+    <td>7 byte integer</td>
+    <td>Timestamp of commit on the originating master</td>
+  </tr>
+  </table>
+
 */
 class Gtid_event: public Binary_log_event
 {
@@ -994,14 +1047,20 @@ public:
   */
   long long int last_committed;
   long long int sequence_number;
+  /** Timestamp when the transaction was committed on the originating master. */
+  unsigned long long int original_commit_timestamp;
+  /** Timestamp when the transaction was committed on the nearest master. */
+  unsigned long long int immediate_commit_timestamp;
+  bool has_commit_timestamps;
   /**
     Ctor of Gtid_event
 
     The layout of the buffer is as follows
-    +-------------+-------------+------------+---------+----------------+
-    | commit flag | ENCODED SID | ENCODED GNO| TS_TYPE | logical ts(:s) |
-    +-------------+-------------+------------+---------+----------------+
+    +-----------+-----------+-- --------+-------+--------------+---------+
+    |commit flag|ENCODED SID|ENCODED GNO|TS_TYPE|logical ts(:s)|commit ts|
+    +-----------+-----------+-----------+-------+------------------------+
     TS_TYPE is from {G_COMMIT_TS2} singleton set of values
+    Details on commit timestamps in Gtid_event(const char*...)
 
     @param buffer             Contains the serialized event.
     @param event_len          Length of the serialized event.
@@ -1021,16 +1080,20 @@ public:
     Constructor.
   */
   explicit Gtid_event(long long int last_committed_arg,
-                      long long int sequence_number_arg)
+                      long long int sequence_number_arg,
+                      unsigned long long int original_commit_timestamp_arg,
+                      unsigned long long int immediate_commit_timestamp_arg)
     : Binary_log_event(GTID_LOG_EVENT),
       last_committed(last_committed_arg),
-      sequence_number(sequence_number_arg)
+      sequence_number(sequence_number_arg),
+      original_commit_timestamp(original_commit_timestamp_arg),
+      immediate_commit_timestamp(immediate_commit_timestamp_arg)
   {}
 #ifndef HAVE_MYSYS
   //TODO(WL#7684): Implement the method print_event_info and print_long_info
   //               for all the events supported  in  MySQL Binlog
-  void print_event_info(std::ostream& info) { }
-  void print_long_info(std::ostream& info) { }
+  void print_event_info(std::ostream&) { }
+  void print_long_info(std::ostream&) { }
 #endif
 protected:
   static const int ENCODED_FLAG_LENGTH= 1;
@@ -1042,6 +1105,23 @@ protected:
   static const int LOGICAL_TIMESTAMP_LENGTH= 16;
   // Type code used before the logical timestamps.
   static const int LOGICAL_TIMESTAMP_TYPECODE= 2;
+
+  static const int IMMEDIATE_COMMIT_TIMESTAMP_LENGTH= 7;
+  static const int ORIGINAL_COMMIT_TIMESTAMP_LENGTH= 7;
+  // Length of two timestamps (from original/immediate masters)
+  static const int FULL_COMMIT_TIMESTAMP_LENGTH=
+    IMMEDIATE_COMMIT_TIMESTAMP_LENGTH + ORIGINAL_COMMIT_TIMESTAMP_LENGTH;
+  // We use 7 bytes out of which 1 bit is used as a flag.
+  static const int ENCODED_COMMIT_TIMESTAMP_LENGTH= 55;
+
+  /* We have only original commit timestamp if both timestamps are equal. */
+  int get_commit_timestamp_length() const
+  {
+    if (original_commit_timestamp != immediate_commit_timestamp)
+      return FULL_COMMIT_TIMESTAMP_LENGTH;
+    return ORIGINAL_COMMIT_TIMESTAMP_LENGTH;
+  }
+
   gtid_info gtid_info_struct;
   Uuid Uuid_parent_struct;
 public:
@@ -1053,8 +1133,16 @@ public:
     LOGICAL_TIMESTAMP_TYPECODE_LENGTH + /* length of typecode */
     LOGICAL_TIMESTAMP_LENGTH;           /* length of two logical timestamps */
 
+  /*
+    Length of two timestamps used for monitoring.
+    We keep the timestamps in the body section because they can be of
+    variable length.
+    On the originating master, the event has only one timestamp as the two
+    timestamps are equal. On every other server we have two timestamps.
+  */
+  static const int MAX_DATA_LENGTH= FULL_COMMIT_TIMESTAMP_LENGTH;
   static const int MAX_EVENT_LENGTH=
-    LOG_EVENT_HEADER_LEN + POST_HEADER_LENGTH;
+    LOG_EVENT_HEADER_LEN + POST_HEADER_LENGTH + MAX_DATA_LENGTH;
 };
 
 
@@ -1126,8 +1214,8 @@ public:
 #ifndef HAVE_MYSYS
   //TODO(WL#7684): Implement the method print_event_info and print_long_info
   //               for all the events supported  in  MySQL Binlog
-  void print_event_info(std::ostream& info) { }
-  void print_long_info(std::ostream& info) { }
+  void print_event_info(std::ostream&) { }
+  void print_long_info(std::ostream&) { }
 #endif
 protected:
   size_t buf_size;
@@ -1226,8 +1314,8 @@ public:
   static void clear_set(std::list<const char*> *set);
 
 #ifndef HAVE_MYSYS
-  void print_event_info(std::ostream& info) { }
-  void print_long_info(std::ostream& info) { }
+  void print_event_info(std::ostream&) { }
+  void print_long_info(std::ostream&) { }
 #endif
 
 protected:
@@ -1328,8 +1416,8 @@ public:
                              std::map<std::string, std::string> *map);
 
 #ifndef HAVE_MYSYS
-  void print_event_info(std::ostream& info) { }
-  void print_long_info(std::ostream& info) { }
+  void print_event_info(std::ostream&) { }
+  void print_long_info(std::ostream&) { }
 #endif
 
 protected:

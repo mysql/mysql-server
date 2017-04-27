@@ -39,7 +39,7 @@ CREATE TABLE t1 (
   PRIMARY KEY (pk), 
   KEY i1 (i1),
   KEY vc (vc)
-) ENGINE=InnoDB;
+) ENGINE=InnoDB, CHARSET utf8mb4;
 
 INSERT INTO t1 VALUES (1, -1281753088,'p','r');
 INSERT INTO t1 VALUES (4, NULL,'a','i');

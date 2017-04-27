@@ -1,0 +1,126 @@
+################################################################################
+# ==== Purpose ====
+# Verify that CHANGE REPLICATION FILTER with no 'FOR CHANNEL' clause can set
+# both global replication filters and per channel relication filters, and
+# the counter of per channel relication filter is increasing properly and
+# upon unsetting through CRF it is reset to 0.
+#
+# ==== Implementation ====
+# 1. Setup filters on the Slave.
+# 2. Execute transactions on the Master.
+# 3. Verify that filter couter in the beginning is 0.
+# 4. Verify the filter couter on slave post some transactions from master.
+# 5. Unset the filter rules through CRF.
+# 6. Verify that filter couter is 0.
+#
+# ==== References ====
+# WL#7361 MSR: per-channel replication filters
+################################################################################
+
+# Test in this file only makes sense in standard replication,
+# so it is skipped in group replication.
+--source include/not_group_replication_plugin.inc
+# Test in this file is binlog format agnostic, thus no need
+# to rerun it for every format.
+--source include/have_binlog_format_row.inc
+--let $rpl_skip_start_slave= 1
+--source include/master-slave.inc
+
+--echo #
+--echo # Setup filters on the Slave.
+--echo #
+--source include/rpl_connection_slave.inc
+CHANGE REPLICATION FILTER REPLICATE_REWRITE_DB=        ((db1, db2));
+CHANGE REPLICATION FILTER REPLICATE_IGNORE_TABLE=      (test.itable);
+CHANGE REPLICATION FILTER REPLICATE_DO_TABLE=          (test.t1, db2.t1);
+CHANGE REPLICATION FILTER REPLICATE_WILD_DO_TABLE=     ('test.t%');
+CHANGE REPLICATION FILTER REPLICATE_WILD_IGNORE_TABLE= ('test.i%');
+CHANGE REPLICATION FILTER REPLICATE_IGNORE_DB=         (nodb);
+CHANGE REPLICATION FILTER REPLICATE_DO_DB=             (test, db1, db2);
+
+# WINT system can re-order the rules of REPLICATE_DO_TABLE and REPLICATE_IGNORE_TABLE.
+# Thus, using replace_result for that case.
+--let $rpl_do_tab_rule = `SELECT FILTER_RULE FROM performance_schema.replication_applier_global_filters WHERE FILTER_NAME="REPLICATE_DO_TABLE"`
+
+--echo
+--replace_result $rpl_do_tab_rule test.t1,db2.t1
+SELECT FILTER_NAME, FILTER_RULE, CONFIGURED_BY FROM performance_schema.replication_applier_global_filters ORDER BY FILTER_NAME;
+--replace_result $rpl_do_tab_rule test.t1,db2.t1
+SELECT FILTER_NAME, FILTER_RULE, CONFIGURED_BY, COUNTER FROM performance_schema.replication_applier_filters ORDER BY FILTER_NAME;
+--source include/start_slave.inc
+
+--echo #
+--echo # Execute transactions on the Master.
+--echo #
+--source include/rpl_connection_master.inc
+CREATE TABLE test.t1 (a INT);      # Counter: REPLICATE_DO_DB=1, REPLICATE_DO_TABLE=1.
+CREATE TABLE test.t2 (a INT);      # Counter: REPLICATE_DO_DB=2, REPLICATE_WILD_DO_TABLE=1.
+CREATE TABLE test.itable (a INT);  # Counter: REPLICATE_DO_DB=3, REPLICATE_IGNORE_TABLE=1.
+CREATE TABLE test.itable2 (a INT); # Counter: REPLICATE_DO_DB=4, REPLICATE_WILD_IGNORE_TABLE=1.
+CREATE DATABASE db1;          # Counter: REPLICATE_DO_DB=5.
+CREATE DATABASE db2;          # Counter: REPLICATE_DO_DB=6.
+CREATE DATABASE nodb;         # Counter: Should not increase based on existing implementation.
+USE nodb; CREATE TABLE t1 (a INT); # Counter: Should not increase based on existing implementation.
+USE db1; CREATE TABLE t1 (a INT);  # Counter: REPLICATE_DO_DB=7, REPLICATE_REWRITE_DB=1, REPLICATE_DO_TABLE=2.
+USE test;
+BEGIN;
+USE test; INSERT INTO test.t1 VALUES (1);   # Counter: REPLICATE_DO_DB=8, REPLICATE_DO_TABLE=3.
+USE test; UPDATE test.t1 SET a=2 WHERE a=1; # Counter: REPLICATE_DO_DB=9, REPLICATE_DO_TABLE=4.
+USE test; DELETE FROM test.t1;              # Counter: REPLICATE_DO_DB=10, REPLICATE_DO_TABLE=5.
+USE db1;  INSERT INTO db1.t1 VALUES (1);    # Counter: REPLICATE_DO_DB=11, REPLICATE_REWRITE_DB=2, REPLICATE_DO_TABLE=6.
+USE db1;  UPDATE db1.t1 SET a=2 WHERE a=1;  # Counter: REPLICATE_DO_DB=12, REPLICATE_REWRITE_DB=3, REPLICATE_DO_TABLE=7.
+USE db1;  DELETE FROM db1.t1;               # Counter: REPLICATE_DO_DB=13, REPLICATE_REWRITE_DB=4, REPLICATE_DO_TABLE=8
+USE nodb; INSERT INTO nodb.t1 VALUES (1);   # Counter: Should not increase based on existing implementation.
+USE test; INSERT INTO test.t2 VALUES (1);   # Counter: REPLICATE_DO_DB=14, REPLICATE_WILD_DO_TABLE=2.
+USE test; INSERT INTO test.itable VALUES (1);             # Counter: REPLICATE_DO_DB=15, REPLICATE_IGNORE_TABLE=2.
+USE test; INSERT INTO test.itable2 SELECT * FROM nodb.t1; # Counter: REPLICATE_DO_DB=16, REPLICATE_WILD_IGNORE_TABLE=2.
+COMMIT;
+
+XA START 'xa1';                             # COUNTER: No change
+ INSERT INTO t1 VALUES (2);                 # COUNTER: REPLICATE_DO_DB=17, REPLICATE_DO_TABLE=9
+ INSERT INTO t1 VALUES (3);                 # COUNTER: REPLICATE_DO_DB=18, REPLICATE_DO_TABLE=10
+XA END 'xa1';                               # COUNTER: No change
+XA PREPARE 'xa1';                           # COUNTER: No change
+XA COMMIT 'xa1';                            # COUNTER: No change
+
+XA START 'xa2';                             # COUNTER: No change
+ INSERT INTO t1 VALUES (4);                 # COUNTER: REPLICATE_DO_DB=19, REPLICATE_DO_TABLE=11
+XA END 'xa2';                               # COUNTER: No change
+XA PREPARE 'xa2';                           # COUNTER: No change
+XA ROLLBACK 'xa2';                          # COUNTER: No change
+
+DROP TABLE IF EXISTS test.t1, test.t2, test.itable, test.itable2; # Counter: REPLICATE_DO_DB=20, REPLICATE_DO_TABLE=12.
+DROP DATABASE db1;  # Counter: REPLICATE_DO_DB=21.
+DROP DATABASE db2;  # Counter: REPLICATE_DO_DB=22.
+DROP DATABASE nodb; # Counter: Should not increase based on existing implementation.
+
+--source include/sync_slave_sql_with_master.inc
+--echo #
+--echo # Verify the filter couter on the Slave.
+--echo # REPLICATE_DO_DB=22,       REPLICATE_IGNORE_DB=0,     REPLICATE_DO_TABLE=12,
+--echo # REPLICATE_IGNORE_TABLE=2, REPLICATE_WILD_DO_TABLE=2,
+--echo # REPLICATE_WILD_IGNORE_TABLE=2, REPLICATE_REWRITE_DB=4.
+--echo #
+--replace_result $rpl_do_tab_rule test.t1,db2.t1
+SELECT FILTER_NAME, FILTER_RULE, CONFIGURED_BY FROM performance_schema.replication_applier_global_filters ORDER BY FILTER_NAME;
+--replace_result $rpl_do_tab_rule test.t1,db2.t1
+SELECT FILTER_NAME, FILTER_RULE, CONFIGURED_BY, COUNTER FROM performance_schema.replication_applier_filters ORDER BY FILTER_NAME;
+--let $rpl_do_tab_rule=
+
+--echo #
+--echo # Clean up and Verify filter couter after unsetting the rules. Expect 0 count.
+--echo #
+--source include/stop_slave.inc
+# Unset filter rules.
+CHANGE REPLICATION FILTER REPLICATE_REWRITE_DB=        ();
+CHANGE REPLICATION FILTER REPLICATE_IGNORE_TABLE=      ();
+CHANGE REPLICATION FILTER REPLICATE_DO_TABLE=          ();
+CHANGE REPLICATION FILTER REPLICATE_WILD_DO_TABLE=     ();
+CHANGE REPLICATION FILTER REPLICATE_WILD_IGNORE_TABLE= ();
+CHANGE REPLICATION FILTER REPLICATE_IGNORE_DB=         ();
+CHANGE REPLICATION FILTER REPLICATE_DO_DB=             ();
+--echo
+SELECT FILTER_NAME, FILTER_RULE, CONFIGURED_BY FROM performance_schema.replication_applier_global_filters ORDER BY FILTER_NAME;
+SELECT FILTER_NAME, FILTER_RULE, CONFIGURED_BY, COUNTER FROM performance_schema.replication_applier_filters ORDER BY FILTER_NAME;
+--source include/start_slave.inc
+--source include/rpl_end.inc

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,45 +17,45 @@
 #include "observer_server_actions.h"
 #include "observer_trans.h"
 
-int group_replication_reset_master_logs(Binlog_transmit_param *param)
+int group_replication_reset_master_logs(Binlog_transmit_param*)
 {
   register_server_reset_master();
   return 0;
 }
 
-int group_replication_transmit_start(Binlog_transmit_param *param,
-                                     const char *log_file, my_off_t log_pos)
+int group_replication_transmit_start(Binlog_transmit_param*,
+                                     const char*, my_off_t)
 {
   return 0;
 }
 
-int group_replication_transmit_stop(Binlog_transmit_param *param)
+int group_replication_transmit_stop(Binlog_transmit_param*)
 {
   return 0;
 }
 
-int group_replication_reserve_header(Binlog_transmit_param *param,
-                                     unsigned char *header,
-                                     unsigned long size,
-                                     unsigned long *len)
+int group_replication_reserve_header(Binlog_transmit_param*,
+                                     unsigned char*,
+                                     unsigned long,
+                                     unsigned long*)
 {
   return 0;
 }
 
-int group_replication_before_send_event(Binlog_transmit_param *param,
-                                        unsigned char *packet,
-                                        unsigned long len,
-                                        const char *log_file,
-                                        my_off_t log_pos)
+int group_replication_before_send_event(Binlog_transmit_param*,
+                                        unsigned char*,
+                                        unsigned long,
+                                        const char*,
+                                        my_off_t)
 {
   return 0;
 }
 
-int group_replication_after_send_event(Binlog_transmit_param *param,
-                                       const char *event_buf,
-                                       unsigned long len,
-                                       const char *skipped_log_file,
-                                       my_off_t skipped_log_pos)
+int group_replication_after_send_event(Binlog_transmit_param*,
+                                       const char*,
+                                       unsigned long,
+                                       const char*,
+                                       my_off_t)
 {
   return 0;
 }

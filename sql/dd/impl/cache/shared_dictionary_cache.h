@@ -29,7 +29,6 @@
 #include "dd/types/tablespace.h"            // Tablespace
 #include "handler.h"                        // enum_tx_isolation
 #include "my_dbug.h"
-#include "my_global.h"                      // DBUG_ASSERT() etc.
 #include "shared_multi_map.h"               // Shared_multi_map
 
 class THD;

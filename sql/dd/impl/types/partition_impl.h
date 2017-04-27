@@ -30,7 +30,6 @@
 #include "dd/types/partition.h"                // dd::Partition
 #include "dd/types/partition_index.h"          // dd::Partition_index
 #include "dd/types/partition_value.h"          // dd::Partition_value
-#include "my_global.h"
 
 namespace dd {
 
@@ -85,7 +84,7 @@ public:
 
   void debug_print(String_type &outb) const;
 
-  void set_ordinal_position(uint ordinal_position)
+  void set_ordinal_position(uint)
   { }
 
   virtual uint ordinal_position() const
@@ -221,10 +220,10 @@ public:
   { m_parent= parent; }
 
   // Fix "inherits ... via dominance" warnings
-  virtual Weak_object_impl *impl()
-  { return Weak_object_impl::impl(); }
-  virtual const Weak_object_impl *impl() const
-  { return Weak_object_impl::impl(); }
+  virtual Entity_object_impl *impl()
+  { return Entity_object_impl::impl(); }
+  virtual const Entity_object_impl *impl() const
+  { return Entity_object_impl::impl(); }
   virtual Object_id id() const
   { return Entity_object_impl::id(); }
   virtual bool is_persistent() const

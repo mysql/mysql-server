@@ -22,7 +22,6 @@
 #include "handler.h"
 #include "lock.h"                             // Tablespace_hash_set
 #include "my_bitmap.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "partition_element.h"
 #include "sql_alloc.h"
@@ -286,10 +285,6 @@ public:
 
   Item *item_free_list;
 
-  struct st_ddl_log_memory_entry *first_log_entry;
-  struct st_ddl_log_memory_entry *exec_log_entry;
-  struct st_ddl_log_memory_entry *frm_log_entry;
-
   /*
     Bitmaps of partitions used by the current query.
     * read_partitions  - partitions to be used for reading.
@@ -421,7 +416,6 @@ public:
     part_field_buffers(NULL), subpart_field_buffers(NULL),
     restore_part_field_ptrs(NULL), restore_subpart_field_ptrs(NULL),
     part_expr(NULL), subpart_expr(NULL), item_free_list(NULL),
-    first_log_entry(NULL), exec_log_entry(NULL), frm_log_entry(NULL),
     bitmaps_are_initialized(FALSE),
     list_array(NULL), err_value(0),
     part_info_string(NULL),
@@ -451,8 +445,8 @@ public:
   }
   ~partition_info() {}
 
-  partition_info *get_clone(bool reset = false);
-  partition_info *get_full_clone();
+  partition_info *get_clone(THD *thd, bool reset = false);
+  partition_info *get_full_clone(THD *thd);
   bool set_named_partition_bitmap(const char *part_name, size_t length);
   bool set_partition_bitmaps(TABLE_LIST *table_list);
   bool set_read_partitions(List<String> *partition_names);
@@ -590,7 +584,38 @@ bool fill_partition_tablespace_names(
        partition_info *part_info,
        Tablespace_hash_set *tablespace_set);
 
-bool check_partition_tablespace_names(partition_info *part_info);
+
+/**
+  Check if all tablespace names specified for partitions have a valid length.
+
+  @param part_info    Partition info that could be using tablespaces.
+
+  @return true        One of the tablespace names specified has invalid length
+                      and an error is reported.
+  @return false       All the tablespace names specified for partitions have
+                      a valid length.
+*/
+
+bool validate_partition_tablespace_name_lengths(partition_info *part_info);
+
+
+/**
+  Check if all tablespace names specified for partitions are valid.
+
+  Do the validation by invoking the SE specific validation function.
+
+  @param part_info        Partition info that could be using tablespaces.
+  @param default_engine   Table level engine.
+
+  @return true            One of the tablespace names specified is invalid
+                          and an error is reported.
+  @return false           All the tablespace names specified for
+                          partitions are valid.
+*/
+
+bool validate_partition_tablespace_names(partition_info *part_info,
+                                         const handlerton *default_engine);
+
 
 /**
   Predicate which returns true if any partition or subpartition uses

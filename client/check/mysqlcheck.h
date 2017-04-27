@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,6 +18,7 @@
 #ifndef MYSQLCHECK_INCLUDED
 #define MYSQLCHECK_INCLUDED
 
+#include <sys/types.h>
 #include <string>
 #include <vector>
 
@@ -27,15 +28,15 @@ namespace Check{
 
 enum operations { DO_CHECK=1, DO_REPAIR, DO_ANALYZE, DO_OPTIMIZE, DO_UPGRADE };
 
-extern void mysql_check(MYSQL* connection, int what_to_do, my_bool opt_alldbs,
-                my_bool opt_check_only_changed, my_bool opt_extended,
-                my_bool opt_databases, my_bool opt_fast,
-                my_bool opt_medium_check, my_bool opt_quick,
-                my_bool opt_all_in_1, my_bool opt_silent,
-                my_bool opt_auto_repair, my_bool ignore_errors,
-                my_bool opt_frm, my_bool opt_fix_table_names,
-                my_bool opt_fix_db_names, my_bool opt_upgrade,
-                my_bool opt_write_binlog, uint verbose,
+extern void mysql_check(MYSQL* connection, int what_to_do, bool opt_alldbs,
+                bool opt_check_only_changed, bool opt_extended,
+                bool opt_databases, bool opt_fast,
+                bool opt_medium_check, bool opt_quick,
+                bool opt_all_in_1, bool opt_silent,
+                bool opt_auto_repair, bool ignore_errors,
+                bool opt_frm, bool opt_fix_table_names,
+                bool opt_fix_db_names, bool opt_upgrade,
+                bool opt_write_binlog, uint verbose,
                 std::string opt_skip_database,
                 std::vector<std::string> arguments,
                 void (*dberror)(MYSQL *mysql, std::string when));

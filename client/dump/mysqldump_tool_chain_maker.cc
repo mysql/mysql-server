@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -15,27 +15,27 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include <boost/algorithm/string.hpp>
+#include <stddef.h>
 #include <functional>
 
-#include "mysqldump_tool_chain_maker.h"
-#include "i_output_writer.h"
-#include "file_writer.h"
-#include "standard_writer.h"
 #include "compression_lz4_writer.h"
 #include "compression_zlib_writer.h"
-#include "sql_formatter.h"
+#include "file_writer.h"
+#include "i_output_writer.h"
+#include "mysqldump_tool_chain_maker.h"
 #include "mysqldump_tool_chain_maker_options.h"
-#include <boost/algorithm/string.hpp>
+#include "sql_formatter.h"
+#include "standard_writer.h"
 
 using namespace Mysql::Tools::Dump;
 using std::placeholders::_1;
 
-void Mysqldump_tool_chain_maker::delete_chain(
-  uint64 chain_id, I_object_reader* chain)
+void Mysqldump_tool_chain_maker::delete_chain(uint64, I_object_reader*)
 {}
 
 I_object_reader* Mysqldump_tool_chain_maker::create_chain(
-  Chain_data* chain_data, I_dump_task* dump_task)
+  Chain_data*, I_dump_task* dump_task)
 {
   Table_rows_dump_task* rows_task= dynamic_cast<Table_rows_dump_task*>(
     dump_task);

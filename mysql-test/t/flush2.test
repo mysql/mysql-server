@@ -7,7 +7,6 @@ call mtr.add_suppression("\\[Warning\\] You need to use --log-bin to make --binl
 # Bug#17733 Flushing logs causes daily server crash
 #
 
---source include/not_embedded.inc
 select @@GLOBAL.relay_log_info_repository into @save_relay_log_info_repository;
 set @@GLOBAL.relay_log_info_repository = 'FILE';
 # The hostname needs to be stripped off its extensions as even

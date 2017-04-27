@@ -19,7 +19,7 @@
 #include <functional>
 
 #include "my_dbug.h"
-#include "my_global.h"
+#include "my_inttypes.h"
 
 /**
   Holds value/unsigned_flag for the result of val_int(),

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,12 +16,15 @@
 
 // First include (the generated) my_config.h, to get correct platform defines.
 #include "my_config.h"
-#include <gtest/gtest.h>
 
-#include "item.h"
-#include "opt_costmodel.h"
+#include <gtest/gtest.h>
+#include <stddef.h>
+#include <sys/types.h>
 
 #include "fake_table.h"
+#include "item.h"
+#include "lex_string.h"
+#include "opt_costmodel.h"
 #include "test_utils.h"
 
 namespace costconstants_unittest {
@@ -202,7 +205,7 @@ private:
     4 and "Baktus" installed in slot 7.
   */
  
-  uint find_handler_slot_from_name(THD *thd,
+  uint find_handler_slot_from_name(THD*,
                                    const LEX_CSTRING &name) const
   {
     if (my_strcasecmp(&my_charset_utf8_general_ci, "Karius", name.str) == 0)

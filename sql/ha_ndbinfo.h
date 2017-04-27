@@ -17,7 +17,6 @@
 #define HA_NDBINFO_H
 
 #include "handler.h"
-#include "my_global.h"
 
 class ha_ndbinfo: public handler
 {

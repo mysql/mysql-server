@@ -32,6 +32,7 @@
 #include "my_compare.h"
 #include "my_dbug.h"
 #include "my_decimal.h"        // DECIMAL_MAX_SCALE
+#include "my_macros.h"
 #include "my_pointer_arithmetic.h"
 #include "my_sys.h"
 #include "mysql_com.h"

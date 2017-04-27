@@ -271,3 +271,48 @@ DROP TABLE T2;
 RENAME TABLE T1 to T2;
 SELECT * FROM T2;
 DROP TABLE T2;
+
+--echo #
+--echo # Bug#24666169: I_S.TABLE_CONSTRAINTS.CONSTRAINT_NAME IS NOT UPDATED
+--echo #               AFTER RENAME TABLE
+--echo #
+
+# Additional coverage for FK name generation with LCTN=2
+
+CREATE TABLE t1(a INT PRIMARY KEY);
+
+CREATE TABLE T2(a INT, FOREIGN KEY(a) REFERENCES t1(a));
+SELECT constraint_name FROM information_schema.referential_constraints
+  WHERE table_name = 'T2' ORDER BY constraint_name;
+SELECT constraint_name FROM information_schema.table_constraints
+  WHERE table_name = 'T2' ORDER BY constraint_name;
+
+RENAME TABLE T2 TO T3;
+SELECT constraint_name FROM information_schema.referential_constraints
+  WHERE table_name = 'T3' ORDER BY constraint_name;
+SELECT constraint_name FROM information_schema.table_constraints
+  WHERE table_name = 'T3' ORDER BY constraint_name;
+
+RENAME TABLE t3 TO T4;
+SELECT constraint_name FROM information_schema.referential_constraints
+  WHERE table_name = 'T4' ORDER BY constraint_name;
+SELECT constraint_name FROM information_schema.table_constraints
+  WHERE table_name = 'T4' ORDER BY constraint_name;
+
+DROP TABLE T4;
+
+CREATE TABLE T2(a INT, CONSTRAINT T2_ibfk_1 FOREIGN KEY(a) REFERENCES t1(a));
+SELECT constraint_name FROM information_schema.referential_constraints
+  WHERE table_name = 'T2' ORDER BY constraint_name;
+SELECT constraint_name FROM information_schema.table_constraints
+  WHERE table_name = 'T2' ORDER BY constraint_name;
+
+RENAME TABLE T2 TO T3;
+SELECT constraint_name FROM information_schema.referential_constraints
+  WHERE table_name = 'T3' ORDER BY constraint_name;
+SELECT constraint_name FROM information_schema.table_constraints
+  WHERE table_name = 'T3' ORDER BY constraint_name;
+
+ALTER TABLE T3 DROP FOREIGN KEY t2_ibfk_1;
+
+DROP TABLE T3, t1;

@@ -18,9 +18,10 @@
   Table USER_VARIABLES_BY_THREAD (implementation).
 */
 
+#include "storage/perfschema/table_uvar_by_thread.h"
+
 #include "item_func.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_thread.h"
 #include "mysqld_thd_manager.h"
 #include "pfs_buffer_container.h"
@@ -31,7 +32,6 @@
 #include "pfs_visitor.h"
 /* Iteration on THD from the sql layer. */
 #include "sql_class.h"
-#include "table_uvar_by_thread.h"
 
 class Find_thd_user_var : public Find_THD_Impl
 {
@@ -197,7 +197,7 @@ PFS_index_uvar_by_thread::match(const User_variable *pfs)
 }
 
 PFS_engine_table *
-table_uvar_by_thread::create(void)
+table_uvar_by_thread::create(PFS_engine_table_share *)
 {
   return new table_uvar_by_thread();
 }
@@ -283,7 +283,7 @@ table_uvar_by_thread::rnd_pos(const void *pos)
 }
 
 int
-table_uvar_by_thread::index_init(uint idx, bool)
+table_uvar_by_thread::index_init(uint idx MY_ATTRIBUTE((unused)), bool)
 {
   PFS_index_uvar_by_thread *result = NULL;
   DBUG_ASSERT(idx == 0);

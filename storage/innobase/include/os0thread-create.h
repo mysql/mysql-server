@@ -31,6 +31,7 @@ Created 2016-May-17 Sunny Bains
 
 #include <my_thread.h>
 #include <atomic>
+#include <functional>
 
 /** Maximum number of threads inside InnoDB */
 extern ulint	srv_max_n_threads;

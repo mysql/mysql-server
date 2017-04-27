@@ -16,7 +16,6 @@
 */
 
 #include "my_dbug.h"
-#include "my_global.h"
 #include "sql_bitmap.h"
 
 class NdbTransaction;

@@ -18,10 +18,12 @@
 
 #include <errno.h>
 #include <fcntl.h>
+#include <sys/types.h>
 
 #include "fulltext.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
+#include "my_macros.h"
 #include "rt_index.h"
 
 int mi_update(MI_INFO *info, const uchar *oldrec, uchar *newrec)
@@ -30,7 +32,7 @@ int mi_update(MI_INFO *info, const uchar *oldrec, uchar *newrec)
   my_off_t pos;
   uint i;
   uchar old_key[MI_MAX_KEY_BUFF],*new_key;
-  my_bool auto_key_changed=0;
+  bool auto_key_changed=0;
   ulonglong changed;
   MYISAM_SHARE *share=info->s;
   ha_checksum old_checksum= 0;

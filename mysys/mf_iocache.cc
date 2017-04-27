@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -50,6 +50,8 @@ TODO:
 
 #include <errno.h>
 #include <fcntl.h>
+#include <math.h>
+#include <stdarg.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -166,7 +168,7 @@ init_functions(IO_CACHE* info)
 
 int init_io_cache_ext(IO_CACHE *info, File file, size_t cachesize,
                       enum cache_type type, my_off_t seek_offset,
-                      my_bool use_async_io, myf cache_myflags,
+                      bool use_async_io, myf cache_myflags,
                       PSI_file_key file_key)
 {
   size_t min_cache;
@@ -314,7 +316,7 @@ int init_io_cache_ext(IO_CACHE *info, File file, size_t cachesize,
 
 int init_io_cache(IO_CACHE *info, File file, size_t cachesize,
                   enum cache_type type, my_off_t seek_offset,
-                  my_bool use_async_io, myf cache_myflags)
+                  bool use_async_io, myf cache_myflags)
 {
   return init_io_cache_ext(info, file, cachesize, type, seek_offset,
                            use_async_io, cache_myflags, key_file_io_cache);
@@ -327,10 +329,10 @@ int init_io_cache(IO_CACHE *info, File file, size_t cachesize,
   in the cache, we are reusing this memory without flushing it to disk.
 */
 
-my_bool reinit_io_cache(IO_CACHE *info, enum cache_type type,
-			my_off_t seek_offset,
-			my_bool use_async_io MY_ATTRIBUTE((unused)),
-			my_bool clear_cache)
+bool reinit_io_cache(IO_CACHE *info, enum cache_type type,
+                     my_off_t seek_offset,
+                     bool use_async_io MY_ATTRIBUTE((unused)),
+                     bool clear_cache)
 {
   DBUG_ENTER("reinit_io_cache");
   DBUG_PRINT("enter",("cache: %p type: %d  seek_offset: %lu  clear_cache: %d",
@@ -1530,7 +1532,7 @@ int my_b_flush_io_cache(IO_CACHE *info,
 {
   size_t length;
   my_off_t pos_in_file;
-  my_bool append_cache= (info->type == SEQ_READ_APPEND);
+  bool append_cache= (info->type == SEQ_READ_APPEND);
   DBUG_ENTER("my_b_flush_io_cache");
   DBUG_PRINT("enter", ("cache: %p", info));
 
