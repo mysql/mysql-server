@@ -457,6 +457,20 @@ update_slave_api_stats(Ndb* ndb)
 
 st_ndb_slave_state g_ndb_slave_state;
 
+static int check_slave_config(THD* thd)
+{
+  DBUG_ENTER("check_slave_config");
+
+  if (ndb_mi_get_slave_parallel_workers() > 0)
+  {
+    sql_print_error("Slave SQL: Configuration 'slave_parallel_workers = %lu' is not supported when applying to Ndb",
+                    opt_mts_slave_parallel_workers);
+    DBUG_RETURN(HA_ERR_UNSUPPORTED);
+  }
+
+  DBUG_RETURN(0);
+}
+
 static int check_slave_state(THD* thd)
 {
   DBUG_ENTER("check_slave_state");
@@ -473,6 +487,14 @@ static int check_slave_state(THD* thd)
     DBUG_PRINT("info", ("Slave run id changed from %u, "
                         "treating as Slave restart",
                         g_ndb_slave_state.sql_run_id));
+
+    /*
+     * Check for unsupported slave configuration
+     */
+    int error = check_slave_config(thd);
+    if (unlikely(error))
+      DBUG_RETURN(error);
+
     g_ndb_slave_state.sql_run_id = runId;
 
     g_ndb_slave_state.atStartSlave();
