@@ -161,3 +161,79 @@ parent	CREATE TABLE `parent` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 #Cleanup
 drop table parent, child;
+#
+# Bug#25859977 : WRONG ERROR MESSAGE SHOWN AFTER ALTER ADD FK FAILURE
+#
+# Setup
+create table parent (
+a int unique,
+b int,
+c int,
+key b_key(b),
+key c_key(c),
+constraint fk_p1 foreign key (b) references parent(a)
+) engine ndb;
+create table child (
+a int,
+b int,
+key a_key(a),
+key b_key(b),
+constraint fk_c1 foreign key (a) references parent(a)
+) engine ndb;
+# Try creating fk with already exisiting names. Should fail.
+alter table parent add constraint fk_p1 foreign key (c) references parent(a);
+ERROR HY000: Duplicate foreign key constraint name 'fk_p1'
+show warnings;
+Level	Code	Message
+Error	1826	Duplicate foreign key constraint name 'fk_p1'
+Error	1215	Cannot add foreign key constraint
+alter table child add constraint fk_c1 foreign key (b) references parent(a);
+ERROR HY000: Duplicate foreign key constraint name 'fk_c1'
+show warnings;
+Level	Code	Message
+Error	1826	Duplicate foreign key constraint name 'fk_c1'
+Error	1215	Cannot add foreign key constraint
+# Check if error is thrown when creating table
+create table test_fail (
+a int,
+b int,
+key a_key(a),
+key b_key(b),
+constraint fk_t1 foreign key (a) references parent(a),
+constraint fk_t1 foreign key (b) references parent(a)
+) engine ndb;
+ERROR HY000: Duplicate foreign key constraint name 'fk_t1'
+show warnings;
+Level	Code	Message
+Error	1826	Duplicate foreign key constraint name 'fk_t1'
+Error	1215	Cannot add foreign key constraint
+# Using distinct names should work
+alter table parent add foreign key fk_p2(b) references parent(a);
+alter table parent add foreign key fk_p3(c) references parent(a);
+alter table child  add foreign key fk_c2(b) references parent(a);
+#Show create tables
+show create table parent;
+Table	Create Table
+parent	CREATE TABLE `parent` (
+  `a` int(11) DEFAULT NULL,
+  `b` int(11) DEFAULT NULL,
+  `c` int(11) DEFAULT NULL,
+  UNIQUE KEY `a` (`a`),
+  KEY `b_key` (`b`),
+  KEY `c_key` (`c`),
+  CONSTRAINT `fk_p1` FOREIGN KEY (`b`) REFERENCES `parent` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION,
+  CONSTRAINT `fk_p2` FOREIGN KEY (`b`) REFERENCES `parent` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION,
+  CONSTRAINT `fk_p3` FOREIGN KEY (`c`) REFERENCES `parent` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+show create table child;
+Table	Create Table
+child	CREATE TABLE `child` (
+  `a` int(11) DEFAULT NULL,
+  `b` int(11) DEFAULT NULL,
+  KEY `a_key` (`a`),
+  KEY `b_key` (`b`),
+  CONSTRAINT `fk_c1` FOREIGN KEY (`a`) REFERENCES `parent` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION,
+  CONSTRAINT `fk_c2` FOREIGN KEY (`b`) REFERENCES `parent` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+# Cleanup
+drop table child, parent;
