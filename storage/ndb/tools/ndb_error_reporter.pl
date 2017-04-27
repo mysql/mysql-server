@@ -1,7 +1,6 @@
 #!/usr/bin/perl -w
 
-# Copyright (C) 2006, 2007 MySQL AB, 2009 Sun Microsystems, Inc.
-#  All rights reserved. Use is subject to license terms.
+# Copyright (C) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -86,13 +85,33 @@ if(defined($ARGV[1]))
 use File::Basename;
 my $dirname= dirname(__FILE__);
 my $ndb_config= "$dirname/ndb_config";
-my @nodes= split ' ',`$ndb_config --config-file=$config_file --nodes --query=id --type=ndbd`;
-push @nodes, split ' ',`$ndb_config --config-file=$config_file --nodes --query=id --type=ndb_mgmd`;
+my $config_query = "$ndb_config --config-file=$config_file --nodes --query=nodeid ";
+my $ndbd_query_cmd = "$config_query --type=ndbd";
+my $mgmd_query_cmd = "$config_query --type=ndb_mgmd";
+# Check config parsing sanity with dry-run
+if (system("$ndbd_query_cmd > /dev/null") != 0 ||
+    system("$mgmd_query_cmd > /dev/null") != 0)
+{
+  print STDERR "Configuration file parsing failed.\n\n";
+  exit(1);
+}
+
+my @nodes= split ' ',`$ndbd_query_cmd`;
+my $ndbd_count = @nodes;
+push @nodes, split ' ',`$mgmd_query_cmd`;
+my $mgmd_count = @nodes - $ndbd_count;
+
+if($ndbd_count == 0 ||
+   $mgmd_count == 0)
+{
+    print STDERR "Error extracting mgmd and data node ids from config file.";
+    exit(1);
+}
 
 sub config {
     my $nodeid= shift;
     my $query= shift;
-    my $res= `$ndb_config --config-file=$config_file --id=$nodeid --query=$query`;
+    my $res= `$ndb_config --config-file=$config_file --nodeid=$nodeid --query=$query`;
     chomp $res;
     $res;
 }

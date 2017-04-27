@@ -489,7 +489,8 @@ helper(Vector<Apply*>& select, const char * str)
       select.push_back(new ParamApply(CFG_NODE_HOST, "host"));
       select.push_back(new NodeTypeApply("type"));
     }
-    else if (strcasecmp(str, "nodeid") == 0)
+    else if (strcasecmp(str, "nodeid") == 0 ||
+             strcasecmp(str, "id") == 0)
     {
       select.push_back(new ParamApply(CFG_NODE_ID, "nodeid"));
       retflag = true;
