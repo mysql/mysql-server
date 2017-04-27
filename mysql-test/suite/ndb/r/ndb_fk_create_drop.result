@@ -237,3 +237,20 @@ child	CREATE TABLE `child` (
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1
 # Cleanup
 drop table child, parent;
+#
+# Bug#25882950 : CACHED INDEX IN NDBAPI'S DICT CACHE NOT CLEARED AFTER `CREATE TABLE` FAILURE
+#
+# Create a table with bad fk reference
+create table test(
+a int,
+foreign key fk1(a) references bogus_table(a)
+) engine ndb;
+ERROR HY000: Cannot add foreign key constraint
+# Now create a table with proper reference - it should pass
+create table test (
+a int unique,
+b int,
+foreign key fk1(b) references test(a)
+) engine ndb;
+#Cleanup
+drop table test;

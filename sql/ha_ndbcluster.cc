@@ -10571,6 +10571,23 @@ abort:
 /*
  *  Some step during table creation failed, abort schema transaction
  */
+
+    {
+      // Flush out the indexes(if any) from ndbapi dictionary's cache first
+      NDBDICT::List index_list;
+      dict->listIndexes(index_list, tab);
+      for (unsigned i = 0; i < index_list.count; i++)
+      {
+        const char * index_name= index_list.elements[i].name;
+        const NDBINDEX* index= dict->getIndexGlobal(index_name, tab);
+        if(index != NULL)
+        {
+          dict->removeIndexGlobal(*index, true);
+        }
+      }
+    }
+
+    // Now abort schema transaction
     DBUG_PRINT("info", ("Aborting schema transaction due to error %i",
                         my_errno));
     if (dict->endSchemaTrans(NdbDictionary::Dictionary::SchemaTransAbort)
