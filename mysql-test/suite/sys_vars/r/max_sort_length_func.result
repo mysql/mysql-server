@@ -6,17 +6,17 @@ CREATE TABLE t
 (
 id INT AUTO_INCREMENT PRIMARY KEY,
 c TEXT(30)
-);
+) charset latin1;
 CREATE TABLE t1
 (
 id INT AUTO_INCREMENT PRIMARY KEY,
 c BLOB(30)
-);
+) charset latin1;
 CREATE TABLE t2
 (
 id INT AUTO_INCREMENT PRIMARY KEY,
 c TEXT(30)
-);
+) charset latin1;
 '#--------------------FN_DYNVARS_098_01-------------------------#'
 ** Connecting test_con1 using username 'root' **
 ** Connection test_con1 **

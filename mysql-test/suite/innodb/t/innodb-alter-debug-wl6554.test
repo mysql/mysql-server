@@ -1,16 +1,6 @@
 --source include/have_debug.inc
 --source include/have_debug_sync.inc
 
-########################################
-##### WL#7554 Force schema `test` to character set latin1
-##### This test should be migrated to utf8mb4
-##### kept as latin1, for some reason the --reap fails otherwise
---disable_query_log
-let $testdbcs36=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
-alter schema test default character set latin1;
---enable_query_log
-########################################
-
 --source include/count_sessions.inc
 
 SET DEBUG_SYNC = 'RESET';
@@ -218,10 +208,3 @@ DROP TABLE t2,t1;
 SET DEBUG_SYNC = 'RESET';
 
 --source include/wait_until_count_sessions.inc
-
-########################################
-##### WL#7554 set schema `test` back to what it was
---disable_query_log
---eval alter schema test default character set $testdbcs36;
---enable_query_log
-########################################

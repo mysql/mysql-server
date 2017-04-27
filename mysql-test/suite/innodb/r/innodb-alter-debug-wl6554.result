@@ -70,7 +70,7 @@ t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL AUTO_INCREMENT,
   `b` varchar(255) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=latin1
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4
 INSERT IGNORE INTO t1 (b) VALUES (repeat('d',300));
 Warnings:
 Warning	1265	Data truncated for column 'b' at row 1
@@ -141,7 +141,7 @@ t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL,
   `b` varchar(255) DEFAULT NULL,
   KEY `idx` (`b`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 INSERT IGNORE INTO t1 (a,b) VALUES (5,repeat('d',300));
 Warnings:
 Warning	1265	Data truncated for column 'b' at row 1
@@ -329,7 +329,7 @@ t1	CREATE TABLE `t1` (
   `b` varchar(255) DEFAULT NULL,
   PRIMARY KEY (`a`),
   KEY `idx` (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 INSERT IGNORE INTO t1 (a,b) VALUES (5,repeat('k',300));
 Warnings:
 Warning	1265	Data truncated for column 'b' at row 1
