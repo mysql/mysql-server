@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2017 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -38,6 +38,8 @@ uint64 ndb_mi_get_group_relay_log_pos();
 bool ndb_mi_get_ignore_server_id(uint32 server_id);
 uint32 ndb_mi_get_slave_run_id();
 bool ndb_mi_get_slave_sql_running();
+ulong ndb_mi_get_slave_parallel_workers();
+uint32 ndb_get_number_of_channels();
 
 /*
    Relay log info related functions
