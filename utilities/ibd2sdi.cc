@@ -1124,7 +1124,7 @@ tablespace_creator::create()
 			read_page(0, page_size, UNIV_PAGE_SIZE_MAX,
 				  full_page, file_in);
 
-			if (buf_page_is_zeroes(buf, page_size)) {
+			if (buf_page_is_zeroes(full_page, page_size)) {
 				all_zero_page = true;
 			}
 
