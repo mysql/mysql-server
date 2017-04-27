@@ -160,6 +160,14 @@ size_t convert_to_printable(char *to, size_t to_len,
 
 size_t bin_to_hex_str(char *to, size_t to_len, char *from, size_t from_len);
 
+/**
+  Using this class is fraught with peril, and you need to be very careful
+  when doing so. In particular, copy construction and assignment does not
+  do a deep _nor_ a shallow copy; instead, it makes a _reference_ to the
+  original string that will be invalid as soon as that string goes out of scope.
+  (Move constructiong and assignment is safe, though.) In general, it is
+  probably better not to use this class at all if you can avoid it.
+*/
 class String
 {
   char *m_ptr;
@@ -195,6 +203,13 @@ public:
      m_alloced_length(static_cast<uint32>(str.m_alloced_length)),
      m_is_alloced(false)
   { }
+  String(String &&str)
+    :m_ptr(str.m_ptr), m_length(str.m_length), m_charset(str.m_charset),
+     m_alloced_length(str.m_alloced_length),
+     m_is_alloced(str.m_is_alloced)
+  {
+    str.m_is_alloced= false;
+  }
   static void *operator new(size_t size, MEM_ROOT *mem_root,
                             const std::nothrow_t &arg MY_ATTRIBUTE((unused))
                             = std::nothrow) throw ()
@@ -423,6 +438,26 @@ public:
     }
     return *this;
   }
+  String& operator = (String &&s)
+  {
+    if (&s != this)
+    {
+      /*
+        It is forbidden to do assignments like
+        some_string = substring_of_that_string
+       */
+      DBUG_ASSERT(!s.uses_buffer_owned_by(this));
+      mem_free();
+      m_ptr= s.m_ptr;
+      m_length= s.m_length;
+      m_alloced_length= s.m_alloced_length;
+      m_charset= s.m_charset;
+      // This is the primary difference between move and copy.
+      m_is_alloced= s.m_is_alloced;
+      s.m_is_alloced= false;
+    }
+    return *this;
+  }
   /**
     Takeover the buffer owned by another string.
     "this" becames the owner of the buffer and
@@ -609,7 +644,7 @@ public:
   void print(String *print);
 
   /* Swap two string objects. Efficient way to exchange data without memcpy. */
-  void swap(String &s);
+  void swap(String &s) noexcept;
 
   bool uses_buffer_owned_by(const String *s) const
   {
@@ -649,6 +684,11 @@ public:
     return ret;
   }
 };
+
+static inline void swap(String &a, String &b) noexcept
+{
+  a.swap(b);
+}
 
 
 /**

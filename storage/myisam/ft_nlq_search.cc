@@ -19,6 +19,8 @@
 #include <fcntl.h>
 #include <sys/types.h>
 
+#include <algorithm>
+
 #include "ftdefs.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
@@ -315,8 +317,8 @@ FT_INFO *ft_init_nlq_search(MI_INFO *info, uint keynr, uchar *query,
 	    &dptr, left_root_right);
 
   if (flags & FT_SORTED)
-    my_qsort2(dlist->doc, dlist->ndocs, sizeof(FT_DOC), &FT_DOC_cmp,
-              0);
+    std::sort(dlist->doc, dlist->doc + dlist->ndocs,
+      [](const FT_DOC &a, const FT_DOC &b) { return b.weight < a.weight; });
 
 err:
   delete_tree(&aio.dtree);

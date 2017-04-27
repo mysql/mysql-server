@@ -97,6 +97,10 @@
 #define FTB_LQUOT (ft_boolean_syntax[10])
 #define FTB_RQUOT (ft_boolean_syntax[11])
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct st_ft_word {
   uchar * pos;
   uint	 len;
@@ -143,14 +147,21 @@ my_off_t ft_nlq_get_docid(FT_INFO *);
 void ft_nlq_reinit_search(FT_INFO *);
 
 extern const struct _ft_vft _ft_vft_boolean;
+
 int ft_boolean_read_next(FT_INFO *, char *);
 float ft_boolean_find_relevance(FT_INFO *, uchar *, uint);
 void ft_boolean_close_search(FT_INFO *);
 float ft_boolean_get_relevance(FT_INFO *);
 my_off_t ft_boolean_get_docid(FT_INFO *);
 void ft_boolean_reinit_search(FT_INFO *);
+
 MYSQL_FTPARSER_PARAM* ftparser_alloc_param(MI_INFO *info);
 extern MYSQL_FTPARSER_PARAM *ftparser_call_initializer(MI_INFO *info,
                                                        uint keynr,
                                                        uint paramnr);
 extern void ftparser_call_deinitializer(MI_INFO *info);
+
+#ifdef __cplusplus
+}  // extern "C"
+#endif
+

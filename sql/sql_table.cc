@@ -3217,50 +3217,46 @@ bool quick_rm_table(THD *thd, handlerton *base, const char *db,
    that PK has number 0).
 */
 
-static int sort_keys(const void *a_arg, const void *b_arg)
-{
-  const KEY *a= pointer_cast<const KEY*>(a_arg);
-  const KEY *b= pointer_cast<const KEY*>(b_arg);
-  ulong a_flags= a->flags, b_flags= b->flags;
+namespace {
 
-  if (a_flags & HA_NOSAME)
+struct sort_keys {
+  bool operator()(const KEY &a, const KEY &b) const
   {
-    if (!(b_flags & HA_NOSAME))
-      return -1;
-    if ((a_flags ^ b_flags) & HA_NULL_PART_KEY)
-    {
-      /* Sort NOT NULL keys before other keys */
-      return (a_flags & HA_NULL_PART_KEY) ? 1 : -1;
+    // Sort UNIQUE before not UNIQUE.
+    if ((a.flags ^ b.flags) & HA_NOSAME)
+      return a.flags & HA_NOSAME;
+
+    if (a.flags & HA_NOSAME) {
+      // Sort UNIQUE NOT NULL keys before other UNIQUE keys.
+      if ((a.flags ^ b.flags) & HA_NULL_PART_KEY)
+        return b.flags & HA_NULL_PART_KEY;
+
+      // Sort PRIMARY KEY before other UNIQUE NOT NULL.
+      if (a.name == primary_key_name)
+        return true;
+      if (b.name == primary_key_name)
+        return false;
+
+      // Sort keys don't containing partial segments before others.
+      if ((a.flags ^ b.flags) & HA_KEY_HAS_PART_KEY_SEG)
+        return b.flags & HA_KEY_HAS_PART_KEY_SEG;
     }
-    if (a->name == primary_key_name)
-      return -1;
-    if (b->name == primary_key_name)
-      return 1;
-    /* Sort keys don't containing partial segments before others */
-    if ((a_flags ^ b_flags) & HA_KEY_HAS_PART_KEY_SEG)
-      return (a_flags & HA_KEY_HAS_PART_KEY_SEG) ? 1 : -1;
-  }
-  else if (b_flags & HA_NOSAME)
-    return 1;					// Prefer b
 
-  if ((a_flags ^ b_flags) & HA_FULLTEXT)
-  {
-    return (a_flags & HA_FULLTEXT) ? 1 : -1;
-  }
+    if ((a.flags ^ b.flags) & HA_FULLTEXT)
+      return b.flags & HA_FULLTEXT;
 
-  if ((a_flags ^ b_flags) & HA_VIRTUAL_GEN_KEY)
-  {
-    return (a_flags & HA_VIRTUAL_GEN_KEY) ? 1 : -1;
-  }
+    if ((a.flags ^ b.flags) & HA_VIRTUAL_GEN_KEY)
+      return b.flags & HA_VIRTUAL_GEN_KEY;
 
-  /*
-    Prefer original key order.	usable_key_parts contains here
-    the original key position.
-  */
-  return ((a->usable_key_parts < b->usable_key_parts) ? -1 :
-	  (a->usable_key_parts > b->usable_key_parts) ? 1 :
-	  0);
-}
+    /*
+      Prefer original key order. usable_key_parts contains here
+      the original key position.
+    */
+    return a.usable_key_parts < b.usable_key_parts;
+  }
+};
+
+}  // namespace
 
 /*
   Check TYPELIB (set or enum) for duplicates
@@ -5462,8 +5458,7 @@ bool mysql_prepare_create_table(THD *thd,
   }
 
   /* Sort keys in optimized order */
-  my_qsort(reinterpret_cast<uchar*>(*key_info_buffer),
-           *key_count, sizeof(KEY), sort_keys);
+  std::sort(*key_info_buffer, *key_info_buffer + *key_count, sort_keys());
 
   /*
     Check if  STRICT SQL mode is active and server is not started with
@@ -7351,14 +7346,6 @@ static bool has_index_def_changed(Alter_inplace_info *ha_alter_info,
 }
 
 
-static int compare_uint(const void *a, const void *b)
-{
-  const uint *s= pointer_cast<const uint*>(a);
-  const uint *t= pointer_cast<const uint*>(b);
-  return (*s < *t) ? -1 : ((*s > *t) ? 1 : 0);
-}
-
-
 /**
    Lock the list of tables which are direct or indirect parents in
    foreign key with cascading actions for the table being altered.
@@ -7860,9 +7847,8 @@ static bool fill_alter_inplace_info(THD *thd,
     Sort index_add_buffer according to how key_info_buffer is sorted.
     I.e. with primary keys first - see sort_keys().
   */
-  my_qsort(ha_alter_info->index_add_buffer,
-           ha_alter_info->index_add_count,
-           sizeof(uint), compare_uint);
+  std::sort(ha_alter_info->index_add_buffer,
+            ha_alter_info->index_add_buffer + ha_alter_info->index_add_count);
 
   /* Now let us calculate flags for storage engine API. */
 

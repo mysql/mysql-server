@@ -19,7 +19,7 @@ ADD_CONVENIENCE_LIBRARY(myisam_sys
   queues.cc
 )
 
-SET(MYISAM_SOURCES  ft_boolean_search.c ft_nlq_search.c ft_parser.c ft_static.c
+SET(MYISAM_SOURCES  ft_boolean_search.cc ft_nlq_search.cc ft_parser.c ft_static.c
                                 ha_myisam.cc
 				ft_stopwords.c ft_update.c mi_cache.c mi_changed.c mi_check.c
 				mi_checksum.c mi_close.c mi_create.c mi_dbug.c mi_delete.c 
@@ -53,9 +53,8 @@ TARGET_LINK_LIBRARIES(myisamchk ${MYISAM_NOPFS} mysys_ssl)
 MYSQL_ADD_EXECUTABLE(myisamlog myisamlog.c)
 TARGET_LINK_LIBRARIES(myisamlog ${MYISAM_NOPFS} ${LIBSOCKET})
 
-MYSQL_ADD_EXECUTABLE(myisampack myisampack.c)
+MYSQL_ADD_EXECUTABLE(myisampack myisampack.cc)
 TARGET_LINK_LIBRARIES(myisampack ${MYISAM_NOPFS} mysys_ssl)
-SET_TARGET_PROPERTIES(myisampack PROPERTIES LINKER_LANGUAGE CXX)
 
 IF(WITH_UNIT_TESTS AND FALSE)
   ADD_EXECUTABLE(mi_test1 mi_test1.c)

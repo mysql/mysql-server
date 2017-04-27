@@ -299,25 +299,26 @@ TEST_F(BoundedQueueTest, PushAndPopKeepSmallest)
 }
 
 
-static void my_string_ptr_sort(uchar *base, uint items, size_t size)
+static void my_string_ptr_sort(Test_key **base, uint items, size_t size)
 {
-#if INT_MAX > 65536L
   uchar **ptr=0;
 
   if (radixsort_is_appliccable(items, size) &&
       (ptr= (uchar**) my_malloc(PSI_NOT_INSTRUMENTED,
                                 items*sizeof(char*),MYF(0))))
   {
-    radixsort_for_str_ptr((uchar**) base,items,size,ptr);
+    radixsort_for_str_ptr(pointer_cast<uchar **>(base),items,size,ptr);
     my_free(ptr);
   }
   else
-#endif
   {
     if (size && items)
     {
-      my_qsort2(base,items, sizeof(uchar*), my_testing::get_ptr_compare(size),
-                (void*) &size);
+      std::sort(base, base + items,
+        [size](const Test_key *a, const Test_key *b)
+        {
+          return memcmp(a, b, size) < 0;
+        });
     }
   }
 }
@@ -331,7 +332,7 @@ TEST_F(BoundedQueueTest, InsertAndSort)
   EXPECT_EQ(0, m_queue.init(num_elements/2, true, test_key_compare,
                             &m_keymaker, m_keys.key_ptrs));
   insert_test_data();
-  uchar *base=  (uchar*) &m_keys.key_ptrs[0];
+  Test_key **base=  &m_keys.key_ptrs[0];
   size_t size=  sizeof(Test_key);
   // We sort our keys as strings, so erase all the element pointers first.
   for (size_t ii= 0; ii < array_elements(m_keys.key_data); ++ii)

@@ -1168,13 +1168,14 @@ void String::print(String *str)
     Target string will contain state of this object and vice versa.
 */
 
-void String::swap(String &s)
+void String::swap(String &s) noexcept
 {
-  std::swap(m_ptr, s.m_ptr);
-  std::swap(m_length, s.m_length);
-  std::swap(m_alloced_length, s.m_alloced_length);
-  std::swap(m_is_alloced, s.m_is_alloced);
-  std::swap(m_charset, s.m_charset);
+  using std::swap;
+  swap(m_ptr, s.m_ptr);
+  swap(m_length, s.m_length);
+  swap(m_alloced_length, s.m_alloced_length);
+  swap(m_is_alloced, s.m_is_alloced);
+  swap(m_charset, s.m_charset);
 }
 
 

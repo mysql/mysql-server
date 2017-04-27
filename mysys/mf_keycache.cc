@@ -109,6 +109,8 @@
 #include <string.h>
 #include <sys/types.h>
 
+#include <algorithm>
+
 #include "keycache.h"
 #include "my_bit.h"
 #include "my_compiler.h"
@@ -3174,15 +3176,6 @@ static void free_block(KEY_CACHE *keycache,
 }
 
 
-static int cmp_sec_link(const void *a_arg, const void *b_arg)
-{
-  BLOCK_LINK **a= pointer_cast<BLOCK_LINK**>(const_cast<void *>(a_arg));
-  BLOCK_LINK **b= pointer_cast<BLOCK_LINK**>(const_cast<void *>(b_arg));
-  return (((*a)->hash_link->diskpos < (*b)->hash_link->diskpos) ? -1 :
-      ((*a)->hash_link->diskpos > (*b)->hash_link->diskpos) ? 1 : 0);
-}
-
-
 /*
   Flush a portion of changed blocks to disk,
   free used blocks if requested
@@ -3204,7 +3197,11 @@ static int flush_cached_blocks(KEY_CACHE *keycache,
      As all blocks referred in 'cache' are marked by BLOCK_IN_FLUSH
      we are guarunteed no thread will change them
   */
-  my_qsort((uchar*) cache, count, sizeof(*cache), cmp_sec_link);
+  std::sort(cache, cache + count,
+    [](const BLOCK_LINK *a, const BLOCK_LINK *b)
+    {
+      return a->hash_link->diskpos < b->hash_link->diskpos;
+    });
 
   mysql_mutex_lock(&keycache->cache_lock);
   /*

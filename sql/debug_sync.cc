@@ -460,7 +460,6 @@ extern "C" void (*debug_sync_C_callback_ptr)(const char *, size_t);
 */
 C_MODE_START
 static void debug_sync_C_callback(const char *, size_t);
-static int debug_sync_qsort_cmp(const void *, const void *);
 C_MODE_END
 
 /**
@@ -885,34 +884,6 @@ static void debug_sync_print_actions(THD *thd)
 
 
 /**
-  Compare two actions by sync point name length, string.
-
-  @param[in]    arg1            reference to action1
-  @param[in]    arg2            reference to action2
-
-  @return       difference
-    @retval     == 0            length1/string1 is same as length2/string2
-    @retval     < 0             length1/string1 is smaller
-    @retval     > 0             length1/string1 is bigger
-*/
-
-static int debug_sync_qsort_cmp(const void* arg1, const void* arg2)
-{
-  st_debug_sync_action *action1= (st_debug_sync_action*) arg1;
-  st_debug_sync_action *action2= (st_debug_sync_action*) arg2;
-  int diff;
-  DBUG_ASSERT(action1);
-  DBUG_ASSERT(action2);
-
-  if (!(diff= static_cast<int>(action1->sync_point.length() - action2->sync_point.length())))
-    diff= memcmp(action1->sync_point.ptr(), action2->sync_point.ptr(),
-                 action1->sync_point.length());
-
-  return diff;
-}
-
-
-/**
   Find a debug sync action.
 
   @param[in]    actionarr       array of debug sync actions
@@ -1231,8 +1202,15 @@ static bool debug_sync_set_action(THD *thd, st_debug_sync_action *action)
     {
       action->need_sort= FALSE;
       /* Sort actions by (name_len, name). */
-      my_qsort(ds_control->ds_action, ds_control->ds_active,
-               sizeof(st_debug_sync_action), debug_sync_qsort_cmp);
+      std::sort(
+        ds_control->ds_action, ds_control->ds_action + ds_control->ds_active,
+        [](const st_debug_sync_action &a, const st_debug_sync_action &b)
+        {
+          if (a.sync_point.length() != b.sync_point.length())
+            return a.sync_point.length() < b.sync_point.length();
+          return memcmp(a.sync_point.ptr(), b.sync_point.ptr(),
+                        a.sync_point.length()) < 0;
+        });
     }
   }
   DBUG_EXECUTE("debug_sync_list", debug_sync_print_actions(thd););

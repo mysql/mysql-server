@@ -25,6 +25,8 @@
 #include "template_utils.h"
 #include "mysqld.h"         // global_system_variables table_alias_charset ...
 
+#include <algorithm>
+
 #define ERR_RETURN(err)                  \
 {                                        \
   const NdbError& tmp= err;              \
@@ -1925,24 +1927,27 @@ ha_ndbcluster::get_parent_foreign_key_list(THD *thd,
   DBUG_RETURN(res);
 }
 
-static
-int
-cmp_fk_name(const void * _e0, const void * _e1)
-{
-  const NDBDICT::List::Element * e0 = (NDBDICT::List::Element*)_e0;
-  const NDBDICT::List::Element * e1 = (NDBDICT::List::Element*)_e1;
-  int res;
-  if ((res= strcmp(e0->name, e1->name)) != 0)
-    return res;
+namespace {
 
-  if ((res= strcmp(e0->database, e1->database)) != 0)
-    return res;
+struct cmp_fk_name {
+  bool operator() (const NDBDICT::List::Element &e0,
+                   const NDBDICT::List::Element &e1) const
+  {
+    int res;
+    if ((res= strcmp(e0.name, e1.name)) != 0)
+      return res < 0;
 
-  if ((res= strcmp(e0->schema, e1->schema)) != 0)
-    return res;
+    if ((res= strcmp(e0.database, e1.database)) != 0)
+      return res < 0;
 
-  return e0->id - e1->id;
-}
+    if ((res= strcmp(e0.schema, e1.schema)) != 0)
+      return res < 0;
+
+    return e0.id < e1.id;
+  }
+};
+
+}  // namespace
 
 char*
 ha_ndbcluster::get_foreign_key_create_info()
@@ -1984,8 +1989,8 @@ ha_ndbcluster::get_foreign_key_create_info()
    *
    * sort them to make MTR and similar happy
    */
-  my_qsort(obj_list.elements, obj_list.count, sizeof(obj_list.elements[0]),
-           cmp_fk_name);
+  std::sort(obj_list.elements, obj_list.elements + obj_list.count,
+            cmp_fk_name());
   String fk_string;
   for (unsigned i = 0; i < obj_list.count; i++)
   {

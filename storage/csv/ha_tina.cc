@@ -97,20 +97,6 @@ static handler *tina_create_handler(handlerton *hton,
  ** TINA tables
  *****************************************************************************/
 
-/*
-  Used for sorting chains with qsort().
-*/
-static int sort_set(const void *a_arg, const void *b_arg)
-{
-  const tina_set *a= pointer_cast<const tina_set*>(a_arg);
-  const tina_set *b= pointer_cast<const tina_set*>(b_arg);
-  /*
-    We assume that intervals do not intersect. So, it is enought to compare
-    any two points. Here we take start of intervals for comparison.
-  */
-  return ( a->begin > b->begin ? 1 : ( a->begin < b->begin ? -1 : 0 ) );
-}
-
 static const uchar* tina_get_key(const uchar *arg, size_t *length)
 {
   const TINA_SHARE *share= pointer_cast<const TINA_SHARE*>(arg);
@@ -1371,9 +1357,12 @@ int ha_tina::rnd_end()
     /*
       The sort is needed when there were updates/deletes with random orders.
       It sorts so that we move the firts blocks to the beginning.
+
+      We assume that intervals do not intersect. So, it is enought to compare
+      any two points. Here we take start of intervals for comparison.
     */
-    my_qsort(chain, (size_t)(chain_ptr - chain), sizeof(tina_set),
-             sort_set);
+    std::sort(chain, chain_ptr,
+      [](const tina_set &a, const tina_set &b) { return a.begin < b.begin; });
 
     my_off_t write_begin= 0, write_end;
 

@@ -20,6 +20,8 @@
 
 #include <sys/types.h>
 
+#include <algorithm>
+
 #include "fulltext.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
@@ -675,8 +677,8 @@ static int write_keys(MI_SORT_PARAM *info, uchar **sort_keys,
   uint sort_length=info->key_length;
   DBUG_ENTER("write_keys");
 
-  my_qsort2((uchar*) sort_keys,count,sizeof(uchar*), info->key_cmp,
-            info);
+  std::sort(sort_keys, sort_keys + count,
+    [info](uchar *a, uchar *b) { return info->key_cmp(info, &a, &b) < 0; });
   if (!my_b_inited(tempfile) &&
       open_cached_file(tempfile, my_tmpdir(info->tmpdir), "ST",
                        DISK_BUFFER_SIZE, info->sort_info->param->myf_rw))
@@ -718,8 +720,8 @@ static int write_keys_varlen(MI_SORT_PARAM *info,
   int err;
   DBUG_ENTER("write_keys_varlen");
 
-  my_qsort2((uchar*) sort_keys,count,sizeof(uchar*), info->key_cmp,
-            info);
+  std::sort(sort_keys, sort_keys + count,
+    [info](uchar *a, uchar *b) { return info->key_cmp(info, &a, &b) < 0; });
   if (!my_b_inited(tempfile) &&
       open_cached_file(tempfile, my_tmpdir(info->tmpdir), "ST",
                        DISK_BUFFER_SIZE, info->sort_info->param->myf_rw))
@@ -760,8 +762,8 @@ static int write_index(MI_SORT_PARAM *info, uchar **sort_keys,
 {
   DBUG_ENTER("write_index");
 
-  my_qsort2((uchar*) sort_keys,(size_t) count,sizeof(uchar*),
-            info->key_cmp,info);
+  std::sort(sort_keys, sort_keys + count,
+    [info](uchar *a, uchar *b) { return info->key_cmp(info, &a, &b) < 0; });
   while (count--)
   {
     if ((*info->key_write)(info,*sort_keys++))

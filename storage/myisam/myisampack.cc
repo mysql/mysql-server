@@ -26,6 +26,8 @@
 #include <time.h>
 #include <welcome_copyright_notice.h> // ORACLE_WELCOME_COPYRIGHT_NOTICE
 
+#include <algorithm>
+
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_default.h"
@@ -184,7 +186,6 @@ static int mrg_rrnd(PACK_MRG_INFO *info,uchar *buf);
 static void mrg_reset(PACK_MRG_INFO *mrg);
 #if !defined(DBUG_OFF)
 static void fakebigcodes(HUFF_COUNTS *huff_counts, HUFF_COUNTS *end_count);
-static int fakecmp(const void *a, const void *b);
 #endif
 
 
@@ -835,7 +836,7 @@ static HUFF_COUNTS *init_huff_count(MI_INFO *info,my_off_t records)
       init_tree(&count[i].int_tree,0,0,-1, compare_tree,0, NULL,
 		NULL);
       if (records && type != FIELD_BLOB && type != FIELD_VARCHAR)
-	count[i].tree_pos=count[i].tree_buff =
+	count[i].tree_pos=count[i].tree_buff = (uchar *)
 	  my_malloc(PSI_NOT_INSTRUMENTED,
                     count[i].field_length > 1 ? tree_buff_length : 2,
 		    MYF(MY_WME));
@@ -2903,8 +2904,8 @@ static int flush_buffer(ulong neaded_length)
   {
     char *tmp;
     neaded_length+=256;				/* some margin */
-    tmp= my_realloc(PSI_NOT_INSTRUMENTED,
-                    (char*) file_buffer.buffer, neaded_length,MYF(MY_WME));
+    tmp= (char *)my_realloc(PSI_NOT_INSTRUMENTED,
+      (char*) file_buffer.buffer, neaded_length,MYF(MY_WME));
     if (!tmp)
       return 1;
     file_buffer.pos= ((uchar*) tmp +
@@ -3199,7 +3200,8 @@ static void fakebigcodes(HUFF_COUNTS *huff_counts, HUFF_COUNTS *end_count)
     cur_sort_p= sort_counts;
     while (cur_count_p < end_count_p)
       *(cur_sort_p++)= cur_count_p++;
-    (void) my_qsort(sort_counts, 256, sizeof(my_off_t*), fakecmp);
+    std::sort(sort_counts, sort_counts + 256,
+      [](const my_off_t *a, const my_off_t *b) { return *b > *a; });
 
     /*
       Assign faked counts.
@@ -3230,28 +3232,6 @@ static void fakebigcodes(HUFF_COUNTS *huff_counts, HUFF_COUNTS *end_count)
   DBUG_VOID_RETURN;
 }
 
-
-/*
-  Compare two counts for reverse sorting.
-
-  SYNOPSIS
-    fakecmp()
-    count1              One count.
-    count2              Another count.
-
-  RETURN
-    1                   count1  < count2
-    0                   count1 == count2
-    -1                  count1 >  count2
-*/
-
-static int fakecmp(const void *a, const void *b)
-{
-  my_off_t **count1= (my_off_t**)a;
-  my_off_t **count2= (my_off_t**)b;
-  return ((**count1 < **count2) ? 1 :
-          (**count1 > **count2) ? -1 : 0);
-}
 #endif
 
 #include "mi_extrafunc.h"

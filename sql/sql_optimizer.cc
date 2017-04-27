@@ -7848,8 +7848,8 @@ add_ft_keys(Key_use_array *keyuse_array,
 /**
   Compares two keyuse elements.
 
-  @param a_arg first Key_use element
-  @param b_arg second Key_use element
+  @param a first Key_use element
+  @param b second Key_use element
 
   Compare Key_use elements so that they are sorted as follows:
     -# By table.
@@ -7858,28 +7858,25 @@ add_ft_keys(Key_use_array *keyuse_array,
     -# Const values.
     -# Ref_or_null.
 
-  @retval 0 If a = b.
-  @retval negative If a < b.
-  @retval positive If a > b.
+  @retval true If a < b.
+  @retval false If a >= b.
 */
-static int sort_keyuse(const void *a_arg, const void *b_arg)
+static bool sort_keyuse(const Key_use &a, const Key_use &b)
 {
-  const Key_use *a= pointer_cast<const Key_use*>(a_arg);
-  const Key_use *b= pointer_cast<const Key_use*>(b_arg);
-  int res;
-  if (a->table_ref->tableno() != b->table_ref->tableno())
-    return (int) (a->table_ref->tableno() - b->table_ref->tableno());
-  if (a->key != b->key)
-    return (int) (a->key - b->key);
-  if (a->keypart != b->keypart)
-    return (int) (a->keypart - b->keypart);
+  if (a.table_ref->tableno() != b.table_ref->tableno())
+    return a.table_ref->tableno() < b.table_ref->tableno();
+  if (a.key != b.key)
+    return a.key < b.key;
+  if (a.keypart != b.keypart)
+    return a.keypart < b.keypart;
   // Place const values before other ones
-  if ((res= MY_TEST((a->used_tables & ~OUTER_REF_TABLE_BIT)) -
-       MY_TEST((b->used_tables & ~OUTER_REF_TABLE_BIT))))
-    return res;
+  int res;
+  if ((res= MY_TEST((a.used_tables & ~OUTER_REF_TABLE_BIT)) -
+       MY_TEST((b.used_tables & ~OUTER_REF_TABLE_BIT))))
+    return res < 0;
   /* Place rows that are not 'OPTIMIZE_REF_OR_NULL' first */
-  return (int) ((a->optimize & KEY_OPTIMIZE_REF_OR_NULL) -
-		(b->optimize & KEY_OPTIMIZE_REF_OR_NULL));
+  return (a.optimize & KEY_OPTIMIZE_REF_OR_NULL) <
+         (b.optimize & KEY_OPTIMIZE_REF_OR_NULL);
 }
 
 
@@ -8347,8 +8344,7 @@ update_ref_and_keys(THD *thd, Key_use_array *keyuse,JOIN_TAB *join_tab,
   {
     Key_use *save_pos, *use;
 
-    my_qsort(keyuse->begin(), keyuse->size(), keyuse->element_size(),
-             sort_keyuse);
+    std::sort(keyuse->begin(), keyuse->begin() + keyuse->size(), sort_keyuse);
 
     const Key_use key_end(NULL, NULL, 0, 0, 0, 0, 0, 0, false, NULL, 0);
     if (keyuse->push_back(key_end)) // added for easy testing
