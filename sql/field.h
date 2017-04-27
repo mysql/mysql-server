@@ -3974,7 +3974,7 @@ public:
     before we compute the new BLOB 'value'. For more information @see
     Field_blob::keep_old_value().
   */
-  void need_to_keep_old_value()
+  void set_keep_old_value(bool old_value_flag)
   {
     /*
       We should only need to keep a copy of the blob 'value' in the case
@@ -3983,10 +3983,10 @@ public:
     DBUG_ASSERT(is_virtual_gcol());
 
     /*
-      Ensure that 'value' is copied to 'old_value' when keep_old_value() is
-      called.
+      If set to true, ensure that 'value' is copied to 'old_value' when
+      keep_old_value() is called.
     */
-    m_keep_old_value= true;
+    m_keep_old_value= old_value_flag;
   }
 
   /**

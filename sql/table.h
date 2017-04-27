@@ -1888,6 +1888,12 @@ public:
     while performing partial update.
   */
   String *get_partial_update_buffer();
+
+  /**
+    Virtual fields of type BLOB have a flag m_keep_old_value. This flag is set
+    to false for all such fields in this table.
+  */
+  void blobs_need_not_keep_old_value();
 };
 
 

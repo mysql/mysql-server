@@ -153,9 +153,16 @@ void COPY_INFO::set_function_defaults(TABLE *table)
   /**
     @todo combine this call to update_generated_write_fields() with the
     one in fill_record() to avoid updating virtual generated fields twice.
+    blobs_need_not_keep_old_value() is called to unset the m_keep_old_value
+    flag. Allowing this flag to remain might interfere with the way the old
+    BLOB value is handled. When update_generated_write_fields() is removed,
+    blobs_need_not_keep_old_value() can also be removed.
   */
   if (table->has_gcol())
+  {
+    table->blobs_need_not_keep_old_value();
     update_generated_write_fields(table->write_set, table);
+  }
 
   DBUG_VOID_RETURN;
 }
