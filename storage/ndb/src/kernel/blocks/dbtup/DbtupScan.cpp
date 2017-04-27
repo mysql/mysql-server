@@ -35,6 +35,8 @@
 #define DEB_LCP(arglist) do { } while (0)
 #endif
 
+#define DEBUG_LCP_SCANNED_BIT 1
+
 #ifdef VM_TRACE
 #define dbg(x) globalSignalLoggers.log x
 #else
@@ -850,9 +852,11 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
       jam();
       {
         bool skip_flag;
+        bool break_flag;
         do
         {
           skip_flag = false;
+          break_flag = false;
           key.m_page_no++;
           if (likely(bits & ScanOp::SCAN_LCP))
           {
@@ -909,6 +913,7 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
               /* We will not scan this page, so reset flag immediately */
               reset_lcp_scanned_bit(fragPtr.p, key.m_page_no);
               scan.m_last_seen = __LINE__;
+              break_flag = true;
             }
             else
             {
@@ -944,9 +949,13 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
            * one part should exist for scan to run.
            */
         } while (skip_flag);
-        pos.m_get = ScanPos::Get_next_page_mm;
-        scan.m_last_seen = __LINE__;
-        break; // incr loop count
+        if (break_flag)
+        {
+          jam();
+          pos.m_get = ScanPos::Get_next_page_mm;
+          scan.m_last_seen = __LINE__;
+          break; // incr loop count
+        }
     cont:
         key.m_page_idx = first;
         pos.m_get = ScanPos::Get_page_mm;
@@ -1024,6 +1033,17 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
             if (lcp_page_already_scanned)
             {
               jam();
+#ifdef DEBUG_LCP_SCANNED_BIT
+              if (next_ptr)
+              {
+                g_eventLogger->info("(%u)tab(%u,%u).%u"
+                                    " reset_lcp_scanned_bit(2)",
+                                    instance(),
+                                    fragPtr.p->fragTableId,
+                                    fragPtr.p->fragmentId,
+                                    key.m_page_no);
+              }
+#endif
               reset_lcp_scanned_bit(next_ptr);
               /* Either 2) or 3) as described above */
               /**
