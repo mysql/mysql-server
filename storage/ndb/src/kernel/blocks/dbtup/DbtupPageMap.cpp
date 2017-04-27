@@ -34,6 +34,8 @@
 #define DEB_LCP(arglist) do { } while (0)
 #endif
 
+#define DEBUG_LCP_SCANNED_BIT 1
+
 #define DBUG_PAGE_MAP 0
 
 //
@@ -375,6 +377,16 @@ Dbtup::reset_lcp_scanned_bit(Fragrecord *regFragPtr, Uint32 logicalPageId)
   Uint32 *ptr = map.set(2 * logicalPageId);
   ndbassert(ptr != 0);
   ndbassert((*ptr) != RNIL);
+#ifdef DEBUG_LCP_SCANNED_BIT
+  if ((*ptr) & LCP_SCANNED_BIT)
+  {
+    g_eventLogger->info("(%u)tab(%u,%u).%u reset_lcp_scanned_bit",
+      instance(),
+      regFragPtr->fragTableId,
+      regFragPtr->fragmentId,
+      logicalPageId);
+  }
+#endif
   *ptr = (*ptr) & (Uint32)~LCP_SCANNED_BIT;
   do_check_page_map(regFragPtr);
 }
@@ -473,6 +485,17 @@ Dbtup::remove_first_free_from_page_map(EmulatedJamBuffer *jamBuf,
   Uint32 next = ptr_val & PAGE_BIT_MASK;
   *ptr = (pagePtr.i | lcp_scanned_bit);
 
+#ifdef DEBUG_LCP_SCANNED_BIT
+  if (lcp_scanned_bit)
+  {
+    g_eventLogger->info("(%u)tab(%u,%u).%u remove_first_free_from_page_map",
+                        instance(),
+                        regFragPtr->fragTableId,
+                        regFragPtr->fragmentId,
+                        pageId);
+  }
+#endif
+
   if (next != FREE_PAGE_RNIL)
   {
     thrjam(jamBuf);
@@ -493,7 +516,7 @@ Dbtup::remove_page_id_from_dll(Fragrecord *fragPtrP,
                                Uint32 pagePtrI,
                                Uint32 *ptr)
 {
-   DynArr256 map(c_page_map_pool, fragPtrP->m_page_map);
+  DynArr256 map(c_page_map_pool, fragPtrP->m_page_map);
   const Uint32 *prevPtr = map.set(2 * page_no + 1);
   ndbrequire(prevPtr != 0);
   ndbassert((*prevPtr) != RNIL);
@@ -507,6 +530,16 @@ Dbtup::remove_page_id_from_dll(Fragrecord *fragPtrP,
      */
     Uint32 lcp_scanned_bit = next & LCP_SCANNED_BIT;
     *ptr = pagePtrI | lcp_scanned_bit;
+#ifdef DEBUG_LCP_SCANNED_BIT
+    if (lcp_scanned_bit)
+    {
+      g_eventLogger->info("(%u)tab(%u,%u).%u remove_page_id_from_dll",
+                          instance(),
+                          fragPtrP->fragTableId,
+                          fragPtrP->fragmentId,
+                          page_no);
+    }
+#endif
   }
   next &= PAGE_BIT_MASK;
   prev &= PAGE_BIT_MASK;
@@ -901,13 +934,33 @@ Dbtup::releaseFragPage(Fragrecord* fragPtrP,
   }
   else
   {
-    ndbrequire(lcp_scanned_bit == 0)
+    if (unlikely(lcp_scanned_bit != 0))
+    {
+      g_eventLogger->info("(%u),tab(%u,%u).%u crash lcp_scanned_bit set",
+                          instance(),
+                          fragPtrP->fragTableId,
+                          fragPtrP->fragmentId,
+                          logicalPageId);
+      ndbrequire(lcp_scanned_bit == 0);
+    }
   }
   if (!page_freed)
   {
     jam();
     returnCommonArea(pagePtr.i, 1);
   }
+
+#ifdef DEBUG_LCP_SCANNED_BIT
+  if (lcp_scanned_bit)
+  {
+    g_eventLogger->info("(%u)tab(%u,%u).%u set lcp_scanned_bit",
+                        instance(),
+                        fragPtrP->fragTableId,
+                        fragPtrP->fragmentId,
+                        logicalPageId);
+
+  }
+#endif
 
   const char *where = insert_free_page_id_list(fragPtrP,
                                                logicalPageId,
