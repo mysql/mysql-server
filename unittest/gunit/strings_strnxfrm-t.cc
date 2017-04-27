@@ -413,15 +413,23 @@ TEST(StrXfrmTest, Japanese_ks_UTF8MB4)
 
   CHARSET_INFO *as_cs= init_collation("utf8mb4_ja_0900_as_cs");
   CHARSET_INFO *as_cs_ks= init_collation("utf8mb4_ja_0900_as_cs_ks");
-  EXPECT_EQ(compare_through_strxfrm(as_cs, u8"にほんご", u8"ニホンゴ"), 0);
-  EXPECT_LT(compare_through_strxfrm(as_cs_ks, u8"にほんご", u8"ニホンゴ"), 0);
+  // utf8 "にほんご"
+  const char *str1= "\xE3\x81\xAB\xE3\x81\xBB\xE3\x82\x93\xE3\x81\x94";
+  // utf8 "ニホンゴ"
+  const char *str2= "\xE3\x83\x8B\xE3\x83\x9B\xE3\x83\xB3\xE3\x82\xB4";
+  EXPECT_EQ(compare_through_strxfrm(as_cs, str1, str2), 0);
+  EXPECT_LT(compare_through_strxfrm(as_cs_ks, str1, str2), 0);
 
-  EXPECT_EQ(compare_through_strxfrm(as_cs, u8"はは", u8"はハ"), 0);
-  EXPECT_EQ(compare_through_strxfrm(as_cs, u8"はハ", u8"ハは"), 0);
-  EXPECT_EQ(compare_through_strxfrm(as_cs, u8"ハは", u8"ハハ"), 0);
-  EXPECT_LT(compare_through_strxfrm(as_cs_ks, u8"はは", u8"はハ"), 0);
-  EXPECT_LT(compare_through_strxfrm(as_cs_ks, u8"はハ", u8"ハは"), 0);
-  EXPECT_LT(compare_through_strxfrm(as_cs_ks, u8"ハは", u8"ハハ"), 0);
+  str1= "\xE3\x81\xAF\xE3\x81\xAF"; // utf8 "はは"
+  str2= "\xE3\x81\xAF\xE3\x83\x8F"; // utf8 "はハ"
+  const char *str3= "\xE3\x83\x8F\xE3\x81\xAF"; // utf8 "ハは"
+  const char *str4= "\xE3\x83\x8F\xE3\x83\x8F"; // utf8 "ハハ"
+  EXPECT_EQ(compare_through_strxfrm(as_cs, str1, str2), 0);
+  EXPECT_EQ(compare_through_strxfrm(as_cs, str2, str3), 0);
+  EXPECT_EQ(compare_through_strxfrm(as_cs, str3, str4), 0);
+  EXPECT_LT(compare_through_strxfrm(as_cs_ks, str1, str2), 0);
+  EXPECT_LT(compare_through_strxfrm(as_cs_ks, str2, str3), 0);
+  EXPECT_LT(compare_through_strxfrm(as_cs_ks, str3, str4), 0);
 }
 
 TEST(StrXfrmTest, JapaneseUTF8MB4_1)
