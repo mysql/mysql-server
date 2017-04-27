@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -169,7 +169,6 @@ IF(UNIX)
         SET(CMAKE_CXX_FLAGS_RELWITHDEBINFO "+O2 ${COMMON_CXX_FLAGS}")
       ENDIF()
     ENDIF()
-    SET(WITH_SSL no)
   ENDIF()
 
   # Linux flags
@@ -185,7 +184,6 @@ IF(UNIX)
       SET(CMAKE_CXX_FLAGS_DEBUG          "${COMMON_CXX_FLAGS}")
       SET(CMAKE_C_FLAGS_RELWITHDEBINFO   "-O3 -unroll2 -ip ${COMMON_C_FLAGS}")
       SET(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-O3 -unroll2 -ip ${COMMON_CXX_FLAGS}")
-      SET(WITH_SSL no)
     ENDIF()
   ENDIF()
 
