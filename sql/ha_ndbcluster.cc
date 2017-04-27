@@ -12302,7 +12302,7 @@ int ha_ndbcluster::rename_table(const char *from, const char *to,
       // one of the calls to dd::rename_table(..., <mark_as_hidden>)
 
       DBUG_PRINT("hack", ("Marking table: %s as not hidden", new_tabname));
-      to_table_def->set_hidden(false);
+      to_table_def->set_hidden(dd::Abstract_table::HT_VISIBLE);
     }
   }
 #endif
@@ -19164,18 +19164,17 @@ inplace_set_sdi_and_alter_in_ndb(THD *thd,
      down the line as this is stored as extra metadata in
      the NDB dictionary.
 
-     The workaround for now involves setting
-     the hidden status as false and restoring the original
-     table name manually
+     The workaround for now involves setting the table as a user
+     visible table and restoring the original table name manually
    */
 
   // Verify hidden status of the table
   const char* new_table_name = (new_table_def->name()).c_str();
-  if (new_table_def->hidden())
+  if (new_table_def->hidden() != dd::Abstract_table::HT_VISIBLE)
   {
     DBUG_PRINT("hack", ("Marking table: %s as not hidden",
                         new_table_name));
-    new_table_def->set_hidden(false);
+    new_table_def->set_hidden(dd::Abstract_table::HT_VISIBLE);
   }
 
   // Check if the tablename is temporary
