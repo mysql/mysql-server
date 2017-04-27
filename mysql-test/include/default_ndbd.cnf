@@ -5,7 +5,7 @@ MaxNoOfConcurrentTransactions= 2048
 MaxNoOfConcurrentOperations=   10000
 MaxNoOfConcurrentScans=        64
 BatchSizePerLocalScan=         64
-DataMemory=                    300M
+DataMemory=                    600M
 Diskless=                      0
 TimeBetweenWatchDogCheck=      30000
 MaxNoOfOrderedIndexes=         128
@@ -13,23 +13,23 @@ MaxNoOfAttributes=             2048
 TimeBetweenGlobalCheckpoints=  3000
 TimeBetweenLocalCheckpoints=   24
 TimeBetweenEpochs=             100
-NoOfFragmentLogFiles=          4
-FragmentLogFileSize=           12M
-DiskPageBufferMemory=          4M
-SharedGlobalMemory=            20M
+NoOfFragmentLogFiles=          8
+FragmentLogFileSize=           64M
+DiskPageBufferMemory=          256M
+SharedGlobalMemory=            256M
 LongMessageBuffer=             4M
 RedoBuffer=                    4M
 BackupDataBufferSize=          2M
 BackupLogBufferSize=           2M
-BackupMemory=                  4M
+BackupMemory=                  64M
 TwoPassInitialNodeRestartCopy=1
 TransactionDeadlockDetectionTimeout=3000
 Checksum=1
 
 # O_DIRECT has issues on 2.4 which have not been handled, Bug #29612
 #ODirect= 1
-CompressedLCP= 1
-CompressedBackup= 1
+CompressedLCP= 0
+CompressedBackup= 0
 # the following parametes just function as a small regression
 # test that the parameter exists
 InitialNoOfOpenFiles= 27
@@ -47,7 +47,7 @@ DiskIOThreadPool=1
 #
 # (Option is ignored for non-MT'ed NDB)
 #
-ThreadConfig=main={count=1},tc={count=3},ldm={count=4},io={count=1},rep={count=1},recv={count=2},send={count=2}
+ThreadConfig=main={count=1},tc={count=1},ldm={count=1},io={count=1},rep={count=1},recv={count=1},send={count=1}
 
 
 [ENV]
