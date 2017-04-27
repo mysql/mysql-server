@@ -1460,6 +1460,12 @@ public:
    @returns  false for success, true for error
  */
  bool contains_records(THD *thd, bool *retval);
+
+  /**
+    Virtual fields of type BLOB have a flag m_keep_old_value. This flag is set
+    to false for all such fields in this table.
+  */
+  void blobs_need_not_keep_old_value();
 };
 
 
