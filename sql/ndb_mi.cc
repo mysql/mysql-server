@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2017 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -119,5 +119,19 @@ bool ndb_mi_get_slave_sql_running()
   Multisource_info_guard msi;
   return msi.get_default_mi()->rli->slave_running;
 }
+
+ulong ndb_mi_get_slave_parallel_workers()
+{
+  Multisource_info_guard msi;
+  return msi.get_default_mi()->rli->opt_slave_parallel_workers;
+}
+
+uint32 ndb_get_number_of_channels()
+{
+  Multisource_info_guard msi;
+  return channel_map.get_num_instances();
+}
+
+/* #ifdef HAVE_NDB_BINLOG */
 
 #endif
